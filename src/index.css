@@ -1,0 +1,1720 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=Press+Start+2P&family=Syne:wght@700;800&family=Playfair+Display:ital,wght@0,900;1,900&family=JetBrains+Mono:wght@800&family=Kalam:wght@700&family=Quicksand:wght@500;700&family=Inter:wght@400;500;600;700;900&family=Patrick+Hand&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Open+Sans:wght@700;800&family=Fredoka:wght@400;500;600;700&family=Outfit:wght@400;500;650;800&family=Cinzel:wght@700;900&family=Comfortaa:wght@500;700&family=Edu+VIC+WA+NT+Beginner:wght@400;500;600;700&family=Playpen+Sans:wght@400;500;600;800&family=Caveat:wght@400;600;700&family=Comic+Neue:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;700;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--app-font, "Inter", ui-sans-serif, system-ui, sans-serif);
+  --font-display: "Syne", sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-pressstart: "Press Start 2P", "JetBrains Mono", monospace;
+  --font-handwritten: "Kalam", cursive;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-surface3: var(--surface3);
+  --color-border: var(--border);
+  --color-border2: var(--border2);
+  --color-text-primary: var(--text);
+  --color-text-secondary: var(--text2);
+  --color-text-muted: var(--text3);
+  --color-accent: var(--accent);
+  
+  --color-app-bg: var(--app-bg, var(--bg));
+  --color-card-bg: var(--card-bg, var(--surface));
+  --color-card-bg-subtle: var(--card-bg-subtle, var(--surface2));
+  --color-border-color: var(--border-color, var(--border));
+  --color-accent-text: var(--accent-text, var(--btn-text, #ffffff));
+  
+  --shadow-glow: var(--glow, none);
+
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+}
+
+@layer base {
+  :root {
+    --bg: #F9FAFB;
+    --surface: #ffffff;
+    --surface2: #f4f6f8;
+    --surface3: #edeff2;
+    --border: #eef1f5;
+    --border2: #e2e8f0;
+    --text: #0f172a;
+    --text2: #344154;
+    --text3: #5b6e85;  /* Enhanced from #94a3b8 to exceed WCAG AA 4.5:1 contrast ratio */
+    --accent: #10b981; /* Emerald 500 */
+    --green: #10b981;
+    --green-light: #ecfdf5;
+    --red: #ef4444;
+    --red-light: #fef2f2;
+    --amber: #f59e0b;
+    --amber-light: #fffbeb;
+    --blue: #3b82f6;
+    --blue-light: #eff6ff;
+    --purple: #8b5cf6;
+    --purple-light: #f5f3ff;
+    --app-font: "Inter", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  [data-style="classic_light"] {
+    --bg: #f5f7fa;
+    --surface: #ffffff;
+    --surface2: #f3f6f8;
+    --surface3: #e8edf1;
+    --border: #dfe5eb;
+    --border2: #c5d0da;
+    --text: #172033;
+    --text2: #435168;
+    --text3: #68778d;
+    --accent: #0f766e;
+    --btn-text: #ffffff;
+    --bg-pattern: none;
+    --bg-size: 24px 24px;
+    --glow: none;
+    --app-font: "Inter", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  [data-style="deep_dark"] {
+    --bg: #09090b;
+    --surface: #18181b;
+    --surface2: #27272a;
+    --surface3: #3f3f46;
+    --border: #34343a;
+    --border2: #52525b;
+    --text: #fafafa;
+    --text2: #e4e4e7;
+    --text3: #a1a1aa;
+    --accent: #ff8800;
+    --btn-text: #ffffff;
+    --bg-pattern: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    --bg-size: 24px 24px;
+    --glow: none;
+    --app-font: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  [data-style="soft_sage"] {
+    --bg: #f1f4f1;
+    --surface: #ffffff;
+    --surface2: #e7ece7;
+    --surface3: #d3ded3;
+    --border: #d5dfd5;
+    --border2: #a6bda6;
+    --text: #1a271a;
+    --text2: #2d452d;
+    --text3: #587358;
+    --accent: #2d452d;
+    --btn-text: #ffffff;
+    --bg-pattern: none;
+    --bg-size: 24px 24px;
+    --glow: none;
+    --app-font: "Quicksand", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  [data-style="ocean_breeze"] {
+    --bg: #f4f8fc;
+    --surface: #ffffff;
+    --surface2: #e0eaf5;
+    --surface3: #c2d6eb;
+    --border: #d4e1ed; 
+    --border2: #91b1d4;
+    --text: #0c1a2e; 
+    --text2: #1e3a63; 
+    --text3: #4b6a8f; 
+    --accent: #2563eb;
+    --btn-text: #ffffff;
+    --bg-pattern: none;
+    --bg-size: 24px 24px;
+    --glow: none;
+    --app-font: "Lexend", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  [data-style="warm_sand"] {
+    --bg: #fdfaf6;
+    --surface: #ffffff;
+    --surface2: #f6ecdf;
+    --surface3: #ebdac3;
+    --border: #eadfce; 
+    --border2: #d3b38d;
+    --text: #362412; 
+    --text2: #5c4125; 
+    --text3: #8a6c50; 
+    --accent: #ea580c;
+    --btn-text: #ffffff;
+    --bg-pattern: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
+    --bg-size: 200px 200px;
+    --glow: none;
+    --app-font: "Source Serif 4", ui-serif, Georgia, serif;
+  }
+
+  [data-style="custom_theme"] {
+    --bg: #f3f4f6;
+    --surface: rgba(255, 255, 255, 0.95);
+    --surface2: #f9fafb;
+    --surface3: #f3f4f6;
+    --border: #e2e8f0;
+    --border2: #cbd5e1;
+    --text: #171717;
+    --text2: #404040;
+    --text3: #595959;
+    --accent: #14b8a6;
+    --btn-text: #ffffff;
+    --bg-pattern: none;
+    --bg-size: 24px 24px;
+    --glow: none;
+    --app-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  [data-style="lavender_field"] {
+    --bg: #f8f6fc;
+    --surface: #ffffff;
+    --surface2: #f1edfa;
+    --surface3: #e2d9f5;
+    --border: #e5daf4;
+    --border2: #b9a3e3;
+    --text: #1e133d; 
+    --text2: #3a2670; 
+    --text3: #655299; 
+    --accent: #6d28d9;
+    --btn-text: #ffffff;
+    --bg-pattern: none;
+    --bg-size: 24px 24px;
+    --glow: none;
+    --app-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  [data-style="peach_blossom"] {
+    --bg: #fffbf8;
+    --surface: #ffffff;
+    --surface2: #ffece1;
+    --surface3: #ffd6c2;
+    --border: #f4ddce;
+    --border2: #eea47e;
+    --text: #451a03; 
+    --text2: #7c2d12; 
+    --text3: #9a3412; 
+    --accent: #f97316;
+    --btn-text: #ffffff;
+    --bg-pattern: none;
+    --bg-size: 24px 24px;
+    --glow: none;
+    --app-font: "Fredoka", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  [data-style="cozy_mint"] {
+    --bg: #f2fcf7;
+    --surface: #ffffff;
+    --surface2: #e3f7ed;
+    --surface3: #c5ebda;
+    --border: #d3eadf;
+    --border2: #82c9a9;
+    --text: #022c22; 
+    --text2: #064e43; 
+    --text3: #047857; 
+    --accent: #059669;
+    --btn-text: #ffffff;
+    --bg-pattern: none;
+    --bg-size: 24px 24px;
+    --glow: none;
+    --app-font: "Lexend", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  [data-style="sakura_dream"] {
+    --bg: #fff5f8;
+    --surface: #ffffff;
+    --surface2: #ffe4ea;
+    --surface3: #ffc9d6;
+    --border: #f4d6de;
+    --border2: #eb8fa8;
+    --text: #4c0519; 
+    --text2: #85062c; 
+    --text3: #be123c; 
+    --accent: #e11d48;
+    --btn-text: #ffffff;
+    --bg-pattern: radial-gradient(rgba(225, 29, 72, 0.05) 1px, transparent 1px);
+    --bg-size: 24px 24px;
+    --glow: none;
+    --app-font: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  [data-style="candy"] {
+    --bg: #fdf4ff;
+    --surface: rgba(255, 255, 255, 0.95);
+    --surface2: #fbcfe8;
+    --surface3: #f9a8d4;
+    --border: #fce7f3;
+    --border2: #f472b6;
+    --text: #4a044e;
+    --text2: #701a75;
+    --text3: #86198f;
+    --accent: #d946ef;
+    --btn-text: #ffffff;
+    --bg-pattern: repeating-conic-gradient(from 0deg, #ff9a9e 0deg 30deg, #fecfef 30deg 60deg, #a18cd1 60deg 90deg, #fbc2eb 90deg 120deg, #8fd3f4 120deg 150deg, #84fab0 150deg 180deg, #fccb90 180deg 210deg, #d57eeb 210deg 240deg, #fddb92 240deg 270deg, #d1fdff 270deg 300deg, #f68084 300deg 330deg, #fcf4ba 330deg 360deg);
+    --bg-size: 100% 100%;
+    --glow: none;
+    --app-font: "Fredoka", ui-sans-serif, system-ui, sans-serif;
+  }
+  
+  /* Universal Overrides to force standard utility classes to adapt correctly on non-cockpit pages */
+  [data-style="classic_light"],
+  [data-style="deep_dark"],
+  [data-style="soft_sage"],
+  [data-style="ocean_breeze"],
+  [data-style="warm_sand"],
+  [data-style="lavender_field"],
+  [data-style="cozy_mint"],
+  [data-style="sakura_dream"],
+  [data-style="candy"],
+  [data-style="custom_theme"] {
+    --app-bg: var(--bg);
+    --card-bg: var(--surface);
+    --card-bg-subtle: var(--surface2);
+    --text-primary: var(--text);
+    --text-secondary: var(--text2);
+    --text-muted: var(--text3);
+    --border-color: var(--border);
+    --accent-text: var(--btn-text, #ffffff);
+
+    /* Sidebar and structural color conversions */
+    aside, .bg-white, .bg-slate-50\/50, .bg-white\/70, .bg-white\/80, .bg-white\/90, .bg-white\/95, .bg-neutral-900, .bg-neutral-900\/80, .bg-neutral-900\/90, .bg-neutral-950, .bg-neutral-950\/85, .bg-neutral-950\/40, .bg-indigo-950, .bg-purple-950, .bg-slate-900, .bg-slate-900\/90, .bg-slate-950, .bg-\[\#1e293b\], .bg-\[\#121212\], .bg-\[\#0f1c15\], .bg-\[\#171430\], .bg-stone-900, .bg-stone-950, .bg-zinc-900, .bg-zinc-950 {
+      background-color: var(--surface) !important;
+    }
+    .bg-slate-50, .bg-slate-100\/50, .bg-neutral-800, .bg-neutral-800\/80, .bg-neutral-850, .bg-neutral-850\/80, .bg-neutral-805, .bg-neutral-750, .bg-neutral-700, .bg-slate-800, .bg-slate-850, .bg-neutral-900\/10, .bg-stone-50, .bg-zinc-50, .bg-neutral-50, .bg-gray-50 {
+      background-color: var(--surface2) !important;
+    }
+    .bg-slate-100, .bg-slate-200\/50, .bg-gray-100, .bg-stone-100, .bg-zinc-100, .bg-neutral-100 {
+      background-color: var(--surface3) !important;
+    }
+
+    /* Borders */
+    .border-slate-100, .border-slate-150, .border-slate-200, .border-slate-200\/50, .border-slate-250, .border-slate-105, .border-gray-100, .border-gray-200, .border-r, .border-neutral-800, .border-neutral-850, .border-neutral-750, .border-neutral-700, .border-neutral-900\/40, .border-neutral-800\/40, .border-slate-700, .border-slate-800, .border-purple-900\/40, .border-emerald-800\/40, .border-amber-500\/30, .border-slate-300, .border-gray-300, .border-stone-100, .border-stone-150, .border-stone-200, .border-stone-250, .border-stone-300, .border-zinc-100, .border-zinc-200, .border-zinc-300, .border-neutral-100, .border-neutral-200 {
+      border-color: var(--border) !important;
+    }
+
+    /* Text Colors */
+    .text-slate-900, .text-slate-800, .text-gray-950, .text-slate-950, .text-slate-900\/90, .text-neutral-100, .text-neutral-200, .text-slate-100, .text-slate-200, .text-gray-100, .text-gray-200, .text-slate-55, .text-slate-50, .text-zinc-950, .text-zinc-900, .text-zinc-800, .text-zinc-100, .text-stone-950, .text-stone-900, .text-stone-100, .text-stone-200, .text-neutral-950, .text-neutral-900, .text-black, .text-stone-850, .text-zinc-850, .text-neutral-850 {
+      color: var(--text) !important;
+    }
+    .bg-slate-900.text-white, .bg-slate-900 .text-white, .bg-slate-950.text-white, .bg-slate-950 .text-white, .bg-neutral-900.text-white, .bg-neutral-900 .text-white {
+      color: var(--text) !important;
+    }
+    .text-slate-850, .text-slate-800, .text-slate-750, .text-slate-705, .text-slate-700, .text-slate-650, .text-slate-600, .text-gray-700, .text-neutral-300, .text-slate-300, .text-gray-300, .text-purple-100, .text-amber-100, .text-emerald-100, .text-zinc-700, .text-zinc-650, .text-zinc-600, .text-stone-700, .text-stone-600, .text-neutral-800, .text-neutral-700, .text-neutral-600, .text-stone-800, .text-zinc-800, .text-gray-800 {
+      color: var(--text2) !important;
+    }
+    .text-slate-550, .text-slate-500, .text-slate-450, .text-slate-400, .text-gray-500, .text-gray-400, .text-neutral-500, .text-neutral-400, .text-zinc-500, .text-zinc-400, .text-stone-500, .text-stone-400, .text-stone-300, .text-zinc-300, .text-neutral-300 {
+      color: var(--text3) !important;
+    }
+
+    /* Exception to preserve white/light text inside colored/action badges & buttons */
+    .bg-accent, .bg-accent *, .bg-accent.text-white, .bg-accent .text-white,
+    .btn-accent,
+    .btn-accent * {
+      color: var(--btn-text, #ffffff) !important;
+    }
+    
+    /* Dedicated rules for colored flags that should NOT be overriden by universal text */
+    .bg-emerald-500.text-white, .bg-emerald-500 .text-white,
+    .bg-rose-500.text-white, .bg-rose-500 .text-white,
+    .bg-rose-600.text-white, .bg-rose-600 .text-white,
+    .bg-amber-500.text-white, .bg-amber-500 .text-white,
+    .bg-blue-500.text-white, .bg-blue-500 .text-white,
+    .bg-purple-500.text-white, .bg-purple-500 .text-white,
+    .bg-indigo-600.text-white, .bg-indigo-600 .text-white,
+    .bg-indigo-500.text-white, .bg-indigo-500 .text-white {
+        color: #ffffff !important;
+    }
+
+    /* CRITICAL: Preserve original text contrast inside the immersive kid game area and previews
+       Prevents global theme selectors from overriding these text styles into low-contrast grey on forest green background */
+    .gabic-game-screen .text-white, .gabic-game-screen .text-white *, [data-style] .gabic-game-screen .text-white, [data-style] .gabic-game-screen .text-white *, .immersive-game-hud .text-white, .immersive-game-hud .text-white * {
+      color: #ffffff !important;
+    }
+    .gabic-game-screen .text-slate-50, .gabic-game-screen .text-slate-50 *, [data-style] .gabic-game-screen .text-slate-50, [data-style] .gabic-game-screen .text-slate-50 *, .immersive-game-hud .text-slate-50, .immersive-game-hud .text-slate-50 * {
+      color: #f8fafc !important;
+    }
+    .gabic-game-screen .text-slate-100, .gabic-game-screen .text-slate-100 *, [data-style] .gabic-game-screen .text-slate-100, [data-style] .gabic-game-screen .text-slate-100 *, .immersive-game-hud .text-slate-100, .immersive-game-hud .text-slate-100 * {
+      color: #f1f5f9 !important;
+    }
+    .gabic-game-screen .text-slate-200, .gabic-game-screen .text-slate-200 *, [data-style] .gabic-game-screen .text-slate-200, [data-style] .gabic-game-screen .text-slate-200 *, .immersive-game-hud .text-slate-200, .immersive-game-hud .text-slate-200 * {
+      color: #e2e8f0 !important;
+    }
+    .gabic-game-screen .text-slate-300, .gabic-game-screen .text-slate-300 *, [data-style] .gabic-game-screen .text-slate-300, [data-style] .gabic-game-screen .text-slate-300 *, .immersive-game-hud .text-slate-300, .immersive-game-hud .text-slate-300 * {
+      color: #cbd5e1 !important;
+    }
+    .gabic-game-screen .text-amber-100, .gabic-game-screen .text-amber-100 *, [data-style] .gabic-game-screen .text-amber-100, [data-style] .gabic-game-screen .text-amber-100 *, .immersive-game-hud .text-amber-100, .immersive-game-hud .text-amber-100 * {
+      color: #fef3c7 !important;
+    }
+    .gabic-game-screen .text-amber-200, .gabic-game-screen .text-amber-200 *, [data-style] .gabic-game-screen .text-amber-200, [data-style] .gabic-game-screen .text-amber-200 *, .immersive-game-hud .text-amber-200, .immersive-game-hud .text-amber-200 * {
+      color: #fde68a !important;
+    }
+    .gabic-game-screen .text-amber-300, .gabic-game-screen .text-amber-300 *, [data-style] .gabic-game-screen .text-amber-300, [data-style] .gabic-game-screen .text-amber-300 *, .immersive-game-hud .text-amber-300, .immersive-game-hud .text-amber-300 * {
+      color: #fcd34d !important;
+    }
+    .gabic-game-screen .text-amber-400, .gabic-game-screen .text-amber-400 *, [data-style] .gabic-game-screen .text-amber-400, [data-style] .gabic-game-screen .text-amber-400 *, .immersive-game-hud .text-amber-400, .immersive-game-hud .text-amber-400 * {
+      color: #fbbf24 !important;
+    }
+    .gabic-game-screen .text-emerald-100, .gabic-game-screen .text-emerald-100 *, [data-style] .gabic-game-screen .text-emerald-100, [data-style] .gabic-game-screen .text-emerald-100 *, .immersive-game-hud .text-emerald-100, .immersive-game-hud .text-emerald-100 * {
+      color: #d1fae5 !important;
+    }
+    .gabic-game-screen .text-emerald-200, .gabic-game-screen .text-emerald-200 *, [data-style] .gabic-game-screen .text-emerald-200, [data-style] .gabic-game-screen .text-emerald-200 *, .immersive-game-hud .text-emerald-200, .immersive-game-hud .text-emerald-200 * {
+      color: #a7f3d0 !important;
+    }
+    .gabic-game-screen .text-emerald-300, .gabic-game-screen .text-emerald-300 *, [data-style] .gabic-game-screen .text-emerald-300, [data-style] .gabic-game-screen .text-emerald-300 *, .immersive-game-hud .text-emerald-300, .immersive-game-hud .text-emerald-300 * {
+      color: #6ee7b7 !important;
+    }
+    .gabic-game-screen .text-emerald-400, .gabic-game-screen .text-emerald-400 *, [data-style] .gabic-game-screen .text-emerald-400, [data-style] .gabic-game-screen .text-emerald-400 *, .immersive-game-hud .text-emerald-400, .immersive-game-hud .text-emerald-400 * {
+      color: #34d399 !important;
+    }
+    .gabic-game-screen .text-slate-950, .gabic-game-screen .text-slate-950 *, [data-style] .gabic-game-screen .text-slate-950, [data-style] .gabic-game-screen .text-slate-950 *, .immersive-game-hud .text-slate-950, .immersive-game-hud .text-slate-950 * {
+      color: #020617 !important;
+    }
+    .gabic-game-screen .text-slate-900, .gabic-game-screen .text-slate-900 *, [data-style] .gabic-game-screen .text-slate-900, [data-style] .gabic-game-screen .text-slate-900 *, .immersive-game-hud .text-slate-900, .immersive-game-hud .text-slate-900 * {
+      color: #0f172a !important;
+    }
+
+    /* Input elements inside the pages */
+    .input-field, input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+      background-color: var(--surface2) !important;
+      border-color: var(--border) !important;
+      color: var(--text) !important;
+    }
+    .input-field:focus, input:not([type="checkbox"]):not([type="radio"]):focus, select:focus, textarea:focus {
+      background-color: var(--surface) !important;
+      border-color: var(--accent) !important;
+    }
+
+    /* Scrollbar */
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: var(--border2) !important;
+    }
+  }
+}
+
+/* Theme-feste semantische token Klassen */
+.text-primary-Token, .text-primary-token { color: var(--text) !important; }
+.text-secondary-Token, .text-secondary-token { color: var(--text2) !important; }
+.text-muted-Token, .text-muted-token { color: var(--text3) !important; }
+.card-bg-Token, .card-bg-token { background-color: var(--surface) !important; }
+.card-bg-subtle-Token, .card-bg-subtle-token { background-color: var(--surface2) !important; }
+.app-bg-Token, .app-bg-token { background-color: var(--bg) !important; }
+.border-color-Token, .border-color-token { border-color: var(--border) !important; }
+
+/* Appweite visuelle Hierarchie: Themes sollen nicht nur umfärben, sondern Flächen klar staffeln. */
+[data-style] main .bg-white[class*="rounded-"],
+[data-style] main .card-bg-token[class*="rounded-"] {
+  border-color: var(--border) !important;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 7%, transparent),
+              0 10px 28px color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+[data-style] main button[aria-pressed="true"],
+[data-style] main [role="switch"][aria-checked="true"] {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent) !important;
+}
+
+[data-style] main input::placeholder,
+[data-style] main textarea::placeholder {
+  color: var(--text3) !important;
+  opacity: 0.9;
+}
+
+[data-style] main button:disabled,
+[data-style] main input:disabled,
+[data-style] main select:disabled {
+  opacity: 0.55;
+}
+
+/* Helle semantische Hinweisflächen benötigen im Deep-Dark-Theme eigene dunkle Gegenstücke. */
+[data-style="deep_dark"] .bg-blue-50,
+[data-style="deep_dark"] .bg-blue-50\/50,
+[data-style="deep_dark"] .bg-sky-50,
+[data-style="deep_dark"] .bg-sky-50\/50,
+[data-style="deep_dark"] .bg-indigo-50,
+[data-style="deep_dark"] .bg-indigo-50\/50 {
+  background-color: #172554 !important;
+}
+[data-style="deep_dark"] .bg-emerald-50,
+[data-style="deep_dark"] .bg-emerald-50\/50,
+[data-style="deep_dark"] .bg-teal-50,
+[data-style="deep_dark"] .bg-green-50 {
+  background-color: #052e2b !important;
+}
+[data-style="deep_dark"] .bg-amber-50,
+[data-style="deep_dark"] .bg-amber-50\/50,
+[data-style="deep_dark"] .bg-orange-50,
+[data-style="deep_dark"] .bg-yellow-50 {
+  background-color: #3b2407 !important;
+}
+[data-style="deep_dark"] .bg-rose-50,
+[data-style="deep_dark"] .bg-rose-50\/50,
+[data-style="deep_dark"] .bg-red-50,
+[data-style="deep_dark"] .bg-pink-50 {
+  background-color: #3b101b !important;
+}
+[data-style="deep_dark"] .bg-violet-50,
+[data-style="deep_dark"] .bg-purple-50 {
+  background-color: #2e1065 !important;
+}
+
+[data-style="deep_dark"] .text-blue-600,
+[data-style="deep_dark"] .text-blue-700,
+[data-style="deep_dark"] .text-sky-600,
+[data-style="deep_dark"] .text-indigo-600,
+[data-style="deep_dark"] .text-indigo-700 { color: #93c5fd !important; }
+[data-style="deep_dark"] .text-emerald-600,
+[data-style="deep_dark"] .text-emerald-700,
+[data-style="deep_dark"] .text-green-600,
+[data-style="deep_dark"] .text-teal-600 { color: #6ee7b7 !important; }
+[data-style="deep_dark"] .text-amber-600,
+[data-style="deep_dark"] .text-amber-700,
+[data-style="deep_dark"] .text-orange-600 { color: #fcd34d !important; }
+[data-style="deep_dark"] .text-rose-600,
+[data-style="deep_dark"] .text-rose-700,
+[data-style="deep_dark"] .text-red-600 { color: #fda4af !important; }
+[data-style="deep_dark"] .text-violet-600,
+[data-style="deep_dark"] .text-purple-600 { color: #c4b5fd !important; }
+
+/* Aktionsknöpfe behalten unabhängig vom Theme weißen Text. */
+[data-style] button.bg-blue-600,
+[data-style] button.bg-blue-700,
+[data-style] button.bg-emerald-600,
+[data-style] button.bg-emerald-700,
+[data-style] button.bg-rose-600,
+[data-style] button.bg-indigo-600,
+[data-style] button.bg-violet-600,
+[data-style] button.bg-orange-600 {
+  color: #ffffff !important;
+}
+[data-style] button.bg-blue-600 *,
+[data-style] button.bg-blue-700 *,
+[data-style] button.bg-emerald-600 *,
+[data-style] button.bg-emerald-700 *,
+[data-style] button.bg-rose-600 *,
+[data-style] button.bg-indigo-600 *,
+[data-style] button.bg-violet-600 *,
+[data-style] button.bg-orange-600 * {
+  color: #ffffff !important;
+}
+
+/* Class Pet forced dark mode colors for readability in all dashboard themes */
+.classpet-theme-dark, [data-style] .classpet-theme-dark, [data-style] div.classpet-theme-dark {
+  /* Override key theme colors for the entire subtree to make text readable */
+  --text: #ffffff !important;
+  --text2: #e2e8f0 !important;
+  --text3: #cbd5e1 !important;
+  --btn-text: #ffffff !important;
+}
+
+/* Force standard dark card text within Class Pet overlays to stay bright white / light by default */
+.classpet-theme-dark,
+[data-style] .classpet-theme-dark,
+[data-style] .classpet-theme-dark p,
+[data-style] .classpet-theme-dark span,
+[data-style] .classpet-theme-dark div,
+[data-style] .classpet-theme-dark button,
+[data-style] .classpet-theme-dark h3,
+[data-style] .classpet-theme-dark h4,
+[data-style] .classpet-theme-dark input,
+[data-style] .classpet-theme-dark label,
+[data-style] .classpet-theme-dark option,
+[data-style] .classpet-theme-dark select,
+.classpet-theme-dark p,
+.classpet-theme-dark span,
+.classpet-theme-dark div,
+.classpet-theme-dark button,
+.classpet-theme-dark h3,
+.classpet-theme-dark h4,
+.classpet-theme-dark input {
+  color: #ffffff !important;
+}
+
+/* Guard/Override text contrast of Class Pet floating elements */
+.classpet-text-white, [data-style] .classpet-text-white, [data-style] button.classpet-text-white, [data-style] span.classpet-text-white, [data-style] p.classpet-text-white, [data-style] div.classpet-text-white {
+  color: #ffffff !important;
+}
+.classpet-text-slate-200, [data-style] .classpet-text-slate-200, [data-style] span.classpet-text-slate-200, [data-style] div.classpet-text-slate-200 {
+  color: #e2e8f0 !important;
+}
+.classpet-text-slate-300, [data-style] .classpet-text-slate-300, [data-style] button.classpet-text-slate-300, [data-style] span.classpet-text-slate-300, [data-style] div.classpet-text-slate-300, [data-style] p.classpet-text-slate-300 {
+  color: #cbd5e1 !important;
+}
+.classpet-text-amber-400, [data-style] .classpet-text-amber-400, [data-style] span.classpet-text-amber-400, [data-style] div.classpet-text-amber-400, [data-style] p.classpet-text-amber-400 {
+  color: #fbbf24 !important;
+}
+.classpet-text-emerald-400, [data-style] .classpet-text-emerald-400, [data-style] span.classpet-text-emerald-400, [data-style] div.classpet-text-emerald-400, [data-style] p.classpet-text-emerald-400 {
+  color: #34d399 !important;
+}
+
+/* Allow exceptions for green, amber, red, or brand classes */
+[data-style] .classpet-theme-dark .text-green-400, [data-style] .classpet-theme-dark span.text-green-400, [data-style] .classpet-theme-dark div.text-green-400,
+.classpet-theme-dark .text-green-400, .classpet-theme-dark span.text-green-400, .classpet-theme-dark div.text-green-400 {
+  color: #4ade80 !important;
+}
+[data-style] .classpet-theme-dark .text-amber-450, [data-style] .classpet-theme-dark span.text-amber-450, [data-style] .classpet-theme-dark div.text-amber-450 {
+  color: #fbbf24 !important;
+}
+[data-style] .classpet-theme-dark .text-amber-400, [data-style] .classpet-theme-dark span.text-amber-400, [data-style] .classpet-theme-dark div.text-amber-400,
+.classpet-theme-dark .text-amber-400, .classpet-theme-dark span.text-amber-400, .classpet-theme-dark div.text-amber-400 {
+  color: #fbbf24 !important;
+}
+[data-style] .classpet-theme-dark .text-emerald-400, [data-style] .classpet-theme-dark span.text-emerald-400, [data-style] .classpet-theme-dark div.text-emerald-400,
+.classpet-theme-dark .text-emerald-400, .classpet-theme-dark span.text-emerald-400, .classpet-theme-dark div.text-emerald-400 {
+  color: #34d399 !important;
+}
+[data-style] .classpet-theme-dark .text-rose-500, [data-style] .classpet-theme-dark span.text-rose-500, [data-style] .classpet-theme-dark div.text-rose-500,
+.classpet-theme-dark .text-rose-500, .classpet-theme-dark span.text-rose-500, .classpet-theme-dark div.text-rose-500 {
+  color: #f43f5e !important;
+}
+[data-style] .classpet-theme-dark .text-amber-500, [data-style] .classpet-theme-dark span.text-amber-500, [data-style] .classpet-theme-dark div.text-amber-500,
+.classpet-theme-dark .text-amber-500, .classpet-theme-dark span.text-amber-500, .classpet-theme-dark div.text-amber-500 {
+  color: #f59e0b !important;
+}
+[data-style] .classpet-theme-dark .text-teal-400, [data-style] .classpet-theme-dark span.text-teal-400, [data-style] .classpet-theme-dark div.text-teal-400 {
+  color: #2dd4bf !important;
+}
+[data-style] .classpet-theme-dark .text-indigo-400, [data-style] .classpet-theme-dark span.text-indigo-400, [data-style] .classpet-theme-dark div.text-indigo-400 {
+  color: #818cf8 !important;
+}
+[data-style] .classpet-theme-dark .text-indigo-600, [data-style] .classpet-theme-dark button.text-white {
+  color: #ffffff !important;
+}
+
+/* Inactive/Muted text contrast inside Class Pet overlays */
+[data-style] .classpet-theme-dark .text-slate-300, [data-style] .classpet-theme-dark button.text-slate-300, [data-style] .classpet-theme-dark span.text-slate-300,
+.classpet-theme-dark .text-slate-300, .classpet-theme-dark button.text-slate-300, .classpet-theme-dark span.text-slate-300 {
+  color: #e2e8f0 !important;
+}
+[data-style] .classpet-theme-dark .text-slate-400, [data-style] .classpet-theme-dark span.text-slate-400, [data-style] .classpet-theme-dark button.text-slate-400,
+.classpet-theme-dark .text-slate-400, .classpet-theme-dark span.text-slate-400, .classpet-theme-dark button.text-slate-400 {
+  color: #cbd5e1 !important;
+}
+[data-style] .classpet-theme-dark .text-slate-450, [data-style] .classpet-theme-dark span.text-slate-450, [data-style] .classpet-theme-dark button.text-slate-450,
+.classpet-theme-dark .text-slate-450, .classpet-theme-dark span.text-slate-450 {
+  color: #cbd5e1 !important;
+}
+[data-style] .classpet-theme-dark .text-slate-500, [data-style] .classpet-theme-dark span.text-slate-500, [data-style] .classpet-theme-dark p.text-slate-500, [data-style] .classpet-theme-dark div.text-slate-500,
+.classpet-theme-dark .text-slate-500, .classpet-theme-dark span.text-slate-500, .classpet-theme-dark p.text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+/* Pure Black backgrounds for classpet items */
+.classpet-black-bg, [data-style] .classpet-black-bg {
+  background-color: #000000 !important;
+}
+
+/* Custom animations for Cockpit */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(0.98); }
+}
+.animate-pulse-subtle {
+  animation: pulse-subtle 4s ease-in-out infinite;
+}
+
+@layer base {
+  body {
+    background-image: var(--bg-pattern);
+    background-size: var(--bg-size);
+    background-attachment: fixed;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    font-family: var(--app-font) !important;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--app-font) !important;
+  }
+
+  .font-display {
+    @apply font-display tracking-tight;
+  }
+
+  .font-standard, .font-standard *:not([style*="font-family"]) { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important; }
+  .font-geometric, .font-geometric *:not([style*="font-family"]) { font-family: "Outfit", "DM Sans", ui-sans-serif, system-ui, sans-serif !important; }
+  .font-friendly, .font-friendly *:not([style*="font-family"]) { font-family: "Fredoka", "Quicksand", sans-serif !important; }
+  .font-handwritten, .font-handwritten *:not([style*="font-family"]) { font-family: "Patrick Hand", "Kalam", cursive, sans-serif !important; }
+  .font-elegant, .font-elegant *:not([style*="font-family"]) { font-family: "Cinzel", "Playfair Display", ui-serif, Georgia, serif !important; }
+  .font-comfort, .font-comfort *:not([style*="font-family"]) { font-family: "Comfortaa", "Quicksand", cursive, sans-serif !important; }
+  .font-serif, .font-serif *:not([style*="font-family"]) { font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif !important; }
+  .font-dyslexic, .font-dyslexic *:not([style*="font-family"]) { font-family: "Lexend", "OpenDyslexic", "Lexend Deca", ui-sans-serif, sans-serif !important; }
+  .font-schulschrift, .font-schulschrift *:not([style*="font-family"]) { font-family: "Edu VIC WA NT Beginner", "Patrick Hand", cursive !important; }
+  .font-druckschrift, .font-druckschrift *:not([style*="font-family"]) { font-family: "Playpen Sans", "Comic Neue", cursive !important; }
+  .font-caveat, .font-caveat *:not([style*="font-family"]) { font-family: "Caveat", "Kalam", cursive !important; }
+  .font-playful, .font-playful *:not([style*="font-family"]) { font-family: "Quicksand", "Comic Sans MS", cursive, sans-serif !important; }
+  .font-mono, .font-mono *:not([style*="font-family"]) { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important; }
+
+  /* Topbar safety */
+  header, .topbar-container {
+    min-height: 48px;
+  }
+
+  /* Root font-size scaling */
+  :root {
+    transition: font-size 0.3s ease;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  [data-zoom="compact"] { font-size: 14px; }
+  [data-zoom="standard"] { font-size: 16px; }
+  [data-zoom="large"] { font-size: 20px; }
+  [data-zoom="maxi"] { font-size: 24px; }
+
+  .app-scale-container {
+    width: 100%;
+    min-height: 100vh;
+  }
+
+  /* Ensure body and main containers respect the boundary */
+  body {
+    max-width: 100vw;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Fallback or specific override if needed */
+  :root:not([data-zoom]) {
+    font-size: 16px;
+  }
+
+  /* Robust keyboard accessibility focus ring */
+  *:focus-visible {
+    outline: 3px solid var(--accent, #10b981) !important;
+    outline-offset: 3px !important;
+    box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.4) !important;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-bold text-[11px] uppercase tracking-[0.14em] cursor-pointer border transition-all duration-200 ease-in-out active:scale-[0.98] shadow-sm hover:shadow-md;
+    background-color: var(--surface2, #ffffff);
+    border-color: var(--border, #e2e8f0);
+    color: var(--text, #0f172a);
+  }
+  .btn:hover {
+    background-color: var(--surface3, #f8fafc);
+    border-color: var(--border-hover, #cbd5e1);
+  }
+  .btn-primary {
+    @apply hover:opacity-90 shadow-md hover:shadow-lg transition-all duration-200 ease-in-out;
+    background-color: var(--text, #0f172a);
+    border-color: var(--text, #0f172a);
+    color: var(--surface, #ffffff);
+  }
+  .btn-accent {
+    @apply hover:opacity-90 shadow-md hover:shadow-lg hover:shadow-accent/10 transition-all duration-200 ease-in-out;
+    background-color: var(--accent, #10b981);
+    border-color: var(--accent, #10b981);
+    color: var(--btn-text, #ffffff);
+    filter: var(--glow, none);
+  }
+  .btn-sm {
+    @apply px-4 py-2.5 text-[9px] rounded-xl;
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent hover:bg-slate-50 hover:text-slate-950 shadow-none transition-all duration-200 ease-in-out;
+  }
+
+  .card {
+    @apply bg-surface border border-border rounded-2xl shadow-sm p-6 transition-all duration-200 ease-in-out hover:shadow-md hover:border-accent/20;
+    filter: var(--glow, none);
+  }
+  
+  .input-field {
+    @apply w-full bg-slate-50 border border-slate-100 rounded-2xl px-5 py-4 text-[14px] font-medium outline-none transition-all duration-200 focus:border-accent/80 focus:bg-white focus:ring-4 focus:ring-accent/15 placeholder:text-slate-400;
+  }
+
+  .pill {
+    @apply px-4 py-2 rounded-full border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest cursor-pointer text-slate-500 transition-all duration-200 hover:shadow-md hover:translate-y-[-1px] hover:text-slate-800;
+  }
+  .pill.active {
+    @apply bg-accent border-accent text-white shadow-lg shadow-accent/25 hover:text-white;
+  }
+
+  /* Custom Premium Table Styling */
+  .table-premium {
+    @apply w-full border-collapse overflow-hidden rounded-2xl;
+  }
+  .table-premium th {
+    @apply bg-slate-50/80 backdrop-blur-sm text-slate-500 font-extrabold uppercase tracking-widest text-[10px] py-4 px-5 border-b border-slate-100 text-left;
+  }
+  .table-premium td {
+    @apply py-4 px-5 border-b border-slate-100/70 text-slate-700 text-xs transition-all duration-150;
+  }
+  .table-premium tr:hover td {
+    @apply bg-slate-50/50 text-slate-900;
+  }
+  .table-premium tr:last-child td {
+    @apply border-b-0;
+  }
+
+  /* 1. Premium Input Fields Style */
+  .input-premium {
+    @apply w-full bg-slate-50/45 border border-slate-200/60 rounded-2xl px-5 py-3.5 text-[13px] font-medium text-slate-800 outline-none transition-all duration-300 focus:border-accent focus:bg-white focus:ring-4 focus:ring-accent/10 placeholder:text-slate-400 shadow-inner;
+  }
+
+  /* 2. Custom Premium Badges System */
+  .badge-emerald {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/5 text-emerald-600 border border-emerald-500/10;
+  }
+  .badge-rose {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-rose-500/5 text-rose-600 border border-rose-500/10;
+  }
+  .badge-amber {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-amber-500/5 text-amber-600 border border-amber-500/10;
+  }
+  .badge-blue {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-500/5 text-blue-600 border border-blue-500/10;
+  }
+  .badge-indigo {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-indigo-500/5 text-indigo-600 border border-indigo-500/10;
+  }
+  .badge-slate {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-slate-500/5 text-slate-600 border border-slate-500/10;
+  }
+
+  /* 3. Premium Keyboard Focus Ring */
+  .focus-premium {
+    @apply focus-visible:ring-4 focus-visible:ring-accent/25 focus-visible:outline-none transition-all duration-200;
+  }
+
+  /* 4. Custom Skeleton Loading Effect */
+  .skeleton-premium {
+    @apply bg-gradient-to-r from-slate-50 via-slate-100 to-slate-50 bg-[length:400%_100%] animate-[shimmer_1.8s_infinite] rounded-2xl;
+  }
+
+  /* 5. Custom Premium Progress Tracker */
+  .progress-premium-track {
+    @apply w-full h-2.5 bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/20;
+  }
+  .progress-premium-bar {
+    @apply h-full bg-accent rounded-full transition-all duration-500 ease-out relative overflow-hidden;
+  }
+  .progress-premium-bar::after {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent bg-[length:40%_100%] animate-[shimmer_2s_infinite];
+  }
+}
+
+/* Strong, theme-independent contrast inside dark classroom cockpit designs. */
+.cockpit-contrast-dark .text-slate-400,
+.cockpit-contrast-dark .text-neutral-400 { color: #cbd5e1 !important; }
+.cockpit-contrast-dark .text-slate-500,
+.cockpit-contrast-dark .text-neutral-500 { color: #b8c4d4 !important; }
+.cockpit-contrast-dark .text-slate-600 { color: #dbe3ee !important; }
+.cockpit-contrast-dark .text-indigo-500 { color: #a5b4fc !important; }
+.cockpit-contrast-dark .text-emerald-500 { color: #6ee7b7 !important; }
+.cockpit-contrast-dark .text-amber-500 { color: #fcd34d !important; }
+.cockpit-contrast-dark .text-rose-500 { color: #fda4af !important; }
+
+.student-settings-modal .text-neutral-350,
+.student-settings-modal .text-neutral-400,
+.student-settings-modal .text-neutral-450,
+.student-settings-modal .text-neutral-500,
+.student-settings-modal .text-neutral-550 { color: #cbd5e1 !important; }
+.student-settings-modal input::placeholder { color: #94a3b8 !important; opacity: 1; }
+
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2); /* slate-400 with opacity */
+  border-radius: 20px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.4);
+}
+[data-style="midnight"] .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hide-scrollbar, .no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar, .no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Elegant thin scrollbar */
+.elegant-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+.elegant-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.elegant-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.elegant-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.3);
+  border-radius: 10px;
+}
+.elegant-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.6);
+}
+.dark .elegant-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+.dark .elegant-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* --- Premium Visual Polishing Utility Classes (Option A) --- */
+.glass-premium {
+  background: rgba(var(--color-surface), 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(var(--color-border), 0.5);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+.card-tactile {
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.03), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-tactile:hover {
+  transform: translateY(-2px);
+  border-color: var(--border2);
+  box-shadow: 0 12px 30px -4px rgba(15, 23, 42, 0.06), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
+}
+
+.hover-glow-accent {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hover-glow-accent:hover {
+  box-shadow: 0 0 20px rgba(var(--color-accent), 0.25);
+  border-color: var(--accent);
+}
+
+.text-gradient-premium {
+  background: linear-gradient(135deg, var(--text) 30%, var(--accent) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+
+/* --- Support for algorithmic dynamic contrast rendering --- */
+.contrast-container .text-white,
+.contrast-container .text-white *,
+.contrast-container.text-white,
+.contrast-container.text-white * {
+  color: #ffffff !important;
+}
+
+.contrast-container .text-neutral-900,
+.contrast-container .text-neutral-900 *,
+.contrast-container.text-neutral-900,
+.contrast-container.text-neutral-900 *,
+.contrast-container .text-zinc-950,
+.contrast-container .text-zinc-950 *,
+.contrast-container.text-zinc-950,
+.contrast-container.text-zinc-950 * {
+  color: #171717 !important;
+}
+
+/* --- Universal Professional Print Framework --- */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm 10mm 10mm 10mm;
+  }
+
+  @page landscapePage {
+    size: A4 landscape;
+    margin: 6mm 10mm 10mm 10mm;
+  }
+
+  .print-force-landscape {
+    page: landscapePage !important;
+  }
+  .print-force-portrait {
+    /* No named page layout to prevent blank page breaks in browser print engines */
+  }
+
+  /* 0. FORCE HIGH-CONTRAST LIGHT THEME GLOBALLY ON PRINT */
+  html,
+  :root,
+  body,
+  [data-style],
+  div,
+  section,
+  table,
+  tr,
+  td,
+  th,
+  p,
+  li,
+  span,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    --bg: #ffffff !important;
+    --surface: #ffffff !important;
+    --surface2: #ffffff !important;
+    --surface3: #f1f5f9 !important;
+    --border: #000000 !important;
+    --border2: #000000 !important;
+    --text: #000000 !important;
+    --text2: #000000 !important;
+    --text3: #222222 !important;
+    --accent: #000000 !important;
+    
+    background-color: var(--surface) !important;
+    color: var(--text) !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Make sure standard headings and text print as absolute black */
+  h1, h2, h3, h4, h5, h6, p, li, span, td, th, div {
+    color: var(--text) !important;
+  }
+
+  /* Allow background colors on small badges, indicators, or status fills */
+  .bg-emerald-50, .bg-emerald-100 { background-color: #f0fdf4 !important; color: #166534 !important; }
+  .bg-rose-50, .bg-rose-100 { background-color: #fff1f2 !important; color: #9f1239 !important; }
+  .bg-amber-50, .bg-amber-100 { background-color: #fef3c7 !important; color: #92400e !important; }
+  .bg-indigo-50, .bg-indigo-100 { background-color: #f5f3ff !important; color: #5b21b6 !important; }
+  .bg-slate-50, .bg-slate-100 { background-color: #f8fafc !important; color: #334155 !important; }
+
+  /* Keep core status texts crisp */
+  .text-emerald-500, .text-emerald-600, .text-emerald-700 { color: #166534 !important; font-weight: bold !important; }
+  .text-rose-500, .text-rose-600, .text-rose-700 { color: #9f1239 !important; font-weight: bold !important; }
+  .text-amber-500, .text-amber-600, .text-amber-700 { color: #92400e !important; font-weight: bold !important; }
+  .text-indigo-500, .text-indigo-600, .text-indigo-700 { color: #5b21b6 !important; font-weight: bold !important; }
+
+  /* Progress bars or exact colored fill points */
+  .bg-emerald-500, .bg-emerald-650 { background-color: #10b981 !important; }
+  .bg-rose-500 { background-color: #f43f5e !important; }
+  .bg-amber-500 { background-color: #f59e0b !important; }
+  .bg-indigo-500, .bg-indigo-600 { background-color: #6366f1 !important; }
+
+  /* 1. Reset Global Layout Constraints */
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 9.5pt !important;
+    line-height: 1.35 !important;
+    font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  #root, 
+  .App, 
+  main,
+  .page-container,
+  [class*="overflow-y-auto"],
+  [class*="overflow-x-auto"] {
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    width: 100% !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Specific height/screen resets for container divs */
+  div[class*="h-screen"], 
+  .flex.h-screen, 
+  .app-scale-container,
+  .print-page-wrapper {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    position: static !important;
+  }
+
+  /* Remove scrollbars */
+  ::-webkit-scrollbar, .custom-scrollbar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* 2. HIDE UNWANTED UI & INTERACTIVE NAVIGATION ELEMENTS */
+  nav, 
+  aside, 
+  header:not(.print-only),
+  .sidebar, 
+  .topbar, 
+  .no-print, 
+  .print-hidden,
+  .print\:hidden,
+  button, 
+  .btn, 
+  .ui-controls, 
+  .floating-utilities, 
+  .breadcrumb,
+  .footer,
+  [role="tooltip"],
+  .toast,
+  .modal-backdrop,
+  .DashboardTour,
+  .Spotlight,
+  .GlobalActions,
+  input[type="text"]::placeholder,
+  textarea::placeholder,
+  .search-container,
+  .filter-bar,
+  .actions-row,
+  .tab-buttons,
+  .no-print-hidden,
+  /* Floating elements and active state assistants */
+  .fixed,
+  .UnifiedFAB,
+  .ai-assistant-bubble,
+  .ai-assistant-chat,
+  .floating-chat-trigger,
+  [class*="assistant-bubble"],
+  [class*="chat-trigger"],
+  [class*="feedback-widget"] { 
+    display: none !important; 
+    visibility: hidden !important;
+    height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+  }
+
+  /* Reveal print-only elements */
+  .print\:block,
+  .print-only,
+  .print-header {
+    display: block !important;
+    visibility: visible !important;
+  }
+
+  /* 3. GRID & FLEX PRESERVATION WITH SAFE COLUMN BREAKING */
+  /* Grid layouts should print nicely as 2 or 3 columns on paper, so we don't force block unless small screen */
+  .grid, [class*="grid-cols-"] {
+    display: grid !important;
+    gap: 12pt !important;
+    page-break-inside: auto !important;
+  }
+
+  /* Allow side-by-side flex layouts for dashboards/reports */
+  .flex-row, .flex:not(.flex-col) {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+  }
+
+  /* Protect cards/items/sections from breaking awkwardly across page splits */
+  .card, 
+  section, 
+  .print-card,
+  .printable-card,
+  .bg-white.rounded-3xl,
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  /* Table Print Optimization */
+  table { 
+    page-break-inside: auto !important; 
+    border-collapse: collapse !important; 
+    width: 100% !important; 
+  }
+  thead { 
+    display: table-header-group !important; 
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  tfoot { display: table-footer-group !important; }
+
+  /* Elegant Card Styling on Print */
+  .card, .print-card, .printable-card, .bg-white.rounded-3xl {
+    border: 0.75pt solid #cbd5e1 !important;
+    border-radius: 6pt !important;
+    background-color: #ffffff !important;
+    margin-bottom: 12pt !important;
+    padding: 10pt !important;
+    page-break-inside: avoid !important;
+    display: block !important;
+  }
+
+  /* 4. REFINED TYPEFACE & ELEMENT-SPECIFIC OPTIMIZATION */
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid !important;
+    font-weight: 800 !important;
+    color: #0d121d !important;
+    margin-top: 0.8rem !important;
+    margin-bottom: 0.4rem !important;
+  }
+
+  h1 { font-size: 16pt !important; }
+  h2 { font-size: 13pt !important; }
+  h3 { font-size: 11pt !important; }
+  h4 { font-size: 9.5pt !important; }
+
+  p, li, span, td {
+    word-break: break-word !important;
+  }
+
+  /* SVGs / Recharts Optimization */
+  svg, .recharts-responsive-container, .recharts-wrapper {
+    max-width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .lucide {
+    display: inline-block !important;
+    stroke: currentColor !important;
+    vertical-align: middle !important;
+    flex-shrink: 0 !important;
+    opacity: 0.85 !important;
+  }
+
+  /* Convert inputs and textareas to elegant handwritten/plain underlined blanks */
+  input[type="number"], 
+  input[type="text"], 
+  textarea,
+  select {
+    border-bottom: 0.75pt solid #94a3b8 !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    background: transparent !important;
+    color: #0f172a !important;
+    padding: 1px 2px !important;
+    border-radius: 0 !important;
+    font-weight: 600 !important;
+    font-size: 9pt !important;
+    box-shadow: none !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+  }
+
+  /* 5. ROBUST TABLE & REPORT LIST REPRESENTATION */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 8pt 0 16pt 0 !important;
+    page-break-inside: auto !important;
+  }
+
+  th, td {
+    padding: 5pt 7pt !important;
+    text-align: left !important;
+    border-bottom: 0.5pt solid #cbd5e1 !important;
+    background: transparent !important;
+    font-size: 8.5pt !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  thead th {
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    font-size: 7.5pt !important;
+    color: #334155 !important;
+    border-bottom: 1.5pt solid #475569 !important;
+    background: #f1f5f9 !important;
+  }
+
+  tbody tr:nth-child(even) {
+    background: #f8fafc !important;
+  }
+
+  /* 6. SYSTEM-WIDE SPECIAL PROGRAMMATIC OVERRIDES */
+
+  /* --- Notenmappe (Gradebook) Precision Sheet --- */
+  .gradebook-table, .wide-print-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+    font-size: 6.5pt !important;
+    line-height: 1.1 !important;
+    page-break-inside: avoid !important;
+  }
+
+  .gradebook-table th, 
+  .gradebook-table td, 
+  .wide-print-table th, 
+  .wide-print-table td {
+    padding: 2.5pt 1.5pt !important;
+    font-size: 6.2pt !important;
+    word-break: break-all !important;
+    border: 0.5pt solid #94a3b8 !important;
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+  }
+
+  .gradebook-table span, .gradebook-table input {
+    font-size: 6pt !important;
+  }
+
+  /* --- Seating Plan (Sitzplan) Scale to Fit --- */
+  .seating-plan-printable {
+    width: 270mm !important;
+    height: 180mm !important;
+    max-width: 100% !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+    border: 1pt solid #cbd5e1 !important;
+    border-radius: 8pt !important;
+    background: #ffffff !important;
+    transform: scale(0.92);
+    transform-origin: top left;
+    page-break-inside: avoid !important;
+  }
+
+  /* --- KEL Dossier & Diagnostic Grid Styling --- */
+  .print-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-bento-grid {
+    display: grid !important;
+    grid-template-cols: repeat(12, minmax(0, 1fr)) !important;
+    gap: 12pt !important;
+    width: 100% !important;
+  }
+
+  /* --- Page Division helpers --- */
+  .page-break, .print-page-break {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .break-inside-avoid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Prevent page breaks between PrintHeader and content wrapper */
+  .print-no-transform {
+    transform: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+    display: block !important;
+    position: static !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+  }
+}
+
+.flex-center {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Base mobile tweaks & safe area */
+@media (max-width: 639px) {
+  .card, .bg-white.rounded-3xl, .bg-white.rounded-\[32px\] {
+    border-radius: 1.25rem !important;
+  }
+  .app-scale-container {
+    padding-bottom: env(safe-area-inset-bottom, 16px) !important;
+  }
+}
+
+/* =========================================================================
+   IMMERSIVE GABICQUEST COLOR PROTECTION & POLISH
+   Overriding theme colors inside the game view to keep it bright and highly readable
+   ========================================================================= */
+
+/* Ensure the background of the game is kept rich emerald dark green */
+.gabic-game-screen,
+[data-style] .gabic-game-screen {
+  background-color: #052e16 !important; /* Deeper dark green for superior contrast */
+  color: #f8fafc !important; /* Default fallback is clean off-white */
+}
+
+/* Force specific backgrounds for standard children game elements */
+.gabic-game-screen .bg-emerald-950,
+.gabic-game-screen .bg-emerald-950\/90,
+.gabic-game-screen .bg-emerald-950\/95,
+[data-style] .gabic-game-screen .bg-emerald-950,
+[data-style] .gabic-game-screen .bg-emerald-950\/90,
+[data-style] .gabic-game-screen .bg-emerald-950\/95 {
+  background-color: #022c22 !important;
+}
+
+.gabic-game-screen .bg-emerald-900,
+.gabic-game-screen .bg-emerald-990,
+[data-style] .gabic-game-screen .bg-emerald-900,
+[data-style] .gabic-game-screen .bg-emerald-990 {
+  background-color: #065f46 !important; /* Visually distinct rich medium-dark green */
+}
+
+/* Default unstyled texts should be readable off-white */
+.gabic-game-screen p:not([class*="text-"]),
+.gabic-game-screen span:not([class*="text-"]),
+.gabic-game-screen h2:not([class*="text-"]),
+.gabic-game-screen h3:not([class*="text-"]),
+.gabic-game-screen h4:not([class*="text-"]) {
+  color: #f8fafc;
+}
+
+/* Force beautiful light amber colors inside the game screen to exceed WCAG contrast */
+.gabic-game-screen .text-amber-100,
+.gabic-game-screen .text-amber-200,
+.gabic-game-screen .text-amber-250,
+.gabic-game-screen .text-amber-300,
+.gabic-game-screen .text-amber-305,
+.gabic-game-screen .text-amber-350,
+.gabic-game-screen .text-amber-400,
+[data-style] .gabic-game-screen .text-amber-100,
+[data-style] .gabic-game-screen .text-amber-200,
+[data-style] .gabic-game-screen .text-amber-250,
+[data-style] .gabic-game-screen .text-amber-300,
+[data-style] .gabic-game-screen .text-amber-305,
+[data-style] .gabic-game-screen .text-amber-350,
+[data-style] .gabic-game-screen .text-amber-400 {
+  color: #fef08a !important; /* Bright warm yellow (amber-200 equivalent) for perfect eye safety */
+}
+
+/* Force light minty/green text colors to remain bright white / light green */
+.gabic-game-screen .text-emerald-100,
+.gabic-game-screen .text-emerald-200,
+.gabic-game-screen .text-emerald-300,
+.gabic-game-screen .text-emerald-100\/90,
+[data-style] .gabic-game-screen .text-emerald-100,
+[data-style] .gabic-game-screen .text-emerald-200,
+[data-style] .gabic-game-screen .text-emerald-300,
+[data-style] .gabic-game-screen .text-emerald-100\/90 {
+  color: #f0fdf4 !important; /* Warm light green-tinted white for maximum legibility */
+}
+
+/* Bright green state indications */
+.gabic-game-screen .text-emerald-400,
+.gabic-game-screen .text-emerald-500,
+[data-style] .gabic-game-screen .text-emerald-400,
+[data-style] .gabic-game-screen .text-emerald-500 {
+  color: #6ee7b7 !important; /* High contrast energetic mint green */
+}
+
+/* Gray texts */
+.gabic-game-screen .text-slate-400,
+.gabic-game-screen .text-slate-500,
+.gabic-game-screen .text-slate-600,
+[data-style] .gabic-game-screen .text-slate-400,
+[data-style] .gabic-game-screen .text-slate-500,
+[data-style] .gabic-game-screen .text-slate-600 {
+  color: #e2e8f0 !important; /* Soft, incredibly high-contrast light slate gray */
+}
+
+/* Active buttons, cards and elements selected: keep text-slate-950 extremely high contrast dark charcoal on golden background */
+.gabic-game-screen .text-slate-950,
+.gabic-game-screen .text-slate-900,
+[data-style] .gabic-game-screen .text-slate-950,
+[data-style] .gabic-game-screen .text-slate-900 {
+  color: #022c22 !important; /* Keep as dark jungle forest green on selected yellow card */
+}
+
+/* Input elements styling */
+.gabic-game-screen select,
+.gabic-game-screen option,
+[data-style] .gabic-game-screen select,
+[data-style] .gabic-game-screen option {
+  color: #022c22 !important; /* Deep dark forest green for readable selections */
+  background-color: #ffffff !important;
+}
+
+/* Detail companion descriptions (unselected cards detail texts) */
+.gabic-game-screen .text-emerald-200,
+[data-style] .gabic-game-screen .text-emerald-200 {
+  color: #a7f3d0 !important; /* Soft bright mint green */
+}
+
+/* Focus-mode selected element style overrides */
+div#root:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > span:nth-of-type(2) {
+  color: #ffffff !important;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(3) > div:nth-of-type(1) {
+  color: #ffffff !important;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) {
+  color: #1e293b !important;
+  transition: transform 0.2s ease-in-out;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1):hover {
+  transform: scale(1.02);
+}
+
+/* TLDRAW UI FIX */
+.tl-ui {
+  z-index: 99999 !important;
+}
+
+.tldraw-panel, .tl-container {
+   pointer-events: auto !important;
+}
+
+.tl-canvas, .tl-background {
+   background: transparent !important;
+}
+
+/* Animated Smart Action Items Dismissal */
+.action-item-card {
+  transition: all 400ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.action-item-completed {
+  animation: actionItemDismiss 400ms cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
+  pointer-events: none !important;
+}
+
+@keyframes actionItemDismiss {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+  30% {
+    opacity: 0.8;
+    transform: scale(0.97);
+    background-color: var(--green-light, rgb(240, 253, 244)) !important;
+    border-color: var(--green, rgb(16, 185, 129)) !important;
+    color: rgb(148, 163, 184);
+    filter: blur(0px);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.85) translateY(-12px);
+    max-height: 0;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    opacity: 0 !important;
+    border-color: transparent !important;
+    filter: blur(4px);
+    visibility: hidden;
+  }
+}
+
+/* FOCUS MODE: Applied directly to the selected element from prompt metadata */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(2) {
+  background-color: #979797 !important;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > button:nth-of-type(2) {
+  background-color: #65de94 !important;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1) {
+  background-color: #73d18a !important;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(1) {
+  background-color: #454545 !important;
+}
+
+div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(3) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(4),
+div#root:nth-of-type(1) > div:nth-of-type(1) > header:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(3) > div:nth-of-type(3) > div:nth-of-type(1) > button:nth-of-type(5) {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* --- Whiteboard (Tafel) Style Corrections & Layout Protection --- */
+.tafel-canvas-stage textarea,
+textarea.tafel-textarea {
+  background-color: transparent !important;
+  outline: none !important;
+}
+
+textarea.instruction-widget-textarea {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  color: var(--instruction-color, inherit) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Ensure children within the text overlay markdown render exactly with inherited color and fonts */
+.tafel-canvas-stage .markdown-body,
+.tafel-canvas-stage .markdown-body * {
+  color: inherit !important;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  font-style: inherit !important;
+  text-decoration: inherit !important;
+}
+
+/* Keep the size selectors and other numeric inputs in inline/text toolbars readable in all themes */
+.tafel-canvas-stage input[type="number"],
+input[type="number"].size-numeric-input,
+.tafel-canvas-stage select {
+  background-color: rgba(9, 9, 11, 0.9) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  font-family: ui-sans-serif, system-ui, sans-serif !important;
+  padding: 2.5px 6px !important;
+  border-radius: 6px !important;
+}
+
+/* --- Fullscreen Mode Expansion & Scroll Trap Removal --- */
+html:fullscreen,
+html:fullscreen body,
+html:fullscreen #root,
+html:fullscreen .flex.h-dvh,
+html:fullscreen main,
+html:fullscreen .app-scale-container,
+html:-webkit-full-screen,
+html:-webkit-full-screen body,
+html:-webkit-full-screen #root,
+html:-webkit-full-screen .flex.h-dvh,
+html:-webkit-full-screen main,
+html:-webkit-full-screen .app-scale-container {
+  overflow: visible !important;
+  height: auto !important;
+  min-height: 100vh !important;
+}
+
+/* Custom subtle animations for Class Pets to make them feel alive */
+@keyframes pet-idle-breathe {
+  0%, 100% {
+    transform: translateX(-50%) scale(1, 1);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.02, 0.98);
+  }
+}
+
+@keyframes pet-idle-float {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-5px);
+  }
+}
+
+@keyframes pet-idle-swing {
+  0%, 100% {
+    transform: translateX(-50%) rotate(-1deg);
+  }
+  50% {
+    transform: translateX(-50%) rotate(1deg);
+  }
+}
+
+.animate-pet-breathe {
+  animation: pet-idle-breathe 4s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.animate-pet-float {
+  animation: pet-idle-float 5s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+.animate-pet-swing {
+  animation: pet-idle-swing 6s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+/* User Requested Style Update from Focus Mode */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(5) {
+  background-color: #807f7f !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(5),
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(3) > div:nth-of-type(1) > div:nth-of-type(5) * {
+  color: #ffffff !important;
+}
+
+/* User Requested Style Update to make fonts black and layout highly visible */
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(1) > button:nth-of-type(1) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(1) > button:nth-of-type(2) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(1) > button:nth-of-type(3) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(1) > button:nth-of-type(4) > span:nth-of-type(1),
+div#root:nth-of-type(1) > div:nth-of-type(1) > main:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(4) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(4) > div:nth-of-type(1) > button:nth-of-type(5) > span:nth-of-type(1) {
+  color: #000000 !important;
+}
+
+/* Ensure all options, labels, headers, and text inputs in the Print Controls panel are solid black and clearly visible */
+.print-center-overlay-parent .no-print p,
+.print-center-overlay-parent .no-print label,
+.print-center-overlay-parent .no-print span:not(.text-white):not([class*="text-white"]),
+.print-center-overlay-parent .no-print h3,
+.print-center-overlay-parent .no-print h4,
+.print-center-overlay-parent .no-print button:not([class*="bg-indigo"]):not([class*="bg-emerald"]):not([class*="bg-slate-900"]):not([class*="bg-slate-950"]) {
+  color: #000000 !important;
+}
+
+/* Enhance contrast of input options and checkboxes for layout clarity */
+.print-center-overlay-parent .no-print input[type="checkbox"] {
+  border-color: #475569 !important;
+}
+
+/* Maintain proper contrast for active/colored primary template or mode buttons */
+.print-center-overlay-parent .no-print button[class*="bg-slate-900"] *,
+.print-center-overlay-parent .no-print button[class*="bg-indigo-600"] *,
+.print-center-overlay-parent .no-print button[class*="bg-emerald-600"] *,
+.print-center-overlay-parent .no-print button[class*="bg-amber-600"] * {
+  color: #ffffff !important;
+}
+
+/* Compact cockpit widgets prioritize controls over their repeated title. */
+@container (max-width: 360px) {
+  .cockpit-widget-title {
+    display: none;
+  }
+}

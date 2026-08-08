@@ -1,0 +1,6 @@
+{
+  "name": "Digitaler Schulplaner Österreich",
+  "description": "Professioneller Unterrichtsplaner mit VOBS-Kalenderintegration, Notenverwaltung, diagnostischen Live-Tests (Mengen blitzen, Zahlenspanne, Stopp-Signal) und KI-Assistent für Lehrer/innen.",
+  "requestFramePermissions": ["microphone", "geolocation", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
