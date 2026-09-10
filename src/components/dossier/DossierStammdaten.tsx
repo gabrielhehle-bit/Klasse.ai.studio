@@ -1,392 +1,546 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Student } from '../../types';
 import { useApp } from '../../context/AppContext';
 import {
-  AlertCircle,
-  Calendar,
-  Check,
-  CheckCircle2,
-  Clock,
-  Copy,
-  Heart,
-  Home,
-  Mail,
-  MapPin,
-  Phone,
-  PhoneCall,
-  Save,
-  School,
-  ShieldCheck,
   User,
-  Users,
-  X
+  Calendar,
+  School,
+  MapPin,
+  Shield,
+  Eye,
+  EyeOff,
+  Edit3,
+  Save,
+  X,
+  Copy,
+  Check,
+  Building2,
+  Clock,
+  Heart
 } from 'lucide-react';
 
 interface DossierStammdatenProps {
   student: Student;
 }
 
-type FieldProps = {
-  label: string;
-  value?: string | number;
-  icon: React.ElementType;
-  field?: keyof Student;
-  type?: 'text' | 'date' | 'email' | 'tel' | 'number';
-  contactLink?: 'tel' | 'mail';
-  emptyLabel?: string;
-};
-
 export default function DossierStammdaten({ student }: DossierStammdatenProps) {
-  const { setApp } = useApp();
+  const { app, setApp } = useApp();
   const [isEditing, setIsEditing] = useState(false);
-  const [editedStudent, setEditedStudent] = useState(student);
+  const [showSvnr, setShowSvnr] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [showLogSuccess, setShowLogSuccess] = useState(false);
 
-  useEffect(() => {
-    setEditedStudent(student);
+  const [formData, setFormData] = useState({
+    vorname: student.vorname || '',
+    nachname: student.nachname || '',
+    geburtstag: student.geburtstag || student.geburtsdatum || '',
+    geschlecht: student.geschlecht || '',
+    besuchsjahr: student.besuchsjahr || '',
+    staatsbuergerschaft: student.staatsbuergerschaft || '',
+    religion: student.religion || '',
+    sv_nummer: student.sv_nummer || '',
+    anschrift: student.anschrift || '',
+    plz: student.plz || '',
+    ort: student.ort || '',
+    erstsprache: student.erstsprache || '',
+    zweitsprache: student.zweitsprache || '',
+  });
+
+  React.useEffect(() => {
+    setFormData({
+      vorname: student.vorname || '',
+      nachname: student.nachname || '',
+      geburtstag: student.geburtstag || student.geburtsdatum || '',
+      geschlecht: student.geschlecht || '',
+      besuchsjahr: student.besuchsjahr || '',
+      staatsbuergerschaft: student.staatsbuergerschaft || '',
+      religion: student.religion || '',
+      sv_nummer: student.sv_nummer || '',
+      anschrift: student.anschrift || '',
+      plz: student.plz || '',
+      ort: student.ort || '',
+      erstsprache: student.erstsprache || '',
+      zweitsprache: student.zweitsprache || '',
+    });
     setIsEditing(false);
+    setShowSvnr(false);
   }, [student.id]);
 
-  const completeness = useMemo(() => {
-    const checks = [
-      { label: 'Geburtsdatum', ready: Boolean(student.geburtstag) },
-      { label: 'Anschrift', ready: Boolean(student.anschrift) },
-      { label: 'PLZ und Ort', ready: Boolean(student.plz && student.ort) },
-      {
-        label: 'mindestens ein Elternkontakt',
-        ready: Boolean(student.telefon_mutter || student.telefon_vater || student.email_eltern)
-      }
-    ];
-    const completed = checks.filter(item => item.ready).length;
-    return {
-      completed,
-      total: checks.length,
-      percentage: Math.round((completed / checks.length) * 100),
-      missing: checks.filter(item => !item.ready).map(item => item.label)
-    };
-  }, [student]);
+  const handleCopy = async (text: string, label: string) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(label);
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch {
+      // ignore
+    }
+  };
 
   const handleSave = () => {
-    const normalizedStudent: Student = {
-      ...editedStudent,
-      name: `${editedStudent.vorname || ''} ${editedStudent.nachname || ''}`.trim(),
+    const updated: Student = {
+      ...student,
+      vorname: formData.vorname.trim(),
+      nachname: formData.nachname.trim(),
+      name: `${formData.vorname.trim()} ${formData.nachname.trim()}`.trim(),
+      geburtstag: formData.geburtstag,
+      geburtsdatum: formData.geburtstag,
+      geschlecht: formData.geschlecht,
+      besuchsjahr: formData.besuchsjahr,
+      staatsbuergerschaft: formData.staatsbuergerschaft.trim(),
+      religion: formData.religion.trim(),
+      sv_nummer: formData.sv_nummer.trim(),
+      anschrift: formData.anschrift.trim(),
+      plz: formData.plz.trim(),
+      ort: formData.ort.trim(),
+      erstsprache: formData.erstsprache.trim(),
+      zweitsprache: formData.zweitsprache.trim(),
       stammdatenAktualisiertAm: new Date().toISOString()
     };
 
     setApp(prev => ({
       ...prev,
-      schueler: prev.schueler.map(s => s.id === student.id ? normalizedStudent : s)
+      schueler: prev.schueler.map(s => (s.id === student.id ? updated : s))
     }));
-    setEditedStudent(normalizedStudent);
     setIsEditing(false);
   };
 
   const handleCancel = () => {
-    setEditedStudent(student);
+    setFormData({
+      vorname: student.vorname || '',
+      nachname: student.nachname || '',
+      geburtstag: student.geburtstag || student.geburtsdatum || '',
+      geschlecht: student.geschlecht || '',
+      besuchsjahr: student.besuchsjahr || '',
+      staatsbuergerschaft: student.staatsbuergerschaft || '',
+      religion: student.religion || '',
+      sv_nummer: student.sv_nummer || '',
+      anschrift: student.anschrift || '',
+      plz: student.plz || '',
+      ort: student.ort || '',
+      erstsprache: student.erstsprache || '',
+      zweitsprache: student.zweitsprache || '',
+    });
     setIsEditing(false);
   };
 
-  const handleCopy = async (text: string, label: string) => {
-    if (!text) return;
-    await navigator.clipboard.writeText(text);
-    setCopiedField(label);
-    setTimeout(() => setCopiedField(null), 2000);
+  // Masking SVNR: e.g. "1234••••••"
+  const formatSvnr = (raw?: string) => {
+    if (!raw || raw.trim() === '') return null;
+    const clean = raw.trim();
+    if (showSvnr) return clean;
+    if (clean.length > 4) {
+      return `${clean.slice(0, 4)}••••••`;
+    }
+    return '••••••••••';
   };
 
-  const handleLogPhoneCall = (parentType: 'Mutter' | 'Vater') => {
-    const number = parentType === 'Mutter' ? student.telefon_mutter : student.telefon_vater;
-    const now = Date.now();
-    const newMeeting = {
-      id: `meet-${now}`,
-      schuelerId: student.id,
-      thema: `Telefonat mit ${parentType}`,
-      datum: new Date().toISOString().split('T')[0],
-      notizen: `Telefonischer Kontakt mit ${parentType} dokumentiert.`,
-      vereinbarungen: number ? `Verwendete Nummer: ${number}` : ''
-    };
-    const statusLogItem = {
-      id: `call-log-${now}`,
-      schuelerId: student.id,
-      timestamp: now,
-      iconId: '2',
-      comment: `Telefonischer Kontakt mit ${parentType} dokumentiert.`
-    };
-
-    setApp((prev: any) => ({
-      ...prev,
-      elterngespraeche: [newMeeting, ...(prev.elterngespraeche || [])],
-      statusLog: [statusLogItem, ...(prev.statusLog || [])]
-    }));
-    setShowLogSuccess(true);
-    setTimeout(() => setShowLogSuccess(false), 4000);
+  const calculateAge = (dateStr?: string) => {
+    if (!dateStr) return null;
+    const parts = dateStr.includes('-') ? dateStr.split('-') : dateStr.split('.');
+    let bDate: Date;
+    if (dateStr.includes('-')) {
+      bDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    } else {
+      bDate = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+    }
+    if (isNaN(bDate.getTime())) return null;
+    const now = new Date();
+    let age = now.getFullYear() - bDate.getFullYear();
+    const m = now.getMonth() - bDate.getMonth();
+    if (m < 0 || (m === 0 && now.getDate() < bDate.getDate())) {
+      age--;
+    }
+    return age >= 0 ? `${age} Jahre` : null;
   };
 
-  const formatBirthday = (value?: string) => {
-    if (!value) return '';
-    const date = new Date(`${value}T00:00:00`);
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('de-DE');
+  const formattedBirthday = () => {
+    const raw = student.geburtstag || student.geburtsdatum;
+    if (!raw) return 'Nicht erfasst';
+    if (raw.includes('-')) {
+      return raw.split('-').reverse().join('.');
+    }
+    return raw;
   };
 
-  const Field = ({
-    label,
-    value,
-    icon: Icon,
-    field,
-    type = 'text',
-    contactLink,
-    emptyLabel = 'Nicht erfasst'
-  }: FieldProps) => {
-    const rawValue = field ? editedStudent[field] : value;
-    const hasValue = value !== undefined && value !== null && String(value).trim() !== '';
-    const isCopied = copiedField === label;
-
-    return (
-      <div className={`rounded-2xl border p-4 transition-colors ${
-        hasValue ? 'border-slate-200 bg-white' : 'border-amber-200 bg-amber-50/45'
-      }`}>
-        <div className="flex items-start gap-3">
-          <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-            hasValue ? 'bg-slate-100 text-slate-500' : 'bg-amber-100 text-amber-600'
-          }`}>
-            <Icon size={16} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="mb-1.5 flex items-center gap-2">
-              <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-500">
-                {label}
-              </span>
-              {!isEditing && hasValue && (
-                <button
-                  onClick={() => handleCopy(String(value), label)}
-                  className="rounded p-0.5 text-slate-400 transition-colors hover:text-indigo-600"
-                  title="In Zwischenablage kopieren"
-                  aria-label={`${label} kopieren`}
-                >
-                  {isCopied ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
-                </button>
-              )}
-            </div>
-
-            {isEditing && field ? (
-              <input
-                type={type}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-[0.8125rem] font-bold text-slate-900 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-                value={rawValue === undefined || rawValue === null ? '' : String(rawValue)}
-                onChange={event => setEditedStudent({
-                  ...editedStudent,
-                  [field]: type === 'number' ? event.target.value : event.target.value
-                })}
-                aria-label={label}
-              />
-            ) : (
-              <div className={`break-words text-[0.875rem] font-extrabold ${
-                hasValue ? 'text-slate-800' : 'text-amber-700'
-              }`}>
-                {hasValue ? value : emptyLabel}
-              </div>
-            )}
-          </div>
-
-          {!isEditing && hasValue && contactLink && (
-            <a
-              href={contactLink === 'tel' ? `tel:${value}` : `mailto:${value}`}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white transition hover:bg-indigo-700"
-              title={contactLink === 'tel' ? 'Anrufen' : 'E-Mail schreiben'}
-              aria-label={`${label}: ${contactLink === 'tel' ? 'anrufen' : 'E-Mail schreiben'}`}
-            >
-              {contactLink === 'tel' ? <Phone size={14} /> : <Mail size={14} />}
-            </a>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const Section = ({
-    title,
-    description,
-    icon: Icon,
-    children
-  }: {
-    title: string;
-    description: string;
-    icon: React.ElementType;
-    children: React.ReactNode;
-  }) => (
-    <section className="rounded-[1.75rem] border border-slate-200 bg-slate-50/40 p-5 md:p-6">
-      <div className="mb-4 flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
-          <Icon size={18} />
-        </div>
-        <div>
-          <h4 className="text-[0.9375rem] font-black text-slate-900">{title}</h4>
-          <p className="mt-0.5 text-[0.6875rem] font-semibold leading-relaxed text-slate-500">{description}</p>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{children}</div>
-    </section>
-  );
-
-  const addressLine = [student.plz, student.ort].filter(Boolean).join(' ');
+  const fullAddress = [student.anschrift, [student.plz, student.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ');
 
   return (
     <div className="flex h-full flex-col space-y-6">
+      {/* Top action header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <div className="h-7 w-2 rounded-full bg-blue-500" />
-            <h3 className="text-[1.5rem] font-black tracking-tight text-slate-900">Stammdaten & Kontakt</h3>
+            <div className="h-7 w-2 rounded-full bg-slate-700" />
+            <h3 className="text-[1.375rem] font-black tracking-tight text-slate-900">
+              Stammdaten
+            </h3>
           </div>
-          <p className="ml-5 mt-1 text-[0.75rem] font-semibold text-slate-500">
-            Persönliche, schulische und für die Kommunikation wichtige Angaben.
+          <p className="ml-5 mt-1 text-[0.75rem] font-medium text-slate-500">
+            Personenstandsdaten, schulische Einordnung und Adressdaten.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           {isEditing && (
             <button
+              type="button"
               onClick={handleCancel}
-              className="flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-[0.625rem] font-black uppercase tracking-widest text-slate-700 transition hover:bg-slate-50"
+              className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-[0.6875rem] font-bold text-slate-700 transition hover:bg-slate-50 cursor-pointer shadow-3xs"
             >
               <X size={14} /> Abbrechen
             </button>
           )}
           <button
-            onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-            className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-[0.625rem] font-black uppercase tracking-widest text-white shadow-md transition active:scale-95 ${
-              isEditing ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-950 hover:bg-slate-800'
+            type="button"
+            onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
+            className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-[0.6875rem] font-bold uppercase tracking-wider text-white shadow-3xs transition active:scale-95 cursor-pointer ${
+              isEditing ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-900 hover:bg-slate-800'
             }`}
           >
-            {isEditing ? <Save size={14} /> : <User size={14} />}
-            {isEditing ? 'Änderungen speichern' : 'Daten bearbeiten'}
+            {isEditing ? <Save size={14} /> : <Edit3 size={14} />}
+            {isEditing ? 'Änderungen speichern' : 'Stammdaten bearbeiten'}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.55fr)]">
-        <div className="rounded-[1.75rem] border border-indigo-100 bg-indigo-50/55 p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-[0.625rem] font-black uppercase tracking-widest text-indigo-600">Datenvollständigkeit</div>
-              <div className="mt-1 text-[1.375rem] font-black text-indigo-950">
-                {completeness.completed} von {completeness.total} wichtigen Bereichen
-              </div>
+      {/* 3 LOGICAL GROUPS */}
+      <div className="space-y-5">
+        {/* 1. PERSÖNLICHE DATEN */}
+        <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-3xs">
+          <div className="flex items-center gap-2.5 pb-3.5 border-b border-slate-100">
+            <div className="p-1.5 rounded-lg bg-slate-100 text-slate-700">
+              <User size={15} />
             </div>
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-[0.875rem] font-black text-indigo-700 shadow-sm">
-              {completeness.percentage}%
-            </div>
-          </div>
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-indigo-100">
-            <div className="h-full rounded-full bg-indigo-600 transition-all" style={{ width: `${completeness.percentage}%` }} />
-          </div>
-        </div>
-
-        <div className={`rounded-[1.75rem] border p-5 ${
-          completeness.missing.length ? 'border-amber-200 bg-amber-50/55' : 'border-emerald-200 bg-emerald-50/55'
-        }`}>
-          <div className="flex items-start gap-3">
-            {completeness.missing.length
-              ? <AlertCircle className="mt-0.5 shrink-0 text-amber-600" size={19} />
-              : <CheckCircle2 className="mt-0.5 shrink-0 text-emerald-600" size={19} />}
-            <div>
-              <div className={`text-[0.75rem] font-black ${completeness.missing.length ? 'text-amber-900' : 'text-emerald-900'}`}>
-                {completeness.missing.length ? 'Noch sinnvoll zu ergänzen' : 'Wichtige Angaben vollständig'}
-              </div>
-              <p className={`mt-1 text-[0.6875rem] font-semibold leading-relaxed ${
-                completeness.missing.length ? 'text-amber-800' : 'text-emerald-800'
-              }`}>
-                {completeness.missing.length ? completeness.missing.join(', ') : 'Die zentralen Kontakt- und Adressdaten sind vorhanden.'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {showLogSuccess && (
-        <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-[0.8125rem] font-bold text-emerald-800">
-          <CheckCircle2 className="shrink-0 text-emerald-500" size={18} />
-          Der Telefonkontakt wurde bei den Elterngesprächen und in der Dossier-Chronik dokumentiert.
-        </div>
-      )}
-
-      {!isEditing && (student.telefon_mutter || student.telefon_vater) && (
-        <div className="flex flex-col justify-between gap-4 rounded-[1.75rem] border border-indigo-100 bg-white p-5 md:flex-row md:items-center">
-          <div>
-            <h4 className="flex items-center gap-2 text-[0.875rem] font-black text-indigo-950">
-              <PhoneCall size={16} className="text-indigo-600" /> Telefonkontakt dokumentieren
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Persönliche Daten
             </h4>
-            <p className="mt-1 text-[0.6875rem] font-semibold text-indigo-700">
-              Nach einem geführten Telefonat kannst du den Kontakt mit einem Klick in der Historie festhalten.
-            </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {student.telefon_mutter && (
-              <button
-                onClick={() => handleLogPhoneCall('Mutter')}
-                className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-[0.6875rem] font-black text-indigo-800 transition hover:bg-indigo-100"
-              >
-                Telefonat mit Mutter eintragen
-              </button>
-            )}
-            {student.telefon_vater && (
-              <button
-                onClick={() => handleLogPhoneCall('Vater')}
-                className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-[0.6875rem] font-black text-indigo-800 transition hover:bg-indigo-100"
-              >
-                Telefonat mit Vater eintragen
-              </button>
-            )}
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Vorname */}
+            <div>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Vorname
+              </span>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={formData.vorname}
+                  onChange={e => setFormData({ ...formData, vorname: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+              ) : (
+                <div className="text-sm font-bold text-slate-800">{student.vorname || '—'}</div>
+              )}
+            </div>
+
+            {/* Nachname */}
+            <div>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Nachname
+              </span>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={formData.nachname}
+                  onChange={e => setFormData({ ...formData, nachname: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+              ) : (
+                <div className="text-sm font-bold text-slate-800">{student.nachname || '—'}</div>
+              )}
+            </div>
+
+            {/* Geburtsdatum & Alter */}
+            <div>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Geburtsdatum
+              </span>
+              {isEditing ? (
+                <input
+                  type="date"
+                  value={formData.geburtstag}
+                  onChange={e => setFormData({ ...formData, geburtstag: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+              ) : (
+                <div className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                  <span>{formattedBirthday()}</span>
+                  {calculateAge(student.geburtstag || student.geburtsdatum) && (
+                    <span className="text-xs font-medium text-slate-400">
+                      ({calculateAge(student.geburtstag || student.geburtsdatum)})
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Geschlecht */}
+            <div>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Geschlecht
+              </span>
+              {isEditing ? (
+                <select
+                  value={formData.geschlecht}
+                  onChange={e => setFormData({ ...formData, geschlecht: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                >
+                  <option value="">Keine Angabe</option>
+                  <option value="m">männlich (m)</option>
+                  <option value="w">weiblich (w)</option>
+                  <option value="d">divers (d)</option>
+                </select>
+              ) : (
+                <div className="text-sm font-bold text-slate-800">
+                  {student.geschlecht === 'm'
+                    ? 'Männlich'
+                    : student.geschlecht === 'w'
+                    ? 'Weiblich'
+                    : student.geschlecht === 'd'
+                    ? 'Divers'
+                    : student.geschlecht || <span className="text-slate-400 font-normal">Nicht erfasst</span>}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        </section>
 
-      <div className="space-y-4">
-        <Section title="Persönliche Angaben" description="Identität und grundlegende Informationen zum Kind." icon={User}>
-          <Field label="Vorname" value={student.vorname} icon={User} field="vorname" />
-          <Field label="Nachname" value={student.nachname} icon={User} field="nachname" />
-          <Field label="Geburtsdatum" value={formatBirthday(student.geburtstag)} icon={Calendar} field="geburtstag" type="date" />
-          <Field label="SV-Nummer" value={student.sv_nummer} icon={ShieldCheck} field="sv_nummer" />
-          <Field label="Staatsbürgerschaft" value={student.staatsbuergerschaft} icon={ShieldCheck} field="staatsbuergerschaft" />
-          <Field label="Religion" value={student.religion} icon={Heart} field="religion" />
-        </Section>
+        {/* 2. SCHULISCHE ZUORDNUNG */}
+        <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-3xs">
+          <div className="flex items-center gap-2.5 pb-3.5 border-b border-slate-100">
+            <div className="p-1.5 rounded-lg bg-slate-100 text-slate-700">
+              <School size={15} />
+            </div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Schulische Zuordnung
+            </h4>
+          </div>
 
-        <Section title="Schulische Angaben" description="Angaben zur aktuellen schulischen Einordnung." icon={School}>
-          <Field label="Besuchsjahr" value={student.besuchsjahr ? `${student.besuchsjahr}. Jahr` : ''} icon={Clock} field="besuchsjahr" type="number" />
-          <Field label="Erstsprache" value={student.erstsprache} icon={Users} field="erstsprache" />
-          <Field label="Zweitsprache" value={student.zweitsprache} icon={Users} field="zweitsprache" />
-        </Section>
-
-        <Section title="Adresse" description="Wohnadresse für Schriftverkehr und schulische Unterlagen." icon={Home}>
-          <Field label="Anschrift" value={student.anschrift} icon={MapPin} field="anschrift" />
-          <Field label="PLZ" value={student.plz} icon={MapPin} field="plz" />
-          <Field label="Ort" value={student.ort} icon={MapPin} field="ort" />
-          {!isEditing && addressLine && (
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 md:col-span-2 xl:col-span-3">
-              <div className="text-[0.625rem] font-black uppercase tracking-widest text-slate-500">Postanschrift</div>
-              <div className="mt-1.5 text-[0.875rem] font-extrabold text-slate-800">
-                {[student.anschrift, addressLine].filter(Boolean).join(', ')}
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Klasse */}
+            <div>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Klasse
+              </span>
+              <div className="text-sm font-bold text-slate-800">
+                {[app.stufe ? `${app.stufe}.` : '', app.klassenbezeichnung].filter(Boolean).join(' ') || '—'}
               </div>
             </div>
-          )}
-        </Section>
 
-        <Section title="Elternkontakt" description="Kontaktdaten für Rückfragen, Gespräche und wichtige Informationen." icon={Phone}>
-          <Field label="Telefon Mutter" value={student.telefon_mutter} icon={Phone} field="telefon_mutter" type="tel" contactLink="tel" />
-          <Field label="Telefon Vater" value={student.telefon_vater} icon={Phone} field="telefon_vater" type="tel" contactLink="tel" />
-          <Field label="E-Mail Eltern" value={student.email_eltern} icon={Mail} field="email_eltern" type="email" contactLink="mail" />
-        </Section>
+            {/* Schulbesuchsjahr */}
+            <div>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Schulbesuchsjahr
+              </span>
+              {isEditing ? (
+                <input
+                  type="text"
+                  value={formData.besuchsjahr}
+                  onChange={e => setFormData({ ...formData, besuchsjahr: e.target.value })}
+                  placeholder="z. B. 3"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+              ) : (
+                <div className="text-sm font-bold text-slate-800">
+                  {student.besuchsjahr ? `${student.besuchsjahr}. Schulbesuchsjahr` : <span className="text-slate-400 font-normal">Nicht erfasst</span>}
+                </div>
+              )}
+            </div>
+
+            {/* Schuljahr */}
+            <div>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Schuljahr
+              </span>
+              <div className="text-sm font-bold text-slate-800">
+                {app.schuljahr || '2025/2026'}
+              </div>
+            </div>
+
+            {/* Schulname */}
+            <div>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Schule
+              </span>
+              <div className="text-sm font-bold text-slate-800 truncate" title={(app as any).schulName || (app as any).schule || 'Volksschule'}>
+                {(app as any).schulName || (app as any).schule || 'Volksschule'}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 3. WEITERE STAMMDATEN & ADRESSE */}
+        <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-3xs">
+          <div className="flex items-center gap-2.5 pb-3.5 border-b border-slate-100">
+            <div className="p-1.5 rounded-lg bg-slate-100 text-slate-700">
+              <Building2 size={15} />
+            </div>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Weitere Stammdaten & Adresse
+            </h4>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Wohnadresse */}
+            <div className="sm:col-span-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 block">
+                  Wohnadresse
+                </span>
+                {!isEditing && fullAddress && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(fullAddress, 'Adresse')}
+                    className="text-[0.6875rem] font-bold text-slate-400 hover:text-indigo-600 inline-flex items-center gap-1"
+                  >
+                    {copiedField === 'Adresse' ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
+                    <span>{copiedField === 'Adresse' ? 'Kopiert' : 'Kopieren'}</span>
+                  </button>
+                )}
+              </div>
+
+              {isEditing ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <div className="sm:col-span-3">
+                    <input
+                      type="text"
+                      placeholder="Straße und Hausnummer"
+                      value={formData.anschrift}
+                      onChange={e => setFormData({ ...formData, anschrift: e.target.value })}
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      placeholder="PLZ"
+                      value={formData.plz}
+                      onChange={e => setFormData({ ...formData, plz: e.target.value })}
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <input
+                      type="text"
+                      placeholder="Ort"
+                      value={formData.ort}
+                      onChange={e => setFormData({ ...formData, ort: e.target.value })}
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm font-bold text-slate-800">
+                  {fullAddress || <span className="text-slate-400 font-normal">Keine Adresse hinterlegt</span>}
+                </div>
+              )}
+            </div>
+
+            {/* Sozialversicherungsnummer (SVNR) - Maskiert */}
+            <div>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Sozialversicherungsnummer (SVNR)
+              </span>
+              {isEditing ? (
+                <input
+                  type="text"
+                  placeholder="10-stellige SVNR"
+                  value={formData.sv_nummer}
+                  onChange={e => setFormData({ ...formData, sv_nummer: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 font-mono"
+                />
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono font-bold text-slate-800">
+                    {formatSvnr(student.sv_nummer) || <span className="text-slate-400 font-normal font-sans">Nicht erfasst</span>}
+                  </span>
+                  {student.sv_nummer && (
+                    <button
+                      type="button"
+                      onClick={() => setShowSvnr(!showSvnr)}
+                      className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                      title={showSvnr ? 'SVNR verbergen' : 'SVNR anzeigen'}
+                      aria-label={showSvnr ? 'SVNR verbergen' : 'SVNR anzeigen'}
+                    >
+                      {showSvnr ? <EyeOff size={13} /> : <Eye size={13} />}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Staatsbürgerschaft */}
+            <div>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Staatsbürgerschaft
+              </span>
+              {isEditing ? (
+                <input
+                  type="text"
+                  placeholder="z. B. Österreich"
+                  value={formData.staatsbuergerschaft}
+                  onChange={e => setFormData({ ...formData, staatsbuergerschaft: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+              ) : (
+                <div className="text-sm font-bold text-slate-800">
+                  {student.staatsbuergerschaft || <span className="text-slate-400 font-normal">Nicht erfasst</span>}
+                </div>
+              )}
+            </div>
+
+            {/* Religion */}
+            <div>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Religion / Bekenntnis
+              </span>
+              {isEditing ? (
+                <input
+                  type="text"
+                  placeholder="z. B. rk, o.B., islam."
+                  value={formData.religion}
+                  onChange={e => setFormData({ ...formData, religion: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+              ) : (
+                <div className="text-sm font-bold text-slate-800">
+                  {student.religion || <span className="text-slate-400 font-normal">Nicht erfasst</span>}
+                </div>
+              )}
+            </div>
+
+            {/* Erstsprache / Zweitsprache (vorhandene Felder) */}
+            <div>
+              <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Erstsprache
+              </span>
+              {isEditing ? (
+                <input
+                  type="text"
+                  placeholder="z. B. Deutsch"
+                  value={formData.erstsprache}
+                  onChange={e => setFormData({ ...formData, erstsprache: e.target.value })}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                />
+              ) : (
+                <div className="text-sm font-bold text-slate-800">
+                  {student.erstsprache || <span className="text-slate-400 font-normal">Nicht erfasst</span>}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
 
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-6 text-[0.625rem] font-black uppercase tracking-widest text-slate-500">
-        <span>
-          {student.stammdatenAktualisiertAm
-            ? `Zuletzt gespeichert: ${new Date(student.stammdatenAktualisiertAm).toLocaleString('de-DE')}`
-            : 'Noch kein Speicherzeitpunkt vorhanden'}
+      {/* Footer information */}
+      <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between text-[0.6875rem] text-slate-400">
+        <span className="flex items-center gap-1.5">
+          <Shield size={13} className="text-slate-400" /> Administrative Schülerdaten
         </span>
-        <span className="flex items-center gap-1">
-          <ShieldCheck size={12} className="text-emerald-500" /> Vertrauliche Schülerdaten
-        </span>
+        {student.stammdatenAktualisiertAm && (
+          <span>Stand: {new Date(student.stammdatenAktualisiertAm).toLocaleDateString('de-AT')}</span>
+        )}
       </div>
     </div>
   );

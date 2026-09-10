@@ -36,16 +36,18 @@ import {
   ShieldCheck,
   Heart,
   Banknote,
+  Coins,
   CheckCircle2,
   Clock,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Camera
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import PrintHeader from './PrintHeader';
 import { exportSchuelerPDF } from '../lib/exportService';
-import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySubjects, getSchulstartKW, getSemester } from '../lib/utils';
-import { getFachCfg, berechne } from '../lib/GradeUtils';
+import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySubjects, getSchulstartKW, getSemester, getCurrentSchuljahr } from '../lib/utils';
+import { getFachCfg, berechne, getNotenLabel } from '../lib/GradeUtils';
 import { DEFAULT_YEARLY_SUBJECTS, FAECHER_ALLE } from '../constants';
 
 const STANDARD_KEL_BEREICHE = [
@@ -128,44 +130,48 @@ export default function PrintCenter() {
 
   // 1. Core Printing State
   const [activeTemplate, setActiveTemplate] = useState<
-    'schuelerliste' | 'checkliste' | 'zeugnis_noten' | 'wochenplan' | 'klassenbuch' | 'jahresplanung' | 'kel' | 'stundenplan' | 'schuelerprofil' | 'kel_presentation' | 'sitzplan' | 'uebergabemappe' | 'eltern_diagnostik' | 'pdf_export' | 'lob_druckkarte' | 'fehlstunden' | 'smart_tools'
+    'schuelerliste' | 'checkliste' | 'zeugnis_noten' | 'wochenplan' | 'klassenbuch' | 'jahresplanung' | 'kel' | 'stundenplan' | 'schuelerprofil' | 'kel_presentation' | 'sitzplan' | 'uebergabemappe' | 'eltern_diagnostik' | 'pdf_export' | 'lob_druckkarte' | 'fehlstunden' | 'smart_tools' | 'kassenuebersicht'
   >('schuelerliste');
   
   const [printModeActive, setPrintModeActive] = useState(false);
   const [templateCategory, setTemplateCategory] = useState<'all' | 'listen' | 'planung' | 'eltern' | 'spezial'>('all');
+  const [activeTaskCategory, setActiveTaskCategory] = useState<'all' | 'klasse' | 'schueler' | 'leistung' | 'planung' | 'orga'>('all');
   const [templateSearch, setTemplateSearch] = useState('');
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showMoreSettings, setShowMoreSettings] = useState(false);
 
   const ALL_TEMPLATES = useMemo(() => [
-    { id: 'schuelerliste', icon: Users, label: 'Schülerliste', desc: 'Namens- & Stammdatenliste', cat: 'listen', badge: 'Standard', keywords: 'schüler name klasse stammdaten telefon adresse' },
-    { id: 'checkliste', icon: CheckSquare, label: 'Notenliste', desc: 'Punkteraster & Schnitt', cat: 'listen', badge: 'Benotung', keywords: 'noten punkte checkliste hausübung test kontrolle' },
-    { id: 'zeugnis_noten', icon: GraduationCap, label: 'Zeugnis-Noten', desc: '1. & 2. Semester Übersicht', cat: 'listen', badge: 'Zeugnis', keywords: 'zeugnis noten semester ganzjahr halbjahr fächer' },
-    { id: 'fehlstunden', icon: Clock, label: 'Fehlstunden', desc: 'Entschuldigt / Unentschuldigt', cat: 'listen', badge: 'Absenzen', keywords: 'fehlstunden krankenstand absenzen entschuldigt' },
+    { id: 'schuelerliste', icon: Users, label: 'Klassenliste', desc: 'Namens- & Stammdatenliste', cat: 'listen', taskCat: 'klasse', badge: 'Klasse', keywords: 'schüler name klasse stammdaten telefon adresse' },
+    { id: 'checkliste', icon: CheckSquare, label: 'Notenübersicht', desc: 'Punkteraster & Notenschnitt', cat: 'listen', taskCat: 'leistung', badge: 'Noten', keywords: 'noten punkte checkliste hausübung test kontrolle' },
+    { id: 'zeugnis_noten', icon: GraduationCap, label: 'Zeugnis-Noten', desc: '1. & 2. Semester Übersicht', cat: 'listen', taskCat: 'leistung', badge: 'Zeugnis', keywords: 'zeugnis noten semester ganzjahr halbjahr fächer' },
+    { id: 'fehlstunden', icon: Clock, label: 'Anwesenheitsliste', desc: 'Entschuldigt / Unentschuldigt', cat: 'listen', taskCat: 'klasse', badge: 'Absenzen', keywords: 'fehlstunden krankenstand absenzen entschuldigt' },
 
-    { id: 'wochenplan', icon: Calendar, label: 'Wochenplan', desc: 'Unterrichts- & Wochenplan', cat: 'planung', badge: 'Unterricht', keywords: 'wochenplan kalender unterricht aufgaben stunden' },
-    { id: 'stundenplan', icon: ClockIconFallback, label: 'Stundenplan', desc: 'Stammstundenplan', cat: 'planung', badge: 'Klasse', keywords: 'stundenplan stunden zeiten fächer klassenraum' },
-    { id: 'klassenbuch', icon: BookOpen, label: 'Klassenbuch', desc: 'Wochen- & Lehrbericht', cat: 'planung', badge: 'Dokumentation', keywords: 'klassenbuch bericht woche unterricht ersatz' },
-    { id: 'jahresplanung', icon: FileText, label: 'Jahresplan', desc: 'Syllabus & Kompetenzen', cat: 'planung', badge: 'Jahressyllabus', keywords: 'jahresplan syllabus monate ziele kompetenzen' },
+    { id: 'wochenplan', icon: Calendar, label: 'Wochenplan', desc: 'Unterrichts- & Wochenplan', cat: 'planung', taskCat: 'planung', badge: 'Unterricht', keywords: 'wochenplan kalender unterricht aufgaben stunden' },
+    { id: 'stundenplan', icon: ClockIconFallback, label: 'Stundenplan', desc: 'Stammstundenplan der Klasse', cat: 'planung', taskCat: 'planung', badge: 'Stunden', keywords: 'stundenplan stunden zeiten fächer klassenraum' },
+    { id: 'klassenbuch', icon: BookOpen, label: 'Klassenbuch', desc: 'Wochen- & Lehrbericht', cat: 'planung', taskCat: 'planung', badge: 'Lehrbericht', keywords: 'klassenbuch bericht woche unterricht ersatz' },
+    { id: 'jahresplanung', icon: FileText, label: 'Jahresplan', desc: 'Syllabus & Kompetenzen', cat: 'planung', taskCat: 'planung', badge: 'Syllabus', keywords: 'jahresplan syllabus monate ziele kompetenzen' },
 
-    { id: 'kel', icon: Award, label: 'KEL-Gespräch', desc: 'Entwicklungsdossier & Ziele', cat: 'eltern', badge: 'Dossier', keywords: 'kel gespräch eltern entwicklung ziele vereinbarung' },
-    { id: 'kel_presentation', icon: Sparkles, label: 'KEL-Präsentation', desc: 'Visuelle Bento-Karten', cat: 'eltern', badge: 'Bento-Visual', keywords: 'kel bento präsentation visual stärken' },
-    { id: 'eltern_diagnostik', icon: Stethoscope, label: 'Elternbericht', desc: 'Förderdiagnostik & Feedback', cat: 'eltern', badge: 'Diagnostik', keywords: 'eltern bericht diagnostik förderung test ergebnis' },
-    { id: 'schuelerprofil', icon: User, label: 'Schülerprofil', desc: 'Stammdaten & Notenschnitt', cat: 'eltern', badge: 'Einzelblatt', keywords: 'schüler profil stammdaten notarzt eltern handy' },
-    { id: 'uebergabemappe', icon: FileText, label: 'Übergabemappe', desc: 'Vertretungsinformationen', cat: 'eltern', badge: 'Vertretung', keywords: 'übergabe vertretung lehrer tagesplan notfall' },
+    { id: 'kel', icon: Award, label: 'KEL-Gespräch', desc: 'Entwicklungsdossier & Zieldialog', cat: 'eltern', taskCat: 'schueler', badge: 'Dossier', keywords: 'kel gespräch eltern entwicklung ziele vereinbarung' },
+    { id: 'kel_presentation', icon: Sparkles, label: 'KEL-Präsentation', desc: 'Visuelle Bento-Karten', cat: 'eltern', taskCat: 'schueler', badge: 'Bento-Visual', keywords: 'kel bento präsentation visual stärken' },
+    { id: 'eltern_diagnostik', icon: Stethoscope, label: 'Elternbericht', desc: 'Förderdiagnostik & Feedback', cat: 'eltern', taskCat: 'schueler', badge: 'Diagnostik', keywords: 'eltern bericht diagnostik förderung test ergebnis' },
+    { id: 'schuelerprofil', icon: User, label: 'Schülerdossier', desc: 'Stammdaten, Noten & Profil', cat: 'eltern', taskCat: 'schueler', badge: 'Einzelblatt', keywords: 'schüler profil stammdaten notarzt eltern handy' },
+    { id: 'uebergabemappe', icon: FileText, label: 'Übergabemappe', desc: 'Vertretungsinformationen', cat: 'eltern', taskCat: 'klasse', badge: 'Vertretung', keywords: 'übergabe vertretung lehrer tagesplan notfall' },
 
-    { id: 'sitzplan', icon: Scale, label: 'Sitzplan', desc: 'Klassenzimmer-Tischordnung', cat: 'spezial', badge: 'Raumplan', keywords: 'sitzplan raum tische tischordnung schüler' },
-    { id: 'lob_druckkarte', icon: Award, label: 'Lob-Karten', desc: 'Urkunden & Motivation', cat: 'spezial', badge: 'Motivation', keywords: 'lob karte urkunde auszeichnung karten belohnung' },
-    { id: 'pdf_export', icon: FileText, label: 'PDF-Export', desc: 'Dokument als PDF ausgeben', cat: 'spezial', badge: 'PDF', keywords: 'pdf export raster layout print' },
-    { id: 'smart_tools', icon: Sparkles, label: 'Spezial-Tools', desc: 'Sitzordnung, Würfel & Gruppen', cat: 'spezial', badge: '10-in-1 Power', keywords: 'spezial tools powerup helfer zufall gruppen' },
+    { id: 'sitzplan', icon: Scale, label: 'Sitzplan', desc: 'Klassenzimmer-Tischordnung', cat: 'spezial', taskCat: 'klasse', badge: 'Raumplan', keywords: 'sitzplan raum tische tischordnung schüler' },
+    { id: 'lob_druckkarte', icon: Award, label: 'Lob-Karten', desc: 'Urkunden & Motivation', cat: 'spezial', taskCat: 'schueler', badge: 'Motivation', keywords: 'lob karte urkunde auszeichnung karten belohnung' },
+    { id: 'kassenuebersicht', icon: Banknote, label: 'Kassenübersicht', desc: 'Einnahmen, Ausgaben & Saldo', cat: 'spezial', taskCat: 'orga', badge: 'Kassa', keywords: 'kasse kassenbuch einnahmen ausgaben saldo geld finanzen buchungen klassenkasse orga beiträge sammlung' },
+    { id: 'pdf_export', icon: FileText, label: 'PDF-Export', desc: 'Bescheide & Formulare als PDF', cat: 'spezial', taskCat: 'orga', badge: 'PDF', keywords: 'pdf export raster layout print' },
+    { id: 'smart_tools', icon: Sparkles, label: 'Geldsammlung & Orga', desc: 'Tischschilder, Kasse & Joker', cat: 'spezial', taskCat: 'orga', badge: 'Orga & Kasse', keywords: 'spezial tools powerup helfer zufall gruppen geld sammlung' },
   ], []);
 
   const filteredTemplates = useMemo(() => {
     return ALL_TEMPLATES.filter(t => {
-      const matchCat = templateCategory === 'all' || t.cat === templateCategory;
+      const matchCat = activeTaskCategory === 'all' || t.taskCat === activeTaskCategory;
       const q = templateSearch.trim().toLowerCase();
       const matchSearch = !q || t.label.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q) || t.keywords.toLowerCase().includes(q);
       return matchCat && matchSearch;
     });
-  }, [ALL_TEMPLATES, templateCategory, templateSearch]);
+  }, [ALL_TEMPLATES, activeTaskCategory, templateSearch]);
 
   // 2. Global Styling & Paper Adjustments
   const [printPaperSize, setPrintPaperSize] = useState<'A4'>('A4');
@@ -198,6 +204,9 @@ export default function PrintCenter() {
   const [slShowBesuchsjahr, setSlShowBesuchsjahr] = useState(false);
   const [slShowGroups, setSlShowGroups] = useState(false);
   const [slShowFehlstunden, setSlShowFehlstunden] = useState(false);
+  const [slShowNotes, setSlShowNotes] = useState(false);
+  const [slShowAllergies, setSlShowAllergies] = useState(false);
+  const [slShowFotoFreigabe, setSlShowFotoFreigabe] = useState(false);
   const [slCustomColsCount, setSlCustomColsCount] = useState<number>(0);
   const [slCustomCols, setSlCustomCols] = useState<string[]>(['Handy', 'Notiz', 'Gruppe']);
 
@@ -373,6 +382,148 @@ export default function PrintCenter() {
   const [stMeetingRoom, setStMeetingRoom] = useState('Klassenraum 2a (1. Stock)');
   const [stMeetingTimes, setStMeetingTimes] = useState<Record<string, string>>({});
   const [stMeetingDocs, setStMeetingDocs] = useState('Schreibzeug, Portfolio-Mappe');
+
+  // --- KASSENÜBERSICHT (EINNAHMEN & AUSGABEN) OPTIONS ---
+  const [koPeriodMode, setKoPeriodMode] = useState<'schuljahr' | 'monat' | 'custom'>('schuljahr');
+  const [koSelectedMonth, setKoSelectedMonth] = useState<string>(() => {
+    const now = new Date();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    return `${now.getFullYear()}-${m}`;
+  });
+  const [koCustomStartDate, setKoCustomStartDate] = useState<string>(() => {
+    const startYr = getStartYear(app?.schuljahr || '');
+    return `${startYr}-09-01`;
+  });
+  const [koCustomEndDate, setKoCustomEndDate] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
+  const [koCategoryFilter, setKoCategoryFilter] = useState<'all' | 'sammlung' | 'ausgabe' | 'sonstiges'>('all');
+  const [koShowSignatures, setKoShowSignatures] = useState<boolean>(true);
+  const [koShowKpiBanner, setKoShowKpiBanner] = useState<boolean>(true);
+
+  const schoolYearMonths = useMemo(() => {
+    const startYr = getStartYear(app?.schuljahr || '');
+    return [
+      { value: `${startYr}-09`, label: `September ${startYr}` },
+      { value: `${startYr}-10`, label: `Oktober ${startYr}` },
+      { value: `${startYr}-11`, label: `November ${startYr}` },
+      { value: `${startYr}-12`, label: `Dezember ${startYr}` },
+      { value: `${startYr + 1}-01`, label: `Jänner ${startYr + 1}` },
+      { value: `${startYr + 1}-02`, label: `Februar ${startYr + 1}` },
+      { value: `${startYr + 1}-03`, label: `März ${startYr + 1}` },
+      { value: `${startYr + 1}-04`, label: `April ${startYr + 1}` },
+      { value: `${startYr + 1}-05`, label: `Mai ${startYr + 1}` },
+      { value: `${startYr + 1}-06`, label: `Juni ${startYr + 1}` },
+      { value: `${startYr + 1}-07`, label: `Juli ${startYr + 1}` },
+      { value: `${startYr + 1}-08`, label: `August ${startYr + 1}` },
+    ];
+  }, [app?.schuljahr]);
+
+  const koDateRange = useMemo(() => {
+    const startYear = getStartYear(app?.schuljahr || '');
+    const endYear = startYear + 1;
+
+    if (koPeriodMode === 'schuljahr') {
+      const s = `${startYear}-09-01`;
+      const e = `${endYear}-08-31`;
+      const label = `Schuljahr ${app?.schuljahr || `${startYear}/${String(endYear).slice(2)}`}`;
+      return { startDateStr: s, endDateStr: e, periodLabel: label };
+    }
+
+    if (koPeriodMode === 'monat') {
+      const [yStr, mStr] = (koSelectedMonth || `${startYear}-09`).split('-');
+      const y = parseInt(yStr, 10) || startYear;
+      const m = parseInt(mStr, 10) || 9;
+      const monthNames = [
+        'Jänner', 'Februar', 'März', 'April', 'Mai', 'Juni',
+        'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+      ];
+      const monthName = monthNames[m - 1] || 'Monat';
+      const s = `${y}-${String(m).padStart(2, '0')}-01`;
+      const lastDay = new Date(y, m, 0).getDate();
+      const e = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      const label = `${monthName} ${y}`;
+      return { startDateStr: s, endDateStr: e, periodLabel: label };
+    }
+
+    // custom
+    const s = koCustomStartDate || `${startYear}-09-01`;
+    const e = koCustomEndDate || new Date().toISOString().split('T')[0];
+    const sFormatted = new Date(s).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const eFormatted = new Date(e).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const label = `${sFormatted} – ${eFormatted}`;
+    return { startDateStr: s, endDateStr: e, periodLabel: label };
+  }, [koPeriodMode, koSelectedMonth, koCustomStartDate, koCustomEndDate, app?.schuljahr]);
+
+  const koReportData = useMemo(() => {
+    const allTx = [...(app?.klassenkasse?.transaktionen || [])];
+
+    // Sort chronologically ascending
+    allTx.sort((a, b) => {
+      const dateA = (a.datum || '').split('T')[0];
+      const dateB = (b.datum || '').split('T')[0];
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
+      return (a.titel || '').localeCompare(b.titel || '');
+    });
+
+    // Opening balance before start date
+    let openingBal = 0;
+    allTx.forEach(tx => {
+      const d = (tx.datum || '').split('T')[0];
+      if (d < koDateRange.startDateStr) {
+        if (tx.typ === 'plus') {
+          openingBal += Number(tx.betrag) || 0;
+        } else {
+          openingBal -= Number(tx.betrag) || 0;
+        }
+      }
+    });
+
+    // Filter transactions within period
+    let currentRunning = openingBal;
+    let totIncome = 0;
+    let totExpense = 0;
+
+    const inPeriodTx = allTx.filter(tx => {
+      const d = (tx.datum || '').split('T')[0];
+      const inDateRange = d >= koDateRange.startDateStr && d <= koDateRange.endDateStr;
+      const matchesCat = koCategoryFilter === 'all' ||
+        (koCategoryFilter === 'sammlung' && (tx.kategorie === 'sammlung' || !!tx.geldsammlungId)) ||
+        (koCategoryFilter === 'ausgabe' && tx.kategorie === 'ausgabe') ||
+        (koCategoryFilter === 'sonstiges' && (tx.kategorie === 'sonstiges' || (!tx.geldsammlungId && tx.kategorie !== 'ausgabe' && tx.kategorie !== 'sammlung')));
+      return inDateRange && matchesCat;
+    });
+
+    const rows = inPeriodTx.map(tx => {
+      const isPlus = tx.typ === 'plus';
+      const amount = Number(tx.betrag) || 0;
+      if (isPlus) {
+        currentRunning += amount;
+        totIncome += amount;
+      } else {
+        currentRunning -= amount;
+        totExpense += amount;
+      }
+      return {
+        ...tx,
+        isPlus,
+        einnahme: isPlus ? amount : null,
+        ausgabe: !isPlus ? amount : null,
+        saldo: currentRunning
+      };
+    });
+
+    return {
+      rows,
+      openingBalance: openingBal,
+      totalIncome: totIncome,
+      totalExpense: totExpense,
+      closingBalance: currentRunning,
+      periodBalance: totIncome - totExpense,
+      hasRows: rows.length > 0,
+      totalCount: rows.length
+    };
+  }, [app?.klassenkasse?.transaktionen, koDateRange, koCategoryFilter]);
   useEffect(() => {
     if (app?.activePrintTemplate) {
       setActiveTemplate(app.activePrintTemplate as any);
@@ -1178,198 +1329,254 @@ export default function PrintCenter() {
       {/* Screen View Cockpit Framework */}
       <div className="print-center-overlay-parent max-w-7xl mx-auto space-y-4 pb-24 px-4 md:px-6 print:p-0" data-zoom-container={zoomLevel}>
         
-        {/* Banner Section - Screen Only */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative no-print">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/5 blur-[100px] rounded-full pointer-events-none -mr-12 -mt-12" />
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-700 shrink-0">
-                <Printer size={21} strokeWidth={2.4} />
+        {/* Simplified Header */}
+        <div className="bg-white rounded-2xl p-4 md:p-5 border border-slate-200/90 shadow-2xs relative no-print">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shrink-0 shadow-3xs">
+                <Printer size={20} strokeWidth={2.5} />
               </div>
               <div>
-                <h2 className="text-[1.25rem] leading-normal font-black text-slate-800 tracking-tight">Druckzentrum</h2>
-                <p className="text-slate-400 text-[0.75rem] leading-tight font-semibold mt-1 max-w-xl">
-                  Bereiten Sie Berichte und Listen für den Druck vor und passen Sie Ränder, Spalten, Layouts und Formate an.
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg font-black text-slate-800 tracking-tight">DRUCKZENTRUM</h1>
+                  <span className="bg-slate-100 text-slate-700 text-[0.6875rem] font-bold px-2.5 py-0.5 rounded-full border border-slate-200">
+                    Klasse {(app as any).activeKlasse || (app as any).selectedKlasse || '1a'}
+                  </span>
+                </div>
+                <p className="text-[0.6875rem] text-slate-400 font-semibold mt-0.5">
+                  Dokumente auswählen, anpassen, als PDF speichern oder direkt ausdrucken
                 </p>
               </div>
             </div>
-            
-            <button 
-              type="button"
-              onClick={handleTriggerPrint}
-              disabled={students.length === 0}
-              className="px-5 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white rounded-xl text-[0.75rem] font-black flex items-center gap-2 transition-all shadow-sm active:scale-95 duration-100 cursor-pointer text-center-imp justify-center"
-            >
-              <Printer size={16} strokeWidth={3} />
-              <span>Druckdialog öffnen (A4)</span>
-            </button>
+
+            {/* Header Right Actions: Search & More */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Dokument oder Begriff suchen..."
+                  value={templateSearch}
+                  onChange={(e) => setTemplateSearch(e.target.value)}
+                  className="w-full pl-8 pr-7 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[0.75rem] font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all"
+                />
+                {templateSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setTemplateSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Mehr Button */}
+              <button
+                type="button"
+                onClick={() => setShowMoreMenu(prev => !prev)}
+                className={`px-3 py-2 rounded-xl text-[0.75rem] font-black border transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                  showMoreMenu
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-3xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                }`}
+              >
+                <span>⋯ Mehr</span>
+              </button>
+            </div>
           </div>
-          {isInIframe && (
-            <div className="mt-6 p-4 bg-emerald-50/60 border border-emerald-200 rounded-2xl flex items-start gap-3 relative z-10">
-              <AlertCircle size={18} className="text-emerald-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-emerald-800 font-medium">
-                <span className="font-bold block mb-1 text-emerald-950">💡 Wichtiger Hinweis für die Live-Vorschau (iFrame):</span>
-                Aus Sicherheitsgründen blockieren Webbrowser das Öffnen des Druckmenüs innerhalb von eingebetteten iFrames. 
-                Bitte öffnen Sie diese App über die Schaltfläche <strong className="text-emerald-900">"In neuem Tab öffnen"</strong> (ganz oben rechts über der Live-Vorschau mit dem kleinen Pfeil-Symbol) direkt im Browser. 
-                Dort kann der Browser den Druckdialog öffnen.
+
+          {/* "⋯ Mehr" Popover Drawer / Panel */}
+          {showMoreMenu && (
+            <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/70 p-4 rounded-xl border border-slate-200/60">
+              {/* Box 1: Printer & Page Setup */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 uppercase tracking-wider">
+                  <Sliders size={14} className="text-emerald-600" />
+                  <span>Druck- & Seiteneinstellungen</span>
+                </div>
+                <div className="space-y-2 text-[0.75rem]">
+                  <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200">
+                    <span className="font-semibold text-slate-600">Ausrichtung</span>
+                    <div className="flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setPrintOrientation('portrait')}
+                        className={`px-2 py-1 rounded text-[0.625rem] font-black ${printOrientation === 'portrait' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+                      >
+                        Hoch
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPrintOrientation('landscape')}
+                        className={`px-2 py-1 rounded text-[0.625rem] font-black ${printOrientation === 'landscape' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+                      >
+                        Quer
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200">
+                    <span className="font-semibold text-slate-600">Briefkopf drucken</span>
+                    <input
+                      type="checkbox"
+                      checked={showMainHeader}
+                      onChange={(e) => setShowMainHeader(e.target.checked)}
+                      className="w-4 h-4 text-emerald-600 rounded border-slate-300 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 2: Quick Presets */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 uppercase tracking-wider">
+                  <Sparkles size={14} className="text-amber-500" />
+                  <span>Schnell-Presets</span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => { applyPreset('klassisch'); setShowMoreMenu(false); }}
+                    className="p-2 bg-white hover:bg-slate-100 text-left rounded-lg border border-slate-200 text-[0.6875rem] font-bold text-slate-700 cursor-pointer"
+                  >
+                    📋 Standard-Liste
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { applyPreset('raster'); setShowMoreMenu(false); }}
+                    className="p-2 bg-white hover:bg-slate-100 text-left rounded-lg border border-slate-200 text-[0.6875rem] font-bold text-slate-700 cursor-pointer"
+                  >
+                    📝 Notenraster
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { applyPreset('ausflug'); setShowMoreMenu(false); }}
+                    className="p-2 bg-white hover:bg-slate-100 text-left rounded-lg border border-slate-200 text-[0.6875rem] font-bold text-slate-700 cursor-pointer"
+                  >
+                    🚶 Ausflugsliste
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { applyPreset('kel'); setShowMoreMenu(false); }}
+                    className="p-2 bg-white hover:bg-slate-100 text-left rounded-lg border border-slate-200 text-[0.6875rem] font-bold text-slate-700 cursor-pointer"
+                  >
+                    🗣️ KEL-Dossier
+                  </button>
+                </div>
+              </div>
+
+              {/* Box 3: Printer Tips & Standard info */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 uppercase tracking-wider">
+                  <Info size={14} className="text-indigo-600" />
+                  <span>Drucktipp & Datenschutz</span>
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200 text-[0.625rem] text-slate-600 leading-relaxed font-medium space-y-1">
+                  <p>• Aktiviere im Druckfenster <strong>"Hintergrundgrafiken"</strong>, um Linien und Farben zu sehen.</p>
+                  <p>• Falls im iFrame geblockt: Nutze oben <strong>"In neuem Tab öffnen"</strong>.</p>
+                  <p>• Ausdrucke mit Schülernamen bitte vertraulich aufbewahren.</p>
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        <div className="no-print flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950">
-          <AlertCircle size={17} className="mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
-          <p className="text-xs font-semibold leading-relaxed">
-            Prüfen Sie vor dem Drucken Vorschau, Empfänger, ausgewählte Datenspalten und Drucker. Ausdrucke mit personenbezogenen Daten müssen vor unbefugtem Zugriff geschützt und sicher aufbewahrt oder entsorgt werden.
-          </p>
-        </div>
-
-        {/* Quick Presets / Schnellvorlagen Row */}
-        <div className="bg-white border border-slate-200 p-4 rounded-2xl space-y-3 no-print shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Sparkles size={14} className="text-emerald-600 animate-pulse" />
-              <span className="text-[0.625rem] font-black uppercase text-slate-500 tracking-wider leading-none">Druck-Schnellvorlagen (Sinnvolle Voreinstellungen)</span>
-            </div>
-            <span className="text-[0.5625rem] text-slate-400 font-bold uppercase tracking-wider">Spalten, Ausrichtung & Ränder mit 1 Klick anpassen</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <button
-              type="button"
-              onClick={() => applyPreset('klassisch')}
-              className="p-3 bg-slate-50 hover:bg-white rounded-xl border border-slate-200 hover:border-slate-300 flex items-center gap-3 text-left transition-all group cursor-pointer active:scale-97"
-            >
-              <div className="w-10 h-10 bg-indigo-50 group-hover:bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600 font-extrabold shrink-0 text-lg transition-all border border-indigo-100/50">
-                📋
-              </div>
-              <div>
-                <h4 className="text-[0.6875rem] font-black text-slate-800 uppercase tracking-wider leading-snug">Klassische Schülerliste</h4>
-                <p className="text-[0.5625rem] text-slate-400 font-bold leading-tight mt-0.5">A4 Hochformat · Schlanke Liste</p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => applyPreset('raster')}
-              className="p-3 bg-slate-50 hover:bg-white rounded-xl border border-slate-200 hover:border-slate-300 flex items-center gap-3 text-left transition-all group cursor-pointer active:scale-97"
-            >
-              <div className="w-10 h-10 bg-emerald-50 group-hover:bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 font-extrabold shrink-0 text-lg transition-all border border-emerald-100/50">
-                📝
-              </div>
-              <div>
-                <h4 className="text-[0.6875rem] font-black text-slate-800 uppercase tracking-wider leading-snug">Noten- & Punkteraster</h4>
-                <p className="text-[0.5625rem] text-slate-400 font-bold leading-tight mt-0.5">A4 Querformat · 5 Spalten</p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => applyPreset('ausflug')}
-              className="p-3 bg-slate-50 hover:bg-white rounded-xl border border-slate-200 hover:border-slate-300 flex items-center gap-3 text-left transition-all group cursor-pointer active:scale-97"
-            >
-              <div className="w-10 h-10 bg-rose-50 group-hover:bg-rose-100 rounded-xl flex items-center justify-center text-rose-600 font-extrabold shrink-0 text-lg transition-all border border-rose-100/50">
-                🚶
-              </div>
-              <div>
-                <h4 className="text-[0.6875rem] font-black text-slate-800 uppercase tracking-wider leading-snug">Ausflugs-Checkliste</h4>
-                <p className="text-[0.5625rem] text-slate-400 font-bold leading-tight mt-0.5">A4 Hochformat · Geld & Häkchen</p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => applyPreset('kel')}
-              className="p-3 bg-slate-50 hover:bg-white rounded-xl border border-slate-200 hover:border-slate-300 flex items-center gap-3 text-left transition-all group cursor-pointer active:scale-97"
-            >
-              <div className="w-10 h-10 bg-amber-50 group-hover:bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 font-extrabold shrink-0 text-lg transition-all border border-amber-100/50">
-                🗣️
-              </div>
-              <div>
-                <h4 className="text-[0.6875rem] font-black text-slate-800 uppercase tracking-wider leading-snug">KEL-Gesprächsdossier</h4>
-                <p className="text-[0.5625rem] text-slate-400 font-bold leading-tight mt-0.5">A4 Hochformat · Entwicklungsbericht</p>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Categorized Template Selector with Search */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 space-y-4 no-print shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                <FileText size={16} className="text-emerald-600" />
-                <span>Druckvorlage auswählen</span>
-                <span className="bg-slate-100 text-slate-600 text-[0.625rem] font-extrabold px-2.5 py-0.5 rounded-full border border-slate-200">
-                  {filteredTemplates.length} Vorlagen
-                </span>
-              </h3>
-              <p className="text-[0.6875rem] text-slate-400 font-medium mt-0.5">
-                Wählen Sie ein Dokument aus oder suchen Sie direkt nach Fächern, Berichten und Listen.
-              </p>
-            </div>
-
-            {/* Search Input */}
-            <div className="relative w-full md:w-80">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                aria-label="Druckvorlage suchen"
-                placeholder="Vorlage suchen..."
-                value={templateSearch}
-                onChange={(e) => setTemplateSearch(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all"
-              />
-              {templateSearch && (
-                <button
-                  type="button"
-                  aria-label="Vorlagensuche leeren"
-                  onClick={() => setTemplateSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
+        {/* Section 1: Häufig verwendet */}
+        <div className="space-y-2.5 no-print">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-black uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+              <Sparkles size={14} className="text-emerald-600" />
+              <span>Häufig verwendet</span>
+            </h2>
+            <span className="text-[0.625rem] font-bold text-slate-400">Schnellzugriff auf oft benötigte Dokumente</span>
           </div>
 
-          {/* Category Filter Pills */}
-          <div className="flex flex-wrap items-center gap-1.5 pb-1 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
             {[
-              { id: 'all', label: 'Alle Vorlagen', count: ALL_TEMPLATES.length, icon: Sparkles },
-              { id: 'listen', label: 'Listen & Noten', count: ALL_TEMPLATES.filter(t => t.cat === 'listen').length, icon: Users },
-              { id: 'planung', label: 'Planung & Kalender', count: ALL_TEMPLATES.filter(t => t.cat === 'planung').length, icon: Calendar },
-              { id: 'eltern', label: 'Eltern & KEL', count: ALL_TEMPLATES.filter(t => t.cat === 'eltern').length, icon: Award },
-              { id: 'spezial', label: 'Spezial & Raum', count: ALL_TEMPLATES.filter(t => t.cat === 'spezial').length, icon: Scale },
-            ].map(cat => {
-              const CatIcon = cat.icon;
-              const isActive = templateCategory === cat.id;
+              { id: 'schuelerliste', label: 'Klassenliste', desc: 'Namens- & Stammdaten', icon: '📋', bg: 'hover:border-indigo-300' },
+              { id: 'fehlstunden', label: 'Anwesenheit', desc: 'Fehlstunden & Absenzen', icon: '✓', bg: 'hover:border-emerald-300' },
+              { id: 'checkliste', label: 'Notenübersicht', desc: 'Punkteraster & Schnitt', icon: '📚', bg: 'hover:border-blue-300' },
+              { id: 'wochenplan', label: 'Wochenplan', desc: 'Unterrichts- & Wochenplan', icon: '📅', bg: 'hover:border-amber-300' },
+              { id: 'schuelerprofil', label: 'Schülerdossier', desc: 'Stammdaten & Profil', icon: '👤', bg: 'hover:border-purple-300' },
+              { id: 'smart_tools', label: 'Geldsammlung', desc: 'Orga, Kasse & Listen', icon: '💶', bg: 'hover:border-rose-300' },
+            ].map(f => {
+              const isActive = activeTemplate === f.id;
               return (
                 <button
-                  key={cat.id}
+                  key={f.id}
                   type="button"
-                  aria-pressed={isActive}
-                  onClick={() => setTemplateCategory(cat.id as any)}
-                  className={`px-3.5 py-2 rounded-xl font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer active:scale-95 text-[0.75rem] ${
+                  onClick={() => {
+                    setActiveTemplate(f.id as any);
+                    if (f.id === 'smart_tools') setActiveSmartTool('tischschilder');
+                  }}
+                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-24 ${f.bg} ${
                     isActive
-                      ? 'bg-slate-900 text-white shadow-sm'
-                      : 'bg-slate-100/80 hover:bg-slate-200/80 text-slate-600 border border-slate-200/60'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-sm ring-2 ring-slate-900/10'
+                      : 'bg-white text-slate-800 border-slate-200/80 hover:bg-slate-50 shadow-2xs'
                   }`}
                 >
-                  <CatIcon size={14} />
-                  <span>{cat.label}</span>
-                  <span className={`text-[0.625rem] px-1.5 py-0.2 rounded-full font-extrabold ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {cat.count}
-                  </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-lg">{f.icon}</span>
+                    {isActive && <span className="w-2 h-2 rounded-full bg-emerald-400"></span>}
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black leading-tight">{f.label}</h3>
+                    <p className={`text-[0.625rem] font-medium leading-tight mt-0.5 line-clamp-1 ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                      {f.desc}
+                    </p>
+                  </div>
                 </button>
               );
             })}
           </div>
+        </div>
 
-          {/* Template Cards Grid */}
+        {/* Section 2: Alle Dokumente nach Aufgaben */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-4 space-y-3.5 no-print shadow-2xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-sm font-black text-slate-800">Was möchtest du drucken?</h2>
+              <p className="text-[0.6875rem] text-slate-400 font-medium">Alle verfügbaren Druckvorlagen übersichtlich kategorisiert</p>
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="flex flex-wrap gap-1 text-[0.6875rem]">
+              {[
+                { id: 'all', label: 'Alle', count: ALL_TEMPLATES.length },
+                { id: 'klasse', label: 'Klasse', count: ALL_TEMPLATES.filter(t => t.taskCat === 'klasse').length },
+                { id: 'schueler', label: 'Schüler:innen', count: ALL_TEMPLATES.filter(t => t.taskCat === 'schueler').length },
+                { id: 'leistung', label: 'Leistung', count: ALL_TEMPLATES.filter(t => t.taskCat === 'leistung').length },
+                { id: 'planung', label: 'Planung', count: ALL_TEMPLATES.filter(t => t.taskCat === 'planung').length },
+                { id: 'orga', label: 'Organisation', count: ALL_TEMPLATES.filter(t => t.taskCat === 'orga').length },
+              ].map(cat => {
+                const isActive = activeTaskCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setActiveTaskCategory(cat.id as any)}
+                    className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-slate-900 text-white shadow-3xs'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    <span>{cat.label}</span>
+                    <span className={`ml-1 text-[0.5625rem] px-1.5 py-0.2 rounded-full font-black ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      {cat.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Grid of Templates */}
           {filteredTemplates.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
               {filteredTemplates.map(t => {
                 const IconComp = t.icon;
                 const isSel = activeTemplate === t.id;
@@ -1377,22 +1584,21 @@ export default function PrintCenter() {
                   <button
                     key={t.id}
                     type="button"
-                    aria-pressed={isSel}
                     onClick={() => setActiveTemplate(t.id as any)}
-                    className={`p-3.5 rounded-2xl border text-left flex flex-col justify-between h-32 transition-all relative cursor-pointer active:scale-95 duration-100 group ${
-                      isSel 
-                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-md ring-2 ring-emerald-600/20' 
-                        : 'bg-white hover:bg-slate-50 border-slate-200/90 text-slate-700 hover:border-slate-300 shadow-2xs'
+                    className={`p-3 rounded-xl border text-left flex flex-col justify-between h-28 transition-all cursor-pointer active:scale-97 ${
+                      isSel
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-600/20'
+                        : 'bg-slate-50/70 hover:bg-white border-slate-200/80 text-slate-700 hover:border-slate-300 shadow-3xs'
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105 ${
-                        isSel ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-700 border border-slate-200/60'
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                        isSel ? 'bg-white/20 text-white' : 'bg-white text-slate-700 border border-slate-200'
                       }`}>
-                        <IconComp size={16} />
+                        <IconComp size={15} />
                       </div>
-                      <span className={`text-[0.5625rem] font-black uppercase px-2 py-0.5 rounded-md ${
-                        isSel ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                      <span className={`text-[0.5625rem] font-black uppercase px-1.5 py-0.5 rounded ${
+                        isSel ? 'bg-white/20 text-white' : 'bg-slate-200/70 text-slate-600'
                       }`}>
                         {t.badge}
                       </span>
@@ -1400,7 +1606,7 @@ export default function PrintCenter() {
 
                     <div>
                       <div className="text-[0.75rem] font-black leading-tight tracking-tight">{t.label}</div>
-                      <div className={`text-[0.625rem] mt-1 font-semibold line-clamp-2 leading-tight ${
+                      <div className={`text-[0.625rem] mt-0.5 font-medium line-clamp-1 leading-tight ${
                         isSel ? 'text-emerald-100' : 'text-slate-400'
                       }`}>
                         {t.desc}
@@ -1411,16 +1617,40 @@ export default function PrintCenter() {
               })}
             </div>
           ) : (
-            <div className="py-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-              <p className="text-xs font-bold text-slate-500">Keine Vorlagen für "{templateSearch}" gefunden</p>
+            <div className="py-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
+              <p className="text-xs font-bold text-slate-500">Keine Vorlagen für diese Kategorie / Suche gefunden</p>
               <button
-                onClick={() => { setTemplateSearch(''); setTemplateCategory('all'); }}
-                className="mt-2 text-[0.6875rem] font-black text-emerald-600 hover:underline cursor-pointer"
+                type="button"
+                onClick={() => { setTemplateSearch(''); setActiveTaskCategory('all'); }}
+                className="mt-1.5 text-xs font-black text-emerald-600 hover:underline cursor-pointer"
               >
-                Filter & Suche zurücksetzen
+                Zurück zu allen Dokumenten
               </button>
             </div>
           )}
+        </div>
+
+        {/* Step Indicator Bar */}
+        <div className="bg-slate-900 text-white p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 no-print shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-black">
+              ✓
+            </span>
+            <div className="text-xs font-bold">
+              <span className="text-slate-400 uppercase tracking-wider text-[0.625rem] block font-black">Gewähltes Dokument:</span>
+              <span className="text-white font-black text-sm">
+                {ALL_TEMPLATES.find(t => t.id === activeTemplate)?.label || 'Dokument'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-[0.6875rem]">
+            <span className="px-2.5 py-1 bg-slate-800 rounded-lg text-slate-300 font-bold">SCHRITT 1: Dokument wählen</span>
+            <span className="text-slate-600">→</span>
+            <span className="px-2.5 py-1 bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 rounded-lg font-bold">SCHRITT 2: Filter &amp; Angaben</span>
+            <span className="text-slate-600">→</span>
+            <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg font-bold">SCHRITT 3: Vorschau &amp; Druck</span>
+          </div>
         </div>
 
         {/* 7. Settings & Preview Dual Workspace */}
@@ -1603,17 +1833,28 @@ export default function PrintCenter() {
                         { label: 'IKM-Nummer', checked: slShowIkmNummer, setChecked: setSlShowIkmNummer },
                         { label: 'Zugeordnete Gruppen', checked: slShowGroups, setChecked: setSlShowGroups },
                         { label: 'Fehlstunden', checked: slShowFehlstunden, setChecked: setSlShowFehlstunden },
-                      ].map((chk, idx) => (
-                        <label key={idx} className="flex items-center gap-2 cursor-pointer select-none">
-                          <input 
-                            type="checkbox" 
-                            checked={chk.checked} 
-                            onChange={(e) => chk.setChecked(e.target.checked)}
-                            className="w-3.5 h-3.5 text-emerald-600 rounded bg-white border-slate-300"
-                          />
-                          <span className="text-[0.6875rem] text-slate-600 font-semibold">{chk.label}</span>
-                        </label>
-                      ))}
+                        { label: 'Besondere Hinweise mitdrucken', checked: slShowNotes, setChecked: setSlShowNotes },
+                        { label: 'Allergien & Unverträglichkeiten mitdrucken', checked: slShowAllergies, setChecked: setSlShowAllergies },
+                        { label: 'Foto-Freigabe mitdrucken', checked: slShowFotoFreigabe, setChecked: setSlShowFotoFreigabe },
+                      ].map((chk, idx) => {
+                        const isSpecialHealth = chk.label === 'Besondere Hinweise mitdrucken' || chk.label === 'Allergien & Unverträglichkeiten mitdrucken' || chk.label === 'Foto-Freigabe mitdrucken';
+                        return (
+                          <label key={idx} className={`flex items-center gap-2 cursor-pointer select-none ${isSpecialHealth ? 'col-span-2 pt-1 border-t border-slate-200/60' : ''}`}>
+                            <input 
+                              type="checkbox" 
+                              checked={chk.checked} 
+                              onChange={(e) => chk.setChecked(e.target.checked)}
+                              className="w-3.5 h-3.5 text-emerald-600 rounded bg-white border-slate-300"
+                            />
+                            <span className={`text-[0.6875rem] ${isSpecialHealth ? 'text-slate-800 font-bold flex items-center gap-1.5' : 'text-slate-600 font-semibold'}`}>
+                              {chk.label === 'Besondere Hinweise mitdrucken' && <AlertCircle size={12} className="text-amber-600 shrink-0" />}
+                              {chk.label === 'Allergien & Unverträglichkeiten mitdrucken' && <AlertCircle size={12} className="text-rose-600 shrink-0" />}
+                              {chk.label === 'Foto-Freigabe mitdrucken' && <Camera size={12} className="text-indigo-600 shrink-0" />}
+                              <span>{chk.label}</span>
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -2985,6 +3226,154 @@ export default function PrintCenter() {
                 </div>
               )}
 
+              {/* KASSENÜBERSICHT CONTROLS */}
+              {activeTemplate === 'kassenuebersicht' && (
+                <div className="space-y-4 text-left">
+                  <p className="text-[0.6875rem] text-slate-500 font-medium leading-relaxed">
+                    Druckbare Übersicht aller Einnahmen, Ausgaben und des Kassenstandes aus <strong>Kasse &amp; Orga</strong>.
+                  </p>
+
+                  {/* Zeitraum Auswahl */}
+                  <div className="space-y-2">
+                    <label className="text-[0.625rem] font-bold text-slate-500 uppercase tracking-widest block">
+                      Zeitraum auswählen
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-[0.6875rem] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => setKoPeriodMode('schuljahr')}
+                        className={`py-1.5 px-2 rounded-lg text-center transition-all cursor-pointer ${
+                          koPeriodMode === 'schuljahr'
+                            ? 'bg-white text-indigo-700 shadow-2xs font-black'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Schuljahr
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setKoPeriodMode('monat')}
+                        className={`py-1.5 px-2 rounded-lg text-center transition-all cursor-pointer ${
+                          koPeriodMode === 'monat'
+                            ? 'bg-white text-indigo-700 shadow-2xs font-black'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Monat
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setKoPeriodMode('custom')}
+                        className={`py-1.5 px-2 rounded-lg text-center transition-all cursor-pointer ${
+                          koPeriodMode === 'custom'
+                            ? 'bg-white text-indigo-700 shadow-2xs font-black'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        Frei (von/bis)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Monat-Auswahl Details */}
+                  {koPeriodMode === 'monat' && (
+                    <div className="space-y-1.5 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                      <label className="text-[0.625rem] font-bold text-slate-600 uppercase tracking-wider block">
+                        Monat wählen
+                      </label>
+                      <select
+                        value={koSelectedMonth}
+                        onChange={(e) => setKoSelectedMonth(e.target.value)}
+                        className="w-full text-[0.75rem] font-bold p-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                      >
+                        {schoolYearMonths.map(m => (
+                          <option key={m.value} value={m.value}>{m.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Freier Zeitraum Details */}
+                  {koPeriodMode === 'custom' && (
+                    <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                      <div className="space-y-1">
+                        <label className="text-[0.5625rem] font-bold text-slate-600 uppercase tracking-wider block">
+                          Von
+                        </label>
+                        <input
+                          type="date"
+                          value={koCustomStartDate}
+                          onChange={(e) => setKoCustomStartDate(e.target.value)}
+                          className="w-full text-[0.6875rem] font-bold p-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[0.5625rem] font-bold text-slate-600 uppercase tracking-wider block">
+                          Bis
+                        </label>
+                        <input
+                          type="date"
+                          value={koCustomEndDate}
+                          onChange={(e) => setKoCustomEndDate(e.target.value)}
+                          className="w-full text-[0.6875rem] font-bold p-2 rounded-lg border border-slate-300 bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Kategorie-Filter */}
+                  <div className="space-y-1">
+                    <label className="text-[0.625rem] font-bold text-slate-500 uppercase tracking-widest block">
+                      Kategorie-Filter
+                    </label>
+                    <select
+                      value={koCategoryFilter}
+                      onChange={(e) => setKoCategoryFilter(e.target.value as any)}
+                      className="w-full text-[0.75rem] font-bold p-2.5 rounded-lg border border-slate-200 bg-white text-slate-800 focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="all">Alle Buchungen (Einnahmen &amp; Ausgaben)</option>
+                      <option value="sammlung">Nur Einnahmen &amp; Sammlungen</option>
+                      <option value="ausgabe">Nur Ausgaben</option>
+                      <option value="sonstiges">Nur Sonstige Buchungen</option>
+                    </select>
+                  </div>
+
+                  {/* Eigener Titel */}
+                  <div className="space-y-1">
+                    <span className="text-[0.5625rem] uppercase font-bold text-slate-500">Eigener Titel für Bericht:</span>
+                    <input 
+                      type="text"
+                      placeholder="z.B. Kassenübersicht – Einnahmen & Ausgaben"
+                      value={customHeaderTitle}
+                      onChange={(e) => setCustomHeaderTitle(e.target.value)}
+                      className="w-full text-[0.75rem] leading-tight font-semibold p-2.5 rounded-lg border border-slate-200 bg-white"
+                    />
+                  </div>
+
+                  {/* Optionen */}
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <label className="flex items-center gap-2 cursor-pointer text-[0.6875rem] font-bold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={koShowKpiBanner}
+                        onChange={(e) => setKoShowKpiBanner(e.target.checked)}
+                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>Finanz-Kennzahlen (KPI-Box) anzeigen</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-[0.6875rem] font-bold text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={koShowSignatures}
+                        onChange={(e) => setKoShowSignatures(e.target.checked)}
+                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span>Unterschriftenzeilen am Ende andrucken</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
               {/* O. SPEZIAL-TOOLS CONTROLS */}
               {activeTemplate === 'smart_tools' && (
                 <div className="space-y-4 text-left">
@@ -3369,17 +3758,46 @@ export default function PrintCenter() {
           </div>
 
           {/* Right Panel: Interactive Live PDF Simulator (A4 Aspect Ratio Sheet inside editor Frame) */}
-          <div className="lg:col-span-7 space-y-4">
-            <div className="flex justify-between items-center no-print">
+          <div className="lg:col-span-7 space-y-3">
+            {/* Primary Action Bar above Preview */}
+            <div className="bg-slate-900 text-white p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 no-print shadow-md">
+              <div className="flex items-center gap-2">
+                <FileText size={16} className="text-emerald-400" />
+                <span className="text-xs font-black uppercase tracking-wider text-slate-200">SCHRITT 3: Vorschau &amp; Druck</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleTriggerPrint}
+                  disabled={students.length === 0}
+                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-3xs active:scale-95 disabled:opacity-50"
+                >
+                  <Printer size={15} strokeWidth={2.5} />
+                  <span>🖨️ Drucken (A4)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleTriggerPrint}
+                  disabled={students.length === 0}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 border border-slate-700"
+                >
+                  <Download size={14} />
+                  <span>📄 als PDF speichern</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center no-print pt-1">
               <div className="flex items-center gap-2 text-slate-500">
-                <FileText size={16} className="text-slate-400" />
-                <span className="text-[0.625rem] font-black uppercase tracking-wider">Live-Vorschau (Simuliertes A4 Blatt)</span>
+                <span className="text-[0.625rem] font-black uppercase tracking-wider">Simuliertes A4 Blatt</span>
               </div>
               
               <div className="flex items-center gap-2">
                 {/* Dynamic Zoom Controls */}
                 <div className="flex flex-wrap items-center gap-2 bg-slate-100/90 px-3 py-1.5 rounded-2xl border border-slate-200 shadow-2xs">
-                  <span className="text-[0.5625rem] font-black uppercase text-slate-400 tracking-widest select-none">Vorschau-Zoom:</span>
+                  <span className="text-[0.5625rem] font-black uppercase text-slate-400 tracking-widest select-none">Zoom:</span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
@@ -4078,6 +4496,21 @@ export default function PrintCenter() {
                   {slShowIkmNummer && <th className="py-2.5 px-2 text-[0.625rem] font-black uppercase tracking-wider text-zinc-500 text-center">IKM-Nr.</th>}
                   {slShowGroups && <th className="py-2.5 px-2 text-[0.625rem] font-black uppercase tracking-wider text-zinc-500 text-center">Gruppen</th>}
                   {slShowFehlstunden && <th className="py-2.5 px-2 text-[0.625rem] font-black uppercase tracking-wider text-zinc-500 text-center w-28">Fehlstunden</th>}
+                  {slShowNotes && (
+                    <th className="py-2.5 px-2 text-[0.625rem] font-black uppercase tracking-wider text-zinc-600 text-left min-w-[12rem] max-w-[20rem]">
+                      Besondere Hinweise
+                    </th>
+                  )}
+                  {slShowAllergies && (
+                    <th className="py-2.5 px-2 text-[0.625rem] font-black uppercase tracking-wider text-zinc-600 text-left min-w-[12rem] max-w-[20rem]">
+                      Allergien & Unverträglichkeiten
+                    </th>
+                  )}
+                  {slShowFotoFreigabe && (
+                    <th className="py-2.5 px-2 text-[0.625rem] font-black uppercase tracking-wider text-zinc-600 text-center min-w-[10rem]">
+                      Foto-Freigabe
+                    </th>
+                  )}
                   {slCustomCols.slice(0, slCustomColsCount).map((cn, ci) => (
                     <th key={ci} className="py-2.5 px-2 text-[0.625rem] font-black uppercase tracking-wider border-l border-zinc-300 text-center text-zinc-500">{cn}</th>
                   ))}
@@ -4119,6 +4552,40 @@ export default function PrintCenter() {
                             const fs = getStudentFehlstunden(st.id);
                             return `${fs.total} Std. (${fs.excused} e / ${fs.unexcused} u)`;
                           })()}
+                        </td>
+                      )}
+                      {slShowNotes && (
+                        <td className="py-2 px-2 font-medium text-zinc-700 text-[0.6875rem] max-w-[20rem] text-wrap leading-tight break-words whitespace-pre-line" title={st.notiz || ''}>
+                          {st.notiz && st.notiz.trim() ? (
+                            <span>{st.notiz.trim()}</span>
+                          ) : (
+                            <span className="text-zinc-300 font-normal">—</span>
+                          )}
+                        </td>
+                      )}
+                      {slShowAllergies && (
+                        <td className="py-2 px-2 font-medium text-zinc-700 text-[0.6875rem] max-w-[20rem] text-wrap leading-tight break-words whitespace-pre-line" title={st.allergien || ''}>
+                          {st.allergien && st.allergien.trim() ? (
+                            <span>{st.allergien.trim()}</span>
+                          ) : (
+                            <span className="text-zinc-300 font-normal">—</span>
+                          )}
+                        </td>
+                      )}
+                      {slShowFotoFreigabe && (
+                        <td className="py-2 px-2 font-semibold text-center text-[0.6875rem] max-w-[12rem] text-wrap leading-tight break-words">
+                          {st.fotoFreigabe === 'erlaubt' && (
+                            <span className="text-emerald-700 font-bold">Foto: erlaubt</span>
+                          )}
+                          {st.fotoFreigabe === 'nur_homepage' && (
+                            <span className="text-amber-800 font-bold">Foto: nur Schulhomepage</span>
+                          )}
+                          {st.fotoFreigabe === 'nicht_erlaubt' && (
+                            <span className="text-rose-700 font-bold">Foto: nicht erlaubt</span>
+                          )}
+                          {!st.fotoFreigabe && (
+                            <span className="text-zinc-300 font-normal">—</span>
+                          )}
                         </td>
                       )}
                       {Array.from({ length: slCustomColsCount }).map((_, cidx) => (
@@ -4195,7 +4662,7 @@ export default function PrintCenter() {
             for (let i = 0; i < saCount; i++) {
               colsToRender.push({
                 id: `sa-${i}`,
-                title: `${app.notenLabels?.sa || 'SA'} ${i + 1}`,
+                title: `${getNotenLabel(app, clSelectedSubject, 'sa', 'SA')} ${i + 1}`,
                 type: 'sa',
                 idx: i
               });
@@ -4205,7 +4672,7 @@ export default function PrintCenter() {
           if (cfg.lzk) {
             const count = colCounts.lzk || 4;
             for (let i = 0; i < count; i++) {
-              const label = app.notenMeta?.[clSelectedSubject]?.colLabels?.lzk?.[i] || `${app.notenLabels?.lzk || 'LZK'} ${i + 1}`;
+              const label = app.notenMeta?.[clSelectedSubject]?.colLabels?.lzk?.[i] || `${getNotenLabel(app, clSelectedSubject, 'lzk', 'LZK')} ${i + 1}`;
               colsToRender.push({
                 id: `lzk-${i}`,
                 title: label,
@@ -4218,7 +4685,7 @@ export default function PrintCenter() {
           if (cfg.wp) {
             const count = colCounts.wp || 4;
             for (let i = 0; i < count; i++) {
-              const label = app.notenMeta?.[clSelectedSubject]?.colLabels?.wp?.[i] || `${app.notenLabels?.wp || 'WOPL'} ${i + 1}`;
+              const label = app.notenMeta?.[clSelectedSubject]?.colLabels?.wp?.[i] || `${getNotenLabel(app, clSelectedSubject, 'wp', 'WOPL')} ${i + 1}`;
               colsToRender.push({
                 id: `wp-${i}`,
                 title: label,
@@ -4231,7 +4698,7 @@ export default function PrintCenter() {
           if (cfg.obj) {
             const count = colCounts.obj || 4;
             for (let i = 0; i < count; i++) {
-              const label = app.notenMeta?.[clSelectedSubject]?.colLabels?.obj?.[i] || `${app.notenLabels?.obj || 'Objekt'} ${i + 1}`;
+              const label = app.notenMeta?.[clSelectedSubject]?.colLabels?.obj?.[i] || `${getNotenLabel(app, clSelectedSubject, 'obj', 'Objekt')} ${i + 1}`;
               colsToRender.push({
                 id: `obj-${i}`,
                 title: label,
@@ -4244,7 +4711,7 @@ export default function PrintCenter() {
           if (cfg.hue) {
             colsToRender.push({
               id: 'hue',
-              title: app.notenLabels?.hue || 'HÜ',
+              title: getNotenLabel(app, clSelectedSubject, 'hue', 'HÜ'),
               type: 'hue'
             });
           }
@@ -4252,7 +4719,7 @@ export default function PrintCenter() {
           if (cfg.g.mi > 0) {
             colsToRender.push({
               id: 'mi',
-              title: app.notenLabels?.mi || 'Mitarbeit',
+              title: getNotenLabel(app, clSelectedSubject, 'mi', 'Mitarbeit'),
               type: 'mi'
             });
           }
@@ -5272,6 +5739,9 @@ export default function PrintCenter() {
       case 'fehlstunden':
         return renderFehlstundenView();
 
+      case 'kassenuebersicht':
+        return renderKassenuebersichtView();
+
       case 'smart_tools':
         return renderSmartToolsView();
 
@@ -5442,6 +5912,205 @@ export default function PrintCenter() {
         <div className="text-[0.625rem] text-zinc-400 font-medium italic text-left">
           * Aufteilung: 1. Semester umfasst die Monate September bis Jänner. 2. Semester umfasst Februar bis August.
         </div>
+      </div>
+    );
+  }
+
+  function renderKassenuebersichtView() {
+    const { rows, openingBalance, totalIncome, totalExpense, closingBalance, hasRows } = koReportData;
+    const classNameStr = `${app?.stufe || ''}${app?.stufe ? '. Klasse ' : 'Klasse '}${app?.klassenbezeichnung || app?.klasse || ''}`.trim();
+    const formatEur = (v: number) => (Number(v) || 0).toLocaleString('de-AT', { style: 'currency', currency: 'EUR' });
+
+    return (
+      <div className="space-y-6 text-slate-900 font-sans">
+        {/* Kopfbereich: Dokument-Header */}
+        <div className="border-b-2 border-black pb-3 flex justify-between items-end gap-4">
+          <div className="text-left">
+            <h3 className="text-[1.25rem] leading-tight font-black uppercase tracking-wider text-black">
+              {customHeaderTitle || 'Kassenübersicht – Einnahmen & Ausgaben'}
+            </h3>
+            <div className="text-[0.75rem] font-bold text-zinc-600 mt-1 flex items-center gap-2 flex-wrap">
+              <span><strong>Klasse:</strong> {classNameStr || 'Klassenkasse'}</span>
+              <span>•</span>
+              <span><strong>Zeitraum:</strong> {koDateRange.periodLabel}</span>
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <span className="text-[0.625rem] font-black uppercase tracking-widest text-zinc-500 block">
+              Schuljahr {app?.schuljahr || getCurrentSchuljahr()}
+            </span>
+            <span className="text-[0.625rem] font-bold text-zinc-400">
+              Gedruckt am {new Date().toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+            </span>
+          </div>
+        </div>
+
+        {/* Kompakte Finanz-Kennzahlen Box */}
+        {koShowKpiBanner && (
+          <div className="grid grid-cols-4 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-center">
+            <div className="p-1">
+              <span className="text-[0.5625rem] font-bold uppercase tracking-wider text-slate-500 block">Anfangsbestand</span>
+              <span className="text-[1rem] font-black text-slate-800 font-mono block mt-0.5">{formatEur(openingBalance)}</span>
+            </div>
+            <div className="p-1 border-l border-slate-200">
+              <span className="text-[0.5625rem] font-bold uppercase tracking-wider text-emerald-700 block">Einnahmen</span>
+              <span className="text-[1rem] font-black text-emerald-700 font-mono block mt-0.5">+{formatEur(totalIncome)}</span>
+            </div>
+            <div className="p-1 border-l border-slate-200">
+              <span className="text-[0.5625rem] font-bold uppercase tracking-wider text-rose-700 block">Ausgaben</span>
+              <span className="text-[1rem] font-black text-rose-700 font-mono block mt-0.5">-{formatEur(totalExpense)}</span>
+            </div>
+            <div className="p-1 border-l border-slate-200 bg-white rounded-lg border border-slate-200/80 shadow-3xs">
+              <span className="text-[0.5625rem] font-black uppercase tracking-wider text-indigo-900 block">Endsaldo</span>
+              <span className={`text-[1.0625rem] font-black font-mono block mt-0.5 ${closingBalance >= 0 ? 'text-slate-900' : 'text-rose-600'}`}>
+                {formatEur(closingBalance)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Haupttabelle */}
+        <table className="w-full border-collapse text-left text-[0.75rem]">
+          <thead>
+            <tr className="border-b-[1.5pt] border-black bg-slate-100/70 text-black font-black uppercase text-[0.625rem] tracking-wider">
+              <th className="py-2.5 px-2.5 w-24 text-left">Datum</th>
+              <th className="py-2.5 px-2 text-left">Beschreibung</th>
+              <th className="py-2.5 px-2 w-28 text-left">Kategorie</th>
+              <th className="py-2.5 px-2.5 w-24 text-right">Einnahme</th>
+              <th className="py-2.5 px-2.5 w-24 text-right">Ausgabe</th>
+              <th className="py-2.5 px-2.5 w-28 text-right">Saldo</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            {/* Anfangsbestand Zeile falls nicht 0 */}
+            {openingBalance !== 0 && (
+              <tr className="bg-slate-50/60 text-slate-600 italic">
+                <td className="py-2 px-2.5 font-medium whitespace-nowrap text-slate-400">
+                  {new Date(koDateRange.startDateStr).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </td>
+                <td className="py-2 px-2 font-bold text-slate-700" colSpan={2}>
+                  Anfangsbestand / Vortrag vor {koDateRange.periodLabel}
+                </td>
+                <td className="py-2 px-2.5 text-right font-mono text-slate-400">—</td>
+                <td className="py-2 px-2.5 text-right font-mono text-slate-400">—</td>
+                <td className="py-2 px-2.5 text-right font-mono font-bold text-slate-900">
+                  {formatEur(openingBalance)}
+                </td>
+              </tr>
+            )}
+
+            {!hasRows ? (
+              <tr>
+                <td colSpan={6} className="py-12 text-center text-slate-400 font-bold text-[0.875rem] italic">
+                  Keine Buchungen im ausgewählten Zeitraum.
+                </td>
+              </tr>
+            ) : (
+              rows.map((tx, idx) => {
+                const isEven = idx % 2 === 0;
+                const formattedDate = tx.datum
+                  ? new Date(tx.datum).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                  : '—';
+                const katLabel = tx.kategorie === 'ausgabe'
+                  ? 'Ausgabe'
+                  : tx.kategorie === 'sammlung'
+                  ? 'Geldsammlung'
+                  : tx.kategorie === 'sonstiges'
+                  ? 'Sonstiges'
+                  : tx.kategorie || (tx.isPlus ? 'Einnahme' : 'Ausgabe');
+
+                return (
+                  <tr
+                    key={tx.id || idx}
+                    className={`break-inside-avoid ${isEven ? 'bg-white' : 'bg-slate-50/40'} hover:bg-slate-100/50 transition-colors`}
+                  >
+                    <td className="py-2 px-2.5 font-medium whitespace-nowrap text-slate-700 align-top">
+                      {formattedDate}
+                    </td>
+                    <td className="py-2 px-2 font-bold text-slate-900 align-top leading-snug break-words">
+                      {tx.titel}
+                    </td>
+                    <td className="py-2 px-2 text-slate-600 align-top text-[0.6875rem]">
+                      <span className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200/80 font-medium">
+                        {katLabel}
+                      </span>
+                    </td>
+                    <td className="py-2 px-2.5 text-right font-mono font-bold text-emerald-700 align-top whitespace-nowrap">
+                      {tx.einnahme !== null ? formatEur(tx.einnahme) : ''}
+                    </td>
+                    <td className="py-2 px-2.5 text-right font-mono font-bold text-rose-700 align-top whitespace-nowrap">
+                      {tx.ausgabe !== null ? formatEur(tx.ausgabe) : ''}
+                    </td>
+                    <td className="py-2 px-2.5 text-right font-mono font-black text-slate-900 align-top whitespace-nowrap">
+                      {formatEur(tx.saldo)}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-[1.5pt] border-black bg-slate-100 font-bold text-slate-900">
+              <td colSpan={3} className="py-2.5 px-2.5 uppercase text-[0.6875rem] font-black tracking-wider">
+                Summen im Zeitraum
+              </td>
+              <td className="py-2.5 px-2.5 text-right font-mono font-black text-emerald-800 whitespace-nowrap">
+                {formatEur(totalIncome)}
+              </td>
+              <td className="py-2.5 px-2.5 text-right font-mono font-black text-rose-800 whitespace-nowrap">
+                {formatEur(totalExpense)}
+              </td>
+              <td className="py-2.5 px-2.5 text-right font-mono font-black text-black whitespace-nowrap">
+                {formatEur(closingBalance)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+
+        {/* Zusammenfassungs-Kasten */}
+        <div className="border border-slate-300 rounded-xl p-4 bg-slate-50/80 space-y-2 break-inside-avoid">
+          <div className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-500 border-b border-slate-200 pb-1.5">
+            Zusammenfassung Kassenstand
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-[0.8125rem]">
+            <div>
+              <span className="text-slate-600 font-medium">Einnahmen gesamt:</span>{' '}
+              <strong className="font-mono text-emerald-700">{formatEur(totalIncome)}</strong>
+            </div>
+            <div>
+              <span className="text-slate-600 font-medium">Ausgaben gesamt:</span>{' '}
+              <strong className="font-mono text-rose-700">{formatEur(totalExpense)}</strong>
+            </div>
+            <div>
+              <span className="text-slate-900 font-black">Endsaldo:</span>{' '}
+              <strong className="font-mono text-slate-950 text-[0.9375rem]">{formatEur(closingBalance)}</strong>
+            </div>
+          </div>
+        </div>
+
+        {/* Unterschriftenzeilen */}
+        {koShowSignatures && (
+          <div className="pt-8 border-t border-slate-200 grid grid-cols-2 gap-12 text-[0.75rem] break-inside-avoid">
+            <div className="space-y-8">
+              <p className="text-slate-500 text-[0.6875rem]">
+                Ort, Datum: _________________________________
+              </p>
+              <div className="border-t border-slate-400 pt-1.5">
+                <p className="font-bold text-slate-800">{app?.anrede ? `${app.anrede} ` : ''}{app?.nachname || 'Klassenlehrer:in'}</p>
+                <p className="text-[0.625rem] text-slate-500 uppercase tracking-wider font-semibold">Klassenleitung</p>
+              </div>
+            </div>
+            <div className="space-y-8">
+              <p className="text-slate-500 text-[0.6875rem] text-transparent select-none">
+                .
+              </p>
+              <div className="border-t border-slate-400 pt-1.5">
+                <p className="font-bold text-slate-800">Rechnungsprüfung / Schulleitung</p>
+                <p className="text-[0.625rem] text-slate-500 uppercase tracking-wider font-semibold">Geprüft &amp; Übernommen</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

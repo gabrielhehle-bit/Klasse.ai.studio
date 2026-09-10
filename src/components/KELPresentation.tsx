@@ -881,7 +881,7 @@ Antworte AUSSCHLIESSLICH mit dem übersetzten JSON-Objekt in exakt derselben Str
 
   const runProfileAnalysis = async () => {
     setIsAnalyzingProfile(true);
-    const ikmRecord = (app.ikmRecords || []).find((r: any) => r.schuelerId === student.id) || {};
+    const ikmRecord: any = (app.ikmRecords || []).find((r: any) => r.schuelerId === student.id) || null;
     try {
       const mathGrade = berechne ? (berechne(app, student.id, 'Mathematik', sem) || 3) : 3;
       const deutschGrade = berechne ? (berechne(app, student.id, 'Deutsch', sem) || 3) : 3;
@@ -889,13 +889,28 @@ Antworte AUSSCHLIESSLICH mit dem übersetzten JSON-Objekt in exakt derselben Str
       
       
       
-      const promptText = `Analysiere das Schülerprofil von ${student.vorname} ${student.nachname}.
-      Klasse/Stufe: ${app.stufe || '4'}.
-      IKM-Daten: ${JSON.stringify(ikmRecord)}.
-      Aktuelle Noten: Mathematik: ${mathGrade}, Deutsch: ${deutschGrade}, Sachunterricht: ${suGrade}.
-      Besondere Interessen (Badges etc.): ${JSON.stringify(student.badges || [])}.
-      Religion des Kindes: ${student.religion || 'Keine Angabe'}.
-      Schuljahr: ${app.schuljahr || 'Laudativ'}.
+      // B1.5 DATENSCHUTZ: Keine Namen, keine Religion und keine Roh-Schülerprofile an die KI übertragen!
+      // Nur didaktisch relevante Kompetenzwerte und Förderziele pseudonymisiert bereitstellen.
+      const sanitizedIkm = ikmRecord ? {
+        mathematikPR: ikmRecord.mathematikPR,
+        deutschLesenPR: ikmRecord.deutschLesenPR,
+        deutschZuhoerenPR: ikmRecord.deutschZuhoerenPR,
+        diagnoseStaerken: ikmRecord.diagnoseStaerken,
+        diagnoseHerausforderungen: ikmRecord.diagnoseHerausforderungen
+      } : null;
+
+      const badgeNames = (student.badges || []).map((b: any) => typeof b === 'string' ? b : b.name).filter(Boolean);
+      const foerderZiele = (student.foerderprofil?.foerderziele || [])
+        .map((z: any) => z.ziel ? `${z.ziel} (${z.bereich || 'Allgemein'})` : '')
+        .filter(Boolean);
+
+      const promptText = `Analysiere die Lernausgangslage für ein Kind der Volksschule (Pseudonym: Kind A).
+      Klasse/Stufe: ${app.stufe || '4'}. Schulstufe.
+      Relevante Kompetenzdaten (IKM-Auszug): ${sanitizedIkm ? JSON.stringify(sanitizedIkm) : 'Keine IKM-Daten vorhanden'}.
+      Noten-Einstufung: Mathematik: ${mathGrade}, Deutsch: ${deutschGrade}, Sachunterricht: ${suGrade}.
+      Besondere Interessen & Stärken: ${badgeNames.length > 0 ? badgeNames.join(', ') : 'Vielseitig interessiert'}.
+      Vorhandene Förderziele: ${foerderZiele.length > 0 ? foerderZiele.join(', ') : 'Reguläre Kompetenzvertiefung'}.
+      Schuljahr: ${app.schuljahr || 'Aktuelles Schuljahr'}.
 
       Gib uns das Ergebnis als JSON-Struktur zurück mit:
       {
@@ -912,21 +927,9 @@ Antworte AUSSCHLIESSLICH mit dem übersetzten JSON-Objekt in exakt derselben Str
         ]
       }`;
 
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'askAI',
-          params: {
-            modusId: 'ki-lernpfad',
-            userMessage: promptText
-          }
-        })
-      });
-
-      const data = await response.json();
-      if (data.text) {
-        let cleanText = data.text.trim();
+      const responseText = await askAI('ki-lernpfad', promptText);
+      if (responseText) {
+        let cleanText = responseText.trim();
         if (cleanText.startsWith('```json')) {
           cleanText = cleanText.substring(7);
         }

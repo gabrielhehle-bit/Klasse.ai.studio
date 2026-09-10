@@ -8,6 +8,30 @@ import { getKW, getCurrentSchuljahr } from '../lib/utils';
 import { DEFAULT_HISTORICAL_STUDENTS } from '../data/historicalStudents';
 import { notenSyncService } from '../lib/NotenSyncService';
 import { DEFAULT_MORNING_WIDGETS } from '../data/morningWidgets';
+import {
+  encryptSyncState,
+  decryptSyncState,
+  parseSyncHash,
+  importSessionKey,
+  cleanSyncUrlFromHistory,
+  getActiveSessionKey,
+  setActiveSessionKey,
+  clearActiveSessionKey,
+} from '../lib/syncService';
+import {
+  saveEncryptedAppState,
+  loadEncryptedAppState,
+  saveEncryptedEmergencyBackup,
+  saveEncryptedSessionBackup,
+  hasLegacyPlaintextData,
+} from '../lib/secureStorageService';
+import {
+  getActiveVaultKey,
+  clearActiveVaultSession,
+  hasVault,
+  subscribeVaultSession,
+} from '../lib/vaultStorage';
+import { registerActiveAppStateGetter } from '../services/aiService';
 
 localforage.config({
   name: 'LehrerApp',
@@ -26,11 +50,15 @@ interface AppContextType {
   switchClass: (id: string) => void;
   addClass: (name: string, stufe: number, isKV: boolean) => void;
   removeClass: (id: string) => void;
+  deleteClass: (id?: string) => void;
   notenUpdateTrigger: number;
   triggerGradebookUpdate: () => void;
   calculateWidgetFontSize: (scale: number) => string;
   screenLocked: boolean;
   setScreenLocked: (locked: boolean) => void;
+  isVaultUnlocked: boolean;
+  lockAppVault: () => void;
+  unlockAppVault: (key: CryptoKey) => Promise<boolean>;
 }
 
 const STORAGE_KEY = 'hehle_v3';
@@ -58,6 +86,8 @@ const initialAppState: AppState = {
   sitzplan_schueler: {},
   sitzplan_objekte: [],
   orga_listen: [],
+  customLists: [],
+  checklisten: [],
   sue_kontrolle: {},
   gruppen: [],
   schueler: [],
@@ -70,6 +100,7 @@ const initialAppState: AppState = {
   wochenrueckblick: null,
   lernzielTracker: {},
   ikmRecords: [],
+  diagnosticResults: [],
   klassenglas_completed_missions: [],
   dienste: [],
   backupEinstellungen: { letztesBackup: null, erinnerungAktiv: true },
@@ -94,6 +125,7 @@ const initialAppState: AppState = {
   journal: [],
   anwesenheit: {},
   anwesenheitDetail: {},
+  schuelerStimmung: {},
   hueBuch: {},
   awGruende: {},
   verbal: {},
@@ -176,12 +208,14 @@ const initialAppState: AppState = {
     boardTextColor: 'text-white/90',
     timerType: 'digital',
     studentNameStyle: 'vorname_nachname',
-    showStudentEmojiInList: true
+    showStudentEmojiInList: true,
+    isTafelOpen: false
   },
   tafelVorlagen: [],
   metaKognitionsProtokolle: [],
   sitzplanRegeln: [],
-  lernwoerter: { aktuelleListe: [], kw: 0, archiv: [] }
+  lernwoerter: { aktuelleListe: [], kw: 0, archiv: [] },
+  schuelerWochenplaene: {}
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -215,6 +249,7 @@ function syncActiveClass(state: AppState): AppState {
     stammplan: state.stammplan ? JSON.parse(JSON.stringify(state.stammplan)) : {},
     anwesenheit: state.anwesenheit ? JSON.parse(JSON.stringify(state.anwesenheit)) : {},
     anwesenheitDetail: state.anwesenheitDetail ? JSON.parse(JSON.stringify(state.anwesenheitDetail)) : undefined,
+    schuelerStimmung: state.schuelerStimmung ? JSON.parse(JSON.stringify(state.schuelerStimmung)) : {},
     dienste: state.dienste ? JSON.parse(JSON.stringify(state.dienste)) : undefined,
     saAssessments: state.saAssessments ? JSON.parse(JSON.stringify(state.saAssessments)) : {},
     klassenglas_count: state.klassenglas_count,
@@ -223,6 +258,8 @@ function syncActiveClass(state: AppState): AppState {
     klassenglas_missions: state.klassenglas_missions,
     klassenglas_completed_missions: state.klassenglas_completed_missions,
     klassenkasse: state.klassenkasse ? JSON.parse(JSON.stringify(state.klassenkasse)) : undefined,
+    checklisten: state.checklisten ? JSON.parse(JSON.stringify(state.checklisten)) : [],
+    customLists: state.customLists ? JSON.parse(JSON.stringify(state.customLists)) : [],
     behavior_status: state.behavior_status ? { ...state.behavior_status } : {},
     behavior_notes: state.behavior_notes ? { ...state.behavior_notes } : {},
     stundenZeiten: state.stundenZeiten ? { ...state.stundenZeiten } : {},
@@ -250,398 +287,369 @@ function syncActiveClass(state: AppState): AppState {
   };
 }
 
+// Normalisiert und migriert beliebige eingelesene Zustände auf das aktuelle AppState-Schema
+function normalizeAppState(raw: any): AppState {
+  if (!raw || typeof raw !== 'object') {
+    return initialAppState;
+  }
+
+  const parsed = {
+    ...initialAppState,
+    ...raw,
+    interaktionsLog: raw.interaktionsLog ?? { eintraege: [], wochenEmpfehlung: null },
+    ipsativeGewichtung: raw.ipsativeGewichtung ?? 70,
+    tourAbgeschlossen: raw.tourAbgeschlossen ?? (raw.schueler?.length > 0 || raw.klassen?.length > 0 || raw.classes?.length > 0 ? true : false),
+    stimmNotizen: raw.stimmNotizen ?? [],
+    jahresberichte: raw.jahresberichte ?? {},
+    wochenrueckblick: raw.wochenrueckblick ?? null,
+    lernzielTracker: raw.lernzielTracker ?? {},
+    differenzierungsGruppen: raw.differenzierungsGruppen ?? [],
+    ikmRecords: raw.ikmRecords ?? [],
+    klassenglas_completed_missions: raw.klassenglas_completed_missions ?? [],
+    dienste: raw.dienste ?? [],
+    backupEinstellungen: raw.backupEinstellungen ?? { letztesBackup: null, erinnerungAktiv: true },
+  };
+
+  // Migration: Multi-Class Support
+  if (!parsed.classes || !Array.isArray(parsed.classes) || parsed.classes.length === 0) {
+    const defaultClassId = 'default-' + Math.random().toString(36).substring(2, 9);
+    const defaultClass: any = {
+      id: defaultClassId,
+      name: parsed.klassenbezeichnung || 'Meine Klasse',
+      stufe: parsed.stufe !== undefined ? Number(parsed.stufe) : 4,
+      klassenvorstand: parsed.klassenvorstand !== undefined ? parsed.klassenvorstand : true,
+      schueler: parsed.schueler || [],
+      noten: parsed.noten || {},
+      mitarbeit: parsed.mitarbeit || {},
+      verhalten: parsed.verhalten || {},
+      karten: parsed.karten || {},
+      jahresplanung: parsed.jahresplanung || {},
+      jahresplan_faecher: parsed.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
+      wochenplanung: parsed.wochenplanung || {},
+      stammplan: parsed.stammplan || {},
+      anwesenheit: parsed.anwesenheit || {},
+      anwesenheitDetail: parsed.anwesenheitDetail || {},
+      schuelerStimmung: parsed.schuelerStimmung || {},
+      dienste: parsed.dienste || [],
+      saAssessments: parsed.saAssessments || {},
+      klassenglas_count: parsed.klassenglas_count || 0,
+      klassenglas_ziel: parsed.klassenglas_ziel || 20,
+      klassenglas_belohnung: parsed.klassenglas_belohnung || 'Gemeinsame Spielzeit',
+      klassenkasse: parsed.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
+      behavior_status: parsed.behavior_status || {},
+      behavior_notes: parsed.behavior_notes || {},
+      sue_kontrolle: parsed.sue_kontrolle || {},
+      sitzplan_schueler: parsed.sitzplan_schueler || {},
+      sitzplan_objekte: parsed.sitzplan_objekte || [],
+      tageplan: parsed.tageplan || DEFAULT_TAGEPLAN,
+      faecher: parsed.faecher || FAECHER_ALLE,
+      fachConfig: parsed.fachConfig || DEFAULT_FACH_COLORS
+    };
+    parsed.classes = [defaultClass];
+    parsed.activeClassId = defaultClassId;
+  }
+
+  // Klassen-Sanitization
+  if (parsed.classes && Array.isArray(parsed.classes)) {
+    parsed.classes = parsed.classes.map((c: any) => {
+      if (!c || typeof c !== 'object') return null;
+      return {
+        id: c.id || 'class-' + Math.random().toString(36).substring(2, 9),
+        name: c.name || 'Meine Klasse',
+        stufe: c.stufe !== undefined ? Number(c.stufe) : 4,
+        klassenvorstand: c.klassenvorstand !== undefined ? c.klassenvorstand : true,
+        schueler: c.schueler || [],
+        noten: c.noten || {},
+        mitarbeit: c.mitarbeit || {},
+        verhalten: c.verhalten || {},
+        karten: c.karten || {},
+        jahresplanung: c.jahresplanung || {},
+        jahresplan_faecher: c.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
+        wochenplanung: c.wochenplanung || {},
+        stammplan: c.stammplan || {},
+        anwesenheit: c.anwesenheit || {},
+        anwesenheitDetail: c.anwesenheitDetail || {},
+        schuelerStimmung: c.schuelerStimmung || {},
+        dienste: c.dienste || [],
+        checklisten: c.checklisten || [],
+        customLists: c.customLists || [],
+        saAssessments: c.saAssessments || {},
+        klassenglas_count: c.klassenglas_count !== undefined ? Number(c.klassenglas_count) : 0,
+        klassenglas_ziel: c.klassenglas_ziel !== undefined ? Number(c.klassenglas_ziel) : 20,
+        klassenglas_belohnung: c.klassenglas_belohnung || 'Gemeinsame Spielzeit',
+        klassenkasse: c.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
+        behavior_status: c.behavior_status || {},
+        behavior_notes: c.behavior_notes || {},
+        sue_kontrolle: c.sue_kontrolle || {},
+        sitzplan_schueler: c.sitzplan_schueler || {},
+        sitzplan_objekte: c.sitzplan_objekte || [],
+        tageplan: c.tageplan || DEFAULT_TAGEPLAN,
+        faecher: c.faecher || FAECHER_ALLE,
+        fachConfig: c.fachConfig || DEFAULT_FACH_COLORS,
+        theme: c.theme || 'classic_light',
+        schuljahr: c.schuljahr || parsed.schuljahr || getCurrentSchuljahr(),
+        settings: c.settings || {}
+      };
+    }).filter(Boolean);
+  }
+
+  // Active Class Sync
+  let activeClass = parsed.classes?.find((c: any) => c.id === parsed.activeClassId);
+  if (!activeClass && parsed.classes && parsed.classes.length > 0) {
+    activeClass = parsed.classes[0];
+    parsed.activeClassId = activeClass.id;
+  }
+
+  if (activeClass) {
+    parsed.klassenbezeichnung = activeClass.name;
+    parsed.stufe = activeClass.stufe;
+    parsed.klassenvorstand = activeClass.klassenvorstand;
+    parsed.schueler = activeClass.schueler;
+    parsed.noten = activeClass.noten;
+    parsed.mitarbeit = activeClass.mitarbeit;
+    parsed.verhalten = activeClass.verhalten;
+    parsed.karten = activeClass.karten;
+    parsed.jahresplanung = activeClass.jahresplanung;
+    parsed.jahresplan_faecher = activeClass.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS;
+    parsed.wochenplanung = activeClass.wochenplanung;
+    parsed.stammplan = activeClass.stammplan;
+    parsed.anwesenheit = activeClass.anwesenheit;
+    parsed.anwesenheitDetail = activeClass.anwesenheitDetail;
+    parsed.schuelerStimmung = activeClass.schuelerStimmung || {};
+    parsed.dienste = activeClass.dienste;
+    parsed.checklisten = activeClass.checklisten || [];
+    parsed.customLists = activeClass.customLists || [];
+    parsed.saAssessments = activeClass.saAssessments;
+    parsed.klassenglas_count = activeClass.klassenglas_count;
+    parsed.klassenglas_ziel = activeClass.klassenglas_ziel;
+    parsed.klassenglas_belohnung = activeClass.klassenglas_belohnung;
+    parsed.klassenkasse = activeClass.klassenkasse;
+    parsed.behavior_status = activeClass.behavior_status;
+    parsed.behavior_notes = activeClass.behavior_notes;
+    parsed.sue_kontrolle = activeClass.sue_kontrolle;
+    parsed.sitzplan_schueler = activeClass.sitzplan_schueler;
+    parsed.sitzplan_objekte = activeClass.sitzplan_objekte;
+    parsed.tageplan = activeClass.tageplan;
+    parsed.faecher = activeClass.faecher;
+    parsed.fachConfig = activeClass.fachConfig;
+    parsed.theme = activeClass.theme;
+    parsed.schuljahr = activeClass.schuljahr || parsed.schuljahr || getCurrentSchuljahr();
+  }
+
+  parsed.schuelerWochenplaene = parsed.schuelerWochenplaene || {};
+  parsed.morningWidgets = parsed.morningWidgets || DEFAULT_MORNING_WIDGETS;
+  parsed.lehrerProfil = parsed.lehrerProfil || {
+    schulstundenJaehrlich: 120,
+    schularbeitenManuell: 4,
+    testsManuell: 8,
+    ausfluegeManuell: 3,
+    name: parsed.anrede && parsed.nachname ? `${parsed.anrede} ${parsed.nachname}` : "Maximilian Musterlehrer",
+    schule: parsed.schulName || "Volksschule Musterstadt",
+    motto: parsed.motto || "Pädagogik mit Herz ❤️",
+    gegruendetYear: "2018"
+  };
+
+  const iconMap: Record<string, string> = {
+    'star': '🌟',
+    'heart': '❤️',
+    'love': '❤️',
+    'smile': '😊',
+    'minus': '😐',
+    'alert-triangle': '⚠️',
+    'x-circle': '🚫'
+  };
+
+  if (parsed.behavior_stages && Array.isArray(parsed.behavior_stages)) {
+    parsed.behavior_stages = parsed.behavior_stages.map((stage: any) => ({
+      ...stage,
+      icon: (stage.icon && iconMap[stage.icon.toLowerCase()]) ? iconMap[stage.icon.toLowerCase()] : stage.icon
+    }));
+  }
+
+  if (!parsed.notes) {
+    const migratedNotes: any[] = [];
+    if (parsed.notizen && Array.isArray(parsed.notizen)) {
+      parsed.notizen.forEach((n: any) => {
+        migratedNotes.push({
+          id: n.id,
+          datum: new Date(n.timestamp || Date.now()).toISOString(),
+          kategorie: n.schuelerId ? 'Verhalten' : 'Journal',
+          inhalt: n.inhalt || '',
+          schuelerId: n.schuelerId,
+          icon: n.icon || '📝'
+        });
+      });
+    }
+    if (parsed.observations && Array.isArray(parsed.observations)) {
+      parsed.observations.forEach((o: any) => {
+        const catMap: Record<string, string> = {
+          'behavior': 'Verhalten',
+          'academic': 'allgemein',
+          'social': 'allgemein',
+          'incident': 'Verhalten',
+          'praise': 'Erfolg',
+          'reflexion': 'reflexion'
+        };
+        migratedNotes.push({
+          id: o.id,
+          datum: o.date || new Date().toISOString(),
+          kategorie: catMap[o.category] || 'Journal',
+          inhalt: o.text || '',
+          schuelerId: o.studentId,
+          quelle: o.source
+        });
+      });
+    }
+    if (parsed.journal && Array.isArray(parsed.journal)) {
+      parsed.journal.forEach((j: any) => {
+        if (!migratedNotes.find(m => m.id === j.id)) {
+          migratedNotes.push(j);
+        }
+      });
+    }
+    parsed.notes = migratedNotes.sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime());
+  }
+
+  const schuelerExist = parsed.schueler && parsed.schueler.length > 0;
+  const computedTourAbgeschlossen = schuelerExist ? true : (parsed.tourAbgeschlossen ?? false);
+
+  return {
+    ...initialAppState,
+    ...parsed,
+    bundesland: parsed.bundesland || 'VBG',
+    tourAbgeschlossen: computedTourAbgeschlossen,
+    historicalStudents: parsed.historicalStudents || DEFAULT_HISTORICAL_STUDENTS,
+    notes: parsed.notes || [],
+    settings: { ...initialAppState.settings, ...(parsed.settings || {}) },
+    boardSettings: {
+      ...initialAppState.boardSettings,
+      ...(parsed.boardSettings || {}),
+      isTafelOpen: false // Digitale Tafel darf niemals automatisch beim App-Start oder Laden geöffnet sein
+    },
+    klassenkasse: { ...initialAppState.klassenkasse, ...(parsed.klassenkasse || {}) },
+    ampelLabels: { ...initialAppState.ampelLabels, ...(parsed.ampelLabels || {}) },
+    jahresplan_faecher: parsed.jahresplan_faecher || initialAppState.jahresplan_faecher,
+    sitzplanRegeln: parsed.sitzplanRegeln || [],
+    metaKognitionsProtokolle: parsed.metaKognitionsProtokolle || [],
+    diagnosticResults: parsed.diagnosticResults || [],
+    lernwoerter: parsed.lernwoerter || { aktuelleListe: [], kw: 0, archiv: [] }
+  };
+}
+
 export function AppProvider({ children }: { children: ReactNode }) {
   const [app, setAppInternal] = useState<AppState>(initialAppState);
-  
+  const currentAppRef = useRef<AppState>(app);
+  currentAppRef.current = app;
+
   const setApp = React.useCallback((val: React.SetStateAction<AppState>) => {
     setAppInternal(prev => {
       const nextRaw = typeof val === 'function' ? (val as any)(prev) : val;
-      return syncActiveClass(nextRaw);
+      const synced = syncActiveClass(nextRaw);
+      currentAppRef.current = synced;
+      return synced;
     });
   }, []);
+
   const [isLoaded, setIsLoaded] = useState(false);
   const [screenLocked, setScreenLocked] = useState(false);
+  const [isVaultUnlocked, setIsVaultUnlocked] = useState<boolean>(() => getActiveVaultKey() !== null);
 
+  // In-Memory Getter für AI-Pseudonymisierung registrieren (kein Namenscache im localStorage)
   useEffect(() => {
-    const loadState = async () => {
+    registerActiveAppStateGetter(() => currentAppRef.current);
+  }, []);
+
+  // Synchronisation des Vault-Session-Status (RAM-Only)
+  useEffect(() => {
+    const unsubscribe = subscribeVaultSession((unlocked) => {
+      setIsVaultUnlocked(unlocked);
+    });
+    return unsubscribe;
+  }, []);
+
+  // Prüft beim Start den Tresor-Status und lädt verschlüsselte Daten, falls bereits entsperrt
+  useEffect(() => {
+    let isMounted = true;
+    const initStorage = async () => {
       try {
-        let saved = await localforage.getItem<string>(STORAGE_KEY);
-        
-        if (!saved) {
-          // Robust multi-source state retrieval for complete offline resilience & rollback redundancy
-          saved = localStorage.getItem(STORAGE_KEY) || 
-                  sessionStorage.getItem(STORAGE_KEY + '_temp') ||
-                  localStorage.getItem(STORAGE_KEY + '_backup') ||
-                  localStorage.getItem(STORAGE_KEY + '_fallback') ||
-                  localStorage.getItem('schulplan_state') ||
-                  localStorage.getItem('appState') ||
-                  localStorage.getItem('lm_v1_prod');
-        }
-      
-        if (!saved) {
-          setApp(initialAppState);
-          setIsLoaded(true);
-          return;
-        }
-        
-        let parsed;
-        try {
-          parsed = JSON.parse(saved);
-        } catch (e) {
+        const vaultExists = await hasVault();
+        const activeKey = getActiveVaultKey();
+
+        if (vaultExists && activeKey) {
           try {
-            const decompressed = LZString.decompressFromUTF16(saved) || LZString.decompress(saved);
-            if (decompressed) {
-              parsed = JSON.parse(decompressed);
-            } else {
-              throw new Error('Decompression returned empty string');
-            }
-          } catch (decompressError) {
-            console.error('Failed to parse primary state, attempting backup sources...', decompressError);
-            // Attempt parsing backups directly
-            const backup = localStorage.getItem(STORAGE_KEY + '_backup') || localStorage.getItem(STORAGE_KEY + '_fallback');
-            if (backup) {
-              try {
-                const decompressedBackup = LZString.decompressFromUTF16(backup) || LZString.decompress(backup) || backup;
-                parsed = JSON.parse(decompressedBackup);
-                console.log('Successfully recovered state from backup source!');
-              } catch (backupParseError) {
-                console.error('Failed to parse backup sources too:', backupParseError);
-                setApp(initialAppState);
-                setIsLoaded(true);
-                return;
-              }
-            } else {
-              setApp(initialAppState);
+            const decrypted = await loadEncryptedAppState(activeKey);
+            if (decrypted && isMounted) {
+              setApp(normalizeAppState(decrypted));
+              setIsVaultUnlocked(true);
               setIsLoaded(true);
               return;
             }
+          } catch (decErr) {
+            console.error('[Datenschutz] Entschlüsselung beim App-Start fehlgeschlagen:', decErr);
+          }
+          // Falls noch keine verschlüsselten Daten vorliegen, aber Schlüssel im RAM aktiv ist
+          if (isMounted) {
+            setIsVaultUnlocked(true);
+            setIsLoaded(true);
+            return;
           }
         }
 
-        parsed = {
-          ...initialAppState,
-          ...parsed,
-          interaktionsLog: parsed.interaktionsLog ?? { eintraege: [], wochenEmpfehlung: null },
-          ipsativeGewichtung: parsed.ipsativeGewichtung ?? 70,
-          tourAbgeschlossen: parsed.tourAbgeschlossen ?? (parsed.schueler?.length > 0 || parsed.klassen?.length > 0 || parsed.classes?.length > 0 ? true : false),
-          stimmNotizen: parsed.stimmNotizen ?? [],
-          jahresberichte: parsed.jahresberichte ?? {},
-          wochenrueckblick: parsed.wochenrueckblick ?? null,
-          lernzielTracker: parsed.lernzielTracker ?? {},
-          differenzierungsGruppen: parsed.differenzierungsGruppen ?? [],
-          ikmRecords: parsed.ikmRecords ?? [],
-          klassenglas_completed_missions: parsed.klassenglas_completed_missions ?? [],
-          dienste: parsed.dienste ?? [],
-          backupEinstellungen: parsed.backupEinstellungen ?? { letztesBackup: null, erinnerungAktiv: true },
-        };
-        
-        // Migration: Multi-Class Support
-        if (!parsed.classes || !Array.isArray(parsed.classes) || parsed.classes.length === 0) {
-          const defaultClassId = 'default-' + Math.random().toString(36).substring(2, 9);
-          const defaultClass: any = {
-            id: defaultClassId,
-            name: parsed.klassenbezeichnung || 'Meine Klasse',
-            stufe: parsed.stufe !== undefined ? Number(parsed.stufe) : 4,
-            klassenvorstand: parsed.klassenvorstand !== undefined ? parsed.klassenvorstand : true,
-            schueler: parsed.schueler || [],
-            noten: parsed.noten || {},
-            mitarbeit: parsed.mitarbeit || {},
-            verhalten: parsed.verhalten || {},
-            karten: parsed.karten || {},
-            jahresplanung: parsed.jahresplanung || {},
-            jahresplan_faecher: parsed.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
-            wochenplanung: parsed.wochenplanung || {},
-            stammplan: parsed.stammplan || {},
-            anwesenheit: parsed.anwesenheit || {},
-            anwesenheitDetail: parsed.anwesenheitDetail || {},
-            dienste: parsed.dienste || [],
-            saAssessments: parsed.saAssessments || {},
-            klassenglas_count: parsed.klassenglas_count || 0,
-            klassenglas_ziel: parsed.klassenglas_ziel || 20,
-            klassenglas_belohnung: parsed.klassenglas_belohnung || 'Gemeinsame Spielzeit',
-            klassenkasse: parsed.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
-            behavior_status: parsed.behavior_status || {},
-            behavior_notes: parsed.behavior_notes || {},
-            sue_kontrolle: parsed.sue_kontrolle || {},
-            sitzplan_schueler: parsed.sitzplan_schueler || {},
-            sitzplan_objekte: parsed.sitzplan_objekte || [],
-            tageplan: parsed.tageplan || DEFAULT_TAGEPLAN,
-            faecher: parsed.faecher || FAECHER_ALLE,
-            fachConfig: parsed.fachConfig || DEFAULT_FACH_COLORS
-          };
-          parsed.classes = [defaultClass];
-          parsed.activeClassId = defaultClassId;
-        }
-
-        // Sanitize and normalize ALL classes in classes array to have all essential properties
-        if (parsed.classes && Array.isArray(parsed.classes)) {
-          parsed.classes = parsed.classes.map((c: any) => {
-            if (!c || typeof c !== 'object') return null;
-            return {
-              id: c.id || 'class-' + Math.random().toString(36).substring(2, 9),
-              name: c.name || 'Meine Klasse',
-              stufe: c.stufe !== undefined ? Number(c.stufe) : 4,
-              klassenvorstand: c.klassenvorstand !== undefined ? c.klassenvorstand : true,
-              schueler: c.schueler || [],
-              noten: c.noten || {},
-              mitarbeit: c.mitarbeit || {},
-              verhalten: c.verhalten || {},
-              karten: c.karten || {},
-              jahresplanung: c.jahresplanung || {},
-              jahresplan_faecher: c.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
-              wochenplanung: c.wochenplanung || {},
-              stammplan: c.stammplan || {},
-              anwesenheit: c.anwesenheit || {},
-              anwesenheitDetail: c.anwesenheitDetail || {},
-              dienste: c.dienste || [],
-              saAssessments: c.saAssessments || {},
-              klassenglas_count: c.klassenglas_count !== undefined ? Number(c.klassenglas_count) : 0,
-              klassenglas_ziel: c.klassenglas_ziel !== undefined ? Number(c.klassenglas_ziel) : 20,
-              klassenglas_belohnung: c.klassenglas_belohnung || 'Gemeinsame Spielzeit',
-              klassenkasse: c.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
-              behavior_status: c.behavior_status || {},
-              behavior_notes: c.behavior_notes || {},
-              sue_kontrolle: c.sue_kontrolle || {},
-              sitzplan_schueler: c.sitzplan_schueler || {},
-              sitzplan_objekte: c.sitzplan_objekte || [],
-              tageplan: c.tageplan || DEFAULT_TAGEPLAN,
-              faecher: c.faecher || FAECHER_ALLE,
-              fachConfig: c.fachConfig || DEFAULT_FACH_COLORS,
-              theme: c.theme || 'classic_light',
-              schuljahr: c.schuljahr || parsed.schuljahr || getCurrentSchuljahr(),
-              settings: c.settings || {}
-            };
-          }).filter(Boolean);
-        }
-
-        // Ensure activeClassId is valid and exists
-        let activeClass = parsed.classes?.find((c: any) => c.id === parsed.activeClassId);
-        if (!activeClass && parsed.classes && parsed.classes.length > 0) {
-          activeClass = parsed.classes[0];
-          parsed.activeClassId = activeClass.id;
-        }
-
-        // Write current active class properties back to root of parsed state
-        if (activeClass) {
-          parsed.klassenbezeichnung = activeClass.name;
-          parsed.stufe = activeClass.stufe;
-          parsed.klassenvorstand = activeClass.klassenvorstand;
-          parsed.schueler = activeClass.schueler;
-          parsed.noten = activeClass.noten;
-          parsed.mitarbeit = activeClass.mitarbeit;
-          parsed.verhalten = activeClass.verhalten;
-          parsed.karten = activeClass.karten;
-          parsed.jahresplanung = activeClass.jahresplanung;
-          parsed.jahresplan_faecher = activeClass.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS;
-          parsed.wochenplanung = activeClass.wochenplanung;
-          parsed.stammplan = activeClass.stammplan;
-          parsed.anwesenheit = activeClass.anwesenheit;
-          parsed.anwesenheitDetail = activeClass.anwesenheitDetail;
-          parsed.dienste = activeClass.dienste;
-          parsed.saAssessments = activeClass.saAssessments;
-          parsed.klassenglas_count = activeClass.klassenglas_count;
-          parsed.klassenglas_ziel = activeClass.klassenglas_ziel;
-          parsed.klassenglas_belohnung = activeClass.klassenglas_belohnung;
-          parsed.klassenkasse = activeClass.klassenkasse;
-          parsed.behavior_status = activeClass.behavior_status;
-          parsed.behavior_notes = activeClass.behavior_notes;
-          parsed.sue_kontrolle = activeClass.sue_kontrolle;
-          parsed.sitzplan_schueler = activeClass.sitzplan_schueler;
-          parsed.sitzplan_objekte = activeClass.sitzplan_objekte;
-          parsed.tageplan = activeClass.tageplan;
-          parsed.faecher = activeClass.faecher;
-          parsed.fachConfig = activeClass.fachConfig;
-          parsed.theme = activeClass.theme;
-          parsed.schuljahr = activeClass.schuljahr || parsed.schuljahr || getCurrentSchuljahr();
-        }
-        
-        // Update missing settings
-        parsed.morningWidgets = parsed.morningWidgets || DEFAULT_MORNING_WIDGETS;
-
-        parsed.lehrerProfil = parsed.lehrerProfil || {
-          schulstundenJaehrlich: 120,
-          schularbeitenManuell: 4,
-          testsManuell: 8,
-          ausfluegeManuell: 3,
-          name: parsed.anrede && parsed.nachname ? `${parsed.anrede} ${parsed.nachname}` : "Maximilian Musterlehrer",
-          schule: parsed.schulName || "Volksschule Musterstadt",
-          motto: parsed.motto || "Pädagogik mit Herz ❤️",
-          gegruendetYear: "2018"
-        };
-
-        // Migration: Handle legacy string icons in behavior_stages
-        const iconMap: Record<string, string> = {
-          'star': '🌟',
-          'heart': '❤️',
-          'love': '❤️',
-          'smile': '😊',
-          'minus': '😐',
-          'alert-triangle': '⚠️',
-          'x-circle': '🚫'
-        };
-
-        if (parsed.behavior_stages && Array.isArray(parsed.behavior_stages)) {
-          parsed.behavior_stages = parsed.behavior_stages.map((stage: any) => ({
-            ...stage,
-            icon: (stage.icon && iconMap[stage.icon.toLowerCase()]) ? iconMap[stage.icon.toLowerCase()] : stage.icon
-          }));
-        }
-
-        // Migration: Handle new notes consolidation (Schritt 2)
-        if (!parsed.notes) {
-          const migratedNotes: any[] = [];
-          
-          // Migrate old 'notizen'
-          if (parsed.notizen && Array.isArray(parsed.notizen)) {
-            parsed.notizen.forEach((n: any) => {
-              migratedNotes.push({
-                id: n.id,
-                datum: new Date(n.timestamp || Date.now()).toISOString(),
-                kategorie: n.schuelerId ? 'Verhalten' : 'Journal',
-                inhalt: n.inhalt || '',
-                schuelerId: n.schuelerId,
-                icon: n.icon || '📝'
-              });
-            });
+        // Nicht entsperrt oder Ersteinrichtung erforderlich
+        if (isMounted) {
+          if (!activeKey) {
+            setIsVaultUnlocked(false);
           }
-          
-          // Migrate old 'observations'
-          if (parsed.observations && Array.isArray(parsed.observations)) {
-            parsed.observations.forEach((o: any) => {
-              const catMap: Record<string, string> = {
-                'behavior': 'Verhalten',
-                'academic': 'allgemein',
-                'social': 'allgemein',
-                'incident': 'Verhalten',
-                'praise': 'Erfolg',
-                'reflexion': 'reflexion'
-              };
-              migratedNotes.push({
-                id: o.id,
-                datum: o.date || new Date().toISOString(),
-                kategorie: catMap[o.category] || 'Journal',
-                inhalt: o.text || '',
-                schuelerId: o.studentId,
-                quelle: o.source
-              });
-            });
-          }
-
-          // Migrate old 'journal' (if the previous turn already migrated but called it journal)
-          if (parsed.journal && Array.isArray(parsed.journal)) {
-            parsed.journal.forEach((j: any) => {
-               // Avoid duplicates if they were already migrated from notizen/observations
-               if (!migratedNotes.find(m => m.id === j.id)) {
-                  migratedNotes.push(j);
-               }
-            });
-          }
-          
-          parsed.notes = migratedNotes.sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime());
+          setIsLoaded(true);
         }
-
-        const schuelerExist = parsed.schueler && parsed.schueler.length > 0;
-        const computedTourAbgeschlossen = schuelerExist ? true : (parsed.tourAbgeschlossen ?? false);
-
-        setApp({
-          ...initialAppState,
-          ...parsed,
-          bundesland: parsed.bundesland || 'VBG',
-          tourAbgeschlossen: computedTourAbgeschlossen,
-          historicalStudents: parsed.historicalStudents || DEFAULT_HISTORICAL_STUDENTS,
-          notes: parsed.notes || [],
-          settings: { ...initialAppState.settings, ...(parsed.settings || {}) },
-          boardSettings: { ...initialAppState.boardSettings, ...(parsed.boardSettings || {}) },
-          klassenkasse: { ...initialAppState.klassenkasse, ...(parsed.klassenkasse || {}) },
-          ampelLabels: { ...initialAppState.ampelLabels, ...(parsed.ampelLabels || {}) },
-          jahresplan_faecher: parsed.jahresplan_faecher || initialAppState.jahresplan_faecher,
-          sitzplanRegeln: parsed.sitzplanRegeln || [],
-          metaKognitionsProtokolle: parsed.metaKognitionsProtokolle || [],
-          lernwoerter: parsed.lernwoerter || { aktuelleListe: [], kw: 0, archiv: [] }
-        });
-        
-        // --- Notfallkopie Logik ---
-        try {
-          const todayDate = new Date().toISOString().split('T')[0];
-          const lastKopieDate = localStorage.getItem('hehle_v3_notfallkopie_date');
-          
-          if (lastKopieDate !== todayDate) {
-            try {
-              localStorage.setItem('hehle_v3_notfallkopie', JSON.stringify(parsed));
-              localStorage.setItem('hehle_v3_notfallkopie_date', todayDate);
-              localStorage.setItem('hehle_v3_notfallkopie_time', new Date().toLocaleString('de-DE'));
-            } catch (e: any) {
-              if (e.name === 'QuotaExceededError' || e.message.includes('quota')) {
-                console.warn('Quota exceeded for Notfallkopie. Removing old copy and skipping for today.');
-                localStorage.removeItem('hehle_v3_notfallkopie');
-                localStorage.removeItem('hehle_v3_notfallkopie_date');
-                localStorage.removeItem('hehle_v3_notfallkopie_time');
-              } else {
-                throw e;
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Error saving Notfallkopie:', e);
-        }
-        
       } catch (e) {
-        console.error("Error loading state from offline storage", e);
-        setApp(initialAppState);
-      } finally {
-        setIsLoaded(true);
+        console.error('[Datenschutz] Initialisierungsfehler:', e);
+        if (isMounted) setIsLoaded(true);
       }
     };
 
-    loadState();
-  }, []);
+    initStorage();
+    return () => {
+      isMounted = false;
+    };
+  }, [setApp]);
 
+  // Autosave: Verschlüsselt den AppState debounced mit dem aktiven VaultKey im RAM
   useEffect(() => {
-    if (!isLoaded) return;
-    
-    // Debounce the state compression and local storage save to prevent UI blocking
+    if (!isLoaded || !isVaultUnlocked) return;
+
     const timeout = setTimeout(async () => {
       try {
-        const serialized = JSON.stringify(app);
-        
-        // Fast sessionStorage fallback to handle quick reloads or single-session crashes
+        const vaultKey = getActiveVaultKey();
+        if (!vaultKey) {
+          // Ohne aktiven Schlüssel im RAM wird Speichern strikt verweigert (kein unverschlüsselter Fallback!)
+          console.warn('[Datenschutz] Autosave pausiert: Kein aktiver VaultKey im RAM.');
+          return;
+        }
+
+        // 1. Verschlüsselt im Primär- und Fallback-Speicher sichern
+        await saveEncryptedAppState(app, vaultKey);
+
+        // 2. Verschlüsseltes Session-Backup
+        await saveEncryptedSessionBackup(app, vaultKey);
+
+        // 3. Einmal tägliche verschlüsselte Notfallkopie
         try {
-          sessionStorage.setItem(STORAGE_KEY + '_temp', serialized);
+          const todayDate = new Date().toISOString().split('T')[0];
+          const lastKopieDate = localStorage.getItem('hehle_v3_notfallkopie_date');
+          if (lastKopieDate !== todayDate) {
+            await saveEncryptedEmergencyBackup(app, vaultKey);
+          }
         } catch (e) {
-          // Safe check for private browsing mode limitations
+          console.warn('[Datenschutz] Fehler beim Erstellen der Notfallkopie:', e);
         }
-
-        // Save to IndexedDB (asynchronous, no strict quota limitations!)
-        await localforage.setItem(STORAGE_KEY, serialized);
-
-        // Compress and save backups to localStorage directly without another timeout 
-        try {
-          const compressed = LZString.compressToUTF16(serialized);
-          localStorage.setItem(STORAGE_KEY + '_backup', compressed);
-          // Standard JSON string format as final emergency recovery option
-          localStorage.setItem(STORAGE_KEY + '_fallback', serialized);
-        } catch (backupError) {
-          console.warn('Backup save storage quota limit reached, maintaining primary storage.', backupError);
-        }
-
-        try {
-          const schuelerNamen = [
-            ...(app.schueler || []),
-            ...((app.classes || []).flatMap(c => c.schueler || []))
-          ].map(s => ({ id: s.id, vorname: s.vorname, nachname: s.nachname, name: (s as any).name }));
-          localStorage.setItem('hehle_v3_namen', JSON.stringify({
-            schueler: schuelerNamen,
-            schule: app.lehrerProfil?.schule || '',
-            pseudonymisierungAktiv: app.pseudonymisierungAktiv !== false
-          }));
-        } catch (e) { console.warn('Namensliste schreiben fehlgeschlagen', e); }
       } catch (e) {
-        console.error('Failed to save state to localforage or localStorage:', e);
+        console.error('[Datenschutz] Fehler beim verschlüsselten Autosave:', e);
       }
-    }, 1000); // 1000ms debounce
+    }, 1000);
 
     return () => clearTimeout(timeout);
-  }, [app, isLoaded]);
+  }, [app, isLoaded, isVaultUnlocked]);
 
   // Tab Close & Refresh Intercept: Ensure synced / pending changes are secured
   useEffect(() => {
@@ -678,48 +686,75 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const lastSeenTimestampRef = useRef<number>(0);
   const lastSeenStateRef = useRef<any>(null);
   const isPendingPushRef = useRef<boolean>(false);
-  const currentAppRef = useRef<any>(app);
+  const activeSessionKeyRef = useRef<CryptoKey | null>(null);
 
   useEffect(() => {
     currentAppRef.current = app;
   }, [app]);
 
-  // 1) Startup URL query sync session check
+  // 1) Startup URL query/fragment sync session check (Zero-Knowledge)
   useEffect(() => {
-    const query = new URLSearchParams(window.location.search);
-    const code = query.get('sync');
-    const gabicRole = query.get('gabicRole'); // either 'child' or 'teacher' or null
-    
-    if (code) {
-      console.log("[Sync Startup] Found sync parameter in URL:", code);
-      fetch(`/api/sync/${code}`)
-        .then(res => {
+    const handleStartupSync = async () => {
+      // Priorisiere Fragment (#sync=CODE&key=SESSIONKEY), da Fragmente nie den Server erreichen!
+      const parsedHash = parseSyncHash(window.location.hash);
+      let code = parsedHash?.code;
+      let keyStr = parsedHash?.encodedKey;
+
+      const query = new URLSearchParams(window.location.search);
+      const gabicRole = query.get('gabicRole'); // either 'child' or 'teacher' or null
+
+      // Fallback auf Query-Parameter (falls alte Verlinkung)
+      if (!code) {
+        code = query.get('sync')?.trim().toUpperCase() || undefined;
+        keyStr = query.get('key')?.trim() || undefined;
+      }
+
+      if (code) {
+        if (!keyStr) {
+          console.warn("[Sync Startup] Session-Key fehlt! Zero-Knowledge-Sync kann ohne Schlüssel im URL-Fragment nicht entschlüsselt werden.");
+          return;
+        }
+
+        try {
+          console.log("[Sync Startup] Zero-Knowledge Verbindung wird aufgebaut für Code:", code);
+          const sessionKey = await importSessionKey(keyStr);
+          activeSessionKeyRef.current = sessionKey;
+          setActiveSessionKey(sessionKey, keyStr);
+
+          const res = await fetch(`/api/sync/${code}`);
           if (!res.ok) throw new Error("Sync status error: " + res.status);
-          return res.json();
-        })
-        .then(data => {
-          if (data && data.state) {
-            console.log("[Sync Startup] Connected to session and loaded state for:", code);
-            lastSeenTimestampRef.current = data.lastUpdated || 0;
-            lastSeenStateRef.current = data.state;
+          const data = await res.json();
+
+          if (data && data.encryptedPayload) {
+            const decryptedState = await decryptSyncState(data.encryptedPayload, sessionKey);
+            console.log("[Sync Startup] Erfolgreich entschlüsselt und verbunden mit Sitzung:", code);
+            lastSeenTimestampRef.current = data.lastUpdated || data.encryptedPayload.updatedAt || 0;
+            lastSeenStateRef.current = decryptedState;
+
             setApp({
-              ...data.state,
+              ...decryptedState,
               boardSettings: {
-                ...data.state.boardSettings,
+                ...decryptedState.boardSettings,
                 activeSyncCode: code,
-                isRemoteController: gabicRole === 'child' ? false : true, // Only regular remote controller if not a child
+                isRemoteController: gabicRole === 'child' ? false : true,
                 gabicRole: gabicRole || undefined
               }
             });
-            // Clear URL search params without refreshing so they can refresh/copy standard links
-            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({ path: newUrl }, '', newUrl);
+
+            // Sensibles URL-Fragment sofort aus Verlauf und Adressleiste entfernen!
+            cleanSyncUrlFromHistory();
+          } else {
+            throw new Error("Kein verschlüsselter Payload vom Server erhalten.");
           }
-        })
-        .catch(err => {
-          console.error("[Sync Startup] Error joining sync session:", err);
-        });
-    }
+        } catch (err) {
+          console.error("[Sync Startup] Fehler beim Entschlüsseln/Beitreten der Sync-Sitzung:", err);
+          clearActiveSessionKey();
+          activeSessionKeyRef.current = null;
+        }
+      }
+    };
+
+    handleStartupSync();
   }, []);
 
   const activeSyncCode = app.boardSettings?.activeSyncCode;
@@ -765,10 +800,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const sessionKey = activeSessionKeyRef.current || getActiveSessionKey();
+      if (!sessionKey) {
+        // Ohne SessionKey kann kein verschlüsselter Payload entschlüsselt werden
+        if (active) {
+          fallbackTimer = setTimeout(poll, 2500);
+        }
+        return;
+      }
+
       try {
         const res = await fetch(`/api/sync/${activeSyncCode}`);
         if (res.status === 404) {
           console.warn("[Sync BiDirect] Session not found or expired on server (404). Disconnecting...");
+          clearActiveSessionKey();
+          activeSessionKeyRef.current = null;
           setApp(prev => ({
             ...prev,
             boardSettings: {
@@ -782,23 +828,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!res.ok) throw new Error("Sync failure");
         const data = await res.json();
         
-        if (active && data && data.state && !isPendingPushRef.current) {
+        if (active && data && data.encryptedPayload && !isPendingPushRef.current) {
           // If the server has a newer timestamp
           if (data.lastUpdated > lastSeenTimestampRef.current) {
-            // Check if there is structurally a difference between local and server states
+            const decryptedState = await decryptSyncState(data.encryptedPayload, sessionKey);
             const currentLocal = currentAppRef.current;
-            if (!areStatesEqual(currentLocal, data.state)) {
+            if (!areStatesEqual(currentLocal, decryptedState)) {
               console.log("[Sync BiDirect] Structural change received from server. Updating...");
               lastSeenTimestampRef.current = data.lastUpdated;
-              lastSeenStateRef.current = data.state;
+              lastSeenStateRef.current = decryptedState;
               
               setApp(prev => {
                 const localSyncCode = prev.boardSettings?.activeSyncCode;
                 const localIsRemote = prev.boardSettings?.isRemoteController;
                 return {
-                  ...data.state,
+                  ...decryptedState,
                   boardSettings: {
-                    ...data.state.boardSettings,
+                    ...decryptedState.boardSettings,
                     activeSyncCode: localSyncCode,
                     isRemoteController: localIsRemote,
                     remoteLastActiveTs: Date.now()
@@ -848,20 +894,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const sessionKey = activeSessionKeyRef.current || getActiveSessionKey();
+    if (!sessionKey) return;
+
     // Mark as pending push to lock the pulling effect while we push
     isPendingPushRef.current = true;
     
     const delayDebounce = setTimeout(async () => {
       try {
+        const encryptedPayload = await encryptSyncState(app, sessionKey);
         const res = await fetch(`/api/sync/${activeSyncCode}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ state: app })
+          body: JSON.stringify({ encryptedPayload })
         });
         if (res.status === 404) {
           console.warn("[Sync BiDirect] Pushed to an expired/missing session (404). Disconnecting...");
+          clearActiveSessionKey();
+          activeSessionKeyRef.current = null;
           setApp(prev => ({
             ...prev,
             boardSettings: {
@@ -875,7 +927,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (!res.ok) throw new Error("Sync PUT error: " + res.status);
         const data = await res.json();
         if (data && data.lastUpdated) {
-          console.log("[Sync BiDirect] Local state pushed and synced. TS:", data.lastUpdated);
           lastSeenTimestampRef.current = data.lastUpdated;
           lastSeenStateRef.current = app; // Save pushed state reference
           isPendingPushRef.current = false;
@@ -905,16 +956,99 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setApp(prev => ({ ...prev, ...changes }));
   }, []);
 
-  const saveApp = React.useCallback(async () => {
+  const unlockAppVault = React.useCallback(async (key: CryptoKey): Promise<boolean> => {
     try {
-      const serialized = JSON.stringify(app);
-      await localforage.setItem(STORAGE_KEY, serialized);
-      const compressed = LZString.compressToUTF16(serialized);
-      localStorage.setItem(STORAGE_KEY, compressed);
-    } catch (e) {
-      console.error('Failed to save to localforage/localStorage:', e);
+      const decrypted = await loadEncryptedAppState(key);
+      if (decrypted) {
+        setApp(normalizeAppState(decrypted));
+        setIsVaultUnlocked(true);
+        return true;
+      } else {
+        // Vault ist neu eingerichtet / leer
+        setApp(initialAppState);
+        setIsVaultUnlocked(true);
+        await saveEncryptedAppState(initialAppState, key);
+        return true;
+      }
+    } catch (err) {
+      console.error('[Datenschutz] Entsperren des Tresors fehlgeschlagen:', err);
+      return false;
     }
-  }, [app]);
+  }, [setApp]);
+
+  const lockAppVault = React.useCallback(() => {
+    clearActiveVaultSession();
+    setApp(initialAppState);
+    setIsVaultUnlocked(false);
+  }, [setApp]);
+
+  // ----------------------------------------------------
+  // DATENSCHUTZ: Automatische Tresor-Sperre bei Inaktivität & Logout
+  // ----------------------------------------------------
+  const lastUserActivityRef = useRef<number>(Date.now());
+
+  // Logout-Event abfangen (z. B. "Zugang auf diesem Gerät entfernen")
+  useEffect(() => {
+    const handleLogout = () => {
+      console.log('[Datenschutz] Logout erkannt – Tresor wird sofort gesperrt.');
+      lockAppVault();
+    };
+    window.addEventListener('lehrerapp-logout', handleLogout);
+    return () => window.removeEventListener('lehrerapp-logout', handleLogout);
+  }, [lockAppVault]);
+
+  // Inaktivitäts-Überwachung: Benutzeraktivität (Maus, Klick, Taste, Touch, Scrollen)
+  useEffect(() => {
+    const onUserActivity = () => {
+      const now = Date.now();
+      // Throttling: Nur alle 2 Sekunden aktualisieren, um Performance nicht zu beeinträchtigen
+      if (now - lastUserActivityRef.current > 2000) {
+        lastUserActivityRef.current = now;
+      }
+    };
+
+    const activityEvents = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'wheel', 'pointerdown'];
+    activityEvents.forEach(evt => {
+      window.addEventListener(evt, onUserActivity, { passive: true });
+    });
+
+    // Prüf-Intervall alle 10 Sekunden
+    const intervalTimer = setInterval(() => {
+      // Konfigurierte Zeit: 15, 30, 60 (Standard), 120 oder 0 (nur beim Schließen)
+      const configuredMinutes = typeof app.settings?.vaultAutoLockMinutes === 'number'
+        ? app.settings.vaultAutoLockMinutes
+        : 60; // 60 Minuten Standard
+
+      if (configuredMinutes > 0 && isVaultUnlocked) {
+        const inactiveMs = Date.now() - lastUserActivityRef.current;
+        if (inactiveMs >= configuredMinutes * 60 * 1000) {
+          console.log(`[Datenschutz] Automatische Sperrung nach ${configuredMinutes} Minuten Inaktivität.`);
+          lockAppVault();
+        }
+      }
+    }, 10000);
+
+    return () => {
+      activityEvents.forEach(evt => {
+        window.removeEventListener(evt, onUserActivity);
+      });
+      clearInterval(intervalTimer);
+    };
+  }, [isVaultUnlocked, app.settings?.vaultAutoLockMinutes, lockAppVault]);
+
+  const saveApp = React.useCallback(async () => {
+    const vaultKey = getActiveVaultKey();
+    if (!vaultKey) {
+      console.warn('[Datenschutz] Speichern abgebrochen: Kein aktiver VaultKey im RAM.');
+      return;
+    }
+    try {
+      await saveEncryptedAppState(currentAppRef.current, vaultKey);
+      await saveEncryptedSessionBackup(currentAppRef.current, vaultKey);
+    } catch (e) {
+      console.error('[Datenschutz] Fehler beim manuellen Speichern:', e);
+    }
+  }, []);
 
   const updateStudent = React.useCallback((student: Student) => {
     setApp(prev => {
@@ -973,6 +1107,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           stammplan: prev.stammplan ? JSON.parse(JSON.stringify(prev.stammplan)) : {},
           anwesenheit: prev.anwesenheit,
           anwesenheitDetail: prev.anwesenheitDetail,
+          schuelerStimmung: prev.schuelerStimmung,
           dienste: prev.dienste,
           klassenglas_count: prev.klassenglas_count,
           klassenglas_ziel: prev.klassenglas_ziel,
@@ -1026,7 +1161,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         stammplan: targetClass.stammplan ? JSON.parse(JSON.stringify(targetClass.stammplan)) : {},
         anwesenheit: targetClass.anwesenheit,
         anwesenheitDetail: targetClass.anwesenheitDetail,
+        schuelerStimmung: targetClass.schuelerStimmung || {},
         dienste: targetClass.dienste || [],
+        checklisten: targetClass.checklisten || [],
+        customLists: targetClass.customLists || [],
         klassenglas_count: targetClass.klassenglas_count,
         klassenglas_ziel: targetClass.klassenglas_ziel,
         klassenglas_belohnung: targetClass.klassenglas_belohnung || 'Gemeinsame Spielzeit',
@@ -1071,6 +1209,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         anwesenheit: {},
         anwesenheitDetail: {},
         dienste: [],
+        checklisten: [],
+        customLists: [],
         klassenglas_count: 0,
         klassenglas_ziel: 20,
         klassenglas_belohnung: 'Gemeinsame Spielzeit',
@@ -1109,7 +1249,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           stammplan: prev.stammplan ? JSON.parse(JSON.stringify(prev.stammplan)) : {},
           anwesenheit: prev.anwesenheit,
           anwesenheitDetail: prev.anwesenheitDetail,
+          schuelerStimmung: prev.schuelerStimmung,
           dienste: prev.dienste,
+          checklisten: prev.checklisten ? JSON.parse(JSON.stringify(prev.checklisten)) : [],
+          customLists: prev.customLists ? JSON.parse(JSON.stringify(prev.customLists)) : [],
           klassenglas_count: prev.klassenglas_count,
           klassenglas_ziel: prev.klassenglas_ziel,
           klassenglas_belohnung: prev.klassenglas_belohnung,
@@ -1154,7 +1297,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         stammplan: newClass.stammplan ? JSON.parse(JSON.stringify(newClass.stammplan)) : {},
         anwesenheit: newClass.anwesenheit,
         anwesenheitDetail: newClass.anwesenheitDetail,
+        schuelerStimmung: newClass.schuelerStimmung || {},
         dienste: newClass.dienste,
+        checklisten: [],
+        customLists: [],
         klassenglas_count: newClass.klassenglas_count,
         klassenglas_ziel: newClass.klassenglas_ziel,
         klassenglas_belohnung: newClass.klassenglas_belohnung || 'Gemeinsame Spielzeit',
@@ -1179,15 +1325,204 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, [initialAppState.settings]);
 
-  const removeClass = React.useCallback((id: string) => {
-    setApp(prev => {
-      if (prev.activeClassId === id) return prev; // Cannot remove active class for now or should switch first
-      return {
-        ...prev,
-        classes: (prev.classes || []).filter(c => c.id !== id)
+  const deleteClass = React.useCallback((targetId?: string) => {
+    setAppInternal(prev => {
+      const idToDelete = targetId || prev.activeClassId;
+      if (!idToDelete) return prev;
+
+      const classes = prev.classes || [];
+      const classToDelete = classes.find(c => c.id === idToDelete) || (prev.activeClassId === idToDelete ? {
+        id: prev.activeClassId,
+        name: prev.klassenbezeichnung,
+        stufe: prev.stufe,
+        schueler: prev.schueler || []
+      } : null);
+
+      if (!classToDelete && prev.activeClassId !== idToDelete) {
+        return prev;
+      }
+
+      // Collect student IDs of the class to be deleted
+      const deletedStudentIds = new Set<string>();
+      if (classToDelete?.schueler && Array.isArray(classToDelete.schueler)) {
+        classToDelete.schueler.forEach((s: any) => { if (s && s.id) deletedStudentIds.add(s.id); });
+      }
+      if (prev.activeClassId === idToDelete && prev.schueler && Array.isArray(prev.schueler)) {
+        prev.schueler.forEach((s: any) => { if (s && s.id) deletedStudentIds.add(s.id); });
+      }
+
+      // Filter remaining classes
+      const remainingClasses = classes.filter(c => c.id !== idToDelete);
+
+      // Clean up orphaned data related to deleted students
+      const cleanNotes = (prev.notes || []).filter(n => !n.id || (!deletedStudentIds.has(n.id) && !deletedStudentIds.has(n.schuelerId)));
+      const cleanDiffGruppen = (prev.differenzierungsGruppen || []).filter(g => {
+        if (!g.schuelerIds) return true;
+        const validIds = g.schuelerIds.filter(sid => !deletedStudentIds.has(sid));
+        return validIds.length > 0;
+      }).map(g => ({
+        ...g,
+        schuelerIds: (g.schuelerIds || []).filter(sid => !deletedStudentIds.has(sid))
+      }));
+      const cleanDiagnostikErgebnisse = ((prev as any).diagnostikErgebnisse || []).filter((d: any) => !deletedStudentIds.has(d.schuelerId) && !deletedStudentIds.has(d.id));
+      const cleanDiagnostikErhebungen = ((prev as any).diagnostikErhebungen || []).filter((d: any) => !deletedStudentIds.has(d.schuelerId) && !deletedStudentIds.has(d.id));
+      const cleanDiagnosticResults = ((prev as any).diagnosticResults || []).filter((d: any) => !deletedStudentIds.has(d.studentId) && !deletedStudentIds.has(d.id));
+      const cleanIkmRecords = (prev.ikmRecords || []).filter(r => !deletedStudentIds.has(r.schuelerId));
+      const cleanStimmNotizen = (prev.stimmNotizen || []).filter(n => !deletedStudentIds.has(n.schuelerId));
+      const cleanInteraktionsLog = prev.interaktionsLog ? {
+        ...prev.interaktionsLog,
+        eintraege: (prev.interaktionsLog.eintraege || []).filter(e => !deletedStudentIds.has(e.schuelerId))
+      } : prev.interaktionsLog;
+
+      const filterStudentMap = (map: any) => {
+        if (!map) return {};
+        const res: any = {};
+        Object.keys(map).forEach(k => {
+          if (!deletedStudentIds.has(k)) res[k] = map[k];
+        });
+        return res;
       };
+
+      const cleanLernzielTracker = filterStudentMap(prev.lernzielTracker);
+      const cleanLernzielSemesterBewertungen = filterStudentMap(prev.studentLernzielSemesterBewertungen);
+
+      // If other classes are remaining:
+      if (remainingClasses.length > 0) {
+        if (prev.activeClassId !== idToDelete) {
+          return {
+            ...prev,
+            classes: remainingClasses,
+            notes: cleanNotes,
+            differenzierungsGruppen: cleanDiffGruppen,
+            diagnostikErgebnisse: cleanDiagnostikErgebnisse,
+            diagnostikErhebungen: cleanDiagnostikErhebungen,
+            diagnosticResults: cleanDiagnosticResults,
+            ikmRecords: cleanIkmRecords,
+            stimmNotizen: cleanStimmNotizen,
+            interaktionsLog: cleanInteraktionsLog,
+            lernzielTracker: cleanLernzielTracker,
+            studentLernzielSemesterBewertungen: cleanLernzielSemesterBewertungen
+          };
+        }
+
+        // The deleted class WAS the active class -> switch to first remaining class
+        const nextClass = remainingClasses[0];
+        const currentLoc = prev.currentPage || 'cockpit';
+        const forceCockpit = !nextClass.klassenvorstand && ['orga', 'uebergabemappe', 'diagnostik', 'kel'].includes(currentLoc);
+
+        return {
+          ...prev,
+          currentPage: forceCockpit ? 'cockpit' : currentLoc,
+          activeClassId: nextClass.id,
+          classes: remainingClasses,
+          klassenbezeichnung: nextClass.name,
+          stufe: nextClass.stufe,
+          klassenvorstand: nextClass.klassenvorstand,
+          schuljahr: nextClass.schuljahr || prev.schuljahr || getCurrentSchuljahr(),
+          schueler: nextClass.schueler ? JSON.parse(JSON.stringify(nextClass.schueler)) : [],
+          noten: nextClass.noten || {},
+          mitarbeit: nextClass.mitarbeit || {},
+          verhalten: nextClass.verhalten || {},
+          karten: nextClass.karten || {},
+          jahresplanung: nextClass.jahresplanung || {},
+          jahresplan_faecher: nextClass.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
+          wochenplanung: nextClass.wochenplanung ? JSON.parse(JSON.stringify(nextClass.wochenplanung)) : {},
+          stammplan: nextClass.stammplan ? JSON.parse(JSON.stringify(nextClass.stammplan)) : {},
+          anwesenheit: nextClass.anwesenheit || {},
+          anwesenheitDetail: nextClass.anwesenheitDetail || {},
+          schuelerStimmung: nextClass.schuelerStimmung || {},
+          dienste: nextClass.dienste || [],
+          checklisten: nextClass.checklisten || [],
+          customLists: nextClass.customLists || [],
+          klassenglas_count: nextClass.klassenglas_count || 0,
+          klassenglas_ziel: nextClass.klassenglas_ziel || 20,
+          klassenglas_belohnung: nextClass.klassenglas_belohnung || 'Gemeinsame Spielzeit',
+          klassenglas_missions: nextClass.klassenglas_missions || [],
+          klassenglas_completed_missions: nextClass.klassenglas_completed_missions || [],
+          klassenkasse: nextClass.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
+          behavior_status: nextClass.behavior_status || {},
+          behavior_notes: nextClass.behavior_notes || {},
+          sue_kontrolle: nextClass.sue_kontrolle || {},
+          sitzplan_schueler: nextClass.sitzplan_schueler || {},
+          sitzplan_objekte: nextClass.sitzplan_objekte || [],
+          lastGroups: nextClass.lastGroups,
+          stundenZeiten: nextClass.stundenZeiten || STUNDEN_INFO,
+          tageplan: nextClass.tageplan || prev.tageplan || DEFAULT_TAGEPLAN,
+          faecher: nextClass.faecher || prev.faecher || FAECHER_ALLE,
+          fachConfig: nextClass.fachConfig || prev.fachConfig || DEFAULT_FACH_COLORS,
+          theme: nextClass.theme || prev.theme,
+          customBgColor: nextClass.customBgColor || prev.customBgColor,
+          customAccentColor: nextClass.customAccentColor || prev.customAccentColor,
+          customTextColor: nextClass.customTextColor || prev.customTextColor,
+          customText2Color: nextClass.customText2Color || prev.customText2Color,
+          settings: nextClass.settings ? JSON.parse(JSON.stringify(nextClass.settings)) : (prev.settings ? JSON.parse(JSON.stringify(prev.settings)) : {}),
+          notes: cleanNotes,
+          differenzierungsGruppen: cleanDiffGruppen,
+          diagnostikErgebnisse: cleanDiagnostikErgebnisse,
+          diagnostikErhebungen: cleanDiagnostikErhebungen,
+          diagnosticResults: cleanDiagnosticResults,
+          ikmRecords: cleanIkmRecords,
+          stimmNotizen: cleanStimmNotizen,
+          interaktionsLog: cleanInteraktionsLog,
+          lernzielTracker: cleanLernzielTracker,
+          studentLernzielSemesterBewertungen: cleanLernzielSemesterBewertungen
+        };
+      } else {
+        // NO classes remaining -> reset cleanly and navigate to setup
+        return {
+          ...prev,
+          currentPage: 'setup',
+          activeClassId: '',
+          classes: [],
+          klassenbezeichnung: '',
+          stufe: 1,
+          klassenvorstand: true,
+          schueler: [],
+          noten: {},
+          mitarbeit: {},
+          verhalten: {},
+          karten: {},
+          jahresplanung: {},
+          jahresplan_faecher: DEFAULT_YEARLY_SUBJECTS,
+          wochenplanung: {},
+          stammplan: {},
+          anwesenheit: {},
+          anwesenheitDetail: {},
+          dienste: [],
+          saAssessments: {},
+          klassenglas_count: 0,
+          klassenglas_ziel: 20,
+          klassenglas_belohnung: 'Gemeinsame Spielzeit',
+          klassenglas_missions: [],
+          klassenglas_completed_missions: [],
+          klassenkasse: { kontostand: 0, sammlungen: [], transaktionen: [] },
+          behavior_status: {},
+          behavior_notes: {},
+          sue_kontrolle: {},
+          sitzplan_schueler: {},
+          sitzplan_objekte: [],
+          lastGroups: undefined,
+          stundenZeiten: STUNDEN_INFO,
+          tageplan: DEFAULT_TAGEPLAN,
+          notes: cleanNotes,
+          differenzierungsGruppen: cleanDiffGruppen,
+          diagnostikErgebnisse: cleanDiagnostikErgebnisse,
+          diagnostikErhebungen: cleanDiagnostikErhebungen,
+          diagnosticResults: cleanDiagnosticResults,
+          ikmRecords: cleanIkmRecords,
+          stimmNotizen: cleanStimmNotizen,
+          interaktionsLog: cleanInteraktionsLog,
+          lernzielTracker: cleanLernzielTracker,
+          studentLernzielSemesterBewertungen: cleanLernzielSemesterBewertungen,
+          tourAbgeschlossen: false
+        };
+      }
     });
   }, []);
+
+  const removeClass = React.useCallback((id: string) => {
+    deleteClass(id);
+  }, [deleteClass]);
 
   const calculateWidgetFontSize = React.useCallback((scale: number): string => {
     // scale is usually between 0.4 and 3.0. We want a proportional rem value so text sizes adjust automatically
@@ -1206,12 +1541,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     switchClass, 
     addClass, 
     removeClass,
+    deleteClass,
     notenUpdateTrigger,
     triggerGradebookUpdate,
     calculateWidgetFontSize,
     screenLocked,
-    setScreenLocked
-  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp]);
+    setScreenLocked,
+    isVaultUnlocked,
+    lockAppVault,
+    unlockAppVault
+  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, isVaultUnlocked, lockAppVault, unlockAppVault]);
 
   if (!isLoaded) {
     return (

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { UNIFIED_DEFAULT_BADGES } from '../types';
-import { Trash2, Plus, Star, Award, Search, Hash, Clock, Calendar, AlertCircle, BookOpen, Check, RefreshCw, Import, CheckCircle2, X } from 'lucide-react';
+import { Trash2, Plus, Star, Award, Search, Hash, Clock, Calendar, AlertCircle, BookOpen, Check, RefreshCw, Import, CheckCircle2, X, Smile, HeartHandshake, TrendingDown, TrendingUp } from 'lucide-react';
 import { getKW, getStartYear } from '../lib/utils';
+import { KID_MOOD_SCALE, getMoodMeta, formatMoodAverage, computeAggregatedMoodStats } from '../lib/moodTypes';
 
 export default function StudentStatsEditor({ 
   schuelerId, 
@@ -566,6 +567,155 @@ export default function StudentStatsEditor({
         </div>
       </div>
     </div>
+
+    {/* CARD 2.5: TÄGLICHER STIMMUNGS-CHECK-IN & HISTORIE */}
+    {(() => {
+      const studentMoods = app.schuelerStimmung?.[schuelerId] || {};
+      const moodEntries = Object.entries(studentMoods)
+        .map(([dateStr, val]) => ({
+          dateStr,
+          value: val as number,
+          meta: getMoodMeta(val as number),
+        }))
+        .filter((e) => e.meta !== undefined)
+        .sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+
+      const moodValues = moodEntries.map((e) => e.value);
+      const moodStats = computeAggregatedMoodStats(moodValues);
+      const avgInfo = formatMoodAverage(moodStats.average);
+
+      const handleDeleteMoodEntry = (dateStr: string) => {
+        if (confirm(`Möchten Sie den Stimmungseintrag vom ${new Date(dateStr).toLocaleDateString('de-DE')} wirklich löschen?`)) {
+          setApp((prev: any) => {
+            const currentStudentMoods = { ...(prev.schuelerStimmung?.[schuelerId] || {}) };
+            delete currentStudentMoods[dateStr];
+            return {
+              ...prev,
+              schuelerStimmung: {
+                ...(prev.schuelerStimmung || {}),
+                [schuelerId]: currentStudentMoods,
+              },
+            };
+          });
+        }
+      };
+
+      return (
+        <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-8 space-y-6">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+            <div className="space-y-1">
+              <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3">
+                <Smile className="text-emerald-600" /> Täglicher Stimmungs-Check-in
+              </h3>
+              <p className="text-[0.875rem] leading-snug font-medium text-slate-500">
+                Dokumentierte Selbsteinschätzungen aus dem digitalen Anwesenheits-Widget (Skala: 1 = Sehr gut bis 5 = Sehr schlecht).
+              </p>
+            </div>
+
+            {moodStats.average !== null && (
+              <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-slate-50 border border-slate-200 shrink-0 self-start sm:self-auto">
+                <span className="text-2xl">{avgInfo.emoji}</span>
+                <div>
+                  <div className="text-[0.625rem] font-black uppercase text-slate-400 tracking-wider">
+                    Durchschnitt (Skala 1–5)
+                  </div>
+                  <div className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                    <span>Ø {moodStats.average.toFixed(1)}</span>
+                    <span className="text-slate-400 font-semibold">•</span>
+                    <span className={avgInfo.colorClass}>{avgInfo.label}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Distribution row */}
+          {moodStats.totalCount > 0 ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-5 gap-2 sm:gap-3">
+                {KID_MOOD_SCALE.map((meta) => {
+                  const count = moodStats.distribution[meta.value] || 0;
+                  const pct = moodStats.distributionPct[meta.value] || 0;
+                  return (
+                    <div
+                      key={meta.value}
+                      className={`p-3 rounded-2xl border text-center flex flex-col items-center gap-1 ${meta.badgeBg} ${meta.badgeBorder}`}
+                    >
+                      <span className="text-2xl">{meta.emoji}</span>
+                      <div className="text-xs font-black text-slate-800">
+                        {count}×
+                      </div>
+                      <div className="text-[10px] font-semibold text-slate-500">
+                        {pct}%
+                      </div>
+                      <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter truncate w-full">
+                        {meta.shortLabel}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Entries list */}
+              <div className="space-y-2 pt-2">
+                <div className="text-[0.625rem] font-black uppercase text-slate-400 tracking-widest pl-1 flex items-center justify-between">
+                  <span>Chronologischer Verlauf ({moodEntries.length} Check-ins)</span>
+                  <span className="font-medium text-slate-400">Sinkender Ø = Besser</span>
+                </div>
+
+                <div className="border border-slate-100 rounded-2xl divide-y divide-slate-100 max-h-72 overflow-y-auto bg-white">
+                  {moodEntries.map(({ dateStr, value, meta }) => (
+                    <div
+                      key={dateStr}
+                      className="p-3 sm:px-4 flex items-center justify-between gap-3 hover:bg-slate-50/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{meta?.emoji}</span>
+                        <div>
+                          <div className="text-xs font-bold text-slate-800">
+                            {new Date(dateStr).toLocaleDateString('de-DE', {
+                              weekday: 'short',
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            })}
+                          </div>
+                          <div className="text-[10px] font-semibold text-slate-500">
+                            Stufe {value}: {meta?.label}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${meta?.badgeBg} ${meta?.badgeText} ${meta?.badgeBorder}`}>
+                          Wert {value} / 5
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMoodEntry(dateStr)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Eintrag entfernen"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 border border-dashed border-slate-200 rounded-2xl bg-slate-50/40">
+              <Smile size={32} className="mx-auto text-slate-300 mb-2" />
+              <p className="text-sm font-bold text-slate-700">Noch keine Stimmungs-Check-ins erfasst</p>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+                Sobald {student.vorname} im „Ich bin da!“-Widget seine tägliche Stimmung mit den 5 Smileys bestätigt, wird die Historie hier anonymisiert dokumentiert.
+              </p>
+            </div>
+          )}
+        </div>
+      );
+    })()}
 
     {/* CARD 3: FEHLZEITEN & VERPASSTE LERNINHALTE */}
     <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-8 space-y-6">

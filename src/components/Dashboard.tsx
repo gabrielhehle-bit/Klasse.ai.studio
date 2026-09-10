@@ -13,9 +13,10 @@ import {
   isHoliday,
   syncNoteToPlanning,
   inferDateFromText,
+  getTeacherFirstName,
 } from "../lib/utils";
 import { getFerien } from "../lib/ferienOesterreich";
-import { VM_ZEITEN, STUNDEN_INFO, FAECHER_ALLE } from "../constants";
+import { VM_ZEITEN, STUNDEN_INFO, FAECHER_ALLE, AESTHETIC_THEMES, DASHBOARD_CURATED_FONTS, DASHBOARD_FONT_SIZES } from "../constants";
 import { berechne } from "../lib/GradeUtils";
 import { isDiagnosticAlert } from "../lib/diagnosticData";
 import { QRCodeCanvas } from "qrcode.react";
@@ -94,6 +95,10 @@ import {
   Loader2,
   Grid,
   Sliders,
+  Palette,
+  Type,
+  Bold,
+  Italic,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -146,6 +151,12 @@ import {
   triggerBackupDownload,
   postponeBackup,
 } from "../utils/backupUtils";
+import {
+  startSyncSession,
+  stopSyncSession,
+  createSyncUrl,
+  getActiveEncodedSessionKey,
+} from "../lib/syncService";
 
 const playBirthdayJingleOnDashboard = () => {
   const AudioContext =
@@ -2410,7 +2421,8 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
   const getGreeting = () => {
     const h = currentTime.getHours();
     const teil = h < 11 ? "Guten Morgen" : h < 16 ? "Hallo" : "Guten Abend";
-    return `${teil}, ${app?.vorname || app?.anrede || "Lehrkraft"}!`;
+    const firstName = getTeacherFirstName(app);
+    return firstName ? `${teil}, ${firstName}!` : `${teil}!`;
   };
 
   const birthdaysToday = (app?.schueler || []).filter((s) =>
@@ -2663,8 +2675,14 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     hash = (hash << 5) - hash + dateStr.charCodeAt(i);
     hash |= 0;
   }
-  const focusIndex = Math.abs(hash) % ((app?.schueler || []).length || 1);
-  const focusStudent = (app?.schueler || [])[focusIndex];
+  const [manualFocusOffset, setManualFocusOffset] = useState(0);
+  const studentList = app?.schueler || [];
+  const focusIndex = Math.abs(hash) % (studentList.length || 1);
+  const focusStudent = studentList.length > 0 ? studentList[(focusIndex + manualFocusOffset) % studentList.length] : null;
+
+  const handleNextFocusStudent = () => {
+    setManualFocusOffset((prev) => prev + 1);
+  };
 
   const todos = app?.dashboardTodos || [];
 
@@ -2813,6 +2831,131 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
       return Boolean(record && Object.keys(record).length > 0);
     });
   }, [app?.anwesenheit, app?.schueler, heute]);
+
+  const [simpleDashboardMode, setSimpleDashboardMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem("dashboard_simple_mode");
+    return saved !== null ? saved === "true" : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("dashboard_simple_mode", simpleDashboardMode.toString());
+  }, [simpleDashboardMode]);
+
+  const todayLessonsList = React.useMemo(() => {
+    const list: any[] = [];
+    const tagPlan = tagName ? (app?.wochenplanung?.[kw]?.[tagName] || {}) : {};
+    const stammItems = app?.stammplan?.[tagName] || {};
+    for (let id = 1; id <= 8; id++) {
+      const fach = tagPlan[id - 1]?.fach || stammItems[id] || "";
+      if (fach) {
+        list.push({
+          id,
+          hourNum: id,
+          fach,
+          zeit: (app.stundenZeiten || STUNDEN_INFO)[id] || "",
+          thema: tagPlan[id - 1]?.thema || "",
+          isCurrent: currentIdx === (id - 1),
+        });
+      }
+    }
+    return list;
+  }, [app?.wochenplanung, app?.stammplan, kw, tagName, currentIdx, app?.stundenZeiten]);
+
+  const openTasksCount = React.useMemo(() => {
+    const denkzettel = (app?.denkzettelNotes || []).filter((n: any) => !n.completed).length;
+    const todosCount = (app?.dashboardTodos || []).filter((t: any) => !t.done).length;
+    return denkzettel + todosCount;
+  }, [app?.denkzettelNotes, app?.dashboardTodos]);
+
+  const openCollectionsCount = React.useMemo(() => {
+    return (app?.klassenkasse?.sammlungen || []).filter((g: any) => !g.abgeschlossen).length;
+  }, [app?.klassenkasse?.sammlungen]);
+
+  const heuteWichtigItems = React.useMemo(() => {
+    const items: any[] = [];
+    birthdaysToday.forEach((s: any) => {
+      items.push({
+        id: `bday-${s.id}`,
+        type: "birthday",
+        text: `🎂 Geburtstag: ${s.vorname} ${s.nachname}`,
+        category: "Geburtstag",
+        linkPage: "schueler",
+        urgent: true,
+      });
+    });
+    specialEventsForDay.forEach((e: any, idx: number) => {
+      items.push({
+        id: `event-${idx}`,
+        type: e.type,
+        text: e.title,
+        category: e.desc || "Termin",
+        linkPage: "wochenplanung",
+        urgent: true,
+      });
+    });
+    (app?.klassenkasse?.sammlungen || []).filter((g: any) => !g.abgeschlossen).slice(0, 2).forEach((g: any) => {
+      items.push({
+        id: `geld-${g.id}`,
+        type: "money",
+        text: `💶 Geldsammlung: ${g.titel}`,
+        category: "Finanzen",
+        linkPage: "geldsammlung",
+        urgent: false,
+      });
+    });
+    (app?.denkzettelNotes || []).filter((n: any) => !n.completed).slice(0, 3).forEach((n: any) => {
+      items.push({
+        id: n.id,
+        type: "task",
+        text: `📌 ${n.text}`,
+        category: "Aufgabe",
+        linkPage: "orga",
+        urgent: false,
+      });
+    });
+    return items;
+  }, [birthdaysToday, specialEventsForDay, app?.klassenkasse?.sammlungen, app?.denkzettelNotes]);
+
+  const tomorrowEventsList = React.useMemo(() => {
+    const tomorrow = new Date(scheduleDatum);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const list: Array<{ title: string; subtitle?: string; type: string }> = [];
+    const hName = isHoliday(tomorrow, [], 'VBG');
+    if (hName) {
+      list.push({ title: `🏝️ Feiertag: ${hName}`, subtitle: "Schulfreier Tag", type: "Feiertag" });
+    }
+    const kwTomorrow = getKW(tomorrow);
+    const tagNameTomorrow = getTodayName(tomorrow);
+    const dayPlan = app?.wochenplanung?.[kwTomorrow]?.[tagNameTomorrow] || {};
+    Object.values(dayPlan).forEach((cell: any) => {
+      if (cell?.thema) {
+        list.push({ title: `${cell.fach || "Unterricht"}: ${cell.thema}`, type: "Wochenplan" });
+      }
+    });
+    return list;
+  }, [scheduleDatum, app?.wochenplanung]);
+
+  const weekEventsList = React.useMemo(() => {
+    const list: Array<{ title: string; subtitle?: string; dayLabel?: string; type: string }> = [];
+    const days = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
+    days.forEach((day) => {
+      const dayPlan = app?.wochenplanung?.[kw]?.[day] || {};
+      Object.values(dayPlan).forEach((cell: any) => {
+        if (cell?.thema && (cell.thema.toLowerCase().includes("test") || cell.thema.toLowerCase().includes("ausflug") || cell.thema.toLowerCase().includes("sa"))) {
+          list.push({ dayLabel: day, title: `${cell.fach || "Fach"}: ${cell.thema}`, type: "Termin" });
+        }
+      });
+    });
+    return list;
+  }, [app?.wochenplanung, kw]);
+
+  const monthEventsList = React.useMemo(() => {
+    const list: Array<{ title: string; subtitle?: string; dateLabel?: string; type: string }> = [];
+    (dashboardSettings.customEvents || []).slice(0, 5).forEach((ev: any) => {
+      list.push({ dateLabel: ev.date, title: ev.name, type: "Event" });
+    });
+    return list;
+  }, [dashboardSettings.customEvents]);
 
   const statCards = React.useMemo(() => {
     return [
@@ -4172,9 +4315,9 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     return diff > 7 * 24 * 60 * 60 * 1000;
   });
 
-  const handleDownloadBackup = () => {
+  const handleDownloadBackup = async () => {
     try {
-      triggerBackupDownload(app);
+      await triggerBackupDownload(app);
 
       const nowStr = new Date().toISOString();
       localStorage.setItem("lehrkraft_last_backup_time", nowStr);
@@ -4192,13 +4335,13 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
       localStorage.removeItem("backup_banner_postponed_until");
       localStorage.removeItem("backupRemindLater"); // Sync with backupUtils keys
       showToast(
-        "Backup wurde erfolgreich exportiert und heruntergeladen.",
+        "Verschlüsseltes Backup wurde erfolgreich exportiert.",
         "success",
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       showToast(
-        "Backup-Erstellung fehlgeschlagen. Bitte versuche es erneut.",
+        error?.message || "Backup-Erstellung fehlgeschlagen. Bitte versuche es erneut.",
         "error",
       );
     }
@@ -4228,8 +4371,11 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
 
   return (
     <div
-      className={`${isCompact ? "space-y-4" : isLarge ? "space-y-7" : "space-y-5"} dashboard-shell pb-24 w-full max-w-[1600px] mx-auto overflow-x-hidden`}
-      data-zoom={app?.settings?.zoomLevel}
+      className={`${isCompact ? "space-y-4" : isLarge ? "space-y-7" : "space-y-5"} dashboard-shell pb-24 w-full max-w-[1600px] mx-auto overflow-x-hidden ${app?.settings?.fontWeight === 'bold' ? 'dashboard-bold-typography font-bold' : ''} ${app?.settings?.fontStyle === 'italic' ? 'dashboard-italic-typography italic' : ''}`}
+      data-zoom={app?.settings?.zoomLevel || app?.settings?.fontSize || 'standard'}
+      data-font-family={app?.settings?.fontFamily || 'standard'}
+      data-font-weight={app?.settings?.fontWeight || 'normal'}
+      data-font-style={app?.settings?.fontStyle || 'normal'}
     >
       <AnimatePresence>
         {showBackupBanner && (
@@ -4348,22 +4494,47 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
           month: "long",
           year: "numeric",
         })}
-        previewLabel={vorschauTyp}
+        klasseLabel={app?.klassenbezeichnung || "Klasse 3a"}
+        manualDateOffset={manualDateOffset}
+        onDateOffsetChange={setManualDateOffset}
+        privacyMode={dashboardPrivacyMode}
+        onPrivacyModeChange={setDashboardPrivacyMode}
+        simpleMode={simpleDashboardMode}
+        onSimpleModeToggle={() => setSimpleDashboardMode(!simpleDashboardMode)}
+        onNavigate={setPage}
+        onOpenRemoteSetup={() => setShowRemoteSetup(true)}
+        onOpenBackup={handleDownloadBackup}
+        onOpenPrint={() => window.print()}
+        onOpenSettings={() => setPage("einstellungen")}
+        onOpenCustomize={() => setShowCustomizePanel(true)}
+
+        totalStudents={(app?.schueler || []).length}
+        absentCount={missingToday.length}
+        presentCount={Math.max(0, (app?.schueler || []).length - missingToday.length)}
+        attendanceRecorded={attendanceRecordedToday}
+
+        todayLessonCount={todayLessonsList.length}
         currentLesson={currentHourData}
         nextLesson={upcomingHourData}
-        absentCount={missingToday.length}
-        totalStudents={(app?.schueler || []).length}
-        attendanceRecorded={attendanceRecordedToday}
-        actionItems={weekInsights}
-        events={specialEventsForDay}
-        mode={dashboardDayMode}
-        privacyMode={dashboardPrivacyMode}
-        onModeChange={setDashboardDayMode}
-        onPrivacyModeChange={setDashboardPrivacyMode}
-        onNavigate={setPage}
+        todayEventsCount={specialEventsForDay.length}
+        todayLessonsList={todayLessonsList}
+
+        openTasksCount={openTasksCount}
+        openCollectionsCount={openCollectionsCount}
+        openRemindersCount={heuteWichtigItems.filter(i => i.urgent).length}
+
+        actionItems={heuteWichtigItems}
+
+        focusStudent={focusStudent}
+        onNextFocusStudent={handleNextFocusStudent}
+
+        tomorrowEvents={tomorrowEventsList}
+        weekEvents={weekEventsList}
+        monthEvents={monthEventsList}
       />
 
       {/* Smart Status Dashboard */}
+      {!simpleDashboardMode && (
       <section>
         <div className="grid grid-cols-1 gap-5 items-stretch">
           <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 lg:p-6 shadow-sm flex flex-col relative transition-shadow hover:shadow-md">
@@ -4518,26 +4689,19 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                       <button
                         onClick={async () => {
                           try {
-                            const res = await fetch("/api/sync/create", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ state: app }),
-                            });
-                            const data = await res.json();
-                            if (data && data.code) {
-                              setApp((p) => ({
-                                ...p,
-                                boardSettings: {
-                                  ...p.boardSettings,
-                                  activeSyncCode: data.code,
-                                  isRemoteController: false,
-                                },
-                              }));
-                              showToast(
-                                "Sitzung erfolgreich gestartet! Scanne den QR-Code.",
-                                "success",
-                              );
-                            }
+                            const { code } = await startSyncSession(app);
+                            setApp((p) => ({
+                              ...p,
+                              boardSettings: {
+                                ...p.boardSettings,
+                                activeSyncCode: code,
+                                isRemoteController: false,
+                              },
+                            }));
+                            showToast(
+                              "Zero-Knowledge Sitzung gestartet! Scanne den QR-Code.",
+                              "success",
+                            );
                           } catch (e) {
                             console.error("Failed to start sync session:", e);
                             showToast(
@@ -4572,7 +4736,8 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                           den Hauptbildschirm übertragen!
                         </p>
                         <button
-                          onClick={() => {
+                          onClick={async () => {
+                            await stopSyncSession(app.boardSettings?.activeSyncCode);
                             setApp((p) => ({
                               ...p,
                               boardSettings: {
@@ -4597,14 +4762,14 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                           <div className="space-y-2">
                             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-black text-[0.5625rem] uppercase tracking-wider">
                               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                              <span>Live-Verbindung aktiv (Host)</span>
+                              <span>Live-Verbindung aktiv (Zero-Knowledge Host)</span>
                             </div>
 
                             <p className="text-[0.6875rem] text-slate-600 font-medium leading-relaxed">
                               Dein Hauptbildschirm dient nun als Smartboard.
                               Richtest du dein Smartphone auf den QR-Code
                               rechts, wird das Dashboard auf deinem Handy
-                              geladen. Alle deine Eingaben sind dort sofort
+                              geladen. Alle Daten werden Ende-zu-Ende verschlüsselt
                               synchronisiert.
                             </p>
                           </div>
@@ -4616,10 +4781,11 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                               </span>
                               <button
                                 onClick={() => {
-                                  const syncUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?sync=${app.boardSettings?.activeSyncCode}`;
+                                  const encodedKey = getActiveEncodedSessionKey() || '';
+                                  const syncUrl = createSyncUrl(app.boardSettings?.activeSyncCode, encodedKey);
                                   navigator.clipboard.writeText(syncUrl);
                                   showToast(
-                                    "Kopplungs-Link wurde in die Zwischenablage kopiert!",
+                                    "Verschlüsselter Kopplungs-Link wurde kopiert!",
                                     "success",
                                   );
                                 }}
@@ -4641,7 +4807,8 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                           </div>
 
                           <button
-                            onClick={() => {
+                            onClick={async () => {
+                              await stopSyncSession(app.boardSettings?.activeSyncCode);
                               setApp((p) => ({
                                 ...p,
                                 boardSettings: {
@@ -4660,7 +4827,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
 
                         <div className="md:col-span-4 flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-slate-200 self-start md:self-auto min-h-[160px]">
                           <QRCodeCanvas
-                            value={`${window.location.protocol}//${window.location.host}${window.location.pathname}?sync=${app.boardSettings?.activeSyncCode}`}
+                            value={createSyncUrl(app.boardSettings?.activeSyncCode, getActiveEncodedSessionKey() || '')}
                             size={120}
                             level="M"
                           />
@@ -4676,6 +4843,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
           </div>
         </div>
       </section>
+      )}
 
       {/* Birthdays this week alert slider banner */}
       <AnimatePresence>
@@ -4909,7 +5077,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
       )}
 
       {/* SMART ACTION ITEMS */}
-      {weekInsights.length > 0 && dashboardDayMode === "review" && (
+      {!simpleDashboardMode && weekInsights.length > 0 && dashboardDayMode === "review" && (
         <div className="mb-8 px-2">
           <h3 className="text-[0.75rem] leading-tight font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
             <Zap size={14} className="text-amber-500" /> Smart Action Items
@@ -4959,7 +5127,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
       )}
 
       {/* MINI STATS WIDGETS (Geburtstage & Events) */}
-      {dashboardDayMode !== "teaching" && (
+      {!simpleDashboardMode && dashboardDayMode !== "teaching" && (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full mb-5 z-10 relative">
         {dashboardSettings.showGeburtstage && (
           <MemoizedBirthdayWidget
@@ -4989,6 +5157,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
       )}
 
       {/* COMPREHENSIVE BENTO-GRID-LAYOUT */}
+      {!simpleDashboardMode && (
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -7239,6 +7408,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
           </div>
         </SortableContext>
       </DndContext>
+      )}
       {/* ============================================== */}
       {/* CONFIGURATION SIDEBAR OVERLAY PANEL             */}
       {/* ============================================== */}
@@ -7280,6 +7450,164 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
 
               {/* Content */}
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 custom-scrollbar">
+                {/* Section: Darstellung & Typografie (Farbe, Schriftart, Größe & Stil) */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-neutral-300">
+                    <Palette size={16} className="text-accent" />
+                    <span className="text-[0.6875rem] font-black uppercase tracking-wider text-white">
+                      Darstellung &amp; Schriftgestaltung
+                    </span>
+                  </div>
+                  <div className="p-4 bg-neutral-900/60 rounded-2xl border border-neutral-800 space-y-5">
+                    {/* 1. Farbschema */}
+                    <div>
+                      <label className="text-[0.65625rem] font-black uppercase text-neutral-400 block mb-2">
+                        Farbe &amp; Farb-Theme
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {AESTHETIC_THEMES.map((theme) => {
+                          const isSelected = (app?.theme || "classic_light") === theme.id;
+                          return (
+                            <button
+                              key={theme.id}
+                              type="button"
+                              onClick={() => setApp((prev: any) => ({ ...prev, theme: theme.id }))}
+                              className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                                isSelected
+                                  ? "bg-neutral-800 border-accent text-white ring-2 ring-accent/30 shadow-xs"
+                                  : "bg-neutral-950/70 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200"
+                              }`}
+                            >
+                              <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${theme.color}`} />
+                              <span className="text-[0.6875rem] font-bold truncate">{theme.label}</span>
+                              {isSelected && <Check size={12} className="ml-auto text-accent shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 2. Schriftart */}
+                    <div>
+                      <label className="text-[0.65625rem] font-black uppercase text-neutral-400 block mb-2 flex items-center gap-1.5">
+                        <Type size={13} className="text-accent" />
+                        <span>Schriftart</span>
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                        {DASHBOARD_CURATED_FONTS.map((f) => {
+                          const isCurrent = (app?.settings?.fontFamily || "standard") === f.id;
+                          return (
+                            <button
+                              key={f.id}
+                              type="button"
+                              onClick={() => {
+                                setApp((prev: any) => ({
+                                  ...prev,
+                                  settings: { ...prev.settings, fontFamily: f.id },
+                                }));
+                              }}
+                              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                                isCurrent
+                                  ? "bg-neutral-800 border-accent text-white ring-2 ring-accent/30 shadow-xs"
+                                  : "bg-neutral-950/70 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className="text-[0.75rem] font-black text-white">{f.label}</span>
+                                {isCurrent && <Check size={12} className="text-accent" />}
+                              </div>
+                              <span className="text-[0.625rem] text-neutral-400 truncate mt-0.5">{f.sub}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 3. Schriftgröße & Schriftstil */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-neutral-800">
+                      {/* Schriftgröße */}
+                      <div>
+                        <label className="text-[0.65625rem] font-black uppercase text-neutral-400 block mb-2">
+                          Schriftgröße
+                        </label>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {DASHBOARD_FONT_SIZES.map((sz) => {
+                            const isSelected = (app?.settings?.zoomLevel || app?.settings?.fontSize || "standard") === sz.id;
+                            return (
+                              <button
+                                key={sz.id}
+                                type="button"
+                                onClick={() => {
+                                  setApp((prev: any) => ({
+                                    ...prev,
+                                    settings: { ...prev.settings, zoomLevel: sz.id, fontSize: sz.id },
+                                  }));
+                                }}
+                                className={`py-2 px-1 rounded-xl border text-center transition-all cursor-pointer ${
+                                  isSelected
+                                    ? "bg-accent/20 border-accent text-white font-black shadow-xs"
+                                    : "bg-neutral-950/70 border-neutral-800 text-neutral-400 font-bold hover:border-neutral-700"
+                                }`}
+                              >
+                                <div className="text-[0.6875rem] leading-tight">{sz.label}</div>
+                                <div className="text-[0.5625rem] text-neutral-400 mt-0.5">{sz.scale}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Schriftstil: Fett & Kursiv */}
+                      <div>
+                        <label className="text-[0.65625rem] font-black uppercase text-neutral-400 block mb-2">
+                          Schriftstil
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          {/* Fett */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextWeight = (app?.settings?.fontWeight === "bold") ? "normal" : "bold";
+                              setApp((prev: any) => ({
+                                ...prev,
+                                settings: { ...prev.settings, fontWeight: nextWeight },
+                              }));
+                            }}
+                            className={`py-2 px-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                              app?.settings?.fontWeight === "bold"
+                                ? "bg-accent/20 border-accent text-white font-black ring-1 ring-accent/30 shadow-xs"
+                                : "bg-neutral-950/70 border-neutral-800 text-neutral-400 font-bold hover:border-neutral-700"
+                            }`}
+                          >
+                            <Bold size={13} />
+                            <span className="text-[0.6875rem]">{app?.settings?.fontWeight === "bold" ? "Fett (Aktiv)" : "Fett"}</span>
+                          </button>
+
+                          {/* Kursiv */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextStyle = (app?.settings?.fontStyle === "italic") ? "normal" : "italic";
+                              setApp((prev: any) => ({
+                                ...prev,
+                                settings: { ...prev.settings, fontStyle: nextStyle },
+                              }));
+                            }}
+                            className={`py-2 px-2.5 rounded-xl border flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                              app?.settings?.fontStyle === "italic"
+                                ? "bg-accent/20 border-accent text-white font-black italic ring-1 ring-accent/30 shadow-xs"
+                                : "bg-neutral-950/70 border-neutral-800 text-neutral-400 font-bold hover:border-neutral-700"
+                            }`}
+                          >
+                            <Italic size={13} />
+                            <span className="text-[0.6875rem]">{app?.settings?.fontStyle === "italic" ? "Kursiv (Aktiv)" : "Kursiv"}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Section: Schnell-Voreinstellungen (Presets) */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-neutral-300">

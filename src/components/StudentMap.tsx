@@ -94,16 +94,27 @@ export default function StudentMap({ students }: StudentMapProps) {
       setIsGeocoding(true);
 
       for (const student of students) {
-        if (!student.anschrift || !student.ort) {
+        const ort = (student.ort || app.schulOrt || '').trim();
+        const plz = (student.plz || app.schulPlz || '').trim();
+
+        if (!ort && !plz) {
           newGeocoded.push({ ...student, geocodeStatus: 'no_address' });
           continue;
         }
 
-        const addressString = `${student.anschrift}, ${student.plz || ''} ${student.ort}, Austria`;
+        // B1.5 DATENSCHUTZ: Keine Hausnummern oder Straßen an externe Geocoder senden!
+        // Nur Postleitzahl und Gemeinde werden übermittelt.
+        const addressString = `${plz} ${ort}, Austria`.trim();
         
         if (cachedCoords.has(addressString)) {
            const coords = cachedCoords.get(addressString)!;
-           newGeocoded.push({ ...student, lat: coords.lat, lon: coords.lon, geocodeStatus: 'success' });
+           const studentIdx = newGeocoded.length;
+           const angle = (studentIdx * 137.5 * Math.PI) / 180;
+           const radius = 0.003 * Math.sqrt((studentIdx % 10) + 1);
+           const lat = coords.lat + Math.sin(angle) * radius;
+           const lon = coords.lon + Math.cos(angle) * (radius * 1.5);
+
+           newGeocoded.push({ ...student, lat, lon, geocodeStatus: 'success' });
            continue;
         }
 
@@ -122,39 +133,24 @@ export default function StudentMap({ students }: StudentMapProps) {
             cachedCoords.set(addressString, { lat, lon });
             newGeocoded.push({ ...student, lat, lon, geocodeStatus: 'success' });
           } else {
-            // Fallback: Try with just street and city
-            const fallbackString = `${student.anschrift || ''}, ${student.ort || ''}`.trim();
-            await new Promise(r => setTimeout(r, 600));
-            res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(fallbackString)}&limit=1`);
-            data = await res.json();
-            
-            if (data && data.features && data.features.length > 0) {
-                const coords = data.features[0].geometry.coordinates;
-                const lon = coords[0];
-                const lat = coords[1];
-                cachedCoords.set(addressString, { lat, lon });
-                newGeocoded.push({ ...student, lat, lon, geocodeStatus: 'success' });
-            } else {
-                // Fallback 2: Just use the city (Ort)
-                const cityString = `${student.plz || ''} ${student.ort || ''}`.trim();
-                if (cityString) {
-                   await new Promise(r => setTimeout(r, 600));
-                   res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(cityString)}&limit=1`);
-                   data = await res.json();
-                   
-                   if (data && data.features && data.features.length > 0) {
-                        const coords = data.features[0].geometry.coordinates;
-                        const lon = coords[0];
-                        const lat = coords[1];
-                        // Cache it for the original address string anyway so we don't re-fetch
-                        cachedCoords.set(addressString, { lat, lon });
-                        newGeocoded.push({ ...student, lat, lon, geocodeStatus: 'success' }); // we could flag it as 'partial' if we wanted
-                   } else {
-                        newGeocoded.push({ ...student, geocodeStatus: 'failed' });
-                   }
-                } else {
+            // Fallback: Just use the city (Ort)
+            const cityString = `${student.ort || app.schulOrt || ''}`.trim();
+            if (cityString) {
+               await new Promise(r => setTimeout(r, 400));
+               res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(cityString + ', Austria')}&limit=1`);
+               data = await res.json();
+               
+               if (data && data.features && data.features.length > 0) {
+                    const coords = data.features[0].geometry.coordinates;
+                    const lon = coords[0];
+                    const lat = coords[1];
+                    cachedCoords.set(addressString, { lat, lon });
+                    newGeocoded.push({ ...student, lat, lon, geocodeStatus: 'success' });
+               } else {
                     newGeocoded.push({ ...student, geocodeStatus: 'failed' });
-                }
+               }
+            } else {
+                newGeocoded.push({ ...student, geocodeStatus: 'failed' });
             }
           }
         } catch (error) {

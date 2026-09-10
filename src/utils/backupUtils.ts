@@ -1,12 +1,39 @@
 
 import { AppState } from '../types';
+import {
+  createEncryptedBackup,
+  serializeBackup,
+  generateBackupFilename,
+} from '../lib/backupCryptoService';
+import {
+  getActiveVaultKey,
+  getActiveVaultRecord,
+  loadVaultRecord,
+} from '../lib/vaultStorage';
+import type { VaultRecordV1 } from '../lib/vaultService';
 
-export const triggerBackupDownload = (app: AppState) => {
-  const dataStr = JSON.stringify(app, null, 2);
+export const triggerBackupDownload = async (
+  app: AppState,
+  explicitVaultKey?: CryptoKey,
+  explicitVaultRecord?: VaultRecordV1
+): Promise<void> => {
+  const vaultKey = explicitVaultKey || getActiveVaultKey();
+  let vaultRecord = explicitVaultRecord || getActiveVaultRecord();
+
+  if (!vaultRecord) {
+    vaultRecord = await loadVaultRecord();
+  }
+
+  if (!vaultKey || !vaultRecord) {
+    throw new Error('Sicherer Tresor muss vor der vollständigen Datensicherung eingerichtet sein.');
+  }
+
+  const encryptedBackup = await createEncryptedBackup(app, vaultKey, vaultRecord);
+  const dataStr = serializeBackup(encryptedBackup);
   const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
-  const fileName = `lehrkraft_manager_backup_${app.vorname || 'user'}_${new Date().toISOString().split('T')[0]}.json`;
-  
+  const fileName = generateBackupFilename();
+
   const linkElement = document.createElement('a');
   linkElement.setAttribute('href', url);
   linkElement.setAttribute('download', fileName);
@@ -14,7 +41,7 @@ export const triggerBackupDownload = (app: AppState) => {
   linkElement.click();
   document.body.removeChild(linkElement);
   URL.revokeObjectURL(url);
-  
+
   localStorage.setItem('lastBackupTimestamp', Date.now().toString());
   localStorage.removeItem('backupRemindLater');
 };

@@ -3,10 +3,13 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { getSchulstartKW, kwToMonday, getStartYear, kwYear, isHoliday, getKW, getSW, sortYearlySubjects } from '../lib/utils';
 import { DEFAULT_YEARLY_SUBJECTS, DEUTSCH_UNTERFAECHER } from '../constants';
-import { Calendar, Printer, Download, ChevronRight, Edit3, Save, X, Info, FileText, Settings, Plus, Trash2, Flag, Star, ChevronDown, ChevronUp, AlertCircle, MapPin, ArrowDown, PartyPopper, MessageSquare, Users, Sparkles, Copy, Clipboard, Palette, Check, LayoutGrid, Search, EyeOff, BookOpen } from 'lucide-react';
+import { Calendar, Printer, Download, ChevronRight, Edit3, Save, X, Info, FileText, Settings, Plus, Trash2, Flag, Star, ChevronDown, ChevronUp, AlertCircle, MapPin, ArrowDown, PartyPopper, MessageSquare, Users, Sparkles, Copy, Clipboard, Palette, Check, LayoutGrid, Search, EyeOff, BookOpen, Maximize2, Minimize2, FileSpreadsheet, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import LernzielTracker from './LernzielTracker';
 import { LEHRPLAN_VS_2023 } from '../lehrplan';
+import { callServerAI } from '../services/aiService';
+import JahresplanExcelModal from './JahresplanExcelModal';
+import { generateJahresplanTemplate, JahresplanImportRow } from '../lib/planerExcelService';
 
 const COLOR_PALETTES: Record<string, { name: string, desc: string, colors: Record<string, string> }> = {
   pastell: {
@@ -187,6 +190,20 @@ export default function YearlyPlan() {
   const [dragOverCell, setDragOverCell] = useState<{kw: number, subjectId: string} | null>(null);
   const [planWeeksCount, setPlanWeeksCount] = useState<number>(1);
   const [autoSuffix, setAutoSuffix] = useState<'none' | 'part' | 'fortsetzung'>('part');
+  const [densityMode, setDensityMode] = useState<'kompakt' | 'normal' | 'detail'>(
+    ((app.settings as any)?.yearlyDensityMode as any) || 'normal'
+  );
+
+  const changeDensityMode = (mode: 'kompakt' | 'normal' | 'detail') => {
+    setDensityMode(mode);
+    setApp(prev => ({
+      ...prev,
+      settings: {
+        ...(prev.settings as any),
+        yearlyDensityMode: mode
+      }
+    }));
+  };
 
   // NEW INTERACTIVE & USABILITY STATES
   const [copiedTopic, setCopiedTopic] = useState<any | null>(null);
@@ -228,6 +245,75 @@ export default function YearlyPlan() {
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   const [aiGeneratingError, setAiGeneratingError] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const adjustTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.max(90, textareaRef.current.scrollHeight)}px`;
+    }
+  };
+
+  useEffect(() => {
+    if (editingCell) {
+      const timer = setTimeout(adjustTextareaHeight, 10);
+      return () => clearTimeout(timer);
+    }
+  }, [editingCell, editValue.thema]);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showExcelMenu, setShowExcelMenu] = useState(false);
+  const [showExcelModal, setShowExcelModal] = useState(false);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
+  const handleJahresplanImport = (importedRows: JahresplanImportRow[], mode: 'merge' | 'overwrite') => {
+    setApp(prev => {
+      const existingJp = prev.jahresplanung || {};
+      let newJahresplanung: Record<number, Record<string, any>> = {};
+
+      if (mode === 'merge') {
+        newJahresplanung = JSON.parse(JSON.stringify(existingJp));
+      }
+
+      importedRows.forEach(row => {
+        const kw = row.kw;
+        if (!kw) return;
+        if (!newJahresplanung[kw]) {
+          newJahresplanung[kw] = {};
+        }
+
+        const subjId = row.subjectId || 'sonstiges';
+        const existingItem = newJahresplanung[kw][subjId];
+
+        if (mode === 'merge' && existingItem && existingItem.thema && !row.thema) {
+          return;
+        }
+
+        newJahresplanung[kw][subjId] = {
+          ...(existingItem || {}),
+          thema: row.thema,
+          buch: row.buch || existingItem?.buch || '',
+          type: row.type || existingItem?.type || 'standard',
+          completed: row.completed !== undefined ? row.completed : existingItem?.completed || false,
+        };
+      });
+
+      return {
+        ...prev,
+        jahresplanung: newJahresplanung,
+      };
+    });
+  };
 
   const activePaletteKey = app.settings?.yearlyColorPalette || 'pastell';
 
@@ -522,10 +608,14 @@ export default function YearlyPlan() {
   const renderCellContent = (data: any, s: any, kw: number) => {
     const isDraggable = !!(data?.items?.length > 0 || data?.thema || data?.buch || data?.type !== 'standard');
     const isCompleted = !!data?.completed;
+    const hasMultipleItems = data?.items && data.items.length > 0;
+    const displayTitle = hasMultipleItems 
+      ? (data.items.map((it: any) => it.thema).filter(Boolean).join(', ') || data?.thema) 
+      : data?.thema;
 
     return (
       <div 
-        className={`h-full relative flex flex-col justify-between ${draggedSubjectData?.kw === kw && draggedSubjectData?.subjectId === s.id ? 'opacity-30' : ''}`}
+        className={`min-h-full h-full relative flex flex-col justify-between ${draggedSubjectData?.kw === kw && draggedSubjectData?.subjectId === s.id ? 'opacity-30' : ''}`}
         draggable={isDraggable}
         onDragStart={isDraggable ? (e) => handleDragStart(e, kw, s.id) : undefined}
       >
@@ -606,73 +696,153 @@ export default function YearlyPlan() {
           )}
         </div>
         
-        {data?.items && data.items.length > 0 ? (
-          <div className={`flex flex-col gap-2 h-full p-2 rounded-xl transition-all shadow-sm select-none ${isCompleted ? 'bg-emerald-50/50 opacity-70 line-through' : 'bg-white/80'}`}>
-            {data.items.map((it: any) => (
-              <div key={it.id} className="leading-tight border-b border-stone-100 pb-2 mb-1 last:border-0 last:pb-0 last:mb-0">
-                {(it.subCategories && it.subCategories.length > 0) ? (
-                  <div className="flex flex-wrap gap-1 mb-1">
-                    {it.subCategories.map((sc: string) => (
-                      <div key={sc} className="text-[0.5rem] font-black uppercase text-blue-600 px-1 bg-blue-50 rounded border border-blue-100">{sc.replace('Deutsch ', '')}</div>
+        {isDraggable ? (
+          densityMode === 'kompakt' ? (
+            /* KOMPAKT MODE */
+            <div className={`p-1.5 rounded-lg transition-all shadow-xs select-none min-h-full flex items-start justify-between gap-1.5 ${
+              isCompleted ? 'bg-emerald-50/70 opacity-70 line-through' :
+              data?.type === 'sa' ? 'bg-rose-100/90 ring-1 ring-rose-300' :
+              data?.type === 'test' || data?.type === 'lzk' ? 'bg-amber-100/90 ring-1 ring-amber-300' :
+              'bg-white/90 border border-stone-200/60'
+            }`}>
+              <div className="flex items-start gap-1 min-w-0 flex-1">
+                {isCompleted && <span className="text-emerald-600 font-bold text-[0.625rem] shrink-0 mt-0.5">✓</span>}
+                <span className={`text-[0.625rem] font-bold leading-snug break-words whitespace-normal text-left ${
+                  data?.type === 'sa' ? 'text-rose-950 font-black' : 'text-stone-800'
+                }`} title={displayTitle}>
+                  {displayTitle}
+                </span>
+              </div>
+              {data?.type === 'sa' && <Flag size={9} className="text-rose-600 fill-current shrink-0 mt-0.5" />}
+              {(data?.type === 'test' || data?.type === 'lzk') && <AlertCircle size={9} className="text-amber-600 shrink-0 mt-0.5" />}
+              {data?.type === 'event' && <MapPin size={9} className="text-indigo-600 fill-current shrink-0 mt-0.5" />}
+            </div>
+          ) : densityMode === 'normal' ? (
+            /* NORMAL MODE */
+            <div className={`p-2 rounded-xl transition-all shadow-sm select-none min-h-full flex flex-col justify-between gap-1.5 ${
+              isCompleted ? 'bg-emerald-50/50 opacity-70 line-through' :
+              data?.type === 'sa' ? 'bg-rose-50 ring-1 ring-rose-200' :
+              data?.type === 'test' || data?.type === 'lzk' ? 'bg-amber-50 ring-1 ring-amber-200' :
+              'bg-white/80'
+            }`}>
+              <div className="flex-1">
+                <div className="flex items-start justify-between gap-1.5">
+                  <div className={`font-bold leading-snug text-[0.6875rem] break-words whitespace-normal text-left ${
+                    isCompleted ? 'text-stone-500 font-medium' :
+                    data?.type === 'sa' ? 'text-rose-950 font-black' :
+                    'text-stone-900 font-bold'
+                  }`}>
+                    {isCompleted && <span className="text-emerald-600 mr-1">✓</span>}
+                    {displayTitle}
+                  </div>
+                  <div className="flex flex-col gap-1 items-center shrink-0 mt-0.5">
+                    {data?.type === 'sa' && <Flag size={10} className="text-rose-600 fill-current" />}
+                    {(data?.type === 'test' || data?.type === 'lzk') && <AlertCircle size={10} className="text-amber-600" />}
+                    {data?.type === 'event' && <MapPin size={10} className="text-indigo-600 fill-current" />}
+                  </div>
+                </div>
+                {data?.subCategories && data.subCategories.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {data.subCategories.map((sc: string) => (
+                      <span key={sc} className="text-[0.5rem] font-bold text-blue-700 bg-blue-50 px-1 py-0.5 rounded leading-none">
+                        {sc.replace('Deutsch ', '')}
+                      </span>
                     ))}
                   </div>
-                ) : it.subCategory && (
-                  <div className="text-[0.5625rem] font-black uppercase text-blue-600 tracking-wider mb-0.5 w-fit bg-blue-50 px-1 rounded">{it.subCategory.replace('Deutsch ', '')}</div>
+                ) : data?.subCategory && (
+                  <div className="text-[0.5rem] font-bold text-blue-700 bg-blue-50 px-1 py-0.5 rounded w-fit mt-1.5 leading-none">
+                    {data.subCategory.replace('Deutsch ', '')}
+                  </div>
                 )}
-                <div className="font-bold text-[0.6875rem] text-stone-900 leading-tight">{it.thema}</div>
-                {it.buch && <div className="text-[0.5625rem] text-stone-500 font-medium italic mt-0.5 flex items-center gap-1 opacity-70"><Info size={8} />{it.buch}</div>}
               </div>
-            ))}
-          </div>
-        ) : data?.thema || data?.buch || data?.type !== 'standard' ? (
-          <div className={`space-y-1.5 p-2 rounded-xl transition-all shadow-sm select-none h-full flex flex-col justify-between ${isCompleted ? 'bg-emerald-50/50 opacity-70 line-through' : data?.type === 'sa' ? 'bg-rose-50 ring-1 ring-rose-200' : data?.type === 'test' || data?.type === 'lzk' ? 'bg-amber-50 ring-1 ring-amber-200' : 'bg-white/80'}`}>
-            <div>
-              <div className="flex items-start justify-between gap-1.5">
-                <div className={`font-black leading-tight line-clamp-3 text-[0.6875rem] ${isCompleted ? 'text-stone-500 font-medium' : data?.type === 'sa' ? 'text-rose-950 font-black' : 'text-stone-900 font-bold'}`}>
-                  {isCompleted && <span className="text-emerald-600 mr-1">✓</span>}
-                  {data?.thema}
-                </div>
-                <div className="flex flex-col gap-1 items-center shrink-0">
-                  {data?.type === 'sa' && <Flag size={11} className="text-rose-600 fill-current drop-shadow-sm" />}
-                  {(data?.type === 'test' || data?.type === 'lzk') && <AlertCircle size={11} className="text-amber-600 drop-shadow-sm" />}
-                  {data?.type === 'event' && <MapPin size={11} className="text-indigo-600 fill-current drop-shadow-sm" />}
-                  {data?.type === 'spielefest' && <PartyPopper size={11} className="text-fuchsia-600" />}
-                  {data?.type === 'konferenz' && <Users size={11} className="text-blue-600" />}
-                  {data?.type === 'gespraech' && <MessageSquare size={11} className="text-violet-600" />}
-                  {data?.type === 'sonstiges' && <Calendar size={11} className="text-rose-600" />}
-                </div>
-              </div>
-              
-              {data?.subCategories && data.subCategories.length > 0 ? (
-                <div className="flex flex-wrap gap-1 mt-1.5">
-                  {data.subCategories.map((sc: string) => (
-                    <div key={sc} className="text-[0.5625rem] text-blue-700 font-bold bg-blue-100/80 px-1.5 py-0.5 rounded leading-none">
-                      {sc.replace('Deutsch ', '')}
-                    </div>
-                  ))}
-                </div>
-              ) : data?.subCategory && (
-                <div className="text-[0.5625rem] text-blue-700 font-bold bg-blue-100/80 px-1.5 py-0.5 rounded w-fit mt-1.5 leading-none">
-                  {data.subCategory.replace('Deutsch ', '')}
+              {data?.buch && (
+                <div className="text-[0.5rem] text-stone-500 italic mt-1 flex items-start gap-1 opacity-80 break-words whitespace-normal text-left">
+                  <FileText size={8} className="shrink-0 mt-0.5" />
+                  <span className="break-words whitespace-normal leading-tight">{data.buch}</span>
                 </div>
               )}
             </div>
-            {data?.buch && (
-              <div className="text-[0.5625rem] text-stone-500 italic flex items-center gap-1 mt-2 font-black bg-stone-100/50 px-1.5 py-1 rounded-lg leading-none border border-black/5">
-                <FileText size={10} className="shrink-0" />
-                <span className="text-wrap leading-tight break-words">{data.buch}</span>
+          ) : (
+            /* DETAIL MODE */
+            hasMultipleItems ? (
+              <div className={`flex flex-col gap-2 min-h-full p-2 rounded-xl transition-all shadow-sm select-none ${isCompleted ? 'bg-emerald-50/50 opacity-70 line-through' : 'bg-white/80'}`}>
+                {data.items.map((it: any) => (
+                  <div key={it.id} className="leading-tight border-b border-stone-100 pb-2 mb-1 last:border-0 last:pb-0 last:mb-0">
+                    {(it.subCategories && it.subCategories.length > 0) ? (
+                      <div className="flex flex-wrap gap-1 mb-1">
+                        {it.subCategories.map((sc: string) => (
+                          <div key={sc} className="text-[0.5rem] font-black uppercase text-blue-600 px-1 bg-blue-50 rounded border border-blue-100">{sc.replace('Deutsch ', '')}</div>
+                        ))}
+                      </div>
+                    ) : it.subCategory && (
+                      <div className="text-[0.5625rem] font-black uppercase text-blue-600 tracking-wider mb-0.5 w-fit bg-blue-50 px-1 rounded">{it.subCategory.replace('Deutsch ', '')}</div>
+                    )}
+                    <div className="font-bold text-[0.6875rem] text-stone-900 leading-snug break-words whitespace-normal text-left">{it.thema}</div>
+                    {it.buch && (
+                      <div className="text-[0.5625rem] text-stone-500 font-medium italic mt-1 flex items-start gap-1 opacity-70 break-words whitespace-normal text-left">
+                        <Info size={8} className="shrink-0 mt-0.5" />
+                        <span className="leading-tight break-words">{it.buch}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
+            ) : (
+              <div className={`space-y-1.5 p-2 rounded-xl transition-all shadow-sm select-none min-h-full flex flex-col justify-between gap-1.5 ${isCompleted ? 'bg-emerald-50/50 opacity-70 line-through' : data?.type === 'sa' ? 'bg-rose-50 ring-1 ring-rose-200' : data?.type === 'test' || data?.type === 'lzk' ? 'bg-amber-50 ring-1 ring-amber-200' : 'bg-white/80'}`}>
+                <div className="flex-1">
+                  <div className="flex items-start justify-between gap-1.5">
+                    <div className={`font-black leading-snug text-[0.6875rem] break-words whitespace-normal text-left ${isCompleted ? 'text-stone-500 font-medium' : data?.type === 'sa' ? 'text-rose-950 font-black' : 'text-stone-900 font-bold'}`}>
+                      {isCompleted && <span className="text-emerald-600 mr-1">✓</span>}
+                      {data?.thema}
+                    </div>
+                    <div className="flex flex-col gap-1 items-center shrink-0 mt-0.5">
+                      {data?.type === 'sa' && <Flag size={11} className="text-rose-600 fill-current drop-shadow-sm" />}
+                      {(data?.type === 'test' || data?.type === 'lzk') && <AlertCircle size={11} className="text-amber-600 drop-shadow-sm" />}
+                      {data?.type === 'event' && <MapPin size={11} className="text-indigo-600 fill-current drop-shadow-sm" />}
+                      {data?.type === 'spielefest' && <PartyPopper size={11} className="text-fuchsia-600" />}
+                      {data?.type === 'konferenz' && <Users size={11} className="text-blue-600" />}
+                      {data?.type === 'gespraech' && <MessageSquare size={11} className="text-violet-600" />}
+                      {data?.type === 'sonstiges' && <Calendar size={11} className="text-rose-600" />}
+                    </div>
+                  </div>
+                  
+                  {data?.subCategories && data.subCategories.length > 0 ? (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {data.subCategories.map((sc: string) => (
+                        <div key={sc} className="text-[0.5625rem] text-blue-700 font-bold bg-blue-100/80 px-1.5 py-0.5 rounded leading-none">
+                          {sc.replace('Deutsch ', '')}
+                        </div>
+                      ))}
+                    </div>
+                  ) : data?.subCategory && (
+                    <div className="text-[0.5625rem] text-blue-700 font-bold bg-blue-100/80 px-1.5 py-0.5 rounded w-fit mt-1.5 leading-none">
+                      {data.subCategory.replace('Deutsch ', '')}
+                    </div>
+                  )}
+                </div>
+                {data?.buch && (
+                  <div className="text-[0.5625rem] text-stone-500 italic flex items-start gap-1 mt-2 font-black bg-stone-100/50 px-1.5 py-1 rounded-lg leading-snug border border-black/5 break-words whitespace-normal text-left">
+                    <FileText size={10} className="shrink-0 mt-0.5" />
+                    <span className="text-wrap leading-tight break-words">{data.buch}</span>
+                  </div>
+                )}
+              </div>
+            )
+          )
         ) : (
-          <div className="opacity-0 group-hover/cell:opacity-100 flex flex-col items-center justify-center h-full min-h-[55px] transition-all gap-1">
-            <Plus size={16} className="text-stone-400 hover:scale-125 transition-transform" />
-            <button 
-              onClick={(e) => { e.stopPropagation(); setSuggestingCell({ kw, subjectId: s.id }); }} 
-              className="p-1 rounded bg-amber-50 text-amber-500 hover:bg-amber-100 border border-amber-200 flex items-center gap-1 text-[0.55rem] font-black uppercase tracking-tight scale-90"
-            >
-              <Sparkles size={10} className="fill-current animate-pulse" /> Vorschlag
-            </button>
+          /* EMPTY CELL */
+          <div className={`opacity-0 group-hover/cell:opacity-100 flex flex-col items-center justify-center min-h-full h-full transition-all gap-1 ${
+            densityMode === 'kompakt' ? 'min-h-[28px] py-0.5' : densityMode === 'normal' ? 'min-h-[44px] py-1' : 'min-h-[60px] py-2'
+          }`}>
+            <Plus size={densityMode === 'kompakt' ? 12 : 15} className="text-stone-400 hover:scale-125 transition-transform" />
+            {densityMode !== 'kompakt' && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setSuggestingCell({ kw, subjectId: s.id }); }} 
+                className="p-1 rounded bg-amber-50 text-amber-500 hover:bg-amber-100 border border-amber-200 flex items-center gap-1 text-[0.55rem] font-black uppercase tracking-tight scale-90"
+              >
+                <Sparkles size={10} className="fill-current animate-pulse" /> Vorschlag
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -809,29 +979,15 @@ export default function YearlyPlan() {
     const slicedEmptyCells = emptyCells.slice(0, 15);
 
     try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "generateYearlyPlanSuggestions",
-          params: {
-            stufe: app.stufe || 4,
-            subjects: subjects.map(s => ({ id: s.id, label: s.label })),
-            existingPlanning: app.jahresplanung || {},
-            emptyWeeks: slicedEmptyCells,
-            userFocus: aiUserFocus
-          }
-        })
+      const text = await callServerAI("generateYearlyPlanSuggestions", {
+        stufe: app.stufe || 4,
+        subjects: subjects.map(s => ({ id: s.id, label: s.label })),
+        existingPlanning: app.jahresplanung || {},
+        emptyWeeks: slicedEmptyCells,
+        userFocus: aiUserFocus
       });
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Fehler bei der KI Generierung.");
-      }
-
-      const data = await res.json();
-      let resultText = data.text || "";
-      resultText = resultText.trim();
+      let resultText = (text || "").trim();
       if (resultText.startsWith("```")) {
         resultText = resultText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
       }
@@ -1032,7 +1188,7 @@ export default function YearlyPlan() {
   const activeTab = app.settings?.planTab || 'jahresplan';
 
   return (
-    <div className="yearly-plan-shell h-full flex flex-col space-y-4 px-4 lg:px-6 bg-[#f4f7f3]">
+    <div className={`yearly-plan-shell flex flex-col space-y-4 bg-[#f4f7f3] ${isFullscreen ? 'fixed inset-0 z-[450] w-screen h-screen overflow-y-auto p-3 sm:p-5' : 'h-full px-4 lg:px-6'}`}>
       {/* Header toolbar */}
       <div className="flex flex-col gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm shrink-0">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full justify-start min-w-0">
@@ -1064,22 +1220,40 @@ export default function YearlyPlan() {
           </div>
 
           {activeTab === 'jahresplan' && (
-          <div className="flex bg-stone-100 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl border border-stone-200 shrink-0 shadow-inner">
-            <button 
-              onClick={() => setViewMode('table')}
-              aria-pressed={viewMode === 'table'}
-              className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-black uppercase tracking-wider transition-all duration-200 ${viewMode === 'table' ? 'bg-white text-emerald-700 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
-            >
-              Tabelle
-            </button>
-            <button 
-              onClick={() => setViewMode('months')}
-              aria-pressed={viewMode === 'months'}
-              className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-black uppercase tracking-wider transition-all duration-200 ${viewMode === 'months' ? 'bg-white text-emerald-700 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
-            >
-              Monatsübersicht
-            </button>
-          </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex bg-stone-100 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl border border-stone-200 shrink-0 shadow-inner">
+                <button 
+                  onClick={() => setViewMode('table')}
+                  aria-pressed={viewMode === 'table'}
+                  className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-black uppercase tracking-wider transition-all duration-200 ${viewMode === 'table' ? 'bg-white text-emerald-700 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
+                >
+                  Tabelle
+                </button>
+                <button 
+                  onClick={() => setViewMode('months')}
+                  aria-pressed={viewMode === 'months'}
+                  className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-black uppercase tracking-wider transition-all duration-200 ${viewMode === 'months' ? 'bg-white text-emerald-700 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
+                >
+                  Monatsübersicht
+                </button>
+              </div>
+
+              {viewMode === 'table' && (
+                <div className="flex bg-stone-100 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl border border-stone-200 shrink-0 shadow-inner items-center">
+                  <span className="text-[0.5625rem] font-black text-stone-400 uppercase tracking-wider px-2 hidden sm:inline">Dichte:</span>
+                  {(['kompakt', 'normal', 'detail'] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => changeDensityMode(m)}
+                      aria-pressed={densityMode === m}
+                      className={`px-2 sm:px-3 py-1 sm:py-1 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-black uppercase tracking-wider transition-all duration-200 ${densityMode === m ? 'bg-white text-emerald-700 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
+                    >
+                      {m === 'kompakt' ? 'Kompakt' : m === 'normal' ? 'Normal' : 'Detail'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
         
@@ -1168,11 +1342,80 @@ export default function YearlyPlan() {
           >
             <Printer size={11} className="sm:w-[15px] sm:h-[15px]" /> Drucken
           </button>
+          
+          {/* Excel Dropdown Button */}
+          <div className="relative z-[210]">
+            <button 
+              onClick={() => setShowExcelMenu(!showExcelMenu)}
+              className="inline-flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border border-emerald-200 active:scale-95 cursor-pointer shadow-xs"
+              title="Excel-Vorlage oder Import"
+            >
+              <FileSpreadsheet size={13} className="sm:w-[15px] sm:h-[15px]" />
+              <span>Excel</span>
+              <ChevronDown size={11} />
+            </button>
+            {showExcelMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowExcelMenu(false)} />
+                <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left">
+                  <button
+                    onClick={() => {
+                      setShowExcelMenu(false);
+                      generateJahresplanTemplate(app);
+                    }}
+                    className="btn !bg-white !text-emerald-700 hover:!bg-emerald-50 !justify-start !text-left text-xs gap-2.5 w-full"
+                  >
+                    <Download size={14} />
+                    <span>Excel-Vorlage herunterladen</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowExcelMenu(false);
+                      setShowExcelModal(true);
+                    }}
+                    className="btn !bg-white !text-slate-700 hover:!bg-slate-50 !justify-start !text-left text-xs gap-2.5 w-full"
+                  >
+                    <Upload size={14} />
+                    <span>Excel importieren...</span>
+                  </button>
+                  <hr className="my-1 border-slate-100" />
+                  <button
+                    onClick={() => {
+                      setShowExcelMenu(false);
+                      downloadCSV();
+                    }}
+                    className="btn !bg-white !text-slate-600 hover:!bg-slate-50 !justify-start !text-left text-xs gap-2.5 w-full"
+                  >
+                    <FileText size={14} />
+                    <span>CSV exportieren</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Fullscreen Button */}
           <button 
-            onClick={downloadCSV}
-            className="inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border border-slate-200 active:scale-95 cursor-pointer"
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border active:scale-95 cursor-pointer shadow-xs ${
+              isFullscreen
+                ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+            }`}
+            title={isFullscreen ? 'Vollbildmodus beenden (Esc)' : 'Vollbildmodus aktivieren (Esc zum Beenden)'}
           >
-            <Download size={11} className="sm:w-[15px] sm:h-[15px]" /> Export
+            {isFullscreen ? (
+              <>
+                <Minimize2 size={13} className="sm:w-[15px] sm:h-[15px]" />
+                <span>Vollbild beenden</span>
+                <kbd className="hidden sm:inline-block px-1 py-0.2 bg-emerald-900/60 text-[9px] text-white rounded font-mono ml-0.5">Esc</kbd>
+              </>
+            ) : (
+              <>
+                <Maximize2 size={13} className="sm:w-[15px] sm:h-[15px]" />
+                <span>Vollbild</span>
+              </>
+            )}
           </button>
         </div>
         )}
@@ -1399,6 +1642,7 @@ export default function YearlyPlan() {
                       {visibleSubjects.map(s => {
                         const data = plannedWeek[s.id];
                         const colBg = getColumnBg(s.color);
+                        const cellPaddingClass = densityMode === 'kompakt' ? 'p-1' : densityMode === 'normal' ? 'p-1.5' : 'p-2';
                         
                         return (
                           <td 
@@ -1406,7 +1650,7 @@ export default function YearlyPlan() {
                             role="button"
                             tabIndex={0}
                             aria-label={`KW ${kw}, ${s.label}: ${data?.thema || 'leer'}`}
-                            className={`p-2 align-top border-r border-b border-stone-100 last:border-r-0 relative min-h-[80px] cursor-pointer transition-all ${dragOverCell?.kw === kw && dragOverCell?.subjectId === s.id ? 'ring-2 ring-emerald-400 bg-emerald-50' : colBg} hover:bg-white hover:z-20 hover:shadow-xl hover:scale-[1.02] active:scale-100 group/cell`}
+                            className={`${cellPaddingClass} align-top border-r border-b border-stone-100 last:border-r-0 relative cursor-pointer transition-all ${dragOverCell?.kw === kw && dragOverCell?.subjectId === s.id ? 'ring-2 ring-emerald-400 bg-emerald-50' : colBg} hover:bg-white hover:z-20 hover:shadow-lg group/cell`}
                             onClick={() => handleCellClick(kw, s.id)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' || e.key === ' ') {
@@ -1675,12 +1919,12 @@ export default function YearlyPlan() {
                                   </span>
                                 )}
                               </div>
-                              <div className="font-bold leading-tight line-clamp-2" title={item.label}>
+                              <div className="font-bold leading-snug break-words whitespace-normal text-left" title={item.label}>
                                 {item.label}
                               </div>
                               {item.details && (
-                                <div className="text-[0.5625rem] opacity-75 italic flex items-center gap-1 mt-0.5">
-                                  <FileText size={10} className="shrink-0" />
+                                <div className="text-[0.5625rem] opacity-75 italic flex items-start gap-1 mt-0.5 break-words whitespace-normal text-left">
+                                  <FileText size={10} className="shrink-0 mt-0.5" />
                                   <span className="text-wrap leading-tight break-words">{item.details}</span>
                                 </div>
                               )}
@@ -1706,10 +1950,10 @@ export default function YearlyPlan() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl border border-border w-full max-w-md "
+              className="bg-white rounded-2xl border border-border w-full max-w-md max-h-[85vh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-4 border-b border-border bg-stone-50 flex justify-between items-center">
+              <div className="p-4 border-b border-border bg-stone-50 flex justify-between items-center shrink-0">
                 <div>
                   <div className="text-[0.5625rem] font-black uppercase tracking-widest text-text-muted mb-1">
                     KW {editingCell.kw}
@@ -1726,7 +1970,7 @@ export default function YearlyPlan() {
                 </button>
               </div>
               
-              <div className="p-6 space-y-6">
+              <div className="p-6 space-y-6 flex-1 overflow-y-auto min-h-0">
                 {/* FLAGGEN STATUS */}
                 <div className="space-y-2">
                   <label className="text-[0.625rem] font-black uppercase text-text-muted ml-1">Wichtiger Termin / Event</label>
@@ -1757,11 +2001,17 @@ export default function YearlyPlan() {
                 <div className="space-y-1.5">
                   <label className="text-[0.625rem] font-black uppercase text-text-muted ml-1">Hauptthema / Inhalt</label>
                   <textarea 
+                    ref={textareaRef}
                     autoFocus
-                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-[0.875rem] font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all min-h-[100px]"
+                    rows={3}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-[0.875rem] font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all min-h-[90px] resize-y leading-relaxed"
                     placeholder="z.B. Nomen, Multiplikation bis 100..."
                     value={editValue.thema}
-                    onChange={e => setEditValue({ ...editValue, thema: e.target.value })}
+                    onChange={e => {
+                      setEditValue({ ...editValue, thema: e.target.value });
+                      adjustTextareaHeight();
+                    }}
+                    onInput={adjustTextareaHeight}
                   />
                 </div>
                 
@@ -1924,7 +2174,7 @@ export default function YearlyPlan() {
                 </div>
               </div>
 
-              <div className="p-4 bg-stone-50 border-t border-border flex gap-3">
+              <div className="p-4 bg-stone-50 border-t border-border flex gap-3 shrink-0">
                 <button onClick={closeEditingCell} className="flex-1 btn bg-white text-stone-600 border-border hover:bg-stone-100">
                   Abbrechen
                 </button>
@@ -1944,10 +2194,10 @@ export default function YearlyPlan() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl border border-border w-full max-w-2xl  max-h-[80vh] flex flex-col"
+              className="bg-white rounded-2xl border border-border w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-4 border-b border-border bg-stone-50 flex justify-between items-center">
+              <div className="p-4 border-b border-border bg-stone-50 flex justify-between items-center shrink-0">
                 <div>
                   <h3 className="font-bold text-text-primary">Spalten & Fächer konfigurieren</h3>
                   <p className="text-[0.6875rem] text-text-muted">Bestimme, welche Spalten in deiner Jahresplanung erscheinen sollen.</p>
@@ -1957,7 +2207,7 @@ export default function YearlyPlan() {
                 </button>
               </div>
 
-              <div className="p-6 overflow-y-auto space-y-4">
+              <div className="p-6 overflow-y-auto space-y-4 flex-1 min-h-0">
                 <div className="grid gap-3">
                   {subjects.map((s, idx) => (
                     <div key={s.id} className="flex flex-col gap-2 bg-stone-50 p-3 rounded-xl border border-stone-200">
@@ -2060,7 +2310,7 @@ export default function YearlyPlan() {
                 </button>
               </div>
 
-              <div className="p-4 bg-stone-50 border-t border-border flex justify-end">
+              <div className="p-4 bg-stone-50 border-t border-border flex justify-end shrink-0">
                 <button 
                   onClick={() => setShowSettings(false)} 
                   className="btn btn-primary px-8"
@@ -2372,6 +2622,14 @@ export default function YearlyPlan() {
           <strong>Tipp:</strong> Tragen Sie hier die Grobplanung für das gesamte Schuljahr ein. Diese Themen können Sie später direkt in die Wochenplanung übernehmen. Die Druckansicht ist für den A4-Querformat-Druck optimiert.
         </p>
       </div>
+
+      <JahresplanExcelModal
+        isOpen={showExcelModal}
+        onClose={() => setShowExcelModal(false)}
+        onImport={handleJahresplanImport}
+        app={app}
+        availableSubjects={subjects}
+      />
     </div>
   );
 }

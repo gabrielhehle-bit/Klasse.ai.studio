@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, MessageSquare, ArrowRight, Copy, Check, Wand2, X } from 'lucide-react';
 import Markdown from 'react-markdown';
+import { askAI } from '../services/aiService';
 
 interface PedagogicalTextHelperProps {
   initialText?: string;
@@ -26,21 +27,9 @@ export const PedagogicalTextHelper: React.FC<PedagogicalTextHelperProps> = ({
     
     setIsOptimizing(true);
     try {
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'askAI',
-          params: {
-            modusId: 'ki-pedagogical-helper',
-            userMessage: inputText
-          }
-        })
-      });
-      
-      const data = await response.json();
-      if (data.text) {
-        setOptimizedText(data.text);
+      const text = await askAI('ki-pedagogical-helper', inputText);
+      if (text) {
+        setOptimizedText(text);
       }
     } catch (error) {
       console.error('Fehler bei der Text-Optimierung:', error);

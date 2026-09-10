@@ -3,7 +3,8 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { logActivity, getAccentTextColor } from '../lib/utils';
-import { getFachCfg, berechne } from '../lib/GradeUtils';
+import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel } from '../lib/GradeUtils';
+import { getFachHexColor } from '../lib/fachColorUtils';
 import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
 import WeightSettings from './WeightSettings';
@@ -16,8 +17,9 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { CanvasBarChart } from './charts/CanvasBarChart';
 import { DebouncedInput } from './DebouncedInput';
 import BehaviorSettings from './gradebook/BehaviorSettings';
+import { AssessmentItemModal } from './gradebook/AssessmentItemModal';
 
-const StudentRowWrapper = React.memo(({ s, i, avg, nd, miRaw, isItemSelected, isRowHovered, studentErrors, activeFach, sem, cfg, colCounts, isolatedCol, heatmapMode, mitarbeitSettings, currentSymbol, relativeMiDivisor, studentsCount, renderRow }: any) => {
+const StudentRowWrapper = React.memo(({ s, i, avg, nd, miRaw, isItemSelected, isRowHovered, studentErrors, activeFach, sem, cfg, colCounts, isolatedCol, heatmapMode, mitarbeitSettings, currentSymbol, relativeMiDivisor, studentsCount, assessmentMode, maxPointsMeta, renderRow }: any) => {
   return renderRow();
 }, (prev, next) => {
   return prev.s === next.s &&
@@ -32,6 +34,8 @@ const StudentRowWrapper = React.memo(({ s, i, avg, nd, miRaw, isItemSelected, is
          prev.sem === next.sem &&
          prev.cfg === next.cfg &&
          prev.colCounts === next.colCounts &&
+         prev.assessmentMode === next.assessmentMode &&
+         JSON.stringify(prev.maxPointsMeta) === JSON.stringify(next.maxPointsMeta) &&
          prev.mitarbeitSettings === next.mitarbeitSettings &&
          prev.currentSymbol === next.currentSymbol &&
          prev.relativeMiDivisor === next.relativeMiDivisor &&
@@ -182,6 +186,7 @@ export default function Gradebook() {
     ];
   }, [app.behavior_stages]);
   const commonIcons = ['🌟', '😊', '😐', '⚠️', '🚫', '🔥', '❤️', '👍', '👎', '👏', '🙌', '🤝', '💎', '🏆', '👑', '✨', '🚀', '⭐', '🎈', '🎉', '📝', '💬', '📖', '💡', '🍎', '🎒', '🎨', '🧩', '⚽', '💻', '🦁', '🐘', '🦎', '🦉', '🐝'];
+  const [sem, setSem] = useState<'1' | '2'>('1');
   const [showWeights, setShowWeights] = useState(false);
   const [showGradeCalculator, setShowGradeCalculator] = useState(false);
   const [showStats, setShowStats] = useState(false);
@@ -191,14 +196,24 @@ export default function Gradebook() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [filterMissing, setFilterMissing] = useState(false);
   const [isolatedCol, setIsolatedCol] = useState<{typ: 'sa'|'lzk'|'wp'|'obj', idx: number} | null>(null);
+  const [editingAssessmentModal, setEditingAssessmentModal] = useState<{
+    typ: 'sa' | 'lzk' | 'wp' | 'obj';
+    idx: number;
+    isNew?: boolean;
+  } | null>(null);
   const [editingColLabel, setEditingColLabel] = useState<{typ: 'sa'|'lzk'|'wp'|'obj', idx: number} | null>(null);
   const [tempColLabel, setTempColLabel] = useState('');
   const [tempColDate, setTempColDate] = useState('');
+  const [tempMaxPoints, setTempMaxPoints] = useState<number>(20);
   const [simulateModalForSid, setSimulateModalForSid] = useState<string | null>(null);
   const [focusedCell, setFocusedCell] = useState<{sid: string, typ: string, idx: number} | null>(null);
   const [hoveredCell, setHoveredCell] = useState<{sid: string, typ: string, idx: number} | null>(null);
   const [heatmapMode, setHeatmapMode] = useState(false);
   const [confirmedWarnings, setConfirmedWarnings] = useState<Record<string, boolean>>({});
+  const [simpleDashboardMode, setSimpleDashboardMode] = useState<boolean>(true);
+  const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
+  const [showAddAssessmentModal, setShowAddAssessmentModal] = useState<boolean>(false);
+  const [selectedGradeExplanationStudent, setSelectedGradeExplanationStudent] = useState<any | null>(null);
 
   const [zoomLevel, setZoomLevel] = useState<'compact' | 'standard' | 'large'>(() => {
     return app?.settings?.zoomLevel || 'standard';
@@ -382,6 +397,7 @@ export default function Gradebook() {
     const list: GradeValidationError[] = [];
     const studentList = app.schueler || [];
     if (studentList.length === 0) return list;
+    const mode = getAssessmentMode(app, activeFach);
 
     studentList.forEach(s => {
       const nd = app.noten?.[s.id]?.[activeFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
@@ -390,52 +406,95 @@ export default function Gradebook() {
       const checkSuspiciousGrade = (grades: (number | string | null)[], typeLabel: string, typ: 'sa' | 'lzk' | 'wp' | 'aufgaben') => {
         if (!Array.isArray(grades)) return;
         grades.forEach((g, idx) => {
-          if (g === 5 && avg && avg <= 2.2) {
-            list.push({
-              id: `${s.id}-${typ}-${idx}-suspicious`,
-              studentId: s.id,
-              studentName: `${s.vorname} ${s.nachname}`,
-              type: 'typo',
-              message: `Möglicher Tippfehler bei ${s.vorname}: Note 5 in ${typeLabel} #${idx + 1} weicht extrem vom Gesamt-Durchschnitt (${avg.toFixed(2)}) ab.`,
-              fixOptions: [
-                {
-                  label: 'Auf Note 2 ändern',
-                  action: () => {
-                    setNote(s.id, typ, idx, '2');
+          if (mode === 'grades') {
+            if (g === 5 && avg && avg <= 2.2) {
+              list.push({
+                id: `${s.id}-${typ}-${idx}-suspicious`,
+                studentId: s.id,
+                studentName: `${s.vorname} ${s.nachname}`,
+                type: 'typo',
+                message: `Möglicher Tippfehler bei ${s.vorname}: Note 5 in ${typeLabel} #${idx + 1} weicht extrem vom Gesamt-Durchschnitt (${avg.toFixed(2)}) ab.`,
+                fixOptions: [
+                  {
+                    label: 'Auf Note 2 ändern',
+                    action: () => {
+                      setNote(s.id, typ, idx, '2');
+                    }
+                  },
+                  {
+                    label: 'Als korrekt bestätigen',
+                    action: () => {
+                      setConfirmedWarnings(prev => ({ ...prev, [`${s.id}-${typ}-${idx}-suspicious`]: true }));
+                    }
                   }
-                },
-                {
-                  label: 'Als korrekt bestätigen',
-                  action: () => {
-                    setConfirmedWarnings(prev => ({ ...prev, [`${s.id}-${typ}-${idx}-suspicious`]: true }));
+                ]
+              });
+            }
+            
+            if (typeof g === 'number' && (g < 1 || g > 5)) {
+              list.push({
+                id: `${s.id}-${typ}-${idx}-invalid`,
+                studentId: s.id,
+                studentName: `${s.vorname} ${s.nachname}`,
+                type: 'invalid',
+                message: `Ungültige Note (${g}) bei ${s.vorname} in ${typeLabel} #${idx + 1}. Erlaubt ist nur 1 bis 5.`,
+                fixOptions: [
+                  {
+                    label: 'Korrigieren auf 5',
+                    action: () => setNote(s.id, typ, idx, '5')
+                  },
+                  {
+                    label: 'Korrigieren auf 1',
+                    action: () => setNote(s.id, typ, idx, '1')
+                  },
+                  {
+                    label: 'Eintrag löschen',
+                    action: () => setNote(s.id, typ, idx, '')
                   }
-                }
-              ]
-            });
-          }
-          
-          if (typeof g === 'number' && (g < 1 || g > 5)) {
-            list.push({
-              id: `${s.id}-${typ}-${idx}-invalid`,
-              studentId: s.id,
-              studentName: `${s.vorname} ${s.nachname}`,
-              type: 'invalid',
-              message: `Ungültige Note (${g}) bei ${s.vorname} in ${typeLabel} #${idx + 1}. Erlaubt ist nur 1 bis 5.`,
-              fixOptions: [
-                {
-                  label: 'Korrigieren auf 5',
-                  action: () => setNote(s.id, typ, idx, '5')
-                },
-                {
-                  label: 'Korrigieren auf 1',
-                  action: () => setNote(s.id, typ, idx, '1')
-                },
-                {
-                  label: 'Eintrag löschen',
-                  action: () => setNote(s.id, typ, idx, '')
-                }
-              ]
-            });
+                ]
+              });
+            }
+          } else if (mode === 'percent') {
+            if (typeof g === 'number' && (g < 0 || g > 100)) {
+              list.push({
+                id: `${s.id}-${typ}-${idx}-invalid`,
+                studentId: s.id,
+                studentName: `${s.vorname} ${s.nachname}`,
+                type: 'invalid',
+                message: `Ungültiger Prozentwert (${g}%) bei ${s.vorname} in ${typeLabel} #${idx + 1}. Erlaubt ist 0 bis 100%.`,
+                fixOptions: [
+                  {
+                    label: 'Auf 100% begrenzen',
+                    action: () => setNote(s.id, typ, idx, '100')
+                  },
+                  {
+                    label: 'Eintrag löschen',
+                    action: () => setNote(s.id, typ, idx, '')
+                  }
+                ]
+              });
+            }
+          } else if (mode === 'points') {
+            const maxP = getMaxPoints(app, activeFach, typ, idx);
+            if (typeof g === 'number' && (g < 0 || g > maxP)) {
+              list.push({
+                id: `${s.id}-${typ}-${idx}-invalid`,
+                studentId: s.id,
+                studentName: `${s.vorname} ${s.nachname}`,
+                type: 'invalid',
+                message: `Ungültige Punktzahl (${g} / ${maxP}) bei ${s.vorname} in ${typeLabel} #${idx + 1}.`,
+                fixOptions: [
+                  {
+                    label: `Auf ${maxP} Pkt setzen`,
+                    action: () => setNote(s.id, typ, idx, `${maxP}`)
+                  },
+                  {
+                    label: 'Eintrag löschen',
+                    action: () => setNote(s.id, typ, idx, '')
+                  }
+                ]
+              });
+            }
           }
         });
       };
@@ -474,11 +533,6 @@ export default function Gradebook() {
 
     return list.filter(w => !confirmedWarnings[w.id]);
   };
-
-  const [sem, setSem] = useState<'1' | '2'>(() => {
-    const saved = localStorage.getItem('gradebook_semester');
-    return saved === '2' ? '2' : '1';
-  });
 
   const [visibleLimit, setVisibleLimit] = useState(15);
   const sentinelRef = useRef<HTMLTableRowElement | null>(null);
@@ -694,6 +748,7 @@ export default function Gradebook() {
 
   const addColumn = (e: React.MouseEvent, typ: 'lzk' | 'wp' | 'obj') => {
     e.stopPropagation();
+    const currentCount = colCounts[typ] || 0;
     setApp(prev => {
       const isSyncWP = prev.notenMeta?.syncWpDeutschMath;
       const shouldSync = isSyncWP && typ === 'wp' && (activeFach === 'Deutsch' || activeFach === 'Mathematik');
@@ -719,11 +774,12 @@ export default function Gradebook() {
       
       return { ...prev, notenMeta: updatedMeta };
     });
+    setEditingAssessmentModal({ typ, idx: currentCount, isNew: true });
   };
 
   const removeColumn = (e: React.MouseEvent, typ: 'lzk' | 'wp' | 'obj') => {
     e.stopPropagation();
-    const label = typ === 'lzk' ? (app.notenLabels?.lzk || 'Lernzielkontrolle') : typ === 'wp' ? (app.notenLabels?.wp || 'Wochenplan') : (app.notenLabels?.obj || 'Objekt');
+    const label = typ === 'lzk' ? getNotenLabel(app, activeFach, 'lzk', 'Lernzielkontrolle') : typ === 'wp' ? getNotenLabel(app, activeFach, 'wp', 'Wochenplan') : getNotenLabel(app, activeFach, 'obj', 'Objekt');
     setPendingDelete({ typ, label });
   };
 
@@ -761,6 +817,54 @@ export default function Gradebook() {
   };
 
   const cfg = getFachCfg(app, activeFach);
+  const assessmentMode = getAssessmentMode(app, activeFach);
+
+  const handleModeChange = (fach: string, newMode: 'grades' | 'percent' | 'points') => {
+    const currentMode = app.notenMeta?.[fach]?.assessmentMode || 'grades';
+    if (currentMode === newMode) return;
+
+    let hasEntries = false;
+    const studentList = app.schueler || [];
+    for (const s of studentList) {
+      const sem1 = app.noten?.[s.id]?.[fach]?.['1'];
+      const sem2 = app.noten?.[s.id]?.[fach]?.['2'];
+      const checkSem = (d: any) => {
+        if (!d) return false;
+        return (d.sa?.some((v: any) => v !== null && v !== undefined && v !== '')) ||
+               (d.lzk?.some((v: any) => v !== null && v !== undefined && v !== '')) ||
+               (d.wp?.some((v: any) => v !== null && v !== undefined && v !== '')) ||
+               (d.aufgaben?.some((v: any) => v !== null && v !== undefined && v !== ''));
+      };
+      if (checkSem(sem1) || checkSem(sem2)) {
+        hasEntries = true;
+        break;
+      }
+    }
+
+    if (hasEntries) {
+      const modeNames = { grades: 'Noten (1–5)', percent: 'Prozent (0–100%)', points: 'Punkte (Pkt/Max)' };
+      const confirmMsg = `Hinweis: Im Fach "${fach}" sind bereits Leistungsdaten erfasst.\n\nEin Wechsel der Bewertungsart verändert die Interpretation und Anzeige der Werte (${modeNames[newMode]}).\n\nMöchtest du die Bewertungsart für "${fach}" wirklich umstellen?`;
+      if (!window.confirm(confirmMsg)) {
+        return;
+      }
+    }
+
+    setApp(prev => {
+      const nm = { ...(prev.notenMeta || {}) };
+      const currentFach = { ...(nm[fach] || {}) };
+      return {
+        ...prev,
+        notenMeta: {
+          ...nm,
+          [fach]: {
+            ...currentFach,
+            assessmentMode: newMode
+          }
+        }
+      };
+    });
+  };
+
   const students = useMemo(() => {
     let list = [...(app.schueler || [])].map(s => {
       let avg = null;
@@ -801,15 +905,21 @@ export default function Gradebook() {
         return sortOrder === 'asc' ? res : -res;
       } else if (sortBy === 'triage') {
         // Triage priorities:
-        // 1. Avg > 4.0
+        // 1. Avg > 4.0 (in grade mode) or Avg < 60% (in percent/points mode)
         // 2. Wackelkandidaten (e.g. ,45 to ,55)
         // 3. Normal
         const getTriageScore = (avg: number) => {
            if (avg === 99) return 0; // missing
-           if (avg > 4.0) return 3;
-           const decimal = avg - Math.floor(avg);
-           if (decimal >= 0.45 && decimal <= 0.55) return 2;
-           if (avg > 3.0) return 1;
+           if (assessmentMode === 'grades') {
+             if (avg > 4.0) return 3;
+             const decimal = avg - Math.floor(avg);
+             if (decimal >= 0.45 && decimal <= 0.55) return 2;
+             if (avg > 3.0) return 1;
+           } else {
+             if (avg < 50) return 3;
+             if (avg < 65) return 2;
+             if (avg < 75) return 1;
+           }
            return 0;
         };
         const scoreA = getTriageScore(a.currentAvg);
@@ -821,7 +931,7 @@ export default function Gradebook() {
       }
       return 0;
     });
-  }, [app.schueler, app.noten, activeFach, sem, sortBy, sortOrder, filterMissing, cfg, colCounts]);
+  }, [app.schueler, app.noten, activeFach, sem, sortBy, sortOrder, filterMissing, cfg, colCounts, assessmentMode]);
 
   const columnAverages = useMemo(() => {
     const results: Record<string, { avg: number | null }> = {};
@@ -833,10 +943,18 @@ export default function Gradebook() {
       const rawVals = studentsToConsider
         .map(s => app.noten?.[s.id]?.[activeFach]?.[sem]?.[typ]?.[idx]);
       
-      const vals = rawVals.filter((v): v is number => typeof v === 'number');
+      const numericVals: number[] = [];
+      rawVals.forEach(v => {
+        if (typeof v === 'number') {
+          numericVals.push(v);
+        } else if (typeof v === 'string') {
+          const parsed = parseFloat(v.replace(',', '.'));
+          if (!isNaN(parsed)) numericVals.push(parsed);
+        }
+      });
       
       return {
-        avg: vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null
+        avg: numericVals.length > 0 ? numericVals.reduce((a, b) => a + b, 0) / numericVals.length : null
       };
     };
 
@@ -872,13 +990,23 @@ export default function Gradebook() {
     const avg = sum / allAverages.length;
     
     const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    allAverages.forEach(a => {
-      const rounded = Math.round(a) as 1 | 2 | 3 | 4 | 5;
-      if (distribution[rounded] !== undefined) distribution[rounded]++;
-    });
+    if (assessmentMode === 'grades') {
+      allAverages.forEach(a => {
+        const rounded = Math.round(a) as 1 | 2 | 3 | 4 | 5;
+        if (distribution[rounded] !== undefined) distribution[rounded]++;
+      });
+    } else {
+      allAverages.forEach(pct => {
+        if (pct >= 87.5) distribution[1]++;
+        else if (pct >= 75) distribution[2]++;
+        else if (pct >= 62.5) distribution[3]++;
+        else if (pct >= 50) distribution[4]++;
+        else distribution[5]++;
+      });
+    }
     
     return { avg, distribution, total: allAverages.length, totalStudents: filteredForStats.length, maxStudents: allStudents.length };
-  }, [app, activeFach, sem, includeSpecialNeedsInStats]);
+  }, [app, activeFach, sem, includeSpecialNeedsInStats, assessmentMode]);
 
   const gradebookDataStatus = useMemo(() => {
     let assessmentEntries = 0;
@@ -892,7 +1020,7 @@ export default function Gradebook() {
         ...(data.lzk || []),
         ...(data.wp || []),
         ...(data.aufgaben || [])
-      ].filter(value => typeof value === 'number' || (typeof value === 'string' && /^[1-5](?:[.,]\d+)?$/.test(value.trim())));
+      ].filter(value => value !== null && value !== undefined && value !== '' && value !== 'f');
       const hasParticipation = data.miDirekt !== undefined && data.miDirekt !== null && data.miDirekt !== '';
       assessmentEntries += values.length + (hasParticipation ? 1 : 0);
       if (values.length > 0 || hasParticipation) studentsWithEntries += 1;
@@ -907,12 +1035,12 @@ export default function Gradebook() {
   }, [app.schueler, app.noten, activeFach, sem, stats]);
 
   const handleExport = () => {
-    const header = ['Name', 'Durchschnitt', 'Endnote'];
+    const header = ['Name', assessmentMode === 'grades' ? 'Durchschnitt' : 'Prozent', 'Endnote'];
     const rows = students.map(s => {
       const avg = berechne(app, s.id, activeFach, sem);
       const nd = app.noten?.[s.id]?.[activeFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
-      const en = (s.spf || s.espf) && nd.endnote ? nd.endnote : (avg ? Math.round(avg) : '');
-      return [`${s.nachname} ${s.vorname}`, avg ? avg.toFixed(2) : '', en];
+      const en = (s.spf || s.espf) && nd.endnote ? nd.endnote : (avg ? (assessmentMode === 'grades' ? Math.round(avg) : `${Math.round(avg)}%`) : '');
+      return [`${s.nachname} ${s.vorname}`, avg ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '', en];
     });
     
     const csvContent = [header, ...rows].map(e => e.join(';')).join('\n');
@@ -935,17 +1063,16 @@ export default function Gradebook() {
   };
 
   const isColorableGrade = (val: number | string | null | undefined) => {
-    if (typeof val === 'number') return val >= 1 && val <= 5;
+    if (val === null || val === undefined || val === '' || val === 'f' || val === 'x' || val === '-') return false;
+    if (typeof val === 'number') return true;
     if (typeof val === 'string') {
       const parsed = parseFloat(val.replace(',', '.'));
-      if (!isNaN(parsed) && parsed >= 1 && parsed <= 5) return true;
-      const match = val.match(/([1-5])/);
-      if (match) return true;
+      if (!isNaN(parsed)) return true;
     }
     return false;
   };
 
-  const getGradeColor = (rawVal: number | string | null | undefined, isRequired: boolean = false) => {
+  const getGradeColor = (rawVal: number | string | null | undefined, isRequired: boolean = false, typ?: string, idx?: number) => {
     const isMissing = !rawVal || rawVal === 'e' || rawVal === 'f' || rawVal === '-' || rawVal === ' ' || rawVal === '';
     if (filterMissing && isRequired && isMissing) {
       return '!bg-rose-100 ring-2 ring-rose-500 ring-inset border-rose-500 text-rose-800 animate-pulse z-10 font-bold';
@@ -954,6 +1081,17 @@ export default function Gradebook() {
     if (!rawVal) return '';
     if (rawVal === 'f' || rawVal === 'x' || rawVal === '-') return 'bg-slate-50 text-slate-400 opacity-60';
     if (!heatmapMode) return '';
+    
+    if (assessmentMode === 'percent' || assessmentMode === 'points') {
+      const maxP = typ !== undefined && idx !== undefined ? getMaxPoints(app, activeFach, typ, idx) : 100;
+      const p = calculateItemPercent(rawVal, assessmentMode, maxP);
+      if (p === null) return '';
+      if (p >= 87.5) return '!bg-green-300/40 text-green-900 border-green-300';
+      if (p >= 75) return '!bg-blue-300/40 text-blue-900 border-blue-300';
+      if (p >= 62.5) return '!bg-amber-300/40 text-amber-900 border-amber-300';
+      if (p >= 50) return '!bg-orange-300/40 text-orange-900 border-orange-300';
+      return '!bg-red-400/50 text-red-950 border-red-400';
+    }
     
     let val: number | null = null;
     if (typeof rawVal === 'number') {
@@ -978,18 +1116,46 @@ export default function Gradebook() {
 
   const setNote = (sid: string, typ: 'sa' | 'lzk' | 'wp' | 'aufgaben', idx: number, val: string) => {
     let validated: number | string | null = null;
+    const mode = getAssessmentMode(app, activeFach);
     
     if (!val || val.trim() === '') {
       validated = null;
-    } else if (val.toLowerCase() === 'f' || val === 'x' || val === '-') {
-      validated = 'f';
     } else {
-      const stripped = val.trim();
-      const n = parseFloat(stripped.replace(',', '.'));
-      if (!isNaN(n) && n >= 1 && n <= 5 && stripped.match(/^[0-5]([.,]\d+)?$/)) {
-        validated = n;
+      const stripped = val.trim().toLowerCase();
+      if (['f', 'x', 'e', '-'].includes(stripped)) {
+        validated = 'f';
+      } else if (mode === 'percent') {
+        const cleanStr = stripped.replace('%', '').replace(',', '.');
+        const n = parseFloat(cleanStr);
+        if (!isNaN(n)) {
+          validated = Math.min(100, Math.max(0, Math.round(n * 10) / 10));
+        } else {
+          validated = null;
+        }
+      } else if (mode === 'points') {
+        const maxP = getMaxPoints(app, activeFach, typ, idx);
+        const cleanStr = stripped.replace(/p(?:kt)?/g, '').replace(',', '.');
+        const n = parseFloat(cleanStr);
+        if (!isNaN(n)) {
+          validated = Math.min(maxP, Math.max(0, Math.round(n * 10) / 10));
+        } else {
+          validated = null;
+        }
       } else {
-        validated = stripped;
+        // Standard Noten 1..5
+        const n = parseFloat(stripped.replace(',', '.'));
+        if (!isNaN(n)) {
+          if (n < 1) validated = 1;
+          else if (n > 5) validated = 5;
+          else validated = n;
+        } else {
+          const match = stripped.match(/([1-5])/);
+          if (match) {
+            validated = parseInt(match[1], 10);
+          } else {
+            validated = null;
+          }
+        }
       }
     }
 
@@ -1043,6 +1209,21 @@ export default function Gradebook() {
   };
 
   const setEndnote = (sid: string, val: string) => {
+    let validated = val;
+    if (val && val.trim() !== '') {
+      const upper = val.trim().toUpperCase();
+      if (['SPF', 'ESPF'].includes(upper)) {
+        validated = upper;
+      } else {
+        const n = parseFloat(val.replace(',', '.'));
+        if (!isNaN(n)) {
+          if (n < 1) validated = '1';
+          else if (n > 5) validated = '5';
+          else validated = String(n);
+        }
+      }
+    }
+
     setApp(prev => {
       const sidData = prev.noten[sid] || {};
       const fachData = sidData[activeFach] || {};
@@ -1058,7 +1239,7 @@ export default function Gradebook() {
               ...fachData,
               [sem]: {
                 ...semData,
-                endnote: val
+                endnote: validated
               }
             }
           }
@@ -1068,6 +1249,21 @@ export default function Gradebook() {
   };
 
   const updateSimpleGrade = (sid: string, targetSem: '1' | '2', val: string) => {
+    let validated = val;
+    if (val && val.trim() !== '') {
+      const upper = val.trim().toUpperCase();
+      if (['SPF', 'ESPF'].includes(upper)) {
+        validated = upper;
+      } else {
+        const n = parseFloat(val.replace(',', '.'));
+        if (!isNaN(n)) {
+          if (n < 1) validated = '1';
+          else if (n > 5) validated = '5';
+          else validated = String(n);
+        }
+      }
+    }
+
     setApp(prev => {
       const currentNoten = prev.noten || {};
       const sidData = currentNoten[sid] || {};
@@ -1084,7 +1280,7 @@ export default function Gradebook() {
               ...fachData,
               [targetSem]: {
                 ...semData,
-                endnote: val
+                endnote: validated
               }
             }
           }
@@ -1120,8 +1316,19 @@ export default function Gradebook() {
   };
 
   const setMIDirekt = (sid: string, val: string) => {
-    const n = parseFloat(val.replace(',', '.'));
-    const validated = (!isNaN(n) && n >= 1 && n <= 5) ? n : undefined;
+    let validated: number | undefined = undefined;
+    if (val !== undefined && val !== null && String(val).trim() !== '') {
+      const n = parseFloat(String(val).replace(',', '.'));
+      if (!isNaN(n)) {
+        if (assessmentMode === 'percent') {
+          validated = Math.min(100, Math.max(0, n));
+        } else if (assessmentMode === 'points') {
+          validated = Math.max(0, n);
+        } else {
+          validated = (n >= 1 && n <= 5) ? n : undefined;
+        }
+      }
+    }
 
     setApp(prev => {
       const sidData = prev.noten[sid] || {};
@@ -1139,6 +1346,67 @@ export default function Gradebook() {
               [sem]: {
                 ...semData,
                 miDirekt: validated
+              }
+            }
+          }
+        }
+      };
+    });
+  };
+
+  const setHUEVal = (sid: string, val: number) => {
+    setApp(prev => {
+      const sidData = prev.noten[sid] || {};
+      const fachData = sidData[activeFach] || {};
+      const semData: GradeData = fachData[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
+      
+      return {
+        ...prev,
+        noten: {
+          ...prev.noten,
+          [sid]: {
+            ...sidData,
+            [activeFach]: {
+              ...fachData,
+              [sem]: {
+                ...semData,
+                hue: Math.max(0, val),
+                hueErfasst: true
+              }
+            }
+          }
+        }
+      };
+    });
+  };
+
+  const setHUEComment = (sid: string, comment: string) => {
+    setApp(prev => {
+      const sidData = prev.noten[sid] || {};
+      const fachData = sidData[activeFach] || {};
+      const semData: GradeData = fachData[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
+      const currentAnm = [...(semData.hueAnm || [])];
+      if (comment && comment.trim()) {
+        if (currentAnm.length === 0) {
+          currentAnm.push(comment.trim());
+        } else {
+          currentAnm[0] = comment.trim();
+        }
+      } else {
+        currentAnm.length = 0;
+      }
+      
+      return {
+        ...prev,
+        noten: {
+          ...prev.noten,
+          [sid]: {
+            ...sidData,
+            [activeFach]: {
+              ...fachData,
+              [sem]: {
+                ...semData,
+                hueAnm: currentAnm
               }
             }
           }
@@ -1197,7 +1465,7 @@ export default function Gradebook() {
     }
   };
 
-  const updateColMeta = (typ: 'sa'|'lzk'|'wp'|'obj', idx: number, labelVal: string, dateVal: string) => {
+  const updateColMeta = (typ: 'sa'|'lzk'|'wp'|'obj', idx: number, labelVal: string, dateVal: string, maxPointsVal?: number) => {
     setApp(prev => {
       const isSyncWP = prev.notenMeta?.syncWpDeutschMath;
       const shouldSync = isSyncWP && typ === 'wp' && (activeFach === 'Deutsch' || activeFach === 'Mathematik');
@@ -1217,13 +1485,20 @@ export default function Gradebook() {
       } else {
         delete typeDates[idx];
       }
+
+      const maxPoints = { ...(currentFachData.maxPoints || {}) };
+      const typeMaxPoints = { ...(maxPoints[typ] || {}) };
+      if (maxPointsVal !== undefined && maxPointsVal > 0) {
+        typeMaxPoints[idx] = maxPointsVal;
+      }
       
       const updatedMeta = {
         ...nm,
         [activeFach]: {
           ...currentFachData,
           colLabels: { ...labels, [typ]: typeLabels },
-          colDates: { ...dates, [typ]: typeDates }
+          colDates: { ...dates, [typ]: typeDates },
+          maxPoints: { ...maxPoints, [typ]: typeMaxPoints }
         }
       };
 
@@ -1242,10 +1517,17 @@ export default function Gradebook() {
           delete targetTypeDates[idx];
         }
 
+        const targetMaxPoints = { ...(targetFachData.maxPoints || {}) };
+        const targetTypeMaxPoints = { ...(targetMaxPoints[typ] || {}) };
+        if (maxPointsVal !== undefined && maxPointsVal > 0) {
+          targetTypeMaxPoints[idx] = maxPointsVal;
+        }
+
         updatedMeta[targetFach] = {
           ...targetFachData,
           colLabels: { ...targetLabels, [typ]: targetTypeLabels },
-          colDates: { ...targetDates, [typ]: targetTypeDates }
+          colDates: { ...targetDates, [typ]: targetTypeDates },
+          maxPoints: { ...targetMaxPoints, [typ]: targetTypeMaxPoints }
         };
       }
       
@@ -1261,83 +1543,60 @@ export default function Gradebook() {
 
     const customLabel = app.notenMeta?.[activeFach]?.colLabels?.[typ]?.[i];
     const customDate = app.notenMeta?.[activeFach]?.colDates?.[typ]?.[i];
-    const isEditing = editingColLabel?.typ === typ && editingColLabel?.idx === i;
+    const maxP = getMaxPoints(app, activeFach, typ, i);
     
     return (
       <th 
         key={`h${typ}-${i}`} 
         onMouseEnter={() => setHoveredCell({sid: '', typ, idx: i})}
         onMouseLeave={() => setHoveredCell(null)}
-        className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-[5rem] border-b-2 border-r transition-all group/col relative isolate
+        className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-[5.5rem] border-b-2 border-r transition-all group/col relative isolate
           ${baseColorClass} 
           ${isFirst && !isolatedCol ? `border-l-2 border-l-${baseColorClass.match(/bg-([a-z]+)-/)?.[1] || 'slate'}-600` : ''} 
           ${isolatedCol ? 'min-w-[12rem] bg-amber-50 border-amber-200' : ''}
           ${hoveredCell && hoveredCell.typ === typ && hoveredCell.idx === i ? 'bg-indigo-100 border-indigo-400 text-indigo-900 shadow-md font-black scale-[1.02] z-40' : ''}`}
         onClick={() => {
-          if (!isEditing) {
-             setIsolatedCol({typ, idx: i});
-             // after a small delay focus the first input in this col if we just isolated it
-             setTimeout(() => {
-                const input = document.querySelector(`input[data-col="${typ}-${i}"]`) as HTMLInputElement | null;
-                input?.focus();
-             }, 50);
-          }
+          setIsolatedCol({typ, idx: i});
+          // after a small delay focus the first input in this col if we just isolated it
+          setTimeout(() => {
+            const input = document.querySelector(`input[data-col="${typ}-${i}"]`) as HTMLInputElement | null;
+            input?.focus();
+          }, 50);
         }}
       >
-        {isEditing ? (
-          <div className="flex flex-col gap-1 px-1" onClick={e => e.stopPropagation()}>
-            <input 
-              autoFocus 
-              type="text" 
-              aria-label={`${defaultName} ${i + 1} Bezeichnung`}
-              className="w-full text-[0.75rem] leading-tight font-bold text-center border-b-2 border-slate-400 bg-white shadow-inner outline-none py-1 text-slate-800"
-              value={tempColLabel}
-              placeholder={defaultName}
-              onChange={e => setTempColLabel(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') updateColMeta(typ, i, tempColLabel, tempColDate);
-                if (e.key === 'Escape') setEditingColLabel(null);
-              }}
-            />
-            <input 
-              type="date"
-              aria-label={`${defaultName} ${i + 1} Datum`}
-              className="w-full text-[0.625rem] text-center border-b-2 border-slate-400 bg-white shadow-inner outline-none py-1 text-slate-800"
-              value={tempColDate}
-              onChange={e => setTempColDate(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') updateColMeta(typ, i, tempColLabel, tempColDate);
-                if (e.key === 'Escape') setEditingColLabel(null);
-              }}
-              onBlur={() => updateColMeta(typ, i, tempColLabel, tempColDate)}
-            />
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center min-h-[2.5rem] gap-0.5 cursor-pointer relative z-10 w-full ">
-            <span className={`text-[0.6rem] font-black ${customLabel ? 'text-[0.65rem] whitespace-normal leading-tight' : 'opacity-70'} w-full text-wrap leading-tight break-words px-1`} title={customLabel || `${defaultName} ${i+1}`}>
-              {customLabel || defaultName} {!customLabel && <span>{i+1}</span>}
+        <div className="flex flex-col items-center justify-center min-h-[2.5rem] gap-0.5 cursor-pointer relative z-10 w-full">
+          <span className={`text-[0.6rem] font-black ${customLabel ? 'text-[0.65rem] whitespace-normal leading-tight' : 'opacity-70'} w-full text-wrap leading-tight break-words px-1`} title={customLabel || `${defaultName} ${i+1}`}>
+            {customLabel || defaultName} {!customLabel && <span>{i+1}</span>}
+          </span>
+          {customDate && (
+            <span className="text-[0.5625rem] font-medium opacity-80 mt-0.5">
+              {new Date(customDate).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
             </span>
-            {customDate && (
-              <span className="text-[0.5625rem] font-medium opacity-80 mt-0.5">
-                {new Date(customDate).toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit'})}
-              </span>
-            )}
-            
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                setTempColLabel(customLabel || `${defaultName} ${i+1}`);
-                setTempColDate(customDate || '');
-                setEditingColLabel({typ, idx: i});
-                setIsolatedCol(null);
-              }}
-              className="absolute -top-1 -right-1 p-1 bg-white rounded-md shadow opacity-0 group-hover/col:opacity-100 transition-opacity z-20 print:hidden text-[0.625rem]"
-              title="Umbenennen / Datum setzen"
-            >
-              ✏️
-            </button>
-          </div>
-        )}
+          )}
+          {assessmentMode === 'points' && (
+            <span className="inline-block text-[0.5625rem] font-black bg-amber-100/90 text-amber-900 px-1.5 py-0.2 rounded-full border border-amber-300 shadow-3xs" title={`Maximale Punktzahl: ${maxP}`}>
+              Max: {maxP}P
+            </span>
+          )}
+          {assessmentMode === 'percent' && (
+            <span className="inline-block text-[0.5625rem] font-bold bg-blue-100/80 text-blue-900 px-1.5 py-0.2 rounded-full border border-blue-200">
+              0–100%
+            </span>
+          )}
+          
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingAssessmentModal({ typ, idx: i, isNew: false });
+              setIsolatedCol(null);
+            }}
+            className="absolute -top-1 -right-1 p-1 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-md shadow-xs opacity-0 group-hover/col:opacity-100 transition-opacity z-20 print:hidden text-[0.625rem] text-slate-700 hover:text-indigo-600"
+            title="Umbenennen / Datum / Punkte bearbeiten"
+          >
+            ✏️
+          </button>
+        </div>
       </th>
     );
   };
@@ -1407,6 +1666,7 @@ export default function Gradebook() {
                 return availableSubjects.map(f => {
                   const isFActive = !app.faecher || app.faecher.includes(f) || f === 'Unterricht';
                   const isSelected = activeFach === f;
+                  const fHex = getFachHexColor(app?.fachConfig?.[f]?.color || f);
                   
                   // Map some emojis to subjects to enrich without cluttering
                   const subjectEmoji = f === 'Deutsch' ? '📚' : f === 'Mathematik' ? '📐' : f === 'Sachunterricht' ? '🌍' : f === 'Englisch' ? '🇬🇧' : f === 'Musik' ? '🎵' : f === 'Turnen' ? '🏃' : f === 'Unterricht' ? '🏫' : '📝';
@@ -1432,6 +1692,7 @@ export default function Gradebook() {
                         }
                       }}
                     >
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/40 shadow-xs" style={{ backgroundColor: fHex }} />
                       <span>{subjectEmoji} {f}</span>
                       {!isFActive && (
                         <span className={`text-[0.4375rem] leading-none uppercase font-black px-1.5 py-0.5 rounded border tracking-wider shrink-0 ${
@@ -1451,24 +1712,6 @@ export default function Gradebook() {
         )}
         {activeView !== 'verhalten' && (
           <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-stretch md:self-auto">
-            <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1" aria-label="Semester auswählen">
-              {(['1', '2'] as const).map(value => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={sem === value}
-                  onClick={() => {
-                    setSem(value);
-                    localStorage.setItem('gradebook_semester', value);
-                  }}
-                  className={`px-3 py-2 rounded-lg text-[0.6875rem] font-black uppercase tracking-wider transition-all ${
-                    sem === value ? 'bg-emerald-700 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  {value}. Semester
-                </button>
-              ))}
-            </div>
             <button 
               onClick={() => { setShowGradeCalculator(!showGradeCalculator); setShowWeights(false); }}
               className={`px-4 py-2.5 border rounded-xl text-[0.6875rem] font-bold uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 shadow-sm ${showGradeCalculator ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-emerald-300'}`}
@@ -1492,7 +1735,7 @@ export default function Gradebook() {
           <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
             <div>
               <h2 id="gradebook-status-heading" className="text-sm font-black text-slate-900">
-                {activeFach} · {sem}. Semester
+                {activeFach} · Schuljahr
               </h2>
               <p className="text-xs font-bold text-slate-500 mt-1">
                 Eingaben werden automatisch in Statistik, Schülerdossier und KEL-Präsentation übernommen.
@@ -1538,23 +1781,171 @@ export default function Gradebook() {
         </div>
       ) : (
         <div className="contents">
-          <div className="flex flex-col xl:flex-row justify-between items-center bg-white rounded-2xl p-3.5 shadow-sm border border-slate-200 gap-3 no-print">
-            <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200/50 relative z-10 w-full xl:w-auto overflow-x-auto">
-              {(isFachActive ? [
-                { id: 'noten', label: '📋 Leistungsmappe' },
-                { id: 'mitarbeit', label: '✏️ Mitarbeit' },
-                ...( ['deutsch', 'mathematik', 'sachunterricht', 'mathe'].some(s => activeFach?.toLowerCase().includes(s)) ? [{ id: 'hue', label: '🏠 Hausübungen' }] : [] ),
-                { id: 'verhalten', label: '🌟 Verhalten' }
-              ] : [
-                { id: 'simple_noten', label: '📝 Einfache Noteneingabe' }
-              ]).map(tab => {
+          {/* Streamlined Top Control Bar */}
+          <div className="flex flex-col gap-3 bg-white rounded-2xl p-4 shadow-sm border border-slate-200 no-print mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {/* Left: Subject Selection */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={activeFach}
+                  onChange={(e) => setActiveFach(e.target.value)}
+                  className="bg-slate-100 border border-slate-200 hover:border-emerald-500 font-black text-slate-800 text-[0.875rem] rounded-xl px-3.5 py-2 outline-none cursor-pointer transition-all shadow-3xs"
+                >
+                  {availableSubjects.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={() => setSimpleDashboardMode(!simpleDashboardMode)}
+                  className={`px-3 py-2 rounded-xl text-[0.75rem] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border ${
+                    simpleDashboardMode
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-3xs'
+                      : 'bg-slate-50 text-slate-500 border-slate-200'
+                  }`}
+                  title="Einfachmodus reduziert die sichtbare Komplexität für den Schulalltag"
+                >
+                  <span>{simpleDashboardMode ? '✨ Einfachmodus' : '⚙️ Erweiterter Modus'}</span>
+                </button>
+              </div>
+
+              {/* Right: + Bewertung & Mehr Menu */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAddAssessmentModal(true)}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-[0.8125rem] rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                >
+                  <Plus size={16} strokeWidth={3} />
+                  <span>Bewertung</span>
+                </button>
+
+                <div className="relative">
+                  <button
+                    onClick={() => setShowMoreMenu(!showMoreMenu)}
+                    className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[0.8125rem] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200/60"
+                  >
+                    <span>Mehr</span>
+                    <ChevronDown size={14} className={`transition-transform ${showMoreMenu ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  <AnimatePresence>
+                    {showMoreMenu && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setShowMoreMenu(false)}
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                          className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 flex flex-col gap-1 text-[0.8125rem]"
+                        >
+                          <button
+                            onClick={() => {
+                              setShowGradeCalculator(true);
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                          >
+                            <span>🧮</span>
+                            <span>Notenrechner</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setShowWeights(true);
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                          >
+                            <span>⚖️</span>
+                            <span>Gewichtung</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setShowStats(!showStats);
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                          >
+                            <span>📊</span>
+                            <span>{showStats ? 'Statistik ausblenden' : 'Statistik & Notenspiegel'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setHeatmapMode(!heatmapMode);
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                          >
+                            <span>🌡️</span>
+                            <span>Heatmap: {heatmapMode ? 'AN' : 'AUS'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              handleExport();
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                          >
+                            <span>🖨️</span>
+                            <span>Export / Drucken</span>
+                          </button>
+
+                          <div className="my-1 border-t border-slate-100" />
+
+                          <div className="px-3 py-1 text-[0.625rem] font-black uppercase text-slate-400 tracking-wider">
+                            Darstellung
+                          </div>
+                          <div className="flex bg-slate-100 p-1 rounded-xl items-center">
+                            {(['compact', 'standard', 'large'] as const).map((lvl) => (
+                              <button
+                                key={lvl}
+                                onClick={() => changeZoomLevel(lvl)}
+                                className={`flex-1 py-1 text-[0.625rem] font-bold rounded-lg transition-all ${
+                                  zoomLevel === lvl ? 'bg-white shadow-xs text-slate-900' : 'text-slate-500'
+                                }`}
+                              >
+                                {lvl === 'compact' ? 'Klein' : lvl === 'large' ? 'Groß' : 'Normal'}
+                              </button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+
+            {/* Main View Tabs */}
+            <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200/50 relative z-10 w-full overflow-x-auto">
+              {(isFachActive
+                ? [
+                    { id: 'noten', label: 'Leistungen' },
+                    { id: 'mitarbeit', label: 'Mitarbeit' },
+                    ...(['deutsch', 'mathematik', 'sachunterricht', 'mathe'].some((s) =>
+                      activeFach?.toLowerCase().includes(s)
+                    )
+                      ? [{ id: 'hue', label: 'Hausübungen' }]
+                      : []),
+                    { id: 'verhalten', label: 'Verhalten' },
+                  ]
+                : [{ id: 'simple_noten', label: 'Einfache Noteneingabe' }]
+              ).map((tab) => {
                 const isSel = activeView === tab.id;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveView(tab.id as any)}
-                    className={`relative px-4 py-2.5 rounded-lg text-[0.6875rem] font-bold tracking-wide transition-all flex items-center justify-center gap-2 flex-1 md:flex-none cursor-pointer select-none leading-none z-10 ${
-                      isSel ? 'text-slate-950 font-bold' : 'text-slate-600 hover:text-slate-900'
+                    className={`relative px-4 py-2 rounded-lg text-[0.8125rem] font-bold tracking-tight transition-all flex items-center justify-center gap-2 flex-1 cursor-pointer select-none leading-none z-10 ${
+                      isSel ? 'text-slate-950 font-extrabold' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     {isSel && (
@@ -1568,60 +1959,6 @@ export default function Gradebook() {
                   </button>
                 );
               })}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-start xl:justify-end">
-               {activeView === 'noten' && (
-                 <label className="flex items-center gap-3 cursor-pointer group bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 hover:border-emerald-300 transition-all select-none">
-                    <span className="text-[0.6875rem] font-black text-slate-500 uppercase tracking-wider leading-none">
-                      Heatmap-Fokus:
-                      <span className={`ml-1.5 font-black ${heatmapMode ? 'text-emerald-600' : 'text-slate-400'}`}>
-                        {heatmapMode ? 'AN' : 'AUS'}
-                      </span>
-                    </span>
-                    <button
-                       type="button"
-                       role="switch"
-                       aria-label="Heatmap-Fokus"
-                       aria-checked={heatmapMode}
-                       onClick={(e) => {
-                         e.preventDefault();
-                         setHeatmapMode(!heatmapMode);
-                       }}
-                       className={`w-9 h-5 shrink-0 rounded-full transition-all relative cursor-pointer ${heatmapMode ? 'bg-emerald-600' : 'bg-slate-300'}`}
-                    >
-                       <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all shadow-xs ${heatmapMode ? 'left-[1.125rem]' : 'left-0.5'}`} />
-                    </button>
-                 </label>
-               )}
-               
-               <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-150 items-center shadow-3xs select-none">
-                 <span className="text-[0.5625rem] font-black uppercase text-slate-400 px-2 tracking-widest hidden lg:inline">Maßstab:</span>
-                 {(['compact', 'standard', 'large'] as const).map(lvl => {
-                   const isSel = zoomLevel === lvl;
-                   const label = lvl === 'compact' ? 'Kompakt' : lvl === 'large' ? 'Groß' : 'Standard';
-                   return (
-                     <button
-                       key={lvl}
-                       onClick={() => changeZoomLevel(lvl)}
-                       className={`px-3 py-1.5 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                         isSel ? 'bg-white text-slate-950 shadow-sm border border-slate-200 font-bold' : 'text-slate-600 hover:text-slate-900'
-                       }`}
-                     >
-                       {label}
-                     </button>
-                   );
-                 })}
-               </div>
-
-               <button 
-                 onClick={handleExport} 
-                 className="p-3 bg-slate-50 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 border border-slate-150 hover:border-emerald-200 rounded-xl transition-all active:scale-95 shadow-3xs flex items-center justify-center gap-2 font-black text-[0.6875rem] uppercase tracking-wider px-4" 
-                 title="Excel / CSV-Export herunterladen"
-               >
-                 <Download size={14} className="text-emerald-650" />
-                 <span className="hidden sm:inline">Export</span>
-               </button>
             </div>
           </div>
 
@@ -1737,7 +2074,7 @@ export default function Gradebook() {
                 <span className="text-[0.625rem] bg-amber-200/50 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300/40 uppercase font-black tracking-widest font-sans">Nebenfach</span>
               </h4>
               <p className="text-[0.75rem] text-amber-700 leading-relaxed">
-                Dieses Fach ist derzeit nicht als aktives Hauptfach konfiguriert. Um den Verwaltungsaufwand gering zu halten, reicht hier eine direkte Eingabe der Zeugnisnote/Endnote für das 1. Semester und das 2. Semester sowie eine optionale Notiz.
+                Dieses Fach ist derzeit nicht als aktives Hauptfach konfiguriert. Um den Verwaltungsaufwand gering zu halten, reicht hier eine direkte Eingabe der Zeugnisnote/Endnote für das Schuljahr sowie eine optionale Notiz.
               </p>
             </div>
           </div>
@@ -1755,17 +2092,14 @@ export default function Gradebook() {
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-100 text-[0.625rem] font-bold uppercase tracking-widest text-slate-400">
                     <th className={`${zoomLevel === 'compact' ? 'px-3.5 py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4 text-[0.625rem]'} text-left font-black w-[250px]`}>Schüler:in</th>
-                    <th className={`${zoomLevel === 'compact' ? 'px-3.5 py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4 text-[0.625rem]'} text-center font-black w-[180px]`}>1. Semester</th>
-                    <th className={`${zoomLevel === 'compact' ? 'px-3.5 py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4 text-[0.625rem]'} text-center font-black w-[180px]`}>2. Semester</th>
+                    <th className={`${zoomLevel === 'compact' ? 'px-3.5 py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4 text-[0.625rem]'} text-center font-black w-[180px]`}>Jahresnote</th>
                     <th className={`${zoomLevel === 'compact' ? 'px-3.5 py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4 text-[0.625rem]'} text-left font-black`}>Notiz / Kommentar</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {students.map((s) => {
                     const nd1: any = app.noten?.[s.id]?.[activeFach]?.[ '1' ] || {};
-                    const nd2: any = app.noten?.[s.id]?.[activeFach]?.[ '2' ] || {};
                     const valSem1 = nd1.endnote || '';
-                    const valSem2 = nd2.endnote || '';
                     const comment1 = nd1.freitext || '';
 
                     return (
@@ -1784,22 +2118,6 @@ export default function Gradebook() {
                           <select
                             value={valSem1}
                             onChange={(e) => updateSimpleGrade(s.id, '1', e.target.value)}
-                            className={`bg-white border border-slate-200 hover:border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-bold outline-none transition-all shadow-3xs cursor-pointer w-full max-w-[130px] mx-auto block ${zoomLevel === 'compact' ? 'rounded-md px-2 py-1 text-[0.7rem]' : zoomLevel === 'large' ? 'rounded-2xl px-4 py-2.5 text-[0.875rem]' : 'rounded-xl px-3 py-2 text-[0.75rem]'}`}
-                          >
-                            <option value="">–</option>
-                            <option value="1">1 (Sehr gut)</option>
-                            <option value="2">2 (Gut)</option>
-                            <option value="3">3 (Befriedigend)</option>
-                            <option value="4">4 (Genügend)</option>
-                            <option value="5">5 (Nicht genügend)</option>
-                            <option value="SPF">SPF</option>
-                            <option value="ESPF">ESPF</option>
-                          </select>
-                        </td>
-                        <td className={`${zoomLevel === 'compact' ? 'px-3.5 py-1.5' : zoomLevel === 'large' ? 'px-8 py-5' : 'px-6 py-4'} text-center`}>
-                          <select
-                            value={valSem2}
-                            onChange={(e) => updateSimpleGrade(s.id, '2', e.target.value)}
                             className={`bg-white border border-slate-200 hover:border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 font-bold outline-none transition-all shadow-3xs cursor-pointer w-full max-w-[130px] mx-auto block ${zoomLevel === 'compact' ? 'rounded-md px-2 py-1 text-[0.7rem]' : zoomLevel === 'large' ? 'rounded-2xl px-4 py-2.5 text-[0.875rem]' : 'rounded-xl px-3 py-2 text-[0.75rem]'}`}
                           >
                             <option value="">–</option>
@@ -1997,20 +2315,89 @@ export default function Gradebook() {
            </div>
         </div>
       ) : activeView === 'hue' && !showWeights ? (
-        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div className="card !p-0  shadow-xl shadow-rose-900/5 bg-white/70 backdrop-blur-md border border-white">
-            <div className="px-6 py-4 border-b border-rose-900/5 bg-white/50 flex flex-col lg:flex-row justify-between lg:items-center gap-4">
-               <div>
-                  <h3 className="text-[0.75rem] font-black uppercase tracking-widest text-rose-900">Hausübungen · {activeFach}</h3>
-                  <p className="text-[0.625rem] text-rose-800/50 font-bold uppercase tracking-wider mt-0.5">Fehlende HÜ tracken & automatischen Mitarbeit-Abzug konfigurieren</p>
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-4">
+          <div className="card !p-0 shadow-md border border-rose-100 bg-white rounded-3xl overflow-hidden">
+            <div className="px-6 py-5 border-b border-rose-100 bg-rose-50/40 flex flex-col xl:flex-row justify-between xl:items-center gap-4">
+               <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-[1.125rem] font-black text-rose-950 tracking-tight flex items-center gap-2">
+                      <span>📖</span>
+                      <span>Hausübungen · {activeFach}</span>
+                    </h3>
+                    <span className={`text-[0.625rem] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${app.settings?.hueGewichten === false ? 'bg-amber-100 text-amber-900 border-amber-200' : 'bg-emerald-100 text-emerald-900 border-emerald-200'}`}>
+                      {app.settings?.hueGewichten === false ? 'Nur Dokumentieren' : 'In Bewertung aktiv'}
+                    </span>
+                  </div>
+                  <p className="text-[0.6875rem] text-rose-800/60 font-medium">
+                    {app.settings?.hueGewichten === false
+                      ? 'Dokumentations-Modus: Fehlende Hausübungen werden erfasst, führen aber zu keinem automatischen Noten- oder Punkteabzug.'
+                      : `Bewertungs-Modus: Ausgangswert 100% minus ${app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}% pro vergessene HÜ. Gewichtung: ${Math.round(cfg.g.hue * 100)}%.`}
+                  </p>
                </div>
                
-               <div className="flex flex-wrap items-center gap-3">
-                 <div className="flex flex-wrap items-center gap-2 bg-rose-50/60 border border-rose-100 rounded-xl px-3 py-1.5 shadow-sm transition-all">
-                   <span className="text-[0.625rem] font-bold text-rose-800 uppercase tracking-widest leading-none">
-                     Abzug von Mitarbeit (Striche):
+               <div className="flex flex-wrap items-center gap-2.5">
+                 {/* Mode Toggle */}
+                 <div className="flex bg-rose-100/70 p-1 rounded-xl">
+                   <button
+                     onClick={() => setApp(prev => ({
+                       ...prev,
+                       settings: {
+                         ...prev.settings,
+                         hueGewichten: true
+                       }
+                     }))}
+                     className={`px-3 py-1.5 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all cursor-pointer ${app.settings?.hueGewichten !== false ? 'bg-white text-rose-900 shadow-xs' : 'text-rose-700 hover:text-rose-900'}`}
+                   >
+                     Bewerten
+                   </button>
+                   <button
+                     onClick={() => setApp(prev => ({
+                       ...prev,
+                       settings: {
+                         ...prev.settings,
+                         hueGewichten: false,
+                         hueWeight: 0
+                       }
+                     }))}
+                     className={`px-3 py-1.5 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all cursor-pointer ${app.settings?.hueGewichten === false ? 'bg-white text-amber-900 shadow-xs' : 'text-rose-700 hover:text-rose-900'}`}
+                   >
+                     Nur Doku
+                   </button>
+                 </div>
+
+                 {/* %-Deduction Config (if evaluating) */}
+                 {app.settings?.hueGewichten !== false && (
+                   <div className="flex items-center gap-1.5 bg-white border border-rose-200 rounded-xl px-2.5 py-1.5 shadow-3xs">
+                     <span className="text-[0.5625rem] font-black text-rose-800 uppercase tracking-widest leading-none">
+                       %-Abzug / HÜ:
+                     </span>
+                     <input
+                       type="number"
+                       min="0"
+                       max="50"
+                       className="w-10 text-center text-[0.6875rem] font-black bg-rose-50 border border-rose-200 rounded-md py-0.5 outline-none text-rose-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                       value={app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}
+                       onChange={(e) => {
+                         const val = Math.max(0, parseInt(e.target.value) || 0);
+                         setApp(prev => ({
+                           ...prev,
+                           settings: {
+                             ...prev.settings,
+                             huePercentDeduction: val
+                           }
+                         }));
+                       }}
+                     />
+                     <span className="text-[0.625rem] font-black text-rose-700">%</span>
+                   </div>
+                 )}
+
+                 {/* Mitarbeit Striche Deduction */}
+                 <div className="flex items-center gap-1.5 bg-white border border-rose-200 rounded-xl px-2.5 py-1.5 shadow-3xs">
+                   <span className="text-[0.5625rem] font-black text-rose-800 uppercase tracking-widest leading-none">
+                     Strich-Abzug:
                    </span>
-                   <div className="flex items-center gap-1">
+                   <div className="flex items-center gap-0.5">
                      <button
                        onClick={() => {
                          const currentVal = app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1;
@@ -2019,13 +2406,11 @@ export default function Gradebook() {
                            ...prev,
                            settings: {
                              ...prev.settings,
-                             hueWeight: newVal,
-                             hueGewichten: newVal > 0
+                             hueWeight: newVal
                            }
                          }));
                        }}
-                       className="w-5 h-5 flex items-center justify-center bg-white border border-rose-200 text-rose-700 text-[0.75rem] leading-tight font-black rounded-md hover:bg-rose-50 active:scale-90 transition-all select-none cursor-pointer"
-                       title="Abzug verringern (-0.5)"
+                       className="w-4 h-4 flex items-center justify-center bg-rose-50 border border-rose-200 text-rose-700 text-[0.6875rem] font-black rounded hover:bg-rose-100 active:scale-90"
                      >
                        -
                      </button>
@@ -2034,16 +2419,15 @@ export default function Gradebook() {
                        step="0.5"
                        min="0"
                        max="10"
-                       className="w-12 text-center text-[0.6875rem] font-black bg-white border border-rose-200 rounded-md py-0.5 outline-none text-rose-600 shadow-sm focus:border-rose-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                       value={app.settings?.hueWeight !== undefined ? app.settings.hueWeight : (app.settings?.hueGewichten === false ? 0 : 1)}
+                       className="w-8 text-center text-[0.6875rem] font-black bg-rose-50 border border-rose-200 rounded py-0.5 outline-none text-rose-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                       value={app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1}
                        onChange={(e) => {
                          const val = Math.max(0, parseFloat(e.target.value) || 0);
                          setApp(prev => ({
                            ...prev,
                            settings: {
                              ...prev.settings,
-                             hueWeight: val,
-                             hueGewichten: val > 0
+                             hueWeight: val
                            }
                          }));
                        }}
@@ -2056,90 +2440,129 @@ export default function Gradebook() {
                            ...prev,
                            settings: {
                              ...prev.settings,
-                             hueWeight: newVal,
-                             hueGewichten: newVal > 0
+                             hueWeight: newVal
                            }
                          }));
                        }}
-                       className="w-5 h-5 flex items-center justify-center bg-white border border-rose-200 text-rose-700 text-[0.75rem] leading-tight font-black rounded-md hover:bg-rose-50 active:scale-90 transition-all select-none cursor-pointer"
-                       title="Abzug erhöhen (+0.5)"
+                       className="w-4 h-4 flex items-center justify-center bg-rose-50 border border-rose-200 text-rose-700 text-[0.6875rem] font-black rounded hover:bg-rose-100 active:scale-90"
                      >
                        +
                      </button>
                    </div>
-                   
-                   <span className="text-[0.625rem] text-rose-700 font-extrabold uppercase tracking-widest pl-1 bg-white/80 px-2 py-0.5 rounded-lg border border-rose-150/40">
-                     {(app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1) === 0 ? 'Informativ (0)' : `-${app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1} pro HÜ`}
-                   </span>
                  </div>
                  
-                 <div className="flex items-center gap-2 bg-rose-50/60 border border-rose-100 rounded-xl px-3 py-1.5 shadow-sm text-[0.625rem] font-bold text-rose-800">
-                   <span className="uppercase tracking-widest">HÜ-Gewicht:</span>
-                   <span className="text-[0.6875rem] font-black text-rose-600 bg-white px-2 py-0.5 rounded-md border border-rose-100">
-                     {cfg.g.hue * 100}%
+                 <div className="flex items-center gap-1.5 bg-white border border-rose-200 rounded-xl px-2.5 py-1.5 shadow-3xs text-[0.625rem] font-bold text-rose-800">
+                   <span className="uppercase tracking-widest">Gewicht:</span>
+                   <span className="font-black text-rose-600">
+                     {Math.round(cfg.g.hue * 100)}%
                    </span>
                    <button
                      onClick={() => setShowWeights(true)}
-                     className="text-[0.5625rem] font-extrabold text-white bg-rose-600 border border-rose-600 px-2 py-1 rounded-lg hover:bg-rose-700 active:scale-95 transition-all uppercase tracking-widest ml-1 cursor-pointer"
+                     className="text-[0.5625rem] font-extrabold text-white bg-rose-600 px-2 py-0.5 rounded-md hover:bg-rose-700 active:scale-95 transition-all uppercase tracking-widest ml-1 cursor-pointer"
                    >
                      Gewichten
                    </button>
                  </div>
                </div>
             </div>
+
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-stone-50/50 text-[0.625rem] font-black uppercase tracking-widest text-text-muted border-b border-border/50">
+                  <tr className="bg-slate-50/50 text-[0.625rem] font-black uppercase tracking-widest text-slate-500 border-b border-slate-150">
                     <th className={`${zoomLevel === 'compact' ? 'px-3 py-2 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4 text-[0.625rem]'} text-left w-12`}>#</th>
-                    <th className={`${zoomLevel === 'compact' ? 'px-3 py-2 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4 text-[0.625rem]'} text-left`}>Schüler</th>
-                    <th className={`${zoomLevel === 'compact' ? 'px-3 py-2 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4 text-[0.625rem]'} text-center w-64`}>Fehlende HÜ</th>
+                    <th className={`${zoomLevel === 'compact' ? 'px-3 py-2 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4 text-[0.625rem]'} text-left w-[220px]`}>Schüler:innen</th>
+                    <th className={`${zoomLevel === 'compact' ? 'px-3 py-2 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4 text-[0.625rem]'} text-center w-[200px]`}>Fehlende HÜ</th>
+                    <th className={`${zoomLevel === 'compact' ? 'px-3 py-2 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4 text-[0.625rem]'} text-left`}>Notiz / Grund / Nachgebracht</th>
+                    <th className={`${zoomLevel === 'compact' ? 'px-3 py-2 text-[0.6rem]' : zoomLevel === 'large' ? 'px-8 py-5 text-[0.75rem]' : 'px-6 py-4 text-[0.625rem]'} text-center w-[180px]`}>Berechnete Auswirkung</th>
                   </tr>
                 </thead>
                 <tbody>
                   {students.map((s, idx) => {
-                    const nd = app.noten?.[s.id]?.[activeFach]?.[sem] || { hue: 0 };
+                    const nd: Partial<GradeData> = app.noten?.[s.id]?.[activeFach]?.[sem] || { hue: 0, hueAnm: [] };
                     const val = nd.hue || 0;
-                    const hasHueTracking = (nd as any).hueErfasst === true || val > 0 || ((nd as any).hueAnm || []).length > 0;
+                    const hasHueTracking = nd.hueErfasst === true || val > 0 || ((nd.hueAnm || []).length > 0);
+                    const comment = (nd.hueAnm && nd.hueAnm.length > 0) ? nd.hueAnm[0] : '';
+                    
+                    const ded = app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5;
+                    const pct = Math.max(0, 100 - val * ded);
+                    let note = 1;
+                    if (pct >= 87.5) note = 1;
+                    else if (pct >= 75) note = 2;
+                    else if (pct >= 62.5) note = 3;
+                    else if (pct >= 50) note = 4;
+                    else note = 5;
+
                     return (
-                      <tr key={s.id} className="hover:bg-rose-50/30 transition-colors border-b border-border/20 last:border-0">
-                        <td className={`${zoomLevel === 'compact' ? 'px-3 py-1.5' : zoomLevel === 'large' ? 'px-8 py-5' : 'px-6 py-4'} text-[0.625rem] font-black text-stone-300`}>{idx + 1}</td>
+                      <tr key={s.id} className="hover:bg-rose-50/20 transition-colors border-b border-slate-100 last:border-0">
+                        <td className={`${zoomLevel === 'compact' ? 'px-3 py-1.5' : zoomLevel === 'large' ? 'px-8 py-5' : 'px-6 py-4'} text-[0.625rem] font-black text-slate-400`}>{idx + 1}</td>
                         <td className={`${zoomLevel === 'compact' ? 'px-3 py-1.5' : zoomLevel === 'large' ? 'px-8 py-5' : 'px-6 py-4'}`}>
-                          <div className={`${zoomLevel === 'compact' ? 'text-[0.75rem]' : zoomLevel === 'large' ? 'text-[1rem]' : 'text-[0.875rem]'} font-bold text-text-primary`}>{s.nachname} <span className="text-text-secondary font-medium">{s.vorname}</span></div>
+                          <div className={`${zoomLevel === 'compact' ? 'text-[0.75rem]' : zoomLevel === 'large' ? 'text-[1rem]' : 'text-[0.875rem]'} font-bold text-slate-900`}>
+                            {s.nachname} <span className="text-slate-500 font-semibold">{s.vorname}</span>
+                          </div>
                         </td>
                         <td className={`${zoomLevel === 'compact' ? 'px-3 py-1.5' : zoomLevel === 'large' ? 'px-8 py-5' : 'px-6 py-4'}`}>
-                           <div className="flex items-center justify-center gap-6">
+                           <div className="flex items-center justify-center gap-2">
                               <button 
                                 onClick={() => changeHUE(s.id, -1)} 
-                                className={`shrink-0 border border-stone-200 bg-white flex items-center justify-center hover:bg-stone-50 active:scale-95 transition-all text-text-muted shadow-sm ${zoomLevel === 'compact' ? 'w-7 h-7 rounded-md' : zoomLevel === 'large' ? 'w-12 h-12 rounded-2xl' : 'w-10 h-10 rounded-xl'}`}
+                                className={`shrink-0 border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all text-slate-500 shadow-3xs ${zoomLevel === 'compact' ? 'w-6 h-6 rounded-md' : zoomLevel === 'large' ? 'w-10 h-10 rounded-xl' : 'w-8 h-8 rounded-lg'}`}
                               >
-                                <Minus size={16} />
+                                <Minus size={14} />
                               </button>
-                              <div className={`flex items-center justify-center bg-rose-50 rounded-2xl border border-rose-100 ${zoomLevel === 'compact' ? 'min-w-14 h-8 rounded-lg px-1' : zoomLevel === 'large' ? 'min-w-24 h-16 rounded-3xl px-2' : 'min-w-20 h-12 px-2'}`}>
-                                <span className={`leading-normal font-black ${val > 0 ? 'text-rose-600' : 'text-stone-400'} ${hasHueTracking ? (zoomLevel === 'compact' ? 'text-[0.95rem]' : zoomLevel === 'large' ? 'text-[1.625rem]' : 'text-[1.25rem]') : 'text-[0.5625rem] uppercase tracking-wider'}`}>
-                                  {hasHueTracking ? val : 'nicht erfasst'}
-                                </span>
-                              </div>
+                              
+                              <input
+                                type="number"
+                                min="0"
+                                max="99"
+                                value={hasHueTracking ? val : ''}
+                                placeholder="0"
+                                onChange={(e) => setHUEVal(s.id, e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
+                                className={`text-center font-black bg-rose-50/70 border border-rose-200 rounded-xl py-1 text-rose-700 outline-none focus:bg-white focus:border-rose-400 shadow-3xs ${zoomLevel === 'compact' ? 'w-12 text-[0.8125rem]' : zoomLevel === 'large' ? 'w-20 text-[1.25rem]' : 'w-16 text-[1rem]'}`}
+                              />
+
                               <button 
                                 onClick={() => changeHUE(s.id, 1)} 
-                                className={`shrink-0 border-2 border-rose-500/20 bg-rose-50 flex items-center justify-center hover:bg-rose-100 active:scale-95 transition-all text-rose-700 shadow-sm ${zoomLevel === 'compact' ? 'w-7 h-7 rounded-md' : zoomLevel === 'large' ? 'w-12 h-12 rounded-2xl' : 'w-10 h-10 rounded-xl'}`}
+                                className={`shrink-0 border border-rose-300 bg-rose-50 flex items-center justify-center hover:bg-rose-100 active:scale-95 transition-all text-rose-700 shadow-3xs font-black ${zoomLevel === 'compact' ? 'w-6 h-6 rounded-md' : zoomLevel === 'large' ? 'w-10 h-10 rounded-xl' : 'w-8 h-8 rounded-lg'}`}
                               >
-                                <Plus size={18} />
+                                <Plus size={16} />
                               </button>
                            </div>
+                        </td>
+                        <td className={`${zoomLevel === 'compact' ? 'px-3 py-1.5' : zoomLevel === 'large' ? 'px-8 py-5' : 'px-6 py-4'}`}>
+                          <input
+                            type="text"
+                            value={comment}
+                            onChange={(e) => setHUEComment(s.id, e.target.value)}
+                            placeholder="Optionale Bemerkung zur HÜ..."
+                            className={`w-full bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-150 hover:border-slate-250 focus:border-rose-300 rounded-xl px-3 py-1.5 text-slate-700 outline-none transition-all ${zoomLevel === 'compact' ? 'text-[0.7rem]' : zoomLevel === 'large' ? 'text-[0.875rem]' : 'text-[0.75rem]'}`}
+                          />
+                        </td>
+                        <td className={`${zoomLevel === 'compact' ? 'px-3 py-1.5' : zoomLevel === 'large' ? 'px-8 py-5' : 'px-6 py-4'} text-center`}>
+                          {app.settings?.hueGewichten === false ? (
+                            <span className="text-[0.625rem] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                              Nur Dokumentiert
+                            </span>
+                          ) : (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-[0.75rem] font-black tabular-nums ${pct >= 75 ? 'text-emerald-700' : pct >= 50 ? 'text-amber-700' : 'text-rose-700'}`}>
+                                  {pct}%
+                                </span>
+                                <span className={`text-[0.5625rem] font-black uppercase px-1.5 py-0.2 rounded ${note === 1 ? 'bg-emerald-100 text-emerald-800' : note === 2 ? 'bg-blue-100 text-blue-800' : note === 3 ? 'bg-amber-100 text-amber-800' : note === 4 ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'}`}>
+                                  Note {note}
+                                </span>
+                              </div>
+                              {val > 0 && (
+                                <span className="text-[0.5625rem] text-rose-600/70 font-semibold">
+                                  -{val * ded}% Abzug
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );
                   })}
-                  {false && (
-                    <tr>
-                      <td colSpan={3} className="px-6 py-5 text-center text-[0.75rem] leading-tight font-black text-rose-600 uppercase tracking-widest bg-rose-50/20 animate-pulse">
-                        <span ref={sentinelRef} className="w-2 inline-block" />
-                        <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping inline-block mr-2" />
-                        Lade weitere Schüler:innen... ({students.length - visibleLimit} verbleibend)
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
@@ -2938,11 +3361,11 @@ export default function Gradebook() {
                   <span>{activeFach}</span>
                 </h3>
                 <div className="flex flex-wrap gap-1.5 items-center">
-                   {cfg.sa && <span className="text-[0.5625rem] bg-sky-50 text-sky-700 px-2.5 py-1 rounded-full border border-sky-100 font-black uppercase tracking-wider">{app.notenLabels?.sa || 'SA'} {Math.round(cfg.g.sa * 100)}%</span>}
-                   {cfg.lzk && <span className="text-[0.5625rem] bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-100 font-black uppercase tracking-wider">{app.notenLabels?.lzk || 'LZK'} {Math.round(cfg.g.lzk * 100)}%</span>}
-                   {cfg.wp && <span className="text-[0.5625rem] bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full border border-indigo-100 font-black uppercase tracking-wider">{app.notenLabels?.wp || 'WOPL'} {Math.round(cfg.g.wp * 100)}%</span>}
-                   {cfg.obj && <span className="text-[0.5625rem] bg-rose-50 text-rose-700 px-2.5 py-1 rounded-full border border-rose-100 font-black uppercase tracking-wider">{app.notenLabels?.obj || cfg.objLabel} {Math.round(cfg.g.obj * 100)}%</span>}
-                   {cfg.mi && cfg.g.mi > 0 && <span className="text-[0.5625rem] bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full border border-orange-100 font-black uppercase tracking-wider">{app.notenLabels?.mi || 'MI'} {Math.round(cfg.g.mi * 100)}%</span>}
+                   {cfg.sa && <span className="text-[0.5625rem] bg-sky-50 text-sky-700 px-2.5 py-1 rounded-full border border-sky-100 font-black uppercase tracking-wider">{getNotenLabel(app, activeFach, 'sa', 'SA')} {Math.round(cfg.g.sa * 100)}%</span>}
+                   {cfg.lzk && <span className="text-[0.5625rem] bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full border border-emerald-100 font-black uppercase tracking-wider">{getNotenLabel(app, activeFach, 'lzk', 'LZK')} {Math.round(cfg.g.lzk * 100)}%</span>}
+                   {cfg.wp && <span className="text-[0.5625rem] bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full border border-indigo-100 font-black uppercase tracking-wider">{getNotenLabel(app, activeFach, 'wp', 'WOPL')} {Math.round(cfg.g.wp * 100)}%</span>}
+                   {cfg.obj && <span className="text-[0.5625rem] bg-rose-50 text-rose-700 px-2.5 py-1 rounded-full border border-rose-100 font-black uppercase tracking-wider">{getNotenLabel(app, activeFach, 'obj', cfg.objLabel || 'Objekt')} {Math.round(cfg.g.obj * 100)}%</span>}
+                   {cfg.mi && cfg.g.mi > 0 && <span className="text-[0.5625rem] bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full border border-orange-100 font-black uppercase tracking-wider">{getNotenLabel(app, activeFach, 'mi', 'MI')} {Math.round(cfg.g.mi * 100)}%</span>}
                    
                    <span className="inline-flex items-center gap-1.5 text-[0.5625rem] bg-slate-100 text-slate-500 hover:text-slate-750 px-2.5 py-1 rounded-full border border-slate-200/60 font-semibold select-none cursor-help transition-all duration-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-100" title="Keyboard-Modus aktiv: Nutze die Pfeiltasten (↑, ↓, ←, →) oder die Enter-Taste (Enter / Umschalt+Enter) zum extrem schnellen Ausfüllen der Notentabelle wie in Excel!">
                      <span className="font-mono bg-white px-1 py-0.5 rounded border border-slate-300 text-[0.5rem] font-black shadow-3xs">⌨ kbd</span>
@@ -3068,42 +3491,42 @@ export default function Gradebook() {
                       </button>
                     </th>
                     <th className={`px-2 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-20 border-b-2 border-r border-border bg-surface shadow-sm`}>∅</th>
-                    {cfg.sa && Array.from({length: cfg.saCount}).map((_, i) => renderColHeader('sa', i, 'bg-blue-50 text-blue-800 border-blue-200/50', i === 0, 'SA'))}
+                    {cfg.sa && Array.from({length: cfg.saCount}).map((_, i) => renderColHeader('sa', i, 'bg-blue-50 text-blue-800 border-blue-200/50', i === 0, getNotenLabel(app, activeFach, 'sa', 'SA')))}
                     
                     {cfg.lzk && (
                       <>
-                        {Array.from({length: colCounts.lzk}).map((_, i) => renderColHeader('lzk', i, 'bg-green-50 text-green-800 border-green-200/50', i === 0, 'LZK'))}
+                        {Array.from({length: colCounts.lzk}).map((_, i) => renderColHeader('lzk', i, 'bg-green-50 text-green-800 border-green-200/50', i === 0, getNotenLabel(app, activeFach, 'lzk', 'LZK')))}
                         <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-12 bg-green-50/40 border-b-2 border-r border-green-200/50 print:hidden ${isolatedCol ? 'hidden' : ''}`}>
                           <div className="flex flex-col gap-1 items-center justify-center">
-                            <button onClick={(e) => addColumn(e, 'lzk')} title={`${app.notenLabels?.lzk || 'LZK'} hinzufügen`} className="text-green-600 hover:scale-125 transition-all"><Plus size={10} strokeWidth={4} /></button>
-                            <button onClick={(e) => removeColumn(e, 'lzk')} title={`${app.notenLabels?.lzk || 'LZK'} entfernen`} className="text-red-500 hover:scale-125 transition-all"><Minus size={10} strokeWidth={4} /></button>
+                            <button onClick={(e) => addColumn(e, 'lzk')} title={`${getNotenLabel(app, activeFach, 'lzk', 'LZK')} hinzufügen`} className="text-green-600 hover:scale-125 transition-all"><Plus size={10} strokeWidth={4} /></button>
+                            <button onClick={(e) => removeColumn(e, 'lzk')} title={`${getNotenLabel(app, activeFach, 'lzk', 'LZK')} entfernen`} className="text-red-500 hover:scale-125 transition-all"><Minus size={10} strokeWidth={4} /></button>
                           </div>
                         </th>
                       </>
                     )}
                     {cfg.wp && (
                       <>
-                        {Array.from({length: colCounts.wp}).map((_, i) => renderColHeader('wp', i, 'bg-purple-50 text-purple-800 border-purple-200/50', i === 0, 'WOPL'))}
+                        {Array.from({length: colCounts.wp}).map((_, i) => renderColHeader('wp', i, 'bg-purple-50 text-purple-800 border-purple-200/50', i === 0, getNotenLabel(app, activeFach, 'wp', 'WOPL')))}
                         <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-12 bg-purple-50/40 border-b-2 border-r border-purple-200/50 print:hidden ${isolatedCol ? 'hidden' : ''}`}>
                            <div className="flex flex-col gap-1 items-center justify-center">
-                            <button onClick={(e) => addColumn(e, 'wp')} title={`${app.notenLabels?.wp || 'WOPL'} hinzufügen`} className="text-purple-600 hover:scale-125 transition-all"><Plus size={10} strokeWidth={4} /></button>
-                            <button onClick={(e) => removeColumn(e, 'wp')} title={`${app.notenLabels?.wp || 'WOPL'} entfernen`} className="text-red-500 hover:scale-125 transition-all"><Minus size={10} strokeWidth={4} /></button>
+                            <button onClick={(e) => addColumn(e, 'wp')} title={`${getNotenLabel(app, activeFach, 'wp', 'WOPL')} hinzufügen`} className="text-purple-600 hover:scale-125 transition-all"><Plus size={10} strokeWidth={4} /></button>
+                            <button onClick={(e) => removeColumn(e, 'wp')} title={`${getNotenLabel(app, activeFach, 'wp', 'WOPL')} entfernen`} className="text-red-500 hover:scale-125 transition-all"><Minus size={10} strokeWidth={4} /></button>
                           </div>
                         </th>
                       </>
                     )}
                     {cfg.obj && (
                       <>
-                        {Array.from({length: colCounts.obj}).map((_, i) => renderColHeader('obj', i, 'bg-amber-50 text-amber-800 border-amber-200/50', i === 0, 'OBJ'))}
+                        {Array.from({length: colCounts.obj}).map((_, i) => renderColHeader('obj', i, 'bg-amber-50 text-amber-800 border-amber-200/50', i === 0, getNotenLabel(app, activeFach, 'obj', 'OBJ')))}
                         <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-12 bg-amber-50/40 border-b-2 border-r border-amber-200/50 print:hidden ${isolatedCol ? 'hidden' : ''}`}>
                            <div className="flex flex-col gap-1 items-center justify-center">
-                            <button onClick={(e) => addColumn(e, 'obj')} title={`${app.notenLabels?.obj || 'Objekt'} hinzufügen`} className="text-amber-600 hover:scale-125 transition-all"><Plus size={10} strokeWidth={4} /></button>
-                            <button onClick={(e) => removeColumn(e, 'obj')} title={`${app.notenLabels?.obj || 'Objekt'} entfernen`} className="text-red-500 hover:scale-125 transition-all"><Minus size={10} strokeWidth={4} /></button>
+                            <button onClick={(e) => addColumn(e, 'obj')} title={`${getNotenLabel(app, activeFach, 'obj', 'Objekt')} hinzufügen`} className="text-amber-600 hover:scale-125 transition-all"><Plus size={10} strokeWidth={4} /></button>
+                            <button onClick={(e) => removeColumn(e, 'obj')} title={`${getNotenLabel(app, activeFach, 'obj', 'Objekt')} entfernen`} className="text-red-500 hover:scale-125 transition-all"><Minus size={10} strokeWidth={4} /></button>
                           </div>
                         </th>
                       </>
                     )}
-                    {cfg.mi && <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-20 bg-orange-50/80 text-orange-800 border-b-2 border-r border-orange-200/50 border-l-2 border-l-orange-600 ${isolatedCol ? 'hidden' : ''}`}>{getShortName(app.notenLabels?.mi, 'MI')}</th>}
+                    {cfg.mi && <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-20 bg-orange-50/80 text-orange-800 border-b-2 border-r border-orange-200/50 border-l-2 border-l-orange-600 ${isolatedCol ? 'hidden' : ''}`}>{getShortName(getNotenLabel(app, activeFach, 'mi', 'MI'), 'MI')}</th>}
                     {cfg.hue && <th className={`px-1 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} w-20 bg-rose-50/80 text-rose-800 border-b-2 border-r border-rose-200/50 border-l-2 border-l-rose-600 ${isolatedCol ? 'hidden' : ''}`}>HÜ</th>}
                     <th className={`px-4 ${zoomLevel === 'compact' ? 'py-2 text-[0.55rem]' : zoomLevel === 'large' ? 'py-5 text-[0.75rem]' : 'py-3.5 text-[0.6rem]'} text-center w-24 border-b-2 border-border/80 bg-surface ${isolatedCol ? 'hidden' : ''}`}>Ende</th>
                   </tr>
@@ -3162,6 +3585,7 @@ export default function Gradebook() {
                         activeFach={activeFach} sem={sem} cfg={cfg} colCounts={colCounts}
                         isolatedCol={isolatedCol} heatmapMode={heatmapMode} mitarbeitSettings={mitarbeitSettings}
                         currentSymbol={currentSymbol} relativeMiDivisor={relativeMiDivisor} studentsCount={students.length}
+                        assessmentMode={assessmentMode} maxPointsMeta={app.notenMeta?.[activeFach]?.maxPoints}
                         renderRow={() => (
                           <tr key={s.id} className={`group transition-colors ${rowBgClass} print:break-inside-avoid relative`}>
                         <td className={`${dStyle.tdNum} text-left font-bold border-b border-r border-slate-200 sticky left-0 z-[40] print:relative print:left-0 transition-colors shadow-[4px_0_10px_rgba(0,0,0,0.08)] ${stickyBgClass} ${isItemSelected ? 'text-emerald-800' : 'text-slate-400'}`}>{i+1}</td>
@@ -3221,8 +3645,8 @@ export default function Gradebook() {
                             </div>
                           </div>
                         </td>
-                        <td className={`${zoomLevel === 'compact' ? 'px-0.5 py-1 text-[0.75rem]' : zoomLevel === 'large' ? 'px-2 py-2 text-[0.9375rem]' : 'px-1 py-1.5 text-[0.8125rem]'} text-center border-b border-r border-border/40 font-bold font-mono relative ${avg && avg >= 4.5 ? 'text-red-700 bg-red-50/40' : avg ? 'text-blue-900 bg-blue-50/40' : 'text-slate-400'}`}>
-                          {avg !== null && (avg % 1 >= 0.45 && avg % 1 <= 0.55) && (
+                        <td className={`${zoomLevel === 'compact' ? 'px-0.5 py-1 text-[0.75rem]' : zoomLevel === 'large' ? 'px-2 py-2 text-[0.9375rem]' : 'px-1 py-1.5 text-[0.8125rem]'} text-center border-b border-r border-border/40 font-bold font-mono relative ${avg && assessmentMode === 'grades' && avg >= 4.5 ? 'text-red-700 bg-red-50/40' : avg && assessmentMode !== 'grades' && avg < 50 ? 'text-red-700 bg-red-50/40' : avg ? 'text-blue-900 bg-blue-50/40' : 'text-slate-400'}`}>
+                          {avg !== null && assessmentMode === 'grades' && (avg % 1 >= 0.45 && avg % 1 <= 0.55) && (
                             <div className="absolute top-1 right-1 text-[0.5rem] leading-none font-black text-amber-700 bg-amber-100 border border-amber-300 rounded-full w-4 h-4 flex items-center justify-center shadow-3xs" title="Grenzentscheidung zwischen zwei Noten: Der Notendurchschnitt liegt genau in der Mitte (.5)">
                               !
                             </div>
@@ -3233,204 +3657,254 @@ export default function Gradebook() {
                               aria-label={`Endnote für ${s.vorname} ${s.nachname}`}
                               value={nd.endnote || ''}
                               onChange={(val) => setEndnote(s.id, val)}
-                              placeholder={avg ? avg.toFixed(2) : '-'}
+                              placeholder={avg ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '-'}
                               title="Endnote (SPF/ESPF) manuell überschreiben"
                               debounceMs={400}
                               className={`mx-auto block text-center bg-white/80 border border-slate-200 hover:border-emerald-500 focus:border-emerald-600 focus:bg-white transition-all outline-none font-black text-slate-800 placeholder:text-slate-400 print:bg-transparent print:border-none shadow-3xs ${zoomLevel === 'compact' ? 'rounded-md py-0.5 text-[0.75rem] w-10' : zoomLevel === 'large' ? 'rounded-xl py-2 text-[0.9375rem] w-14' : 'rounded-lg py-1 text-[0.8125rem] w-12'}`}
                             />
                           ) : (
-                            <div className={`${zoomLevel === 'compact' ? 'py-1 text-[0.75rem]' : zoomLevel === 'large' ? 'py-4 text-[0.9375rem]' : 'py-2.5 text-[0.8125rem]'} font-extrabold`}>{avg ? avg.toFixed(2) : '–'}</div>
+                            <div className={`${zoomLevel === 'compact' ? 'py-1 text-[0.75rem]' : zoomLevel === 'large' ? 'py-4 text-[0.9375rem]' : 'py-2.5 text-[0.8125rem]'} font-extrabold`}>
+                              {avg ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '–'}
+                            </div>
                           )}
                         </td>
-                        {cfg.sa && Array.from({length: cfg.saCount}).map((_, idx) => (
-                          <td key={`sa-${idx}`} 
-                            onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'sa', idx})}
-                            onMouseLeave={() => setHoveredCell(null)}
-                            className={`${dStyle.tdCell} border-b border-r border-border/30 transition-all bg-blue-50/5 ${getGradeColor(nd.sa[idx], true)} ${idx === 0 ? 'border-l-2 border-l-blue-400/50' : ''} ${isItemSelected && focusedCell?.typ === 'sa' && focusedCell?.idx === idx ? 'ring-2 ring-blue-500 ring-inset z-30' : ''} ${isolatedCol && (isolatedCol.typ !== 'sa' || isolatedCol.idx !== idx) ? 'hidden' : ''} ${getHighlightClass(s.id, 'sa', idx)}`}>
-                              <div className="flex items-center gap-1 px-1 relative">
-                                {(() => {
-                                  const p = getLinkedMetaProtokoll(s.id, 'sa', idx);
-                                  if (!p) return null;
-                                  return (
-                                    <button 
-                                      onClick={() => setViewMetaProtokoll(p)}
-                                      className="absolute -top-2 -right-2 z-20 text-violet-600 bg-white rounded-full bg-violet-100 shadow-sm border border-violet-200 hover:scale-110 transition-transform flex items-center justify-center w-5 h-5"
-                                      title="Metakognitions-Protokoll vorhanden – klicken zum Anzeigen"
-                                    >
-                                      <Brain size={12} className="fill-violet-600" />
-                                    </button>
-                                  );
-                                })()}
-                                  <DebouncedInput 
-                                    type="text"
-                                    aria-label={`Schularbeit ${idx + 1} für ${s.vorname} ${s.nachname}`}
-                                    data-col={`sa-${idx}`}
-                                    onFocus={(e) => {
-                                      e.target.select();
-                                      setFocusedCell({sid: s.id, typ: 'sa', idx});
-                                    }}
-                                    onBlur={() => setFocusedCell(null)}
-                                    onKeyDown={(e) => handleKeyDown(e, s.id, 'sa', idx)}
-                                    className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.sa[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-blue-400 focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none transition-all font-bold ${getGradeColor(nd.sa[idx], true).includes('ring-rose') ? '' : getGradeColor(nd.sa[idx])} ${nd.sa[idx] === 5 ? 'text-red-650 font-extrabold' : nd.sa[idx] === 'f' ? 'text-slate-400' : 'text-blue-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
-                                    value={nd.sa[idx] || ''}
-                                    onChange={(val) => setNote(s.id, 'sa', idx, val)}
-                                    debounceMs={400}
-                                  />
-                                  {isBorderline(nd.sa[idx]) && (
-                                    <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
-                                      <AlertCircle size={10} className="stroke-[3]" />
-                                    </div>
-                                  )}
-                                {!isolatedCol && (
-                                  <button 
-                                    onClick={() => setSaAssessment({sid: s.id, name: `${s.vorname} ${s.nachname}`, idx})}
-                                    className="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all shrink-0 hidden sm:block"
-                                    title="Beurteilungsbogen öffnen"
-                                  >
-                                    <FileText size={16} />
-                                  </button>
-                                )}
-                              </div>
-                          </td>
-                        ))}
-                        {cfg.lzk && (
-                          <>
-                            {Array.from({length: colCounts.lzk}).map((_, idx) => (
-                              <td key={`lzk-${idx}`} 
-                                onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'lzk', idx})}
-                                onMouseLeave={() => setHoveredCell(null)}
-                                className={`${dStyle.tdCell} border-b border-r border-border/30 transition-all bg-green-50/5 ${getGradeColor(nd.lzk[idx], true)} ${idx === 0 ? 'border-l-2 border-l-green-400/50' : ''} ${isItemSelected && focusedCell?.typ === 'lzk' && focusedCell?.idx === idx ? 'ring-2 ring-green-500 ring-inset z-30' : ''} ${isolatedCol && (isolatedCol.typ !== 'lzk' || isolatedCol.idx !== idx) ? 'hidden' : ''} ${getHighlightClass(s.id, 'lzk', idx)}`}>
-                                <div className="relative">
+                        {cfg.sa && Array.from({length: cfg.saCount}).map((_, idx) => {
+                          const maxP = getMaxPoints(app, activeFach, 'sa', idx);
+                          const itemPct = calculateItemPercent(nd.sa[idx], assessmentMode, maxP);
+                          return (
+                            <td key={`sa-${idx}`} 
+                              onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'sa', idx})}
+                              onMouseLeave={() => setHoveredCell(null)}
+                              className={`${dStyle.tdCell} border-b border-r border-border/30 transition-all bg-blue-50/5 ${getGradeColor(nd.sa[idx], true, 'sa', idx)} ${idx === 0 ? 'border-l-2 border-l-blue-400/50' : ''} ${isItemSelected && focusedCell?.typ === 'sa' && focusedCell?.idx === idx ? 'ring-2 ring-blue-500 ring-inset z-30' : ''} ${isolatedCol && (isolatedCol.typ !== 'sa' || isolatedCol.idx !== idx) ? 'hidden' : ''} ${getHighlightClass(s.id, 'sa', idx)}`}>
+                                <div className="flex flex-col items-center justify-center gap-0.5 px-1 relative">
                                   {(() => {
-                                    const p = getLinkedMetaProtokoll(s.id, 'lzk', idx);
+                                    const p = getLinkedMetaProtokoll(s.id, 'sa', idx);
                                     if (!p) return null;
                                     return (
                                       <button 
                                         onClick={() => setViewMetaProtokoll(p)}
-                                        className="absolute -top-2 -right-2 z-20 text-violet-600 bg-white rounded-full bg-violet-100 shadow-sm border border-violet-200 hover:scale-110 transition-transform flex items-center justify-center w-5 h-5 print:hidden"
+                                        className="absolute -top-2 -right-2 z-20 text-violet-600 bg-white rounded-full bg-violet-100 shadow-sm border border-violet-200 hover:scale-110 transition-transform flex items-center justify-center w-5 h-5"
                                         title="Metakognitions-Protokoll vorhanden – klicken zum Anzeigen"
                                       >
                                         <Brain size={12} className="fill-violet-600" />
                                       </button>
                                     );
                                   })()}
-                                  <DebouncedInput 
-                                    type="text"
-                                    aria-label={`Lernzielkontrolle ${idx + 1} für ${s.vorname} ${s.nachname}`}
-                                    data-col={`lzk-${idx}`}
-                                    onFocus={(e) => {
-                                      e.target.select();
-                                      setFocusedCell({sid: s.id, typ: 'lzk', idx});
-                                    }}
-                                    onBlur={() => setFocusedCell(null)}
-                                    onKeyDown={(e) => handleKeyDown(e, s.id, 'lzk', idx)}
-                                    className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.lzk[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-green-400 focus:border-green-500 focus:bg-white focus:ring-1 focus:ring-green-500 outline-none transition-all font-bold ${getGradeColor(nd.lzk[idx], true).includes('ring-rose') ? '' : getGradeColor(nd.lzk[idx])} ${nd.lzk[idx] === 5 ? 'text-red-650 font-extrabold' : nd.lzk[idx] === 'f' ? 'text-slate-400' : 'text-green-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
-                                    value={nd.lzk[idx] || ''}
-                                    onChange={(val) => setNote(s.id, 'lzk', idx, val)}
-                                    debounceMs={400}
-                                  />
-                                  {isBorderline(nd.lzk[idx]) && (
-                                    <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
-                                      <AlertCircle size={10} className="stroke-[3]" />
-                                    </div>
+                                  <div className="flex items-center gap-1 w-full relative">
+                                    <DebouncedInput 
+                                      type="text"
+                                      aria-label={`Schularbeit ${idx + 1} für ${s.vorname} ${s.nachname}`}
+                                      data-col={`sa-${idx}`}
+                                      placeholder={assessmentMode === 'points' ? `/${maxP}` : assessmentMode === 'percent' ? '%' : ''}
+                                      onFocus={(e) => {
+                                        e.target.select();
+                                        setFocusedCell({sid: s.id, typ: 'sa', idx});
+                                      }}
+                                      onBlur={() => setFocusedCell(null)}
+                                      onKeyDown={(e) => handleKeyDown(e, s.id, 'sa', idx)}
+                                      className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.sa[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-blue-400 focus:border-blue-500 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none transition-all font-bold ${getGradeColor(nd.sa[idx], true, 'sa', idx).includes('ring-rose') ? '' : getGradeColor(nd.sa[idx], true, 'sa', idx)} ${nd.sa[idx] === 5 && assessmentMode === 'grades' ? 'text-red-650 font-extrabold' : nd.sa[idx] === 'f' ? 'text-slate-400' : 'text-blue-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
+                                      value={nd.sa[idx] !== null && nd.sa[idx] !== undefined ? nd.sa[idx] : ''}
+                                      onChange={(val) => setNote(s.id, 'sa', idx, val)}
+                                      debounceMs={400}
+                                    />
+                                    {isBorderline(nd.sa[idx]) && (
+                                      <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
+                                        <AlertCircle size={10} className="stroke-[3]" />
+                                      </div>
+                                    )}
+                                    {!isolatedCol && (
+                                      <button 
+                                        onClick={() => setSaAssessment({sid: s.id, name: `${s.vorname} ${s.nachname}`, idx})}
+                                        className="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all shrink-0 hidden sm:block"
+                                        title="Beurteilungsbogen öffnen"
+                                      >
+                                        <FileText size={16} />
+                                      </button>
+                                    )}
+                                  </div>
+                                  {assessmentMode === 'points' && itemPct !== null && (
+                                    <span className="text-[0.5625rem] font-bold text-slate-400 leading-none" title={`${nd.sa[idx]} von ${maxP} Punkten`}>
+                                      {Math.round(itemPct)}%
+                                    </span>
                                   )}
                                 </div>
-                              </td>
-                            ))}
+                            </td>
+                          );
+                        })}
+                        {cfg.lzk && (
+                          <>
+                            {Array.from({length: colCounts.lzk}).map((_, idx) => {
+                              const maxP = getMaxPoints(app, activeFach, 'lzk', idx);
+                              const itemPct = calculateItemPercent(nd.lzk[idx], assessmentMode, maxP);
+                              return (
+                                <td key={`lzk-${idx}`} 
+                                  onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'lzk', idx})}
+                                  onMouseLeave={() => setHoveredCell(null)}
+                                  className={`${dStyle.tdCell} border-b border-r border-border/30 transition-all bg-green-50/5 ${getGradeColor(nd.lzk[idx], true, 'lzk', idx)} ${idx === 0 ? 'border-l-2 border-l-green-400/50' : ''} ${isItemSelected && focusedCell?.typ === 'lzk' && focusedCell?.idx === idx ? 'ring-2 ring-green-500 ring-inset z-30' : ''} ${isolatedCol && (isolatedCol.typ !== 'lzk' || isolatedCol.idx !== idx) ? 'hidden' : ''} ${getHighlightClass(s.id, 'lzk', idx)}`}>
+                                  <div className="flex flex-col items-center justify-center gap-0.5 relative">
+                                    {(() => {
+                                      const p = getLinkedMetaProtokoll(s.id, 'lzk', idx);
+                                      if (!p) return null;
+                                      return (
+                                        <button 
+                                          onClick={() => setViewMetaProtokoll(p)}
+                                          className="absolute -top-2 -right-2 z-20 text-violet-600 bg-white rounded-full bg-violet-100 shadow-sm border border-violet-200 hover:scale-110 transition-transform flex items-center justify-center w-5 h-5 print:hidden"
+                                          title="Metakognitions-Protokoll vorhanden – klicken zum Anzeigen"
+                                        >
+                                          <Brain size={12} className="fill-violet-600" />
+                                        </button>
+                                      );
+                                    })()}
+                                    <div className="relative w-full">
+                                      <DebouncedInput 
+                                        type="text"
+                                        aria-label={`Lernzielkontrolle ${idx + 1} für ${s.vorname} ${s.nachname}`}
+                                        data-col={`lzk-${idx}`}
+                                        placeholder={assessmentMode === 'points' ? `/${maxP}` : assessmentMode === 'percent' ? '%' : ''}
+                                        onFocus={(e) => {
+                                          e.target.select();
+                                          setFocusedCell({sid: s.id, typ: 'lzk', idx});
+                                        }}
+                                        onBlur={() => setFocusedCell(null)}
+                                        onKeyDown={(e) => handleKeyDown(e, s.id, 'lzk', idx)}
+                                        className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.lzk[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-green-400 focus:border-green-500 focus:bg-white focus:ring-1 focus:ring-green-500 outline-none transition-all font-bold ${getGradeColor(nd.lzk[idx], true, 'lzk', idx).includes('ring-rose') ? '' : getGradeColor(nd.lzk[idx], true, 'lzk', idx)} ${nd.lzk[idx] === 5 && assessmentMode === 'grades' ? 'text-red-650 font-extrabold' : nd.lzk[idx] === 'f' ? 'text-slate-400' : 'text-green-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
+                                        value={nd.lzk[idx] !== null && nd.lzk[idx] !== undefined ? nd.lzk[idx] : ''}
+                                        onChange={(val) => setNote(s.id, 'lzk', idx, val)}
+                                        debounceMs={400}
+                                      />
+                                      {isBorderline(nd.lzk[idx]) && (
+                                        <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
+                                          <AlertCircle size={10} className="stroke-[3]" />
+                                        </div>
+                                      )}
+                                    </div>
+                                    {assessmentMode === 'points' && itemPct !== null && (
+                                      <span className="text-[0.5625rem] font-bold text-slate-400 leading-none" title={`${nd.lzk[idx]} von ${maxP} Punkten`}>
+                                        {Math.round(itemPct)}%
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            })}
                             <td className={`w-12 border-b border-r border-border/30 bg-green-50/10 print:hidden ${isolatedCol ? 'hidden' : ''}`}></td>
                           </>
                         )}
                         {cfg.wp && (
                           <>
-                            {Array.from({length: colCounts.wp}).map((_, idx) => (
-                              <td key={`wp-${idx}`} 
-                                onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'wp', idx})}
-                                onMouseLeave={() => setHoveredCell(null)}
-                                className={`${dStyle.tdCell} border-b border-r border-border/30 transition-all bg-purple-50/5 ${getGradeColor(nd.wp[idx])} ${idx === 0 ? 'border-l-2 border-l-purple-400/50' : ''} ${isItemSelected && focusedCell?.typ === 'wp' && focusedCell?.idx === idx ? 'ring-2 ring-purple-500 ring-inset z-30' : ''} ${isolatedCol && (isolatedCol.typ !== 'wp' || isolatedCol.idx !== idx) ? 'hidden' : ''} ${getHighlightClass(s.id, 'wp', idx)}`}>
-                                <div className="relative">
-                                  {(() => {
-                                    const p = getLinkedMetaProtokoll(s.id, 'wp', idx);
-                                    if (!p) return null;
-                                    return (
-                                      <button 
-                                        onClick={() => setViewMetaProtokoll(p)}
-                                        className="absolute -top-2 -right-2 z-20 text-violet-600 bg-white rounded-full bg-violet-100 shadow-sm border border-violet-200 hover:scale-110 transition-transform flex items-center justify-center w-5 h-5 print:hidden"
-                                        title="Metakognitions-Protokoll vorhanden – klicken zum Anzeigen"
-                                      >
-                                        <Brain size={12} className="fill-violet-600" />
-                                      </button>
-                                    );
-                                  })()}
-                                  <DebouncedInput 
-                                    type="text"
-                                    aria-label={`Wochenplan ${idx + 1} für ${s.vorname} ${s.nachname}`}
-                                    data-col={`wp-${idx}`}
-                                    onFocus={(e) => {
-                                      e.target.select();
-                                      setFocusedCell({sid: s.id, typ: 'wp', idx});
-                                    }}
-                                    onBlur={() => setFocusedCell(null)}
-                                    onKeyDown={(e) => handleKeyDown(e, s.id, 'wp', idx)}
-                                    className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.wp[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-purple-400 focus:border-purple-500 focus:bg-white focus:ring-1 focus:ring-purple-500 outline-none transition-all font-bold ${getGradeColor(nd.wp[idx])} ${nd.wp[idx] === 5 ? 'text-red-650 font-extrabold' : nd.wp[idx] === 'f' ? 'text-slate-400' : 'text-purple-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
-                                    value={nd.wp[idx] || ''}
-                                    onChange={(val) => setNote(s.id, 'wp', idx, val)}
-                                    debounceMs={400}
-                                  />
-                                  {isBorderline(nd.wp[idx]) && (
-                                    <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
-                                      <AlertCircle size={10} className="stroke-[3]" />
+                            {Array.from({length: colCounts.wp}).map((_, idx) => {
+                              const maxP = getMaxPoints(app, activeFach, 'wp', idx);
+                              const itemPct = calculateItemPercent(nd.wp[idx], assessmentMode, maxP);
+                              return (
+                                <td key={`wp-${idx}`} 
+                                  onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'wp', idx})}
+                                  onMouseLeave={() => setHoveredCell(null)}
+                                  className={`${dStyle.tdCell} border-b border-r border-border/30 transition-all bg-purple-50/5 ${getGradeColor(nd.wp[idx], false, 'wp', idx)} ${idx === 0 ? 'border-l-2 border-l-purple-400/50' : ''} ${isItemSelected && focusedCell?.typ === 'wp' && focusedCell?.idx === idx ? 'ring-2 ring-purple-500 ring-inset z-30' : ''} ${isolatedCol && (isolatedCol.typ !== 'wp' || isolatedCol.idx !== idx) ? 'hidden' : ''} ${getHighlightClass(s.id, 'wp', idx)}`}>
+                                  <div className="flex flex-col items-center justify-center gap-0.5 relative">
+                                    {(() => {
+                                      const p = getLinkedMetaProtokoll(s.id, 'wp', idx);
+                                      if (!p) return null;
+                                      return (
+                                        <button 
+                                          onClick={() => setViewMetaProtokoll(p)}
+                                          className="absolute -top-2 -right-2 z-20 text-violet-600 bg-white rounded-full bg-violet-100 shadow-sm border border-violet-200 hover:scale-110 transition-transform flex items-center justify-center w-5 h-5 print:hidden"
+                                          title="Metakognitions-Protokoll vorhanden – klicken zum Anzeigen"
+                                        >
+                                          <Brain size={12} className="fill-violet-600" />
+                                        </button>
+                                      );
+                                    })()}
+                                    <div className="relative w-full">
+                                      <DebouncedInput 
+                                        type="text"
+                                        aria-label={`Wochenplan ${idx + 1} für ${s.vorname} ${s.nachname}`}
+                                        data-col={`wp-${idx}`}
+                                        placeholder={assessmentMode === 'points' ? `/${maxP}` : assessmentMode === 'percent' ? '%' : ''}
+                                        onFocus={(e) => {
+                                          e.target.select();
+                                          setFocusedCell({sid: s.id, typ: 'wp', idx});
+                                        }}
+                                        onBlur={() => setFocusedCell(null)}
+                                        onKeyDown={(e) => handleKeyDown(e, s.id, 'wp', idx)}
+                                        className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.wp[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-purple-400 focus:border-purple-500 focus:bg-white focus:ring-1 focus:ring-purple-500 outline-none transition-all font-bold ${getGradeColor(nd.wp[idx], false, 'wp', idx)} ${nd.wp[idx] === 5 && assessmentMode === 'grades' ? 'text-red-650 font-extrabold' : nd.wp[idx] === 'f' ? 'text-slate-400' : 'text-purple-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
+                                        value={nd.wp[idx] !== null && nd.wp[idx] !== undefined ? nd.wp[idx] : ''}
+                                        onChange={(val) => setNote(s.id, 'wp', idx, val)}
+                                        debounceMs={400}
+                                      />
+                                      {isBorderline(nd.wp[idx]) && (
+                                        <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
+                                          <AlertCircle size={10} className="stroke-[3]" />
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
-                              </td>
-                            ))}
+                                    {assessmentMode === 'points' && itemPct !== null && (
+                                      <span className="text-[0.5625rem] font-bold text-slate-400 leading-none" title={`${nd.wp[idx]} von ${maxP} Punkten`}>
+                                        {Math.round(itemPct)}%
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            })}
                             <td className={`w-12 border-b border-r border-border/30 bg-purple-50/10 print:hidden ${isolatedCol ? 'hidden' : ''}`}></td>
                           </>
                         )}
                         {cfg.obj && (
                           <>
-                            {Array.from({length: colCounts.obj}).map((_, idx) => (
-                              <td key={`obj-${idx}`} 
-                                onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'aufgaben', idx})}
-                                onMouseLeave={() => setHoveredCell(null)}
-                                className={`${dStyle.tdCell} border-b border-r border-border/30 transition-all bg-amber-50/5 ${getGradeColor(nd.aufgaben[idx])} ${idx === 0 ? 'border-l-2 border-l-amber-400/50' : ''} ${isItemSelected && focusedCell?.typ === 'aufgaben' && focusedCell?.idx === idx ? 'ring-2 ring-amber-500 ring-inset z-30' : ''} ${isolatedCol && (isolatedCol.typ !== 'obj' || isolatedCol.idx !== idx) ? 'hidden' : ''} ${getHighlightClass(s.id, 'aufgaben', idx)}`}>
-                                <div className="relative">
-                                  {(() => {
-                                    const p = getLinkedMetaProtokoll(s.id, 'obj', idx);
-                                    if (!p) return null;
-                                    return (
-                                      <button 
-                                        onClick={() => setViewMetaProtokoll(p)}
-                                        className="absolute -top-2 -right-2 z-20 text-violet-600 bg-white rounded-full bg-violet-100 shadow-sm border border-violet-200 hover:scale-110 transition-transform flex items-center justify-center w-5 h-5 print:hidden"
-                                        title="Metakognitions-Protokoll vorhanden – klicken zum Anzeigen"
-                                      >
-                                        <Brain size={12} className="fill-violet-600" />
-                                      </button>
-                                    );
-                                  })()}
-                                  <DebouncedInput 
-                                    type="text"
-                                    aria-label={`Aufgabe ${idx + 1} für ${s.vorname} ${s.nachname}`}
-                                    data-col={`obj-${idx}`}
-                                    onFocus={(e) => {
-                                      e.target.select();
-                                      setFocusedCell({sid: s.id, typ: 'aufgaben', idx});
-                                    }}
-                                    onBlur={() => setFocusedCell(null)}
-                                    onKeyDown={(e) => handleKeyDown(e, s.id, 'aufgaben', idx)}
-                                    className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.aufgaben[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-amber-400 focus:border-amber-500 focus:bg-white focus:ring-1 focus:ring-amber-500 outline-none transition-all font-bold ${getGradeColor(nd.aufgaben[idx])} ${nd.aufgaben[idx] === 5 ? 'text-red-650 font-extrabold' : nd.aufgaben[idx] === 'f' ? 'text-slate-400' : 'text-amber-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
-                                    value={nd.aufgaben[idx] || ''}
-                                    onChange={(val) => setNote(s.id, 'aufgaben', idx, val)}
-                                    debounceMs={400}
-                                  />
-                                  {isBorderline(nd.aufgaben[idx]) && (
-                                    <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
-                                      <AlertCircle size={10} className="stroke-[3]" />
+                            {Array.from({length: colCounts.obj}).map((_, idx) => {
+                              const maxP = getMaxPoints(app, activeFach, 'obj', idx);
+                              const itemPct = calculateItemPercent(nd.aufgaben[idx], assessmentMode, maxP);
+                              return (
+                                <td key={`obj-${idx}`} 
+                                  onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'aufgaben', idx})}
+                                  onMouseLeave={() => setHoveredCell(null)}
+                                  className={`${dStyle.tdCell} border-b border-r border-border/30 transition-all bg-amber-50/5 ${getGradeColor(nd.aufgaben[idx], false, 'obj', idx)} ${idx === 0 ? 'border-l-2 border-l-amber-400/50' : ''} ${isItemSelected && focusedCell?.typ === 'aufgaben' && focusedCell?.idx === idx ? 'ring-2 ring-amber-500 ring-inset z-30' : ''} ${isolatedCol && (isolatedCol.typ !== 'obj' || isolatedCol.idx !== idx) ? 'hidden' : ''} ${getHighlightClass(s.id, 'aufgaben', idx)}`}>
+                                  <div className="flex flex-col items-center justify-center gap-0.5 relative">
+                                    {(() => {
+                                      const p = getLinkedMetaProtokoll(s.id, 'obj', idx);
+                                      if (!p) return null;
+                                      return (
+                                        <button 
+                                          onClick={() => setViewMetaProtokoll(p)}
+                                          className="absolute -top-2 -right-2 z-20 text-violet-600 bg-white rounded-full bg-violet-100 shadow-sm border border-violet-200 hover:scale-110 transition-transform flex items-center justify-center w-5 h-5 print:hidden"
+                                          title="Metakognitions-Protokoll vorhanden – klicken zum Anzeigen"
+                                        >
+                                          <Brain size={12} className="fill-violet-600" />
+                                        </button>
+                                      );
+                                    })()}
+                                    <div className="relative w-full">
+                                      <DebouncedInput 
+                                        type="text"
+                                        aria-label={`Aufgabe ${idx + 1} für ${s.vorname} ${s.nachname}`}
+                                        data-col={`obj-${idx}`}
+                                        placeholder={assessmentMode === 'points' ? `/${maxP}` : assessmentMode === 'percent' ? '%' : ''}
+                                        onFocus={(e) => {
+                                          e.target.select();
+                                          setFocusedCell({sid: s.id, typ: 'aufgaben', idx});
+                                        }}
+                                        onBlur={() => setFocusedCell(null)}
+                                        onKeyDown={(e) => handleKeyDown(e, s.id, 'aufgaben', idx)}
+                                        className={`w-full mx-auto block text-center ${heatmapMode && isColorableGrade(nd.aufgaben[idx]) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-amber-400 focus:border-amber-500 focus:bg-white focus:ring-1 focus:ring-amber-500 outline-none transition-all font-bold ${getGradeColor(nd.aufgaben[idx], false, 'obj', idx)} ${nd.aufgaben[idx] === 5 && assessmentMode === 'grades' ? 'text-red-650 font-extrabold' : nd.aufgaben[idx] === 'f' ? 'text-slate-400' : 'text-amber-800'} ${zoomLevel === 'compact' ? 'min-w-[2.25rem] py-0.5 text-[0.75rem] rounded-md max-w-[3.25rem]' : zoomLevel === 'large' ? 'min-w-[3.5rem] py-2 text-[0.9375rem] rounded-xl max-w-[4.75rem]' : 'min-w-[2.75rem] py-1 text-[0.8125rem] rounded-lg max-w-[4rem]'}`}
+                                        value={nd.aufgaben[idx] !== null && nd.aufgaben[idx] !== undefined ? nd.aufgaben[idx] : ''}
+                                        onChange={(val) => setNote(s.id, 'aufgaben', idx, val)}
+                                        debounceMs={400}
+                                      />
+                                      {isBorderline(nd.aufgaben[idx]) && (
+                                        <div className="absolute -top-1.5 -right-0.5 z-10 text-amber-500 bg-white rounded-full shadow-sm border border-amber-200 pointer-events-none" title="Grenzentscheidung / Tendenz (+/-)">
+                                          <AlertCircle size={10} className="stroke-[3]" />
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
-                              </td>
-                            ))}
+                                    {assessmentMode === 'points' && itemPct !== null && (
+                                      <span className="text-[0.5625rem] font-bold text-slate-400 leading-none" title={`${nd.aufgaben[idx]} von ${maxP} Punkten`}>
+                                        {Math.round(itemPct)}%
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              );
+                            })}
                             <td className={`w-12 border-b border-r border-border/30 bg-amber-50/10 print:hidden ${isolatedCol ? 'hidden' : ''}`}></td>
                           </>
                         )}
@@ -3442,7 +3916,7 @@ export default function Gradebook() {
                              {mitarbeitSettings.mode === 'manual' ? (
                                <DebouncedInput 
                                  type="text"
-                                 aria-label={`Mitarbeitsnote für ${s.vorname} ${s.nachname}`}
+                                 aria-label={`Mitarbeit für ${s.vorname} ${s.nachname}`}
                                  data-col="mi"
                                  onFocus={(e) => {
                                    e.target.select();
@@ -3450,10 +3924,10 @@ export default function Gradebook() {
                                  }}
                                  onBlur={() => setFocusedCell(null)}
                                  onKeyDown={(e) => handleKeyDown(e, s.id, 'mi', 0)}
-                                 className={`mx-auto block text-center ${heatmapMode && isColorableGrade(nd.miDirekt) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-orange-400 focus:border-orange-500 focus:bg-white focus:ring-1 focus:ring-orange-500 outline-none transition-all font-bold ${getGradeColor(nd.miDirekt)} text-orange-900 ${zoomLevel === 'compact' ? 'rounded-md py-0.5 text-[0.75rem] w-10' : zoomLevel === 'large' ? 'rounded-xl py-2 text-[0.9375rem] w-16' : 'rounded-lg py-1 text-[0.8125rem] w-14'}`}
-                                 value={nd.miDirekt || ''}
+                                 className={`mx-auto block text-center ${heatmapMode && isColorableGrade(nd.miDirekt) ? 'bg-transparent' : 'bg-white/95'} border border-slate-250 hover:border-orange-400 focus:border-orange-500 focus:bg-white focus:ring-1 focus:ring-orange-500 outline-none transition-all font-bold ${getGradeColor(nd.miDirekt)} text-orange-900 ${zoomLevel === 'compact' ? 'rounded-md py-0.5 text-[0.75rem] w-12' : zoomLevel === 'large' ? 'rounded-xl py-2 text-[0.9375rem] w-20' : 'rounded-lg py-1 text-[0.8125rem] w-16'}`}
+                                 value={nd.miDirekt !== null && nd.miDirekt !== undefined ? nd.miDirekt : ''}
                                  onChange={(val) => setMIDirekt(s.id, val)}
-                                 placeholder="Note"
+                                 placeholder={assessmentMode === 'percent' ? '%' : assessmentMode === 'points' ? 'Pkt' : 'Note'}
                                  debounceMs={400}
                                />
                              ) : (
@@ -3475,20 +3949,52 @@ export default function Gradebook() {
                           <td 
                             onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'hue', idx: 0})}
                             onMouseLeave={() => setHoveredCell(null)}
+                            title={app.settings?.hueGewichten === false ? `Hausübungen: ${nd.hue || 0}× vergessen (rein dokumentarisch, kein Notenabzug)` : `Hausübungen: ${nd.hue || 0}× vergessen (${Math.max(0, 100 - (nd.hue || 0) * (app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5))}% / Gewicht: ${Math.round(cfg.g.hue * 100)}%)`}
                             className={`${zoomLevel === 'compact' ? 'px-0.5 py-1' : zoomLevel === 'large' ? 'px-2 py-3' : 'px-1 py-2'} border-b border-r border-border/30 bg-rose-50/10 border-l-2 border-l-rose-400/50 text-center ${isolatedCol ? 'hidden' : ''} ${getHighlightClass(s.id, 'hue', 0)}`}>
-                            <span className={`${zoomLevel === 'compact' ? 'text-[0.75rem]' : zoomLevel === 'large' ? 'text-[0.9375rem]' : 'text-[0.8125rem]'} font-bold ${nd.hue > 0 ? 'text-red-700 font-mono' : 'text-text-muted'}`}>{nd.hue || 0}</span>
+                            <div className="flex flex-col items-center justify-center">
+                              <span className={`${zoomLevel === 'compact' ? 'text-[0.75rem]' : zoomLevel === 'large' ? 'text-[0.9375rem]' : 'text-[0.8125rem]'} font-bold ${nd.hue > 0 ? 'text-rose-700 font-mono' : 'text-slate-400'}`}>
+                                {nd.hue || 0}
+                              </span>
+                              {app.settings?.hueGewichten === false && (
+                                <span className="text-[0.5rem] font-bold text-amber-700/80 uppercase tracking-tighter leading-none">
+                                  doku
+                                </span>
+                              )}
+                            </div>
                           </td>
                         )}
                         <td className={`${zoomLevel === 'compact' ? 'px-2.5 py-1 text-[0.75rem]' : zoomLevel === 'large' ? 'px-5 py-4 text-[0.9375rem]' : 'px-4 py-3 text-[0.8125rem]'} text-center font-display font-bold border-b border-border/10 bg-surface/50 ${isolatedCol ? 'hidden' : ''}`}>
                           {avg ? (
                             <div className="flex flex-col items-center justify-center gap-1 group/ball relative">
-                               <div className="flex items-center gap-1.5 transition-transform hover:scale-105">
-                                 <span className={`nb nb-${Math.round(avg)} ${zoomLevel === 'compact' ? '!scale-75 -my-1' : zoomLevel === 'large' ? '!scale-110 my-1' : '!scale-95'} shadow-sm`}>{Math.round(avg)}</span>
-                                 <div className="flex flex-col items-start hidden lg:flex">
-                                   <span className="text-[0.5625rem] text-text-muted font-bold uppercase print:hidden tracking-tighter leading-none">{NOTE_LABELS[Math.round(avg)]}</span>
-                                   <div className="text-[0.625rem] leading-none mt-0.5">{getTrendIcon(nd)}</div>
-                                 </div>
-                               </div>
+                              {assessmentMode === 'grades' ? (
+                                <div 
+                                  onClick={() => setSelectedGradeExplanationStudent(s)}
+                                  className="flex items-center gap-1.5 transition-transform hover:scale-105 cursor-pointer"
+                                  title="Klicken für Zeugnisnoten-Erklärung"
+                                >
+                                  <span className={`nb nb-${Math.round(avg)} ${zoomLevel === 'compact' ? '!scale-75 -my-1' : zoomLevel === 'large' ? '!scale-110 my-1' : '!scale-95'} shadow-sm`}>{Math.round(avg)}</span>
+                                  <div className="flex flex-col items-start hidden lg:flex">
+                                    <span className="text-[0.5625rem] text-text-muted font-bold uppercase print:hidden tracking-tighter leading-none">{NOTE_LABELS[Math.round(avg)]}</span>
+                                    <div className="text-[0.625rem] leading-none mt-0.5">{getTrendIcon(nd)}</div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div 
+                                  className="flex items-center gap-1.5"
+                                  title={`Gesamtwert: ${avg.toFixed(1)}%`}
+                                >
+                                  <span className={`px-2.5 py-1 rounded-full text-xs font-black border shadow-3xs tabular-nums ${
+                                    avg >= 87.5 ? 'bg-emerald-100 text-emerald-850 border-emerald-300' :
+                                    avg >= 75 ? 'bg-blue-100 text-blue-850 border-blue-300' :
+                                    avg >= 62.5 ? 'bg-amber-100 text-amber-850 border-amber-300' :
+                                    avg >= 50 ? 'bg-orange-100 text-orange-850 border-orange-300' :
+                                    'bg-rose-100 text-rose-850 border-rose-300'
+                                  }`}>
+                                    {Math.round(avg)}%
+                                  </span>
+                                  <div className="text-[0.625rem] leading-none">{getTrendIcon(nd)}</div>
+                                </div>
+                              )}
                                
                                <button 
                                  onClick={() => setSimulateModalForSid(s.id)}
@@ -3521,18 +4027,22 @@ export default function Gradebook() {
                       <td className="px-4 py-4 border-t px-2 border-neutral-700 border-r border-r-neutral-800 sticky left-0 z-40 bg-neutral-900 print:relative print:left-0 shadow-[2px_0_5px_rgba(0,0,0,0.2)]">∑</td>
                       <td className="px-5 py-4 text-left border-t border-neutral-700 border-r border-r-neutral-800 sticky left-[4rem] z-40 bg-neutral-900 print:relative print:left-0 uppercase text-white shadow-[2px_0_5px_rgba(0,0,0,0.2)]">∅ Klasse</td>
                       <td className="px-2 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-800 text-white border-x-2">
-                        {stats?.avg ? stats.avg.toFixed(2) : '–'}
+                        {stats?.avg ? (assessmentMode === 'grades' ? stats.avg.toFixed(2) : `${stats.avg.toFixed(1)}%`) : '–'}
                       </td>
                       {cfg.sa && Array.from({length: cfg.saCount}).map((_, idx) => (
                         <td key={`fsa-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
-                          {columnAverages[`sa-${idx}`]?.avg?.toFixed(1) || '–'}
+                          {columnAverages[`sa-${idx}`]?.avg !== null && columnAverages[`sa-${idx}`]?.avg !== undefined 
+                            ? (assessmentMode === 'grades' ? columnAverages[`sa-${idx}`]!.avg!.toFixed(1) : assessmentMode === 'percent' ? `${columnAverages[`sa-${idx}`]!.avg!.toFixed(1)}%` : `${columnAverages[`sa-${idx}`]!.avg!.toFixed(1)}P`) 
+                            : '–'}
                         </td>
                       ))}
                       {cfg.lzk && (
                         <>
                           {Array.from({length: colCounts.lzk}).map((_, idx) => (
                             <td key={`flzk-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
-                              {columnAverages[`lzk-${idx}`]?.avg?.toFixed(1) || '–'}
+                              {columnAverages[`lzk-${idx}`]?.avg !== null && columnAverages[`lzk-${idx}`]?.avg !== undefined 
+                                ? (assessmentMode === 'grades' ? columnAverages[`lzk-${idx}`]!.avg!.toFixed(1) : assessmentMode === 'percent' ? `${columnAverages[`lzk-${idx}`]!.avg!.toFixed(1)}%` : `${columnAverages[`lzk-${idx}`]!.avg!.toFixed(1)}P`) 
+                                : '–'}
                             </td>
                           ))}
                           <td className="w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden"></td>
@@ -3542,7 +4052,9 @@ export default function Gradebook() {
                         <>
                           {Array.from({length: colCounts.wp}).map((_, idx) => (
                             <td key={`fwp-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
-                              {columnAverages[`wp-${idx}`]?.avg?.toFixed(1) || '–'}
+                              {columnAverages[`wp-${idx}`]?.avg !== null && columnAverages[`wp-${idx}`]?.avg !== undefined 
+                                ? (assessmentMode === 'grades' ? columnAverages[`wp-${idx}`]!.avg!.toFixed(1) : assessmentMode === 'percent' ? `${columnAverages[`wp-${idx}`]!.avg!.toFixed(1)}%` : `${columnAverages[`wp-${idx}`]!.avg!.toFixed(1)}P`) 
+                                : '–'}
                             </td>
                           ))}
                           <td className="w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden"></td>
@@ -3552,7 +4064,9 @@ export default function Gradebook() {
                         <>
                           {Array.from({length: colCounts.obj}).map((_, idx) => (
                             <td key={`fobj-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
-                              {columnAverages[`obj-${idx}`]?.avg?.toFixed(1) || '–'}
+                              {columnAverages[`obj-${idx}`]?.avg !== null && columnAverages[`obj-${idx}`]?.avg !== undefined 
+                                ? (assessmentMode === 'grades' ? columnAverages[`obj-${idx}`]!.avg!.toFixed(1) : assessmentMode === 'percent' ? `${columnAverages[`obj-${idx}`]!.avg!.toFixed(1)}%` : `${columnAverages[`obj-${idx}`]!.avg!.toFixed(1)}P`) 
+                                : '–'}
                             </td>
                           ))}
                           <td className="w-12 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900/50 print:hidden"></td>
@@ -3570,6 +4084,232 @@ export default function Gradebook() {
             </div>
           )}
           </div>
+
+          {/* Modal for + Bewertung */}
+          <AnimatePresence>
+            {showAddAssessmentModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs"
+                onClick={() => setShowAddAssessmentModal(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg p-6"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex justify-between items-center mb-5 pb-3 border-b border-slate-100">
+                    <div>
+                      <h3 className="font-black text-[1.125rem] text-slate-900">
+                        Neue Bewertung für {activeFach}
+                      </h3>
+                      <p className="text-[0.75rem] text-slate-500 font-bold">
+                        Wähle die Art der Leistung, die du erfassen möchtest:
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowAddAssessmentModal(false)}
+                      className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                    <button
+                      onClick={() => {
+                        setShowAddAssessmentModal(false);
+                        // Open SA assessment for first student as entry point or add column
+                        if (students.length > 0) {
+                          setSaAssessment({
+                            sid: students[0].id,
+                            name: `${students[0].vorname} ${students[0].nachname}`,
+                            idx: 0,
+                          });
+                        }
+                      }}
+                      className="p-4 rounded-2xl border border-blue-200 bg-blue-50/50 hover:bg-blue-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
+                    >
+                      <div className="text-2xl mb-2">📝</div>
+                      <div className="font-black text-blue-900 text-[0.9375rem] mb-1">
+                        Schularbeit
+                      </div>
+                      <div className="text-[0.75rem] text-blue-700 leading-snug">
+                        Detaillierte Korrektur mit Punkten & KI-Vorschlägen
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        setShowAddAssessmentModal(false);
+                        addColumn(e, 'lzk');
+                      }}
+                      className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
+                    >
+                      <div className="text-2xl mb-2">🎯</div>
+                      <div className="font-black text-emerald-900 text-[0.9375rem] mb-1">
+                        Test / LZK
+                      </div>
+                      <div className="text-[0.75rem] text-emerald-700 leading-snug">
+                        Kurzüberprüfung oder Lernzielkontrolle eintragen
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowAddAssessmentModal(false);
+                        setActiveView('mitarbeit');
+                      }}
+                      className="p-4 rounded-2xl border border-orange-200 bg-orange-50/50 hover:bg-orange-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
+                    >
+                      <div className="text-2xl mb-2">✋</div>
+                      <div className="font-black text-orange-900 text-[0.9375rem] mb-1">
+                        Mitarbeit
+                      </div>
+                      <div className="text-[0.75rem] text-orange-700 leading-snug">
+                        Tägliche Mitarbeit per +, ○, − erfassen
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        setShowAddAssessmentModal(false);
+                        addColumn(e, 'wp');
+                      }}
+                      className="p-4 rounded-2xl border border-purple-200 bg-purple-50/50 hover:bg-purple-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
+                    >
+                      <div className="text-2xl mb-2">📌</div>
+                      <div className="font-black text-purple-900 text-[0.9375rem] mb-1">
+                        Sonstige Leistung
+                      </div>
+                      <div className="text-[0.75rem] text-purple-700 leading-snug">
+                        Wochenplan, Referat oder Projektarbeit
+                      </div>
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Modal for Zeugnisnote Explanation */}
+          <AnimatePresence>
+            {selectedGradeExplanationStudent && (() => {
+              const s = selectedGradeExplanationStudent;
+              const avg = berechne(app, s.id, activeFach, sem);
+              const roundedNote = avg ? Math.round(avg) : null;
+              const rawNd = (app.noten?.[s.id]?.[activeFach]?.[sem] || {}) as any;
+
+              return (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs"
+                  onClick={() => setSelectedGradeExplanationStudent(null)}
+                >
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg p-6"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                      <div>
+                        <h3 className="font-black text-[1.125rem] text-slate-900">
+                          Zeugnisnote: {s.vorname} {s.nachname}
+                        </h3>
+                        <p className="text-[0.75rem] text-slate-500 font-bold uppercase tracking-wider">
+                          Fach: {activeFach}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setSelectedGradeExplanationStudent(null)}
+                        className="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full cursor-pointer"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl mb-5 border border-slate-100">
+                      <div
+                        className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black text-white shadow-md ${
+                          roundedNote === 1
+                            ? 'bg-emerald-500'
+                            : roundedNote === 2
+                            ? 'bg-blue-500'
+                            : roundedNote === 3
+                            ? 'bg-amber-500'
+                            : roundedNote === 4
+                            ? 'bg-orange-500'
+                            : 'bg-red-500'
+                        }`}
+                      >
+                        {roundedNote || '–'}
+                      </div>
+                      <div>
+                        <div className="text-[0.75rem] font-bold text-slate-400 uppercase tracking-widest">
+                          Berechneter Notenschnitt
+                        </div>
+                        <div className="text-[1.25rem] font-black text-slate-900">
+                          {avg ? avg.toFixed(2) : 'Keine Noten'}{' '}
+                          {roundedNote && (
+                            <span className="text-[0.875rem] font-bold text-slate-500 font-sans">
+                              ({NOTE_LABELS[roundedNote]})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 mb-6 text-[0.8125rem]">
+                      <div className="font-bold text-slate-700 text-[0.75rem] uppercase tracking-wider mb-2">
+                        Zusammensetzung der Gesamtnote:
+                      </div>
+                      <div className="flex justify-between items-center p-2.5 rounded-xl bg-blue-50/50 border border-blue-100">
+                        <span className="font-bold text-blue-900">📝 Schularbeiten:</span>
+                        <span className="font-mono font-bold text-blue-800">
+                          {rawNd.sa && rawNd.sa.length > 0
+                            ? rawNd.sa.filter((n: any) => n !== undefined && n !== null && n !== '').join(', ') || '–'
+                            : 'keine'}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center p-2.5 rounded-xl bg-emerald-50/50 border border-emerald-100">
+                        <span className="font-bold text-emerald-900">🎯 Tests / LZKs:</span>
+                        <span className="font-mono font-bold text-emerald-800">
+                          {rawNd.lzk && rawNd.lzk.length > 0
+                            ? rawNd.lzk.filter((n: any) => n !== undefined && n !== null && n !== '').join(', ') || '–'
+                            : 'keine'}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between items-center p-2.5 rounded-xl bg-orange-50/50 border border-orange-100">
+                        <span className="font-bold text-orange-900">✋ Mitarbeit:</span>
+                        <span className="font-mono font-bold text-orange-800">
+                          {app.mitarbeit?.[s.id]?.[activeFach]?.[sem] || 0} Punkte
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <button
+                        onClick={() => setSelectedGradeExplanationStudent(null)}
+                        className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black rounded-xl text-[0.75rem] uppercase tracking-wider cursor-pointer"
+                      >
+                        Schließen
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              );
+            })()}
+          </AnimatePresence>
 
           <AnimatePresence>
             {saAssessment && (
@@ -3590,6 +4330,35 @@ export default function Gradebook() {
             fach={activeFach}
             onClose={() => setSelectedTrendStudentId(null)}
           />
+
+          {editingAssessmentModal && (
+            <AssessmentItemModal
+              isOpen={editingAssessmentModal !== null}
+              onClose={() => setEditingAssessmentModal(null)}
+              onSave={(labelVal, dateVal, maxPointsVal) => {
+                updateColMeta(editingAssessmentModal.typ, editingAssessmentModal.idx, labelVal, dateVal, maxPointsVal);
+              }}
+              onOpenSchularbeitRaster={() => {
+                if (editingAssessmentModal.typ === 'sa') {
+                  const firstStudent = app.schueler?.[0];
+                  setSaAssessment({
+                    sid: firstStudent?.id || '',
+                    name: firstStudent ? `${firstStudent.vorname} ${firstStudent.nachname}` : 'Klasse',
+                    idx: editingAssessmentModal.idx
+                  });
+                }
+              }}
+              typ={editingAssessmentModal.typ}
+              idx={editingAssessmentModal.idx}
+              initialLabel={app.notenMeta?.[activeFach]?.colLabels?.[editingAssessmentModal.typ]?.[editingAssessmentModal.idx] || ''}
+              initialDate={app.notenMeta?.[activeFach]?.colDates?.[editingAssessmentModal.typ]?.[editingAssessmentModal.idx] || ''}
+              initialMaxPoints={getMaxPoints(app, activeFach, editingAssessmentModal.typ, editingAssessmentModal.idx)}
+              assessmentMode={assessmentMode}
+              subject={activeFach}
+              semester={sem}
+              isNew={editingAssessmentModal.isNew}
+            />
+          )}
         </div>
       )}
     </div>

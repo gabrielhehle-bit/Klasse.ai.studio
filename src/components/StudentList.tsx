@@ -6,7 +6,7 @@ import {
   Plus, Search, Edit2, Trash2, UserPlus, Phone, Globe, 
   Languages, Gift, Info, Star, GraduationCap, Activity, 
   FileText, Heart, X, Printer, History, Save, MessageSquare,
-  Clock, Filter, ChevronRight, Notebook, Sparkles, Loader2, Award, ArrowLeft, Download, Mic, AlertCircle, Map, FileUp
+  Clock, Filter, ChevronRight, Notebook, Sparkles, Loader2, Award, ArrowLeft, Download, Mic, AlertCircle, Map, FileUp, Camera
 } from 'lucide-react';
 import { KlassenlistenImport } from './KlassenlistenImport';
 import { DebouncedInput } from './DebouncedInput';
@@ -2055,13 +2055,90 @@ export default function StudentList() {
                   </div>
                 </div>
 
-                {/* Notizen */}
+                {/* Foto- & Veröffentlichungsfreigabe */}
+                <div className="space-y-2 pt-4 border-t border-slate-100">
+                  <div className="flex items-center justify-between px-1">
+                    <label className="text-[0.5625rem] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-1.5">
+                      <Camera size={11} className="text-slate-500" />
+                      <span>Foto-Freigabe</span>
+                    </label>
+                    {editingStudent?.fotoFreigabe && (
+                      <button 
+                        type="button" 
+                        onClick={() => setEditingStudent({...editingStudent, fotoFreigabe: undefined})}
+                        className="text-[0.625rem] font-medium text-slate-400 hover:text-rose-500 transition-colors"
+                      >
+                        Auswahl aufheben
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { 
+                        value: 'erlaubt', 
+                        label: 'Darf fotografiert werden', 
+                        desc: 'Grundsätzlich im schulischen Kontext'
+                      },
+                      { 
+                        value: 'nur_homepage', 
+                        label: 'Darf nur für die Schulhomepage fotografiert werden', 
+                        desc: 'Ausschließlich für die Schulhomepage'
+                      },
+                      { 
+                        value: 'nicht_erlaubt', 
+                        label: 'Darf nicht fotografiert werden', 
+                        desc: 'Keine Fotos im schulischen Rahmen'
+                      },
+                    ].map((opt) => {
+                      const isSelected = editingStudent?.fotoFreigabe === opt.value;
+                      return (
+                        <label 
+                          key={opt.value} 
+                          className={`flex items-start gap-2.5 p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                            isSelected 
+                              ? 'bg-slate-900 border-slate-900 text-white shadow-sm' 
+                              : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
+                          }`}
+                        >
+                          <input 
+                            type="radio" 
+                            name="fotoFreigabe"
+                            value={opt.value}
+                            checked={isSelected}
+                            onChange={() => setEditingStudent({...editingStudent, fotoFreigabe: opt.value as any})}
+                            className="mt-0.5 w-4 h-4 text-emerald-600 focus:ring-emerald-500 border-slate-300 shrink-0"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-xs font-bold leading-tight ${isSelected ? 'text-white' : 'text-slate-800'}`}>
+                              {opt.label}
+                            </div>
+                            <div className={`text-[0.6875rem] mt-0.5 ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
+                              {opt.desc}
+                            </div>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Gesundheit, Allergien & Notizen */}
                 <div className="space-y-4 pt-4 border-t border-slate-100">
                   <div className="space-y-0.5">
-                    <label className="text-[0.5625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Besondere Notizen</label>
+                    <label className="text-[0.5625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Allergien und Unverträglichkeiten</label>
                     <textarea 
-                      className="input-field py-2 sm:py-3 h-16 sm:h-24 resize-none"
-                      placeholder="Hinweise..."
+                      className="input-field py-2 sm:py-3 h-16 sm:h-20 resize-none"
+                      placeholder="z.B. Erdnussallergie, Laktoseintoleranz, Glutenunverträglichkeit, Wespenstiche, keine bekannten Allergien..."
+                      value={editingStudent?.allergien || ''}
+                      onChange={e => setEditingStudent({...editingStudent, allergien: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-0.5">
+                    <label className="text-[0.5625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Besondere Notizen & Hinweise</label>
+                    <textarea 
+                      className="input-field py-2 sm:py-3 h-16 sm:h-20 resize-none"
+                      placeholder="Pädagogische oder organisatorische Hinweise..."
                       value={editingStudent?.notiz || ''}
                       onChange={e => setEditingStudent({...editingStudent, notiz: e.target.value})}
                     />

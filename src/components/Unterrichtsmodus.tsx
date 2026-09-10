@@ -23,6 +23,7 @@ import { Note, UNIFIED_DEFAULT_BADGES } from "../types";
 import {
   generatePetChatResponse,
   generatePetSpeech,
+  callServerAI,
 } from "../services/aiService";
 import {
   Bell,
@@ -32,6 +33,7 @@ import {
   Info,
   Star,
   X,
+  ArrowLeft,
   Gem,
   Smile,
   Trophy,
@@ -126,6 +128,10 @@ import {
   Columns2,
   Columns3,
   Smartphone,
+  MoreHorizontal,
+  Unlock,
+  PenTool,
+  Presentation,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
@@ -163,8 +169,11 @@ import LernwoerterWidget from "./LernwoerterWidget";
 import FlowerPuzzleWidget from "./FlowerPuzzleWidget";
 const MemoizedFlowerPuzzleWidget = memo(FlowerPuzzleWidget);
 import { PenLine, Copy, AlignRight } from "lucide-react";
+import { generateStudentGroups } from "../lib/groupsAlgorithm";
+import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSelectionUtils";
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
+import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
   LärmWidgetContent,
   LernwoerterWidgetContent,
@@ -173,8 +182,8 @@ import {
   QrCodeWidgetContent,
   ImageWidgetContent,
   PhasenWidgetContent,
-  SoundsWidgetContent,
-  TodoWidgetContent,
+  SoundsWidgetContent as LegacySoundsWidgetContent,
+  TodoWidgetContent as LegacyTodoWidgetContent,
   DiensteWidgetContent,
   LinksWidgetContent,
   DrawingWidgetContent,
@@ -198,7 +207,6 @@ import {
   WordgridWidgetContent,
   RhythmWidgetContent,
   GeometryWidgetContent,
-  FractionsWidgetContent,
   WordclockWidgetContent,
   SortingWidgetContent,
   DailyquotesWidgetContent,
@@ -210,7 +218,7 @@ import {
   CompassWidgetContent,
   WeekdaysWidgetContent,
   PiggybankWidgetContent,
-  NoisescalesWidgetContent,
+  NoisescalesWidgetContent as LegacyNoisescalesWidgetContent,
   WordscrambleWidgetContent,
   ShadowshapesWidgetContent,
   EmotionsWidgetContent,
@@ -225,7 +233,6 @@ import {
   ShapepuzzleWidgetContent,
   GuitartunerWidgetContent,
   SecretagentWidgetContent,
-  FractioncakeWidgetContent,
   SentencebuildingWidgetContent,
   PatternmakerWidgetContent,
   WordexplorerWidgetContent,
@@ -246,9 +253,9 @@ import {
   PunctuationzooWidgetContent,
   SecretcodeWidgetContent,
   ClockpuzzleWidgetContent,
-  FractiongridWidgetContent,
   TrafficquizWidgetContent,
   WordbuilderWidgetContent,
+  WortSatzWerkstattWidgetContent,
   WatercycleWidgetContent,
   SoundmachineWidgetContent,
   MathbalancerWidgetContent,
@@ -265,8 +272,22 @@ import {
   FairCallWidgetContent,
 } from "./cockpit/NewWidgets";
 import { TimelineWidgetContent } from "./cockpit/TimelineWidgetContent";
+import { ClockWidgetContent } from "./cockpit/ClockWidgetContent";
+import { PhasesWidgetContent } from "./cockpit/PhasesWidgetContent";
+import { TrafficLightWidgetContent } from "./cockpit/TrafficLightWidgetContent";
+import { NoiseMeterWidgetContent } from "./cockpit/NoiseMeterWidgetContent";
+import { NoiseScaleWidgetContent } from "./cockpit/NoiseScaleWidgetContent";
+import { SoundsWidgetContent } from "./cockpit/SoundsWidgetContent";
+import { TodoWidgetContent } from "./cockpit/TodoWidgetContent";
 import { RandomNameWidgetContent } from "./cockpit/RandomNameWidgetContent";
 import { AnschauungWidgetContent } from "./cockpit/AnschauungWidgetContent";
+import { KidAttendanceWidgetContent } from "./cockpit/KidAttendanceWidgetContent";
+import { ZahlenraumStudioContent } from "./cockpit/ZahlenraumStudioContent";
+import { KopfrechenStudioContent } from "./cockpit/KopfrechenStudioContent";
+import { FractionVisualizerContent } from "./cockpit/FractionVisualizerContent";
+import { TimerWidgetContent } from "./cockpit/TimerWidgetContent";
+import { InstructionWidget } from "./cockpit/widgets/InstructionWidget";
+import { RetiredMathWidgetFallback } from "./cockpit/widgets/RetiredMathWidgetFallback";
 import { CockpitWidgetConfig } from "../types";
 
 const QUICK_WIDGET_META: Record<string, { label: string; icon: string }> = {
@@ -1587,1152 +1608,8 @@ const FOKUS_THEMES_MAP: Record<string, any> = {
   },
 };
 
-const InstructionWidgetContent = ({
-  widget,
-  onUpdate,
-  app,
-  setApp,
-  currentIsLight,
-  isSplit = false,
-}: any) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [pixelHeight, setPixelHeight] = useState(250);
-  const [deleteConfirmState, setDeleteConfirmState] = useState<
-    "idle" | "confirm"
-  >("idle");
-  const confirmTimer = useRef<any>(null);
-
-  // Core values
-  const text = app.vertretungHinweise || "";
-  const wStyle = widget.settings || {};
-  const activeMode = wStyle.mode || "text"; // 'text' or 'picto'
-  const pictograms = wStyle.pictograms || [];
-  const fontFamilyValue = wStyle.fontFamily || "Inter";
-  const currentPattern = wStyle.pattern || "blanko";
-  const sizeMultiplier = wStyle.fontSizeMultiplier || 1.0;
-  const currentAlign = wStyle.align || "center";
-  const isFrameDecor = wStyle.frameDecor ?? true;
-
-  // Premium Themes list
-  const WORKSPACE_THEMES = [
-    {
-      id: "chalkboard",
-      name: "Schultafel 🍏",
-      bgClass: "bg-[#132c1e] text-neutral-100 border-[#1f402c] shadow-inner",
-      title: "Tafel",
-      caretColor: "#10b981",
-      defaultColor: "#fafafa",
-      placeholderClass: "placeholder-emerald-400/20",
-      colors: [
-        { id: "default", css: "#fafafa", label: "Kreide-Weiß" },
-        { id: "slate", css: "#c7d2fe", label: "Schlier-Lavendel" },
-        { id: "red", css: "#fca5a5", label: "Kreide-Rot" },
-        { id: "green", css: "#a7f3d0", label: "Kreide-Grün" },
-        { id: "blue", css: "#93c5fd", label: "Kreide-Blau" },
-        { id: "orange", css: "#fef08a", label: "Kreide-Gelb" },
-      ],
-    },
-    {
-      id: "whiteboard",
-      name: "Whiteboard 💻",
-      bgClass: "bg-[#fafafa] text-slate-900 border-slate-300 shadow-sm",
-      title: "Whiteboard",
-      caretColor: "#4f46e5",
-      defaultColor: "#1e293b",
-      placeholderClass: "placeholder-slate-400/40",
-      colors: [
-        { id: "default", css: "#1e293b", label: "Standard-Dunkel" },
-        { id: "slate", css: "#475569", label: "Faserschreiber-Grau" },
-        { id: "red", css: "#dc2626", label: "Faserschreiber-Rot" },
-        { id: "green", css: "#16a34a", label: "Faserschreiber-Grün" },
-        { id: "blue", css: "#2563eb", label: "Faserschreiber-Blau" },
-        { id: "orange", css: "#ea580c", label: "Faserschreiber-Orange" },
-      ],
-    },
-    {
-      id: "slateboard",
-      name: "Schiefergrau 🪨",
-      bgClass: "bg-[#1e293b] text-slate-100 border-slate-700 shadow-inner",
-      title: "Schiefer",
-      caretColor: "#0ea5e9",
-      defaultColor: "#f8fafc",
-      placeholderClass: "placeholder-slate-500/30",
-      colors: [
-        { id: "default", css: "#f8fafc", label: "Schiefer-Weiß" },
-        { id: "slate", css: "#0f172a", label: "Tiefschwarz" },
-        { id: "red", css: "#fecaca", label: "Pastell-Rot" },
-        { id: "green", css: "#34d399", label: "Neon-Minze" },
-        { id: "blue", css: "#bae6fd", label: "Pastell-Blau" },
-        { id: "orange", css: "#fef08a", label: "Pastell-Gelb" },
-      ],
-    },
-    {
-      id: "parchment",
-      name: "Vintage Sepia 📜",
-      bgClass: "bg-[#faf6e9] text-amber-950 border-amber-200/80 shadow-md",
-      title: "Sepia",
-      caretColor: "#92400e",
-      defaultColor: "#451a03",
-      placeholderClass: "placeholder-amber-800/25",
-      colors: [
-        { id: "default", css: "#451a03", label: "Sepia-Dunkel" },
-        { id: "slate", css: "#78350f", label: "Zimtbraun" },
-        { id: "red", css: "#991b1b", label: "Rubinrot" },
-        { id: "green", css: "#064e3b", label: "Waldgrün" },
-        { id: "blue", css: "#1e3a8a", label: "Preußischblau" },
-        { id: "orange", css: "#c2410c", label: "Sienna" },
-      ],
-    },
-    {
-      id: "lavender",
-      name: "Soft Lavendel 🪻",
-      bgClass: "bg-[#f5f3ff] text-indigo-950 border-indigo-200 shadow-sm",
-      title: "Lavendel",
-      caretColor: "#7c3aed",
-      defaultColor: "#312e81",
-      placeholderClass: "placeholder-indigo-300/35",
-      colors: [
-        { id: "default", css: "#312e81", label: "Tiefindigo" },
-        { id: "slate", css: "#4f46e5", label: "Flieder" },
-        { id: "red", css: "#db2777", label: "Himbeere" },
-        { id: "green", css: "#0f766e", label: "Salbeigrün" },
-        { id: "blue", css: "#1d4ed8", label: "Königsblau" },
-        { id: "orange", css: "#7c3aed", label: "Kreativviolett" },
-      ],
-    },
-    {
-      id: "candy",
-      name: "Candy Pop 🍬",
-      bgClass:
-        "bg-fuchsia-100 text-fuchsia-950 border-fuchsia-300 shadow-md bg-[linear-gradient(45deg,#fdf4ff_0%,#fff1f2_100%)]",
-      title: "Candy",
-      caretColor: "#d946ef",
-      defaultColor: "#701a75",
-      placeholderClass: "placeholder-fuchsia-400/30",
-      colors: [
-        { id: "default", css: "#701a75", label: "Pflaume" },
-        { id: "slate", css: "#d946ef", label: "Neon-Pink" },
-        { id: "red", css: "#f43f5e", label: "Kirschrot" },
-        { id: "green", css: "#10b981", label: "Smaragd" },
-        { id: "blue", css: "#0ea5e9", label: "Ozeanblau" },
-        { id: "orange", css: "#f59e0b", label: "Mango" },
-      ],
-    },
-    {
-      id: "sticky_yellow",
-      name: "Sticky Gelb 📌",
-      bgClass: "bg-amber-100 text-amber-950 border-amber-300 shadow-lg bg-[linear-gradient(135deg,#fef08a_0%,#fef08a_80%,#fef9c3_100%)]",
-      title: "Sticky Gelb",
-      caretColor: "#b45309",
-      defaultColor: "#78350f",
-      placeholderClass: "placeholder-amber-700/20",
-      colors: [
-        { id: "default", css: "#78350f", label: "Zimtbraun" },
-        { id: "slate", css: "#1e293b", label: "Filzschreiber" },
-        { id: "red", css: "#b91c1c", label: "Faser-Rot" },
-        { id: "green", css: "#047857", label: "Faser-Grün" },
-        { id: "blue", css: "#1d4ed8", label: "Faser-Blau" },
-        { id: "orange", css: "#ea580c", label: "Faser-Orange" },
-      ],
-    },
-  ];
-
-  const currentThemeId = wStyle.themeId || "chalkboard";
-  const activeTheme =
-    WORKSPACE_THEMES.find((t) => t.id === currentThemeId) ||
-    WORKSPACE_THEMES[0];
-
-  // Classroom quick-templates
-  const QUICK_SNIPPETS = [
-    {
-      label: "📌 Hausaufgabe",
-      text: "📌 HAUSAUFGABE:\n──────────────────\n• Buch S. ___ Nr. ___ \n• Arbeitsheft S. ___ Nr. ___ \n• Bis zum nächsten Mal fertigstellen.",
-    },
-    {
-      label: "🤫 Stille Arbeit",
-      text: "🤫 STILLARBEIT:\n──────────────────\n• Lies S. ___ aufmerksam im Heft.\n• Bearbeite Aufgabe ___ einzeln.\n• Melde dich leise bei Fragen.",
-    },
-    {
-      label: "👥 Partnerarbeit",
-      text: "👥 PARTNERARBEIT:\n──────────────────\n• Sprecht im Flüsterton.\n• Findet eine gemeinsame Lösung für Aufgabe ___ \n• Zeitdauer: ___ Minuten.",
-    },
-    {
-      label: "🧠 Tagesrätsel",
-      text: "🧠 TAGESRÄTSEL / DENKSPORT:\n──────────────────\n• Welches Wort suchen wir? \n• Wer es weiß, meldet sich schweigend!",
-    },
-    {
-      label: "💡 Leitfrage",
-      text: "💡 UNSERE HEUTIGE FRAGE:\n──────────────────\n» ___________ ? «",
-    },
-  ];
-
-  // Speech integration (Text-to-Speech)
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const handleSpeak = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if ("speechSynthesis" in window) {
-      if (isSpeaking) {
-        window.speechSynthesis.cancel();
-        setIsSpeaking(false);
-      } else {
-        if (!text) return;
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = "de-DE";
-        utterance.rate = 0.9; // Adjusted slower for school children
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
-        setIsSpeaking(true);
-        window.speechSynthesis.speak(utterance);
-      }
-    }
-  };
-
-  // Clipboard copy with feedback
-  const [copied, setCopied] = useState(false);
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Mini countdown timer support
-  const [miniTimerSeconds, setMiniTimerSeconds] = useState<number | null>(null);
-  const [miniTimerRunning, setMiniTimerRunning] = useState(false);
-  const [showTimerPresets, setShowTimerPresets] = useState(false);
-  const miniTimerRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (miniTimerRunning && miniTimerSeconds !== null && miniTimerSeconds > 0) {
-      miniTimerRef.current = setInterval(() => {
-        setMiniTimerSeconds((prev) => {
-          if (prev === null || prev <= 1) {
-            clearInterval(miniTimerRef.current);
-            setMiniTimerRunning(false);
-            // Dynamic Web Audio API school bell bell chime
-            try {
-              const audioCtx = new (
-                window.AudioContext || (window as any).webkitAudioContext
-              )();
-              const playBeep = (
-                freq: number,
-                start: number,
-                duration: number,
-              ) => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.type = "sine";
-                osc.frequency.setValueAtTime(freq, start);
-                gain.gain.setValueAtTime(0.2, start);
-                gain.gain.exponentialRampToValueAtTime(0.01, start + duration);
-                osc.start(start);
-                osc.stop(start + duration);
-              };
-              const now = audioCtx.currentTime;
-              playBeep(523.25, now, 0.4); // C5
-              playBeep(659.25, now + 0.15, 0.4); // E5
-              playBeep(783.99, now + 0.3, 0.6); // G5
-            } catch (err) {
-              console.log("Audio failed", err);
-            }
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      clearInterval(miniTimerRef.current);
-    }
-    return () => clearInterval(miniTimerRef.current);
-  }, [miniTimerRunning]);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      for (let entry of entries) {
-        setPixelHeight(
-          entry.contentRect.height || entry.target.clientHeight || 250,
-        );
-      }
-    });
-    observer.observe(containerRef.current);
-    return () => {
-      observer.disconnect();
-      if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (confirmTimer.current) clearTimeout(confirmTimer.current);
-    };
-  }, []);
-
-  const startMiniTimer = (mins: number) => {
-    setMiniTimerSeconds(mins * 60);
-    setMiniTimerRunning(true);
-  };
-
-  // Background pattern changer
-  const selectPattern = (
-    pattern: "blanko" | "liniert" | "kariert" | "haeuschen",
-  ) => {
-    onUpdate({
-      settings: { ...wStyle, pattern },
-    });
-  };
-
-  // Font sizes formulas
-  const baseFontSize = Math.min(72, Math.max(14, pixelHeight * 0.08));
-  const fontSize = Math.min(130, Math.max(12, baseFontSize * sizeMultiplier));
-
-  const changeFontSizeMultiplier = (delta: number) => {
-    const current = wStyle.fontSizeMultiplier || 1.0;
-    const next = Math.min(
-      2.5,
-      Math.max(0.4, Number((current + delta).toFixed(1))),
-    );
-    onUpdate({
-      settings: { ...wStyle, fontSizeMultiplier: next },
-    });
-  };
-
-  // Trash click with double click confirm
-  const handleTrashClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (deleteConfirmState === "idle") {
-      setDeleteConfirmState("confirm");
-      if (confirmTimer.current) clearTimeout(confirmTimer.current);
-      confirmTimer.current = setTimeout(() => {
-        setDeleteConfirmState("idle");
-      }, 3000);
-    } else {
-      if (activeMode === "text") {
-        setApp((prev: any) => ({ ...prev, vertretungHinweise: "" }));
-      } else {
-        onUpdate({
-          settings: { ...wStyle, pictograms: [] },
-        });
-      }
-      setDeleteConfirmState("idle");
-      if (confirmTimer.current) clearTimeout(confirmTimer.current);
-    }
-  };
-
-  // Standard cursive handwritings mapping
-  const getFontFamilyValue = (f: string) => {
-    if (f === "Dyslexic")
-      return '"OpenDyslexic", "Lexend", "Lexend Deca", sans-serif';
-    if (f === "Schulschrift")
-      return '"Edu VIC WA NT Beginner", "Patrick Hand", cursive';
-    if (f === "Druckschrift") return '"Playpen Sans", "Comic Neue", cursive';
-    if (f === "Georgia") return "Georgia, Cambria, serif";
-    if (f === "JetBrains Mono") return '"JetBrains Mono", Menlo, monospace';
-    if (f === "Comic") return '"Comic Sans MS", "Comic Neue", cursive';
-    if (f === "Kalam") return '"Kalam", cursive';
-    if (f === "Caveat") return '"Caveat", cursive';
-    if (f === "Fredoka") return '"Fredoka", sans-serif';
-    return "Inter, system-ui, sans-serif";
-  };
-
-  // Inline dynamic SVG backgrounds adjusted to current board color
-  const getPatternStyle = (pattern: string, themeId: string) => {
-    if (pattern === "blanko") return {};
-
-    let strokeColor = "#cbd5e1";
-    if (themeId === "chalkboard") strokeColor = "#264f37";
-    else if (themeId === "slateboard") strokeColor = "#334155";
-    else if (themeId === "whiteboard") strokeColor = "#e2e8f0";
-    else if (themeId === "parchment") strokeColor = "#e8dfbd";
-    else if (themeId === "lavender") strokeColor = "#ddd6fe";
-
-    let svg = "";
-    if (pattern === "liniert") {
-      svg = `<svg xmlns='http://www.w3.org/2000/svg' width='100' height='40'><line x1='0' y1='39' x2='100' y2='39' stroke='${strokeColor}' stroke-width='1.2' opacity='0.85'/></svg>`;
-    } else if (pattern === "kariert") {
-      svg = `<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><path d='M 20 0 L 0 0 0 20' fill='none' stroke='${strokeColor}' stroke-width='0.8' opacity='0.75'/></svg>`;
-    } else if (pattern === "haeuschen") {
-      const isDark = themeId === "chalkboard" || themeId === "slateboard";
-      const rectFill = isDark ? "#ffffff" : "#000000";
-      svg = `<svg xmlns='http://www.w3.org/2000/svg' width='100' height='48'><rect x='0' y='16' width='100' height='16' fill='${rectFill}' opacity='0.05'/><line x1='0' y1='0' x2='100' y2='0' stroke='${strokeColor}' stroke-width='0.6'/><line x1='0' y1='16' x2='100' y2='16' stroke='${strokeColor}' stroke-width='1.2'/><line x1='0' y1='32' x2='100' y2='32' stroke='${strokeColor}' stroke-width='1.2'/><line x1='0' y1='48' x2='100' y2='48' stroke='${strokeColor}' stroke-width='0.6'/></svg>`;
-    } else if (pattern === "punktraster") {
-      svg = `<svg xmlns='http://www.w3.org/2000/svg' width='25' height='25'><circle cx='12.5' cy='12.5' r='1.5' fill='${strokeColor}' opacity='0.7'/></svg>`;
-    } else if (pattern === "notenzeilen") {
-      svg = `<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'>
-        <line x1='0' y1='10' x2='100' y2='10' stroke='${strokeColor}' stroke-width='1'/>
-        <line x1='0' y1='20' x2='100' y2='20' stroke='${strokeColor}' stroke-width='1'/>
-        <line x1='0' y1='30' x2='100' y2='30' stroke='${strokeColor}' stroke-width='1'/>
-        <line x1='0' y1='40' x2='100' y2='40' stroke='${strokeColor}' stroke-width='1'/>
-        <line x1='0' y1='50' x2='100' y2='50' stroke='${strokeColor}' stroke-width='1'/>
-      </svg>`;
-    } else if (pattern === "koordinaten") {
-      svg = `<svg xmlns='http://www.w3.org/2000/svg' width='25' height='25'><path d='M 25 0 L 0 0 0 25' fill='none' stroke='${strokeColor}' stroke-width='0.7' opacity='0.6'/></svg>`;
-    } else if (pattern === "waben") {
-      svg = `<svg xmlns='http://www.w3.org/2000/svg' width='60' height='104'>
-        <path d='M30 0 L60 17.32 L60 51.96 L30 69.28 L0 51.96 L0 17.32 Z' fill='none' stroke='${strokeColor}' stroke-width='0.8' opacity='0.6'/>
-      </svg>`;
-    } else if (pattern === "isometrisch") {
-      svg = `<svg xmlns='http://www.w3.org/2000/svg' width='30' height='26'>
-        <circle cx='15' cy='0' r='1.5' fill='${strokeColor}' opacity='0.7'/>
-        <circle cx='0' cy='26' r='1.5' fill='${strokeColor}' opacity='0.7'/>
-        <circle cx='30' cy='26' r='1.5' fill='${strokeColor}' opacity='0.7'/>
-      </svg>`;
-    }
-
-    if (!svg) return {};
-    return {
-      backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(svg)}")`,
-      backgroundRepeat: "repeat",
-      backgroundPosition: "top left",
-    };
-  };
-
-  const patternStyle = isSplit
-    ? {}
-    : getPatternStyle(currentPattern, currentThemeId);
-
-  // Spacers / line-height rules
-  const inlineLineHeight = isSplit
-    ? "1.4"
-    : currentPattern === "haeuschen"
-      ? "48px"
-      : currentPattern === "liniert"
-        ? "40px"
-        : "1.4";
-
-  // Multi ink chalk colors mapping
-  const currentColorId = wStyle.fontColorId || "default";
-  const themeColors = activeTheme.colors;
-  const currentFontColorObj =
-    themeColors.find((c) => c.id === currentColorId) || themeColors[0];
-
-  const appliedTextColor = isSplit
-    ? "#1e293b"
-    : currentColorId === "default"
-      ? activeTheme.defaultColor
-      : currentFontColorObj.css;
-
-  const appliedBgClass = isSplit
-    ? "bg-white text-slate-900 border-none shadow-none"
-    : activeTheme.bgClass;
-
-  // Toggle step checklist status for Pictograms (Unbegonnen -> Aktiv -> Fertig)
-  const toggleStepStatus = (itemId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const nextPictograms = pictograms.map((p: any) => {
-      if (p.id !== itemId) return p;
-      const currentStatus = p.status || "idle";
-      let nextStatus = "idle";
-      if (currentStatus === "idle") nextStatus = "active";
-      else if (currentStatus === "active") nextStatus = "done";
-      return { ...p, status: nextStatus };
-    });
-    onUpdate({ settings: { ...wStyle, pictograms: nextPictograms } });
-  };
-
-  const getStatusLabel = (status?: "active" | "done") => {
-    if (status === "done")
-      return {
-        symbol: "✅",
-        color: "border-emerald-500 bg-emerald-500/20 text-emerald-400",
-      };
-    if (status === "active")
-      return {
-        symbol: "⚡",
-        color:
-          "border-amber-400 bg-amber-400/20 text-amber-300 ring-2 ring-amber-400/50 animate-pulse",
-      };
-    return { symbol: "⚪", color: "border-slate-500/50 bg-black/5" };
-  };
-
-  return (
-    <div
-      ref={containerRef}
-      className="flex-grow flex flex-col min-h-0 w-full relative h-full rounded-xl overflow-hidden group select-none"
-    >
-      {/* Outer Workspace Canvas */}
-      <div
-        className={`flex-grow w-full rounded-xl border flex flex-col p-6 overflow-y-auto relative transition-all duration-300 ${appliedBgClass} cursor-text`}
-        style={activeMode === "text" ? patternStyle : undefined}
-        onClick={(e) => {
-          if (activeMode === "text") {
-            if (
-              (e.target as HTMLElement).closest(".whiteboard-toolbar") ||
-              (e.target as HTMLElement).closest(".no-focus")
-            ) {
-              return;
-            }
-            textareaRef.current?.focus();
-          }
-        }}
-      >
-        {/* Frame borders decoration overlays */}
-        {isFrameDecor && !isSplit && (
-          <>
-            <div
-              className={`absolute top-2 left-2 w-5 h-5 border-t-2 border-l-2 ${activeTheme.id === "whiteboard" ? "border-indigo-200" : "border-white/10"} pointer-events-none rounded-tl-md`}
-            />
-            <div
-              className={`absolute top-2 right-2 w-5 h-5 border-t-2 border-r-2 ${activeTheme.id === "whiteboard" ? "border-indigo-200" : "border-white/10"} pointer-events-none rounded-tr-md`}
-            />
-            <div
-              className={`absolute bottom-2 left-2 w-5 h-5 border-b-2 border-l-2 ${activeTheme.id === "whiteboard" ? "border-indigo-200" : "border-white/10"} pointer-events-none rounded-bl-md`}
-            />
-            <div
-              className={`absolute bottom-2 right-2 w-5 h-5 border-b-2 border-r-2 ${activeTheme.id === "whiteboard" ? "border-indigo-200" : "border-white/10"} pointer-events-none rounded-br-md`}
-            />
-          </>
-        )}
-
-        {/* Embedded Mini-Timer display */}
-        {miniTimerSeconds !== null && !isSplit && (
-          <div
-            className={`no-focus shrink-0 w-full py-2 px-4 mb-4 rounded-xl border flex items-center justify-between shadow-xs animate-fade-in ${
-              activeTheme.id === "whiteboard" || activeTheme.id === "lavender"
-                ? "bg-indigo-50 border-indigo-200 text-indigo-900"
-                : "bg-black/35 border-white/5 text-amber-200"
-            }`}
-          >
-            <div className="flex items-center gap-2 font-mono">
-              <span
-                className={`text-[13px] font-black ${miniTimerRunning ? "animate-pulse" : ""}`}
-              >
-                ⌛ {Math.floor(miniTimerSeconds / 60)}:
-                {(miniTimerSeconds % 60).toString().padStart(2, "0")}
-              </span>
-              {miniTimerSeconds === 0 ? (
-                <span className="text-[10px] uppercase font-black text-rose-500 animate-bounce tracking-widest ml-2">
-                  🎉 Zeit vorbei!
-                </span>
-              ) : (
-                <span className="text-[8.5px] uppercase font-black tracking-widest opacity-60 ml-1">
-                  Klassenzeit
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMiniTimerRunning(!miniTimerRunning);
-                }}
-                className={`px-3 py-0.5 rounded-lg text-[9px] font-black border transition-all hover:scale-105 active:scale-95 cursor-pointer ${
-                  miniTimerRunning
-                    ? "bg-amber-500 hover:bg-amber-600 border-amber-500 text-white"
-                    : "bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white"
-                }`}
-              >
-                {miniTimerRunning ? "Pause" : "Start"}
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMiniTimerRunning(false);
-                  setMiniTimerSeconds(null);
-                }}
-                className="px-2 py-0.5 rounded-lg text-[9px] font-bold bg-rose-500/20 text-rose-300 hover:bg-rose-500 hover:text-white transition-colors cursor-pointer"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Classroom Quick Templates segment */}
-        {activeMode === "text" && !isSplit && (
-          <div className="no-focus flex flex-wrap gap-1.5 mb-3.5 pb-2.5 border-b border-dashed border-slate-200/10 shrink-0 select-none">
-            <span className="text-[8px] font-black tracking-widest opacity-60 uppercase self-center mr-1">
-              📝 Vorlagen:
-            </span>
-            {QUICK_SNIPPETS.map((snip) => (
-              <button
-                key={snip.label}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const spacing = text ? "\n\n" : "";
-                  setApp((prev: any) => ({
-                    ...prev,
-                    vertretungHinweise: text + spacing + snip.text,
-                  }));
-                  setTimeout(() => textareaRef.current?.focus(), 50);
-                }}
-                className={`px-2 py-1 rounded-lg text-[8.5px] font-black transition-all hover:scale-105 active:scale-95 border cursor-pointer ${
-                  activeTheme.id === "whiteboard"
-                    ? "bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-200 shadow-xs"
-                    : "bg-white/5 hover:bg-white/10 text-neutral-200 border-white/5"
-                }`}
-              >
-                {snip.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Core content rendering */}
-        {activeMode === "text" ? (
-          <textarea
-            ref={textareaRef}
-            className={`instruction-widget-textarea w-full h-full bg-transparent border-none outline-none resize-none font-bold select-text pb-28 ${activeTheme.placeholderClass}`}
-            style={{
-              fontFamily: getFontFamilyValue(fontFamilyValue),
-              fontSize: `${fontSize}px`,
-              lineHeight: inlineLineHeight,
-              color: appliedTextColor,
-              "--instruction-color": appliedTextColor,
-              caretColor: activeTheme.caretColor,
-              textAlign: currentAlign,
-              paddingTop: currentPattern === "haeuschen" ? "16px" : "0px",
-            } as React.CSSProperties}
-            value={text}
-            onChange={(e) =>
-              setApp((prev: any) => ({
-                ...prev,
-                vertretungHinweise: e.target.value,
-              }))
-            }
-            placeholder="Tippe hier deine Arbeitsanweisung, Tagesmotto oder Tafelnotizen für die Klasse ein..."
-          />
-        ) : (
-          /* PIKTOGRAMM SEQUENCE (With Interactive Milestone Checklist States) */
-          <div className="flex flex-col h-full w-full justify-between gap-5 min-h-0 select-none pb-24">
-            <div className="flex-grow flex flex-col justify-center min-h-[140px] bg-black/5 dark:bg-black/15 border border-border/5 rounded-2xl p-4">
-              {pictograms.length > 0 ? (
-                <div className="flex flex-wrap items-center justify-center gap-4 overflow-y-auto no-scrollbar py-2">
-                  {pictograms.map((item: any, idx: number) => {
-                    const isLast = idx === pictograms.length - 1;
-                    const statusConfig = getStatusLabel(item.status);
-
-                    return (
-                      <React.Fragment key={item.id}>
-                        {/* Interactive Step Card */}
-                        <div
-                          onClick={(e) => toggleStepStatus(item.id, e)}
-                          title="Frortschritt: Klicke zum Wechseln zwischen Offen ⚪, Aktiv 🔥 und Fertig ✅"
-                          className="flex flex-col items-center relative group/picto bg-white/5 border border-indigo-500/10 hover:border-indigo-500/40 p-3 rounded-2xl shadow-md min-w-[105px] max-w-[130px] transition-all hover:scale-[1.05] cursor-pointer"
-                        >
-                          {/* Top badge index */}
-                          <span className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-indigo-600 text-white font-black text-[9px] flex items-center justify-center shadow-md">
-                            {idx + 1}
-                          </span>
-
-                          {/* Delete pill */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const nextPictograms = pictograms.filter(
-                                (p: any) => p.id !== item.id,
-                              );
-                              onUpdate({
-                                settings: {
-                                  ...wStyle,
-                                  pictograms: nextPictograms,
-                                },
-                              });
-                            }}
-                            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-rose-500 text-white font-black text-[10px] flex items-center justify-center opacity-0 group-hover/picto:opacity-100 transition-opacity hover:bg-rose-600 shadow cursor-pointer"
-                            title="Schritt löschen"
-                          >
-                            ✕
-                          </button>
-
-                          {/* Status Milestone Indicator */}
-                          <div
-                            className={`absolute top-1.5 right-1.5 w-4 h-4 rounded-full border text-[8px] font-black flex items-center justify-center transition-all ${statusConfig.color}`}
-                          >
-                            {statusConfig.symbol}
-                          </div>
-
-                          {/* Character Emoji */}
-                          <div className="text-3xl filter drop-shadow mb-1.5 select-none">
-                            {item.emoji}
-                          </div>
-
-                          {/* Title */}
-                          <span className="text-[10px] font-black opacity-90 truncate max-w-full mb-1 leading-tight text-center">
-                            {item.name}
-                          </span>
-
-                          {/* Note text field */}
-                          <input
-                            type="text"
-                            placeholder="Zusatzinfo..."
-                            value={item.note || ""}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
-                              const nextPictograms = pictograms.map((p: any) =>
-                                p.id === item.id
-                                  ? { ...p, note: e.target.value }
-                                  : p,
-                              );
-                              onUpdate({
-                                settings: {
-                                  ...wStyle,
-                                  pictograms: nextPictograms,
-                                },
-                              });
-                            }}
-                            className="w-full text-center bg-black/10 dark:bg-white/10 text-[9px] font-bold py-0.5 px-1.5 rounded border border-transparent focus:border-indigo-500 focus:bg-white focus:text-indigo-950 outline-none"
-                          />
-                        </div>
-
-                        {/* Arrow link indicator */}
-                        {!isLast && (
-                          <span className="text-sm font-black text-indigo-500 animate-pulse select-none self-center">
-                            ➔
-                          </span>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-6 text-center text-text-muted">
-                  <span className="text-3xl mb-1.5 filter opacity-60">🖼️</span>
-                  <p className="text-[10px] font-black uppercase tracking-wider text-indigo-400">
-                    Keine Ablaufschritte gewählt
-                  </p>
-                  <p className="text-[8.5px] font-bold mt-1 max-w-[240px]">
-                    Klicke unten auf die Symbole, um deinen ersten visuellen
-                    Ablaufplan aufzubauen!
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Symbols Selectors */}
-            <div className="space-y-2 shrink-0 bg-white/5 p-3 rounded-2xl border border-white/5">
-              <div className="flex justify-between items-center px-1">
-                <span className="text-[8.5px] font-black tracking-widest uppercase opacity-75">
-                  🎨 Ablauf-Aktivitäten (Klick zum Einfügen):
-                </span>
-                {pictograms.length > 0 && (
-                  <button
-                    onClick={() =>
-                      onUpdate({ settings: { ...wStyle, pictograms: [] } })
-                    }
-                    className="text-[8px] font-black uppercase text-rose-500 hover:underline cursor-pointer"
-                  >
-                    Alles Löschen
-                  </button>
-                )}
-              </div>
-
-              {[
-                {
-                  title: "Sozialform & Lautstärke",
-                  symbols: [
-                    { emoji: "🔇", name: "Leisearbeit" },
-                    { emoji: "🤫", name: "Flüstern" },
-                    { emoji: "👥", name: "Partner" },
-                    { emoji: "🤝", name: "Gruppe" },
-                    { emoji: "👂", name: "Zuhören" },
-                  ],
-                },
-                {
-                  title: "Aktivitäten",
-                  symbols: [
-                    { emoji: "📖", name: "Lesen" },
-                    { emoji: "✏️", name: "Schreiben" },
-                    { emoji: "✂", name: "Schneiden" },
-                    { emoji: "🧪", name: "Kleben" },
-                    { emoji: "🖍️", name: "Malen" },
-                    { emoji: "🧮", name: "Rechnen" },
-                    { emoji: "🧠", name: "Nachdenken" },
-                    { emoji: "💻", name: "Digital" },
-                  ],
-                },
-                {
-                  title: "Ordnung & Ablauf",
-                  symbols: [
-                    { emoji: "🧹", name: "Aufräumen" },
-                    { emoji: "🎒", name: "Tasche" },
-                    { emoji: "❓", name: "Fragerunde" },
-                    { emoji: "🍎", name: "Pause" },
-                  ],
-                },
-              ].map((cat, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="text-[7.5px] font-extrabold opacity-60 px-1">
-                    {cat.title}
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 animate-fade-in">
-                    {cat.symbols.map((sym) => (
-                      <button
-                        key={sym.name}
-                        onClick={() => {
-                          const nextPicto = {
-                            id: `picto-${Date.now()}-${Math.random().toString(36).substring(2, 4)}`,
-                            emoji: sym.emoji,
-                            name: sym.name,
-                            note: "",
-                            status: "idle",
-                          };
-                          onUpdate({
-                            settings: {
-                              ...wStyle,
-                              pictograms: [...pictograms, nextPicto],
-                            },
-                          });
-                        }}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 hover:bg-indigo-600 hover:text-white border border-white/5 rounded-xl transition-all cursor-pointer font-black select-none text-[8.5px] shadow-sm active:scale-95 text-text-primary"
-                      >
-                        <span className="text-xs filter drop-shadow">
-                          {sym.emoji}
-                        </span>
-                        <span>{sym.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* FLOATING MASTER TAFT-TOOLBAR (Fully Refactored & Polished) */}
-      {!isSplit && (
-        <div
-          className="whiteboard-toolbar absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col md:flex-row items-center bg-white/95 dark:bg-zinc-950/95 border border-slate-200 dark:border-white/10 px-4 py-2.5 rounded-2xl md:rounded-full shadow-2xl backdrop-blur-md transition-all duration-300 z-50 select-none shrink-0 gap-2 pointer-events-auto hover:border-indigo-500/30"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Flat Toggle Button: Mode Choice */}
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-0.5 rounded-full border border-slate-200 dark:border-white/5 mr-1 shrink-0">
-            <button
-              onClick={() =>
-                onUpdate({ settings: { ...wStyle, mode: "text" } })
-              }
-              className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all select-none cursor-pointer border ${
-                activeMode === "text"
-                  ? "bg-indigo-600 border-indigo-600 text-white shadow-sm"
-                  : "text-text-muted hover:text-text-primary border-transparent"
-              }`}
-            >
-              📝 Text
-            </button>
-            <button
-              onClick={() =>
-                onUpdate({ settings: { ...wStyle, mode: "picto" } })
-              }
-              className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider transition-all select-none cursor-pointer border ${
-                activeMode === "picto"
-                  ? "bg-indigo-600 border-indigo-600 text-white shadow-sm"
-                  : "text-text-muted hover:text-text-primary border-transparent"
-              }`}
-            >
-              🖼️ Ablauf
-            </button>
-          </div>
-
-          {activeMode === "text" ? (
-            <>
-              {/* Preset Background Themes Picker */}
-              <div className="flex items-center gap-1.5 border-l border-slate-200/50 dark:border-white/10 pl-2 pr-1.5">
-                {WORKSPACE_THEMES.map((theme) => {
-                  const isActive = currentThemeId === theme.id;
-                  return (
-                    <button
-                      key={theme.id}
-                      onClick={() =>
-                        onUpdate({
-                          settings: {
-                            ...wStyle,
-                            themeId: theme.id,
-                            fontColorId: "default",
-                          },
-                        })
-                      }
-                      className={`w-5 h-5 rounded-full border-2 transition-all cursor-pointer hover:scale-115 relative flex items-center justify-center ${
-                        theme.id === "chalkboard"
-                          ? "bg-[#132c1e] border-emerald-500"
-                          : theme.id === "whiteboard"
-                            ? "bg-[#f8fafc] border-slate-400"
-                            : theme.id === "slateboard"
-                              ? "bg-[#1e293b] border-slate-600"
-                              : theme.id === "parchment"
-                                ? "bg-[#faf6e9] border-amber-400"
-                                : theme.id === "lavender"
-                                  ? "bg-[#f5f3ff] border-indigo-400"
-                                  : theme.id === "sticky_yellow"
-                                    ? "bg-[#fef08a] border-amber-400"
-                                    : "bg-fuchsia-200 border-fuchsia-500"
-                      } ${isActive ? "ring-2 ring-indigo-500 ring-offset-2" : "opacity-80"}`}
-                      title={`${theme.name} Preset laden`}
-                    >
-                      {isActive && (
-                        <Check
-                          size={10}
-                          className="text-indigo-600 drop-shadow-sm font-black"
-                        />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Advanced Handwriting Font Family Row */}
-              <div className="flex items-center gap-1 border-l border-slate-200/50 dark:border-white/10 pl-2 overflow-x-auto no-scrollbar max-w-[200px] md:max-w-none">
-                {[
-                  { id: "Inter", label: "Std" },
-                  { id: "Schulschrift", label: "Schul" },
-                  { id: "Druckschrift", label: "Druck" },
-                  { id: "Kalam", label: "Fest" },
-                  { id: "Caveat", label: "Fein" },
-                  { id: "Fredoka", label: "Rund" },
-                ].map((f) => {
-                  const isActive = fontFamilyValue === f.id;
-                  return (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() =>
-                        onUpdate({ settings: { ...wStyle, fontFamily: f.id } })
-                      }
-                      className={`px-2 py-1 rounded-full text-[8px] font-black uppercase tracking-tight transition-all border cursor-pointer select-none ${
-                        isActive
-                          ? "bg-indigo-600 border-indigo-600 text-white shadow-xs"
-                          : currentIsLight
-                            ? "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-150"
-                            : "bg-zinc-800/80 border-white/5 text-neutral-200 hover:bg-zinc-700"
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Text Alignment Choices */}
-              <div className="flex items-center border-l border-slate-200/50 dark:border-white/10 pl-2 gap-1">
-                {[
-                  { id: "left", icon: AlignLeft },
-                  { id: "center", icon: AlignCenter },
-                  { id: "right", icon: AlignRight },
-                ].map((align) => {
-                  const Icon = align.icon;
-                  const isActive = currentAlign === align.id;
-                  return (
-                    <button
-                      key={align.id}
-                      onClick={() =>
-                        onUpdate({ settings: { ...wStyle, align: align.id } })
-                      }
-                      className={`w-6 h-6 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
-                        isActive
-                          ? "bg-indigo-600 text-white shadow-xs"
-                          : "text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5"
-                      }`}
-                      title={`Textausrichtung: ${align.id}`}
-                    >
-                      <Icon size={12} />
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Size scaling controls */}
-              <div className="flex items-center border-l border-slate-200/50 dark:border-white/10 pl-2 gap-1">
-                <button
-                  onClick={() => changeFontSizeMultiplier(-0.1)}
-                  className="w-6 h-6 flex items-center justify-center rounded-full border border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer text-slate-500"
-                  title="Schrift verkleinern"
-                >
-                  <Minus size={11} strokeWidth={2.5} />
-                </button>
-                <span className="text-[8.5px] font-black px-0.5 text-slate-500 min-w-[28px] text-center">
-                  {Math.round(sizeMultiplier * 100)}%
-                </span>
-                <button
-                  onClick={() => changeFontSizeMultiplier(0.1)}
-                  className="w-6 h-6 flex items-center justify-center rounded-full border border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer text-slate-500"
-                  title="Schrift vergrößern"
-                >
-                  <Plus size={11} strokeWidth={2.5} />
-                </button>
-              </div>
-
-              {/* Paper patterns */}
-              <div className="flex items-center border-l border-slate-200/50 dark:border-white/10 pl-2 gap-1 overflow-x-auto max-w-[280px] sm:max-w-none scrollbar-none">
-                {[
-                  { id: "blanko", icon: Square, tooltip: "Blanko" },
-                  { id: "liniert", icon: AlignJustify, tooltip: "Liniert (Deutsch)" },
-                  { id: "kariert", icon: Grid, tooltip: "Kariert (Mathe)" },
-                  { id: "haeuschen", icon: Home, tooltip: "Häuschen (Schulstart)" },
-                  { id: "punktraster", icon: CircleDot, tooltip: "Punktraster (Dot Grid)" },
-                  { id: "notenzeilen", icon: Music, tooltip: "Notenzeilen (Musik)" },
-                  { id: "koordinaten", icon: Compass, tooltip: "Koordinatensystem" },
-                  { id: "waben", icon: Hexagon, tooltip: "Waben / Chemie" },
-                ].map((item) => {
-                  const Icon = item.icon;
-                  const isActive = currentPattern === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => selectPattern(item.id as any)}
-                      className={`w-6 h-6 flex items-center justify-center rounded-full transition-all cursor-pointer ${
-                        isActive
-                          ? "bg-indigo-600 text-white shadow-xs border border-indigo-600"
-                          : "text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5"
-                      }`}
-                      title={item.tooltip}
-                    >
-                      <Icon size={11} />
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Chalk color indicators */}
-              <div className="flex items-center border-l border-slate-200/50 dark:border-white/10 pl-2 gap-1">
-                {themeColors.map((color) => {
-                  const isSelected = currentColorId === color.id;
-                  return (
-                    <button
-                      key={color.id}
-                      onClick={() =>
-                        onUpdate({
-                          settings: { ...wStyle, fontColorId: color.id },
-                        })
-                      }
-                      className={`w-3.5 h-3.5 rounded-full border border-slate-200 dark:border-white/5 transition-all cursor-pointer hover:scale-125 ${
-                        isSelected
-                          ? "ring-2 ring-indigo-505 ring-offset-1 scale-110"
-                          : "opacity-85"
-                      }`}
-                      style={{ backgroundColor: color.css }}
-                      title={`Schreibfarbe: ${color.label}`}
-                    />
-                  );
-                })}
-              </div>
-
-              {/* TTS Speech Reader & Mini-Timer toggler & Frames decor buttons */}
-              <div className="flex items-center border-l border-slate-200/50 dark:border-white/10 pl-2 gap-1.5">
-                {/* Voice Pronouncer */}
-                {"speechSynthesis" in window && (
-                  <button
-                    onClick={handleSpeak}
-                    className={`w-6 h-6 flex items-center justify-center rounded-lg transition-all border cursor-pointer ${
-                      isSpeaking
-                        ? "bg-emerald-600 text-white border-emerald-600 animate-pulse"
-                        : "text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-white/5"
-                    }`}
-                    title={
-                      isSpeaking
-                        ? "Vorlesen stoppen"
-                        : "Den Instruction-Text laut vorlesen lassen"
-                    }
-                  >
-                    <Volume2
-                      size={12}
-                      className={isSpeaking ? "animate-bounce" : ""}
-                    />
-                  </button>
-                )}
-
-                {/* Embedded Mini-Timer toggle dropdown */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowTimerPresets(!showTimerPresets)}
-                    className={`w-6 h-6 flex items-center justify-center rounded-lg transition-all border cursor-pointer ${
-                      miniTimerSeconds !== null
-                        ? "bg-amber-500 border-amber-500 text-white"
-                        : "text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-white/5"
-                    }`}
-                    title="Mini-Timer in der Tafel platzieren"
-                  >
-                    ⌛
-                  </button>
-                  {showTimerPresets && (
-                    <div className="absolute bottom-8 right-0 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 p-2 rounded-xl shadow-2xl flex flex-col gap-1 min-w-[110px] z-50">
-                      <span className="text-[7.5px] font-black uppercase tracking-wider text-center block mb-1 opacity-60">
-                        ⌛ Dauer:
-                      </span>
-                      {[1, 2, 5, 10, 15].map((m) => (
-                        <button
-                          key={m}
-                          onClick={() => {
-                            startMiniTimer(m);
-                            setShowTimerPresets(false);
-                          }}
-                          className="px-2 py-1 text-[9px] font-black text-left rounded-lg hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/40 text-text-primary cursor-pointer"
-                        >
-                          {m} {m === 1 ? "Minute" : "Minuten"}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Border-Decor Toggler */}
-                <button
-                  onClick={() =>
-                    onUpdate({
-                      settings: { ...wStyle, frameDecor: !isFrameDecor },
-                    })
-                  }
-                  className={`w-6 h-6 flex items-center justify-center rounded-lg transition-all border cursor-pointer ${
-                    isFrameDecor
-                      ? "text-indigo-600 border-indigo-100 bg-indigo-50 dark:bg-indigo-950/20"
-                      : "text-slate-400 border-transparent hover:bg-slate-100 dark:hover:bg-white/5"
-                  }`}
-                  title="Retro-Holzrahmen und Schutzecken umschalten"
-                >
-                  📐
-                </button>
-
-                {/* One-Click Copier */}
-                <button
-                  onClick={handleCopy}
-                  className={`px-2 py-0.5 rounded-lg text-[8.5px] font-black border transition-all flex items-center gap-1 cursor-pointer ${
-                    copied
-                      ? "bg-emerald-500 text-white border-emerald-500"
-                      : "bg-transparent text-slate-500 border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5"
-                  }`}
-                  title="Gartennotiz in die Zwischenablage kopieren"
-                >
-                  <Copy size={9} />
-                  <span>{copied ? "Kopiert!" : "Kopieren"}</span>
-                </button>
-              </div>
-            </>
-          ) : null}
-
-          {/* Clean entire board / Reset sequence */}
-          <div className="flex items-center border-l border-slate-200/50 dark:border-white/10 pl-2 shrink-0">
-            <button
-              onClick={handleTrashClick}
-              className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border ${
-                deleteConfirmState === "confirm"
-                  ? "bg-rose-600 border-rose-600 text-white animate-pulse"
-                  : currentIsLight
-                    ? "border-slate-200 text-rose-500 bg-rose-50/40 hover:bg-rose-50 hover:border-rose-300"
-                    : "border-white/5 text-rose-400 bg-rose-950/10 hover:bg-rose-950/30 hover:border-rose-500/30"
-              }`}
-              title={
-                deleteConfirmState === "confirm"
-                  ? "Achtung! Zum Bestätigen nochmals klicken!"
-                  : "Tafel komplett reinigen"
-              }
-            >
-              <Trash2 size={10} strokeWidth={2} />
-              <span className="hidden sm:inline">
-                {deleteConfirmState === "confirm" ? "Sicher?" : "Löschen"}
-              </span>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+const InstructionWidgetContent = (props: any) => {
+  return <InstructionWidget {...props} />;
 };
 
 const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
@@ -2743,7 +1620,7 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     y: 5,
     w: 25,
     h: 28,
-    visible: true,
+    visible: false,
   },
   {
     id: "widget-instruction",
@@ -2752,7 +1629,7 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     y: 8,
     w: 64,
     h: 62,
-    visible: true,
+    visible: false,
   },
   {
     id: "widget-timer",
@@ -2761,7 +1638,7 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     y: 28,
     w: 22,
     h: 36,
-    visible: true,
+    visible: false,
   },
   {
     id: "widget-trafficlight",
@@ -2805,6 +1682,15 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     x: 48,
     y: 64,
     w: 25,
+    h: 65,
+    visible: false,
+  },
+  {
+    id: "widget-kidattendance",
+    type: "kidattendance",
+    x: 20,
+    y: 15,
+    w: 55,
     h: 65,
     visible: false,
   },
@@ -2994,12 +1880,12 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     visible: false,
   },
   {
-    id: "widget-mathcards",
-    type: "mathcards",
+    id: "widget-kopfrechnen",
+    type: "kopfrechnen",
     x: 50,
     y: 45,
-    w: 32,
-    h: 42,
+    w: 38,
+    h: 48,
     visible: false,
   },
   {
@@ -3072,6 +1958,15 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     y: 80,
     w: 40,
     h: 45,
+    visible: false,
+  },
+  {
+    id: "widget-fractionvisualizer",
+    type: "fractionvisualizer",
+    x: 10,
+    y: 90,
+    w: 38,
+    h: 48,
     visible: false,
   },
   {
@@ -3525,6 +2420,15 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     visible: false,
   },
   {
+    id: "widget-wortsatzwerkstatt",
+    type: "wortsatzwerkstatt",
+    x: 54,
+    y: 220,
+    w: 46,
+    h: 52,
+    visible: false,
+  },
+  {
     id: "widget-wordbuilder",
     type: "wordbuilder",
     x: 54,
@@ -3668,6 +2572,15 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     h: 52,
     visible: false,
   },
+  {
+    id: "widget-zahlenraum",
+    type: "zahlenraum",
+    x: 10,
+    y: 140,
+    w: 46,
+    h: 48,
+    visible: false,
+  },
 ];
 
 const DEFAULT_WORKSPACE_PROFILES = [
@@ -3714,7 +2627,7 @@ const DEFAULT_WORKSPACE_PROFILES = [
       visible: [
         "calculator",
         "mathbalancer",
-        "mathcards",
+        "kopfrechnen",
         "numberline",
         "timer",
         "timeline",
@@ -3732,6 +2645,7 @@ const DEFAULT_WORKSPACE_PROFILES = [
         "vocabulary",
         "wordchain",
         "wordgrid",
+        "wortsatzwerkstatt",
         "wordbuilder",
         "timer",
         "timeline",
@@ -3752,6 +2666,7 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
     "noisemeter",
     "vocabulary",
     "studentlist",
+    "kidattendance",
     "groups",
     "qrcode",
     "image",
@@ -3782,6 +2697,7 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
     "wordgrid",
     "rhythm",
     "geometry",
+    "fractionvisualizer",
     "fractions",
     "wordclock",
     "sorting",
@@ -3832,6 +2748,7 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
     "clockpuzzle",
     "fractiongrid",
     "trafficquiz",
+    "wortsatzwerkstatt",
     "wordbuilder",
     "watercycle",
     "soundmachine",
@@ -3848,6 +2765,7 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
     "faircall",
     "hangman",
     "timeline",
+    "kopfrechnen",
   ];
   if (!Array.isArray(layout) || layout.length === 0) {
     return DEFAULT_COCKPIT_LAYOUT;
@@ -3938,260 +2856,9 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
   }
 };
 
-// High-precision clock component with micro-ResizeObserver for container width-dependent logic, digital/analog face toggle, and student greetings
-const InnerClockWidget = ({
-  widget,
-  currentIsLight,
-  time,
-  app,
-  getKW,
-  currentHour,
-  tagName,
-  kw,
-  getActiveSubject,
-}: any) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(200);
-  const [clockMode, setClockMode] = useState<"digital" | "analog">(() => {
-    return (
-      (localStorage.getItem("class_clock_mode_v1") as "digital" | "analog") ||
-      "digital"
-    );
-  });
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      for (let entry of entries) {
-        setWidth(entry.contentRect.width);
-      }
-    });
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  const handleToggleMode = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const nextMode = clockMode === "digital" ? "analog" : "digital";
-    setClockMode(nextMode);
-    localStorage.setItem("class_clock_mode_v1", nextMode);
-  };
-
-  const showSeconds = width >= 190;
-  // Make font sizes much larger to scale to maximum size of the widget container
-  const fontSizeFactor = showSeconds ? 0.16 : 0.22;
-  const computedFontSize = `${Math.max(16, Math.min(130, width * fontSizeFactor))}px`;
-  const computedDateFontSize = `${Math.max(9, Math.min(22, width * 0.055))}px`;
-
-  // Get dynamic local greeting for the students
-  const hr = time.getHours();
-  let greeting = "Hallo Klasse! 👋";
-  if (hr >= 5 && hr < 11) {
-    greeting = "Guten Morgen! ☀️";
-  } else if (hr >= 11 && hr < 14) {
-    greeting = "Guten Mittag! 🌤️";
-  } else if (hr >= 14 && hr < 18) {
-    greeting = "Guten Nachmittag! ☕";
-  } else if (hr >= 18 && hr < 22) {
-    greeting = "Schönen Feierabend! 🌙";
-  } else {
-    greeting = "Bereit für morgen? 💤";
-  }
-
-  // Analog math
-  const hrs = time.getHours();
-  const mins = time.getMinutes();
-  const secs = time.getSeconds();
-
-  const hDeg = (hrs % 12) * 30 + mins * 0.5;
-  const mDeg = mins * 6 + secs * 0.1;
-  const sDeg = secs * 6;
-
-  // Blinking colon logic for digital clock
-  const showBlinkColon = secs % 2 === 0;
-  const hh = String(hrs).padStart(2, "0");
-  const mm = String(mins).padStart(2, "0");
-  const ss = String(secs).padStart(2, "0");
-
-  return (
-    <div
-      ref={containerRef}
-      onClick={handleToggleMode}
-      className="flex-grow flex flex-col items-center justify-between select-none py-1.5 px-2 w-full h-full min-h-0 overflow-hidden cursor-pointer group active:scale-99 transition-all relative"
-      title="Uhr-Modus wechseln (Analog / Digital)"
-    >
-      {/* Small mode toggle label on hover */}
-      <span className="absolute top-1 right-1 text-[7px] font-black uppercase text-indigo-500/40 group-hover:text-indigo-500 tracking-wider pointer-events-none transition-colors z-20">
-        {clockMode === "digital" ? "⏱️ Analog" : "🔢 Digital"}
-      </span>
-
-      {/* Greeting top message */}
-      {width >= 120 && (
-        <span
-          className="text-[8px] sm:text-[9.5px] font-extrabold tracking-wider text-rose-500 uppercase truncate max-w-full block mb-0.5"
-          style={{ opacity: 0.95 }}
-        >
-          {greeting}
-        </span>
-      )}
-
-      {/* Clock Display Area */}
-      <div className="flex-grow w-full h-full min-h-0 flex items-center justify-center relative">
-        {clockMode === "digital" ? (
-          <div
-            className="font-mono font-black tracking-tight leading-none text-center tabular-nums w-full truncate transition-all duration-300"
-            style={{
-              fontSize: computedFontSize,
-              color: currentIsLight ? "#1e293b" : "#f8fafc",
-              textShadow: currentIsLight ? "none" : "0 0 25px rgba(99,102,241,0.25)",
-            }}
-          >
-            {hh}
-            <span className={`transition-opacity duration-200 ${showBlinkColon ? "opacity-100" : "opacity-30"}`}>:</span>
-            {mm}
-            {showSeconds && (
-              <span className="text-[0.6em] ml-1.5 opacity-60 font-bold">
-                .{ss}
-              </span>
-            )}
-          </div>
-        ) : (
-          /* Designer Analog-Clock Face (Minimal Swiss Design) - Scaled to fill the maximum possible size */
-          <div className="w-full h-full max-w-[85%] max-h-[85%] min-w-[75px] min-h-[75px] flex items-center justify-center relative transition-all duration-300">
-            <svg
-              viewBox="0 0 100 100"
-              className="w-full h-full drop-shadow-lg overflow-visible"
-            >
-              {/* Clock Rim outer border */}
-              <circle
-                cx="50"
-                cy="50"
-                r="45"
-                fill={currentIsLight ? "#ffffff" : "#18181b"}
-                stroke={currentIsLight ? "#e2e8f0" : "#27272a"}
-                strokeWidth="2.5"
-              />
-
-              {/* Hour Dial ticks */}
-              {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map(
-                (angle, i) => {
-                  const rad = (angle * Math.PI) / 180;
-                  const x1 = 50 + 38 * Math.sin(rad);
-                  const y1 = 50 - 38 * Math.cos(rad);
-                  const x2 = 50 + 42 * Math.sin(rad);
-                  const y2 = 50 - 42 * Math.cos(rad);
-                  const isMajor = i % 3 === 0;
-                  return (
-                    <line
-                      key={angle}
-                      x1={x1}
-                      y1={y1}
-                      x2={x2}
-                      y2={y2}
-                      stroke={
-                        currentIsLight
-                          ? isMajor
-                            ? "#0f172a"
-                            : "#94a3b8"
-                          : isMajor
-                            ? "#f8fafc"
-                            : "#52525b"
-                      }
-                      strokeWidth={isMajor ? "1.8" : "1.0"}
-                    />
-                  );
-                },
-              )}
-
-              {/* Hour Arm */}
-              <line
-                x1="50"
-                y1="50"
-                x2={50 + 24 * Math.sin((hDeg * Math.PI) / 180)}
-                y2={50 - 24 * Math.cos((hDeg * Math.PI) / 180)}
-                stroke={currentIsLight ? "#1e293b" : "#f1f5f9"}
-                strokeWidth="3.2"
-                strokeLinecap="round"
-              />
-
-              {/* Minute Arm */}
-              <line
-                x1="50"
-                y1="50"
-                x2={50 + 34 * Math.sin((mDeg * Math.PI) / 180)}
-                y2={50 - 34 * Math.cos((mDeg * Math.PI) / 180)}
-                stroke={currentIsLight ? "#475569" : "#cbd5e1"}
-                strokeWidth="2.0"
-                strokeLinecap="round"
-              />
-
-              {/* Seconds Arm (Ticking Red Needle) */}
-              <line
-                x1="50"
-                y1="50"
-                x2={50 + 36 * Math.sin((sDeg * Math.PI) / 180)}
-                y2={50 - 36 * Math.cos((sDeg * Math.PI) / 180)}
-                stroke="#ef4444"
-                strokeWidth="1.0"
-                strokeLinecap="round"
-              />
-
-              {/* Center Pin Hub */}
-              <circle
-                cx="50"
-                cy="50"
-                r="3"
-                fill="#ef4444"
-                stroke={currentIsLight ? "#ffffff" : "#18181b"}
-                strokeWidth="1.0"
-              />
-            </svg>
-          </div>
-        )}
-      </div>
-
-      {/* Footer Info Area: Date & Selected Lesson */}
-      <div className="w-full flex flex-col items-center gap-1 mt-1 shrink-0">
-        {/* Date & Week number display block */}
-        <div
-          className="font-black tracking-widest text-center text-emerald-500 uppercase opacity-90 w-full truncate leading-none"
-          style={{ fontSize: computedDateFontSize }}
-        >
-          {time.toLocaleDateString("de-DE", {
-            weekday: "short",
-            day: "2-digit",
-            month: "short",
-          })}{" "}
-          &bull; KW {app.currentKW || getKW(new Date())}
-        </div>
-
-        {/* Selected Lesson Indicator inside Clock Widget */}
-        {(() => {
-          const activeSub = getActiveSubject ? getActiveSubject() : null;
-          const lessonNum = currentHour ? currentHour.idx + 1 : null;
-          if (!activeSub || !lessonNum) return null;
-
-          const dayPlan = tagName ? (app.wochenplanung?.[kw]?.[tagName] || {}) : {};
-          const lessonData = dayPlan[currentHour.idx];
-          const theme = lessonData?.thema;
-
-          return (
-            <div 
-              className={`mt-0.5 px-2 py-0.5 rounded-lg text-[9px] sm:text-[10px] font-black tracking-tight flex items-center justify-center gap-1.5 uppercase max-w-[95%] truncate border ${
-                currentIsLight 
-                  ? "bg-indigo-50 border-indigo-100 text-indigo-600" 
-                  : "bg-indigo-950/40 border-indigo-500/20 text-indigo-400"
-              }`}
-            >
-              <span>📚 {lessonNum}. Std:</span>
-              <span className="font-extrabold truncate">{activeSub}</span>
-              {theme && <span className="opacity-75 font-semibold truncate">({theme})</span>}
-            </div>
-          );
-        })()}
-      </div>
-    </div>
-  );
+// F11 ClockWidget Delegation
+const InnerClockWidget = (props: any) => {
+  return <ClockWidgetContent {...props} />;
 };
 
 export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
@@ -4311,7 +2978,9 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       return loadAndSanitizeLayout(app.cockpitLayout);
     },
   );
-  const [isLayoutEditing, setIsLayoutEditing] = useState(false);
+  const [isLayoutLocked, setIsLayoutLocked] = useState(false);
+  const isLayoutEditing = !isLayoutLocked;
+  const [isMoreOptionsMenuOpen, setIsMoreOptionsMenuOpen] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [activeWidgetCategory, setActiveWidgetCategory] =
@@ -4319,12 +2988,13 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [widgetSearch, setWidgetSearch] = useState<string>("");
 
   useEffect(() => {
-    if (!isLayoutEditing) {
+    if (isLayoutLocked) {
       setIsAddWidgetMenuOpen(false);
       setIsSlotMenuOpen(false);
       setWidgetSettingsOpenId(null);
+      setIsMoreOptionsMenuOpen(false);
     }
-  }, [isLayoutEditing]);
+  }, [isLayoutLocked]);
   const [favoritesBySubject, setFavoritesBySubject] = useState<
     Record<string, string[]>
   >(() => {
@@ -4595,6 +3265,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       "noisemeter",
       "vocabulary",
       "studentlist",
+      "kidattendance",
       "groups",
       "qrcode",
       "image",
@@ -4632,6 +3303,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       "shapepuzzle",
       "guitartuner",
       "secretagent",
+      "fractionvisualizer",
       "fractioncake",
       "sentencebuilding",
       "patternmaker",
@@ -4655,6 +3327,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       "clockpuzzle",
       "fractiongrid",
       "trafficquiz",
+      "wortsatzwerkstatt",
       "wordbuilder",
       "watercycle",
       "soundmachine",
@@ -4663,6 +3336,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       "constellation",
       "hangman",
       "timeline",
+      "kidattendance",
+      "kopfrechnen",
     ];
     const typeMap: Record<string, string> = {
       timer: "timer",
@@ -5096,6 +3771,21 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     showToast(`${count} Widgets wurden automatisch angeordnet!`, "success");
   };
 
+  const handleClearAllWidgets = () => {
+    const visibleCount = cockpitWidgets.filter((w) => w.visible).length;
+    if (visibleCount === 0) {
+      showToast("Die Tafel ist bereits leer.", "info");
+      return;
+    }
+    const cleared = cockpitWidgets.map((w) => ({ ...w, visible: false }));
+    setCockpitWidgets(cleared);
+    setApp((p: any) => ({
+      ...p,
+      cockpitLayout: cleared,
+    }));
+    showToast("Tafel geleert: Alle Widgets geschlossen.", "info");
+  };
+
   const handleCloseWidget = (id: string, type: string) => {
     if (type === "timer" && app.boardSettings.timerRunning) {
       setTimerToCloseId(id);
@@ -5263,12 +3953,47 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [showSyncInfo, setShowSyncInfo] = useState(false);
   const [syncModalTab, setSyncModalTab] = useState<'remote' | 'wifi'>('remote');
   const [isTafelOpen, setIsTafelOpen] = useState(false);
+  const isInitialMountRef = useRef(true);
+  const prevActiveClassIdRef = useRef(app.activeClassId);
 
+  // Klasse gewechselt -> Tafel stets geschlossen halten
   useEffect(() => {
+    if (prevActiveClassIdRef.current !== app.activeClassId) {
+      prevActiveClassIdRef.current = app.activeClassId;
+      setIsTafelOpen(false);
+      if (app.boardSettings?.isTafelOpen) {
+        setApp((prev: any) => ({
+          ...prev,
+          boardSettings: {
+            ...prev.boardSettings,
+            isTafelOpen: false,
+          },
+        }));
+      }
+    }
+  }, [app.activeClassId, app.boardSettings?.isTafelOpen, setApp]);
+
+  // Synchronisation mit Remote-Fernbedienung: Nur bei Live-Aktionen NACH dem Initial-Mount
+  useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      // Beim Betreten des Lehrercockpits / Reload bleibt die Digitale Tafel stets geschlossen
+      if (app.boardSettings?.isTafelOpen) {
+        setApp((prev: any) => ({
+          ...prev,
+          boardSettings: {
+            ...prev.boardSettings,
+            isTafelOpen: false,
+          },
+        }));
+      }
+      return;
+    }
+    // Nach dem Laden nur explizite Live-Events der Remote-Steuerung berücksichtigen
     if (app.boardSettings?.isTafelOpen !== undefined) {
       setIsTafelOpen(!!app.boardSettings.isTafelOpen);
     }
-  }, [app.boardSettings?.isTafelOpen]);
+  }, [app.boardSettings?.isTafelOpen, setApp]);
   const isSmartboardOnly = !!(
     app.boardSettings?.splitSmartboardMode &&
     !app.boardSettings?.isRemoteController
@@ -7577,10 +6302,10 @@ ${content}
     }
   }, [time, petBehaviorState, app.classPet?.name]);
 
-  // Global Timer Sync
+  // Global Timer Sync - only active when ZenFocus overlay is open to avoid 1-second global re-renders in standard cockpit mode
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (app.boardSettings.timerRunning && app.boardSettings.timerEnd) {
+    if (showZenFocus && app.boardSettings.timerRunning && app.boardSettings.timerEnd) {
       interval = setInterval(() => {
         const now = Date.now();
         const diff = Math.max(
@@ -7589,33 +6314,20 @@ ${content}
         );
         setTimerDisplaySec(diff);
         if (diff === 0 && app.boardSettings.timerRunning) {
-          // Play selected alarm sound!
-          const activeTimer = cockpitWidgets.find((w) => w.type === "timer" && w.visible);
-          const alarmSound = activeTimer?.settings?.alarmSound || (showZenFocus ? "bell" : "beep");
-          
-          if (alarmSound === "pet") {
-            const petState = app.classPet || { animalType: "dino" };
-            playPetSound(petState.animalType || "dino");
-          } else {
-            playSound(alarmSound as any);
-          }
-          
+          playSound("bell");
           setApp((prev) => ({
             ...prev,
             boardSettings: { ...prev.boardSettings, timerRunning: false },
           }));
         }
       }, 1000);
-    } else {
-      // Keep display as is
     }
     return () => clearInterval(interval);
   }, [
     app.boardSettings.timerRunning,
     app.boardSettings.timerEnd,
     showZenFocus,
-    cockpitWidgets,
-    app.classPet,
+    setApp,
   ]);
 
   // Stopwatch Logic
@@ -8158,47 +6870,47 @@ ${content}
       // Fetch active cockpit theme
       const cockpitTheme = app.cockpitTheme || "classic_light";
 
-      const relevantStudents = (app.schueler || []).map((s) => ({
-        id: s.id,
-        vorname: s.vorname,
-        nachname: s.nachname,
-        badges: s.badges || [],
-        charakter: s.charakter || [],
-      }));
-
-      // Call Express AI Route
-      const response = await fetch("/api/ai", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "classPetAI",
-          params: {
-            petName: petState.name,
-            petType: petState.animalType,
-            energy: petState.energy,
-            accessories: equippedAccs,
-            activeWidgets: activeWidgetsList,
-            cockpitTheme: cockpitTheme,
-            memories: petState.memories || [],
-            students: relevantStudents,
-            interactionType,
-            userMessage: userMsg,
-          },
-        }),
+      // B1.5 DATENSCHUTZ: Datenminimierung & Pseudonymisierung!
+      // Keine Vor- oder Nachnamen an die KI übertragen!
+      // Erzeuge stattdessen neutrale temporäre Bezeichnungen (Kind A, Kind B, Kind C...).
+      // Die Zuordnung zu den echten Schülern bleibt ausschließlich lokal im Browser.
+      const petStudentMap = new Map<string, string>(); // Alias -> Echter Vorname
+      const relevantStudents = (app.schueler || []).map((s, idx) => {
+        // Berechne Buchstaben-Code: A, B, ..., Z, AA, AB ...
+        let label = "";
+        let n = idx;
+        while (n >= 0) {
+          label = String.fromCharCode(65 + (n % 26)) + label;
+          n = Math.floor(n / 26) - 1;
+        }
+        const alias = `Kind ${label}`;
+        const realName = (s.vorname || "").trim();
+        if (realName) {
+          petStudentMap.set(alias, realName);
+        }
+        return {
+          vorname: alias,
+        };
       });
 
-      if (!response.ok) {
-        throw new Error("AI Server error");
-      }
-
-      const rawData = await response.json();
+      // Call Express AI Route via secure callServerAI
+      const rawText = await callServerAI("classPetAI", {
+        petName: petState.name,
+        petType: petState.animalType,
+        energy: petState.energy,
+        accessories: equippedAccs,
+        activeWidgets: activeWidgetsList,
+        cockpitTheme: cockpitTheme,
+        memories: petState.memories || [],
+        students: relevantStudents,
+        interactionType,
+        userMessage: userMsg,
+      });
 
       // Since responseText can contain markdown JSON or unparsed structures
       let parsed: any;
       try {
-        let cleanText = (rawData.text || "").trim();
+        let cleanText = (rawText || "").trim();
         if (cleanText.startsWith("```")) {
           cleanText = cleanText
             .replace(/^```(?:json)?\s*/i, "")
@@ -8206,10 +6918,10 @@ ${content}
         }
         parsed = JSON.parse(cleanText);
       } catch (err) {
-        console.error("Failed to parse pet AI JSON response:", rawData.text);
+        console.error("Failed to parse pet AI JSON response:", rawText);
         parsed = {
           text:
-            rawData.text ||
+            rawText ||
             `Huch! Meine Gedanken purzeln gerade durcheinander. Aber ich freue mich riesig, hier zu sein! ❤️`,
           learnedFact: `Spike war kurz abgelenkt.`,
           behavior: "idle",
@@ -8217,10 +6929,20 @@ ${content}
         };
       }
 
-      const dialogue =
+      let dialogue =
         parsed.text ||
         `Miau/Saurier-Grüße! Ich kriege gerade schlaue Gedanken!`;
-      const fact = parsed.learnedFact;
+      let fact = parsed.learnedFact;
+
+      // Lokale Re-Identifizierung: Ersetze temporäre Aliase ("Kind A", "Kind B"...) durch die echten Vornamen
+      petStudentMap.forEach((realName, alias) => {
+        const regex = new RegExp(`\\b${alias}\\b`, "g");
+        dialogue = dialogue.replace(regex, realName);
+        if (fact) {
+          fact = fact.replace(regex, realName);
+        }
+      });
+
       const recommendedBehavior = parsed.behavior || "idle";
       const energyDelta =
         parsed.energyDelta !== undefined ? parsed.energyDelta : 5;
@@ -8360,130 +7082,21 @@ ${content}
   const generateGroups = (
     count?: number,
     isSize: boolean = false,
-    overrideStrategy?: string,
+    _overrideStrategy?: string,
   ) => {
     const finalVal = count || groupCount;
-    const strategy =
-      overrideStrategy || app.boardSettings?.groupStrategy || "zufall";
-
-    let numGroups = finalVal;
-    if (isSize) {
-      numGroups = Math.max(1, Math.ceil(app.schueler.length / finalVal));
-    }
-
-    const result: string[][] = Array.from({ length: numGroups }, () => []);
-
-    let pool = [...app.schueler];
-
-    if (strategy === "zufall") {
-      pool.sort(() => 0.5 - Math.random());
-      pool.forEach((s, i) => {
-        result[i % numGroups].push(s.vorname);
-      });
-    } else if (strategy === "daz_mix") {
-      const daz = pool
-        .filter((s: any) => s.daz)
-        .sort(() => 0.5 - Math.random());
-      const nonDaz = pool
-        .filter((s: any) => !s.daz)
-        .sort(() => 0.5 - Math.random());
-      let nextGroup = 0;
-      daz.forEach((s: any) => {
-        result[nextGroup].push(s.vorname);
-        nextGroup = (nextGroup + 1) % numGroups;
-      });
-      nonDaz.forEach((s: any) => {
-        result[nextGroup].push(s.vorname);
-        nextGroup = (nextGroup + 1) % numGroups;
-      });
-    } else if (strategy === "gender_mix") {
-      const m = pool
-        .filter((s: any) => s.geschlecht === "m")
-        .sort(() => 0.5 - Math.random());
-      const w = pool
-        .filter((s: any) => s.geschlecht === "w")
-        .sort(() => 0.5 - Math.random());
-      const d = pool
-        .filter((s: any) => s.geschlecht === "d")
-        .sort(() => 0.5 - Math.random());
-      let nextGroup = 0;
-      m.forEach((s: any) => {
-        result[nextGroup].push(s.vorname);
-        nextGroup = (nextGroup + 1) % numGroups;
-      });
-      w.forEach((s: any) => {
-        result[nextGroup].push(s.vorname);
-        nextGroup = (nextGroup + 1) % numGroups;
-      });
-      d.forEach((s: any) => {
-        result[nextGroup].push(s.vorname);
-        nextGroup = (nextGroup + 1) % numGroups;
-      });
-    } else if (strategy === "leistungs_mix") {
-      const spf = pool
-        .filter((s: any) => s.spf || s.espf)
-        .sort(() => 0.5 - Math.random());
-      const strong = pool
-        .filter((s: any) => !(s.spf || s.espf))
-        .sort(() => 0.5 - Math.random());
-      let nextGroup = 0;
-      spf.forEach((s: any) => {
-        result[nextGroup].push(s.vorname);
-        nextGroup = (nextGroup + 1) % numGroups;
-      });
-      strong.forEach((s: any) => {
-        result[nextGroup].push(s.vorname);
-        nextGroup = (nextGroup + 1) % numGroups;
-      });
-    } else if (strategy === "leistungs_homogen") {
-      const spf = pool
-        .filter((s: any) => s.spf || s.espf)
-        .sort(() => 0.5 - Math.random());
-      const strong = pool
-        .filter((s: any) => !(s.spf || s.espf))
-        .sort(() => 0.5 - Math.random());
-      let countPerGroup = Math.ceil(pool.length / numGroups);
-      let allSorted = [...spf, ...strong];
-      allSorted.forEach((s: any, idx: number) => {
-        const groupIndex = Math.floor(idx / countPerGroup);
-        result[Math.min(groupIndex, numGroups - 1)].push(s.vorname);
-      });
-    } else if (strategy === "smart_ki") {
-      // Smarte KI-Mischung: gender-balanced, mixed performance niveau, distributed DAZ/SPF
-      const m = pool
-        .filter((s: any) => s.geschlecht === "m")
-        .sort(() => 0.5 - Math.random());
-      const w = pool
-        .filter((s: any) => s.geschlecht === "w")
-        .sort(() => 0.5 - Math.random());
-      const d = pool
-        .filter((s: any) => s.geschlecht !== "m" && s.geschlecht !== "w")
-        .sort(() => 0.5 - Math.random());
-
-      // Round robin alternate distribution list
-      const balancedPool: any[] = [];
-      const len = Math.max(m.length, w.length, d.length);
-      for (let i = 0; i < len; i++) {
-        if (i < w.length) balancedPool.push(w[i]);
-        if (i < m.length) balancedPool.push(m[i]);
-        if (i < d.length) balancedPool.push(d[i]);
-      }
-
-      // Distribute serpentine style to balance niveau/performance levels
-      let nextGroup = 0;
-      let dir = 1;
-      balancedPool.forEach((s) => {
-        result[nextGroup].push(s.vorname);
-        nextGroup += dir;
-        if (nextGroup >= numGroups) {
-          nextGroup = numGroups - 1;
-          dir = -1;
-        } else if (nextGroup < 0) {
-          nextGroup = 0;
-          dir = 1;
-        }
-      });
-    }
+    const present = getPresentStudents(app.schueler || [], app);
+    const presentIds = present.map((s) => s.id);
+    const genResult = generateStudentGroups(presentIds, {
+      mode: isSize ? 'size' : 'count',
+      value: finalVal,
+    });
+    const result: string[][] = genResult.groups.map((g) =>
+      g.studentIds.map((id) => {
+        const st = (app.schueler || []).find((s: any) => s.id === id);
+        return st ? getDisplayStudentName(st, app.schueler || []) : id;
+      })
+    );
 
     setGeneratedGroups(result);
     setApp((prev: any) => ({ ...prev, lastGroups: result }));
@@ -9009,9 +7622,10 @@ ${content}
           <button
             onClick={handleCloseCockpit}
             className={`p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer border shadow-md hover:scale-105 active:scale-95 ${currentIsLight ? "bg-black/5 border-black/10 text-slate-700 hover:bg-black/10 hover:text-black" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/15 hover:text-white"}`}
-            title="Schließen"
+            title="Zurück"
+            aria-label="Zurück zum Hauptmenü"
           >
-            <X size={15} strokeWidth={3} />
+            <ArrowLeft size={16} strokeWidth={2.5} />
           </button>
 
           <div className="flex flex-col justify-center">
@@ -9657,95 +8271,32 @@ ${content}
                     <div className="flex-1 flex flex-col min-h-0 h-full w-full relative">
                       {/* Board Utility Toolbar Header (outside stage, prevents overlapping with stage active widgets or drawing board) */}
                       <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 px-3.5 py-2 rounded-xl no-print shrink-0 bg-white/90 dark:bg-zinc-900/80 border border-slate-200 dark:border-white/10 shadow-sm relative z-50">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                          <h3 className="text-[9px] font-black uppercase tracking-wider text-slate-550 dark:text-neutral-400">
-                            Tafel- & Widgetboard
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${isLayoutLocked ? "bg-amber-500" : "bg-emerald-500"} animate-pulse`} />
+                          <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-neutral-300">
+                            Tafel & Widgets
                           </h3>
+                          {isLayoutLocked && (
+                            <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              Fixiert
+                            </span>
+                          )}
                         </div>
 
                         {/* Top Toolbar Action Buttons (aligned on the right) */}
                         <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
-                          <button
-                            type="button"
-                            onClick={() => setIsLayoutEditing((value) => !value)}
-                            className={`h-8 px-3 rounded-lg border text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm ${
-                              isLayoutEditing
-                                ? "bg-amber-500 border-amber-400 text-slate-950 hover:bg-amber-400"
-                                : currentIsLight
-                                  ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
-                                  : "bg-emerald-500/15 border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/25"
-                            }`}
-                            title={isLayoutEditing ? "Bearbeitung beenden und Layout sperren" : "Layout zum Bearbeiten entsperren"}
-                          >
-                            {isLayoutEditing ? <Edit3 size={12} /> : <Lock size={12} />}
-                            <span>{isLayoutEditing ? "Bearbeiten" : "Live · Gesperrt"}</span>
-                          </button>
-
-                          {/* Fast access to favorites and recently used widgets */}
-                          <div className={`${isLayoutEditing ? "hidden lg:flex" : "hidden"} items-center gap-1.5 mr-1 pr-2 border-r border-slate-300/70 dark:border-white/10`}>
-                            <span className="hidden 2xl:inline text-[8px] font-bold uppercase tracking-wider text-slate-500 dark:text-white/50 mr-0.5">
-                              Schnellstart
-                            </span>
-                            {(() => {
-                              const activeSubjectFavorites = favoritesBySubject[getActiveSubject()] || [];
-                              const generalFavorites = favoritesBySubject.Allgemein || [];
-                              const quickTypes = Array.from(
-                                new Set([
-                                  ...activeSubjectFavorites,
-                                  ...generalFavorites,
-                                  ...recentWidgetTypes,
-                                  ...DEFAULT_QUICK_WIDGETS,
-                                ]),
-                              ).slice(0, 5);
-
-                              return quickTypes.map((type) => {
-                                const meta = QUICK_WIDGET_META[type] || {
-                                  label: type,
-                                  icon: "▦",
-                                };
-                                const isActive = cockpitWidgets.some(
-                                  (widget) => widget.type === type && widget.visible,
-                                );
-                                return (
-                                  <button
-                                    key={type}
-                                    type="button"
-                                    onClick={() =>
-                                      handleOpenWidgetInCockpitLayout(
-                                        type as CockpitWidgetConfig["type"],
-                                      )
-                                    }
-                                    className={`h-7 px-2 rounded-lg border text-[8.5px] font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                                      isActive
-                                        ? "bg-accent border-accent text-white"
-                                        : currentIsLight
-                                          ? "bg-white border-slate-200 text-slate-700 hover:border-accent hover:text-accent"
-                                          : "bg-zinc-900 border-white/10 text-white/80 hover:border-emerald-500/50 hover:text-white"
-                                    }`}
-                                    title={`${meta.label} öffnen${isActive ? " (bereits aktiv)" : ""}`}
-                                  >
-                                    <span aria-hidden="true">{meta.icon}</span>
-                                    <span className="hidden xl:inline">{meta.label}</span>
-                                  </button>
-                                );
-                              });
-                            })()}
-                          </div>
-
                           {/* Add Widget Button */}
-                          <div className={isLayoutEditing ? "relative" : "hidden"}>
+                          <div className="relative">
                             <button
+                              type="button"
                               onClick={() =>
                                 setIsAddWidgetMenuOpen(!isAddWidgetMenuOpen)
                               }
-                              className={`px-2.5 py-1.5 rounded-lg border font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5 transition-all duration-200 shadow-sm cursor-pointer ${
-                                currentIsLight
-                                  ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-800"
-                                  : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white"
-                              }`}
+                              className="h-8 px-3 rounded-lg font-black text-[9.5px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white"
+                              title="Neues Widget zur Tafel hinzufügen"
                             >
-                              <span>WIDGET</span>
+                              <Plus size={13} strokeWidth={2.5} />
+                              <span>Widget hinzufügen</span>
                             </button>
 
                             {isAddWidgetMenuOpen && (
@@ -9843,7 +8394,7 @@ ${content}
                                         category: "interactivity",
                                       },
                                       {
-                                        type: "studentlist",
+                                        type: "kidattendance",
                                         category: "interactivity",
                                       },
                                       {
@@ -9854,52 +8405,39 @@ ${content}
                                         type: "challenge",
                                         category: "interactivity",
                                       },
-                                      {
-                                        type: "piggybank",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "thermometer",
-                                        category: "interactivity",
-                                      },
 
-                                      { type: "calculator", category: "mathe" },
-                                      { type: "mathcards", category: "mathe" },
-                                      { type: "fractions", category: "mathe" },
-                                      { type: "geometry", category: "mathe" },
-                                      { type: "numberline", category: "mathe" },
-                                      { type: "sorting", category: "mathe" },
-                                      { type: "mathchain", category: "mathe" },
-                                      { type: "mathduel", category: "mathe" },
+                                      { type: "zahlenraum", category: "mathe" },
+                                      { type: "kopfrechnen", category: "mathe" },
+                                      { type: "fractionvisualizer", category: "mathe" },
                                       {
-                                        type: "shapepuzzle",
+                                        type: "mathbalancer",
+                                        category: "mathe",
+                                      },
+                                      { type: "moneycalc", category: "mathe" },
+                                      {
+                                        type: "mathpyramid",
                                         category: "mathe",
                                       },
                                       {
                                         type: "clockpuzzle",
                                         category: "mathe",
                                       },
+                                      { type: "geometry", category: "mathe" },
                                       {
-                                        type: "fractiongrid",
+                                        type: "angledetective",
                                         category: "mathe",
                                       },
                                       {
-                                        type: "mathbalancer",
+                                        type: "estimationjar",
                                         category: "mathe",
                                       },
-                                      {
-                                        type: "multitrainer",
-                                        category: "mathe",
-                                      },
-                                      { type: "moneycalc", category: "mathe" },
-                                      { type: "anschauung", category: "mathe" },
 
                                       {
                                         type: "vocabulary",
                                         category: "deutsch",
                                       },
                                       {
-                                        type: "scrambler",
+                                        type: "wortsatzwerkstatt",
                                         category: "deutsch",
                                       },
                                       {
@@ -9915,18 +8453,7 @@ ${content}
                                         type: "wordscramble",
                                         category: "deutsch",
                                       },
-                                      {
-                                        type: "spellingdetective",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "compoundsplit",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "wordbuilder",
-                                        category: "deutsch",
-                                      },
+
                                       {
                                         type: "secretcode",
                                         category: "deutsch",
@@ -9935,7 +8462,6 @@ ${content}
                                         type: "storyemojis",
                                         category: "deutsch",
                                       },
-                                      { type: "abcorder", category: "deutsch" },
 
                                       {
                                         type: "bodyparts",
@@ -9966,6 +8492,10 @@ ${content}
                                         category: "sachunterricht",
                                       },
 
+                                      {
+                                        type: "calculator",
+                                        category: "tools",
+                                      },
                                       {
                                         type: "instruction",
                                         category: "tools",
@@ -10051,7 +8581,7 @@ ${content}
                                         category: "mindfulness",
                                       },
                                       {
-                                        type: "soundmachine",
+                                        type: "calmrain",
                                         category: "mindfulness",
                                       },
                                       {
@@ -10066,7 +8596,9 @@ ${content}
 
                                     let count = 0;
                                     if (cat.id === "all") {
-                                      count = allAvailableWidgets.length;
+                                      count = allAvailableWidgets.filter(
+                                        (item) => item.category !== "mathe",
+                                      ).length;
                                     } else if (cat.id === "favorites") {
                                       count = (
                                         favoritesBySubject[
@@ -10187,9 +8719,9 @@ ${content}
                                         category: "interactivity",
                                       },
                                       {
-                                        type: "studentlist",
-                                        label: "🧑‍🎓 Belobigungssterne",
-                                        desc: "Fleißpunkte vergeben",
+                                        type: "kidattendance",
+                                        label: "🖐️ Ich bin da!",
+                                        desc: "Kinder bestätigen ihre Anwesenheit selbst",
                                         category: "interactivity",
                                       },
                                       {
@@ -10202,24 +8734,6 @@ ${content}
                                         type: "challenge",
                                         label: "🎯 Klassen-Challenge",
                                         desc: "Herausforderungen für die Klasse",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "piggybank",
-                                        label: "🐷 Klassen-Sparschwein",
-                                        desc: "Spardose für gemeinsames Klassensparen",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "thermometer",
-                                        label: "🌡️ Ziel-Thermometer",
-                                        desc: "Sammle Punkte für vereinbarte Klassenziele",
-                                        category: "interactivity",
-                                      },
-                                      {
-                                        type: "classtarget",
-                                        label: "🌡️ Belohnungs-Barometer",
-                                        desc: "Klassenpunkte visualisieren & Meilensteine erreichen",
                                         category: "interactivity",
                                       },
                                       {
@@ -10242,69 +8756,21 @@ ${content}
                                       },
 
                                       {
-                                        type: "calculator",
-                                        label: "🧮 Taschenrechner",
-                                        desc: "Taschenrechner auf Tafel",
+                                        type: "zahlenraum",
+                                        label: "🔢 Zahlenraum-Studio",
+                                        desc: "Mengenbilder, Hunderterfeld & Zahlenstrahl (ZR 10 bis 1000)",
                                         category: "mathe",
                                       },
                                       {
-                                        type: "mathcards",
-                                        label: "🧮 Kopfrechen-Trainer",
-                                        desc: "Rechenkarten",
+                                        type: "kopfrechnen",
+                                        label: "🧠 Kopfrechentrainer",
+                                        desc: "Blitzrechnen, Einmaleins/Einsineins & Rechenketten",
                                         category: "mathe",
                                       },
                                       {
-                                        type: "fractions",
-                                        label: "🍰 Bruchteil-Trainer",
-                                        desc: "Bruchrechnen Pizza-Visualizer",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "geometry",
-                                        label: "📐 Geometrie-Muster",
-                                        desc: "Bunte geometrische Collagen",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "numberline",
-                                        label: "📍 Zahlengerade-Schätzer",
-                                        desc: "Schätze Position auf dem Zahlenstrahl",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "sorting",
-                                        label: "🔢 Zahlensortierer",
-                                        desc: "Reihenfolgen-Spiel für Mathe",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "mathchain",
-                                        label: "🐍 Rechen-Schlange",
-                                        desc: "Löse die mathematische Kettenaufgabe",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "mathduel",
-                                        label: "⚔️ Kopfrechen-Duell",
-                                        desc: "Zwei-Spieler-Mathe-Wettstreit auf Zeit",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "shapepuzzle",
-                                        label: "📐 Formen-Entdecker",
-                                        desc: "Ordne geometrische Formen zu",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "clockpuzzle",
-                                        label: "⏰ Uhren-Lern-Trainer",
-                                        desc: "Lerne analoge Uhrzeiten einzustellen",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "fractiongrid",
-                                        label: "🍕 Bruchteile-Maler",
-                                        desc: "Färbe Bruchteile passend auf Rastergittern ein",
+                                        type: "fractionvisualizer",
+                                        label: "◐ Bruch-Visualisierer",
+                                        desc: "Brüche im Kreis & Streifen darstellen und vergleichen",
                                         category: "mathe",
                                       },
                                       {
@@ -10314,27 +8780,9 @@ ${content}
                                         category: "mathe",
                                       },
                                       {
-                                        type: "multitrainer",
-                                        label: "✖️ Einmaleins-Trainer",
-                                        desc: "Übe das kleine Einmaleins",
-                                        category: "mathe",
-                                      },
-                                      {
                                         type: "moneycalc",
                                         label: "💶 Taschengeld-Zähler",
                                         desc: "Geldbeträge zusammenzählen",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "anschauung",
-                                        label: "🧮 Gedachte Anschauung",
-                                        desc: "Zahlenraum bis 10: 10er-Raster, Zahlenburg & Zerlegemappe (nach Isolde Jäger)",
-                                        category: "mathe",
-                                      },
-                                      {
-                                        type: "fractioncake",
-                                        label: "🍰 Bruchteil-Bäcker",
-                                        desc: "Manuelle Tortenschnitte interaktiv üben",
                                         category: "mathe",
                                       },
                                       {
@@ -10344,28 +8792,40 @@ ${content}
                                         category: "mathe",
                                       },
                                       {
+                                        type: "clockpuzzle",
+                                        label: "⏰ Uhren-Lern-Trainer",
+                                        desc: "Lerne analoge Uhrzeiten einzustellen",
+                                        category: "mathe",
+                                      },
+                                      {
+                                        type: "geometry",
+                                        label: "📐 Geometrie-Muster",
+                                        desc: "Bunte geometrische Collagen",
+                                        category: "mathe",
+                                      },
+                                      {
                                         type: "angledetective",
                                         label: "📐 Winkel-Detektiv",
                                         desc: "Schätze Winkel im rotierenden Scheinwerferstrahl",
                                         category: "mathe",
                                       },
                                       {
-                                        type: "divrobot",
-                                        label: "🤖 Teilbarkeits-Roboter",
-                                        desc: "Füttere den Roboter nur mit teilbaren Zahlen",
+                                        type: "estimationjar",
+                                        label: "🫙 Schätz-Glas",
+                                        desc: "Mengen und Murmel-Anzahlen schätzen",
                                         category: "mathe",
                                       },
 
                                       {
                                         type: "vocabulary",
-                                        label: "📖 Lernwörter-Zufall",
-                                        desc: "Lernwörter-Training",
+                                        label: "🔤 Lernwörter-Studio",
+                                        desc: "Lernkartei, Stolperstellen & ABC-Ordnung",
                                         category: "deutsch",
                                       },
                                       {
-                                        type: "scrambler",
-                                        label: "🧩 Satz-Baukasten",
-                                        desc: "Satzglieder ordnen",
+                                        type: "wortsatzwerkstatt",
+                                        label: "✍️ Wort- & Satzwerkstatt",
+                                        desc: "Wörter bauen, zerlegen & Sätze ordnen",
                                         category: "deutsch",
                                       },
                                       {
@@ -10392,24 +8852,7 @@ ${content}
                                         desc: "Anagramme entschlüsseln",
                                         category: "deutsch",
                                       },
-                                      {
-                                        type: "spellingdetective",
-                                        label: "🕵️ Wort-Detektiv",
-                                        desc: "Spüre Rechtschreibfehler in Sätzen auf",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "compoundsplit",
-                                        label: "🔗 Wort-Spalter",
-                                        desc: "Trenne zusammengesetzte Nomen",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "wordbuilder",
-                                        label: "🚂 Silben-Schüttler",
-                                        desc: "Silbenteile zu Substantiven zusammen",
-                                        category: "deutsch",
-                                      },
+
                                       {
                                         type: "secretcode",
                                         label: "🕵️ Geheimsprachen-Box",
@@ -10418,22 +8861,11 @@ ${content}
                                       },
                                       {
                                         type: "storyemojis",
-                                        label: "🎲 Story-Würfel",
-                                        desc: "Lass dir Emojis als Schreibanlass würfeln",
+                                        label: "🎭 Story-Emojis",
+                                        desc: "Bildimpulse für Geschichten & Erzählungen",
                                         category: "deutsch",
                                       },
-                                      {
-                                        type: "abcorder",
-                                        label: "🔤 ABC-Sortierer",
-                                        desc: "Sortiere Wörter streng nach dem Alphabet",
-                                        category: "deutsch",
-                                      },
-                                      {
-                                        type: "sentencebuilding",
-                                        label: "🚂 Satzglieder-Bahn",
-                                        desc: "Ordne Satzglieder zu grammatikalisch richtigen Sätzen",
-                                        category: "deutsch",
-                                      },
+
                                       {
                                         type: "wordexplorer",
                                         label: "🔍 Wort-Analysator",
@@ -10545,6 +8977,12 @@ ${content}
                                         category: "play",
                                       },
                                       {
+                                        type: "calculator",
+                                        label: "🧮 Grundschulrechner",
+                                        desc: "Klarer Smartboard-Rechner für Grundrechenarten",
+                                        category: "tools",
+                                      },
+                                      {
                                         type: "noisemeter",
                                         label: "🔊 Lärmampel / Messer",
                                         desc: "Lautstärkekontrolle visualisiert",
@@ -10576,8 +9014,8 @@ ${content}
                                       },
                                       {
                                         type: "klassenglas",
-                                        label: "💎 Belohnungsglas",
-                                        desc: "Edelsteine sammeln",
+                                        label: "💎 Klassenziel & Belohnungsglas",
+                                        desc: "Gemeinsames Klassenziel (Glas, Thermometer, Barometer)",
                                         category: "tools",
                                       },
                                       {
@@ -10638,7 +9076,7 @@ ${content}
                                       {
                                         type: "breathing",
                                         label: "🍃 Atempause",
-                                        desc: "Stressabbau & Atemübungen",
+                                        desc: "Ruhige angeleitete Atemübung",
                                         category: "mindfulness",
                                       },
                                       {
@@ -10696,12 +9134,6 @@ ${content}
                                         category: "mindfulness",
                                       },
                                       {
-                                        type: "soundmachine",
-                                        label: "🎶 Natur-Geräusche-Board",
-                                        desc: "Künstliche Vögel, Regen und Glocken",
-                                        category: "mindfulness",
-                                      },
-                                      {
                                         type: "animalvoice",
                                         label: "🤖 Roboter-Sounds",
                                         desc: "Welcher Roboter macht dieses Geräusch?",
@@ -10715,16 +9147,11 @@ ${content}
                                       },
                                       {
                                         type: "calmrain",
-                                        label: "🌧️ Natur-Mischpult",
-                                        desc: "Beruhigende Fokus-Sounds mischen",
+                                        label: "🌧️ Fokus-Klänge",
+                                        desc: "Beruhigende Natur- und Fokusgeräusche für Stillarbeit",
                                         category: "mindfulness",
                                       },
-                                      {
-                                        type: "estimationjar",
-                                        label: "🫙 Schätz-Glas",
-                                        desc: "Murmel-Anzahlen schätzen",
-                                        category: "mindfulness",
-                                      },
+
                                       {
                                         type: "wastebin",
                                         label: "♻️ Müll-Trenner",
@@ -10797,7 +9224,8 @@ ${content}
 
                                         let matchesCategory = false;
                                         if (activeWidgetCategory === "all") {
-                                          matchesCategory = true;
+                                          matchesCategory =
+                                            item.category !== "mathe";
                                         } else if (
                                           activeWidgetCategory === "favorites"
                                         ) {
@@ -11047,82 +9475,192 @@ ${content}
                             )}
                           </div>
 
-
-
-                          {/* Quick Whiteboard / Zeichentafel Button beside WIDGET */}
+                          {/* Primary Action 2: Whiteboard & Text */}
                           <button
                             type="button"
                             onClick={() => toggleTool("drawing")}
-                            className={`${isLayoutEditing ? "flex" : "hidden"} px-3 py-1.5 rounded-lg border font-bold text-[9px] uppercase tracking-[0.12em] items-center gap-1.5 transition-all duration-200 shadow-sm cursor-pointer ${
+                            className={`h-8 px-2.5 rounded-lg border font-bold text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all duration-200 shadow-sm cursor-pointer ${
                               isToolActive("drawing")
                                 ? "bg-rose-500 border-rose-450 text-white shadow-[0_0_12px_rgba(244,63,94,0.4)]"
                                 : currentIsLight
-                                  ? "bg-white border-slate-200 hover:bg-rose-800 hover:text-white text-rose-500"
-                                  : "bg-zinc-900 border-white/10 hover:bg-rose-800 hover:text-white text-rose-500"
-                            }`}
-                            title="Freie Zeichentafel (Whiteboard) ein-/ausblenden"
-                          >
-                            <span>🖍️ Whiteboard & Text</span>
-                          </button>
-
-                          {/* Auto-Arrange Button */}
-                          <button
-                            type="button"
-                            onClick={handleAutoArrangeWidgets}
-                            className={`${isLayoutEditing ? "flex" : "hidden"} px-3 py-1.5 rounded-lg border font-bold text-[9px] uppercase tracking-[0.12em] items-center gap-1.5 transition-all duration-200 shadow-sm cursor-pointer ${
-                              currentIsLight
-                                ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-800"
-                                : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white"
-                            }`}
-                            title="Alle geöffneten Widgets ordentlich auf dem Bildschirm anordnen"
-                          >
-                            <span>✨ Auto-Anordnung</span>
-                          </button>
-
-                          {/* Vorlagen & Layouts Button */}
-                          <button
-                            type="button"
-                            onClick={() => setIsVorlagenModalOpen(true)}
-                            className={`${isLayoutEditing ? "flex" : "hidden"} px-3 py-1.5 rounded-lg border font-bold text-[9px] uppercase tracking-[0.12em] items-center gap-1.5 transition-all duration-200 shadow-sm cursor-pointer ${
-                              currentIsLight
-                                ? "bg-indigo-50 border-indigo-200/80 hover:bg-indigo-100 text-indigo-700"
-                                : "bg-indigo-950/60 border-indigo-500/30 hover:bg-indigo-900/80 text-indigo-300"
-                            }`}
-                            title="Arbeitsbereich-Vorlagen (Presets) erstellen, verwalten & laden"
-                          >
-                            <Settings2 size={11} className="text-indigo-500" />
-                            <span>📋 Vorlagen</span>
-                            <span className="px-1.5 py-0.2 rounded-full text-[8.5px] font-black bg-indigo-500 text-white">
-                              {app.workspaceProfiles && app.workspaceProfiles.length > 0
-                                ? app.workspaceProfiles.length
-                                : DEFAULT_WORKSPACE_PROFILES.length}
-                            </span>
-                          </button>
-
-                          {/* Layout Slot Menu */}
-                          <div className={isLayoutEditing ? "relative" : "hidden"}>
-                            <button
-                              onClick={() => setIsSlotMenuOpen(!isSlotMenuOpen)}
-                              className={`px-3 py-1.5 rounded-lg border font-bold text-[9px] uppercase tracking-[0.12em] flex items-center gap-1.5 transition-all duration-200 shadow-sm cursor-pointer ${
-                                currentIsLight
                                   ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-800"
                                   : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white"
+                            }`}
+                            title="Freie Zeichentafel (Whiteboard-Widget) im Cockpit ein-/ausblenden"
+                          >
+                            <PenTool size={11} />
+                            <span>Whiteboard</span>
+                          </button>
+
+                          {/* Primary Action 3: Digitale Tafel (Große Vollbild-Tafel) */}
+                          <button
+                            type="button"
+                            id="btn-open-digitale-tafel"
+                            onClick={() => setIsTafelOpen(true)}
+                            className={`h-8 px-2.5 rounded-lg border font-bold text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all duration-200 shadow-sm cursor-pointer ${
+                              isTafelOpen
+                                ? "bg-emerald-600 border-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]"
+                                : currentIsLight
+                                  ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-800 hover:text-emerald-700"
+                                  : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white hover:text-emerald-400"
+                            }`}
+                            title="Digitale Tafel im großen Vollbild-Arbeitsmodus öffnen"
+                          >
+                            <Presentation size={11} className="text-emerald-500" />
+                            <span>Digitale Tafel</span>
+                          </button>
+
+                          {/* Secondary Actions: Dropdown Menu (••• Optionen) */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setIsMoreOptionsMenuOpen((prev) => !prev)}
+                              className={`h-8 px-2.5 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                                isMoreOptionsMenuOpen
+                                  ? "bg-indigo-600 border-indigo-600 text-white"
+                                  : currentIsLight
+                                    ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
+                                    : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white/80"
                               }`}
+                              title="Weitere Optionen & Layout-Werkzeuge"
                             >
-                              <Settings2 size={11} />
-                              <span>Layouts</span>
+                              <MoreHorizontal size={14} />
+                              <span className="hidden sm:inline text-[9px] font-black uppercase tracking-wider">Optionen</span>
                             </button>
 
+                            {isMoreOptionsMenuOpen && (
+                              <div
+                                className={`absolute right-0 top-10 w-64 rounded-2xl border p-2 shadow-2xl flex flex-col gap-1 z-[1000] ${
+                                  currentIsLight
+                                    ? "bg-white border-slate-200 text-slate-800 animate-in fade-in slide-in-from-top-2 duration-150"
+                                    : "bg-zinc-900 border-white/10 text-white animate-in fade-in slide-in-from-top-2 duration-150"
+                                }`}
+                              >
+                                <div className="px-2 py-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-white/5">
+                                  Tafel-Optionen
+                                </div>
+
+                                <button
+                                  type="button"
+                                  id="btn-menu-open-digitale-tafel"
+                                  onClick={() => {
+                                    setIsTafelOpen(true);
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Presentation size={12} className="text-emerald-500 shrink-0" />
+                                  <span>Digitale Tafel öffnen</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleAutoArrangeWidgets();
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Sparkles size={12} className="text-amber-500 shrink-0" />
+                                  <span>Automatisch anordnen</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsVorlagenModalOpen(true);
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Layout size={12} className="text-indigo-500 shrink-0" />
+                                  <span className="flex-1">Vorlagen & Profile</span>
+                                  <span className="px-1.5 py-0.2 rounded-full text-[8px] font-black bg-indigo-500 text-white">
+                                    {app.workspaceProfiles && app.workspaceProfiles.length > 0
+                                      ? app.workspaceProfiles.length
+                                      : DEFAULT_WORKSPACE_PROFILES.length}
+                                  </span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsSlotMenuOpen(true);
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Settings2 size={12} className="text-slate-400 shrink-0" />
+                                  <span>Layouts & Schnell-Slots</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsLayoutLocked((prev) => !prev);
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  {isLayoutLocked ? (
+                                    <>
+                                      <Unlock size={12} className="text-emerald-500 shrink-0" />
+                                      <span>Layout entsperren</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Lock size={12} className="text-amber-500 shrink-0" />
+                                      <span>Layout fixieren</span>
+                                    </>
+                                  )}
+                                </button>
+
+                                <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleClearAllWidgets();
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className="w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold text-rose-500 hover:bg-rose-500/10 flex items-center gap-2 text-left transition-colors cursor-pointer"
+                                >
+                                  <Trash2 size={12} className="shrink-0" />
+                                  <span>Tafel leeren (Alle schließen)</span>
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Layout Slot Menu Modal if opened */}
                             {isSlotMenuOpen && (
                               <div
-                                className={`absolute top-11 right-0 w-60 rounded-2xl border p-2 shadow-2xl flex flex-col gap-2 z-[1000] ${
+                                className={`absolute top-11 right-0 w-64 rounded-2xl border p-2 shadow-2xl flex flex-col gap-2 z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-100 animate-in fade-in slide-in-from-top-3 duration-200"
                                     : "bg-zinc-900 border-white/10 animate-in fade-in slide-in-from-top-3 duration-200"
                                 }`}
                               >
-                                <div className="px-2 py-1 text-[8px] font-black uppercase tracking-wider text-slate-400">
-                                  Arbeitsbereiche (Profile)
+                                <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100 dark:border-white/5">
+                                  <div className="text-[8px] font-black uppercase tracking-wider text-slate-400">
+                                    Arbeitsbereiche & Profile
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsSlotMenuOpen(false)}
+                                    className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+                                  >
+                                    ✕
+                                  </button>
                                 </div>
 
                                 <div className="p-1">
@@ -11272,7 +9810,7 @@ ${content}
                                     );
                                     setIsSlotMenuOpen(false);
                                   }}
-                                  className={`w-full px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider text-rose-500 text-center hover:bg-rose-500/10 transition-all cursor-pointer`}
+                                  className="w-full px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider text-rose-500 text-center hover:bg-rose-500/10 transition-all cursor-pointer"
                                 >
                                   Standard laden
                                 </button>
@@ -11344,6 +9882,54 @@ ${content}
                                 >
                                   Abbrechen
                                 </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Empty Board Subtle Guidance */}
+                        {cockpitWidgets.filter((w) => w.visible).length === 0 && (
+                          <div
+                            id="cockpit-empty-state-hint"
+                            className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center select-none pointer-events-none"
+                          >
+                            <div className="flex flex-col items-center max-w-sm gap-2.5 pointer-events-auto">
+                              <div
+                                className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${
+                                  currentIsLight
+                                    ? "bg-slate-100/90 border-slate-200/80 text-slate-400"
+                                    : "bg-white/[0.04] border-white/10 text-neutral-500"
+                                }`}
+                              >
+                                <Plus size={24} strokeWidth={2} className="opacity-70" />
+                              </div>
+                              <div className="space-y-1">
+                                <h3
+                                  className={`text-xs font-black uppercase tracking-wider ${
+                                    currentIsLight ? "text-slate-600" : "text-neutral-300"
+                                  }`}
+                                >
+                                  Noch keine Widgets geöffnet
+                                </h3>
+                                <p
+                                  className={`text-[11px] font-semibold ${
+                                    currentIsLight ? "text-slate-400" : "text-neutral-500"
+                                  }`}
+                                >
+                                  Über{" "}
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsAddWidgetMenuOpen(true)}
+                                    className={`font-black underline underline-offset-2 transition-colors cursor-pointer ${
+                                      currentIsLight
+                                        ? "text-indigo-600 hover:text-indigo-700"
+                                        : "text-indigo-400 hover:text-indigo-300"
+                                    }`}
+                                  >
+                                    + Widget
+                                  </button>{" "}
+                                  kannst du Tools und Hilfen zur Tafel hinzufügen.
+                                </p>
                               </div>
                             </div>
                           </div>
@@ -11457,10 +10043,19 @@ ${content}
                                         />
                                       );
 
+                                    case "fractionvisualizer":
                                     case "fractions":
+                                    case "fractioncake":
+                                    case "fractiongrid":
                                       return (
-                                        <FractionsWidgetContent
+                                        <FractionVisualizerContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11475,9 +10070,18 @@ ${content}
 
                                     case "sorting":
                                       return (
-                                        <SortingWidgetContent
+                                        <RetiredMathWidgetFallback
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onRemove={() =>
+                                            handleCloseWidget(
+                                              widget.id,
+                                              widget.type,
+                                            )
+                                          }
+                                          onOpenZahlenraum={() =>
+                                            toggleWidget("zahlenraum")
+                                          }
                                         />
                                       );
 
@@ -11547,16 +10151,41 @@ ${content}
 
                                     case "piggybank":
                                       return (
-                                        <PiggybankWidgetContent
-                                          widget={widget}
+                                        <ClassRewardWidget
+                                          app={app}
+                                          setApp={setApp}
+                                          widget={{
+                                            ...widget,
+                                            settings: {
+                                              symbol: '🪙',
+                                              style: 'jar',
+                                              ...(widget?.settings || {}),
+                                            },
+                                          }}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
+                                          activeFokusThemeVars={
+                                            activeFokusThemeVars
+                                          }
+                                          isFullscreen={false}
                                         />
                                       );
 
                                     case "noisescales":
                                       return (
-                                        <NoisescalesWidgetContent
+                                        <NoiseScaleWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11611,25 +10240,41 @@ ${content}
 
                                     case "numberline":
                                       return (
-                                        <NumberlineWidgetContent
+                                        <ZahlenraumStudioContent
                                           widget={widget}
-                                          currentIsLight={currentIsLight}
-                                        />
-                                      );
-
-                                    case "mathchain":
-                                      return (
-                                        <MathchainWidgetContent
-                                          widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
 
                                     case "thermometer":
                                       return (
-                                        <ThermometerWidgetContent
-                                          widget={widget}
+                                        <ClassRewardWidget
+                                          app={app}
+                                          setApp={setApp}
+                                          widget={{
+                                            ...widget,
+                                            settings: {
+                                              style: 'thermometer',
+                                              ...(widget?.settings || {}),
+                                            },
+                                          }}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
+                                          activeFokusThemeVars={
+                                            activeFokusThemeVars
+                                          }
+                                          isFullscreen={false}
                                         />
                                       );
 
@@ -11638,22 +10283,33 @@ ${content}
                                         <CompoundsplitWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          isFullscreen={
+                                            fullscreenWidgetId === widget.id
+                                          }
                                         />
                                       );
 
                                     case "mathduel":
-                                      return (
-                                        <MathduelWidgetContent
-                                          widget={widget}
-                                          currentIsLight={currentIsLight}
-                                        />
-                                      );
-
                                     case "shapepuzzle":
                                       return (
-                                        <ShapepuzzleWidgetContent
+                                        <RetiredMathWidgetFallback
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onRemove={() =>
+                                            handleCloseWidget(
+                                              widget.id,
+                                              widget.type,
+                                            )
+                                          }
+                                          onOpenZahlenraum={() =>
+                                            toggleWidget("zahlenraum")
+                                          }
                                         />
                                       );
 
@@ -11673,19 +10329,20 @@ ${content}
                                         />
                                       );
 
-                                    case "fractioncake":
-                                      return (
-                                        <FractioncakeWidgetContent
-                                          widget={widget}
-                                          currentIsLight={currentIsLight}
-                                        />
-                                      );
-
                                     case "sentencebuilding":
                                       return (
                                         <SentencebuildingWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          isFullscreen={
+                                            fullscreenWidgetId === widget.id
+                                          }
                                         />
                                       );
 
@@ -11725,6 +10382,12 @@ ${content}
                                       return (
                                         <CalmrainWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11795,17 +10458,45 @@ ${content}
 
                                     case "divrobot":
                                       return (
-                                        <DivrobotWidgetContent
+                                        <RetiredMathWidgetFallback
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onRemove={() =>
+                                            handleCloseWidget(
+                                              widget.id,
+                                              widget.type,
+                                            )
+                                          }
+                                          onOpenZahlenraum={() =>
+                                            toggleWidget("zahlenraum")
+                                          }
                                         />
                                       );
 
                                     case "classtarget":
                                       return (
-                                        <ClasstargetWidgetContent
-                                          widget={widget}
+                                        <ClassRewardWidget
+                                          app={app}
+                                          setApp={setApp}
+                                          widget={{
+                                            ...widget,
+                                            settings: {
+                                              style: 'barometer',
+                                              symbol: '⭐',
+                                              ...(widget?.settings || {}),
+                                            },
+                                          }}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
+                                          activeFokusThemeVars={
+                                            activeFokusThemeVars
+                                          }
+                                          isFullscreen={false}
                                         />
                                       );
 
@@ -11841,14 +10532,6 @@ ${content}
                                         />
                                       );
 
-                                    case "fractiongrid":
-                                      return (
-                                        <FractiongridWidgetContent
-                                          widget={widget}
-                                          currentIsLight={currentIsLight}
-                                        />
-                                      );
-
                                     case "trafficquiz":
                                       return (
                                         <TrafficquizWidgetContent
@@ -11862,6 +10545,32 @@ ${content}
                                         <WordbuilderWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          isFullscreen={
+                                            fullscreenWidgetId === widget.id
+                                          }
+                                        />
+                                      );
+
+                                    case "wortsatzwerkstatt":
+                                      return (
+                                        <WortSatzWerkstattWidgetContent
+                                          widget={widget}
+                                          currentIsLight={currentIsLight}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          isFullscreen={
+                                            fullscreenWidgetId === widget.id
+                                          }
                                         />
                                       );
 
@@ -11877,6 +10586,12 @@ ${content}
                                       return (
                                         <SoundmachineWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11905,18 +10620,17 @@ ${content}
                                         />
                                       );
 
-                                    case "multitrainer":
-                                      return (
-                                        <MultitrainerWidgetContent
-                                          widget={widget}
-                                          currentIsLight={currentIsLight}
-                                        />
-                                      );
-
                                     case "anschauung":
+                                    case "zahlenraum":
                                       return (
-                                        <AnschauungWidgetContent
+                                        <ZahlenraumStudioContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -11934,6 +10648,15 @@ ${content}
                                         <StoryemojisWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          isFullscreen={
+                                            fullscreenWidgetId === widget.id
+                                          }
                                         />
                                       );
 
@@ -11955,946 +10678,46 @@ ${content}
 
                                     case "clock":
                                       return (
-                                        <InnerClockWidget
+                                        <ClockWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
-                                          time={time}
-                                          app={app}
-                                          getKW={getKW}
-                                          currentHour={currentHour}
-                                          tagName={tagName}
-                                          kw={kw}
-                                          getActiveSubject={getActiveSubject}
                                         />
                                       );
 
                                     case "timer":
-                                      const percentLeft = app.boardSettings
-                                        .timerTotal
-                                        ? timerDisplaySec /
-                                          app.boardSettings.timerTotal
-                                        : 0;
-                                      const circumference = 2 * Math.PI * 26; // radius = 26
-                                      const circumferenceLarge =
-                                        2 * Math.PI * 34; // radius = 34
-                                      const strokeDashoffset = app.boardSettings
-                                        .timerTotal
-                                        ? (1 - percentLeft) * circumference
-                                        : 0;
-                                      const strokeDashoffsetLarge = app
-                                        .boardSettings.timerTotal
-                                        ? (1 - percentLeft) * circumferenceLarge
-                                        : 0;
-                                      const visualMode =
-                                        widget.settings?.visualMode ||
-                                        "ring"; // 'hourglass' | 'ring' | 'progress' | 'minimal' | 'petrun' | 'petfeed'
-                                      const alarmSound =
-                                        widget.settings?.alarmSound ||
-                                        "bell"; // 'bell' | 'beep' | 'bowl' | 'tada' | 'laser' | 'pet'
-
-                                      const petState = app.classPet || { animalType: "dino", name: "Spike" };
-                                      const petBreed = PET_BREEDS.find((b) => b.id === petState.animalType) || PET_BREEDS[0];
-                                      const petEmoji = petBreed ? petBreed.emoji : "🦕";
-                                      const petName = petState.name || petBreed?.nameDefault || "Spike";
-
-                                      const setTimerValue = (seconds: number) => {
-                                        setTimerDisplaySec(seconds);
-                                        setApp((prev) => ({
-                                          ...prev,
-                                          boardSettings: {
-                                            ...prev.boardSettings,
-                                            timerTotal: seconds,
-                                            timerEnd: prev.boardSettings.timerRunning
-                                              ? Date.now() + seconds * 1000
-                                              : prev.boardSettings.timerEnd,
-                                          },
-                                        }));
-                                        playSound("beep");
-                                      };
-
-                                      if (widgetSettingsOpenId === widget.id) {
-                                        return (
-                                          <div className="flex flex-col p-3 w-full h-full justify-between pointer-events-auto overflow-y-auto">
-                                            <div className="flex justify-between items-center shrink-0 border-b pb-1.5 border-dashed border-slate-200 dark:border-white/10 mb-2">
-                                              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500">
-                                                ⚙️ Timer-Einstellungen
-                                              </span>
-                                              <button
-                                                onClick={() =>
-                                                  setWidgetSettingsOpenId(null)
-                                                }
-                                                className="p-1 px-2.5 text-[8.5px] uppercase tracking-widest font-black text-rose-500 hover:bg-rose-500/10 rounded-md cursor-pointer transition-all"
-                                              >
-                                                Fertig
-                                              </button>
-                                            </div>
-
-                                            {/* Design Selector */}
-                                            <div className="flex flex-col gap-1 mb-2">
-                                              <span className="text-[8px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                                                Anzeige-Modus:
-                                              </span>
-                                              <div className="grid grid-cols-3 gap-1.5">
-                                                {[
-                                                  { id: "hourglass", label: "⏳ Sanduhr" },
-                                                  { id: "ring", label: "⭕ Fokusring" },
-                                                  { id: "progress", label: "📊 Balken" },
-                                                  { id: "minimal", label: "🔢 Minimal" },
-                                                  { id: "petrun", label: `${petEmoji} Rennen` },
-                                                  { id: "petfeed", label: "🍎 Füttern" },
-                                                ].map((m) => (
-                                                  <button
-                                                    key={m.id}
-                                                    onClick={() =>
-                                                      handleUpdateWidgetPos(
-                                                        widget.id,
-                                                        {
-                                                          settings: {
-                                                            ...widget.settings,
-                                                            visualMode: m.id,
-                                                          },
-                                                        },
-                                                      )
-                                                    }
-                                                    className={`p-1 border rounded-lg text-[9px] font-bold transition-all truncate ${visualMode === m.id ? "bg-indigo-500 text-white border-indigo-400 shadow-md scale-102" : currentIsLight ? "bg-white hover:bg-slate-50 border-slate-200 text-slate-700" : "bg-zinc-900 border-white/5 text-slate-300 hover:bg-zinc-800"}`}
-                                                  >
-                                                    {m.label}
-                                                  </button>
-                                                ))}
-                                              </div>
-                                            </div>
-
-                                            {/* Sound Selector */}
-                                            <div className="flex flex-col gap-1">
-                                              <span className="text-[8px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                                                Ablauf-Alarm-Sound:
-                                              </span>
-                                              <div className="grid grid-cols-3 gap-1.5">
-                                                {[
-                                                  { id: "bell", label: "🔔 Gong" },
-                                                  { id: "beep", label: "🚨 Beep" },
-                                                  { id: "bowl", label: "🥣 Schale" },
-                                                  { id: "tada", label: "🎉 Tadaa!" },
-                                                  { id: "laser", label: "⚡ Laser" },
-                                                  { id: "pet", label: `${petEmoji} ${petName}` },
-                                                ].map((s) => (
-                                                  <button
-                                                    key={s.id}
-                                                    onClick={() => {
-                                                      handleUpdateWidgetPos(
-                                                        widget.id,
-                                                        {
-                                                          settings: {
-                                                            ...widget.settings,
-                                                            alarmSound: s.id,
-                                                          },
-                                                        },
-                                                      );
-                                                      if (s.id === "pet") {
-                                                        playPetSound(petState.animalType || "dino");
-                                                      } else {
-                                                        playSound(s.id as any);
-                                                      }
-                                                    }}
-                                                    className={`p-1 border rounded-lg text-[9px] font-bold transition-all truncate ${alarmSound === s.id ? "bg-indigo-500 text-white border-indigo-400 shadow-md scale-102" : currentIsLight ? "bg-white hover:bg-slate-50 border-slate-200 text-slate-700" : "bg-zinc-900 border-white/5 text-slate-300 hover:bg-zinc-800"}`}
-                                                  >
-                                                    {s.label}
-                                                  </button>
-                                                ))}
-                                              </div>
-                                            </div>
-                                          </div>
-                                        );
-                                      }
-
                                       return (
-                                        <div className={`relative flex-grow flex flex-col items-center justify-between p-2 min-h-0 select-none w-full h-full overflow-hidden rounded-xl ${
-                                          timerDisplaySec === 0 && app.boardSettings.timerTotal
-                                            ? currentIsLight ? "bg-rose-50/60" : "bg-rose-950/15"
-                                            : app.boardSettings.timerRunning
-                                              ? currentIsLight ? "bg-gradient-to-br from-indigo-50/80 via-white to-emerald-50/70" : "bg-gradient-to-br from-indigo-950/20 via-transparent to-emerald-950/20"
-                                              : currentIsLight ? "bg-slate-50/70" : "bg-white/[0.02]"
-                                        }`}>
-                                          {app.boardSettings.timerRunning && (
-                                            <motion.div
-                                              aria-hidden="true"
-                                              className="absolute -top-16 -right-12 w-36 h-36 rounded-full bg-indigo-400/15 blur-2xl pointer-events-none"
-                                              animate={{ scale: [1, 1.22, 1], opacity: [0.35, 0.7, 0.35] }}
-                                              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                                            />
-                                          )}
-                                          
-                                          {/* Quick Preset buttons - very high value for teacher workflow */}
-                                          {!app.boardSettings.timerRunning && (
-                                            <div className="relative z-10 shrink-0 flex gap-1.5 justify-center w-full px-1 overflow-x-auto no-scrollbar py-0.5">
-                                              {[
-                                                { label: "30s", val: 30 },
-                                                { label: "1m", val: 60 },
-                                                { label: "2m", val: 120 },
-                                                { label: "3m", val: 180 },
-                                                { label: "5m", val: 300 },
-                                                { label: "10m", val: 600 },
-                                                { label: "15m", val: 900 },
-                                                { label: "20m", val: 1200 },
-                                              ].map((p, idx) => (
-                                                <button
-                                                  key={idx}
-                                                  onClick={() => setTimerValue(p.val)}
-                                                  className={`px-2 py-1 text-[8.5px] font-bold rounded-lg border cursor-pointer active:scale-95 transition-all shrink-0 ${
-                                                    app.boardSettings.timerTotal === p.val
-                                                      ? "bg-indigo-500 border-indigo-500 text-white shadow-sm"
-                                                      : currentIsLight 
-                                                      ? "bg-white hover:bg-indigo-50 border-slate-200 text-slate-700 hover:border-indigo-300" 
-                                                      : "bg-zinc-900 border-white/5 hover:bg-zinc-800 text-slate-300"
-                                                  }`}
-                                                >
-                                                  {p.label}
-                                                </button>
-                                              ))}
-                                            </div>
-                                          )}
-
-                                          {/* Visualizer viewport */}
-                                          <div className="relative z-10 flex-grow flex flex-col items-center justify-center gap-2 min-h-0 w-full px-2">
-                                            <motion.div
-                                              className={`absolute z-20 top-1 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-1 rounded-full border text-[8px] font-black uppercase tracking-[0.14em] ${
-                                                timerDisplaySec === 0 && app.boardSettings.timerTotal
-                                                  ? "bg-rose-500/10 border-rose-500/20 text-rose-500"
-                                                  : app.boardSettings.timerRunning
-                                                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600"
-                                                    : currentIsLight
-                                                      ? "bg-white border-slate-200 text-slate-500"
-                                                      : "bg-white/5 border-white/10 text-white/50"
-                                              }`}
-                                              animate={app.boardSettings.timerRunning ? { opacity: [0.72, 1, 0.72] } : { opacity: 1 }}
-                                              transition={{ duration: 1.8, repeat: app.boardSettings.timerRunning ? Infinity : 0 }}
-                                            >
-                                              {timerDisplaySec === 0 && app.boardSettings.timerTotal
-                                                ? "Zeit abgelaufen"
-                                                : app.boardSettings.timerRunning
-                                                  ? timerDisplaySec <= 60 ? "Letzte Minute" : "Timer läuft"
-                                                  : timerDisplaySec > 0 ? "Bereit" : "Zeit auswählen"}
-                                            </motion.div>
-                                            
-                                            {/* Mode: Hourglass (Sanduhr) */}
-                                            {visualMode === "hourglass" && (
-                                              <div className="flex-grow flex items-center justify-center gap-2.5 min-h-0 w-full">
-                                                <div className="w-9 h-12 shrink-0 pointer-events-none relative flex flex-col items-center justify-center">
-                                                  <svg
-                                                    viewBox="0 0 24 32"
-                                                    className="w-full h-full overflow-visible"
-                                                  >
-                                                    {/* Glass bulbs borders */}
-                                                    <path
-                                                      d="M3 2 L21 2 M3 30 L21 30 M5 2 C5 10, 10 14, 10 16 C10 18, 5 22, 5 30 M19 2 C19 10, 14 14, 14 16 C14 18, 19 22, 19 30"
-                                                      fill="none"
-                                                      className={
-                                                        currentIsLight
-                                                          ? "stroke-slate-400"
-                                                          : "stroke-zinc-500"
-                                                      }
-                                                      strokeWidth="1.5"
-                                                      strokeLinecap="round"
-                                                    />
-
-                                                    {/* Upper Sand (draining down) */}
-                                                    <path
-                                                      d={`M 6 4 Q 12 12, 18 4 Q 12 15, 6 4`}
-                                                      fill="#fbbf24"
-                                                      className="opacity-90 origin-[12px_16px]"
-                                                      style={{
-                                                        transform: `scaleY(${percentLeft})`,
-                                                      }}
-                                                    />
-
-                                                    {/* Lower Sand (filling up) */}
-                                                    <path
-                                                      d={`M 6 28 Q 12 20, 18 28 Q 12 17, 6 28`}
-                                                      fill="#fbbf24"
-                                                      className="opacity-90 origin-[12px_16px]"
-                                                      style={{
-                                                        transform: `scaleY(${1 - percentLeft})`,
-                                                      }}
-                                                    />
-
-                                                    {/* Dripping line particle flow */}
-                                                    {app.boardSettings.timerRunning &&
-                                                      percentLeft > 0 && (
-                                                        <line
-                                                          x1="12"
-                                                          y1="13"
-                                                          x2="12"
-                                                          y2="23"
-                                                          className="stroke-amber-400 animate-pulse"
-                                                          strokeWidth="1.5"
-                                                          strokeDasharray="2,2"
-                                                        />
-                                                      )}
-                                                  </svg>
-                                                </div>
-
-                                                {/* Countdown circle */}
-                                                <div className="relative flex items-center justify-center w-20 h-20 shrink-0">
-                                                  <svg className="w-full h-full -rotate-90">
-                                                    <circle
-                                                      cx="40"
-                                                      cy="40"
-                                                      r="26"
-                                                      className={
-                                                        currentIsLight
-                                                          ? "stroke-slate-200"
-                                                          : "stroke-zinc-800"
-                                                      }
-                                                      fill="transparent"
-                                                      style={{ strokeWidth: 3 }}
-                                                    />
-                                                    {app.boardSettings.timerTotal ? (
-                                                      <motion.circle
-                                                        cx="40"
-                                                        cy="40"
-                                                        r="26"
-                                                        className="stroke-indigo-500"
-                                                        fill="transparent"
-                                                        strokeDasharray={
-                                                          circumference
-                                                        }
-                                                        animate={{
-                                                          strokeDashoffset,
-                                                        }}
-                                                        transition={{
-                                                          type: "tween",
-                                                          ease: "linear",
-                                                        }}
-                                                        strokeLinecap="round"
-                                                        style={{
-                                                          strokeWidth: 3,
-                                                        }}
-                                                      />
-                                                    ) : null}
-                                                  </svg>
-                                                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                                    <div
-                                                      className={`font-mono font-black tracking-tight leading-none tabular-nums ${timerDisplaySec < 10 && app.boardSettings.timerRunning ? "text-rose-500 animate-pulse text-[15px]" : "text-xs font-bold"}`}
-                                                    >
-                                                      {Math.floor(
-                                                        timerDisplaySec / 60,
-                                                      )}
-                                                      :
-                                                      {(timerDisplaySec % 60)
-                                                        .toString()
-                                                        .padStart(2, "0")}
-                                                    </div>
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            )}
-
-                                            {/* Mode: Ring */}
-                                            {visualMode === "ring" && (
-                                              <motion.div
-                                                className="relative flex items-center justify-center w-24 h-24 shrink-0 mx-auto mt-4"
-                                                animate={timerDisplaySec <= 10 && app.boardSettings.timerRunning ? { scale: [1, 1.06, 1] } : { scale: 1 }}
-                                                transition={{ duration: 1, repeat: timerDisplaySec <= 10 && app.boardSettings.timerRunning ? Infinity : 0 }}
-                                              >
-                                                <svg
-                                                  className="w-full h-full -rotate-90"
-                                                  viewBox="0 0 80 80"
-                                                >
-                                                  <circle
-                                                    cx="40"
-                                                    cy="40"
-                                                    r="34"
-                                                    className={
-                                                      currentIsLight
-                                                        ? "stroke-slate-200"
-                                                        : "stroke-zinc-800"
-                                                    }
-                                                    fill="transparent"
-                                                    style={{ strokeWidth: 6 }}
-                                                  />
-                                                  {app.boardSettings.timerTotal ? (
-                                                    <motion.circle
-                                                      cx="40"
-                                                      cy="40"
-                                                      r="34"
-                                                    className={timerDisplaySec <= 60 && app.boardSettings.timerRunning ? "stroke-rose-500" : "stroke-indigo-500"}
-                                                      fill="transparent"
-                                                      strokeDasharray={
-                                                        circumferenceLarge
-                                                      }
-                                                      animate={{
-                                                        strokeDashoffset:
-                                                          strokeDashoffsetLarge,
-                                                      }}
-                                                      transition={{
-                                                        type: "tween",
-                                                        ease: "linear",
-                                                      }}
-                                                      strokeLinecap="round"
-                                                      style={{ strokeWidth: 6 }}
-                                                    />
-                                                  ) : null}
-                                                </svg>
-                                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none flex-col">
-                                                  <div
-                                                    className={`font-mono font-black tracking-tight leading-none tabular-nums ${timerDisplaySec < 10 && app.boardSettings.timerRunning ? "text-rose-500 text-2xl" : "text-2xl text-slate-800 dark:text-white"}`}
-                                                  >
-                                                    {Math.floor(
-                                                      timerDisplaySec / 60,
-                                                    )}
-                                                    :
-                                                    {(timerDisplaySec % 60)
-                                                      .toString()
-                                                      .padStart(2, "0")}
-                                                  </div>
-                                                </div>
-                                              </motion.div>
-                                            )}
-
-                                            {/* Mode: Progress */}
-                                            {visualMode === "progress" && (
-                                              <div className="flex flex-col items-center justify-center w-full px-4 mt-2 gap-3 h-full">
-                                                <div
-                                                  className={`font-mono font-black tracking-widest leading-none tabular-nums ${timerDisplaySec < 10 && app.boardSettings.timerRunning ? "text-rose-500 animate-pulse text-4xl" : "text-4xl text-indigo-500"}`}
-                                                >
-                                                  {Math.floor(
-                                                    timerDisplaySec / 60,
-                                                  )}
-                                                  :
-                                                  {(timerDisplaySec % 60)
-                                                    .toString()
-                                                    .padStart(2, "0")}
-                                                </div>
-                                                <div
-                                                  className={`w-full h-3 rounded-full overflow-hidden ${currentIsLight ? "bg-slate-200" : "bg-zinc-800"}`}
-                                                >
-                                                  <motion.div
-                                                    className="h-full bg-indigo-500 rounded-full"
-                                                    initial={{
-                                                      width: `${percentLeft * 100}%`,
-                                                    }}
-                                                    animate={{
-                                                      width: `${percentLeft * 100}%`,
-                                                    }}
-                                                    transition={{
-                                                      type: "tween",
-                                                      ease: "linear",
-                                                      duration: 0.5,
-                                                    }}
-                                                  />
-                                                </div>
-                                              </div>
-                                            )}
-
-                                            {/* Mode: Minimal */}
-                                            {visualMode === "minimal" && (
-                                              <div className="flex-grow flex items-center justify-center mt-2 h-full">
-                                                <div
-                                                  className={`font-mono font-black tracking-tighter leading-none tabular-nums ${timerDisplaySec < 10 && app.boardSettings.timerRunning ? "text-rose-500 animate-pulse text-6xl drop-shadow-md" : "text-6xl text-slate-800 dark:text-white"}`}
-                                                >
-                                                  {Math.floor(
-                                                    timerDisplaySec / 60,
-                                                  )}
-                                                  :
-                                                  {(timerDisplaySec % 60)
-                                                    .toString()
-                                                    .padStart(2, "0")}
-                                                </div>
-                                              </div>
-                                            )}
-
-                                            {/* Mode: Pet Run (Rennen track) */}
-                                            {visualMode === "petrun" && (
-                                              <div className="w-full flex-grow flex flex-col justify-center gap-1.5 px-2">
-                                                {/* Digital counter inside */}
-                                                <span className="font-mono text-center font-black text-xs leading-none">
-                                                  {Math.floor(timerDisplaySec / 60)}:{(timerDisplaySec % 60).toString().padStart(2, "0")}
-                                                </span>
-                                                
-                                                {/* Track box */}
-                                                <div className={`relative w-full h-11 border rounded-lg overflow-hidden flex items-end p-0.5 ${
-                                                  currentIsLight ? "bg-gradient-to-b from-sky-100 to-green-50 border-slate-200" : "bg-gradient-to-b from-slate-950 to-emerald-950/20 border-white/5"
-                                                }`}>
-                                                  {/* Track details / Finish line */}
-                                                  <div className="absolute right-2 top-0 bottom-0 w-2.5 bg-repeating-checkerboard opacity-30 pointer-events-none" style={{
-                                                    backgroundImage: "repeating-linear-gradient(45deg, #000 0px, #000 2px, #fff 2px, #fff 4px)"
-                                                  }} />
-
-                                                  {/* Moving Class Pet! Goes from left to right as time counts down (meaning, position goes from left 0% to left 85% as percentLeft goes from 1 to 0!) */}
-                                                  <div 
-                                                    className="absolute bottom-1 transition-all duration-1000 ease-out flex flex-col items-center"
-                                                    style={{ left: `${Math.min(85, (1 - percentLeft) * 85)}%` }}
-                                                  >
-                                                    <span className={`text-xl select-none leading-none ${app.boardSettings.timerRunning ? "animate-bounce" : ""}`}>
-                                                      {petEmoji}
-                                                    </span>
-                                                    <span className="text-[6px] font-bold uppercase opacity-75 leading-none">{petName}</span>
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            )}
-
-                                            {/* Mode: Pet Feed (Snack bowl) */}
-                                            {visualMode === "petfeed" && (
-                                              <div className="w-full flex-grow flex flex-col justify-center items-center gap-2">
-                                                {/* Counter */}
-                                                <span className="font-mono font-black text-xs leading-none text-indigo-500">
-                                                  {Math.floor(timerDisplaySec / 60)}:{(timerDisplaySec % 60).toString().padStart(2, "0")}
-                                                </span>
-
-                                                <div className="flex gap-4 items-center justify-center">
-                                                  {/* Pet */}
-                                                  <div className="flex flex-col items-center">
-                                                    <span className={`text-3xl select-none ${app.boardSettings.timerRunning ? "animate-wiggle" : ""}`}>
-                                                      {petEmoji}
-                                                    </span>
-                                                    <span className="text-[7px] font-black uppercase opacity-60 mt-0.5">{petName}</span>
-                                                  </div>
-
-                                                  {/* Snack Bowl with remaining snacks */}
-                                                  <div className={`w-14 h-9 border rounded-2xl p-1 relative flex flex-wrap content-center justify-center gap-0.5 shadow-inner ${
-                                                    currentIsLight ? "bg-slate-200 border-slate-300" : "bg-zinc-950 border-zinc-800"
-                                                  }`}>
-                                                    {/* Snacks. Maximum of 5 icons, disappearing as time counts down */}
-                                                    {Array.from({ length: 5 }).map((_, idx) => {
-                                                      const threshold = idx / 5;
-                                                      const visible = percentLeft > threshold;
-                                                      const snackIcon = petState.animalType === "cat" ? "🐟" : petState.animalType === "dog" ? "🦴" : petState.animalType === "owl" ? "🐛" : "🍎";
-                                                      return visible ? (
-                                                        <span key={idx} className="text-xs select-none transition-all duration-300 drop-shadow-sm">{snackIcon}</span>
-                                                      ) : null;
-                                                    })}
-
-                                                    {/* Empty bowl text */}
-                                                    {percentLeft <= 0 && (
-                                                      <span className="text-[6.5px] font-black uppercase text-rose-500 animate-pulse">Leer!</span>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            )}
-
-                                            {/* Actionable invisible overlay to edit timer */}
-                                            <div className="absolute top-2 right-2 flex justify-end z-10">
-                                              {isEditingZenTime ? (
-                                                <input
-                                                  type="number"
-                                                  min="1"
-                                                  max="120"
-                                                  value={zenTimeInput}
-                                                  onChange={(e) =>
-                                                    setZenTimeInput(
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  onBlur={() => {
-                                                    setIsEditingZenTime(false);
-                                                    const mins =
-                                                      parseInt(zenTimeInput);
-                                                    if (
-                                                      !isNaN(mins) &&
-                                                      mins >= 0
-                                                    ) {
-                                                      const secs = mins * 60;
-                                                      setTimerDisplaySec(secs);
-                                                      setApp((prev) => ({
-                                                        ...prev,
-                                                        boardSettings: {
-                                                          ...prev.boardSettings,
-                                                          timerTotal: secs,
-                                                          timerEnd: prev
-                                                            .boardSettings
-                                                            .timerRunning
-                                                            ? Date.now() +
-                                                              secs * 1000
-                                                            : prev.boardSettings
-                                                                .timerEnd,
-                                                        },
-                                                      }));
-                                                    }
-                                                  }}
-                                                  onKeyDown={(e) => {
-                                                    if (e.key === "Enter")
-                                                      e.currentTarget.blur();
-                                                    else if (e.key === "Escape")
-                                                      setIsEditingZenTime(
-                                                        false,
-                                                      );
-                                                  }}
-                                                  autoFocus
-                                                  className="w-12 text-center bg-transparent border-b-2 border-indigo-500 px-0.5 text-lg font-black outline-none pointer-events-auto"
-                                                />
-                                              ) : (
-                                                <button
-                                                  onClick={() => {
-                                                    if (
-                                                      !app.boardSettings
-                                                        .timerRunning
-                                                    ) {
-                                                      setZenTimeInput(
-                                                        Math.floor(
-                                                          timerDisplaySec / 60,
-                                                        ).toString(),
-                                                      );
-                                                      setIsEditingZenTime(true);
-                                                    }
-                                                  }}
-                                                  title="Zeit anpassen"
-                                                  className={`p-1.5 rounded opacity-30 hover:opacity-100 transition-opacity pointer-events-auto ${app.boardSettings.timerRunning ? "hidden" : ""}`}
-                                                >
-                                                  <span className="text-xl">
-                                                    ⏱️
-                                                  </span>
-                                                </button>
-                                              )}
-                                            </div>
-                                          </div>
-
-                                          {/* Quick control Buttons */}
-                                          <div className="relative z-10 flex gap-1.5 mt-2 shrink-0 pointer-events-auto">
-                                            <button
-                                              onClick={() => {
-                                                const currentVal =
-                                                  timerDisplaySec;
-                                                const newVal = Math.max(
-                                                  0,
-                                                  currentVal - 30,
-                                                );
-                                                setTimerDisplaySec(newVal);
-                                                setApp((prev) => ({
-                                                  ...prev,
-                                                  boardSettings: {
-                                                    ...prev.boardSettings,
-                                                    timerTotal: prev
-                                                      .boardSettings
-                                                      .timerRunning
-                                                      ? prev.boardSettings
-                                                          .timerTotal
-                                                      : newVal,
-                                                    timerEnd: prev.boardSettings
-                                                      .timerRunning
-                                                      ? Date.now() +
-                                                        newVal * 1000
-                                                      : prev.boardSettings
-                                                          .timerEnd,
-                                                  },
-                                                }));
-                                              }}
-                                              className={`h-8 px-2 flex items-center justify-center rounded-lg text-[9px] font-bold border cursor-pointer ${
-                                                currentIsLight
-                                                  ? "bg-slate-50 hover:bg-slate-100 border-slate-200"
-                                                  : "bg-zinc-900 hover:bg-zinc-800 border-white/5"
-                                              }`}
-                                            >
-                                              -30s
-                                            </button>
-                                            <button
-                                              onClick={() => {
-                                                const currentVal =
-                                                  timerDisplaySec;
-                                                const newVal = currentVal + 30;
-                                                setTimerDisplaySec(newVal);
-                                                setApp((prev) => ({
-                                                  ...prev,
-                                                  boardSettings: {
-                                                    ...prev.boardSettings,
-                                                    timerTotal: prev
-                                                      .boardSettings
-                                                      .timerRunning
-                                                      ? prev.boardSettings
-                                                          .timerTotal
-                                                      : newVal,
-                                                    timerEnd: prev.boardSettings
-                                                      .timerRunning
-                                                      ? Date.now() +
-                                                        newVal * 1000
-                                                      : prev.boardSettings
-                                                          .timerEnd,
-                                                  },
-                                                }));
-                                              }}
-                                              className={`h-8 px-2 flex items-center justify-center rounded-lg text-[9px] font-bold border cursor-pointer ${
-                                                currentIsLight
-                                                  ? "bg-slate-50 hover:bg-slate-100 border-slate-200"
-                                                  : "bg-zinc-900 hover:bg-zinc-800 border-white/5"
-                                              }`}
-                                            >
-                                              +30s
-                                            </button>
-                                            <button
-                                              onClick={() => {
-                                                const nextSeconds = timerDisplaySec > 0 ? timerDisplaySec : (app.boardSettings.timerTotal || 300);
-                                                if (timerDisplaySec === 0) setTimerDisplaySec(nextSeconds);
-                                                setApp((prev) => ({
-                                                  ...prev,
-                                                  boardSettings: {
-                                                    ...prev.boardSettings,
-                                                    timerRunning:
-                                                      !prev.boardSettings
-                                                        .timerRunning,
-                                                    timerEnd: !prev
-                                                      .boardSettings
-                                                      .timerRunning
-                                                      ? Date.now() +
-                                                        nextSeconds * 1000
-                                                      : prev.boardSettings
-                                                          .timerEnd,
-                                                  },
-                                                }));
-                                              }}
-                                              className={`h-8 px-4 rounded-lg text-[9px] uppercase tracking-wider font-extrabold flex items-center gap-1.5 shadow-sm cursor-pointer transition-all active:scale-95 ${
-                                                app.boardSettings.timerRunning
-                                                  ? "bg-rose-500 hover:bg-rose-600 text-white"
-                                                  : "bg-emerald-500 hover:bg-emerald-600 text-white"
-                                              }`}
-                                            >
-                                              {app.boardSettings
-                                                .timerRunning ? (
-                                                <><Pause size={11} strokeWidth={3} /> Pause</>
-                                              ) : (
-                                                <><Play size={11} strokeWidth={3} /> {timerDisplaySec === 0 && app.boardSettings.timerTotal ? "Nochmal" : "Start"}</>
-                                              )}
-                                            </button>
-                                            <button
-                                              onClick={() => {
-                                                const resetSeconds = app.boardSettings.timerTotal || 0;
-                                                setTimerDisplaySec(resetSeconds);
-                                                setApp((prev) => ({
-                                                  ...prev,
-                                                  boardSettings: {
-                                                    ...prev.boardSettings,
-                                                    timerRunning: false,
-                                                    timerEnd: undefined,
-                                                  },
-                                                }));
-                                              }}
-                                              className={`w-8 h-8 flex items-center justify-center rounded-lg border text-indigo-500 cursor-pointer transition-colors ${
-                                                currentIsLight
-                                                  ? "bg-slate-50 hover:bg-slate-100 border-slate-200"
-                                                  : "bg-zinc-900 hover:bg-zinc-800 border-white/5"
-                                              }`}
-                                            >
-                                              <RotateCcw size={12} />
-                                            </button>
-                                          </div>
-                                        </div>
+                                        <TimerWidgetContent
+                                          widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          currentIsLight={currentIsLight}
+                                        />
                                       );
 
                                     case "trafficlight":
-                                      const activeStatus =
-                                        app.ampel_status || "gruen";
-                                      const ampelLabels = {
-                                        rot: app.ampelLabels?.red || "Stopp",
-                                        gelb:
-                                          app.ampelLabels?.yellow || "Flüstern",
-                                        gruen:
-                                          app.ampelLabels?.green ||
-                                          "Unterricht",
-                                      };
-                                      const phases = [
-                                        {
-                                          id: "rot",
-                                          label: "Rot",
-                                          color: "bg-rose-600",
-                                          activeColor:
-                                            "bg-rose-500 shadow-rose-500/80 shadow-[0_0_18px_rgba(244,63,94,0.8)]",
-                                        },
-                                        {
-                                          id: "gelb",
-                                          label: "Gelb",
-                                          color: "bg-amber-500",
-                                          activeColor:
-                                            "bg-amber-400 shadow-amber-400/80 shadow-[0_0_18px_rgba(251,191,36,0.8)]",
-                                        },
-                                        {
-                                          id: "gruen",
-                                          label: "Grün",
-                                          color: "bg-emerald-600",
-                                          activeColor:
-                                            "bg-emerald-500 shadow-emerald-500/80 shadow-[0_0_18px_rgba(16,185,129,0.8)]",
-                                        },
-                                      ];
                                       return (
-                                        <div className="flex-grow flex items-center justify-center p-1 py-1.5 min-h-0 w-full h-full">
-                                          <div
-                                            className={`p-2.5 rounded-2xl flex flex-col gap-2 shadow-inner w-full max-w-[210px] justify-between border pointer-events-auto ${
-                                              currentIsLight
-                                                ? "bg-slate-50 border-slate-200/50"
-                                                : "bg-zinc-900/60 border-white/5"
-                                            }`}
-                                          >
-                                            {phases.map((p) => {
-                                              const active =
-                                                activeStatus === p.id;
-                                              const labelText =
-                                                ampelLabels[p.id] || p.label;
-                                              const isEditing =
-                                                activeLabelEditId === p.id;
-
-                                              return (
-                                                <div
-                                                  key={p.id}
-                                                  className="flex items-center gap-3 w-full pr-1.5"
-                                                >
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                      setApp((prev: any) => ({
-                                                        ...prev,
-                                                        ampel_status: p.id,
-                                                      }));
-                                                    }}
-                                                    className={`w-8 h-8 rounded-full shrink-0 transition-all duration-350 cursor-pointer ${
-                                                      active
-                                                        ? p.activeColor
-                                                        : `${p.color} opacity-20 hover:opacity-40`
-                                                    }`}
-                                                    title={`Ampel auf ${p.label} schalten`}
-                                                  />
-
-                                                  <div className="flex-1 min-w-0">
-                                                    {isEditing ? (
-                                                      <input
-                                                        type="text"
-                                                        autoFocus
-                                                        defaultValue={labelText}
-                                                        onPointerDown={(e) =>
-                                                          e.stopPropagation()
-                                                        }
-                                                        onBlur={(e) => {
-                                                          const val =
-                                                            e.target.value.trim() ||
-                                                            p.label;
-                                                          setApp(
-                                                            (prev: any) => ({
-                                                              ...prev,
-                                                              ampel_labels: {
-                                                                ...prev.ampel_labels,
-                                                                [p.id]: val,
-                                                              },
-                                                            }),
-                                                          );
-                                                          setActiveLabelEditId(
-                                                            null,
-                                                          );
-                                                        }}
-                                                        onKeyDown={(e) => {
-                                                          if (
-                                                            e.key === "Enter"
-                                                          ) {
-                                                            const val =
-                                                              e.currentTarget.value.trim() ||
-                                                              p.label;
-                                                            setApp(
-                                                              (prev: any) => ({
-                                                                ...prev,
-                                                                ampel_labels: {
-                                                                  ...prev.ampel_labels,
-                                                                  [p.id]: val,
-                                                                },
-                                                              }),
-                                                            );
-                                                            setActiveLabelEditId(
-                                                              null,
-                                                            );
-                                                          }
-                                                          if (
-                                                            e.key === "Escape"
-                                                          )
-                                                            setActiveLabelEditId(
-                                                              null,
-                                                            );
-                                                        }}
-                                                        className={`w-full px-1.5 py-0.5 text-[10px] font-sans font-extrabold rounded-md border outline-none ${
-                                                          currentIsLight
-                                                            ? "bg-white border-indigo-400 text-slate-800"
-                                                            : "bg-black/40 border-indigo-400 text-white"
-                                                        }`}
-                                                      />
-                                                    ) : (
-                                                      <div
-                                                        onClick={() =>
-                                                          setActiveLabelEditId(
-                                                            p.id,
-                                                          )
-                                                        }
-                                                        className={`text-[9.5px] font-bold truncate cursor-pointer hover:opacity-80 flex items-center gap-1 ${
-                                                          active
-                                                            ? "text-indigo-500 font-extrabold"
-                                                            : currentIsLight
-                                                              ? "text-slate-500"
-                                                              : "text-stone-400"
-                                                        }`}
-                                                        title="Klicken zum Beschriften"
-                                                      >
-                                                        <span>{labelText}</span>
-                                                        <span className="text-[7px] opacity-40">
-                                                          ✏️
-                                                        </span>
-                                                      </div>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              );
-                                            })}
-
-                                            {/* Procedural Audio Attention Gong switch */}
-                                            <div className="border-t border-dashed border-slate-200 dark:border-white/10 pt-2 mt-1 flex justify-center w-full">
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  try {
-                                                    const AudioContextClass =
-                                                      window.AudioContext ||
-                                                      (window as any)
-                                                        .webkitAudioContext;
-                                                    if (AudioContextClass) {
-                                                      const ctx =
-                                                        new AudioContextClass();
-                                                      const osc =
-                                                        ctx.createOscillator();
-                                                      const gain =
-                                                        ctx.createGain();
-                                                      osc.type = "sine";
-                                                      osc.frequency.setValueAtTime(
-                                                        523.25,
-                                                        ctx.currentTime,
-                                                      ); // C5 chord chime
-                                                      osc.frequency.exponentialRampToValueAtTime(
-                                                        659.25,
-                                                        ctx.currentTime + 0.15,
-                                                      ); // E5 ramp up
-                                                      gain.gain.setValueAtTime(
-                                                        0.25,
-                                                        ctx.currentTime,
-                                                      );
-                                                      gain.gain.exponentialRampToValueAtTime(
-                                                        0.001,
-                                                        ctx.currentTime + 0.82,
-                                                      );
-                                                      osc.connect(gain);
-                                                      gain.connect(
-                                                        ctx.destination,
-                                                      );
-                                                      osc.start();
-                                                      osc.stop(
-                                                        ctx.currentTime + 0.85,
-                                                      );
-                                                    }
-                                                  } catch (e) {}
-                                                }}
-                                                className={`w-full py-1 rounded-xl text-[8.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 border ${
-                                                  currentIsLight
-                                                    ? "bg-white border-slate-200 hover:bg-slate-100 text-slate-650"
-                                                    : "bg-white/5 border-white/10 shadow-sm text-neutral-200 hover:bg-white/10"
-                                                }`}
-                                                title="Acoustic Bell for status change"
-                                              >
-                                                🔔 Signal-Chime
-                                              </button>
-                                            </div>
-                                          </div>
-                                        </div>
+                                        <TrafficLightWidgetContent
+                                          widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          app={app}
+                                          setApp={setApp}
+                                          currentIsLight={currentIsLight}
+                                        />
                                       );
 
                                     case "randomname":
@@ -13371,7 +11194,7 @@ ${content}
 
                                     case "noisemeter":
                                       return (
-                                        <LärmWidgetContent
+                                        <NoiseMeterWidgetContent
                                           widget={widget}
                                           onUpdate={(updates) =>
                                             handleUpdateWidgetPos(
@@ -13380,12 +11203,6 @@ ${content}
                                             )
                                           }
                                           currentIsLight={currentIsLight}
-                                          showSettings={
-                                            widgetSettingsOpenId === widget.id
-                                          }
-                                          onCloseSettings={() =>
-                                            setWidgetSettingsOpenId(null)
-                                          }
                                         />
                                       );
 
@@ -13425,9 +11242,32 @@ ${content}
                                         />
                                       );
 
+                                    case "kidattendance":
+                                      return (
+                                        <KidAttendanceWidgetContent
+                                          app={app}
+                                          setApp={setApp}
+                                          currentIsLight={currentIsLight}
+                                          widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                        />
+                                      );
+
                                     case "groups":
                                       return (
                                         <GroupsWidgetContent
+                                          widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           app={app}
                                           setApp={setApp}
                                           generatedGroups={generatedGroups}
@@ -13456,6 +11296,7 @@ ${content}
                                             setWidgetSettingsOpenId(null)
                                           }
                                           currentIsLight={currentIsLight}
+                                          isFullscreen={false}
                                         />
                                       );
 
@@ -13463,6 +11304,12 @@ ${content}
                                       return (
                                         <ImageWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           app={app}
                                           showSettings={
                                             widgetSettingsOpenId === widget.id
@@ -13484,6 +11331,9 @@ ${content}
                                               updates,
                                             )
                                           }
+                                          app={app}
+                                          setApp={setApp}
+                                          onOpenInTafel={() => setIsTafelOpen(true)}
                                           showSettings={
                                             widgetSettingsOpenId === widget.id
                                           }
@@ -13523,7 +11373,16 @@ ${content}
                                       return (
                                         <ScoreboardWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
+                                          isFullscreen={
+                                            fullscreenWidgetId === widget.id
+                                          }
                                         />
                                       );
 
@@ -13540,6 +11399,12 @@ ${content}
                                       return (
                                         <BreathingWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -13552,10 +11417,19 @@ ${content}
                                         />
                                       );
 
+                                    case "kopfrechnen":
                                     case "mathcards":
+                                    case "multitrainer":
+                                    case "mathchain":
                                       return (
-                                        <MathcardsWidgetContent
+                                        <KopfrechenStudioContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
                                         />
                                       );
@@ -13565,6 +11439,15 @@ ${content}
                                         <ScramblerWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          isFullscreen={
+                                            fullscreenWidgetId === widget.id
+                                          }
                                         />
                                       );
 
@@ -13612,7 +11495,16 @@ ${content}
                                       return (
                                         <StopwatchWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
+                                          isFullscreen={
+                                            fullscreenWidgetId === widget.id
+                                          }
                                         />
                                       );
 
@@ -13621,6 +11513,9 @@ ${content}
                                         <CalculatorWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
+                                          isFullscreen={
+                                            fullscreenWidgetId === widget.id
+                                          }
                                         />
                                       );
 
@@ -13634,8 +11529,14 @@ ${content}
 
                                     case "phases":
                                       return (
-                                        <PhasenWidgetContent
+                                        <PhasesWidgetContent
                                           widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           lessonPhases={lessonPhases}
                                           setLessonPhases={setLessonPhases}
                                           currentIsLight={currentIsLight}
@@ -13645,6 +11546,13 @@ ${content}
                                     case "sounds":
                                       return (
                                         <SoundsWidgetContent
+                                          widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           playSound={playSound}
                                           currentIsLight={currentIsLight}
                                         />
@@ -13653,44 +11561,65 @@ ${content}
                                     case "todo":
                                       return (
                                         <TodoWidgetContent
-                                          todoList={todoList}
-                                          setTodoList={setTodoList}
+                                          widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           currentIsLight={currentIsLight}
+                                          isFullscreen={
+                                            fullscreenWidgetId === widget.id
+                                          }
                                         />
                                       );
 
                                     case "dienste":
                                       return (
                                         <DiensteWidgetContent
+                                          widget={widget}
                                           app={app}
                                           setApp={setApp}
                                           currentIsLight={currentIsLight}
+                                          isFullscreen={false}
                                         />
                                       );
 
                                     case "klassenglas":
                                       return (
-                                        <KlassenglasErweitert
+                                        <ClassRewardWidget
                                           app={app}
                                           setApp={setApp}
+                                          widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
+                                          currentIsLight={currentIsLight}
                                           activeFokusThemeVars={
                                             activeFokusThemeVars
                                           }
                                           isFullscreen={false}
-                                          addJarGem={addJarGem}
-                                          jarShaking={jarShaking}
-                                          isConfirmingClear={isConfirmingClear}
-                                          setIsConfirmingClear={
-                                            setIsConfirmingClear
-                                          }
                                         />
                                       );
 
                                     case "links":
                                       return (
                                         <LinksWidgetContent
+                                          widget={widget}
+                                          onUpdate={(updates) =>
+                                            handleUpdateWidgetPos(
+                                              widget.id,
+                                              updates,
+                                            )
+                                          }
                                           app={app}
+                                          setApp={setApp}
                                           currentIsLight={currentIsLight}
+                                          isFullscreen={false}
                                         />
                                       );
 
@@ -13699,6 +11628,8 @@ ${content}
                                         <TimelineWidgetContent
                                           app={app}
                                           setApp={setApp}
+                                          currentIsLight={currentIsLight}
+                                          widget={widget}
                                         />
                                       );
 
@@ -16208,130 +14139,27 @@ ${content}
                           )}
 
                           {widget.type === "todo" && (
-                            <div className="py-1 w-full space-y-3 h-full flex flex-col">
-                              <div className="text-[8px] font-black text-accent/60 uppercase tracking-widest px-2">
-                                Stunden-Checkliste
-                              </div>
-                              <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1 min-h-[9.375rem]">
-                                {todoList.map((todo) => (
-                                  <div
-                                    key={todo.id}
-                                    className="flex items-center gap-3 bg-surface2/20 border border-border/10 rounded-xl p-3 group/todo"
-                                  >
-                                    <button
-                                      onPointerDown={(e) => e.stopPropagation()}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setTodoList((prev) =>
-                                          prev.map((t) =>
-                                            t.id === todo.id
-                                              ? { ...t, done: !t.done }
-                                              : t,
-                                          ),
-                                        );
-                                      }}
-                                      className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-all ${todo.done ? "bg-emerald-500 border-emerald-400 text-emerald-950" : "bg-surface/10 border-border/20 text-transparent"}`}
-                                    >
-                                      <Check size={12} strokeWidth={3} />
-                                    </button>
-                                    <span
-                                      className={`text-[11px] font-bold flex-1 transition-all ${todo.done ? "text-text-muted line-through opacity-50" : "text-text-primary/90"}`}
-                                    >
-                                      {todo.text}
-                                    </span>
-                                    <button
-                                      onPointerDown={(e) => e.stopPropagation()}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setTodoList((prev) =>
-                                          prev.filter((t) => t.id !== todo.id),
-                                        );
-                                      }}
-                                      className="opacity-0 group-hover/todo:opacity-100 transition-opacity text-text-muted hover:text-rose-500"
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
-                                  </div>
-                                ))}
-                                {todoList.length === 0 && (
-                                  <div className="flex flex-col items-center justify-center py-10 text-text-muted/20">
-                                    <ListTodo
-                                      size={32}
-                                      strokeWidth={1}
-                                      className="mb-2"
-                                    />
-                                    <span className="text-[10px] font-black uppercase tracking-widest">
-                                      Nichts zu tun
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="relative">
-                                <input
-                                  type="text"
-                                  onPointerDown={(e) => e.stopPropagation()}
-                                  placeholder="Task hinzufügen..."
-                                  className="w-full bg-surface2/60 border border-border/20 rounded-xl p-3 text-[10px] text-text-secondary outline-none focus:text-text-primary focus:border-accent/40 transition-all font-bold pr-10"
-                                  value={todoInput}
-                                  onChange={(e) => setTodoInput(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter" && todoInput.trim()) {
-                                      setTodoList((prev) => [
-                                        ...prev,
-                                        {
-                                          id: Date.now().toString(),
-                                          text: todoInput,
-                                          done: false,
-                                        },
-                                      ]);
-                                      setTodoInput("");
-                                    }
-                                  }}
-                                />
-                                <button
-                                  onPointerDown={(e) => e.stopPropagation()}
-                                  onClick={() => {
-                                    if (todoInput.trim()) {
-                                      setTodoList((prev) => [
-                                        ...prev,
-                                        {
-                                          id: Date.now().toString(),
-                                          text: todoInput,
-                                          done: false,
-                                        },
-                                      ]);
-                                      setTodoInput("");
-                                    }
-                                  }}
-                                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-amber-500 text-amber-950 rounded-lg hover:bg-amber-400 transition-all"
-                                >
-                                  <Plus size={14} />
-                                </button>
-                              </div>
+                            <div className="w-full h-full min-h-[160px]">
+                              <TodoWidgetContent
+                                widget={widget}
+                                onUpdate={(updates) =>
+                                  handleUpdateWidgetPos(widget.id, updates)
+                                }
+                                currentIsLight={currentIsLight}
+                                isFullscreen={fullscreenWidgetId === widget.id}
+                              />
                             </div>
                           )}
 
                           {widget.type === "qrcode" && (
-                            <div className="py-1 space-y-2 flex flex-col items-center">
-                              <div className="bg-white p-1.5 rounded-lg shadow-xl">
-                                <MemoizedQRCodeCanvas
-                                  value={app.tempQrValue || "https://google.at"}
-                                  size={80}
-                                  level="H"
-                                />
-                              </div>
-                              <input
-                                type="text"
-                                onPointerDown={(e) => e.stopPropagation()}
-                                className="w-full bg-black/40 border border-white/10 rounded-lg p-1.5 text-[7px] outline-none text-white/40 focus:text-white"
-                                placeholder="URL..."
-                                value={app.tempQrValue || ""}
-                                onChange={(e) =>
-                                  setApp((prev) => ({
-                                    ...prev,
-                                    tempQrValue: e.target.value,
-                                  }))
+                            <div className="w-full h-full min-h-[300px]">
+                              <QrCodeWidgetContent
+                                widget={widget}
+                                onUpdate={(updates) =>
+                                  handleUpdateWidgetPos(widget.id, updates)
                                 }
+                                currentIsLight={currentIsLight}
+                                isFullscreen={fullscreenWidgetId === widget.id}
                               />
                             </div>
                           )}
@@ -16377,17 +14205,23 @@ ${content}
                             </div>
                           )}
 
-                          {widget.type === "klassenglas" && (
-                            <KlassenglasErweitert
-                              app={app}
-                              setApp={setApp}
-                              activeFokusThemeVars={activeFokusThemeVars}
-                              isFullscreen={fullscreenWidgetId === widget.id}
-                              addJarGem={addJarGem}
-                              jarShaking={jarShaking}
-                              isConfirmingClear={isConfirmingClear}
-                              setIsConfirmingClear={setIsConfirmingClear}
-                            />
+                          {(widget.type === "klassenglas" || widget.type === "piggybank" || widget.type === "thermometer" || widget.type === "classtarget") && (
+                            <div className="w-full h-full flex flex-col justify-center items-center p-4">
+                              <ClassRewardWidget
+                                app={app}
+                                setApp={setApp}
+                                widget={widget}
+                                onUpdate={(updates) =>
+                                  handleUpdateWidgetPos(
+                                    widget.id,
+                                    updates,
+                                  )
+                                }
+                                currentIsLight={currentIsLight}
+                                activeFokusThemeVars={activeFokusThemeVars}
+                                isFullscreen={true}
+                              />
+                            </div>
                           )}
 
                           {/* Floating Class Pet is rendered dynamically below as a free-roaming pet directly on the dashboard */}
@@ -16882,550 +14716,20 @@ ${content}
                           )}
 
                           {widget.type === "dienste" && (
-                            <div className="flex flex-col gap-3 py-2 w-[800px]">
-                              <div className="flex items-center justify-between px-3 mb-1">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-amber-500 text-amber-950 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
-                                    <CheckSquare size={18} />
-                                  </div>
-                                  <div>
-                                    <div
-                                      className={`text-[13px] font-black uppercase tracking-[0.1em] leading-tight ${activeFokusThemeVars.isLight ? "text-amber-600" : "text-amber-500"}`}
-                                    >
-                                      Klassendienste
-                                    </div>
-                                    <div
-                                      className={`text-[9px] font-bold uppercase tracking-widest ${activeFokusThemeVars.isLight ? "text-slate-500" : "opacity-40"}`}
-                                    >
-                                      <span>KW {getKW(time)}</span>
-                                      {(() => {
-                                        const sw = getSW(time, app?.schuljahr);
-                                        return sw ? (
-                                          <>
-                                            <span className="opacity-40 mx-1">
-                                              |
-                                            </span>
-                                            <span className="text-[7.5px] font-bold text-slate-400">
-                                              SW {sw}
-                                            </span>
-                                          </>
-                                        ) : null;
-                                      })()}
-                                      <span>
-                                        {" "}
-                                        •{" "}
-                                        {time.toLocaleDateString("de-DE", {
-                                          month: "long",
-                                        })}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <button
-                                  onPointerDown={(e) => e.stopPropagation()}
-                                  onClick={() => {
-                                    const id = `custom-${Math.random().toString(36).substr(2, 9)}`;
-                                    const newDienst = {
-                                      id,
-                                      titel: "Neuer Dienst",
-                                      icon: "Users",
-                                      schuelerIds: [],
-                                      rotationEnabled: false,
-                                    };
-                                    setApp((prev) => ({
-                                      ...prev,
-                                      dienste: [
-                                        ...(prev.dienste || STANDARD_DIENSTE),
-                                        newDienst,
-                                      ],
-                                    }));
-                                  }}
-                                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all active:scale-95 shadow-sm border ${activeFokusThemeVars.isLight ? "bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700" : "bg-white/5 border-white/10 hover:bg-white/20 text-white/70 hover:text-white"}`}
-                                  title="Dienst hinzufügen"
-                                >
-                                  <Plus size={14} />
-                                </button>
-                              </div>
-
-                              <div className="grid grid-cols-4 gap-3 max-h-[85vh] overflow-y-auto custom-scrollbar pr-2 pb-4">
-                                {(app.dienste || STANDARD_DIENSTE).map(
-                                  (dienst, idx) => {
-                                    let standardDienst = STANDARD_DIENSTE.find(
-                                      (sd) => sd.titel === dienst.titel,
-                                    );
-                                    let jobIcon = standardDienst?.icon;
-                                    const jobEmoji =
-                                      dienst.emoji || standardDienst?.emoji;
-
-                                    if (!jobIcon) {
-                                      jobIcon =
-                                        typeof dienst.icon === "string" ? (
-                                          <Users size={16} />
-                                        ) : (
-                                          dienst.icon || <Users size={16} />
-                                        );
-                                    }
-
-                                    const weekNum = getKW(time);
-                                    const rotationPool = app.schueler || [];
-                                    const allDienste =
-                                      app.dienste || STANDARD_DIENSTE;
-
-                                    const totalCount = allDienste.reduce(
-                                      (acc, d) =>
-                                        acc +
-                                        (d.rotationEnabled ? d.anzahl || 1 : 0),
-                                      0,
-                                    );
-                                    const cumulativeOffset = allDienste
-                                      .slice(0, idx)
-                                      .reduce(
-                                        (acc, d) =>
-                                          acc +
-                                          (d.rotationEnabled
-                                            ? d.anzahl || 1
-                                            : 0),
-                                        0,
-                                      );
-                                    const count = dienst.anzahl || 1;
-
-                                    const startIdx =
-                                      rotationPool.length > 0
-                                        ? (weekNum * totalCount +
-                                            cumulativeOffset) %
-                                          rotationPool.length
-                                        : 0;
-
-                                    const rotatedStudentIds =
-                                      rotationPool.length > 0
-                                        ? Array.from({ length: count })
-                                            .map(
-                                              (_, i) =>
-                                                rotationPool[
-                                                  (startIdx + i) %
-                                                    rotationPool.length
-                                                ]?.id,
-                                            )
-                                            .filter(Boolean)
-                                        : [];
-
-                                    const displayedSchuelerIds =
-                                      dienst.rotationEnabled
-                                        ? rotatedStudentIds
-                                        : dienst.schuelerIds || [];
-
-                                    const hasAssigned =
-                                      displayedSchuelerIds.length > 0;
-
-                                    return (
-                                      <div
-                                        key={dienst.id}
-                                        className={`group/card relative flex flex-col p-3 rounded-xl border transition-all overflow-hidden ${
-                                          dienst.rotationEnabled
-                                            ? activeFokusThemeVars.isLight
-                                              ? "bg-amber-500/10 border-amber-500/30 shadow-sm"
-                                              : "bg-amber-500/[0.05] border-amber-500/30 shadow-[0_4px_15px_-5px_rgba(245,158,11,0.15)]"
-                                            : hasAssigned
-                                              ? activeFokusThemeVars.isLight
-                                                ? "bg-black/[0.03] border-black/10"
-                                                : "bg-white/[0.04] border-white/10"
-                                              : activeFokusThemeVars.isLight
-                                                ? "bg-transparent border-black/5 opacity-60 hover:opacity-100"
-                                                : "bg-transparent border-white/5 opacity-60 hover:opacity-100"
-                                        }`}
-                                      >
-                                        {/* Background Emoji Decoration */}
-                                        {jobEmoji && (
-                                          <div className="absolute -right-2 -top-2 text-4xl opacity-[0.03] rotate-12 pointer-events-none group-hover/card:opacity-[0.07] transition-opacity">
-                                            {jobEmoji}
-                                          </div>
-                                        )}
-
-                                        {/* Header: Icon + Title */}
-                                        <div className="flex items-center justify-between gap-3 mb-3 relative z-10">
-                                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                                            <div
-                                              className={`w-9 h-9 shrink-0 rounded-lg flex items-center justify-center relative ${
-                                                dienst.rotationEnabled
-                                                  ? activeFokusThemeVars.isLight
-                                                    ? "bg-amber-500 text-amber-50 shadow-md"
-                                                    : "bg-amber-500 text-amber-950 shadow-md"
-                                                  : activeFokusThemeVars.isLight
-                                                    ? "bg-black/10 text-slate-500"
-                                                    : "bg-white/10 text-white/50"
-                                              }`}
-                                            >
-                                              {React.isValidElement(jobIcon) ? (
-                                                React.cloneElement(
-                                                  jobIcon as any,
-                                                  {
-                                                    size: 18,
-                                                    strokeWidth: 2.5,
-                                                  },
-                                                )
-                                              ) : (
-                                                <Users size={18} />
-                                              )}
-
-                                              {jobEmoji && (
-                                                <div className="absolute -bottom-1 -right-1 text-[12px] bg-white dark:bg-neutral-800 rounded-full w-5 h-5 flex items-center justify-center shadow-sm border border-white/20">
-                                                  {jobEmoji}
-                                                </div>
-                                              )}
-                                            </div>
-                                            <input
-                                              onPointerDown={(e) =>
-                                                e.stopPropagation()
-                                              }
-                                              value={dienst.titel}
-                                              onChange={(e) => {
-                                                const newTitle = e.target.value;
-                                                setApp((prev) => ({
-                                                  ...prev,
-                                                  dienste: (
-                                                    prev.dienste ||
-                                                    STANDARD_DIENSTE
-                                                  ).map((d) =>
-                                                    d.id === dienst.id
-                                                      ? {
-                                                          ...d,
-                                                          titel: newTitle,
-                                                        }
-                                                      : d,
-                                                  ),
-                                                }));
-                                              }}
-                                              className={`text-[11px] font-black bg-transparent border-none outline-none focus:ring-0 p-0 rounded px-1 w-full transition-all ${activeFokusThemeVars.isLight ? "text-slate-800 hover:bg-black/5" : "text-white/95 hover:bg-white/5"}`}
-                                            />
-                                          </div>
-
-                                          <div className="flex items-center gap-1.5 opacity-0 group-hover/card:opacity-100 transition-opacity">
-                                            <div
-                                              className={`flex items-center rounded-lg text-[9px] font-black h-7 ${activeFokusThemeVars.isLight ? "bg-black/5 text-slate-500" : "bg-white/10 text-white/50"}`}
-                                            >
-                                              <button
-                                                onPointerDown={(e) =>
-                                                  e.stopPropagation()
-                                                }
-                                                onClick={() =>
-                                                  setApp((prev) => ({
-                                                    ...prev,
-                                                    dienste: (
-                                                      prev.dienste ||
-                                                      STANDARD_DIENSTE
-                                                    ).map((d) =>
-                                                      d.id === dienst.id
-                                                        ? {
-                                                            ...d,
-                                                            anzahl: Math.max(
-                                                              1,
-                                                              (d.anzahl || 1) -
-                                                                1,
-                                                            ),
-                                                          }
-                                                        : d,
-                                                    ),
-                                                  }))
-                                                }
-                                                className="px-1.5 h-full hover:text-emerald-500"
-                                              >
-                                                -
-                                              </button>
-                                              <span className="w-2.5 text-center">
-                                                {dienst.anzahl || 1}
-                                              </span>
-                                              <button
-                                                onPointerDown={(e) =>
-                                                  e.stopPropagation()
-                                                }
-                                                onClick={() =>
-                                                  setApp((prev) => ({
-                                                    ...prev,
-                                                    dienste: (
-                                                      prev.dienste ||
-                                                      STANDARD_DIENSTE
-                                                    ).map((d) =>
-                                                      d.id === dienst.id
-                                                        ? {
-                                                            ...d,
-                                                            anzahl:
-                                                              (d.anzahl || 1) +
-                                                              1,
-                                                          }
-                                                        : d,
-                                                    ),
-                                                  }))
-                                                }
-                                                className="px-1.5 h-full hover:text-emerald-500"
-                                              >
-                                                +
-                                              </button>
-                                            </div>
-                                            <button
-                                              onPointerDown={(e) =>
-                                                e.stopPropagation()
-                                              }
-                                              onClick={() => {
-                                                setApp((prev) => ({
-                                                  ...prev,
-                                                  dienste: (
-                                                    prev.dienste ||
-                                                    STANDARD_DIENSTE
-                                                  ).map((d) =>
-                                                    d.id === dienst.id
-                                                      ? {
-                                                          ...d,
-                                                          rotationEnabled:
-                                                            !d.rotationEnabled,
-                                                        }
-                                                      : d,
-                                                  ),
-                                                }));
-                                              }}
-                                              className={`p-1.5 rounded-lg transition-all ${dienst.rotationEnabled ? (activeFokusThemeVars.isLight ? "bg-amber-500 text-amber-50 shadow-sm" : "bg-amber-500 text-amber-950") : activeFokusThemeVars.isLight ? "bg-black/5 text-slate-400 hover:text-slate-700" : "bg-white/10 text-white/40 hover:text-white"}`}
-                                              title={
-                                                dienst.rotationEnabled
-                                                  ? "Auf manuell umstellen"
-                                                  : "Auto-Rotation aktivieren"
-                                              }
-                                            >
-                                              <RotateCcw
-                                                size={10}
-                                                className={
-                                                  dienst.rotationEnabled
-                                                    ? "animate-spin-slow"
-                                                    : ""
-                                                }
-                                              />
-                                            </button>
-                                            <button
-                                              onPointerDown={(e) =>
-                                                e.stopPropagation()
-                                              }
-                                              onClick={() => {
-                                                if (
-                                                  confirm("Dienst löschen?")
-                                                ) {
-                                                  setApp((prev) => ({
-                                                    ...prev,
-                                                    dienste: (
-                                                      prev.dienste ||
-                                                      STANDARD_DIENSTE
-                                                    ).filter(
-                                                      (d) => d.id !== dienst.id,
-                                                    ),
-                                                  }));
-                                                }
-                                              }}
-                                              className={`p-1.5 transition-all rounded-lg ${activeFokusThemeVars.isLight ? "text-slate-400 hover:text-rose-600 bg-black/5" : "text-white/20 hover:text-rose-500 bg-white/5"}`}
-                                            >
-                                              <Trash2 size={10} />
-                                            </button>
-                                          </div>
-                                        </div>
-
-                                        {/* Student List */}
-                                        <div className="flex flex-col gap-1.5 mb-2.5">
-                                          <AnimatePresence initial={false}>
-                                            {hasAssigned ? (
-                                              displayedSchuelerIds.map(
-                                                (sid) => {
-                                                  const s = app.schueler.find(
-                                                    (student) =>
-                                                      student.id === sid,
-                                                  );
-                                                  return s ? (
-                                                    <motion.div
-                                                      initial={{
-                                                        opacity: 0,
-                                                        height: 0,
-                                                        scale: 0.9,
-                                                      }}
-                                                      animate={{
-                                                        opacity: 1,
-                                                        height: "auto",
-                                                        scale: 1,
-                                                      }}
-                                                      exit={{
-                                                        opacity: 0,
-                                                        height: 0,
-                                                        scale: 0.8,
-                                                      }}
-                                                      transition={{
-                                                        duration: 0.2,
-                                                        type: "spring",
-                                                        stiffness: 300,
-                                                        damping: 25,
-                                                      }}
-                                                      key={sid}
-                                                      className={`px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2 border text-[11px] font-black transition-all ${
-                                                        dienst.rotationEnabled
-                                                          ? activeFokusThemeVars.isLight
-                                                            ? "bg-amber-500/20 text-amber-900 border-amber-500/30 shadow-sm"
-                                                            : "bg-amber-500/20 text-amber-400 border-amber-500/40 shadow-sm"
-                                                          : activeFokusThemeVars.isLight
-                                                            ? "bg-black/5 text-slate-900 border-black/10 shadow-sm"
-                                                            : "bg-white/10 text-white border-white/20 shadow-sm"
-                                                      }`}
-                                                    >
-                                                      <span className="truncate flex items-center gap-1.5">
-                                                        {s.emoji && (
-                                                          <span className="text-[12px]">
-                                                            {s.emoji}
-                                                          </span>
-                                                        )}
-                                                        {s.vorname} {s.nachname}
-                                                      </span>
-                                                      {!dienst.rotationEnabled && (
-                                                        <button
-                                                          onPointerDown={(e) =>
-                                                            e.stopPropagation()
-                                                          }
-                                                          onClick={() =>
-                                                            setApp((prev) => ({
-                                                              ...prev,
-                                                              dienste: (
-                                                                prev.dienste ||
-                                                                []
-                                                              ).map((d) =>
-                                                                d.id ===
-                                                                dienst.id
-                                                                  ? {
-                                                                      ...d,
-                                                                      schuelerIds:
-                                                                        d.schuelerIds.filter(
-                                                                          (
-                                                                            id,
-                                                                          ) =>
-                                                                            id !==
-                                                                            sid,
-                                                                        ),
-                                                                    }
-                                                                  : d,
-                                                              ),
-                                                            }))
-                                                          }
-                                                          className="opacity-40 hover:opacity-100 hover:text-rose-400 p-0.5"
-                                                        >
-                                                          <X size={10} />
-                                                        </button>
-                                                      )}
-                                                    </motion.div>
-                                                  ) : null;
-                                                },
-                                              )
-                                            ) : (
-                                              <motion.div
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                exit={{ opacity: 0 }}
-                                                key="empty"
-                                                className={`text-[9px] font-black uppercase tracking-wider pl-1 py-1 ${activeFokusThemeVars.isLight ? "text-slate-400/80" : "text-white/20"}`}
-                                              >
-                                                Nicht besetzt
-                                              </motion.div>
-                                            )}
-                                          </AnimatePresence>
-                                        </div>
-
-                                        {/* Footer: Add student or rotation info */}
-                                        {!dienst.rotationEnabled ? (
-                                          <div className="relative mt-auto">
-                                            <select
-                                              onPointerDown={(e) =>
-                                                e.stopPropagation()
-                                              }
-                                              onChange={(e) => {
-                                                const sid = e.target.value;
-                                                if (sid) {
-                                                  setApp((prev) => {
-                                                    const cur =
-                                                      prev.dienste ||
-                                                      STANDARD_DIENSTE.map(
-                                                        (d) => ({
-                                                          ...d,
-                                                          schuelerIds: [],
-                                                        }),
-                                                      );
-                                                    const updated = cur.map(
-                                                      (d) =>
-                                                        d.id === dienst.id
-                                                          ? {
-                                                              ...d,
-                                                              schuelerIds: [
-                                                                ...new Set([
-                                                                  ...d.schuelerIds,
-                                                                  sid,
-                                                                ]),
-                                                              ],
-                                                            }
-                                                          : d,
-                                                    );
-                                                    return {
-                                                      ...prev,
-                                                      dienste: updated,
-                                                    };
-                                                  });
-                                                }
-                                                e.target.value = "";
-                                              }}
-                                              className={`w-full border rounded-lg pl-3 pr-8 py-2 text-[10px] font-bold outline-none hover:bg-black/30 hover:text-white/60 transition-all appearance-none cursor-pointer ${activeFokusThemeVars.isLight ? "bg-black/5 border-black/10 text-slate-500 focus:border-amber-500/40 hover:bg-black/10 hover:text-slate-700" : "bg-black/20 border-white/5 text-white/40 focus:border-amber-500/40 hover:bg-black/30 hover:text-white/60"}`}
-                                            >
-                                              <option
-                                                value=""
-                                                disabled
-                                                className={
-                                                  activeFokusThemeVars.isLight
-                                                    ? "bg-white"
-                                                    : "bg-neutral-900"
-                                                }
-                                              >
-                                                + Schüler einteilen
-                                              </option>
-                                              {app.schueler
-                                                .filter(
-                                                  (s) =>
-                                                    !dienst.schuelerIds?.includes(
-                                                      s.id,
-                                                    ),
-                                                )
-                                                .sort((a, b) =>
-                                                  a.vorname.localeCompare(
-                                                    b.vorname,
-                                                  ),
-                                                )
-                                                .map((s) => (
-                                                  <option
-                                                    key={s.id}
-                                                    value={s.id}
-                                                    className={
-                                                      activeFokusThemeVars.isLight
-                                                        ? "bg-white"
-                                                        : "bg-neutral-900"
-                                                    }
-                                                  >
-                                                    {s.vorname} {s.nachname}
-                                                  </option>
-                                                ))}
-                                            </select>
-                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none">
-                                              <Plus size={10} />
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <div className="flex items-center gap-2 mt-auto pt-1 px-1">
-                                            <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                                            <span className="text-[8px] font-black uppercase tracking-widest text-amber-500/60">
-                                              Wöchentliche Rotation
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  },
-                                )}
-                              </div>
+                            <div
+                              className={`pointer-events-auto rounded-[2rem] shadow-2xl overflow-hidden min-h-0 ${
+                                fullscreenWidgetId === widget.id
+                                  ? "w-full h-full flex-1"
+                                  : "w-[750px] h-[550px]"
+                              }`}
+                            >
+                              <DiensteWidgetContent
+                                widget={widget}
+                                app={app}
+                                setApp={setApp}
+                                currentIsLight={activeFokusThemeVars.isLight}
+                                isFullscreen={fullscreenWidgetId === widget.id}
+                              />
                             </div>
                           )}
                         </div>
@@ -21146,7 +18450,22 @@ ${content}
       </AnimatePresence>
 
       {/* Tafel full-screen fixed-overlay */}
-      {isTafelOpen && <Tafel onClose={() => setIsTafelOpen(false)} />}
+      {isTafelOpen && (
+        <Tafel
+          onClose={() => {
+            setIsTafelOpen(false);
+            if (app.boardSettings?.isTafelOpen) {
+              setApp((prev: any) => ({
+                ...prev,
+                boardSettings: {
+                  ...prev.boardSettings,
+                  isTafelOpen: false,
+                },
+              }));
+            }
+          }}
+        />
+      )}
 
       {/* Cockpit Vorlagen Modal */}
       <CockpitVorlagenModal

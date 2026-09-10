@@ -1,295 +1,702 @@
-import React from "react";
+import React, { useState } from "react";
 import { useApp } from "../context/AppContext";
 import {
-  AlertCircle,
-  CalendarDays,
+  Users,
+  UserCheck,
+  UserX,
+  Calendar,
+  Clock,
+  Wallet,
   CheckCircle2,
-  ChevronRight,
-  Clock3,
+  AlertCircle,
   Eye,
   EyeOff,
-  Play,
-  Presentation,
+  ChevronRight,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
+  RefreshCw,
+  MoreHorizontal,
+  Sliders,
+  Printer,
+  Save,
+  Smartphone,
+  Star,
   Sparkles,
-  UserCheck,
+  ArrowRight,
+  ListTodo,
+  BookOpen,
+  CalendarDays,
+  Target,
+  Heart,
+  Smile,
+  Zap,
+  TrendingUp,
+  ShieldCheck,
+  Check,
+  Settings,
+  Grid,
+  Bug,
+  ExternalLink,
 } from "lucide-react";
 
 export type DashboardDayMode = "morning" | "teaching" | "review";
 
-interface LessonSummary {
+export interface LessonSummary {
+  id?: number;
+  hourNum?: number;
   fach?: string;
   zeit?: string;
+  thema?: string;
+  raum?: string;
+  isCurrent?: boolean;
 }
 
-interface DashboardTodayOverviewProps {
+export interface ActionItemSummary {
+  id: string;
+  type: string;
+  text: string;
+  category?: string;
+  icon?: React.ReactNode;
+  linkPage?: string;
+  urgent?: boolean;
+}
+
+export interface DashboardTodayOverviewProps {
   greeting: string;
   dateLabel: string;
-  previewLabel?: string | null;
+  klasseLabel: string;
+  manualDateOffset: number;
+  onDateOffsetChange: (offset: number) => void;
+  privacyMode: boolean;
+  onPrivacyModeChange: (value: boolean) => void;
+  simpleMode: boolean;
+  onSimpleModeToggle: () => void;
+  onNavigate: (page: string) => void;
+  onOpenRemoteSetup: () => void;
+  onOpenBackup: () => void;
+  onOpenPrint: () => void;
+  onOpenSettings: () => void;
+  onOpenCustomize: () => void;
+
+  // Anwesenheit Card
+  totalStudents: number;
+  absentCount: number;
+  presentCount: number;
+  attendanceRecorded: boolean;
+
+  // Mein Tag Card
+  todayLessonCount: number;
   currentLesson: LessonSummary | null;
   nextLesson: LessonSummary | null;
-  absentCount: number;
-  totalStudents: number;
-  attendanceRecorded: boolean;
-  actionItems: Array<{ id: string; type: string; text: string; icon?: React.ReactNode }>;
-  events: Array<{ type: string; title: string; desc?: string }>;
-  mode: DashboardDayMode;
-  privacyMode: boolean;
-  onModeChange: (mode: DashboardDayMode) => void;
-  onPrivacyModeChange: (value: boolean) => void;
-  onNavigate: (page: string) => void;
-}
+  todayEventsCount: number;
+  todayLessonsList: LessonSummary[];
 
-const modeOptions: Array<{ id: DashboardDayMode; label: string; hint: string }> = [
-  { id: "morning", label: "Morgen", hint: "Vorbereiten" },
-  { id: "teaching", label: "Unterricht", hint: "Jetzt handeln" },
-  { id: "review", label: "Nachbereitung", hint: "Abschließen" },
-];
+  // Offen Card
+  openTasksCount: number;
+  openCollectionsCount: number;
+  openRemindersCount: number;
+
+  // Heute wichtig Items
+  actionItems: ActionItemSummary[];
+
+  // Schüler:in im Fokus
+  focusStudent: any;
+  onNextFocusStudent: () => void;
+
+  // Upcoming Overview (Morgen / Diese Woche / Dieser Monat)
+  tomorrowEvents: Array<{ title: string; subtitle?: string; type: string }>;
+  weekEvents: Array<{ title: string; subtitle?: string; dayLabel?: string; type: string }>;
+  monthEvents: Array<{ title: string; subtitle?: string; dateLabel?: string; type: string }>;
+}
 
 export default function DashboardTodayOverview({
   greeting,
   dateLabel,
-  previewLabel,
+  klasseLabel,
+  manualDateOffset,
+  onDateOffsetChange,
+  privacyMode,
+  onPrivacyModeChange,
+  simpleMode,
+  onSimpleModeToggle,
+  onNavigate,
+  onOpenRemoteSetup,
+  onOpenBackup,
+  onOpenPrint,
+  onOpenSettings,
+  onOpenCustomize,
+
+  totalStudents,
+  absentCount,
+  presentCount,
+  attendanceRecorded,
+
+  todayLessonCount,
   currentLesson,
   nextLesson,
-  absentCount,
-  totalStudents,
-  attendanceRecorded,
+  todayEventsCount,
+  todayLessonsList,
+
+  openTasksCount,
+  openCollectionsCount,
+  openRemindersCount,
+
   actionItems,
-  events,
-  mode,
-  privacyMode,
-  onModeChange,
-  onPrivacyModeChange,
-  onNavigate,
+
+  focusStudent,
+  onNextFocusStudent,
+
+  tomorrowEvents,
+  weekEvents,
+  monthEvents,
 }: DashboardTodayOverviewProps) {
-  const { app } = useApp();
-  const colorThemes = {
-    classic_light: { surface: "#f8fafc", surfaceStrong: "#eef2ff", card: "#ffffff", border: "#cbd5e1", text: "#0f172a", muted: "#475569", subtle: "#64748b", accent: "#047857", page: "#ffffff" },
-    ocean_breeze: { surface: "#eff7ff", surfaceStrong: "#dbeafe", card: "#ffffff", border: "#a9c7e5", text: "#17365d", muted: "#476582", subtle: "#5d7894", accent: "#1d4ed8", page: "#f4f8fc" },
-    deep_dark: { surface: "#111827", surfaceStrong: "#09090b", card: "rgba(255,255,255,0.08)", border: "rgba(255,255,255,0.16)", text: "#f8fafc", muted: "#cbd5e1", subtle: "#94a3b8", accent: "#6ee7b7", page: "#09090b" },
-    soft_sage: { surface: "#f1f6f1", surfaceStrong: "#dfece1", card: "#ffffff", border: "#b4c9b4", text: "#213b2b", muted: "#4d6856", subtle: "#64806d", accent: "#347a50", page: "#f1f4f1" },
-    warm_sand: { surface: "#fdf7ef", surfaceStrong: "#f3e3ce", card: "#fffdf9", border: "#dfc29f", text: "#4a321f", muted: "#765c43", subtle: "#8b7157", accent: "#9a4f16", page: "#fdfaf6" },
-    lavender_field: { surface: "#f8f5ff", surfaceStrong: "#e8ddff", card: "#ffffff", border: "#c5b3eb", text: "#37215f", muted: "#66517f", subtle: "#7c6895", accent: "#6d28d9", page: "#f8f6fc" },
-    cozy_mint: { surface: "#edfcf5", surfaceStrong: "#d2f5e3", card: "#ffffff", border: "#92d6b7", text: "#064e3b", muted: "#397062", subtle: "#4e8275", accent: "#047857", page: "#f2fcf7" },
-    sakura_dream: { surface: "#fff3f6", surfaceStrong: "#ffdee7", card: "#ffffff", border: "#f5a2b8", text: "#701a36", muted: "#8f4961", subtle: "#a15f75", accent: "#be185d", page: "#fff5f8" },
-  } as const;
-  const customTheme = {
-    surface: app.customBgColor || "#f8fafc",
-    surfaceStrong: app.customBgColor || "#f8fafc",
-    card: app.customBgColor || "#ffffff",
-    border: app.customAccentColor || "#94a3b8",
-    text: app.customTextColor || "#0f172a",
-    muted: app.customText2Color || "#475569",
-    subtle: app.customText2Color || "#64748b",
-    accent: app.customAccentColor || "#047857",
-    page: app.customBgColor || "#ffffff",
-  };
-  const themeColors =
-    app.theme === "custom_theme"
-      ? customTheme
-      : colorThemes[app.theme as keyof typeof colorThemes] || colorThemes.classic_light;
+  const { app, setApp } = useApp();
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [upcomingTab, setUpcomingTab] = useState<"morgen" | "woche" | "monat">("morgen");
+
   const primaryLesson = currentLesson || nextLesson;
-  const primaryLabel = currentLesson ? "Läuft gerade" : nextLesson ? "Als Nächstes" : "Kein Unterricht";
-  const visibleActions = actionItems.slice(0, mode === "teaching" ? 2 : 4);
-  const visibleEvents = events.slice(0, 2);
-  const nonTeachingEvent = events.find((event) => {
-    const label = `${event.type} ${event.title} ${event.desc || ""}`.toLowerCase();
-    return ["ferien", "feiertag", "schulfrei"].some((term) => label.includes(term));
-  });
-  const isNonTeachingDay = Boolean(nonTeachingEvent) && !currentLesson && !nextLesson;
-  const lessonLabel = isNonTeachingDay ? "Heute ist schulfrei" : primaryLabel;
-  const lessonTitle = isNonTeachingDay
-    ? nonTeachingEvent?.title || "Unterrichtsfreier Tag"
-    : primaryLesson?.fach || "Freier Zeitraum";
-  const lessonTime = isNonTeachingDay
-    ? "Zeit für Planung oder Erholung"
-    : primaryLesson?.zeit || "Keine Unterrichtszeit eingetragen";
 
   return (
-    <section
-      className="rounded-[28px] border shadow-sm overflow-hidden"
-      style={{ borderColor: themeColors.border, backgroundColor: themeColors.page }}
-    >
-      <div
-        className="px-5 py-5 sm:px-7 sm:py-6"
-        style={{
-          color: themeColors.text,
-          background: `linear-gradient(135deg, ${themeColors.surface}, ${themeColors.surfaceStrong})`,
-        }}
-      >
-        <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-[0.625rem] font-black uppercase tracking-[0.18em]" style={{ color: themeColors.accent }}>
-              <Sparkles size={13} />
-              Mein Tag
-              {previewLabel && (
-                <span className="rounded-full border px-2 py-0.5" style={{ color: themeColors.muted, borderColor: themeColors.border, backgroundColor: themeColors.card }}>
-                  {previewLabel}
+    <div className="space-y-6 w-full">
+      {/* ==================================================
+          1. KOPFBEREICH (SIMPEL & FOKUSSIERT)
+         ================================================== */}
+      <header className="bg-white border border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-2xs relative transition-all">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          
+          {/* Linke Seite: Begrüßung & Datum & Klasse */}
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[0.6875rem] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/60 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                {klasseLabel || "Klasse 3a"}
+              </span>
+              
+              {manualDateOffset !== 0 && (
+                <span className="text-[0.625rem] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200/60">
+                  {manualDateOffset > 0 ? `+${manualDateOffset} Tag(e)` : `${manualDateOffset} Tag(e)`}
                 </span>
               )}
             </div>
-            <h2 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight" style={{ color: themeColors.text }}>{greeting}</h2>
-            <p className="mt-1 text-sm font-semibold" style={{ color: themeColors.muted }}>{dateLabel}</p>
+
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight pt-0.5">
+              {greeting}
+            </h1>
+            
+            <p className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+              <CalendarDays size={13} className="text-slate-400 shrink-0" />
+              <span>{dateLabel}</span>
+            </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="flex rounded-2xl border p-1" style={{ borderColor: themeColors.border, backgroundColor: themeColors.card }}>
-              {modeOptions.map(option => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => onModeChange(option.id)}
-                  className={`flex-1 sm:flex-none rounded-xl px-3 py-2 text-left transition-all ${
-                    mode === option.id ? "bg-white !text-slate-900 shadow-lg" : ""
-                  }`}
-                  style={mode === option.id ? undefined : { color: themeColors.muted }}
-                >
-                  <span className="block text-[0.6875rem] font-black">{option.label}</span>
-                  <span className={`block text-[0.5625rem] font-semibold ${mode === option.id ? "text-slate-500" : "text-slate-500"}`}>{option.hint}</span>
-                </button>
-              ))}
+          {/* Rechte Seite: Schnelle Aktionen */}
+          <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+            
+            {/* Datumsnavigation */}
+            <div className="flex items-center gap-0.5 bg-slate-100 p-1 rounded-2xl border border-slate-200/70">
+              <button
+                type="button"
+                onClick={() => onDateOffsetChange(manualDateOffset - 1)}
+                className="p-1.5 hover:bg-white text-slate-700 rounded-xl transition-all cursor-pointer"
+                title="Gestern"
+              >
+                <ChevronLeft size={16} strokeWidth={2.5} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onDateOffsetChange(0)}
+                className={`px-2.5 py-1 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  manualDateOffset === 0
+                    ? "bg-white text-slate-900 shadow-2xs border border-slate-200/60"
+                    : "text-slate-500 hover:text-slate-900"
+                }`}
+                title="Heute"
+              >
+                Heute
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onDateOffsetChange(manualDateOffset + 1)}
+                className="p-1.5 hover:bg-white text-slate-700 rounded-xl transition-all cursor-pointer"
+                title="Morgen"
+              >
+                <ChevronRight size={16} strokeWidth={2.5} />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => onPrivacyModeChange(!privacyMode)}
-              className={`rounded-2xl border px-3 py-2 text-[0.6875rem] font-black transition-all flex items-center justify-center gap-2 ${
-                privacyMode ? "border-emerald-400/30 bg-emerald-400/15" : ""
-              }`}
-              style={{ color: privacyMode ? themeColors.accent : themeColors.muted, borderColor: themeColors.border, backgroundColor: themeColors.card }}
-              title="Sensible Namen und Hinweise auf dem Dashboard ausblenden"
-            >
-              {privacyMode ? <EyeOff size={15} /> : <Eye size={15} />}
-              {privacyMode ? "Präsentation aktiv" : "Privatansicht"}
-            </button>
           </div>
         </div>
+      </header>
 
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-3">
-          <div className="lg:col-span-6 rounded-2xl border p-4 sm:p-5" style={{ borderColor: themeColors.border, backgroundColor: themeColors.card }}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-[0.625rem] font-black uppercase tracking-[0.16em]" style={{ color: themeColors.accent }}>{lessonLabel}</div>
-                <div className="mt-2 text-xl sm:text-2xl font-black" style={{ color: themeColors.text }}>{lessonTitle}</div>
-                <div className="mt-1 flex items-center gap-2 text-sm font-semibold" style={{ color: themeColors.muted }}>
-                  <Clock3 size={15} />
-                  {lessonTime}
-                </div>
-              </div>
-              <div className="rounded-2xl bg-emerald-400/15 p-3 text-emerald-300"><CalendarDays size={22} /></div>
+      {/* ==================================================
+          2. OBERSTE REIHE: DIE DREI WICHTIGSTEN KARTEN
+         ================================================== */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        
+        {/* KARTE 1: ANWESENHEIT */}
+        <div className="bg-white border border-slate-200/80 rounded-3xl p-4.5 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <Users size={15} className="text-sky-600" />
+                <span>Anwesenheit</span>
+              </span>
+              <span className={`px-2 py-0.5 rounded-full text-[0.5625rem] font-black uppercase tracking-wider ${
+                attendanceRecorded
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                  : "bg-amber-50 text-amber-700 border border-amber-200/60"
+              }`}>
+                {attendanceRecorded ? "Geprüft" : "Offen"}
+              </span>
             </div>
-            <button
-              type="button"
-              onClick={() => onNavigate(isNonTeachingDay ? "wochenplanung" : "cockpit")}
-              className="mt-5 w-full sm:w-auto rounded-xl bg-emerald-400 px-4 py-2.5 text-[0.75rem] font-black text-slate-950 hover:bg-emerald-300 transition-colors flex items-center justify-center gap-2"
-            >
-              {isNonTeachingDay ? <CalendarDays size={15} /> : <Play size={15} fill="currentColor" />}
-              {isNonTeachingDay ? "Morgen vorbereiten" : "Unterricht starten"}
-            </button>
+
+            <div>
+              <div className="text-2xl font-black text-slate-900 tracking-tight">
+                {privacyMode ? "••" : `${presentCount} / ${totalStudents}`}
+              </div>
+              <p className="text-xs font-bold text-slate-500 mt-0.5">
+                {privacyMode
+                  ? "Verborgen"
+                  : absentCount === 0
+                  ? "Alle anwesend"
+                  : `${absentCount} abwesend`}
+              </p>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={() => onNavigate("anwesenheit")}
-            className="lg:col-span-3 rounded-2xl border p-4 text-left transition-colors"
-            style={{ borderColor: themeColors.border, backgroundColor: themeColors.card, color: themeColors.text }}
+            className="mt-4 w-full py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
           >
-            <div className="flex items-center justify-between">
-              <div className="text-[0.625rem] font-black uppercase tracking-[0.14em] text-slate-400">Anwesenheit</div>
-              <UserCheck size={18} className="text-sky-300" />
-            </div>
-            <div className="mt-3 text-2xl font-black">
-              {privacyMode ? "••" : attendanceRecorded ? `${Math.max(0, totalStudents - absentCount)}/${totalStudents}` : "—"}
-            </div>
-            <div className="mt-1 text-xs font-semibold text-slate-400">
-              {privacyMode
-                ? "Sensible Details verborgen"
-                : !attendanceRecorded
-                  ? "Noch nicht erfasst"
-                  : absentCount === 0
-                    ? "Alle anwesend"
-                    : `${absentCount} abwesend`}
-            </div>
+            <UserCheck size={14} />
+            <span>Prüfen</span>
           </button>
+        </div>
+
+        {/* KARTE 2: MEIN TAG */}
+        <div className="bg-white border border-slate-200/80 rounded-3xl p-4.5 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <CalendarDays size={15} className="text-indigo-600" />
+                <span>Mein Tag</span>
+              </span>
+              <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200/60 rounded-full text-[0.5625rem] font-black uppercase tracking-wider">
+                {todayLessonCount} Std.
+              </span>
+            </div>
+
+            <div>
+              <div className="text-lg font-black text-slate-900 truncate tracking-tight">
+                {primaryLesson?.fach || "Kein Unterricht"}
+              </div>
+              <p className="text-xs font-bold text-slate-500 mt-0.5 flex items-center gap-1 truncate">
+                <Clock size={13} className="text-slate-400 shrink-0" />
+                <span>
+                  {primaryLesson?.zeit
+                    ? `${primaryLesson.zeit} · ${currentLesson ? "Jetzt" : "Nächstes"}`
+                    : todayEventsCount > 0
+                    ? `${todayEventsCount} Termine`
+                    : "Frei"}
+                </span>
+              </p>
+            </div>
+          </div>
 
           <button
             type="button"
             onClick={() => onNavigate("wochenplanung")}
-            className="lg:col-span-3 rounded-2xl border p-4 text-left transition-colors"
-            style={{ borderColor: themeColors.border, backgroundColor: themeColors.card, color: themeColors.text }}
+            className="mt-4 w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
           >
-            <div className="flex items-center justify-between">
-              <div className="text-[0.625rem] font-black uppercase tracking-[0.14em] text-slate-400">Termine heute</div>
-              <CalendarDays size={18} className="text-violet-300" />
-            </div>
-            <div className="mt-3 text-2xl font-black">{visibleEvents.length}</div>
-            <div className="mt-1 text-xs font-semibold text-slate-400 truncate">
-              {visibleEvents[0]?.title || "Keine besonderen Termine"}
-            </div>
+            <BookOpen size={14} />
+            <span>Tagesplan</span>
           </button>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12">
-        <div className="lg:col-span-8 p-5 sm:p-6 border-b lg:border-b-0 lg:border-r border-slate-100">
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <div>
-              <h3 className="font-black text-slate-900">Heute zu erledigen</h3>
-              <p className="text-[0.6875rem] font-semibold text-slate-500">Die wichtigsten Hinweise an einem Ort</p>
+        {/* KARTE 3: OFFEN */}
+        <div className="bg-white border border-slate-200/80 rounded-3xl p-4.5 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <Wallet size={15} className="text-amber-600" />
+                <span>Offen</span>
+              </span>
+              {(openTasksCount + openCollectionsCount) > 0 && (
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 border border-amber-200 rounded-full text-[0.5625rem] font-black uppercase tracking-wider">
+                  {openTasksCount + openCollectionsCount} Offen
+                </span>
+              )}
             </div>
-            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[0.625rem] font-black text-slate-600">{visibleActions.length}</span>
+
+            <div>
+              <div className="text-2xl font-black text-slate-900 tracking-tight">
+                {openTasksCount + openCollectionsCount}
+              </div>
+              <p className="text-xs font-bold text-slate-500 mt-0.5">
+                {openCollectionsCount > 0 && openTasksCount > 0
+                  ? `${openCollectionsCount} Geld, ${openTasksCount} Aufgaben`
+                  : openCollectionsCount > 0
+                  ? `${openCollectionsCount} Geldsammlungen`
+                  : openTasksCount > 0
+                  ? `${openTasksCount} Aufgaben`
+                  : "Alles erledigt!"}
+              </p>
+            </div>
           </div>
-          {visibleActions.length ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {visibleActions.map(item => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onNavigate(item.type === "finanzen" ? "orga" : item.type === "diagnostik" ? "diagnostik" : item.type === "anwesenheit" ? "anwesenheit" : "dashboard")}
-                  className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3 text-left hover:border-indigo-200 hover:bg-indigo-50/50 transition-colors"
-                >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-indigo-600 shadow-sm">
-                    {item.icon || <AlertCircle size={15} />}
+
+          <button
+            type="button"
+            onClick={() => onNavigate(openCollectionsCount > 0 ? "geldsammlung" : "orga")}
+            className="mt-4 w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+          >
+            <ListTodo size={14} />
+            <span>Ansehen</span>
+          </button>
+        </div>
+
+      </section>
+
+      {/* ==================================================
+          3. HEUTIGER TAGESABLAUF (STUNDENPLAN CHRONOLOGISCH)
+         ================================================== */}
+      <section className="bg-white border border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <div className="flex items-center gap-2">
+            <Clock size={16} className="text-indigo-600" />
+            <h2 className="text-sm font-black text-slate-900">
+              Tagesablauf
+            </h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate("wochenplanung")}
+            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-0.5 cursor-pointer"
+          >
+            <span>Woche</span>
+            <ChevronRight size={14} />
+          </button>
+        </div>
+
+        {todayLessonsList.length === 0 ? (
+          <div className="py-6 text-center bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
+            <p className="text-xs font-bold text-slate-500">
+              Keine Stunden heute.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
+            {todayLessonsList.map((lesson) => (
+              <div
+                key={lesson.id || lesson.hourNum}
+                onClick={() => onNavigate("wochenplanung")}
+                className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between space-y-1.5 group ${
+                  lesson.isCurrent
+                    ? "bg-indigo-600 text-white border-indigo-700 shadow-sm"
+                    : "bg-slate-50/70 hover:bg-white border-slate-200/70 hover:border-slate-300 text-slate-800"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`text-[0.625rem] font-black uppercase tracking-wider ${
+                    lesson.isCurrent ? "text-indigo-100" : "text-slate-400"
+                  }`}>
+                    {lesson.hourNum}. Std
                   </span>
-                  <span className="min-w-0 flex-1 text-[0.75rem] font-bold text-slate-700">
-                    {privacyMode ? "Hinweis in der Privatansicht verfügbar" : item.text}
-                  </span>
-                  <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-indigo-500" />
-                </button>
-              ))}
+
+                  {lesson.isCurrent && (
+                    <span className="px-1.5 py-0.5 bg-white text-indigo-950 font-black text-[0.5625rem] uppercase rounded-full">
+                      Jetzt
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className={`text-xs font-black truncate ${
+                    lesson.isCurrent ? "text-white" : "text-slate-900 group-hover:text-indigo-600"
+                  }`}>
+                    {lesson.fach || "Stunde"}
+                  </h3>
+
+                  {lesson.zeit && (
+                    <p className={`text-[0.625rem] font-bold truncate mt-0.5 ${
+                      lesson.isCurrent ? "text-indigo-100" : "text-slate-400"
+                    }`}>
+                      {lesson.zeit}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ==================================================
+          4. "WICHTIG" & 5. FOKUS-SCHÜLER
+         ================================================== */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        
+        {/* WICHTIG (7 Cols) */}
+        <div className="lg:col-span-7 bg-white border border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={16} className="text-amber-500" />
+              <h2 className="text-sm font-black text-slate-900">
+                Wichtig
+              </h2>
+            </div>
+            <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[0.625rem] font-black">
+              {actionItems.length}
+            </span>
+          </div>
+
+          {actionItems.length === 0 ? (
+            <div className="flex items-center gap-2.5 p-3 bg-emerald-50/80 border border-emerald-200/60 rounded-2xl text-emerald-800">
+              <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+              <div>
+                <p className="text-xs font-extrabold">Alles erledigt!</p>
+              </div>
             </div>
           ) : (
-            <div className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-4 text-emerald-800">
-              <CheckCircle2 size={20} />
-              <span className="text-sm font-bold">Für heute sind keine dringenden Punkte offen.</span>
+            <div className="space-y-1.5">
+              {actionItems.slice(0, 4).map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => onNavigate(item.linkPage || "orga")}
+                  className="p-2.5 bg-slate-50/80 hover:bg-indigo-50/40 border border-slate-200/70 rounded-2xl flex items-center justify-between gap-2 cursor-pointer transition-all group"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="p-1.5 bg-white rounded-xl text-indigo-600 shrink-0">
+                      {item.icon || <AlertCircle size={14} />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-black text-slate-800 truncate group-hover:text-indigo-900">
+                        {privacyMode ? "Sensibler Eintrag" : item.text}
+                      </p>
+                    </div>
+                  </div>
+
+                  <ChevronRight size={15} className="text-slate-300 group-hover:text-indigo-600 shrink-0" />
+                </div>
+              ))}
             </div>
           )}
         </div>
 
-        <div className="lg:col-span-4 p-5 sm:p-6">
-          <h3 className="font-black text-slate-900">Schnellaktionen</h3>
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            {[
-              { label: "Anwesenheit", page: "anwesenheit", icon: UserCheck },
-              { label: "Wochenplan", page: "wochenplanung", icon: CalendarDays },
-              { label: "Unterricht", page: "cockpit", icon: Presentation },
-              { label: "Notiz", page: "dashboard", icon: Sparkles },
-            ].map(action => {
-              const Icon = action.icon;
-              return (
-                <button
-                  key={action.label}
-                  type="button"
-                  onClick={() => onNavigate(action.page)}
-                  className="rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-indigo-200 hover:bg-indigo-50 transition-colors"
-                >
-                  <Icon size={16} className="text-indigo-600" />
-                  <span className="mt-2 block text-[0.6875rem] font-black text-slate-700">{action.label}</span>
-                </button>
-              );
-            })}
+        {/* FOKUS-SCHÜLER (5 Cols) */}
+        <div className="lg:col-span-5 bg-gradient-to-br from-indigo-50/50 via-white to-sky-50/30 border border-indigo-150/80 rounded-3xl p-4 sm:p-5 shadow-2xs flex flex-col justify-between space-y-3">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[0.6875rem] font-black uppercase tracking-wider text-indigo-700 flex items-center gap-1.5">
+                <Star size={15} className="text-amber-500 fill-amber-500" />
+                <span>Fokus-Schüler</span>
+              </span>
+
+              <button
+                type="button"
+                onClick={onNextFocusStudent}
+                className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all cursor-pointer"
+                title="Nächster"
+              >
+                <RefreshCw size={13} />
+              </button>
+            </div>
+
+            {focusStudent ? (
+              <div className="bg-white border border-indigo-100 rounded-2xl p-3 space-y-1.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white font-black flex items-center justify-center text-xs shrink-0">
+                    {privacyMode
+                      ? `${focusStudent.vorname?.[0] || ""}.`
+                      : `${focusStudent.vorname?.[0] || ""}${focusStudent.nachname?.[0] || ""}`}
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-black text-slate-900">
+                      {privacyMode
+                        ? `${focusStudent.vorname} ${focusStudent.nachname?.[0] || ""}.`
+                        : `${focusStudent.vorname} ${focusStudent.nachname}`}
+                    </h3>
+                    <p className="text-[0.625rem] font-bold text-slate-500">
+                      Tagesfokus
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs font-semibold text-slate-600 line-clamp-2 pt-1 border-t border-slate-100">
+                  {focusStudent.foerderprofil?.staerken?.[0]
+                    ? `Stärke: ${focusStudent.foerderprofil.staerken[0]}`
+                    : "Heute besonders beobachten."}
+                </p>
+              </div>
+            ) : (
+              <div className="p-3 bg-white border border-slate-200 rounded-2xl text-center">
+                <p className="text-xs font-bold text-slate-500">
+                  Kein Schüler gewählt.
+                </p>
+              </div>
+            )}
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (focusStudent?.id) {
+                setApp((prev: any) => ({ ...prev, selectedStudentId: focusStudent.id }));
+              }
+              onNavigate("schueler");
+            }}
+            className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+          >
+            <span>Profil</span>
+            <ArrowRight size={14} />
+          </button>
         </div>
+
+      </section>
+
+      {/* ==================================================
+          6. VORSCHAU (MORGEN / WOCHE / MONAT)
+         ================================================== */}
+      <section className="bg-white border border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-2xs space-y-3">
+        
+        {/* Tabs */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 flex-wrap gap-2">
+          <div className="flex items-center gap-0.5 bg-slate-100 p-1 rounded-2xl border border-slate-200/70">
+            <button
+              type="button"
+              onClick={() => setUpcomingTab("morgen")}
+              className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                upcomingTab === "morgen"
+                  ? "bg-white text-slate-900 shadow-2xs"
+                  : "text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              Morgen
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setUpcomingTab("woche")}
+              className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                upcomingTab === "woche"
+                  ? "bg-white text-slate-900 shadow-2xs"
+                  : "text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              Woche
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setUpcomingTab("monat")}
+              className={`px-3 py-1 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                upcomingTab === "monat"
+                  ? "bg-white text-slate-900 shadow-2xs"
+                  : "text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              Monat
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onNavigate("kalender")}
+            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-0.5 cursor-pointer"
+          >
+            <span>Kalender</span>
+            <ChevronRight size={14} />
+          </button>
+        </div>
+
+        {/* Tab Inhalt */}
+        <div>
+          {upcomingTab === "morgen" && (
+            <div className="space-y-1.5">
+              {tomorrowEvents.length === 0 ? (
+                <p className="text-xs font-semibold text-slate-500 italic py-2 text-center">
+                  Keine Termine morgen.
+                </p>
+              ) : (
+                tomorrowEvents.map((item, idx) => (
+                  <div key={idx} className="p-2.5 bg-slate-50/70 border border-slate-200/60 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-extrabold text-slate-800">{item.title}</p>
+                      {item.subtitle && <p className="text-[0.625rem] text-slate-500 font-semibold">{item.subtitle}</p>}
+                    </div>
+                    <span className="text-[0.5625rem] font-black uppercase tracking-wider px-2 py-0.5 bg-slate-200/60 text-slate-600 rounded-md">
+                      {item.type || "Termin"}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {upcomingTab === "woche" && (
+            <div className="space-y-1.5">
+              {weekEvents.length === 0 ? (
+                <p className="text-xs font-semibold text-slate-500 italic py-2 text-center">
+                  Keine Termine diese Woche.
+                </p>
+              ) : (
+                weekEvents.map((item, idx) => (
+                  <div key={idx} className="p-2.5 bg-slate-50/70 border border-slate-200/60 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <span className="text-[0.5625rem] font-black uppercase tracking-wider text-indigo-600">{item.dayLabel || "Woche"}</span>
+                      <p className="text-xs font-extrabold text-slate-800">{item.title}</p>
+                    </div>
+                    {item.subtitle && <p className="text-xs font-semibold text-slate-500">{item.subtitle}</p>}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {upcomingTab === "monat" && (
+            <div className="space-y-1.5">
+              {monthEvents.length === 0 ? (
+                <p className="text-xs font-semibold text-slate-500 italic py-2 text-center">
+                  Keine Termine diesen Monat.
+                </p>
+              ) : (
+                monthEvents.map((item, idx) => (
+                  <div key={idx} className="p-2.5 bg-slate-50/70 border border-slate-200/60 rounded-2xl flex items-center justify-between">
+                    <div>
+                      <span className="text-[0.5625rem] font-black uppercase tracking-wider text-amber-600">{item.dateLabel || "Monat"}</span>
+                      <p className="text-xs font-extrabold text-slate-800">{item.title}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate("kalender")}
+                      className="text-xs font-bold text-indigo-600 hover:underline"
+                    >
+                      Öffnen
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+
+      </section>
+
+      {/* ==================================================
+          7. TOGGLE ZU ERWEITERTEN WIDGETS
+         ================================================== */}
+      <div className="pt-1 flex justify-center">
+        <button
+          type="button"
+          onClick={onSimpleModeToggle}
+          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
+        >
+          <Grid size={14} className="text-indigo-600" />
+          <span>{simpleMode ? "Alle Widgets" : "Einfachmodus"}</span>
+        </button>
       </div>
-    </section>
+    </div>
   );
 }

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import LernzielTrendChart from "./charts/LernzielTrendChart";
+import { callServerAI } from "../services/aiService";
 
 export const LERNZIELE_BY_STUFE: Record<
   number,
@@ -1491,25 +1492,15 @@ Antworte AUSSCHLIESSLICH im JSON-Format ohne Markdown Block:
   ]
 }`;
 
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "generateContent",
-          params: {
-            contents: prompt,
-            config: {
-              responseMimeType: "application/json",
-            },
-          },
-        }),
+      const textOutputRaw = await callServerAI("generateContent", {
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+        },
       });
 
-      if (!res.ok) throw new Error("Fehler beim Abrufen der KI-Empfehlungen");
-      const data = await res.json();
-
       // Try to extract JSON if it comes with markdown block
-      let textOutput = data.text || data.response || "";
+      let textOutput = textOutputRaw || "";
       if (textOutput.includes("```json")) {
         textOutput = textOutput.split("```json")[1].split("```")[0].trim();
       } else if (textOutput.includes("```")) {

@@ -9,8 +9,9 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, Legend, ReferenceLine, Scatter, ComposedChart
 } from 'recharts';
-import { getFachCfg } from '../lib/GradeUtils';
+import { getFachCfg, getNotenLabel } from '../lib/GradeUtils';
 import { FAECHER_ALLE } from '../constants';
+import { callServerAI } from '../services/aiService';
 
 // Helper to convert grades string/number to decimal value for Austrian standard
 export function parseGradeToValue(g: any): number | null {
@@ -182,7 +183,7 @@ export default function NotenverlaufChart({ schuelerId, initialFach, compact = f
               id: `${sem}-obj-${i}`,
               semester: sem,
               type: 'obj',
-              typeLabel: app.notenLabels?.obj || 'Aufgabe',
+              typeLabel: getNotenLabel(app, selectedFach, 'obj', 'Aufgabe'),
               originalGrade: nd.aufgaben[i],
               numericGrade: parsed,
               label: label,
@@ -194,13 +195,13 @@ export default function NotenverlaufChart({ schuelerId, initialFach, compact = f
         if (nd.wp && nd.wp[i] !== undefined && nd.wp[i] !== null && nd.wp[i] !== '') {
           const parsed = parseGradeToValue(nd.wp[i]);
           if (parsed !== null) {
-            const label = app.notenMeta?.[selectedFach]?.colLabels?.wp?.[i] || `${app.notenLabels?.wp || 'Werkstück'} ${i + 1}`;
+            const label = app.notenMeta?.[selectedFach]?.colLabels?.wp?.[i] || `${getNotenLabel(app, selectedFach, 'wp', 'Werkstück')} ${i + 1}`;
             const { ts, date } = generateTimestamp('wp', 86400000, i);
             chronologicalGrades.push({
               id: `${sem}-wp-${i}`,
               semester: sem,
               type: 'wp',
-              typeLabel: app.notenLabels?.wp || 'Werkstück',
+              typeLabel: getNotenLabel(app, selectedFach, 'wp', 'Werkstück'),
               originalGrade: nd.wp[i],
               numericGrade: parsed,
               label: label,
@@ -212,13 +213,13 @@ export default function NotenverlaufChart({ schuelerId, initialFach, compact = f
         if (nd.lzk && nd.lzk[i] !== undefined && nd.lzk[i] !== null && nd.lzk[i] !== '') {
           const parsed = parseGradeToValue(nd.lzk[i]);
           if (parsed !== null) {
-            const label = app.notenMeta?.[selectedFach]?.colLabels?.lzk?.[i] || `${app.notenLabels?.lzk || 'LZK'} ${i + 1}`;
+            const label = app.notenMeta?.[selectedFach]?.colLabels?.lzk?.[i] || `${getNotenLabel(app, selectedFach, 'lzk', 'LZK')} ${i + 1}`;
             const { ts, date } = generateTimestamp('lzk', 2 * 86400000, i);
             chronologicalGrades.push({
               id: `${sem}-lzk-${i}`,
               semester: sem,
               type: 'lzk',
-              typeLabel: 'Lernzielkontrolle',
+              typeLabel: getNotenLabel(app, selectedFach, 'lzk', 'Lernzielkontrolle'),
               originalGrade: nd.lzk[i],
               numericGrade: parsed,
               label: label,
@@ -413,38 +414,28 @@ export default function NotenverlaufChart({ schuelerId, initialFach, compact = f
         Mittelwert: d['Mittelwert'],
       }));
 
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // B1.5 DATENSCHUTZ: Sichere KI-Schicht mit automatischer Pseudonymisierung & Maskierung nutzen
+      const rawJson = await callServerAI('gradeProjection', {
+        studentName: 'Schüler/in',
+        subject: subject,
+        semester: selectedPeriod === 'all' ? '2' : selectedPeriod,
+        history: hist,
+        weights: {
+          schularbeitenWeight: weights.g.sa,
+          testsWeight: weights.g.lzk,
+          werkstueckeWeight: weights.g.wp,
+          aufgabenWeight: weights.g.obj,
+          mitarbeitWeight: weights.g.mi,
         },
-        body: JSON.stringify({
-          action: 'gradeProjection',
-          params: {
-            studentName: `${student.vorname} ${student.nachname}`,
-            subject: subject,
-            semester: selectedPeriod === 'all' ? '2' : selectedPeriod,
-            history: hist,
-            weights: {
-              schularbeitenWeight: weights.g.sa,
-              testsWeight: weights.g.lzk,
-              werkstueckeWeight: weights.g.wp,
-              aufgabenWeight: weights.g.obj,
-              mitarbeitWeight: weights.g.mi,
-            },
-            classAvg: stats?.avg || null,
-          }
-        })
+        classAvg: stats?.avg || null,
       });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Fehler bei der KI-Berechnung');
-      }
-
-      const resData = await response.json();
-      if (resData.text) {
-        const parsed = JSON.parse(resData.text);
+      if (rawJson) {
+        // Parse result and client-side substitute student name in commentary if needed
+        const parsed = JSON.parse(rawJson);
+        if (parsed && parsed.recommendation && typeof parsed.recommendation === 'string') {
+          parsed.recommendation = parsed.recommendation.replace(/\bSchüler\/in\b/gi, student.vorname);
+        }
         setProjectionData(prev => ({
           ...prev,
           [subject]: parsed
@@ -587,10 +578,10 @@ export default function NotenverlaufChart({ schuelerId, initialFach, compact = f
               className="w-full sm:w-auto pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl text-[0.8125rem] font-bold text-slate-800 transition-all outline-none appearance-none cursor-pointer"
             >
               <option value="all">Alle Kategorien</option>
-              <option value="sa">{app.notenLabels?.sa || 'Schularbeiten'}</option>
-              <option value="lzk">{app.notenLabels?.lzk || 'Lernzielkontrollen'}</option>
-              <option value="wp">{app.notenLabels?.wp || 'Werkstücke'}</option>
-              <option value="obj">{app.notenLabels?.obj || 'Aufgaben/Sonstiges'}</option>
+              <option value="sa">{getNotenLabel(app, selectedFach, 'sa', 'Schularbeiten')}</option>
+              <option value="lzk">{getNotenLabel(app, selectedFach, 'lzk', 'Lernzielkontrollen')}</option>
+              <option value="wp">{getNotenLabel(app, selectedFach, 'wp', 'Werkstücke')}</option>
+              <option value="obj">{getNotenLabel(app, selectedFach, 'obj', 'Aufgaben/Sonstiges')}</option>
             </select>
             <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           </div>

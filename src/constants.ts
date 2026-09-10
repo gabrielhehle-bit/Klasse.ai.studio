@@ -78,25 +78,25 @@ export const DEFAULT_FACH_COLORS: Record<string, { color: string; scaleColor?: '
 };
 
 export const COLOR_OPTIONS = [
-  { id: 'blue', label: 'Blau', bg: 'bg-blue-500' },
-  { id: 'red', label: 'Rot', bg: 'bg-red-500' },
-  { id: 'emerald', label: 'Grün', bg: 'bg-emerald-500' },
-  { id: 'amber', label: 'Goldschatz', bg: 'bg-amber-500' },
-  { id: 'purple', label: 'Lila', bg: 'bg-purple-500' },
-  { id: 'rose', label: 'Rosa', bg: 'bg-rose-500' },
-  { id: 'teal', label: 'Türkis', bg: 'bg-teal-500' },
-  { id: 'orange', label: 'Orange', bg: 'bg-orange-500' },
-  { id: 'indigo', label: 'Indigo', bg: 'bg-indigo-500' },
-  { id: 'sky', label: 'Himmelblau', bg: 'bg-sky-500' },
-  { id: 'slate', label: 'Schiefergrau', bg: 'bg-slate-500' },
-  { id: 'stone', label: 'Steingrau', bg: 'bg-stone-500' },
-  { id: 'yellow', label: 'Zitronengelb', bg: 'bg-yellow-400' },
-  { id: 'lime', label: 'Limetten-Grün', bg: 'bg-lime-500' },
-  { id: 'green', label: 'Hellgrün', bg: 'bg-green-500' },
-  { id: 'cyan', label: 'Cyan/Türkisblau', bg: 'bg-cyan-500' },
-  { id: 'violet', label: 'Violett', bg: 'bg-violet-500' },
-  { id: 'fuchsia', label: 'Fuchsia', bg: 'bg-fuchsia-500' },
-  { id: 'pink', label: 'Pink', bg: 'bg-pink-500' },
+  { id: 'blue', label: 'Blau', bg: 'bg-blue-500', hex: '#3b82f6' },
+  { id: 'sky', label: 'Himmelblau', bg: 'bg-sky-500', hex: '#0ea5e9' },
+  { id: 'teal', label: 'Türkis', bg: 'bg-teal-500', hex: '#14b8a6' },
+  { id: 'emerald', label: 'Grün', bg: 'bg-emerald-500', hex: '#10b981' },
+  { id: 'green', label: 'Hellgrün', bg: 'bg-green-500', hex: '#22c55e' },
+  { id: 'lime', label: 'Limetten-Grün', bg: 'bg-lime-500', hex: '#84cc16' },
+  { id: 'yellow', label: 'Zitronengelb', bg: 'bg-yellow-400', hex: '#eab308' },
+  { id: 'amber', label: 'Goldschatz', bg: 'bg-amber-500', hex: '#f59e0b' },
+  { id: 'orange', label: 'Orange', bg: 'bg-orange-500', hex: '#f97316' },
+  { id: 'red', label: 'Rot', bg: 'bg-red-500', hex: '#ef4444' },
+  { id: 'rose', label: 'Rosa', bg: 'bg-rose-500', hex: '#f43f5e' },
+  { id: 'pink', label: 'Pink', bg: 'bg-pink-500', hex: '#ec4899' },
+  { id: 'fuchsia', label: 'Fuchsia', bg: 'bg-fuchsia-500', hex: '#d946ef' },
+  { id: 'purple', label: 'Lila', bg: 'bg-purple-500', hex: '#a855f7' },
+  { id: 'violet', label: 'Violett', bg: 'bg-violet-500', hex: '#8b5cf6' },
+  { id: 'indigo', label: 'Indigo', bg: 'bg-indigo-500', hex: '#6366f1' },
+  { id: 'cyan', label: 'Cyan/Türkisblau', bg: 'bg-cyan-500', hex: '#06b6d4' },
+  { id: 'slate', label: 'Schiefergrau', bg: 'bg-slate-500', hex: '#64748b' },
+  { id: 'stone', label: 'Steingrau', bg: 'bg-stone-500', hex: '#78716c' },
 ];
 
 export const EMOJIS = ['👨‍🎓', '👩‍🎓', '🧑‍🎓', '🦁', '🦉', '🦊', '🐻', '🐼', '🐯', '🐧', '🦆', '🐸', '🐢', '🐈', '🐕', '🦋', '🐝', '🦖', '🐉', '✨', '🌟', '🚀', '🎨', '🧩', '⚽', '🎹', '🎸', '🍦', '🍩', '🍕'];
@@ -194,4 +194,20 @@ export const FONTS = [
   { id: 'dyslexic', label: 'Dyslexic', description: 'Fokus auf Lesbarkeit' },
   { id: 'playful', label: 'Playful', description: 'Rund & Verspielt' },
   { id: 'mono', label: 'Mono', description: 'Klar & Technisch' },
+] as const;
+
+export const DASHBOARD_CURATED_FONTS = [
+  { id: 'standard', label: 'Standard', sub: 'DM Sans / Inter' },
+  { id: 'geometric', label: 'Geometrisch', sub: 'Outfit' },
+  { id: 'friendly', label: 'Freundlich', sub: 'Fredoka' },
+  { id: 'druckschrift', label: 'Druckschrift', sub: 'Playpen Sans' },
+  { id: 'schulschrift', label: 'Schulschrift', sub: 'Edu VIC WA NT' },
+  { id: 'dyslexic', label: 'Lesefokus', sub: 'Lexend' },
+  { id: 'serif', label: 'Klassisch', sub: 'Serif' },
+] as const;
+
+export const DASHBOARD_FONT_SIZES = [
+  { id: 'compact', label: 'Kompakt', scale: '90%' },
+  { id: 'standard', label: 'Normal', scale: '100%' },
+  { id: 'large', label: 'Groß', scale: '120%' },
 ] as const;

@@ -116,7 +116,7 @@ export default function OverallDossierView({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="p-6 bg-amber-50/40 border border-amber-100/70 rounded-[1.5rem] shadow-3xs flex flex-col justify-between hover:scale-[1.01] transition-transform">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-[0.625rem] font-black uppercase tracking-widest text-amber-800">Gesamtschnitt · {semester}. Semester</span>
+            <span className="text-[0.625rem] font-black uppercase tracking-widest text-amber-800">Gesamtschnitt · Schuljahr</span>
             <Smile size={16} className="text-amber-500" />
           </div>
           <div>
@@ -129,7 +129,7 @@ export default function OverallDossierView({
 
         <div className="p-6 bg-slate-50/80 border border-slate-200/60 rounded-[1.5rem] shadow-3xs flex flex-col justify-between hover:scale-[1.01] transition-transform">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-500">Klassenmittel · {semester}. Semester</span>
+            <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-500">Klassenmittel · Schuljahr</span>
             <Star size={16} className="text-slate-400" />
           </div>
           <div>
@@ -168,11 +168,11 @@ export default function OverallDossierView({
                 Datengestützte Leistungsübersicht
                 <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-[0.5625rem] font-black uppercase tracking-widest leading-none">Gespeicherte Daten</span>
               </h4>
-              <p className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Rechnerische Zusammenfassung für das {semester}. Semester</p>
+              <p className="text-[0.6875rem] font-bold text-white/90 uppercase tracking-widest mt-0.5">Rechnerische Zusammenfassung für das Schuljahr</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-[0.5625rem] text-slate-400 font-black uppercase tracking-widest">Förderstatus Erhebungen</p>
+            <p className="text-[0.5625rem] text-white font-black uppercase tracking-widest">Förderstatus Erhebungen</p>
             <div className="flex items-center gap-1.5 justify-end mt-1">
               {diagnosticsCount === 0 ? (
                 <span className="px-2.5 py-1 bg-slate-500/20 text-slate-300 border border-slate-500/30 rounded-lg text-[0.625rem] font-black uppercase tracking-wider">Nicht erfasst</span>

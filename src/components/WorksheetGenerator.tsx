@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import Markdown from 'react-markdown';
 import { useMaterialLibrary } from './Materialbibliothek';
 import { LEHRPLAN_VS_2023 } from '../lehrplan';
+import { callServerAI } from '../services/aiService';
 import { 
   Sparkles, FileText, Printer, Copy, Check, Save, Trash2, 
   UserCheck, AlertCircle, RefreshCw, PenTool, CheckCircle, 
@@ -198,12 +199,12 @@ export default function WorksheetGenerator({ initialStudentId, embeddedMode = fa
         });
       }
 
-      // Specific manual notes
+      // Specific manual notes (without names)
       const note = studentNotes[id];
       if (note && typeof note === 'string') {
-        collectedNotes.push(`${student.vorname}: ${note}`);
+        collectedNotes.push(note);
       } else if (student.notiz) {
-        collectedNotes.push(`${student.vorname}: ${student.notiz}`);
+        collectedNotes.push(student.notiz);
       }
     });
 
@@ -327,10 +328,11 @@ Generiere jetzt das Arbeitsblatt basierend auf folgenden Variablen und Vorgaben:
 - Thema: ${finalSubject} - ${finalType}
 - Differenzierung: ${computedLevel}
 - Schulstufe: 4. Schulstufe (Österreichischer Lehrplan)
-- Schülerdaten:
-  * Name der Schüler: ${selectedNames || 'Die ganze Klasse'}
+- Pädagogische Schwerpunkte:
+  * Zielgruppe: ${selectedStudents.length > 0 ? `${selectedStudents.length} Schüler/in(nen) (Differenzierungsgruppe)` : 'Die gesamte Klasse'}
+  * Namenszeile: Erzeuge oben eine neutrale Ausfüllzeile für handschriftliche Schülernamen (z.B. "Name: ________________________  Datum: ____________"). Schreibe keine echten Namen in den Aufgabentext.
   * Stärken: ${aggregatedStudentInfo.strengths.join(', ') || 'Ausgewogene Stärken'}
-  * Förderbedarf: ${selectedNeeds.length > 0 ? selectedNeeds.join(', ') : 'Allgemeine Festigung / Standard-Lehrplan'}
+  * Förderbedarf & Lernziele: ${selectedNeeds.length > 0 ? selectedNeeds.join(', ') : 'Allgemeine Festigung / Standard-Lehrplan'}
 - Interessen (für Gamification & Storytelling): ${finalInteressen}
 
 === LEHRER-SPEZIFISCHE ANWEISUNGEN ===
@@ -343,33 +345,15 @@ WICHTIG: Lass Meta-Informationen (z.B. "Fokus Differenzierung:", "Nicht benötig
 Das Arbeitsblatt MUSS exakt 1 A4-Seite einnehmen. Der Lösungsbogen MUSS exakt 1 Seite einnehmen.`;
 
     try {
-      const response = await fetch('/api/ai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'generateContent',
-          params: {
-            contents: userPrompt,
-            config: {
-              systemInstruction: systemPrompt,
-              temperature: 0.7,
-            }
-          }
-        }),
+      const text = await callServerAI('generateContent', {
+        contents: userPrompt,
+        config: {
+          systemInstruction: systemPrompt,
+          temperature: 0.7,
+        }
       });
 
-      if (!response.ok) {
-        throw new Error('Fehler bei der Verbindung zum KI-Server.');
-      }
-
-      const data = await response.json();
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      let cleanText = data.text || '';
+      let cleanText = text || '';
       // Clean possible wrapper code boundaries commonly produced by LLMs
       if (cleanText.trim().startsWith('```')) {
         cleanText = cleanText.replace(/^```(html)?\n/, '').replace(/\n```$/, '');

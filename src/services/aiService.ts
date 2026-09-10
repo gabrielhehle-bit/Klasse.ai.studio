@@ -43,39 +43,29 @@ export interface DailyInsight {
 
 let pseudonymizationWarningShown = false;
 
-async function callServerAI(action: string, params: any): Promise<string> {
+let activeAppStateGetter: (() => Partial<AppState> | null) | null = null;
+
+export function registerActiveAppStateGetter(getter: () => Partial<AppState> | null) {
+  activeAppStateGetter = getter;
+}
+
+export async function callServerAI(action: string, params: any): Promise<string> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s timeout
 
   let map: PseudonymMap = {};
   try {
-    let stateStr = localStorage.getItem('hehle_v3_namen');
-    if (!stateStr) {
-      stateStr = localStorage.getItem('hehle_v3_fallback');
-      if (!stateStr) {
-        if (!pseudonymizationWarningShown) {
-          console.warn('[Datenschutz] Pseudonymisierung nicht möglich – Namensliste fehlt');
-          pseudonymizationWarningShown = true;
-        }
+    let appState: Partial<AppState> | null = null;
+    if (activeAppStateGetter) {
+      try {
+        appState = activeAppStateGetter();
+      } catch (e) {
+        console.warn('Error fetching in-memory appState for AI pseudonymization', e);
       }
     }
     
-    if (stateStr) {
-      const parsedData = JSON.parse(stateStr);
-      const appState: Partial<AppState> = {
-         schueler: parsedData.schueler || [],
-         classes: [],
-         lehrerProfil: { 
-           vorname: '', 
-           nachname: '', 
-           schule: parsedData.schule || (parsedData.lehrerProfil?.schule) || '' 
-         } as any,
-         pseudonymisierungAktiv: parsedData.pseudonymisierungAktiv
-      };
-      
-      // Before pseudonymization, strip birthdates from params if any
-      // A simple regex approach to mask dates like DD.MM.YYYY
-      // Exclude imageBase64 from pseudonymization to avoid regex performance issues on large base64 strings
+    if (appState && ((appState.schueler && appState.schueler.length > 0) || (appState.classes && appState.classes.length > 0))) {
+      // Vor der Pseudonymisierung: Geburtsdaten aus params maskieren
       const { imageBase64, ...restParams } = params;
       let paramsStr = JSON.stringify(restParams);
       paramsStr = paramsStr.replace(/\b\d{1,2}\.\d{1,2}\.\d{2,4}\b/g, "[Datum entfernt]");
@@ -83,6 +73,11 @@ async function callServerAI(action: string, params: any): Promise<string> {
       const result = pseudonymisiere(paramsStr, appState as AppState);
       params = { ...JSON.parse(result.text), ...(imageBase64 ? { imageBase64 } : {}) };
       map = result.map;
+    } else {
+      if (!pseudonymizationWarningShown && (!appState || (!appState.schueler?.length && !appState.classes?.length))) {
+        // Keine Schülerdaten im aktuellen RAM vorhanden (z. B. leeres System)
+        pseudonymizationWarningShown = true;
+      }
     }
   } catch (e) {
     console.warn("Pseudonymization step failed", e);
@@ -335,16 +330,30 @@ Erstelle einen direkt umsetzbaren Entwurf.`,
   }
 }
 
+const dailyInsightMemoryCache = new Map<string, DailyInsight>();
+
 export async function getDailyInsight(name: string, stufe: number, count: number, contextData?: any): Promise<DailyInsight | string | null> {
   const today = new Date().toLocaleDateString('de-DE');
   const cacheKey = `ki_daily_insight_${name}_v2_${today}`;
   
   try {
-    const cached = localStorage.getItem(cacheKey);
+    // Altes unverschlüsseltes Caching aus Datenschutzgründen rückstandsfrei aus localStorage bereinigen
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('ki_daily_insight_')) {
+            localStorage.removeItem(k);
+          }
+        }
+      }
+    } catch {}
+
+    const cached = dailyInsightMemoryCache.get(cacheKey);
     // If contextData is provided, we might want to bypass cache or merge. 
     // For now, let's allow forcing a refresh if context changed significantly, 
     // but typically one refresh per day is enough.
-    if (cached && !contextData) return JSON.parse(cached);
+    if (cached && !contextData) return cached;
 
     const userMessage = contextData 
       ? `Briefing für: Lehrkraft ${name}, ${stufe}. Stufe, ${count} Schüler. 
@@ -357,7 +366,7 @@ export async function getDailyInsight(name: string, stufe: number, count: number
     });
     
     const parsed = JSON.parse(result) as DailyInsight;
-    localStorage.setItem(cacheKey, JSON.stringify(parsed));
+    dailyInsightMemoryCache.set(cacheKey, parsed);
     return parsed;
   } catch (error: any) {
     console.warn("getDailyInsight failed, using quiet fallback:", error);

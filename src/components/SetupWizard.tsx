@@ -12,7 +12,13 @@ import {
 } from 'lucide-react';
 import { parseSokratesCSV } from '../lib/importUtils';
 import { KlassenlistenImport } from './KlassenlistenImport';
+import { parseSokratesFile, ParsedSokratesResult } from '../lib/sokratesParser';
+import { SokratesImportModal } from './SokratesImportModal';
 import { Bundesland, BUNDESLAND_NAMEN } from '../lib/ferienOesterreich';
+import { FachColorPicker } from './FachColorPicker';
+import { getFachHexColor, STANDARD_COLOR_MAP } from '../lib/fachColorUtils';
+import { saveEncryptedAppState } from '../lib/secureStorageService';
+import { getActiveVaultKey } from '../lib/vaultStorage';
 
 export default function SetupWizard({ onComplete, isNewClass }: { onComplete: () => void, isNewClass?: boolean }) {
   const { app, setApp } = useApp();
@@ -34,22 +40,22 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const [schulPlz, setSchulPlz] = useState(app.schulPlz || '');
   const [bundesland, setBundesland] = useState<Bundesland>((app.bundesland as Bundesland) || 'VBG');
 
-  const [klassenbezeichnung, setKlassenbezeichnung] = useState(activeClassLocal ? activeClassLocal.name : app.klassenbezeichnung || '');
-  const [schuljahr, setSchuljahr] = useState(activeClassLocal?.schuljahr || app.schuljahr || getCurrentSchuljahr());
-  const [stufe, setStufe] = useState<number>(activeClassLocal?.stufe !== undefined ? Number(activeClassLocal.stufe) : (app.stufe !== undefined ? Number(app.stufe) : 1));
-  const [theme, setTheme] = useState<any>(activeClassLocal?.theme || (activeClassLocal?.settings as any)?.theme || app.theme || 'classic_light');
-  const [fontFamily, setFontFamily] = useState<any>(activeClassLocal?.settings?.fontFamily || (activeClassLocal as any)?.fontFamily || 'standard');
+  const [klassenbezeichnung, setKlassenbezeichnung] = useState(isNewClass ? '' : (activeClassLocal ? activeClassLocal.name : app.klassenbezeichnung || ''));
+  const [schuljahr, setSchuljahr] = useState(isNewClass ? getCurrentSchuljahr() : (activeClassLocal?.schuljahr || app.schuljahr || getCurrentSchuljahr()));
+  const [stufe, setStufe] = useState<number>(isNewClass ? 1 : (activeClassLocal?.stufe !== undefined ? Number(activeClassLocal.stufe) : (app.stufe !== undefined ? Number(app.stufe) : 1)));
+  const [theme, setTheme] = useState<any>(isNewClass ? 'classic_light' : (activeClassLocal?.theme || (activeClassLocal?.settings as any)?.theme || app.theme || 'classic_light'));
+  const [fontFamily, setFontFamily] = useState<any>(isNewClass ? 'standard' : (activeClassLocal?.settings?.fontFamily || (activeClassLocal as any)?.fontFamily || 'standard'));
 
-  const [faecher, setFaecher] = useState<string[]>(activeClassLocal?.faecher?.length ? activeClassLocal.faecher : FAECHER_ALLE);
-  const [fachConfig, setFachConfig] = useState<any>(activeClassLocal?.fachConfig || DEFAULT_FACH_COLORS);
+  const [faecher, setFaecher] = useState<string[]>(isNewClass ? FAECHER_ALLE : (activeClassLocal?.faecher?.length ? activeClassLocal.faecher : FAECHER_ALLE));
+  const [fachConfig, setFachConfig] = useState<any>(isNewClass ? DEFAULT_FACH_COLORS : (activeClassLocal?.fachConfig || DEFAULT_FACH_COLORS));
   const [newFach, setNewFach] = useState('');
 
   const [stundenZeiten, setStundenZeiten] = useState<any>(activeClassLocal?.stundenZeiten || app.stundenZeiten || STUNDEN_INFO);
   const [mittagspauseNachStunde, setMittagspauseNachStunde] = useState<number>(activeClassLocal?.mittagspauseNachStunde || app.mittagspauseNachStunde || 5);
-  const [tageplan, setTageplan] = useState<any>(activeClassLocal?.tageplan || app.tageplan || DEFAULT_TAGEPLAN);
-  const [stammplan, setStammplan] = useState<any>(activeClassLocal?.stammplan || app.stammplan || {});
+  const [tageplan, setTageplan] = useState<any>(isNewClass ? DEFAULT_TAGEPLAN : (activeClassLocal?.tageplan || app.tageplan || DEFAULT_TAGEPLAN));
+  const [stammplan, setStammplan] = useState<any>(isNewClass ? {} : (activeClassLocal?.stammplan || app.stammplan || {}));
 
-  const initialStudents = activeClassLocal?.schueler?.length ? activeClassLocal.schueler : (app.schueler || []);
+  const initialStudents = isNewClass ? [] : (activeClassLocal?.schueler?.length ? activeClassLocal.schueler : (isEditing ? (app.schueler || []) : []));
   const [studentsList, setStudentsList] = useState<any[]>(initialStudents);
   const [currentStudent, setCurrentStudent] = useState({ vorname: '', nachname: '' });
   const [uiScale, setUiScale] = useState<number>(activeClassLocal?.settings?.uiScale || (app as any).uiScale || 1);
@@ -57,7 +63,13 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const [csvPreview, setCsvPreview] = useState<any[] | null>(null);
   const [csvError, setCsvError] = useState(false);
   const [isKlassenlistImportOpen, setIsKlassenlistImportOpen] = useState(false);
-  const [activeInputMode, setActiveInputMode] = useState<'choice' | 'manual'>('choice');
+  const [sokratesResult, setSokratesResult] = useState<ParsedSokratesResult | null>(null);
+  const [showSokratesModal, setShowSokratesModal] = useState(false);
+  const [isAnalyzingSokrates, setIsAnalyzingSokrates] = useState(false);
+  const [activeInputMode, setActiveInputMode] = useState<'choice' | 'manual'>(() => {
+    if (isEditing && initialStudents.length > 0) return 'manual';
+    return 'choice';
+  });
   const [setupMode, setSetupMode] = useState<'quick' | 'expert'>(() => {
     if (isEditing || isNewClass) return 'expert';
     try {
@@ -82,6 +94,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const nachnameRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
+  const sokratesFileInputRef = useRef<HTMLInputElement>(null);
 
   const WIZARD_PROGRESS_KEY = 'gabic_setup_wizard_progress';
 
@@ -147,7 +160,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   // Restore progress if available
   useEffect(() => {
     if (isFirstSetup) {
-      const saved = localStorage.getItem(WIZARD_PROGRESS_KEY);
+      const saved = sessionStorage.getItem(WIZARD_PROGRESS_KEY) || localStorage.getItem(WIZARD_PROGRESS_KEY);
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -172,6 +185,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
             if (parsed.studentsList !== undefined) setStudentsList(parsed.studentsList);
             if (parsed.uiScale !== undefined) setUiScale(parsed.uiScale);
           } else {
+            sessionStorage.removeItem(WIZARD_PROGRESS_KEY);
             localStorage.removeItem(WIZARD_PROGRESS_KEY);
           }
         } catch (e) {
@@ -181,19 +195,21 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     }
   }, [isFirstSetup]); // Empty dependency array, but isFirstSetup is constant on mount usually
 
-  // Auto-save logic
+  // Auto-save logic (sichert temporär in sessionStorage - kein unverschlüsselter localStorage)
   useEffect(() => {
     if (isFirstSetup) {
       const saveTimeout = setTimeout(() => {
         let existingProgress: any = {};
-        try { existingProgress = JSON.parse(localStorage.getItem(WIZARD_PROGRESS_KEY) || '{}'); } catch {}
+        try { existingProgress = JSON.parse(sessionStorage.getItem(WIZARD_PROGRESS_KEY) || '{}'); } catch {}
         const progress = {
           ...existingProgress,
           lehrerName, schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
           klassenbezeichnung, stufe, theme, fontFamily,
           faecher, fachConfig, stundenZeiten, mittagspauseNachStunde, tageplan, stammplan, studentsList, uiScale, schuljahr
         };
-        localStorage.setItem(WIZARD_PROGRESS_KEY, JSON.stringify(progress));
+        sessionStorage.setItem(WIZARD_PROGRESS_KEY, JSON.stringify(progress));
+        // Säubere eventuelle Altbestände aus unverschlüsseltem localStorage
+        localStorage.removeItem(WIZARD_PROGRESS_KEY);
       }, 500);
       return () => clearTimeout(saveTimeout);
     }
@@ -267,26 +283,23 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
           ...importedData,
           tourAbgeschlossen: true
         };
-        const dataStr = JSON.stringify(dataToImport);
 
-        const currentData = await localforage.getItem<string>('hehle_v3');
-        if (currentData) {
-          await localforage.setItem('hehle_v3_pre_import_backup', currentData);
-          localStorage.setItem('hehle_v3_pre_import_backup_created_at', new Date().toISOString());
+        const vaultKey = getActiveVaultKey();
+        if (vaultKey) {
+          const currentData = await localforage.getItem<any>('hehle_v3');
+          if (currentData) {
+            await localforage.setItem('hehle_v3_pre_import_backup', currentData);
+            sessionStorage.setItem('hehle_v3_pre_import_backup_created_at', new Date().toISOString());
+          }
+          await saveEncryptedAppState(dataToImport, vaultKey);
         }
-        await localforage.setItem('hehle_v3', dataStr);
-        try {
-          localStorage.setItem('hehle_v3_fallback', dataStr);
-          localStorage.setItem('hehle_v3_backup', LZString.compressToUTF16(dataStr));
-        } catch (e) {
-          console.warn('Fallback-Schreiben fehlgeschlagen (Quota)', e);
-        }
+        setApp(dataToImport);
         
         sessionStorage.removeItem('hehle_v3_temp');
+        sessionStorage.removeItem(WIZARD_PROGRESS_KEY);
         localStorage.removeItem(WIZARD_PROGRESS_KEY);
 
-        // Reload the page immediately so that the AppContext parses and migrates the data cleanly on boot
-        window.location.reload();
+        onComplete();
       } catch (err) {
         alert('Fehler beim Importieren: ' + (err instanceof Error ? err.message : 'Die Datei ist ungültig oder beschädigt.'));
       }
@@ -316,6 +329,28 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     reader.readAsText(file, 'utf-8');
     // Reset input so the same file can be selected again
     e.target.value = '';
+  };
+
+  const handleSokratesFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsAnalyzingSokrates(true);
+    try {
+      const result = await parseSokratesFile(file);
+      if (result.students.length === 0) {
+        alert('In dieser Datei konnten keine Schülerdaten erkannt werden. Bitte prüfe das Format (Sokrates-PDF oder CSV).');
+      } else {
+        setSokratesResult(result);
+        setShowSokratesModal(true);
+      }
+    } catch (err: any) {
+      console.error('Fehler beim Sokrates-Import:', err);
+      alert('Fehler beim Einlesen: ' + (err.message || 'Unbekannter Fehler'));
+    } finally {
+      setIsAnalyzingSokrates(false);
+      e.target.value = '';
+    }
   };
 
   const addStudent = () => {
@@ -362,7 +397,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     const finalStudents = overrideStudents !== undefined ? overrideStudents : studentsList;
     if (!klassenbezeichnung.trim()) {
       setShowMissingKlassenbezeichnung(true);
-      if (currStep !== 2) setCurrStep(2);
+      const classStepIdx = STEPS.findIndex(s => s.title === 'Klasse & Theme');
+      if (currStep !== classStepIdx && classStepIdx !== -1) setCurrStep(classStepIdx);
       return;
     }
 
@@ -398,7 +434,6 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     };
     
     const yearlySubjects = faecher
-      .filter(f => fachConfig[f]?.unterrichtet !== false)
       .map(f => {
         const c = getFachColorKey(f) || 'slate';
         return { id: 'fach_' + f.toLowerCase().replace(/[^a-z0-9]/g, '_'), label: f, color: `bg-${c}-50 border-${c}-200 text-${c}-800` };
@@ -710,46 +745,28 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const currentStundentafel = STUNDENTAFEL[safeStufe] || STUNDENTAFEL[1];
   const maxStunden = Math.max(...Object.values(currentStundentafel).map(v => typeof v === 'number' ? v : 0));
 
-  const bgDict: any = {
-    slate: '#64748b',
-    stone: '#78716c',
-    red: '#ef4444',
-    orange: '#f97316',
-    amber: '#f59e0b',
-    yellow: '#eab308',
-    lime: '#84cc16',
-    green: '#22c55e',
-    emerald: '#10b981',
-    teal: '#14b8a6',
-    cyan: '#06b6d4',
-    sky: '#0ea5e9',
-    blue: '#3b82f6',
-    indigo: '#6366f1',
-    violet: '#8b5cf6',
-    purple: '#a855f7',
-    fuchsia: '#d946ef',
-    pink: '#ec4899',
-    rose: '#f43f5e'
-  };
+  const bgDict: any = new Proxy(STANDARD_COLOR_MAP, {
+    get(target, prop: string) {
+      if (typeof prop === 'string' && prop.startsWith('#')) return prop;
+      return target[prop] || '#64748b';
+    }
+  });
 
   const getFachColorKey = (fachName?: string) => {
     if (!fachName) return null;
     const configColor = fachConfig[fachName]?.color;
+    if (configColor && configColor !== 'slate') return configColor;
     const ln = fachName.toLowerCase();
     
-    // We only use fallback if the color is missing or explicitly default 'slate'
-    if (!configColor || configColor === 'slate') {
-      if (ln.includes('werken') || ln.includes('technik') || ln.includes('design')) return 'orange';
-      if (ln.includes('bewegung') || ln.includes('sport')) return 'teal';
-      if (ln.includes('fremdsprache') || ln.includes('englisch')) return 'sky';
-      if (ln.includes('deutsch')) return 'blue';
-      if (ln.includes('mathematik')) return 'red';
-      if (ln.includes('sachunterricht')) return 'emerald';
-      if (ln.includes('bildnerische') || ln.includes('kunst') || ln.includes('gestaltung')) return 'purple';
-      if (ln.includes('musik')) return 'pink';
-      if (ln.includes('religion')) return 'indigo';
-    }
-    
+    if (ln.includes('werken') || ln.includes('technik') || ln.includes('design')) return 'orange';
+    if (ln.includes('bewegung') || ln.includes('sport')) return 'teal';
+    if (ln.includes('fremdsprache') || ln.includes('englisch')) return 'sky';
+    if (ln.includes('deutsch')) return 'blue';
+    if (ln.includes('mathematik')) return 'red';
+    if (ln.includes('sachunterricht')) return 'emerald';
+    if (ln.includes('bildnerische') || ln.includes('kunst') || ln.includes('gestaltung')) return 'purple';
+    if (ln.includes('musik')) return 'pink';
+    if (ln.includes('religion')) return 'indigo';
     return configColor || 'slate';
   };
 
@@ -791,6 +808,43 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-50 flex items-start justify-center p-0 md:p-8">
       <input type="file" accept=".json" ref={fileInputRef} onChange={handleBackupImport} className="hidden" />
       <input type="file" accept=".csv" ref={csvInputRef} onChange={handleCSVImport} className="hidden" />
+      <input type="file" accept=".pdf,.csv,.txt" ref={sokratesFileInputRef} onChange={handleSokratesFileUpload} className="hidden" />
+
+      {isAnalyzingSokrates && (
+        <div className="fixed inset-0 z-[10000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-slate-200 text-center space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
+              <Sparkles className="w-8 h-8" />
+            </div>
+            <h3 className="text-lg font-black text-slate-800">Sokrates-PDF wird analysiert...</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Wir extrahieren Namen, Adressen, SVNR, Besuchsjahre (BJ) und Elternkontakte strukturiert aus dem Dokument.
+            </p>
+            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+              <div className="bg-emerald-500 h-full w-2/3 rounded-full animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSokratesModal && sokratesResult && (
+        <SokratesImportModal
+          isOpen={showSokratesModal}
+          importResult={sokratesResult}
+          onClose={() => setShowSokratesModal(false)}
+          onApply={(importedStudents, meta) => {
+            setStudentsList(importedStudents);
+            if (meta?.klasse) setKlassenbezeichnung(meta.klasse);
+            if (meta?.schuljahr) setSchuljahr(meta.schuljahr);
+            if (meta?.lehrerName) setLehrerName(meta.lehrerName);
+            if (meta?.schulName) setSchulName(meta.schulName);
+            if (meta?.schulkennzahl) setSchulkennzahl(meta.schulkennzahl);
+            setActiveInputMode('manual');
+            setShowSokratesModal(false);
+            setStudentMessage(`${importedStudents.length} Schüler:innen aus Sokrates erfolgreich übernommen.`);
+          }}
+        />
+      )}
 
       <div className="bg-white md:rounded-[32px] border border-slate-200 shadow-2xl w-full max-w-6xl relative min-h-screen md:min-h-[85vh] my-0 flex flex-col ">
         
@@ -828,7 +882,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
-             {isEditing && (
+             {(isEditing || isNewClass) && (
                <button onClick={handleCancel} className="flex-1 sm:flex-none px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl transition-all">
                  Abbrechen
                </button>
@@ -1056,7 +1110,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            {STEPS[currStep].title === 'Fächer' && (
            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
              <div className="border-b border-slate-100 pb-2">
-                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Palette className="text-emerald-500" size={22}/> Fächer & Farben</h3>
+                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Palette className="text-emerald-500" size={22}/> Fächer & Notenmappe</h3>
              </div>
              
              <div className="bg-slate-50 p-6 rounded-[24px] border border-slate-100 space-y-5">
@@ -1107,14 +1161,14 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                     faecher.forEach(f => newConfig[f] = { ...(newConfig[f] || {}), unterrichtet: true });
                     setFachConfig(newConfig);
                  }} className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all shadow-sm border border-emerald-200">
-                   Alle aktivieren
+                   Alle Notenmappen ein
                  </button>
                  <button onClick={() => {
                     const newConfig = { ...fachConfig };
                     faecher.forEach(f => newConfig[f] = { ...(newConfig[f] || {}), unterrichtet: false });
                     setFachConfig(newConfig);
                  }} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all shadow-sm border border-rose-200">
-                   Alle deaktivieren
+                   Alle Notenmappen aus
                  </button>
                  <button onClick={() => {
                     if (window.confirm("Bist du sicher? Alle benutzerdefinierten Fächer werden entfernt und die Standardfarben wiederhergestellt.")) {
@@ -1129,43 +1183,19 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                  {faecher.map(fach => {
                    const isUnterrichtet = fachConfig[fach]?.unterrichtet ?? true;
-                   const colorKey = getFachColorKey(fach) || 'slate';
-                   const colorHex = bgDict[colorKey] || '#64748b';
-                   
                    return (
                    <div key={fach} className={`flex items-center gap-2 bg-white p-2 rounded-xl border ${isUnterrichtet ? 'border-emerald-200 bg-emerald-50/20' : 'border-slate-200'} shadow-sm transition-all`}>
-                      <div className="relative">
-                        <button 
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveColorPicker(activeColorPicker === fach ? null : fach);
-                          }}
-                          className="w-6 h-6 rounded-full shrink-0 shadow-sm border-2 border-white ring-1 ring-slate-200 transition-transform hover:scale-110"
-                          title="Farbe ändern"
-                          style={{ backgroundColor: colorHex }}
-                        />
-                        {activeColorPicker === fach && (
-                          <div 
-                            className="absolute z-[100] top-8 -left-2 bg-white border border-slate-200 shadow-xl rounded-2xl p-3 grid grid-cols-5 gap-2 w-[180px] origin-top-left animate-in zoom-in-95 duration-200"
-                            onClick={e => e.stopPropagation()}
-                          >
-                            <div className="col-span-5 text-[0.625rem] font-black text-slate-500 uppercase tracking-wider mb-1">Theme Farbe</div>
-                            {COLORS.map(c => (
-                              <button
-                                key={c}
-                                type="button"
-                                onClick={() => {
-                                  setFachConfig({...fachConfig, [fach]: { ...(fachConfig[fach]||{}), color: c }});
-                                  setActiveColorPicker(null);
-                                }}
-                                className={`w-6 h-6 rounded-full border-2 border-white shadow-sm transition-all hover:scale-110 ${colorKey === c ? 'ring-2 ring-emerald-500 scale-110' : 'ring-1 ring-slate-200'}`}
-                                style={{ backgroundColor: bgDict[c] }}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      <FachColorPicker
+                        fach={fach}
+                        currentColor={fachConfig[fach]?.color}
+                        onChange={(newColor) => {
+                          setFachConfig({
+                            ...fachConfig,
+                            [fach]: { ...(fachConfig[fach] || {}), color: newColor }
+                          });
+                        }}
+                        compact={true}
+                      />
                       
                       <span className="flex-1 text-[0.6875rem] font-bold text-slate-700 text-wrap leading-tight break-words">{fach}</span>
                       
@@ -1176,7 +1206,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                           onChange={e => setFachConfig({...fachConfig, [fach]: { ...(fachConfig[fach]||{}), unterrichtet: e.target.checked }})}
                           className="w-3.5 h-3.5 text-emerald-500 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
                         />
-                        <span className="text-[0.5625rem] font-black uppercase text-slate-500 tracking-wider">Aktiv</span>
+                        <span className={`text-[0.5625rem] font-black uppercase tracking-wider ${isUnterrichtet ? 'text-emerald-700' : 'text-slate-500'}`}>Notenmappe</span>
                       </label>
                       <button onClick={() => setFaecher(faecher.filter(f => f !== fach))} className="text-slate-400 hover:text-rose-500 p-1 rounded-md transition-all shrink-0 bg-slate-50 hover:bg-rose-50 border border-transparent hover:border-rose-100">
                          <Trash2 size={14} />
@@ -1850,8 +1880,14 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
       {isKlassenlistImportOpen && (
         <KlassenlistenImport
           onClose={() => setIsKlassenlistImportOpen(false)}
-          onImport={(importedStudents) => {
+          onImport={(importedStudents, meta) => {
             mergeStudents(importedStudents);
+            if (meta?.klasse) setKlassenbezeichnung(meta.klasse);
+            if (meta?.schuljahr) setSchuljahr(meta.schuljahr);
+            if (meta?.lehrerName) setLehrerName(meta.lehrerName);
+            if (meta?.schulName) setSchulName(meta.schulName);
+            if (meta?.schulkennzahl) setSchulkennzahl(meta.schulkennzahl);
+            setActiveInputMode('manual');
             setIsKlassenlistImportOpen(false);
           }}
         />

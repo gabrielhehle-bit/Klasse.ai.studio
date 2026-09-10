@@ -27,6 +27,7 @@ import { useApp } from "../context/AppContext";
 import { DiagnostikErhebung, Student } from "../types";
 import { logActivity } from "../lib/utils";
 import { getDiagnosticClassId, upsertByKey } from "../lib/diagnosticData";
+import { startSyncSession, createSyncUrl, getActiveEncodedSessionKey } from "../lib/syncService";
 import {
   playMagicSound,
   FridolinAvatar,
@@ -96,25 +97,18 @@ const GabicQuest: React.FC<GabicQuestProps> = ({ forcedTab }) => {
   }, [forcedTab]);
 
   useEffect(() => {
-    // Automatically generate direct pairing QR code if not established
+    // Automatically generate direct pairing QR code if not established (Zero-Knowledge)
     if (!app.boardSettings?.activeSyncCode) {
-      fetch("/api/sync/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ state: app }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && data.code) {
-            setApp((p: any) => ({
-              ...p,
-              boardSettings: {
-                ...(p.boardSettings || {}),
-                activeSyncCode: data.code,
-                isRemoteController: false,
-              },
-            }));
-          }
+      startSyncSession(app)
+        .then(({ code }) => {
+          setApp((p: any) => ({
+            ...p,
+            boardSettings: {
+              ...(p.boardSettings || {}),
+              activeSyncCode: code,
+              isRemoteController: false,
+            },
+          }));
         })
         .catch(console.error);
     }
@@ -648,7 +642,7 @@ const GabicQuest: React.FC<GabicQuestProps> = ({ forcedTab }) => {
                   <>
                     <div className="bg-white p-2.5 rounded-2xl border border-slate-200 shadow shadow-amber-500/10 inline-block animate-fade-in">
                       <QRCodeCanvas
-                        value={`https://ais-dev-d2bzgpuvjyv5xfzlrsumwx-322344909089.europe-west3.run.app/?sync=${app.boardSettings.activeSyncCode}&role=remote`}
+                        value={createSyncUrl(app.boardSettings.activeSyncCode, getActiveEncodedSessionKey() || '')}
                         size={105}
                       />
                     </div>

@@ -1,15 +1,257 @@
 import express from "express";
 import path from "path";
+import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { KI_SYSTEM_PROMPTS, GLOBAL_KI_RULES } from "./src/kiSystemPrompts.ts";
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+// Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
+// that do `typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url))`
+// followed by `createRequire(__dirname)` (e.g. vite-plugin-pwa when loaded via createViteServer).
+if (typeof (globalThis as any).__dirname === "string" && !path.isAbsolute((globalThis as any).__dirname)) {
+  delete (globalThis as any).__dirname;
+}
 
-  app.use(express.json({ limit: '50mb' }));
-  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+function validateProductionEnvironment() {
+  const isProd = process.env.NODE_ENV === "production";
+  if (!isProd) return;
+
+  const sessionSecret = process.env.SESSION_SECRET;
+  const insecureSecrets = ["lehrerapp_secure_session_secret_2026", "secret", "changeme", "123456", "admin", "password"];
+  if (!sessionSecret || insecureSecrets.includes(sessionSecret.trim().toLowerCase())) {
+    console.warn("[SICHERHEITSWARNUNG] SESSION_SECRET ist nicht gesetzt oder nutzt einen unsicheren Standardwert. In Produktion muss ein starkes Zufalls-Secret gesetzt werden.");
+  }
+
+  const appUrl = process.env.APP_URL;
+  if (appUrl) {
+    try {
+      const parsed = new URL(appUrl);
+      if (parsed.protocol !== "https:") {
+        console.warn(`[SICHERHEITSWARNUNG] In der Produktionsumgebung muss APP_URL das HTTPS-Protokoll nutzen: ${appUrl}`);
+      }
+    } catch {
+      console.warn(`[SICHERHEITSWARNUNG] APP_URL ist keine gültige URL: ${appUrl}`);
+    }
+  }
+
+  if (!process.env.GEMINI_API_KEY) {
+    console.warn("[KONFIGURATIONSHINWEIS] GEMINI_API_KEY ist nicht konfiguriert. KI-Funktionen sind im Client deaktiviert.");
+  }
+
+  if (!process.env.MICROSOFT_CLIENT_ID || !process.env.MICROSOFT_CLIENT_SECRET) {
+    console.warn("[KONFIGURATIONSHINWEIS] Microsoft OneDrive Secrets sind nicht vollständig konfiguriert. Cloud-Backups sind im Client deaktiviert.");
+  }
+}
+
+export async function createApp(options: { isTest?: boolean } = {}) {
+  const app = express();
+
+  // E3.25 Server-Versionen nicht unnötig offenlegen
+  app.disable('x-powered-by');
+
+  // E3.9 Proxy / HTTPS-Erkennung für Cloud Run / Reverse-Proxies (1 Hop)
+  app.set('trust proxy', 1);
+
+  // E3.28-30 Produktionsumgebungs-Validierung
+  validateProductionEnvironment();
+
+  // E3.1-6 Zentrale Sicherheitsheader-Middleware
+  app.use((req, res, next) => {
+    // E3.2 X-Content-Type-Options
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    // E3.3 Referrer-Policy
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+    // E3.4 Frame-Schutz: SAMEORIGIN als sichere Basis für Dev/Preview-Umgebungen
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+
+    // E3.5 Permissions-Policy: Kamera & Mikrofon für bestehende Funktionen (Lärmampel, Sitzplan) erlauben, Unbenötigtes blockieren
+    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), magnetometer=(), gyroscope=()');
+
+    // E3.1 HSTS: Nur in Produktion
+    if (process.env.NODE_ENV === 'production') {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+
+    // E3.6 Content-Security-Policy
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com",
+      "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://photon.komoot.io https://login.microsoftonline.com https://graph.microsoft.com",
+      "worker-src 'self' blob:",
+      "media-src 'self' blob: data:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self' https://login.microsoftonline.com",
+      "frame-ancestors 'self' https://ai.studio https://*.google.com https://*.run.app"
+    ].join('; ');
+    res.setHeader('Content-Security-Policy', csp);
+
+    next();
+  });
+
+  // E3.7 & E3.10 API Cache-Control & CORS Middleware
+  app.use('/api', (req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+
+    const origin = req.headers.origin;
+    const appUrl = process.env.APP_URL;
+    if (origin) {
+      let isAllowed = false;
+      if (appUrl && (origin === appUrl || origin === appUrl.replace(/\/$/, ''))) {
+        isAllowed = true;
+      } else if (process.env.NODE_ENV !== 'production' && (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('.run.app'))) {
+        isAllowed = true;
+      }
+      if (isAllowed) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      }
+    }
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+    next();
+  });
+
+  // E3.23 Health Endpoint
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok" });
+  });
+
+  // E3.12 Differentiierte Request-Größenlimits
+  app.use('/api/ai', express.json({ limit: '35mb' }));
+  app.use('/api/sync', express.json({ limit: '16mb' }));
+  app.use('/api/onedrive/upload', express.json({ limit: '20mb' }));
+  app.use(express.urlencoded({ limit: '1mb', extended: true }));
+  app.use(express.json({ limit: '1mb' }));
+
+  // Access Control Setup
+  const SESSION_SECRET = process.env.SESSION_SECRET || process.env.GEMINI_API_KEY || "lehrerapp_secure_session_secret_2026";
+  const ACCESS_TEAM_CODE = (process.env.LEHRERAPP_ACCESS_TEAM || "team2026").trim();
+  const ACCESS_EXTERNAL_CODE = (process.env.LEHRERAPP_ACCESS_EXTERNAL || "gast2026").trim();
+
+  function parseCookies(req: express.Request): Record<string, string> {
+    const list: Record<string, string> = {};
+    const rc = req.headers.cookie;
+    if (rc) {
+      rc.split(';').forEach(cookie => {
+        const parts = cookie.split('=');
+        const key = parts.shift()?.trim();
+        const value = decodeURIComponent(parts.join('='));
+        if (key) list[key] = value;
+      });
+    }
+    return list;
+  }
+
+  function createAccessToken(): string {
+    const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
+    const nonce = crypto.randomBytes(16).toString('hex');
+    const payload = `${expiry}.${nonce}`;
+    const hmac = crypto.createHmac('sha256', SESSION_SECRET).update(payload).digest('hex');
+    return `${payload}.${hmac}`;
+  }
+
+  function verifyAccessToken(token: string | undefined): boolean {
+    if (!token) return false;
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const [expiryStr, nonce, hmac] = parts;
+    const expiry = parseInt(expiryStr, 10);
+    if (isNaN(expiry) || expiry < Date.now()) return false;
+    const expectedHmac = crypto.createHmac('sha256', SESSION_SECRET).update(`${expiryStr}.${nonce}`).digest('hex');
+    try {
+      return crypto.timingSafeEqual(Buffer.from(hmac, 'hex'), Buffer.from(expectedHmac, 'hex'));
+    } catch (e) {
+      return false;
+    }
+  }
+
+  const failedLoginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+  function checkRateLimit(ip: string): { allowed: boolean; waitSeconds?: number } {
+    const now = Date.now();
+    const entry = failedLoginAttempts.get(ip);
+    if (!entry) return { allowed: true };
+    if (now > entry.resetAt) {
+      failedLoginAttempts.delete(ip);
+      return { allowed: true };
+    }
+    if (entry.count >= 10) {
+      const waitSeconds = Math.ceil((entry.resetAt - now) / 1000);
+      return { allowed: false, waitSeconds };
+    }
+    return { allowed: true };
+  }
+
+  function recordFailedAttempt(ip: string) {
+    const now = Date.now();
+    const entry = failedLoginAttempts.get(ip) || { count: 0, resetAt: now + 15 * 60 * 1000 };
+    entry.count += 1;
+    failedLoginAttempts.set(ip, entry);
+  }
+
+  function resetFailedAttempts(ip: string) {
+    failedLoginAttempts.delete(ip);
+  }
+
+  // Access Protection API Routes
+  app.get("/api/access/status", (req, res) => {
+    const cookies = parseCookies(req);
+    const token = cookies.lehrerapp_access_token || (req.headers.authorization ? req.headers.authorization.replace('Bearer ', '') : undefined);
+    const isValid = verifyAccessToken(token);
+    res.json({ authenticated: isValid });
+  });
+
+  app.post("/api/access/verify", (req, res) => {
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const rateLimit = checkRateLimit(ip);
+    if (!rateLimit.allowed) {
+      return res.status(429).json({ 
+        success: false, 
+        error: `Zu viele Versuche. Bitte warte ${rateLimit.waitSeconds} Sekunden.` 
+      });
+    }
+
+    const { code } = req.body || {};
+    if (typeof code !== 'string' || !code.trim()) {
+      recordFailedAttempt(ip);
+      return res.status(400).json({ success: false, error: "Der Zugangscode ist nicht gültig." });
+    }
+
+    const submittedCode = code.trim();
+    const isTeam = submittedCode === ACCESS_TEAM_CODE;
+    const isExternal = submittedCode === ACCESS_EXTERNAL_CODE;
+
+    if (isTeam || isExternal) {
+      resetFailedAttempts(ip);
+      const token = createAccessToken();
+      const isProd = process.env.NODE_ENV === 'production';
+      const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+      const secureFlag = (isProd || isSecure) ? '; Secure' : '';
+      res.setHeader('Set-Cookie', `lehrerapp_access_token=${token}; Max-Age=${30 * 24 * 60 * 60}; Path=/; HttpOnly; SameSite=Lax${secureFlag}`);
+      return res.json({ success: true, token });
+    } else {
+      recordFailedAttempt(ip);
+      return res.json({ success: false, error: "Der Zugangscode ist nicht gültig." });
+    }
+  });
+
+  app.post("/api/access/logout", (req, res) => {
+    const isProd = process.env.NODE_ENV === 'production';
+    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+    const secureFlag = (isProd || isSecure) ? '; Secure' : '';
+    res.setHeader('Set-Cookie', `lehrerapp_access_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`);
+    res.json({ success: true });
+  });
 
   // Startup diagnostic logging
   const apiKey = process.env.GEMINI_API_KEY;
@@ -177,14 +419,117 @@ async function startServer() {
     throw lastError;
   };
 
-  // API Route for AI status
+  // E3.24 API Route for AI status (minimal status without secrets)
   app.get("/api/ai/status", (req, res) => {
-    res.json({ hasKey: !!process.env.GEMINI_API_KEY });
+    res.json({ available: !!process.env.GEMINI_API_KEY, hasKey: !!process.env.GEMINI_API_KEY });
   });
+
+  // E3.13-14 KI-Rate-Limiting & Whitelist
+  const aiRateLimits = new Map<string, { count: number; resetAt: number }>();
+  function checkAIRateLimit(ip: string, limit = 30): boolean {
+    const now = Date.now();
+    const entry = aiRateLimits.get(ip);
+    if (!entry || now > entry.resetAt) {
+      aiRateLimits.set(ip, { count: 1, resetAt: now + 60 * 1000 });
+      return true;
+    }
+    if (entry.count >= limit) {
+      return false;
+    }
+    entry.count++;
+    return true;
+  }
+
+  const ALLOWED_AI_ACTIONS = new Set([
+    "petChat", "petSpeech", "classPetAI", "generateContent",
+    "portfolioSummary", "askAI", "generateYearlyPlanSuggestions",
+    "magicPlanner", "generateWidgetTasks", "gradeProjection"
+  ]);
+
+  /**
+   * B1.5 DATENSCHUTZ-SCHUTZNETZ (Server-Side Fallback Validation)
+   * Prüft eingehende Payloads vor der Weiterleitung an externe KI-Modelle auf verbotene Klartextdaten:
+   * - Österreichische SVNR (4 Ziffern + 6 Ziffern oder 10-stellig)
+   * - E-Mail-Adressen
+   * - Telefonnummern (+43, 0043, 0xxx)
+   */
+  function sanitizeAIPayloadRecursively(val: any, violations: string[]): any {
+    if (typeof val === 'string') {
+      let sanitized = val;
+
+      // 1. SVNR-Muster: 4 Ziffern gefolgt von 6 Ziffern (TTMMJJ) z.B. "1234 140518" oder 10-stellige Zahl
+      const svnrRegex = /\b\d{4}\s*\d{6}\b/g;
+      if (svnrRegex.test(sanitized)) {
+        violations.push('SVNR-Muster erkannt');
+        sanitized = sanitized.replace(svnrRegex, '[SVNR-GEFILTERT]');
+      }
+
+      // 2. E-Mail-Muster
+      const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
+      if (emailRegex.test(sanitized)) {
+        violations.push('E-Mail-Muster erkannt');
+        sanitized = sanitized.replace(emailRegex, '[EMAIL-GEFILTERT]');
+      }
+
+      // 3. Telefonnummer-Muster (AT / internat.)
+      const phoneRegex = /(?:\+43|0043|0[1-9]\d{1,3})[\s\-/]?\d{3,}[\s\-/]?\d{3,}/g;
+      if (phoneRegex.test(sanitized)) {
+        violations.push('Telefonnummer-Muster erkannt');
+        sanitized = sanitized.replace(phoneRegex, '[TELEFON-GEFILTERT]');
+      }
+
+      return sanitized;
+    }
+
+    if (Array.isArray(val)) {
+      return val.map(item => sanitizeAIPayloadRecursively(item, violations));
+    }
+
+    if (val !== null && typeof val === 'object') {
+      // B1.5 Server-Schutznetz: Verbotene sensible Datenfelder explizit filtern
+      const FORBIDDEN_KEYS = new Set([
+        'svnr', 'email', 'telefon', 'phone', 'religion', 'geburtsdatum',
+        'birthdate', 'adresse', 'street', 'strasse', 'nachname', 'lastname',
+        'erziehungsberechtigte', 'parents', 'plz', 'hausnummer'
+      ]);
+
+      const result: any = {};
+      for (const key of Object.keys(val)) {
+        if (FORBIDDEN_KEYS.has(key.toLowerCase())) {
+          violations.push(`Sensibles Feld "${key}" serverseitig gefiltert`);
+          result[key] = '[SENSIBLES-FELD-GEFILTERT]';
+          continue;
+        }
+        result[key] = sanitizeAIPayloadRecursively(val[key], violations);
+      }
+      return result;
+    }
+
+    return val;
+  }
 
   // API Route for AI requests
   app.post("/api/ai", async (req, res) => {
-    const { action, params } = req.body;
+    // E3.13 Rate Limit Prüfung
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    if (!checkAIRateLimit(ip, 30)) {
+      return res.status(429).json({ error: "Zu viele KI-Anfragen. Bitte warte einen Moment." });
+    }
+
+    const { action } = req.body || {};
+    // E3.14 Whitelist Validierung der KI-Aktion
+    if (!action || typeof action !== 'string' || !ALLOWED_AI_ACTIONS.has(action)) {
+      return res.status(400).json({ error: "Unbekannte oder unzulässige KI-Aktion." });
+    }
+
+    let params = req.body.params;
+
+    // B1.5 Server-Schutznetz: Eingehende Parameter vor Weitergabe an Gemini prüfen & maskieren
+    const privacyViolations: string[] = [];
+    params = sanitizeAIPayloadRecursively(params, privacyViolations);
+    if (privacyViolations.length > 0) {
+      console.warn("[DATENSCHUTZ-WARNUNG] Sensibles Muster in KI-Request entfernt.");
+    }
 
     try {
       const ai = getAIClient();
@@ -298,8 +643,8 @@ ${userMessage ? `- Kinder sagen zu dir oder fragen dich: "${userMessage}"` : ""}
 WAS DU BEREITS GELERNT HAST (Vorherige Erinnerungen):
 ${memories && memories.length > 0 ? memories.map((m: string) => `- ${m}`).join("\n") : "- Noch keine tiefen Erinnerungen vorhanden. Du fängst gerade erst an zu lernen!"}
 
-INFORMATIONEN ÜBER DIE KINDER IN DER KLASSE:
-${students && students.length > 0 ? students.map((s: any) => `- ${s.vorname} ${s.nachname}: Charakterstärken: ${s.charakter?.join(', ') || 'Keine'}, Badges: ${s.badges?.map((b: any) => b.name).join(', ') || 'Keine'}`).join('\n') : "- Keine Schülerdaten verfügbar."}
+INFORMATIONEN ÜBER DIE KINDER IN DER KLASSE (Neutrale Bezeichnungen):
+${students && students.length > 0 ? students.map((s: any) => s.vorname || s).filter(Boolean).join(', ') : "- Keine Schülerdaten übermittelt."}
 
 RICHTLINIEN FÜR DEINE REAKTION:
 1. Antworte als süßes, verspieltes, aber intelligentes Haustier direkt an die Kinder der Volksschulklasse. Verwende herzliche, motivierende Sprache im österreichischen Kontext (z.B. "Servus Kinder!", "Spitze!", "Griaß di").
@@ -705,7 +1050,7 @@ Antworte exakt im vorgegebenen JSON-Format.`;
 
       res.json({ text: responseText });
     } catch (error: any) {
-      console.error("[Server AI Error]", error);
+      console.error(`[Server AI Error] ${error?.name || 'Error'}: ${error?.message?.slice(0, 150) || 'Unbekannt'}`);
       const isRateLimit = error.message?.includes("429") || error.status === 429;
       const isOverloaded = error.message?.includes("503") || error.status === 503 || error.message?.includes("busy") || error.message?.includes("high demand") || error.message?.includes("UNAVAILABLE") || error.message?.includes("abort") || error.name === "AbortError";
       const isExpiredKey = error.message?.includes("API key") || error.message?.includes("API_KEY") || error.status === 401 || error.status === 403;
@@ -879,8 +1224,22 @@ Antworte exakt im vorgegebenen JSON-Format.`;
     }
   });
 
+  // API Route for Sokrates PDF Analysis - Disabled in favor of 100% Client-Side Parsing (Zero-Knowledge)
+  app.post("/api/ai/parse-sokrates-pdf", async (req, res) => {
+    console.warn("[DATENSCHUTZ] Upload abgelehnt: Amtliche Sokrates-Listen mit SVNR und Adressen dürfen nicht an externe Server gesendet werden. Die Verarbeitung erfolgt rein lokal im Browser.");
+    return res.status(403).json({ 
+      error: "Aus Datenschutzgründen (Zero-Knowledge-Prinzip) werden amtliche Sokrates-Dateien ausschließlich lokal im Browser verarbeitet. Ein serverseitiger Upload ist deaktiviert." 
+    });
+  });
+
   // API Route for IKM PDF Analysis with Gemini
   app.post("/api/ai/analyze-ikm", async (req, res) => {
+    // E3.13 Rate-Limiting für IKM-Analyse
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    if (!checkAIRateLimit(ip, 10)) {
+      return res.status(429).json({ error: "Zu viele IKM-Analyse-Anfragen. Bitte warte einen Moment." });
+    }
+
     const { pdfBase64, students } = req.body;
 
     if (!pdfBase64) {
@@ -888,8 +1247,15 @@ Antworte exakt im vorgegebenen JSON-Format.`;
     }
 
     try {
+      // B1.5 Server-Schutznetz: Eingehende Schülerliste auf sensible Klartextdaten prüfen
+      const ikmViolations: string[] = [];
+      const sanitizedStudents = sanitizeAIPayloadRecursively(students, ikmViolations);
+      if (ikmViolations.length > 0) {
+        console.warn("[DATENSCHUTZ-WARNUNG] Sensibles Muster in KI-Request entfernt.");
+      }
+
       const ai = getAIClient();
-      console.log(`[IKM-Analyse] Starte Analyse mit gemini-3.5-flash für ${students?.length || 0} Schüler...`);
+      console.log(`[IKM-Analyse] Starte Analyse mit gemini-3.5-flash für ${sanitizedStudents?.length || 0} Schüler...`);
 
       // Clean base64 data URL prefix if present
       let cleanBase64 = pdfBase64;
@@ -915,7 +1281,7 @@ In diesem Dokument sind die Ergebnisse der Schülerinnen und Schüler aufgeführ
 Die Rangordnung im PDF entspricht im Regelfall dem alphabetisch nach Nachnamen sortierten Schülerverzeichnis, kann aber auch durch eine zugewiesene Schülernummer überschrieben sein.
 
 Hier ist die offizielle Klassenliste der tatsächlichen Schüler, sortiert nach Nachname und Vorname mit ihren 1-basierten IKM-Matching-Nummern (Index/Zuteilungsnummer):
-${(students || []).map((s: any) => `${s.index}. ${s.name} (ID: ${s.id})`).join('\n')}
+${(sanitizedStudents || []).map((s: any) => `${s.index}. ${s.name} (ID: ${s.id})`).join('\n')}
 
 Deine Aufgabe ist es:
 1. Bestimme den Typ des Moduls in dem PDF (z.B. "Basismodul Mathematik", "Fokusmodul Deutsch Lesen", etc.).
@@ -1028,27 +1394,33 @@ Gib die Ergebnisse ausschließlich als JSON zurück.`;
         const parsed = JSON.parse(responseText);
         res.json(parsed);
       } catch (jsonErr: any) {
-        console.error("[IKM-Analyse] Fehler beim Parsen des IKM-JSONs:", jsonErr, "Original-Text:", responseText);
+        console.error("[IKM-Analyse] Fehler beim Parsen des IKM-JSONs:", jsonErr?.message || jsonErr);
         // Fallback: Try to match content enclosed in curly braces
         const jsonMatch = responseText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           try {
             const secondaryParsed = JSON.parse(jsonMatch[0]);
             return res.json(secondaryParsed);
-          } catch (secErr) {
-            console.error("[IKM-Analyse] Auch Match-Versuch fehlgeschlagen:", secErr);
+          } catch (secErr: any) {
+            console.error("[IKM-Analyse] Auch Match-Versuch fehlgeschlagen:", secErr?.message || secErr);
           }
         }
         throw new Error("Das von der KI generierte Ergebnis entsprach keinem gültigen JSON-Format. Bitte lade das offizielle IKM PDF erneut hoch.");
       }
     } catch (error: any) {
-      console.error("[IKM-Analyse Fehler]", error);
+      console.error("[IKM-Analyse Fehler]", error?.message || error?.name || "Unbekannt");
       res.status(500).json({ error: error.message || "Fehler bei der IKM PDF-Analyse durch Gemini." });
     }
   });
 
   // API Route for Antolin Report Analysis with Gemini
   app.post("/api/ai/analyze-antolin", async (req, res) => {
+    // E3.13 Rate-Limiting für Antolin-Analyse
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    if (!checkAIRateLimit(ip, 10)) {
+      return res.status(429).json({ error: "Zu viele Antolin-Analyse-Anfragen. Bitte warte einen Moment." });
+    }
+
     const { pdfBase64, rawText, students } = req.body;
 
     if (!pdfBase64 && !rawText) {
@@ -1056,13 +1428,21 @@ Gib die Ergebnisse ausschließlich als JSON zurück.`;
     }
 
     try {
+      // B1.5 Server-Schutznetz: Eingehende Antolin-Daten auf verbotene Klartextdaten prüfen & maskieren
+      const antolinViolations: string[] = [];
+      const sanitizedStudents = sanitizeAIPayloadRecursively(students, antolinViolations);
+      const sanitizedRawText = sanitizeAIPayloadRecursively(rawText, antolinViolations);
+      if (antolinViolations.length > 0) {
+        console.warn("[DATENSCHUTZ-WARNUNG] Sensibles Muster in KI-Request entfernt.");
+      }
+
       const ai = getAIClient();
-      console.log(`[Antolin-Analyse] Starte verbesserte Antolin-Analyse mit gemini-3.5-flash für ${students?.length || 0} Schüler...`);
+      console.log(`[Antolin-Analyse] Starte verbesserte Antolin-Analyse mit gemini-3.5-flash für ${sanitizedStudents?.length || 0} Schüler...`);
 
       let promptText = `Analysiere diesen Antolin-Klassenbericht mit höchster Präzision.
       
 Hier ist die offizielle Klassenliste der tatsächlichen Schüler (ID und vollständiger Name):
-${(students || []).map((s: any) => `- Name: ${s.vorname} ${s.nachname} (ID: ${s.id})`).join('\n')}
+${(sanitizedStudents || []).map((s: any) => `- Name: ${s.vorname} ${s.nachname || ""}`.trim() + ` (ID: ${s.id})`).join('\n')}
 
 Deine Aufgabe ist es, für jeden Schüler aus der obigen Liste die Antolin-Werte (Anzahl gelesener Bücher, Antolin-Punkte, Erfolg/Leistung in % und durchschnittliche Schwierigkeit) herauszulesen.
 
@@ -1196,16 +1576,47 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
         throw new Error("Das von der KI generierte Antolin-Ergebnis entsprach keinem gültigen JSON-Format. Bitte lade die Datei oder den Text erneut hoch.");
       }
     } catch (error: any) {
-      console.error("[Antolin-Analyse Fehler]", error);
+      console.error("[Antolin-Analyse Fehler]", error?.message || error?.name || "Unbekannt");
       res.status(500).json({ error: error.message || "Fehler bei der Antolin-Berichtsanalyse durch Gemini." });
     }
   });
 
-  // Memory store for sync sessions
-  const syncSessions: Record<string, {
-    state: any;
+  // Memory store for Zero-Knowledge sync sessions (Modul B4)
+  // Speichert ausschließlich opake, verschlüsselte Payloads, Session-Code und Zeitstempel.
+  // Enthält KEINERLEI Klartext-Schülerdaten und KEINE Entschlüsselungsschlüssel.
+  interface ServerSyncSession {
+    encryptedPayload: any;
     lastUpdated: number;
-  }> = {};
+    protocolVersion: 1;
+  }
+  const syncSessions: Record<string, ServerSyncSession> = {};
+  const MAX_SYNC_PAYLOAD_BYTES = 15 * 1024 * 1024; // 15 MB DoS-Schutz
+
+  // E3.15 Sync-Rate-Limiter: Max 20 Sessions pro 10 Minuten pro IP
+  const syncRateLimits = new Map<string, { count: number; resetAt: number }>();
+  function checkSyncCreateRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const entry = syncRateLimits.get(ip);
+    if (!entry || now > entry.resetAt) {
+      syncRateLimits.set(ip, { count: 1, resetAt: now + 10 * 60 * 1000 });
+      return true;
+    }
+    if (entry.count >= 20) {
+      return false;
+    }
+    entry.count++;
+    return true;
+  }
+
+  function isValidEncryptedPayload(p: any): boolean {
+    if (!p || typeof p !== 'object') return false;
+    if (p.protocolVersion !== 1) return false;
+    if (!p.encryptedState || typeof p.encryptedState !== 'object') return false;
+    const es = p.encryptedState;
+    if (es.version !== 1 || es.algorithm !== 'AES-GCM-256') return false;
+    if (typeof es.iv !== 'string' || typeof es.ciphertext !== 'string') return false;
+    return true;
+  }
 
   // API Route for Geocoding (Weather)
   app.get("/api/weather/geocode", async (req, res) => {
@@ -1237,51 +1648,119 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
   });
 
-  // Create/Join a sync session
+  // Create a Zero-Knowledge sync session (Modul B4)
   app.post("/api/sync/create", (req, res) => {
-    const { state } = req.body;
-    
-    // Generate a random 6-character code (letters/numbers, easily readable)
-    const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // No confusing chars like O, I, 1, 0
+    // E3.15 Rate-Limiting für Sync-Session-Erstellung
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    if (!checkSyncCreateRateLimit(ip)) {
+      return res.status(429).json({ error: "Zu viele Sync-Sitzungen erstellt. Bitte warte einige Minuten." });
+    }
+
+    // Abweisung von unverschlüsselten Legacy-Payloads
+    if (req.body && (req.body.state !== undefined || !req.body.encryptedPayload)) {
+      return res.status(400).json({
+        error: "unsupported legacy sync session. Klartext-Synchronisation wird nicht mehr unterstützt."
+      });
+    }
+
+    const { encryptedPayload } = req.body;
+    if (!isValidEncryptedPayload(encryptedPayload)) {
+      return res.status(400).json({
+        error: "Ungültiges oder unverschlüsseltes Payload-Format. Erwartet wird protocolVersion 1 (AES-GCM-256)."
+      });
+    }
+
+    // DoS-Schutz: Payload-Größe prüfen
+    const payloadStr = JSON.stringify(encryptedPayload);
+    if (payloadStr.length > MAX_SYNC_PAYLOAD_BYTES) {
+      return res.status(413).json({ error: "Sync-Payload überschreitet das Limit von 15 MB." });
+    }
+
+    // E3.16 Kryptographisch sicherer 6-Zeichen-Code (CSPRNG, hohe Entropie)
+    const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Keine leicht verwechselbaren Zeichen
     let code = "";
     for (let i = 0; i < 6; i++) {
-      code += characters.charAt(Math.floor(Math.random() * characters.length));
+      code += characters.charAt(crypto.randomInt(0, characters.length));
     }
-    
+
+    const lastUpdated = typeof encryptedPayload.updatedAt === 'number' ? encryptedPayload.updatedAt : Date.now();
     syncSessions[code] = {
-      state,
-      lastUpdated: Date.now()
+      encryptedPayload,
+      lastUpdated,
+      protocolVersion: 1
     };
-    
+
+    // E3.18 Logging ohne Offenlegung des Sitzungscodes
+    console.log("[Sync Server] Sitzung erstellt.");
     res.json({ code });
   });
 
-  // Update state on a sync session
+  // Update encrypted state on a sync session
   app.put("/api/sync/:code", (req, res) => {
-    const { code } = req.params;
-    const { state } = req.body;
-    
+    const code = (req.params.code || "").trim().toUpperCase();
+
+    // Abweisung von Klartext
+    if (req.body && (req.body.state !== undefined || !req.body.encryptedPayload)) {
+      return res.status(400).json({
+        error: "unsupported legacy sync session. Klartext-Synchronisation wird nicht mehr unterstützt."
+      });
+    }
+
     if (!syncSessions[code]) {
       return res.status(404).json({ error: "Sitzung nicht gefunden oder abgelaufen." });
     }
-    
-    syncSessions[code].state = state;
-    const lastUpdated = Date.now();
+
+    const { encryptedPayload } = req.body;
+    if (!isValidEncryptedPayload(encryptedPayload)) {
+      return res.status(400).json({
+        error: "Ungültiges oder unverschlüsseltes Payload-Format."
+      });
+    }
+
+    const payloadStr = JSON.stringify(encryptedPayload);
+    if (payloadStr.length > MAX_SYNC_PAYLOAD_BYTES) {
+      return res.status(413).json({ error: "Sync-Payload überschreitet das Limit von 15 MB." });
+    }
+
+    const lastUpdated = typeof encryptedPayload.updatedAt === 'number' ? encryptedPayload.updatedAt : Date.now();
+    syncSessions[code].encryptedPayload = encryptedPayload;
     syncSessions[code].lastUpdated = lastUpdated;
-    
+    syncSessions[code].protocolVersion = 1;
+
     res.json({ success: true, lastUpdated });
   });
 
-  // Get state of a sync session
+  // Get encrypted state of a sync session
   app.get("/api/sync/:code", (req, res) => {
-    const { code } = req.params;
-    
+    const code = (req.params.code || "").trim().toUpperCase();
     const session = syncSessions[code];
+
     if (!session) {
       return res.status(404).json({ error: "Sitzung nicht gefunden oder abgelaufen." });
     }
-    
-    res.json({ state: session.state, lastUpdated: session.lastUpdated });
+
+    // Falls alte Klartext-Session existiert: abweisen und entfernen
+    if ((session as any).state !== undefined && !session.encryptedPayload) {
+      delete syncSessions[code];
+      return res.status(400).json({ error: "unsupported legacy sync session" });
+    }
+
+    res.json({
+      encryptedPayload: session.encryptedPayload,
+      lastUpdated: session.lastUpdated,
+      protocolVersion: session.protocolVersion || 1
+    });
+  });
+
+  // Delete a sync session (explizites Sitzungsende)
+  app.delete("/api/sync/:code", (req, res) => {
+    const code = (req.params.code || "").trim().toUpperCase();
+    if (syncSessions[code]) {
+      delete syncSessions[code];
+      // E3.18 Logging ohne Offenlegung des Sitzungscodes
+      console.log("[Sync Server] Sitzung beendet.");
+    }
+    res.json({ success: true });
   });
 
   // --- OneDrive Synchronization Endpoints ---
@@ -1290,7 +1769,8 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     if (!clientId) {
       return res.json({ configured: false });
     }
-    const redirectUri = `${process.env.APP_URL || 'http://localhost:3000'}/api/onedrive/callback`;
+    const appUrl = process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : 'http://localhost:3000';
+    const redirectUri = `${appUrl}/api/onedrive/callback`;
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: "code",
@@ -1514,13 +1994,45 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
   });
 
+  function isValidEncryptedBackup(body: unknown): boolean {
+    if (typeof body !== 'object' || body === null) return false;
+    const b = body as Record<string, unknown>;
+    return (
+      b.format === 'LehrerAPP_Encrypted_Backup' &&
+      b.version === 1 &&
+      typeof b.encryptedState === 'object' &&
+      b.encryptedState !== null &&
+      typeof b.vaultRecord === 'object' &&
+      b.vaultRecord !== null
+    );
+  }
+
   app.put("/api/onedrive/upload", async (req, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
       return res.status(401).json({ error: "Authorization Header fehlt" });
     }
+
+    const body = req.body;
+    // Sicherheitsprüfung: Server weist Klartext-AppState für Cloud-Upload strikt ab
+    if (typeof body === 'object' && body !== null) {
+      const b = body as Record<string, unknown>;
+      if (b.schueler || b.classes || b.klassenbezeichnung) {
+        return res.status(400).json({ 
+          error: "Klartext-Backups sind für Cloud-Uploads unzulässig. Sicherung muss clientseitig verschlüsselt sein." 
+        });
+      }
+    }
+
+    // Striktes Durchsetzen des verschlüsselten LehrerAPP-Backup-Formats
+    if (!isValidEncryptedBackup(body)) {
+      return res.status(400).json({ 
+        error: "Ungültiges Backup-Format. Server akzeptiert ausschließlich verschlüsselte LehrerAPP-Backups (V1)." 
+      });
+    }
+
     try {
-      const response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/Lehrermappe_Backup.json:/content", {
+      const response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp:/content", {
         method: "PUT",
         headers: {
           "Authorization": authHeader,
@@ -1545,11 +2057,22 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(401).json({ error: "Authorization Header fehlt" });
     }
     try {
-      const response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/Lehrermappe_Backup.json:/content", {
+      // 1. Primär nach neuem verschlüsseltem .lehrerapp suchen
+      let response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp:/content", {
         headers: {
           "Authorization": authHeader
         }
       });
+
+      // 2. Abwärtskompatibler Fallback auf altes .json, falls noch keine neue Sicherung existiert
+      if (response.status === 404) {
+        response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/Lehrermappe_Backup.json:/content", {
+          headers: {
+            "Authorization": authHeader
+          }
+        });
+      }
+
       if (response.status === 404) {
         return res.status(404).json({ error: "Keine Sicherungsdatei auf OneDrive gefunden." });
       }
@@ -1570,11 +2093,22 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(401).json({ error: "Authorization Header fehlt" });
     }
     try {
-      const response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/Lehrermappe_Backup.json", {
+      // 1. Zuerst neues .lehrerapp prüfen
+      let response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp", {
         headers: {
           "Authorization": authHeader
         }
       });
+
+      // 2. Fallback auf altes .json zur Bestandsanzeige
+      if (response.status === 404) {
+        response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/Lehrermappe_Backup.json", {
+          headers: {
+            "Authorization": authHeader
+          }
+        });
+      }
+
       if (response.status === 404) {
         return res.json({ exists: false });
       }
@@ -1589,34 +2123,81 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
   });
 
-  // Periodically clean up session memory (sessions older than 12 hours)
-  setInterval(() => {
+  // Periodically clean up session memory (sessions older than 2 hours of inactivity)
+  const cleanupTimer = setInterval(() => {
     const now = Date.now();
+    const MAX_INACTIVITY_MS = 2 * 60 * 60 * 1000; // 2 Stunden Inaktivität (Modul B4)
     Object.keys(syncSessions).forEach(code => {
-      if (now - syncSessions[code].lastUpdated > 12 * 60 * 60 * 1000) {
+      if (now - syncSessions[code].lastUpdated > MAX_INACTIVITY_MS) {
         delete syncSessions[code];
+        // E3.18 Logging ohne Offenlegung des Sitzungscodes
+        console.log("[Sync Server] Inaktive Sitzung bereinigt.");
       }
     });
-  }, 10 * 60 * 1000); // Check every 10 minutes
+  }, 10 * 60 * 1000);
+  cleanupTimer.unref();
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+  // E3.21 API 404 Handler: Verhindert, dass nicht existierende API-Routen als index.html ausgeliefert werden
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ error: "API-Endpunkt nicht gefunden." });
+  });
+
+  // E3.20 Zentraler API-Error-Handler (keine Stacktraces in Produktion)
+  app.use("/api", (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error(`[API Error] Pfad: ${req.path}, Status: ${err.status || 500}, Typ: ${err.name || 'Error'}`);
+    if (err.type === 'entity.too.large' || err.status === 413) {
+      return res.status(413).json({ error: "Der Request-Body überschreitet die maximal zulässige Größe." });
+    }
+    const isProd = process.env.NODE_ENV === 'production';
+    const message = isProd ? "Interner Serverfehler." : (err.message || "Interner Serverfehler.");
+    res.status(err.status || 500).json({ error: message });
+  });
+
+  // Vite middleware for development or static serving for production
+  if (!options.isTest) {
+    if (process.env.NODE_ENV !== "production") {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), 'dist');
+      // E3.26 Cache-Control für versionierte statische Assets (1 Jahr immutable)
+      app.use('/assets', express.static(path.join(distPath, 'assets'), {
+        maxAge: '1y',
+        immutable: true
+      }));
+      // Standard Static Files mit Cache-Revalidierung für HTML
+      app.use(express.static(distPath, {
+        setHeaders: (res, filePath) => {
+          if (filePath.endsWith('.html')) {
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+          }
+        }
+      }));
+      app.get('*', (req, res) => {
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
   }
 
+  return app;
+}
+
+export async function startServer() {
+  const app = await createApp();
+  const PORT = 3000;
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
 
-startServer();
+const isTest = process.env.IS_TEST_RUNNER === "true" || process.env.NODE_ENV === "test";
+if (!isTest) {
+  startServer().catch((err) => {
+    console.error("Failed to start server:", err);
+    process.exit(1);
+  });
+}

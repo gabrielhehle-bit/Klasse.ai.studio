@@ -3,11 +3,15 @@ import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, logActivity, safeJsonParse, inferDateFromText, inferEventType, sortYearlySubjects } from '../lib/utils';
 import { TAGE_NAMEN, VM_ZEITEN, STUNDENTAFEL, FAECHER_ALLE, DEUTSCH_UNTERFAECHER, DEFAULT_YEARLY_SUBJECTS, STUNDEN_INFO } from '../constants';
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, Layout, Calendar, Info, Search, X, Check, Clock, PartyPopper, Lightbulb, Filter, Flag, AlertTriangle, Star, MessageSquare, Users, User, Users2, Smartphone, BookOpen, Printer, Sparkles, Loader2, Book, RefreshCw, GripVertical, Zap, Pencil, BarChart2, Eye, EyeOff, Copy, Clipboard, CheckSquare, Paperclip, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, Layout, Calendar, Info, Search, X, Check, Clock, PartyPopper, Lightbulb, Filter, Flag, AlertTriangle, Star, MessageSquare, Users, User, Users2, Smartphone, BookOpen, Printer, Sparkles, Loader2, Book, RefreshCw, GripVertical, Zap, Pencil, BarChart2, Eye, EyeOff, Copy, Clipboard, CheckSquare, Paperclip, ExternalLink, MoreHorizontal, Maximize2, Minimize2, FileSpreadsheet, Download, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getLessonSuggestion, generateWeeklyPlanFromYearlyPlan, checkWeeklyPlanAlignmentAI, generateMagicPlanning } from '../services/aiService';
 import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { LehrplanZuordnung } from '../types';
+import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
+import WochenplanExcelModal from './WochenplanExcelModal';
+import { generateWochenplanTemplate, WochenplanImportRow } from '../lib/planerExcelService';
+import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 
 const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> = {
   'Deutsch': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -27,6 +31,23 @@ const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> 
   'Türkisch': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
   'Freizeit': { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200' },
   'Supplierstunde': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+};
+
+export const DEUTSCH_THEMENBEREICHE = [
+  { id: 'Deutsch (Lesen)', label: 'Lesen', icon: BookOpen, color: 'bg-sky-500 hover:bg-sky-600 border-sky-500 text-white' },
+  { id: 'Deutsch (Sprache)', label: 'Sprache', icon: MessageSquare, color: 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-white' },
+  { id: 'Deutsch (Rechtschreibung)', label: 'Rechtschreibung', icon: Zap, color: 'bg-emerald-500 hover:bg-emerald-600 border-emerald-500 text-white' },
+  { id: 'Deutsch (Verfassen von Texten)', label: 'Texte verfassen', icon: Pencil, color: 'bg-indigo-500 hover:bg-indigo-600 border-indigo-500 text-white' }
+];
+
+export const isDeutschSubSubject = (f: string): boolean => {
+  if (!f) return false;
+  const lower = f.trim().toLowerCase();
+  if (lower === 'deutsch' || lower === 'd') return false;
+  if (lower.startsWith('deutsch (') || lower.startsWith('deutsch -') || lower.startsWith('deutsch:')) return true;
+  if (DEUTSCH_UNTERFAECHER.some(uf => uf.toLowerCase() === lower)) return true;
+  if (['lesen', 'sprache', 'sprachbetrachtung', 'rechtschreiben', 'rechtschreibung', 'texte verfassen', 'verfassen von texten', 'schreiben'].includes(lower)) return true;
+  return false;
 };
 
 const getContrastTextClass = (bgColor?: string): string => {
@@ -118,19 +139,18 @@ export default function WeeklyPlan() {
   const getFachColorKey = (fachName?: string) => {
     if (!fachName) return 'slate';
     const configColor = app.fachConfig?.[fachName]?.color;
+    if (configColor && configColor !== 'slate') return configColor;
     const ln = fachName.toLowerCase();
     
-    if (!configColor || configColor === 'slate') {
-      if (ln.includes('werken') || ln.includes('technik') || ln.includes('design')) return 'orange';
-      if (ln.includes('bewegung') || ln.includes('sport')) return 'teal';
-      if (ln.includes('fremdsprache') || ln.includes('englisch')) return 'sky';
-      if (ln.includes('deutsch')) return 'blue';
-      if (ln.includes('mathematik')) return 'red';
-      if (ln.includes('sachunterricht')) return 'emerald';
-      if (ln.includes('bildnerische') || ln.includes('kunst') || ln.includes('gestaltung')) return 'purple';
-      if (ln.includes('musik')) return 'pink';
-      if (ln.includes('religion')) return 'indigo';
-    }
+    if (ln.includes('werken') || ln.includes('technik') || ln.includes('design')) return 'orange';
+    if (ln.includes('bewegung') || ln.includes('sport')) return 'teal';
+    if (ln.includes('fremdsprache') || ln.includes('englisch')) return 'sky';
+    if (ln.includes('deutsch')) return 'blue';
+    if (ln.includes('mathematik')) return 'red';
+    if (ln.includes('sachunterricht')) return 'emerald';
+    if (ln.includes('bildnerische') || ln.includes('kunst') || ln.includes('gestaltung')) return 'purple';
+    if (ln.includes('musik')) return 'pink';
+    if (ln.includes('religion')) return 'indigo';
     
     return configColor || 'slate';
   };
@@ -160,7 +180,8 @@ export default function WeeklyPlan() {
       violet: { bg: 'bg-violet-50 border-violet-200/50', text: 'text-violet-700', border: 'border-violet-200' },
     };
 
-    return colorMap[c] || { bg: 'bg-white', text: 'text-slate-700', border: 'border-slate-200' };
+    if (colorMap[c]) return colorMap[c];
+    return getFachThemeStyles(fach, app.fachConfig);
   };
 
   const [editingCell, setEditingCell] = useState<{ tag: string, idx: number } | null>(null);
@@ -219,6 +240,7 @@ export default function WeeklyPlan() {
   const [checkInExtraTodos, setCheckInExtraTodos] = useState('');
   const [copiedLesson, setCopiedLesson] = useState<any | null>(null);
   const [draggedOverCell, setDraggedOverCell] = useState<{tag: string, idx: number} | null>(null);
+  const [showSchuelerWochenplanModal, setShowSchuelerWochenplanModal] = useState(false);
   const headerRef = useRef<HTMLDivElement>(null);
   const [navHeight, setNavHeight] = useState(120);
   
@@ -638,6 +660,184 @@ export default function WeeklyPlan() {
   friday.setDate(monday.getDate() + 4);
 
   const [showStatsMenu, setShowStatsMenu] = useState(false);
+  const [densityMode, setDensityMode] = useState<'kompakt' | 'normal' | 'detail'>(app.weeklyDensityMode || 'normal');
+  const [filterOnlyOffen, setFilterOnlyOffen] = useState<boolean>(false);
+  const [showQuickPlanModal, setShowQuickPlanModal] = useState<boolean>(false);
+  const [quickPlanType, setQuickPlanType] = useState<'stunde' | 'termin' | 'test' | 'ausflug'>('stunde');
+  const [quickPlanTag, setQuickPlanTag] = useState<string>('Montag');
+  const [quickPlanStunde, setQuickPlanStunde] = useState<number>(0);
+  const [quickPlanFach, setQuickPlanFach] = useState<string>('');
+  const [quickPlanThema, setQuickPlanThema] = useState<string>('');
+  const [showMoreDetailsInModal, setShowMoreDetailsInModal] = useState<boolean>(false);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showExcelMenu, setShowExcelMenu] = useState(false);
+  const [showExcelModal, setShowExcelModal] = useState(false);
+
+  React.useEffect(() => {
+    if (!isFullscreen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
+
+  const handleWochenplanImport = (importedRows: WochenplanImportRow[], targetKW: number, mode: 'overwrite' | 'merge') => {
+    setApp(prev => {
+      const existingWp = prev.wochenplanung || {};
+      const existingWeek = existingWp[targetKW] || {};
+
+      let newWeekData: Record<string, any> = {};
+
+      if (mode === 'merge') {
+        newWeekData = JSON.parse(JSON.stringify(existingWeek));
+      }
+
+      importedRows.forEach(row => {
+        const tag = row.tag;
+        if (!newWeekData[tag]) {
+          newWeekData[tag] = {};
+        }
+
+        const existingSlot = newWeekData[tag][row.idx];
+
+        if (mode === 'merge' && existingSlot && existingSlot.thema && !row.thema) {
+          return;
+        }
+
+        newWeekData[tag][row.idx] = {
+          ...(existingSlot || {}),
+          fach: row.fach || existingSlot?.fach || '',
+          thema: row.thema || existingSlot?.thema || '',
+          lernziel: row.lernziel || existingSlot?.lernziel || '',
+          material: row.material || existingSlot?.material || '',
+          housework: row.housework || existingSlot?.housework || '',
+          reflexion: row.reflexion || existingSlot?.reflexion || '',
+          zeit: row.uhrzeit || existingSlot?.zeit || STUNDEN_INFO[row.stunde] || '',
+        };
+      });
+
+      return {
+        ...prev,
+        wochenplanung: {
+          ...existingWp,
+          [targetKW]: newWeekData,
+        },
+        currentKW: targetKW,
+      };
+    });
+  };
+
+  const weekMetrics = useMemo(() => {
+    let total = 0;
+    let prepared = 0;
+    let missingMat = 0;
+    const currentWeekPlan = app.wochenplanung?.[activeKW] || {};
+    TAGE_NAMEN.forEach(tag => {
+      for (let idx = 0; idx < 8; idx++) {
+        const item = currentWeekPlan[tag]?.[idx];
+        const stammFach = app.stammplan?.[tag]?.[idx + 1] || '';
+        if (item?.fach || item?.thema || stammFach) {
+          total++;
+          if (item?.erledigt) {
+            prepared++;
+          }
+          if ((item?.fach || item?.thema) && !item?.material && (!item?.materialIds || item?.materialIds.length === 0) && (item?.type === 'standard' || !item?.type)) {
+            missingMat++;
+          }
+        }
+      }
+    });
+    return {
+      total,
+      prepared,
+      open: Math.max(0, total - prepared),
+      missingMat
+    };
+  }, [app.wochenplanung, app.stammplan, activeKW]);
+
+  const thisWeekImportantEvents = useMemo(() => {
+    const events: Array<{ id: string; tag: string; label: string; type: string; isTest?: boolean }> = [];
+    const currentWeekPlan = app.wochenplanung?.[activeKW] || {};
+    
+    TAGE_NAMEN.forEach(tag => {
+      const dayData = currentWeekPlan[tag] || {};
+      const list = dayData.zeitunabhaengig || [];
+      list.forEach((item: any) => {
+        if (item?.thema) {
+          events.push({
+            id: item.id || `${tag}-${item.thema}`,
+            tag,
+            label: item.thema,
+            type: item.type || 'termin',
+            isTest: item.type === 'test' || item.type === 'sa'
+          });
+        }
+      });
+
+      for (let i = 0; i < 8; i++) {
+        const item = dayData[i];
+        if (item && (item.type === 'sa' || item.type === 'test' || item.type === 'event')) {
+          events.push({
+            id: `slot-${tag}-${i}`,
+            tag,
+            label: `${item.fach ? item.fach + ': ' : ''}${item.thema || 'Termin'} (${i + 1}. Std)`,
+            type: item.type,
+            isTest: item.type === 'sa' || item.type === 'test'
+          });
+        }
+      }
+    });
+
+    return events;
+  }, [app.wochenplanung, activeKW]);
+
+  const handleQuickPlanSubmit = () => {
+    if (!quickPlanThema.trim() && quickPlanType === 'stunde' && !quickPlanFach.trim()) return;
+    
+    if (quickPlanType === 'stunde' || quickPlanType === 'test') {
+      setApp(prev => {
+        const wp = { ...(prev.wochenplanung || {}) };
+        const currentWeekObj = { ...wp[activeKW] };
+        if (!currentWeekObj[quickPlanTag]) currentWeekObj[quickPlanTag] = {};
+        
+        currentWeekObj[quickPlanTag][quickPlanStunde] = {
+          ...(currentWeekObj[quickPlanTag][quickPlanStunde] || {}),
+          fach: quickPlanFach.trim(),
+          thema: quickPlanThema.trim(),
+          type: quickPlanType === 'test' ? 'test' : 'standard',
+          erledigt: false
+        };
+        
+        wp[activeKW] = currentWeekObj;
+        return { ...prev, wochenplanung: wp };
+      });
+    } else {
+      setApp(prev => {
+        const wp = { ...(prev.wochenplanung || {}) };
+        const currentWeekObj = { ...wp[activeKW] };
+        if (!currentWeekObj[quickPlanTag]) currentWeekObj[quickPlanTag] = {};
+        const list = currentWeekObj[quickPlanTag].zeitunabhaengig || [];
+        
+        const newEntry = {
+          id: `zu-${Date.now()}`,
+          thema: quickPlanThema.trim(),
+          type: quickPlanType === 'ausflug' ? 'event' : 'termin'
+        };
+        
+        currentWeekObj[quickPlanTag].zeitunabhaengig = [...list, newEntry];
+        wp[activeKW] = currentWeekObj;
+        return { ...prev, wochenplanung: wp };
+      });
+    }
+    
+    setShowQuickPlanModal(false);
+    setQuickPlanFach('');
+    setQuickPlanThema('');
+  };
 
   const getMonthlyStats = () => {
     const stats: Record<string, number> = {
@@ -971,12 +1171,21 @@ export default function WeeklyPlan() {
   };
 
   const handleSetSearchFach = (f: string) => {
-    setSearchFach(f);
-    if (f.startsWith('Deutsch') && app.autoSuggestSchwerpunkte) {
-      setTempSchwerpunkte(prev => prev.length > 0 ? prev : autoSuggestSchwerpunkt());
-    } else if (!f.startsWith('Deutsch') && f !== '') {
+    let normalized = f;
+    if (isDeutschSubSubject(f)) {
+      normalized = 'Deutsch';
+      const matchingUf = DEUTSCH_UNTERFAECHER.find(uf => 
+        uf.toLowerCase() === f.toLowerCase() || 
+        uf.toLowerCase().includes(f.toLowerCase())
+      );
+      setTempSchwerpunkte([matchingUf || f]);
+    } else if (f !== 'Deutsch' && !f.startsWith('Deutsch')) {
+      // Switching to a different subject: clear Deutsch sub-areas
       setTempSchwerpunkte([]);
+    } else if (f === 'Deutsch' && app.autoSuggestSchwerpunkte) {
+      setTempSchwerpunkte(prev => prev.length > 0 ? prev : autoSuggestSchwerpunkt());
     }
+    setSearchFach(normalized);
   };
 
   const handleEditCell = (tag: string, idx: number) => {
@@ -984,12 +1193,25 @@ export default function WeeklyPlan() {
     const stammFach = app.stammplan?.[tag]?.[idx + 1] || '';
     const initialFach = current.fach || stammFach;
     setEditingCell({ tag, idx });
-    setSearchFach(initialFach);
 
-    // Set the selected hour is no longer done here, active in cockpit is always time-bound
-    
-    let initialSchwerpunkte = current.schwerpunkte || (DEUTSCH_UNTERFAECHER.includes(current.fach) ? [current.fach] : []);
-    if ((!current.schwerpunkte || current.schwerpunkte.length === 0) && initialFach.startsWith('Deutsch') && app.autoSuggestSchwerpunkte) {
+    let normalizedFach = initialFach;
+    let initialSchwerpunkte = Array.isArray(current.schwerpunkte) ? [...current.schwerpunkte] : [];
+
+    // If stored subject was a Deutsch sub-subject (legacy or imported), normalize to Deutsch + Schwerpunkt
+    if (isDeutschSubSubject(initialFach)) {
+      normalizedFach = 'Deutsch';
+      if (initialSchwerpunkte.length === 0) {
+        const matchingUf = DEUTSCH_UNTERFAECHER.find(uf => 
+          uf.toLowerCase() === initialFach.toLowerCase() || 
+          uf.toLowerCase().includes(initialFach.toLowerCase())
+        );
+        initialSchwerpunkte = [matchingUf || initialFach];
+      }
+    }
+
+    setSearchFach(normalizedFach);
+
+    if ((!initialSchwerpunkte || initialSchwerpunkte.length === 0) && (normalizedFach === 'Deutsch' || normalizedFach.startsWith('Deutsch')) && app.autoSuggestSchwerpunkte) {
       initialSchwerpunkte = autoSuggestSchwerpunkt();
     }
     
@@ -1007,7 +1229,7 @@ export default function WeeklyPlan() {
     
     // Auto-enable sync if part of the sync set
     const syncSet = app.wochenplanSyncSet || [];
-    setSyncWpSubjects(syncSet.length > 0 && syncSet.includes(initialFach));
+    setSyncWpSubjects(syncSet.length > 0 && syncSet.includes(normalizedFach));
   };
 
   const handleAddToSpacedPractice = (fach: string, thema: string) => {
@@ -1551,7 +1773,14 @@ export default function WeeklyPlan() {
   });
 
   return (
-    <div className="weekly-plan-shell flex flex-col bg-[#f4f7f3]" style={{ '--sticky-offset': `${navHeight}px` } as React.CSSProperties}>
+    <div 
+      className={`weekly-plan-shell flex flex-col bg-[#f4f7f3] ${
+        isFullscreen 
+          ? "fixed inset-0 z-[450] w-screen h-[100dvh] overflow-hidden p-2 sm:p-4" 
+          : ""
+      }`} 
+      style={{ '--sticky-offset': `${navHeight}px` } as React.CSSProperties}
+    >
       <style dangerouslySetInnerHTML={{ __html: `
         .weekly-plan-tools > button,
         .weekly-plan-tools > div > button {
@@ -1570,9 +1799,6 @@ export default function WeeklyPlan() {
         }
       ` }} />
       
-      {/* 1. SCREEN-ONLY UI & TABLE */}
-      <div>
-      
       {/* SVG PATTERNS & EFFECTS */}
       <svg className="fixed pointer-events-none opacity-0 invisible">
         <defs>
@@ -1583,237 +1809,368 @@ export default function WeeklyPlan() {
       </svg>
       
       {/* 1. FIXED TOP HEADER CONTROL */}
-      <div ref={headerRef} className="bg-[#f4f7f3] border-b border-slate-200 flex flex-col pt-3" data-zoom={app?.settings?.zoomLevel}>
-        <div className="py-2 sm:py-4">
+      <div ref={headerRef} className="bg-[#f4f7f3] border-b border-slate-200 flex flex-col pt-3 shrink-0" data-zoom={app?.settings?.zoomLevel}>
+        <div className="py-2 sm:py-3">
           <div className="flex flex-col bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 gap-3 w-full shadow-sm">
-             <div className="flex items-center justify-center gap-2 sm:gap-3 w-full">
-               <button 
-                 onClick={() => {
-                   const d = new Date(monday);
-                   d.setDate(d.getDate() - 7);
-                   setApp(p => ({ ...p, currentKW: getKW(d) }));
-                 }} 
-                 aria-label="Vorherige Woche"
-                 title="Vorherige Woche"
-                 className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-900 border border-slate-200 shadow-sm transition-all active:scale-90"
-               >
-                 <ChevronLeft size={18} className="sm:w-[20px] sm:h-[20px]" />
-               </button>
-               <button 
-                  onClick={() => setShowWeekPicker(true)}
-                  className="px-2 sm:px-4 flex flex-col items-center justify-center min-w-[160px] sm:min-w-[200px] group transition-all"
-               >
-                  <span className="text-[1.1rem] sm:text-[1.25rem] leading-normal font-black text-slate-900 tracking-tighter leading-none mb-0.5 sm:mb-1">
-                    {monday.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' })} – {friday.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' })}
+            
+            {/* Row 1: Title, Date Info, Navigation & Primary Actions */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">WOCHENPLANUNG</h1>
+                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[0.625rem] font-extrabold rounded-full">
+                    KW {activeKW}
                   </span>
-                  <div className="flex items-center gap-1.5 sm:gap-2 opacity-70 group-hover:opacity-100 transition-all">
-                     <span className="text-[0.5rem] sm:text-[0.5625rem] font-black text-slate-400 uppercase tracking-[0.15em] sm:tracking-[0.2em]">Woche wählen</span>
-                     <ChevronDown size={10} className="text-slate-400 sm:w-[12px] sm:h-[12px]" />
-                  </div>
-               </button>
-               <button 
-                 onClick={() => {
-                   const d = new Date(monday);
-                   d.setDate(d.getDate() + 7);
-                   setApp(p => ({ ...p, currentKW: getKW(d) }));
-                 }} 
-                 aria-label="Nächste Woche"
-                 title="Nächste Woche"
-                 className="w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-xl sm:rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-900 border border-slate-200 shadow-sm transition-all active:scale-90"
-               >
-                 <ChevronRight size={18} className="sm:w-[20px] sm:h-[20px]" />
-               </button>
-             </div>
+                  {sw && (
+                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[0.625rem] font-bold rounded-full">
+                      SW {sw}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                  {monday.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' })} – {friday.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  {app.klassenbezeichnung || app.stufe ? ` · Klasse ${app.klassenbezeichnung || `${app.stufe}. Stufe`}` : ''}
+                </p>
+              </div>
 
-             <div className="weekly-plan-tools flex flex-wrap items-center gap-1.5 md:gap-2 w-full justify-start min-w-0 border-t border-slate-100 pt-3">
-              <div className="flex bg-slate-200/50 p-0.5 rounded-lg sm:rounded-xl border border-slate-200/30 shadow-inner">
+              {/* Navigation & Actions */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Week Navigation */}
+                <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                  <button 
+                    onClick={() => {
+                      const d = new Date(monday);
+                      d.setDate(d.getDate() - 7);
+                      setApp(p => ({ ...p, currentKW: getKW(d) }));
+                    }} 
+                    aria-label="Vorherige Woche"
+                    title="Vorherige Woche"
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button 
+                    onClick={() => setApp(p => ({ ...p, currentKW: actualKW }))}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${activeKW === actualKW ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                    title="Zur aktuellen Woche springen"
+                  >
+                    Diese Woche
+                  </button>
+                  <button 
+                    onClick={() => setShowWeekPicker(true)}
+                    className="px-2 py-1 text-xs font-bold text-slate-600 hover:bg-white rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                    title="Woche wählen"
+                  >
+                    <span>KW {activeKW}</span>
+                    <ChevronDown size={12} />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const d = new Date(monday);
+                      d.setDate(d.getDate() + 7);
+                      setApp(p => ({ ...p, currentKW: getKW(d) }));
+                    }} 
+                    aria-label="Nächste Woche"
+                    title="Nächste Woche"
+                    className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-all active:scale-95 cursor-pointer"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+
+                {/* Primary Action Button: + Planen */}
                 <button
-                  type="button"
-                  onClick={() => setViewMode('grid')}
-                  aria-pressed={viewMode === 'grid'}
-                  className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md sm:rounded-lg transition-all font-black text-[0.48rem] xs:text-[0.52rem] sm:text-[0.5625rem] uppercase tracking-wider flex items-center gap-1 cursor-pointer ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-950'}`}
+                  onClick={() => setShowQuickPlanModal(true)}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="Schnell neue Stunde oder Termin planen"
                 >
-                  <Layout size={11} />
-                  <span>Wochenplan</span>
+                  <Plus size={16} strokeWidth={2.5} />
+                  <span>+ Planen</span>
                 </button>
+
+                {/* Primary Action Button: Wochenplan für Kinder erstellen */}
                 <button
-                  type="button"
-                  onClick={() => setViewMode('klassenbuch')}
-                  aria-pressed={viewMode === 'klassenbuch'}
-                  className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md sm:rounded-lg transition-all font-black text-[0.48rem] xs:text-[0.52rem] sm:text-[0.5625rem] uppercase tracking-wider flex items-center gap-1 cursor-pointer ${viewMode === 'klassenbuch' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-950'}`}
+                  onClick={() => setShowSchuelerWochenplanModal(true)}
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="Erstellt aus dem aktuellen Wochenplan einen kindgerechten Arbeits-/Aufgabenplan für die Kinder"
                 >
-                  <BookOpen size={11} />
-                  <span>Klassenbuch</span>
+                  <CheckSquare size={16} strokeWidth={2.5} />
+                  <span>Wochenplan für Kinder erstellen</span>
+                </button>
+
+                {/* Excel Menu Dropdown */}
+                <div className="relative z-[210]">
+                  <button
+                    onClick={() => setShowExcelMenu(!showExcelMenu)}
+                    className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-emerald-200 shadow-xs"
+                    title="Excel Vorlage herunterladen oder Plan importieren"
+                  >
+                    <FileSpreadsheet size={16} />
+                    <span>Excel</span>
+                    <ChevronDown size={12} />
+                  </button>
+                  {showExcelMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowExcelMenu(false)} />
+                      <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left">
+                        <button
+                          onClick={() => {
+                            setShowExcelMenu(false);
+                            generateWochenplanTemplate(app, activeKW);
+                          }}
+                          className="btn !bg-white !text-emerald-700 hover:!bg-emerald-50 !justify-start !text-left text-xs gap-2.5 w-full"
+                        >
+                          <Download size={14} />
+                          <span>Excel-Vorlage herunterladen</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowExcelMenu(false);
+                            setShowExcelModal(true);
+                          }}
+                          className="btn !bg-white !text-slate-700 hover:!bg-slate-50 !justify-start !text-left text-xs gap-2.5 w-full"
+                        >
+                          <Upload size={14} />
+                          <span>Excel importieren...</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Fullscreen Button */}
+                <button
+                  onClick={() => setIsFullscreen(!isFullscreen)}
+                  className={`px-3 py-2 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs ${
+                    isFullscreen
+                      ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                  }`}
+                  title={isFullscreen ? 'Vollbildmodus beenden (Esc)' : 'Vollbildmodus aktivieren (Esc zum Beenden)'}
+                >
+                  {isFullscreen ? (
+                    <>
+                      <Minimize2 size={16} />
+                      <span>Vollbild beenden</span>
+                      <kbd className="hidden sm:inline-block px-1 py-0.2 bg-emerald-900/60 text-[9px] text-white rounded font-mono ml-0.5">Esc</kbd>
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 size={16} />
+                      <span>Vollbild</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Dropdown Menu: Mehr */}
+                <div className="relative z-[210]">
+                  <button 
+                    onClick={() => setShowWeekMenu(!showWeekMenu)}
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200"
+                  >
+                    <MoreHorizontal size={16} />
+                    <span>Mehr</span>
+                    <ChevronDown size={12} />
+                  </button>
+                  {showWeekMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowWeekMenu(false)} />
+                      <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left">
+                        <button onClick={() => { setShowWeekMenu(false); setShowSchuelerWochenplanModal(true); }} className="btn !bg-white !text-indigo-700 hover:!bg-indigo-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3 font-bold">
+                          <CheckSquare size={14} /> Wochenplan für Kinder erstellen
+                        </button>
+                        <button onClick={() => { setShowWeekMenu(false); setIsFullscreen(!isFullscreen); }} className="btn !bg-white !text-slate-700 hover:!bg-slate-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
+                          {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />} {isFullscreen ? 'Vollbild beenden' : 'Vollbildmodus'}
+                        </button>
+                        <button onClick={() => { setShowWeekMenu(false); setApp(prev => ({ ...prev, currentPage: 'drucken', activePrintTemplate: 'wochenplan' })); }} className="btn !bg-white !text-indigo-700 hover:!bg-indigo-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
+                          <Printer size={14} /> Druckzentrum öffnen
+                        </button>
+                        <hr className="my-1 border-slate-100" />
+                        <button onClick={() => { setShowWeekMenu(false); copyFromLastWeek(); }} className="btn !bg-white !text-slate-700 hover:!bg-slate-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
+                          <RefreshCw size={14} /> Letzte Woche kopieren
+                        </button>
+                        <button onClick={() => { setShowWeekMenu(false); syncWithStammplan(); }} className="btn !bg-white !text-emerald-700 hover:!bg-emerald-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
+                          <RefreshCw size={14} /> Mit Stammplan synchronisieren
+                        </button>
+                        <button onClick={() => { setShowWeekMenu(false); generateWeekFromYearlyPlanAI(); }} disabled={aiLoading} className="btn !bg-white !text-purple-700 hover:!bg-purple-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
+                          {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} 
+                          KI: Jahresplan verteilen
+                        </button>
+                        <button onClick={() => { setShowWeekMenu(false); setShowSyncSettingsModal(true); }} className="btn !bg-white !text-indigo-700 hover:!bg-indigo-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
+                          <Zap size={14} /> Sync-Set konfigurieren
+                        </button>
+                        <hr className="my-1 border-slate-100" />
+                        <button onClick={() => { setShowWeekMenu(false); setHideEventsInView(!hideEventsInView); }} className="btn !bg-white !text-slate-700 hover:!bg-slate-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
+                          {hideEventsInView ? <EyeOff size={14} /> : <Eye size={14} />} Schüler-WOPL (Events aus)
+                        </button>
+                        <button onClick={() => { setShowWeekMenu(false); setShowSollCheck(!showSollCheck); }} className="btn !bg-white !text-slate-700 hover:!bg-slate-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
+                          <Filter size={14} /> Analysen & Stundentafel
+                        </button>
+                        <button onClick={() => { setShowWeekMenu(false); setShowSuggestionsDraw(!showSuggestionsDraw); }} className="btn !bg-white !text-emerald-700 hover:!bg-emerald-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
+                          <BookOpen size={14} /> Vorschläge aus Jahresplanung ({unscheduledSuggestionsCount})
+                        </button>
+                        <button onClick={() => { setShowWeekMenu(false); setShowDenkzettelDraw(!showDenkzettelDraw); }} className="btn !bg-white !text-amber-700 hover:!bg-amber-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
+                          <Lightbulb size={14} /> Denkzettel ({allUnscheduledNotes.length})
+                        </button>
+                        <button onClick={() => { setShowWeekMenu(false); setShowStatsMenu(!showStatsMenu); }} className="btn !bg-white !text-sky-700 hover:!bg-sky-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
+                          <BarChart2 size={14} /> Deutsch-Statistik
+                        </button>
+                        <hr className="my-1 border-slate-100" />
+                        <button onClick={() => { setShowWeekMenu(false); clearCurrentWeek(); }} className="btn !bg-white !text-rose-500 hover:!bg-rose-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
+                          <X size={14} /> Woche leeren
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Row 2: Secondary Toolbar (View Mode, Density Mode, Filters & Status Counters) */}
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
+              {/* View Mode & Density */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('grid')}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1 transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                  >
+                    <Layout size={12} />
+                    <span>Wochenplan</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('klassenbuch')}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1 transition-all cursor-pointer ${viewMode === 'klassenbuch' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                  >
+                    <BookOpen size={12} />
+                    <span>Klassenbuch</span>
+                  </button>
+                </div>
+
+                {/* Density Switcher */}
+                <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                  {(['kompakt', 'normal', 'detail'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => {
+                        setDensityMode(mode);
+                        setApp(p => ({ ...p, weeklyDensityMode: mode }));
+                      }}
+                      className={`px-2 py-1 rounded-lg font-extrabold text-[0.625rem] uppercase tracking-wider transition-all cursor-pointer ${densityMode === mode ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                    >
+                      {mode === 'kompakt' ? 'Kompakt' : mode === 'normal' ? 'Normal' : 'Detail'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Subject Filter */}
+                <div className="relative z-[210]">
+                  <button 
+                    onClick={() => setShowSubjectFilterMenu(!showSubjectFilterMenu)}
+                    className={`px-2.5 py-1 rounded-xl transition-all font-bold text-xs flex items-center gap-1 cursor-pointer border ${subjectFilter ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                  >
+                    <Filter size={12} />
+                    <span>{subjectFilter ? subjectFilter : 'Fach-Filter'}</span>
+                    {subjectFilter && (
+                      <div onClick={(e) => { e.stopPropagation(); setSubjectFilter(null); }} className="ml-1 hover:text-white/80 p-0.5"><X size={10} /></div>
+                    )}
+                  </button>
+                  {showSubjectFilterMenu && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowSubjectFilterMenu(false)} />
+                      <div className="absolute left-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left max-h-[300px] overflow-y-auto">
+                        <button onClick={() => { setSubjectFilter(null); setShowSubjectFilterMenu(false); }} className={`btn !bg-white !justify-start !text-left text-[0.75rem] leading-tight gap-3 ${!subjectFilter ? '!text-indigo-600 bg-indigo-50/50' : '!text-slate-700 hover:!bg-slate-50'}`}>
+                          <div className="w-4 flex justify-center">{!subjectFilter && <Check size={14} />}</div> Alle anzeigen
+                        </button>
+                        <hr className="my-1 border-slate-100" />
+                        <div className="px-3 py-1 text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Nach Fach</div>
+                        {yearlySubjects.map((sub: any) => (
+                          <button key={sub.id} onClick={() => { setSubjectFilter(sub.label); setShowSubjectFilterMenu(false); }} className={`btn !bg-white !justify-start !text-left text-[0.75rem] leading-tight gap-3 ${subjectFilter === sub.label ? '!text-indigo-600 bg-indigo-50/50' : '!text-slate-700 hover:!bg-slate-50'}`}>
+                            <div className="w-4 flex justify-center">{subjectFilter === sub.label && <Check size={14} />}</div> {sub.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Filter Only Open */}
+                <button
+                  onClick={() => setFilterOnlyOffen(!filterOnlyOffen)}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${filterOnlyOffen ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                  title="Hebt unvorbereitete Stunden in der Woche hervor"
+                >
+                  <Filter size={12} />
+                  <span>Nur Offene ({weekMetrics.open})</span>
                 </button>
               </div>
-               <button 
-                 onClick={() => setShowSollCheck(!showSollCheck)}
-                 aria-pressed={showSollCheck}
-                 className={`px-2 sm:px-3 py-1 sm:py-2 rounded-lg sm:rounded-xl transition-all font-black text-[0.48rem] xs:text-[0.52rem] sm:text-[0.5625rem] uppercase tracking-wide flex items-center gap-1 cursor-pointer border ${showSollCheck ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 shadow-sm'}`}
-               >
-                 <Filter size={11} />
-                 <span>Analysen</span>
-               </button>
-                <button 
-                  onClick={() => setShowSuggestionsDraw(!showSuggestionsDraw)} 
-                  aria-pressed={showSuggestionsDraw}
-                  className={`px-2 sm:px-3 py-1 sm:py-2 rounded-lg sm:rounded-xl transition-all font-black text-[0.48rem] xs:text-[0.52rem] sm:text-[0.5625rem] uppercase tracking-wide flex items-center gap-1 cursor-pointer border ${showSuggestionsDraw ? "bg-emerald-600 text-white border-emerald-700 shadow-lg" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50 shadow-sm"}`}
-                >
-                  <BookOpen size={11} className={showSuggestionsDraw ? "text-white" : "text-emerald-500"} />
-                  <span>Vorschläge</span>
-                  {unscheduledSuggestionsCount > 0 && (
-                    <span className="ml-1 px-1 py-0.5 bg-emerald-500 text-white rounded-full text-[8px] font-black leading-none">{unscheduledSuggestionsCount}</span>
-                  )}
-                </button>
 
-                <button 
-                  onClick={() => setShowDenkzettelDraw(!showDenkzettelDraw)} 
-                  aria-pressed={showDenkzettelDraw}
-                  className={`px-2 sm:px-3 py-1 sm:py-2 rounded-lg sm:rounded-xl transition-all font-black text-[0.48rem] xs:text-[0.52rem] sm:text-[0.5625rem] uppercase tracking-wide flex items-center gap-1 cursor-pointer border ${showDenkzettelDraw ? "bg-amber-500 text-white border-amber-600 shadow-lg" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50 shadow-sm"}`}
-                >
-                  <Lightbulb size={11} className="text-amber-500" />
-                  <span>Denkzettel</span>
-                  {allUnscheduledNotes.length > 0 && (
-                    <span className="ml-1 px-1 py-0.5 bg-rose-500 text-white rounded-full text-[8px] font-black leading-none">{allUnscheduledNotes.length}</span>
-                  )}
-                </button>
-                
-                <button 
-                  onClick={() => setHideEventsInView(!hideEventsInView)}
-                  aria-pressed={hideEventsInView}
-                  className={`px-2 sm:px-3 py-1 sm:py-2 rounded-lg sm:rounded-xl transition-all font-black text-[0.48rem] xs:text-[0.52rem] sm:text-[0.5625rem] uppercase tracking-wide flex items-center gap-1 cursor-pointer border ${hideEventsInView ? 'bg-rose-600 text-white border-rose-600 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 shadow-sm'}`}
-                  title="Schüler-Ansicht: Blendet Events (Ausflüge, Tests, Konferenzen, Spiel...) und Sachunterricht im Wochenplan aus."
-                >
-                  {hideEventsInView ? <EyeOff size={11} /> : <Eye size={11} />}
-                  <span>Schüler-WOPL</span>
-                </button>
-               
-               <div className="relative z-[210]">
-                   <button 
-                     onClick={() => setShowSubjectFilterMenu(!showSubjectFilterMenu)}
-                     className={`px-2 sm:px-3 py-1 sm:py-2 rounded-lg sm:rounded-xl transition-all font-black text-[0.48rem] xs:text-[0.52rem] sm:text-[0.5625rem] uppercase tracking-wide flex items-center gap-1 cursor-pointer border ${subjectFilter ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 shadow-sm'}`}
-                   >
-                     <Filter size={11} />
-                     <span>{subjectFilter ? subjectFilter : 'Filtern'}</span>
-                     {subjectFilter && (
-                       <div onClick={(e) => { e.stopPropagation(); setSubjectFilter(null); }} className="ml-1 hover:text-white/80 p-0.5"><X size={11} /></div>
-                     )}
-                   </button>
-                   {showSubjectFilterMenu && (
-                     <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowSubjectFilterMenu(false)} />
-                        <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left max-h-[300px] overflow-y-auto">
-                           <button onClick={() => { setSubjectFilter(null); setShowSubjectFilterMenu(false); }} className={`btn !bg-white !justify-start !text-left text-[0.75rem] leading-tight gap-3 ${!subjectFilter ? '!text-indigo-600 bg-indigo-50/50' : '!text-slate-700 hover:!bg-slate-50'}`}>
-                             <div className="w-4 flex justify-center">{!subjectFilter && <Check size={14} />}</div> Alle anzeigen
-                           </button>
-                           <hr className="my-1 border-slate-100" />
-                           <div className="px-3 py-1 text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Nach Fach</div>
-                           {yearlySubjects.map((sub: any) => (
-                             <button key={sub.id} onClick={() => { setSubjectFilter(sub.label); setShowSubjectFilterMenu(false); }} className={`btn !bg-white !justify-start !text-left text-[0.75rem] leading-tight gap-3 ${subjectFilter === sub.label ? '!text-indigo-600 bg-indigo-50/50' : '!text-slate-700 hover:!bg-slate-50'}`}>
-                               <div className="w-4 flex justify-center">{subjectFilter === sub.label && <Check size={14} />}</div> {sub.label}
-                             </button>
-                           ))}
-                           <hr className="my-1 border-slate-100" />
-                           <div className="px-3 py-1 text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Nach Schwerpunkt</div>
-                           {['Lesen', 'Rechtschreibung', 'Sprache', 'Verfassen von Texten'].map((sp: string) => (
-                             <button key={sp} onClick={() => { setSubjectFilter(`Deutsch (${sp})`); setShowSubjectFilterMenu(false); }} className={`btn !bg-white !justify-start !text-left text-[0.75rem] leading-tight gap-3 ${subjectFilter === `Deutsch (${sp})` ? '!text-indigo-600 bg-indigo-50/50' : '!text-slate-700 hover:!bg-slate-50'}`}>
-                               <div className="w-4 flex justify-center">{subjectFilter === `Deutsch (${sp})` && <Check size={14} />}</div> {sp}
-                             </button>
-                           ))}
-                        </div>
-                     </>
-                   )}
-               </div>
+              {/* Progress Counters */}
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200/80 rounded-xl font-bold text-[0.6875rem] flex items-center gap-1">
+                  <Check size={12} />
+                  <span>{weekMetrics.prepared}/{weekMetrics.total} vorbereitet</span>
+                </span>
+                {weekMetrics.missingMat > 0 && (
+                  <span className="px-2.5 py-1 bg-rose-50 text-rose-800 border border-rose-200/80 rounded-xl font-bold text-[0.6875rem] flex items-center gap-1">
+                    <AlertTriangle size={12} />
+                    <span>{weekMetrics.missingMat} ohne Material</span>
+                  </span>
+                )}
+              </div>
+            </div>
 
-               <div className="relative z-[210]">
-                   <button 
-                     onClick={() => setShowStatsMenu(!showStatsMenu)}
-                     className={`px-2 sm:px-3 py-1 sm:py-2 rounded-lg sm:rounded-xl transition-all font-black text-[0.48rem] xs:text-[0.52rem] sm:text-[0.5625rem] uppercase tracking-wide flex items-center gap-1 cursor-pointer border ${showStatsMenu ? 'bg-sky-600 text-white border-sky-600 shadow-lg' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50 shadow-sm'}`}
-                   >
-                     <BarChart2 size={11} />
-                     <span>Statistik</span>
-                   </button>
-                   {showStatsMenu && (
-                     <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowStatsMenu(false)} />
-                        <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 z-50 flex flex-col gap-4 text-left max-h-[400px] overflow-y-auto">
-                           <div>
-                             <div className="text-[0.75rem] font-black text-slate-800 uppercase tracking-wider">Deutsch-Schwerpunkte</div>
-                             <div className="text-[0.625rem] text-slate-500 font-medium mt-0.5">Häufigkeit im aktuellen Monat ({monday.toLocaleString('de-AT', { month: 'long' })})</div>
-                           </div>
-                           <div className="space-y-3">
-                              {getMonthlyStats().map((stat: any) => (
-                                <div key={stat.label} className="space-y-1">
-                                  <div className="flex justify-between items-center text-[0.75rem] font-bold text-slate-700">
-                                    <div className="flex items-center gap-1.5"><stat.icon size={12} className={stat.iconColor} /> {stat.label}</div>
-                                    <div className="font-black text-slate-900">{stat.count}x</div>
-                                  </div>
-                                  <div className="w-full bg-slate-100 rounded-full h-2">
-                                    <div className={`h-2 rounded-full ${stat.color}`} style={{ width: `${Math.min(100, (stat.count / Math.max(1, stat.maxCount)) * 100)}%` }}></div>
-                                  </div>
-                                </div>
-                              ))}
-                           </div>
-                        </div>
-                     </>
-                   )}
-               </div>
-               
-               <button 
-                 onClick={() => setApp(prev => ({ ...prev, currentPage: 'drucken', activePrintTemplate: 'wochenplan' }))}
-                 className="px-2 sm:px-3 py-1 sm:py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white shadow-sm rounded-lg sm:rounded-xl transition-all font-black text-[0.48rem] xs:text-[0.52rem] sm:text-[0.5625rem] uppercase tracking-wide flex items-center gap-1 cursor-pointer"
-               >
-                 <Printer size={11} />
-                 <span>Druckzentrum</span>
-               </button>
-
-               <div className="relative z-[210]">
-                   <button 
-                     onClick={() => setShowWeekMenu(!showWeekMenu)}
-                     className="px-2 sm:px-3 py-1 sm:py-2 bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 shadow-sm rounded-lg sm:rounded-xl transition-all font-black text-[0.48rem] xs:text-[0.52rem] sm:text-[0.5625rem] uppercase tracking-wide flex items-center gap-1 cursor-pointer"
-                   >
-                     <RefreshCw size={11} />
-                     <span>Aktionen</span>
-                   </button>
-                   {showWeekMenu && (
-                     <>
-                        <div className="fixed inset-0 z-40" onClick={() => setShowWeekMenu(false)} />
-                        <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left">
-                           <button onClick={copyFromLastWeek} className="btn !bg-white !text-slate-700 hover:!bg-slate-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
-                             <RefreshCw size={14} /> Letzte Woche kopieren
-                           </button>
-                           <hr className="my-1 border-slate-100" />
-                           <button onClick={syncWithStammplan} className="btn !bg-white !text-emerald-700 hover:!bg-emerald-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
-                             <RefreshCw size={14} /> Mit Stammplan synchronisieren
-                           </button>
-                           <hr className="my-1 border-slate-100" />
-                           <button onClick={generateWeekFromYearlyPlanAI} disabled={aiLoading} className="btn !bg-white !text-purple-700 hover:!bg-purple-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
-                             {aiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} 
-                             KI: Jahresplan verteilen
-                           </button>
-                           <hr className="my-1 border-slate-100" />
-                           <button onClick={() => { setShowWeekMenu(false); setShowSyncSettingsModal(true); }} className="btn !bg-white !text-indigo-700 hover:!bg-indigo-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
-                             <Zap size={14} /> Sync-Set konfigurieren
-                           </button>
-                           <hr className="my-1 border-slate-100" />
-                           <button onClick={clearCurrentWeek} className="btn !bg-white !text-rose-500 hover:!bg-rose-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
-                             <X size={14} /> Woche leeren
-                           </button>
-                        </div>
-                     </>
-                   )}
-               </div>
-               <div className="ml-auto bg-emerald-600 text-white rounded-xl px-4 py-2 flex items-center gap-2.5 shadow-sm select-none">
-                 <span className="text-[0.625rem] font-black uppercase tracking-wider leading-none">KW {activeKW}</span>
-                 <div className="w-[1px] h-3 bg-white/25" />
-                 <span className="text-[0.5rem] font-bold uppercase tracking-wider leading-none opacity-90">SW {sw || '?'}</span>
-               </div>
-
-               
-               
-             </div>
           </div>
-           </div>
+        </div>
+
+        {/* DIESE WOCHE WICHTIG BANNER */}
+        {thisWeekImportantEvents.length > 0 && (
+          <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-3 mb-3 shadow-2xs">
+            <div className="flex items-center justify-between gap-2 mb-1.5">
+              <div className="flex items-center gap-2">
+                <Calendar size={14} className="text-amber-700" />
+                <span className="text-[0.6875rem] font-black uppercase text-amber-950 tracking-wider">Diese Woche wichtig</span>
+                <span className="px-2 py-0.5 bg-amber-200/80 text-amber-950 rounded-full text-[0.625rem] font-bold">
+                  {thisWeekImportantEvents.length} Termine / Ereignisse
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  setQuickPlanType('termin');
+                  setShowQuickPlanModal(true);
+                }}
+                className="text-[0.6875rem] font-bold text-amber-800 hover:text-amber-950 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <Plus size={12} />
+                <span>Termin hinzufügen</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
+              {thisWeekImportantEvents.slice(0, 8).map(ev => (
+                <div
+                  key={ev.id}
+                  className={`px-2.5 py-1 rounded-xl border text-xs font-bold shrink-0 flex items-center gap-1.5 ${
+                    ev.isTest
+                      ? 'bg-rose-100/90 border-rose-300 text-rose-900'
+                      : 'bg-white border-amber-200 text-slate-800 shadow-2xs'
+                  }`}
+                >
+                  <span className="text-[0.625rem] font-black uppercase tracking-tight text-amber-700">{ev.tag.slice(0, 2)}:</span>
+                  <span>{ev.label}</span>
+                </div>
+              ))}
+              {thisWeekImportantEvents.length > 8 && (
+                <span className="text-xs font-bold text-amber-800 shrink-0 px-2 py-1 bg-amber-100 rounded-xl">
+                  +{thisWeekImportantEvents.length - 8} weitere
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
         {Object.keys(yearlyPlanForKW).length > 0 && 
           <div className="bg-amber-50/20 border-t border-amber-100/50 py-2.5 mt-4 rounded-xl">
@@ -1867,8 +2224,9 @@ export default function WeeklyPlan() {
             </div>
           </div>
         }
-        </div>
 
+      {/* 2. MAIN SCROLLABLE CONTENT AREA */}
+      <div className={`w-full ${isFullscreen ? 'flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden flex flex-col custom-scrollbar mt-2' : 'flex flex-col'}`}>
       <AnimatePresence>
         {showSollCheck && (
           <motion.div 
@@ -2334,6 +2692,8 @@ export default function WeeklyPlan() {
 
                       const isDraggedOver = draggedOverCell && draggedOverCell.tag === tag && draggedOverCell.idx === zIdx;
 
+                      const isFilteredOutByOffen = filterOnlyOffen && item?.erledigt;
+
                       return (
                         <div 
                           key={`${tag}-${zIdx}`}
@@ -2345,7 +2705,7 @@ export default function WeeklyPlan() {
                           onDrop={(e) => { handleDropPlan(e, tag, zIdx); setDraggedOverCell(null); }}
                           onClick={() => !isFree && handleEditCell(tag, zIdx)}
                           style={{ gridColumn: tIdx + 2, gridRow: `${gridRowStart} / span ${spanValue}`, zIndex: isSelectedStunde ? 90 : (crossesLunch ? 80 : 1) }}
-                          className={`min-h-[5.3125rem] border-b border-slate-100 p-1.5 relative group/cell cursor-pointer transition-all duration-300 ${isFree ? 'bg-slate-50/30' : isToday ? 'bg-emerald-50/10' : 'bg-white'} hover:bg-slate-100/30 ${isToday ? 'ring-inset ring-1 ring-emerald-200' : ''} ${isSelectedStunde ? 'ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/25 bg-indigo-50/5' : ''} ${isNowLive ? 'ring-2 ring-amber-400 shadow-lg shadow-amber-500/25 bg-amber-50/5' : ''} ${isDraggedOver ? 'ring-2 ring-dashed ring-emerald-500 bg-emerald-50/40 scale-[0.98] z-40' : ''} ${optimizationSuggestion ? 'ring-inset ring-2 ring-emerald-400/50 bg-emerald-50/30' : ''} ${isFilteredOut ? 'opacity-20 grayscale pointer-events-none' : ''}`}
+                          className={`min-h-[5.3125rem] border-b border-slate-100 p-1.5 relative group/cell cursor-pointer transition-all duration-300 ${isFree ? 'bg-slate-50/30' : isToday ? 'bg-emerald-50/10' : 'bg-white'} hover:bg-slate-100/30 ${isToday ? 'ring-inset ring-1 ring-emerald-200' : ''} ${isSelectedStunde ? 'ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/25 bg-indigo-50/5' : ''} ${isNowLive ? 'ring-2 ring-amber-400 shadow-lg shadow-amber-500/25 bg-amber-50/5' : ''} ${isDraggedOver ? 'ring-2 ring-dashed ring-emerald-500 bg-emerald-50/40 scale-[0.98] z-40' : ''} ${optimizationSuggestion ? 'ring-inset ring-2 ring-emerald-400/50 bg-emerald-50/30' : ''} ${isFilteredOut || isFilteredOutByOffen ? 'opacity-20 grayscale' : filterOnlyOffen && !item?.erledigt && (item?.fach || item?.thema) ? 'ring-2 ring-amber-400 bg-amber-50/20' : ''}`}
                         >
                           {isSelectedStunde && (
                             <div className="absolute top-1 left-1.5 z-30 flex items-center gap-1 bg-indigo-600 text-white text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md shadow-md">
@@ -2403,31 +2763,12 @@ export default function WeeklyPlan() {
                             >
                                {/* Left Accent timeline bar matching subject color config */}
                                {(() => {
-                                 const colorVal = getFachColorKey(item.fach || app.stammplan?.[tag]?.[zIdx + 1]);
-                                 const barColorMap: Record<string, string> = {
-                                   blue: 'bg-blue-500',
-                                   red: 'bg-red-500',
-                                   emerald: 'bg-emerald-500',
-                                   indigo: 'bg-indigo-500',
-                                   sky: 'bg-sky-500',
-                                   purple: 'bg-purple-500',
-                                   pink: 'bg-pink-500',
-                                   orange: 'bg-orange-500',
-                                   teal: 'bg-teal-500',
-                                   slate: 'bg-slate-500',
-                                   stone: 'bg-stone-500',
-                                   amber: 'bg-amber-500',
-                                   fuchsia: 'bg-fuchsia-500',
-                                   rose: 'bg-rose-500',
-                                   yellow: 'bg-yellow-500',
-                                   lime: 'bg-lime-500',
-                                   green: 'bg-green-500',
-                                   cyan: 'bg-cyan-500',
-                                   violet: 'bg-violet-500',
-                                 };
-                                 const barBg = barColorMap[colorVal] || 'bg-slate-400';
+                                 const hex = getFachHexColor(app.fachConfig?.[item.fach || app.stammplan?.[tag]?.[zIdx + 1]]?.color || item.fach || app.stammplan?.[tag]?.[zIdx + 1]);
                                  return (
-                                   <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${barBg} opacity-85 z-20`} />
+                                   <div
+                                     className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl opacity-85 z-20"
+                                     style={{ backgroundColor: hex }}
+                                   />
                                  );
                                })()}
 
@@ -2736,7 +3077,6 @@ export default function WeeklyPlan() {
           </button>
         </div>
       </div>
-
       </div>
 
        {/* TIME-INDEPENDENT MODAL */}
@@ -2924,74 +3264,140 @@ export default function WeeklyPlan() {
                         </div>
 
                         {/* FACH SUCHE & BUTTONS */}
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                            <div className="relative group">
                               <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500 transition-colors" size={18} />
                               <input 
                                  type="text" 
-                                 className="input-field pl-14 py-5"
-                                 placeholder="Fach suchen oder wählen..."
+                                 className="input-field pl-14 py-4 text-sm font-semibold"
+                                 placeholder="Fach suchen oder direkt wählen..."
                                  value={searchFach} onChange={e => handleSetSearchFach(e.target.value)}
                               />
                            </div>
-                           <div className="flex flex-col gap-3 pt-1 px-1">
+
+                           {/* EBENE 1: HAUPTFÄCHER */}
+                           <div className="space-y-3 pt-1 px-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[0.625rem] font-black uppercase text-slate-400 tracking-wider">
+                                  Hauptfach wählen
+                                </span>
+                                {searchFach && (
+                                  <span className="text-[0.6875rem] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                                    Aktiv: <strong className="text-slate-900">{searchFach}</strong>
+                                  </span>
+                                )}
+                              </div>
                               <div className="flex flex-wrap gap-2">
                                 {(() => {
-                                  const faecher = Object.keys(app.fachConfig || {});
-                                  const sorted = [...faecher.filter(f => app.fachConfig?.[f]?.unterrichtet !== false)].sort((a, b) => {
-                                    const specialOrder = ['Deutsch', 'Mathematik', 'Sachunterricht'];
+                                  const rawList = app.faecher && app.faecher.length > 0 
+                                    ? app.faecher 
+                                    : Object.keys(app.fachConfig || {}).length > 0 
+                                      ? Object.keys(app.fachConfig || {}) 
+                                      : FAECHER_ALLE;
+                                  
+                                  const allCandidates = Array.from(new Set(['Deutsch', ...rawList, ...Object.keys(app.fachConfig || {})]));
+                                  
+                                  const mainFaecher = allCandidates.filter(f => {
+                                    if (!f || !f.trim()) return false;
+                                    if (isDeutschSubSubject(f)) return false;
+                                    return true;
+                                  });
+
+                                  const specialOrder = ['Deutsch', 'Mathematik', 'Sachunterricht', 'Englisch', 'Religion', 'Musikerziehung', 'Bildnerische Erziehung', 'Bewegung und Sport', 'Werken (TEC)', 'Werken (TEX)'];
+                                  
+                                  mainFaecher.sort((a, b) => {
                                     const indexA = specialOrder.indexOf(a);
                                     const indexB = specialOrder.indexOf(b);
                                     if (indexA !== -1 && indexB !== -1) return indexA - indexB;
                                     if (indexA !== -1) return -1;
                                     if (indexB !== -1) return 1;
-                                    return a.localeCompare(b);
+                                    return a.localeCompare(b, 'de');
                                   });
-                                  const displayFaecher = sorted.length > 0 ? sorted : ['Deutsch', 'Mathematik', 'Sachunterricht', 'Englisch'];
-                                  return displayFaecher.map(f => (
-                                    <button 
-                                       key={f} 
-                                       onClick={() => handleSetSearchFach(f)} 
-                                       className={`pill !lowercase !capitalize ${searchFach === f || (f === 'Deutsch' && searchFach.startsWith('Deutsch')) ? 'active' : ''}`}
-                                    >
-                                       {f}
-                                    </button>
-                                  ));
+
+                                  return mainFaecher.map(f => {
+                                    const isDeutsch = f === 'Deutsch';
+                                    const isSelected = searchFach === f || (isDeutsch && (searchFach === 'Deutsch' || searchFach.startsWith('Deutsch') || isDeutschSubSubject(searchFach)));
+                                    return (
+                                      <button 
+                                        key={f} 
+                                        type="button"
+                                        onClick={() => handleSetSearchFach(f)} 
+                                        className={`pill !capitalize transition-all font-bold cursor-pointer ${isSelected ? 'active shadow-sm scale-105' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}`}
+                                      >
+                                        {f}
+                                      </button>
+                                    );
+                                  });
                                 })()}
                               </div>
+
+                              {/* EBENE 2: DEUTSCH-UNTERBEREICHE */}
                               <AnimatePresence>
-                                {searchFach.startsWith('Deutsch') && (
+                                {(searchFach === 'Deutsch' || searchFach.startsWith('Deutsch') || isDeutschSubSubject(searchFach)) && (
                                   <motion.div 
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: 'auto', opacity: 1 }}
                                     exit={{ height: 0, opacity: 0 }}
-                                    className="flex flex-wrap gap-2 pt-2 border-t border-slate-100 "
+                                    className="p-3.5 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-2.5 overflow-hidden"
                                   >
-                                    <div className="w-full flex items-center justify-between pl-1 mb-1">
-                                      <div className="text-[0.625rem] font-black uppercase text-slate-400 tracking-widest">Deutsch Schwerpunkte</div>
-                                      <label className="flex items-center gap-2 cursor-pointer normal-case tracking-normal hover:bg-slate-100 rounded p-1 transition-colors -mr-1">
-                                        <input type="checkbox" className="sr-only" checked={app.autoSuggestSchwerpunkte || false} onChange={(e) => setApp(prev => ({...prev, autoSuggestSchwerpunkte: e.target.checked}))} />
-                                        <div className={`w-6 h-3.5 rounded-full relative transition-colors ${app.autoSuggestSchwerpunkte ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                                    <div className="w-full flex items-center justify-between pl-0.5">
+                                      <div className="flex items-center gap-1.5 text-[0.6875rem] font-black uppercase text-blue-900 tracking-wider">
+                                        <BookOpen size={13} className="text-blue-600" />
+                                        <span>Deutsch-Unterbereiche / Schwerpunkte</span>
+                                      </div>
+                                      <label className="flex items-center gap-2 cursor-pointer normal-case tracking-normal hover:bg-blue-100/50 rounded-lg px-2 py-0.5 transition-colors">
+                                        <input 
+                                          type="checkbox" 
+                                          className="sr-only" 
+                                          checked={app.autoSuggestSchwerpunkte || false} 
+                                          onChange={(e) => setApp(prev => ({...prev, autoSuggestSchwerpunkte: e.target.checked}))} 
+                                        />
+                                        <div className={`w-6 h-3.5 rounded-full relative transition-colors ${app.autoSuggestSchwerpunkte ? 'bg-indigo-600' : 'bg-slate-200'}`}>
                                           <div className={`absolute top-[2px] left-[2px] w-2.5 h-2.5 bg-white rounded-full transition-transform ${app.autoSuggestSchwerpunkte ? 'translate-x-[10px]' : ''}`} />
                                         </div>
-                                        <span className="text-[0.625rem] font-bold text-slate-500">Seltene priorisieren</span>
+                                        <span className="text-[0.625rem] font-bold text-slate-600">Seltene priorisieren</span>
                                       </label>
                                     </div>
-                                    {DEUTSCH_UNTERFAECHER.map(uf => (
-                                      <button 
-                                        key={uf} 
-                                        onClick={() => {
-                                          if (tempSchwerpunkte.includes(uf)) {
-                                            setTempSchwerpunkte(prev => prev.filter(p => p !== uf));
-                                          } else {
-                                            setTempSchwerpunkte(prev => [...prev, uf]);
-                                          }
-                                        }} 
-                                        className={`pill !lowercase !capitalize ${tempSchwerpunkte.includes(uf) ? 'bg-blue-600 text-white border-blue-700 shadow-md scale-105' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
-                                      >
-                                        {uf.replace('Deutsch ', '')}
-                                      </button>
-                                    ))}
+
+                                    <div className="flex flex-wrap gap-2">
+                                      {DEUTSCH_THEMENBEREICHE.map(sub => {
+                                        const SubIcon = sub.icon;
+                                        const isSelected = tempSchwerpunkte.some(p => {
+                                          const pNorm = p.toLowerCase().trim();
+                                          const subNorm = sub.label.toLowerCase();
+                                          const subIdNorm = sub.id.toLowerCase();
+                                          return pNorm === subNorm || pNorm === subIdNorm || pNorm.includes(subNorm) || subIdNorm.includes(pNorm);
+                                        });
+
+                                        return (
+                                          <button 
+                                            key={sub.id} 
+                                            type="button"
+                                            onClick={() => {
+                                              if (isSelected) {
+                                                setTempSchwerpunkte(prev => prev.filter(p => {
+                                                  const pNorm = p.toLowerCase().trim();
+                                                  const subNorm = sub.label.toLowerCase();
+                                                  const subIdNorm = sub.id.toLowerCase();
+                                                  return !(pNorm === subNorm || pNorm === subIdNorm || pNorm.includes(subNorm) || subIdNorm.includes(pNorm));
+                                                }));
+                                              } else {
+                                                setTempSchwerpunkte(prev => [...prev, sub.id]);
+                                              }
+                                            }} 
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border cursor-pointer ${
+                                              isSelected 
+                                                ? 'bg-blue-600 text-white border-blue-700 shadow-sm scale-105' 
+                                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                                            }`}
+                                          >
+                                            <SubIcon size={13} className={isSelected ? 'text-white' : 'text-blue-500'} />
+                                            <span>{sub.label}</span>
+                                            {isSelected && <Check size={12} strokeWidth={3} className="ml-0.5 text-white" />}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
                                   </motion.div>
                                 )}
                               </AnimatePresence>
@@ -3775,7 +4181,7 @@ export default function WeeklyPlan() {
             </div>
             <div className="p-6 max-h-[60vh] overflow-y-auto">
                <div className="space-y-2">
-                 {app.faecher?.filter(f => app.fachConfig?.[f]?.unterrichtet !== false).map(f => {
+                 {(app.faecher && app.faecher.length > 0 ? app.faecher : FAECHER_ALLE).map(f => {
                    const isSelected = (app.wochenplanSyncSet || []).includes(f);
                    return (
                      <label key={f} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${isSelected ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:bg-slate-50'}`}>
@@ -4349,6 +4755,173 @@ export default function WeeklyPlan() {
           </motion.div>
         </div>,
         document.body
+      )}
+
+      {/* QUICK PLAN MODAL */}
+      {showQuickPlanModal && createPortal(
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowQuickPlanModal(false)} />
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl p-6 sm:p-8 space-y-5 z-10 border border-slate-100"
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 tracking-tight">Schnell planen</h3>
+                <p className="text-xs font-semibold text-slate-500 mt-0.5">Neue Stunde, Termin oder Ausflug hinzufügen</p>
+              </div>
+              <button
+                onClick={() => setShowQuickPlanModal(false)}
+                className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Plan Type Selector */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { id: 'stunde', label: 'Unterricht', icon: Layout },
+                { id: 'termin', label: 'Termin', icon: Calendar },
+                { id: 'test', label: 'Test / SA', icon: Flag },
+                { id: 'ausflug', label: 'Ausflug', icon: PartyPopper }
+              ].map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setQuickPlanType(t.id as any)}
+                  className={`p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
+                    quickPlanType === t.id
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <t.icon size={18} />
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Form Fields */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Wochentag</label>
+                  <select
+                    value={quickPlanTag}
+                    onChange={e => setQuickPlanTag(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+                  >
+                    {TAGE_NAMEN.map(tag => (
+                      <option key={tag} value={tag}>{tag}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {(quickPlanType === 'stunde' || quickPlanType === 'test') && (
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">Stunde</label>
+                    <select
+                      value={quickPlanStunde}
+                      onChange={e => setQuickPlanStunde(Number(e.target.value))}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+                    >
+                      {[0, 1, 2, 3, 4, 5, 6, 7].map(st => (
+                        <option key={st} value={st}>{st + 1}. Stunde ({VM_ZEITEN[st + 1] || `${st + 1}`})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {(quickPlanType === 'stunde' || quickPlanType === 'test') && (
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Fach</label>
+                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1 mb-2">
+                    {['Deutsch', 'Mathematik', 'Sachunterricht', 'Englisch', 'Musikerziehung', 'BE', 'BSP'].map(f => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => setQuickPlanFach(f)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold shrink-0 border transition-all cursor-pointer ${
+                          quickPlanFach === f ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Fach eingeben..."
+                    value={quickPlanFach}
+                    onChange={e => setQuickPlanFach(e.target.value)}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">
+                  {quickPlanType === 'stunde' ? 'Thema / Inhalt' : 'Bezeichnung / Notiz'}
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder={
+                    quickPlanType === 'stunde'
+                      ? 'Was soll in dieser Stunde gelernt werden?'
+                      : quickPlanType === 'termin'
+                      ? 'z.B. Elternabend um 18:00 Uhr'
+                      : quickPlanType === 'test'
+                      ? 'z.B. Mathematik Schularbeit'
+                      : 'z.B. Lehrausgang ins Museum'
+                  }
+                  value={quickPlanThema}
+                  onChange={e => setQuickPlanThema(e.target.value)}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowQuickPlanModal(false)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={handleQuickPlanSubmit}
+                disabled={!quickPlanThema.trim() && (quickPlanType !== 'stunde' || !quickPlanFach.trim())}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-black rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                Speichern
+              </button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
+
+      {createPortal(
+        <WochenplanExcelModal
+          isOpen={showExcelModal}
+          onClose={() => setShowExcelModal(false)}
+          onImport={handleWochenplanImport}
+          activeKW={activeKW}
+          app={app}
+        />,
+        document.body
+      )}
+
+      {showSchuelerWochenplanModal && (
+        <WochenplanGeneratorModal
+          activeKW={activeKW}
+          onClose={() => setShowSchuelerWochenplanModal(false)}
+        />
       )}
 
     </div>

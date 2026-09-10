@@ -12,7 +12,9 @@ import {
   BrainCircuit, CalendarRange, ArrowRight, Activity, AlertCircle, Sparkles, 
   CheckCircle2, Target, History, Coffee, Lightbulb, BookOpen, ChevronRight, 
   ChevronLeft, Plus, Loader2, Trash2, Check, LayoutGrid, Save, Sliders, 
-  Calendar, Copy, RotateCcw, FileText, Layout, ShieldAlert, Info, X
+  Calendar, Copy, RotateCcw, FileText, Layout, ShieldAlert, Info, X,
+  ChevronDown, MoreHorizontal, Clock, AlertTriangle, CalendarDays, Layers,
+  Eye, Filter, CheckSquare, Settings
 } from 'lucide-react';
 import WeeklyGoalsWidget from './WeeklyGoalsWidget';
 
@@ -43,7 +45,13 @@ export default function PlanungsZentrale() {
   const kw = app.wochenplanung?.[nextKW] || {};
   const sw = getSW(new Date(monday), app?.schuljahr || getCurrentSchuljahr(), app?.bundesland || 'VBG');
 
-  // Planning Center states
+  // Modernized & Simplified UI Mode state
+  const [isEinfachModus, setIsEinfachModus] = useState<boolean>(true);
+  const [showMehrMenu, setShowMehrMenu] = useState<boolean>(false);
+  const [quickPlanOpen, setQuickPlanOpen] = useState<boolean>(false);
+  const [quickPlanType, setQuickPlanType] = useState<'lesson' | 'event' | 'task'>('lesson');
+
+  // Planning Center Focus states
   const [planningFocus, setPlanningFocus] = useState<'day' | 'week' | 'year'>('week');
   const [activeTab, setActiveTab] = useState<'wochenplan' | 'jahresplan' | 'verlauf' | 'wochenplan-einblick'>('wochenplan');
   const [isAnalyzingWeek, setIsAnalyzingWeek] = useState<boolean>(false);
@@ -53,13 +61,18 @@ export default function PlanungsZentrale() {
   const [selectedDayIdx, setSelectedDayIdx] = useState<number>(0);
   const [selectedHour, setSelectedHour] = useState<number>(0);
   const [hasSelectedSlot, setHasSelectedSlot] = useState(false);
-  
+  const [showExpandedDetailsInDrawer, setShowExpandedDetailsInDrawer] = useState<boolean>(false);
+
+  // Quick Event States
+  const [quickEventTitle, setQuickEventTitle] = useState<string>('');
+  const [quickEventCategory, setQuickEventCategory] = useState<'Ausflug' | 'Termin' | 'Schularbeit' | 'Sonstiges'>('Termin');
+
   // Lesson Fields
   const [activeSubject, setActiveSubject] = useState<string>('');
   const [lessonTopic, setLessonTopic] = useState<string>('');
   const [lessonHomework, setLessonHomework] = useState<string>('');
   
-  // Step 4: Didactic settings
+  // Didactic settings
   const [didacticType, setDidacticType] = useState<'Einführung' | 'Einzelarbeit mit Kind' | 'Frontalunterricht' | 'Projektunterricht / Freiarbeit'>('Einführung');
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
   const [customMaterialText, setCustomMaterialText] = useState<string>('');
@@ -82,22 +95,31 @@ export default function PlanungsZentrale() {
     ];
   }, [app.faecher]);
 
+  const todayDayIdx = useMemo(() => {
+    const day = currDate.getDay(); // 0: Sun, 1: Mon ... 5: Fri
+    if (day >= 1 && day <= 5) return day - 1;
+    return 0; // Default to Monday on weekends
+  }, [currDate]);
+
+  const tomorrowDayIdx = useMemo(() => {
+    return (todayDayIdx + 1) % 5;
+  }, [todayDayIdx]);
+
   const getFachColorKey = (fachName?: string) => {
     if (!fachName) return 'slate';
     const configColor = app.fachConfig?.[fachName]?.color;
+    if (configColor && configColor !== 'slate') return configColor;
     const ln = fachName.toLowerCase();
     
-    if (!configColor || configColor === 'slate') {
-      if (ln.includes('werken') || ln.includes('technik') || ln.includes('design')) return 'orange';
-      if (ln.includes('bewegung') || ln.includes('sport') || ln.includes('turnen')) return 'teal';
-      if (ln.includes('fremdsprache') || ln.includes('englisch')) return 'sky';
-      if (ln.includes('deutsch')) return 'blue';
-      if (ln.includes('mathematik')) return 'red';
-      if (ln.includes('sachunterricht')) return 'emerald';
-      if (ln.includes('bildnerische') || ln.includes('kunst') || ln.includes('gestaltung')) return 'purple';
-      if (ln.includes('musik')) return 'pink';
-      if (ln.includes('religion')) return 'indigo';
-    }
+    if (ln.includes('werken') || ln.includes('technik') || ln.includes('design')) return 'orange';
+    if (ln.includes('bewegung') || ln.includes('sport') || ln.includes('turnen')) return 'teal';
+    if (ln.includes('fremdsprache') || ln.includes('englisch')) return 'sky';
+    if (ln.includes('deutsch')) return 'blue';
+    if (ln.includes('mathematik')) return 'red';
+    if (ln.includes('sachunterricht')) return 'emerald';
+    if (ln.includes('bildnerische') || ln.includes('kunst') || ln.includes('gestaltung')) return 'purple';
+    if (ln.includes('musik')) return 'pink';
+    if (ln.includes('religion')) return 'indigo';
     
     return configColor || 'slate';
   };
@@ -158,7 +180,6 @@ export default function PlanungsZentrale() {
     return activeColorMap[c] || 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-100 ring-2 ring-indigo-200';
   };
 
-  // Helper to resolve Jahresplan themes
   const getJahresplanTheme = (kwNum: number) => {
     const item = app.jahresplanung?.[kwNum];
     if (!item) return '';
@@ -177,7 +198,6 @@ export default function PlanungsZentrale() {
     setTimeout(() => setSuccessMessage(''), 3000);
   };
 
-  // Initialize Jahresplan input when week changes
   useEffect(() => {
     setJahresplanInput(getJahresplanTheme(nextKW));
   }, [nextKW, app.jahresplanung]);
@@ -195,26 +215,23 @@ export default function PlanungsZentrale() {
     const lesson = wp[dayKey]?.[hourIdx];
     
     if (lesson && lesson.fach) {
-      // Load existing planned lesson
       setActiveSubject(lesson.fach);
       setLessonTopic(lesson.thema || '');
       setLessonHomework(lesson.housework || '');
       setDidacticType(lesson.art || 'Einführung');
       setSocialForm(lesson.sozialform || 'Einzelarbeit');
       
-      // Parse materials list
-      const materialsStr = lesson.material || '';
-      const items = materialsStr.split(',').map((s: string) => s.trim()).filter(Boolean);
-      const preconfigured = ['Arbeitsblätter', 'Tablets / PCs', 'Montessori-Material', 'Schulbuch / Arbeitsheft', 'Experimentier-Set', 'Bastel- / Kreativzeug'];
-      const selected = items.filter((i: string) => preconfigured.includes(i));
-      const custom = items.filter((i: string) => !preconfigured.includes(i)).join(', ');
-      
-      setSelectedMaterials(selected);
-      setCustomMaterialText(custom);
+      if (Array.isArray(lesson.materialsList)) {
+        setSelectedMaterials(lesson.materialsList);
+      } else if (lesson.material) {
+        setSelectedMaterials([lesson.material]);
+      } else {
+        setSelectedMaterials([]);
+      }
+      setCustomMaterialText(lesson.customMaterial || '');
     } else {
-      // Clean slot - pre-fill subject from timetable (stammplan)
-      const stammFach = app.stammplan?.[dayName]?.[hourIdx + 1] || '';
-      setActiveSubject(stammFach);
+      const defaultFach = app.stammplan?.[dayName]?.[hourIdx + 1] || '';
+      setActiveSubject(defaultFach || availableSubjects[0] || 'Mathematik');
       setLessonTopic('');
       setLessonHomework('');
       setDidacticType('Einführung');
@@ -224,227 +241,349 @@ export default function PlanungsZentrale() {
     }
   };
 
-  // Save lesson back to AppState
+  // Quick launch Ebene 2 Modal for slot
+  const openSlotForQuickPlan = (dayIdx: number, hourIdx: number) => {
+    handleSelectSlot(dayIdx, hourIdx);
+    setQuickPlanType('lesson');
+    setQuickPlanOpen(true);
+  };
+
+  // Save current lesson slot
   const handleSaveLesson = () => {
-    if (!activeSubject) {
-      alert("Bitte wählen Sie zuerst ein Fach aus.");
-      return;
-    }
-    
-    // Combine toggle materials and custom material text
-    const materialsList = [...selectedMaterials];
-    if (customMaterialText.trim()) {
-      materialsList.push(customMaterialText.trim());
-    }
-    const combinedMaterial = materialsList.join(', ');
+    const dayName = DAYS_DE[selectedDayIdx];
+    const materialSummary = [
+      ...selectedMaterials,
+      customMaterialText.trim()
+    ].filter(Boolean).join(', ');
 
     setApp(prev => {
       const wp = { ...(prev.wochenplanung || {}) };
       const weekPlan = { ...(wp[nextKW] || {}) };
       
-      const useIdx = wp[nextKW] && wp[nextKW][selectedDayIdx] !== undefined;
-      const dayKey = useIdx ? selectedDayIdx : DAYS_DE[selectedDayIdx];
-      
+      const useIdx = weekPlan[selectedDayIdx] !== undefined;
+      const dayKey = useIdx ? selectedDayIdx : dayName;
       const dayPlan = { ...(weekPlan[dayKey] || {}) };
+
       dayPlan[selectedHour] = {
-        ...(dayPlan[selectedHour] || {}),
         fach: activeSubject,
-        thema: lessonTopic.trim(),
-        material: combinedMaterial,
-        housework: lessonHomework.trim(),
-        erledigt: dayPlan[selectedHour]?.erledigt || false,
+        thema: lessonTopic,
+        housework: lessonHomework,
         art: didacticType,
-        sozialform: socialForm
+        sozialform: socialForm,
+        material: materialSummary,
+        materialsList: selectedMaterials,
+        customMaterial: customMaterialText,
+        erledigt: dayPlan[selectedHour]?.erledigt || false,
+        updatedAt: new Date().toISOString()
       };
-      
+
       weekPlan[dayKey] = dayPlan;
       wp[nextKW] = weekPlan;
+
       return { ...prev, wochenplanung: wp };
     });
 
-    // Brief success toast
-    setSuccessMessage(`Stunde erfolgreich in ${DAYS_DE[selectedDayIdx]} (${selectedHour + 1}. Std.) eingetragen!`);
-    setTimeout(() => setSuccessMessage(''), 3000);
+    setSuccessMessage(`${activeSubject}-Stunde für ${dayName} (${selectedHour + 1}. Std.) gespeichert!`);
+    setTimeout(() => setSuccessMessage(''), 2500);
+    setQuickPlanOpen(false);
   };
 
-  // Quick complete toggle directly from the Week Plan Grid
-  const toggleCompleteSlot = (dayIdx: number, hourIdx: number, e: React.MouseEvent) => {
-    e.stopPropagation(); // prevent loading the editor
+  // Toggle completion checkmark directly
+  const toggleCompleteSlot = (dayIdx: number, hourIdx: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     const dayName = DAYS_DE[dayIdx];
-    
+
     setApp(prev => {
       const wp = { ...(prev.wochenplanung || {}) };
       const weekPlan = { ...(wp[nextKW] || {}) };
-      
-      const useIdx = wp[nextKW] && wp[nextKW][dayIdx] !== undefined;
+      const useIdx = weekPlan[dayIdx] !== undefined;
       const dayKey = useIdx ? dayIdx : dayName;
-      
       const dayPlan = { ...(weekPlan[dayKey] || {}) };
-      if (dayPlan[hourIdx]) {
-        dayPlan[hourIdx] = {
-          ...dayPlan[hourIdx],
-          erledigt: !dayPlan[hourIdx].erledigt
-        };
-      }
+      const currentLesson = dayPlan[hourIdx];
+
+      if (!currentLesson) return prev;
+
+      dayPlan[hourIdx] = {
+        ...currentLesson,
+        erledigt: !currentLesson.erledigt
+      };
+
       weekPlan[dayKey] = dayPlan;
       wp[nextKW] = weekPlan;
+
       return { ...prev, wochenplanung: wp };
     });
   };
 
-  // Clear specific hour slot
+  // Clear slot
   const handleClearSlot = () => {
-    if (window.confirm(`${DAYS_DE[selectedDayIdx]}, ${selectedHour + 1}. Stunde wirklich leeren?`)) {
-      setApp(prev => {
-        const wp = { ...(prev.wochenplanung || {}) };
-        const weekPlan = { ...(wp[nextKW] || {}) };
-        
-        const useIdx = wp[nextKW] && wp[nextKW][selectedDayIdx] !== undefined;
-        const dayKey = useIdx ? selectedDayIdx : DAYS_DE[selectedDayIdx];
-        
-        const dayPlan = { ...(weekPlan[dayKey] || {}) };
-        delete dayPlan[selectedHour];
-        
-        weekPlan[dayKey] = dayPlan;
-        wp[nextKW] = weekPlan;
-        return { ...prev, wochenplanung: wp };
-      });
-      
-      setLessonTopic('');
-      setLessonHomework('');
-      setCustomMaterialText('');
-      setSelectedMaterials([]);
-      setSuccessMessage('Stundeninhalt gelöscht.');
-      setTimeout(() => setSuccessMessage(''), 2000);
-    }
-  };
+    const dayName = DAYS_DE[selectedDayIdx];
 
-  // Move active lesson details to Parkgarage
-  const handleShiftToParkgarage = () => {
-    if (!lessonTopic.trim() && !activeSubject) return;
-    
     setApp(prev => {
       const wp = { ...(prev.wochenplanung || {}) };
       const weekPlan = { ...(wp[nextKW] || {}) };
-      
-      const useIdx = wp[nextKW] && wp[nextKW][selectedDayIdx] !== undefined;
-      const dayKey = useIdx ? selectedDayIdx : DAYS_DE[selectedDayIdx];
-      
+      const useIdx = weekPlan[selectedDayIdx] !== undefined;
+      const dayKey = useIdx ? selectedDayIdx : dayName;
       const dayPlan = { ...(weekPlan[dayKey] || {}) };
-      const item = dayPlan[selectedHour] || { fach: activeSubject, thema: lessonTopic };
-      
-      const parked = [...(prev.parkgarage || [])];
-      parked.push({
-        ...item,
-        id: `parked-${Date.now()}-${Math.random()}`,
-        parkedAt: new Date().toLocaleDateString('de-AT')
-      });
-      
+
       delete dayPlan[selectedHour];
       weekPlan[dayKey] = dayPlan;
       wp[nextKW] = weekPlan;
-      
-      return { ...prev, wochenplanung: wp, parkgarage: parked };
+
+      return { ...prev, wochenplanung: wp };
     });
 
     setLessonTopic('');
     setLessonHomework('');
-    setCustomMaterialText('');
     setSelectedMaterials([]);
-    setSuccessMessage('Stunde in die Parkgarage verschoben!');
-    setTimeout(() => setSuccessMessage(''), 3000);
+    setCustomMaterialText('');
+    setSuccessMessage(`Stundenfenster für ${dayName} geleert.`);
+    setTimeout(() => setSuccessMessage(''), 2000);
+    setQuickPlanOpen(false);
   };
 
-  // Re-insert parked lesson into current slot
-  const handleRestoreParked = (item: any) => {
-    setActiveSubject(item.fach);
-    setLessonTopic(item.thema || '');
-    setLessonHomework(item.housework || '');
-    setDidacticType(item.art || 'Einführung');
-    
-    // Parse materials
-    const materialsStr = item.material || '';
-    const items = materialsStr.split(',').map((s: string) => s.trim()).filter(Boolean);
-    const preconfigured = ['Arbeitsblätter', 'Tablets / PCs', 'Montessori-Material', 'Schulbuch / Arbeitsheft', 'Experimentier-Set', 'Bastel- / Kreativzeug'];
-    const selected = items.filter((i: string) => preconfigured.includes(i));
-    const custom = items.filter((i: string) => !preconfigured.includes(i)).join(', ');
-    
-    setSelectedMaterials(selected);
-    setCustomMaterialText(custom);
+  // Move lesson to parkgarage
+  const handleShiftToParkgarage = () => {
+    if (!lessonTopic.trim() && !activeSubject) return;
 
-    // Remove from garage
-    setApp(prev => {
-      const parked = (prev.parkgarage || []).filter((p: any) => p.id !== item.id);
-      return { ...prev, parkgarage: parked };
-    });
+    const parkedItem = {
+      id: `park-${Date.now()}`,
+      fach: activeSubject,
+      thema: lessonTopic,
+      art: didacticType,
+      sozialform: socialForm,
+      material: selectedMaterials.join(', '),
+      parkedFromKW: nextKW,
+      parkedAt: new Date().toISOString()
+    };
 
-    setSuccessMessage('Geparkte Stunde in den Editor geladen. Bitte speichern zum Bestätigen!');
-    setTimeout(() => setSuccessMessage(''), 4000);
+    setApp(prev => ({
+      ...prev,
+      parkgarage: [...(prev.parkgarage || []), parkedItem]
+    }));
+
+    handleClearSlot();
+    setSuccessMessage('Stunde erfolgreich in die Parkgarage verschoben.');
+    setTimeout(() => setSuccessMessage(''), 2500);
   };
 
-  // AI suggestion tool based on curriculum week theme & previous topic
-  const handleSuggestAiThemes = async () => {
-    if (!activeSubject) {
-      alert("Bitte wählen Sie zuerst ein Fach aus, für das Sie KI-Ideen generieren möchten.");
+  // Restore lesson from parkgarage
+  const handleRestoreParked = (parkedItem: any) => {
+    setActiveSubject(parkedItem.fach || availableSubjects[0]);
+    setLessonTopic(parkedItem.thema || '');
+    setDidacticType(parkedItem.art || 'Einführung');
+    setSocialForm(parkedItem.sozialform || 'Einzelarbeit');
+
+    setApp(prev => ({
+      ...prev,
+      parkgarage: (prev.parkgarage || []).filter((p: any) => p.id !== parkedItem.id)
+    }));
+
+    setSuccessMessage(`"${parkedItem.thema || parkedItem.fach}" aus der Parkgarage geholt!`);
+    setTimeout(() => setSuccessMessage(''), 2500);
+  };
+
+  // Save as Template
+  const handleSaveAsTemplate = () => {
+    if (!templateName.trim()) {
+      alert('Bitte gib einen Namen für die Vorlage ein.');
       return;
     }
-    
+
+    const currentWeekPlan = app.wochenplanung?.[nextKW] || {};
+
+    setApp(prev => ({
+      ...prev,
+      savedWeekTemplates: {
+        ...(prev.savedWeekTemplates || {}),
+        [templateName.trim()]: currentWeekPlan
+      }
+    }));
+
+    setTemplateName('');
+    setSuccessMessage(`Woche als Vorlage "${templateName.trim()}" gesichert!`);
+    setTimeout(() => setSuccessMessage(''), 2500);
+  };
+
+  // Load Template
+  const handleLoadTemplate = (tName: string) => {
+    const templateData = app.savedWeekTemplates?.[tName];
+    if (!templateData) return;
+
+    if (window.confirm(`Möchtest du die Vorlage "${tName}" in die aktuelle KW ${nextKW} laden? Bisherige Einträge dieser Woche werden überschrieben.`)) {
+      setApp(prev => ({
+        ...prev,
+        wochenplanung: {
+          ...(prev.wochenplanung || {}),
+          [nextKW]: templateData
+        }
+      }));
+      setSuccessMessage(`Vorlage "${tName}" geladen!`);
+      setTimeout(() => setSuccessMessage(''), 2500);
+    }
+  };
+
+  // Delete Template
+  const handleDeleteTemplate = (tName: string) => {
+    setApp(prev => {
+      const templates = { ...(prev.savedWeekTemplates || {}) };
+      delete templates[tName];
+      return { ...prev, savedWeekTemplates: templates };
+    });
+  };
+
+  // AI Topic Suggestion Call
+  const handleSuggestAiThemes = async () => {
+    if (!activeSubject) return;
     setIsAiLoading(true);
     setAiSuggestions([]);
-    
-    const jpTheme = getJahresplanTheme(nextKW);
-    
-    // Find previous topic for this subject for context awareness
-    let lastTopic = '';
-    const lastWeekKW = nextKW - 1;
-    const lastWeekPlan = app.wochenplanung?.[lastWeekKW] || {};
-    Object.values(lastWeekPlan).forEach((dayPlan: any) => {
-      if (dayPlan) {
-        Object.values(dayPlan).forEach((lesson: any) => {
-          if (lesson?.fach?.toLowerCase() === activeSubject.toLowerCase() && lesson?.thema) {
-            lastTopic = lesson.thema;
-          }
-        });
-      }
-    });
 
-    const prompt = `Du bist ein erfahrener Volksschullehrer. Der Lehrer plant gerade eine Unterrichtsstunde für das Fach "${activeSubject}".
-Hier ist der aktuelle Kontext:
-- Globales Wochenthema aus dem Jahresplan: ${jpTheme || 'Keines definiert'}
-- Letztes behandeltes Thema in diesem Fach: ${lastTopic || 'Unbekannt'}
-
-Generiere 3 konkrete, kreative und altersgerechte Vorschläge für das Thema dieser Stunde.
-Gib die Antwort im folgenden JSON-Format zurück (ohne Markdown, nur roher JSON-String):
-{
-  "vorschlaege": [
-    "Vorschlag 1 (z.B.: Rechnen mit Zehnerübergang anhand von Murmeln)",
-    "Vorschlag 2",
-    "Vorschlag 3"
-  ]
-}`;
+    const prompt = `Du bist ein erfahrener österreichischer Volksschul-Didaktiker.
+Gib mir 3 konkrete, kindgerechte, praxisnahe Unterrichts-Themenvorschläge für das Fach "${activeSubject}" (Schulstufe ${app.stufe || 3}).
+Globales Wochenthema: "${getJahresplanTheme(nextKW) || 'Allgemeines Thema'}".
+Antworte NUR mit den 3 Themen, jeweils in einer neuen Zeile, ohne Aufzählungszeichen oder Zahlen.`;
 
     try {
-      const res = await askAI('ki-helfer', prompt);
-      if (res) {
-        const cleaned = res.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
-        const parsed = JSON.parse(cleaned);
-        if (parsed.vorschlaege) {
-          setAiSuggestions(parsed.vorschlaege);
-        }
-      }
+      const response = await askAI(prompt, 'gemini-1.5-flash');
+      const suggestions = response.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+      setAiSuggestions(suggestions);
     } catch (e) {
-      console.error("AI theme suggestion failed", e);
+      console.error(e);
       setAiSuggestions([
-        "Einführung in das neue Wochenthema",
-        "Festigung und selbstständiges Üben",
-        "Kreatives Vertiefungsprojekt"
+        `Einführung: Vertiefung zu ${activeSubject}`,
+        `Stationenbetrieb & Forscherauftrag`,
+        `Differenzierte Übungseinheit mit Anschaulichkeit`
       ]);
     } finally {
       setIsAiLoading(false);
     }
   };
 
-  // Count planned lessons for this week
+  // AI Weekly Curriculum Insight Analysis
+  const handleGenerateWeeklyInsight = async () => {
+    setIsAnalyzingWeek(true);
+
+    const weekPlan = app.wochenplanung?.[nextKW] || {};
+    const plannedLessonsSummary: string[] = [];
+
+    DAYS_DE.forEach((dayName, dIdx) => {
+      const useIdx = weekPlan[dIdx] !== undefined;
+      const dayKey = useIdx ? dIdx : dayName;
+      const dayPlan = weekPlan[dayKey] || {};
+
+      Object.entries(dayPlan).forEach(([hIdx, l]: [string, any]) => {
+        if (l && l.fach) {
+          plannedLessonsSummary.push(`${dayName}, ${parseInt(hIdx) + 1}. Stunde: ${l.fach} - "${l.thema || 'Kein Thema'}" (${l.art || 'Standard'}, ${l.sozialform || 'Einzelarbeit'})`);
+        }
+      });
+    });
+
+    const prompt = `Analysiere didaktisch den folgenden Wochenplan einer österreichischen Volksschulklasse (${app.klasse || 'Volksschulklasse 3'}, KW ${nextKW}, Schulwoche ${sw || 'N/A'}).
+
+Globales Wochenthema aus Jahresplan: "${getJahresplanTheme(nextKW) || 'Kein Wochenthema eingetragen'}"
+
+Geplante Unterrichtseinheiten:
+${plannedLessonsSummary.join('\n') || 'Bisher keine Stunden für diese Woche eingetragen.'}
+
+Erstelle einen prägnanten, ermutigenden, pädagogisch wertvollen Wochen-Einblick:
+1. **Pädagogischer Schwerpunkt & Lehrplan-Abdeckung**: Kurze Zusammenfassung der Stärken dieser Woche.
+2. **Methodische Vielfalt & Balance**: Feedback zu Sozialformen, Bewegungs- und Ruhephasen.
+3. **3 konkrete Impulse**: Kleine Ideen für Fächerübergreifend, Differenzierung oder Auflockerung.
+
+Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.`;
+
+    try {
+      const insight = await askAI(prompt, 'gemini-1.5-flash');
+      setApp(prev => ({
+        ...prev,
+        scheduleAnalysis: {
+          ...(prev.scheduleAnalysis || {}),
+          [nextKW]: insight
+        }
+      }));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsAnalyzingWeek(false);
+    }
+  };
+
+  // Carry forward unfinished lessons from previous week
+  const handleCarryOverUnfinished = () => {
+    const prevKWNum = nextKW - 1;
+    const prevWeekPlan = app.wochenplanung?.[prevKWNum] || {};
+
+    let carriedCount = 0;
+    const currentWeekPlan = { ...(app.wochenplanung?.[nextKW] || {}) };
+
+    DAYS_DE.forEach((dayName, dIdx) => {
+      const useIdx = prevWeekPlan[dIdx] !== undefined;
+      const dayKey = useIdx ? dIdx : dayName;
+      const prevDayPlan = prevWeekPlan[dayKey] || {};
+
+      Object.entries(prevDayPlan).forEach(([hIdxStr, lesson]: [string, any]) => {
+        const hIdx = parseInt(hIdxStr);
+        if (lesson && lesson.fach && !lesson.erledigt) {
+          const targetUseIdx = currentWeekPlan[dIdx] !== undefined;
+          const targetDayKey = targetUseIdx ? dIdx : dayName;
+          const targetDayPlan = { ...(currentWeekPlan[targetDayKey] || {}) };
+
+          if (!targetDayPlan[hIdx] || !targetDayPlan[hIdx].fach) {
+            targetDayPlan[hIdx] = {
+              ...lesson,
+              erledigt: false,
+              thema: `[Fortführung] ${lesson.thema || ''}`.trim()
+            };
+            currentWeekPlan[targetDayKey] = targetDayPlan;
+            carriedCount++;
+          }
+        }
+      });
+    });
+
+    if (carriedCount > 0) {
+      setApp(prev => ({
+        ...prev,
+        wochenplanung: {
+          ...(prev.wochenplanung || {}),
+          [nextKW]: currentWeekPlan
+        }
+      }));
+      setSuccessMessage(`${carriedCount} unvollendete Einheiten aus KW ${prevKWNum} übernommen!`);
+    } else {
+      setSuccessMessage(`Keine unvollständigen Stunden in Vorwoche KW ${prevKWNum} gefunden.`);
+    }
+    setTimeout(() => setSuccessMessage(''), 3000);
+  };
+
+  // Quick event save
+  const handleSaveQuickEvent = () => {
+    if (!quickEventTitle.trim()) return;
+    const eventDate = new Date(monday);
+    eventDate.setDate(monday.getDate() + selectedDayIdx);
+    const dateStr = eventDate.toISOString().split('T')[0];
+
+    const newTermin = {
+      id: `event-${Date.now()}`,
+      datum: dateStr,
+      titel: quickEventTitle.trim(),
+      kategorie: quickEventCategory,
+      kw: nextKW,
+      erstelltAm: new Date().toISOString()
+    };
+
+    setApp(prev => ({
+      ...prev,
+      termine: [...(prev.termine || []), newTermin]
+    }));
+
+    setQuickEventTitle('');
+    setSuccessMessage('Termin / Ereignis gespeichert!');
+    setTimeout(() => setSuccessMessage(''), 2500);
+    setQuickPlanOpen(false);
+  };
+
+  // Calculation helpers
   const countPlannedLessonsThisWeek = useMemo(() => {
     const wp = app.wochenplanung?.[nextKW] || {};
     let count = 0;
@@ -452,1846 +591,1353 @@ Gib die Antwort im folgenden JSON-Format zurück (ohne Markdown, nur roher JSON-
       const useIdx = wp[dIdx] !== undefined;
       const dayKey = useIdx ? dIdx : dayName;
       const dayPlan = wp[dayKey] || {};
-      for (let h = 0; h < 6; h++) {
-        if (dayPlan[h]?.fach) {
-          count++;
-        }
-      }
+      Object.values(dayPlan).forEach((l: any) => {
+        if (l && l.fach) count++;
+      });
     });
     return count;
   }, [app.wochenplanung, nextKW, DAYS_DE]);
 
-  // Generate Weekly Competence Insight via AI
-  const handleGenerateWeeklyInsight = async () => {
-    setIsAnalyzingWeek(true);
-    
+  const weekStats = useMemo(() => {
     const wp = app.wochenplanung?.[nextKW] || {};
-    let planSummary = '';
+    let total = 0;
+    let completed = 0;
     DAYS_DE.forEach((dayName, dIdx) => {
       const useIdx = wp[dIdx] !== undefined;
       const dayKey = useIdx ? dIdx : dayName;
       const dayPlan = wp[dayKey] || {};
-      let dayText = '';
-      for (let h = 0; h < 6; h++) {
-        const lesson = dayPlan[h];
+      Object.values(dayPlan).forEach((lesson: any) => {
         if (lesson && lesson.fach) {
-          dayText += `- ${h+1}. Stunde: Fach: ${lesson.fach}, Thema: "${lesson.thema || 'Kein Thema'}", Art: ${lesson.art || 'nicht angegeben'}, Sozialform: ${lesson.sozialform || 'nicht angegeben'}, Material: ${lesson.material || 'keine'}\n`;
-        }
-      }
-      if (dayText) {
-        planSummary += `### ${dayName}:\n${dayText}\n`;
-      }
-    });
-
-    const jpTheme = getJahresplanTheme(nextKW);
-
-    const prompt = `Rolle: Du bist ein hochqualifizierter Lehrplan-Experte und didaktischer Berater für Volksschulen in Österreich.
-Aufgabe: Analysiere den folgenden Wochenplan für die ${app.stufe || 1}. Schulstufe für die Kalenderwoche ${nextKW}.
-
-Globales Wochenthema aus dem Jahresplan: "${jpTheme || 'Keines definiert'}"
-
-Geplanter Unterrichtsablauf:
-${planSummary || 'Bisher keine Stunden explizit eingetragen.'}
-
-Erstelle eine professionelle, pädagogisch wertvolle Analyse der Kompetenzschwerpunkte und didaktische Empfehlungen für diese Woche. Gliedere die Analyse zwingend in folgende Abschnitte (verwende Markdown für die Formatierung):
-
-1. **Kompetenzschwerpunkte der Woche**
-   Identifiziere die wesentlichen Kompetenzen (z.B. nach dem österreichischen Lehrplan für Volksschulen), die durch die geplanten Themen abgedeckt werden. Strukturiere dies nach Fächern (z.B. Deutsch, Mathematik, Sachunterricht). Nenne konkrete Kompetenzbereiche (z.B. "Deutsch - Verfassen von Texten", "Mathematik - Operieren").
-
-2. **Didaktische Stärken des Wochenplans**
-   Hebe positive Aspekte hervor (z.B. Methodenvielfalt, ausgeglichene Sozialformen, Einsatz anschaulicher Materialien, Bezüge zum globalen Wochenthema).
-
-3. **Didaktische Empfehlungen & cross-curriculare Bezüge**
-   Gib 2-3 konkrete Vorschläge, wie der Unterricht noch runder gestaltet werden kann (z.B. Verknüpfungen zwischen Deutsch und Sachunterricht, Differenzierungstipps für stärkere/schwächere Kinder oder Ideen zur Vertiefung).
-
-Schreibe motivierend, professionell und klar verständlich für Lehrerinnen und Lehrer. Vermeide Allgemeinplätze, beziehe dich konkret auf die oben angegebenen Themen und Fächer.`;
-
-    try {
-      const res = await askAI('ki-helfer', prompt);
-      if (res) {
-        setApp(prev => {
-          const sa = { ...(prev.scheduleAnalysis || {}) };
-          sa[nextKW] = res;
-          return { ...prev, scheduleAnalysis: sa };
-        });
-        setSuccessMessage('Wochenplan-Einblick erfolgreich generiert!');
-        setTimeout(() => setSuccessMessage(''), 3000);
-      }
-    } catch (e) {
-      console.error("Failed to generate weekly insight", e);
-      alert("Fehler bei der Generierung des Wochenplan-Einblicks.");
-    } finally {
-      setIsAnalyzingWeek(false);
-    }
-  };
-
-  // Carry over all unfinished lessons from last week (KW - 1)
-  const handleCarryOverUnfinished = () => {
-    const lastWeekKW = nextKW - 1;
-    const lastWeekPlan = app.wochenplanung?.[lastWeekKW];
-    if (!lastWeekPlan || Object.keys(lastWeekPlan).length === 0) {
-      alert(`Keine Planungsdaten für die letzte Woche (KW ${lastWeekKW}) gefunden.`);
-      return;
-    }
-    
-    let count = 0;
-    setApp(prev => {
-      const wp = { ...(prev.wochenplanung || {}) };
-      const currentWeekPlan = { ...(wp[nextKW] || {}) };
-      
-      Object.keys(lastWeekPlan).forEach(dayKey => {
-        const dayLessons = lastWeekPlan[dayKey] || {};
-        Object.keys(dayLessons).forEach(hourIdx => {
-          const lesson = dayLessons[hourIdx];
-          if (lesson?.thema && !lesson.erledigt) {
-            const curDayLessons = { ...(currentWeekPlan[dayKey] || {}) };
-            const curLesson = curDayLessons[hourIdx] || {};
-            
-            if (!curLesson.thema) {
-              curDayLessons[hourIdx] = {
-                ...curLesson,
-                fach: lesson.fach,
-                thema: lesson.thema,
-                material: lesson.material,
-                housework: lesson.housework,
-                erledigt: false,
-                art: lesson.art,
-                sozialform: lesson.sozialform
-              };
-              count++;
-            } else {
-              curDayLessons[hourIdx] = {
-                ...curLesson,
-                thema: `[Nachholen] ${lesson.thema} / ${curLesson.thema}`,
-                material: lesson.material ? `${lesson.material}; ${curLesson.material || ''}` : curLesson.material,
-                erledigt: false
-              };
-              count++;
-            }
-            currentWeekPlan[dayKey] = curDayLessons;
-          }
-        });
-      });
-      
-      if (count === 0) {
-        alert("Alle Stunden der Vorwoche waren bereits als erledigt markiert!");
-        return prev;
-      }
-      
-      wp[nextKW] = currentWeekPlan;
-      return { ...prev, wochenplanung: wp };
-    });
-    
-    setSuccessMessage(`${count} nicht erledigte Themen aus KW ${lastWeekKW} übernommen!`);
-    setTimeout(() => setSuccessMessage(''), 3000);
-  };
-
-  // Template Managers
-  const handleSaveAsTemplate = () => {
-    if (!templateName.trim()) {
-      alert("Bitte geben Sie einen Namen für die Vorlage ein.");
-      return;
-    }
-    setApp(prev => {
-      const templates = { ...(prev.savedWeekTemplates || {}) };
-      const currentWeekData = prev.wochenplanung?.[nextKW] || {};
-      const cleanWeek = JSON.parse(JSON.stringify(currentWeekData));
-      delete cleanWeek.reflexion;
-      templates[templateName] = cleanWeek;
-      return { ...prev, savedWeekTemplates: templates };
-    });
-    alert(`Die aktuelle Woche wurde als Vorlage "${templateName}" gespeichert!`);
-    setTemplateName('');
-  };
-
-  const handleLoadTemplate = (name: string) => {
-    if (window.confirm(`Möchten Sie die Vorlage "${name}" in die aktuelle Woche laden? Bestehende Fächer und Themen dieser Woche werden überschrieben.`)) {
-      setApp(prev => {
-        const templates = prev.savedWeekTemplates || {};
-        const templateData = templates[name];
-        if (!templateData) return prev;
-        const wp = { ...(prev.wochenplanung || {}) };
-        wp[nextKW] = JSON.parse(JSON.stringify(templateData));
-        return { ...prev, wochenplanung: wp };
-      });
-      alert(`Vorlage "${name}" geladen!`);
-    }
-  };
-
-  const handleDeleteTemplate = (name: string) => {
-    if (window.confirm(`Vorlage "${name}" wirklich löschen?`)) {
-      setApp(prev => {
-        const templates = { ...(prev.savedWeekTemplates || {}) };
-        delete templates[name];
-        return { ...prev, savedWeekTemplates: templates };
-      });
-    }
-  };
-
-  // Calculate stats for current week
-  const weekStats = useMemo(() => {
-    let total = 0;
-    let completed = 0;
-    TAGE_NAMEN.forEach((_, i) => {
-      const dayPlan = kw[i] || {};
-      for (let h = 0; h < 6; h++) {
-        if (dayPlan[h]?.fach) {
           total++;
-          if (dayPlan[h]?.erledigt) completed++;
+          if (lesson.erledigt) completed++;
         }
-      }
+      });
     });
-    return { total, completed, percent: total > 0 ? Math.round((completed / total) * 100) : 0 };
-  }, [kw]);
-
-  // Computed checklist of the active planning steps
-  const planningStepsChecklist = useMemo(() => {
-    const jpTheme = getJahresplanTheme(nextKW);
-    const hasJahresplan = !!jpTheme;
-
-    const lessonsPlanned = weekStats.total;
-    const hasWochenplan = lessonsPlanned > 0;
-
-    let lessonsDetailed = 0;
-    TAGE_NAMEN.forEach((_, i) => {
-      const dayPlan = kw[i] || {};
-      for (let h = 0; h < 6; h++) {
-        const l = dayPlan[h];
-        if (l?.fach && (l?.thema || l?.material || l?.art || l?.sozialform)) {
-          lessonsDetailed++;
-        }
-      }
-    });
-
     return {
-      jahresplan: {
-        title: 'Schritt 1: Globales Wochenthema (Jahresplan)',
-        description: hasJahresplan 
-          ? `Wochenthema definiert: „${jpTheme}“` 
-          : 'Kein globales Wochenthema für diese Woche im Jahresplan hinterlegt.',
-        done: hasJahresplan,
-        info: 'Stellt alle Unterrichtsstunden unter ein gemeinsames didaktisches Leitmotiv.'
-      },
-      wochenplan: {
-        title: 'Schritt 2: Wochenstruktur (Stundenplan)',
-        description: hasWochenplan 
-          ? `${lessonsPlanned} Unterrichtsstunde${lessonsPlanned === 1 ? '' : 'n'} für diese Woche verplant.` 
-          : 'Es wurden noch keine Fächer in den Stundenplan eingetragen.',
-        done: hasWochenplan,
-        info: 'Trage Fächer in das Stundenraster ein, um deine Woche grob zu strukturieren.'
-      },
-      materialCheck: {
-        title: 'Schritt 3: Didaktische Details & Material-Check',
-        description: hasWochenplan
-          ? `${lessonsDetailed} von ${lessonsPlanned} Stunde${lessonsPlanned === 1 ? '' : 'n'} mit didaktischen Details (Thema, Material, Sozialform) ausgearbeitet.`
-          : 'Plane zuerst Stunden im Wochenplan, um Details und Materialien festzulegen.',
-        done: hasWochenplan && lessonsDetailed > 0 && lessonsDetailed === lessonsPlanned,
-        progressPercent: hasWochenplan ? Math.round((lessonsDetailed / lessonsPlanned) * 100) : 0,
-        info: 'Bestimme für jede Stunde ein konkretes Thema, Sozialform, Ablaufart und benötigte Unterrichtsmaterialien.'
-      }
+      total,
+      completed,
+      percent: total > 0 ? Math.round((completed / total) * 100) : 0
     };
-  }, [kw, nextKW, app.jahresplanung, weekStats.total]);
+  }, [app.wochenplanung, nextKW, DAYS_DE]);
 
-  // Scan previous weeks for Step 3 history
-  const recentLessonsHistory = useMemo(() => {
-    const list: any[] = [];
-    const prevWp = app.wochenplanung?.[nextKW - 1] || {};
+  // Find all unprepared lessons or missing topic slots across week
+  const openLessonsList = useMemo(() => {
+    const wp = app.wochenplanung?.[nextKW] || {};
+    const list: { dayIdx: number; dayName: string; hourIdx: number; fach: string; thema: string; status: 'offen' | 'material' }[] = [];
+    
     DAYS_DE.forEach((dayName, dIdx) => {
-      const useIdx = prevWp[dIdx] !== undefined;
+      const useIdx = wp[dIdx] !== undefined;
       const dayKey = useIdx ? dIdx : dayName;
-      const dayLessons = prevWp[dayKey] || {};
-      for (let h = 0; h < 6; h++) {
-        const lesson = dayLessons[h];
-        if (lesson?.fach && lesson?.thema) {
+      const dayPlan = wp[dayKey] || {};
+
+      for (let hIdx = 0; hIdx < 6; hIdx++) {
+        const lesson = dayPlan[hIdx];
+        const defaultFach = app.stammplan?.[dayName]?.[hIdx + 1] || '';
+
+        if (lesson && lesson.fach) {
+          if (!lesson.erledigt && (!lesson.thema || !lesson.thema.trim())) {
+            list.push({
+              dayIdx: dIdx,
+              dayName,
+              hourIdx: hIdx,
+              fach: lesson.fach,
+              thema: 'Kein Thema eingetragen',
+              status: 'offen'
+            });
+          }
+        } else if (defaultFach) {
           list.push({
-            day: dayName,
-            hour: h + 1,
-            fach: lesson.fach,
-            thema: lesson.thema,
-            material: lesson.material,
-            art: lesson.art,
-            housework: lesson.housework,
-            erledigt: lesson.erledigt
+            dayIdx: dIdx,
+            dayName,
+            hourIdx: hIdx,
+            fach: defaultFach,
+            thema: 'Unvorbereitete Stunde',
+            status: 'offen'
           });
         }
       }
     });
     return list;
+  }, [app.wochenplanung, app.stammplan, nextKW, DAYS_DE]);
+
+  // Planning Checklist
+  const planningStepsChecklist = useMemo(() => {
+    const hasJahresplanTheme = !!getJahresplanTheme(nextKW);
+    const hasEnoughLessons = countPlannedLessonsThisWeek >= 10;
+    const progressPercent = weekStats.percent;
+
+    return {
+      jahresplan: {
+        done: hasJahresplanTheme,
+        title: 'Schritt 1: Jahresplan-Schwerpunkt',
+        description: hasJahresplanTheme 
+          ? `Wochenthema hinterlegt: "${getJahresplanTheme(nextKW)}"`
+          : 'Trage ein globales Thema/Projekt für diese Kalenderwoche ein.',
+        info: 'Orientierung & rote Faden für das Curriculum'
+      },
+      wochenplan: {
+        done: hasEnoughLessons,
+        title: 'Schritt 2: Stunden-Planung',
+        description: `${countPlannedLessonsThisWeek} Einheiten für KW ${nextKW} geplant.`,
+        info: 'Tages- und Wochenstruktur für den Unterricht'
+      },
+      materialCheck: {
+        done: progressPercent >= 80,
+        title: 'Schritt 3: Vorbereitung & Materialien',
+        description: `${weekStats.completed} von ${weekStats.total} Einheiten erledigt/vorbereitet (${progressPercent}%).`,
+        info: 'Arbeitsblätter, Medien und Differenzierung bereithalten',
+        progressPercent
+      }
+    };
+  }, [nextKW, app.jahresplanung, countPlannedLessonsThisWeek, weekStats]);
+
+  // Recent history stream
+  const recentLessonsHistory = useMemo(() => {
+    const prevKWNum = nextKW - 1;
+    const prevPlan = app.wochenplanung?.[prevKWNum] || {};
+    const history: any[] = [];
+
+    DAYS_DE.forEach((dayName, dIdx) => {
+      const useIdx = prevPlan[dIdx] !== undefined;
+      const dayKey = useIdx ? dIdx : dayName;
+      const dayPlan = prevPlan[dayKey] || {};
+
+      Object.entries(dayPlan).forEach(([hIdx, l]: [string, any]) => {
+        if (l && l.fach && l.thema) {
+          history.push({
+            day: dayName,
+            hour: parseInt(hIdx) + 1,
+            fach: l.fach,
+            thema: l.thema,
+            art: l.art,
+            housework: l.housework
+          });
+        }
+      });
+    });
+    return history.slice(0, 10);
   }, [app.wochenplanung, nextKW, DAYS_DE]);
 
-  // Helper for counting KW stats
-  const getKwStats = (kwNum: number) => {
-    const kwData = app.wochenplanung?.[kwNum] || {};
-    let count = 0;
-    let completed = 0;
-    DAYS_DE.forEach((dayName, dIdx) => {
-      const useIdx = kwData[dIdx] !== undefined;
-      const dayKey = useIdx ? dIdx : dayName;
-      const dayPlan = kwData[dayKey] || {};
-      for (let h = 0; h < 6; h++) {
-        if (dayPlan[h]?.fach) {
-          count++;
-          if (dayPlan[h]?.erledigt) completed++;
-        }
-      }
-    });
-    return { count, completed };
-  };
-
-  const startKW = getSchulstartKW(app?.schuljahr || getCurrentSchuljahr(), app?.bundesland || 'VBG');
-  
-  // School Year Weeks generator
+  // Year weeks for Syllabus
+  const startKW = app.schuljahr ? getSchulstartKW(app.schuljahr, app.bundesland || 'VBG') : 36;
   const yearWeeks = useMemo(() => {
-    const weeks: { kwNum: number; swNum: number; mondayDate: Date; yearNum: number }[] = [];
-    const startYearNum = getStartYear(app?.schuljahr || getCurrentSchuljahr());
-    
-    // Generate 42 school weeks
-    for (let swIdx = 1; swIdx <= 42; swIdx++) {
-      const firstMonday = kwToMonday(startKW, startYearNum);
-      const curMonday = new Date(firstMonday);
-      curMonday.setDate(firstMonday.getDate() + (swIdx - 1) * 7);
-      
-      const kwNum = getKW(curMonday);
-      const yearNum = curMonday.getFullYear();
-      
-      weeks.push({
-        kwNum,
-        swNum: swIdx,
-        mondayDate: curMonday,
-        yearNum
-      });
-    }
-    return weeks;
-  }, [app?.schuljahr, app?.bundesland, startKW]);
+    const list: { kwNum: number; swNum: number; mondayDate: Date }[] = [];
+    let currentSW = 1;
+    let runKw = startKW;
+    let runYear = startYear;
 
-  // Group school weeks by month
+    for (let i = 0; i < 42; i++) {
+      const mon = kwToMonday(runKw, runYear);
+      list.push({
+        kwNum: runKw,
+        swNum: currentSW,
+        mondayDate: mon
+      });
+
+      currentSW++;
+      runKw++;
+      if (runKw > 52) {
+        runKw = 1;
+        runYear++;
+      }
+    }
+    return list;
+  }, [startKW, startYear]);
+
+  // Group year weeks by month
   const weeksByMonth = useMemo(() => {
-    const groups: { [monthName: string]: typeof yearWeeks } = {};
+    const groups: Record<string, typeof yearWeeks> = {};
     const monthOrder: string[] = [];
-    
+
     yearWeeks.forEach(item => {
-      const monthName = item.mondayDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' });
+      const monthName = item.mondayDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
       if (!groups[monthName]) {
         groups[monthName] = [];
         monthOrder.push(monthName);
       }
       groups[monthName].push(item);
     });
-    
+
     return { groups, monthOrder };
   }, [yearWeeks]);
 
+  const getKwStats = (kwNum: number) => {
+    const weekPlan = app.wochenplanung?.[kwNum] || {};
+    let count = 0;
+    let completed = 0;
+
+    DAYS_DE.forEach((dayName, dIdx) => {
+      const useIdx = weekPlan[dIdx] !== undefined;
+      const dayKey = useIdx ? dIdx : dayName;
+      const dayPlan = weekPlan[dayKey] || {};
+
+      Object.values(dayPlan).forEach((l: any) => {
+        if (l && l.fach) {
+          count++;
+          if (l.erledigt) completed++;
+        }
+      });
+    });
+
+    return { count, completed };
+  };
+
+  const formattedDateToday = currDate.toLocaleDateString('de-DE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+
   return (
-    <ErrorBoundaryLogger>
-      <div className="planning-center-shell h-full bg-[#f4f7f3] flex flex-col relative" data-zoom-container={zoomLevel}>
-        {/* Custom CSS for compact density if enabled */}
+    <ErrorBoundaryLogger componentName="PlanungsZentrale">
+      <div className="w-full h-full flex flex-col bg-slate-100 text-slate-800 font-sans selection:bg-indigo-100 selection:text-indigo-900">
+        
+        {/* Print Styles */}
         <style dangerouslySetInnerHTML={{ __html: `
-          [data-zoom-container="compact"] {
-            font-size: 0.8125rem !important;
-          }
-          [data-zoom-container="compact"] h1 { font-size: 1.15rem !important; }
-          [data-zoom-container="compact"] h2 { font-size: 0.95rem !important; }
-          [data-zoom-container="compact"] h3 { font-size: 0.85rem !important; }
-          [data-zoom-container="compact"] p { font-size: 0.75rem !important; }
-          [data-zoom-container="compact"] button,
-          [data-zoom-container="compact"] input,
-          [data-zoom-container="compact"] select,
-          [data-zoom-container="compact"] textarea {
-            font-size: 0.75rem !important;
-            padding: 0.35rem 0.625rem !important;
+          @media print {
+            body { background: white !important; font-size: 10pt !important; }
+            .planning-center-header, .print\\:hidden { display: none !important; }
+            .print\\:block { display: block !important; }
+            .print\\:p-0 { padding: 0 !important; }
           }
         ` }} />
 
-        {/* Global Success Toast Notification */}
+        {/* Global Toast Notification */}
         <AnimatePresence>
           {successMessage && (
             <motion.div 
               initial={{ opacity: 0, y: -50, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              className="absolute top-20 left-1/2 -translate-x-1/2 z-50 bg-emerald-900 text-emerald-50 px-5 py-3 rounded-2xl shadow-xl border border-emerald-700/50 flex items-center gap-2 font-bold text-sm tracking-wide"
+              className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-emerald-900 text-emerald-50 px-5 py-3 rounded-2xl shadow-2xl border border-emerald-700 flex items-center gap-2 font-bold text-sm"
             >
-              <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+              <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
               <span>{successMessage}</span>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Header Section */}
-        <header className="planning-center-header print:hidden bg-white border-b border-slate-200 px-6 py-3 flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-4 shrink-0 sticky top-0 z-10 w-full shadow-sm">
-          <div className="flex items-center gap-4 w-full xl:w-auto min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-              <BrainCircuit size={21} />
+        {/* 1. ULTRA-CLEAN & INTUITIVE HEADER */}
+        <header className="planning-center-header print:hidden bg-white border-b border-slate-200 px-6 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-xs">
+          {/* Left Title & Context info */}
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-indigo-200">
+              <BrainCircuit size={22} />
             </div>
             <div>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-lg font-black text-slate-900 tracking-tight leading-tight">Pädagogisches Planungs-Zentrum</h1>
-                <button
-                  onClick={() => setShowInfoOverlay(true)}
-                  className="px-2.5 py-1 text-indigo-700 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100/80 rounded-xl transition cursor-pointer flex items-center gap-1 text-[10px] font-black tracking-wide border border-indigo-100/50"
-                  title="Planungsschritte-Checkliste anzeigen"
-                >
-                  <Info size={13} />
-                  <span>Schritte</span>
-                </button>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-lg font-black text-slate-900 tracking-tight">Planungs-Zentrale</h1>
+                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider">
+                  {app.klasse || 'Klasse 3a'}
+                </span>
               </div>
-              <p className="text-[11px] font-semibold text-slate-500 mt-0.5">Jahresziele, Wochenstruktur und Unterrichtsvorbereitung an einem Ort</p>
+              <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                KW {nextKW} · Schulwoche {sw || '1'} · {formattedDateToday}
+              </p>
             </div>
           </div>
 
-          {/* View Focus Selector */}
-          <div className="flex items-center justify-center bg-slate-100 p-1 rounded-2xl border border-slate-200 shrink-0 w-full xl:w-auto overflow-x-auto">
-            <button
-              onClick={() => {
-                setPlanningFocus('day');
-                setActiveTab('wochenplan');
-              }}
-              aria-pressed={planningFocus === 'day'}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${planningFocus === 'day' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100/50 shadow-sm' : 'text-slate-600 hover:text-indigo-600 hover:bg-white/50 border border-transparent'}`}
-            >
-              <Calendar size={14} />
-              Tagesansicht
-            </button>
-            <button
-              onClick={() => {
-                setPlanningFocus('week');
-                setActiveTab('wochenplan');
-              }}
-              aria-pressed={planningFocus === 'week'}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${planningFocus === 'week' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100/50 shadow-sm' : 'text-slate-600 hover:text-indigo-600 hover:bg-white/50 border border-transparent'}`}
-            >
-              <LayoutGrid size={14} />
-              Wochenansicht
-            </button>
-            <button
-              onClick={() => setPlanningFocus('year')}
-              aria-pressed={planningFocus === 'year'}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition cursor-pointer ${planningFocus === 'year' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100/50 shadow-sm' : 'text-slate-600 hover:text-indigo-600 hover:bg-white/50 border border-transparent'}`}
-            >
-              <CalendarRange size={14} />
-              Jahresübersicht
-            </button>
-          </div>
-
-          {/* Calendar Week (KW) Selector */}
-          <div className="flex items-center gap-3 shrink-0 bg-slate-100 p-1.5 rounded-2xl border border-slate-200 self-center xl:self-auto">
-            <button 
-              onClick={() => {
-                const d = new Date(monday);
-                d.setDate(d.getDate() - 7);
-                setApp(p => ({ ...p, currentKW: getKW(d) }));
-              }} 
-              className="p-1.5 bg-white text-slate-700 hover:bg-indigo-50 rounded-xl transition border border-slate-200 active:scale-95 cursor-pointer"
-              title="Vorherige Woche"
-            >
-              <ChevronLeft size={16} />
-            </button>
+          {/* Right Controls: Quick Add, Calendar Navigator, View Toggles & More Menu */}
+          <div className="flex items-center gap-2.5 flex-wrap">
             
-            <div className="px-3 py-1 flex flex-col items-center justify-center gap-0.5 leading-none min-w-[100px]">
-              <span className="text-sm font-black text-slate-800">KW {nextKW}</span>
-              {sw && <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">Schulwoche {sw}</span>}
-            </div>
-            
-            <button 
+            {/* Primary Action Button: + PLANEN */}
+            <button
               onClick={() => {
-                const d = new Date(monday);
-                d.setDate(d.getDate() + 7);
-                setApp(p => ({ ...p, currentKW: getKW(d) }));
-              }} 
-              className="p-1.5 bg-white text-slate-700 hover:bg-indigo-50 rounded-xl transition border border-slate-200 active:scale-95 cursor-pointer"
-              title="Nächste Woche"
+                setQuickPlanType('lesson');
+                setQuickPlanOpen(true);
+              }}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-md shadow-indigo-200 hover:shadow-indigo-300 transition active:scale-95 cursor-pointer"
             >
-              <ChevronRight size={16} />
+              <Plus size={16} className="stroke-[3]" />
+              <span>+ Planen</span>
             </button>
 
-            {nextKW !== actualKW && (
-              <button
-                onClick={() => setApp(p => ({ ...p, currentKW: actualKW }))}
-                className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition border border-indigo-100 font-black text-[10px] cursor-pointer"
-                title="Zur aktuellen Kalenderwoche springen"
+            {/* Mode Selector Toggle: Einfachmodus vs. Erweiterter Modus */}
+            <button
+              onClick={() => setIsEinfachModus(!isEinfachModus)}
+              className={`px-3 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer border flex items-center gap-1.5 ${
+                isEinfachModus 
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' 
+                  : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
+              }`}
+              title="Zwischen einfachem Modus und erweiterter Ansicht umschalten"
+            >
+              <Sliders size={14} className={isEinfachModus ? 'text-emerald-600' : 'text-slate-500'} />
+              <span>{isEinfachModus ? 'Einfachmodus AN' : 'Erweiterter Modus'}</span>
+            </button>
+
+            {/* KW Switcher */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button 
+                onClick={() => {
+                  const d = new Date(monday);
+                  d.setDate(d.getDate() - 7);
+                  setApp(p => ({ ...p, currentKW: getKW(d) }));
+                }} 
+                className="p-1.5 hover:bg-white text-slate-700 rounded-lg transition"
+                title="Vorherige Woche"
               >
-                Heute
+                <ChevronLeft size={16} />
               </button>
-            )}
+              
+              <div className="px-2.5 text-center min-w-[70px]">
+                <span className="text-xs font-black text-slate-800">KW {nextKW}</span>
+              </div>
+              
+              <button 
+                onClick={() => {
+                  const d = new Date(monday);
+                  d.setDate(d.getDate() + 7);
+                  setApp(p => ({ ...p, currentKW: getKW(d) }));
+                }} 
+                className="p-1.5 hover:bg-white text-slate-700 rounded-lg transition"
+                title="Nächste Woche"
+              >
+                <ChevronRight size={16} />
+              </button>
+
+              {nextKW !== actualKW && (
+                <button
+                  onClick={() => setApp(p => ({ ...p, currentKW: actualKW }))}
+                  className="px-2 py-1 bg-white hover:bg-indigo-50 text-indigo-700 rounded-lg transition border border-slate-200 font-extrabold text-[10px] ml-1"
+                >
+                  Heute
+                </button>
+              )}
+            </div>
+
+            {/* "MEHR" Menu Dropdown Button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowMehrMenu(!showMehrMenu)}
+                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-extrabold text-xs flex items-center gap-1.5 border border-slate-200 transition cursor-pointer"
+              >
+                <MoreHorizontal size={16} />
+                <span>Mehr</span>
+                <ChevronDown size={14} className={`transition-transform duration-200 ${showMehrMenu ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Dropdown Content */}
+              {showMehrMenu && (
+                <div 
+                  className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150"
+                  onClick={() => setShowMehrMenu(false)}
+                >
+                  <button
+                    onClick={() => {
+                      setPlanningFocus('year');
+                      setIsEinfachModus(false);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-indigo-50 text-slate-700 hover:text-indigo-900 rounded-xl font-bold text-xs flex items-center gap-2.5 transition"
+                  >
+                    <Target size={15} className="text-indigo-600" />
+                    <span>Jahresübersicht & Syllabus</span>
+                  </button>
+
+                  <button
+                    onClick={() => setPage('materialbibliothek')}
+                    className="w-full text-left px-3 py-2 hover:bg-indigo-50 text-slate-700 hover:text-indigo-900 rounded-xl font-bold text-xs flex items-center gap-2.5 transition"
+                  >
+                    <BookOpen size={15} className="text-indigo-600" />
+                    <span>Materialverwaltung</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab('wochenplan-einblick');
+                      setIsEinfachModus(false);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-indigo-50 text-slate-700 hover:text-indigo-900 rounded-xl font-bold text-xs flex items-center gap-2.5 transition"
+                  >
+                    <Sparkles size={15} className="text-amber-500 fill-amber-500" />
+                    <span>KI-Wochen-Einblick</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setActiveTab('verlauf');
+                      setIsEinfachModus(false);
+                    }}
+                    className="w-full text-left px-3 py-2 hover:bg-indigo-50 text-slate-700 hover:text-indigo-900 rounded-xl font-bold text-xs flex items-center gap-2.5 transition"
+                  >
+                    <Coffee size={15} className="text-indigo-600" />
+                    <span>Unterrichts-Parkgarage ({app.parkgarage?.length || 0})</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowInfoOverlay(true)}
+                    className="w-full text-left px-3 py-2 hover:bg-indigo-50 text-slate-700 hover:text-indigo-900 rounded-xl font-bold text-xs flex items-center gap-2.5 transition"
+                  >
+                    <Info size={15} className="text-indigo-600" />
+                    <span>Didaktische Schritte Checkliste</span>
+                  </button>
+
+                  <div className="border-t border-slate-100 pt-1 mt-1">
+                    <button
+                      onClick={() => window.print()}
+                      className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-600 rounded-xl font-bold text-xs flex items-center gap-2.5 transition"
+                    >
+                      <FileText size={15} />
+                      <span>Wochenplan drucken</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         </header>
 
-        {/* Weekly Reflection & Goals Header Banner */}
-        <div className="bg-white/90 border-b border-slate-200 px-6 py-2.5 print:hidden">
-          <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-4">
-            {/* Left part: Progress statistics and modern progress bar */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="p-1 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
-                  <Activity size={14} />
-                </span>
-                <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Statistik KW {nextKW}</span>
-              </div>
-              
-              {/* Progress visualizer block */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto text-xs font-bold text-slate-600">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400 font-medium">Verplant:</span>
-                  <span className="text-slate-800 font-extrabold">{weekStats.total} Std.</span>
-                  <div className="w-20 bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200">
-                    <div 
-                      className="bg-indigo-500 h-full rounded-full transition-all duration-300" 
-                      style={{ width: `${Math.min((weekStats.total / 30) * 100, 100)}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="hidden sm:block text-slate-300">|</div>
-
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400 font-medium">Erledigt:</span>
-                  <span className="text-emerald-700 font-extrabold">{weekStats.completed} / {weekStats.total} Std. ({weekStats.percent}%)</span>
-                  <div className="w-20 bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200">
-                    <div 
-                      className="bg-emerald-500 h-full rounded-full transition-all duration-300" 
-                      style={{ width: `${weekStats.percent}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
+        {/* Banner with Week Goal & Theme */}
+        {getJahresplanTheme(nextKW) && (
+          <div className="bg-amber-50 border-b border-amber-200/60 px-6 py-2 print:hidden flex items-center justify-between text-xs font-bold text-amber-900">
+            <div className="flex items-center gap-2">
+              <span className="text-amber-600">🎯 Wochenthema aus Jahresplan (KW {nextKW}):</span>
+              <span className="font-extrabold">{getJahresplanTheme(nextKW)}</span>
             </div>
-
-            {/* Right part: Actions */}
-            <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
-              {getJahresplanTheme(nextKW) && (
-                <div className="bg-amber-50 border border-amber-100 text-amber-800 px-3 py-1 rounded-xl text-[11px] font-black flex items-center gap-1.5">
-                  <span className="text-amber-500">🎯</span>
-                  <span className="truncate max-w-[200px]" title={getJahresplanTheme(nextKW)}>
-                    Schwerpunkt: {getJahresplanTheme(nextKW)}
-                  </span>
-                </div>
-              )}
-
-              <button 
-                onClick={handleCarryOverUnfinished}
-                className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100/50 border border-indigo-100/50 px-3 py-1 rounded-xl font-black text-[11px] transition cursor-pointer"
-                title="Nicht-erledigte Aufgaben aus der Vorwoche herüberziehen"
-              >
-                <RotateCcw size={11} /> Unvollständiges fortsetzen
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                setActiveTab('jahresplan');
+                setIsEinfachModus(false);
+              }}
+              className="text-[11px] font-black text-amber-800 hover:underline cursor-pointer"
+            >
+              Thema anpassen →
+            </button>
           </div>
-        </div>
-        {/* Split-Screen Workspace */}
-        <main className="flex-1 overflow-y-auto p-5 space-y-5">
-          {planningFocus === 'year' ? (
-            <div className="max-w-7xl mx-auto space-y-6">
-              {/* Header stats bar */}
-              <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-base font-black text-slate-800 tracking-tight">Langfristige Jahresplanung & Schuljahr-Syllabus ({app.schuljahr || 'Aktuelles Schuljahr'})</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Definiere globale Themen, Projekte und Kompetenzen für jede Schulwoche</p>
-                </div>
-                <div className="flex items-center gap-4 text-center">
-                  <div className="bg-indigo-50 px-3.5 py-1.5 rounded-2xl border border-indigo-150">
-                    <span className="text-[10px] text-indigo-600 font-bold block uppercase tracking-wider">Planungsfortschritt</span>
-                    <span className="text-sm font-black text-indigo-900">
-                      {yearWeeks.filter(w => getKwStats(w.kwNum).count > 0).length} / {yearWeeks.length} Schulwochen geplant
-                    </span>
-                  </div>
-                  <div className="bg-slate-50 px-3.5 py-1.5 rounded-2xl border border-slate-150">
-                    <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Erster Schultag</span>
-                    <span className="text-sm font-black text-slate-700">KW {startKW}</span>
-                  </div>
-                </div>
-              </div>
+        )}
 
-              {/* Monthly Groupings Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {weeksByMonth.monthOrder.map(monthName => {
-                  const weeks = weeksByMonth.groups[monthName];
-                  return (
-                    <div key={monthName} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
-                      <div className="border-b border-slate-100 pb-2 flex items-center justify-between">
-                        <h3 className="font-extrabold text-slate-800 text-xs tracking-tight uppercase tracking-wider">{monthName}</h3>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{weeks.length} Wochen</span>
+        {/* MAIN BODY WORKSPACE */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full">
+
+          {/* ========================================================= */}
+          {/* EBENE 1: EINFACHMODUS (STRICTLY TIME-HORIZON ORIENTED VIEW) */}
+          {/* ========================================================= */}
+          {isEinfachModus && planningFocus !== 'year' ? (
+            <div className="space-y-6">
+
+              {/* TOP GRID: HEUTE (PRIMARY FOCUS) & NOCH OFFEN WIDGET */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                {/* HEUTE (8 COLS) */}
+                <section className="lg:col-span-8 bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                  
+                  {/* Section Title */}
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-black">
+                        <Calendar size={18} />
                       </div>
+                      <div>
+                        <h2 className="text-base font-black text-slate-900 tracking-tight">
+                          1. Was ist heute geplant? ({DAYS_DE[todayDayIdx]})
+                        </h2>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">
+                          Tagesablauf für den heutigen Schultag
+                        </p>
+                      </div>
+                    </div>
 
-                      <div className="space-y-3">
-                        {weeks.map(item => {
-                          const theme = getJahresplanTheme(item.kwNum);
-                          const stats = getKwStats(item.kwNum);
-                          const isCurrentWeek = getKW(new Date()) === item.kwNum;
+                    <button
+                      onClick={() => openSlotForQuickPlan(todayDayIdx, 0)}
+                      className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1"
+                    >
+                      <Plus size={14} /> Stunde hinzufügen
+                    </button>
+                  </div>
 
-                          // calculate week dates format (e.g. 15.09 - 19.09)
-                          const mondayFmt = item.mondayDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
-                          const fridayDate = new Date(item.mondayDate);
-                          fridayDate.setDate(item.mondayDate.getDate() + 4);
-                          const fridayFmt = fridayDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+                  {/* List of Today's Scheduled Lessons */}
+                  <div className="space-y-2.5">
+                    {[0, 1, 2, 3, 4, 5].map(hourIdx => {
+                      const dayName = DAYS_DE[todayDayIdx];
+                      const wp = app.wochenplanung?.[nextKW] || {};
+                      const useIdx = wp[todayDayIdx] !== undefined;
+                      const dayKey = useIdx ? todayDayIdx : dayName;
+                      const dayPlan = wp[dayKey] || {};
+                      const lesson = dayPlan[hourIdx];
+                      const defaultFach = app.stammplan?.[dayName]?.[hourIdx + 1] || '';
 
-                          return (
-                            <div 
-                              key={item.kwNum}
-                              className={`p-3.5 rounded-2xl border transition relative flex flex-col justify-between gap-2.5 ${isCurrentWeek ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-200 shadow-sm' : 'bg-slate-50/50 border-slate-150 hover:bg-slate-50'}`}
-                            >
-                              {/* Header info row */}
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5">
-                                  <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${isCurrentWeek ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
-                                    KW {item.kwNum}
+                      if (lesson && lesson.fach) {
+                        const style = getLessonStyle(lesson.fach);
+                        return (
+                          <div
+                            key={hourIdx}
+                            onClick={() => openSlotForQuickPlan(todayDayIdx, hourIdx)}
+                            className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-start justify-between gap-3 ${style.bg} ${style.border} hover:shadow-md`}
+                          >
+                            <div className="space-y-1 min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-black px-2 py-0.5 bg-black/5 rounded-md text-slate-700">
+                                  {hourIdx + 1}. Std.
+                                </span>
+                                <span className="text-xs font-black uppercase tracking-wider">
+                                  {lesson.fach}
+                                </span>
+
+                                {/* Status badge */}
+                                {lesson.erledigt ? (
+                                  <span className="text-[10px] font-extrabold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full flex items-center gap-1">
+                                    <CheckCircle2 size={12} /> Vorbereitet / Erledigt
                                   </span>
-                                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                    SW {item.swNum}
+                                ) : (
+                                  <span className="text-[10px] font-extrabold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full flex items-center gap-1">
+                                    <Clock size={12} /> Offen
                                   </span>
-                                  <span className="text-[10px] font-bold text-slate-400">
-                                    ({mondayFmt} - {fridayFmt})
-                                  </span>
-                                </div>
-                                
-                                {isCurrentWeek && (
-                                  <span className="text-[8px] font-black uppercase text-indigo-700 tracking-wider animate-pulse">Aktuelle KW</span>
                                 )}
                               </div>
 
-                              {/* Editable theme field */}
-                              <div className="space-y-1">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Wochenthema / Schwerpunkt</span>
-                                <input
-                                  type="text"
-                                  value={theme}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setApp(prev => {
-                                      const jp = { ...(prev.jahresplanung || {}) };
-                                      jp[item.kwNum] = val;
-                                      return { ...prev, jahresplanung: jp };
-                                    });
-                                  }}
-                                  placeholder="z.B. Kennenlernen, Geometrie..."
-                                  className="w-full text-xs font-bold text-slate-700 px-2 py-1.5 bg-white border border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-300"
-                                />
-                              </div>
+                              <h3 className="font-extrabold text-sm text-slate-900 tracking-tight leading-snug">
+                                {lesson.thema || <span className="text-slate-400 italic">Noch kein Thema eingetragen</span>}
+                              </h3>
 
-                              {/* Progress bar and Plan CTA */}
-                              <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-[10px]">
-                                <div className="flex items-center gap-1 text-slate-500">
-                                  <span>📅</span>
-                                  <span>
-                                    {stats.count === 0 ? (
-                                      <span className="text-slate-400 italic">Keine Stunden</span>
-                                    ) : (
-                                      <strong>{stats.count} Std. geplant ({stats.completed} erledigt)</strong>
-                                    )}
-                                  </span>
+                              {(lesson.art || lesson.sozialform || lesson.material || lesson.housework) && (
+                                <div className="text-[11px] text-slate-600 space-y-0.5 border-t border-black/5 pt-1.5 mt-1">
+                                  {lesson.art && (
+                                    <p>Setting: <strong>{lesson.art}</strong> ({lesson.sozialform || 'Einzelarbeit'})</p>
+                                  )}
+                                  {lesson.material && (
+                                    <p className="truncate">Material: <strong>{lesson.material}</strong></p>
+                                  )}
+                                  {lesson.housework && (
+                                    <p className="text-amber-900 font-bold">🏠 HÜ: {lesson.housework}</p>
+                                  )}
                                 </div>
-
-                                <button
-                                  onClick={() => {
-                                    setApp(p => ({ ...p, currentKW: item.kwNum }));
-                                    setPlanningFocus('week');
-                                    setActiveTab('wochenplan');
-                                  }}
-                                  className="px-2.5 py-1 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 text-indigo-700 font-black rounded-lg transition text-[10px]"
-                                >
-                                  Wochenplan
-                                </button>
-                              </div>
+                              )}
                             </div>
-                          );
-                        })}
+
+                            {/* Quick Complete Toggle Button */}
+                            <button
+                              onClick={(e) => toggleCompleteSlot(todayDayIdx, hourIdx, e)}
+                              className={`p-2 rounded-xl border transition cursor-pointer shrink-0 ${
+                                lesson.erledigt 
+                                  ? 'bg-emerald-600 text-white border-emerald-600' 
+                                  : 'bg-white text-slate-400 border-slate-200 hover:text-emerald-600 hover:border-emerald-300'
+                              }`}
+                              title={lesson.erledigt ? "Als unvollständig markieren" : "Als vorbereitet/erledigt markieren"}
+                            >
+                              <CheckCircle2 size={18} />
+                            </button>
+                          </div>
+                        );
+                      } else {
+                        // Empty Slot
+                        return (
+                          <div
+                            key={hourIdx}
+                            onClick={() => openSlotForQuickPlan(todayDayIdx, hourIdx)}
+                            className="p-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 hover:bg-indigo-50/40 hover:border-indigo-300 text-slate-400 hover:text-indigo-700 transition cursor-pointer flex items-center justify-between text-xs"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-200 text-slate-600 rounded-md">
+                                {hourIdx + 1}. Std.
+                              </span>
+                              <span>Freies Zeitfenster {defaultFach ? `(Soll-Fach: ${defaultFach})` : ''}</span>
+                            </div>
+                            <span className="font-bold flex items-center gap-1 text-[11px]">
+                              <Plus size={12} /> Planen
+                            </span>
+                          </div>
+                        );
+                      }
+                    })}
+                  </div>
+
+                  {/* Daily Notes / Reflexion Field */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider block mb-1">
+                      Tagesnotiz & Reflexion ({DAYS_DE[todayDayIdx]})
+                    </label>
+                    <textarea
+                      value={app.wochenplanung?.[nextKW]?.reflexion?.[todayDayIdx] || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setApp(prev => {
+                          const wp = { ...(prev.wochenplanung || {}) };
+                          const weekPlan = { ...(wp[nextKW] || {}) };
+                          const reflexions = { ...(weekPlan.reflexion || {}) };
+                          reflexions[todayDayIdx] = val;
+                          weekPlan.reflexion = reflexions;
+                          wp[nextKW] = weekPlan;
+                          return { ...prev, wochenplanung: wp };
+                        });
+                      }}
+                      placeholder="Notizen zum heutigen Schultag, Beobachtungen, Ausfälle..."
+                      className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 h-16 font-medium"
+                    />
+                  </div>
+
+                </section>
+
+                {/* NOCH OFFEN & UNVORBEREITET WIDGET (4 COLS) */}
+                <section className="lg:col-span-4 bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+                          <AlertTriangle size={16} />
+                        </span>
+                        <div>
+                          <h3 className="text-sm font-black text-slate-900">Offene Vorbereitungen</h3>
+                          <p className="text-[11px] text-slate-500 font-medium">In dieser Schulwoche</p>
+                        </div>
                       </div>
+                      <span className="text-xs font-black px-2 py-0.5 bg-amber-100 text-amber-900 rounded-full">
+                        {openLessonsList.length}
+                      </span>
                     </div>
-                  );
-                })}
+
+                    {openLessonsList.length > 0 ? (
+                      <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                        {openLessonsList.slice(0, 6).map((item, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => openSlotForQuickPlan(item.dayIdx, item.hourIdx)}
+                            className="p-3 bg-amber-50/50 hover:bg-amber-100/60 border border-amber-200/80 rounded-2xl transition cursor-pointer space-y-1 text-xs"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-extrabold text-amber-900">
+                                {item.dayName}, {item.hourIdx + 1}. Stunde
+                              </span>
+                              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 bg-amber-200 text-amber-950 rounded">
+                                {item.fach}
+                              </span>
+                            </div>
+                            <p className="text-slate-600 font-medium">{item.thema}</p>
+                            <div className="text-[10px] font-black text-indigo-700 flex items-center justify-end gap-1 pt-1">
+                              <span>Jetzt vorbereiten →</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-6 text-center bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 space-y-1">
+                        <CheckCircle2 size={24} className="mx-auto text-emerald-600" />
+                        <h4 className="font-black text-xs">Alles perfekt vorbereitet!</h4>
+                        <p className="text-[11px] text-emerald-700 font-medium">Alle Einheiten dieser Woche sind aktuell ausgefüllt.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Carrying forward unfinished from previous week */}
+                  <div className="pt-3 border-t border-slate-100">
+                    <button
+                      onClick={handleCarryOverUnfinished}
+                      className="w-full py-2.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <RotateCcw size={14} /> Offenes aus Vorwoche herüberziehen
+                    </button>
+                  </div>
+                </section>
+
               </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto">
-              
-              {/* LEFT COLUMN: Planungs-Kontext (Steps 1, 2, 3) - 5 Cols */}
-              <div className="lg:col-span-5 space-y-5 flex flex-col h-full">
-                
-                {/* Tab Navigation for Context Panel */}
-                <div className="grid grid-cols-2 bg-white p-1.5 rounded-2xl border border-slate-200 gap-1.5 shrink-0 shadow-sm">
-                  <button 
-                    onClick={() => setActiveTab('jahresplan')} 
-                    className={`flex-1 py-2 px-1.5 rounded-xl text-[10px] sm:text-xs font-black flex items-center justify-center gap-1 transition-all whitespace-nowrap ${activeTab === 'jahresplan' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100'}`}
-                  >
-                    <Target size={12} /> 1. Jahresplan
-                  </button>
 
-                  <button 
-                    onClick={() => setActiveTab('wochenplan')} 
-                    className={`flex-1 py-2 px-1.5 rounded-xl text-[10px] sm:text-xs font-black flex items-center justify-center gap-1 transition-all whitespace-nowrap ${activeTab === 'wochenplan' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100'}`}
-                  >
-                    <CalendarRange size={12} /> {planningFocus === 'day' ? '2. Tagesplan' : '2. Wochenplan'}
-                  </button>
-                  
-                  <button 
-                    onClick={() => setActiveTab('verlauf')} 
-                    className={`flex-1 py-2 px-1.5 rounded-xl text-[10px] sm:text-xs font-black flex items-center justify-center gap-1 transition-all whitespace-nowrap ${activeTab === 'verlauf' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100'}`}
-                  >
-                    <History size={12} /> 3. Verlauf
-                  </button>
+              {/* SECOND ROW: MORGEN & DIESE WOCHE ÜBERSICHT */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
 
-                  <button 
-                    onClick={() => setActiveTab('wochenplan-einblick')} 
-                    className={`flex-1 py-2 px-1.5 rounded-xl text-[10px] sm:text-xs font-black flex items-center justify-center gap-1 transition-all whitespace-nowrap ${activeTab === 'wochenplan-einblick' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-100'}`}
+                {/* MORGEN SUMMARY CARD (4 COLS) */}
+                <div className="md:col-span-4 bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3 flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-500">
+                        2. Morgen ({DAYS_DE[tomorrowDayIdx]})
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 rounded-md text-slate-600">
+                        Vorschau
+                      </span>
+                    </div>
+
+                    <h3 className="text-sm font-black text-slate-900">
+                      Morgen stehen 6 Stunden an
+                    </h3>
+
+                    <p className="text-xs text-slate-500 font-medium">
+                      Klicke unten, um den morgigen Tag im Detail anzusehen oder vorzubereiten.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setSelectedDayIdx(tomorrowDayIdx);
+                      openSlotForQuickPlan(tomorrowDayIdx, 0);
+                    }}
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
                   >
-                    <Sparkles size={12} className="text-amber-500 fill-amber-500 animate-pulse" /> 4. KI-Einblick
+                    <Calendar size={14} /> Morgen öffnen & planen
                   </button>
                 </div>
 
-                {/* Tab Content Canvas with Fade Animation */}
-                <div className="flex-1 min-h-[500px]">
-                  <AnimatePresence mode="wait">
-                    
-                    {/* TAB 1: TAGESPLAN / WOCHENPLAN (STEP 2) */}
-                    {activeTab === 'wochenplan' && (
-                      <motion.div 
-                        key="wochenplan" 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0 }}
-                        className="space-y-4 h-full flex flex-col justify-between"
-                      >
-                        {planningFocus === 'day' ? (
-                          /* TAGESANSICHT TIMELINE */
-                          <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4 font-sans">
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                              <div>
-                                <h3 className="font-extrabold text-slate-800 tracking-tight text-sm">Tagesablauf (KW {nextKW})</h3>
-                                <p className="text-xs text-slate-400 mt-0.5">Wähle eine Stunde zum Planen und passe den Tag flexibel an</p>
-                              </div>
-                            </div>
+                {/* DIESE WOCHE 5-TAGE ÜBERSICHT (8 COLS) */}
+                <div className="md:col-span-8 bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900">3. Was ist diese Woche geplant? (KW {nextKW})</h3>
+                      <p className="text-xs text-slate-500 font-medium">Übersicht der 5 Schultage</p>
+                    </div>
 
-                            {/* Beautiful Horizontal Day Selectors */}
-                            <div className="grid grid-cols-5 gap-1.5">
-                              {DAYS_DE.map((dayName, dIdx) => {
-                                const isSelected = selectedDayIdx === dIdx;
-                                const wp = app.wochenplanung?.[nextKW] || {};
-                                const useIdx = wp[dIdx] !== undefined;
-                                const dayKey = useIdx ? dIdx : dayName;
-                                const dayPlan = wp[dayKey] || {};
-                                const countPlanned = Object.values(dayPlan).filter((l: any) => l?.fach).length;
-                                
-                                // Calculate date for this day
-                                const dayDate = new Date(monday);
-                                dayDate.setDate(monday.getDate() + dIdx);
-                                const dayFmt = dayDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+                    <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
+                      {weekStats.completed} / {weekStats.total} Std. erledigt
+                    </span>
+                  </div>
 
-                                return (
-                                  <button
-                                    key={dayName}
-                                    onClick={() => {
-                                      setSelectedDayIdx(dIdx);
-                                      handleSelectSlot(dIdx, 0); // select first period of that day
-                                    }}
-                                    className={`py-2 px-1 rounded-xl text-center flex flex-col justify-center items-center transition cursor-pointer border ${isSelected ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm shadow-indigo-100' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'}`}
-                                  >
-                                    <span className="text-[10px] font-black uppercase tracking-tight">{dayName.substring(0, 2)}</span>
-                                    <span className={`text-[9px] font-medium mt-0.5 ${isSelected ? 'text-indigo-200' : 'text-slate-400'}`}>{dayFmt}</span>
-                                    {countPlanned > 0 && (
-                                      <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-full mt-1 ${isSelected ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-600'}`}>
-                                        {countPlanned}
-                                      </span>
-                                    )}
-                                  </button>
-                                );
-                              })}
-                            </div>
+                  {/* 5 Day Cards */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
+                    {DAYS_DE.map((dName, dIdx) => {
+                      const wp = app.wochenplanung?.[nextKW] || {};
+                      const useIdx = wp[dIdx] !== undefined;
+                      const dayKey = useIdx ? dIdx : dName;
+                      const dayPlan = wp[dayKey] || {};
+                      const plannedCount = Object.values(dayPlan).filter((l: any) => l?.fach).length;
+                      const isToday = dIdx === todayDayIdx;
 
-                            {/* Vertical Detailed Timeline of the Selected Day */}
-                            <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
-                              {[0, 1, 2, 3, 4, 5].map(hourIdx => {
-                                const dayName = DAYS_DE[selectedDayIdx];
-                                const wp = app.wochenplanung?.[nextKW] || {};
-                                const useIdx = wp[selectedDayIdx] !== undefined;
-                                const dayKey = useIdx ? selectedDayIdx : dayName;
-                                const dayPlan = wp[dayKey] || {};
-                                const lesson = dayPlan[hourIdx];
-                                
-                                const defaultFach = app.stammplan?.[dayName]?.[hourIdx + 1] || '';
-                                const isCurrentSelected = selectedHour === hourIdx;
-
-                                if (lesson && lesson.fach) {
-                                  const style = getLessonStyle(lesson.fach);
-                                  return (
-                                    <div
-                                      key={hourIdx}
-                                      onClick={() => handleSelectSlot(selectedDayIdx, hourIdx)}
-                                      className={`p-3.5 rounded-2xl border transition text-left cursor-pointer flex flex-col gap-2 relative ${style.bg} ${isCurrentSelected ? 'ring-2 ring-indigo-600 border-indigo-300 shadow-md' : 'hover:scale-[1.01]'}`}
-                                    >
-                                      {/* Hour and checkmark */}
-                                      <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-black/5 rounded-lg text-slate-700">
-                                            {hourIdx + 1}. Std.
-                                          </span>
-                                          <span className="text-[10px] font-black uppercase tracking-wider">
-                                            {lesson.fach}
-                                          </span>
-                                        </div>
-                                        
-                                        <div className="flex items-center gap-1.5">
-                                          <div 
-                                            onClick={(e) => toggleCompleteSlot(selectedDayIdx, hourIdx, e)}
-                                            className="p-1 hover:bg-black/5 rounded-lg cursor-pointer animate-none"
-                                            title={lesson.erledigt ? "Als unvollständig markieren" : "Als erledigt markieren"}
-                                          >
-                                            <CheckCircle2 size={14} className={lesson.erledigt ? "text-emerald-600" : "text-slate-300"} />
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {/* Topic */}
-                                      <h4 className="font-extrabold text-xs text-slate-900 tracking-tight leading-snug">
-                                        {lesson.thema || <span className="text-slate-400 italic">Kein Thema eingetragen</span>}
-                                      </h4>
-
-                                      {/* Materials, setting, homework inline */}
-                                      {(lesson.art || lesson.sozialform || lesson.material || lesson.housework) && (
-                                        <div className="text-[9px] space-y-1 text-slate-600 border-t border-black/5 pt-1.5 mt-0.5">
-                                          {lesson.art && (
-                                            <div>
-                                              Setting: <strong className="text-slate-800">{lesson.art}</strong> {lesson.sozialform && `(${lesson.sozialform})`}
-                                            </div>
-                                          )}
-                                          {lesson.material && (
-                                            <div className="flex items-start gap-1">
-                                              <span className="shrink-0">📄</span>
-                                              <span className="truncate" title={lesson.material}>Material: <strong className="text-slate-800">{lesson.material}</strong></span>
-                                            </div>
-                                          )}
-                                          {lesson.housework && (
-                                            <div className="flex items-start gap-1 text-amber-900 bg-amber-500/10 px-1 py-0.5 rounded">
-                                              <span className="shrink-0">🏠</span>
-                                              <span className="truncate" title={lesson.housework}>HÜ: <strong>{lesson.housework}</strong></span>
-                                            </div>
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                } else {
-                                  // Empty Slot Card
-                                  return (
-                                    <div
-                                      key={hourIdx}
-                                      onClick={() => handleSelectSlot(selectedDayIdx, hourIdx)}
-                                      className={`p-3 rounded-2xl border border-dashed text-left cursor-pointer transition flex items-center justify-between bg-white text-slate-400 border-slate-200 hover:border-indigo-400 hover:text-indigo-600 ${isCurrentSelected ? 'ring-2 ring-indigo-600 border-indigo-300 shadow-md bg-indigo-50/10' : ''}`}
-                                    >
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <span className="text-[10px] font-bold text-slate-300 bg-slate-50 border border-slate-150 px-1.5 py-0.5 rounded-lg">
-                                          {hourIdx + 1}. Std.
-                                        </span>
-                                        <div className="min-w-0">
-                                          <p className="text-[10px] font-bold text-slate-500">Freies Zeitfenster</p>
-                                          {defaultFach && (
-                                            <p className="text-[9px] text-slate-400 truncate">Soll-Fach: <strong className="uppercase">{defaultFach}</strong></p>
-                                          )}
-                                        </div>
-                                      </div>
-                                      <Plus size={12} className="text-slate-300 hover:text-indigo-600 shrink-0" />
-                                    </div>
-                                  );
-                                }
-                              })}
-                            </div>
-
-                            {/* Daily notes / Reflection area */}
-                            <div className="pt-2 border-t border-slate-100">
-                              <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block mb-1">
-                                Tagesnotiz & Reflexion ({DAYS_DE[selectedDayIdx]})
-                              </span>
-                              <textarea
-                                value={app.wochenplanung?.[nextKW]?.reflexion?.[selectedDayIdx] || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setApp(prev => {
-                                    const wp = { ...(prev.wochenplanung || {}) };
-                                    const weekPlan = { ...(wp[nextKW] || {}) };
-                                    const reflexions = { ...(weekPlan.reflexion || {}) };
-                                    reflexions[selectedDayIdx] = val;
-                                    weekPlan.reflexion = reflexions;
-                                    wp[nextKW] = weekPlan;
-                                    return { ...prev, wochenplanung: wp };
-                                  });
-                                }}
-                                placeholder="Notizen zum heutigen Schultag, besondere Vorkommnisse, Schülerbeobachtungen..."
-                                className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 h-16 font-medium leading-relaxed"
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          /* CLASSIC WOVENANSICHT GRID */
-                          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                      return (
+                        <button
+                          key={dName}
+                          onClick={() => {
+                            setSelectedDayIdx(dIdx);
+                            openSlotForQuickPlan(dIdx, 0);
+                          }}
+                          className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between h-28 ${
+                            isToday 
+                              ? 'bg-indigo-50/80 border-indigo-300 ring-2 ring-indigo-200' 
+                              : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          <div>
                             <div className="flex items-center justify-between">
-                              <div>
-                                <h3 className="font-extrabold text-slate-800 tracking-tight font-sans text-sm">Wochenstunden-Gitter (KW {nextKW})</h3>
-                                <p className="text-xs text-slate-400 mt-0.5">Wähle eine Stunde zum Planen oder Bearbeiten</p>
-                              </div>
-                              <span className="text-[11px] font-bold px-2 py-0.5 bg-slate-100 rounded-full text-slate-500">Mo - Fr</span>
+                              <span className="text-xs font-black text-slate-900 uppercase tracking-tight">{dName.substring(0, 2)}</span>
+                              {isToday && <span className="text-[8px] font-black px-1.5 py-0.5 bg-indigo-600 text-white rounded">Heute</span>}
                             </div>
+                            <span className="text-[10px] text-slate-400 font-bold block mt-0.5">{dName}</span>
+                          </div>
 
-                            {/* Interactive Weekly Matrix Grid */}
-                            <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
-                              {DAYS_DE.map((dayName, dIdx) => {
-                                const wp = app.wochenplanung?.[nextKW] || {};
-                                const useIdx = wp[dIdx] !== undefined;
-                                const dayKey = useIdx ? dIdx : dayName;
-                                const dayPlan = wp[dayKey] || {};
+                          <div className="border-t border-slate-200/60 pt-1.5">
+                            <span className="text-[11px] font-extrabold text-slate-700 block">
+                              {plannedCount > 0 ? `${plannedCount} Std. geplant` : 'Keine Stunden'}
+                            </span>
+                            <span className="text-[10px] text-indigo-600 font-bold block">Öffnen →</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                                return (
-                                  <div key={dayName} className="p-3 bg-slate-50/50 rounded-2xl border border-slate-150 space-y-2">
-                                    <div className="flex items-center justify-between text-xs font-black text-slate-600 uppercase tracking-wider border-b border-slate-100 pb-1">
-                                      <span>{dayName}</span>
-                                      {/* Completion counter for this day */}
-                                      <span className="text-[10px] text-slate-400 normal-case">
-                                        {Object.values(dayPlan).filter((l: any) => l?.fach).length} geplant
+              </div>
+
+              {/* THIRD ROW: TERMINE, AUSFLÜGE & BESONDERE EREIGNISSE */}
+              <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-purple-50 border border-purple-100 text-purple-700 flex items-center justify-center font-black">
+                      <CalendarDays size={18} />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-black text-slate-900">5. Termine, Ausflüge & besondere Ereignisse</h2>
+                      <p className="text-xs text-slate-500 font-medium">Kalender-Highlights für diese Schulwoche</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setQuickPlanType('event');
+                      setQuickPlanOpen(true);
+                    }}
+                    className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1"
+                  >
+                    <Plus size={14} /> Termin eintragen
+                  </button>
+                </div>
+
+                {/* List of Termine */}
+                {app.termine && app.termine.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {app.termine.map((t: any) => (
+                      <div key={t.id} className="p-3 bg-purple-50/40 border border-purple-100 rounded-2xl flex items-start justify-between gap-2 text-xs">
+                        <div>
+                          <span className="text-[10px] font-black uppercase text-purple-700 px-1.5 py-0.5 bg-purple-100 rounded">
+                            {t.kategorie || 'Termin'}
+                          </span>
+                          <h3 className="font-extrabold text-slate-900 mt-1">{t.titel}</h3>
+                          <p className="text-[10px] font-bold text-slate-500 mt-0.5">{t.datum}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-500 font-medium">
+                    Keine besonderen Termine oder Ausflüge für diese Woche eingetragen.
+                  </div>
+                )}
+              </section>
+
+            </div>
+          ) : (
+            /* ========================================================= */
+            /* EBENE 3 / ERWEITERTER MODUS (FULL GRID, SYLLABUS, ADVANCED) */
+            /* ========================================================= */
+            <div className="space-y-6">
+
+              {/* Sub Navigation Bar for Extended Mode */}
+              <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-xs overflow-x-auto">
+                <button 
+                  onClick={() => { setPlanningFocus('week'); setActiveTab('wochenplan'); }}
+                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${planningFocus === 'week' && activeTab === 'wochenplan' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`}
+                >
+                  <LayoutGrid size={15} /> Wochenplan-Gitter (5x6)
+                </button>
+
+                <button 
+                  onClick={() => setPlanningFocus('year')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${planningFocus === 'year' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`}
+                >
+                  <CalendarRange size={15} /> Jahresplanung & Syllabus
+                </button>
+
+                <button 
+                  onClick={() => setActiveTab('wochenplan-einblick')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${activeTab === 'wochenplan-einblick' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`}
+                >
+                  <Sparkles size={15} className="text-amber-500 fill-amber-500" /> KI-Einblick
+                </button>
+
+                <button 
+                  onClick={() => setActiveTab('verlauf')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${activeTab === 'verlauf' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`}
+                >
+                  <History size={15} /> Historie & Parkgarage ({app.parkgarage?.length || 0})
+                </button>
+              </div>
+
+              {/* EXTENDED VIEW CONTENT */}
+              {planningFocus === 'year' ? (
+                /* JAHRESÜBERSICHT / SYLLABUS GRID */
+                <div className="space-y-6">
+                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-base font-black text-slate-800 tracking-tight">Langfristige Jahresplanung & Syllabus ({app.schuljahr || 'Aktuelles Schuljahr'})</h2>
+                      <p className="text-xs text-slate-400 mt-0.5">Definiere globale Themen und Schwerpunkte für jede Schulwoche</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {weeksByMonth.monthOrder.map(monthName => {
+                      const weeks = weeksByMonth.groups[monthName];
+                      return (
+                        <div key={monthName} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                          <div className="border-b border-slate-100 pb-2 flex items-center justify-between">
+                            <h3 className="font-extrabold text-slate-800 text-xs tracking-tight uppercase">{monthName}</h3>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase">{weeks.length} Wochen</span>
+                          </div>
+
+                          <div className="space-y-3">
+                            {weeks.map(item => {
+                              const theme = getJahresplanTheme(item.kwNum);
+                              const stats = getKwStats(item.kwNum);
+                              const isCurrentWeek = getKW(new Date()) === item.kwNum;
+
+                              return (
+                                <div 
+                                  key={item.kwNum}
+                                  className={`p-3.5 rounded-2xl border transition relative flex flex-col justify-between gap-2.5 ${isCurrentWeek ? 'bg-indigo-50 border-indigo-300 shadow-xs' : 'bg-slate-50/50 border-slate-200 hover:bg-slate-50'}`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${isCurrentWeek ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                                        KW {item.kwNum}
                                       </span>
-                                    </div>
-
-                                    <div className="grid grid-cols-6 gap-1.5">
-                                      {[0, 1, 2, 3, 4, 5].map(hourIdx => {
-                                        const lesson = dayPlan[hourIdx];
-                                        const isTarget = selectedDayIdx === dIdx && selectedHour === hourIdx;
-                                        const defaultFach = app.stammplan?.[dayName]?.[hourIdx + 1] || '';
-                                        
-                                        if (lesson && lesson.fach) {
-                                          const style = getLessonStyle(lesson.fach);
-                                          return (
-                                            <button
-                                              key={hourIdx}
-                                              onClick={() => handleSelectSlot(dIdx, hourIdx)}
-                                              aria-label={`${dayName}, ${hourIdx + 1}. Stunde: ${lesson.fach}, ${lesson.thema || 'kein Thema'}`}
-                                              className={`relative p-2 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between h-20 ${style.bg} ${isTarget ? 'ring-2 ring-indigo-600 scale-[1.02] shadow-md border-indigo-300' : 'hover:scale-[1.01] hover:shadow-sm'}`}
-                                              title={`${lesson.fach}: ${lesson.thema || 'Kein Thema'}`}
-                                            >
-                                              <div className="w-full">
-                                                <div className="flex items-center justify-between">
-                                                  <span className="text-[9px] font-black uppercase tracking-wider truncate max-w-[80%]">
-                                                    {lesson.fach.substring(0, 5)}..
-                                                  </span>
-                                                  <span className="text-[8px] font-extrabold text-slate-400 shrink-0">
-                                                    {hourIdx + 1}.
-                                                  </span>
-                                                </div>
-                                                <p className="text-[10px] font-bold text-slate-800 line-clamp-2 leading-snug mt-0.5">
-                                                  {lesson.thema}
-                                                </p>
-                                              </div>
-
-                                              {/* Tiny bottom badges for didactic art or materials */}
-                                              <div className="flex items-center justify-between w-full mt-1 border-t border-slate-500/10 pt-1">
-                                                <div className="flex items-center gap-0.5">
-                                                  {lesson.art && (
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" title={lesson.art} />
-                                                  )}
-                                                  {lesson.material && (
-                                                    <span className="text-[8px]" title={lesson.material}>📄</span>
-                                                  )}
-                                                </div>
-
-                                                {/* Done click handler */}
-                                                <div 
-                                                  onClick={(e) => toggleCompleteSlot(dIdx, hourIdx, e)}
-                                                  className="p-0.5 hover:bg-black/5 rounded cursor-pointer animate-none"
-                                                  title={lesson.erledigt ? "Als unvollständig markieren" : "Als erledigt markieren"}
-                                                >
-                                                  <CheckCircle2 size={11} className={lesson.erledigt ? "text-emerald-600" : "text-slate-300"} />
-                                                </div>
-                                              </div>
-                                            </button>
-                                          );
-                                        } else {
-                                          // Render Empty Slot
-                                          return (
-                                            <button
-                                              key={hourIdx}
-                                              onClick={() => handleSelectSlot(dIdx, hourIdx)}
-                                              aria-label={`${dayName}, ${hourIdx + 1}. Stunde: leer${defaultFach ? `, vorgesehenes Fach ${defaultFach}` : ''}`}
-                                              className={`p-2 rounded-xl border border-dashed text-left transition cursor-pointer flex flex-col justify-between h-20 bg-white text-slate-400 border-slate-200 hover:border-indigo-400 hover:text-indigo-600 ${isTarget ? 'ring-2 ring-indigo-600 scale-[1.02] shadow-md border-indigo-300' : ''}`}
-                                            >
-                                              <div className="flex justify-between items-start w-full">
-                                                <span className="text-[9px] font-extrabold">Leer</span>
-                                                <span className="text-[8px] font-black text-slate-300">{hourIdx + 1}.</span>
-                                              </div>
-                                              {defaultFach ? (
-                                                <span className="text-[8px] font-black text-slate-400 truncate uppercase tracking-tight">
-                                                  ({defaultFach.substring(0, 5)})
-                                                </span>
-                                              ) : (
-                                                <Plus size={10} className="mx-auto" />
-                                              )}
-                                            </button>
-                                          );
-                                        }
-                                      })}
+                                      <span className="text-[10px] font-black text-slate-400">SW {item.swNum}</span>
                                     </div>
                                   </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
 
-                      {/* Wochen-Vorlagenverwaltung (Save/Load templates) */}
-                      <div className="bg-white p-4 rounded-3xl border border-slate-200 space-y-3 shrink-0">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Wochen-Planungsvorlagen</span>
-                        
-                        <div className="flex gap-2">
-                          <input 
-                            type="text"
-                            value={templateName}
-                            onChange={(e) => setTemplateName(e.target.value)}
-                            placeholder="Name für diese Woche als Vorlage..."
-                            className="flex-1 text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                          />
-                          <button
-                            onClick={handleSaveAsTemplate}
-                            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer"
-                          >
-                            Als Vorlage sichern
-                          </button>
-                        </div>
+                                  <input
+                                    type="text"
+                                    value={theme}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setApp(prev => {
+                                        const jp = { ...(prev.jahresplanung || {}) };
+                                        jp[item.kwNum] = val;
+                                        return { ...prev, jahresplanung: jp };
+                                      });
+                                    }}
+                                    placeholder="Wochenthema / Schwerpunkt eintragen..."
+                                    className="w-full text-xs font-bold text-slate-700 px-2 py-1.5 bg-white border border-slate-200 rounded-xl focus:border-indigo-400 focus:outline-none"
+                                  />
 
-                        {app.savedWeekTemplates && Object.keys(app.savedWeekTemplates).length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pt-1">
-                            {Object.keys(app.savedWeekTemplates).map(tName => (
-                              <div key={tName} className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-700">
-                                <span className="truncate max-w-[120px]">{tName}</span>
-                                <button onClick={() => handleLoadTemplate(tName)} className="text-emerald-600 hover:underline px-0.5 ml-1">Laden</button>
-                                <button onClick={() => handleDeleteTemplate(tName)} className="text-rose-500 hover:text-rose-700 font-bold ml-1">×</button>
-                              </div>
-                            ))}
-                          </div>
-                        ) : null}
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* TAB 2: JAHRESPLAN (STEP 1) */}
-                  {activeTab === 'jahresplan' && (
-                    <motion.div 
-                      key="jahresplan" 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-5"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
-                          <Target size={16} />
-                        </span>
-                        <div>
-                          <h3 className="font-extrabold text-slate-800 tracking-tight font-sans text-sm">Schritt 1: Globaler Jahresplan-Fokus</h3>
-                          <p className="text-xs text-slate-400 mt-0.5">Syllabus-Themenschwerpunkte & Curriculums-Ziele</p>
-                        </div>
-                      </div>
-
-                      {/* Active Week Theme Editor */}
-                      <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
-                            Fokus für die aktuelle Woche (KW {nextKW})
-                          </span>
-                          {!editingJahresplan ? (
-                            <button 
-                              onClick={() => setEditingJahresplan(true)}
-                              className="text-xs text-indigo-600 hover:underline font-bold cursor-pointer"
-                            >
-                              Bearbeiten
-                            </button>
-                          ) : null}
-                        </div>
-
-                        {!editingJahresplan ? (
-                          <div className="bg-white p-3 rounded-xl border border-slate-100 min-h-16 flex items-center">
-                            {getJahresplanTheme(nextKW) ? (
-                              <p className="text-xs font-bold text-slate-700 leading-relaxed italic">
-                                " {getJahresplanTheme(nextKW)} "
-                              </p>
-                            ) : (
-                              <p className="text-xs text-slate-400 italic">Noch kein Themenschwerpunkt für KW {nextKW} im Jahresplan eingetragen.</p>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <textarea
-                              value={jahresplanInput}
-                              onChange={(e) => setJahresplanInput(e.target.value)}
-                              placeholder="Trage das globale Wochenthema ein (z.B. Erntedankfest, Jahreszeiten Herbst, Zehnerübergang)..."
-                              className="w-full text-xs p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 h-20"
-                            />
-                            <div className="flex items-center gap-1.5 justify-end">
-                              <button 
-                                onClick={() => setEditingJahresplan(false)}
-                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl cursor-pointer"
-                              >
-                                Abbrechen
-                              </button>
-                              <button 
-                                onClick={handleSaveJahresplan}
-                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl cursor-pointer"
-                              >
-                                Sichern
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Adjacent Weeks Syllabus Timeline Overview */}
-                      <div className="space-y-3">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                          Jahresplan Chronologie (Übersicht)
-                        </span>
-
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                          {[-2, -1, 0, 1, 2].map(offset => {
-                            const kwNum = nextKW + offset;
-                            if (kwNum < 1 || kwNum > 52) return null;
-                            const isCurrent = offset === 0;
-                            const themeText = getJahresplanTheme(kwNum);
-
-                            return (
-                              <div 
-                                key={offset} 
-                                className={`p-3 rounded-xl border text-xs flex items-start gap-3 transition ${isCurrent ? 'bg-indigo-50/40 border-indigo-200 ring-1 ring-indigo-200' : 'bg-slate-50 border-slate-150'}`}
-                              >
-                                <span className={`text-[10px] font-black px-2 py-1 rounded-lg shrink-0 ${isCurrent ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'}`}>
-                                  KW {kwNum}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                  {themeText ? (
-                                    <p className="font-bold text-slate-700 leading-snug truncate">{themeText}</p>
-                                  ) : (
-                                    <p className="text-slate-400 italic">Noch unbepflanzt</p>
-                                  )}
-                                  <span className="text-[9px] font-bold text-slate-400 block mt-0.5">
-                                    {isCurrent ? 'Aktuelle Woche' : offset < 0 ? 'Vorherige Woche' : 'Zukünftige Woche'}
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {/* TAB 3: VERLAUF / LETZTE PLANUNGEN (STEP 3) */}
-                  {activeTab === 'verlauf' && (
-                    <motion.div 
-                      key="verlauf" 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="space-y-4"
-                    >
-                      <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
-                            <History size={16} />
-                          </span>
-                          <div>
-                            <h3 className="font-extrabold text-slate-800 tracking-tight font-sans text-sm">Schritt 3: Letzte Planungen & Historie</h3>
-                            <p className="text-xs text-slate-400 mt-0.5">Nutze Unterrichts-Continuity für reibungslose Übergänge</p>
-                          </div>
-                        </div>
-
-                        {/* Carrying unfinished forward */}
-                        <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-100/50 flex items-center justify-between gap-3">
-                          <div className="text-xs leading-relaxed text-indigo-900 font-medium">
-                            <p className="font-bold">Pedagogische Kontinuität</p>
-                            <p className="text-indigo-700/80 text-[11px] mt-0.5">Führe unvollendete Themen der Vorwoche automatisch fort.</p>
-                          </div>
-                          <button
-                            onClick={handleCarryOverUnfinished}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer whitespace-nowrap shrink-0 transition"
-                          >
-                            Fortführen
-                          </button>
-                        </div>
-
-                        {/* Recent Lessons Stream */}
-                        <div className="space-y-2">
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                            Zuletzt geplant (KW {nextKW - 1})
-                          </span>
-
-                          {recentLessonsHistory.length > 0 ? (
-                            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                              {recentLessonsHistory.map((lh, lidx) => {
-                                const style = getLessonStyle(lh.fach);
-                                return (
-                                  <div 
-                                    key={lidx} 
-                                    className="p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3 text-xs"
-                                  >
-                                    <div className="min-w-0 flex-1 space-y-1">
-                                      <div className="flex items-center gap-1.5">
-                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${style.bg}`}>
-                                          {lh.fach}
-                                        </span>
-                                        <span className="text-[10px] font-bold text-slate-400">
-                                          {lh.day}, {lh.hour}. Stunde
-                                        </span>
-                                      </div>
-                                      <p className="font-bold text-slate-700 leading-snug truncate">
-                                        {lh.thema}
-                                      </p>
-                                    </div>
-
-                                    {/* Action button to continue the same topic */}
+                                  <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-[10px]">
+                                    <span className="text-slate-500 font-bold">{stats.count} Std. geplant</span>
                                     <button
                                       onClick={() => {
-                                        setActiveSubject(lh.fach);
-                                        setLessonTopic(`Fortsetzung: ${lh.thema}`);
-                                        setLessonHomework(lh.housework || '');
-                                        setDidacticType(lh.art || 'Einführung');
-                                        setSuccessMessage(`Thema von ${lh.day} (${lh.fach}) geladen!`);
-                                        setTimeout(() => setSuccessMessage(''), 2000);
+                                        setApp(p => ({ ...p, currentKW: item.kwNum }));
+                                        setPlanningFocus('week');
+                                        setActiveTab('wochenplan');
                                       }}
-                                      className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-indigo-700 font-black rounded-xl transition cursor-pointer text-[10px]"
-                                      title="Thema in aktuellen Plan übernehmen"
+                                      className="px-2.5 py-1 bg-white hover:bg-indigo-50 border border-slate-200 text-indigo-700 font-black rounded-lg transition text-[10px]"
                                     >
-                                      <Copy size={10} /> Übernehmen
+                                      Anzeigen
                                     </button>
                                   </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-slate-400 italic text-center py-4 bg-slate-50 rounded-2xl border border-slate-150">
-                              Keine Stunden in der Vorwoche (KW {nextKW - 1}) gefunden.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Parkgarage list inside Verlauf */}
-                      <div className="bg-slate-900 text-slate-100 p-5 rounded-3xl shadow-sm border border-slate-800 space-y-3 shrink-0">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1.5 rounded-lg bg-slate-800 text-amber-400">
-                            <Coffee size={14} />
-                          </span>
-                          <h4 className="font-extrabold text-sm tracking-tight text-white font-sans">Unterrichts-Parkgarage</h4>
-                        </div>
-                        <p className="text-[11px] text-slate-400 leading-normal">
-                          Lagere stornierte, verschobene oder gestrichene Stunden hier, um sie bei Gelegenheit wieder aufzugreifen.
-                        </p>
-
-                        {app.parkgarage && app.parkgarage.length > 0 ? (
-                          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                            {app.parkgarage.map((item: any) => {
-                              const style = getLessonStyle(item.fach);
-                              return (
-                                <div key={item.id} className="p-3 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-between gap-3 text-xs">
-                                  <div className="min-w-0 flex-1">
-                                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${style.bg}`}>
-                                      {item.fach}
-                                    </span>
-                                    <p className="font-bold text-slate-200 truncate mt-1">{item.thema || 'Kein Thema'}</p>
-                                  </div>
-                                  <button
-                                    onClick={() => handleRestoreParked(item)}
-                                    className="px-2 py-1 bg-slate-800 hover:bg-amber-500 hover:text-slate-900 text-slate-300 rounded-xl font-bold text-[10px] cursor-pointer"
-                                  >
-                                    Reaktivieren
-                                  </button>
                                 </div>
                               );
                             })}
                           </div>
-                        ) : (
-                          <p className="text-xs text-slate-500 italic text-center py-2">Die Parkgarage ist leer.</p>
-                        )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : activeTab === 'wochenplan-einblick' ? (
+                /* KI WOCHEN-EINBLICK */
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-5">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+                        <Sparkles size={20} className="fill-amber-500" />
+                      </span>
+                      <div>
+                        <h3 className="font-extrabold text-slate-800 text-sm">Wochenplan-Einblick</h3>
+                        <p className="text-xs text-slate-400 font-bold">Lehrplan- & Kompetenz-Analyse für KW {nextKW}</p>
                       </div>
-                    </motion.div>
-                  )}
+                    </div>
 
-                  {activeTab === 'wochenplan-einblick' && (
-                    <motion.div 
-                      key="wochenplan-einblick"
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -15 }}
-                      className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col gap-5 h-full min-h-[500px]"
+                    <button
+                      onClick={handleGenerateWeeklyInsight}
+                      disabled={isAnalyzingWeek}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition cursor-pointer"
                     >
-                      <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-4">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1.5 rounded-lg bg-amber-50 text-amber-600 border border-amber-100">
-                            <Sparkles size={18} className="fill-amber-500 animate-pulse" />
-                          </span>
-                          <div>
-                            <h3 className="font-extrabold text-slate-800 tracking-tight font-sans text-sm">Wochenplan-Einblick</h3>
-                            <p className="text-xs text-slate-400 mt-0.5 font-bold">Lehrplan- & Kompetenzschwerpunkt-Analyse</p>
-                          </div>
-                        </div>
-                        
-                        {app.scheduleAnalysis?.[nextKW] && (
-                          <button
-                            onClick={handleGenerateWeeklyInsight}
-                            disabled={isAnalyzingWeek}
-                            className="text-[11px] font-black text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-100/50 px-2.5 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 disabled:opacity-50"
-                          >
-                            <RotateCcw size={12} className={isAnalyzingWeek ? 'animate-spin' : ''} />
-                            Neu laden
-                          </button>
-                        )}
-                      </div>
+                      {isAnalyzingWeek ? 'Analysiere...' : 'Einblick neu generieren'}
+                    </button>
+                  </div>
 
-                      {isAnalyzingWeek ? (
-                        <div className="flex-1 flex flex-col items-center justify-center py-12 px-4 text-center space-y-4">
-                          <div className="w-12 h-12 rounded-full border-4 border-indigo-100 border-t-indigo-600 animate-spin flex items-center justify-center">
-                            <BrainCircuit size={20} className="text-indigo-600" />
-                          </div>
-                          <div>
-                            <h4 className="font-extrabold text-slate-800 text-sm">Unterrichtskompetenzen werden analysiert...</h4>
-                            <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto font-medium">
-                              Die KI prüft deine geplante Woche anhand des österreichischen Lehrplans, verknüpft Lernbereiche und formuliert didaktische Empfehlungen.
-                            </p>
-                          </div>
-                        </div>
-                      ) : app.scheduleAnalysis?.[nextKW] ? (
-                        <div className="flex-1 overflow-y-auto pr-1 space-y-4 max-h-[550px]">
-                          <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100/50 flex gap-3 text-xs text-emerald-800">
-                            <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-                            <div>
-                              <p className="font-extrabold">Erfolgreich generiert</p>
-                              <p className="text-emerald-700/80 text-[11px] mt-0.5 font-medium">
-                                Dieser Einblick basiert auf deinen geplanten Stunden und dem globalen Thema der Kalenderwoche {nextKW}.
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="markdown-body text-xs text-slate-650 leading-relaxed space-y-3 prose prose-slate max-w-none">
-                            <Markdown>{app.scheduleAnalysis[nextKW]}</Markdown>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center py-12 px-4 text-center space-y-5">
-                          <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shadow-sm shrink-0">
-                            <Sparkles size={30} className="fill-amber-100 animate-pulse text-amber-500" />
-                          </div>
-                          
-                          <div className="space-y-2 max-w-sm">
-                            <h4 className="font-extrabold text-slate-800 text-sm">Kompetenz-Einblick generieren</h4>
-                            <p className="text-xs text-slate-400 leading-normal font-medium">
-                              Lass deinen Wochenplan für KW {nextKW} KI-gestützt analysieren. Du hast aktuell <span className="font-bold text-slate-600">{countPlannedLessonsThisWeek} Stunden</span> geplant.
-                            </p>
-                          </div>
-
-                          <button
-                            onClick={handleGenerateWeeklyInsight}
-                            className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black shadow-md shadow-indigo-100 hover:shadow-indigo-200 transition cursor-pointer flex items-center gap-2"
-                          >
-                            <BrainCircuit size={14} />
-                            KI-Einblick für diese Woche erstellen
-                          </button>
-                        </div>
-                      )}
-                    </motion.div>
+                  {app.scheduleAnalysis?.[nextKW] ? (
+                    <div className="prose prose-slate max-w-none text-xs leading-relaxed space-y-3">
+                      <Markdown>{app.scheduleAnalysis[nextKW]}</Markdown>
+                    </div>
+                  ) : (
+                    <div className="py-12 text-center space-y-3">
+                      <Sparkles size={32} className="mx-auto text-amber-500 fill-amber-100" />
+                      <h4 className="font-black text-sm text-slate-800">Noch kein KI-Einblick für diese Woche generiert.</h4>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                        Klicke oben auf "Einblick neu generieren", um deinen Wochenplan didaktisch analysieren zu lassen.
+                      </p>
+                    </div>
                   )}
-                </AnimatePresence>
-              </div>
-
-            </div>
-
-            {/* RIGHT COLUMN: Die Planungs-Kommandozentrale (Steps 4, 5) - 7 Cols */}
-            <div className="lg:col-span-7 space-y-6 h-full">
-              {!hasSelectedSlot ? (
-                <div className="flex min-h-[32rem] flex-col items-center justify-center rounded-3xl border border-dashed border-indigo-200 bg-gradient-to-b from-white to-indigo-50/60 px-8 py-12 text-center shadow-sm">
-                  <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-indigo-100 text-indigo-700">
-                    <CalendarRange size={30} />
-                  </div>
-                  <h3 className="text-lg font-black text-slate-900">Wähle zuerst eine Unterrichtsstunde</h3>
-                  <p className="mt-2 max-w-md text-sm font-medium leading-relaxed text-slate-500">
-                    Klicke links im Wochenraster auf eine Stunde. Danach kannst du Fach, Thema, Sozialform und Materialien gezielt für diesen Termin planen.
-                  </p>
-                  <div className="mt-6 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-500 shadow-sm">
-                    <ArrowRight size={15} className="rotate-180 text-indigo-500" />
-                    Eine leere oder bereits geplante Stunde auswählen
-                  </div>
                 </div>
               ) : (
-              <>
-
-              {/* STEP 4: DIDAKTISCHE VORBEREITUNG */}
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-5">
-                <div className="flex items-center gap-2">
-                  <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
-                    <Sliders size={18} />
-                  </span>
-                  <div>
-                    <h3 className="font-extrabold text-slate-800 tracking-tight font-sans text-sm">Schritt 4: Didaktische Vorbereitung</h3>
-                    <p className="text-xs text-slate-400 mt-0.5">Wähle Unterrichtsmethodik, Sozialform & benötigte Materialien</p>
+                /* CLASSIC 5x6 TIMETABLE MATRIX GRID */
+                <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h3 className="font-extrabold text-slate-800 text-sm">Wochenstunden-Gitter (KW {nextKW})</h3>
+                    <span className="text-xs text-slate-400 font-bold">Klicke eine Stunde zum Bearbeiten</span>
                   </div>
-                </div>
 
-                {/* Didactic Setting Cards */}
-                <div className="space-y-2.5">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Art des Unterrichts (Setting)</span>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {[
-                      { 
-                        type: 'Einführung', 
-                        icon: '🌟', 
-                        desc: 'Neuen Stoff präsentieren, erklären & demonstrieren', 
-                        activeStyle: 'bg-blue-50 border-blue-400 ring-2 ring-blue-100 text-blue-900' 
-                      },
-                      { 
-                        type: 'Einzelarbeit mit Kind', 
-                        icon: '🧒', 
-                        desc: 'Gezieltes One-on-One Coaching & individuelle Hilfe', 
-                        activeStyle: 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-100 text-emerald-900' 
-                      },
-                      { 
-                        type: 'Frontalunterricht', 
-                        icon: '👥', 
-                        desc: 'Lehrperson führt durch das Thema, Plenum, Tafelarbeit', 
-                        activeStyle: 'bg-purple-50 border-purple-400 ring-2 ring-purple-100 text-purple-900' 
-                      },
-                      { 
-                        type: 'Projektunterricht / Freiarbeit', 
-                        icon: '🛠️', 
-                        desc: 'Kooperatives Lernen, Stationenbetrieb, freie Forscherarbeit', 
-                        activeStyle: 'bg-amber-50 border-amber-400 ring-2 ring-amber-100 text-amber-900' 
-                      }
-                    ].map(card => {
-                      const isActive = didacticType === card.type;
+                  <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+                    {DAYS_DE.map((dayName, dIdx) => {
+                      const wp = app.wochenplanung?.[nextKW] || {};
+                      const useIdx = wp[dIdx] !== undefined;
+                      const dayKey = useIdx ? dIdx : dayName;
+                      const dayPlan = wp[dayKey] || {};
+
                       return (
-                        <button
-                          key={card.type}
-                          onClick={() => setDidacticType(card.type as any)}
-                          className={`p-3 rounded-xl border text-left transition duration-200 cursor-pointer flex items-start gap-3 min-h-20 ${isActive ? card.activeStyle : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-white'}`}
-                        >
-                          <span className="text-2xl mt-0.5 shrink-0">{card.icon}</span>
-                          <div className="min-w-0">
-                            <p className="font-black text-slate-800 text-xs">{card.type}</p>
-                            <p className="text-[10px] text-slate-500 leading-snug line-clamp-2 mt-0.5">{card.desc}</p>
+                        <div key={dayName} className="p-3 bg-slate-50/50 rounded-2xl border border-slate-200 space-y-2">
+                          <div className="flex items-center justify-between text-xs font-black text-slate-700 uppercase">
+                            <span>{dayName}</span>
                           </div>
-                        </button>
+
+                          <div className="grid grid-cols-6 gap-2">
+                            {[0, 1, 2, 3, 4, 5].map(hourIdx => {
+                              const lesson = dayPlan[hourIdx];
+                              const defaultFach = app.stammplan?.[dayName]?.[hourIdx + 1] || '';
+
+                              if (lesson && lesson.fach) {
+                                const style = getLessonStyle(lesson.fach);
+                                return (
+                                  <button
+                                    key={hourIdx}
+                                    onClick={() => openSlotForQuickPlan(dIdx, hourIdx)}
+                                    className={`p-2 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between h-20 ${style.bg} ${style.border}`}
+                                  >
+                                    <div>
+                                      <span className="text-[9px] font-black uppercase">{lesson.fach}</span>
+                                      <p className="text-[10px] font-bold text-slate-900 line-clamp-2 leading-tight mt-0.5">
+                                        {lesson.thema}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[8px] text-slate-500 border-t border-black/5 pt-1">
+                                      <span>{hourIdx + 1}. Std.</span>
+                                      {lesson.erledigt ? <CheckCircle2 size={10} className="text-emerald-600" /> : null}
+                                    </div>
+                                  </button>
+                                );
+                              } else {
+                                return (
+                                  <button
+                                    key={hourIdx}
+                                    onClick={() => openSlotForQuickPlan(dIdx, hourIdx)}
+                                    className="p-2 rounded-xl border border-dashed border-slate-200 bg-white hover:border-indigo-300 transition text-left h-20 flex flex-col justify-between text-slate-400"
+                                  >
+                                    <span className="text-[9px] font-bold">{hourIdx + 1}. Std.</span>
+                                    <span className="text-[8px] uppercase">{defaultFach || 'Frei'}</span>
+                                  </button>
+                                );
+                              }
+                            })}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
                 </div>
-
-                {/* Social Forms */}
-                <div className="space-y-2">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Sozialform</span>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      { key: 'Plenum', label: 'Plenum 👥' },
-                      { key: 'Einzelarbeit', label: 'Einzelarbeit 🧒' },
-                      { key: 'Partnerarbeit', label: 'Partnerarbeit 👥' },
-                      { key: 'Gruppenarbeit', label: 'Gruppenarbeit 👥👥' }
-                    ].map(sf => {
-                      const isActive = socialForm === sf.key;
-                      return (
-                        <button
-                          key={sf.key}
-                          onClick={() => setSocialForm(sf.key as any)}
-                          className={`py-1.5 px-1 rounded-xl text-[11px] font-bold text-center border transition cursor-pointer ${isActive ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700'}`}
-                        >
-                          {sf.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Available Materials & Resources Checklist */}
-                <div className="space-y-3">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Benötigte Materialien</span>
-                  
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      'Arbeitsblätter',
-                      'Tablets / PCs',
-                      'Montessori-Material',
-                      'Schulbuch / Arbeitsheft',
-                      'Experimentier-Set',
-                      'Bastel- / Kreativzeug'
-                    ].map(mat => {
-                      const isSelected = selectedMaterials.includes(mat);
-                      return (
-                        <button
-                          key={mat}
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedMaterials(selectedMaterials.filter(m => m !== mat));
-                            } else {
-                              setSelectedMaterials([...selectedMaterials, mat]);
-                            }
-                          }}
-                          className={`px-3 py-1.5 rounded-full text-xs font-bold border flex items-center gap-1.5 transition cursor-pointer ${isSelected ? 'bg-indigo-50 border-indigo-300 text-indigo-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                        >
-                          {isSelected && <Check size={12} className="text-indigo-600" />}
-                          <span>{mat}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Optional Custom Materials Text */}
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400">Zusätzliches, individuelles Material:</label>
-                    <input 
-                      type="text"
-                      value={customMaterialText}
-                      onChange={(e) => setCustomMaterialText(e.target.value)}
-                      placeholder="z.B. Kreide, Tafelbilder, Geodreiecke, Legosteine..."
-                      className="w-full text-xs px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-                  </div>
-                </div>
-
-              </div>
-
-              {/* STEP 5: FINAL PLANNING INTERFACE */}
-              <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-5">
-                
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
-                      <Calendar size={18} />
-                    </span>
-                    <div>
-                      <h3 className="font-extrabold text-slate-800 tracking-tight font-sans text-sm">Schritt 5: Stundenplanung abschließen</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">Befülle die gewählte Stunde mit Inhalten</p>
-                    </div>
-                  </div>
-
-                  {/* Target Slot Indicator */}
-                  <div className="px-3 py-1.5 bg-indigo-50 text-indigo-900 border border-indigo-150 rounded-2xl flex items-center gap-2 shrink-0">
-                    <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" />
-                    <span className="text-xs font-black">
-                      {DAYS_DE[selectedDayIdx]}, {selectedHour + 1}. Stunde
-                    </span>
-                  </div>
-                </div>
-
-                {/* Interactive Subject Pill Selection */}
-                <div className="space-y-2">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Fach auswählen</span>
-                  
-                  <div className="flex flex-wrap gap-1.5">
-                    {availableSubjects.map(subjName => {
-                      const isActive = activeSubject === subjName;
-                      const style = getLessonStyle(subjName);
-                      const activeStyle = getLessonActiveStyle(subjName);
-                      return (
-                        <button
-                          key={subjName}
-                          onClick={() => setActiveSubject(subjName)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition duration-150 cursor-pointer ${
-                            isActive 
-                              ? activeStyle 
-                              : `${style.bg} ${style.border}`
-                          }`}
-                        >
-                          {subjName}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Lesson Topic & AI Suggestion Button */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Unterrichtsthema</label>
-                    
-                    <div className="flex items-center gap-2">
-                      {/* Jahresplan Theme Importer */}
-                      {getJahresplanTheme(nextKW) && (
-                        <button
-                          onClick={() => {
-                            setLessonTopic(prev => {
-                              const jpTheme = getJahresplanTheme(nextKW);
-                              if (!prev.trim()) return jpTheme;
-                              if (prev.includes(jpTheme)) return prev;
-                              return `${jpTheme} — ${prev}`;
-                            });
-                            setSuccessMessage('Thema aus Jahresplan übernommen!');
-                            setTimeout(() => setSuccessMessage(''), 2000);
-                          }}
-                          className="flex items-center gap-1 px-3 py-1 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-800 rounded-xl transition duration-150 cursor-pointer text-xs font-black"
-                          title="Füge das geplante Wochenthema des Jahresplans in diese Stunde ein"
-                        >
-                          <Target size={12} className="text-amber-600" />
-                          <span>Aus Jahresplan laden</span>
-                        </button>
-                      )}
-
-                      {/* Ask Gemini suggestion tool */}
-                      <button
-                        onClick={handleSuggestAiThemes}
-                        disabled={isAiLoading || !activeSubject}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 rounded-xl transition duration-150 cursor-pointer disabled:opacity-50 text-xs font-black"
-                      >
-                        {isAiLoading ? (
-                          <>
-                            <Loader2 size={12} className="animate-spin text-indigo-600" />
-                            <span>KI sucht Ideen...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles size={12} className="text-indigo-500" />
-                            <span>KI Themen-Vorschlag</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Render AI Suggestions Box if present */}
-                  {aiSuggestions.length > 0 ? (
-                    <motion.div 
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-3.5 bg-indigo-900 text-indigo-100 rounded-2xl border border-indigo-800 space-y-2.5 shadow-md"
-                    >
-                      <span className="text-[9px] font-black uppercase tracking-widest block text-indigo-300">💡 KI-Vorschläge für "{activeSubject}":</span>
-                      <div className="space-y-1.5">
-                        {aiSuggestions.map((sug, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => {
-                              setLessonTopic(sug);
-                              setAiSuggestions([]);
-                            }}
-                            className="w-full text-left p-2 bg-slate-950/80 hover:bg-indigo-700 hover:text-white transition rounded-xl text-xs font-bold leading-relaxed border border-indigo-800/60 cursor-pointer"
-                          >
-                            {sug}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="flex justify-end pt-1">
-                        <button onClick={() => setAiSuggestions([])} className="text-[10px] font-bold hover:underline text-indigo-300">Schließen</button>
-                      </div>
-                    </motion.div>
-                  ) : null}
-
-                  <textarea
-                    value={lessonTopic}
-                    onChange={(e) => setLessonTopic(e.target.value)}
-                    placeholder="Woran arbeiten die Kinder? z.B.: Einführung der Multiplikation mit anschaulichem Material, Leseübung zu Kapitel 3, Plakatgestaltung..."
-                    className="w-full text-xs p-3 bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 rounded-2xl h-24 font-medium leading-relaxed shadow-inner"
-                  />
-                </div>
-
-                {/* Homework Input */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Hausübung / Nachbereitung (Optional)</label>
-                  <input 
-                    type="text"
-                    value={lessonHomework}
-                    onChange={(e) => setLessonHomework(e.target.value)}
-                    placeholder="z.B.: Buch Seite 14 Nr. 1-4, Arbeitsblatt fertigstellen, Lese-Protokoll..."
-                    className="w-full text-xs px-3.5 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  />
-                </div>
-
-                {/* Didactic Preview Line */}
-                <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-200 text-[11px] text-slate-500 flex items-center justify-between gap-3">
-                  <span>
-                    Verknüpftes Setting: <strong>{didacticType}</strong> ({socialForm})
-                  </span>
-                  <span className="text-slate-400 font-bold">
-                    {selectedMaterials.length + (customMaterialText ? 1 : 0)} Materialien
-                  </span>
-                </div>
-
-                {/* Execution Save/Clear Actions */}
-                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-2">
-                  <button
-                    onClick={handleSaveLesson}
-                    className="sm:col-span-8 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-sm py-3 px-4 rounded-2xl flex items-center justify-center gap-2 transition shadow-md shadow-indigo-150 active:scale-95 cursor-pointer"
-                  >
-                    <Save size={16} />
-                    Unterrichtsstunde in Wochenplan eintragen
-                  </button>
-
-                  <button
-                    onClick={handleShiftToParkgarage}
-                    disabled={!lessonTopic.trim() && !activeSubject}
-                    className="sm:col-span-2 bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-50 font-bold text-xs py-3 px-2 rounded-2xl flex items-center justify-center transition cursor-pointer"
-                    title="In die Parkgarage schieben für späteren Zugriff"
-                  >
-                    Parken
-                  </button>
-
-                  <button
-                    onClick={handleClearSlot}
-                    className="sm:col-span-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs py-3 px-2 rounded-2xl flex items-center justify-center transition cursor-pointer"
-                    title="Stundeninhalt komplett zurücksetzen"
-                  >
-                    Leeren
-                  </button>
-                </div>
-
-              </div>
-              </>
               )}
 
             </div>
-          </div>
           )}
+
         </main>
 
-        {/* Help & Planning Steps Overlay Modal */}
+        {/* ========================================================= */}
+        {/* EBENE 2: SCHNELL PLANEN MODAL / DRAWER (+ PLANEN)           */}
+        {/* ========================================================= */}
+        <AnimatePresence>
+          {quickPlanOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs"
+              onClick={() => setQuickPlanOpen(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, y: 15, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.95, y: 15, opacity: 0 }}
+                className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 max-w-lg w-full max-h-[90vh] flex flex-col gap-4 overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-black">
+                      <Plus size={18} />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-slate-900 text-sm">2. Schnell Planen</h3>
+                      <p className="text-[11px] text-slate-500 font-medium">Unterrichtsstunde, Termin oder Aufgabe hinzufügen</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setQuickPlanOpen(false)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Type Selection Tabs */}
+                <div className="grid grid-cols-3 bg-slate-100 p-1 rounded-2xl gap-1 text-xs font-extrabold text-center">
+                  <button
+                    onClick={() => setQuickPlanType('lesson')}
+                    className={`py-2 rounded-xl transition cursor-pointer ${quickPlanType === 'lesson' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600'}`}
+                  >
+                    Unterrichtsstunde
+                  </button>
+                  <button
+                    onClick={() => setQuickPlanType('event')}
+                    className={`py-2 rounded-xl transition cursor-pointer ${quickPlanType === 'event' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600'}`}
+                  >
+                    Termin / Ausflug
+                  </button>
+                </div>
+
+                {/* FORM TYPE 1: UNTERRICHTSSTUNDE */}
+                {quickPlanType === 'lesson' && (
+                  <div className="space-y-4">
+                    
+                    {/* Day & Hour Selection */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Tag auswählen</label>
+                        <select
+                          value={selectedDayIdx}
+                          onChange={(e) => setSelectedDayIdx(parseInt(e.target.value))}
+                          className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                        >
+                          {DAYS_DE.map((d, idx) => (
+                            <option key={d} value={idx}>{d}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Stunde auswählen</label>
+                        <select
+                          value={selectedHour}
+                          onChange={(e) => setSelectedHour(parseInt(e.target.value))}
+                          className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                        >
+                          {[0, 1, 2, 3, 4, 5].map(h => (
+                            <option key={h} value={h}>{h + 1}. Stunde</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Subject Pills */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-500 uppercase block">Fach wählen</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {availableSubjects.map(subj => {
+                          const isActive = activeSubject === subj;
+                          const style = getLessonStyle(subj);
+                          return (
+                            <button
+                              key={subj}
+                              type="button"
+                              onClick={() => setActiveSubject(subj)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold border cursor-pointer ${
+                                isActive ? 'bg-indigo-600 text-white border-indigo-600' : `${style.bg} ${style.border}`
+                              }`}
+                            >
+                              {subj}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Topic Field */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-black text-slate-500 uppercase">Unterrichtsthema</label>
+                        <button
+                          type="button"
+                          onClick={handleSuggestAiThemes}
+                          disabled={isAiLoading || !activeSubject}
+                          className="text-[10px] font-black text-indigo-600 hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Sparkles size={11} /> {isAiLoading ? 'Lade...' : 'KI Vorschlag'}
+                        </button>
+                      </div>
+
+                      <textarea
+                        value={lessonTopic}
+                        onChange={(e) => setLessonTopic(e.target.value)}
+                        placeholder="Was ist für diese Stunde geplant?"
+                        className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-2xl h-20 font-medium focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    {/* Homework / Note */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-500 uppercase block">Hausübung / Notiz</label>
+                      <input
+                        type="text"
+                        value={lessonHomework}
+                        onChange={(e) => setLessonHomework(e.target.value)}
+                        placeholder="z.B. Buch S. 14 Nr. 1-3..."
+                        className="w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                      />
+                    </div>
+
+                    {/* EXPANDABLE SECTION: MEHR DETAILS */}
+                    <div className="border-t border-slate-100 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowExpandedDetailsInDrawer(!showExpandedDetailsInDrawer)}
+                        className="text-xs font-black text-indigo-600 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <ChevronDown size={14} className={`transition-transform ${showExpandedDetailsInDrawer ? 'rotate-180' : ''}`} />
+                        <span>{showExpandedDetailsInDrawer ? 'Weniger Details' : 'Mehr Details (Didaktik, Materialien...)'}</span>
+                      </button>
+
+                      {showExpandedDetailsInDrawer && (
+                        <div className="mt-3 space-y-3 pt-2 border-t border-slate-100">
+                          {/* Didactic Setting */}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase block">Art des Unterrichts</label>
+                            <select
+                              value={didacticType}
+                              onChange={(e) => setDidacticType(e.target.value as any)}
+                              className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl"
+                            >
+                              <option value="Einführung">Einführung</option>
+                              <option value="Einzelarbeit mit Kind">Einzelarbeit mit Kind</option>
+                              <option value="Frontalunterricht">Frontalunterricht</option>
+                              <option value="Projektunterricht / Freiarbeit">Projektunterricht / Freiarbeit</option>
+                            </select>
+                          </div>
+
+                          {/* Social Form */}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase block">Sozialform</label>
+                            <select
+                              value={socialForm}
+                              onChange={(e) => setSocialForm(e.target.value as any)}
+                              className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl"
+                            >
+                              <option value="Plenum">Plenum</option>
+                              <option value="Einzelarbeit">Einzelarbeit</option>
+                              <option value="Partnerarbeit">Partnerarbeit</option>
+                              <option value="Gruppenarbeit">Gruppenarbeit</option>
+                            </select>
+                          </div>
+
+                          {/* Custom Material */}
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase block">Materialien</label>
+                            <input
+                              type="text"
+                              value={customMaterialText}
+                              onChange={(e) => setCustomMaterialText(e.target.value)}
+                              placeholder="Benötigtes Material..."
+                              className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 pt-2">
+                      <button
+                        onClick={handleSaveLesson}
+                        className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xs shadow-md shadow-indigo-200 transition cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <Save size={15} /> Stunde speichern
+                      </button>
+
+                      <button
+                        onClick={handleClearSlot}
+                        className="px-3 py-3 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-2xl font-bold text-xs cursor-pointer"
+                        title="Inhalt zurücksetzen"
+                      >
+                        Leeren
+                      </button>
+                    </div>
+
+                  </div>
+                )}
+
+                {/* FORM TYPE 2: TERMIN / AUSFLUG */}
+                {quickPlanType === 'event' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Tag wählen</label>
+                      <select
+                        value={selectedDayIdx}
+                        onChange={(e) => setSelectedDayIdx(parseInt(e.target.value))}
+                        className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                      >
+                        {DAYS_DE.map((d, idx) => (
+                          <option key={d} value={idx}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Titel / Bezeichnung</label>
+                      <input
+                        type="text"
+                        value={quickEventTitle}
+                        onChange={(e) => setQuickEventTitle(e.target.value)}
+                        placeholder="z.B. Lehrausgang Museum, Elternsprechtag, Schularbeit..."
+                        className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-black text-slate-500 uppercase block mb-1">Kategorie</label>
+                      <select
+                        value={quickEventCategory}
+                        onChange={(e) => setQuickEventCategory(e.target.value as any)}
+                        className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                      >
+                        <option value="Ausflug">Ausflug</option>
+                        <option value="Termin">Termin</option>
+                        <option value="Schularbeit">Schularbeit / Test</option>
+                        <option value="Sonstiges">Sonstiges</option>
+                      </select>
+                    </div>
+
+                    <button
+                      onClick={handleSaveQuickEvent}
+                      className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-black text-xs shadow-md shadow-purple-200 transition cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <Save size={15} /> Termin speichern
+                    </button>
+                  </div>
+                )}
+
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* HELP & DIDACTIC STEPS OVERLAY */}
         <AnimatePresence>
           {showInfoOverlay && (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-[2px]"
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-xs"
               onClick={() => setShowInfoOverlay(false)}
             >
               <motion.div 
                 initial={{ scale: 0.95, y: 15, opacity: 0 }}
                 animate={{ scale: 1, y: 0, opacity: 1 }}
                 exit={{ scale: 0.95, y: 15, opacity: 0 }}
-                transition={{ type: 'spring', duration: 0.4 }}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="planning-steps-dialog-title"
-                className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-5 max-w-xl w-full max-h-[calc(100vh-2rem)] flex flex-col gap-4 overflow-y-auto"
+                className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-6 max-w-xl w-full max-h-[90vh] flex flex-col gap-4 overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Header */}
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
-                  <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
                     <span className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
-                      <Sliders size={18} />
+                      <Info size={18} />
                     </span>
                     <div>
-                      <h3 id="planning-steps-dialog-title" className="font-extrabold text-slate-800 tracking-tight text-sm">Didaktische Planungsschritte</h3>
-                      <p className="text-[10px] text-slate-400 mt-0.5 font-bold uppercase tracking-wider">Erfolgreicher Planungs-Check</p>
+                      <h3 className="font-extrabold text-slate-800 text-sm">Didaktische Planungsschritte</h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Erfolgreicher Planungs-Check</p>
                     </div>
                   </div>
                   <button 
                     onClick={() => setShowInfoOverlay(false)}
-                    type="button"
-                    aria-label="Planungshinweis schließen"
-                    title="Schließen"
-                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition cursor-pointer"
+                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl"
                   >
                     <X size={16} />
                   </button>
                 </div>
 
-                {/* Info Text */}
-                <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                  Herzlich willkommen im Planungs-Zentrum! Ein didaktisch runder Unterricht baut auf drei essenziellen Schritten auf. Hier siehst du deinen aktuellen Fortschritt für die ausgewählte <strong>KW {nextKW}</strong>:
-                </p>
-
-                {/* Checklist Content */}
-                <div className="space-y-3.5">
-                  {/* Step 1: Jahresplan */}
-                  <div className="flex gap-3 items-start p-3.5 rounded-2xl bg-slate-50/50 border border-slate-200/40 hover:bg-slate-50 transition">
-                    <span className={`p-1.5 rounded-full shrink-0 mt-0.5 border ${
-                      planningStepsChecklist.jahresplan.done 
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200/80' 
-                        : 'bg-slate-100 text-slate-400 border-slate-200'
-                    }`}>
-                      {planningStepsChecklist.jahresplan.done ? <CheckCircle2 size={16} /> : <Target size={16} />}
-                    </span>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-extrabold text-xs text-slate-800">{planningStepsChecklist.jahresplan.title}</h4>
-                        {planningStepsChecklist.jahresplan.done ? (
-                          <span className="bg-emerald-100 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded-full font-bold">Erledigt</span>
-                        ) : (
-                          <span className="bg-amber-100 text-amber-800 text-[9px] px-1.5 py-0.5 rounded-full font-bold">Ausstehend</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-600 leading-normal font-medium">{planningStepsChecklist.jahresplan.description}</p>
-                      <p className="text-[10px] text-slate-400 font-bold leading-relaxed italic">{planningStepsChecklist.jahresplan.info}</p>
-                    </div>
+                <div className="space-y-3 text-xs text-slate-600">
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                    <h4 className="font-black text-slate-800">{planningStepsChecklist.jahresplan.title}</h4>
+                    <p className="mt-0.5">{planningStepsChecklist.jahresplan.description}</p>
                   </div>
 
-                  {/* Step 2: Wochenplan */}
-                  <div className="flex gap-3 items-start p-3.5 rounded-2xl bg-slate-50/50 border border-slate-200/40 hover:bg-slate-50 transition">
-                    <span className={`p-1.5 rounded-full shrink-0 mt-0.5 border ${
-                      planningStepsChecklist.wochenplan.done 
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200/80' 
-                        : 'bg-slate-100 text-slate-400 border-slate-200'
-                    }`}>
-                      {planningStepsChecklist.wochenplan.done ? <CheckCircle2 size={16} /> : <CalendarRange size={16} />}
-                    </span>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-extrabold text-xs text-slate-800">{planningStepsChecklist.wochenplan.title}</h4>
-                        {planningStepsChecklist.wochenplan.done ? (
-                          <span className="bg-emerald-100 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded-full font-bold">Erledigt</span>
-                        ) : (
-                          <span className="bg-amber-100 text-amber-800 text-[9px] px-1.5 py-0.5 rounded-full font-bold">Ausstehend</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-600 leading-normal font-medium">{planningStepsChecklist.wochenplan.description}</p>
-                      <p className="text-[10px] text-slate-400 font-bold leading-relaxed italic">{planningStepsChecklist.wochenplan.info}</p>
-                    </div>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                    <h4 className="font-black text-slate-800">{planningStepsChecklist.wochenplan.title}</h4>
+                    <p className="mt-0.5">{planningStepsChecklist.wochenplan.description}</p>
                   </div>
 
-                  {/* Step 3: Material Check */}
-                  <div className="flex gap-3 items-start p-3.5 rounded-2xl bg-slate-50/50 border border-slate-200/40 hover:bg-slate-50 transition">
-                    <span className={`p-1.5 rounded-full shrink-0 mt-0.5 border ${
-                      planningStepsChecklist.materialCheck.done 
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200/80' 
-                        : 'bg-slate-100 text-slate-400 border-slate-200'
-                    }`}>
-                      {planningStepsChecklist.materialCheck.done ? <CheckCircle2 size={16} /> : <BookOpen size={16} />}
-                    </span>
-                    <div className="space-y-1.5 w-full">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-extrabold text-xs text-slate-800">{planningStepsChecklist.materialCheck.title}</h4>
-                        {planningStepsChecklist.materialCheck.done ? (
-                          <span className="bg-emerald-100 text-emerald-800 text-[9px] px-1.5 py-0.5 rounded-full font-bold">Erledigt</span>
-                        ) : (
-                          <span className="bg-amber-100 text-amber-800 text-[9px] px-1.5 py-0.5 rounded-full font-bold">In Arbeit</span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-600 leading-normal font-medium">{planningStepsChecklist.materialCheck.description}</p>
-                      
-                      {weekStats.total > 0 && (
-                        <div className="space-y-1.5 pt-0.5">
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 font-black uppercase tracking-wider">
-                            <span>Ausarbeitungs-Grad</span>
-                            <span className="text-indigo-650">{planningStepsChecklist.materialCheck.progressPercent}%</span>
-                          </div>
-                          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200/50">
-                            <div 
-                              className="bg-indigo-600 h-full rounded-full transition-all duration-300" 
-                              style={{ width: `${planningStepsChecklist.materialCheck.progressPercent}%` }}
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      <p className="text-[10px] text-slate-400 font-bold leading-relaxed italic">{planningStepsChecklist.materialCheck.info}</p>
-                    </div>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                    <h4 className="font-black text-slate-800">{planningStepsChecklist.materialCheck.title}</h4>
+                    <p className="mt-0.5">{planningStepsChecklist.materialCheck.description}</p>
                   </div>
                 </div>
 
-                {/* Footer Actions */}
-                <div className="border-t border-slate-100 pt-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-black uppercase tracking-wider">
-                    <Activity size={12} className="text-slate-400 animate-pulse" />
-                    <span>Schulwoche {sw || 'N/A'} (KW {nextKW})</span>
-                  </div>
-                  <button
-                    onClick={() => setShowInfoOverlay(false)}
-                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl transition shadow-md hover:shadow-indigo-100 active:scale-95 cursor-pointer"
-                  >
-                    Verstanden & weiterplanen
-                  </button>
-                </div>
+                <button
+                  onClick={() => setShowInfoOverlay(false)}
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md cursor-pointer"
+                >
+                  Schließen
+                </button>
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
+
       </div>
     </ErrorBoundaryLogger>
   );

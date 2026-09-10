@@ -1,0 +1,934 @@
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import {
+  Users, Sparkles, RotateCcw, Settings2, ArrowLeftRight,
+  UserX, UserCheck, Check, X, AlertCircle, Plus, Trash2,
+  MoveRight, CheckCircle2, MoreHorizontal
+} from 'lucide-react';
+import { CockpitWidgetConfig, AppState } from '../../../types';
+import { useApp } from '../../../context/AppContext';
+import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
+import {
+  getDisplayStudentName,
+  getPresentStudents,
+  CockpitStudent,
+  DEFAULT_MOCK_STUDENTS
+} from '../studentSelectionUtils';
+import {
+  GroupingMode,
+  GeneratedGroup,
+  GroupConstraint,
+  GroupingConfig,
+  generateStudentGroups,
+  swapStudentsInGroups,
+  moveStudentToGroup,
+  GROUP_COLOR_PALETTES
+} from '../../../lib/groupsAlgorithm';
+
+export interface GroupsWidgetProps {
+  widget?: CockpitWidgetConfig;
+  onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
+  app?: any;
+  setApp?: any;
+  generatedGroups?: any[];
+  setGeneratedGroups?: (groups: any[]) => void;
+  generateGroups?: (count?: number, isSize?: boolean, overrideStrategy?: string) => void;
+  currentIsLight: boolean;
+}
+
+export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
+  widget,
+  onUpdate,
+  app: propApp,
+  setApp: propSetApp,
+  generatedGroups: propGeneratedGroups,
+  setGeneratedGroups: propSetGeneratedGroups,
+  currentIsLight
+}) => {
+  const context = useApp();
+  const app: AppState = propApp || context?.app;
+  const setApp = propSetApp || context?.setApp;
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const size = useWidgetSize(containerRef);
+  useWidgetOverflowGuard('GroupsWidget', containerRef);
+
+  // Automatisch ermittelte anwesende Schüler
+  const presentStudents = useMemo(() => {
+    return getPresentStudents(app?.schueler, app);
+  }, [app?.schueler, app]);
+
+  // Stabile Schülerliste der Klasse oder Fallback
+  const allStudents = useMemo(() => {
+    if (app?.schueler && app.schueler.length > 0) {
+      return app.schueler;
+    }
+    return presentStudents;
+  }, [app?.schueler, presentStudents]);
+
+  // Settings aus dem Widget oder Standardwerte
+  const savedSettings = widget?.settings || {};
+  const [mode, setMode] = useState<GroupingMode>(savedSettings.mode || 'size');
+  const [targetValue, setTargetValue] = useState<number>(savedSettings.targetValue || 4);
+  const [namingStyle, setNamingStyle] = useState<'numbered' | 'colors' | 'symbols' | 'animals'>(
+    savedSettings.namingStyle || 'numbered'
+  );
+
+  // Temporäre Ausschlüsse & Constraints
+  const [pausedStudentIds, setPausedStudentIds] = useState<string[]>(
+    savedSettings.pausedStudentIds || []
+  );
+  const [notTogether, setNotTogether] = useState<GroupConstraint[]>(
+    savedSettings.notTogether || []
+  );
+  const [keepTogether, setKeepTogether] = useState<GroupConstraint[]>(
+    savedSettings.keepTogether || []
+  );
+
+  // Aktive Gruppen
+  const [groups, setGroups] = useState<GeneratedGroup[]>(() => {
+    if (savedSettings.groups && Array.isArray(savedSettings.groups) && savedSettings.groups.length > 0) {
+      return savedSettings.groups;
+    }
+    return [];
+  });
+
+  // UI-Zustände
+  const [showOptions, setShowOptions] = useState(false);
+  const [optionsTab, setOptionsTab] = useState<'pause' | 'constraints' | 'names'>('pause');
+  const [selectedStudentForAction, setSelectedStudentForAction] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'info' | 'error' | 'success' } | null>(null);
+
+  // Formularzustand für neue Constraints
+  const [newNotA, setNewNotA] = useState('');
+  const [newNotB, setNewNotB] = useState('');
+  const [newKeepA, setNewKeepA] = useState('');
+  const [newKeepB, setNewKeepB] = useState('');
+
+  // Auto-Dismiss Feedback
+  useEffect(() => {
+    if (!feedbackMessage) return;
+    const timer = setTimeout(() => setFeedbackMessage(null), 4000);
+    return () => clearTimeout(timer);
+  }, [feedbackMessage]);
+
+  // Synchronisiere Gruppen in Widget-Settings und AppState
+  const persistState = useCallback((
+    updatedGroups: GeneratedGroup[],
+    updatedMode: GroupingMode,
+    updatedValue: number,
+    updatedPaused: string[],
+    updatedNotTogether: GroupConstraint[],
+    updatedKeepTogether: GroupConstraint[],
+    updatedNamingStyle: 'numbered' | 'colors' | 'symbols' | 'animals'
+  ) => {
+    if (onUpdate && widget) {
+      onUpdate({
+        settings: {
+          ...(widget.settings || {}),
+          groups: updatedGroups,
+          mode: updatedMode,
+          targetValue: updatedValue,
+          pausedStudentIds: updatedPaused,
+          notTogether: updatedNotTogether,
+          keepTogether: updatedKeepTogether,
+          namingStyle: updatedNamingStyle
+        }
+      });
+    }
+
+    if (propSetGeneratedGroups || setApp) {
+      const legacyGroups = updatedGroups.map(g =>
+        g.studentIds.map(id => {
+          const st = allStudents.find(s => s.id === id);
+          return st ? getDisplayStudentName(st, allStudents) : id;
+        })
+      );
+      if (propSetGeneratedGroups) {
+        propSetGeneratedGroups(legacyGroups);
+      }
+      if (setApp) {
+        setApp((prev: any) => ({ ...prev, lastGroups: legacyGroups }));
+      }
+    }
+  }, [onUpdate, widget, propSetGeneratedGroups, setApp, allStudents]);
+
+  // Aktive Schüler für die Gruppierung
+  const activeStudentIds = useMemo(() => {
+    const pausedSet = new Set(pausedStudentIds);
+    return presentStudents.filter(s => !pausedSet.has(s.id)).map(s => s.id);
+  }, [presentStudents, pausedStudentIds]);
+
+  // Gruppen erstellen oder neu mischen
+  const handleGenerate = useCallback((overrideMode?: GroupingMode, overrideVal?: number) => {
+    const finalMode = overrideMode || mode;
+    const finalVal = overrideVal !== undefined ? overrideVal : targetValue;
+
+    if (activeStudentIds.length === 0) {
+      setFeedbackMessage({
+        text: 'Keine anwesenden Schüler verfügbar.',
+        type: 'error'
+      });
+      return;
+    }
+
+    const config: GroupingConfig = {
+      mode: finalMode,
+      value: finalVal,
+      namingStyle,
+      pausedStudentIds,
+      notTogether,
+      keepTogether
+    };
+
+    const result = generateStudentGroups(activeStudentIds, config);
+    setGroups(result.groups);
+    setSelectedStudentForAction(null);
+
+    persistState(
+      result.groups,
+      finalMode,
+      finalVal,
+      pausedStudentIds,
+      notTogether,
+      keepTogether,
+      namingStyle
+    );
+
+    if (result.warning) {
+      setFeedbackMessage({
+        text: `${result.groups.length} Gruppen erstellt (${result.warning})`,
+        type: 'info'
+      });
+    } else {
+      setFeedbackMessage({
+        text: `${result.groups.length} Gruppen erfolgreich erstellt.`,
+        type: 'success'
+      });
+    }
+  }, [mode, targetValue, namingStyle, pausedStudentIds, notTogether, keepTogether, activeStudentIds, persistState]);
+
+  // Tauschen oder Verschieben von Schülern
+  const handleStudentClick = useCallback((studentId: string) => {
+    if (!selectedStudentForAction) {
+      setSelectedStudentForAction(studentId);
+      return;
+    }
+
+    if (selectedStudentForAction === studentId) {
+      setSelectedStudentForAction(null);
+      return;
+    }
+
+    const newGroups = swapStudentsInGroups(groups, selectedStudentForAction, studentId);
+    setGroups(newGroups);
+    setSelectedStudentForAction(null);
+
+    const st1 = allStudents.find(s => s.id === selectedStudentForAction);
+    const st2 = allStudents.find(s => s.id === studentId);
+    const name1 = st1 ? getDisplayStudentName(st1, allStudents) : 'Kind 1';
+    const name2 = st2 ? getDisplayStudentName(st2, allStudents) : 'Kind 2';
+
+    setFeedbackMessage({
+      text: `${name1} und ${name2} getauscht.`,
+      type: 'info'
+    });
+
+    persistState(newGroups, mode, targetValue, pausedStudentIds, notTogether, keepTogether, namingStyle);
+  }, [selectedStudentForAction, groups, allStudents, persistState, mode, targetValue, pausedStudentIds, notTogether, keepTogether, namingStyle]);
+
+  // Verschieben in eine andere Gruppe
+  const handleMoveToGroup = useCallback((targetGroupId: string) => {
+    if (!selectedStudentForAction) return;
+
+    const moveRes = moveStudentToGroup(groups, selectedStudentForAction, targetGroupId);
+    if (moveRes.error) {
+      setFeedbackMessage({
+        text: moveRes.error,
+        type: 'error'
+      });
+      setSelectedStudentForAction(null);
+      return;
+    }
+
+    setGroups(moveRes.updatedGroups);
+
+    const st = allStudents.find(s => s.id === selectedStudentForAction);
+    const name = st ? getDisplayStudentName(st, allStudents) : 'Kind';
+
+    setSelectedStudentForAction(null);
+    setFeedbackMessage({
+      text: moveRes.warning || `${name} in neue Gruppe verschoben.`,
+      type: moveRes.warning ? 'info' : 'success'
+    });
+
+    persistState(moveRes.updatedGroups, mode, targetValue, pausedStudentIds, notTogether, keepTogether, namingStyle);
+  }, [selectedStudentForAction, groups, allStudents, persistState, mode, targetValue, pausedStudentIds, notTogether, keepTogether, namingStyle]);
+
+  // Toggle Pausierung eines Schülers
+  const handleTogglePause = useCallback((studentId: string) => {
+    setPausedStudentIds(prev => {
+      const next = prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId];
+
+      persistState(groups, mode, targetValue, next, notTogether, keepTogether, namingStyle);
+      return next;
+    });
+  }, [groups, mode, targetValue, notTogether, keepTogether, namingStyle, persistState]);
+
+  // Hinzufügen von Paar-Regeln
+  const handleAddNotTogether = () => {
+    if (!newNotA || !newNotB || newNotA === newNotB) return;
+    const exists = notTogether.some(
+      c => (c.studentIdA === newNotA && c.studentIdB === newNotB) ||
+           (c.studentIdA === newNotB && c.studentIdB === newNotA)
+    );
+    if (exists) return;
+
+    const updated = [...notTogether, { studentIdA: newNotA, studentIdB: newNotB }];
+    setNotTogether(updated);
+    setNewNotA('');
+    setNewNotB('');
+    persistState(groups, mode, targetValue, pausedStudentIds, updated, keepTogether, namingStyle);
+  };
+
+  const handleAddKeepTogether = () => {
+    if (!newKeepA || !newKeepB || newKeepA === newKeepB) return;
+    const exists = keepTogether.some(
+      c => (c.studentIdA === newKeepA && c.studentIdB === newKeepB) ||
+           (c.studentIdA === newKeepB && c.studentIdB === newKeepA)
+    );
+    if (exists) return;
+
+    const updated = [...keepTogether, { studentIdA: newKeepA, studentIdB: newKeepB }];
+    setKeepTogether(updated);
+    setNewKeepA('');
+    setNewKeepB('');
+    persistState(groups, mode, targetValue, pausedStudentIds, notTogether, updated, namingStyle);
+  };
+
+  const hasActiveConstraints = pausedStudentIds.length > 0 || notTogether.length > 0 || keepTogether.length > 0;
+
+  // Grid Spalten abhängig von Größe
+  const gridColumnsClass = useMemo(() => {
+    if (size.isCompact) {
+      return size.width >= 350 ? 'grid-cols-2' : 'grid-cols-1';
+    }
+    if (size.isStandard) {
+      return 'grid-cols-2';
+    }
+    if (size.isLarge) {
+      return 'grid-cols-2 sm:grid-cols-3';
+    }
+    // Fullscreen / XL
+    return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5';
+  }, [size.isCompact, size.isStandard, size.isLarge, size.width]);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`relative flex flex-col justify-between w-full h-full select-none overflow-hidden transition-colors ${
+        currentIsLight ? 'bg-stone-50/70 text-stone-900' : 'bg-stone-950/80 text-stone-100'
+      }`}
+    >
+      {/* Feedback Banner */}
+      {feedbackMessage && (
+        <div className={`shrink-0 px-3 py-1.5 text-xs font-bold flex items-center justify-between transition-all z-20 ${
+          feedbackMessage.type === 'error'
+            ? 'bg-rose-500 text-white'
+            : feedbackMessage.type === 'info'
+            ? 'bg-indigo-600 text-white'
+            : 'bg-emerald-600 text-white'
+        }`}>
+          <div className="flex items-center gap-1.5 truncate">
+            {feedbackMessage.type === 'error' ? (
+              <AlertCircle size={14} className="shrink-0" />
+            ) : (
+              <Check size={14} className="shrink-0" />
+            )}
+            <span className="truncate">{feedbackMessage.text}</span>
+          </div>
+          <button
+            onClick={() => setFeedbackMessage(null)}
+            className="p-0.5 hover:bg-black/10 rounded cursor-pointer shrink-0"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
+      {/* Tauschen/Verschieben Banner */}
+      {selectedStudentForAction && (
+        <div className="shrink-0 px-3 py-2 bg-amber-500 text-amber-950 text-xs font-black flex items-center justify-between z-20 shadow-md">
+          <div className="flex items-center gap-2 truncate">
+            <ArrowLeftRight size={15} className="animate-pulse shrink-0" />
+            <span className="truncate">
+              Tauschen mit: Klicke auf ein zweites Kind
+            </span>
+          </div>
+          <button
+            onClick={() => setSelectedStudentForAction(null)}
+            className="px-2 py-1 rounded-lg bg-amber-600 text-white text-[11px] font-bold cursor-pointer shrink-0 ml-2"
+          >
+            Abbrechen
+          </button>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 1. COMPACT HEADER (< 380px)                                               */}
+      {/* Struktur: [2er][3er][4er][5er] [•••] -> [Gruppen bilden]                 */}
+      {/* ========================================================================= */}
+      {size.isCompact ? (
+        <div className={`shrink-0 p-2 border-b ${
+          currentIsLight ? 'bg-white border-stone-200' : 'bg-stone-900/90 border-stone-800'
+        }`}>
+          <div className="flex items-center gap-1 justify-between mb-1.5">
+            <div className="flex items-center gap-1">
+              {[2, 3, 4, 5].map((num) => {
+                const isSelected = mode === 'size' && targetValue === num;
+                return (
+                  <button
+                    key={num}
+                    onClick={() => {
+                      setMode('size');
+                      setTargetValue(num);
+                      if (groups.length > 0) handleGenerate('size', num);
+                    }}
+                    className={`min-w-[42px] min-h-[36px] px-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center border ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
+                        : currentIsLight
+                        ? 'bg-stone-100 hover:bg-stone-200 border-stone-200 text-stone-800'
+                        : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-200'
+                    }`}
+                  >
+                    {num}er
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* "•••" Popover Trigger */}
+            <button
+              onClick={() => setShowOptions(prev => !prev)}
+              className={`min-h-[36px] min-w-[36px] p-1.5 rounded-xl border flex items-center justify-center cursor-pointer transition-all ${
+                showOptions || hasActiveConstraints
+                  ? 'bg-indigo-600 text-white border-indigo-700'
+                  : currentIsLight
+                  ? 'bg-stone-100 hover:bg-stone-200 border-stone-200 text-stone-700'
+                  : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-300'
+              }`}
+              title="Weitere Optionen & Paar-Wünsche"
+              aria-label="Optionen"
+            >
+              <MoreHorizontal size={16} />
+              {hasActiveConstraints && !showOptions && (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 -ml-1 -mt-2" />
+              )}
+            </button>
+          </div>
+
+          {/* Primary Action Button */}
+          <button
+            onClick={() => handleGenerate()}
+            className="w-full min-h-[42px] px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm active:scale-98 transition-all cursor-pointer"
+          >
+            {groups.length === 0 ? <Sparkles size={15} /> : <RotateCcw size={14} />}
+            <span>{groups.length === 0 ? 'Gruppen bilden' : 'Neu mischen'}</span>
+          </button>
+        </div>
+      ) : (
+        /* ========================================================================= */
+        /* 2. STANDARD (380-549px) / LARGE (550-799px) / FULLSCREEN (>= 800px) HEADER */
+        /* ========================================================================= */
+        <div className={`shrink-0 p-2.5 sm:p-3 border-b ${
+          currentIsLight ? 'bg-white border-stone-200' : 'bg-stone-900/90 border-stone-800'
+        }`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {/* Linke Seite: Gruppengröße Presets */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] uppercase tracking-wider font-extrabold text-stone-400 dark:text-stone-500 mr-0.5">
+                Größe:
+              </span>
+              {[2, 3, 4, 5].map((num) => {
+                const isSelected = mode === 'size' && targetValue === num;
+                return (
+                  <button
+                    key={num}
+                    onClick={() => {
+                      setMode('size');
+                      setTargetValue(num);
+                      if (groups.length > 0) handleGenerate('size', num);
+                    }}
+                    className={`min-w-[44px] min-h-[38px] px-2.5 py-1 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center border ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
+                        : currentIsLight
+                        ? 'bg-stone-100 hover:bg-stone-200 border-stone-200 text-stone-800'
+                        : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-200'
+                    }`}
+                  >
+                    {num}er
+                  </button>
+                );
+              })}
+
+              {/* Anzahl Gruppen Umschalter (Standard/Large/XL) */}
+              <button
+                onClick={() => {
+                  const nextMode = mode === 'size' ? 'count' : 'size';
+                  setMode(nextMode);
+                  setTargetValue(nextMode === 'count' ? 4 : 4);
+                }}
+                className={`px-2.5 py-1 min-h-[38px] rounded-xl text-[11px] font-extrabold uppercase transition-all border cursor-pointer ${
+                  mode === 'count'
+                    ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
+                    : currentIsLight
+                    ? 'bg-stone-50 border-stone-200 text-stone-600 hover:text-stone-900'
+                    : 'bg-stone-900 border-stone-800 text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                {mode === 'count' ? `${targetValue} Gr.` : 'Anzahl...'}
+              </button>
+
+              {mode === 'count' && (
+                <div className="flex items-center gap-1">
+                  {[2, 3, 4, 5, 6].map((cnt) => (
+                    <button
+                      key={cnt}
+                      onClick={() => {
+                        setTargetValue(cnt);
+                        if (groups.length > 0) handleGenerate('count', cnt);
+                      }}
+                      className={`min-w-[34px] min-h-[38px] px-1.5 py-1 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center border ${
+                        targetValue === cnt
+                          ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
+                          : currentIsLight
+                          ? 'bg-stone-100 hover:bg-stone-200 border-stone-200 text-stone-700'
+                          : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-300'
+                      }`}
+                    >
+                      {cnt}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Rechte Seite: Gruppen bilden & Optionen */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleGenerate()}
+                className="min-h-[44px] px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer"
+              >
+                {groups.length === 0 ? <Sparkles size={16} /> : <RotateCcw size={15} />}
+                <span>{groups.length === 0 ? 'Gruppen bilden' : 'Neu mischen'}</span>
+              </button>
+
+              <button
+                onClick={() => setShowOptions(prev => !prev)}
+                className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all cursor-pointer ${
+                  showOptions || hasActiveConstraints
+                    ? 'bg-indigo-50 border-indigo-300 text-indigo-700 dark:bg-indigo-950/50 dark:border-indigo-700 dark:text-indigo-300'
+                    : currentIsLight
+                    ? 'bg-stone-100 border-stone-200 text-stone-700 hover:bg-stone-200'
+                    : 'bg-stone-800 border-stone-700 text-stone-300 hover:bg-stone-700'
+                }`}
+                title="Optionen & Paar-Wünsche"
+              >
+                <Settings2 size={15} />
+                <span className="hidden sm:inline">Optionen</span>
+                {hasActiveConstraints && (
+                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* OPTIONEN MODAL / OVERLAY (Pausieren, Paar-Wünsche, Stil)                   */}
+      {/* ========================================================================= */}
+      {showOptions && (
+        <div className={`absolute inset-2 z-40 p-4 rounded-2xl border shadow-2xl flex flex-col justify-between overflow-y-auto ${
+          currentIsLight ? 'bg-white/98 border-stone-200 text-stone-800' : 'bg-stone-900/98 border-stone-750 text-stone-100'
+        }`}>
+          <div>
+            <div className="flex items-center justify-between border-b pb-2 border-stone-200 dark:border-stone-800 mb-3">
+              <span className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                Gruppen-Optionen
+              </span>
+              <button
+                onClick={() => setShowOptions(false)}
+                className="p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 cursor-pointer"
+                aria-label="Optionen schließen"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Option Tabs */}
+            <div className="flex items-center gap-1 bg-stone-200/60 dark:bg-stone-800 p-0.5 rounded-xl mb-3">
+              <button
+                onClick={() => setOptionsTab('pause')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  optionsTab === 'pause'
+                    ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-xs'
+                    : 'text-stone-600 dark:text-stone-400'
+                }`}
+              >
+                Pausieren ({pausedStudentIds.length})
+              </button>
+              <button
+                onClick={() => setOptionsTab('constraints')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  optionsTab === 'constraints'
+                    ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-xs'
+                    : 'text-stone-600 dark:text-stone-400'
+                }`}
+              >
+                Paare ({notTogether.length + keepTogether.length})
+              </button>
+              <button
+                onClick={() => setOptionsTab('names')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  optionsTab === 'names'
+                    ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-xs'
+                    : 'text-stone-600 dark:text-stone-400'
+                }`}
+              >
+                Stil
+              </button>
+            </div>
+
+            {/* Tab 1: Pausieren */}
+            {optionsTab === 'pause' && (
+              <div>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mb-2">
+                  Kinder, die temporär nicht eingeteilt werden sollen:
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-48 overflow-y-auto pr-1">
+                  {presentStudents.map((st) => {
+                    const isPaused = pausedStudentIds.includes(st.id);
+                    return (
+                      <button
+                        key={st.id}
+                        onClick={() => handleTogglePause(st.id)}
+                        className={`min-h-[38px] px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-between gap-1 border transition-all cursor-pointer text-left ${
+                          isPaused
+                            ? 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900 dark:text-rose-300'
+                            : currentIsLight
+                            ? 'bg-white border-stone-200 text-stone-800 hover:bg-stone-100'
+                            : 'bg-stone-800 border-stone-700 text-stone-200 hover:bg-stone-750'
+                        }`}
+                      >
+                        <span className="truncate">{getDisplayStudentName(st, allStudents)}</span>
+                        {isPaused ? (
+                          <UserX size={14} className="shrink-0 text-rose-600" />
+                        ) : (
+                          <UserCheck size={14} className="shrink-0 opacity-40" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                {pausedStudentIds.length > 0 && (
+                  <button
+                    onClick={() => setPausedStudentIds([])}
+                    className="mt-2 text-xs font-bold text-rose-600 hover:underline cursor-pointer"
+                  >
+                    Alle Pausierungen aufheben
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Tab 2: Paar-Wünsche */}
+            {optionsTab === 'constraints' && (
+              <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
+                {/* Nicht zusammen */}
+                <div>
+                  <h4 className="text-xs font-extrabold text-stone-700 dark:text-stone-300 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                    <UserX size={14} className="text-rose-500" />
+                    <span>Getrennte Gruppen</span>
+                  </h4>
+                  <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                    <select
+                      value={newNotA}
+                      onChange={(e) => setNewNotA(e.target.value)}
+                      className="text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 max-w-[130px] cursor-pointer"
+                    >
+                      <option value="">Kind 1</option>
+                      {presentStudents.map((s) => (
+                        <option key={s.id} value={s.id}>{getDisplayStudentName(s, allStudents)}</option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-stone-400">≠</span>
+                    <select
+                      value={newNotB}
+                      onChange={(e) => setNewNotB(e.target.value)}
+                      className="text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 max-w-[130px] cursor-pointer"
+                    >
+                      <option value="">Kind 2</option>
+                      {presentStudents.map((s) => (
+                        <option key={s.id} value={s.id}>{getDisplayStudentName(s, allStudents)}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleAddNotTogether}
+                      disabled={!newNotA || !newNotB || newNotA === newNotB}
+                      className="px-2.5 py-1.5 rounded-lg bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 disabled:opacity-40 text-xs font-bold cursor-pointer"
+                    >
+                      + Hinzufügen
+                    </button>
+                  </div>
+                  {notTogether.map((c, idx) => {
+                    const stA = allStudents.find(s => s.id === c.studentIdA);
+                    const stB = allStudents.find(s => s.id === c.studentIdB);
+                    return (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 mr-1 mb-1 rounded-lg text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900"
+                      >
+                        <span>{stA ? getDisplayStudentName(stA, allStudents) : c.studentIdA} ≠ {stB ? getDisplayStudentName(stB, allStudents) : c.studentIdB}</span>
+                        <button
+                          onClick={() => setNotTogether(prev => prev.filter((_, i) => i !== idx))}
+                          className="p-0.5 hover:text-rose-900 dark:hover:text-rose-100 cursor-pointer"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+
+                {/* Zusammen lassen */}
+                <div>
+                  <h4 className="text-xs font-extrabold text-stone-700 dark:text-stone-300 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+                    <CheckCircle2 size={14} className="text-emerald-500" />
+                    <span>Zusammen (Buddy-Paar)</span>
+                  </h4>
+                  <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                    <select
+                      value={newKeepA}
+                      onChange={(e) => setNewKeepA(e.target.value)}
+                      className="text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 max-w-[130px] cursor-pointer"
+                    >
+                      <option value="">Kind 1</option>
+                      {presentStudents.map((s) => (
+                        <option key={s.id} value={s.id}>{getDisplayStudentName(s, allStudents)}</option>
+                      ))}
+                    </select>
+                    <span className="text-xs text-stone-400">&amp;</span>
+                    <select
+                      value={newKeepB}
+                      onChange={(e) => setNewKeepB(e.target.value)}
+                      className="text-xs p-1.5 rounded-lg border bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-700 max-w-[130px] cursor-pointer"
+                    >
+                      <option value="">Kind 2</option>
+                      {presentStudents.map((s) => (
+                        <option key={s.id} value={s.id}>{getDisplayStudentName(s, allStudents)}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleAddKeepTogether}
+                      disabled={!newKeepA || !newKeepB || newKeepA === newKeepB}
+                      className="px-2.5 py-1.5 rounded-lg bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 dark:hover:bg-stone-600 disabled:opacity-40 text-xs font-bold cursor-pointer"
+                    >
+                      + Hinzufügen
+                    </button>
+                  </div>
+                  {keepTogether.map((c, idx) => {
+                    const stA = allStudents.find(s => s.id === c.studentIdA);
+                    const stB = allStudents.find(s => s.id === c.studentIdB);
+                    return (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 mr-1 mb-1 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900"
+                      >
+                        <span>{stA ? getDisplayStudentName(stA, allStudents) : c.studentIdA} &amp; {stB ? getDisplayStudentName(stB, allStudents) : c.studentIdB}</span>
+                        <button
+                          onClick={() => setKeepTogether(prev => prev.filter((_, i) => i !== idx))}
+                          className="p-0.5 hover:text-emerald-900 dark:hover:text-emerald-100 cursor-pointer"
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Tab 3: Namen & Stil */}
+            {optionsTab === 'names' && (
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'numbered', label: 'Nummeriert', example: 'Gruppe 1, Gruppe 2' },
+                  { id: 'colors', label: 'Farben', example: 'Team Blau, Team Grün' },
+                  { id: 'symbols', label: 'Symbole', example: 'Gruppe 🔷, Gruppe 🟢' },
+                  { id: 'animals', label: 'Tiere', example: 'Team Delfin, Team Eule' },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      setNamingStyle(s.id as any);
+                      if (groups.length > 0) handleGenerate(mode, targetValue);
+                    }}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      namingStyle === s.id
+                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200'
+                        : currentIsLight
+                        ? 'border-stone-200 bg-white hover:bg-stone-100 text-stone-800'
+                        : 'border-stone-800 bg-stone-850 hover:bg-stone-800 text-stone-200'
+                    }`}
+                  >
+                    <div className="text-xs font-extrabold">{s.label}</div>
+                    <div className="text-[10px] text-stone-500 truncate">{s.example}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={() => setShowOptions(false)}
+            className="w-full py-2.5 mt-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition-all shadow-sm"
+          >
+            Fertig
+          </button>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* HAUPTBEREICH: GRUPPEN-KARTEN ODER INITIALER STATE                         */}
+      {/* ========================================================================= */}
+      <div className="flex-grow overflow-y-auto p-2 sm:p-3 min-h-0">
+        {groups.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center p-4">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2 shadow-inner">
+              <Users size={size.isCompact ? 24 : 32} />
+            </div>
+            <h4 className="text-sm sm:text-base font-extrabold mb-1">Bereit für die Einteilung</h4>
+            <p className="text-xs text-stone-500 max-w-xs mb-3">
+              {activeStudentIds.length} Kinder anwesend. Wähle oben die Größe und tippe auf „Gruppen bilden“.
+            </p>
+            <button
+              onClick={() => handleGenerate()}
+              className="min-h-[44px] px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer"
+            >
+              <Sparkles size={16} />
+              <span>Gruppen bilden</span>
+            </button>
+          </div>
+        ) : (
+          <div className={`grid ${gridColumnsClass} gap-2 sm:gap-3`}>
+            {groups.map((group) => {
+              const palette = GROUP_COLOR_PALETTES[group.colorIndex % GROUP_COLOR_PALETTES.length];
+              const isSourceGroupOfSelected = selectedStudentForAction
+                ? group.studentIds.includes(selectedStudentForAction)
+                : false;
+
+              return (
+                <div
+                  key={group.id}
+                  className={`rounded-2xl border-2 flex flex-col overflow-hidden shadow-xs transition-all ${palette.border} ${palette.bg}`}
+                >
+                  {/* Gruppen Header */}
+                  <div className={`px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between shrink-0 ${palette.headerBg}`}>
+                    <div className="flex items-center gap-1.5 truncate">
+                      {group.symbol && <span className="text-sm">{group.symbol}</span>}
+                      <h4 className="text-xs sm:text-sm font-black tracking-wide truncate">
+                        {group.name}
+                      </h4>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] sm:text-[11px] font-bold px-1.5 py-0.5 rounded bg-black/20 text-white">
+                        {group.studentIds.length}
+                      </span>
+                      {selectedStudentForAction && !isSourceGroupOfSelected && (
+                        <button
+                          onClick={() => handleMoveToGroup(group.id)}
+                          title="Hierher verschieben"
+                          className="px-2 py-0.5 rounded bg-white text-stone-900 text-[10px] font-black hover:bg-stone-100 cursor-pointer flex items-center gap-1 shadow-xs"
+                        >
+                          <MoveRight size={11} />
+                          <span>Hier</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Schüler in dieser Gruppe */}
+                  <div className={`p-1.5 sm:p-2 space-y-1 flex-grow overflow-y-auto ${
+                    size.isCompact ? 'min-h-[50px]' : 'min-h-[70px]'
+                  }`}>
+                    {group.studentIds.map((studentId) => {
+                      const student = allStudents.find((s) => s.id === studentId);
+                      const displayName = student
+                        ? getDisplayStudentName(student, allStudents)
+                        : studentId;
+                      const isSelected = selectedStudentForAction === studentId;
+
+                      return (
+                        <button
+                          key={studentId}
+                          onClick={() => handleStudentClick(studentId)}
+                          className={`w-full min-h-[38px] sm:min-h-[44px] px-2.5 py-1.5 rounded-xl text-left font-bold flex items-center justify-between gap-1.5 transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'bg-amber-400 text-stone-900 border-amber-500 shadow-md ring-2 ring-amber-500 scale-[1.02]'
+                              : selectedStudentForAction
+                              ? 'bg-white dark:bg-stone-850 hover:bg-amber-50 dark:hover:bg-amber-950/30 border-stone-200 dark:border-stone-700 text-stone-900 dark:text-stone-100'
+                              : 'bg-white/90 dark:bg-stone-900/80 hover:bg-white dark:hover:bg-stone-850 border-stone-200/80 dark:border-stone-750 text-stone-900 dark:text-stone-100 shadow-xs'
+                          }`}
+                        >
+                          <span className={`truncate ${
+                            size.isXL ? 'text-base font-black' : 'text-xs sm:text-sm font-extrabold'
+                          }`}>
+                            {displayName}
+                          </span>
+                          {isSelected ? (
+                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-600 text-white shrink-0">
+                              Tauschen
+                            </span>
+                          ) : (
+                            <ArrowLeftRight
+                              size={12}
+                              className="shrink-0 opacity-20 hover:opacity-100 transition-opacity"
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Footer Schnellübersicht */}
+      {groups.length > 0 && (
+        <div className={`shrink-0 px-3 py-1.5 border-t flex items-center justify-between text-[11px] ${
+          currentIsLight ? 'bg-stone-100 border-stone-200 text-stone-600' : 'bg-stone-900 border-stone-800 text-stone-400'
+        }`}>
+          <span>
+            <strong>{groups.length} Gruppen</strong> ({activeStudentIds.length} Kinder)
+          </span>
+          <button
+            onClick={() => handleGenerate()}
+            className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <RotateCcw size={12} />
+            <span>Neu mischen</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default GroupsWidget;

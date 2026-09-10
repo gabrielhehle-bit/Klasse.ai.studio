@@ -5,7 +5,7 @@ import {
   Stethoscope, GraduationCap, Banknote, FileText, ChevronRight, ChevronDown,
   ArrowLeft, Download, Printer, Clock, Save, Edit3, Trash2, Award, ClipboardList,
   AlertCircle, Compass, Maximize2, Minimize2, Calendar, Shield, CheckCircle2,
-  SlidersHorizontal, BookOpen
+  SlidersHorizontal, BookOpen, Phone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { exportSchuelerPDF } from '../lib/exportService';
@@ -19,8 +19,9 @@ import {
   getStudentNotes
 } from '../lib/studentMetrics';
 
-// Sub-components (to be created)
+// Sub-components
 import DossierStammdaten from './dossier/DossierStammdaten';
+import DossierKontakteEinwilligungen from './dossier/DossierKontakteEinwilligungen';
 import DossierUebersicht from './dossier/DossierUebersicht';
 import DossierKIPortfolio from './dossier/DossierKIPortfolio';
 import DossierLeistungen from './dossier/DossierLeistungen';
@@ -35,6 +36,12 @@ import StudentStatsEditor from './StudentStatsEditor';
 import DossierErlaeuterungsmatrix from './dossier/DossierErlaeuterungsmatrix';
 import StudentLernziele from './StudentLernziele';
 import WorksheetGenerator from './WorksheetGenerator';
+import { DossierEntwicklungsuebersicht } from './dossier/DossierEntwicklungsuebersicht';
+import { DossierFoerderung } from './dossier/DossierFoerderung';
+import { DossierBeobachtungenVerlauf } from './dossier/DossierBeobachtungenVerlauf';
+import DossierBerichte from './dossier/DossierBerichte';
+import DossierGespraecheBeurteilungen from './dossier/DossierGespraecheBeurteilungen';
+import DossierMaterialien from './dossier/DossierMaterialien';
 
 import { createPortal } from 'react-dom';
 import KELPresentation from './KELPresentation';
@@ -52,9 +59,21 @@ interface StudentDossierProps {
   onStudentChange?: (id: string) => void;
 }
 
-type DossierTab = 
+export type MainAreaId = 
+  | 'uebersicht'
+  | 'lernen_leistungen'
+  | 'entwicklung_diagnostik'
+  | 'stammdaten_organisation'
+  | 'berichte_materialien';
+
+export type DossierTab = 
   | 'uebersicht'
   | 'stammdaten' 
+  | 'kontakte_einwilligungen'
+  | 'finanzen'
+  | 'berichte'
+  | 'beurteilung_gespraeche'
+  | 'materialien'
   | 'ki_summary'
   | 'notizen'
   | 'prep'
@@ -62,49 +81,128 @@ type DossierTab =
   | 'foerderprofil' 
   | 'diagnostik' 
   | 'mika_d' 
-  | 'finanzen' 
   | 'stats'
   | 'erlaeuterung'
   | 'lernziele'
   | 'arbeitsblatt'
   | 'eltern_report'
-  | 'kel_reflexion';
+  | 'kel_reflexion'
+  | 'entwicklungsuebersicht'
+  | 'foerderung'
+  | 'beobachtungen_verlauf';
+
+export interface MainAreaDef {
+  id: MainAreaId;
+  label: string;
+  subtitle: string;
+  icon: React.ComponentType<{ size: number; className?: string }>;
+  defaultTab: DossierTab;
+  tabs: {
+    id: DossierTab;
+    label: string;
+    shortLabel?: string;
+    icon: React.ComponentType<{ size: number; className?: string }>;
+    description?: string;
+  }[];
+}
+
+export const MAIN_AREAS: MainAreaDef[] = [
+  {
+    id: 'uebersicht',
+    label: 'Übersicht',
+    subtitle: 'Auf einen Blick & Profil',
+    icon: Sparkles,
+    defaultTab: 'uebersicht',
+    tabs: [
+      { id: 'uebersicht', label: 'Übersicht', shortLabel: 'Übersicht', icon: Sparkles, description: 'Zentrale Gesamtschau des Kindes' }
+    ]
+  },
+  {
+    id: 'lernen_leistungen',
+    label: 'Lernen & Leistungen',
+    subtitle: 'Leistungsübersicht, Lernziele & Sprachstand',
+    icon: BarChart3,
+    defaultTab: 'leistungen',
+    tabs: [
+      { id: 'leistungen', label: 'Leistungsübersicht', shortLabel: 'Leistungen', icon: BarChart3, description: 'Kompakte fachliche Gesamtschau und Leistungsdaten' },
+      { id: 'lernziele', label: 'Lernziele & Kompetenzen', shortLabel: 'Lernziele', icon: Target, description: 'Lehrplan-Kompetenzen und erreichte Teilziele' },
+      { id: 'mika_d', label: 'Sprachstand', shortLabel: 'Sprachstand', icon: GraduationCap, description: 'MIKA-D Sprachstandsfeststellung' },
+    ]
+  },
+  {
+    id: 'entwicklung_diagnostik',
+    label: 'Entwicklung & Diagnostik',
+    subtitle: 'Entwicklungsübersicht, Diagnostik, Förderung & Verlauf',
+    icon: Activity,
+    defaultTab: 'entwicklungsuebersicht',
+    tabs: [
+      { id: 'entwicklungsuebersicht', label: 'Entwicklungsübersicht', shortLabel: 'Übersicht', icon: Compass, description: 'Pädagogischer Gesamtblick, Stärken und Beobachtungsschwerpunkte' },
+      { id: 'diagnostik', label: 'Diagnostik', shortLabel: 'Diagnostik', icon: Stethoscope, description: 'Kompetenzchecks & Erfassung von Lernvoraussetzungen' },
+      { id: 'foerderung', label: 'Förderung', shortLabel: 'Förderung', icon: Heart, description: 'Aktive Förderziele, pädagogische Maßnahmen und Stärken' },
+      { id: 'beobachtungen_verlauf', label: 'Beobachtungen & Verlauf', shortLabel: 'Beobachtungen & Verlauf', icon: Clock, description: 'Pädagogische Notizen, Verhaltensverlauf, Anwesenheit und KEL' },
+    ]
+  },
+  {
+    id: 'stammdaten_organisation',
+    label: 'Stammdaten & Organisation',
+    subtitle: 'Stammdaten, Kontakte & Finanzen',
+    icon: User,
+    defaultTab: 'stammdaten',
+    tabs: [
+      { id: 'stammdaten', label: 'Stammdaten', shortLabel: 'Stammdaten', icon: User, description: 'Personenstandsdaten und schulische Zuordnung' },
+      { id: 'kontakte_einwilligungen', label: 'Kontakte & Einwilligungen', shortLabel: 'Kontakte & Einwilligungen', icon: Phone, description: 'Erziehungsberechtigte und Fotoerlaubnis' },
+      { id: 'finanzen', label: 'Finanzen & Organisation', shortLabel: 'Finanzen & Organisation', icon: Banknote, description: 'Klassenkasse, Beiträge und Zahlungsstatus' },
+    ]
+  },
+  {
+    id: 'berichte_materialien',
+    label: 'Berichte & Materialien',
+    subtitle: 'Berichte, Beurteilungen & Materialien',
+    icon: FileText,
+    defaultTab: 'berichte',
+    tabs: [
+      { id: 'berichte', label: 'Berichte', shortLabel: 'Berichte', icon: FileText, description: 'KI-Zusammenfassung, Eltern-Report & Exporte' },
+      { id: 'beurteilung_gespraeche', label: 'Gespräche & Beurteilungen', shortLabel: 'Gespräche & Beurteilungen', icon: Award, description: 'Erläuterungsmatrix & Gesprächsvorbereitung' },
+      { id: 'materialien', label: 'Materialien', shortLabel: 'Materialien', icon: BookOpen, description: 'Individuelles Fördermaterial & Arbeitsblätter' },
+    ]
+  }
+];
+
+export const getActiveMainArea = (tab: DossierTab): MainAreaId => {
+  for (const area of MAIN_AREAS) {
+    if (area.tabs.some(t => t.id === tab)) {
+      return area.id;
+    }
+  }
+  if (tab === 'foerderprofil' || tab === 'stats' || tab === 'kel_reflexion' || tab === 'notizen') return 'entwicklung_diagnostik';
+  if (tab === 'prep' || tab === 'ki_summary' || tab === 'eltern_report' || tab === 'erlaeuterung' || tab === 'arbeitsblatt') return 'berichte_materialien';
+  return 'uebersicht';
+};
 
 export default function StudentDossier({ schuelerId, onBack, onStudentChange }: StudentDossierProps) {
   const { app, setApp, setPage } = useApp();
   const student = app.schueler.find(s => s.id === schuelerId);
+  
+  // Always start with 'uebersicht'
   const [activeTab, setActiveTab] = useState<DossierTab>('uebersicht');
 
-  const [expandedSections, setExpandedSections] = useState<Record<MainTab, boolean>>({
-    ueberblick: true,
-    lernen: true,
-    entwicklung: true,
-    organisation: true
-  });
-
-  // Auto-expand the main category containing the active tab
+  // Reset activeTab to 'uebersicht' whenever student changes
   useEffect(() => {
-    const mainTab = getActiveMainTab(activeTab);
-    setExpandedSections(prev => ({
-      ...prev,
-      [mainTab]: true
-    }));
-  }, [activeTab]);
+    setActiveTab('uebersicht');
+  }, [schuelerId]);
+
+  const activeMainArea = getActiveMainArea(activeTab);
+
   const [presentationModeActive, setPresentationModeActive] = useState<boolean>(false);
-  const [sem, setSem] = useState<'1' | '2'>(() =>
-    new URLSearchParams(window.location.search).get('yearly-final') === '2' ? '2' : '1'
-  );
+  const [sem, setSem] = useState<'1' | '2'>('1');
   const changeSemester = (nextSemester: '1' | '2') => {
-    setSem(nextSemester);
-    const url = new URL(window.location.href);
-    url.searchParams.set('yearly-final', nextSemester);
-    window.history.replaceState(window.history.state, '', url);
+    setSem('1');
   };
   const activeFaecher = FAECHER_ALLE.filter(f => !app.faecher || app.faecher.includes(f));
 
-  // Mode and Custom Visibility states
+  // Mode and Custom Visibility states preserved for compatibility
   const [dossierMode, setDossierMode] = useState<'einfach' | 'experte'>(() => {
-    return (localStorage.getItem('dossier_mode') as 'einfach' | 'experte') || 'einfach';
+    return (localStorage.getItem('dossier_mode') as 'einfach' | 'experte') || 'experte';
   });
 
   const [customVisibleTabs, setCustomVisibleTabs] = useState<Record<DossierTab, boolean>>(() => {
@@ -116,32 +214,41 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
     return {
       uebersicht: true,
       stammdaten: true,
+      kontakte_einwilligungen: true,
       finanzen: true,
       leistungen: true,
+      lernziele: true,
       mika_d: true,
+      entwicklungsuebersicht: true,
+      diagnostik: true,
+      foerderung: true,
+      beobachtungen_verlauf: true,
+      berichte: true,
+      beurteilung_gespraeche: true,
+      materialien: true,
       stats: true,
       kel_reflexion: true,
       ki_summary: true,
-      diagnostik: true,
       foerderprofil: true,
       erlaeuterung: true,
-      lernziele: true,
       arbeitsblatt: true,
       eltern_report: true,
     } as Record<DossierTab, boolean>;
   });
 
   const [showVisibilityModal, setShowVisibilityModal] = useState(false);
+  const [lernzieleInitialFach, setLernzieleInitialFach] = useState<string | undefined>(undefined);
 
   const EINFACH_TABS: DossierTab[] = [
     'uebersicht',
     'leistungen',
+    'entwicklungsuebersicht',
     'diagnostik',
-    'stats',
-    'lernziele',
-    'kel_reflexion',
+    'foerderung',
+    'beobachtungen_verlauf',
     'stammdaten',
-    'eltern_report'
+    'kontakte_einwilligungen',
+    'berichte'
   ];
 
   useEscapeKey(() => setPresentationModeActive(false), presentationModeActive);
@@ -156,96 +263,42 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
   const nextStudent = currentStudentIndex < app.schueler.length - 1
     ? app.schueler[currentStudentIndex + 1]
     : null;
+
   const switchStudent = (targetId?: string) => {
-    if (targetId && onStudentChange) onStudentChange(targetId);
+    if (targetId && onStudentChange) {
+      onStudentChange(targetId);
+      setActiveTab('uebersicht');
+    }
   };
 
   const studentErhebungen = getValidStudentDiagnostics(app, student.id);
   const criticalCount = studentErhebungen.filter(isDiagnosticAlert).length;
-
-  type MainTab = 'ueberblick' | 'lernen' | 'entwicklung' | 'organisation';
-
-  const MAIN_TABS = [
-    {
-      id: 'ueberblick' as MainTab,
-      label: 'Überblick',
-      subtitle: 'Lernstand & Elternansicht',
-      icon: Sparkles,
-      defaultSubTab: 'uebersicht' as DossierTab
-    },
-    {
-      id: 'lernen' as MainTab,
-      label: 'Lernen & Diagnostik',
-      subtitle: 'Leistungen, Tests & Sprache',
-      icon: BarChart3,
-      defaultSubTab: 'leistungen' as DossierTab
-    },
-    {
-      id: 'entwicklung' as MainTab,
-      label: 'Entwicklung & Ziele',
-      subtitle: 'Beobachtung, KEL & Förderung',
-      icon: Target,
-      defaultSubTab: 'stats' as DossierTab
-    },
-    {
-      id: 'organisation' as MainTab,
-      label: 'Organisation',
-      subtitle: 'Stammdaten, Kontakt & Finanzen',
-      icon: User,
-      defaultSubTab: 'stammdaten' as DossierTab
-    },
-  ];
-
-  const SUB_TABS: Record<MainTab, { id: DossierTab; label: string; icon: React.ComponentType<{ size: number; className?: string }> }[]> = {
-    ueberblick: [
-      { id: 'uebersicht', label: 'Pädagogischer Überblick', icon: Sparkles },
-      { id: 'eltern_report', label: 'Eltern-Report', icon: Printer },
-    ],
-    lernen: [
-      { id: 'leistungen', label: 'Noten & Schnitt', icon: BarChart3 },
-      { id: 'mika_d', label: 'MIKA-D Sprachbewertung', icon: GraduationCap },
-      { id: 'diagnostik', label: 'Pädagogische Diagnostik', icon: Stethoscope },
-      { id: 'erlaeuterung', label: 'Erläuterungsmatrix', icon: Award },
-    ],
-    entwicklung: [
-      { id: 'stats', label: 'Beobachtung & Präsenz', icon: Activity },
-      { id: 'kel_reflexion', label: 'KEL-Entwicklung', icon: Compass },
-      { id: 'lernziele', label: 'Lehrplan-Lernziele', icon: Target },
-      { id: 'foerderprofil', label: 'Individuelle Förderung', icon: Heart },
-      { id: 'ki_summary', label: 'Pädagogischer Bericht', icon: Sparkles },
-      { id: 'arbeitsblatt', label: 'Individuelles Fördermaterial', icon: FileText },
-    ],
-    organisation: [
-      { id: 'stammdaten', label: 'Stammdaten & Kontakt', icon: User },
-      { id: 'finanzen', label: 'Klassenkasse & Finanzen', icon: Banknote },
-    ],
-  };
-
-  const getActiveMainTab = (tab: DossierTab): MainTab => {
-    if (SUB_TABS.ueberblick.some(t => t.id === tab)) return 'ueberblick';
-    if (SUB_TABS.lernen.some(t => t.id === tab)) return 'lernen';
-    if (SUB_TABS.entwicklung.some(t => t.id === tab)) return 'entwicklung';
-    return 'organisation';
-  };
-
-  const activeMainTab = getActiveMainTab(activeTab);
+  const newDiagnosticResults = (app.diagnosticResults || []).filter((r: any) => r.studentId === student.id);
+  const totalDiagnosticCount = studentErhebungen.length + newDiagnosticResults.length;
 
   const isTabVisible = (tabId: DossierTab): boolean => {
     if (tabId === 'uebersicht') return true;
-    const customVisible = customVisibleTabs[tabId] !== false;
-    if (dossierMode === 'einfach') {
-      return EINFACH_TABS.includes(tabId) && customVisible;
+    return customVisibleTabs[tabId] !== false;
+  };
+
+  const handleSelectArea = (areaId: MainAreaId) => {
+    const targetArea = MAIN_AREAS.find(a => a.id === areaId);
+    if (!targetArea) return;
+    if (targetArea.tabs.some(t => t.id === activeTab)) {
+      return;
     }
-    return customVisible;
+    setActiveTab(targetArea.defaultTab);
   };
 
-  const getFilteredSubTabs = (mainTabId: MainTab) => {
-    return SUB_TABS[mainTabId].filter(subTab => isTabVisible(subTab.id));
+  const getFilteredSubTabs = (areaId: MainAreaId) => {
+    const area = MAIN_AREAS.find(a => a.id === areaId);
+    if (!area) return [];
+    return area.tabs.filter(subTab => isTabVisible(subTab.id));
   };
 
-  const getFilteredMainTabs = () => {
-    return MAIN_TABS.filter(mainTab => {
-      const subtabs = getFilteredSubTabs(mainTab.id);
+  const getFilteredMainAreas = () => {
+    return MAIN_AREAS.filter(area => {
+      const subtabs = getFilteredSubTabs(area.id);
       return subtabs.length > 0;
     });
   };
@@ -254,15 +307,15 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
   useEffect(() => {
     if (!isTabVisible(activeTab)) {
       const allTabs: DossierTab[] = [
-        'uebersicht', 'stammdaten', 'finanzen', 'leistungen', 
-        'mika_d', 'stats', 'kel_reflexion', 'ki_summary', 
-        'diagnostik', 'foerderprofil', 'erlaeuterung', 
-        'lernziele', 'arbeitsblatt', 'eltern_report'
+        'uebersicht', 'leistungen', 'lernziele', 'mika_d',
+        'diagnostik', 'foerderprofil', 'stats', 'kel_reflexion',
+        'stammdaten', 'finanzen',
+        'ki_summary', 'eltern_report', 'erlaeuterung', 'arbeitsblatt'
       ];
       const visibleFallback = allTabs.find(t => isTabVisible(t)) || 'uebersicht';
       setActiveTab(visibleFallback);
     }
-  }, [activeTab, dossierMode, customVisibleTabs]);
+  }, [activeTab, customVisibleTabs]);
 
   // Helper metric calculations 
   const gradeSummary = getStudentGradeSummary(app, student.id, activeFaecher, sem);
@@ -393,158 +446,117 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
             )}
           </div>
 
-          {/* Dossier-Ansicht Configurator (Simple / Expert & Custom Visibility) */}
-          <div className="border-t border-slate-100 pt-4 space-y-2.5">
-            <span className="text-[0.5625rem] font-black uppercase tracking-[0.18em] text-slate-400 pl-1 block">
-              Dossier-Ansicht
-            </span>
-            
-            {/* 1st Div: Mode Switcher (2 rows to prevent out of bounds) */}
-            <div className="flex flex-row lg:flex-col gap-1.5 w-full min-w-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setDossierMode('einfach');
-                  localStorage.setItem('dossier_mode', 'einfach');
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-[0.72rem] sm:text-[0.75rem] font-black transition-all cursor-pointer active:scale-[0.98] min-w-0 ${
-                  dossierMode === 'einfach'
-                    ? 'bg-indigo-50/70 border-indigo-200 text-indigo-700 shadow-3xs'
-                    : 'bg-slate-50/40 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <span className="truncate">Einfache Ansicht</span>
-                <span className={`w-2 h-2 rounded-full ${dossierMode === 'einfach' ? 'bg-indigo-600' : 'bg-slate-300'} shrink-0`} />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setDossierMode('experte');
-                  localStorage.setItem('dossier_mode', 'experte');
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-[0.72rem] sm:text-[0.75rem] font-black transition-all cursor-pointer active:scale-[0.98] min-w-0 ${
-                  dossierMode === 'experte'
-                    ? 'bg-indigo-50/70 border-indigo-200 text-indigo-700 shadow-3xs'
-                    : 'bg-slate-50/40 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <span className="truncate">Experten-Ansicht</span>
-                <span className={`w-2 h-2 rounded-full ${dossierMode === 'experte' ? 'bg-indigo-600' : 'bg-slate-300'} shrink-0`} />
-              </button>
+          {/* Main Area Navigation */}
+          <div className="hidden lg:block border-t border-slate-100 pt-4.5 space-y-2.5" role="tablist" aria-label="Schülerdossier-Hauptbereiche">
+            <div className="flex items-center justify-between px-1 mb-1">
+              <span className="text-[0.5625rem] font-black uppercase tracking-[0.18em] text-slate-400 block">
+                Hauptbereiche
+              </span>
             </div>
-
-            {/* 2nd Div: Areas customizer button */}
-            <div className="hidden lg:block w-full min-w-0">
-              <button 
-                type="button"
-                onClick={() => setShowVisibilityModal(true)}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-slate-50 hover:bg-indigo-50/50 border border-slate-200 hover:border-indigo-200/80 rounded-xl text-[0.72rem] sm:text-[0.75rem] font-black text-indigo-650 hover:text-indigo-700 transition-all shadow-3xs cursor-pointer group active:scale-[0.98] min-w-0"
-                title="Sichtbare Bereiche anpassen"
-              >
-                <SlidersHorizontal size={12} className="text-indigo-500 group-hover:rotate-45 transition-transform duration-300 shrink-0" />
-                <span className="truncate">Bereiche anpassen</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Main Tab Navigation */}
-          <div className="hidden lg:block border-t border-slate-100 pt-4.5 space-y-3" role="tablist" aria-label="Schülerdossier-Hauptbereiche">
-            <span className="text-[0.5625rem] font-black uppercase tracking-[0.18em] text-slate-400 pl-1 block">
-              Bereiche
-            </span>
-            <div className="flex flex-col gap-3">
-              {getFilteredMainTabs().map((tab) => {
-                const isSectionExpanded = expandedSections[tab.id];
-                const isSectionActive = activeMainTab === tab.id;
-                const TabIcon = tab.icon;
+            <div className="flex flex-col gap-2">
+              {getFilteredMainAreas().map((area) => {
+                const isAreaActive = activeMainArea === area.id;
+                const AreaIcon = area.icon;
                 
-                // Determine badge/metric to display on each main tab
+                // Determine badge/metric to display on each main area
                 let badgeNode = null;
-                if (tab.id === 'organisation' && totalOpen > 0) {
-                  badgeNode = (
-                    <span className="text-[0.5625rem] font-black px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100 shrink-0">
-                      {totalOpen.toFixed(0)} €
-                    </span>
-                  );
-                } else if (tab.id === 'lernen' && summaryGrade !== null) {
+                if (area.id === 'lernen_leistungen' && summaryGrade !== null) {
                   badgeNode = (
                     <span className="text-[0.5625rem] font-black px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0">
                       ∅ {summaryGrade.toFixed(1)}
                     </span>
                   );
-                } else if (tab.id === 'entwicklung' && behaviorLogsCount > 0) {
-                  badgeNode = (
-                    <span className="text-[0.5625rem] font-black px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 shrink-0">
-                      {behaviorLogsCount}
-                    </span>
-                  );
-                } else if (tab.id === 'ueberblick') {
+                } else if (area.id === 'entwicklung_diagnostik') {
                   if (criticalCount > 0) {
                     badgeNode = (
                       <span className="text-[0.5625rem] font-black px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-800 shrink-0">
                         {criticalCount} Bed.
                       </span>
                     );
-                  } else if (studentErhebungen.length > 0) {
+                  } else if (totalDiagnosticCount > 0) {
                     badgeNode = (
-                      <span className="text-[0.5625rem] font-black px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 shrink-0">
-                        {studentErhebungen.length}
+                      <span className="text-[0.5625rem] font-black px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 shrink-0">
+                        {totalDiagnosticCount}
                       </span>
                     );
                   }
+                } else if (area.id === 'stammdaten_organisation' && totalOpen > 0) {
+                  badgeNode = (
+                    <span className="text-[0.5625rem] font-black px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100 shrink-0">
+                      {totalOpen.toFixed(0)} €
+                    </span>
+                  );
                 }
 
-                const subTabs = getFilteredSubTabs(tab.id);
+                const subTabs = getFilteredSubTabs(area.id);
+                const hasMultipleSubTabs = subTabs.length > 1;
 
                 return (
-                  <div key={tab.id} className="border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/20">
-                    {/* Section Header */}
+                  <div key={area.id} className={`border rounded-2xl overflow-hidden transition-all ${
+                    isAreaActive ? 'border-indigo-200/80 bg-indigo-50/15 shadow-2xs' : 'border-slate-100 bg-slate-50/20 hover:border-slate-200 hover:bg-slate-50/40'
+                  }`}>
+                    {/* Area Header Button */}
                     <button
                       type="button"
-                      onClick={() => {
-                        setExpandedSections(prev => ({
-                          ...prev,
-                          [tab.id]: !prev[tab.id]
-                        }));
-                      }}
-                      className={`w-full flex items-center justify-between p-3 text-left transition-all hover:bg-slate-50 select-none cursor-pointer group/header focus:outline-none focus:ring-1 focus:ring-indigo-500/30 ${
-                        isSectionActive ? 'bg-indigo-50/15 border-b border-indigo-100/30' : ''
+                      onClick={() => handleSelectArea(area.id)}
+                      className={`w-full flex items-center justify-between p-3 text-left transition-all select-none cursor-pointer group/header focus:outline-none focus:ring-1 focus:ring-indigo-500/30 ${
+                        isAreaActive ? 'bg-indigo-50/30' : ''
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className={`p-2 rounded-xl shrink-0 transition-colors ${
-                          isSectionActive ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-500 group-hover/header:bg-slate-200'
+                          isAreaActive ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-500 group-hover/header:bg-slate-200'
                         }`}>
-                          <TabIcon size={14} />
+                          <AreaIcon size={14} />
                         </div>
                         <div className="min-w-0">
-                          <div className={`text-[0.75rem] font-black tracking-tight leading-tight mb-0.5 ${isSectionActive ? 'text-indigo-950' : 'text-slate-800'}`}>{tab.label}</div>
-                          <div className="text-[0.5625rem] font-semibold leading-none text-slate-400">{tab.subtitle}</div>
+                          <div className={`text-[0.75rem] font-black tracking-tight leading-tight mb-0.5 ${isAreaActive ? 'text-indigo-950' : 'text-slate-800'}`}>
+                            {area.label}
+                          </div>
+                          <div className="text-[0.5625rem] font-semibold leading-none text-slate-400">
+                            {area.subtitle}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0 pl-1">
                         {badgeNode}
-                        <div className="text-slate-450 transition-transform duration-200">
-                          {isSectionExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                        </div>
+                        {hasMultipleSubTabs && (
+                          <div className={`text-slate-450 transition-transform duration-200 ${isAreaActive ? 'rotate-90 text-indigo-600' : ''}`}>
+                            <ChevronRight size={13} />
+                          </div>
+                        )}
                       </div>
                     </button>
 
-                    {/* Subtabs list */}
-                    {isSectionExpanded && subTabs.length > 0 && (
-                      <div className="p-1.5 bg-white/40 space-y-1 border-t border-slate-50">
+                    {/* Subtabs list (shown progressively when area is active and has multiple subtabs) */}
+                    {isAreaActive && hasMultipleSubTabs && (
+                      <div className="p-1.5 bg-white/60 space-y-1 border-t border-indigo-100/40">
                         {subTabs.map((subTab) => {
-                          const isSubActive = activeTab === subTab.id;
+                          const isSubActive = activeTab === subTab.id ||
+                            (subTab.id === 'foerderung' && activeTab === 'foerderprofil') ||
+                            (subTab.id === 'beobachtungen_verlauf' && (activeTab === 'stats' || activeTab === 'kel_reflexion' || activeTab === 'notizen')) ||
+                            (subTab.id === 'berichte' && (activeTab === 'ki_summary' || activeTab === 'eltern_report')) ||
+                            (subTab.id === 'beurteilung_gespraeche' && activeTab === 'erlaeuterung') ||
+                            (subTab.id === 'materialien' && activeTab === 'arbeitsblatt');
                           const SubIcon = subTab.icon;
 
                           // Count subtab-specific indicators
                           let subBadge = null;
-                          if (subTab.id === 'notizen' && notesCount > 0) {
+                          if (subTab.id === 'diagnostik' && totalDiagnosticCount > 0) {
+                            subBadge = <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-white/20 text-white' : (criticalCount > 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-700')}`}>{totalDiagnosticCount}</span>;
+                          } else if (subTab.id === 'foerderung' && (student.foerderprofil?.foerderziele || []).length > 0) {
+                            const openCount = (student.foerderprofil?.foerderziele || []).filter(g => g.status === 'offen' || g.status === 'in Arbeit').length;
+                            if (openCount > 0) {
+                              subBadge = <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-700'}`}>{openCount}</span>;
+                            }
+                          } else if (subTab.id === 'beobachtungen_verlauf' && (notesCount + behaviorLogsCount > 0)) {
+                            subBadge = <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>{notesCount + behaviorLogsCount}</span>;
+                          } else if (subTab.id === 'notizen' && notesCount > 0) {
                             subBadge = <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>{notesCount}</span>;
                           } else if (subTab.id === 'stats' && behaviorLogsCount > 0) {
                             subBadge = <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>{behaviorLogsCount}</span>;
-                          } else if (subTab.id === 'diagnostik' && studentErhebungen.length > 0) {
-                            subBadge = <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-white/20 text-white' : (criticalCount > 0 ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-700')}`}>{studentErhebungen.length}</span>;
+                          } else if (subTab.id === 'finanzen' && totalOpen > 0) {
+                            subBadge = <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-white/20 text-white' : 'bg-orange-50 text-orange-600'}`}>{totalOpen.toFixed(0)} €</span>;
                           }
 
                           return (
@@ -555,7 +567,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                               className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all cursor-pointer select-none focus:outline-none ${
                                 isSubActive
                                   ? 'bg-slate-900 text-white font-extrabold shadow-sm'
-                                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                  : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
                               }`}
                             >
                               <div className="flex items-center gap-2 min-w-0">
@@ -614,59 +626,57 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
           {/* Mobile High-Level Category Tabs */}
           {!app.dossierFocusMode && (
             <>
-              <div className="lg:hidden flex overflow-x-auto gap-2 pb-2 mb-2.5 scrollbar-none border-b border-slate-100/70" role="tablist" aria-label="Mobile Hauptbereiche">
-                {getFilteredMainTabs().map((tab) => {
-                  const isActive = activeMainTab === tab.id;
-                  const TabIcon = tab.icon;
+              {/* Mobile 5 Main Areas Navigation */}
+              <div className="lg:hidden flex overflow-x-auto gap-2 pb-2.5 mb-3 scrollbar-none border-b border-slate-100" role="tablist" aria-label="Mobile Hauptbereiche">
+                {getFilteredMainAreas().map((area) => {
+                  const isActive = activeMainArea === area.id;
+                  const AreaIcon = area.icon;
                   return (
                     <button
-                      key={tab.id}
+                      key={area.id}
                       role="tab"
                       aria-selected={isActive}
-                      id={`dossier-mobile-main-tab-${tab.id}`}
-                      onClick={() => {
-                        const subtabs = getFilteredSubTabs(tab.id);
-                        if (subtabs.length > 0) {
-                          setActiveTab(subtabs[0].id);
-                        }
-                      }}
-                      className={`flex items-center gap-1.5 py-2 px-3 rounded-xl text-[0.7rem] leading-tight font-black whitespace-nowrap transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      id={`dossier-mobile-main-tab-${area.id}`}
+                      onClick={() => handleSelectArea(area.id)}
+                      className={`flex items-center gap-1.5 py-2 px-3 rounded-xl text-[0.7rem] leading-tight font-black whitespace-nowrap transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0 ${
                         isActive
-                          ? 'bg-slate-900 text-accent shadow-xs scale-102'
-                          : 'bg-slate-50 text-slate-550 hover:text-slate-800 hover:bg-slate-100'
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                       }`}
                     >
-                      <span><TabIcon size={12} /></span>
-                      <span>{tab.label}</span>
+                      <AreaIcon size={12} className={isActive ? 'text-indigo-400' : 'text-slate-400'} />
+                      <span>{area.label}</span>
                     </button>
                   );
                 })}
               </div>
 
-              {/* Mobile Sub-category Tabs */}
-              <div className="lg:hidden flex overflow-x-auto gap-1.5 pb-3 mb-6 scrollbar-none border-b border-slate-100" role="tablist" aria-label="Mobile Registerkarten">
-                {getFilteredSubTabs(activeMainTab).map((subTab) => {
-                  const isActive = activeTab === subTab.id;
-                  const SubIcon = subTab.icon;
-                  return (
-                    <button
-                      key={subTab.id}
-                      role="tab"
-                      aria-selected={isActive}
-                      id={`dossier-mobile-sub-tab-${subTab.id}`}
-                      onClick={() => setActiveTab(subTab.id)}
-                      className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-[0.6875rem] leading-tight font-bold whitespace-nowrap transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        isActive
-                          ? 'bg-indigo-600 text-white shadow-3xs'
-                          : 'bg-slate-50 text-slate-550 hover:text-slate-800'
-                      }`}
-                    >
-                      <span><SubIcon size={11} /></span>
-                      <span>{subTab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              {/* Mobile Sub-category Tabs (only when the active area has more than 1 tab) */}
+              {getFilteredSubTabs(activeMainArea).length > 1 && (
+                <div className="lg:hidden flex overflow-x-auto gap-1.5 pb-3 mb-6 scrollbar-none border-b border-slate-100" role="tablist" aria-label="Mobile Registerkarten">
+                  {getFilteredSubTabs(activeMainArea).map((subTab) => {
+                    const isActive = activeTab === subTab.id;
+                    const SubIcon = subTab.icon;
+                    return (
+                      <button
+                        key={subTab.id}
+                        role="tab"
+                        aria-selected={isActive}
+                        id={`dossier-mobile-sub-tab-${subTab.id}`}
+                        onClick={() => setActiveTab(subTab.id)}
+                        className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-[0.6875rem] leading-tight font-bold whitespace-nowrap transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0 ${
+                          isActive
+                            ? 'bg-indigo-600 text-white shadow-3xs'
+                            : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                      >
+                        <SubIcon size={11} className={isActive ? 'text-white' : 'text-slate-400'} />
+                        <span>{subTab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
 
@@ -727,27 +737,6 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                     </button>
                   </div>
                 )}
-                <div
-                  className="flex items-center rounded-xl border border-slate-700 bg-slate-950/50 p-1"
-                  role="group"
-                  aria-label="Dossier-Semester auswählen"
-                >
-                  {(['1', '2'] as const).map(value => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => changeSemester(value)}
-                      aria-pressed={sem === value}
-                      className={`rounded-lg px-2.5 py-1.5 text-[0.65rem] font-black transition-all ${
-                        sem === value
-                          ? 'bg-indigo-600 text-white'
-                          : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-                      }`}
-                    >
-                      {value}. Sem.
-                    </button>
-                  ))}
-                </div>
               </div>
 
               {/* Segmented control for the tabs in Focus Mode */}
@@ -800,171 +789,192 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
 
           {/* Profile Hero Header Card */}
           {!app.dossierFocusMode && (
-            <div className={`mb-8 p-6 bg-gradient-to-r ${isBirthdayToday ? 'from-pink-500/10 via-rose-500/5 to-indigo-500/10 border-pink-200 shadow-[0_12px_40px_rgba(244,63,94,0.08)]' : 'from-slate-50 via-indigo-50/15 to-slate-50 border-slate-200/80 shadow-[0_4px_25px_rgba(0,0,0,0.015)] hover:shadow-[0_12px_40px_rgba(99,102,241,0.035)]'} border rounded-[2rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 transition-all duration-300 relative overflow-hidden`}>
+            <div className={`mb-6 p-5 sm:p-6 bg-white border ${isBirthdayToday ? 'border-pink-200 shadow-sm' : 'border-slate-200/90 shadow-sm'} rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-5 transition-all relative`}>
               
               {isBirthdayToday && (
-                <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/5 rounded-full blur-2xl pointer-events-none select-none" />
+                <div className="absolute top-0 right-0 w-28 h-28 bg-pink-500/5 rounded-full blur-2xl pointer-events-none select-none" />
               )}
 
-              <div className="flex items-center gap-5">
+              <div className="flex items-center gap-4 sm:gap-5">
                 {student.foto ? (
-                  <img src={student.foto} alt="" className={`w-16 h-16 rounded-2xl object-cover ring-4 ${isBirthdayToday ? 'ring-pink-300' : 'ring-white'} shadow-md object-top hover:scale-105 transition-transform duration-300`} referrerPolicy="no-referrer" />
+                  <img src={student.foto} alt="" className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover ring-2 ${isBirthdayToday ? 'ring-pink-300' : 'ring-slate-200'} shadow-sm object-top`} referrerPolicy="no-referrer" />
                 ) : (
-                  <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${isBirthdayToday ? 'from-pink-500/20 to-rose-600/30 text-pink-700 border-pink-200/60' : 'from-indigo-500/10 to-indigo-600/20 border-indigo-200/60 text-indigo-700'} border flex items-center justify-center text-[1.5rem] leading-normal font-black shadow-inner`}>
+                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 border border-slate-200/80 text-slate-700 flex items-center justify-center text-xl font-black shadow-inner`}>
                     {student.vorname.charAt(0)}{student.nachname.charAt(0)}
                   </div>
                 )}
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <h1 className="text-[1.625rem] font-black text-slate-950 tracking-tight leading-none flex items-center gap-2">
+                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-2">
                       <span>{student.vorname} {student.nachname}</span>
                       {isBirthdayToday && (
-                        <span className="animate-bounce inline-block" title="Geburtstagskind!">🎉</span>
+                        <span className="inline-block text-lg" title="Geburtstagskind!">🎉</span>
                       )}
                     </h1>
                     <div className="flex gap-1.5 flex-wrap">
                       {isBirthdayToday && (
-                        <span className="px-2.5 py-0.5 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white font-extrabold text-[0.55rem] uppercase tracking-wider shadow-sm animate-pulse flex items-center gap-1">
-                          <Sparkles size={9} /> B-Day!
+                        <span className="px-2 py-0.5 rounded-lg bg-pink-100 text-pink-700 font-extrabold text-[0.6rem] uppercase tracking-wider">
+                          Geburtstag
                         </span>
                       )}
                       {isSpf && (
-                        <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 font-extrabold text-[0.55rem] uppercase tracking-wider border border-rose-200 shadow-3xs flex items-center gap-1" title="Sonderpädagogischer Förderbedarf">
-                          <Heart size={9} className="fill-rose-500 text-rose-500" /> SPF
+                        <span className="px-2 py-0.5 rounded-lg bg-rose-50 text-rose-600 font-extrabold text-[0.6rem] uppercase tracking-wider border border-rose-200" title="Sonderpädagogischer Förderbedarf">
+                          SPF
                         </span>
                       )}
                       {isEspf && (
-                        <span className="px-2.5 py-1 rounded-lg bg-cyan-50 text-cyan-600 font-extrabold text-[0.55rem] uppercase tracking-wider border border-cyan-200 shadow-3xs flex items-center gap-1" title="Außerordentlicher Status">
-                          <Award size={9} /> ESPF
+                        <span className="px-2 py-0.5 rounded-lg bg-cyan-50 text-cyan-700 font-extrabold text-[0.6rem] uppercase tracking-wider border border-cyan-200" title="Außerordentlicher Status">
+                          ESPF
                         </span>
                       )}
                       {isDaz && (
-                        <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 font-extrabold text-[0.55rem] uppercase tracking-wider border border-amber-200 shadow-3xs flex items-center gap-1" title="Deutsch als Zweitsprache">
-                          <BookOpen size={9} /> DAZ
+                        <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 font-extrabold text-[0.6rem] uppercase tracking-wider border border-amber-200" title="Deutsch als Zweitsprache">
+                          DAZ
                         </span>
                       )}
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[0.72rem] leading-tight text-slate-500 font-bold uppercase tracking-wider">
-                    <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                      Klasse: {[app.stufe ? `${app.stufe}.` : '', app.klassenbezeichnung].filter(Boolean).join(' ') || 'nicht erfasst'}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 font-semibold">
+                    <span>
+                      Klasse: <strong className="font-black text-slate-700">{[app.stufe ? `${app.stufe}.` : '', app.klassenbezeichnung].filter(Boolean).join(' ') || 'nicht erfasst'}</strong>
                     </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                      Schuljahr: {app.schuljahr || 'nicht erfasst'}
-                    </span>
-                    <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span> Geburtstag: {student.geburtstag ? (student.geburtstag.includes('-') ? student.geburtstag.split('-').reverse().join('.') : student.geburtstag) : 'nicht erfasst'}</span>
+                    {student.besuchsjahr && (
+                      <>
+                        <span className="text-slate-300">·</span>
+                        <span>{student.besuchsjahr}. Schulbesuchsjahr</span>
+                      </>
+                    )}
+                    <span className="text-slate-300">·</span>
+                    <span>Schuljahr: {app.schuljahr || 'nicht erfasst'}</span>
+                    {(student.geburtstag || student.geburtsdatum) && (
+                      <>
+                        <span className="text-slate-300">·</span>
+                        <span>
+                          {student.geburtstag?.includes('-')
+                            ? student.geburtstag.split('-').reverse().join('.')
+                            : (student.geburtstag || student.geburtsdatum)}
+                          {(() => {
+                            const dateStr = student.geburtstag || student.geburtsdatum;
+                            if (!dateStr) return null;
+                            const parts = dateStr.includes('-') ? dateStr.split('-') : dateStr.split('.');
+                            let bDate: Date;
+                            if (dateStr.includes('-')) {
+                              bDate = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                            } else {
+                              bDate = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+                            }
+                            if (isNaN(bDate.getTime())) return null;
+                            const ageDiff = Date.now() - bDate.getTime();
+                            const age = Math.floor(ageDiff / (1000 * 60 * 60 * 24 * 365.25));
+                            return age > 0 && age < 30 ? ` (${age} Jahre)` : null;
+                          })()}
+                        </span>
+                      </>
+                    )}
                     {student.niveau !== null && student.niveau !== undefined && (
                       <>
-                        <span className="flex items-center gap-1"><span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 font-black tracking-tight border border-slate-200">Niveau {student.niveau}</span></span>
+                        <span className="text-slate-300">·</span>
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[0.65rem] font-bold text-slate-600">Niveau {student.niveau}</span>
                       </>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 self-stretch md:self-auto justify-end flex-wrap md:flex-nowrap">
-                <div
-                  className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1"
-                  role="group"
-                  aria-label="Dossier-Semester auswählen"
-                >
-                  {(['1', '2'] as const).map(value => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => changeSemester(value)}
-                      aria-pressed={sem === value}
-                      className={`rounded-lg px-3 py-2 text-[0.7rem] font-black transition-all ${
-                        sem === value
-                          ? 'bg-slate-900 text-white shadow-sm'
-                          : 'text-slate-500 hover:bg-white hover:text-slate-800'
-                      }`}
-                    >
-                      {value}. Sem.
-                    </button>
-                  ))}
-                </div>
-                {/* DOSSIER SCOPE SWITCHER */}
-                <button
-                  type="button"
-                  onClick={() => setShowVisibilityModal(true)}
-                  className="hidden lg:flex px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200 rounded-xl text-[0.75rem] leading-tight font-black uppercase tracking-widest items-center justify-center gap-2 transition-all shadow-3xs active:scale-95 cursor-pointer"
-                  title="Sichtbare Dossier-Bereiche konfigurieren"
-                >
-                  <SlidersHorizontal size={13} className="text-indigo-500" />
-                  <span>Bereiche anpassen</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setApp(prev => ({
-                      ...prev,
-                      dossierFocusMode: true
-                    }));
-                  }}
-                  className="hidden lg:flex px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[0.75rem] leading-tight font-black uppercase tracking-widest items-center justify-center gap-2 transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 active:scale-95 cursor-pointer"
-                  title="Fokus-Modus aktivieren: Blendet alle Seitenelemente aus, um die Bearbeitung zu erleichtern"
-                >
-                  <Maximize2 size={13} />
-                  <span>Fokus-Modus</span>
-                </button>
+              <div className="flex items-center gap-2 self-stretch md:self-auto justify-end flex-wrap sm:flex-nowrap">
+                {/* primary action: KEL Presentation */}
                 <button
                   type="button"
                   onClick={() => setPresentationModeActive(true)}
-                  className="flex-1 lg:flex-none px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[0.75rem] leading-tight font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-md focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 active:scale-95 cursor-pointer"
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 cursor-pointer"
                   title="KEL-Präsentationsmodus starten"
                 >
-                  <span className="animate-pulse">🖥️</span>
-                  <span>KEL für Eltern starten</span>
+                  <span>🖥️</span>
+                  <span>KEL für Eltern</span>
                 </button>
-                <button 
-                  type="button"
-                  onClick={() => {
-                    setApp(prev => ({
-                      ...prev,
-                      activePrintTemplate: 'schuelerprofil',
-                      activePrintStudentId: student.id
-                    }));
-                    setPage?.('drucken');
-                  }}
-                  className="p-3 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl transition-all shadow-3xs focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 active:scale-95 cursor-pointer"
-                  title="Dossier/Bericht drucken"
-                >
-                  <Printer size={15} />
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => exportSchuelerPDF(student.id, app)}
-                  className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl font-black text-[0.75rem] leading-tight flex items-center gap-2 transition-all shadow-3xs focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2 active:scale-95 cursor-pointer"
-                  title="Gesamtes Dossier inklusive aller Tabs als einzelne zusammenhängende PDF-Datei exportieren (jeder Tab auf einer neuen Seite)"
-                >
-                  <Download size={13} className="text-indigo-600" />
-                  <span>Gesamtes Dossier (PDF)</span>
-                </button>
+
+                {/* export and print button group */}
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                  <button 
+                    type="button"
+                    onClick={() => exportSchuelerPDF(student.id, app)}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all shadow-2xs active:scale-95 cursor-pointer"
+                    title="Gesamtes Dossier als PDF exportieren"
+                  >
+                    <Download size={13} className="text-indigo-600" />
+                    <span>Dossier (PDF)</span>
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setApp(prev => ({
+                        ...prev,
+                        activePrintTemplate: 'schuelerprofil',
+                        activePrintStudentId: student.id
+                      }));
+                      setPage?.('drucken');
+                    }}
+                    className="p-1.5 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200/80 rounded-lg transition-all shadow-2xs active:scale-95 cursor-pointer"
+                    title="Dossier/Bericht drucken"
+                  >
+                    <Printer size={14} />
+                  </button>
+                </div>
+
+                {/* view controls */}
+                <div className="hidden lg:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setShowVisibilityModal(true)}
+                    className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all shadow-2xs active:scale-95 cursor-pointer"
+                    title="Sichtbare Dossier-Bereiche konfigurieren"
+                  >
+                    <SlidersHorizontal size={12} className="text-indigo-500" />
+                    <span>Bereiche</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApp(prev => ({
+                        ...prev,
+                        dossierFocusMode: true
+                      }));
+                    }}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-200/80 rounded-xl text-[0.72rem] leading-tight font-extrabold flex items-center justify-center gap-1.5 transition-all shadow-2xs active:scale-95 cursor-pointer"
+                    title="Fokus-Modus aktivieren"
+                  >
+                    <Maximize2 size={12} className="text-slate-500" />
+                    <span>Fokus</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Desktop Sub-Tabs horizontal bar (visible on large screens only) */}
-          {!app.dossierFocusMode && (
-            <div className="hidden lg:flex flex-wrap gap-2 mb-8 bg-slate-50/50 border border-slate-205/65 p-2.5 rounded-[1.5rem] print:hidden">
-              {getFilteredSubTabs(activeMainTab).map((subTab) => {
-                const isSubActive = activeTab === subTab.id;
+          {/* Desktop Sub-Tabs horizontal bar (visible on large screens only when area has multiple sub-tabs) */}
+          {!app.dossierFocusMode && getFilteredSubTabs(activeMainArea).length > 1 && (
+            <div className="hidden lg:flex flex-wrap items-center gap-2 mb-8 bg-slate-50/70 border border-slate-200/80 p-2 rounded-[1.25rem] print:hidden">
+              {getFilteredSubTabs(activeMainArea).map((subTab) => {
+                const isSubActive = activeTab === subTab.id ||
+                  (subTab.id === 'foerderung' && activeTab === 'foerderprofil') ||
+                  (subTab.id === 'beobachtungen_verlauf' && (activeTab === 'stats' || activeTab === 'kel_reflexion' || activeTab === 'notizen')) ||
+                  (subTab.id === 'berichte' && (activeTab === 'ki_summary' || activeTab === 'eltern_report')) ||
+                  (subTab.id === 'beurteilung_gespraeche' && activeTab === 'erlaeuterung') ||
+                  (subTab.id === 'materialien' && activeTab === 'arbeitsblatt');
                 const SubIcon = subTab.icon;
                 return (
                   <button
                     key={subTab.id}
                     onClick={() => setActiveTab(subTab.id)}
-                    className={`flex items-center gap-2 py-2 px-4 rounded-xl text-[0.75rem] leading-tight font-black transition-all cursor-pointer border ${
+                    className={`flex items-center gap-2 py-2 px-3.5 rounded-xl text-[0.75rem] leading-tight font-black transition-all cursor-pointer border ${
                       isSubActive
-                        ? 'bg-white text-slate-900 shadow-3xs border-slate-200'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60 border-transparent'
+                        ? 'bg-white text-slate-900 shadow-2xs border-slate-200/90'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/50 border-transparent'
                     }`}
                   >
-                    <SubIcon size={14} className={isSubActive ? 'text-indigo-600' : 'text-slate-450'} />
+                    <SubIcon size={14} className={isSubActive ? 'text-indigo-600' : 'text-slate-400'} />
                     <span>{subTab.label}</span>
                     
                     {/* Sub-tab-specific badges */}
@@ -978,9 +988,14 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                         {behaviorLogsCount}
                       </span>
                     )}
-                    {subTab.id === 'diagnostik' && studentErhebungen.length > 0 && (
-                      <span className={`text-[0.59375rem] font-black px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-indigo-100 text-indigo-800' : (criticalCount > 0 ? 'bg-rose-100 text-rose-800 animate-pulse' : 'bg-slate-200 text-slate-700')}`}>
-                        {studentErhebungen.length}
+                    {subTab.id === 'diagnostik' && totalDiagnosticCount > 0 && (
+                      <span className={`text-[0.59375rem] font-black px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-indigo-100 text-indigo-800' : (criticalCount > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700')}`}>
+                        {totalDiagnosticCount}
+                      </span>
+                    )}
+                    {subTab.id === 'finanzen' && totalOpen > 0 && (
+                      <span className={`text-[0.59375rem] font-black px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-orange-100 text-orange-800' : 'bg-orange-50 text-orange-600'}`}>
+                        {totalOpen.toFixed(0)} €
                       </span>
                     )}
                   </button>
@@ -989,161 +1004,14 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
             </div>
           )}
 
-          {/* 4-Bento Metrics Summary Deck */}
-          {activeTab === 'ki_summary' && (isTabVisible('leistungen') || isTabVisible('stats') || isTabVisible('finanzen') || isTabVisible('diagnostik')) && (
-            <>
-            <div className="mb-4 flex flex-col sm:flex-row sm:items-end justify-between gap-2">
-              <div>
-                <h2 className="text-lg font-black text-slate-900">Auf einen Blick</h2>
-                <p className="text-xs font-bold text-slate-500 mt-1">
-                  Synchronisiert aus Notenmappe, Anwesenheit, Beobachtungen, Klassenkasse und Diagnostik.
-                </p>
-              </div>
-              <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">
-                {gradeSummary.gradedSubjects} Fächer · {attendanceSummary.recordedDays} Anwesenheitstage · {notesCount} Notizen
-              </div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              {/* Bento Card 1: Noten */}
-              {isTabVisible('leistungen') && (
-                <button 
-                  type="button"
-                  onClick={() => setActiveTab('leistungen')} 
-                  aria-label={`Notenschnitt öffnen: ${summaryGrade !== null ? summaryGrade.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'Keine Noten vorhanden'}`}
-                  className={`p-4 sm:p-5 bg-white border rounded-[1.75rem] shadow-[0_4px_20px_rgba(0,0,0,0.01)] hover:shadow-[0_12px_25px_rgba(245,158,11,0.08)] hover:border-amber-250 transition-all duration-300 cursor-pointer text-left w-full space-y-2 focus:outline-none focus:ring-2 focus:ring-amber-500 hover:-translate-y-0.5 ${
-                    (activeTab as string) === 'leistungen' 
-                      ? 'ring-2 ring-slate-900 border-amber-250 bg-amber-50/5' 
-                      : 'border-slate-150'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-slate-400">
-                    <span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-400">Notenschnitt</span>
-                    <div className="p-1 bg-amber-50 rounded-lg">
-                      <BarChart3 size={13} className="text-amber-500" />
-                    </div>
-                  </div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-[1.625rem] leading-none font-black text-slate-900 tabular-nums tracking-tight">
-                      {summaryGrade !== null ? summaryGrade.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-                    </span>
-                    {summaryGrade !== null && <span className="text-[0.6875rem] text-slate-400 font-extrabold">∅</span>}
-                  </div>
-                  <p className="text-[0.5625rem] text-slate-400 font-black uppercase tracking-wider text-wrap break-words leading-none">Leistungen & Schnitt</p>
-                </button>
-              )}
-
-              {/* Bento Card 2: Verhalten */}
-              {isTabVisible('stats') && (
-                <button 
-                  type="button"
-                  onClick={() => setActiveTab('stats')} 
-                  aria-label={hasBehaviorData
-                    ? `Verhaltensübersicht öffnen. Aktuelle Stufe: ${currentStage?.label}`
-                    : 'Verhaltensübersicht öffnen. Noch keine Verhaltenseinträge vorhanden'}
-                  className={`p-4 sm:p-5 bg-white border rounded-[1.75rem] shadow-[0_4px_20px_rgba(0,0,0,0.01)] hover:shadow-[0_12px_25px_rgba(100,116,139,0.08)] hover:border-slate-300 transition-all duration-300 cursor-pointer text-left w-full space-y-2 focus:outline-none focus:ring-2 focus:ring-slate-500 hover:-translate-y-0.5 ${
-                    (activeTab as string) === 'stats' 
-                      ? 'ring-2 ring-slate-900 border-slate-300 bg-slate-50/5' 
-                      : 'border-slate-150'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-slate-400">
-                    <span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-400">Verhalten</span>
-                    <div className="p-1 bg-slate-50 rounded-lg">
-                      <span className="text-[0.875rem] leading-none select-none">{hasBehaviorData ? currentStage?.icon : '–'}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-baseline">
-                    <span className="text-[0.875rem] leading-tight font-black text-slate-800 text-wrap break-words max-w-full tracking-tight">
-                      {hasBehaviorData ? currentStage?.label : 'Noch keine Einträge'}
-                    </span>
-                  </div>
-                  <p className="text-[0.5625rem] text-slate-400 font-black uppercase tracking-wider text-wrap leading-tight break-words">
-                    {behaviorLogsCount === 1 ? '1 Beobachtung' : `${behaviorLogsCount} Beobachtungen`}
-                  </p>
-                </button>
-              )}
-
-              {/* Bento Card 3: Finanzen */}
-              {isTabVisible('finanzen') && (
-                <button 
-                  type="button"
-                  onClick={() => setActiveTab('finanzen')} 
-                  aria-label={hasFinanceData
-                    ? `Finanzübersicht öffnen. Bezahlt: ${formatEuro(totalPaid)} Euro. ${totalOpen > 0 ? `${formatEuro(totalOpen)} Euro offen` : 'Kein offener Betrag'}`
-                    : 'Finanzübersicht öffnen. Noch keine Zahlungsdaten vorhanden'}
-                  className={`p-4 sm:p-5 bg-white border rounded-[1.75rem] shadow-[0_4px_20px_rgba(0,0,0,0.01)] hover:shadow-[0_12px_25px_rgba(16,185,129,0.08)] hover:border-emerald-250 transition-all duration-300 cursor-pointer text-left w-full space-y-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 hover:-translate-y-0.5 ${
-                    (activeTab as string) === 'finanzen' 
-                      ? 'ring-2 ring-slate-900 border-emerald-250 bg-emerald-50/5' 
-                      : 'border-slate-150'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-slate-400">
-                    <span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-400">Klassenkasse</span>
-                    <div className={`p-1 rounded-lg ${totalOpen > 0 ? 'bg-orange-50' : 'bg-emerald-50'}`}>
-                      <Banknote size={13} className={totalOpen > 0 ? "text-orange-500" : "text-emerald-500"} />
-                    </div>
-                  </div>
-                  <div className="flex items-baseline">
-                    <span className="text-[1.3125rem] leading-none font-black text-slate-900 tabular-nums tracking-tight">
-                      {hasFinanceData ? `${formatEuro(totalPaid)} €` : '–'}
-                    </span>
-                  </div>
-                  {!hasFinanceData ? (
-                    <p className="text-[0.5625rem] text-slate-500 font-black uppercase tracking-wider text-wrap break-words leading-none">Keine Zahlungsdaten</p>
-                  ) : totalOpen > 0 ? (
-                    <p className="text-[0.5625rem] text-orange-600 font-black uppercase tracking-wider text-wrap break-words leading-none">- {formatEuro(totalOpen)} € offen</p>
-                  ) : (
-                    <p className="text-[0.5625rem] text-emerald-600 font-black uppercase tracking-wider text-wrap break-words leading-none">Kein offener Betrag</p>
-                  )}
-                </button>
-              )}
-
-              {/* Bento Card 4: Diagnostik */}
-              {isTabVisible('diagnostik') && (
-                <button 
-                  type="button"
-                  onClick={() => setActiveTab('diagnostik')} 
-                  aria-label={studentErhebungen.length === 0
-                    ? 'Diagnostik-Erhebungen öffnen. Noch keine Erhebungen vorhanden'
-                    : `Diagnostik-Erhebungen öffnen. Anzahl Tests: ${studentErhebungen.length}. ${criticalCount > 0 ? `${criticalCount} auffälliger Bedarf` : 'Keine Auffälligkeiten dokumentiert'}`}
-                  className={`p-4 sm:p-5 bg-white border rounded-[1.75rem] shadow-[0_4px_20px_rgba(0,0,0,0.01)] hover:shadow-[0_12px_25px_rgba(99,102,241,0.08)] hover:border-indigo-250 transition-all duration-300 cursor-pointer text-left w-full space-y-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:-translate-y-0.5 ${
-                    (activeTab as string) === 'diagnostik' 
-                      ? 'ring-2 ring-slate-900 border-indigo-200 bg-indigo-50/5' 
-                      : 'border-slate-150'
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-slate-400">
-                    <span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-400">Erhebungen</span>
-                    <div className={`p-1 rounded-lg ${criticalCount > 0 ? 'bg-rose-50' : 'bg-indigo-50'}`}>
-                      <Stethoscope size={13} className={criticalCount > 0 ? "text-rose-500" : "text-indigo-500"} />
-                    </div>
-                  </div>
-                  <div className="flex items-baseline">
-                    <span className="text-[1.3125rem] leading-none font-black text-slate-900 tabular-nums tracking-tight">
-                      {studentErhebungen.length === 0 ? '–' : `${studentErhebungen.length} ${studentErhebungen.length === 1 ? 'Test' : 'Tests'}`}
-                    </span>
-                  </div>
-                  {studentErhebungen.length === 0 ? (
-                    <p className="text-[0.5625rem] text-slate-500 font-black uppercase tracking-wider text-wrap break-words leading-none">Noch nicht erhoben</p>
-                  ) : criticalCount > 0 ? (
-                    <p className="text-[0.5625rem] text-rose-600 font-black uppercase tracking-wider animate-pulse text-wrap break-words leading-none">{criticalCount} kritischer Bedarf</p>
-                  ) : (
-                    <p className="text-[0.5625rem] text-indigo-600 font-black uppercase tracking-wider text-wrap break-words leading-none">Keine Auffälligkeit dokumentiert</p>
-                  )}
-                </button>
-              )}
-            </div>
-            </>
-          )}
-
           {/* Smart Recommendation Prompt Engine */}
-          {criticalCount > 0 && ['diagnostik', 'foerderprofil'].includes(activeTab) && (
+          {criticalCount > 0 && ['diagnostik', 'foerderprofil', 'foerderung'].includes(activeTab) && (
             <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-100 flex items-start gap-3.5 shadow-3xs">
               <div className="p-2 rounded-xl bg-rose-500 text-white shrink-0 shadow-sm font-black text-[0.75rem] leading-tight select-none">🧪</div>
               <div className="flex-1 min-w-0">
                 <h4 className="text-[0.75rem] leading-tight font-black text-rose-950 uppercase tracking-wider">Förderbedarf erkannt ({criticalCount} Tests auffällig)</h4>
                 <p className="text-[0.75rem] leading-tight text-rose-700 font-bold mt-1 leading-relaxed">
-                  In den Diagnostik-Erhebungen wurden Auffälligkeiten beim Lernen dokumentiert. Es wird dringend empfohlen, unter <button onClick={() => setActiveTab('foerderprofil')} className="underline font-black text-rose-800 hover:text-rose-900 transition-colors cursor-pointer outline-none focus:outline-none focus:ring-2 focus:ring-rose-500 rounded px-1">Förderprofil & Maßnahmen</button> konkrete didaktische Ziele für {student.vorname} festzulegen.
+                  In den Diagnostik-Erhebungen wurden Auffälligkeiten beim Lernen dokumentiert. Es wird empfohlen, unter <button onClick={() => setActiveTab('foerderung')} className="underline font-black text-rose-800 hover:text-rose-900 transition-colors cursor-pointer outline-none focus:outline-none focus:ring-2 focus:ring-rose-500 rounded px-1">Förderung</button> konkrete didaktische Ziele für {student.vorname} festzulegen.
                 </p>
               </div>
             </div>
@@ -1167,18 +1035,40 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                     semester={sem as '1' | '2'}
                   />
                 )}
-                {activeTab === 'stammdaten' && <DossierStammdaten student={student} />}
-                {activeTab === 'eltern_report' && (
-                  <DossierElternReport 
-                    student={student} 
-                    onStartPresentation={() => setPresentationModeActive(true)}
-                    semester={sem}
-                    onSemesterChange={changeSemester}
+                {activeTab === 'entwicklungsuebersicht' && (
+                  <DossierEntwicklungsuebersicht
+                    student={student}
+                    onTabChange={setActiveTab}
                   />
                 )}
-                {activeTab === 'ki_summary' && (
-                  <DossierKIPortfolio
+                {activeTab === 'diagnostik' && (
+                  <DossierDiagnostik
                     student={student}
+                    onNavigateTab={tab => setActiveTab(tab === 'foerderprofil' ? 'foerderung' : tab)}
+                    onTabChange={setActiveTab}
+                  />
+                )}
+                {(activeTab === 'foerderung' || activeTab === 'foerderprofil') && (
+                  <DossierFoerderung
+                    student={student}
+                    onNavigateToDiagnostics={() => setActiveTab('diagnostik')}
+                    onTabChange={setActiveTab}
+                  />
+                )}
+                {(activeTab === 'beobachtungen_verlauf' || activeTab === 'stats' || activeTab === 'kel_reflexion') && (
+                  <DossierBeobachtungenVerlauf
+                    student={student}
+                    initialSubSection={activeTab === 'kel_reflexion' ? 'kel' : activeTab === 'stats' ? 'verhalten' : 'beobachtungen'}
+                  />
+                )}
+                {activeTab === 'stammdaten' && <DossierStammdaten student={student} />}
+                {activeTab === 'kontakte_einwilligungen' && <DossierKontakteEinwilligungen student={student} />}
+                {activeTab === 'finanzen' && <DossierFinanzen student={student} />}
+                {(activeTab === 'berichte' || activeTab === 'ki_summary' || activeTab === 'eltern_report') && (
+                  <DossierBerichte 
+                    student={student} 
+                    initialSubView={activeTab === 'eltern_report' ? 'eltern_report' : 'ki_summary'}
+                    onStartPresentation={() => setPresentationModeActive(true)}
                     semester={sem}
                     onSemesterChange={changeSemester}
                   />
@@ -1188,45 +1078,38 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                     student={student}
                     semester={sem}
                     onSemesterChange={changeSemester}
+                    onNavigateTab={(tab, payload) => {
+                      if (payload?.fach) setLernzieleInitialFach(payload.fach);
+                      setActiveTab(tab as DossierTab);
+                    }}
                   />
                 )}
-                {activeTab === 'foerderprofil' && <DossierFoerderprofil student={student} />}
-                {activeTab === 'diagnostik' && (
-                  <DossierDiagnostik
+                {activeTab === 'mika_d' && (
+                  <DossierMikaD
                     student={student}
-                    onNavigateTab={tab => setActiveTab(tab)}
+                    onNavigateTab={(tab) => setActiveTab(tab as DossierTab)}
                   />
                 )}
-                {activeTab === 'mika_d' && <DossierMikaD student={student} />}
-                {activeTab === 'finanzen' && <DossierFinanzen student={student} />}
-                {activeTab === 'stats' && (
-                  <StudentStatsEditor 
-                    schuelerId={student.id} 
-                    onStartPresentation={() => setPresentationModeActive(true)} 
-                  />
-                )}
-                {activeTab === 'kel_reflexion' && (
-                  <DossierKELReflexion 
-                    student={student} 
-                    onStartPresentation={() => setPresentationModeActive(true)} 
-                  />
-                )}
-                {activeTab === 'erlaeuterung' && (
-                  <DossierErlaeuterungsmatrix
+                {(activeTab === 'beurteilung_gespraeche' || activeTab === 'erlaeuterung') && (
+                  <DossierGespraecheBeurteilungen
                     student={student}
-                    controlledSemester={sem}
+                    semester={sem}
                     onSemesterChange={changeSemester}
                   />
                 )}
                 {activeTab === 'lernziele' && (
                   <StudentLernziele
                     schuelerId={student.id}
-                    onOpenSupportProfile={() => setActiveTab('foerderprofil')}
+                    initialSubject={lernzieleInitialFach}
+                    onOpenSupportProfile={() => setActiveTab('foerderung')}
+                    onNavigateTab={(tab) => setActiveTab(tab as DossierTab)}
                     semester={sem}
                     onSemesterChange={changeSemester}
                   />
                 )}
-                {activeTab === 'arbeitsblatt' && <WorksheetGenerator initialStudentId={student.id} embeddedMode={true} />}
+                {(activeTab === 'materialien' || activeTab === 'arbeitsblatt') && (
+                  <DossierMaterialien student={student} />
+                )}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -1327,12 +1210,12 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
 
                   {/* Tab Categories List */}
                   <div className="space-y-6">
-                    {MAIN_TABS.map((mainTab) => {
-                      const subTabs = SUB_TABS[mainTab.id];
+                    {MAIN_AREAS.map((mainArea) => {
+                      const subTabs = mainArea.tabs;
                       return (
-                        <div key={mainTab.id} className="space-y-2.5">
+                        <div key={mainArea.id} className="space-y-2.5">
                           <h4 className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1 flex items-center gap-2">
-                            <span>{mainTab.label}</span>
+                            <span>{mainArea.label}</span>
                           </h4>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                             {subTabs.map((subTab) => {

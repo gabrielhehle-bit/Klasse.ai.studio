@@ -4,6 +4,7 @@ import { ToastProvider, useToast } from './context/ToastContext';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import ErrorBoundary from './components/ErrorBoundary';
+import VaultGate from './components/VaultGate';
 
 // Robust lazy-load helper with retry mechanism to gracefully recover from network or bundler stale-chunk hashing errors
 function lazyRetry<T extends React.ComponentType<any>>(
@@ -66,6 +67,7 @@ const Jahresbericht = lazyRetry(() => import('./components/Jahresbericht'));
 const StimmNotizen = lazyRetry(() => import('./components/StimmNotizen'));
 const StationenbetriebManager = lazyRetry(() => import('./components/StationenbetriebManager').then(m => ({ default: m.StationenbetriebManager })));
 const PlanungsZentrale = lazyRetry(() => import('./components/PlanungsZentrale'));
+const DesignSystemPreview = lazyRetry(() => import('./components/ui/DesignSystemPreview').then(m => ({ default: m.DesignSystemPreview })));
 import VoiceNote from './components/VoiceNote';
 import { VoiceCommander } from './components/VoiceCommander';
 import WelcomeTour from './components/WelcomeTour';
@@ -77,11 +79,63 @@ import InitialModeModal from './components/InitialModeModal';
 import PrivacyLock from './components/PrivacyLock';
 const Cockpit = lazyRetry(() => import('./components/Cockpit'));
 import PrintHeader from './components/PrintHeader';
+import AccessGate from './components/AccessGate';
 import { AnimatePresence, motion } from 'motion/react';
 import { Settings2, X, Mic, Sparkles, HelpCircle, Loader2 } from 'lucide-react';
 import { getKW, getTodayName, getAccentTextColor } from './lib/utils';
 const DiagnostikAnleitung = lazyRetry(() => import('./components/DiagnostikAnleitung'));
 const DataConsistencyModal = lazyRetry(() => import('./components/DataConsistencyModal'));
+
+function AccessGuard({ children }: { children: React.ReactNode }) {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    fetch('/api/access/status')
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted) {
+          setIsAuthenticated(data?.authenticated === true);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setIsAuthenticated(false);
+        }
+      });
+
+    const handleLogout = () => {
+      fetch('/api/access/logout', { method: 'POST' }).finally(() => {
+        setIsAuthenticated(false);
+      });
+    };
+
+    window.addEventListener('lehrerapp-logout', handleLogout);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('lehrerapp-logout', handleLogout);
+    };
+  }, []);
+
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen w-full bg-slate-950 flex flex-col items-center justify-center gap-4">
+        <div className="relative">
+          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+        <div className="text-slate-400 font-mono text-[10px] uppercase tracking-widest font-bold">
+          Prüfe Zugang...
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AccessGate onSuccess={() => setIsAuthenticated(true)} />;
+  }
+
+  return <>{children}</>;
+}
 
 const MobileRemoteController = lazyRetry(() => import('./components/MobileRemoteController').then(m => ({ default: m.MobileRemoteController })));
 
@@ -95,10 +149,15 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showDiagnostikAnleitung, setShowDiagnostikAnleitung] = useState(false);
   const [showConsistencyModal, setShowConsistencyModal] = useState(false);
+  const [isPending, startTransition] = React.useTransition();
   const pageScrollRef = React.useRef<HTMLDivElement>(null);
+  const prevPageRef = React.useRef<string>(currentPage);
 
   React.useEffect(() => {
-    pageScrollRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    if (prevPageRef.current !== currentPage) {
+      prevPageRef.current = currentPage;
+      pageScrollRef.current?.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
   }, [currentPage]);
 
   React.useEffect(() => {
@@ -141,10 +200,11 @@ function AppContent() {
     });
   };
 
-  const setupAbgeschlossen = 
+  const setupAbgeschlossen = Boolean(
     (app?.klassenbezeichnung && app.klassenbezeichnung.trim().length > 0) ||
     (app?.classes && app.classes.length > 0) ||
-    (app?.schueler && app.schueler.length > 0);
+    (app?.schueler && app.schueler.length > 0)
+  );
     
   const [showSetup, setShowSetup] = useState(!setupAbgeschlossen);
   const [hasAiKey, setHasAiKey] = useState<boolean | null>(null);
@@ -176,6 +236,17 @@ function AppContent() {
       else root.setAttribute('data-zoom', 'standard');
     }
   }, [app?.settings?.zoomLevel, app?.settings?.uiScale]);
+
+  React.useEffect(() => {
+    const checkHash = () => {
+      if (window.location.hash === '#design-system') {
+        setPage('design-system' as any);
+      }
+    };
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+    return () => window.removeEventListener('hashchange', checkHash);
+  }, [setPage]);
 
   // Sync theme to root element for CSS variables usage in body
   React.useEffect(() => {
@@ -215,6 +286,30 @@ function AppContent() {
       const btnText = getAccentTextColor(accentCol);
       root.style.setProperty('--btn-text', btnText);
       root.style.setProperty('--accent-text', btnText); // Ensure both variables are set
+
+      // F-DS2 Semantic Surface Tokens
+      root.style.setProperty('--surface-app', bgCol);
+      root.style.setProperty('--surface-card', isBgLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(24, 24, 27, 0.95)');
+      root.style.setProperty('--surface-subtle', isBgLight ? '#f9fafb' : '#27272a');
+      root.style.setProperty('--surface-muted', isBgLight ? '#f3f4f6' : '#3f3f46');
+      root.style.setProperty('--surface-overlay', isBgLight ? '#ffffff' : '#27272a');
+
+      // F-DS2 Semantic Text Tokens
+      root.style.setProperty('--text-primary', fgCol);
+      root.style.setProperty('--text-secondary', fg2Col);
+      root.style.setProperty('--text-muted', isBgLight ? '#8c8c8c' : '#94a3b8');
+      root.style.setProperty('--text-inverse', isBgLight ? '#ffffff' : '#09090b');
+
+      // F-DS2 Semantic Border Tokens
+      root.style.setProperty('--border-subtle', isBgLight ? '#e2e8f0' : 'rgba(255, 255, 255, 0.12)');
+      root.style.setProperty('--border-default', isBgLight ? '#cbd5e1' : 'rgba(255, 255, 255, 0.22)');
+      root.style.setProperty('--border-strong', isBgLight ? '#94a3b8' : 'rgba(255, 255, 255, 0.35)');
+
+      // F-DS2 Semantic Accent Tokens
+      root.style.setProperty('--accent-soft', `color-mix(in srgb, ${accentCol} 15%, transparent)`);
+      root.style.setProperty('--accent-hover', isBgLight ? `color-mix(in srgb, ${accentCol} 86%, black)` : `color-mix(in srgb, ${accentCol} 86%, white)`);
+      root.style.setProperty('--accent-active', isBgLight ? `color-mix(in srgb, ${accentCol} 72%, black)` : `color-mix(in srgb, ${accentCol} 72%, white)`);
+      root.style.setProperty('--focus-ring', accentCol);
     } else {
       root.style.removeProperty('--bg');
       root.style.removeProperty('--surface');
@@ -228,6 +323,23 @@ function AppContent() {
       root.style.removeProperty('--accent');
       root.style.removeProperty('--btn-text');
       root.style.removeProperty('--accent-text');
+
+      root.style.removeProperty('--surface-app');
+      root.style.removeProperty('--surface-card');
+      root.style.removeProperty('--surface-subtle');
+      root.style.removeProperty('--surface-muted');
+      root.style.removeProperty('--surface-overlay');
+      root.style.removeProperty('--text-primary');
+      root.style.removeProperty('--text-secondary');
+      root.style.removeProperty('--text-muted');
+      root.style.removeProperty('--text-inverse');
+      root.style.removeProperty('--border-subtle');
+      root.style.removeProperty('--border-default');
+      root.style.removeProperty('--border-strong');
+      root.style.removeProperty('--accent-soft');
+      root.style.removeProperty('--accent-hover');
+      root.style.removeProperty('--accent-active');
+      root.style.removeProperty('--focus-ring');
     }
   }, [app?.theme, app?.customBgColor, app?.customTextColor, app?.customText2Color, app?.customAccentColor]);
 
@@ -308,6 +420,15 @@ function AppContent() {
     root.style.setProperty('--font-sans', sansFont);
     root.style.setProperty('--font-display', displayFont);
   }, [app?.settings?.fontFamily]);
+
+  // Sync fontWeight and fontStyle to root element
+  React.useEffect(() => {
+    const root = document.documentElement;
+    const weight = app?.settings?.fontWeight || 'normal';
+    const style = app?.settings?.fontStyle || 'normal';
+    root.setAttribute('data-font-weight', weight);
+    root.setAttribute('data-font-style', style);
+  }, [app?.settings?.fontWeight, app?.settings?.fontStyle]);
 
   // Migration for Materialbibliothek
   React.useEffect(() => {
@@ -490,6 +611,7 @@ function AppContent() {
       case 'stimmnotizen': return <StimmNotizen />;
       case 'stationenbetrieb': return <StationenbetriebManager />;
       case 'planungszentrale': return <PlanungsZentrale />;
+      case 'design-system': return <DesignSystemPreview />;
       default: return (
         <div className="px-12 py-12">
           <div className="bg-white rounded-[2.5rem] text-center py-32 border border-slate-100 shadow-xl shadow-slate-900/5 space-y-6">
@@ -556,6 +678,9 @@ function AppContent() {
       data-theme={(app?.theme || 'classic_light') !== 'deep_dark' ? 'light' : 'dark'}
       data-style={app?.theme || 'classic_light'}
     >
+      {isPending && (
+        <div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-amber-500 to-emerald-500 animate-pulse z-[9999]" />
+      )}
       <GlobalActions />
       <Spotlight />
       <InitialModeModal />
@@ -740,8 +865,7 @@ function AppContent() {
               </div>
             }>
               <Unterrichtsmodus onClose={() => {
-                const target = app.previousPage && app.previousPage !== 'cockpit' ? app.previousPage : 'wochenplanung';
-                setPage(target);
+                setPage('dashboard');
               }} />
             </React.Suspense>
           </motion.div>
@@ -753,12 +877,16 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <ToastProvider>
-        <ErrorBoundary>
-          <AppContent />
-        </ErrorBoundary>
-      </ToastProvider>
-    </AppProvider>
+    <AccessGuard>
+      <AppProvider>
+        <ToastProvider>
+          <ErrorBoundary>
+            <VaultGate>
+              <AppContent />
+            </VaultGate>
+          </ErrorBoundary>
+        </ToastProvider>
+      </AppProvider>
+    </AccessGuard>
   );
 }

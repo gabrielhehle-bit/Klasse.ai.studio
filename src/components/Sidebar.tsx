@@ -9,8 +9,9 @@ import {
   Calendar, CalendarDays, ClipboardList, Mail, Wallet, 
   FileEdit, Notebook, CheckSquare, Play, LineChart, Table, Folder, 
   Target, Replace, Archive, Bot, ChevronLeft, ChevronRight, Database, LayoutGrid,
-  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer
+  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X
 } from 'lucide-react';
+import { Button, IconButton, Badge, Chip } from './ui';
 
 interface SidebarProps {
   currentPage: string;
@@ -126,31 +127,37 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                 <div className="mt-2 flex items-center justify-between gap-1 w-full">
                   <div className="flex flex-wrap gap-1">
                     {disabledModules.includes('jahresplanung') && disabledModules.includes('statistik') && disabledModules.includes('sitzplan') ? (
-                      <span className="text-[0.5625rem] bg-emerald-500/10 text-emerald-600 font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md border border-emerald-500/20">🌱 Fokus</span>
+                      <Badge variant="success" size="sm">🌱 Fokus</Badge>
                     ) : disabledModules.includes('statistik') && !disabledModules.includes('orga') ? (
-                      <span className="text-[0.5625rem] bg-sky-500/10 text-sky-600 font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md border border-sky-500/20">🚀 Standard</span>
+                      <Badge variant="info" size="sm">🚀 Standard</Badge>
                     ) : (
-                      <span className="text-[0.5625rem] bg-surface2 text-text-secondary font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md border border-border">👑 Experte</span>
+                      <Badge variant="neutral" size="sm">👑 Experte</Badge>
                     )}
                   </div>
                   <button
+                    type="button"
                     onClick={() => setShowCustomizeModal(true)}
-                    className="p-1 px-1.5 hover:bg-surface3/60 text-text-muted hover:text-text-primary rounded-md transition-all active:scale-95 cursor-pointer flex items-center gap-0.5 text-[0.53125rem] font-extrabold uppercase tracking-wider border border-border shrink-0 select-none"
+                    className="p-1 px-2 hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg transition-all active:scale-95 cursor-pointer flex items-center gap-1 text-[0.625rem] font-bold uppercase tracking-wider border border-[var(--border-default,var(--border))] shrink-0 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]"
                     title="Seitenleiste anpassen"
+                    aria-label="Seitenleiste anpassen"
                   >
-                    <SettingsIcon size={10} className="text-text-muted group-hover:rotate-45 transition-transform" />
+                    <SettingsIcon size={11} className="text-[var(--text-muted)] group-hover:rotate-45 transition-transform" />
                     <span>Anpassen</span>
                   </button>
                 </div>
                 
                 <div className="relative mt-4">
                   <div 
-                    className={`inline-flex items-center gap-2 text-[0.6875rem] font-bold px-3.5 py-2.5 rounded-xl cursor-pointer transition-all border group whitespace-nowrap w-full justify-between ${showClassMenu ? 'bg-accent/10 border-accent/30 text-accent ring-2 ring-accent/10' : 'bg-surface2 hover:bg-accent/5 text-text-secondary hover:text-accent border-border hover:border-accent/20'}`}
+                    className={`inline-flex items-center gap-2 text-[0.6875rem] font-bold px-3.5 py-2.5 rounded-xl cursor-pointer transition-all border group whitespace-nowrap w-full justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] ${
+                      showClassMenu 
+                        ? 'bg-[var(--accent-soft)] border-[var(--accent)] text-[var(--accent)] ring-2 ring-[var(--accent)]/20' 
+                        : 'bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--accent-soft)] text-[var(--text-secondary)] hover:text-[var(--accent)] border-[var(--border-default,var(--border))] hover:border-[var(--accent)]/30'
+                    }`}
                     onClick={() => setShowClassMenu(!showClassMenu)}
                   >
                     <div className="flex items-center gap-2 text-wrap leading-tight break-words">
                        <span className="text-wrap leading-tight break-words">{app.stufe || '?'}. Klasse {app.klassenbezeichnung || 'Ohne Namen'}</span>
-                       {!app.klassenvorstand && <span className="bg-surface3 text-text-secondary text-[0.5rem] px-1.5 py-0.5 rounded-full">Fachlehrer</span>}
+                       {!app.klassenvorstand && <span className="bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary)] text-[0.5rem] px-1.5 py-0.5 rounded-full">Fachlehrer</span>}
                     </div>
                     <ChevronDown size={11} className={`shrink-0 transition-transform ${showClassMenu ? 'rotate-180' : ''}`} /> 
                   </div>
@@ -158,20 +165,20 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                    {showClassMenu && (
                     <>
                       <div className="fixed inset-0 z-[160]" onClick={() => setShowClassMenu(false)} />
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-surface/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-border/70 py-2 z-[161] min-w-[200px] max-h-[300px] overflow-y-auto elegant-scrollbar">
-                        <div className="px-4 py-2 text-[0.625rem] font-black text-text-muted uppercase tracking-widest border-b border-border/50 mb-1">Meine Klassen</div>
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--surface-card,var(--surface))]/98 backdrop-blur-xl rounded-2xl shadow-2xl border border-[var(--border-default,var(--border))] py-2 z-[161] min-w-[200px] max-h-[300px] overflow-y-auto elegant-scrollbar">
+                        <div className="px-4 py-2 text-[0.625rem] font-black text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border-default,var(--border))]/60 mb-1">Meine Klassen</div>
                         {(app.classes || []).map(c => (
                           <div 
                             key={c.id} 
                             onClick={() => { switchClass(c.id); setShowClassMenu(false); }}
-                            className={`px-4 py-3 hover:bg-surface2/60 cursor-pointer flex items-center justify-between group ${app.activeClassId === c.id ? 'bg-accent/5 text-accent font-bold' : 'text-text-secondary'}`}
+                            className={`px-4 py-3 hover:bg-[var(--surface-subtle,var(--surface2))] cursor-pointer flex items-center justify-between group transition-colors ${app.activeClassId === c.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-bold' : 'text-[var(--text-secondary)]'}`}
                           >
                             <div className="flex flex-col">
                               <span className="text-[0.75rem]">{c.stufe}. Klasse {c.name}</span>
                               {!c.klassenvorstand && <span className="text-[0.5625rem] opacity-70">Fachunterricht</span>}
                             </div>
                             <div className="flex items-center gap-2">
-                              {app.activeClassId === c.id && <Check size={14} className="text-accent" />}
+                              {app.activeClassId === c.id && <Check size={14} className="text-[var(--accent)]" />}
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -183,20 +190,22 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                                   setShowClassMenu(false);
                                 }}
                                 title="Klassen-Setup konfigurieren"
-                                className="p-1 hover:bg-surface3/60 text-text-muted hover:text-text-primary rounded-md transition-all cursor-pointer"
+                                aria-label={`Setup für ${c.name} konfigurieren`}
+                                className="p-1 hover:bg-[var(--surface-muted,var(--surface3))] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-md transition-all cursor-pointer"
                               >
                                 <SettingsIcon size={12} />
                               </button>
                             </div>
                           </div>
                         ))}
-                        <div className="p-2 border-t border-border/50 mt-1">
+                        <div className="p-2 border-t border-[var(--border-default,var(--border))]/60 mt-1">
                           <button 
+                            type="button"
                             onClick={() => {
                               setPage('setup_new');
                               setShowClassMenu(false);
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[0.6875rem] font-black text-accent hover:bg-accent/5 transition-all text-center justify-center bg-accent/5 border border-accent/10"
+                            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[0.6875rem] font-black text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-all text-center justify-center bg-[var(--accent-soft)] border border-[var(--accent)]/20 cursor-pointer"
                           >
                             <Edit3 size={12} /> Klasse hinzufügen
                           </button>
@@ -208,25 +217,33 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
               </>
             ) : (
               <div className="flex flex-col items-center gap-6">
-                <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center text-white font-black text-[0.75rem] leading-tight shadow-lg shadow-accent/20">
+                <div className="w-10 h-10 bg-[var(--accent)] rounded-xl flex items-center justify-center text-[var(--accent-text,var(--btn-text,#ffffff))] font-black text-[0.75rem] leading-tight shadow-md shadow-[var(--accent)]/20">
                   {app.nachname ? app.nachname.charAt(0) : 'L'}
                 </div>
-                <button 
+                <IconButton 
                   onClick={toggleCollapse}
-                  className="p-2.5 hover:bg-surface2 rounded-xl text-text-muted hover:text-text-primary transition-all border border-transparent hover:border-border"
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Seitenleiste ausklappen"
+                  title="Seitenleiste ausklappen"
                 >
                   <ChevronRight size={18} />
-                </button>
+                </IconButton>
               </div>
             )}
             
             {!isCollapsed && (
-              <button 
-                onClick={toggleCollapse}
-                className="absolute right-3 top-6 p-2 hover:bg-surface2 rounded-xl text-text-muted hover:text-text-primary transition-all hidden lg:block border border-transparent hover:border-border"
-              >
-                <ChevronLeft size={18} />
-              </button>
+              <div className="absolute right-3 top-6 hidden lg:block">
+                <IconButton 
+                  onClick={toggleCollapse}
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Seitenleiste einklappen"
+                  title="Seitenleiste einklappen"
+                >
+                  <ChevronLeft size={18} />
+                </IconButton>
+              </div>
             )}
           </div>
         

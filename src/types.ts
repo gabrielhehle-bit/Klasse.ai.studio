@@ -1,4 +1,7 @@
 
+import { DiagnosticResult } from './types/diagnosticCore';
+export * from './types/diagnosticCore';
+
 export const COMMUNITY_MISSIONS_POOL = [
   {
     id: 'fluestern',
@@ -365,6 +368,8 @@ export interface PortfolioEntry {
   matchedLernziele?: {fach: string, text: string, id: string}[];
 }
 
+export type FotoFreigabeStatus = 'erlaubt' | 'nur_homepage' | 'nicht_erlaubt';
+
 export interface Student {
   id: string;
   vorname: string;
@@ -372,6 +377,8 @@ export interface Student {
   name: string;
   niveau: number;
   notiz: string;
+  allergien?: string;
+  fotoFreigabe?: FotoFreigabeStatus;
   geburtstag: string;
   staatsbuergerschaft: string;
   religion: string;
@@ -729,6 +736,24 @@ export interface Zugangsdaten {
   notiz?: string;
 }
 
+export type AssessmentMode = 'grades' | 'percent' | 'points';
+
+export interface SubjectNotenMeta {
+  saCount?: number;
+  assessmentMode?: AssessmentMode;
+  maxPoints?: {
+    sa?: number[];
+    lzk?: number[];
+    wp?: number[];
+    obj?: number[];
+    [key: string]: number[] | undefined;
+  };
+  colCounts?: { lzk: number; wp: number; obj: number };
+  colLabels?: { sa?: Record<number, string>; lzk?: Record<number, string>; wp?: Record<number, string>; obj?: Record<number, string> };
+  colDates?: { sa?: Record<number, string>; lzk?: Record<number, string>; wp?: Record<number, string>; obj?: Record<number, string> };
+  [key: string]: any;
+}
+
 export interface GradeData {
   sa: (number | string | null)[];
   lzk: (number | string | null)[];
@@ -815,6 +840,10 @@ export interface Geldsammlung {
   titel: string;
   betrag: number;
   erstelltAm: string;
+  faelligkeit?: string;
+  abgeschlossen?: boolean;
+  kategorie?: string;
+  beschreibung?: string;
   status: Record<string, 'offen' | 'teilweise' | 'bezahlt'>;
   betraege: Record<string, number>;
 }
@@ -838,11 +867,26 @@ export interface OrgCheckliste {
   eintraege: Record<string, Record<string, boolean>>;
 }
 
+export type CustomListColumnType = 'text' | 'number' | 'boolean' | 'select';
+
+export interface CustomListColumn {
+  id: string;
+  label: string;
+  name?: string;
+  type: CustomListColumnType;
+  options?: string[]; // e.g. ['Fleisch', 'vegetarisch', 'vegan'] or ['S', 'M', 'L', 'XL']
+}
+
 export interface CustomList {
   id: string;
   titel: string;
-  spaltenName: string;
-  werte: Record<string, string>;
+  beschreibung?: string;
+  erstelltAm?: string;
+  updatedAm?: string;
+  spalten?: CustomListColumn[];
+  werte?: Record<string, Record<string, any>>;
+  // For backwards-compatibility
+  spaltenName?: string;
 }
 
 export interface KlassenDienst {
@@ -853,6 +897,8 @@ export interface KlassenDienst {
   schuelerIds: string[];
   rotationEnabled?: boolean;
   anzahl?: number;
+  substitutions?: Record<string, string>; // originalStudentId -> substituteStudentId
+  substitutionsDate?: string;
 }
 
 export interface ChatEntry {
@@ -894,7 +940,8 @@ export interface ClassRoom {
   scheduleAnalysis?: Record<number, any>;
   stammplan: Record<string, Record<number, string>>;
   anwesenheit: Record<string, Record<string, Record<string, string>>>;
-  anwesenheitDetail?: Record<string, Record<string, { verspaetung?: number; notiz?: string; dismissedAlerts?: string[] }>>;
+  anwesenheitDetail?: Record<string, Record<string, { verspaetung?: number; notiz?: string; dismissedAlerts?: string[]; fehlstunden?: number }>>;
+  schuelerStimmung?: Record<string, Record<string, number>>;
   dienste?: KlassenDienst[];
   klassenglas_count: number;
   klassenglas_ziel: number;
@@ -902,6 +949,7 @@ export interface ClassRoom {
   klassenglas_missions?: any[];
   klassenglas_completed_missions?: any[];
   checklisten?: OrgCheckliste[];
+  customLists?: CustomList[];
   klassenkasse?: {
     kontostand: number;
     sammlungen: Geldsammlung[];
@@ -930,7 +978,56 @@ export interface ClassRoom {
     useAmPm?: boolean;
     showSeconds?: boolean;
     yearlyColorPalette?: string;
+    yearlyDensityMode?: 'kompakt' | 'normal' | 'detail';
   };
+  schuelerWochenplaene?: Record<string, SchuelerWochenplan>;
+}
+
+export type SchuelerWochenplanDarstellung = 'fach' | 'tag' | 'liste' | 'gitter';
+export type SchuelerAufgabeTyp = 'pflicht' | 'zusatz' | 'freiwillig';
+export type SchuelerDifferenzierung = 'alle' | 'basis' | 'standard' | 'plus' | 'gruppeA' | 'gruppeB' | 'gruppeC';
+
+export interface SchuelerWochenplanAufgabe {
+  id: string;
+  fach: string;
+  tag: string;
+  stunde?: number;
+  titel: string;
+  detail?: string;
+  typ: SchuelerAufgabeTyp;
+  originalThema?: string;
+  originalMaterial?: string;
+  originalHousework?: string;
+  kategorie?: 'buch' | 'arbeitsblatt' | 'heft' | 'lernziel' | 'projekt' | 'stationen' | 'wochenplan' | 'freiarbeit' | 'sonstiges';
+  differenzierung?: SchuelerDifferenzierung;
+  zeitAufwandMin?: number;
+  icon?: string;
+  selected: boolean;
+  order: number;
+}
+
+export interface SchuelerWochenplan {
+  id: string;
+  kw: number;
+  schuljahr: string;
+  datumVon: string;
+  datumBis: string;
+  titel: string;
+  untertitel?: string;
+  motto?: string;
+  showNameField: boolean;
+  showKw: boolean;
+  showDatum: boolean;
+  showReflexion: boolean;
+  showUnterschrift: boolean;
+  darstellung: SchuelerWochenplanDarstellung;
+  fontSize: 'kompakt' | 'normal' | 'gross';
+  orientierung: 'portrait' | 'landscape';
+  differenzierungFilter?: SchuelerDifferenzierung;
+  aufgaben: SchuelerWochenplanAufgabe[];
+  erstelltAm: string;
+  aktualisiertAm: string;
+  originalPlanHash?: string;
 }
 
 export type MorningWidgetType = 'deutsch' | 'mathe' | 'logik' | 'spass' | 'spiel' | 'diskussion' | 'achtsamkeit';
@@ -1073,6 +1170,8 @@ export interface AppState {
     archiv: { kw: number; jahr: number; woerter: string[] }[];
   };
   pseudonymisierungAktiv?: boolean;
+  classContracts?: any[];
+  councilNotes?: any[];
   backupEinstellungen?: {
     letztesBackup: string | null;
     erinnerungAktiv: boolean;
@@ -1117,6 +1216,8 @@ export interface AppState {
   };
   differenzierungsGruppen?: DifferenzierungsGruppe[];
   schuljahr: string;
+  klasse?: string;
+  termine?: any[];
   activeClassId?: string;
   archivedClasses?: ClassRoom[];
   activePrintTemplate?: string;
@@ -1184,6 +1285,13 @@ export interface AppState {
   kelGespraeche?: KELGespraech[];
   diagnostikTests?: DiagnostikTest[];
   diagnostikErhebungen?: DiagnostikErhebung[];
+  /** Neues strukturiertes, kompetenzorientiertes Diagnostik-Ergebnis-Modell (Schritt 1) */
+  diagnosticResults?: DiagnosticResult[];
+  /** Neue Diagnostik UI-State Steuerung (Schritte 8-10) */
+  activeDiagnosticView?: 'home' | 'results' | 'individual' | 'class' | 'screening' | 'legacy';
+  selectedDiagnosticStudentId?: string;
+  selectedDiagnosticCompetencyId?: string;
+  selectedDiagnosticGradeLevel?: number;
   ikmRecords?: IkmRecord[];
   antolinRecords?: AntolinRecord[];
   schuelerGoals?: SchuelerGoal[];
@@ -1196,7 +1304,8 @@ export interface AppState {
   denkzettelNotes?: {id: string, text: string, color: 'blue' | 'coral' | 'yellow' | 'mint', completed?: boolean, category?: 'allgemein' | 'wichtig' | 'eltern' | 'idee' | 'unterricht' | 'termin', createdAt?: number}[];
   luuise_active?: boolean;
   anwesenheit: Record<string, Record<string, Record<string, string>>>;
-  anwesenheitDetail?: Record<string, Record<string, { verspaetung?: number; notiz?: string; dismissedAlerts?: string[] }>>;
+  anwesenheitDetail?: Record<string, Record<string, { verspaetung?: number; notiz?: string; dismissedAlerts?: string[]; fehlstunden?: number }>>;
+  schuelerStimmung?: Record<string, Record<string, number>>;
   hueBuch: Record<string, Record<string, any>>;
   awGruende: Record<string, string>;
   verbal: Record<string, any>;
@@ -1218,6 +1327,7 @@ export interface AppState {
   historicalStudents?: any[];
   dienste?: KlassenDienst[];
   checklisten?: OrgCheckliste[];
+  customLists?: CustomList[];
   lernpfade?: Record<string, any>;
   errorDetectiveRecords?: any[];
   lehrerName?: string;
@@ -1241,6 +1351,9 @@ export interface AppState {
   settings: { 
     theme: string;
     fontFamily?: string;
+    fontWeight?: 'normal' | 'bold';
+    fontStyle?: 'normal' | 'italic';
+    fontSize?: 'compact' | 'standard' | 'large';
     verhaltenSymbol: 'diamond' | 'smiley' | 'trophy' | 'plus' | 'star' | 'apple' | 'clover';
     showVerhaltenOnBoard: boolean;
     zoomLevel?: 'compact' | 'standard' | 'large';
@@ -1251,6 +1364,8 @@ export interface AppState {
     disableBackupReminders?: boolean;
     hueGewichten?: boolean;
     hueWeight?: number;
+    huePercentDeduction?: number;
+    hueMode?: 'document' | 'grade';
     disabledModules?: string[];
     klassenglasIcon?: string;
     behaviorStartDate?: string;
@@ -1262,6 +1377,7 @@ export interface AppState {
     whiteboardBackground?: string;
     showMascotOnDashboard?: boolean;
     privacyPin?: string;
+    vaultAutoLockMinutes?: number; // 15, 30, 60 (Standard), 120, oder 0 (nur beim Schließen)
     yearlyColorPalette?: string;
   };
   mitarbeit_settings?: {
@@ -1376,7 +1492,6 @@ export interface AppState {
   schulkennzahl?: string;
   schulOrt?: string;
   schulPlz?: string;
-  customLists?: CustomList[];
   activityLog?: ActivityLogEntry[];
   statusLog?: StatusHistory[];
   calendarOverrides?: Record<string, 'school' | 'free'>;
@@ -1413,6 +1528,9 @@ export interface AppState {
   students?: any;
   tafelVorlagen?: TafelVorlage[];
   lehrplanChecksHistory?: any[];
+  yearlyDensityMode?: 'kompakt' | 'normal' | 'detail';
+  weeklyDensityMode?: 'kompakt' | 'normal' | 'detail';
+  schuelerWochenplaene?: Record<string, SchuelerWochenplan>;
 }
 
 export interface Anekdote {
@@ -1494,7 +1612,7 @@ export interface ClassPetState {
 
 export interface CockpitWidgetConfig {
   id: string;
-  type: 'clock' | 'timer' | 'trafficlight' | 'randomname' | 'instruction' | 'noisemeter' | 'vocabulary' | 'studentlist' | 'groups' | 'qrcode' | 'image' | 'phases' | 'sounds' | 'todo' | 'dienste' | 'klassenglas' | 'links' | 'pet' | 'drawing' | 'stopwatch' | 'calculator' | 'dice' | 'weather' | 'aiquiz' | 'riddle' | 'scoreboard' | 'wheel' | 'breathing' | 'kidweather' | 'mathcards' | 'scrambler' | 'watertracker' | 'wordchain' | 'moodmeter' | 'colormixer' | 'wordgrid' | 'rhythm' | 'geometry' | 'fractions' | 'wordclock' | 'sorting' | 'dailyquotes' | 'dictionary' | 'piano' | 'bodyparts' | 'toothbrush' | 'challenge' | 'compass' | 'weekdays' | 'piggybank' | 'noisescales' | 'wordscramble' | 'shadowshapes' | 'emotions' | 'clocksync' | 'soundmemory' | 'spellingdetective' | 'numberline' | 'mathchain' | 'thermometer' | 'compoundsplit' | 'soundquiz' | 'mathduel' | 'shapepuzzle' | 'guitartuner' | 'secretagent' | 'fractioncake' | 'sentencebuilding' | 'patternmaker' | 'wordexplorer' | 'weightscale' | 'geographyquiz' | 'calmrain' | 'estimationjar' | 'reflexgame' | 'mathpyramid' | 'wastebin' | 'tonetrainer' | 'angledetective' | 'rhymemachine' | 'alphabetsoup' | 'divrobot' | 'classtarget' | 'morsecode' | 'punctuationzoo' | 'secretcode' | 'clockpuzzle' | 'fractiongrid' | 'trafficquiz' | 'wordbuilder' | 'watercycle' | 'soundmachine' | 'mathbalancer' | 'animalvoice' | 'constellation' | 'multitrainer' | 'moneycalc' | 'storyemojis' | 'abcorder' | 'planetarium' | 'tischcheck' | 'faircall' | 'hangman' | 'timeline' | 'anschauung';
+  type: 'clock' | 'timer' | 'trafficlight' | 'randomname' | 'instruction' | 'noisemeter' | 'vocabulary' | 'studentlist' | 'groups' | 'qrcode' | 'image' | 'phases' | 'sounds' | 'todo' | 'dienste' | 'klassenglas' | 'links' | 'pet' | 'drawing' | 'stopwatch' | 'calculator' | 'dice' | 'weather' | 'aiquiz' | 'riddle' | 'scoreboard' | 'wheel' | 'breathing' | 'kidweather' | 'mathcards' | 'wortsatzwerkstatt' | 'scrambler' | 'watertracker' | 'wordchain' | 'moodmeter' | 'colormixer' | 'wordgrid' | 'rhythm' | 'geometry' | 'fractions' | 'wordclock' | 'sorting' | 'dailyquotes' | 'dictionary' | 'piano' | 'bodyparts' | 'toothbrush' | 'challenge' | 'compass' | 'weekdays' | 'piggybank' | 'noisescales' | 'wordscramble' | 'shadowshapes' | 'emotions' | 'clocksync' | 'soundmemory' | 'spellingdetective' | 'numberline' | 'mathchain' | 'thermometer' | 'compoundsplit' | 'soundquiz' | 'mathduel' | 'shapepuzzle' | 'guitartuner' | 'secretagent' | 'fractioncake' | 'sentencebuilding' | 'patternmaker' | 'wordexplorer' | 'weightscale' | 'geographyquiz' | 'calmrain' | 'estimationjar' | 'reflexgame' | 'mathpyramid' | 'wastebin' | 'tonetrainer' | 'angledetective' | 'rhymemachine' | 'alphabetsoup' | 'divrobot' | 'classtarget' | 'morsecode' | 'punctuationzoo' | 'secretcode' | 'clockpuzzle' | 'fractiongrid' | 'trafficquiz' | 'wordbuilder' | 'watercycle' | 'soundmachine' | 'mathbalancer' | 'animalvoice' | 'constellation' | 'multitrainer' | 'moneycalc' | 'storyemojis' | 'abcorder' | 'planetarium' | 'tischcheck' | 'faircall' | 'hangman' | 'timeline' | 'anschauung' | 'kidattendance' | 'zahlenraum' | 'kopfrechnen' | 'fractionvisualizer';
   x: number;
   y: number;
   w: number;
@@ -1521,3 +1639,4 @@ export const UNIFIED_DEFAULT_BADGES = [
   { id: 'presentation', name: 'Super-Referat', icon: '🎤' },
   { id: 'silent', name: 'Leisetreter', icon: '🤫' }
 ];
+

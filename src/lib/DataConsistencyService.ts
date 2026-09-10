@@ -243,6 +243,32 @@ export function scanDataConsistency(app: AppState): ConsistencyIssue[] {
     }
   }
 
+  // 9. Check for Orphaned Custom List Entries
+  if (app.customLists) {
+    const affectedCustomLists: string[] = [];
+    app.customLists.forEach(list => {
+      if (list.werte) {
+        Object.keys(list.werte).forEach(sid => {
+          if (!studentIds.has(sid) && !affectedCustomLists.includes(list.titel)) {
+            affectedCustomLists.push(list.titel);
+          }
+        });
+      }
+    });
+    if (affectedCustomLists.length > 0) {
+      issues.push({
+        id: `orph-customlists-general`,
+        type: 'orphaned_checklist',
+        severity: 'info',
+        title: 'Verwaiste Einträge in Flexiblen Listen',
+        description: `Einige Flexible Listen (${affectedCustomLists.join(', ')}) enthalten Daten für nicht mehr existierende Schüler.`,
+        affectedId: 'general',
+        module: 'other',
+        fixable: true
+      });
+    }
+  }
+
   // 9. Check for Orphaned Cassier / Geldsammlungen entries
   if (app.klassenkasse && app.klassenkasse.sammlungen) {
     let affectedSammlungenCount = 0;
@@ -353,6 +379,7 @@ export function resolveConsistencyIssue(
   if (updated.diagnostikErhebungen) updated.diagnostikErhebungen = [...updated.diagnostikErhebungen];
   if (updated.sitzplan_schueler) updated.sitzplan_schueler = { ...updated.sitzplan_schueler };
   if (updated.checklisten) updated.checklisten = JSON.parse(JSON.stringify(updated.checklisten));
+  if (updated.customLists) updated.customLists = JSON.parse(JSON.stringify(updated.customLists));
   if (updated.klassenkasse && updated.klassenkasse.sammlungen) {
     updated.klassenkasse = {
       ...updated.klassenkasse,
@@ -388,6 +415,14 @@ export function resolveConsistencyIssue(
       updated.checklisten.forEach(list => {
         if (list.eintraege && list.eintraege[sourceId]) {
           delete list.eintraege[sourceId];
+        }
+      });
+    }
+    // 6b. Delete Custom List state
+    if (updated.customLists) {
+      updated.customLists.forEach(list => {
+        if (list.werte && list.werte[sourceId]) {
+          delete list.werte[sourceId];
         }
       });
     }
@@ -464,6 +499,25 @@ export function resolveConsistencyIssue(
         if (list.eintraege && list.eintraege[sourceId]) {
           list.eintraege[targetId] = { ...(list.eintraege[targetId] || {}), ...list.eintraege[sourceId] };
           delete list.eintraege[sourceId];
+        }
+      });
+    }
+
+    // 6b. Migrate Custom Lists
+    if (updated.customLists) {
+      updated.customLists.forEach(list => {
+        if (list.werte && (list.werte as any)[sourceId] !== undefined) {
+          const srcVal = (list.werte as any)[sourceId];
+          const tgtVal = (list.werte as any)[targetId];
+          if (srcVal && typeof srcVal === 'object') {
+            (list.werte as any)[targetId] = {
+              ...(tgtVal && typeof tgtVal === 'object' ? tgtVal : {}),
+              ...srcVal
+            };
+          } else {
+            (list.werte as any)[targetId] = srcVal;
+          }
+          delete (list.werte as any)[sourceId];
         }
       });
     }
@@ -580,6 +634,18 @@ export function autoCleanAllOrphanedData(app: AppState): AppState {
       if (list.eintraege) {
         Object.keys(list.eintraege).forEach(sid => {
           if (!studentIds.has(sid)) delete list.eintraege[sid];
+        });
+      }
+    });
+  }
+
+  // Clean customLists
+  if (updated.customLists) {
+    updated.customLists = JSON.parse(JSON.stringify(updated.customLists));
+    updated.customLists.forEach(list => {
+      if (list.werte) {
+        Object.keys(list.werte).forEach(sid => {
+          if (!studentIds.has(sid)) delete list.werte[sid];
         });
       }
     });

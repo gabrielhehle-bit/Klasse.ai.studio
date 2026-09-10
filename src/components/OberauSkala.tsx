@@ -590,42 +590,80 @@ export default function OberauSkala({ schuelerId }: OberauSkalaProps) {
     }
   };
 
-  // React to student change - load saved values
+  // React to student change - load saved values (Datenschutz B6/B8: Bevorzuge verschlüsselten AppState, migriere Legacy-Klartext)
   useEffect(() => {
     if (schuelerId) {
       try {
-        const savedEval = localStorage.getItem(`oberau_eval_${schuelerId}`);
-        if (savedEval) {
-          setEvaluationData(JSON.parse(savedEval));
-        } else {
-          setEvaluationData({});
+        const appOberau = (app as any).oberauData?.[schuelerId];
+        if (appOberau) {
+          setEvaluationData(appOberau.evaluationData || {});
+          setRemarks(appOberau.remarks !== undefined ? appOberau.remarks : (student?.foerderprofil?.zusatzinfo || ''));
+          setKlassenlehrer(appOberau.klassenlehrer || 'Klassenlehrer Name');
+          setDirektorin(appOberau.direktorin || 'Inge Fitzi');
+          setIntegrationslehrer(appOberau.integrationslehrer || 'Martina Deuschle');
+          setDatum(appOberau.datum || 'Feldkirch, am 5.7.2024');
+          setSemester(appOberau.semester || '2. Semester');
+          setSchuljahr(app.schuljahr || '2023/24');
+          return;
         }
 
+        // Einmalige Migration aus Legacy-Klartextspeicher
+        const savedEval = localStorage.getItem(`oberau_eval_${schuelerId}`);
+        const parsedEval = savedEval ? JSON.parse(savedEval) : {};
+        setEvaluationData(parsedEval);
+
         const savedRemarks = localStorage.getItem(`oberau_remarks_${schuelerId}`);
-        setRemarks(savedRemarks !== null ? savedRemarks : (student?.foerderprofil?.zusatzinfo || ''));
+        const finalRemarks = savedRemarks !== null ? savedRemarks : (student?.foerderprofil?.zusatzinfo || '');
+        setRemarks(finalRemarks);
 
         // Loading printing metadata
-        const savedLehrer = localStorage.getItem(`oberau_lehrer_${schuelerId}`);
-        setKlassenlehrer(savedLehrer || 'Klassenlehrer Name');
+        const savedLehrer = localStorage.getItem(`oberau_lehrer_${schuelerId}`) || 'Klassenlehrer Name';
+        setKlassenlehrer(savedLehrer);
 
-        const savedDir = localStorage.getItem(`oberau_dir_${schuelerId}`);
-        setDirektorin(savedDir || 'Inge Fitzi');
+        const savedDir = localStorage.getItem(`oberau_dir_${schuelerId}`) || 'Inge Fitzi';
+        setDirektorin(savedDir);
 
-        const savedIntLehrer = localStorage.getItem(`oberau_int_lehrer_${schuelerId}`);
-        setIntegrationslehrer(savedIntLehrer || 'Martina Deuschle');
+        const savedIntLehrer = localStorage.getItem(`oberau_int_lehrer_${schuelerId}`) || 'Martina Deuschle';
+        setIntegrationslehrer(savedIntLehrer);
 
-        const savedDatum = localStorage.getItem(`oberau_datum_${schuelerId}`);
-        setDatum(savedDatum || 'Feldkirch, am 5.7.2024');
+        const savedDatum = localStorage.getItem(`oberau_datum_${schuelerId}`) || 'Feldkirch, am 5.7.2024';
+        setDatum(savedDatum);
 
-        const savedSem = localStorage.getItem(`oberau_semester_${schuelerId}`);
-        setSemester(savedSem || '2. Semester');
+        const savedSem = localStorage.getItem(`oberau_semester_${schuelerId}`) || '2. Semester';
+        setSemester(savedSem);
 
         setSchuljahr(app.schuljahr || '2023/24');
+
+        // Falls Legacy-Daten vorhanden waren, in AppState überführen und Klartext bereinigen
+        if (savedEval || savedRemarks) {
+          setApp(prev => ({
+            ...prev,
+            oberauData: {
+              ...((prev as any).oberauData || {}),
+              [schuelerId]: {
+                evaluationData: parsedEval,
+                remarks: finalRemarks,
+                klassenlehrer: savedLehrer,
+                direktorin: savedDir,
+                integrationslehrer: savedIntLehrer,
+                datum: savedDatum,
+                semester: savedSem
+              }
+            }
+          }));
+          localStorage.removeItem(`oberau_eval_${schuelerId}`);
+          localStorage.removeItem(`oberau_remarks_${schuelerId}`);
+          localStorage.removeItem(`oberau_lehrer_${schuelerId}`);
+          localStorage.removeItem(`oberau_dir_${schuelerId}`);
+          localStorage.removeItem(`oberau_int_lehrer_${schuelerId}`);
+          localStorage.removeItem(`oberau_datum_${schuelerId}`);
+          localStorage.removeItem(`oberau_semester_${schuelerId}`);
+        }
       } catch (e) {
         console.error("Error loading Oberau evaluation details", e);
       }
     }
-  }, [schuelerId, app.schuljahr, student?.foerderprofil?.zusatzinfo]);
+  }, [schuelerId, app.schuljahr, (app as any).oberauData, student?.foerderprofil?.zusatzinfo]);
 
   if (!student) {
     return (
@@ -635,28 +673,43 @@ export default function OberauSkala({ schuelerId }: OberauSkalaProps) {
     );
   }
 
-  // Save evaluations to localStorage
+  // Save evaluations to encrypted AppState (Datenschutz B6/B8: Keine unverschlüsselten Schülerdaten im localStorage)
   const handleSave = () => {
     setSaveStatus('saving');
     try {
-      localStorage.setItem(`oberau_eval_${schuelerId}`, JSON.stringify(evaluationData));
-      localStorage.setItem(`oberau_remarks_${schuelerId}`, remarks);
-      localStorage.setItem(`oberau_lehrer_${schuelerId}`, klassenlehrer);
-      localStorage.setItem(`oberau_dir_${schuelerId}`, direktorin);
-      localStorage.setItem(`oberau_int_lehrer_${schuelerId}`, integrationslehrer);
-      localStorage.setItem(`oberau_datum_${schuelerId}`, datum);
-      localStorage.setItem(`oberau_semester_${schuelerId}`, semester);
+      // Lösche eventuelle Alt-Schlüssel
+      try {
+        localStorage.removeItem(`oberau_eval_${schuelerId}`);
+        localStorage.removeItem(`oberau_remarks_${schuelerId}`);
+        localStorage.removeItem(`oberau_lehrer_${schuelerId}`);
+        localStorage.removeItem(`oberau_dir_${schuelerId}`);
+        localStorage.removeItem(`oberau_int_lehrer_${schuelerId}`);
+        localStorage.removeItem(`oberau_datum_${schuelerId}`);
+        localStorage.removeItem(`oberau_semester_${schuelerId}`);
+      } catch {}
 
-      // Synchronize to shared student state (foerderprofil.zusatzinfo)
+      // Synchronize to shared student state (foerderprofil.zusatzinfo) & AppState
       setApp(prev => ({
         ...prev,
+        oberauData: {
+          ...((prev as any).oberauData || {}),
+          [schuelerId]: {
+            evaluationData,
+            remarks,
+            klassenlehrer,
+            direktorin,
+            integrationslehrer,
+            datum,
+            semester
+          }
+        },
         schueler: prev.schueler.map(s => s.id === schuelerId ? {
           ...s,
           foerderprofil: { ...s.foerderprofil, zusatzinfo: remarks }
         } : s)
       }));
 
-      // Save headers
+      // Save non-sensitive general headers
       localStorage.setItem('oberau_scale_header1', scaleHeader1);
       localStorage.setItem('oberau_scale_header2', scaleHeader2);
       localStorage.setItem('oberau_scale_header3', scaleHeader3);
@@ -742,19 +795,33 @@ export default function OberauSkala({ schuelerId }: OberauSkalaProps) {
     }
   };
 
-  // Open standard native print layout
+  // Open standard native print layout (Datenschutz B6/B8: Keine Klartext-Schülerdaten im localStorage)
   const handlePrint = () => {
-    localStorage.setItem(`oberau_eval_${schuelerId}`, JSON.stringify(evaluationData));
-    localStorage.setItem(`oberau_remarks_${schuelerId}`, remarks);
-    localStorage.setItem(`oberau_lehrer_${schuelerId}`, klassenlehrer);
-    localStorage.setItem(`oberau_dir_${schuelerId}`, direktorin);
-    localStorage.setItem(`oberau_int_lehrer_${schuelerId}`, integrationslehrer);
-    localStorage.setItem(`oberau_datum_${schuelerId}`, datum);
-    localStorage.setItem(`oberau_semester_${schuelerId}`, semester);
+    try {
+      localStorage.removeItem(`oberau_eval_${schuelerId}`);
+      localStorage.removeItem(`oberau_remarks_${schuelerId}`);
+      localStorage.removeItem(`oberau_lehrer_${schuelerId}`);
+      localStorage.removeItem(`oberau_dir_${schuelerId}`);
+      localStorage.removeItem(`oberau_int_lehrer_${schuelerId}`);
+      localStorage.removeItem(`oberau_datum_${schuelerId}`);
+      localStorage.removeItem(`oberau_semester_${schuelerId}`);
+    } catch {}
 
-    // Synchronize to shared student state (foerderprofil.zusatzinfo)
+    // Synchronize to shared student state (foerderprofil.zusatzinfo) & AppState
     setApp(prev => ({
       ...prev,
+      oberauData: {
+        ...((prev as any).oberauData || {}),
+        [schuelerId]: {
+          evaluationData,
+          remarks,
+          klassenlehrer,
+          direktorin,
+          integrationslehrer,
+          datum,
+          semester
+        }
+      },
       schueler: prev.schueler.map(s => s.id === schuelerId ? {
         ...s,
         foerderprofil: { ...s.foerderprofil, zusatzinfo: remarks }

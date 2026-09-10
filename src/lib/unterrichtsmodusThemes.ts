@@ -251,3 +251,114 @@ export const UNTERRICHTSMODUS_HINTERGRUENDE: Record<UnterrichtsmodusHintergrundI
   },
   eigenes: { label: 'Eigenes', style: {} }
 };
+
+export interface ResolvedDesignTokens {
+  surfaceApp: string;
+  surfaceCard: string;
+  surfaceSubtle: string;
+  surfaceMuted: string;
+  surfaceOverlay: string;
+  textPrimary: string;
+  textSecondary: string;
+  textMuted: string;
+  textInverse: string;
+  borderSubtle: string;
+  borderDefault: string;
+  borderStrong: string;
+  accent: string;
+  accentHover: string;
+  accentActive: string;
+  accentSoft: string;
+  accentText: string;
+  success: string;
+  successSoft: string;
+  successText: string;
+  warning: string;
+  warningSoft: string;
+  warningText: string;
+  danger: string;
+  dangerSoft: string;
+  dangerText: string;
+  info: string;
+  infoSoft: string;
+  infoText: string;
+  focusRing: string;
+}
+
+/**
+ * Löst die semantischen Design-Tokens für ein gegebenes Theme auf.
+ * Unterstützt Konsistenzprüfungen und Theme-Testing.
+ */
+export function resolveDesignTokens(themeId: UnterrichtsmodusThemeId = 'classic_light'): ResolvedDesignTokens {
+  const isDark = themeId === 'deep_dark';
+  const theme = UNTERRICHTSMODUS_THEMES[themeId] || UNTERRICHTSMODUS_THEMES.classic_light;
+
+  if (isDark) {
+    return {
+      surfaceApp: '#09090b',
+      surfaceCard: '#18181b',
+      surfaceSubtle: '#27272a',
+      surfaceMuted: '#3f3f46',
+      surfaceOverlay: 'rgba(9, 9, 11, 0.8)',
+      textPrimary: '#fafafa',
+      textSecondary: '#d4d4d8',
+      textMuted: '#a1a1aa',
+      textInverse: '#09090b',
+      borderSubtle: 'rgba(255, 255, 255, 0.08)',
+      borderDefault: 'rgba(255, 255, 255, 0.15)',
+      borderStrong: 'rgba(255, 255, 255, 0.25)',
+      accent: theme.colors.accent,
+      accentHover: theme.colors.accent,
+      accentActive: theme.colors.accent,
+      accentSoft: theme.colors.accentSoft,
+      accentText: '#ffffff',
+      success: '#22c55e',
+      successSoft: 'rgba(34, 197, 94, 0.2)',
+      successText: '#4ade80',
+      warning: '#f59e0b',
+      warningSoft: 'rgba(245, 158, 11, 0.2)',
+      warningText: '#fbbf24',
+      danger: '#ef4444',
+      dangerSoft: 'rgba(239, 68, 68, 0.2)',
+      dangerText: '#f87171',
+      info: '#3b82f6',
+      infoSoft: 'rgba(59, 130, 246, 0.2)',
+      infoText: '#60a5fa',
+      focusRing: theme.colors.accent,
+    };
+  }
+
+  return {
+    surfaceApp: theme.colors.background,
+    surfaceCard: theme.colors.surface,
+    surfaceSubtle: '#f8fafc',
+    surfaceMuted: '#f1f5f9',
+    surfaceOverlay: 'rgba(255, 255, 255, 0.8)',
+    textPrimary: theme.colors.textPrimary,
+    textSecondary: theme.colors.textSecondary,
+    textMuted: theme.colors.textMuted,
+    textInverse: '#ffffff',
+    borderSubtle: 'rgba(0, 0, 0, 0.06)',
+    borderDefault: '#e2e8f0',
+    borderStrong: '#cbd5e1',
+    accent: theme.colors.accent,
+    accentHover: theme.colors.accent,
+    accentActive: theme.colors.accent,
+    accentSoft: theme.colors.accentSoft,
+    accentText: theme.colors.buttonText,
+    success: '#16a34a',
+    successSoft: '#dcfce7',
+    successText: '#15803d',
+    warning: '#d97706',
+    warningSoft: '#fef3c7',
+    warningText: '#b45309',
+    danger: '#dc2626',
+    dangerSoft: '#fee2e2',
+    dangerText: '#b91c1c',
+    info: '#2563eb',
+    infoSoft: '#dbeafe',
+    infoText: '#1d4ed8',
+    focusRing: theme.colors.accent,
+  };
+}
+

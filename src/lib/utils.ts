@@ -259,20 +259,36 @@ export async function getSpeicherStatus(): Promise<{
   return { localStorageBytes, indexedDbBytes, quotaBytes, groessteEintraege: eintraege.slice(0, 8) };
 }
 
-export function getAccentTextColor(hexColor: string): string {
-  if (!hexColor) return '#ffffff';
+export function getRelativeLuminance(hexColor: string): number {
+  if (!hexColor) return 0;
   let hex = hexColor.replace(/^#/, '');
   if (hex.length === 3) {
     hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
   }
-  if (hex.length !== 6) return '#ffffff';
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-  
-  // YIQ weightings for human perceived light reflectance
-  const relativeLuminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return relativeLuminance > 0.5 ? '#0f172a' : '#ffffff';
+  if (hex.length !== 6) return 0;
+  const sRGBtoLin = (val: number) => {
+    const c = val / 255;
+    return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  const r = sRGBtoLin(parseInt(hex.substring(0, 2), 16));
+  const g = sRGBtoLin(parseInt(hex.substring(2, 4), 16));
+  const b = sRGBtoLin(parseInt(hex.substring(4, 6), 16));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+export function getContrastRatio(hex1: string, hex2: string): number {
+  const l1 = getRelativeLuminance(hex1);
+  const l2 = getRelativeLuminance(hex2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+export function getAccentTextColor(hexColor: string): string {
+  if (!hexColor) return '#ffffff';
+  const ratioWhite = getContrastRatio(hexColor, '#ffffff');
+  const ratioDark = getContrastRatio(hexColor, '#0f172a');
+  return ratioDark > ratioWhite ? '#0f172a' : '#ffffff';
 }
 
 export function inferDateFromText(text: string, schuljahr: string): Date | null {
@@ -434,6 +450,69 @@ export function syncNoteToPlanning(text: string, setApp: any, schuljahr: string)
       wochenplanung: wpObj
     };
   });
+}
+
+/**
+ * Extrahiert den Vornamen der Lehrkraft aus App-Zuständen oder Namensstrings.
+ * Beispiele:
+ * - "Martina Bitschnau" -> "Martina"
+ * - "Gabriel Hehle" -> "Gabriel"
+ * - "Frau Martina Bitschnau" -> "Martina"
+ * - "Dr. Gabriel Hehle" -> "Gabriel"
+ */
+export function getTeacherFirstName(source?: any): string {
+  if (!source) return '';
+
+  let rawCandidate = '';
+  if (typeof source === 'string') {
+    rawCandidate = source;
+  } else if (typeof source === 'object') {
+    rawCandidate =
+      source.vorname ||
+      source.lehrerName ||
+      source.lehrerProfil?.vorname ||
+      source.lehrerProfil?.name ||
+      source.name ||
+      '';
+  }
+
+  if (!rawCandidate || typeof rawCandidate !== 'string') {
+    return '';
+  }
+
+  const trimmed = rawCandidate.trim();
+  if (!trimmed) return '';
+
+  const tokens = trimmed.split(/\s+/);
+  const titleTokens = new Set([
+    'frau',
+    'herr',
+    'dr.',
+    'dr',
+    'prof.',
+    'prof',
+    'mag.',
+    'mag',
+    'bed',
+    'med',
+    'dipl.-päd.',
+    'dipl.-paed.',
+    'dipl.',
+    'ing.',
+    'sr.',
+    'fr.',
+    'hr.',
+  ]);
+
+  const nonTitleTokens = tokens.filter(
+    (t) => !titleTokens.has(t.toLowerCase().replace(/[,:]/g, ''))
+  );
+
+  if (nonTitleTokens.length > 0) {
+    return nonTitleTokens[0];
+  }
+
+  return tokens[0] || '';
 }
 
 

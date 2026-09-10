@@ -2111,9 +2111,28 @@ const ComparisonView: React.FC<{ meeting: KELGespraech }> = ({ meeting }) => {
               </p>
               <div className="h-[320px] w-full bg-white rounded-3xl border border-slate-100 p-4 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <RadarChart cx="50%" cy="50%" outerRadius="60%" data={radarData}>
+                  <RadarChart cx="50%" cy="50%" outerRadius="50%" data={radarData}>
                     <PolarGrid stroke="#f1f5f9" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#64748b', fontSize: 9, fontWeight: 900 }} />
+                    <PolarAngleAxis 
+                      dataKey="subject" 
+                      tick={({ payload, x, y, textAnchor, stroke, ...rest }: any) => {
+                        const val = payload.value || '';
+                        const label = val.length > 14 ? val.substring(0, 12) + '..' : val;
+                        return (
+                          <text
+                            {...rest}
+                            x={x}
+                            y={y}
+                            textAnchor={textAnchor}
+                            fill="#64748b"
+                            fontSize={8.5}
+                            fontWeight={900}
+                          >
+                            {label}
+                          </text>
+                        );
+                      }} 
+                    />
                     <PolarRadiusAxis angle={30} domain={[0, 4]} tick={false} axisLine={false} />
                     <Radar name="Kind" dataKey="Kind" stroke="#f43f5e" strokeWidth={3} fill="#f43f5e" fillOpacity={0.15} isAnimationActive={true} animationDuration={1500} />
                     <Radar name="Lehrperson" dataKey="Lehrperson" stroke="#10b981" strokeWidth={3} fill="#10b981" fillOpacity={0.15} isAnimationActive={true} animationDuration={1500} />

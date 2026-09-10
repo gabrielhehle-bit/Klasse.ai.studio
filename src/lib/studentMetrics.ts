@@ -11,6 +11,7 @@ export type StudentAttendanceSummary = {
 
 export function getStudentAttendanceSummary(app: any, studentId: string): StudentAttendanceSummary {
   const data = app.anwesenheit?.[studentId] || {};
+  const detailsData = app.anwesenheitDetail?.[studentId] || {};
   let excused = 0;
   let unexcused = 0;
   const weekdayCounts: Record<string, number> = {
@@ -21,18 +22,39 @@ export function getStudentAttendanceSummary(app: any, studentId: string): Studen
     Freitag: 0
   };
 
-  Object.entries(data).forEach(([dateString, rawDayData]) => {
+  const allDates = Array.from(new Set([...Object.keys(data), ...Object.keys(detailsData)]));
+
+  allDates.forEach((dateString) => {
+    const rawDayData = data[dateString];
     const dayData = rawDayData && typeof rawDayData === 'object' ? rawDayData : {};
+    const detail = detailsData[dateString];
     let isAbsent = false;
+    let dayExcused = 0;
+    let dayUnexcused = 0;
+
     Object.values(dayData).forEach(status => {
       if (status === 'e') {
-        excused += 1;
+        dayExcused += 1;
         isAbsent = true;
       } else if (status === 'u') {
-        unexcused += 1;
+        dayUnexcused += 1;
         isAbsent = true;
       }
     });
+
+    if (detail?.fehlstunden !== undefined && detail.fehlstunden > 0) {
+      isAbsent = true;
+      if (dayExcused === 0 && dayUnexcused === 0) {
+        if (detail.notiz === 'Unentschuldigt') {
+          dayUnexcused = detail.fehlstunden;
+        } else {
+          dayExcused = detail.fehlstunden;
+        }
+      }
+    }
+
+    excused += dayExcused;
+    unexcused += dayUnexcused;
 
     if (isAbsent) {
       const date = new Date(dateString);
@@ -45,8 +67,8 @@ export function getStudentAttendanceSummary(app: any, studentId: string): Studen
     excused,
     unexcused,
     total: excused + unexcused,
-    recordedDays: Object.keys(data).length,
-    hasData: Object.keys(data).length > 0,
+    recordedDays: allDates.length,
+    hasData: allDates.length > 0,
     weekdayCounts
   };
 }

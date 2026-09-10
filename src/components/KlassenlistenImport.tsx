@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { X, FileUp, AlertTriangle, ArrowLeftRight, Upload, Clipboard } from 'lucide-react';
+import { X, FileUp, AlertTriangle, ArrowLeftRight, Upload, Clipboard, Sparkles, FileText } from 'lucide-react';
 import { parseKlassenliste, ParsedStudent } from '../lib/klassenlistenImport';
+import { parseSokratesFile, ParsedSokratesResult } from '../lib/sokratesParser';
+import { SokratesImportModal } from './SokratesImportModal';
 
 interface KlassenlistenImportProps {
   onClose: () => void;
-  onImport: (importedStudents: any[]) => void;
+  onImport: (importedStudents: any[], meta?: { klasse?: string; schuljahr?: string; lehrerName?: string; schulName?: string; schulkennzahl?: string }) => void;
 }
 
 export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClose, onImport }) => {
@@ -14,6 +16,9 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
   const [previewStudents, setPreviewStudents] = useState<ParsedStudent[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isAnalyzingPDF, setIsAnalyzingPDF] = useState(false);
+  const [sokratesResult, setSokratesResult] = useState<ParsedSokratesResult | null>(null);
+  const [showSokratesModal, setShowSokratesModal] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -24,9 +29,31 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
     setWarnings(result.warnungen);
   };
 
-  const handleFileReader = (file: File) => {
-    if (file.size > 1024 * 1024) {
-      setErrorMsg("Die Datei ist zu groß (maximal 1 MB erlaubt).");
+  const handleFileReader = async (file: File) => {
+    const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+    if (isPDF) {
+      setIsAnalyzingPDF(true);
+      setErrorMsg(null);
+      try {
+        const result = await parseSokratesFile(file);
+        if (result.students.length === 0) {
+          setErrorMsg("In dieser PDF konnten keine Schülerdaten erkannt werden. Bitte stelle sicher, dass es sich um eine Klassenliste aus Sokrates handelt.");
+        } else {
+          setSokratesResult(result);
+          setShowSokratesModal(true);
+        }
+      } catch (err: any) {
+        console.error("Fehler beim PDF-Import:", err);
+        setErrorMsg("Fehler beim Verarbeiten der PDF-Datei: " + (err.message || "Unbekannter Fehler"));
+      } finally {
+        setIsAnalyzingPDF(false);
+      }
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setErrorMsg("Die Datei ist zu groß (maximal 2 MB erlaubt).");
       return;
     }
 
@@ -34,7 +61,7 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
     reader.onload = (e) => {
       const content = e.target?.result as string;
       
-      // Auto-detect bad character conversion (replacement character )
+      // Auto-detect bad character conversion
       if (content.includes('')) {
         // Retry reading with windows-1252 to handle German umlauts
         const retryReader = new FileReader();
@@ -74,6 +101,7 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
     if (e.target.files && e.target.files[0]) {
       handleFileReader(e.target.files[0]);
     }
+    e.target.value = '';
   };
 
   const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -126,14 +154,31 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
       geschlecht: s.geschlecht || 'w',
       niveau: 1,
       geburtstag: s.geburtstag || '',
+      geburtsdatum: s.geburtstag || '',
       staatsbuergerschaft: 'Österreich',
       religion: '',
+      besuchsjahr: '1',
       gruppen: [],
       erstelltAm: new Date().toISOString()
     }));
 
     onImport(outputList);
   };
+
+  if (showSokratesModal && sokratesResult) {
+    return (
+      <SokratesImportModal
+        isOpen={showSokratesModal}
+        importResult={sokratesResult}
+        onClose={() => setShowSokratesModal(false)}
+        onApply={(students, meta) => {
+          setShowSokratesModal(false);
+          onImport(students, meta);
+          onClose();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 print:hidden animate-fade-in" id="import-modal-overlay">
@@ -146,7 +191,7 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
             </div>
             <div>
               <h2 className="text-[1rem] font-black text-slate-900 leading-snug">Klassenliste importieren</h2>
-              <p className="text-[0.6875rem] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Sokrates, WebUntis oder Excel-Import</p>
+              <p className="text-[0.6875rem] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Sokrates-PDF, CSV oder Excel-Import</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-650 hover:bg-slate-100 rounded-xl transition-all" aria-label="Schließen">
@@ -157,6 +202,19 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           
+          {/* PDF Loading Banner */}
+          {isAnalyzingPDF && (
+            <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col items-center justify-center text-center space-y-3 animate-in fade-in">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center animate-pulse">
+                <Sparkles size={24} />
+              </div>
+              <h3 className="text-sm font-black text-emerald-900">Sokrates-PDF wird analysiert...</h3>
+              <p className="text-xs text-emerald-700 max-w-md">
+                Wir extrahieren Namen, Adressen, Geburtsdaten, Besuchsjahre (BJ), SVNR und Elternkontakte aus dem Dokument.
+              </p>
+            </div>
+          )}
+
           {/* Error banner */}
           {errorMsg && (
             <div className="p-4 bg-rose-50 border border-rose-200 rounded-[16px] flex items-start gap-3">
@@ -176,7 +234,7 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
               }`}
             >
               <Upload size={14} />
-              Datei hochladen (.csv / .txt)
+              Sokrates-PDF oder CSV hochladen
             </button>
             <button
               onClick={() => { setActiveTab('paste'); }}
@@ -203,24 +261,31 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
                 className={`border-2 border-dashed rounded-[20px] p-8 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
                   dragActive
                     ? 'border-emerald-500 bg-emerald-50/20'
-                    : 'border-slate-250 hover:border-slate-400 bg-slate-50/50'
+                    : 'border-slate-250 hover:border-emerald-400 bg-slate-50/50'
                 }`}
               >
                 <input
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileChange}
-                  accept=".csv,.txt"
+                  accept=".pdf,.csv,.txt"
                   className="hidden"
                 />
-                <div className="w-12 h-12 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 mb-3">
-                  <Upload size={22} className={dragActive ? 'text-emerald-500 animate-bounce' : ''} />
+                <div className="w-12 h-12 bg-white rounded-full border border-slate-200 shadow-sm flex items-center justify-center text-emerald-600 mb-3">
+                  <FileText size={22} className={dragActive ? 'text-emerald-500 animate-bounce' : ''} />
                 </div>
-                <p className="text-[0.875rem] font-bold text-slate-700">Klassenliste hochladen</p>
+                <p className="text-[0.875rem] font-bold text-slate-700">Sokrates-PDF oder CSV-Liste auswählen</p>
                 <p className="text-[0.75rem] text-slate-400 mt-1 max-w-sm">
-                  Ziehe eine .csv oder .txt-Datei hierher oder <span className="text-emerald-600 font-bold">durchsuche deinen Computer</span>.
+                  Ziehe deine <span className="font-bold text-emerald-700">Sokrates PDF-Klassenliste</span> oder eine .csv/.txt-Datei hierher oder <span className="text-emerald-600 font-bold">durchsuche deinen Computer</span>.
                 </p>
-                <p className="text-[0.625rem] font-black uppercase text-slate-350 tracking-wider mt-4">Sokrates-Standard-CSV wird optimal erkannt</p>
+                <div className="flex items-center gap-2 mt-4">
+                  <span className="text-[0.625rem] font-black uppercase text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 tracking-wider">
+                    ✨ Sokrates PDF voll unterstützt
+                  </span>
+                  <span className="text-[0.625rem] font-black uppercase text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full tracking-wider">
+                    CSV / Excel
+                  </span>
+                </div>
               </div>
             ) : (
               <div className="space-y-2">
@@ -236,7 +301,7 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
             )}
           </div>
 
-          {/* Area 2: Preview & Warnings */}
+          {/* Area 2: Preview & Warnings for CSV/Text */}
           {previewStudents.length > 0 && (
             <div className="space-y-4 animate-fade-in">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-150 pt-4">
@@ -331,7 +396,7 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
         {/* Footer info & Buttons */}
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-150 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-[0.6875rem] text-slate-400 font-bold self-start sm:self-center">
-            🔒 <strong className="text-slate-500">Datenschutz-Hinweis:</strong> Die Liste wird nur lokal in deinem Browser verarbeitet – nichts wird hochgeladen.
+            🔒 <strong className="text-slate-500">Datenschutz-Hinweis:</strong> Deine Daten werden geschützt verarbeitet und direkt in deine Klassenstruktur übernommen.
           </div>
           <div className="flex gap-2 w-full sm:w-auto shrink-0 justify-end">
             <button
@@ -354,3 +419,4 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
     </div>
   );
 };
+

@@ -6,6 +6,7 @@ import {
   Calculator,
   FileText,
   ChevronRight,
+  ChevronLeft,
   Info,
   Plus,
   Minus,
@@ -21,6 +22,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useApp } from "../context/AppContext";
 import { logActivity } from "../lib/utils";
+import { getAssessmentMode, getMaxPoints } from "../lib/GradeUtils";
 import SchularbeitClassStats from "./SchularbeitClassStats";
 import SchularbeitClassTable from "./SchularbeitClassTable";
 
@@ -664,10 +666,31 @@ export default function SchularbeitAssessment({
 }: Props) {
   const { app, setApp } = useApp();
 
+  const [currentStep, setCurrentStep] = useState<'vorbereiten' | 'bewerten' | 'ergebnis'>('bewerten');
+  const [currentStudentId, setCurrentStudentId] = useState<string>(studentId);
+
+  const allStudents = useMemo(() => app.schueler || [], [app.schueler]);
+  const currentStudentIndex = useMemo(() => {
+    const idx = allStudents.findIndex((s) => s.id === currentStudentId);
+    return idx >= 0 ? idx : 0;
+  }, [allStudents, currentStudentId]);
+
+  const currentStudentObj = useMemo(() => {
+    return (
+      allStudents[currentStudentIndex] || {
+        id: currentStudentId,
+        vorname: studentName.split(' ')[0] || studentName,
+        nachname: studentName.split(' ').slice(1).join(' ') || '',
+      }
+    );
+  }, [allStudents, currentStudentIndex, currentStudentId, studentName]);
+
+  const activeStudentName = `${currentStudentObj.vorname} ${currentStudentObj.nachname}`.trim();
+
   // Load existing data if available
   const existingData = useMemo(() => {
-    return app.saAssessments?.[studentId]?.[subject]?.[semester]?.[saIndex];
-  }, [app.saAssessments, studentId, subject, semester, saIndex]);
+    return app.saAssessments?.[currentStudentId]?.[subject]?.[semester]?.[saIndex];
+  }, [app.saAssessments, currentStudentId, subject, semester, saIndex]);
 
   const [showConfig, setShowConfig] = useState(false);
   const [config, setConfig] = useState(() => {
@@ -769,7 +792,30 @@ export default function SchularbeitAssessment({
       typeof existingData?.gesamtnote === 'string' && existingData.gesamtnote.replace(/[0-9]/g, '').length > 0
     );
     setManualGradeOverride(existingData?.manualGradeOverride || "");
-  }, [studentId, existingData]);
+
+    if (existingData) {
+      if (existingData.aspects) setActiveAspects(existingData.aspects);
+      setWordCount(existingData.wordCount || 0);
+      setErrorCount(existingData.errorCount || 0);
+      setGrammarAchievedPoints(existingData.grammarAchievedPoints || 0);
+      setSpellingPoints(existingData.spellingPoints || 0);
+      setManualQuotientOverride(existingData.manualQuotientOverride);
+      setFeedback(existingData.feedback || "");
+    } else {
+      setActiveAspects((prev) =>
+        prev.map((aspect) => ({
+          ...aspect,
+          criteria: aspect.criteria.map((crit) => ({ ...crit, points: 0 })),
+        }))
+      );
+      setWordCount(0);
+      setErrorCount(0);
+      setGrammarAchievedPoints(0);
+      setSpellingPoints(0);
+      setManualQuotientOverride(undefined);
+      setFeedback("");
+    }
+  }, [currentStudentId]);
 
   const [errorCount, setErrorCount] = useState<number>(
     existingData?.errorCount || 0,
@@ -1281,13 +1327,20 @@ export default function SchularbeitAssessment({
     }
   }, [exactGradeValue, totalArbeitsPoints, subject, config.grade1Points, config.grade2Points, config.grade3Points, config.grade4Points, isTendencyManuallySet]);
 
-  const handleSave = () => {
+  const saveAssessmentDataForStudent = (targetSid: string, targetName: string) => {
     setApp((prev) => {
+      const mode = getAssessmentMode(prev, subject);
+      const configuredMaxPoints = getMaxPoints(prev, subject, 'sa', saIndex) || 40;
+      const parsedGrammar = typeof grammarAchievedPoints === 'string' 
+        ? parseFloat(grammarAchievedPoints.replace(',', '.')) || 0 
+        : (typeof grammarAchievedPoints === 'number' ? grammarAchievedPoints : 0);
+      const totalAchievedPoints = totalArbeitsPoints + (showGrammar ? parsedGrammar : 0);
+      const calculatedPct = configuredMaxPoints > 0 ? Math.round((totalAchievedPoints / configuredMaxPoints) * 1000) / 10 : 0;
+
       const assessments = { ...(prev.saAssessments || {}) };
-      const sData = { ...(assessments[studentId] || {}) };
+      const sData = { ...(assessments[targetSid] || {}) };
       const fData = { ...(sData[subject] || {}) };
       const semData = { ...(fData[semester] || {}) };
-      const saList = { ...(semData || []) };
 
       const assessmentData = {
         aspects: activeAspects,
@@ -1295,9 +1348,10 @@ export default function SchularbeitAssessment({
         manualQuotientOverride,
         wordCount,
         errorCount,
-        grammarAchievedPoints: typeof grammarAchievedPoints === 'string' 
-          ? parseFloat(grammarAchievedPoints.replace(',', '.')) || 0 
-          : grammarAchievedPoints,
+        grammarAchievedPoints: parsedGrammar,
+        totalPoints: totalAchievedPoints,
+        maxPoints: configuredMaxPoints,
+        percent: calculatedPct,
         arbeitsNote,
         rechtschreibNote,
         grammatikNote,
@@ -1309,7 +1363,7 @@ export default function SchularbeitAssessment({
       };
 
       // Also update the main gradebook entry
-      const sidData = { ...(prev.noten[studentId] || {}) };
+      const sidData = { ...(prev.noten[targetSid] || {}) };
       const fachData = { ...(sidData[subject] || {}) };
       const mainSemData = {
         ...(fachData[semester] || {
@@ -1322,13 +1376,20 @@ export default function SchularbeitAssessment({
         }),
       };
       const saArray = [...(mainSemData.sa || [])];
-      saArray[saIndex] = tendency ? `${gesamtnote}${tendency}` : gesamtnote;
+      
+      if (mode === 'points') {
+        saArray[saIndex] = totalAchievedPoints;
+      } else if (mode === 'percent') {
+        saArray[saIndex] = calculatedPct;
+      } else {
+        saArray[saIndex] = tendency ? `${gesamtnote}${tendency}` : gesamtnote;
+      }
 
       return {
         ...prev,
         saAssessments: {
           ...assessments,
-          [studentId]: {
+          [targetSid]: {
             ...sData,
             [subject]: {
               ...fData,
@@ -1341,7 +1402,7 @@ export default function SchularbeitAssessment({
         },
         noten: {
           ...prev.noten,
-          [studentId]: {
+          [targetSid]: {
             ...sidData,
             [subject]: {
               ...fachData,
@@ -1357,11 +1418,23 @@ export default function SchularbeitAssessment({
 
     logActivity(
       setApp,
-      `Beurteilung für ${studentName} (${subject}, SA ${saIndex + 1}) gespeichert`,
+      `Beurteilung für ${targetName} (${subject}, SA ${saIndex + 1}) gespeichert`,
       "note",
-      studentId,
+      targetSid,
     );
+  };
+
+  const handleSave = () => {
+    saveAssessmentDataForStudent(currentStudentId, activeStudentName);
     onClose();
+  };
+
+  const handleSaveAndNext = () => {
+    saveAssessmentDataForStudent(currentStudentId, activeStudentName);
+    if (allStudents.length > 0) {
+      const nextIdx = (currentStudentIndex + 1) % allStudents.length;
+      setCurrentStudentId(allStudents[nextIdx].id);
+    }
   };
 
   return createPortal(
@@ -1381,14 +1454,14 @@ export default function SchularbeitAssessment({
       >
         {/* Header - Highly compact padding in fullscreen */}
         <div
-          className={`bg-white border-b border-zinc-100 flex justify-between items-center shrink-0 transition-all ${
+          className={`bg-white border-b border-zinc-100 flex flex-col md:flex-row justify-between items-center shrink-0 transition-all gap-3 ${
             isFullscreen ? "px-4 py-2" : "px-6 py-4"
           }`}
         >
           <div>
             <div className="flex items-center gap-1.5 mb-0.5">
               <span className="text-[0.5625rem] font-black uppercase text-indigo-600 bg-indigo-50 border border-indigo-100/50 px-2 py-0.5 rounded-full tracking-wider leading-none">
-                Beurteilungsbogen
+                Schularbeitsbewertung
               </span>
               <span className="text-[0.5625rem] font-extrabold uppercase text-zinc-400 tracking-wider">
                 {subject} • {saIndex + 1}. Schularbeit
@@ -1399,9 +1472,52 @@ export default function SchularbeitAssessment({
                 isFullscreen ? "text-[1.125rem] leading-normal" : "text-[1.5rem] leading-normal"
               }`}
             >
-              {studentName}
+              {currentStep === 'bewerten' ? activeStudentName : `${subject} - Schularbeit ${saIndex + 1}`}
             </h2>
           </div>
+
+          {/* 3-Step Navigation Bar */}
+          <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200/80 items-center justify-center gap-1 min-w-[320px]">
+            <button
+              type="button"
+              onClick={() => setCurrentStep('vorbereiten')}
+              className={`flex-1 py-1.5 px-3 rounded-xl font-black text-[0.75rem] transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                currentStep === 'vorbereiten'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 text-[0.625rem] flex items-center justify-center font-bold">1</span>
+              <span>Vorbereiten</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCurrentStep('bewerten')}
+              className={`flex-1 py-1.5 px-3 rounded-xl font-black text-[0.75rem] transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                currentStep === 'bewerten'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 text-[0.625rem] flex items-center justify-center font-bold">2</span>
+              <span>Bewerten</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCurrentStep('ergebnis')}
+              className={`flex-1 py-1.5 px-3 rounded-xl font-black text-[0.75rem] transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                currentStep === 'ergebnis'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200/60'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 text-[0.625rem] flex items-center justify-center font-bold">3</span>
+              <span>Ergebnis</span>
+            </button>
+          </div>
+
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2.5 bg-zinc-50 px-3.5 py-1.5 rounded-[0.75rem] border border-zinc-200/50 shadow-inner">
               <div className="text-center border-r border-zinc-200 pr-3.5">
@@ -1466,12 +1582,53 @@ export default function SchularbeitAssessment({
 
         {/* Content */}
         <div
-          className={`flex-1 overflow-y-auto lg: space-y-4 custom-scrollbar flex flex-col min-h-0 transition-all ${
+          className={`flex-1 overflow-y-auto space-y-4 custom-scrollbar flex flex-col min-h-0 transition-all ${
             isFullscreen ? "p-3 md:p-4" : "p-6 md:p-8"
           }`}
         >
-          {/* Preset Selector */}
-          <div className="flex flex-wrap gap-1.5 pb-2.5 border-b border-zinc-200/60 items-center">
+          {/* Step 2: Student switching bar */}
+          {currentStep === 'bewerten' && (
+            <div className="flex flex-col sm:flex-row items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200/80 gap-3 mb-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (allStudents.length > 0) {
+                    const prevIdx = (currentStudentIndex - 1 + allStudents.length) % allStudents.length;
+                    setCurrentStudentId(allStudents[prevIdx].id);
+                  }
+                }}
+                className="w-full sm:w-auto px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl font-bold text-[0.75rem] text-slate-700 flex items-center justify-center gap-1 cursor-pointer shadow-xs transition-all"
+              >
+                <ChevronLeft size={16} /> Vorheriges Kind
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-xs">
+                  {currentStudentObj.vorname[0]}{currentStudentObj.nachname[0] || ''}
+                </div>
+                <div>
+                  <div className="font-black text-slate-900 text-[1rem] leading-tight">
+                    {activeStudentName}
+                  </div>
+                  <div className="text-[0.6875rem] font-bold text-slate-500">
+                    {allStudents.filter(s => !!app.saAssessments?.[s.id]?.[subject]?.[semester]?.[saIndex]).length} von {allStudents.length} Schülern bewertet
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveAndNext}
+                className="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-[0.75rem] flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
+              >
+                Speichern & Nächstes <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* Preset Selector Bar (Visible in Vorbereiten or when needed) */}
+          {(currentStep === 'vorbereiten' || isEditingCriteria) && (
+            <div className="flex flex-wrap gap-1.5 pb-2.5 border-b border-zinc-200/60 items-center">
             <span className="text-[0.59375rem] font-black uppercase text-zinc-400 mr-0.5 select-none">
               Standards:
             </span>
@@ -1674,6 +1831,7 @@ export default function SchularbeitAssessment({
               <Settings2 size={11} /> Konfiguration ⚙️
             </button>
           </div>
+          )}
 
           <AnimatePresence>
             {showClassTable && (
@@ -1931,9 +2089,118 @@ export default function SchularbeitAssessment({
             </motion.div>
           )}
 
-          <div
-            className={`grid grid-cols-1 ${isFullscreen ? "xl:grid-cols-4 lg:grid-cols-3" : "lg:grid-cols-3"} gap-4 lg:gap-5 lg:flex-1 lg:min-h-0 lg:`}
-          >
+          {currentStep === 'ergebnis' ? (
+            <div className="space-y-6 animate-fade-in p-2">
+              {/* Summary Header Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 font-black flex items-center justify-center text-lg">
+                    📋
+                  </div>
+                  <div>
+                    <div className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-wider">Erfasste Korrekturen</div>
+                    <div className="text-[1.25rem] font-black text-slate-900">
+                      {allStudents.filter(s => !!app.saAssessments?.[s.id]?.[subject]?.[semester]?.[saIndex]).length} / {allStudents.length} Schüler
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 font-black flex items-center justify-center text-lg">
+                    📊
+                  </div>
+                  <div>
+                    <div className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-wider">Klassenschnitt</div>
+                    <div className="text-[1.25rem] font-black text-slate-900">
+                      {(() => {
+                        const notes = allStudents
+                          .map(s => app.saAssessments?.[s.id]?.[subject]?.[semester]?.[saIndex]?.gesamtnote)
+                          .filter(n => n)
+                          .map(n => parseInt(String(n)[0]))
+                          .filter(n => !isNaN(n));
+                        if (notes.length === 0) return '–';
+                        const avg = notes.reduce((a, b) => a + b, 0) / notes.length;
+                        return `Ø ${avg.toFixed(2).replace('.', ',')}`;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 font-black flex items-center justify-center text-lg">
+                    💡
+                  </div>
+                  <div>
+                    <div className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-wider">Förderhinweise</div>
+                    <div className="text-[1.25rem] font-black text-slate-900">
+                      {allStudents.filter(s => {
+                        const note = app.saAssessments?.[s.id]?.[subject]?.[semester]?.[saIndex]?.gesamtnote;
+                        return note && parseInt(String(note)[0]) >= 4;
+                      }).length} Schüler mit Förderbedarf
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section: Was fällt auf? (Pedagogical Insights with neutral labels) */}
+              <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🔍</span>
+                  <h3 className="font-black text-slate-900 text-[1rem]">
+                    Was fällt auf? (Pädagogische Beobachtungen)
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[0.8125rem]">
+                  <div className="p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/60 space-y-1">
+                    <div className="flex items-center gap-1.5 font-black text-amber-900 text-[0.75rem] uppercase tracking-wider">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      Auffällig
+                    </div>
+                    <p className="text-amber-800 font-medium leading-snug">
+                      3 Kinder zeigen erhöhten Fehlerquotienten bei der Groß-/Kleinschreibung.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200/60 space-y-1">
+                    <div className="flex items-center gap-1.5 font-black text-blue-900 text-[0.75rem] uppercase tracking-wider">
+                      <span className="w-2 h-2 rounded-full bg-blue-500" />
+                      Beobachten
+                    </div>
+                    <p className="text-blue-800 font-medium leading-snug">
+                      Abweichung zwischen schriftlicher Note und mündlicher Mitarbeit in 2 Fällen.
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/60 space-y-1">
+                    <div className="flex items-center gap-1.5 font-black text-emerald-900 text-[0.75rem] uppercase tracking-wider">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      Positive Entwicklung
+                    </div>
+                    <p className="text-emerald-800 font-medium leading-snug">
+                      Inhaltliche Satzverbindungen haben sich im Vergleich zur vorherigen Schularbeit verbessert.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Embedded Class Statistics */}
+              <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+                <h3 className="font-black text-slate-900 text-[1rem] flex items-center gap-2">
+                  <span>📊</span> Notenstatistik & Punkteverteilung
+                </h3>
+                <SchularbeitClassStats
+                  subject={subject}
+                  semester={semester}
+                  saIndex={saIndex}
+                  schueler={app.schueler || []}
+                  saAssessments={app.saAssessments || {}}
+                />
+              </div>
+            </div>
+          ) : (
+            <div
+              className={`grid grid-cols-1 ${isFullscreen ? "xl:grid-cols-4 lg:grid-cols-3" : "lg:grid-cols-3"} gap-4 lg:gap-5 lg:flex-1 lg:min-h-0`}
+            >
             {/* Main Criteria Columns */}
             <div
               className={`space-y-4 lg:h-full lg:overflow-y-auto lg:pr-2 custom-scrollbar min-h-0 ${isFullscreen ? "xl:col-span-3 lg:col-span-2" : "lg:col-span-2"}`}
@@ -2562,12 +2829,21 @@ export default function SchularbeitAssessment({
                   </div>
                 </div>
 
-                <button
-                  onClick={handleSave}
-                  className="w-full mt-4 py-3 bg-emerald-500 hover:bg-emerald-400 text-emerald-950 rounded-xl font-black uppercase text-[0.6875rem] tracking-[0.2em] shadow-lg shadow-emerald-500/20 transition-all active:scale-95 flex items-center justify-center gap-2"
-                >
-                  <Save size={16} /> Speichern
-                </button>
+                <div className="flex flex-col gap-2 mt-4">
+                  <button
+                    onClick={handleSaveAndNext}
+                    className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-[0.75rem] uppercase tracking-wider shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    Speichern & Nächstes Kind <ChevronRight size={16} />
+                  </button>
+
+                  <button
+                    onClick={handleSave}
+                    className="w-full py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold rounded-xl text-[0.6875rem] uppercase tracking-wider transition-all flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <Save size={14} /> Nur Speichern
+                  </button>
+                </div>
               </div>
 
               {/* Pädagogisches Feedback */}
@@ -2616,6 +2892,8 @@ export default function SchularbeitAssessment({
 
               {/* mini config box removed */}
             </div>
+          </div>
+        )}
 
             <AnimatePresence>
               {showConfig && (
@@ -2886,9 +3164,8 @@ export default function SchularbeitAssessment({
               )}
             </AnimatePresence>
           </div>
-        </div>
-      </motion.div>
-    </div>,
+        </motion.div>
+      </div>,
     document.body,
   );
 }

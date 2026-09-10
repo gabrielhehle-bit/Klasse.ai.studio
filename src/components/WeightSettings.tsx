@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { FAECHER_ALLE, DEFAULT_GEWICHTUNG } from '../constants';
-import { Save, RotateCcw, AlertTriangle, Zap } from 'lucide-react';
+import { getNotenLabel } from '../lib/GradeUtils';
+import { Save, RotateCcw, AlertTriangle, Zap, BookOpen, Check, Info, FileText, CheckCircle2 } from 'lucide-react';
 
 export default function WeightSettings({ onBack }: { onBack: () => void }) {
   const { app, setApp } = useApp();
@@ -15,7 +16,7 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
   const updateWeight = (fach: string, field: string, value: number) => {
     if (value === 0) {
       const currentVal = (getWeight(fach)[field] || 0);
-      if (currentVal > 0 && !confirm(`Möchtest du "${app.notenLabels?.[field] || field}" wirklich auf 0% setzen? Diese Kategorie wird dann nicht mehr für den Durchschnitt berechnet.`)) {
+      if (currentVal > 0 && !confirm(`Möchtest du "${getNotenLabel(app, fach, field, field)}" wirklich auf 0% setzen? Diese Kategorie wird dann nicht mehr für den Durchschnitt berechnet.`)) {
         return;
       }
     }
@@ -41,14 +42,71 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
     });
   };
 
-  const updateLabel = (key: string, label: string) => {
-    setApp(prev => ({
-      ...prev,
-      notenLabels: {
-        ...(prev.notenLabels || {}),
-        [key]: label
+  const handleModeChange = (fach: string, newMode: 'grades' | 'percent' | 'points') => {
+    const currentMode = app.notenMeta?.[fach]?.assessmentMode || 'grades';
+    if (currentMode === newMode) return;
+
+    let hasEntries = false;
+    const students = app.schueler || [];
+    for (const s of students) {
+      const sem1 = app.noten?.[s.id]?.[fach]?.['1'];
+      const sem2 = app.noten?.[s.id]?.[fach]?.['2'];
+      const checkSem = (d: any) => {
+        if (!d) return false;
+        return (d.sa?.some((v: any) => v !== null && v !== undefined && v !== '')) ||
+               (d.lzk?.some((v: any) => v !== null && v !== undefined && v !== '')) ||
+               (d.wp?.some((v: any) => v !== null && v !== undefined && v !== '')) ||
+               (d.aufgaben?.some((v: any) => v !== null && v !== undefined && v !== ''));
+      };
+      if (checkSem(sem1) || checkSem(sem2)) {
+        hasEntries = true;
+        break;
       }
-    }));
+    }
+
+    if (hasEntries) {
+      const modeNames = { grades: 'Noten (1–5)', percent: 'Prozent (0–100%)', points: 'Punkte (Pkt/Max)' };
+      const confirmMsg = `Hinweis: Im Fach "${fach}" sind bereits Leistungsdaten erfasst.\n\nEin Wechsel der Bewertungsart verändert die Interpretation der Werte (${modeNames[newMode]}).\n\nMöchtest du die Bewertungsart für "${fach}" wirklich umstellen?`;
+      if (!window.confirm(confirmMsg)) {
+        return;
+      }
+    }
+
+    setApp(prev => {
+      const nm = { ...(prev.notenMeta || {}) };
+      const currentFach = { ...(nm[fach] || {}) };
+      return {
+        ...prev,
+        notenMeta: {
+          ...nm,
+          [fach]: {
+            ...currentFach,
+            assessmentMode: newMode
+          }
+        }
+      };
+    });
+  };
+
+  const updateSubjectLabel = (fach: string, key: string, label: string) => {
+    setApp(prev => {
+      const nm = { ...(prev.notenMeta || {}) };
+      const currentFach = { ...(nm[fach] || {}) };
+      const currentLabels = { ...(currentFach.labels || {}) };
+      return {
+        ...prev,
+        notenMeta: {
+          ...nm,
+          [fach]: {
+            ...currentFach,
+            labels: {
+              ...currentLabels,
+              [key]: label
+            }
+          }
+        }
+      };
+    });
   };
 
   const calculateSum = (fach: string) => {
@@ -57,8 +115,7 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
   };
 
   const handleSaveAll = () => {
-    const invalidFaecher = FAECHER_ALLE.filter(f => !app.faecher || app.faecher.includes(f))
-      .filter(f => calculateSum(f) !== 100);
+    const invalidFaecher = activeFaecher.filter(f => calculateSum(f) !== 100);
 
     if (invalidFaecher.length > 0) {
       alert(`Folgende Fächer haben keine 100%: ${invalidFaecher.join(', ')}`);
@@ -123,7 +180,7 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
     trophy: { icon: '🏆', label: 'Pokale', color: 'text-amber-600', bg: 'bg-amber-100' }
   };
 
-  const activeFaecher = FAECHER_ALLE.filter(f => !app.faecher || app.faecher.includes(f));
+  const activeFaecher = (app.faecher && app.faecher.length > 0 ? app.faecher : FAECHER_ALLE).filter(f => app.fachConfig?.[f]?.unterrichtet !== false);
   
   // Real-time metrics
   const totalFaecherCount = activeFaecher.length;
@@ -198,10 +255,11 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
           const w = getWeight(fach);
           const sum = calculateSum(fach);
           const isOk = sum === 100;
+          const currentMode = app.notenMeta?.[fach]?.assessmentMode || 'grades';
 
           return (
             <div key={fach} className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm relative transition-all hover:shadow-md">
-              <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+              <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <h4 className="font-extrabold text-[0.875rem] text-slate-800">{fach}</h4>
                   <button
@@ -219,14 +277,61 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
                 </div>
               </div>
 
+              {/* Bewertungsart-Einstellung */}
+              <div className="mb-4 p-3 bg-slate-50 border border-slate-200/70 rounded-2xl">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[0.6875rem] font-bold text-slate-700 uppercase tracking-wider">
+                    Bewertungsart
+                  </span>
+                  <span className="text-[0.625rem] text-slate-400 font-medium">
+                    {currentMode === 'grades' ? 'Standard-Noten 1–5' : currentMode === 'percent' ? 'Prozentwert 0–100%' : 'Punkte / Maximalpunkte'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 bg-slate-200/70 p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => handleModeChange(fach, 'grades')}
+                    className={`py-1.5 px-2 text-[0.6875rem] sm:text-[0.75rem] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer select-none ${
+                      currentMode === 'grades'
+                        ? 'bg-white text-slate-900 shadow-xs font-black'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>🎯</span> Noten
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleModeChange(fach, 'percent')}
+                    className={`py-1.5 px-2 text-[0.6875rem] sm:text-[0.75rem] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer select-none ${
+                      currentMode === 'percent'
+                        ? 'bg-white text-slate-900 shadow-xs font-black'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>📊</span> Prozent
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleModeChange(fach, 'points')}
+                    className={`py-1.5 px-2 text-[0.6875rem] sm:text-[0.75rem] font-bold rounded-lg transition-all flex items-center justify-center gap-1 cursor-pointer select-none ${
+                      currentMode === 'points'
+                        ? 'bg-white text-slate-900 shadow-xs font-black'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <span>🔢</span> Punkte
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-4">
                 {[
-                  { key: 'sa', label: app.notenLabels?.sa || 'Schularbeiten', show: fach === 'Deutsch' || fach === 'Mathematik' },
-                  { key: 'lzk', label: app.notenLabels?.lzk || 'Lernzielkontrollen', show: true },
-                  { key: 'wp', label: app.notenLabels?.wp || 'Wochenplan', show: true },
-                  { key: 'hue', label: app.notenLabels?.hue || 'Hausübung', show: true },
-                  { key: 'obj', label: app.notenLabels?.obj || 'Aufgaben/Objekte', show: true },
-                  { key: 'mi', label: app.notenLabels?.mi || 'Mitarbeit', show: true }
+                  { key: 'sa', label: getNotenLabel(app, fach, 'sa', 'Schularbeiten'), show: fach === 'Deutsch' || fach === 'Mathematik' },
+                  { key: 'lzk', label: getNotenLabel(app, fach, 'lzk', 'Lernzielkontrollen'), show: true },
+                  { key: 'wp', label: getNotenLabel(app, fach, 'wp', 'Wochenplan'), show: true },
+                  { key: 'hue', label: getNotenLabel(app, fach, 'hue', 'Hausübung'), show: true },
+                  { key: 'obj', label: getNotenLabel(app, fach, 'obj', 'Aufgaben/Objekte'), show: true },
+                  { key: 'mi', label: getNotenLabel(app, fach, 'mi', 'Mitarbeit'), show: true }
                 ].filter(f => f.show).map(field => (
                   <div key={field.key} className="space-y-1">
                     <div className="flex justify-between items-center text-[0.6875rem] font-medium text-text-secondary">
@@ -234,7 +339,7 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
                         type="text"
                         className="bg-transparent border-none p-0 font-bold focus:ring-0 text-slate-700 hover:text-emerald-600 cursor-text w-32"
                         value={field.label}
-                        onChange={(e) => updateLabel(field.key, e.target.value)}
+                        onChange={(e) => updateSubjectLabel(fach, field.key, e.target.value)}
                         placeholder="Name..."
                       />
                       <div className="flex items-center gap-2">
@@ -519,6 +624,237 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Hausübungs-Steuerung & Abzugs-Logik */}
+      <div className="card bg-white border border-rose-100 p-8 shadow-sm rounded-[2rem]">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+          <div className="flex flex-col gap-1">
+            <h4 className="text-[0.8125rem] font-black uppercase tracking-widest text-rose-950 flex items-center gap-2">
+              <BookOpen size={16} className="text-rose-600" />
+              <span>Hausübungen · Berechnung &amp; Abzüge</span>
+            </h4>
+            <p className="text-[0.6875rem] text-stone-400 font-medium">
+              Vollständige Transparenz: Keine unsichtbaren Abzüge. Du bestimmst, wie vergessene HÜs einfließen.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-rose-50 border border-rose-200/60 px-3 py-1.5 rounded-xl">
+            <span className="text-[0.625rem] font-black uppercase tracking-wider text-rose-900">Modus:</span>
+            <span className={`text-[0.625rem] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${app.settings?.hueGewichten === false ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-emerald-100 text-emerald-900 border border-emerald-200'}`}>
+              {app.settings?.hueGewichten === false ? 'Nur Dokumentieren' : 'In Bewertung einrechnen'}
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          {/* Main Mode Toggle */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              type="button"
+              onClick={() => {
+                setApp(prev => ({
+                  ...prev,
+                  settings: {
+                    ...prev.settings,
+                    hueGewichten: true
+                  }
+                }));
+              }}
+              className={`p-5 rounded-3xl border-2 text-left transition-all flex items-start gap-3.5 cursor-pointer ${app.settings?.hueGewichten !== false ? 'bg-rose-50/50 border-rose-400 shadow-md ring-2 ring-rose-200/50' : 'bg-stone-50 border-stone-100 hover:border-rose-200'}`}
+            >
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${app.settings?.hueGewichten !== false ? 'bg-rose-600 text-white shadow-xs' : 'bg-stone-200 text-stone-600'}`}>
+                <CheckCircle2 size={18} />
+              </div>
+              <div className="space-y-1">
+                <div className="text-[0.8125rem] font-black text-slate-850 uppercase tracking-tight">
+                  In Bewertung berücksichtigen
+                </div>
+                <p className="text-[0.6875rem] text-slate-500 leading-relaxed">
+                  Hausübungen fließen mit dem konfigurierten Gewicht (%) in die Fachnote ein. Ausgangswert sind 100% mit definiertem Abzug pro vergessene HÜ.
+                </p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setApp(prev => ({
+                  ...prev,
+                  settings: {
+                    ...prev.settings,
+                    hueGewichten: false,
+                    hueWeight: 0
+                  }
+                }));
+              }}
+              className={`p-5 rounded-3xl border-2 text-left transition-all flex items-start gap-3.5 cursor-pointer ${app.settings?.hueGewichten === false ? 'bg-amber-50/60 border-amber-400 shadow-md ring-2 ring-amber-200/50' : 'bg-stone-50 border-stone-100 hover:border-amber-200'}`}
+            >
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${app.settings?.hueGewichten === false ? 'bg-amber-600 text-white shadow-xs' : 'bg-stone-200 text-stone-600'}`}>
+                <FileText size={18} />
+              </div>
+              <div className="space-y-1">
+                <div className="text-[0.8125rem] font-black text-slate-850 uppercase tracking-tight">
+                  Nur dokumentieren
+                </div>
+                <p className="text-[0.6875rem] text-slate-500 leading-relaxed">
+                  HÜs werden rein dokumentiert (für Elterngespräche &amp; Nachverfolgung). Fehlende HÜs führen zu <strong>keinem automatischen Noten- oder Punkteabzug</strong>.
+                </p>
+              </div>
+            </button>
+          </div>
+
+          {/* Configurable Deductions */}
+          {app.settings?.hueGewichten !== false && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+              {/* Percentage Deduction */}
+              <div className="p-6 bg-rose-50/30 border border-rose-100 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[0.6875rem] font-black text-rose-900 uppercase tracking-wider">
+                    Prozentabzug pro vergessene HÜ
+                  </span>
+                  <span className="text-[0.6875rem] font-black text-rose-700 bg-white px-2.5 py-1 rounded-lg border border-rose-200 shadow-3xs">
+                    -{app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}%
+                  </span>
+                </div>
+                <p className="text-[0.6875rem] text-slate-500 leading-relaxed">
+                  Startwert bei 0 fehlenden HÜs ist 100%. Jede vergessene Hausübung verringert diesen Wert um den eingestellten Prozentsatz.
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="0"
+                    max="20"
+                    step="1"
+                    className="w-full accent-rose-600 h-2 bg-rose-100 rounded-lg cursor-pointer"
+                    value={app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value) || 0;
+                      setApp(prev => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
+                          huePercentDeduction: val
+                        }
+                      }));
+                    }}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="50"
+                    className="w-16 px-2 py-1 bg-white border border-rose-200 rounded-xl text-center font-black text-rose-800 text-[0.8125rem] shadow-3xs outline-none focus:ring-2 focus:ring-rose-500/20"
+                    value={app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}
+                    onChange={(e) => {
+                      const val = Math.max(0, parseInt(e.target.value) || 0);
+                      setApp(prev => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
+                          huePercentDeduction: val
+                        }
+                      }));
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Mitarbeit Striche Deduction */}
+              <div className="p-6 bg-orange-50/30 border border-orange-100 rounded-3xl space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[0.6875rem] font-black text-orange-900 uppercase tracking-wider">
+                    Mitarbeitsabzug (Striche)
+                  </span>
+                  <span className="text-[0.6875rem] font-black text-orange-700 bg-white px-2.5 py-1 rounded-lg border border-orange-200 shadow-3xs">
+                    {(app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1) === 0 ? 'Kein Abzug' : `-${app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1} Strich pro HÜ`}
+                  </span>
+                </div>
+                <p className="text-[0.6875rem] text-slate-500 leading-relaxed">
+                  Zieht bei der symbolbasierten Mitarbeit automatisch Striche ab, wenn eine Hausübung vergessen wurde.
+                </p>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="0.5"
+                    className="w-full accent-orange-500 h-2 bg-orange-100 rounded-lg cursor-pointer"
+                    value={app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setApp(prev => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
+                          hueWeight: val
+                        }
+                      }));
+                    }}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="0.5"
+                    className="w-16 px-2 py-1 bg-white border border-orange-200 rounded-xl text-center font-black text-orange-800 text-[0.8125rem] shadow-3xs outline-none focus:ring-2 focus:ring-orange-500/20"
+                    value={app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1}
+                    onChange={(e) => {
+                      const val = Math.max(0, parseFloat(e.target.value) || 0);
+                      setApp(prev => ({
+                        ...prev,
+                        settings: {
+                          ...prev.settings,
+                          hueWeight: val
+                        }
+                      }));
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Transparency Calculation Preview Matrix */}
+          <div className="bg-slate-50 border border-slate-200/80 rounded-3xl p-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <Info size={14} className="text-slate-400" />
+                <span>Transparente HÜ-Berechnungstabelle (Beispiel)</span>
+              </span>
+              <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest">
+                Formel: 100% − (Vergessen × {app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}%)
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 pt-1">
+              {[0, 1, 2, 3, 4, 5].map(misses => {
+                const ded = app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5;
+                const pct = Math.max(0, 100 - misses * ded);
+                let note = 1;
+                if (pct >= 87.5) note = 1;
+                else if (pct >= 75) note = 2;
+                else if (pct >= 62.5) note = 3;
+                else if (pct >= 50) note = 4;
+                else note = 5;
+
+                return (
+                  <div key={misses} className="bg-white border border-slate-200 p-3 rounded-2xl text-center space-y-1 shadow-3xs">
+                    <div className="text-[0.625rem] font-bold text-slate-400 uppercase">
+                      {misses === 0 ? '0 Fehlend' : `${misses}× Vergessen`}
+                    </div>
+                    <div className="text-[0.875rem] font-black text-slate-800">
+                      {app.settings?.hueGewichten === false ? 'Dokumentiert' : `${pct}%`}
+                    </div>
+                    {app.settings?.hueGewichten !== false && (
+                      <div className={`text-[0.5625rem] font-black uppercase px-1.5 py-0.5 rounded ${note === 1 ? 'bg-emerald-100 text-emerald-800' : note === 2 ? 'bg-blue-100 text-blue-800' : note === 3 ? 'bg-amber-100 text-amber-800' : note === 4 ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'}`}>
+                        Note {note}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>

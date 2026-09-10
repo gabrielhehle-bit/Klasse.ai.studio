@@ -1,12 +1,90 @@
 
-import { AppState, GradeData } from '../types';
+import { AppState, AssessmentMode, GradeData } from '../types';
 import { FAECHER_ALLE, DEFAULT_GEWICHTUNG } from '../constants';
+
+export function getAssessmentMode(app: AppState, fach: string): AssessmentMode {
+  const mode = app.notenMeta?.[fach]?.assessmentMode;
+  if (mode === 'percent' || mode === 'points' || mode === 'grades') {
+    return mode;
+  }
+  return 'grades';
+}
+
+export function getMaxPoints(app: AppState, fach: string, typ: string, idx: number): number {
+  const key = typ === 'aufgaben' ? 'obj' : typ;
+  const custom = app.notenMeta?.[fach]?.maxPoints?.[key]?.[idx];
+  if (typeof custom === 'number' && !isNaN(custom) && custom > 0) {
+    return custom;
+  }
+  if (key === 'sa') return 100;
+  if (key === 'wp') return 10;
+  return 20; // default for lzk & obj
+}
+
+export function calculateItemPercent(
+  rawVal: number | string | null | undefined,
+  mode: AssessmentMode,
+  maxPoints: number
+): number | null {
+  if (rawVal === null || rawVal === undefined || rawVal === '') return null;
+  if (rawVal === 'f' || rawVal === 'x' || rawVal === 'e' || rawVal === '-') return null;
+
+  let numVal: number | null = null;
+  if (typeof rawVal === 'number') {
+    numVal = rawVal;
+  } else if (typeof rawVal === 'string') {
+    const parsed = parseFloat(rawVal.replace(',', '.'));
+    if (!isNaN(parsed)) {
+      numVal = parsed;
+    }
+  }
+
+  if (numVal === null || isNaN(numVal)) return null;
+
+  if (mode === 'percent') {
+    return Math.min(100, Math.max(0, numVal));
+  } else if (mode === 'points') {
+    if (maxPoints <= 0) return 0;
+    return Math.min(100, Math.max(0, (numVal / maxPoints) * 100));
+  }
+
+  return null;
+}
 
 export function getGewichtung(app: AppState, fach: string) {
   if (app.notenGewichtung && app.notenGewichtung[fach]) {
     return app.notenGewichtung[fach];
   }
   return DEFAULT_GEWICHTUNG[fach as keyof typeof DEFAULT_GEWICHTUNG] || DEFAULT_GEWICHTUNG['Deutsch'];
+}
+
+export const DEFAULT_NOTEN_LABELS: Record<string, string> = {
+  sa: 'Schularbeiten',
+  lzk: 'Lernzielkontrollen',
+  wp: 'Wochenplan',
+  hue: 'Hausübung',
+  obj: 'Aufgaben/Objekte',
+  mi: 'Mitarbeit',
+};
+
+export function getNotenLabel(
+  app: { notenMeta?: Record<string, any>; notenLabels?: Record<string, string> } | null | undefined,
+  fach: string,
+  key: string,
+  fallback?: string
+): string {
+  // 1. Specific label for this fach in notenMeta[fach]?.labels
+  const fachLabel = app?.notenMeta?.[fach]?.labels?.[key];
+  if (fachLabel && typeof fachLabel === 'string' && fachLabel.trim() !== '') {
+    return fachLabel;
+  }
+  // 2. Global legacy label fallback
+  const globalLabel = app?.notenLabels?.[key];
+  if (globalLabel && typeof globalLabel === 'string' && globalLabel.trim() !== '') {
+    return globalLabel;
+  }
+  // 3. Fallback parameter or standard default
+  return fallback || DEFAULT_NOTEN_LABELS[key] || key;
 }
 
 export function getFachCfg(app: AppState, fach: string) {
@@ -20,17 +98,17 @@ export function getFachCfg(app: AppState, fach: string) {
   };
 
   const BASE: Record<string, any> = {
-    'Deutsch': { saCount: app.notenMeta?.['Deutsch']?.saCount ?? 4, lzk: true, wp: true, hue: true, mi: true, obj: false, miOnly: false, freitext: false, objLabel: app.notenLabels?.obj || 'Aufgabe' },
-    'Mathematik': { saCount: app.notenMeta?.['Mathematik']?.saCount ?? 4, lzk: true, wp: true, hue: true, mi: true, obj: false, miOnly: false, freitext: false, objLabel: app.notenLabels?.obj || 'Aufgabe' },
-    'Sachunterricht': { saCount: 0, lzk: true, wp: true, hue: true, mi: true, obj: false, miOnly: false, freitext: false, objLabel: app.notenLabels?.obj || 'Aufgabe' },
-    'Englisch': { saCount: 0, lzk: true, wp: true, hue: false, mi: true, obj: false, miOnly: false, freitext: false, objLabel: app.notenLabels?.obj || 'Aufgabe' },
-    'Türkisch': { saCount: 0, lzk: true, wp: true, hue: false, mi: true, obj: false, miOnly: false, freitext: false, objLabel: app.notenLabels?.obj || 'Aufgabe' },
-    'Musikerziehung': { saCount: 0, lzk: true, wp: false, hue: false, mi: true, obj: false, miOnly: true, freitext: true, objLabel: app.notenLabels?.obj || 'Aufgabe' },
-    'Bildnerische Erziehung': { saCount: 0, lzk: true, wp: false, hue: false, mi: true, obj: true, miOnly: false, freitext: true, objLabel: app.notenLabels?.obj || 'Kunstobjekt' },
-    'Werken (TEC)': { saCount: 0, lzk: true, wp: false, hue: false, mi: true, obj: true, miOnly: false, freitext: true, objLabel: app.notenLabels?.obj || 'Werkstück' },
-    'Werken (TEX)': { saCount: 0, lzk: true, wp: false, hue: false, mi: true, obj: true, miOnly: false, freitext: true, objLabel: app.notenLabels?.obj || 'Werkstück' },
-    'Bewegung und Sport': { saCount: 0, lzk: false, wp: false, hue: false, mi: true, obj: false, miOnly: true, freitext: true, objLabel: app.notenLabels?.obj || 'Aufgabe' },
-    'Religion': { saCount: 0, lzk: false, wp: false, hue: false, mi: true, obj: false, miOnly: true, freitext: false, objLabel: app.notenLabels?.obj || 'Aufgabe' },
+    'Deutsch': { saCount: app.notenMeta?.['Deutsch']?.saCount ?? 4, lzk: true, wp: true, hue: true, mi: true, obj: false, miOnly: false, freitext: false, objLabel: getNotenLabel(app, 'Deutsch', 'obj', 'Aufgabe') },
+    'Mathematik': { saCount: app.notenMeta?.['Mathematik']?.saCount ?? 4, lzk: true, wp: true, hue: true, mi: true, obj: false, miOnly: false, freitext: false, objLabel: getNotenLabel(app, 'Mathematik', 'obj', 'Aufgabe') },
+    'Sachunterricht': { saCount: 0, lzk: true, wp: true, hue: true, mi: true, obj: false, miOnly: false, freitext: false, objLabel: getNotenLabel(app, 'Sachunterricht', 'obj', 'Aufgabe') },
+    'Englisch': { saCount: 0, lzk: true, wp: true, hue: false, mi: true, obj: false, miOnly: false, freitext: false, objLabel: getNotenLabel(app, 'Englisch', 'obj', 'Aufgabe') },
+    'Türkisch': { saCount: 0, lzk: true, wp: true, hue: false, mi: true, obj: false, miOnly: false, freitext: false, objLabel: getNotenLabel(app, 'Türkisch', 'obj', 'Aufgabe') },
+    'Musikerziehung': { saCount: 0, lzk: true, wp: false, hue: false, mi: true, obj: false, miOnly: true, freitext: true, objLabel: getNotenLabel(app, 'Musikerziehung', 'obj', 'Aufgabe') },
+    'Bildnerische Erziehung': { saCount: 0, lzk: true, wp: false, hue: false, mi: true, obj: true, miOnly: false, freitext: true, objLabel: getNotenLabel(app, 'Bildnerische Erziehung', 'obj', 'Kunstobjekt') },
+    'Werken (TEC)': { saCount: 0, lzk: true, wp: false, hue: false, mi: true, obj: true, miOnly: false, freitext: true, objLabel: getNotenLabel(app, 'Werken (TEC)', 'obj', 'Werkstück') },
+    'Werken (TEX)': { saCount: 0, lzk: true, wp: false, hue: false, mi: true, obj: true, miOnly: false, freitext: true, objLabel: getNotenLabel(app, 'Werken (TEX)', 'obj', 'Werkstück') },
+    'Bewegung und Sport': { saCount: 0, lzk: false, wp: false, hue: false, mi: true, obj: false, miOnly: true, freitext: true, objLabel: getNotenLabel(app, 'Bewegung und Sport', 'obj', 'Aufgabe') },
+    'Religion': { saCount: 0, lzk: false, wp: false, hue: false, mi: true, obj: false, miOnly: true, freitext: false, objLabel: getNotenLabel(app, 'Religion', 'obj', 'Aufgabe') },
   };
 
   const lowerFach = (fach || '').toLowerCase();
@@ -72,11 +150,14 @@ export function getFachCfg(app: AppState, fach: string) {
   const isHueAllowed = ['deutsch', 'mathematik', 'sachunterricht', 'mathe'].some(s => lowerFach.includes(s));
   
   const customSaCount = app.notenMeta?.[fach]?.saCount ?? app.notenMeta?.[baseKey]?.saCount ?? BASE[baseKey].saCount;
+  const defaultObjLabel = BASE[baseKey]?.objLabel || 'Aufgabe';
+  const customObjLabel = getNotenLabel(app, fach, 'obj', defaultObjLabel);
 
   const base = {
     ...(BASE[baseKey] || BASE['Deutsch']),
     saCount: customSaCount,
-    hue: isHueAllowed
+    hue: isHueAllowed,
+    objLabel: customObjLabel
   };
   const cfg = {
     ...base,
@@ -121,10 +202,11 @@ export function miZuNote(striche: number, settings: any, allMitarbeit?: any, fac
 }
 
 export function berechne(app: AppState, sid: string, fach: string, sem: string): number | null {
-  const isFachActive = !app.faecher || app.faecher.includes(fach) || fach === 'Unterricht';
+  const isFachConfigured = !app.faecher || app.faecher.includes(fach) || fach === 'Unterricht';
+  const hasNotenmappe = app.fachConfig?.[fach]?.unterrichtet !== false;
   const nd = app.noten?.[sid]?.[fach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
 
-  if (!isFachActive) {
+  if (!isFachConfigured || !hasNotenmappe) {
     if (nd.endnote) {
       const parsed = parseFloat(nd.endnote.toString().replace(',', '.'));
       if (!isNaN(parsed) && parsed >= 1 && parsed <= 5) return parsed;
@@ -132,6 +214,7 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
     return null;
   }
 
+  const assessmentMode = getAssessmentMode(app, fach);
   const cfg = getFachCfg(app, fach);
   const rawMitarbeitValue = app.mitarbeit?.[sid]?.[fach]?.[sem];
   const hasMitarbeitData = rawMitarbeitValue !== undefined && rawMitarbeitValue !== null;
@@ -147,7 +230,7 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
   }
   
   if (s.mode === 'manual') {
-    miNote = nd.miDirekt || null;
+    miNote = nd.miDirekt !== undefined && nd.miDirekt !== null ? nd.miDirekt : null;
   } else {
     if (nd.miDirekt !== undefined && nd.miDirekt !== null) {
       miNote = nd.miDirekt;
@@ -156,6 +239,87 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
     }
   }
 
+  // --- PERCENT OR POINTS ASSESSMENT MODE ---
+  if (assessmentMode === 'percent' || assessmentMode === 'points') {
+    const calcCategoryPercent = (arr: (number | string | null)[], typ: 'sa' | 'lzk' | 'wp' | 'obj') => {
+      const validItems = (arr || [])
+        .map((val, idx) => {
+          const maxP = getMaxPoints(app, fach, typ, idx);
+          return calculateItemPercent(val, assessmentMode, maxP);
+        })
+        .filter((v): v is number => v !== null && !isNaN(v));
+
+      return validItems.length ? validItems.reduce((a, b) => a + b, 0) / validItems.length : null;
+    };
+
+    const saPercent = cfg.sa ? calcCategoryPercent(nd.sa, 'sa') : null;
+    const lzkPercent = cfg.lzk ? calcCategoryPercent(nd.lzk, 'lzk') : null;
+    const wpPercent = cfg.wp ? calcCategoryPercent(nd.wp, 'wp') : null;
+    const objPercent = cfg.obj ? calcCategoryPercent(nd.aufgaben, 'obj') : null;
+
+    let miPercent: number | null = null;
+    if (cfg.g.mi > 0) {
+      if (miNote !== null) {
+        if (miNote > 5) {
+          miPercent = Math.min(100, Math.max(0, miNote));
+        } else if (assessmentMode === 'points' && miNote <= 5 && s.mode === 'manual' && nd.miDirekt !== undefined && nd.miDirekt > 0) {
+          // In points mode with direct entry <= 5, if max points for mi is configured, use it
+          const maxMiPoints = app.notenMeta?.[fach]?.maxPoints?.mi?.[0] || 20;
+          if (maxMiPoints > 5) {
+            miPercent = Math.min(100, Math.max(0, (nd.miDirekt / maxMiPoints) * 100));
+          } else {
+            miPercent = Math.min(100, Math.max(0, (6 - miNote) * 20));
+          }
+        } else {
+          // Standard Austrian 1..5 scale to percentage (1=100%, 2=80%, 3=60%, 4=40%, 5=20%)
+          miPercent = Math.min(100, Math.max(0, (6 - miNote) * 20));
+        }
+      } else if (hasMitarbeitData && adjustedMiRaw > 0) {
+        const threshold = (s.thresholds?.[1] || 13);
+        miPercent = Math.min(100, Math.max(0, (adjustedMiRaw / threshold) * 100));
+      }
+    }
+
+    let huePercent: number | null = null;
+    const isHueDocumentOnly = app.notenMeta?.[fach]?.hueMode === 'document' || app.settings?.hueGewichten === false;
+    const hasHomeworkData = nd.hueErfasst === true || (nd.hue || 0) > 0 || (nd.hueAnm || []).length > 0;
+    
+    if (cfg.g.hue && cfg.g.hue > 0 && hasHomeworkData && !isHueDocumentOnly) {
+      const missCount = nd.hue || 0;
+      const deductionPerMiss = app.notenMeta?.[fach]?.hueDeduction ?? app.settings?.huePercentDeduction ?? 5;
+      huePercent = Math.max(0, 100 - missCount * deductionPerMiss);
+    }
+
+    if (cfg.miOnly) {
+      return miPercent !== null ? Math.round(miPercent * 10) / 10 : null;
+    }
+
+    const bereiche = [
+      { avg: saPercent, gw: cfg.g.sa * 100 },
+      { avg: lzkPercent, gw: cfg.g.lzk * 100 },
+      { avg: wpPercent, gw: cfg.g.wp * 100 },
+      { avg: objPercent, gw: cfg.g.obj * 100 },
+      { avg: miPercent, gw: cfg.g.mi * 100 },
+    ];
+    if (huePercent !== null && !isHueDocumentOnly) {
+      bereiche.push({ avg: huePercent, gw: cfg.g.hue * 100 });
+    }
+
+    const aktiv = bereiche.filter(b => b.avg !== null && b.gw > 0);
+    if (!aktiv.length) return null;
+
+    const sumGw = aktiv.reduce((sum, b) => sum + b.gw, 0);
+    if (sumGw === 0) return null;
+
+    const totalPercent = aktiv.reduce((sum, b) => {
+      const val = b.avg || 0;
+      return sum + val * (b.gw / sumGw);
+    }, 0);
+
+    return isNaN(totalPercent) ? null : Math.round(totalPercent * 10) / 10;
+  }
+
+  // --- TRADITIONAL NOTEN (GRADES 1..5) MODE ---
   if (cfg.miOnly) {
     return miNote !== null ? Math.round(miNote * 100) / 100 : null;
   }
@@ -166,8 +330,6 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
       if (typeof x === 'string') {
         const n = parseFloat(x.replace(',', '.'));
         if (!isNaN(n) && n >= 1 && n <= 5) return n;
-        // Fallback: extract a single digit 1-5 from the string, ensuring it's not part of a larger number
-        // so that "guter 3er" or "2 (24P)" map properly, but "24P" doesn't map to 2.
         const match = x.match(/(?:^|\D)([1-5])(?:\D|$)/);
         if (match) return parseInt(match[1], 10);
       }
@@ -192,14 +354,27 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
     { avg: miAvg, gw: cfg.g.mi * 100 },
   ];
 
+  const isHueDocumentOnly = app.notenMeta?.[fach]?.hueMode === 'document' || app.settings?.hueGewichten === false;
   const hasHomeworkData = nd.hueErfasst === true || (nd.hue || 0) > 0 || (nd.hueAnm || []).length > 0;
-  if (cfg.g.hue && cfg.g.hue > 0 && hasHomeworkData) {
+  if (cfg.g.hue && cfg.g.hue > 0 && hasHomeworkData && !isHueDocumentOnly) {
     let hueNote = 1;
     const missCount = nd.hue || 0;
-    if (missCount >= 1 && missCount <= 2) hueNote = 2;
-    else if (missCount >= 3 && missCount <= 4) hueNote = 3;
-    else if (missCount >= 5 && missCount <= 6) hueNote = 4;
-    else if (missCount > 6) hueNote = 5;
+    const deductionPerMiss = app.notenMeta?.[fach]?.hueDeduction ?? app.settings?.huePercentDeduction;
+    
+    if (deductionPerMiss !== undefined && deductionPerMiss > 0) {
+      // Calculate grade based on percentage deduction from 100%
+      const huePct = Math.max(0, 100 - missCount * deductionPerMiss);
+      if (huePct >= 87.5) hueNote = 1;
+      else if (huePct >= 75) hueNote = 2;
+      else if (huePct >= 62.5) hueNote = 3;
+      else if (huePct >= 50) hueNote = 4;
+      else hueNote = 5;
+    } else {
+      if (missCount >= 1 && missCount <= 2) hueNote = 2;
+      else if (missCount >= 3 && missCount <= 4) hueNote = 3;
+      else if (missCount >= 5 && missCount <= 6) hueNote = 4;
+      else if (missCount > 6) hueNote = 5;
+    }
     
     bereiche.push({ avg: hueNote, gw: cfg.g.hue * 100 });
   }

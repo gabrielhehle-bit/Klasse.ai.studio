@@ -8,7 +8,7 @@ import { Printer, Download, Search, Sparkles } from 'lucide-react';
 export default function GradeOverview() {
   const { app, setApp } = useApp();
   const students = [...app.schueler].sort((a, b) => a.nachname.localeCompare(b.nachname, 'de'));
-  const activeFaecher = FAECHER_ALLE;
+  const activeFaecher = (app.faecher && app.faecher.length > 0) ? app.faecher : FAECHER_ALLE;
 
   const [selectedSemester, setSelectedSemester] = useState<'1' | '2' | 'combined'>('combined');
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
@@ -182,16 +182,16 @@ export default function GradeOverview() {
               <tr className="bg-surface/50 border-b border-border text-[0.625rem] font-bold uppercase tracking-widest text-text-muted">
                 <th className="px-4 py-4 text-left border-r border-border/30 sticky left-0 bg-surface z-10 w-[180px]">Name</th>
                 {activeFaecher.map(f => {
-                  const isFachActive = !app.faecher || app.faecher.includes(f);
+                  const hasNotenmappe = app.fachConfig?.[f]?.unterrichtet !== false;
                   return (
-                    <th key={f} className={`px-2 py-4 text-center border-r border-border/30 min-w-[75px] uppercase font-bold text-[0.5625rem] ${!isFachActive ? 'text-slate-400 bg-slate-50/50' : 'text-slate-700'}`}>
+                    <th key={f} className={`px-2 py-4 text-center border-r border-border/30 min-w-[75px] uppercase font-bold text-[0.5625rem] ${!hasNotenmappe ? 'text-amber-800 bg-amber-50/40' : 'text-slate-700'}`}>
                       <div>{f}</div>
                       {selectedSemester !== 'combined' && (
                         <div className="text-[0.45rem] uppercase font-black text-slate-400/80 tracking-wider mt-0.5">
                           {selectedSemester}. Sem
                         </div>
                       )}
-                      {!isFachActive && <div className="text-[0.45rem] lowercase font-normal text-slate-400 font-sans tracking-normal mt-0.5">(einfach)</div>}
+                      {!hasNotenmappe && <div className="text-[0.45rem] font-semibold text-amber-700/80 tracking-normal mt-0.5">(Manuell)</div>}
                     </th>
                   );
                 })}
@@ -209,18 +209,21 @@ export default function GradeOverview() {
                       {s.nachname} <span className="text-text-secondary font-normal">{s.vorname}</span>
                     </td>
                     {activeFaecher.map(f => {
-                      const isFachActive = !app.faecher || app.faecher.includes(f);
+                      const hasNotenmappe = app.fachConfig?.[f]?.unterrichtet !== false;
                       const currentSem = selectedSemester === 'combined' ? '1' : selectedSemester;
                       const nd: any = app.noten?.[s.id]?.[f]?.[currentSem] || {};
 
                       const getNoteInfo = (semIdx: '1' | '2') => {
-                        const ndSem = app.noten[s.id]?.[f]?.[semIdx];
-                        const calculated = berechne(app, s.id, f, semIdx);
+                        const ndSem = app.noten?.[s.id]?.[f]?.[semIdx];
                         if (ndSem?.endnote) {
                           const num = parseFloat(ndSem.endnote.toString().replace(',','.'));
                           return !isNaN(num) ? num : ndSem.endnote;
                         }
-                        return calculated !== null ? Math.round(calculated) : null;
+                        if (hasNotenmappe) {
+                          const calculated = berechne(app, s.id, f, semIdx);
+                          return calculated !== null ? Math.round(calculated) : null;
+                        }
+                        return null;
                       };
 
                       let noteToRender: string | number | null = null;
@@ -290,13 +293,13 @@ export default function GradeOverview() {
                                 className={`w-full max-w-[80px] bg-white border rounded-xl py-1 px-1 text-center font-bold text-[0.7125rem] outline-none transition-all cursor-pointer ${
                                   nd.endnote 
                                     ? 'border-amber-400 text-amber-700 bg-amber-50/20 focus:ring-1 focus:ring-amber-400 shadow-sm' 
-                                    : (isFachActive && berechne(app, s.id, f, selectedSemester as '1'|'2') !== null)
+                                    : (hasNotenmappe && berechne(app, s.id, f, selectedSemester as '1'|'2') !== null)
                                       ? 'border-emerald-300 text-emerald-700 bg-emerald-50/15 focus:ring-1 focus:ring-emerald-400' 
                                       : 'border-slate-200 text-slate-400 hover:border-slate-300 focus:ring-1 focus:ring-slate-300'
                                 }`}
                               >
                                 {(() => {
-                                  const calcVal = isFachActive ? berechne(app, s.id, f, selectedSemester as '1'|'2') : null;
+                                  const calcVal = hasNotenmappe ? berechne(app, s.id, f, selectedSemester as '1'|'2') : null;
                                   const calcRounded = calcVal !== null ? Math.round(calcVal) : null;
                                   return (
                                     <option value="">{calcRounded !== null ? `– (${calcRounded})` : '–'}</option>

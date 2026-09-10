@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { X, Settings, PenTool, SlidersHorizontal, Check, Maximize2, Minimize2, LockKeyhole } from "lucide-react";
 import { CockpitWidgetConfig } from "../../types";
 import { useApp } from "../../context/AppContext";
+import { WIDGET_MIN_SIZES } from "./widgetLayout";
 
 interface CockpitWidgetProps {
   widget: CockpitWidgetConfig;
@@ -23,12 +24,13 @@ interface CockpitWidgetProps {
 const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   clock: { w: 25, h: 28 },
   instruction: { w: 45, h: 50 },
-  timer: { w: 22, h: 36 },
+  timer: { w: 23, h: 38 },
   trafficlight: { w: 16, h: 60 },
   randomname: { w: 50, h: 70 },
   noisemeter: { w: 28, h: 42 },
   vocabulary: { w: 35, h: 48 },
   studentlist: { w: 25, h: 65 },
+  kidattendance: { w: 50, h: 65 },
   groups: { w: 35, h: 48 },
   qrcode: { w: 24, h: 44 },
   image: { w: 32, h: 50 },
@@ -37,7 +39,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   todo: { w: 26, h: 44 },
   dienste: { w: 32, h: 46 },
   klassenglas: { w: 42, h: 50 },
-  links: { w: 22, h: 30 },
+  links: { w: 28, h: 42 },
   drawing: { w: 60, h: 60 },
   pet: { w: 26, h: 38 },
   stopwatch: { w: 24, h: 34 },
@@ -51,6 +53,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   breathing: { w: 28, h: 44 },
   kidweather: { w: 32, h: 45 },
   mathcards: { w: 32, h: 42 },
+  wortsatzwerkstatt: { w: 42, h: 50 },
   scrambler: { w: 34, h: 45 },
   watertracker: { w: 26, h: 44 },
   wordchain: { w: 35, h: 48 },
@@ -60,6 +63,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   rhythm: { w: 36, h: 48 },
   geometry: { w: 40, h: 45 },
   fractions: { w: 38, h: 48 },
+  fractionvisualizer: { w: 38, h: 48 },
   wordclock: { w: 34, h: 42 },
   sorting: { w: 40, h: 52 },
   dailyquotes: { w: 28, h: 40 },
@@ -119,6 +123,8 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   multitrainer: { w: 38, h: 48 },
   moneycalc: { w: 40, h: 50 },
   anschauung: { w: 42, h: 52 },
+  zahlenraum: { w: 46, h: 48 },
+  kopfrechnen: { w: 38, h: 48 },
   storyemojis: { w: 42, h: 48 },
   abcorder: { w: 38, h: 48 },
   planetarium: { w: 42, h: 55 },
@@ -264,15 +270,19 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       const newWidthPx = resizeStartPos.current.startW + deltaX;
       const newHeightPx = resizeStartPos.current.startH + deltaY;
 
+      const minConfig = WIDGET_MIN_SIZES[widget.type];
+      const minW = minConfig?.minW || 160;
+      const minH = minConfig?.minH || 130;
+
       const clampedWidthPx = Math.max(
-        150,
+        minW,
         Math.min(
           stageRect.width - (widget.x / 100) * stageRect.width,
           newWidthPx,
         ),
       );
       const clampedHeightPx = Math.max(
-        120,
+        minH,
         Math.min(
           stageRect.height - (widget.y / 100) * stageRect.height,
           newHeightPx,
@@ -302,8 +312,10 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     randomname: "🎯 Zufallsschüler",
     instruction: "📝 Arbeitsanweisung",
     noisemeter: "🔊 Lärm-Messer",
-    vocabulary: "📖 Lernwörter",
+    vocabulary: "🔤 Lernwörter-Studio",
+    lernwoerter: "🔤 Lernwörter-Studio",
     studentlist: "⭐ Schülerliste",
+    kidattendance: "🖐️ Ich bin da! (Kinder)",
     groups: "👥 Gruppen",
     qrcode: "🔗 QR-Code",
     image: "🖼️ Tafelbild-Projektor",
@@ -323,8 +335,9 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     wheel: "🎡 Glücksrad",
     breathing: "🍃 Atempause",
     kidweather: "🕶️ Wetterfrosch",
-    mathcards: "🧮 Kopfrechnen",
-    scrambler: "🧩 Satz-Baukasten",
+    mathcards: "🧠 Kopfrechentrainer",
+    wortsatzwerkstatt: "✍️ Wort- & Satzwerkstatt",
+    scrambler: "✍️ Wort- & Satzwerkstatt",
     watertracker: "💧 Wassertracker",
     wordchain: "🔗 Wortketten-Spiel",
     moodmeter: "🙂 Stimmungsmesser",
@@ -332,7 +345,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     wordgrid: "🔍 Suchgitter",
     rhythm: "🥁 Rhythmus-Klopfer",
     geometry: "📐 Geometrie-Muster",
-    fractions: "🍰 Bruchteil-Trainer",
+    fractions: "◐ Bruch-Visualisierer",
+    fractionvisualizer: "◐ Bruch-Visualisierer",
     wordclock: "⏰ Wort-Uhr",
     sorting: "🔢 Zahlensortierer",
     dailyquotes: "💡 Morgen-Mottos",
@@ -352,18 +366,17 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     emotions: "🎭 Gefühls-Barometer",
     clocksync: "⏰ Uhrzeit-Macher",
     soundmemory: "🎵 Klang-Memory",
-    spellingdetective: "🕵️ Wort-Detektiv",
-    numberline: "📍 Zahlengerade-Schätzer",
-    mathchain: "🐍 Rechen-Schlange",
+    spellingdetective: "🔤 Lernwörter-Studio",
+    mathchain: "🧠 Kopfrechentrainer",
     thermometer: "🌡️ Ziel-Thermometer",
-    compoundsplit: "🔗 Wort-Spalter",
+    compoundsplit: "✍️ Wort- & Satzwerkstatt",
     soundquiz: "👂 Geräusche-Quiz",
     mathduel: "⚔️ Mathe-Duell",
     shapepuzzle: "📐 Formen-Entdecker",
     guitartuner: "🎸 Gitarren-Stimmer",
     secretagent: "🕵️ Geheimagent",
-    fractioncake: "🍰 Bruch-Torte",
-    sentencebuilding: "🧱 Satz-Bauer",
+    fractioncake: "◐ Bruch-Visualisierer",
+    sentencebuilding: "✍️ Wort- & Satzwerkstatt",
     patternmaker: "🎨 Muster-Macher",
     wordexplorer: "🔍 Wort-Forscher",
     weightscale: "⚖️ Gewichts-Waage",
@@ -383,19 +396,22 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     punctuationzoo: "🦓 Satzzeichen-Zoo",
     secretcode: "🔐 Geheim-Code",
     clockpuzzle: "⏱️ Uhren-Puzzle",
-    fractiongrid: "🏁 Bruch-Gitter",
+    fractiongrid: "◐ Bruch-Visualisierer",
     trafficquiz: "🚲 Verkehrs-Quiz",
-    wordbuilder: "🏗️ Wort-Baustelle",
+    wordbuilder: "✍️ Wort- & Satzwerkstatt",
     watercycle: "🌊 Wasserkreislauf",
     soundmachine: "🎵 Klang-Maschine",
     mathbalancer: "⚖️ Zahlen-Waage",
     animalvoice: "🤖 Roboter-Sounds",
     constellation: "✨ Sternbilder",
-    multitrainer: "✖️ Einmaleins",
+    multitrainer: "🧠 Kopfrechentrainer",
+    kopfrechnen: "🧠 Kopfrechentrainer",
     moneycalc: "💶 Taschengeld",
-    anschauung: "🧮 Gedachte Anschauung",
-    storyemojis: "🎲 Story-Würfel",
-    abcorder: "🔤 ABC-Sortierer",
+    anschauung: "🔢 Zahlenraum-Studio",
+    numberline: "🔢 Zahlenraum-Studio",
+    zahlenraum: "🔢 Zahlenraum-Studio",
+    storyemojis: "🎭 Story-Emojis",
+    abcorder: "🔤 Lernwörter-Studio",
     planetarium: "🌍 Planetarium",
   };
 
@@ -505,54 +521,6 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
         {/* Right Side: Rigid control toolbar that never wraps or shifts */}
         <div className="flex items-center gap-1.5 shrink-0 ml-auto flex-nowrap pointer-events-auto">
-          {/* Elegant Segmented Toggle between drawing/writing right in the header */}
-          {widget.type === "drawing" && (
-            <div
-              className={`flex rounded-lg p-0.5 h-7 items-center shrink-0 mr-1.5 ${currentIsLight ? "bg-black/5 border border-slate-200/40" : "bg-black/40 border border-white/5"}`}
-            >
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onUpdate({
-                    settings: { ...widget.settings, boardMode: "whiteboard" },
-                  });
-                }}
-                className={`px-2 py-0.5 rounded-md text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  (widget.settings?.boardMode || "whiteboard") === "whiteboard"
-                    ? "bg-rose-500 text-white shadow-xs"
-                    : currentIsLight
-                      ? "text-slate-600 hover:bg-slate-200/50"
-                      : "text-slate-300"
-                }`}
-                title="✏️ Zeichnen"
-              >
-                ✏️ Zeichnen
-              </button>
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onUpdate({
-                    settings: { ...widget.settings, boardMode: "text" },
-                  });
-                }}
-                className={`px-2 py-0.5 rounded-md text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  widget.settings?.boardMode === "text"
-                    ? "bg-rose-500 text-white shadow-xs"
-                    : currentIsLight
-                      ? "text-slate-600 hover:bg-slate-200/50"
-                      : "text-slate-300"
-                }`}
-                title="📝 Textfeld"
-              >
-                📝 Text
-              </button>
-            </div>
-          )}
-
           {headerExtra}
 
           {/* Toggle Direct Mode button for drawing or instruction */}
@@ -731,7 +699,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         <div
           className="absolute inset-0 flex flex-col overflow-y-auto no-scrollbar"
           style={
-            isDirect || widget.type === "instruction"
+            isDirect || !!WIDGET_MIN_SIZES[widget.type] || widget.type === "instruction"
               ? {
                   width: "100%",
                   height: "100%",

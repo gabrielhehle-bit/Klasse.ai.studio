@@ -223,7 +223,7 @@ export const FlowerChart: React.FC<FlowerChartProps> = ({
 
         <div className="flex justify-center relative w-full shrink-0">
           <svg 
-            viewBox="-60 -60 560 560" 
+            viewBox="-90 -90 620 620" 
             className={`w-full aspect-square drop-shadow-sm select-none overflow-visible transition-all duration-300 ${
               large 
                 ? 'max-w-[340px] sm:max-w-[450px] md:max-w-[540px] lg:max-w-[620px] xl:max-w-[680px] 2xl:max-w-[760px]' 
@@ -310,9 +310,11 @@ export const FlowerChart: React.FC<FlowerChartProps> = ({
               const lineX = cx + 175 * cos;
               const lineY = cy + 175 * sin;
 
-              const labelX = cx + 195 * cos;
-              const labelY = cy + 195 * sin;
-              const textAnchor = cos < -0.05 ? 'end' : cos > 0.05 ? 'start' : 'middle';
+              const labelRadius = 208;
+              const labelX = cx + labelRadius * cos;
+              const labelY = cy + labelRadius * sin;
+              const textAnchor = cos < -0.15 ? 'end' : cos > 0.15 ? 'start' : 'middle';
+              const dominantBaseline = sin < -0.3 ? 'auto' : sin > 0.3 ? 'hanging' : 'central';
 
               const getPetalPath = (L: number) => {
                 if (L < 5) return '';
@@ -393,8 +395,9 @@ export const FlowerChart: React.FC<FlowerChartProps> = ({
 
                   <text
                     x={labelX}
-                    y={labelY + 2}
+                    y={labelY}
                     textAnchor={textAnchor}
+                    dominantBaseline={dominantBaseline}
                     fill={(isHovered || isActive) ? (isDark ? '#fff' : '#1e1b4b') : (isDark ? '#94a3b8' : '#64748b')}
                     fontSize={large ? ((isHovered || isActive) ? '14' : '11.5') : ((isHovered || isActive) ? '10.5' : '9')}
                     fontWeight={(isHovered || isActive) ? '950' : '855'}

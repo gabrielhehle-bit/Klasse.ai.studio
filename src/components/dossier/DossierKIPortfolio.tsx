@@ -41,10 +41,10 @@ export default function DossierKIPortfolio({ student, semester, onSemesterChange
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [portfolioStyle, setPortfolioStyle] = useState('Ausgewogen & professionell');
-  const [selectedSemester, setSelectedSemester] = useState<'1' | '2'>(semester || '2');
+  const [selectedSemester, setSelectedSemester] = useState<'1' | '2'>('1');
 
   useEffect(() => {
-    if (semester) setSelectedSemester(semester);
+    setSelectedSemester('1');
   }, [semester]);
 
   const subjects = FAECHER_ALLE.filter(subject => !app.faecher || app.faecher.includes(subject));
@@ -213,22 +213,6 @@ export default function DossierKIPortfolio({ student, semester, onSemesterChange
             Sachliche Zusammenfassung aus tatsächlich gespeicherten Dossierdaten. Eine KI-Formulierung ist nur eine optionale Ergänzung.
           </p>
         </div>
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
-          <span className="text-[0.625rem] font-black uppercase tracking-wider text-slate-500">Semester</span>
-          <select
-            value={selectedSemester}
-            onChange={event => {
-              const next = event.target.value as '1' | '2';
-              setSelectedSemester(next);
-              onSemesterChange?.(next);
-            }}
-            className="bg-transparent text-xs font-black text-slate-800 outline-none"
-            aria-label="Semester für pädagogischen Bericht auswählen"
-          >
-            <option value="1">1. Semester</option>
-            <option value="2">2. Semester</option>
-          </select>
-        </label>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
@@ -278,7 +262,7 @@ export default function DossierKIPortfolio({ student, semester, onSemesterChange
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5">
-          <div className="mb-4 flex items-center gap-2"><BarChart3 size={17} className="text-blue-600" /><h4 className="text-[0.875rem] font-black text-slate-900">Lernstand · {selectedSemester}. Semester</h4></div>
+          <div className="mb-4 flex items-center gap-2"><BarChart3 size={17} className="text-blue-600" /><h4 className="text-[0.875rem] font-black text-slate-900">Lernstand · Schuljahr</h4></div>
           {grades.hasData ? (
             <div className="space-y-2">
               {grades.subjectGrades.map(item => (

@@ -32,12 +32,12 @@ export default function DossierErlaeuterungsmatrix({ student, controlledSemester
   const [expandedSubsection, setExpandedSubsection] = useState<string | null>(null);
   const [semesterEvaluations, setSemesterEvaluations] = useState<Record<'1' | '2', Record<string, number | null>>>({ '1': {}, '2': {} });
   const [semesterRemarks, setSemesterRemarks] = useState<Record<'1' | '2', string>>({ '1': '', '2': '' });
-  const [semester, setSemester] = useState<'1' | '2'>('2');
+  const [semester, setSemester] = useState<'1' | '2'>('1');
   const [saved, setSaved] = useState(false);
   const [legacyLoaded, setLegacyLoaded] = useState(false);
 
   useEffect(() => {
-    if (controlledSemester) setSemester(controlledSemester);
+    setSemester('1');
   }, [controlledSemester]);
 
   useEffect(() => {
@@ -255,23 +255,9 @@ export default function DossierErlaeuterungsmatrix({ student, controlledSemester
         </div>
         <div className="rounded-[1.75rem] border border-slate-200 bg-white p-5">
           <label className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-500">Bezugszeitraum</label>
-          <select
-            value={semester}
-            onChange={event => {
-              const next = event.target.value as '1' | '2';
-              setSemester(next);
-              onSemesterChange?.(next);
-            }}
-            className="mt-2 w-full rounded-xl border border-slate-300 bg-white p-3 text-[0.75rem] font-bold text-slate-900"
-          >
-            <option value="1">1. Semester · {app.schuljahr}</option>
-            <option value="2">2. Semester · {app.schuljahr}</option>
-          </select>
-          {semester === '2' && (
-            <div className="mt-3 rounded-xl bg-slate-50 p-3 text-[0.625rem] font-semibold leading-relaxed text-slate-600">
-              <span className="font-black text-slate-800">Vergleich:</span> {previousEvaluatedCount} Bewertungen aus dem 1. Semester werden dezent eingeblendet.
-            </div>
-          )}
+          <div className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-[0.75rem] font-bold text-slate-900">
+            Schuljahr · {app.schuljahr}
+          </div>
         </div>
       </div>
 

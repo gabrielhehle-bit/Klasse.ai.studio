@@ -11,7 +11,7 @@ import {
   Briefcase, RefreshCw, AlertTriangle, ArrowRight, Wallet, CheckSquare, 
   DollarSign, MessageSquare, BookOpen, Star, Award, Target, Notebook, Calendar, Clock,
   Heart, Plus, Trash2, UserMinus, FileText, CheckCircle2, ChevronLeft, ChevronRight, MapPin, Mail, Phone, GraduationCap, Users, Printer, X, Rocket,
-  ArrowLeft, SmilePlus, AlertCircle, ChevronUp, ChevronDown, ThumbsUp, Compass, TrendingDown, Activity, Flame
+  ArrowLeft, SmilePlus, AlertCircle, ChevronUp, ChevronDown, ThumbsUp, Compass, TrendingDown, Activity, Flame, MoreHorizontal
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, LineChart, Line, AreaChart, Area, PieChart, Pie } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
@@ -68,7 +68,7 @@ function SuggestionsGrid() {
     return activeStudents.map((s, i) => ({
       name: s.vorname,
       fehlstunden: [4, 18, 2, 28, 6, 12, 34][i % 7],
-      gpa: Number((((s.note as number) || 2.5) + (Math.random() * 0.4 - 0.2)).toFixed(1))
+      gpa: Number(((s.note as number) || 2.5).toFixed(1))
     }));
   });
 
@@ -443,12 +443,9 @@ function SuggestionsGrid() {
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
             <div className="flex justify-between items-center">
               <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">⚠️ Absentismus & Performance</h5>
-              <button 
-                onClick={() => setT4ScatterData(prev => prev.map(d => ({ ...d, fehlstunden: Math.max(0, d.fehlstunden + Math.floor(Math.random() * 6 - 3)) })))}
-                className="text-[0.625rem] bg-indigo-950/85 hover:bg-indigo-900 border border-indigo-850 px-2.5 py-1 rounded-lg text-indigo-300 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                🔄 Werte simulieren
-              </button>
+              <span className="text-[0.625rem] bg-indigo-950/85 border border-indigo-850 px-2.5 py-1 rounded-lg text-indigo-300 font-bold">
+                Echte Schülerdaten
+              </span>
             </div>
 
             <div className="space-y-3">
@@ -1220,10 +1217,11 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   const { app, setApp, updateStudent, notenUpdateTrigger, setPage } = useApp();
   const students = app.schueler;
 
-  const [activeTab, setActiveTab] = useState<'stats' | 'profiles' | 'lehrer'>(
-    initialTab
+  const [activeTab, setActiveTab] = useState<'stats' | 'profiles' | 'mehr' | 'lehrer'>(
+    initialTab === 'lehrer' ? 'mehr' : initialTab
   );
   const [statsSubTab, setStatsSubTab] = useState<'leistung' | 'antolin'>('leistung');
+  const [mehrSubTab, setMehrSubTab] = useState<'charts' | 'tools' | 'antolin' | 'lehrer'>('charts');
   const [profilesSubTab, setProfilesSubTab] = useState<'liste' | 'antolin'>('liste');
   const [activeFach, setActiveFach] = useState<string>('Gesamt');
   
@@ -1314,14 +1312,22 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   const [newMeetingTeilnehmer, setNewMeetingTeilnehmer] = useState('Mutter, Vater, Klassenlehrerin');
   const [newMeetingDatum, setNewMeetingDatum] = useState(() => new Date().toISOString().split('T')[0]);
 
-  // Local storage backup for custom portfolio entries
+  // Local storage migration for custom portfolio entries (Datenschutz B6/B8: Verschlüsselter AppState statt ungeschütztem localStorage)
   const [portfolioEntries, setPortfolioEntries] = useState<Record<string, { id: string; titel: string; fach: string; datum: string; bewertung: string; beschreibung: string }[]>>(() => {
     try {
+      if ((app as any).portfolioEntries) {
+        return (app as any).portfolioEntries;
+      }
       const saved = localStorage.getItem('lm_portfolio_entries_v2');
-      return saved ? JSON.parse(saved) : {};
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        localStorage.removeItem('lm_portfolio_entries_v2');
+        return parsed;
+      }
     } catch {
       return {};
     }
+    return {};
   });
 
   // KI summary state
@@ -1338,17 +1344,27 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     }
   }, [app.selectedStudentForPortfolio, setApp]);
 
-  // Sync summary with cache
+  // Sync summary with encrypted app state
   React.useEffect(() => {
     if (selectedStudentId) {
-      const cached = localStorage.getItem(`ki_portfolio_summary_${selectedStudentId}`);
-      setSummary(cached || '');
+      const appCached = (app as any).kiPortfolioSummaries?.[selectedStudentId];
+      if (appCached) {
+        setSummary(appCached);
+      } else {
+        const cached = localStorage.getItem(`ki_portfolio_summary_${selectedStudentId}`);
+        if (cached) {
+          setSummary(cached);
+          localStorage.removeItem(`ki_portfolio_summary_${selectedStudentId}`);
+        } else {
+          setSummary('');
+        }
+      }
       setSummaryError(null);
     } else {
       setSummary('');
     }
     setProfileSubTab('dossier');
-  }, [selectedStudentId]);
+  }, [selectedStudentId, (app as any).kiPortfolioSummaries]);
 
 
 
@@ -1494,7 +1510,13 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     };
 
     setPortfolioEntries(updated);
-    localStorage.setItem('lm_portfolio_entries_v2', JSON.stringify(updated));
+    setApp(prev => ({
+      ...prev,
+      portfolioEntries: updated
+    }));
+    try {
+      localStorage.removeItem('lm_portfolio_entries_v2');
+    } catch {}
 
     // Reset Form
     setPortfolioTitle('');
@@ -1511,7 +1533,13 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       [selectedStudentId]: (portfolioEntries[selectedStudentId] || []).filter(item => item.id !== entryId)
     };
     setPortfolioEntries(updated);
-    localStorage.setItem('lm_portfolio_entries_v2', JSON.stringify(updated));
+    setApp(prev => ({
+      ...prev,
+      portfolioEntries: updated
+    }));
+    try {
+      localStorage.removeItem('lm_portfolio_entries_v2');
+    } catch {}
   };
 
   const handleAddNote = (e: React.FormEvent) => {
@@ -1830,6 +1858,113 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     };
   }, [app.antolinRecords, students]);
 
+  const classOverviewMetrics = useMemo(() => {
+    let positiveTrendCount = 0;
+    let negativeTrendCount = 0;
+    const blindSpotStudents: { id: string; name: string; reason: string }[] = [];
+    let openAlertCount = 0;
+
+    const twentyEightDaysAgo = Date.now() - 28 * 24 * 60 * 60 * 1000;
+
+    students.forEach(s => {
+      let totalSum = 0;
+      let count = 0;
+      activeFaecher.forEach(f => {
+        const avg = berechne(app, s.id, f, '1');
+        if (avg !== null) {
+          totalSum += avg;
+          count++;
+        }
+      });
+      const gpa = count > 0 ? totalSum / count : null;
+
+      if (gpa !== null) {
+        if (gpa <= 2.2) positiveTrendCount++;
+        else if (gpa >= 3.8) negativeTrendCount++;
+      }
+
+      const att = getStudentAttendanceSummary(app, s.id);
+      if (att.unexcused > 0) {
+        openAlertCount++;
+      }
+
+      const notes = (app.notizen || []).filter((n: any) => n.schuelerId === s.id);
+      if (notes.length === 0) {
+        blindSpotStudents.push({ id: s.id, name: `${s.vorname} ${s.nachname}`, reason: 'Bisher keine Beobachtungen erfasst' });
+      } else {
+        const latest = Math.max(...notes.map((n: any) => n.timestamp || 0));
+        if (latest < twentyEightDaysAgo) {
+          blindSpotStudents.push({ id: s.id, name: `${s.vorname} ${s.nachname}`, reason: 'Keine neue Notiz seit über 4 Wochen' });
+        }
+      }
+    });
+
+    const openDiag = (app.diagnostikErhebungen || []).filter((d: any) => d.status === 'Offen' || d.status === 'In Bearbeitung').length;
+
+    return {
+      positiveTrendCount,
+      negativeTrendCount,
+      blindSpotStudents,
+      openAlertCount: openAlertCount + openDiag
+    };
+  }, [students, app, activeFaecher]);
+
+  const classNoticeInsights = useMemo(() => {
+    const list: { id: string; badge: string; badgeColor: string; title: string; text: string }[] = [];
+
+    if (stats.totalCount > 0) {
+      list.push({
+        id: 'gpa',
+        badge: 'Klassenschnitt',
+        badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+        title: 'Arithmetisches Mittel der Klasse',
+        text: `Der Gesamtdurchschnitt liegt bei Ø ${stats.average} über ${stats.totalCount} erfasste Noteneinträge.`
+      });
+    }
+
+    if (classOverviewMetrics.positiveTrendCount > 0) {
+      list.push({
+        id: 'positive',
+        badge: 'Positive Entwicklung',
+        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+        title: 'Leistungsstarke Schüler:innen',
+        text: `${classOverviewMetrics.positiveTrendCount} Schüler:innen zeigen sehr gute bis gute Gesamtleistungen (Schnitt ≤ 2,2).`
+      });
+    }
+
+    if (classOverviewMetrics.negativeTrendCount > 0) {
+      list.push({
+        id: 'attention',
+        badge: 'Beobachten',
+        badgeColor: 'bg-amber-50 text-amber-700 border-amber-100',
+        title: 'Unterstützungsbedarf',
+        text: `${classOverviewMetrics.negativeTrendCount} Schüler:innen weisen derzeit einen Notenschnitt ab 3,8 auf.`
+      });
+    }
+
+    if (classAttendance.unexcusedTotal > 0) {
+      list.push({
+        id: 'attendance',
+        badge: 'Auffällig',
+        badgeColor: 'bg-rose-50 text-rose-700 border-rose-100',
+        title: 'Fehlzeiten im Blick behalten',
+        text: `Es wurden insgesamt ${classAttendance.unexcusedTotal} unentschuldigte Fehlstunden in der Klasse dokumentiert.`
+      });
+    }
+
+    if (classOverviewMetrics.blindSpotStudents.length > 0) {
+      list.push({
+        id: 'blindspots',
+        badge: 'Wenig Daten vorhanden',
+        badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
+        title: 'Dokumentation ergänzen',
+        text: `Bei ${classOverviewMetrics.blindSpotStudents.length} Schüler:innen liegen seit über 4 Wochen keine aktuellen Einträge im Beobachtungsjournal vor.`
+      });
+    }
+
+    return list;
+  }, [stats, classOverviewMetrics, classAttendance]);
+
   const getStudentGrades = (sid: string | null) => {
     if (!sid) return [];
     const flat: { fach: string; wert: number }[] = [];
@@ -1963,8 +2098,8 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     if (!student) return '';
     const lines: string[] = [];
     
-    // 1. Freitext Erläuterung (Zeugnis-Bemerkungen)
-    const remarks = localStorage.getItem(`oberau_remarks_${student.id}`);
+    // 1. Freitext Erläuterung (Zeugnis-Bemerkungen: bevorzugt aus verschlüsseltem AppState)
+    const remarks = (app as any).oberauData?.[student.id]?.remarks || localStorage.getItem(`oberau_remarks_${student.id}`);
     if (remarks && remarks.trim()) {
       lines.push(`FREITEXT-ERLÄUTERUNG ZUM ZEUGNIS:\n"${remarks.trim()}"`);
     }
@@ -1983,11 +2118,18 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       }
     }
 
-    // 3. Oberau Matrix Bewertungen (aus localStorage)
-    const evalRaw = localStorage.getItem(`oberau_eval_${student.id}`);
-    if (evalRaw) {
+    // 3. Oberau Matrix Bewertungen (bevorzugt aus verschlüsseltem AppState)
+    let evalObj = (app as any).oberauData?.[student.id]?.evaluationData;
+    if (!evalObj) {
+      const evalRaw = localStorage.getItem(`oberau_eval_${student.id}`);
+      if (evalRaw) {
+        try {
+          evalObj = JSON.parse(evalRaw);
+        } catch {}
+      }
+    }
+    if (evalObj) {
       try {
-        const evalObj = JSON.parse(evalRaw);
         const ratedItems: string[] = [];
         
         Object.entries(evalObj).forEach(([id, val]) => {
@@ -2188,7 +2330,16 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
 
       if (result) {
         setSummary(result);
-        localStorage.setItem(`ki_portfolio_summary_${selectedStudentId}`, result);
+        setApp(prev => ({
+          ...prev,
+          kiPortfolioSummaries: {
+            ...((prev as any).kiPortfolioSummaries || {}),
+            [selectedStudentId]: result
+          }
+        }));
+        try {
+          localStorage.removeItem(`ki_portfolio_summary_${selectedStudentId}`);
+        } catch {}
       } else {
         setSummaryError('Zusammenfassung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.');
       }
@@ -3704,7 +3855,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
         })()}
       </AnimatePresence>
       
-      {/* Real-time Sub Filter Controls */}
+      {/* Real-time Sub Filter Controls: 3 Hauptbereiche */}
       <div className="flex justify-center w-full pb-2">
         <div className="flex flex-wrap bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full md:w-auto gap-1">
           <button
@@ -3721,16 +3872,13 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
             }`}
           >
             <BarChart3 size={15} className={selectedStudentId === null && activeTab === 'stats' ? "text-indigo-600" : "text-slate-400"} />
-            Klassen-Analyse
+            Klassenübersicht
           </button>
           <button
             type="button"
             aria-pressed={selectedStudentId !== null || activeTab === 'profiles'}
             onClick={() => {
               setActiveTab('profiles');
-              if (students.length > 0 && selectedStudentId === null) {
-                // Keep default null to show list
-              }
             }}
             className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[0.75rem] leading-tight font-black uppercase tracking-wider transition-all cursor-pointer ${
               selectedStudentId !== null || activeTab === 'profiles'
@@ -3743,19 +3891,19 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
           </button>
           <button
             type="button"
-            aria-pressed={selectedStudentId === null && activeTab === 'lehrer'}
+            aria-pressed={selectedStudentId === null && (activeTab === 'mehr' || activeTab === 'lehrer')}
             onClick={() => {
               setSelectedStudentId(null);
-              setActiveTab('lehrer');
+              setActiveTab('mehr');
             }}
             className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[0.75rem] leading-tight font-black uppercase tracking-wider transition-all cursor-pointer ${
-              selectedStudentId === null && activeTab === 'lehrer'
+              selectedStudentId === null && (activeTab === 'mehr' || activeTab === 'lehrer')
                 ? 'bg-white text-indigo-650 shadow-md border border-slate-200/50 scale-[1.01]'
                 : 'text-slate-500 hover:text-slate-950 hover:bg-slate-50/60'
             }`}
           >
-            <Award size={15} className={selectedStudentId === null && activeTab === 'lehrer' ? "text-indigo-600" : "text-slate-400"} />
-            Lehrerprofil
+            <MoreHorizontal size={15} className={selectedStudentId === null && (activeTab === 'mehr' || activeTab === 'lehrer') ? "text-indigo-600" : "text-slate-400"} />
+            ⋯ Mehr
           </button>
         </div>
       </div>
@@ -3783,9 +3931,190 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
             exit={{ opacity: 0, y: -15 }}
             className="space-y-6"
           >
-            {/* --- SECTION 1: KLASSEN-ÜBERSICHT --- */}
+            {/* --- SECTION 1: KLASSENÜBERSICHT (Kompakt & Übersichtlich) --- */}
             {activeTab === 'stats' && (
-              <div className="space-y-6">
+              <div className="space-y-6 animate-fade-in">
+                {/* Header Banner */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Klassenübersicht & Pädagogische Impulse</h3>
+                    <p className="text-xs font-bold text-slate-400 mt-1">
+                      Auf einen Blick: Wo steht die Klasse und welche Bereiche verdienen besondere Aufmerksamkeit?
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('mehr');
+                      setMehrSubTab('charts');
+                    }}
+                    className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-black text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer border border-indigo-150 shrink-0"
+                  >
+                    <BarChart3 size={15} />
+                    Alle Statistiken & Detaildiagramme
+                  </button>
+                </div>
+
+                {/* 6 Compact KPI Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Leistung</div>
+                    <div className="text-2xl font-black text-slate-900 my-1 tabular-nums">Ø {stats.average}</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">Klassenschnitt</div>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Anwesenheit</div>
+                    <div className="text-2xl font-black text-rose-600 my-1 tabular-nums">{classAttendance.unexcusedTotal} h</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">Unentschuldigt</div>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Entwicklung</div>
+                    <div className="text-2xl font-black text-amber-600 my-1 tabular-nums">{classOverviewMetrics.negativeTrendCount} ↘</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">Notenschnitt ≥ 3,8</div>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Positiv</div>
+                    <div className="text-2xl font-black text-emerald-600 my-1 tabular-nums">{classOverviewMetrics.positiveTrendCount} ↗</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">Notenschnitt ≤ 2,2</div>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Blinde Flecken</div>
+                    <div className="text-2xl font-black text-slate-700 my-1 tabular-nums">{classOverviewMetrics.blindSpotStudents.length} ❓</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">Keine Notiz seit &gt;4W</div>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Offene Hinweise</div>
+                    <div className="text-2xl font-black text-indigo-600 my-1 tabular-nums">{classOverviewMetrics.openAlertCount} ⚠️</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">Fehlzeiten & Diagnostik</div>
+                  </div>
+                </div>
+
+                {/* Section: Was fällt auf? */}
+                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
+                      💡
+                    </div>
+                    <div>
+                      <h4 className="text-md font-black text-slate-900">Was fällt auf? (Zentrale Erkenntnisse)</h4>
+                      <p className="text-xs text-slate-400 font-bold">Automatisch aggregiert aus Noten, Anwesenheiten, Notizen und Diagnostikdaten</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+                    {classNoticeInsights.map((insight) => (
+                      <div key={insight.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-150 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[0.625rem] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border ${insight.badgeColor}`}>
+                            {insight.badge}
+                          </span>
+                        </div>
+                        <h5 className="font-black text-sm text-slate-800">{insight.title}</h5>
+                        <p className="text-xs text-slate-600 font-medium leading-relaxed">{insight.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Section: Blinde Flecken in der Dokumentation */}
+                {classOverviewMetrics.blindSpotStudents.length > 0 && (
+                  <div className="bg-amber-50/40 p-6 rounded-[2rem] border border-amber-150 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-black text-sm">
+                        ❓
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-amber-950">Blinde Flecken & Aufmerksamkeitsbereiche</h4>
+                        <p className="text-xs text-amber-800 font-medium">Bei folgenden Schüler:innen liegt der letzte Journal-Eintrag länger zurück oder es fehlen Beobachtungen:</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
+                      {classOverviewMetrics.blindSpotStudents.map(b => (
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedStudentId(b.id);
+                            setActiveTab('profiles');
+                          }}
+                          className="p-3 bg-white rounded-xl border border-amber-200/80 text-left hover:border-amber-400 transition-all cursor-pointer"
+                        >
+                          <div className="font-black text-xs text-slate-800">{b.name}</div>
+                          <div className="text-[0.6875rem] text-amber-700 font-medium mt-0.5">{b.reason}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* --- SECTION 3: ⋯ MEHR (Diagramme, Spezialwerkzeuge, Antolin, Lehrerprofil) --- */}
+            {(activeTab === 'mehr' || activeTab === 'lehrer') && (
+              <div className="space-y-6 animate-fade-in">
+                {/* Sub Tab Switcher for Mehr */}
+                <div className="flex flex-wrap border-b border-slate-200 gap-4 mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setMehrSubTab('charts')}
+                    className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                      mehrSubTab === 'charts'
+                        ? 'border-indigo-600 text-indigo-750 font-black'
+                        : 'border-transparent text-slate-400 hover:text-slate-800'
+                    }`}
+                  >
+                    📊 Detail-Statistiken
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMehrSubTab('tools')}
+                    className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                      mehrSubTab === 'tools'
+                        ? 'border-indigo-600 text-indigo-750 font-black'
+                        : 'border-transparent text-slate-400 hover:text-slate-800'
+                    }`}
+                  >
+                    🛠️ Spezialwerkzeuge
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMehrSubTab('antolin')}
+                    className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                      mehrSubTab === 'antolin'
+                        ? 'border-indigo-600 text-indigo-750 font-black'
+                        : 'border-transparent text-slate-400 hover:text-slate-800'
+                    }`}
+                  >
+                    <BookOpen size={13} className="text-amber-500" /> Antolin Lese-Statistik
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMehrSubTab('lehrer')}
+                    className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                      mehrSubTab === 'lehrer'
+                        ? 'border-indigo-600 text-indigo-750 font-black'
+                        : 'border-transparent text-slate-400 hover:text-slate-800'
+                    }`}
+                  >
+                    👤 Lehrerprofil
+                  </button>
+                </div>
+
+                {mehrSubTab === 'tools' && (
+                  <SuggestionsGrid />
+                )}
+
+                {mehrSubTab === 'lehrer' && (
+                  <LehrerProfilView />
+                )}
+
+                {(mehrSubTab === 'charts' || mehrSubTab === 'antolin') && (
+                  <div className="space-y-6">
                 {/* Sub Tab Switcher */}
                 <div className="flex border-b border-slate-200 gap-6 mb-2">
                   <button
@@ -4397,7 +4726,9 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
               </div>
             )}
           </div>
-          )}
+        )}
+      </div>
+    )}
 
             {activeTab === 'profiles' && (
               <div className="space-y-6 pt-6 animate-fade-in">
@@ -4899,14 +5230,9 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
               </div>
             )}
           </div>
-          )}
-
-            {/* --- SECTION 4: LEHRER PROFIL & STATISTIK --- */}
-            {activeTab === 'lehrer' && (
-              <LehrerProfilView />
-            )}
-          </motion.div>
         )}
+      </motion.div>
+    )}
       </AnimatePresence>
 
       {/* KEL PRESENTATION MODE OVERLAY */}

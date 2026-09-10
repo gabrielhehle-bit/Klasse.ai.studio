@@ -390,9 +390,13 @@ export default function Tafel({
   const [textDecoration, setTextDecoration] = useState<"none" | "underline">("none");
   const [aktivesTextId, setAktivesTextId] = useState<string | null>(null);
 
-  // Multiple Pages State (Max 10)
+  // Multiple Pages State (Max 10) - Datenschutz B6/B8: Verschlüsselter AppState statt unverschlüsseltem localStorage
   const [seiten, setSeiten] = useState<TafelSeite[]>(() => {
     try {
+      const boardTafel = (app as any).boardSettings?.tafelSeiten;
+      if (Array.isArray(boardTafel) && boardTafel.length > 0) {
+        return boardTafel;
+      }
       const saved = localStorage.getItem("__tafel_saved_pages__");
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -405,6 +409,10 @@ export default function Tafel({
   });
   const [aktiveSeiteIdx, setAktiveSeiteIdx] = useState<number>(() => {
     try {
+      const boardIdx = (app as any).boardSettings?.aktiveTafelSeite;
+      if (typeof boardIdx === "number" && !isNaN(boardIdx)) {
+        return boardIdx;
+      }
       const saved = localStorage.getItem("__tafel_active_idx__");
       if (saved) {
         const parsed = parseInt(saved, 10);
@@ -1725,15 +1733,25 @@ export default function Tafel({
     return () => window.removeEventListener("resize", resizeCanvas);
   }, []);
 
-  // Sync state to localStorage for persistence
+  // Sync state to encrypted AppState (Datenschutz B6/B8: Keine Tafeldaten im Klartext-localStorage)
   useEffect(() => {
     try {
-      localStorage.setItem("__tafel_saved_pages__", JSON.stringify(seiten));
-      localStorage.setItem("__tafel_active_idx__", aktiveSeiteIdx.toString());
+      setApp(prev => ({
+        ...prev,
+        boardSettings: {
+          ...prev.boardSettings,
+          tafelSeiten: seiten,
+          aktiveTafelSeite: aktiveSeiteIdx
+        }
+      }));
+      try {
+        localStorage.removeItem("__tafel_saved_pages__");
+        localStorage.removeItem("__tafel_active_idx__");
+      } catch {}
     } catch (e) {
       console.error("Failed to save blackboard state:", e);
     }
-  }, [seiten, aktiveSeiteIdx]);
+  }, [seiten, aktiveSeiteIdx, setApp]);
 
   // Laserpointer Loop and Ticker (Part A)
   const drawLaserPointer = useCallback(() => {
@@ -2217,6 +2235,11 @@ export default function Tafel({
       }
       
       const key = e.key.toLowerCase();
+      if (key === "escape") {
+        e.preventDefault();
+        handleCloseAttempt();
+        return;
+      }
       if (key === "v") {
         setWerkzeug("maus");
       } else if (key === "t") {
@@ -2244,11 +2267,13 @@ export default function Tafel({
     
     window.addEventListener("keydown", handleGlobalKeyDown);
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
-  }, [werkzeug, aktivesTextId, aktiveSeiteIdx, undoStack]);
+  }, [werkzeug, aktivesTextId, aktiveSeiteIdx, undoStack, onClose]);
 
-  return (
+  const boardContent = (
     <div
-      className={`${isInline ? "w-full h-full relative rounded-2xl" : "absolute top-[100px] bottom-[96px] left-4 right-4 z-[450] rounded-3xl border border-slate-700/40 shadow-2xl"} flex flex-row text-white font-sans overflow-hidden select-none`}
+      className={`w-full h-full relative flex flex-row text-white font-sans overflow-hidden select-none ${
+        !isInline ? "rounded-2xl md:rounded-3xl border border-slate-700/60 shadow-2xl" : "rounded-2xl"
+      }`}
       style={{ backgroundColor: hintergrundfarbe }}
     >
       {/* SIDEBAR TOOLBAR CONTROLS */}
@@ -3245,19 +3270,19 @@ export default function Tafel({
       </AnimatePresence>
 
       {/* RIGHT SIDE: CANVAS AREA */}
-      <div className="flex-1 relative flex flex-col overflow-hidden">
-        {/* MULTIPLE PAGES PAGINATION */}
-        <div className="absolute top-4 right-4 flex justify-end items-start gap-3 pointer-events-none z-50">
-          <div className="pointer-events-auto bg-slate-900/40 hover:bg-slate-900/70 backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-3 shadow-lg border border-white/10 transition-colors">
+      <div className="flex-1 min-w-0 min-h-0 relative flex flex-col overflow-hidden">
+        {/* MULTIPLE PAGES PAGINATION & TOP ACTIONS */}
+        <div className="absolute top-3 right-3 flex justify-end items-center gap-2 pointer-events-none z-50">
+          <div className="pointer-events-auto bg-slate-900/60 hover:bg-slate-900/80 backdrop-blur-md rounded-full px-3 py-1.5 flex items-center gap-2.5 shadow-lg border border-white/10 transition-colors">
             <button
               onClick={() => handleSwitchSeite(aktiveSeiteIdx - 1)}
               disabled={aktiveSeiteIdx === 0}
-              className="disabled:opacity-30 hover:scale-110 text-white transition-transform active:scale-95"
+              className="disabled:opacity-30 hover:scale-110 text-white transition-transform active:scale-95 cursor-pointer"
             >
               <ChevronLeft size={16} />
             </button>
 
-            <div className="flex items-center gap-1.5 text-xs font-bold text-white tracking-widest tabular-nums">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-white tracking-widest tabular-nums select-none">
               <span className="opacity-60 text-[10px]">S.</span>
               {aktiveSeiteIdx + 1}
               <span className="opacity-40 font-normal">/</span>
@@ -3268,7 +3293,7 @@ export default function Tafel({
               <button
                 onClick={handleAddSeite}
                 disabled={seiten.length >= 10}
-                className="disabled:opacity-30 hover:scale-110 text-emerald-400 transition-transform active:scale-95"
+                className="disabled:opacity-30 hover:scale-110 text-emerald-400 transition-transform active:scale-95 cursor-pointer"
                 title="Neue Seite anlegen"
               >
                 <Plus size={16} strokeWidth={3} />
@@ -3276,7 +3301,7 @@ export default function Tafel({
             ) : (
               <button
                 onClick={() => handleSwitchSeite(aktiveSeiteIdx + 1)}
-                className="hover:scale-110 text-white transition-transform active:scale-95"
+                className="hover:scale-110 text-white transition-transform active:scale-95 cursor-pointer"
               >
                 <ChevronRight size={16} />
               </button>
@@ -3287,7 +3312,7 @@ export default function Tafel({
                 <div className="w-px h-3 bg-white/30" />
                 <button
                   onClick={handleDeleteSeite}
-                  className="hover:text-red-400 transition-colors"
+                  className="hover:text-red-400 transition-colors cursor-pointer"
                   title="Aktuelle Seite löschen"
                 >
                   <Trash2 size={13} />
@@ -3295,19 +3320,31 @@ export default function Tafel({
               </>
             )}
           </div>
+
           <button
             onClick={() => setShowShortcutsInfo(true)}
-            className="z-50 p-2 rounded-full bg-slate-900/40 hover:bg-slate-900/70 backdrop-blur-md shadow-lg border border-white/10 text-white/70 hover:text-white transition-all cursor-pointer pointer-events-auto"
+            className="pointer-events-auto p-2 rounded-full bg-slate-900/60 hover:bg-slate-900/80 backdrop-blur-md shadow-lg border border-white/10 text-white/70 hover:text-white transition-all cursor-pointer"
             title="Tastenkürzel & Hilfe"
           >
-            <HelpCircle size={18} />
+            <HelpCircle size={17} />
           </button>
+
+          {!isInline && (
+            <button
+              onClick={handleCloseAttempt}
+              className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/60 hover:bg-red-600 text-white backdrop-blur-md border border-white/10 shadow-lg text-xs font-bold transition-all cursor-pointer active:scale-95"
+              title="Digitale Tafel schließen (Esc)"
+            >
+              <X size={14} />
+              <span className="hidden sm:inline text-[11px]">Schließen</span>
+            </button>
+          )}
         </div>
 
         {/* CANVAS CONTAINER */}
         <div
           ref={containerRef}
-          className={`flex-1 w-full h-full relative overflow-hidden touch-none tafel-canvas-stage ${werkzeug === "maus" ? "cursor-default" : "cursor-crosshair"}`}
+          className={`flex-1 min-w-0 min-h-0 w-full h-full relative overflow-hidden touch-none tafel-canvas-stage ${werkzeug === "maus" ? "cursor-default" : "cursor-crosshair"}`}
           onMouseDown={startZeichnen}
           onMouseMove={(e) => {
             weiterZeichnen(e);
@@ -4471,6 +4508,21 @@ export default function Tafel({
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+
+  if (isInline) {
+    return boardContent;
+  }
+
+  return (
+    <div
+      id="digitale-tafel-modal-overlay"
+      className="fixed inset-0 z-[1000] flex items-center justify-center p-1.5 sm:p-2.5 md:p-3 bg-slate-950/85 backdrop-blur-md overflow-hidden select-none"
+    >
+      <div className="w-full h-full max-w-[100vw] max-h-[100dvh] flex flex-row overflow-hidden relative">
+        {boardContent}
+      </div>
     </div>
   );
 }

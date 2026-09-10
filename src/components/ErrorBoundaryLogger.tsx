@@ -3,6 +3,7 @@ import { AlertCircle } from 'lucide-react';
 
 interface Props {
   children?: ReactNode;
+  componentName?: string;
 }
 
 interface State {

@@ -3,6 +3,20 @@ import { useApp } from '../context/AppContext';
 import { Download, Upload, Shield, Database, AlertCircle, CheckCircle2, Monitor, Loader2, Trash2, Clock, FileJson, AlertTriangle, Archive, RotateCcw, Cloud, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { triggerBackupDownload } from '../utils/backupUtils';
+import { 
+  isEncryptedBackupV1, 
+  isLegacyPlaintextBackup, 
+  decryptBackup, 
+  recoverBackup,
+  unlockAndDecryptBackup,
+  createEncryptedBackup
+} from '../lib/backupCryptoService';
+import { 
+  getActiveVaultKey, 
+  getActiveVaultRecord, 
+  loadVaultRecord, 
+  setActiveVaultSession 
+} from '../lib/vaultStorage';
 import LZString from 'lz-string';
 import localforage from 'localforage';
 
@@ -156,28 +170,26 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
     }
   }, []);
 
-  // Simulated animated backup delay for premium state feedback
-  const handleExport = () => {
+  // Animated backup trigger with client-side encryption
+  const handleExport = async () => {
     if (backupStatus !== 'idle') return;
     setBackupStatus('exporting');
     
-    setTimeout(() => {
-      try {
-        triggerBackupDownload(app);
-        
-        // Update backup timestamp
-        const timeStr = "Zuletzt gesichert vor wenigen Sekunden (Heute um " + new Date().toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) + ")";
-        localStorage.setItem('lehrkraft_last_backup_time', timeStr);
-        setLastBackupStr(timeStr);
-        
-        setBackupStatus('success');
-        setTimeout(() => setBackupStatus('idle'), 3000);
-      } catch (err) {
-        console.error(err);
-        setBackupStatus('idle');
-        alert('Fehler beim Exportieren der Daten.');
-      }
-    }, 1200);
+    try {
+      await triggerBackupDownload(app);
+      
+      // Update backup timestamp
+      const timeStr = "Zuletzt gesichert vor wenigen Sekunden (Heute um " + new Date().toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) + ")";
+      localStorage.setItem('lehrkraft_last_backup_time', timeStr);
+      setLastBackupStr(timeStr);
+      
+      setBackupStatus('success');
+      setTimeout(() => setBackupStatus('idle'), 3000);
+    } catch (err: any) {
+      console.error(err);
+      setBackupStatus('idle');
+      alert(err?.message || 'Fehler beim Exportieren der Daten.');
+    }
   };
 
   const processFile = (file: File) => {
@@ -193,8 +205,52 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
           throw new Error('Ungültiges Format');
         }
         
-        if (!importedData.schueler && !importedData.classes && !importedData.klassenbezeichnung) {
-          throw new Error('Diese Datei ist kein gültiges Lehrermappe-Backup');
+        let targetData: any = null;
+
+        // Fall 1: Verschlüsseltes Backup (.lehrerapp)
+        if (isEncryptedBackupV1(importedData)) {
+          let decrypted: any = null;
+          const activeKey = getActiveVaultKey();
+          if (activeKey) {
+            try {
+              decrypted = await decryptBackup(importedData, activeKey);
+            } catch {
+              decrypted = null;
+            }
+          }
+
+          if (!decrypted) {
+            const userInput = prompt(
+              'Dieses Backup ist clientseitig verschlüsselt.\n\nBitte gib dein Tresor-Passwort oder deinen 128-Bit Recovery-Code ein:'
+            );
+            if (!userInput) {
+              setImportStatus('idle');
+              alert('Import abgebrochen: Kein Schlüssel eingegeben.');
+              return;
+            }
+
+            try {
+              if (userInput.replace(/[-\s]/g, '').length === 32) {
+                const res = await recoverBackup(importedData, userInput);
+                decrypted = res.appState;
+                setActiveVaultSession(res.vaultKey, res.vaultRecord);
+              } else {
+                const res = await unlockAndDecryptBackup(importedData, userInput);
+                decrypted = res.appState;
+                setActiveVaultSession(res.vaultKey, res.vaultRecord);
+              }
+            } catch {
+              setImportStatus('idle');
+              alert('Entschlüsselung fehlgeschlagen: Falscher Recovery-Code oder ungültiges Passwort.');
+              return;
+            }
+          }
+          targetData = decrypted;
+        } else if (isLegacyPlaintextBackup(importedData)) {
+          // Fall 2: Unverschlüsseltes Alt-Backup (Legacy)
+          targetData = importedData;
+        } else {
+          throw new Error('Diese Datei ist kein gültiges LehrerAPP-Backup.');
         }
 
         const shouldReplace = confirm(
@@ -206,7 +262,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
         }
 
         const dataToImport = JSON.stringify({
-          ...importedData,
+          ...targetData,
           tourAbgeschlossen: true
         });
 
@@ -215,8 +271,8 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
         try {
           localStorage.setItem('hehle_v3_fallback', dataToImport);
           localStorage.setItem('hehle_v3_backup', LZString.compressToUTF16(dataToImport));
-        } catch (e) {
-          console.warn('Fallback-Schreiben fehlgeschlagen (Quota)', e);
+        } catch (err) {
+          console.warn('Fallback-Schreiben fehlgeschlagen (Quota)', err);
         }
         
         sessionStorage.removeItem('hehle_v3_temp');
@@ -226,7 +282,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
           window.location.reload();
         }, 1500);
 
-      } catch (err) {
+      } catch (err: any) {
         console.error('Import error:', err);
         setImportStatus('idle');
         alert('Fehler beim Importieren: ' + (err instanceof Error ? err.message : 'Die Datei ist ungültig oder beschädigt.'));
@@ -306,14 +362,18 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
         setIsOneDriveConfigured(false);
       });
 
-    // 2. Token aus localStorage laden, falls vorhanden
-    const savedTokenStr = localStorage.getItem('onedrive_token');
+    // 2. Token aus sessionStorage (oder Legacy localStorage) laden
+    const savedTokenStr = sessionStorage.getItem('onedrive_token') || localStorage.getItem('onedrive_token');
     if (savedTokenStr) {
       try {
         const token = JSON.parse(savedTokenStr);
         setOneDriveToken(token);
         setIsOneDriveConnected(true);
+        // Sichere Migration in sessionStorage und Löschen aus ungeschütztem localStorage
+        sessionStorage.setItem('onedrive_token', savedTokenStr);
+        localStorage.removeItem('onedrive_token');
       } catch (e) {
+        sessionStorage.removeItem('onedrive_token');
         localStorage.removeItem('onedrive_token');
       }
     }
@@ -343,7 +403,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
       }
 
       const newTokenData = await res.json();
-      localStorage.setItem('onedrive_token', JSON.stringify(newTokenData));
+      sessionStorage.setItem('onedrive_token', JSON.stringify(newTokenData));
       setOneDriveToken(newTokenData);
       return newTokenData.access_token;
     } catch (err) {
@@ -408,7 +468,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
       const handleMessage = (event: MessageEvent) => {
         if (event.data?.type === 'ONEDRIVE_AUTH_SUCCESS') {
           const tokenData = event.data.tokenData;
-          localStorage.setItem('onedrive_token', JSON.stringify(tokenData));
+          sessionStorage.setItem('onedrive_token', JSON.stringify(tokenData));
           setOneDriveToken(tokenData);
           setIsOneDriveConnected(true);
           setSyncStatus('idle');
@@ -436,6 +496,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
   };
 
   const handleDisconnect = () => {
+    sessionStorage.removeItem('onedrive_token');
     localStorage.removeItem('onedrive_token');
     setOneDriveToken(null);
     setIsOneDriveConnected(false);
@@ -455,14 +516,26 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
         throw new Error('Nicht bei OneDrive angemeldet oder Sitzung abgelaufen.');
       }
 
-      const uploadData = app;
+      const vaultKey = getActiveVaultKey();
+      let vaultRecord = getActiveVaultRecord();
+      if (!vaultRecord) {
+        vaultRecord = await loadVaultRecord();
+      }
+
+      if (!vaultKey || !vaultRecord) {
+        throw new Error('Sicherer Tresor muss vor der Cloud-Sicherung eingerichtet sein.');
+      }
+
+      // Zero-Knowledge Verschlüsselung vor Verlassen des Browsers
+      const encryptedBackup = await createEncryptedBackup(app, vaultKey, vaultRecord);
+
       const res = await fetch('/api/onedrive/upload', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(uploadData)
+        body: JSON.stringify(encryptedBackup)
       });
 
       if (!res.ok) {
@@ -522,12 +595,50 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
         throw new Error('Ungültiges Datenformat von OneDrive empfangen.');
       }
 
-      if (!importedData.schueler && !importedData.classes && !importedData.klassenbezeichnung) {
-        throw new Error('Die heruntergeladene Datei ist kein gültiges Lehrermappe-Backup.');
+      let targetData: any = null;
+
+      // Fall 1: Verschlüsseltes Backup von OneDrive empfangen
+      if (isEncryptedBackupV1(importedData)) {
+        let decrypted: any = null;
+        const activeKey = getActiveVaultKey();
+        if (activeKey) {
+          try {
+            decrypted = await decryptBackup(importedData, activeKey);
+          } catch {
+            decrypted = null;
+          }
+        }
+
+        if (!decrypted) {
+          const userInput = prompt(
+            'Das OneDrive-Backup ist clientseitig verschlüsselt.\n\nBitte gib dein Tresor-Passwort oder deinen 128-Bit Recovery-Code ein:'
+          );
+          if (!userInput) {
+            setIsSyncing(false);
+            setSyncStatus('idle');
+            return;
+          }
+
+          if (userInput.replace(/[-\s]/g, '').length === 32) {
+            const r = await recoverBackup(importedData, userInput);
+            decrypted = r.appState;
+            setActiveVaultSession(r.vaultKey, r.vaultRecord);
+          } else {
+            const r = await unlockAndDecryptBackup(importedData, userInput);
+            decrypted = r.appState;
+            setActiveVaultSession(r.vaultKey, r.vaultRecord);
+          }
+        }
+        targetData = decrypted;
+      } else if (isLegacyPlaintextBackup(importedData)) {
+        // Fall 2: Altes unverschlüsseltes Cloud-Backup
+        targetData = importedData;
+      } else {
+        throw new Error('Die von OneDrive heruntergeladene Datei ist kein gültiges LehrerAPP-Backup.');
       }
 
       const dataToImport = JSON.stringify({
-        ...importedData,
+        ...targetData,
         tourAbgeschlossen: true
       });
 
@@ -555,7 +666,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
     } catch (err: any) {
       console.error('OneDrive Download-Fehler:', err);
       setSyncStatus('error');
-      setSyncError(err.message || 'Unbekannter Fehler beim Cloud-Download.');
+      setSyncError(err.message || 'Fehler beim Herunterladen von OneDrive.');
     } finally {
       setIsSyncing(false);
     }
@@ -1090,10 +1201,10 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
           <div className="pt-6">
             <input 
               type="file" 
-              aria-label="JSON-Sicherungsdatei auswählen"
+              aria-label="LehrerAPP-Sicherungsdatei auswählen (.lehrerapp / .json)"
               ref={fileInputRef} 
               onChange={importData} 
-              accept=".json,application/json" 
+              accept=".lehrerapp,.lehrerapp-backup,.json,application/json" 
               className="hidden" 
             />
             <button 

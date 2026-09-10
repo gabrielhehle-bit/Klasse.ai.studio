@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Target, Printer, Save, CheckCircle2, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { 
+  Target, Printer, Save, CheckCircle2, Search, 
+  ChevronDown, ChevronUp, Clock, Check, Sparkles, 
+  ArrowRight, Stethoscope, HeartHandshake, Layers
+} from 'lucide-react';
 import { LERNZIELE_BY_STUFE } from './LernzielTracker';
 
 interface StudentLernzieleProps {
   schuelerId: string;
+  initialSubject?: string;
   onOpenSupportProfile?: () => void;
+  onNavigateTab?: (tab: string, extra?: any) => void;
   semester?: '1' | '2';
   onSemesterChange?: (semester: '1' | '2') => void;
 }
@@ -13,30 +19,52 @@ interface StudentLernzieleProps {
 type GoalRatings = Record<string, number | null>;
 type SemesterGoalRatings = Partial<Record<'1' | '2', GoalRatings>>;
 
-export default function StudentLernziele({ schuelerId, onOpenSupportProfile, semester, onSemesterChange }: StudentLernzieleProps) {
+interface ParsedGoal {
+  id: string;
+  rawText: string;
+  kompetenzbereich: string;
+  zielText: string;
+  fach: string;
+}
+
+export default function StudentLernziele({ 
+  schuelerId, 
+  initialSubject,
+  onOpenSupportProfile, 
+  onNavigateTab,
+  semester, 
+  onSemesterChange 
+}: StudentLernzieleProps) {
   const { app, setApp } = useApp();
   const student = app.schueler.find(s => s.id === schuelerId);
 
-  // Die zentrale Schulstufe ist maßgeblich; Klassenbezeichnung bleibt nur Legacy-Fallback.
   const initialClassMatch = app.klassenbezeichnung?.match(/(\d)/);
   const initialClassLevel = Number(app.stufe) || (initialClassMatch ? parseInt(initialClassMatch[1]) : 1);
   
   const [selectedStufe, setSelectedStufe] = useState<number>(Math.max(1, Math.min(4, initialClassLevel)));
-  const [selectedSemester, setSelectedSemester] = useState<'1' | '2'>(semester || '2');
+  const [selectedSemester, setSelectedSemester] = useState<'1' | '2'>(semester || '1');
   const [semesterEvaluations, setSemesterEvaluations] = useState<SemesterGoalRatings>({});
   const [evaluationData, setEvaluationData] = useState<GoalRatings>({});
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [searchTerm, setSearchTerm] = useState('');
   const [showOnlyRated, setShowOnlyRated] = useState(false);
-  const [collapsedSubjects, setCollapsedSubjects] = useState<Record<string, boolean>>({});
+  const [activeSubjectTab, setActiveSubjectTab] = useState<string>('Alle');
+  const [collapsedAreas, setCollapsedAreas] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (semester) setSelectedSemester(semester);
   }, [semester]);
 
-  const currentLernziele = LERNZIELE_BY_STUFE[selectedStufe] || LERNZIELE_BY_STUFE[1];
-  const FAECHER = Object.keys(currentLernziele);
+  useEffect(() => {
+    if (initialSubject) {
+      setActiveSubjectTab(initialSubject);
+    }
+  }, [initialSubject]);
 
+  const currentLernziele = LERNZIELE_BY_STUFE[selectedStufe] || LERNZIELE_BY_STUFE[1];
+  const FAECHER = useMemo(() => Object.keys(currentLernziele), [currentLernziele]);
+
+  // Load evaluations
   useEffect(() => {
     if (schuelerId) {
       try {
@@ -83,7 +111,7 @@ export default function StudentLernziele({ schuelerId, onOpenSupportProfile, sem
 
   useEffect(() => {
     setEvaluationData(semesterEvaluations[selectedSemester] || {});
-  }, [selectedSemester]);
+  }, [selectedSemester, semesterEvaluations]);
 
   useEffect(() => {
     setSelectedStufe(Math.max(1, Math.min(4, Number(app.stufe) || initialClassLevel)));
@@ -91,19 +119,37 @@ export default function StudentLernziele({ schuelerId, onOpenSupportProfile, sem
     setShowOnlyRated(false);
   }, [schuelerId]);
 
-  if (!student) {
-    return (
-      <div className="p-8 text-center text-slate-400">
-        Kein Student ausgewählt.
-      </div>
-    );
-  }
+  // Parse all goals into structured model: Fach -> Kompetenzbereich -> Lernziel
+  const allParsedGoals: ParsedGoal[] = useMemo(() => {
+    const list: ParsedGoal[] = [];
+    FAECHER.forEach(fach => {
+      const ziele = currentLernziele[fach] || [];
+      ziele.forEach(goal => {
+        const colonIndex = goal.text.indexOf(':');
+        const kompetenzbereich = colonIndex > -1 ? goal.text.substring(0, colonIndex).trim() : 'Allgemein';
+        const zielText = colonIndex > -1 ? goal.text.substring(colonIndex + 1).trim() : goal.text;
+        list.push({
+          id: goal.id,
+          rawText: goal.text,
+          kompetenzbereich,
+          zielText,
+          fach
+        });
+      });
+    });
+    return list;
+  }, [FAECHER, currentLernziele]);
 
+  // Save handler (Datenschutz B6/B8: Ausschließlich im verschlüsselten AppState speichern, kein Klartext-localStorage)
   const handleSave = () => {
     setSaveStatus('saving');
     try {
-      localStorage.setItem(`student_lernziele_${schuelerId}`, JSON.stringify(evaluationData));
-      localStorage.setItem(`student_lernziele_semester_${schuelerId}`, JSON.stringify(semesterEvaluations));
+      // Entferne etwaige unverschlüsselte Alt-Schlüssel aus dem lokalen Browser-Speicher
+      try {
+        localStorage.removeItem(`student_lernziele_${schuelerId}`);
+        localStorage.removeItem(`student_lernziele_semester_${schuelerId}`);
+      } catch {}
+
       setApp(prev => ({
         ...prev,
         studentLernzielBewertungen: {
@@ -120,11 +166,12 @@ export default function StudentLernziele({ schuelerId, onOpenSupportProfile, sem
         setTimeout(() => setSaveStatus('idle'), 2000);
       }, 500);
     } catch (e) {
-      console.error(e);
+      console.error("Fehler beim Speichern der Lernziele:", e);
       setSaveStatus('idle');
     }
   };
 
+  // Rating change handler
   const handleRatingChange = (zielId: string, rating: number | null) => {
     setEvaluationData(prev => {
       const next = {
@@ -158,367 +205,537 @@ export default function StudentLernziele({ schuelerId, onOpenSupportProfile, sem
     }, 200);
   };
 
-  const allGoals = FAECHER.flatMap(fach => currentLernziele[fach] || []);
-  const ratedCount = allGoals.filter(goal => evaluationData[goal.id] !== null && evaluationData[goal.id] !== undefined).length;
-  const reachedCount = allGoals.filter(goal => evaluationData[goal.id] === 1).length;
-  const developingCount = allGoals.filter(goal => evaluationData[goal.id] === 2 || evaluationData[goal.id] === 3).length;
-  const progressPercent = allGoals.length > 0 ? Math.round((ratedCount / allGoals.length) * 100) : 0;
-  const previousEvaluationData = selectedSemester === '2' ? (semesterEvaluations['1'] || {}) : {};
-  const previousRatedCount = allGoals.filter(goal =>
-    previousEvaluationData[goal.id] !== null && previousEvaluationData[goal.id] !== undefined
-  ).length;
-  const individualGoals = student.foerderprofil?.foerderziele || [];
-  const activeIndividualGoals = individualGoals.filter(goal => goal.status === 'offen' || goal.status === 'in Arbeit');
+  if (!student) {
+    return (
+      <div className="p-8 text-center text-slate-400">
+        Kein Student ausgewählt.
+      </div>
+    );
+  }
 
-  const getVisibleGoals = (fach: string) => {
-    const term = searchTerm.trim().toLocaleLowerCase('de-AT');
-    return (currentLernziele[fach] || []).filter(goal => {
-      const matchesSearch = !term || goal.text.toLocaleLowerCase('de-AT').includes(term);
-      const matchesRated = !showOnlyRated || (evaluationData[goal.id] !== null && evaluationData[goal.id] !== undefined);
-      return matchesSearch && matchesRated;
+  // Diagnostics & Foerderprofil cross connections
+  const studentDiagnostics = (app.diagnostikErhebungen || []).filter(e => e.schuelerId === student.id);
+  const individualSupportGoals = student.foerderprofil?.foerderziele || [];
+
+  const hasDiagnosticForFach = (fach: string, kb?: string) => {
+    const fLower = fach.toLowerCase();
+    const kbLower = (kb || '').toLowerCase();
+    return studentDiagnostics.some(d => {
+      const testName = ((d as any).testName || d.testId || '').toLowerCase();
+      if (fLower.includes('deutsch')) {
+        return testName.includes('lese') || testName.includes('phon') || testName.includes('recht') || testName.includes('gramm') || kbLower.includes('lesen');
+      }
+      if (fLower.includes('mathe')) {
+        return testName.includes('mathe') || testName.includes('kopf') || testName.includes('zahlen') || testName.includes('mengen');
+      }
+      return false;
     });
   };
 
-  // Helper to get color styles based on rating
-  const getRatingStyles = (ratingValue: number, currentLevel: number) => {
-    if (ratingValue !== currentLevel) {
-        if (currentLevel === 3) return 'border-slate-300 text-transparent hover:border-amber-400 hover:bg-amber-50 hover:shadow-[0_0_12px_rgba(251,191,36,0.2)] transition-all duration-300';
-        if (currentLevel === 2) return 'border-slate-300 text-transparent hover:border-lime-500 hover:bg-lime-50 hover:shadow-[0_0_12px_rgba(132,204,22,0.2)] transition-all duration-300';
-        if (currentLevel === 1) return 'border-slate-300 text-transparent hover:border-emerald-500 hover:bg-emerald-50 hover:shadow-[0_0_12px_rgba(16,185,129,0.2)] transition-all duration-300';
-        return 'border-slate-300 text-transparent hover:border-slate-400 hover:bg-slate-50 transition-all duration-300';
-    }
-    if (currentLevel === 3) return 'border-amber-400 bg-amber-400 text-white shadow-[0_0_12px_rgba(251,191,36,0.3)] hover:bg-amber-300 hover:border-amber-300 hover:scale-110 transition-all duration-300'; // Minimal
-    if (currentLevel === 2) return 'border-lime-500 bg-lime-500 text-white shadow-[0_0_12px_rgba(132,204,22,0.3)] hover:bg-lime-400 hover:border-lime-400 hover:scale-110 transition-all duration-300'; // Im Wesentlichen
-    if (currentLevel === 1) return 'border-emerald-500 bg-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.3)] hover:bg-emerald-400 hover:border-emerald-400 hover:scale-110 transition-all duration-300'; // Erreicht
-    return '';
+  const hasSupportGoalForFach = (fach: string, kb?: string) => {
+    const fLower = fach.toLowerCase();
+    const kbLower = (kb || '').toLowerCase();
+    return individualSupportGoals.some(g => {
+      const bLower = (g.bereich || '').toLowerCase();
+      const zLower = (g.ziel || '').toLowerCase();
+      return bLower.includes(fLower) || zLower.includes(fLower) || (kb && (bLower.includes(kbLower) || zLower.includes(kbLower)));
+    });
   };
 
+  // Requirement 10: Lernziel-Fokus
+  // Aktuell in Arbeit (maximal 5 relevante Lernziele)
+  const inWorkGoals = allParsedGoals
+    .filter(g => evaluationData[g.id] === 2 || evaluationData[g.id] === 3)
+    .slice(0, 5);
+
+  // Zuletzt erreicht (maximal 5 zuletzt erreichte Lernziele)
+  const reachedGoals = allParsedGoals
+    .filter(g => evaluationData[g.id] === 1)
+    .slice(0, 5);
+
+  // Statistics
+  const ratedCount = allParsedGoals.filter(g => evaluationData[g.id] !== null && evaluationData[g.id] !== undefined).length;
+  const reachedCount = allParsedGoals.filter(g => evaluationData[g.id] === 1).length;
+  const inWorkCount = allParsedGoals.filter(g => evaluationData[g.id] === 2 || evaluationData[g.id] === 3).length;
+
+  // Filtered goals by subject, search, and rated
+  const filteredSubjects = activeSubjectTab === 'Alle' ? FAECHER : [activeSubjectTab];
+
   return (
-    <div className="space-y-8 select-none">
-      
-      {/* HEADER AREA */}
-      <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-2xl space-y-6 text-slate-800 relative print:hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -z-10" />
-        
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-2xl flex items-center justify-center shadow-sm">
-              <Target size={26} />
-            </div>
-            <div>
-              <h3 className="text-[1.875rem] leading-tight md:text-4xl font-black text-slate-900 tracking-tight">
-                Lernziele
-              </h3>
-              <p className="text-[0.875rem] leading-snug font-black text-slate-500 uppercase tracking-widest mt-0.5">
-                Lehrplanrelevante Ziele für {student.vorname}
-              </p>
-            </div>
+    <div className="space-y-6">
+      {/* Header Area */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4 print:hidden">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-1.5 rounded-full bg-indigo-600" />
+            <h3 className="text-lg font-bold text-slate-900">Lernziele & Kompetenzen</h3>
           </div>
-          
-          <div className="flex flex-wrap gap-2">
-            <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2">
-              <span className="text-[0.625rem] font-black uppercase tracking-wider text-slate-500">Semester</span>
-              <select
-                value={selectedSemester}
-                onChange={event => {
-                  const next = event.target.value as '1' | '2';
-                  setSelectedSemester(next);
-                  onSemesterChange?.(next);
-                }}
-                className="bg-transparent text-xs font-black text-slate-800 outline-none"
-                aria-label="Semester für Lernziele auswählen"
+          <p className="mt-1 text-xs text-slate-500">
+            Fachliche Lehrplanziele für {student.vorname} {student.nachname} · {selectedStufe}. Schulstufe
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Schulstufen-Auswahl */}
+          <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200/70">
+            {[1, 2, 3, 4].map(stufe => (
+              <button
+                key={stufe}
+                type="button"
+                onClick={() => setSelectedStufe(stufe)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  selectedStufe === stufe 
+                    ? 'bg-white text-indigo-700 shadow-xs border border-slate-200/60' 
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
               >
-                <option value="1">1. Semester</option>
-                <option value="2">2. Semester</option>
-              </select>
-            </label>
-            <div className="flex bg-slate-100 rounded-xl p-1 mr-2">
-                {[1, 2, 3, 4].map(stufe => (
-                    <button
-                        key={stufe}
-                        onClick={() => setSelectedStufe(stufe)}
-                        className={`px-3 py-1.5 rounded-lg text-[0.75rem] font-black uppercase tracking-wider transition-all ${
-                            selectedStufe === stufe 
-                                ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/60' 
-                                : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                    >
-                        {stufe}. Klasse
-                    </button>
-                ))}
-            </div>
-            <button
-              onClick={handlePrint}
-              className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white border border-slate-900 shadow-md rounded-xl text-[0.75rem] leading-tight font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-2"
-            >
-              <Printer size={15} /> Drucken
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saveStatus === 'saving'}
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[0.75rem] leading-tight font-black uppercase tracking-widest transition-all cursor-pointer flex items-center gap-2 shadow-lg shadow-indigo-900/10"
-            >
-              {saveStatus === 'saving' ? (
-                <span>Sichern...</span>
-              ) : saveStatus === 'saved' ? (
-                <>
-                  <CheckCircle2 size={15} /> Gesichert!
-                </>
-              ) : (
-                <>
-                  <Save size={15} /> Speichern
-                </>
-              )}
-            </button>
+                {stufe}. Stufe
+              </button>
+            ))}
           </div>
+
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+          >
+            <Printer size={13} /> Drucken
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saveStatus === 'saving'}
+            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1.5 shadow-xs"
+          >
+            {saveStatus === 'saving' ? (
+              <span>Speichern...</span>
+            ) : saveStatus === 'saved' ? (
+              <>
+                <CheckCircle2 size={13} /> Gespeichert
+              </>
+            ) : (
+              <>
+                <Save size={13} /> Speichern
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Requirement 10: Lernziel-Fokus (Kompakte Zusammenfassung ganz zu Beginn) */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 print:hidden">
+        {/* Aktuell in Arbeit (max 5) */}
+        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/40 p-4 shadow-xs">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <Clock size={16} className="text-amber-600" />
+              <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wider">
+                Aktuell in Arbeit ({inWorkGoals.length}{inWorkCount > 5 ? ` von ${inWorkCount}` : ''})
+              </h4>
+            </div>
+            <span className="text-[0.6875rem] font-medium text-amber-700">Fokusziele</span>
+          </div>
+
+          {inWorkGoals.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-amber-200 bg-white/60 p-5 text-center text-xs text-amber-800/80">
+              Derzeit sind keine Lernziele als „in Arbeit“ markiert.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {inWorkGoals.map(goal => {
+                const currentRating = evaluationData[goal.id];
+                const hasDiag = hasDiagnosticForFach(goal.fach, goal.kompetenzbereich);
+                const hasSupport = hasSupportGoalForFach(goal.fach, goal.kompetenzbereich);
+
+                return (
+                  <div key={goal.id} className="rounded-xl border border-amber-200/70 bg-white p-3 shadow-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-[0.625rem] font-bold uppercase tracking-wider text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded">
+                            {goal.fach}
+                          </span>
+                          <span className="text-[0.625rem] font-medium text-slate-500">
+                            {goal.kompetenzbereich}
+                          </span>
+                          {/* Cross connection badges (Req 11 & 12) */}
+                          {hasDiag && onNavigateTab && (
+                            <button
+                              type="button"
+                              onClick={() => onNavigateTab('diagnostik')}
+                              className="inline-flex items-center gap-1 text-[0.5625rem] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded hover:bg-blue-100 transition cursor-pointer"
+                              title="Diagnostik öffnen"
+                            >
+                              <Stethoscope size={10} /> Diagnostik vorhanden
+                            </button>
+                          )}
+                          {hasSupport && onNavigateTab && (
+                            <button
+                              type="button"
+                              onClick={() => onNavigateTab('foerderung')}
+                              className="inline-flex items-center gap-1 text-[0.5625rem] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded hover:bg-emerald-100 transition cursor-pointer"
+                              title="Förderung öffnen"
+                            >
+                              <HeartHandshake size={10} /> Im Förderprofil
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs font-semibold text-slate-800 leading-snug">
+                          {goal.zielText}
+                        </p>
+                      </div>
+
+                      {/* Quick Status Buttons */}
+                      <div className="flex items-center gap-1 shrink-0 ml-2">
+                        <button
+                          type="button"
+                          onClick={() => handleRatingChange(goal.id, 1)}
+                          className="px-2 py-1 rounded-lg text-[0.625rem] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition cursor-pointer"
+                          title="Als erreicht markieren"
+                        >
+                          ✓ Erreicht
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center">
-          <div className="flex-1">
-            <div className="text-sm font-black text-slate-900">
-              Lehrplan-Lernziele und individuelle Förderziele
+        {/* Zuletzt erreicht (max 5) */}
+        <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/40 p-4 shadow-xs">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={16} className="text-emerald-600" />
+              <h4 className="text-xs font-bold text-emerald-950 uppercase tracking-wider">
+                Zuletzt erreicht ({reachedGoals.length}{reachedCount > 5 ? ` von ${reachedCount}` : ''})
+              </h4>
             </div>
-            <div className="mt-1 text-xs font-semibold text-slate-500">
-              Hier bewertest du Lehrplanziele. Im Förderprofil werden davon getrennt konkrete individuelle Ziele und Maßnahmen dokumentiert.
-            </div>
+            <span className="text-[0.6875rem] font-medium text-emerald-700">Erfolge</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Individuell aktiv</div>
-              <div className="text-lg font-black text-slate-900">{activeIndividualGoals.length}</div>
+
+          {reachedGoals.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-emerald-200 bg-white/60 p-5 text-center text-xs text-emerald-800/80">
+              Noch keine Lernziele als „erreicht“ markiert.
             </div>
+          ) : (
+            <div className="space-y-2">
+              {reachedGoals.map(goal => (
+                <div key={goal.id} className="rounded-xl border border-emerald-200/70 bg-white p-3 shadow-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[0.625rem] font-bold uppercase tracking-wider text-emerald-900 bg-emerald-100 px-1.5 py-0.5 rounded">
+                          {goal.fach}
+                        </span>
+                        <span className="text-[0.625rem] font-medium text-slate-500">
+                          {goal.kompetenzbereich}
+                        </span>
+                      </div>
+                      <p className="text-xs font-semibold text-slate-800 leading-snug">
+                        {goal.zielText}
+                      </p>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[0.625rem] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg shrink-0">
+                      ✓ Erreicht
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Search & Filter Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xs print:hidden">
+        {/* Fach Tabs */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setActiveSubjectTab('Alle')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+              activeSubjectTab === 'Alle'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Alle Fächer ({allParsedGoals.length})
+          </button>
+          {FAECHER.map(fach => (
             <button
+              key={fach}
               type="button"
-              onClick={onOpenSupportProfile}
-              className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs font-black text-emerald-700 hover:bg-emerald-50"
+              onClick={() => setActiveSubjectTab(fach)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeSubjectTab === fach
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
             >
-              Förderprofil öffnen
+              {fach}
             </button>
-          </div>
+          ))}
         </div>
 
-        {selectedSemester === '2' && (
-          <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 px-4 py-3">
-            <div className="text-xs font-black text-indigo-900">Vergleich mit dem 1. Semester</div>
-            <div className="mt-0.5 text-[0.6875rem] font-semibold text-indigo-700">
-              {previousRatedCount} frühere Bewertungen werden an den jeweiligen Lernzielen dezent markiert.
-            </div>
-          </div>
-        )}
-
-        {/* Fortschritt und Filter */}
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
-            <div className="text-[0.625rem] font-black uppercase tracking-wider text-indigo-500">Dokumentiert</div>
-            <div className="mt-1 text-2xl font-black text-indigo-950">{ratedCount}/{allGoals.length}</div>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-indigo-100">
-              <div className="h-full rounded-full bg-indigo-600" style={{ width: `${progressPercent}%` }} />
-            </div>
-          </div>
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-            <div className="text-[0.625rem] font-black uppercase tracking-wider text-emerald-600">Erreicht</div>
-            <div className="mt-1 text-2xl font-black text-emerald-950">{reachedCount}</div>
-            <div className="mt-1 text-xs font-semibold text-emerald-700">Lehrplanziele sicher erreicht</div>
-          </div>
-          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
-            <div className="text-[0.625rem] font-black uppercase tracking-wider text-amber-600">In Entwicklung</div>
-            <div className="mt-1 text-2xl font-black text-amber-950">{developingCount}</div>
-            <div className="mt-1 text-xs font-semibold text-amber-700">Minimal oder im Wesentlichen erreicht</div>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <label htmlFor="goal-search" className="text-[0.625rem] font-black uppercase tracking-wider text-slate-500">
-              Ziele finden
-            </label>
-            <div className="relative mt-2">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                id="goal-search"
-                type="search"
-                value={searchTerm}
-                onChange={event => setSearchTerm(event.target.value)}
-                placeholder="z. B. Lesen oder Zahlen"
-                className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <div>
-            <div className="text-sm font-black text-slate-800">{selectedStufe}. Klasse · Lehrplanziele</div>
-            <div className="mt-0.5 text-xs font-semibold text-slate-500">
-              Eine leere Bewertung bedeutet „noch nicht eingeschätzt“ – nicht „nicht erreicht“.
-            </div>
+        {/* Search input & Toggle */}
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Lernziel suchen..."
+              className="h-8 w-44 rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs font-medium text-slate-800 outline-none focus:bg-white focus:border-indigo-500"
+            />
           </div>
           <button
             type="button"
-            onClick={() => setShowOnlyRated(value => !value)}
-            className={`rounded-xl border px-3 py-2 text-xs font-black transition ${
+            onClick={() => setShowOnlyRated(v => !v)}
+            className={`h-8 px-3 rounded-xl border text-xs font-bold transition cursor-pointer whitespace-nowrap ${
               showOnlyRated
-                ? 'border-indigo-200 bg-indigo-600 text-white'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
             }`}
           >
-            {showOnlyRated ? 'Alle Ziele anzeigen' : 'Nur bewertete anzeigen'}
+            {showOnlyRated ? 'Nur bewertete' : 'Alle Status'}
           </button>
-        </div>
-
-        {/* MATRIX SECTION */}
-        <div className="space-y-6 pt-4">
-            {FAECHER.map(fach => {
-                const ziele = getVisibleGoals(fach);
-                if (!ziele || ziele.length === 0) return null;
-
-                // Color themes based on Fach
-                let themeBg = 'bg-slate-50 border-slate-200';
-                let themeBadge = 'bg-slate-700 text-white border-slate-800';
-                let headerText = 'text-slate-400';
-                
-                if (fach === 'Deutsch') { themeBg = 'bg-blue-50/50 border-blue-100/50'; themeBadge = 'bg-blue-600 border-blue-700'; headerText = 'text-blue-400/80'; }
-                if (fach === 'Mathematik') { themeBg = 'bg-rose-50/50 border-rose-100/50'; themeBadge = 'bg-rose-600 border-rose-700'; headerText = 'text-rose-400/80'; }
-                if (fach === 'Sachunterricht') { themeBg = 'bg-emerald-50/50 border-emerald-100/50'; themeBadge = 'bg-emerald-600 border-emerald-700'; headerText = 'text-emerald-400/80'; }
-                if (fach === 'Englisch') { themeBg = 'bg-amber-50/50 border-amber-100/50'; themeBadge = 'bg-amber-500 border-amber-600'; headerText = 'text-amber-500/80'; }
-                if (fach === 'Musik') { themeBg = 'bg-violet-50/50 border-violet-100/50'; themeBadge = 'bg-violet-500 border-violet-600'; headerText = 'text-violet-400/80'; }
-                
-                return (
-                    <div key={fach} className={`p-4 sm:p-6 rounded-3xl border shadow-sm transition duration-300 ${themeBg}`}>
-                        <button
-                          type="button"
-                          onClick={() => setCollapsedSubjects(prev => ({ ...prev, [fach]: !prev[fach] }))}
-                          className="flex w-full items-center justify-between gap-3 text-left"
-                          aria-expanded={!collapsedSubjects[fach]}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className={`text-[0.75rem] leading-tight font-black uppercase px-3 py-1 border rounded-lg tracking-widest shadow-sm ${themeBadge}`}>
-                                {fach}
-                            </span>
-                            <span className="text-xs font-bold text-slate-500">
-                              {ziele.filter(ziel => evaluationData[ziel.id] !== null && evaluationData[ziel.id] !== undefined).length}/{ziele.length} bewertet
-                            </span>
-                          </div>
-                          <span className="flex items-center gap-2 text-xs font-black text-slate-500">
-                            {collapsedSubjects[fach] ? 'Öffnen' : 'Einklappen'}
-                            {collapsedSubjects[fach] ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                          </span>
-                        </button>
-                        {!collapsedSubjects[fach] && (
-                        <>
-                        <div className="flex items-center justify-end mb-2 mt-4">
-                            <div className="hidden sm:flex shrink-0">
-                                <div className={`w-20 md:w-28 text-center font-black text-[0.625rem] uppercase tracking-wider leading-tight px-1 ${headerText}`}>Lernziel minimal<br/>erreicht</div>
-                                <div className={`w-20 md:w-28 text-center font-black text-[0.625rem] uppercase tracking-wider leading-tight px-1 ${headerText}`}>Lernziel im Wesentl.<br/>erreicht</div>
-                                <div className={`w-20 md:w-28 text-center font-black text-[0.625rem] uppercase tracking-wider leading-tight px-1 ${headerText}`}>Lernziel<br/>erreicht</div>
-                            </div>
-                        </div>
-
-                        <ul className="space-y-1 divide-y divide-black/5">
-                            {ziele.map(ziel => (
-                                <li key={ziel.id} className="flex flex-col sm:flex-row justify-between sm:items-center py-3 -mx-3 px-3 hover:bg-black/5 rounded-xl transition group">
-                                    <span className="text-[0.875rem] leading-snug text-slate-700 group-hover:text-slate-900 transition mr-4 font-medium mb-3 sm:mb-0">
-                                        {ziel.text}
-                                    </span>
-                                    <div className="flex items-center justify-between sm:justify-end shrink-0 w-full sm:w-auto bg-white sm:bg-transparent p-2 sm:p-0 rounded-xl border border-slate-200 sm:border-transparent">
-                                        <div className="sm:hidden text-[0.625rem] font-black uppercase text-slate-400 tracking-wider">Bewertung:</div>
-                                        <div className="flex">
-                                            {[3, 2, 1].map((level) => {
-                                                const currentRating = evaluationData[ziel.id];
-                                                const previousRating = previousEvaluationData[ziel.id];
-                                                const isPreviousLevel = selectedSemester === '2' && previousRating === level;
-                                                const previousStyle = isPreviousLevel && currentRating !== level
-                                                  ? level === 3
-                                                    ? 'bg-amber-100/80 border-amber-300'
-                                                    : level === 2
-                                                      ? 'bg-lime-100/80 border-lime-300'
-                                                      : 'bg-emerald-100/80 border-emerald-300'
-                                                  : '';
-                                                return (
-                                                    <div key={level} className="w-12 sm:w-20 md:w-28 flex justify-center">
-                                                        <button
-                                                            onClick={() => handleRatingChange(ziel.id, level)}
-                                                            className={`relative w-7 h-7 sm:w-8 sm:h-8 rounded-xl border-2 transition-all flex items-center justify-center cursor-pointer ${getRatingStyles(currentRating || 0, level)} ${previousStyle}`}
-                                                            title={`${level === 3 ? "Lernziel minimal erreicht" : level === 2 ? "Lernziel im Wesentlichen erreicht" : "Lernziel erreicht"}${isPreviousLevel ? ` · 1. Semester: diese Stufe` : ''}`}
-                                                            aria-label={`${level === 3 ? "Lernziel minimal erreicht" : level === 2 ? "Lernziel im Wesentlichen erreicht" : "Lernziel erreicht"}${isPreviousLevel ? `; im 1. Semester gewählt` : ''}`}
-                                                        >
-                                                            {currentRating === level && <CheckCircle2 size={16} strokeWidth={3} />}
-                                                            {isPreviousLevel && (
-                                                              <span
-                                                                className={`absolute -bottom-1 h-1.5 w-1.5 rounded-full ring-2 ring-white ${
-                                                                  level === 3 ? 'bg-amber-500' : level === 2 ? 'bg-lime-600' : 'bg-emerald-600'
-                                                                }`}
-                                                                aria-hidden="true"
-                                                              />
-                                                            )}
-                                                        </button>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                        </>
-                        )}
-                    </div>
-                );
-            })}
-            {FAECHER.every(fach => getVisibleGoals(fach).length === 0) && (
-              <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-10 text-center">
-                <Search size={26} className="mx-auto text-slate-300" />
-                <h4 className="mt-3 text-sm font-black text-slate-700">Keine passenden Lernziele</h4>
-                <p className="mt-1 text-xs font-semibold text-slate-500">Ändere die Suche oder zeige wieder alle Ziele an.</p>
-              </div>
-            )}
         </div>
       </div>
 
-      {/* PRINT VIEW (Hidden on screen) */}
+      {/* Requirement 8: Vollständige Fach- und Kompetenzstruktur */}
+      {/* Fach → Kompetenzbereich → Lernziel */}
+      <div className="space-y-6">
+        {filteredSubjects.map(fach => {
+          // Goals for this subject
+          const subjectGoals = allParsedGoals.filter(g => g.fach === fach);
+          
+          // Group by Kompetenzbereich
+          const groupedByKb: Record<string, ParsedGoal[]> = {};
+          subjectGoals.forEach(g => {
+            const kb = g.kompetenzbereich;
+            if (!groupedByKb[kb]) groupedByKb[kb] = [];
+            
+            // Search filter
+            const term = searchTerm.trim().toLowerCase();
+            const matchesSearch = !term || g.zielText.toLowerCase().includes(term) || kb.toLowerCase().includes(term);
+            const matchesRated = !showOnlyRated || (evaluationData[g.id] !== null && evaluationData[g.id] !== undefined);
+            
+            if (matchesSearch && matchesRated) {
+              groupedByKb[kb].push(g);
+            }
+          });
+
+          const kbKeys = Object.keys(groupedByKb).filter(kb => groupedByKb[kb].length > 0);
+          if (kbKeys.length === 0) return null;
+
+          return (
+            <div key={fach} className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
+              {/* Fach Header */}
+              <div className="flex items-center justify-between bg-slate-50/80 px-5 py-3 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <Layers size={16} className="text-slate-500" />
+                  <h4 className="text-sm font-bold text-slate-900">{fach}</h4>
+                  <span className="text-xs text-slate-500 font-medium">
+                    · {subjectGoals.filter(g => evaluationData[g.id] !== null && evaluationData[g.id] !== undefined).length} von {subjectGoals.length} dokumentiert
+                  </span>
+                </div>
+                {onNavigateTab && (
+                  <button
+                    type="button"
+                    onClick={() => onNavigateTab('leistungen')}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition"
+                  >
+                    Zur Leistungsübersicht →
+                  </button>
+                )}
+              </div>
+
+              {/* Kompetenzbereiche under this Fach */}
+              <div className="divide-y divide-slate-100">
+                {kbKeys.map(kb => {
+                  const goalsInKb = groupedByKb[kb];
+                  const areaKey = `${fach}_${kb}`;
+                  const isCollapsed = collapsedAreas[areaKey];
+                  const hasDiag = hasDiagnosticForFach(fach, kb);
+                  const hasSupport = hasSupportGoalForFach(fach, kb);
+
+                  return (
+                    <div key={kb} className="p-4 sm:p-5">
+                      {/* Kompetenzbereich Bar */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                            {kb}
+                          </span>
+                          <span className="text-xs text-slate-400 font-medium">
+                            ({goalsInKb.length} {goalsInKb.length === 1 ? 'Lernziel' : 'Lernziele'})
+                          </span>
+
+                          {/* Querverbindung Diagnostik (Req 11) */}
+                          {hasDiag && onNavigateTab && (
+                            <button
+                              type="button"
+                              onClick={() => onNavigateTab('diagnostik')}
+                              className="inline-flex items-center gap-1 text-[0.625rem] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md hover:bg-blue-100 transition cursor-pointer"
+                              title="Diagnostik zu diesem Bereich anzeigen"
+                            >
+                              <Stethoscope size={11} /> Passende diagnostische Beobachtung vorhanden
+                            </button>
+                          )}
+
+                          {/* Querverbindung Förderung (Req 12) */}
+                          {hasSupport && onNavigateTab && (
+                            <button
+                              type="button"
+                              onClick={() => onNavigateTab('foerderung')}
+                              className="inline-flex items-center gap-1 text-[0.625rem] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md hover:bg-emerald-100 transition cursor-pointer"
+                              title="Förderprofil öffnen"
+                            >
+                              <HeartHandshake size={11} /> Im Förderprofil berücksichtigt
+                            </button>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setCollapsedAreas(p => ({ ...p, [areaKey]: !isCollapsed }))}
+                          className="text-xs font-semibold text-slate-400 hover:text-slate-600 transition flex items-center gap-1"
+                        >
+                          {isCollapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
+                        </button>
+                      </div>
+
+                      {/* Goals List */}
+                      {!isCollapsed && (
+                        <div className="space-y-2 mt-2">
+                          {goalsInKb.map(goal => {
+                            const currentRating = evaluationData[goal.id]; // 1 = erreicht, 2 = im wesentlichen, 3 = minimal, null = offen
+
+                            return (
+                              <div
+                                key={goal.id}
+                                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition"
+                              >
+                                <div className="text-xs font-medium text-slate-800 leading-relaxed pr-2">
+                                  {goal.zielText}
+                                </div>
+
+                                {/* Status Switcher (Requirement 9: keine Schulnoten erzeugen!) */}
+                                <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
+                                  {/* Noch offen */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRatingChange(goal.id, null)}
+                                    className={`px-2 py-1 rounded-lg text-[0.625rem] font-semibold transition cursor-pointer border ${
+                                      currentRating === null || currentRating === undefined
+                                        ? 'bg-slate-200 text-slate-700 border-slate-300'
+                                        : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-100'
+                                    }`}
+                                    title="Noch nicht eingeschätzt"
+                                  >
+                                    Offen
+                                  </button>
+
+                                  {/* In Entwicklung / Minimal (Stufe 3) */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRatingChange(goal.id, 3)}
+                                    className={`px-2 py-1 rounded-lg text-[0.625rem] font-bold transition cursor-pointer border ${
+                                      currentRating === 3
+                                        ? 'bg-amber-400 text-white border-amber-500 shadow-xs'
+                                        : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'
+                                    }`}
+                                    title="In Entwicklung (mit Unterstützung)"
+                                  >
+                                    In Entwicklung
+                                  </button>
+
+                                  {/* Im Wesentlichen (Stufe 2) */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRatingChange(goal.id, 2)}
+                                    className={`px-2 py-1 rounded-lg text-[0.625rem] font-bold transition cursor-pointer border ${
+                                      currentRating === 2
+                                        ? 'bg-lime-500 text-white border-lime-600 shadow-xs'
+                                        : 'bg-white text-lime-700 border-lime-200 hover:bg-lime-50'
+                                    }`}
+                                    title="Im Wesentlichen erreicht"
+                                  >
+                                    Im Wesentlichen
+                                  </button>
+
+                                  {/* Erreicht (Stufe 1) */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRatingChange(goal.id, 1)}
+                                    className={`px-2.5 py-1 rounded-lg text-[0.625rem] font-bold transition cursor-pointer border ${
+                                      currentRating === 1
+                                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                                        : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                                    }`}
+                                    title="Vollständig erreicht"
+                                  >
+                                    ✓ Erreicht
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
+        {filteredSubjects.every(fach => {
+          const ziele = allParsedGoals.filter(g => g.fach === fach);
+          return ziele.length === 0;
+        }) && (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-xs text-slate-500">
+            Keine Lernziele für die gewählten Filter vorhanden.
+          </div>
+        )}
+      </div>
+
+      {/* Print View */}
       <div className="hidden print:block space-y-6 text-black bg-white p-8 max-w-[210mm] mx-auto min-h-[297mm]">
-        <div className="text-center mb-8 border-b-2 border-black pb-4">
-            <h1 className="text-2xl font-black uppercase tracking-widest">Lernziele</h1>
-            <p className="text-lg mt-2">{student.vorname} {student.nachname} • {selectedStufe}. Klasse • {selectedSemester}. Semester</p>
+        <div className="text-center mb-6 border-b-2 border-black pb-3">
+          <h1 className="text-xl font-black uppercase tracking-widest">Lehrplan-Lernziele</h1>
+          <p className="text-sm mt-1">{student.vorname} {student.nachname} · {selectedStufe}. Schulstufe · {selectedSemester}. Semester</p>
         </div>
 
         {FAECHER.map(fach => {
-            const ziele = currentLernziele[fach];
-            if (!ziele || ziele.length === 0) return null;
-            return (
-                <div key={fach} className="mb-8 avoid-break">
-                    <h2 className="text-lg font-bold border-b border-gray-300 mb-4 pb-1">{fach}</h2>
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr>
-                                <th className="text-left pb-2 w-[55%]"></th>
-                                <th className="text-center pb-2 w-[15%] text-xs font-normal text-gray-500 leading-tight">Minimal<br/>erreicht</th>
-                                <th className="text-center pb-2 w-[15%] text-xs font-normal text-gray-500 leading-tight">Im Wesentlichen<br/>erreicht</th>
-                                <th className="text-center pb-2 w-[15%] text-xs font-normal text-gray-500 leading-tight">Erreicht</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {ziele.map((ziel, idx) => {
-                                const rating = evaluationData[ziel.id];
-                                return (
-                                    <tr key={ziel.id} className={idx % 2 === 0 ? 'bg-gray-50/80' : ''}>
-                                        <td className="py-2 pr-4">{ziel.text}</td>
-                                        <td className="text-center py-2 border-l border-gray-200">
-                                            {rating === 3 ? '☒' : '☐'}
-                                        </td>
-                                        <td className="text-center py-2 border-l border-gray-200">
-                                            {rating === 2 ? '☒' : '☐'}
-                                        </td>
-                                        <td className="text-center py-2 border-l border-gray-200">
-                                            {rating === 1 ? '☒' : '☐'}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            );
+          const ziele = allParsedGoals.filter(g => g.fach === fach);
+          if (ziele.length === 0) return null;
+
+          return (
+            <div key={fach} className="mb-4">
+              <h3 className="font-bold text-sm uppercase tracking-wider mb-2 border-b border-black/30 pb-1">{fach}</h3>
+              <div className="space-y-1">
+                {ziele.map(g => {
+                  const rating = evaluationData[g.id];
+                  const ratingLabel = rating === 1 ? 'Erreicht' : rating === 2 ? 'Im Wesentlichen' : rating === 3 ? 'In Entwicklung' : 'Offen';
+                  return (
+                    <div key={g.id} className="flex items-center justify-between text-xs py-1 border-b border-black/10">
+                      <span><strong>{g.kompetenzbereich}:</strong> {g.zielText}</span>
+                      <span className="font-semibold">{ratingLabel}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
         })}
       </div>
-
     </div>
   );
 }

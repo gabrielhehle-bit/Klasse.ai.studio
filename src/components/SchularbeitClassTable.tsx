@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Save, Search, Info, HelpCircle, Check, Sparkles, RefreshCw, AlertCircle, Minus, Plus, Maximize2, Minimize2 } from 'lucide-react';
+import { Save, Search, Info, HelpCircle, Check, Sparkles, RefreshCw, AlertCircle, Minus, Plus, Maximize2, Minimize2, Hash, Percent, Award } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { logActivity } from '../lib/utils';
+import { getAssessmentMode, getMaxPoints } from '../lib/GradeUtils';
 
 interface Criterion {
   id: string;
@@ -64,8 +65,13 @@ export default function SchularbeitClassTable({
   onToggleFullScreen
 }: Props) {
   const { app, setApp } = useApp();
+  const assessmentMode = getAssessmentMode(app, subject);
   const [searchTerm, setSearchTerm] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [customMaxPoints, setCustomMaxPoints] = useState<number>(() => {
+    const configured = getMaxPoints(app, subject, 'sa', saIndex);
+    return configured || 40;
+  });
 
   // Load or build rows for each student
   const [rows, setRows] = useState<RowState[]>(() => {
@@ -183,11 +189,11 @@ export default function SchularbeitClassTable({
 
       let gNoteInner = 0;
       let grammatikNote = 0;
+      let parsedGrammarPoints = 0;
       
       const hasGrammar = config.enableGrammar && !row.exemptFromGrammar;
       
       if (hasGrammar) {
-        let parsedGrammarPoints = 0;
         if (typeof row.grammarAchievedPoints === 'string') {
           parsedGrammarPoints = parseFloat(row.grammarAchievedPoints.replace(',', '.')) || 0;
         } else if (typeof row.grammarAchievedPoints === 'number') {
@@ -203,9 +209,15 @@ export default function SchularbeitClassTable({
         gNoteInner = arbeitsNote;
       }
 
+      const totalAchievedPoints = aspectPointsSum + parsedGrammarPoints;
+      const effectiveMax = customMaxPoints > 0 ? customMaxPoints : 40;
+      const calculatedPercent = effectiveMax > 0 ? Math.round((totalAchievedPoints / effectiveMax) * 1000) / 10 : 0;
+
       return {
         ...row,
         totalPoints: aspectPointsSum,
+        totalAchievedPoints,
+        calculatedPercent,
         arbeitsNote: aNote, // Keep standard 'aNote' reference so feedback texts reflect text performance
         echteArbeitsNote: arbeitsNote,
         spellingPoints: spellingQuotient,
@@ -214,7 +226,7 @@ export default function SchularbeitClassTable({
         gesamtnote: gNoteInner
       };
     });
-  }, [rows, flatCriteria, config]);
+  }, [rows, flatCriteria, config, customMaxPoints]);
 
   // Handle cell changes
   const handlePointsChange = (studentId: string, aspectId: string, criterionId: string, val: number) => {
@@ -440,14 +452,24 @@ export default function SchularbeitClassTable({
       setApp(prev => {
         const assessments = { ...(prev.saAssessments || {}) };
         const notenState = { ...(prev.noten || {}) };
+        const nm = { ...(prev.notenMeta || {}) };
+        const currentFachData = { ...(nm[subject] || {}) };
+        const maxPointsObj = { ...(currentFachData.maxPoints || {}) };
+        const saMaxPoints = { ...(maxPointsObj.sa || {}) };
+        saMaxPoints[saIndex] = customMaxPoints;
+        
+        const updatedMeta = {
+          ...nm,
+          [subject]: {
+            ...currentFachData,
+            maxPoints: {
+              ...maxPointsObj,
+              sa: saMaxPoints
+            }
+          }
+        };
 
         computedRows.forEach(row => {
-          // We always want to save in case the global Config has changed
-          // const alreadyExists = !!assessments[row.studentId]?.[subject]?.[semester]?.[saIndex];
-          // if (!row.hasChanged && alreadyExists) {
-          //   return;
-          // }
-
           // Build custom structured activeAspects array for this specific student save
           const studentAspects = currentTemplate.map(tmplAspect => {
             return {
@@ -465,7 +487,6 @@ export default function SchularbeitClassTable({
           // Compute pedagogical feedback text if none provided
           let finalFeedback = row.feedback;
           if (!finalFeedback.trim()) {
-            // Auto generation placeholder to keep data coherent
             const studentObj = schueler.find(s => s.id === row.studentId);
             const fn = studentObj ? studentObj.vorname : row.name;
             finalFeedback = `Liebe/r ${fn}, deine Bewertung wurde über das Klassenraster eingetragen. Ein sehr solider Leistungsnachweis.`;
@@ -478,6 +499,9 @@ export default function SchularbeitClassTable({
             savedGrammarPoints = row.grammarAchievedPoints;
           }
 
+          const totalPointsAchieved = row.totalPoints + savedGrammarPoints;
+          const pct = customMaxPoints > 0 ? Math.round((totalPointsAchieved / customMaxPoints) * 1000) / 10 : 0;
+
           const assessmentData = {
             aspects: studentAspects,
             spellingPoints: row.spellingPoints,
@@ -486,6 +510,9 @@ export default function SchularbeitClassTable({
             errorCount: row.errorCount,
             grammarAchievedPoints: savedGrammarPoints,
             exemptFromGrammar: row.exemptFromGrammar,
+            totalPoints: totalPointsAchieved,
+            maxPoints: customMaxPoints,
+            percent: pct,
             arbeitsNote: row.arbeitsNote,
             rechtschreibNote: row.rechtschreibNote,
             grammatikNote: (row as any).grammatikNote,
@@ -517,7 +544,14 @@ export default function SchularbeitClassTable({
           const fachData = sidData[subject] || {};
           const mainSemData = fachData[semester] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
           const saArray = [...(mainSemData.sa || [])];
-          saArray[saIndex] = row.tendenz ? `${row.gesamtnote}${row.tendenz}` : row.gesamtnote;
+          
+          if (assessmentMode === 'points') {
+            saArray[saIndex] = totalPointsAchieved;
+          } else if (assessmentMode === 'percent') {
+            saArray[saIndex] = pct;
+          } else {
+            saArray[saIndex] = row.tendenz ? `${row.gesamtnote}${row.tendenz}` : row.gesamtnote;
+          }
 
           notenState[row.studentId] = {
             ...sidData,
@@ -533,6 +567,7 @@ export default function SchularbeitClassTable({
 
         return {
           ...prev,
+          notenMeta: updatedMeta,
           saAssessments: assessments,
           noten: notenState
         };
@@ -569,14 +604,29 @@ export default function SchularbeitClassTable({
     <div className={`bg-white border border-zinc-200 shadow-sm space-y-6 h-full flex flex-col transition-all duration-300 ${isFullScreen ? 'rounded-none p-8' : 'rounded-[2rem] p-6'}`}>
       {/* Table Header and Toolbar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-100 pb-5 shrink-0">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-[0.625rem] font-black uppercase tracking-widest bg-indigo-50 border border-indigo-150 text-indigo-700 px-2.5 py-0.5 rounded-full">
               Klassen-Eingabe-Modus 📊
             </span>
             <span className="text-[0.75rem] leading-tight font-black text-amber-600 bg-amber-50 border border-amber-200/50 px-2 py-0.5 rounded-lg select-none">
               In Echtzeit rechnen
             </span>
+            {assessmentMode === 'points' && (
+              <span className="text-[0.75rem] leading-tight font-black text-amber-900 bg-amber-100/70 border border-amber-300 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                <Hash size={12} /> Modus: Punkte
+              </span>
+            )}
+            {assessmentMode === 'percent' && (
+              <span className="text-[0.75rem] leading-tight font-black text-blue-900 bg-blue-100/70 border border-blue-300 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                <Percent size={12} /> Modus: Prozent
+              </span>
+            )}
+            {assessmentMode === 'grades' && (
+              <span className="text-[0.75rem] leading-tight font-black text-emerald-900 bg-emerald-100/70 border border-emerald-300 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                <Award size={12} /> Modus: Noten
+              </span>
+            )}
           </div>
           <h3 className="text-[0.875rem] leading-snug font-black text-zinc-800 uppercase tracking-tight">
             Punktematrix & Schnelleingabe für alle Schüler
@@ -587,6 +637,24 @@ export default function SchularbeitClassTable({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 self-start">
+          {assessmentMode === 'points' && (
+            <div className="flex items-center gap-2 bg-amber-50/80 border border-amber-200 px-3 py-1.5 rounded-xl shadow-2xs">
+              <span className="text-[0.75rem] font-black text-amber-950">Maximalpunkte:</span>
+              <input
+                type="number"
+                min="1"
+                max="1000"
+                value={customMaxPoints}
+                onChange={e => {
+                  const val = Math.max(1, parseInt(e.target.value, 10) || 1);
+                  setCustomMaxPoints(val);
+                }}
+                className="w-16 px-2 py-1 bg-white border border-amber-300 rounded-lg text-[0.75rem] font-black text-center text-amber-950 outline-amber-500 shadow-xs"
+              />
+              <span className="text-[0.75rem] font-bold text-amber-800">Pkt.</span>
+            </div>
+          )}
+
           {onToggleFullScreen && (
             <button
               type="button"
@@ -621,7 +689,7 @@ export default function SchularbeitClassTable({
             {saveStatus === 'saving' && <span className="w-3 h-3 border-2 border-white border-t-transparent animate-spin rounded-full inline-block" />}
             {saveStatus === 'success' && <Check size={13} className="text-emerald-250 animate-bounce" />}
             {saveStatus === 'idle' && <Save size={13} />}
-            {saveStatus === 'success' ? 'Erfolgreich gesichert ✓' : 'Alle Änderungen & Einstellungen speichern'}
+            {saveStatus === 'success' ? 'Erfolgreich gesichert ✓' : 'Alle Änderungen & Notenmappe aktualisieren'}
           </button>
         </div>
       </div>
@@ -697,7 +765,7 @@ export default function SchularbeitClassTable({
                       Fehler
                     </th>
                     <th className="px-4 py-4 border-r border-zinc-200 text-[0.625rem] font-black uppercase text-rose-700 text-center bg-rose-100/30 min-w-[70px]">
-                      Note
+                      RS-Note
                     </th>
                   </>
                 )}
@@ -708,8 +776,8 @@ export default function SchularbeitClassTable({
                    </th>
                 )}
                 
-                <th className="px-6 py-4 text-[0.75rem] font-black uppercase text-zinc-900 text-center bg-zinc-100/80 sticky right-0 z-[40] w-32 shadow-[-4px_0_10px_0_rgba(0,0,0,0.02)]">
-                  Note
+                <th className="px-6 py-4 text-[0.75rem] font-black uppercase text-zinc-900 text-center bg-zinc-100/80 sticky right-0 z-[40] w-36 shadow-[-4px_0_10px_0_rgba(0,0,0,0.02)]">
+                  {assessmentMode === 'points' ? 'Ergebnis (Pkt. / %)' : assessmentMode === 'percent' ? 'Ergebnis (%)' : 'Note'}
                 </th>
               </tr>
             </thead>
@@ -814,30 +882,69 @@ export default function SchularbeitClassTable({
                        </td>
                     )}
 
-                    {/* Final Grade */}
-                    <td className={`sticky right-0 text-center px-4 py-3 border-l border-zinc-200/50 font-black text-[1.125rem] z-30 group-hover:bg-zinc-100/80 transition-colors ${
+                    {/* Final Grade / Points / Percent Result Column */}
+                    <td className={`sticky right-0 text-center px-4 py-3 border-l border-zinc-200/50 font-black z-30 group-hover:bg-zinc-100/80 transition-colors ${
                       isChanged ? 'bg-amber-50/20 animate-pulse' : 'bg-zinc-50/80 shadow-[-4px_0_10px_0_rgba(0,0,0,0.02)]'
                     }`}>
-                       <div className="flex flex-col items-center justify-center gap-1.5">
-                         <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black shadow-lg relative ${
-                           row.gesamtnote === 5 ? 'bg-rose-500 text-white shadow-rose-200' :
-                           row.gesamtnote === 1 ? 'bg-emerald-500 text-white shadow-emerald-200' :
-                           'bg-zinc-800 text-white shadow-zinc-200'
-                         }`}>
-                           {row.gesamtnote}
-                           {row.tendenz && <span className="absolute -top-1 -right-2 text-[0.6875rem] w-4 h-4 bg-white text-zinc-900 rounded-full flex items-center justify-center shadow-sm border border-zinc-200 leading-none">{row.tendenz}</span>}
-                         </div>
-                         
-                         {/* Tendency toggles */}
-                         <div className="flex items-center bg-white rounded-md border border-zinc-200 shadow-sm overflow-hidden" title="Notentendez (+/-) festlegen. Sichtbar in der Notenmappe.">
-                           <button 
-                             onClick={() => handleTendenzChange(row.studentId, row.tendenz === '+' ? '' : '+')}
-                             className={`w-5 h-4 flex items-center justify-center text-[0.65rem] font-black transition-colors ${row.tendenz === '+' ? 'bg-indigo-100 text-indigo-700' : 'text-zinc-400 hover:bg-zinc-50'}`}>+</button>
-                           <button 
-                             onClick={() => handleTendenzChange(row.studentId, row.tendenz === '-' ? '' : '-')}
-                             className={`w-5 h-4 flex items-center justify-center text-[0.65rem] font-black transition-colors border-l border-zinc-100 ${row.tendenz === '-' ? 'bg-indigo-100 text-indigo-700' : 'text-zinc-400 hover:bg-zinc-50'}`}>-</button>
-                         </div>
-                       </div>
+                      {assessmentMode === 'points' && (
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          <div className="text-[1.0625rem] font-black text-amber-950 leading-tight">
+                            {row.totalAchievedPoints.toString().replace('.', ',')} <span className="text-[0.6875rem] text-zinc-400 font-bold">/ {customMaxPoints}</span>
+                          </div>
+                          <span className={`px-2 py-0.5 rounded-full text-[0.6875rem] font-black border ${
+                            row.calculatedPercent >= 87.5 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                            row.calculatedPercent >= 75 ? 'bg-blue-100 text-blue-800 border-blue-300' :
+                            row.calculatedPercent >= 62.5 ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                            row.calculatedPercent >= 50 ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                            'bg-rose-100 text-rose-800 border-rose-300'
+                          }`}>
+                            {row.calculatedPercent.toString().replace('.', ',')} %
+                          </span>
+                          <span className="text-[0.5625rem] font-bold text-zinc-400">
+                            (Note {row.gesamtnote})
+                          </span>
+                        </div>
+                      )}
+
+                      {assessmentMode === 'percent' && (
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          <div className={`text-[1.125rem] font-black leading-tight ${
+                            row.calculatedPercent >= 87.5 ? 'text-emerald-700' :
+                            row.calculatedPercent >= 75 ? 'text-blue-700' :
+                            row.calculatedPercent >= 62.5 ? 'text-amber-700' :
+                            row.calculatedPercent >= 50 ? 'text-orange-700' :
+                            'text-rose-700'
+                          }`}>
+                            {row.calculatedPercent.toString().replace('.', ',')} %
+                          </div>
+                          <span className="text-[0.5625rem] font-bold text-zinc-400">
+                            (Note {row.gesamtnote})
+                          </span>
+                        </div>
+                      )}
+
+                      {assessmentMode === 'grades' && (
+                        <div className="flex flex-col items-center justify-center gap-1.5">
+                          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black shadow-lg relative text-[1.125rem] ${
+                            row.gesamtnote === 5 ? 'bg-rose-500 text-white shadow-rose-200' :
+                            row.gesamtnote === 1 ? 'bg-emerald-500 text-white shadow-emerald-200' :
+                            'bg-zinc-800 text-white shadow-zinc-200'
+                          }`}>
+                            {row.gesamtnote}
+                            {row.tendenz && <span className="absolute -top-1 -right-2 text-[0.6875rem] w-4 h-4 bg-white text-zinc-900 rounded-full flex items-center justify-center shadow-sm border border-zinc-200 leading-none">{row.tendenz}</span>}
+                          </div>
+                          
+                          {/* Tendency toggles */}
+                          <div className="flex items-center bg-white rounded-md border border-zinc-200 shadow-sm overflow-hidden" title="Notentendez (+/-) festlegen. Sichtbar in der Notenmappe.">
+                            <button 
+                              onClick={() => handleTendenzChange(row.studentId, row.tendenz === '+' ? '' : '+')}
+                              className={`w-5 h-4 flex items-center justify-center text-[0.65rem] font-black transition-colors ${row.tendenz === '+' ? 'bg-indigo-100 text-indigo-700' : 'text-zinc-400 hover:bg-zinc-50'}`}>+</button>
+                            <button 
+                              onClick={() => handleTendenzChange(row.studentId, row.tendenz === '-' ? '' : '-')}
+                              className={`w-5 h-4 flex items-center justify-center text-[0.65rem] font-black transition-colors border-l border-zinc-100 ${row.tendenz === '-' ? 'bg-indigo-100 text-indigo-700' : 'text-zinc-400 hover:bg-zinc-50'}`}>-</button>
+                          </div>
+                        </div>
+                      )}
                     </td>
 
                     {/* Feedback / Note description column */}
