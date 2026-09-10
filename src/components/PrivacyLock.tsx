@@ -119,7 +119,7 @@ export default function PrivacyLock() {
           animate={{ scale: 1, opacity: 1 }}
           className="flex flex-col items-center text-center space-y-3"
         >
-          <div className="w-16 h-16 rounded-3xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-400">
+          <div className="w-16 h-16 rounded-3xl bg-[var(--accent-soft)] border border-[var(--accent)]/30 flex items-center justify-center text-[var(--accent)]">
             {isPinSetupNeeded ? <Key size={28} /> : <Lock size={28} />}
           </div>
           <div>
@@ -149,9 +149,9 @@ export default function PrivacyLock() {
                 key={idx}
                 animate={{ 
                   scale: filled ? 1.25 : 1,
-                  backgroundColor: filled ? '#6366f1' : '#334155'
+                  backgroundColor: filled ? 'var(--accent)' : 'var(--surface-muted, #334155)'
                 }}
-                className={`w-4.5 h-4.5 rounded-full border border-slate-700`}
+                className="w-4.5 h-4.5 rounded-full border border-slate-700"
               />
             );
           })}
@@ -163,7 +163,7 @@ export default function PrivacyLock() {
             <button
               key={num}
               onClick={() => handleKeyPress(num)}
-              className="h-16 w-16 mx-auto rounded-full bg-slate-900/60 hover:bg-indigo-600 transition-all border border-slate-850 hover:border-indigo-500 flex items-center justify-center font-black text-lg select-none active:scale-90 cursor-pointer shadow-sm text-slate-100"
+              className="h-16 w-16 mx-auto rounded-full bg-slate-900/60 hover:bg-[var(--accent)] transition-all border border-slate-800 hover:border-[var(--accent)] flex items-center justify-center font-black text-lg select-none active:scale-90 cursor-pointer shadow-sm text-slate-100"
             >
               {num}
             </button>
@@ -188,14 +188,14 @@ export default function PrivacyLock() {
           
           <button
             onClick={() => handleKeyPress('0')}
-            className="h-16 w-16 mx-auto rounded-full bg-slate-900/60 hover:bg-indigo-600 transition-all border border-slate-850 hover:border-indigo-500 flex items-center justify-center font-black text-lg select-none active:scale-90 cursor-pointer shadow-sm text-slate-100"
+            className="h-16 w-16 mx-auto rounded-full bg-slate-900/60 hover:bg-[var(--accent)] transition-all border border-slate-800 hover:border-[var(--accent)] flex items-center justify-center font-black text-lg select-none active:scale-90 cursor-pointer shadow-sm text-slate-100"
           >
             0
           </button>
           
           <button
             onClick={handleBackspace}
-            className="h-16 w-16 mx-auto rounded-full hover:bg-slate-850 transition-all flex items-center justify-center text-slate-400 active:scale-90 cursor-pointer"
+            className="h-16 w-16 mx-auto rounded-full hover:bg-slate-800 transition-all flex items-center justify-center text-slate-400 active:scale-90 cursor-pointer"
           >
             <Delete size={20} />
           </button>
@@ -226,7 +226,7 @@ export default function PrivacyLock() {
                   showToast('Bitte richte eine neue PIN ein.', 'info');
                 }
               }}
-              className="mt-6 inline-flex items-center gap-1 text-[0.625rem] font-black uppercase tracking-widest text-slate-400 hover:text-indigo-400 hover:underline cursor-pointer"
+              className="mt-6 inline-flex items-center gap-1 text-[0.625rem] font-black uppercase tracking-widest text-slate-400 hover:text-[var(--accent)] hover:underline cursor-pointer"
             >
               <RefreshCw size={10} className="animate-spin-slow" />
               PIN zurücksetzen / ändern

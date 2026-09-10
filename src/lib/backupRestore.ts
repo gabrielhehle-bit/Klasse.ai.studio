@@ -44,3 +44,16 @@ export function assertRestorableAppState(state: unknown): asserts state is Recor
     throw new Error('Die Klassenliste im Backup ist beschädigt.');
   }
 }
+
+/** Accept legacy JSON exports and simple JS assignments, but never execute code.
+ * Full input must match: arbitrary surrounding text is not silently discarded.
+ */
+export function parseBackupText(text: string): unknown {
+  const clean = text.replace(/^\uFEFF/, '').trim();
+  try { return JSON.parse(clean); } catch { /* Try the documented legacy wrapper. */ }
+  const assignment = /^(?:(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*|export\s+default\s+)(\{[\s\S]*\})\s*;?$/.exec(clean);
+  if (assignment) {
+    try { return JSON.parse(assignment[1]); } catch { /* Report invalid JSON below. */ }
+  }
+  throw new Error('Die Datei enthält kein lesbares JSON-Backup.');
+}

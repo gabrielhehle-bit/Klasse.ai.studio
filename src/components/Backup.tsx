@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { triggerBackupDownload } from '../utils/backupUtils';
 import { createEncryptedBackup } from '../lib/backupCryptoService';
 import { getActiveVaultKey, getActiveVaultRecord, loadVaultRecord } from '../lib/vaultStorage';
-import { prepareBackupRestore } from '../lib/backupRestore';
+import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
 
 export default function Backup() {
   const { app, setApp, restoreAppData } = useApp();
@@ -186,13 +186,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const content = e.target?.result as string;
-        const importedData = JSON.parse(content);
-        
-        if (typeof importedData !== 'object' || importedData === null) {
-          throw new Error('Ungültiges Format');
-        }
-        
+        const importedData = parseBackupText(String(e.target?.result || ''));
         const key = getActiveVaultKey();
         if (!key) throw new Error('Bitte zuerst den lokalen Tresor entsperren.');
         const targetData = await prepareBackupRestore(importedData, key, () => prompt(
@@ -237,10 +231,8 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file && (file.type === "application/json" || file.name.endsWith('.json'))) {
+    if (file) {
       processFile(file);
-    } else {
-      alert('Bitte lade eine gültige .json Backup-Datei hoch.');
     }
   };
 
@@ -1081,10 +1073,10 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
           <div className="pt-6">
             <input 
               type="file" 
-              aria-label="LehrerAPP-Sicherungsdatei auswählen (.lehrerapp / .json)"
+              aria-label="LehrerAPP-Sicherungsdatei auswählen (.json / .lehrerapp)"
               ref={fileInputRef} 
               onChange={importData} 
-              accept=".lehrerapp,.lehrerapp-backup,.json,application/json" 
+              accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain"
               className="hidden" 
             />
             <button 

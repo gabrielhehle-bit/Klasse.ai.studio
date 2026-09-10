@@ -42,3 +42,17 @@ Dieses Paket löst noch nicht: fachbezogene Metadatenmigration, alle Klartext-Ne
 - `npm run build`: Vite/PWA und Server-Bundle.
 
 Die Testinstallation stammt aus der Audit-Umgebung (`npm install --ignore-scripts --package-lock=false`), nicht aus einer frischen Installation mit dem exakten `bun.lock`. Bestehende Warnungen zu großen Frontend-Bundles bleiben. Keine echten Schülerdaten oder Live-Microsoft-Tokens verwendet; kein vollständiger Browser-/Geräte-Abnahmetest und kein Live-Deployment.
+
+## Abgleich mit dem AI-Studio-Export vom 10. September 2026
+
+Der nachgereichte Export `klasse.ai.studio (3).zip` enthält gegenüber dem Audit-Ausgangsstand exakt 15 geänderte Dateien, keine zusätzlichen oder fehlenden Quelldateien.
+
+- Theme-Anpassungen an Navigation, Suchdialog, Schnellnotizen, Datenschutzsperre, Tresoransicht, Datenprüfung und Cockpit-Vorlagen übernommen. In der Tresoransicht nicht vorhandene Farbvariablen auf die bestehenden `--text-primary`/`--text-secondary`-Tokens korrigiert.
+- Den Schutz gegen eine fehlende Schnellnotiz-Liste und die gemeinsame UI-Komponenten-Nutzung übernommen.
+- Den gewünschten `.json`-Dateinamen für neue Backups übernommen. Der Inhalt bleibt derselbe verschlüsselte, versionierte Backup-Container; alte `.lehrerapp`-Dateien bleiben importierbar.
+- BOM und einfache JavaScript-Variablendeklarationen als alte Backup-Verpackung werden gemeinsam in `parseBackupText` gelesen. Es wird kein JavaScript ausgeführt. Beliebiger Vor-/Nachtext oder ausführbare Ausdrücke werden abgewiesen, statt stillschweigend herausgeschnitten zu werden.
+- Konflikte in `Backup.tsx` und `BackupSettings.tsx` zugunsten der geprüften Wiederherstellung aufgelöst und die Importkompatibilität ergänzt.
+- Auch der Einrichtungsassistent nutzt nun denselben Decoder und dieselbe verschlüsselte Wiederherstellung mit Rücksicherung. Kein Austausch des lokalen Tresorschlüssels, kein Klartext-Schreiben und kein erzwungener Reload nach dem Import.
+- Den neu hinzugekommenen automatischen **Klartext-Export ohne aktiven Tresor** bewusst nicht übernommen. Er widerspricht dem Projektprinzip verschlüsselter Backups. Ohne entsperrten Tresor wird der Export weiterhin mit einer erklärenden Meldung abgebrochen.
+
+Regressionen in `backupCompatibility.test.ts` prüfen Importverpackungen, Ablehnung ausführbaren Codes, verweigerten Klartext-Export und den verschlüsselten `.json`-Download samt erneutem Import. Die Theme-Änderungen benötigen zusätzlich eine visuelle Browser-Abnahme; ein erfolgreicher Build ersetzt diese nicht.

@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import LZString from 'lz-string';
-import localforage from 'localforage';
 import { getCurrentSchuljahr } from '../lib/utils';
 import { createBeispielklasse } from '../data/beispielklasse';
 import { FAECHER_ALLE, DEFAULT_TAGEPLAN, DEFAULT_FACH_COLORS, STUNDEN_INFO, TAGE_NAMEN, STUNDENTAFEL, AESTHETIC_THEMES, FONTS, DEUTSCH_UNTERFAECHER } from '../constants';
@@ -17,11 +16,11 @@ import { SokratesImportModal } from './SokratesImportModal';
 import { Bundesland, BUNDESLAND_NAMEN } from '../lib/ferienOesterreich';
 import { FachColorPicker } from './FachColorPicker';
 import { getFachHexColor, STANDARD_COLOR_MAP } from '../lib/fachColorUtils';
-import { saveEncryptedAppState } from '../lib/secureStorageService';
 import { getActiveVaultKey } from '../lib/vaultStorage';
+import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
 
 export default function SetupWizard({ onComplete, isNewClass }: { onComplete: () => void, isNewClass?: boolean }) {
-  const { app, setApp } = useApp();
+  const { app, setApp, restoreAppData } = useApp();
   
   const setupAbgeschlossen = 
     (app?.klassenbezeichnung && app.klassenbezeichnung.trim().length > 0) ||
@@ -256,15 +255,13 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const importedData = JSON.parse(event.target?.result as string);
-        
-        if (typeof importedData !== 'object' || importedData === null) {
-          throw new Error('Ungültiges Format');
-        }
-        
-        if (!importedData.schueler && !importedData.classes && !importedData.klassenbezeichnung) {
-          throw new Error('Diese Datei ist kein gültiges Lehrermappe-Backup');
-        }
+        const key = getActiveVaultKey();
+        if (!key) throw new Error('Bitte zuerst den lokalen Tresor entsperren.');
+        const importedData = await prepareBackupRestore(
+          parseBackupText(String(event.target?.result || '')), key,
+          () => prompt('Bitte gib das Tresor-Passwort oder den Recovery-Code dieses Backups ein. Dein lokales Tresor-Passwort bleibt unverändert.')
+        );
+        if (!importedData) return;
 
         const classCount = Array.isArray(importedData.classes) ? importedData.classes.length : (importedData.klassenbezeichnung ? 1 : 0);
         const studentCount = Array.isArray(importedData.schueler)
@@ -279,29 +276,14 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
           return;
         }
 
-        const dataToImport = {
-          ...importedData,
-          tourAbgeschlossen: true
-        };
-
-        const vaultKey = getActiveVaultKey();
-        if (vaultKey) {
-          const currentData = await localforage.getItem<any>('hehle_v3');
-          if (currentData) {
-            await localforage.setItem('hehle_v3_pre_import_backup', currentData);
-            sessionStorage.setItem('hehle_v3_pre_import_backup_created_at', new Date().toISOString());
-          }
-          await saveEncryptedAppState(dataToImport, vaultKey);
-        }
-        setApp(dataToImport);
-        
-        sessionStorage.removeItem('hehle_v3_temp');
+        await restoreAppData(importedData);
         sessionStorage.removeItem(WIZARD_PROGRESS_KEY);
         localStorage.removeItem(WIZARD_PROGRESS_KEY);
-
         onComplete();
-      } catch (err) {
-        alert('Fehler beim Importieren: ' + (err instanceof Error ? err.message : 'Die Datei ist ungültig oder beschädigt.'));
+      } catch (err: any) {
+        alert(err?.message || 'Fehler beim Wiederherstellen des Backups.');
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
     reader.readAsText(file);
@@ -806,7 +788,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
 
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-50 flex items-start justify-center p-0 md:p-8">
-      <input type="file" accept=".json" ref={fileInputRef} onChange={handleBackupImport} className="hidden" />
+      <input type="file" accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain" ref={fileInputRef} onChange={handleBackupImport} className="hidden" />
       <input type="file" accept=".csv" ref={csvInputRef} onChange={handleCSVImport} className="hidden" />
       <input type="file" accept=".pdf,.csv,.txt" ref={sokratesFileInputRef} onChange={handleSokratesFileUpload} className="hidden" />
 
@@ -937,7 +919,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                        <Upload size={20} className="text-emerald-500" />
                        <div className="text-left">
                          <div className="text-[0.875rem] leading-snug font-black whitespace-nowrap">Backup wiederherstellen</div>
-                         <div className="text-[0.625rem] text-slate-500 font-medium uppercase tracking-wider">Aus einer .json Datei</div>
+                         <div className="text-[0.625rem] text-slate-500 font-medium uppercase tracking-wider">Aus einer Sicherungsdatei (.json)</div>
                        </div>
                     </button>
 

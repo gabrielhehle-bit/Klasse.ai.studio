@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { triggerBackupDownload } from '../../utils/backupUtils';
 import { getActiveVaultKey } from '../../lib/vaultStorage';
-import { prepareBackupRestore } from '../../lib/backupRestore';
+import { prepareBackupRestore, parseBackupText } from '../../lib/backupRestore';
 import { loadPreImportBackup } from '../../lib/secureStorageService';
 import { useApp } from '../../context/AppContext';
 
@@ -51,7 +51,7 @@ export default function BackupSettings({
   const handleExportBackup = async () => {
     try {
       await triggerBackupDownload(app);
-      showToast('Verschlüsselte Sicherung (.lehrerapp) erfolgreich heruntergeladen!', 'success');
+      showToast('Verschlüsselte Sicherung (.json) erfolgreich heruntergeladen!', 'success');
     } catch (e: any) {
       showToast(e?.message || 'Fehler beim Exportieren der Sicherung.', 'error');
     }
@@ -64,9 +64,7 @@ export default function BackupSettings({
       fileReader.readAsText(file, "UTF-8");
       fileReader.onload = async (event) => {
         try {
-          const raw = event.target?.result as string;
-          const parsedData = JSON.parse(raw);
-
+          const parsedData = parseBackupText(String(event.target?.result || ''));
           await restoreInput(parsedData);
         } catch (err: any) {
           showToast(err?.message || 'Fehler beim Einlesen der Datei.', 'error');
@@ -137,7 +135,7 @@ export default function BackupSettings({
             className="px-6 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-md active:scale-95"
           >
             <Download size={18} />
-            <span>Verschlüsselte Sicherung (.lehrerapp)</span>
+            <span>Verschlüsselte Sicherung (.json)</span>
           </button>
 
           {/* Import Button */}
@@ -145,7 +143,7 @@ export default function BackupSettings({
             <input
               id="backup-file-input-sub"
               type="file"
-              accept=".lehrerapp,.lehrerapp-backup,.json"
+              accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain"
               onChange={handleImportBackup}
               className="hidden"
             />
@@ -154,7 +152,7 @@ export default function BackupSettings({
               className="w-full h-full px-6 py-4 bg-white border-2 border-dashed border-stone-300 hover:border-emerald-500 text-slate-700 hover:text-emerald-700 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all cursor-pointer text-center"
             >
               <Upload size={18} />
-              <span>Sicherung einlesen (.lehrerapp / .json)</span>
+              <span>Sicherung einlesen (.json / .lehrerapp)</span>
             </label>
           </div>
         </div>
