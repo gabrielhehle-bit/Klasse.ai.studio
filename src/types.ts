@@ -1468,6 +1468,7 @@ export interface AppState {
     remoteDrawingImage?: { dataUrl: string; timestamp: number };
     clearTafelTrigger?: number;
     isTafelOpen?: boolean;
+    tafelCommand?: import('./lib/tafelCommands').TafelCommand;
     sidebarMode?: 'expanded' | 'mini' | 'hidden';
     activeFont?: string;
     toolbarWidgets?: string[]; // IDs of visible widgets in order

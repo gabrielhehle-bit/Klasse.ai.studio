@@ -452,7 +452,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       {/* Header bar / Drag handle - static in flow so it doesn't overlap content */}
       <div
         onPointerDown={isDirect || isMaximized || layoutLocked ? undefined : handlePointerDownDrag}
-        className={`${isDirect ? "absolute top-0 left-0 right-0 h-8 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative h-8 opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 px-3 py-1 flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 cursor-default`}
+        className={`${isDirect ? "absolute top-0 left-0 right-0 h-11 opacity-40 hover:opacity-100 pointer-events-auto border-b-0 bg-black/10 dark:bg-white/10 text-slate-400 backdrop-blur-md rounded-t-xl" : "w-full relative h-11 opacity-100 pointer-events-auto " + (currentIsLight ? "bg-white/95 border-slate-200/60 text-slate-700 shadow-sm backdrop-blur-xl rounded-t-[23px]" : "bg-zinc-900/95 border-white/10 text-neutral-200 shadow-sm backdrop-blur-xl rounded-t-[23px]")} z-40 px-3 py-1 flex items-center justify-between select-none shrink-0 border-b transition-all duration-300 cursor-default`}
         style={{ touchAction: isDirect || layoutLocked ? "auto" : "none" }}
       >
         {/* Left Side: status dot, Title, and Pen icon button placed directly right next to the title label */}
@@ -493,7 +493,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
             />
           )}
 
-          <span className="cockpit-widget-title text-[11px] font-black uppercase tracking-wider truncate opacity-90 text-inherit select-none shrink-0">
+          <span className="cockpit-widget-title text-xs font-semibold truncate opacity-90 text-inherit select-none min-w-0">
             {labelMapping[widget.type] || widget.type.toUpperCase()}
           </span>
 
@@ -561,7 +561,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                 e.stopPropagation();
                 setIsMaximized(!isMaximized);
               }}
-              className={`w-7 h-7 flex items-center justify-center rounded-lg hover:scale-105 active:scale-95 transition-all outline-none cursor-pointer border shadow-sm shrink-0 ${
+              className={`w-9 h-9 flex items-center justify-center rounded-lg hover:scale-105 active:scale-95 transition-all outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 cursor-pointer border shadow-sm shrink-0 ${
                 isMaximized
                   ? "bg-indigo-600 text-white border-indigo-700 hover:bg-indigo-700 shadow-md"
                   : currentIsLight
@@ -575,14 +575,14 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
             </button>
           )}
 
-          {!layoutLocked && showSettingsButton && onSettingsToggle && (
+          {showSettingsButton && onSettingsToggle && (
             <button
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
                 onSettingsToggle();
               }}
-              className={`w-7 h-7 flex items-center justify-center rounded-lg hover:scale-105 active:scale-95 transition-all outline-none cursor-pointer border shadow-sm shrink-0 ${
+              className={`w-9 h-9 flex items-center justify-center rounded-lg hover:scale-105 active:scale-95 transition-all outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 cursor-pointer border shadow-sm shrink-0 ${
                 currentIsLight
                   ? "bg-white border-slate-200 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
                   : "bg-zinc-800 border-white/5 text-neutral-400 hover:bg-zinc-700 hover:text-white hover:border-white/20"
@@ -601,7 +601,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                 e.stopPropagation();
                 setShowSizeConfig(!showSizeConfig);
               }}
-              className={`w-7 h-7 flex items-center justify-center rounded-lg hover:scale-105 active:scale-95 transition-all outline-none cursor-pointer border shadow-sm shrink-0 ${
+              className={`w-9 h-9 flex items-center justify-center rounded-lg hover:scale-105 active:scale-95 transition-all outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 cursor-pointer border shadow-sm shrink-0 ${
                 showSizeConfig
                   ? "bg-indigo-500 text-white border-indigo-600"
                   : currentIsLight
@@ -681,7 +681,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
               e.stopPropagation();
               onClose();
             }}
-            className={`w-7 h-7 flex items-center justify-center rounded-lg hover:scale-110 active:scale-95 transition-all outline-none cursor-pointer border shadow-sm shrink-0 ${
+            className={`w-9 h-9 flex items-center justify-center rounded-lg hover:scale-110 active:scale-95 transition-all outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1 cursor-pointer border shadow-sm shrink-0 ${
               currentIsLight
                 ? "bg-white border-slate-200 text-slate-500 hover:bg-rose-500 hover:text-white hover:border-rose-600 hover:shadow-md"
                 : "bg-zinc-800 border-white/5 text-neutral-400 hover:bg-rose-500 hover:text-white hover:border-rose-600 hover:shadow-md"

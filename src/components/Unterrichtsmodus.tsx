@@ -1,3 +1,4 @@
+import { shouldApplyTafelCommand } from '../lib/tafelCommands';
 import React, {
   useEffect,
   useState,
@@ -2978,7 +2979,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       return loadAndSanitizeLayout(app.cockpitLayout);
     },
   );
-  const [isLayoutLocked, setIsLayoutLocked] = useState(false);
+  const [isLayoutLocked, setIsLayoutLocked] = useState(true);
   const isLayoutEditing = !isLayoutLocked;
   const [isMoreOptionsMenuOpen, setIsMoreOptionsMenuOpen] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
@@ -3952,48 +3953,32 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   };
   const [showSyncInfo, setShowSyncInfo] = useState(false);
   const [syncModalTab, setSyncModalTab] = useState<'remote' | 'wifi'>('remote');
-  const [isTafelOpen, setIsTafelOpen] = useState(false);
-  const isInitialMountRef = useRef(true);
-  const prevActiveClassIdRef = useRef(app.activeClassId);
+  const [isTafelOpen, setTafelOpenLocal] = useState(false);
+  const setIsTafelOpen = useCallback((open: boolean) => {
+    setTafelOpenLocal(open);
+    setApp(prev => prev.boardSettings?.isTafelOpen === open ? prev : {
+      ...prev, boardSettings: { ...prev.boardSettings, isTafelOpen: open },
+    });
+  }, [setApp]);
+  useEffect(() => { setIsTafelOpen(false); }, [app.activeClassId, setIsTafelOpen]);
+  const tafelSession = useRef({
+    classId: app.activeClassId, enteredAt: Date.now(), lastId: app.boardSettings?.tafelCommand?.id,
+  });
 
-  // Klasse gewechselt -> Tafel stets geschlossen halten
   useEffect(() => {
-    if (prevActiveClassIdRef.current !== app.activeClassId) {
-      prevActiveClassIdRef.current = app.activeClassId;
+    const session = tafelSession.current;
+    if (session.classId !== app.activeClassId) {
+      tafelSession.current = { classId: app.activeClassId, enteredAt: Date.now(), lastId: app.boardSettings?.tafelCommand?.id };
       setIsTafelOpen(false);
-      if (app.boardSettings?.isTafelOpen) {
-        setApp((prev: any) => ({
-          ...prev,
-          boardSettings: {
-            ...prev.boardSettings,
-            isTafelOpen: false,
-          },
-        }));
-      }
-    }
-  }, [app.activeClassId, app.boardSettings?.isTafelOpen, setApp]);
-
-  // Synchronisation mit Remote-Fernbedienung: Nur bei Live-Aktionen NACH dem Initial-Mount
-  useEffect(() => {
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      // Beim Betreten des Lehrercockpits / Reload bleibt die Digitale Tafel stets geschlossen
-      if (app.boardSettings?.isTafelOpen) {
-        setApp((prev: any) => ({
-          ...prev,
-          boardSettings: {
-            ...prev.boardSettings,
-            isTafelOpen: false,
-          },
-        }));
-      }
       return;
     }
-    // Nach dem Laden nur explizite Live-Events der Remote-Steuerung berücksichtigen
-    if (app.boardSettings?.isTafelOpen !== undefined) {
-      setIsTafelOpen(!!app.boardSettings.isTafelOpen);
+    const command = app.boardSettings?.tafelCommand;
+    if (shouldApplyTafelCommand(command, app.activeClassId, session.enteredAt, session.lastId)) {
+      session.lastId = command!.id;
+      setIsTafelOpen(command!.open);
     }
-  }, [app.boardSettings?.isTafelOpen, setApp]);
+  }, [app.activeClassId, app.boardSettings?.tafelCommand]);
+
   const isSmartboardOnly = !!(
     app.boardSettings?.splitSmartboardMode &&
     !app.boardSettings?.isRemoteController
@@ -9475,6 +9460,12 @@ ${content}
                             )}
                           </div>
 
+                          <button type="button" aria-pressed={!isLayoutLocked} onClick={() => setIsLayoutLocked(locked => !locked)}
+                            className={`min-h-10 px-3 rounded-xl border text-xs font-semibold flex items-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isLayoutLocked ? (currentIsLight ? "bg-white border-slate-300 text-slate-700" : "bg-zinc-900 border-white/20 text-white") : "bg-emerald-600 border-emerald-500 text-white"}`}>
+                            {isLayoutLocked ? <Lock size={15} /> : <Check size={15} />}
+                            {isLayoutLocked ? 'Anordnung ändern' : 'Anordnung fertig'}
+                          </button>
+
                           {/* Primary Action 2: Whiteboard & Text */}
                           <button
                             type="button"
@@ -9909,7 +9900,7 @@ ${content}
                                     currentIsLight ? "text-slate-600" : "text-neutral-300"
                                   }`}
                                 >
-                                  Noch keine Widgets geöffnet
+                                  Dein Unterricht beginnt hier
                                 </h3>
                                 <p
                                   className={`text-[11px] font-semibold ${
@@ -9928,9 +9919,15 @@ ${content}
                                   >
                                     + Widget
                                   </button>{" "}
-                                  kannst du Tools und Hilfen zur Tafel hinzufügen.
+                                  öffnest du Timer, Arbeitsauftrag und weitere Unterrichtshilfen.
                                 </p>
                               </div>
+                              <button type="button" onClick={() => setIsAddWidgetMenuOpen(true)} className="mt-3 min-h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+                                Unterrichtshilfe auswählen
+                              </button>
+                              <button type="button" onClick={() => setIsVorlagenModalOpen(true)} className={`min-h-11 px-4 rounded-xl border font-semibold text-sm ${currentIsLight ? "border-slate-300 text-slate-700" : "border-white/20 text-white/80"}`}>
+                                Gespeicherte Anordnung laden
+                              </button>
                             </div>
                           </div>
                         )}

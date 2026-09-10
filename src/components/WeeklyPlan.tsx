@@ -1772,7 +1772,7 @@ export default function WeeklyPlan() {
     });
   });
 
-  return (
+  const planContent = (
     <div 
       className={`weekly-plan-shell flex flex-col bg-[#f4f7f3] ${
         isFullscreen 
@@ -1940,6 +1940,7 @@ export default function WeeklyPlan() {
 
                 {/* Fullscreen Button */}
                 <button
+                  aria-pressed={isFullscreen}
                   onClick={() => setIsFullscreen(!isFullscreen)}
                   className={`px-3 py-2 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs ${
                     isFullscreen
@@ -2226,7 +2227,7 @@ export default function WeeklyPlan() {
         }
 
       {/* 2. MAIN SCROLLABLE CONTENT AREA */}
-      <div className={`w-full ${isFullscreen ? 'flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden flex flex-col custom-scrollbar mt-2' : 'flex flex-col'}`}>
+      <div className={`w-full ${isFullscreen ? 'flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-auto flex flex-col custom-scrollbar mt-2' : 'flex flex-col'}`}>
       <AnimatePresence>
         {showSollCheck && (
           <motion.div 
@@ -4926,4 +4927,6 @@ export default function WeeklyPlan() {
 
     </div>
   );
+  return isFullscreen ? createPortal(planContent, document.body) : planContent;
+
 }

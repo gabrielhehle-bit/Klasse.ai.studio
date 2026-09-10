@@ -1,3 +1,4 @@
+import { createTafelCommand } from '../lib/tafelCommands';
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { UNIFIED_DEFAULT_BADGES } from '../types';
@@ -151,6 +152,7 @@ export const MobileRemoteController: React.FC<MobileRemoteControllerProps> = ({ 
         boardSettings: {
           ...prev.boardSettings,
           isTafelOpen: true,
+          tafelCommand: createTafelCommand(prev.activeClassId, true),
           remoteDrawingImage: {
             dataUrl,
             timestamp: Date.now()
@@ -183,6 +185,7 @@ export const MobileRemoteController: React.FC<MobileRemoteControllerProps> = ({ 
         boardSettings: {
           ...prev.boardSettings,
           isTafelOpen: true,
+          tafelCommand: createTafelCommand(prev.activeClassId, true),
           remoteTextEntries: [...existing, newEntry]
         }
       };
@@ -2258,7 +2261,8 @@ export const MobileRemoteController: React.FC<MobileRemoteControllerProps> = ({ 
                       ...prev,
                       boardSettings: {
                         ...prev.boardSettings,
-                        isTafelOpen: nextState
+                        isTafelOpen: nextState,
+                        tafelCommand: createTafelCommand(prev.activeClassId, nextState)
                       }
                     }));
                     showFeedback(`Tafel ${nextState ? 'geöffnet' : 'geschlossen'}!`);

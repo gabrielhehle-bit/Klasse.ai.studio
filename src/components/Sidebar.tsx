@@ -39,33 +39,33 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const disabledModules = app?.settings?.disabledModules || [];
 
   const ALL_MODULES = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} />, section: 'Unterricht' },
-    { id: 'cockpit', label: 'LEHRERCOCKPIT', icon: <Play size={14} />, section: 'Unterricht' },
-    { id: 'ki-helfer', label: 'KI Helfer', icon: <Bot size={14} />, section: 'Unterricht' },
-    { id: 'schueler', label: 'Schüler', icon: <Users size={14} />, section: 'Werkzeuge' },
-    { id: 'sitzplan', label: 'Sitzplan', icon: <MapIcon size={14} />, section: 'Werkzeuge' },
-    { id: 'anwesenheit', label: 'Anwesenheit', icon: <Pin size={14} />, section: 'Werkzeuge' },
-    { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={14} />, section: 'Werkzeuge' },
-    { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={14} />, section: 'Werkzeuge' },
-    { id: 'planungszentrale', label: 'Planungs-Zentrale', icon: <Target size={14} />, section: 'Planung' },
+    { id: 'dashboard', label: 'Übersicht', icon: <LayoutDashboard size={14} />, section: 'Unterricht' },
+    { id: 'cockpit', label: 'Lehrercockpit', icon: <Play size={14} />, section: 'Unterricht' },
+    { id: 'ki-helfer', label: 'KI-Assistent', icon: <Bot size={14} />, section: 'Unterricht' },
+    { id: 'schueler', label: 'Schüler', icon: <Users size={14} />, section: 'Klasse & Kinder' },
+    { id: 'sitzplan', label: 'Sitzplan', icon: <MapIcon size={14} />, section: 'Klasse & Kinder' },
+    { id: 'anwesenheit', label: 'Anwesenheit', icon: <Pin size={14} />, section: 'Klasse & Kinder' },
+    { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={14} />, section: 'Klasse & Kinder' },
+    { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={14} />, section: 'Klasse & Kinder' },
+    { id: 'planungszentrale', label: 'Planungsübersicht', icon: <Target size={14} />, section: 'Planung' },
     { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={14} />, section: 'Planung' },
     { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={14} />, section: 'Planung' },
     { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={14} />, section: 'Planung' },
     { id: 'uebergabemappe', label: 'Übergabemappe', icon: <ClipboardList size={14} />, section: 'Planung' },
-    { id: 'statistik', label: 'Statistik & Profile', icon: <LineChart size={14} />, section: 'Extras' },
-    { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={14} />, section: 'Extras' },
-    { id: 'klassengemeinschaft', label: 'Wir-Gefühl', icon: <Heart size={14} />, section: 'Extras' },
-    { id: 'jahresbericht', label: 'Jahresbericht', icon: <FileText size={14} />, section: 'Extras' },
-    { id: 'archiv', label: 'Archiv', icon: <Archive size={14} />, section: 'Extras' },
+    { id: 'statistik', label: 'Statistik & Profile', icon: <LineChart size={14} />, section: 'Entwicklung & Berichte' },
+    { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={14} />, section: 'Entwicklung & Berichte' },
+    { id: 'klassengemeinschaft', label: 'Wir-Gefühl', icon: <Heart size={14} />, section: 'Entwicklung & Berichte' },
+    { id: 'jahresbericht', label: 'Jahresbericht', icon: <FileText size={14} />, section: 'Entwicklung & Berichte' },
+    { id: 'archiv', label: 'Archiv', icon: <Archive size={14} />, section: 'Entwicklung & Berichte' },
   ];
 
   const rawNavItems = [
     { section: 'Unterricht', items: [
-      { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-      { id: 'cockpit', label: 'LEHRERCOCKPIT', icon: <Play size={18} />, highlight: true },
-      { id: 'ki-helfer', label: 'KI Helfer', icon: <Bot size={18} />, highlight: true },
+      { id: 'dashboard', label: 'Übersicht', icon: <LayoutDashboard size={18} /> },
+      { id: 'cockpit', label: 'Lehrercockpit', icon: <Play size={18} />, highlight: true },
+      { id: 'ki-helfer', label: 'KI-Assistent', icon: <Bot size={18} />, highlight: true },
     ]},
-    { section: 'Werkzeuge', items: [
+    { section: 'Klasse & Kinder', items: [
       { id: 'schueler', label: 'Schüler', icon: <Users size={18} /> },
       { id: 'sitzplan', label: 'Sitzplan', icon: <MapIcon size={18} /> },
       { id: 'anwesenheit', label: 'Anwesenheit', icon: <Pin size={18} /> },
@@ -73,13 +73,13 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
       app.klassenvorstand && { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={18} /> },
     ].filter(Boolean) as any },
     { section: 'Planung', items: [
-      { id: 'planungszentrale', label: 'Planungs-Zentrale', icon: <Target size={18} /> },
+      { id: 'planungszentrale', label: 'Planungsübersicht', icon: <Target size={18} /> },
       { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={18} /> },
       { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={18} /> },
       { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={18} /> },
       app.klassenvorstand && { id: 'uebergabemappe', label: 'Übergabemappe', icon: <ClipboardList size={18} /> },
     ].filter(Boolean) as any },
-    { section: 'Extras', items: [
+    { section: 'Entwicklung & Berichte', items: [
       { id: 'statistik', label: 'Statistik & Profile', icon: (
         <div className="relative w-5 h-5">
           <LineChart size={14} className="absolute left-0 top-0" />
