@@ -4,6 +4,10 @@ import http from 'http';
 
 test('E3: Produktionshärtung von server.ts', async (t) => {
   process.env.IS_TEST_RUNNER = "true";
+  process.env.SESSION_SECRET = 'test-only-session-secret-at-least-32-characters';
+  process.env.LEHRERAPP_ACCESS_TEAM = 'test-only-team-access';
+  process.env.LEHRERAPP_ACCESS_EXTERNAL = 'test-only-external-access';
+  process.env.MICROSOFT_CLIENT_ID = 'test-client';
   const { createApp } = await import('../../server.ts');
 
   // App im Testmodus initialisieren
@@ -16,6 +20,46 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
 
   const address = server.address() as any;
   const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => server.close());
+  const login = await fetch(`${baseUrl}/api/access/verify`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: process.env.LEHRERAPP_ACCESS_TEAM }),
+  });
+  const cookie = login.headers.get('set-cookie')!.split(';')[0];
+  const authenticatedFetch = (url: string, init: RequestInit = {}) => fetch(url, {
+    ...init, headers: { ...Object.fromEntries(new Headers(init.headers)), Cookie: cookie },
+  });
+
+  await t.test('AI, OneDrive und Sync-Erstellung lehnen fehlende oder manipulierte Anmeldung ab', async () => {
+    for (const [route, method] of [['/api/ai/status', 'GET'], ['/api/ai', 'POST'], ['/api/onedrive/auth-url', 'GET'], ['/api/sync/create', 'POST'], ['/api/sync/ABCDEF', 'DELETE']]) {
+      for (const headers of [{}, { Cookie: 'lehrerapp_access_token=forged' }, { Cookie: 'lehrerapp_access_token=%ZZ' }]) {
+        const response = await fetch(baseUrl + route, { method, headers });
+        assert.equal(response.status, 401);
+      }
+    }
+  });
+
+  await t.test('OAuth requires matching state and escapes HTML and script contexts', async () => {
+    const noState = await fetch(`${baseUrl}/api/onedrive/callback?error_description=bad`);
+    assert.equal(noState.status, 400);
+    const auth = await authenticatedFetch(`${baseUrl}/api/onedrive/auth-url`);
+    const { url } = await auth.json();
+    const state = new URL(url).searchParams.get('state')!;
+    const stateCookie = auth.headers.get('set-cookie')!.split(';')[0];
+    const attack = '</script><script>alert(1)</script><b>AUDIT</b>';
+    const query = new URLSearchParams({ state, error: 'denied', error_description: attack });
+    const wrongCookie = await fetch(`${baseUrl}/api/onedrive/callback?${query}`);
+    assert.equal(wrongCookie.status, 400);
+    const response = await fetch(`${baseUrl}/api/onedrive/callback?${query}`, { headers: { Cookie: stateCookie } });
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.ok(!html.includes(attack));
+    assert.ok(html.includes('&lt;script&gt;'));
+    assert.ok(html.includes('\\u003c/script\\u003e'));
+    assert.ok(!html.includes("}, '*')"));
+    assert.ok(response.headers.get('set-cookie')?.includes('Expires='));
+  });
+
 
   await t.test('GET /api/health liefert 200 OK und Status ok', async () => {
     const res = await fetch(`${baseUrl}/api/health`);
@@ -44,7 +88,7 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
   });
 
   await t.test('GET /api/ai/status leakt keine Secrets', async () => {
-    const res = await fetch(`${baseUrl}/api/ai/status`);
+    const res = await authenticatedFetch(`${baseUrl}/api/ai/status`);
     assert.equal(res.status, 200);
     const data = await res.json();
     assert.equal(typeof data.available, "boolean");
@@ -52,7 +96,7 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
   });
 
   await t.test('POST /api/ai validiert Whitelist für Aktionen', async () => {
-    const res = await fetch(`${baseUrl}/api/ai`, {
+    const res = await authenticatedFetch(`${baseUrl}/api/ai`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "unauthorizedEvilAction", params: {} })
@@ -61,7 +105,7 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
   });
 
   await t.test('POST /api/sync/create erzwingt AES-GCM und weist Klartext ab', async () => {
-    const legacyRes = await fetch(`${baseUrl}/api/sync/create`, {
+    const legacyRes = await authenticatedFetch(`${baseUrl}/api/sync/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ state: { students: [] } })
@@ -80,7 +124,7 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
         }
       }
     };
-    const validRes = await fetch(`${baseUrl}/api/sync/create`, {
+    const validRes = await authenticatedFetch(`${baseUrl}/api/sync/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(validPayload)
@@ -90,7 +134,7 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
     assert.ok(/^[A-HJ-NP-Z2-9]{6}$/.test(data.code));
 
     // Cleanup session
-    const delRes = await fetch(`${baseUrl}/api/sync/${data.code}`, { method: "DELETE" });
+    const delRes = await authenticatedFetch(`${baseUrl}/api/sync/${data.code}`, { method: "DELETE" });
     assert.equal(delRes.status, 200);
   });
 
@@ -127,6 +171,25 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
   });
 
   server.close();
+
+  await t.test('Production refuses missing secrets and default access codes', async () => {
+    const originalEnv = process.env.NODE_ENV;
+    const originalSecret = process.env.SESSION_SECRET;
+    const originalTeam = process.env.LEHRERAPP_ACCESS_TEAM;
+    process.env.NODE_ENV = 'production';
+    try {
+      delete process.env.SESSION_SECRET;
+      await assert.rejects(createApp({ isTest: true }), /SESSION_SECRET/);
+      process.env.SESSION_SECRET = originalSecret;
+      process.env.LEHRERAPP_ACCESS_TEAM = 'team2026';
+      await assert.rejects(createApp({ isTest: true }), /Standardcodes/);
+    } finally {
+      if (originalEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = originalEnv;
+      process.env.SESSION_SECRET = originalSecret;
+      process.env.LEHRERAPP_ACCESS_TEAM = originalTeam;
+    }
+  });
 
   await t.test('HSTS Header ist in Produktion aktiv', async () => {
     const origEnv = process.env.NODE_ENV;

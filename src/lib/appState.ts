@@ -1,0 +1,550 @@
+import type { AppState } from '../types';
+import { DEFAULT_TAGEPLAN, FAECHER_ALLE, STUNDEN_INFO, DEFAULT_YEARLY_SUBJECTS, DEFAULT_FACH_COLORS } from '../constants';
+import { getCurrentSchuljahr, getKW } from './utils';
+import { DEFAULT_HISTORICAL_STUDENTS } from '../data/historicalStudents';
+import { DEFAULT_MORNING_WIDGETS } from '../data/morningWidgets';
+
+export const initialAppState: AppState = {
+  ipsativeGewichtung: 70,
+  bundesland: 'VBG',
+  schuljahr: getCurrentSchuljahr(),
+  activeClassId: '',
+  classes: [],
+  stufe: 4,
+  lehrplanText: '',
+  tageplan: DEFAULT_TAGEPLAN,
+  letzteKW: null,
+  vorname: '',
+  nachname: '',
+  anrede: '',
+  klassenbezeichnung: '',
+  klassenvorstand: true,
+  motto: 'Lernen mit Freude ✨',
+  theme: 'classic_light',
+  faecher: FAECHER_ALLE,
+  morningWidgets: DEFAULT_MORNING_WIDGETS,
+  stammplan: {},
+  sitzplan_schueler: {},
+  sitzplan_objekte: [],
+  orga_listen: [],
+  customLists: [],
+  checklisten: [],
+  sue_kontrolle: {},
+  gruppen: [],
+  schueler: [],
+  noten: {},
+  mitarbeit: {},
+  karten: {},
+  stimmungsArchiv: [],
+  stimmNotizen: [],
+  jahresberichte: {},
+  wochenrueckblick: null,
+  lernzielTracker: {},
+  ikmRecords: [],
+  diagnosticResults: [],
+  klassenglas_completed_missions: [],
+  dienste: [],
+  backupEinstellungen: { letztesBackup: null, erinnerungAktiv: true },
+  pseudonymisierungAktiv: true,
+  stundenZeiten: STUNDEN_INFO,
+  jahresplanung: {},
+  jahresplan_faecher: DEFAULT_YEARLY_SUBJECTS,
+  fachConfig: DEFAULT_FACH_COLORS,
+  wochenplanung: {},
+  firstLogin: true,
+  tourAbgeschlossen: false,
+  currentPage: 'cockpit',
+  previousPage: 'wochenplanung',
+  currentKW: getKW(new Date()),
+  notenMeta: {},
+  notenGewichtung: {},
+  stundenentwuerfe: [],
+  interaktionsLog: { eintraege: [], wochenEmpfehlung: null },
+  elterngespraeche: [],
+  notizen: [],
+  observations: [],
+  journal: [],
+  anwesenheit: {},
+  anwesenheitDetail: {},
+  schuelerStimmung: {},
+  hueBuch: {},
+  awGruende: {},
+  verbal: {},
+  saAssessments: {},
+  klassenglas_count: 0,
+  klassenglas_ziel: 20,
+  klassenglas_belohnung: 'Gemeinsame Spielzeit',
+  ampel_status: 'gruen',
+  lehrerProfil: {
+    schulstundenJaehrlich: 120,
+    schularbeitenManuell: 4,
+    testsManuell: 8,
+    ausfluegeManuell: 3,
+    name: "Maximilian Musterlehrer",
+    schule: "Volksschule Musterstadt",
+    motto: "Pädagogik mit Herz ❤️",
+    gegruendetYear: "2018"
+  },
+  unterrichtsmodus_sidebar_open: false,
+  historicalStudents: DEFAULT_HISTORICAL_STUDENTS,
+  klassenkasse: {
+    kontostand: 0,
+    sammlungen: [],
+    transaktionen: []
+  },
+  statusLog: [],
+  settings: {
+    theme: 'light',
+    fontFamily: 'standard',
+    verhaltenSymbol: 'diamond',
+    showVerhaltenOnBoard: true,
+    uiScale: 1
+  },
+  verhalten: {},
+  behavior_stages: [
+    { id: '1', label: 'Super', color: 'bg-emerald-500', icon: '🌟' },
+    { id: '2', label: 'Gut', color: 'bg-blue-500', icon: '❤️' },
+    { id: '3', label: 'OK', color: 'bg-slate-400', icon: '😐' },
+    { id: '4', label: 'Achtung', color: 'bg-amber-500', icon: '⚠️' },
+    { id: '5', label: 'Stopp', color: 'bg-rose-500', icon: '🚫' }
+  ],
+  behavior_default_stage_id: '3',
+  behavior_status: {},
+  behavior_notes: {},
+  behavior_class_note: '',
+  behavior_rules: '',
+  quickLinks: [
+    { id: '1', label: 'YouTube', url: 'https://youtube.com', icon: 'youtube', color: 'rose' },
+    { id: '2', label: 'Kahoot', url: 'https://kahoot.it', icon: 'gamepad', color: 'emerald' },
+    { id: '3', label: 'Gemini', url: 'https://gemini.google.com', icon: 'zap', color: 'indigo' },
+    { id: '4', label: 'Antolin', url: 'https://antolin.westermann.de/', icon: 'link', color: 'sky' },
+    { id: '5', label: 'Anton.app', url: 'https://anton.app/', icon: 'link', color: 'indigo' }
+  ],
+  schuelerNotizen: {},
+  morgenAufgaben: [],
+  tempQrValue: 'https://google.at',
+  cockpitTheme: 'dark',
+  sidebarState: 'full',
+  ampelLabels: { red: 'Stopp', yellow: 'Vorbereiten', green: 'Arbeiten' },
+  notenLabels: {
+    sa: 'Schularbeiten',
+    lzk: 'Lernzielkontrollen',
+    wp: 'Wochenplan',
+    obj: 'Aufgaben/Objekte',
+    mi: 'Mitarbeit'
+  },
+  lessonFocus: '',
+  lessonMaterials: [],
+  boardSettings: {
+    showAmpel: true,
+    showKlassenglas: true,
+    showTimer: true,
+    showLottowinner: true,
+    showArbeitsauftrag: true,
+    timerRunning: false,
+    timerEnd: 0,
+    boardFontFamily: 'sans',
+    boardFontSize: 64,
+    boardTextAlign: 'left',
+    boardTextColor: 'text-white/90',
+    timerType: 'digital',
+    studentNameStyle: 'vorname_nachname',
+    showStudentEmojiInList: true,
+    isTafelOpen: false
+  },
+  tafelVorlagen: [],
+  metaKognitionsProtokolle: [],
+  sitzplanRegeln: [],
+  lernwoerter: { aktuelleListe: [], kw: 0, archiv: [] },
+  schuelerWochenplaene: {}
+};
+
+export function syncActiveClass(state: AppState): AppState {
+  if (!state.activeClassId || !state.classes || !Array.isArray(state.classes)) {
+    return state;
+  }
+  const activeIdx = state.classes.findIndex(c => c.id === state.activeClassId);
+  if (activeIdx === -1) {
+    return state;
+  }
+
+  const currentClass = state.classes[activeIdx];
+
+  const updatedClass = {
+    ...currentClass,
+    name: state.klassenbezeichnung,
+    stufe: state.stufe,
+    klassenvorstand: state.klassenvorstand,
+    schuljahr: state.schuljahr,
+    schueler: state.schueler ? JSON.parse(JSON.stringify(state.schueler)) : [],
+    noten: state.noten ? JSON.parse(JSON.stringify(state.noten)) : {},
+    mitarbeit: state.mitarbeit ? JSON.parse(JSON.stringify(state.mitarbeit)) : {},
+    verhalten: state.verhalten ? { ...state.verhalten } : {},
+    karten: state.karten ? JSON.parse(JSON.stringify(state.karten)) : {},
+    jahresplanung: state.jahresplanung ? JSON.parse(JSON.stringify(state.jahresplanung)) : {},
+    jahresplan_faecher: state.jahresplan_faecher ? [...state.jahresplan_faecher] : undefined,
+    wochenplanung: state.wochenplanung ? JSON.parse(JSON.stringify(state.wochenplanung)) : {},
+    scheduleAnalysis: state.scheduleAnalysis ? JSON.parse(JSON.stringify(state.scheduleAnalysis)) : undefined,
+    stammplan: state.stammplan ? JSON.parse(JSON.stringify(state.stammplan)) : {},
+    anwesenheit: state.anwesenheit ? JSON.parse(JSON.stringify(state.anwesenheit)) : {},
+    anwesenheitDetail: state.anwesenheitDetail ? JSON.parse(JSON.stringify(state.anwesenheitDetail)) : undefined,
+    schuelerStimmung: state.schuelerStimmung ? JSON.parse(JSON.stringify(state.schuelerStimmung)) : {},
+    dienste: state.dienste ? JSON.parse(JSON.stringify(state.dienste)) : undefined,
+    saAssessments: state.saAssessments ? JSON.parse(JSON.stringify(state.saAssessments)) : {},
+    klassenglas_count: state.klassenglas_count,
+    klassenglas_ziel: state.klassenglas_ziel,
+    klassenglas_belohnung: state.klassenglas_belohnung,
+    klassenglas_missions: state.klassenglas_missions,
+    klassenglas_completed_missions: state.klassenglas_completed_missions,
+    klassenkasse: state.klassenkasse ? JSON.parse(JSON.stringify(state.klassenkasse)) : undefined,
+    checklisten: state.checklisten ? JSON.parse(JSON.stringify(state.checklisten)) : [],
+    customLists: state.customLists ? JSON.parse(JSON.stringify(state.customLists)) : [],
+    behavior_status: state.behavior_status ? { ...state.behavior_status } : {},
+    behavior_notes: state.behavior_notes ? { ...state.behavior_notes } : {},
+    stundenZeiten: state.stundenZeiten ? { ...state.stundenZeiten } : {},
+    sue_kontrolle: state.sue_kontrolle ? JSON.parse(JSON.stringify(state.sue_kontrolle)) : {},
+    lastGroups: state.lastGroups,
+    sitzplan_schueler: state.sitzplan_schueler ? JSON.parse(JSON.stringify(state.sitzplan_schueler)) : {},
+    sitzplan_objekte: state.sitzplan_objekte ? JSON.parse(JSON.stringify(state.sitzplan_objekte)) : [],
+    tageplan: state.tageplan ? JSON.parse(JSON.stringify(state.tageplan)) : undefined,
+    faecher: state.faecher ? [...state.faecher] : undefined,
+    fachConfig: state.fachConfig ? JSON.parse(JSON.stringify(state.fachConfig)) : undefined,
+    theme: state.theme,
+    customBgColor: state.customBgColor,
+    customAccentColor: state.customAccentColor,
+    customTextColor: state.customTextColor,
+    customText2Color: state.customText2Color,
+    settings: state.settings ? JSON.parse(JSON.stringify(state.settings)) : undefined
+  };
+
+  const classes = [...state.classes];
+  classes[activeIdx] = updatedClass;
+
+  return {
+    ...state,
+    classes
+  };
+}
+
+// Normalisiert und migriert beliebige eingelesene Zustände auf das aktuelle AppState-Schema
+export function normalizeAppState(raw: any): AppState {
+  if (!raw || typeof raw !== 'object') {
+    return initialAppState;
+  }
+
+  const parsed = {
+    ...initialAppState,
+    ...raw,
+    interaktionsLog: raw.interaktionsLog ?? { eintraege: [], wochenEmpfehlung: null },
+    ipsativeGewichtung: raw.ipsativeGewichtung ?? 70,
+    tourAbgeschlossen: raw.tourAbgeschlossen ?? (raw.schueler?.length > 0 || raw.klassen?.length > 0 || raw.classes?.length > 0 ? true : false),
+    stimmNotizen: raw.stimmNotizen ?? [],
+    jahresberichte: raw.jahresberichte ?? {},
+    wochenrueckblick: raw.wochenrueckblick ?? null,
+    lernzielTracker: raw.lernzielTracker ?? {},
+    differenzierungsGruppen: raw.differenzierungsGruppen ?? [],
+    ikmRecords: raw.ikmRecords ?? [],
+    klassenglas_completed_missions: raw.klassenglas_completed_missions ?? [],
+    dienste: raw.dienste ?? [],
+    backupEinstellungen: raw.backupEinstellungen ?? { letztesBackup: null, erinnerungAktiv: true },
+  };
+
+  // Migration: Multi-Class Support
+  if (!parsed.classes || !Array.isArray(parsed.classes) || parsed.classes.length === 0) {
+    const defaultClassId = 'default-' + Math.random().toString(36).substring(2, 9);
+    const defaultClass: any = {
+      id: defaultClassId,
+      name: parsed.klassenbezeichnung || 'Meine Klasse',
+      stufe: parsed.stufe !== undefined ? Number(parsed.stufe) : 4,
+      klassenvorstand: parsed.klassenvorstand !== undefined ? parsed.klassenvorstand : true,
+      schueler: parsed.schueler || [],
+      noten: parsed.noten || {},
+      mitarbeit: parsed.mitarbeit || {},
+      verhalten: parsed.verhalten || {},
+      karten: parsed.karten || {},
+      jahresplanung: parsed.jahresplanung || {},
+      jahresplan_faecher: parsed.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
+      wochenplanung: parsed.wochenplanung || {},
+      stammplan: parsed.stammplan || {},
+      anwesenheit: parsed.anwesenheit || {},
+      anwesenheitDetail: parsed.anwesenheitDetail || {},
+      schuelerStimmung: parsed.schuelerStimmung || {},
+      dienste: parsed.dienste || [],
+      saAssessments: parsed.saAssessments || {},
+      klassenglas_count: parsed.klassenglas_count || 0,
+      klassenglas_ziel: parsed.klassenglas_ziel || 20,
+      klassenglas_belohnung: parsed.klassenglas_belohnung || 'Gemeinsame Spielzeit',
+      klassenkasse: parsed.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
+      behavior_status: parsed.behavior_status || {},
+      behavior_notes: parsed.behavior_notes || {},
+      sue_kontrolle: parsed.sue_kontrolle || {},
+      sitzplan_schueler: parsed.sitzplan_schueler || {},
+      sitzplan_objekte: parsed.sitzplan_objekte || [],
+      tageplan: parsed.tageplan || DEFAULT_TAGEPLAN,
+      faecher: parsed.faecher || FAECHER_ALLE,
+      fachConfig: parsed.fachConfig || DEFAULT_FACH_COLORS
+    };
+    parsed.classes = [defaultClass];
+    parsed.activeClassId = defaultClassId;
+    parsed.classes = syncActiveClass(parsed).classes;
+  }
+
+  // Klassen-Sanitization
+  if (parsed.classes && Array.isArray(parsed.classes)) {
+    parsed.classes = parsed.classes.map((c: any) => {
+      if (!c || typeof c !== 'object') return null;
+      return {
+        ...c,
+        id: c.id || 'class-' + Math.random().toString(36).substring(2, 9),
+        name: c.name || 'Meine Klasse',
+        stufe: c.stufe !== undefined ? Number(c.stufe) : 4,
+        klassenvorstand: c.klassenvorstand !== undefined ? c.klassenvorstand : true,
+        schueler: c.schueler || [],
+        noten: c.noten || {},
+        mitarbeit: c.mitarbeit || {},
+        verhalten: c.verhalten || {},
+        karten: c.karten || {},
+        jahresplanung: c.jahresplanung || {},
+        jahresplan_faecher: c.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
+        wochenplanung: c.wochenplanung || {},
+        stammplan: c.stammplan || {},
+        anwesenheit: c.anwesenheit || {},
+        anwesenheitDetail: c.anwesenheitDetail || {},
+        schuelerStimmung: c.schuelerStimmung || {},
+        dienste: c.dienste || [],
+        checklisten: c.checklisten || [],
+        customLists: c.customLists || [],
+        saAssessments: c.saAssessments ?? (c.id === parsed.activeClassId ? parsed.saAssessments : undefined) ?? {},
+        klassenglas_count: c.klassenglas_count !== undefined ? Number(c.klassenglas_count) : 0,
+        klassenglas_ziel: c.klassenglas_ziel !== undefined ? Number(c.klassenglas_ziel) : 20,
+        klassenglas_belohnung: c.klassenglas_belohnung || 'Gemeinsame Spielzeit',
+        klassenkasse: c.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
+        behavior_status: c.behavior_status || {},
+        behavior_notes: c.behavior_notes || {},
+        sue_kontrolle: c.sue_kontrolle || {},
+        sitzplan_schueler: c.sitzplan_schueler || {},
+        sitzplan_objekte: c.sitzplan_objekte || [],
+        tageplan: c.tageplan || DEFAULT_TAGEPLAN,
+        faecher: c.faecher || FAECHER_ALLE,
+        fachConfig: c.fachConfig || DEFAULT_FACH_COLORS,
+        theme: c.theme || 'classic_light',
+        schuljahr: c.schuljahr || parsed.schuljahr || getCurrentSchuljahr(),
+        settings: c.settings || {}
+      };
+    }).filter(Boolean);
+  }
+
+  // Active Class Sync
+  let activeClass = parsed.classes?.find((c: any) => c.id === parsed.activeClassId);
+  if (!activeClass && parsed.classes && parsed.classes.length > 0) {
+    activeClass = parsed.classes[0];
+    parsed.activeClassId = activeClass.id;
+  }
+
+  if (activeClass) {
+    parsed.klassenbezeichnung = activeClass.name;
+    parsed.stufe = activeClass.stufe;
+    parsed.klassenvorstand = activeClass.klassenvorstand;
+    parsed.schueler = activeClass.schueler;
+    parsed.noten = activeClass.noten;
+    parsed.mitarbeit = activeClass.mitarbeit;
+    parsed.verhalten = activeClass.verhalten;
+    parsed.karten = activeClass.karten;
+    parsed.jahresplanung = activeClass.jahresplanung;
+    parsed.jahresplan_faecher = activeClass.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS;
+    parsed.wochenplanung = activeClass.wochenplanung;
+    parsed.stammplan = activeClass.stammplan;
+    parsed.anwesenheit = activeClass.anwesenheit;
+    parsed.anwesenheitDetail = activeClass.anwesenheitDetail;
+    parsed.schuelerStimmung = activeClass.schuelerStimmung || {};
+    parsed.dienste = activeClass.dienste;
+    parsed.checklisten = activeClass.checklisten || [];
+    parsed.customLists = activeClass.customLists || [];
+    parsed.saAssessments = activeClass.saAssessments;
+    parsed.klassenglas_count = activeClass.klassenglas_count;
+    parsed.klassenglas_ziel = activeClass.klassenglas_ziel;
+    parsed.klassenglas_belohnung = activeClass.klassenglas_belohnung;
+    parsed.klassenkasse = activeClass.klassenkasse;
+    parsed.behavior_status = activeClass.behavior_status;
+    parsed.behavior_notes = activeClass.behavior_notes;
+    parsed.sue_kontrolle = activeClass.sue_kontrolle;
+    parsed.sitzplan_schueler = activeClass.sitzplan_schueler;
+    parsed.sitzplan_objekte = activeClass.sitzplan_objekte;
+    parsed.tageplan = activeClass.tageplan;
+    parsed.faecher = activeClass.faecher;
+    parsed.fachConfig = activeClass.fachConfig;
+    parsed.stundenZeiten = activeClass.stundenZeiten ?? parsed.stundenZeiten ?? STUNDEN_INFO;
+    parsed.scheduleAnalysis = activeClass.scheduleAnalysis ?? parsed.scheduleAnalysis ?? undefined;
+    parsed.lastGroups = activeClass.lastGroups ?? parsed.lastGroups ?? undefined;
+    parsed.klassenglas_missions = activeClass.klassenglas_missions ?? parsed.klassenglas_missions ?? [];
+    parsed.klassenglas_completed_missions = activeClass.klassenglas_completed_missions ?? parsed.klassenglas_completed_missions ?? [];
+    parsed.customBgColor = activeClass.customBgColor ?? parsed.customBgColor ?? undefined;
+    parsed.customAccentColor = activeClass.customAccentColor ?? parsed.customAccentColor ?? undefined;
+    parsed.customTextColor = activeClass.customTextColor ?? parsed.customTextColor ?? undefined;
+    parsed.customText2Color = activeClass.customText2Color ?? parsed.customText2Color ?? undefined;
+    parsed.theme = activeClass.theme;
+    parsed.schuljahr = activeClass.schuljahr || parsed.schuljahr || getCurrentSchuljahr();
+  }
+
+  parsed.schuelerWochenplaene = parsed.schuelerWochenplaene || {};
+  parsed.morningWidgets = parsed.morningWidgets || DEFAULT_MORNING_WIDGETS;
+  parsed.lehrerProfil = parsed.lehrerProfil || {
+    schulstundenJaehrlich: 120,
+    schularbeitenManuell: 4,
+    testsManuell: 8,
+    ausfluegeManuell: 3,
+    name: parsed.anrede && parsed.nachname ? `${parsed.anrede} ${parsed.nachname}` : "Maximilian Musterlehrer",
+    schule: parsed.schulName || "Volksschule Musterstadt",
+    motto: parsed.motto || "Pädagogik mit Herz ❤️",
+    gegruendetYear: "2018"
+  };
+
+  const iconMap: Record<string, string> = {
+    'star': '🌟',
+    'heart': '❤️',
+    'love': '❤️',
+    'smile': '😊',
+    'minus': '😐',
+    'alert-triangle': '⚠️',
+    'x-circle': '🚫'
+  };
+
+  if (parsed.behavior_stages && Array.isArray(parsed.behavior_stages)) {
+    parsed.behavior_stages = parsed.behavior_stages.map((stage: any) => ({
+      ...stage,
+      icon: (stage.icon && iconMap[stage.icon.toLowerCase()]) ? iconMap[stage.icon.toLowerCase()] : stage.icon
+    }));
+  }
+
+  if (!parsed.notes) {
+    const migratedNotes: any[] = [];
+    if (parsed.notizen && Array.isArray(parsed.notizen)) {
+      parsed.notizen.forEach((n: any) => {
+        migratedNotes.push({
+          id: n.id,
+          datum: new Date(n.timestamp || Date.now()).toISOString(),
+          kategorie: n.schuelerId ? 'Verhalten' : 'Journal',
+          inhalt: n.inhalt || '',
+          schuelerId: n.schuelerId,
+          icon: n.icon || '📝'
+        });
+      });
+    }
+    if (parsed.observations && Array.isArray(parsed.observations)) {
+      parsed.observations.forEach((o: any) => {
+        const catMap: Record<string, string> = {
+          'behavior': 'Verhalten',
+          'academic': 'allgemein',
+          'social': 'allgemein',
+          'incident': 'Verhalten',
+          'praise': 'Erfolg',
+          'reflexion': 'reflexion'
+        };
+        migratedNotes.push({
+          id: o.id,
+          datum: o.date || new Date().toISOString(),
+          kategorie: catMap[o.category] || 'Journal',
+          inhalt: o.text || '',
+          schuelerId: o.studentId,
+          quelle: o.source
+        });
+      });
+    }
+    if (parsed.journal && Array.isArray(parsed.journal)) {
+      parsed.journal.forEach((j: any) => {
+        if (!migratedNotes.find(m => m.id === j.id)) {
+          migratedNotes.push(j);
+        }
+      });
+    }
+    parsed.notes = migratedNotes.sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime());
+  }
+
+  const schuelerExist = parsed.schueler && parsed.schueler.length > 0;
+  const computedTourAbgeschlossen = schuelerExist ? true : (parsed.tourAbgeschlossen ?? false);
+
+  return {
+    ...initialAppState,
+    ...parsed,
+    bundesland: parsed.bundesland || 'VBG',
+    tourAbgeschlossen: computedTourAbgeschlossen,
+    historicalStudents: parsed.historicalStudents || DEFAULT_HISTORICAL_STUDENTS,
+    notes: parsed.notes || [],
+    settings: { ...initialAppState.settings, ...(parsed.settings || {}) },
+    boardSettings: {
+      ...initialAppState.boardSettings,
+      ...(parsed.boardSettings || {}),
+      isTafelOpen: false // Digitale Tafel darf niemals automatisch beim App-Start oder Laden geöffnet sein
+    },
+    klassenkasse: { ...initialAppState.klassenkasse, ...(parsed.klassenkasse || {}) },
+    ampelLabels: { ...initialAppState.ampelLabels, ...(parsed.ampelLabels || {}) },
+    jahresplan_faecher: parsed.jahresplan_faecher || initialAppState.jahresplan_faecher,
+    sitzplanRegeln: parsed.sitzplanRegeln || [],
+    metaKognitionsProtokolle: parsed.metaKognitionsProtokolle || [],
+    diagnosticResults: parsed.diagnosticResults || [],
+    lernwoerter: parsed.lernwoerter || { aktuelleListe: [], kw: 0, archiv: [] }
+  };
+}
+
+
+export function switchClassState(prev: AppState, id: string): AppState {
+  const { classes } = syncActiveClass(prev);
+
+  // 2. Find target class
+  const targetClass = classes.find(c => c.id === id);
+  if (!targetClass) return prev;
+
+  // 3. Set target class data to root level
+  const currentLoc = prev.currentPage || 'cockpit';
+  const forceCockpit = !targetClass.klassenvorstand && ['orga', 'uebergabemappe', 'diagnostik', 'kel'].includes(currentLoc);
+
+  return {
+    ...prev,
+    currentPage: forceCockpit ? 'cockpit' : currentLoc,
+    activeClassId: id,
+    classes,
+    klassenbezeichnung: targetClass.name,
+    stufe: targetClass.stufe,
+    klassenvorstand: targetClass.klassenvorstand,
+    schuljahr: targetClass.schuljahr || prev.schuljahr || '2024/25',
+    schueler: targetClass.schueler ? JSON.parse(JSON.stringify(targetClass.schueler)) : [],
+    saAssessments: targetClass.saAssessments || {},
+    scheduleAnalysis: targetClass.scheduleAnalysis,
+    noten: targetClass.noten,
+    mitarbeit: targetClass.mitarbeit,
+    verhalten: targetClass.verhalten,
+    karten: targetClass.karten,
+    jahresplanung: targetClass.jahresplanung,
+    jahresplan_faecher: targetClass.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
+    wochenplanung: targetClass.wochenplanung ? JSON.parse(JSON.stringify(targetClass.wochenplanung)) : {},
+    stammplan: targetClass.stammplan ? JSON.parse(JSON.stringify(targetClass.stammplan)) : {},
+    anwesenheit: targetClass.anwesenheit,
+    anwesenheitDetail: targetClass.anwesenheitDetail,
+    schuelerStimmung: targetClass.schuelerStimmung || {},
+    dienste: targetClass.dienste || [],
+    checklisten: targetClass.checklisten || [],
+    customLists: targetClass.customLists || [],
+    klassenglas_missions: targetClass.klassenglas_missions || [],
+    klassenglas_completed_missions: targetClass.klassenglas_completed_missions || [],
+    klassenglas_count: targetClass.klassenglas_count,
+    klassenglas_ziel: targetClass.klassenglas_ziel,
+    klassenglas_belohnung: targetClass.klassenglas_belohnung || 'Gemeinsame Spielzeit',
+    klassenkasse: targetClass.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
+    behavior_status: targetClass.behavior_status || {},
+    behavior_notes: targetClass.behavior_notes || {},
+    sue_kontrolle: targetClass.sue_kontrolle || {},
+    sitzplan_schueler: targetClass.sitzplan_schueler || {},
+    sitzplan_objekte: targetClass.sitzplan_objekte || [],
+    lastGroups: targetClass.lastGroups,
+    stundenZeiten: targetClass.stundenZeiten || STUNDEN_INFO,
+    tageplan: targetClass.tageplan || prev.tageplan || DEFAULT_TAGEPLAN,
+    faecher: targetClass.faecher || prev.faecher || FAECHER_ALLE,
+    fachConfig: targetClass.fachConfig || prev.fachConfig || DEFAULT_FACH_COLORS,
+    theme: targetClass.theme || prev.theme,
+    customBgColor: targetClass.customBgColor || prev.customBgColor,
+    customAccentColor: targetClass.customAccentColor || prev.customAccentColor,
+    customTextColor: targetClass.customTextColor || prev.customTextColor,
+    customText2Color: targetClass.customText2Color || prev.customText2Color,
+    settings: targetClass.settings ? JSON.parse(JSON.stringify(targetClass.settings)) : (prev.settings ? JSON.parse(JSON.stringify(prev.settings)) : {})
+  };
+}

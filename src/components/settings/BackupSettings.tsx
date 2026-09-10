@@ -10,14 +10,10 @@ import {
   Check
 } from 'lucide-react';
 import { triggerBackupDownload } from '../../utils/backupUtils';
-import { 
-  isEncryptedBackupV1, 
-  isLegacyPlaintextBackup, 
-  decryptBackup, 
-  recoverBackup,
-  unlockAndDecryptBackup
-} from '../../lib/backupCryptoService';
-import { getActiveVaultKey, setActiveVaultSession } from '../../lib/vaultStorage';
+import { getActiveVaultKey } from '../../lib/vaultStorage';
+import { prepareBackupRestore } from '../../lib/backupRestore';
+import { loadPreImportBackup } from '../../lib/secureStorageService';
+import { useApp } from '../../context/AppContext';
 
 interface BackupSettingsProps {
   app: any;
@@ -39,6 +35,19 @@ export default function BackupSettings({
   triggerInstall
 }: BackupSettingsProps) {
 
+  const { restoreAppData } = useApp();
+
+  const restoreInput = async (input: unknown) => {
+    const key = getActiveVaultKey();
+    if (!key) throw new Error('Bitte zuerst den lokalen Tresor entsperren.');
+    const data = await prepareBackupRestore(input, key, () => prompt(
+      'Bitte gib das Tresor-Passwort oder den Recovery-Code dieses Backups ein. Dein lokales Tresor-Passwort bleibt unverändert.'
+    ));
+    if (!data || !confirm('Diese Sicherung ersetzt den aktuellen Datenbestand. Vorher wird eine verschlüsselte Rücksicherung angelegt. Fortfahren?')) return;
+    await restoreAppData(data);
+    showToast('Sicherung verschlüsselt wiederhergestellt.', 'success');
+  };
+
   const handleExportBackup = async () => {
     try {
       await triggerBackupDownload(app);
@@ -58,68 +67,7 @@ export default function BackupSettings({
           const raw = event.target?.result as string;
           const parsedData = JSON.parse(raw);
 
-          // Fall 1: Verschlüsseltes Backup (LehrerAppEncryptedBackupV1)
-          if (isEncryptedBackupV1(parsedData)) {
-            let decryptedState: any = null;
-            const activeKey = getActiveVaultKey();
-
-            if (activeKey) {
-              try {
-                decryptedState = await decryptBackup(parsedData, activeKey);
-              } catch {
-                decryptedState = null;
-              }
-            }
-
-            // Falls kein aktiver Schlüssel oder Entschlüsselung fehlschlug: Passwort oder Recovery-Code abfragen
-            if (!decryptedState) {
-              const userInput = prompt(
-                'Dieses Backup ist clientseitig verschlüsselt.\n\nBitte gib dein Tresor-Passwort oder deinen 128-Bit Recovery-Code ein, um die Daten wiederherzustellen:'
-              );
-              if (!userInput) {
-                showToast('Wiederherstellung abgebrochen: Kein Schlüssel eingegeben.', 'info');
-                return;
-              }
-
-              try {
-                // Zuerst als Recovery-Code versuchen (falls Format passt)
-                if (userInput.replace(/[-\s]/g, '').length === 32) {
-                  const res = await recoverBackup(parsedData, userInput);
-                  decryptedState = res.appState;
-                  setActiveVaultSession(res.vaultKey, res.vaultRecord);
-                } else {
-                  // Sonst als Passwort versuchen
-                  const res = await unlockAndDecryptBackup(parsedData, userInput);
-                  decryptedState = res.appState;
-                  setActiveVaultSession(res.vaultKey, res.vaultRecord);
-                }
-              } catch {
-                showToast('Wiederherstellung fehlgeschlagen: Ungültiges Passwort oder falscher Recovery-Code.', 'error');
-                return;
-              }
-            }
-
-            if (decryptedState && typeof decryptedState === 'object') {
-              if (confirm('Möchtest du diese verschlüsselte Sicherungsdatei wirklich einlesen? Alle aktuellen Daten werden durch das Backup ersetzt.')) {
-                setApp(decryptedState);
-                showToast('Verschlüsselte Sicherung erfolgreich wiederhergestellt!', 'success');
-              }
-            } else {
-              showToast('Beschädigte Datenstruktur im Backup gefunden.', 'error');
-            }
-            return;
-          }
-
-          // Fall 2: Unverschlüsseltes Alt-Backup (Legacy Plaintext .json)
-          if (isLegacyPlaintextBackup(parsedData)) {
-            if (confirm('Altes unverschlüsseltes Backup erkannt. Möchtest du diese Sicherungsdatei wirklich einlesen? Künftige Sicherungen werden automatisch verschlüsselt.')) {
-              setApp(parsedData);
-              showToast('Legacy-Sicherung erfolgreich eingelesen! Künftige Exporte werden verschlüsselt.', 'success');
-            }
-            return;
-          }
-
-          showToast('Ungültiges oder beschädigtes Dateiformat.', 'error');
+          await restoreInput(parsedData);
         } catch (err: any) {
           showToast(err?.message || 'Fehler beim Einlesen der Datei.', 'error');
         } finally {
@@ -129,20 +77,24 @@ export default function BackupSettings({
     }
   };
 
-  const handleRestoreNotfall = () => {
-    const notfall = localStorage.getItem('hehle_v3_notfallkopie');
-    if (notfall) {
-      if (confirm('Möchtest du die automatische Notfallkopie vom letzten App-Start wiederherstellen?')) {
-        try {
-          const parsed = JSON.parse(notfall);
-          if (parsed) {
-            setApp(parsed);
-            showToast('Notfallkopie wiederhergestellt!', 'success');
-          }
-        } catch (e) {
-          showToast('Fehler beim Einlesen der Notfallkopie.', 'error');
-        }
-      }
+  const handleRestoreNotfall = async () => {
+    try {
+      const raw = localStorage.getItem('hehle_v3_notfallkopie');
+      if (raw) await restoreInput(JSON.parse(raw));
+    } catch (err: any) {
+      showToast(err?.message || 'Notfallkopie konnte nicht gelesen werden.', 'error');
+    }
+  };
+
+  const handleUndoImport = async () => {
+    try {
+      const key = getActiveVaultKey();
+      if (!key) throw new Error('Bitte zuerst den lokalen Tresor entsperren.');
+      const data = await loadPreImportBackup(key);
+      if (!data) { showToast('Keine Sicherung vor einem Import vorhanden.', 'info'); return; }
+      await restoreInput(data);
+    } catch (err: any) {
+      showToast(err?.message || 'Rücksicherung konnte nicht gelesen werden.', 'error');
     }
   };
 
@@ -226,6 +178,10 @@ export default function BackupSettings({
           </div>
         )}
       </div>
+
+      <button onClick={handleUndoImport} className="px-4 py-3 rounded-xl border border-stone-300 text-sm font-bold">
+        Stand vor dem letzten Import wiederherstellen
+      </button>
 
       {/* Backup Reminders */}
       <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-4 shadow-sm">

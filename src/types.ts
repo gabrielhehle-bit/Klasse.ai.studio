@@ -923,6 +923,8 @@ export interface StatusHistory {
 }
 
 export interface ClassRoom {
+  /** Class-local detailed assessments; same shape as the active-class projection. */
+  saAssessments?: AppState['saAssessments'];
   id: string;
   name: string;
   stufe: number;

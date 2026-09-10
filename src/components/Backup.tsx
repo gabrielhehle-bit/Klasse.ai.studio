@@ -1,27 +1,15 @@
+import localforage from 'localforage';
 import React, { useRef, useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Download, Upload, Shield, Database, AlertCircle, CheckCircle2, Monitor, Loader2, Trash2, Clock, FileJson, AlertTriangle, Archive, RotateCcw, Cloud, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { triggerBackupDownload } from '../utils/backupUtils';
-import { 
-  isEncryptedBackupV1, 
-  isLegacyPlaintextBackup, 
-  decryptBackup, 
-  recoverBackup,
-  unlockAndDecryptBackup,
-  createEncryptedBackup
-} from '../lib/backupCryptoService';
-import { 
-  getActiveVaultKey, 
-  getActiveVaultRecord, 
-  loadVaultRecord, 
-  setActiveVaultSession 
-} from '../lib/vaultStorage';
-import LZString from 'lz-string';
-import localforage from 'localforage';
+import { createEncryptedBackup } from '../lib/backupCryptoService';
+import { getActiveVaultKey, getActiveVaultRecord, loadVaultRecord } from '../lib/vaultStorage';
+import { prepareBackupRestore } from '../lib/backupRestore';
 
 export default function Backup() {
-  const { app, setApp } = useApp();
+  const { app, setApp, restoreAppData } = useApp();
 
   const handleArchiveActiveClass = () => {
     if (confirm("Möchten Sie die aktive Klasse wirklich in das Archiv verschieben?")) {
@@ -205,53 +193,12 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
           throw new Error('Ungültiges Format');
         }
         
-        let targetData: any = null;
-
-        // Fall 1: Verschlüsseltes Backup (.lehrerapp)
-        if (isEncryptedBackupV1(importedData)) {
-          let decrypted: any = null;
-          const activeKey = getActiveVaultKey();
-          if (activeKey) {
-            try {
-              decrypted = await decryptBackup(importedData, activeKey);
-            } catch {
-              decrypted = null;
-            }
-          }
-
-          if (!decrypted) {
-            const userInput = prompt(
-              'Dieses Backup ist clientseitig verschlüsselt.\n\nBitte gib dein Tresor-Passwort oder deinen 128-Bit Recovery-Code ein:'
-            );
-            if (!userInput) {
-              setImportStatus('idle');
-              alert('Import abgebrochen: Kein Schlüssel eingegeben.');
-              return;
-            }
-
-            try {
-              if (userInput.replace(/[-\s]/g, '').length === 32) {
-                const res = await recoverBackup(importedData, userInput);
-                decrypted = res.appState;
-                setActiveVaultSession(res.vaultKey, res.vaultRecord);
-              } else {
-                const res = await unlockAndDecryptBackup(importedData, userInput);
-                decrypted = res.appState;
-                setActiveVaultSession(res.vaultKey, res.vaultRecord);
-              }
-            } catch {
-              setImportStatus('idle');
-              alert('Entschlüsselung fehlgeschlagen: Falscher Recovery-Code oder ungültiges Passwort.');
-              return;
-            }
-          }
-          targetData = decrypted;
-        } else if (isLegacyPlaintextBackup(importedData)) {
-          // Fall 2: Unverschlüsseltes Alt-Backup (Legacy)
-          targetData = importedData;
-        } else {
-          throw new Error('Diese Datei ist kein gültiges LehrerAPP-Backup.');
-        }
+        const key = getActiveVaultKey();
+        if (!key) throw new Error('Bitte zuerst den lokalen Tresor entsperren.');
+        const targetData = await prepareBackupRestore(importedData, key, () => prompt(
+          'Bitte gib das Tresor-Passwort oder den Recovery-Code dieses Backups ein. Dein lokales Tresor-Passwort bleibt unverändert.'
+        ));
+        if (!targetData) { setImportStatus('idle'); return; }
 
         const shouldReplace = confirm(
           'Diese Sicherung ersetzt den aktuellen lokalen Datenbestand vollständig. Nicht gesicherte Änderungen gehen verloren. Möchten Sie den Import wirklich fortsetzen?'
@@ -261,26 +208,10 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
           return;
         }
 
-        const dataToImport = JSON.stringify({
-          ...targetData,
-          tourAbgeschlossen: true
-        });
-
-        await localforage.setItem('hehle_v3', dataToImport);
-
-        try {
-          localStorage.setItem('hehle_v3_fallback', dataToImport);
-          localStorage.setItem('hehle_v3_backup', LZString.compressToUTF16(dataToImport));
-        } catch (err) {
-          console.warn('Fallback-Schreiben fehlgeschlagen (Quota)', err);
-        }
-        
-        sessionStorage.removeItem('hehle_v3_temp');
+        await restoreAppData(targetData);
 
         setImportStatus('success');
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        setTimeout(() => setImportStatus('idle'), 1500);
 
       } catch (err: any) {
         console.error('Import error:', err);
@@ -466,6 +397,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
 
       // Listener für PostMessage vom Callback-Endpunkt
       const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin || !popup || event.source !== popup) return;
         if (event.data?.type === 'ONEDRIVE_AUTH_SUCCESS') {
           const tokenData = event.data.tokenData;
           sessionStorage.setItem('onedrive_token', JSON.stringify(tokenData));
@@ -595,63 +527,13 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
         throw new Error('Ungültiges Datenformat von OneDrive empfangen.');
       }
 
-      let targetData: any = null;
-
-      // Fall 1: Verschlüsseltes Backup von OneDrive empfangen
-      if (isEncryptedBackupV1(importedData)) {
-        let decrypted: any = null;
-        const activeKey = getActiveVaultKey();
-        if (activeKey) {
-          try {
-            decrypted = await decryptBackup(importedData, activeKey);
-          } catch {
-            decrypted = null;
-          }
-        }
-
-        if (!decrypted) {
-          const userInput = prompt(
-            'Das OneDrive-Backup ist clientseitig verschlüsselt.\n\nBitte gib dein Tresor-Passwort oder deinen 128-Bit Recovery-Code ein:'
-          );
-          if (!userInput) {
-            setIsSyncing(false);
-            setSyncStatus('idle');
-            return;
-          }
-
-          if (userInput.replace(/[-\s]/g, '').length === 32) {
-            const r = await recoverBackup(importedData, userInput);
-            decrypted = r.appState;
-            setActiveVaultSession(r.vaultKey, r.vaultRecord);
-          } else {
-            const r = await unlockAndDecryptBackup(importedData, userInput);
-            decrypted = r.appState;
-            setActiveVaultSession(r.vaultKey, r.vaultRecord);
-          }
-        }
-        targetData = decrypted;
-      } else if (isLegacyPlaintextBackup(importedData)) {
-        // Fall 2: Altes unverschlüsseltes Cloud-Backup
-        targetData = importedData;
-      } else {
-        throw new Error('Die von OneDrive heruntergeladene Datei ist kein gültiges LehrerAPP-Backup.');
-      }
-
-      const dataToImport = JSON.stringify({
-        ...targetData,
-        tourAbgeschlossen: true
-      });
-
-      await localforage.setItem('hehle_v3', dataToImport);
-
-      try {
-        localStorage.setItem('hehle_v3_fallback', dataToImport);
-        localStorage.setItem('hehle_v3_backup', LZString.compressToUTF16(dataToImport));
-      } catch (e) {
-        console.warn('Fallback-Schreiben fehlgeschlagen (Quota)', e);
-      }
-
-      sessionStorage.removeItem('hehle_v3_temp');
+      const key = getActiveVaultKey();
+      if (!key) throw new Error('Bitte zuerst den lokalen Tresor entsperren.');
+      const targetData = await prepareBackupRestore(importedData, key, () => prompt(
+        'Bitte gib das Tresor-Passwort oder den Recovery-Code dieses Backups ein. Dein lokales Tresor-Passwort bleibt unverändert.'
+      ));
+      if (!targetData) { setSyncStatus('idle'); return; }
+      await restoreAppData(targetData);
 
       setSyncStatus('success');
       
@@ -659,9 +541,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
       localStorage.setItem('lehrkraft_last_backup_time', timeStr);
       setLastBackupStr(timeStr);
 
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      setTimeout(() => setSyncStatus('idle'), 1500);
 
     } catch (err: any) {
       console.error('OneDrive Download-Fehler:', err);

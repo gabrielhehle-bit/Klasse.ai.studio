@@ -1,3 +1,4 @@
+import { escapeHtml, scriptJson, createOAuthState, verifyOAuthState } from './src/lib/oauthSecurity';
 import express from "express";
 import path from "path";
 import crypto from "crypto";
@@ -18,8 +19,13 @@ function validateProductionEnvironment() {
 
   const sessionSecret = process.env.SESSION_SECRET;
   const insecureSecrets = ["lehrerapp_secure_session_secret_2026", "secret", "changeme", "123456", "admin", "password"];
-  if (!sessionSecret || insecureSecrets.includes(sessionSecret.trim().toLowerCase())) {
-    console.warn("[SICHERHEITSWARNUNG] SESSION_SECRET ist nicht gesetzt oder nutzt einen unsicheren Standardwert. In Produktion muss ein starkes Zufalls-Secret gesetzt werden.");
+  if (!sessionSecret || sessionSecret.trim().length < 32 || insecureSecrets.includes(sessionSecret.trim().toLowerCase())) {
+    throw new Error("[SICHERHEITSWARNUNG] SESSION_SECRET ist nicht gesetzt oder nutzt einen unsicheren Standardwert. In Produktion muss ein starkes Zufalls-Secret gesetzt werden.");
+  }
+
+  const codes = [process.env.LEHRERAPP_ACCESS_TEAM, process.env.LEHRERAPP_ACCESS_EXTERNAL].map(code => code?.trim()).filter(Boolean);
+  if (!codes.length || codes.some(code => ['team2026', 'gast2026'].includes(code!))) {
+    throw new Error('In Produktion mindestens einen eigenen LEHRERAPP_ACCESS_TEAM/EXTERNAL Zugangscode konfigurieren; Standardcodes sind nicht erlaubt.');
   }
 
   const appUrl = process.env.APP_URL;
@@ -134,9 +140,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   app.use(express.json({ limit: '1mb' }));
 
   // Access Control Setup
-  const SESSION_SECRET = process.env.SESSION_SECRET || process.env.GEMINI_API_KEY || "lehrerapp_secure_session_secret_2026";
-  const ACCESS_TEAM_CODE = (process.env.LEHRERAPP_ACCESS_TEAM || "team2026").trim();
-  const ACCESS_EXTERNAL_CODE = (process.env.LEHRERAPP_ACCESS_EXTERNAL || "gast2026").trim();
+  const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+  const ACCESS_TEAM_CODE = (process.env.LEHRERAPP_ACCESS_TEAM || (process.env.NODE_ENV === "production" ? "" : "team2026")).trim();
+  const ACCESS_EXTERNAL_CODE = (process.env.LEHRERAPP_ACCESS_EXTERNAL || (process.env.NODE_ENV === "production" ? "" : "gast2026")).trim();
 
   function parseCookies(req: express.Request): Record<string, string> {
     const list: Record<string, string> = {};
@@ -145,8 +151,10 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       rc.split(';').forEach(cookie => {
         const parts = cookie.split('=');
         const key = parts.shift()?.trim();
-        const value = decodeURIComponent(parts.join('='));
-        if (key) list[key] = value;
+        try {
+          const value = decodeURIComponent(parts.join('='));
+          if (key) list[key] = value;
+        } catch { /* Ignore malformed cookies instead of crashing authentication. */ }
       });
     }
     return list;
@@ -252,6 +260,24 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     res.setHeader('Set-Cookie', `lehrerapp_access_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`);
     res.json({ success: true });
   });
+
+  const requireAccess: express.RequestHandler = (req, res, next) => {
+    const token = parseCookies(req).lehrerapp_access_token;
+    if (!verifyAccessToken(token)) {
+      res.status(401).json({ error: 'Bitte zuerst mit dem Zugangscode anmelden.' });
+      return;
+    }
+    next();
+  };
+  app.use('/api/ai', requireAccess);
+  app.use('/api/onedrive', (req, res, next) => {
+    // OAuth returns through a separate, short-lived state cookie.
+    if (req.path === '/callback') return next();
+    requireAccess(req, res, next);
+  });
+  app.post('/api/sync/create', requireAccess);
+  // Existing paired devices still use their encrypted sync protocol for GET/PUT.
+  app.delete('/api/sync/:code', requireAccess);
 
   // Startup diagnostic logging
   const apiKey = process.env.GEMINI_API_KEY;
@@ -1771,20 +1797,33 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
     const appUrl = process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : 'http://localhost:3000';
     const redirectUri = `${appUrl}/api/onedrive/callback`;
+    const oauthState = createOAuthState(SESSION_SECRET);
+    res.cookie('lehrerapp_onedrive_state', oauthState, {
+      httpOnly: true, sameSite: 'lax', secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/api/onedrive/callback', maxAge: 10 * 60 * 1000,
+    });
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: "code",
       redirect_uri: redirectUri,
       response_mode: "query",
       scope: "Files.ReadWrite offline_access",
-      state: "onedrive_sync"
+      state: oauthState
     });
     const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
     res.json({ configured: true, url: authUrl });
   });
 
   app.get("/api/onedrive/callback", async (req, res) => {
-    const { code, error, error_description } = req.query;
+    const { code, error, error_description, state } = req.query;
+    if (!verifyOAuthState(state, parseCookies(req).lehrerapp_onedrive_state, SESSION_SECRET)) {
+      return res.status(400).type('text/plain').send('OneDrive-Anmeldung abgelaufen oder ungültig. Bitte erneut verbinden.');
+    }
+    res.clearCookie('lehrerapp_onedrive_state', {
+      httpOnly: true, sameSite: 'lax', secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/api/onedrive/callback',
+    });
+    const callbackOrigin = new URL(process.env.APP_URL || 'http://localhost:3000').origin;
     
     if (error || !code) {
       const errMsg = (error_description as string) || (error as string) || "Unbekannter Fehler bei Microsoft OAuth.";
@@ -1819,11 +1858,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
         <body>
           <div class="error-icon">❌</div>
           <h2>Verbindung fehlgeschlagen</h2>
-          <p>${errMsg}</p>
+          <p>${escapeHtml(errMsg)}</p>
           <button onclick="window.close()">Fenster schließen</button>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${JSON.stringify(errMsg)} }, '*');
+              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${scriptJson(errMsg)} }, ${scriptJson(callbackOrigin)});
             }
           </script>
         </body>
@@ -1899,11 +1938,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
               window.opener.postMessage({ 
                 type: 'ONEDRIVE_AUTH_SUCCESS', 
                 tokenData: {
-                  access_token: ${JSON.stringify(tokenData.access_token)},
-                  refresh_token: ${JSON.stringify(tokenData.refresh_token)},
+                  access_token: ${scriptJson(tokenData.access_token)},
+                  refresh_token: ${scriptJson(tokenData.refresh_token ?? null)},
                   expires_at: ${Date.now() + (tokenData.expires_in || 3600) * 1000}
                 } 
-              }, '*');
+              }, ${scriptJson(callbackOrigin)});
               setTimeout(() => window.close(), 1000);
             } else {
               window.location.href = '/';
@@ -1945,11 +1984,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
         <body>
           <div class="error-icon">❌</div>
           <h2>Token-Austausch fehlgeschlagen</h2>
-          <p>${errMsg}</p>
+          <p>${escapeHtml(errMsg)}</p>
           <button onclick="window.close()">Fenster schließen</button>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${JSON.stringify(errMsg)} }, '*');
+              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${scriptJson(errMsg)} }, ${scriptJson(callbackOrigin)});
             }
           </script>
         </body>

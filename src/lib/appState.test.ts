@@ -1,0 +1,72 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { normalizeAppState, syncActiveClass, switchClassState } from './appState';
+
+function fixture() {
+  return normalizeAppState({
+    activeClassId: 'a',
+    classes: ['a', 'b'].map(id => ({
+      id, name: id, schueler: [{ id: `student-${id}` }],
+      saAssessments: { [`student-${id}`]: { Mathematik: { '1': { '0': { marker: id } } } } },
+      stundenZeiten: { 1: `${id}-08:00` }, scheduleAnalysis: { marker: id },
+      lastGroups: [{ marker: id }], customBgColor: id,
+      wochenplanung: { 37: { Montag: [{ thema: id }] } },
+      customLists: [{ id }], klassenglas_missions: [id],
+      futureExtension: { preserved: id },
+    })),
+  });
+}
+
+test('A → B → edit → A → reload preserves both classes and their assessments', () => {
+  const a = fixture();
+  const originalA = structuredClone(a.classes[0]);
+  let b = syncActiveClass(switchClassState(a, 'b'));
+  assert.deepEqual(b.saAssessments, a.classes[1].saAssessments);
+  assert.equal(b.stundenZeiten[1], 'b-08:00');
+  assert.equal((b.scheduleAnalysis as any).marker, 'b');
+  b = syncActiveClass({ ...b, saAssessments: { ...b.saAssessments, newAssessment: { 0: { value: 2 } } } } as any);
+  const reloaded = normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(switchClassState(b, 'a')))));
+  assert.deepEqual(reloaded.saAssessments, originalA.saAssessments);
+  assert.equal(reloaded.classes[1].saAssessments.newAssessment[0].value, 2);
+  assert.equal(reloaded.classes[1].wochenplanung[37].Montag[0].thema, 'b');
+  assert.deepEqual((reloaded.classes[1] as any).futureExtension, { preserved: 'b' });
+});
+
+test('empty target assessments cannot inherit previous student records', () => {
+  const a = fixture();
+  delete a.classes[1].saAssessments;
+  assert.deepEqual(syncActiveClass(switchClassState(a, 'b')).saAssessments, {});
+});
+
+test('normalization preserves inactive class extension fields across repeated loads', () => {
+  const a = fixture();
+  const loaded = normalizeAppState(JSON.parse(JSON.stringify(a)));
+  for (const field of ['stundenZeiten', 'scheduleAnalysis', 'lastGroups', 'customBgColor', 'futureExtension']) {
+    assert.deepEqual(loaded.classes[1][field], a.classes[1][field]);
+  }
+  assert.deepEqual(normalizeAppState(loaded), loaded);
+});
+
+test('legacy single-class migration retains root scheduling and assessments', () => {
+  const legacy = { schueler: [], stundenZeiten: { 1: '09:00' }, scheduleAnalysis: { marker: 1 }, saAssessments: { marker: 2 } };
+  const loaded = normalizeAppState(legacy);
+  assert.deepEqual(loaded.classes[0].stundenZeiten, legacy.stundenZeiten);
+  assert.deepEqual(loaded.classes[0].scheduleAnalysis, legacy.scheduleAnalysis);
+  assert.deepEqual(loaded.saAssessments, legacy.saAssessments);
+});
+
+test('unknown class switch is a no-op and does not mutate the input', () => {
+  const state = fixture();
+  const before = structuredClone(state);
+  assert.equal(switchClassState(state, 'missing'), state);
+  assert.deepEqual(state, before);
+});
+
+test('legacy root-only assessments are retained only for the active class', () => {
+  const loaded = normalizeAppState({
+    activeClassId: 'a', saAssessments: { student: { 0: { score: 7 } } },
+    classes: [{ id: 'a', schueler: [] }, { id: 'b', schueler: [] }],
+  });
+  assert.equal(loaded.saAssessments.student[0].score, 7);
+  assert.deepEqual(loaded.classes[1].saAssessments, {});
+});
