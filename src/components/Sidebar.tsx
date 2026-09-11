@@ -1,3 +1,4 @@
+import { groupSidebarItems } from '../lib/sidebarNavigation';
 
 import React, { memo } from 'react';
 import { useApp } from '../context/AppContext';
@@ -36,13 +37,15 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const [showClassMenu, setShowClassMenu] = React.useState(false);
   const [showCustomizeModal, setShowCustomizeModal] = React.useState(false);
 
+  const [showMorePages, setShowMorePages] = React.useState(false);
+
   const disabledModules = app?.settings?.disabledModules || [];
 
   const ALL_MODULES = [
-    { id: 'dashboard', label: 'Übersicht', icon: <LayoutDashboard size={14} />, section: 'Unterricht' },
-    { id: 'cockpit', label: 'Lehrercockpit', icon: <Play size={14} />, section: 'Unterricht' },
+    { id: 'dashboard', label: 'Mein Schultag', icon: <LayoutDashboard size={14} />, section: 'Unterricht' },
+    { id: 'cockpit', label: 'Unterricht starten', icon: <Play size={14} />, section: 'Unterricht' },
     { id: 'ki-helfer', label: 'KI-Assistent', icon: <Bot size={14} />, section: 'Unterricht' },
-    { id: 'schueler', label: 'Schüler', icon: <Users size={14} />, section: 'Klasse & Kinder' },
+    { id: 'schueler', label: 'Kinder & Dossiers', icon: <Users size={14} />, section: 'Klasse & Kinder' },
     { id: 'sitzplan', label: 'Sitzplan', icon: <MapIcon size={14} />, section: 'Klasse & Kinder' },
     { id: 'anwesenheit', label: 'Anwesenheit', icon: <Pin size={14} />, section: 'Klasse & Kinder' },
     { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={14} />, section: 'Klasse & Kinder' },
@@ -57,51 +60,19 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'klassengemeinschaft', label: 'Wir-Gefühl', icon: <Heart size={14} />, section: 'Entwicklung & Berichte' },
     { id: 'jahresbericht', label: 'Jahresbericht', icon: <FileText size={14} />, section: 'Entwicklung & Berichte' },
     { id: 'archiv', label: 'Archiv', icon: <Archive size={14} />, section: 'Entwicklung & Berichte' },
+    { id: 'drucken', label: 'Drucken', icon: <Printer size={14} />, section: 'Ausgabe & Daten' },
+    { id: 'datensicherung', label: 'Backup & Daten', icon: <Database size={14} />, section: 'Ausgabe & Daten' },
+    { id: 'settings', label: 'Einstellungen', icon: <SettingsIcon size={14} />, section: 'Ausgabe & Daten' },
   ];
 
-  const rawNavItems = [
-    { section: 'Unterricht', items: [
-      { id: 'dashboard', label: 'Übersicht', icon: <LayoutDashboard size={18} /> },
-      { id: 'cockpit', label: 'Lehrercockpit', icon: <Play size={18} />, highlight: true },
-      { id: 'ki-helfer', label: 'KI-Assistent', icon: <Bot size={18} />, highlight: true },
-    ]},
-    { section: 'Klasse & Kinder', items: [
-      { id: 'schueler', label: 'Schüler', icon: <Users size={18} /> },
-      { id: 'sitzplan', label: 'Sitzplan', icon: <MapIcon size={18} /> },
-      { id: 'anwesenheit', label: 'Anwesenheit', icon: <Pin size={18} /> },
-      { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={18} /> },
-      app.klassenvorstand && { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={18} /> },
-    ].filter(Boolean) as any },
-    { section: 'Planung', items: [
-      { id: 'planungszentrale', label: 'Planungsübersicht', icon: <Target size={18} /> },
-      { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={18} /> },
-      { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={18} /> },
-      { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={18} /> },
-      app.klassenvorstand && { id: 'uebergabemappe', label: 'Übergabemappe', icon: <ClipboardList size={18} /> },
-    ].filter(Boolean) as any },
-    { section: 'Entwicklung & Berichte', items: [
-      { id: 'statistik', label: 'Statistik & Profile', icon: (
-        <div className="relative w-5 h-5">
-          <LineChart size={14} className="absolute left-0 top-0" />
-          <Users size={11} className="absolute right-0 bottom-0 opacity-85" />
-        </div>
-      ) },
-      app.klassenvorstand && { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={18} /> },
-      app.klassenvorstand && { id: 'klassengemeinschaft', label: 'Wir-Gefühl', icon: <Heart size={18} /> },
-      app.klassenvorstand && { id: 'jahresbericht', label: 'Jahresbericht', icon: <FileText size={18} /> },
-      { id: 'archiv', label: 'Archiv', icon: <Archive size={18} /> },
-    ].filter(Boolean) as any },
-    { section: 'Ausgabe & Daten', items: [
-      { id: 'drucken', label: 'Druckzentrum', icon: <Printer size={18} /> },
-      { id: 'datensicherung', label: 'Datensicherung', icon: <Database size={18} /> },
-      { id: 'settings', label: 'Einstellungen', icon: <SettingsIcon size={18} /> },
-    ]}
-  ];
-
-  const navItems = rawNavItems.map(sec => ({
-    ...sec,
-    items: sec.items.filter(item => !disabledModules.includes(item.id))
-  })).filter(sec => sec.items.length > 0);
+  const availableModules = ALL_MODULES.filter(item => app.klassenvorstand || !['orga', 'uebergabemappe', 'diagnostik', 'klassengemeinschaft', 'jahresbericht'].includes(item.id));
+  const grouped = groupSidebarItems(availableModules, disabledModules, currentPage, showMorePages);
+  const navItems = [
+    { section: 'Für deinen Schultag', items: grouped.daily },
+    ...(grouped.expanded ? [...new Set(grouped.extra.map(item => item.section))].map(section => ({
+      section, items: grouped.extra.filter(item => item.section === section),
+    })) : [{ section: 'Aktuell geöffnet', items: grouped.extra.filter(item => item.id === currentPage) }]),
+  ].filter(section => section.items.length);
 
   const { switchClass, addClass } = useApp();
 
@@ -125,15 +96,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                 </h1>
                 
                 <div className="mt-2 flex items-center justify-between gap-1 w-full">
-                  <div className="flex flex-wrap gap-1">
-                    {disabledModules.includes('jahresplanung') && disabledModules.includes('statistik') && disabledModules.includes('sitzplan') ? (
-                      <Badge variant="success" size="sm">🌱 Fokus</Badge>
-                    ) : disabledModules.includes('statistik') && !disabledModules.includes('orga') ? (
-                      <Badge variant="info" size="sm">🚀 Standard</Badge>
-                    ) : (
-                      <Badge variant="neutral" size="sm">👑 Experte</Badge>
-                    )}
-                  </div>
+                  <span className="text-xs text-text-muted">Deine Lehrermappe</span>
                   <button
                     type="button"
                     onClick={() => setShowCustomizeModal(true)}
@@ -264,11 +227,11 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                       data-menu-id={item.id}
                       aria-current={currentPage === item.id ? 'page' : undefined}
                       title={isCollapsed ? item.label : ''}
-                      className={`w-full text-left flex items-center gap-3 px-3.5 py-2.5 cursor-pointer rounded-xl transition-all duration-200 text-[0.8125rem] relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]
+                      className={`w-full text-left flex items-center gap-3 px-3.5 py-3 min-h-12 cursor-pointer rounded-xl transition-all duration-200 text-sm relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]
                         ${currentPage === item.id 
                           ? 'shadow-xs font-bold'
                           : 'text-[var(--text-secondary)] hover:bg-[var(--surface-subtle,var(--surface2))] hover:text-[var(--text-primary)] group'}
-                        ${item.highlight && currentPage !== item.id && item.id !== 'ki-helfer' ? 'bg-[var(--warning-soft)] text-[var(--warning-text)] font-extrabold border border-[var(--warning)]/30' : ''}
+                        ${item.id === 'cockpit' && currentPage !== item.id ? 'bg-[var(--warning-soft)] text-[var(--warning-text)] font-extrabold border border-[var(--warning)]/30' : ''}
                         ${isCollapsed ? 'justify-center px-0' : ''}`}
                       style={currentPage === item.id ? { backgroundColor: 'var(--accent)', color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}
                       onClick={() => {
@@ -284,15 +247,30 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                           transition={{ type: "spring", stiffness: 380, damping: 30 }}
                         />
                       )}
-                      <span className={`${currentPage === item.id ? '' : item.highlight ? 'text-[var(--warning-text)]' : 'text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors'}`} style={currentPage === item.id ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}>{item.icon}</span>
+                      <span className={`${currentPage === item.id ? '' : item.id === 'cockpit' ? 'text-[var(--warning-text)]' : 'text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors'}`} style={currentPage === item.id ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}>{item.icon}</span>
                       {!isCollapsed && <span className="text-wrap leading-tight break-words tracking-tight" style={currentPage === item.id ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}>{item.label}</span>}
                     </button>
                   ))}
                 </div>
               </div>
             ))}
+            {grouped.extra.length > 0 && <div className="px-2">
+              <button type="button" aria-expanded={grouped.expanded} aria-label="Weitere Funktionen anzeigen"
+                title="Weitere Funktionen" onClick={() => setShowMorePages(value => !value)}
+                className="w-full min-h-12 flex items-center gap-3 px-3.5 rounded-xl border border-border text-sm font-semibold text-text-primary hover:bg-[var(--surface2)]">
+                <LayoutGrid size={18} />{!isCollapsed && <span>{grouped.expanded ? 'Weniger anzeigen' : 'Weitere Funktionen'}</span>}
+              </button>
+              {!isCollapsed && !grouped.expanded && <p className="px-3.5 mt-2 text-xs leading-relaxed text-text-muted">Jahresplanung, Materialien, Diagnostik und mehr</p>}
+            </div>}
           </nav>
 
+          <div className="p-2 border-t border-border space-y-1">
+            {grouped.utilities.map(item => <button key={item.id} type="button" aria-current={currentPage === item.id ? 'page' : undefined}
+              title={item.label} onClick={() => { setPage(item.id); if (window.innerWidth < 1024) setIsOpen(false); }}
+              className={`w-full min-h-11 px-3.5 flex items-center gap-3 rounded-xl text-sm ${currentPage === item.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-semibold' : 'text-text-secondary hover:bg-[var(--surface2)]'}`}>
+              {item.icon}{!isCollapsed && <span>{item.label}</span>}
+            </button>)}
+          </div>
           <div className={`p-5 border-t border-[var(--border-default,var(--border))] ${isCollapsed ? 'flex justify-center' : ''}`}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] flex items-center justify-center text-[1.25rem] shadow-xs shrink-0 leading-none">
@@ -317,10 +295,10 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             <div className="p-6 border-b border-[var(--border-default,var(--border))]/60 flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <h3 className="text-[1rem] leading-normal font-black text-[var(--text-primary)] tracking-tight flex items-center gap-2">
-                  📋 Seitenleiste anpassen
+                  Navigation anpassen
                 </h3>
                 <p className="text-[0.6875rem] text-[var(--text-muted)] leading-relaxed font-medium">
-                  Schalte einzelne Werkzeuge aus oder ein, um das Klassenbuch exakt auf deine Bedürfnisse abzustimmen.
+                  Wähle, welche Bereiche in deiner Navigation erreichbar sein sollen. Inhalte werden dabei nicht gelöscht.
                 </p>
               </div>
               <IconButton
@@ -335,8 +313,8 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
 
             {/* List with Groups */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {['Unterricht', 'Werkzeuge', 'Planung', 'Extras'].map(section => {
-                const sectItems = ALL_MODULES.filter(m => m.section === section);
+              {[...new Set(ALL_MODULES.map(item => item.section))].map(section => {
+                const sectItems = ALL_MODULES.filter(m => m.section === section && !['settings', 'datensicherung'].includes(m.id));
                 return (
                   <div key={section} className="space-y-2">
                     <h4 className="text-[0.5625rem] font-black uppercase tracking-wider text-[var(--text-muted)]">
@@ -396,63 +374,17 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
 
             {/* Actions Footer */}
             <div className="p-4 bg-[var(--surface-subtle,var(--surface2))] border-t border-[var(--border-default,var(--border))]/60 flex items-center justify-between gap-2.5 flex-wrap">
-              <div className="flex gap-1.5 items-center">
-                <Button
-                  size="sm"
-                  variant={disabledModules.includes('jahresplanung') && disabledModules.includes('statistik') && disabledModules.includes('sitzplan') ? 'success' : 'secondary'}
-                  onClick={() => {
-                    setApp(prev => ({
-                      ...prev,
-                      settings: {
-                        ...prev.settings,
-                        disabledModules: ['cockpit', 'sitzplan', 'orga', 'jahresplanung', 'wochenplanung', 'materialien', 'uebergabemappe', 'statistik', 'diagnostik', 'archiv', 'jahresbericht']
-                      }
-                    }));
-                    showToast("🌱 Auf minimalistischen Fokus-Modus umgestellt!", "success");
-                  }}
-                >
-                  🌱 Fokus
-                </Button>
-                <Button
-                  size="sm"
-                  variant={disabledModules.includes('statistik') && !disabledModules.includes('sitzplan') && !disabledModules.includes('orga') ? 'selected' : 'secondary'}
-                  onClick={() => {
-                    setApp(prev => ({
-                      ...prev,
-                      settings: {
-                        ...prev.settings,
-                        disabledModules: ['jahresplanung', 'uebergabemappe', 'statistik', 'diagnostik', 'archiv', 'jahresbericht']
-                      }
-                    }));
-                    showToast("🚀 Auf Standard-Modus umgestellt!", "success");
-                  }}
-                >
-                  🚀 Standard
-                </Button>
-                <Button
-                  size="sm"
-                  variant={disabledModules.length === 0 ? 'primary' : 'secondary'}
-                  onClick={() => {
-                    setApp(prev => ({
-                      ...prev,
-                      settings: {
-                        ...prev.settings,
-                        disabledModules: []
-                      }
-                    }));
-                    showToast("👑 Alle Werkzeuge wurden aktiviert!", "success");
-                  }}
-                >
-                  👑 Experte
-                </Button>
-              </div>
+              <Button size="sm" variant="secondary" onClick={() => {
+                setApp(prev => ({ ...prev, settings: { ...prev.settings, disabledModules: [] } }));
+                showToast('Alle Bereiche sind wieder erreichbar.', 'success');
+              }}>Alle Bereiche einblenden</Button>
 
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => setShowCustomizeModal(false)}
               >
-                Akzeptieren
+                Fertig
               </Button>
             </div>
           </div>
