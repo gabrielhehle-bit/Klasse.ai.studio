@@ -70,3 +70,21 @@ test('legacy root-only assessments are retained only for the active class', () =
   assert.equal(loaded.saAssessments.student[0].score, 7);
   assert.deepEqual(loaded.classes[1].saAssessments, {});
 });
+
+test('classroom ink survives class changes, snapshots and reload without mixing classes', () => {
+  const original = fixture();
+  const ink = {
+    a: [{ id: 'stroke-a', color: '#172554', width: 4, points: [[10, 20], [30, 40]] }],
+    b: [{ id: 'text-b', color: '#172554', width: 4, points: [[50, 60]], text: 'Synthetic task' }],
+  };
+  const state = { ...original, boardSettings: { ...original.boardSettings, cockpitInkByClass: ink } };
+  const switched = syncActiveClass(switchClassState(state, 'b'));
+  const reloaded = normalizeAppState(JSON.parse(JSON.stringify(switched)));
+  assert.deepEqual(reloaded.boardSettings.cockpitInkByClass, ink);
+  assert.deepEqual(syncActiveClass(switchClassState(reloaded, 'a')).boardSettings.cockpitInkByClass, ink);
+});
+
+test('old app snapshots load without inventing or replacing classroom ink', () => {
+  const old = fixture();
+  assert.equal(normalizeAppState(JSON.parse(JSON.stringify(old))).boardSettings.cockpitInkByClass, undefined);
+});

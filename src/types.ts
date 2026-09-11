@@ -1469,6 +1469,7 @@ export interface AppState {
     clearTafelTrigger?: number;
     isTafelOpen?: boolean;
     tafelCommand?: import('./lib/tafelCommands').TafelCommand;
+    cockpitInkByClass?: Record<string, import('./components/cockpit/BoardInk').InkItem[]>;
     sidebarMode?: 'expanded' | 'mini' | 'hidden';
     activeFont?: string;
     toolbarWidgets?: string[]; // IDs of visible widgets in order

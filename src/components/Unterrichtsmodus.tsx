@@ -1,3 +1,4 @@
+import { BoardInk } from './cockpit/BoardInk';
 import { shouldApplyTafelCommand } from '../lib/tafelCommands';
 import React, {
   useEffect,
@@ -2979,13 +2980,15 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       return loadAndSanitizeLayout(app.cockpitLayout);
     },
   );
+  const [isBoardWriting, setIsBoardWriting] = useState(false);
+  useEffect(() => { setIsBoardWriting(false); }, [app.activeClassId]);
   const [isLayoutLocked, setIsLayoutLocked] = useState(true);
   const isLayoutEditing = !isLayoutLocked;
   const [isMoreOptionsMenuOpen, setIsMoreOptionsMenuOpen] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [activeWidgetCategory, setActiveWidgetCategory] =
-    useState<string>("all");
+    useState<string>("everyday");
   const [widgetSearch, setWidgetSearch] = useState<string>("");
 
   useEffect(() => {
@@ -3654,6 +3657,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const handleOpenWidgetInCockpitLayout = (
     type: CockpitWidgetConfig["type"],
   ) => {
+    setIsBoardWriting(false);
     setRecentWidgetTypes((previous) => {
       const updatedRecent = [String(type), ...previous.filter((entry) => entry !== type)].slice(0, 5);
       localStorage.setItem("cockpit_recent_widget_types", JSON.stringify(updatedRecent));
@@ -8259,7 +8263,7 @@ ${content}
                         <div className="flex items-center gap-2">
                           <span className={`w-2 h-2 rounded-full ${isLayoutLocked ? "bg-amber-500" : "bg-emerald-500"} animate-pulse`} />
                           <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-neutral-300">
-                            Tafel & Widgets
+                            Unterrichtsfläche
                           </h3>
                           {isLayoutLocked && (
                             <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
@@ -8269,7 +8273,7 @@ ${content}
                         </div>
 
                         {/* Top Toolbar Action Buttons (aligned on the right) */}
-                        <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
+                        <div className="flex items-center gap-2 flex-wrap">
                           {/* Add Widget Button */}
                           <div className="relative">
                             <button
@@ -8277,16 +8281,16 @@ ${content}
                               onClick={() =>
                                 setIsAddWidgetMenuOpen(!isAddWidgetMenuOpen)
                               }
-                              className="h-8 px-3 rounded-lg font-black text-[9.5px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white"
-                              title="Neues Widget zur Tafel hinzufügen"
+                              className="min-h-11 px-4 rounded-xl font-semibold text-sm flex items-center gap-1.5 transition-all shadow-sm cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white"
+                              title="Unterrichtshilfe auf die gemeinsame Fläche legen"
                             >
                               <Plus size={13} strokeWidth={2.5} />
-                              <span>Widget hinzufügen</span>
+                              <span>Unterrichtshilfe hinzufügen</span>
                             </button>
 
                             {isAddWidgetMenuOpen && (
                               <div
-                                className={`fixed left-4 top-[8.5rem] w-[640px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-9.5rem)] overflow-y-auto overscroll-contain rounded-2xl border p-3.5 shadow-2xl flex flex-col gap-3 z-[1000] ${
+                                className={`fixed left-4 top-[8.5rem] w-[880px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-9.5rem)] overflow-y-auto overscroll-contain rounded-2xl border p-3.5 shadow-2xl flex flex-col gap-3 z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-100 animate-in fade-in slide-in-from-top-3 duration-200"
                                     : "bg-zinc-900 border-white/10 animate-in fade-in slide-in-from-top-3 duration-200"
@@ -8295,19 +8299,19 @@ ${content}
                                 <div className="flex flex-col sm:flex-row gap-2 justify-between items-center px-1">
                                   <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5 self-start sm:self-auto">
                                     <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                                    Cockpit-Widgets nach Gruppen
+                                    Unterrichtshilfe auswählen
                                   </div>
                                   {/* Responsive search bar to quickly find widgets */}
-                                  <div className="relative w-full sm:w-44 shrink-0">
+                                  <div className="relative w-full sm:w-80 shrink-0">
                                     <input
                                       type="text"
-                                      placeholder="Widget suchen..."
+                                      aria-label="Unterrichtshilfe suchen" placeholder="Was brauchst du? Zum Beispiel Timer …"
                                       value={widgetSearch}
                                       onChange={(e) =>
                                         setWidgetSearch(e.target.value)
                                       }
                                       autoFocus
-                                      className={`w-full px-2.5 py-1 pr-6 text-[9.5px] rounded-lg border outline-none font-bold transition-all placeholder:text-slate-400 ${
+                                      className={`w-full px-3 py-3 pr-8 text-sm rounded-lg border outline-none font-bold transition-all placeholder:text-slate-400 ${
                                         currentIsLight
                                           ? "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-400"
                                           : "bg-white/5 border-white/10 text-white focus:border-indigo-500"
@@ -8329,10 +8333,12 @@ ${content}
                                   </div>
                                 </div>
 
+                                <button type="button" onClick={() => setIsAddWidgetMenuOpen(false)} className="self-end min-h-11 px-4 rounded-lg border text-sm font-semibold">Auswahl schließen</button>
                                 {/* Category Switcher Tab Bar */}
-                                <div className="flex flex-wrap gap-1 p-1 bg-[#0c0037] rounded-xl">
+                                <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
                                   {[
-                                    { id: "all", label: "🌐 Alle" },
+                                    { id: "everyday", label: "Für den Unterricht" },
+                                    { id: "all", label: "Alle Hilfen" },
                                     { id: "favorites", label: "★ Favoriten" },
                                     { id: "struct", label: "📂 Struktur" },
                                     {
@@ -8580,10 +8586,10 @@ ${content}
                                     ];
 
                                     let count = 0;
-                                    if (cat.id === "all") {
-                                      count = allAvailableWidgets.filter(
-                                        (item) => item.category !== "mathe",
-                                      ).length;
+                                    if (cat.id === "everyday") {
+                                      count = allAvailableWidgets.filter(item => ["timer", "todo", "trafficlight", "clock", "randomname", "groups", "noisemeter", "instruction"].includes(item.type)).length;
+                                    } else if (cat.id === "all") {
+                                      count = allAvailableWidgets.length;
                                     } else if (cat.id === "favorites") {
                                       count = (
                                         favoritesBySubject[
@@ -8602,7 +8608,7 @@ ${content}
                                         onClick={() =>
                                           setActiveWidgetCategory(cat.id)
                                         }
-                                        className={`px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+                                        className={`min-h-11 px-3 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer flex items-center gap-1 ${
                                           activeWidgetCategory === cat.id
                                             ? "bg-indigo-500 text-white shadow"
                                             : currentIsLight
@@ -8621,7 +8627,7 @@ ${content}
                                   })}
                                 </div>
 
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[50vh] overflow-y-auto scrollbar-thin pr-1 pb-1">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto scrollbar-thin pr-1 pb-1">
                                   {(() => {
                                     const allAvailableWidgets = [
                                       {
@@ -9208,9 +9214,11 @@ ${content}
                                         }
 
                                         let matchesCategory = false;
-                                        if (activeWidgetCategory === "all") {
+                                        if (activeWidgetCategory === "everyday") {
+                                          matchesCategory = ["timer", "todo", "trafficlight", "clock", "randomname", "groups", "noisemeter", "instruction"].includes(item.type);
+                                        } else if (activeWidgetCategory === "all") {
                                           matchesCategory =
-                                            item.category !== "mathe";
+                                            true;
                                         } else if (
                                           activeWidgetCategory === "favorites"
                                         ) {
@@ -9386,7 +9394,7 @@ ${content}
                                           return (
                                             <div
                                               key={item.type}
-                                              className={`w-full p-2.5 rounded-xl text-left flex flex-col justify-between items-start transition-all border group relative min-h-[58px] ${
+                                              className={`w-full p-2.5 rounded-xl text-left flex flex-col justify-between items-start transition-all border group relative min-h-[104px] ${
                                                 isActive
                                                   ? "opacity-60 bg-slate-100 dark:bg-zinc-800/50 border-transparent"
                                                   : currentIsLight
@@ -9434,7 +9442,7 @@ ${content}
                                                 }}
                                                 className="w-full h-full text-left flex flex-col justify-between items-start cursor-pointer disabled:cursor-not-allowed"
                                               >
-                                                <div className="w-full flex items-center justify-between font-bold text-[10px]">
+                                                <div className="w-full flex items-center justify-between font-semibold text-sm">
                                                   <span className="truncate pr-7 group-hover:text-indigo-500 transition-colors">
                                                     {item.label}
                                                   </span>
@@ -9445,7 +9453,7 @@ ${content}
                                                     />
                                                   )}
                                                 </div>
-                                                <p className="text-[7.5px] mt-0.5 opacity-60 font-medium line-clamp-1 pr-7">
+                                                <p className="text-xs mt-2 opacity-80 font-medium leading-relaxed pr-7">
                                                   {item.desc}
                                                 </p>
                                               </button>
@@ -9460,45 +9468,16 @@ ${content}
                             )}
                           </div>
 
-                          <button type="button" aria-pressed={!isLayoutLocked} onClick={() => setIsLayoutLocked(locked => !locked)}
+                          <button type="button" aria-pressed={!isLayoutLocked} onClick={() => { setIsBoardWriting(false); setIsLayoutLocked(locked => !locked); }}
                             className={`min-h-10 px-3 rounded-xl border text-xs font-semibold flex items-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isLayoutLocked ? (currentIsLight ? "bg-white border-slate-300 text-slate-700" : "bg-zinc-900 border-white/20 text-white") : "bg-emerald-600 border-emerald-500 text-white"}`}>
                             {isLayoutLocked ? <Lock size={15} /> : <Check size={15} />}
                             {isLayoutLocked ? 'Anordnung ändern' : 'Anordnung fertig'}
                           </button>
 
-                          {/* Primary Action 2: Whiteboard & Text */}
-                          <button
-                            type="button"
-                            onClick={() => toggleTool("drawing")}
-                            className={`h-8 px-2.5 rounded-lg border font-bold text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all duration-200 shadow-sm cursor-pointer ${
-                              isToolActive("drawing")
-                                ? "bg-rose-500 border-rose-450 text-white shadow-[0_0_12px_rgba(244,63,94,0.4)]"
-                                : currentIsLight
-                                  ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-800"
-                                  : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white"
-                            }`}
-                            title="Freie Zeichentafel (Whiteboard-Widget) im Cockpit ein-/ausblenden"
-                          >
-                            <PenTool size={11} />
-                            <span>Whiteboard</span>
-                          </button>
-
-                          {/* Primary Action 3: Digitale Tafel (Große Vollbild-Tafel) */}
-                          <button
-                            type="button"
-                            id="btn-open-digitale-tafel"
-                            onClick={() => setIsTafelOpen(true)}
-                            className={`h-8 px-2.5 rounded-lg border font-bold text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all duration-200 shadow-sm cursor-pointer ${
-                              isTafelOpen
-                                ? "bg-emerald-600 border-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]"
-                                : currentIsLight
-                                  ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-800 hover:text-emerald-700"
-                                  : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white hover:text-emerald-400"
-                            }`}
-                            title="Digitale Tafel im großen Vollbild-Arbeitsmodus öffnen"
-                          >
-                            <Presentation size={11} className="text-emerald-500" />
-                            <span>Digitale Tafel</span>
+                          <button type="button" aria-pressed={isBoardWriting}
+                            onClick={() => { setIsBoardWriting(value => !value); setIsLayoutLocked(true); }}
+                            className={`min-h-11 px-4 rounded-xl text-sm font-semibold border ${isBoardWriting ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'}`}>
+                            {isBoardWriting ? 'Widgets bedienen' : 'Schreiben & Zeichnen'}
                           </button>
 
                           {/* Secondary Actions: Dropdown Menu (••• Optionen) */}
@@ -9528,7 +9507,7 @@ ${content}
                                 }`}
                               >
                                 <div className="px-2 py-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-white/5">
-                                  Tafel-Optionen
+                                  Weitere Funktionen
                                 </div>
 
                                 <button
@@ -9543,7 +9522,7 @@ ${content}
                                   }`}
                                 >
                                   <Presentation size={12} className="text-emerald-500 shrink-0" />
-                                  <span>Digitale Tafel öffnen</span>
+                                  <span>Bisherige Tafelinhalte öffnen</span>
                                 </button>
 
                                 <button
@@ -9817,10 +9796,19 @@ ${content}
                         className={`flex-1 relative group rounded-2xl border overflow-hidden pointer-events-auto h-full w-full min-h-[460px] select-none ${
                           currentIsLight
                             ? "bg-white border-slate-200 shadow-sm"
-                            : "bg-zinc-950/40 border-white/5 shadow-inner"
+                            : "bg-white border-slate-200 shadow-inner"
                         }`}
                         id="widget-board-stage"
                       >
+                        <BoardInk key={app.activeClassId} active={isBoardWriting}
+                          items={app.boardSettings?.cockpitInkByClass?.[app.activeClassId] || []}
+                          onDone={() => setIsBoardWriting(false)}
+                          onChange={items => {
+                            const classId = app.activeClassId;
+                            setApp(prev => ({ ...prev, boardSettings: { ...prev.boardSettings,
+                              cockpitInkByClass: { ...prev.boardSettings?.cockpitInkByClass, [classId]: items },
+                            } }));
+                          }} />
                         {/* Centered Confirm Dialog inside stage instead of native popup */}
                         {timerToCloseId && (
                           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[99999] no-print">
@@ -9879,12 +9867,12 @@ ${content}
                         )}
 
                         {/* Empty Board Subtle Guidance */}
-                        {cockpitWidgets.filter((w) => w.visible).length === 0 && (
+                        {cockpitWidgets.filter((w) => w.visible).length === 0 && !isBoardWriting && !(app.boardSettings?.cockpitInkByClass?.[app.activeClassId]?.length) && (
                           <div
                             id="cockpit-empty-state-hint"
                             className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center select-none pointer-events-none"
                           >
-                            <div className="flex flex-col items-center max-w-sm gap-2.5 pointer-events-auto">
+                            <div className="flex flex-col items-center max-w-xl gap-4 pointer-events-auto bg-white/95 text-slate-900 border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
                               <div
                                 className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${
                                   currentIsLight
@@ -9896,31 +9884,22 @@ ${content}
                               </div>
                               <div className="space-y-1">
                                 <h3
-                                  className={`text-xs font-black uppercase tracking-wider ${
-                                    currentIsLight ? "text-slate-600" : "text-neutral-300"
-                                  }`}
+                                  className="text-xl sm:text-2xl font-semibold text-slate-900"
                                 >
-                                  Dein Unterricht beginnt hier
+                                  Eine Fläche für deinen Unterricht
                                 </h3>
-                                <p
-                                  className={`text-[11px] font-semibold ${
-                                    currentIsLight ? "text-slate-400" : "text-neutral-500"
-                                  }`}
-                                >
-                                  Über{" "}
-                                  <button
-                                    type="button"
-                                    onClick={() => setIsAddWidgetMenuOpen(true)}
-                                    className={`font-black underline underline-offset-2 transition-colors cursor-pointer ${
-                                      currentIsLight
-                                        ? "text-indigo-600 hover:text-indigo-700"
-                                        : "text-indigo-400 hover:text-indigo-300"
-                                    }`}
-                                  >
-                                    + Widget
-                                  </button>{" "}
-                                  öffnest du Timer, Arbeitsauftrag und weitere Unterrichtshilfen.
+                                <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                                  Schreibe direkt auf die Fläche oder lege Unterrichtshilfen dazu.
+                                  Alles bleibt an einem Ort.
                                 </p>
+                              </div>
+                              <button type="button" onClick={() => { setIsBoardWriting(true); setIsLayoutLocked(true); }} className="w-full min-h-12 px-5 py-3 rounded-xl bg-indigo-600 text-white font-semibold text-base">
+                                Schreiben & Zeichnen
+                              </button>
+                              <div className="grid grid-cols-2 gap-2 w-full">
+                                {([{ type: 'timer', label: 'Timer starten' }, { type: 'instruction', label: 'Arbeitsauftrag' }] as const).map(item => (
+                                  <button key={item.type} type="button" onClick={() => handleOpenWidgetInCockpitLayout(item.type)} className="min-h-12 p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 text-sm font-semibold">{item.label}</button>
+                                ))}
                               </div>
                               <button type="button" onClick={() => setIsAddWidgetMenuOpen(true)} className="mt-3 min-h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
                                 Unterrichtshilfe auswählen
