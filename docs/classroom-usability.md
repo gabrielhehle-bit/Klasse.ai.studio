@@ -73,3 +73,13 @@ Die vorhandenen Rollenfilter und persönlichen Ausblendungen der Fachmodule blei
 - Die optionale Spiegelung einzelner Wochenplan-Noteneinträge zwischen Deutsch und Mathematik bleibt bestehen und wird in den Gewichtungseinstellungen ausdrücklich als solche bezeichnet. Sie arbeitet weiterhin anhand des Spaltenindex; bei unterschiedlich aufgebauten Fächern ist diese Altlast gesondert zu prüfen. Dieses Paket behauptet keine vollständige Unabhängigkeit aller Noteneingaben bei aktivierter Spiegelung.
 
 665 Tests bestanden (fünf neue Regressionen zu gemischten Anwesenheiten, fehlenden Stunden, unveränderten anderen Daten und getrennten Fachmetadaten trotz altem Sync-Schalter). TypeScript und Produktionsbuild erfolgreich. Praktische Browserprüfung weiterhin offen. Früher bereits überschriebene Einträge können durch diese Änderung nicht rekonstruiert werden.
+
+## Kompakte Startseite
+
+`DashboardSimpleOverview.tsx` ersetzt im bereits vorhandenen Einfachmodus die bisherige umfangreiche Tagesübersicht durch drei Karten (Unterricht, Anwesenheit heute, Wichtig & offen) und einen deutlichen Einstieg in die Unterrichtsfläche. Bestehende gespeicherte Darstellungspräferenzen bleiben bestehen; der Standard für neue Nutzer ist weiterhin kompakt. Die umfangreiche Ansicht ist über „Weitere Übersichten & Widgets“ erreichbar; dort führt „Zur kompakten Startseite“ zurück.
+
+Bestehende Daten und Navigationscallbacks werden wiederverwendet. Keine Änderungen an Speicherung, Berechnungen oder Rollen. Die Unterrichtskarte zeigt das vom Dashboard übergebene Datum; Anwesenheit ist ausdrücklich mit „heute“ beschriftet. Die Anwesenheitsübersicht behauptet keine vollständig geprüfte Anwesenheit. Aufgabenhinweise können ausgeklappt werden; „Keine zusätzlichen Hinweise“ behauptet nicht, dass alle Aufgaben erledigt seien. Im vorhandenen Privatsphäre-Modus sind Hinweistexte und Unterrichtsthemen verborgen. Klassenbezeichnung und aggregierte Zahlen bleiben sichtbar – keine vollständige Anonymisierung.
+
+Backup-Download bleibt direkt erreichbar. Der bisherige erfundene Klassenname „Klasse 3a“ als Fallback wurde beim Aufruf durch „Deine Klasse“ ersetzt. Die Elternkomponente berechnet weiterhin auch Daten für ausgeblendete Zusatzwidgets; diese UI-Änderung behauptet keine Verringerung von Netzwerkzugriffen oder Rechenaufwand.
+
+TypeScript und Produktionsbuild geprüft. Keine neue Testsuite für diese reine Darstellungsschicht; die 665 zuvor erfolgreichen Tests ersetzen keine praktische UI-Prüfung. Visuelle Prüfung und kurze Erprobung mit Lehrpersonen weiterhin ausstehend. Bei bestehender ausführlicher Ansicht einmal „Zur kompakten Startseite“ wählen, um die neue Oberfläche anzusehen.

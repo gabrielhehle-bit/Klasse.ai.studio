@@ -4494,7 +4494,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
           month: "long",
           year: "numeric",
         })}
-        klasseLabel={app?.klassenbezeichnung || "Klasse 3a"}
+        klasseLabel={app?.klassenbezeichnung || "Deine Klasse"}
         manualDateOffset={manualDateOffset}
         onDateOffsetChange={setManualDateOffset}
         privacyMode={dashboardPrivacyMode}

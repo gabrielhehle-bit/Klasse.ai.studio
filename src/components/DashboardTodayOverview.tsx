@@ -1,3 +1,4 @@
+import DashboardSimpleOverview from './DashboardSimpleOverview';
 import React, { useState } from "react";
 import { useApp } from "../context/AppContext";
 import {
@@ -110,7 +111,8 @@ export interface DashboardTodayOverviewProps {
   monthEvents: Array<{ title: string; subtitle?: string; dateLabel?: string; type: string }>;
 }
 
-export default function DashboardTodayOverview({
+export default function DashboardTodayOverview(props: DashboardTodayOverviewProps) {
+  const {
   greeting,
   dateLabel,
   klasseLabel,
@@ -150,12 +152,14 @@ export default function DashboardTodayOverview({
   tomorrowEvents,
   weekEvents,
   monthEvents,
-}: DashboardTodayOverviewProps) {
+} = props;
   const { app, setApp } = useApp();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [upcomingTab, setUpcomingTab] = useState<"morgen" | "woche" | "monat">("morgen");
 
   const primaryLesson = currentLesson || nextLesson;
+
+  if (simpleMode) return <DashboardSimpleOverview {...props} />;
 
   return (
     <div className="space-y-6 w-full">
@@ -694,7 +698,7 @@ export default function DashboardTodayOverview({
           className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
         >
           <Grid size={14} className="text-indigo-600" />
-          <span>{simpleMode ? "Alle Widgets" : "Einfachmodus"}</span>
+          <span>{simpleMode ? "Alle Widgets" : "Zur kompakten Startseite"}</span>
         </button>
       </div>
     </div>
