@@ -224,7 +224,7 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
             </div>
             <span className="text-[0.75rem] font-bold text-slate-700 group-hover:text-slate-900 transition-colors flex items-center gap-1.5">
               <Zap size={14} className={app.notenMeta?.syncWpDeutschMath ? 'text-indigo-500 fill-indigo-100' : 'text-slate-400'} />
-              Wochenpläne für Deutsch & Mathematik synchronisieren
+              Wochenplan-Noteneinträge zwischen Deutsch und Mathematik spiegeln
             </span>
             <input
               type="checkbox"
@@ -241,6 +241,7 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
               }}
             />
           </label>
+          <p className="text-xs text-slate-600 mt-2">Bei Aktivierung werden eingegebene Noten auch im anderen Fach geändert. Abschnittsnamen, Datum, Höchstpunkte und Spalten bleiben pro Fach getrennt.</p>
         </div>
         <div className="flex gap-2 shrink-0">
           <button onClick={onBack} className="px-4 py-2 hover:bg-slate-50 border border-slate-250/70 text-slate-650 font-bold text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl transition-all cursor-pointer">Abbrechen</button>

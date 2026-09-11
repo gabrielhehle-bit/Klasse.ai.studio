@@ -1,3 +1,4 @@
+import { updateSubjectColumn } from '../lib/classroomEdits';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -750,10 +751,6 @@ export default function Gradebook() {
     e.stopPropagation();
     const currentCount = colCounts[typ] || 0;
     setApp(prev => {
-      const isSyncWP = prev.notenMeta?.syncWpDeutschMath;
-      const shouldSync = isSyncWP && typ === 'wp' && (activeFach === 'Deutsch' || activeFach === 'Mathematik');
-      const targetFach = activeFach === 'Deutsch' ? 'Mathematik' : 'Deutsch';
-
       const nm = { ...(prev.notenMeta || {}) };
       
       const currentFachData = { ...(nm[activeFach] || {}) };
@@ -765,12 +762,6 @@ export default function Gradebook() {
         [activeFach]: { ...currentFachData, colCounts: newCounts }
       };
 
-      if (shouldSync) {
-        const targetFachData = { ...(nm[targetFach] || {}) };
-        const targetCounts = { ...(targetFachData.colCounts || { lzk: 4, wp: 4, obj: 4 }) };
-        const newTargetCounts = { ...targetCounts, [typ]: (targetCounts[typ] || 0) + 1 };
-        updatedMeta[targetFach] = { ...targetFachData, colCounts: newTargetCounts };
-      }
       
       return { ...prev, notenMeta: updatedMeta };
     });
@@ -788,10 +779,6 @@ export default function Gradebook() {
     const { typ } = pendingDelete;
     
     setApp(prev => {
-      const isSyncWP = prev.notenMeta?.syncWpDeutschMath;
-      const shouldSync = isSyncWP && typ === 'wp' && (activeFach === 'Deutsch' || activeFach === 'Mathematik');
-      const targetFach = activeFach === 'Deutsch' ? 'Mathematik' : 'Deutsch';
-
       const nm = { ...(prev.notenMeta || {}) };
       const currentFachData = { ...(nm[activeFach] || {}) };
       const counts = { ...(currentFachData.colCounts || { lzk: 4, wp: 4, obj: 4 }) };
@@ -804,12 +791,6 @@ export default function Gradebook() {
         [activeFach]: { ...currentFachData, colCounts: newCounts }
       };
 
-      if (shouldSync) {
-        const targetFachData = { ...(nm[targetFach] || {}) };
-        const targetCounts = { ...(targetFachData.colCounts || { lzk: 4, wp: 4, obj: 4 }) };
-        const newTargetCounts = { ...targetCounts, [typ]: Math.max(0, targetCounts[typ] - 1) };
-        updatedMeta[targetFach] = { ...targetFachData, colCounts: newTargetCounts };
-      }
       
       return { ...prev, notenMeta: updatedMeta };
     });
@@ -1466,73 +1447,7 @@ export default function Gradebook() {
   };
 
   const updateColMeta = (typ: 'sa'|'lzk'|'wp'|'obj', idx: number, labelVal: string, dateVal: string, maxPointsVal?: number) => {
-    setApp(prev => {
-      const isSyncWP = prev.notenMeta?.syncWpDeutschMath;
-      const shouldSync = isSyncWP && typ === 'wp' && (activeFach === 'Deutsch' || activeFach === 'Mathematik');
-      const targetFach = activeFach === 'Deutsch' ? 'Mathematik' : 'Deutsch';
-
-      const nm = { ...(prev.notenMeta || {}) };
-      
-      const currentFachData = { ...(nm[activeFach] || {}) };
-      const labels = { ...(currentFachData.colLabels || {}) };
-      const typeLabels = { ...(labels[typ] || {}) };
-      typeLabels[idx] = labelVal;
-
-      const dates = { ...(currentFachData.colDates || {}) };
-      const typeDates = { ...(dates[typ] || {}) };
-      if (dateVal) {
-        typeDates[idx] = dateVal;
-      } else {
-        delete typeDates[idx];
-      }
-
-      const maxPoints = { ...(currentFachData.maxPoints || {}) };
-      const typeMaxPoints = { ...(maxPoints[typ] || {}) };
-      if (maxPointsVal !== undefined && maxPointsVal > 0) {
-        typeMaxPoints[idx] = maxPointsVal;
-      }
-      
-      const updatedMeta = {
-        ...nm,
-        [activeFach]: {
-          ...currentFachData,
-          colLabels: { ...labels, [typ]: typeLabels },
-          colDates: { ...dates, [typ]: typeDates },
-          maxPoints: { ...maxPoints, [typ]: typeMaxPoints }
-        }
-      };
-
-      if (shouldSync) {
-        const targetFachData = { ...(nm[targetFach] || {}) };
-        
-        const targetLabels = { ...(targetFachData.colLabels || {}) };
-        const targetTypeLabels = { ...(targetLabels[typ] || {}) };
-        targetTypeLabels[idx] = labelVal;
-        
-        const targetDates = { ...(targetFachData.colDates || {}) };
-        const targetTypeDates = { ...(targetDates[typ] || {}) };
-        if (dateVal) {
-          targetTypeDates[idx] = dateVal;
-        } else {
-          delete targetTypeDates[idx];
-        }
-
-        const targetMaxPoints = { ...(targetFachData.maxPoints || {}) };
-        const targetTypeMaxPoints = { ...(targetMaxPoints[typ] || {}) };
-        if (maxPointsVal !== undefined && maxPointsVal > 0) {
-          targetTypeMaxPoints[idx] = maxPointsVal;
-        }
-
-        updatedMeta[targetFach] = {
-          ...targetFachData,
-          colLabels: { ...targetLabels, [typ]: targetTypeLabels },
-          colDates: { ...targetDates, [typ]: targetTypeDates },
-          maxPoints: { ...targetMaxPoints, [typ]: targetTypeMaxPoints }
-        };
-      }
-      
-      return { ...prev, notenMeta: updatedMeta };
-    });
+    setApp(prev => ({ ...prev, notenMeta: updateSubjectColumn(prev.notenMeta || {}, activeFach, typ, idx, labelVal, dateVal, maxPointsVal) }));
     setEditingColLabel(null);
   };
 

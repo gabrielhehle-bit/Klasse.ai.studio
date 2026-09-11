@@ -1,3 +1,4 @@
+import { completeMissingAttendance } from '../lib/classroomEdits';
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useApp } from "../context/AppContext";
 import { getTodayName, getSemester, isHoliday } from "../lib/utils";
@@ -64,7 +65,6 @@ export default function Attendance() {
   const [showMehrMenu, setShowMehrMenu] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
-  const [completedDays, setCompletedDays] = useState<Record<string, boolean>>({});
 
   // Active student modals & popovers
   const [activeNoteSid, setActiveNoteSid] = useState<string | null>(null);
@@ -146,40 +146,6 @@ export default function Attendance() {
     });
   }, [dateObj]);
 
-  // Auto-default to "Alle anwesend" if no attendance data is present for the selected day yet
-  useEffect(() => {
-    if (isFree) return;
-    if (!app.schueler || app.schueler.length === 0) return;
-
-    const [yr, mo, dy] = selectedDate.split("-").map(Number);
-    const dObj = new Date(yr, mo - 1, dy);
-    const dName = getTodayName(dObj);
-    const tInfo = dName ? app.tageplan?.[dName] || {} : {};
-    const hours: number[] = tInfo.stunden || [];
-    if (hours.length === 0) return;
-
-    const hasAnyData = app.schueler.some((s: any) => {
-      const statusData = app.anwesenheit?.[s.id]?.[selectedDate];
-      return statusData && Object.keys(statusData).length > 0;
-    });
-
-    if (!hasAnyData) {
-      setApp((prev: any) => {
-        const newAnwesenheit = { ...(prev.anwesenheit || {}) };
-        prev.schueler.forEach((s: any) => {
-          const studentAttendance = { ...(newAnwesenheit[s.id] || {}) };
-          const newDayAttendance: Record<string, string> = {};
-          hours.forEach((hourNum) => {
-            newDayAttendance[hourNum] = "a";
-          });
-          studentAttendance[selectedDate] = newDayAttendance;
-          newAnwesenheit[s.id] = studentAttendance;
-        });
-        return { ...prev, anwesenheit: newAnwesenheit };
-      });
-    }
-  }, [selectedDate, isFree, app.schueler, app.tageplan, setApp]);
-
   // Undo registration helper
   const registerUndo = (sid: string, studentName: string) => {
     const prevStatus = { ...(app.anwesenheit[sid]?.[selectedDate] || {}) };
@@ -260,7 +226,7 @@ export default function Attendance() {
 
       totalFehlstunden += studentFehlstunden;
 
-      if (activeHours.length > 0 && states.length === 0) {
+      if (activeHours.length > 0 && activeHours.some(hour => !statusData[hour])) {
         untrackedCount++;
       } else {
         if (hasU || hasE || studentFehlstunden > 0) {
@@ -589,7 +555,7 @@ export default function Attendance() {
   };
 
   // 1-Click "Alle anwesend"
-  const setAllStudents = (statusVal: string = "a") => {
+  const setAllStudents = (statusVal: string = "a", onlyMissing = false) => {
     setRecentChanges((prev) => [
       {
         studentId: "__BULK__",
@@ -602,6 +568,7 @@ export default function Attendance() {
     ]);
 
     setApp((prev) => {
+      if (onlyMissing) return { ...prev, anwesenheit: completeMissingAttendance(prev.anwesenheit, prev.schueler.map(s => s.id), selectedDate, activeHours) };
       const newAnwesenheit = { ...prev.anwesenheit };
       app.schueler.forEach((s) => {
         const studentAttendance = newAnwesenheit[s.id] || {};
@@ -622,17 +589,11 @@ export default function Attendance() {
 
   // Completion Handler ("Abschließen")
   const handleCompleteCheck = () => {
-    // If any student is untracked, default them to 'a'
-    if (dayStats.untracked > 0) {
-      setAllStudents("a");
-    }
-    setCompletedDays((prev) => ({
-      ...prev,
-      [selectedDate]: true,
-    }));
+    // Explicit confirmation fills empty hours, never overwrites an existing status.
+    setAllStudents("a", true);
   };
 
-  const isChecked = completedDays[selectedDate] || (dayStats.untracked === 0 && dayStats.total > 0);
+  const isChecked = activeHours.length > 0 && dayStats.untracked === 0 && dayStats.total > 0;
 
   // Note & Delay Save handlers
   const saveNote = (sid: string) => {
@@ -898,7 +859,7 @@ export default function Attendance() {
           {/* Quick "Alle anwesend" Action */}
           <button
             onClick={() => setAllStudents("a")}
-            disabled={isFree || sortedStudents.length === 0}
+            disabled={isFree || sortedStudents.length === 0 || activeHours.length === 0}
             className={`px-3.5 py-2.5 rounded-xl text-[0.75rem] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer border ${
               isFree || sortedStudents.length === 0
                 ? "opacity-40 grayscale cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
@@ -913,7 +874,7 @@ export default function Attendance() {
           {/* Primary Action "Abschließen" */}
           <button
             onClick={handleCompleteCheck}
-            disabled={isFree || sortedStudents.length === 0}
+            disabled={isFree || sortedStudents.length === 0 || activeHours.length === 0}
             className={`px-4 py-2.5 rounded-xl text-[0.75rem] font-black flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-sm ${
               isChecked
                 ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/10"
@@ -921,7 +882,7 @@ export default function Attendance() {
             }`}
           >
             <CheckCircle2 size={16} />
-            <span>{isChecked ? "Geprüft ✓" : "Abschließen"}</span>
+            <span>{isChecked ? "Vollständig erfasst" : "Offene Einträge als anwesend bestätigen"}</span>
           </button>
 
           {/* "Mehr" Dropdown Menu */}
@@ -1510,7 +1471,7 @@ export default function Attendance() {
                           </div>
                         </td>
                         {activeHours.map((hourNum) => {
-                          const st = statusData[hourNum] || "a";
+                          const st = statusData[hourNum] || "";
                           return (
                             <td key={hourNum} className="p-2 text-center border-l border-slate-100">
                               <button
@@ -1522,10 +1483,10 @@ export default function Attendance() {
                                     ? "bg-emerald-100 text-emerald-800"
                                     : st === "e"
                                     ? "bg-amber-100 text-amber-800"
-                                    : "bg-rose-100 text-rose-800"
+                                    : st === "u" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-500"
                                 }`}
                               >
-                                {st.toUpperCase()}
+                                {st ? st.toUpperCase() : "–"}
                               </button>
                             </td>
                           );
@@ -2056,7 +2017,7 @@ export default function Attendance() {
                     {s.nachname} {s.vorname}
                   </td>
                   <td className="p-2 text-center border-r border-black font-bold">
-                    {isAbsent ? (isUnex ? "Abwesend (u)" : "Abwesend (e)") : "Anwesend"}
+                    {isAbsent ? (isUnex ? "Abwesend (u)" : "Abwesend (e)") : activeHours.length === 0 || activeHours.some(hour => !statusData[hour]) ? "Noch nicht vollständig erfasst" : "Anwesend"}
                   </td>
                   <td className="p-2 italic">{details?.notiz || "–"}</td>
                 </tr>
