@@ -100,13 +100,12 @@ function getStorageDriver(): {
       return testMemoryStorage.get(key) ?? null;
     },
     setItem: async (key: string, value: string) => {
-      try {
-        if (typeof window !== 'undefined' && window.indexedDB) {
-          await localforage.setItem(key, value);
-          return;
-        }
-      } catch {
-        // Fallback
+      if (typeof window !== 'undefined') {
+        if (!window.indexedDB) throw new Error('Dauerhafter Browserspeicher ist nicht verfügbar.');
+        await localforage.setItem(key, value);
+        const stored = await localforage.getItem(key);
+        if (stored !== value) throw new Error('Die gespeicherten Daten konnten nicht verifiziert werden.');
+        return;
       }
       testMemoryStorage.set(key, value);
     },
@@ -240,7 +239,23 @@ export function isLegacyPlaintextState(obj: unknown): boolean {
  * @param appState Der zu sichernde Zustand
  * @param vaultKey Der aktive AES-GCM-256 Schlüssel aus dem RAM
  */
-export async function saveEncryptedAppState(
+let pendingStateWrite: Promise<unknown> = Promise.resolve();
+export function saveEncryptedAppState(appState: AppState, vaultKey: CryptoKey): Promise<EncryptedLocalStateV1> {
+  const snapshot = structuredClone(appState);
+  const write = pendingStateWrite.then(() => writeEncryptedAppState(snapshot, vaultKey));
+  pendingStateWrite = write.catch(() => undefined);
+  return write;
+}
+
+export async function loadEncryptedPreImportBackup(vaultKey: CryptoKey): Promise<AppState | null> {
+  const raw = await getStorageDriver().getItem(STORAGE_KEYS.PRE_IMPORT);
+  if (!raw) return null;
+  const record = JSON.parse(raw);
+  if (!isEncryptedLocalState(record)) throw new Error('Ungültige Rücksicherung.');
+  return decryptData<AppState>(record.encryptedState, vaultKey);
+}
+
+async function writeEncryptedAppState(
   appState: AppState,
   vaultKey: CryptoKey
 ): Promise<EncryptedLocalStateV1> {

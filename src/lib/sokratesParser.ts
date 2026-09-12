@@ -501,7 +501,7 @@ let cachedPdfjsLib: typeof import('pdfjs-dist') | null = null;
 async function getPdfjsLib() {
   if (!cachedPdfjsLib) {
     cachedPdfjsLib = await import('pdfjs-dist');
-    if (typeof window !== 'undefined' && !cachedPdfjsLib.GlobalWorkerOptions.workerSrc) {
+    if (typeof window !== 'undefined') {
       cachedPdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
     }
   }

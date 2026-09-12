@@ -1,3 +1,4 @@
+import { escapeHTML, scriptJSON, createOAuthState, verifyOAuthState } from './src/lib/serverSafety';
 import express from "express";
 import path from "path";
 import crypto from "crypto";
@@ -18,19 +19,24 @@ function validateProductionEnvironment() {
 
   const sessionSecret = process.env.SESSION_SECRET;
   const insecureSecrets = ["lehrerapp_secure_session_secret_2026", "secret", "changeme", "123456", "admin", "password"];
-  if (!sessionSecret || insecureSecrets.includes(sessionSecret.trim().toLowerCase())) {
-    console.warn("[SICHERHEITSWARNUNG] SESSION_SECRET ist nicht gesetzt oder nutzt einen unsicheren Standardwert. In Produktion muss ein starkes Zufalls-Secret gesetzt werden.");
+  if (!sessionSecret || sessionSecret.length < 32 || insecureSecrets.includes(sessionSecret.trim().toLowerCase())) {
+    throw new Error("Produktion benötigt ein zufälliges SESSION_SECRET mit mindestens 32 Zeichen.");
   }
 
+  for (const name of ['LEHRERAPP_ACCESS_TEAM', 'LEHRERAPP_ACCESS_EXTERNAL']) {
+    const code = process.env[name]?.trim();
+    if (!code || ['team2026', 'gast2026'].includes(code)) throw new Error(`Produktion benötigt einen eigenen ${name}.`);
+  }
+  if (!process.env.APP_URL) throw new Error('Produktion benötigt eine HTTPS APP_URL.');
   const appUrl = process.env.APP_URL;
   if (appUrl) {
     try {
       const parsed = new URL(appUrl);
       if (parsed.protocol !== "https:") {
-        console.warn(`[SICHERHEITSWARNUNG] In der Produktionsumgebung muss APP_URL das HTTPS-Protokoll nutzen: ${appUrl}`);
+        throw new Error("APP_URL muss HTTPS verwenden.");
       }
     } catch {
-      console.warn(`[SICHERHEITSWARNUNG] APP_URL ist keine gültige URL: ${appUrl}`);
+      throw new Error("APP_URL muss eine gültige HTTPS-URL sein.");
     }
   }
 
@@ -1764,6 +1770,10 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
   });
 
   // --- OneDrive Synchronization Endpoints ---
+  const oauthCookie = 'lehrerapp_onedrive_state';
+  const oauthCookieOptions = { httpOnly: true, sameSite: 'lax' as const, secure: process.env.NODE_ENV === 'production', path: '/api/onedrive' };
+  const oauthOrigin = new URL(process.env.APP_URL || 'http://localhost:3000').origin;
+
   app.get("/api/onedrive/auth-url", (req, res) => {
     const clientId = process.env.MICROSOFT_CLIENT_ID;
     if (!clientId) {
@@ -1771,13 +1781,15 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
     const appUrl = process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : 'http://localhost:3000';
     const redirectUri = `${appUrl}/api/onedrive/callback`;
+    const state = createOAuthState(SESSION_SECRET);
+    res.cookie(oauthCookie, state, { ...oauthCookieOptions, maxAge: 10 * 60 * 1000 });
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: "code",
       redirect_uri: redirectUri,
       response_mode: "query",
       scope: "Files.ReadWrite offline_access",
-      state: "onedrive_sync"
+      state
     });
     const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
     res.json({ configured: true, url: authUrl });
@@ -1785,6 +1797,14 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
 
   app.get("/api/onedrive/callback", async (req, res) => {
     const { code, error, error_description } = req.query;
+    const state = typeof req.query.state === 'string' ? req.query.state : '';
+    let cookieState = '';
+    try { cookieState = parseCookies(req)[oauthCookie] || ''; } catch { /* Reject malformed cookies. */ }
+    if (!verifyOAuthState(state, cookieState, SESSION_SECRET)) {
+      return res.status(400).send('Die OneDrive-Anmeldung ist abgelaufen oder ungültig. Bitte erneut verbinden.');
+    }
+    res.clearCookie(oauthCookie, oauthCookieOptions);
+    if (code !== undefined && typeof code !== 'string') return res.status(400).send('Ungültiger Anmeldecode.');
     
     if (error || !code) {
       const errMsg = (error_description as string) || (error as string) || "Unbekannter Fehler bei Microsoft OAuth.";
@@ -1819,11 +1839,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
         <body>
           <div class="error-icon">❌</div>
           <h2>Verbindung fehlgeschlagen</h2>
-          <p>${errMsg}</p>
+          <p>${escapeHTML(String(errMsg))}</p>
           <button onclick="window.close()">Fenster schließen</button>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${JSON.stringify(errMsg)} }, '*');
+              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${scriptJSON(errMsg)} }, ${scriptJSON(oauthOrigin)});
             }
           </script>
         </body>
@@ -1832,7 +1852,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
 
     try {
-      const redirectUri = `${process.env.APP_URL || 'http://localhost:3000'}/api/onedrive/callback`;
+      const redirectUri = `${(process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/onedrive/callback`;
       const response = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
         method: "POST",
         headers: {
@@ -1899,11 +1919,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
               window.opener.postMessage({ 
                 type: 'ONEDRIVE_AUTH_SUCCESS', 
                 tokenData: {
-                  access_token: ${JSON.stringify(tokenData.access_token)},
-                  refresh_token: ${JSON.stringify(tokenData.refresh_token)},
+                  access_token: ${scriptJSON(tokenData.access_token)},
+                  refresh_token: ${scriptJSON(tokenData.refresh_token)},
                   expires_at: ${Date.now() + (tokenData.expires_in || 3600) * 1000}
                 } 
-              }, '*');
+              }, ${scriptJSON(oauthOrigin)});
               setTimeout(() => window.close(), 1000);
             } else {
               window.location.href = '/';
@@ -1945,11 +1965,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
         <body>
           <div class="error-icon">❌</div>
           <h2>Token-Austausch fehlgeschlagen</h2>
-          <p>${errMsg}</p>
+          <p>${escapeHTML(String(errMsg))}</p>
           <button onclick="window.close()">Fenster schließen</button>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${JSON.stringify(errMsg)} }, '*');
+              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${scriptJSON(errMsg)} }, ${scriptJSON(oauthOrigin)});
             }
           </script>
         </body>
@@ -2032,7 +2052,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
 
     try {
-      const response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp:/content", {
+      const response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.json:/content", {
         method: "PUT",
         headers: {
           "Authorization": authHeader,
@@ -2057,12 +2077,17 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(401).json({ error: "Authorization Header fehlt" });
     }
     try {
-      // 1. Primär nach neuem verschlüsseltem .lehrerapp suchen
-      let response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp:/content", {
+      // 1. Primär nach verschlüsseltem .json suchen
+      let response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.json:/content", {
         headers: {
           "Authorization": authHeader
         }
       });
+
+      // Existing encrypted backups remain readable after the JSON filename change.
+      if (response.status === 404) {
+        response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp:/content", { headers: { Authorization: authHeader } });
+      }
 
       // 2. Abwärtskompatibler Fallback auf altes .json, falls noch keine neue Sicherung existiert
       if (response.status === 404) {
@@ -2093,12 +2118,17 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(401).json({ error: "Authorization Header fehlt" });
     }
     try {
-      // 1. Zuerst neues .lehrerapp prüfen
-      let response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp", {
+      // 1. Zuerst aktuelles .json prüfen
+      let response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.json", {
         headers: {
           "Authorization": authHeader
         }
       });
+
+      // Existing encrypted backups remain readable after the JSON filename change.
+      if (response.status === 404) {
+        response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp", { headers: { Authorization: authHeader } });
+      }
 
       // 2. Fallback auf altes .json zur Bestandsanzeige
       if (response.status === 404) {

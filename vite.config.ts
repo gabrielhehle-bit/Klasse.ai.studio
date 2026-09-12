@@ -17,6 +17,7 @@ export default defineConfig(({mode}) => {
           enabled: false
         },
         workbox: {
+          globPatterns: ['**/*.{js,mjs,wasm,css,html}'],
           // index.html immer frisch vom Netz, damit Updates ankommen:
           navigateFallback: '/index.html',
           runtimeCaching: [
@@ -34,7 +35,7 @@ export default defineConfig(({mode}) => {
               }
             },
             {
-              urlPattern: ({ request }) => ['style', 'script', 'font', 'image'].includes(request.destination),
+              urlPattern: ({ request }) => ['style', 'script', 'worker', 'font', 'image'].includes(request.destination),
               handler: 'StaleWhileRevalidate',
               options: {
                 cacheName: 'assets'

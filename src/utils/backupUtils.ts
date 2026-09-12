@@ -24,14 +24,8 @@ export const triggerBackupDownload = async (
     vaultRecord = await loadVaultRecord();
   }
 
-  let dataStr: string;
-  if (vaultKey && vaultRecord) {
-    const encryptedBackup = await createEncryptedBackup(app, vaultKey, vaultRecord);
-    dataStr = serializeBackup(encryptedBackup);
-  } else {
-    // Fallback: Falls der Tresor noch nicht aktiv ist, wird eine atomare JSON-Sicherung erstellt
-    dataStr = JSON.stringify(app, null, 2);
-  }
+  if (!vaultKey || !vaultRecord) throw new Error('Bitte den Tresor entsperren, bevor du eine JSON-Sicherung erstellst.');
+  const dataStr = serializeBackup(await createEncryptedBackup(app, vaultKey, vaultRecord));
 
   const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);

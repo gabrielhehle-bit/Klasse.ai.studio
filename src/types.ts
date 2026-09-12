@@ -923,6 +923,7 @@ export interface StatusHistory {
 }
 
 export interface ClassRoom {
+  saAssessments?: AppState['saAssessments'];
   id: string;
   name: string;
   stufe: number;

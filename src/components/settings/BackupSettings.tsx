@@ -1,3 +1,7 @@
+import { useApp } from '../../context/AppContext';
+import { prepareBackupRestore, parseBackupJSON, backupPasswordPrompt } from '../../lib/backupRestoreService';
+import { loadEncryptedPreImportBackup, isEncryptedLocalState } from '../../lib/secureStorageService';
+import { decryptData } from '../../lib/crypto';
 import React from 'react';
 import { 
   Download, 
@@ -10,14 +14,7 @@ import {
   Check
 } from 'lucide-react';
 import { triggerBackupDownload } from '../../utils/backupUtils';
-import { 
-  isEncryptedBackupV1, 
-  isLegacyPlaintextBackup, 
-  decryptBackup, 
-  recoverBackup,
-  unlockAndDecryptBackup
-} from '../../lib/backupCryptoService';
-import { getActiveVaultKey, setActiveVaultSession } from '../../lib/vaultStorage';
+import { getActiveVaultKey } from '../../lib/vaultStorage';
 
 interface BackupSettingsProps {
   app: any;
@@ -39,6 +36,9 @@ export default function BackupSettings({
   triggerInstall
 }: BackupSettingsProps) {
 
+  const { restoreBackup } = useApp();
+  const importing = React.useRef(false);
+
   const handleExportBackup = async () => {
     try {
       await triggerBackupDownload(app);
@@ -48,121 +48,52 @@ export default function BackupSettings({
     }
   };
 
-  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const fileReader = new FileReader();
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      fileReader.readAsText(file, "UTF-8");
-      fileReader.onload = async (event) => {
-        try {
-          const raw = (event.target?.result as string) || '';
-          let cleanContent = raw.trim();
-          if (cleanContent.charCodeAt(0) === 0xFEFF) {
-            cleanContent = cleanContent.slice(1).trim();
-          }
-          let parsedData: any;
-          try {
-            parsedData = JSON.parse(cleanContent);
-          } catch {
-            const firstBrace = cleanContent.indexOf('{');
-            const lastBrace = cleanContent.lastIndexOf('}');
-            if (firstBrace !== -1 && lastBrace > firstBrace) {
-              try {
-                parsedData = JSON.parse(cleanContent.slice(firstBrace, lastBrace + 1));
-              } catch {
-                throw new Error('Die Datei enthält kein lesbares JSON-Format.');
-              }
-            } else {
-              throw new Error('Die Datei enthält kein lesbares JSON-Format.');
-            }
-          }
-
-          // Fall 1: Verschlüsseltes Backup (LehrerAppEncryptedBackupV1)
-          if (isEncryptedBackupV1(parsedData)) {
-            let decryptedState: any = null;
-            const activeKey = getActiveVaultKey();
-
-            if (activeKey) {
-              try {
-                decryptedState = await decryptBackup(parsedData, activeKey);
-              } catch {
-                decryptedState = null;
-              }
-            }
-
-            // Falls kein aktiver Schlüssel oder Entschlüsselung fehlschlug: Passwort oder Recovery-Code abfragen
-            if (!decryptedState) {
-              const userInput = prompt(
-                'Dieses Backup ist clientseitig verschlüsselt.\n\nBitte gib dein Tresor-Passwort oder deinen 128-Bit Recovery-Code ein, um die Daten wiederherzustellen:'
-              );
-              if (!userInput) {
-                showToast('Wiederherstellung abgebrochen: Kein Schlüssel eingegeben.', 'info');
-                return;
-              }
-
-              try {
-                // Zuerst als Recovery-Code versuchen (falls Format passt)
-                if (userInput.replace(/[-\s]/g, '').length === 32) {
-                  const res = await recoverBackup(parsedData, userInput);
-                  decryptedState = res.appState;
-                  setActiveVaultSession(res.vaultKey, res.vaultRecord);
-                } else {
-                  // Sonst als Passwort versuchen
-                  const res = await unlockAndDecryptBackup(parsedData, userInput);
-                  decryptedState = res.appState;
-                  setActiveVaultSession(res.vaultKey, res.vaultRecord);
-                }
-              } catch {
-                showToast('Wiederherstellung fehlgeschlagen: Ungültiges Passwort oder falscher Recovery-Code.', 'error');
-                return;
-              }
-            }
-
-            if (decryptedState && typeof decryptedState === 'object') {
-              if (confirm('Möchtest du diese verschlüsselte Sicherungsdatei wirklich einlesen? Alle aktuellen Daten werden durch das Backup ersetzt.')) {
-                setApp(decryptedState);
-                showToast('Verschlüsselte Sicherung erfolgreich wiederhergestellt!', 'success');
-              }
-            } else {
-              showToast('Beschädigte Datenstruktur im Backup gefunden.', 'error');
-            }
-            return;
-          }
-
-          // Fall 2: Unverschlüsseltes Alt-Backup (Legacy Plaintext .json)
-          if (isLegacyPlaintextBackup(parsedData) || ('schueler' in parsedData) || ('classes' in parsedData) || ('klassenbezeichnung' in parsedData)) {
-            if (confirm('Sicherungsdatei erkannt. Möchtest du diese Daten wirklich einlesen? Alle aktuellen Daten werden durch das Backup ersetzt.')) {
-              setApp(parsedData);
-              showToast('Sicherung erfolgreich eingelesen!', 'success');
-            }
-            return;
-          }
-
-          showToast('Ungültiges oder beschädigtes Dateiformat.', 'error');
-        } catch (err: any) {
-          showToast(err?.message || 'Fehler beim Einlesen der Datei.', 'error');
-        } finally {
-          e.target.value = '';
-        }
-      };
+  const handleImportBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    const file = input.files?.[0];
+    if (!file || importing.current) return;
+    importing.current = true;
+    try {
+      const next = await prepareBackupRestore(parseBackupJSON(await file.text()), backupPasswordPrompt);
+      if (!next || !confirm('Diese JSON-Sicherung ersetzt die aktuellen Daten. Vorher wird eine verschlüsselte Rücksicherung erstellt. Fortfahren?')) return;
+      await restoreBackup(next);
+      showToast('JSON-Sicherung erfolgreich wiederhergestellt. Dein Tresorpasswort bleibt unverändert.', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'Wiederherstellung fehlgeschlagen.', 'error');
+    } finally {
+      input.value = '';
+      importing.current = false;
     }
   };
 
-  const handleRestoreNotfall = () => {
-    const notfall = localStorage.getItem('hehle_v3_notfallkopie');
-    if (notfall) {
-      if (confirm('Möchtest du die automatische Notfallkopie vom letzten App-Start wiederherstellen?')) {
-        try {
-          const parsed = JSON.parse(notfall);
-          if (parsed) {
-            setApp(parsed);
-            showToast('Notfallkopie wiederhergestellt!', 'success');
-          }
-        } catch (e) {
-          showToast('Fehler beim Einlesen der Notfallkopie.', 'error');
-        }
+  const handleRestoreNotfall = async () => {
+    try {
+      const key = getActiveVaultKey();
+      if (!key) throw new Error('Bitte zuerst den Tresor entsperren.');
+      const raw = localStorage.getItem('hehle_v3_notfallkopie');
+      if (!raw) throw new Error('Keine Notfallkopie vorhanden.');
+      const record = JSON.parse(raw);
+      const next = isEncryptedLocalState(record)
+        ? await decryptData(record.encryptedState, key)
+        : await prepareBackupRestore(record, backupPasswordPrompt);
+      if (next && confirm('Die Notfallkopie wiederherstellen? Der aktuelle Stand wird vorher gesichert.')) {
+        await restoreBackup(next);
+        showToast('Notfallkopie wiederhergestellt.', 'success');
       }
-    }
+    } catch (err: any) { showToast(err.message, 'error'); }
+  };
+
+  const handleUndoImport = async () => {
+    try {
+      const key = getActiveVaultKey();
+      if (!key) throw new Error('Bitte zuerst den Tresor entsperren.');
+      const previous = await loadEncryptedPreImportBackup(key);
+      if (!previous) throw new Error('Noch keine Rücksicherung vorhanden.');
+      if (confirm('Den Stand vor der letzten Wiederherstellung laden?')) {
+        await restoreBackup(previous);
+        showToast('Vorherigen Stand wiederhergestellt.', 'success');
+      }
+    } catch (err: any) { showToast(err.message, 'error'); }
   };
 
   const toggleBackupReminders = () => {
@@ -177,6 +108,9 @@ export default function BackupSettings({
 
   return (
     <div className="space-y-6">
+      <button type="button" onClick={handleUndoImport} className="btn">
+        <History size={18} /> Stand vor der letzten Wiederherstellung laden
+      </button>
       {/* Primary Export / Import */}
       <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-6 shadow-sm">
         <div className="flex items-center gap-3 border-b border-stone-150 pb-4">
@@ -212,7 +146,7 @@ export default function BackupSettings({
             <input
               id="backup-file-input-sub"
               type="file"
-              accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain,*"
+              accept=".json,.lehrerapp,.lehrerapp-backup,application/json"
               onChange={handleImportBackup}
               className="hidden"
             />

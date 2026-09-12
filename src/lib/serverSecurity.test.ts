@@ -129,7 +129,12 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
   server.close();
 
   await t.test('HSTS Header ist in Produktion aktiv', async () => {
-    const origEnv = process.env.NODE_ENV;
+    const names = ['NODE_ENV', 'SESSION_SECRET', 'APP_URL', 'LEHRERAPP_ACCESS_TEAM', 'LEHRERAPP_ACCESS_EXTERNAL'];
+    const original = Object.fromEntries(names.map(name => [name, process.env[name]]));
+    process.env.SESSION_SECRET = 'a'.repeat(64);
+    process.env.APP_URL = 'https://example.test';
+    process.env.LEHRERAPP_ACCESS_TEAM = 'Test-Team-Only';
+    process.env.LEHRERAPP_ACCESS_EXTERNAL = 'Test-Guest-Only';
     process.env.NODE_ENV = "production";
     try {
       const prodApp = await createApp({ isTest: true });
@@ -140,7 +145,7 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
       assert.equal(res.headers.get("strict-transport-security"), "max-age=31536000; includeSubDomains");
       prodServer.close();
     } finally {
-      process.env.NODE_ENV = origEnv;
+      for (const name of names) { if (original[name] === undefined) delete process.env[name]; else process.env[name] = original[name]; }
     }
   });
 });

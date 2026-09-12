@@ -1,27 +1,15 @@
+import { prepareBackupRestore, parseBackupJSON, backupPasswordPrompt } from '../lib/backupRestoreService';
 import React, { useRef, useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Download, Upload, Shield, Database, AlertCircle, CheckCircle2, Monitor, Loader2, Trash2, Clock, FileJson, AlertTriangle, Archive, RotateCcw, Cloud, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { triggerBackupDownload } from '../utils/backupUtils';
-import { 
-  isEncryptedBackupV1, 
-  isLegacyPlaintextBackup, 
-  decryptBackup, 
-  recoverBackup,
-  unlockAndDecryptBackup,
-  createEncryptedBackup
-} from '../lib/backupCryptoService';
-import { 
-  getActiveVaultKey, 
-  getActiveVaultRecord, 
-  loadVaultRecord, 
-  setActiveVaultSession 
-} from '../lib/vaultStorage';
-import LZString from 'lz-string';
+import { createEncryptedBackup } from '../lib/backupCryptoService';
+import { getActiveVaultKey, getActiveVaultRecord, loadVaultRecord } from '../lib/vaultStorage';
 import localforage from 'localforage';
 
 export default function Backup() {
-  const { app, setApp } = useApp();
+  const { app, setApp, restoreBackup } = useApp();
 
   const handleArchiveActiveClass = () => {
     if (confirm("Möchten Sie die aktive Klasse wirklich in das Archiv verschieben?")) {
@@ -86,6 +74,8 @@ sitzplan_objekte: prev.sitzplan_objekte ? JSON.parse(JSON.stringify(prev.sitzpla
           ...prev,
           archivedClasses: newArchivedClasses,
           classes: newClasses,
+          saAssessments: nextClass.saAssessments ? structuredClone(nextClass.saAssessments) : {},
+          scheduleAnalysis: nextClass.scheduleAnalysis ? structuredClone(nextClass.scheduleAnalysis) : undefined,
           activeClassId: nextClass.id,
           klassenbezeichnung: nextClass.name,
           stufe: nextClass.stufe,
@@ -192,127 +182,23 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
     }
   };
 
-  const processFile = (file: File) => {
+  const processFile = async (file: File) => {
+    if (importStatus === 'importing') return;
     setImportStatus('importing');
-    
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const rawContent = (e.target?.result as string) || '';
-        let cleanContent = rawContent.trim();
-        // UTF-8 BOM entfernen falls vorhanden
-        if (cleanContent.charCodeAt(0) === 0xFEFF) {
-          cleanContent = cleanContent.slice(1).trim();
-        }
-
-        let importedData: any;
-        try {
-          importedData = JSON.parse(cleanContent);
-        } catch {
-          // Falls die Datei im Browser als JavaScript (.js) oder mit Variablendeklaration gespeichert wurde
-          const firstBrace = cleanContent.indexOf('{');
-          const lastBrace = cleanContent.lastIndexOf('}');
-          if (firstBrace !== -1 && lastBrace > firstBrace) {
-            try {
-              importedData = JSON.parse(cleanContent.slice(firstBrace, lastBrace + 1));
-            } catch {
-              throw new Error('Die Datei enthält kein gültiges JSON-Format.');
-            }
-          } else {
-            throw new Error('Die Datei enthält kein lesbares JSON-Format.');
-          }
-        }
-        
-        if (typeof importedData !== 'object' || importedData === null) {
-          throw new Error('Ungültiges Dateiformat');
-        }
-        
-        let targetData: any = null;
-
-        // Fall 1: Verschlüsseltes Backup (.lehrerapp / .json)
-        if (isEncryptedBackupV1(importedData)) {
-          let decrypted: any = null;
-          const activeKey = getActiveVaultKey();
-          if (activeKey) {
-            try {
-              decrypted = await decryptBackup(importedData, activeKey);
-            } catch {
-              decrypted = null;
-            }
-          }
-
-          if (!decrypted) {
-            const userInput = prompt(
-              'Dieses Backup ist clientseitig verschlüsselt.\n\nBitte gib dein Tresor-Passwort oder deinen 128-Bit Recovery-Code ein:'
-            );
-            if (!userInput) {
-              setImportStatus('idle');
-              alert('Import abgebrochen: Kein Schlüssel eingegeben.');
-              return;
-            }
-
-            try {
-              if (userInput.replace(/[-\s]/g, '').length === 32) {
-                const res = await recoverBackup(importedData, userInput);
-                decrypted = res.appState;
-                setActiveVaultSession(res.vaultKey, res.vaultRecord);
-              } else {
-                const res = await unlockAndDecryptBackup(importedData, userInput);
-                decrypted = res.appState;
-                setActiveVaultSession(res.vaultKey, res.vaultRecord);
-              }
-            } catch {
-              setImportStatus('idle');
-              alert('Entschlüsselung fehlgeschlagen: Falscher Recovery-Code oder ungültiges Passwort.');
-              return;
-            }
-          }
-          targetData = decrypted;
-        } else if (isLegacyPlaintextBackup(importedData) || ('schueler' in importedData) || ('classes' in importedData) || ('klassenbezeichnung' in importedData)) {
-          // Fall 2: Unverschlüsseltes Alt-Backup (Legacy Plaintext .json)
-          targetData = importedData;
-        } else {
-          throw new Error('Diese Datei ist kein gültiges LehrerAPP-Backup.');
-        }
-
-        const shouldReplace = confirm(
-          'Diese Sicherung ersetzt den aktuellen lokalen Datenbestand vollständig. Nicht gesicherte Änderungen gehen verloren. Möchten Sie den Import wirklich fortsetzen?'
-        );
-        if (!shouldReplace) {
-          setImportStatus('idle');
-          return;
-        }
-
-        const dataToImport = JSON.stringify({
-          ...targetData,
-          tourAbgeschlossen: true
-        });
-
-        await localforage.setItem('hehle_v3', dataToImport);
-
-        try {
-          localStorage.setItem('hehle_v3_fallback', dataToImport);
-          localStorage.setItem('hehle_v3_backup', LZString.compressToUTF16(dataToImport));
-        } catch (err) {
-          console.warn('Fallback-Schreiben fehlgeschlagen (Quota)', err);
-        }
-        
-        sessionStorage.removeItem('hehle_v3_temp');
-
-        setImportStatus('success');
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
-
-      } catch (err: any) {
-        console.error('Import error:', err);
+    try {
+      const next = await prepareBackupRestore(parseBackupJSON(await file.text()), backupPasswordPrompt);
+      if (!next || !confirm('Diese JSON-Sicherung ersetzt die aktuellen Daten. Vorher wird automatisch eine verschlüsselte Rücksicherung erstellt. Fortfahren?')) {
         setImportStatus('idle');
-        alert('Fehler beim Importieren: ' + (err instanceof Error ? err.message : 'Die Datei ist ungültig oder beschädigt.'));
-      } finally {
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
       }
-    };
-    reader.readAsText(file);
+      await restoreBackup(next);
+      setImportStatus('success');
+    } catch (err: any) {
+      setImportStatus('idle');
+      alert('Wiederherstellung fehlgeschlagen: ' + (err?.message || 'Unbekannter Fehler'));
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   const onDragOver = (e: React.DragEvent) => {
@@ -486,6 +372,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
 
       // Listener für PostMessage vom Callback-Endpunkt
       const handleMessage = (event: MessageEvent) => {
+        if (!popup || event.origin !== window.location.origin || event.source !== popup) return;
         if (event.data?.type === 'ONEDRIVE_AUTH_SUCCESS') {
           const tokenData = event.data.tokenData;
           sessionStorage.setItem('onedrive_token', JSON.stringify(tokenData));
@@ -610,68 +497,9 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
         throw new Error(errData.error || `HTTP-Status: ${res.status}`);
       }
 
-      const importedData = await res.json();
-      if (typeof importedData !== 'object' || importedData === null) {
-        throw new Error('Ungültiges Datenformat von OneDrive empfangen.');
-      }
-
-      let targetData: any = null;
-
-      // Fall 1: Verschlüsseltes Backup von OneDrive empfangen
-      if (isEncryptedBackupV1(importedData)) {
-        let decrypted: any = null;
-        const activeKey = getActiveVaultKey();
-        if (activeKey) {
-          try {
-            decrypted = await decryptBackup(importedData, activeKey);
-          } catch {
-            decrypted = null;
-          }
-        }
-
-        if (!decrypted) {
-          const userInput = prompt(
-            'Das OneDrive-Backup ist clientseitig verschlüsselt.\n\nBitte gib dein Tresor-Passwort oder deinen 128-Bit Recovery-Code ein:'
-          );
-          if (!userInput) {
-            setIsSyncing(false);
-            setSyncStatus('idle');
-            return;
-          }
-
-          if (userInput.replace(/[-\s]/g, '').length === 32) {
-            const r = await recoverBackup(importedData, userInput);
-            decrypted = r.appState;
-            setActiveVaultSession(r.vaultKey, r.vaultRecord);
-          } else {
-            const r = await unlockAndDecryptBackup(importedData, userInput);
-            decrypted = r.appState;
-            setActiveVaultSession(r.vaultKey, r.vaultRecord);
-          }
-        }
-        targetData = decrypted;
-      } else if (isLegacyPlaintextBackup(importedData)) {
-        // Fall 2: Altes unverschlüsseltes Cloud-Backup
-        targetData = importedData;
-      } else {
-        throw new Error('Die von OneDrive heruntergeladene Datei ist kein gültiges LehrerAPP-Backup.');
-      }
-
-      const dataToImport = JSON.stringify({
-        ...targetData,
-        tourAbgeschlossen: true
-      });
-
-      await localforage.setItem('hehle_v3', dataToImport);
-
-      try {
-        localStorage.setItem('hehle_v3_fallback', dataToImport);
-        localStorage.setItem('hehle_v3_backup', LZString.compressToUTF16(dataToImport));
-      } catch (e) {
-        console.warn('Fallback-Schreiben fehlgeschlagen (Quota)', e);
-      }
-
-      sessionStorage.removeItem('hehle_v3_temp');
+      const next = await prepareBackupRestore(await res.json(), backupPasswordPrompt);
+      if (!next) { setSyncStatus('idle'); return; }
+      await restoreBackup(next);
 
       setSyncStatus('success');
       
@@ -679,9 +507,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
       localStorage.setItem('lehrkraft_last_backup_time', timeStr);
       setLastBackupStr(timeStr);
 
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+
 
     } catch (err: any) {
       console.error('OneDrive Download-Fehler:', err);
@@ -1224,7 +1050,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
               aria-label="LehrerAPP-Sicherungsdatei auswählen (.json / .lehrerapp)"
               ref={fileInputRef} 
               onChange={importData} 
-              accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain,*" 
+              accept=".json,.lehrerapp,.lehrerapp-backup,application/json"
               className="hidden" 
             />
             <button 
