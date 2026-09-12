@@ -16,7 +16,60 @@ export interface DrawingPoint {
   pressure?: number;
 }
 
-export type DrawingTool = 'pen' | 'eraser';
+export type DrawingTool = 'pen' | 'eraser' | 'text';
+
+export type DrawingFontSize = 'small' | 'medium' | 'large' | 'huge';
+export type DrawingCardStyle = 'transparent' | 'yellow' | 'blue' | 'green' | 'pink' | 'white';
+
+export interface DrawingTextItem {
+  id: string;
+  x: number; // In Prozent (0 - 100) oder Pixel
+  y: number; // In Prozent (0 - 100) oder Pixel
+  text: string;
+  color: string;
+  fontSize: DrawingFontSize;
+  cardStyle?: DrawingCardStyle;
+}
+
+export const DRAWING_FONT_SIZES: Record<DrawingFontSize, { id: DrawingFontSize; label: string; px: number }> = {
+  small: { id: 'small', label: 'Klein', px: 14 },
+  medium: { id: 'medium', label: 'Normal', px: 18 },
+  large: { id: 'large', label: 'Groß', px: 24 },
+  huge: { id: 'huge', label: 'Titel', px: 32 },
+};
+
+export const DRAWING_TEXT_STYLES: Array<{ id: DrawingCardStyle; label: string; bg: string; border: string }> = [
+  { id: 'transparent', label: 'Freier Text', bg: 'transparent', border: 'transparent' },
+  { id: 'yellow', label: 'Post-it Gelb', bg: '#fef9c3', border: '#fde047' },
+  { id: 'blue', label: 'Notiz Blau', bg: '#e0f2fe', border: '#7dd3fc' },
+  { id: 'green', label: 'Notiz Grün', bg: '#dcfce7', border: '#86efac' },
+  { id: 'pink', label: 'Notiz Rosa', bg: '#fce7f3', border: '#f472b6' },
+  { id: 'white', label: 'Kärtchen Weiß', bg: '#ffffff', border: '#cbd5e1' },
+];
+
+export function createTextId(): string {
+  return `txt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+}
+
+export function createDrawingTextItem(
+  text: string,
+  x: number,
+  y: number,
+  color: string = '#0f172a',
+  fontSize: DrawingFontSize = 'medium',
+  cardStyle: DrawingCardStyle = 'transparent',
+  id: string = createTextId()
+): DrawingTextItem {
+  return {
+    id,
+    x: Math.max(0, Math.min(95, x)),
+    y: Math.max(0, Math.min(95, y)),
+    text,
+    color,
+    fontSize,
+    cardStyle,
+  };
+}
 
 export interface DrawingStroke {
   id: string;
@@ -205,14 +258,84 @@ export function renderStroke(
 }
 
 /**
- * Zeichnet alle Strokes auf das Canvas
+ * Zeichnet ein einzelnes Textelement auf den Canvas-Context (für Snapshots, Export und Vollbild-Rendern)
+ */
+export function renderTextItemOnCanvas(
+  ctx: CanvasRenderingContext2D,
+  item: DrawingTextItem,
+  canvasWidth: number,
+  canvasHeight: number
+): void {
+  if (!item.text || !item.text.trim()) return;
+
+  const pxX = item.x <= 100 ? (item.x / 100) * canvasWidth : item.x;
+  const pxY = item.y <= 100 ? (item.y / 100) * canvasHeight : item.y;
+  const sizeConfig = DRAWING_FONT_SIZES[item.fontSize] || DRAWING_FONT_SIZES.medium;
+  const fontSizePx = sizeConfig.px;
+  const lineHeight = fontSizePx * 1.35;
+
+  const lines = item.text.split('\n');
+  ctx.save();
+  ctx.font = `600 ${fontSizePx}px "Plus Jakarta Sans", system-ui, -apple-system, sans-serif`;
+
+  let maxLineWidth = 0;
+  for (const line of lines) {
+    const metrics = ctx.measureText(line);
+    if (metrics.width > maxLineWidth) {
+      maxLineWidth = metrics.width;
+    }
+  }
+
+  const paddingX = item.cardStyle && item.cardStyle !== 'transparent' ? 14 : 6;
+  const paddingY = item.cardStyle && item.cardStyle !== 'transparent' ? 10 : 6;
+  const boxWidth = maxLineWidth + paddingX * 2;
+  const boxHeight = lines.length * lineHeight + paddingY * 2;
+
+  // Hintergrund-Kärtchen zeichnen falls gewünscht
+  if (item.cardStyle && item.cardStyle !== 'transparent') {
+    const styleDef = DRAWING_TEXT_STYLES.find((s) => s.id === item.cardStyle);
+    if (styleDef) {
+      ctx.fillStyle = styleDef.bg;
+      ctx.strokeStyle = styleDef.border;
+      ctx.lineWidth = 1.5;
+
+      const radius = 8;
+      ctx.beginPath();
+      ctx.moveTo(pxX + radius, pxY);
+      ctx.lineTo(pxX + boxWidth - radius, pxY);
+      ctx.quadraticCurveTo(pxX + boxWidth, pxY, pxX + boxWidth, pxY + radius);
+      ctx.lineTo(pxX + boxWidth, pxY + boxHeight - radius);
+      ctx.quadraticCurveTo(pxX + boxWidth, pxY + boxHeight, pxX + boxWidth - radius, pxY + boxHeight);
+      ctx.lineTo(pxX + radius, pxY + boxHeight);
+      ctx.quadraticCurveTo(pxX, pxY + boxHeight, pxX, pxY + boxHeight - radius);
+      ctx.lineTo(pxX, pxY + radius);
+      ctx.quadraticCurveTo(pxX, pxY, pxX + radius, pxY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  // Textzeilen zeichnen
+  ctx.fillStyle = item.color || '#0f172a';
+  ctx.textBaseline = 'top';
+  lines.forEach((line, idx) => {
+    ctx.fillText(line, pxX + paddingX, pxY + paddingY + idx * lineHeight);
+  });
+
+  ctx.restore();
+}
+
+/**
+ * Zeichnet alle Strokes und optional Text-Elemente auf das Canvas
  */
 export function renderAllStrokes(
   ctx: CanvasRenderingContext2D,
   strokes: DrawingStroke[],
   width: number,
   height: number,
-  backgroundColor: string = '#ffffff'
+  backgroundColor: string = '#ffffff',
+  texts: DrawingTextItem[] = []
 ): void {
   ctx.save();
   ctx.fillStyle = backgroundColor;
@@ -220,6 +343,12 @@ export function renderAllStrokes(
 
   for (const stroke of strokes) {
     renderStroke(ctx, stroke, backgroundColor);
+  }
+
+  if (texts && texts.length > 0) {
+    for (const textItem of texts) {
+      renderTextItemOnCanvas(ctx, textItem, width, height);
+    }
   }
 
   ctx.restore();
@@ -257,23 +386,18 @@ export function setupCanvasDPR(
 }
 
 /**
- * Erstellt eine saubere Bild-Momentaufnahme (PNG DataURL) für die Übergabe an Tafel.tsx
+ * Erstellt eine saubere Bild-Momentaufnahme (PNG DataURL) für Export oder Weitergabe
  */
 export function exportDrawingSnapshot(
   canvas: HTMLCanvasElement,
   maxWidth: number = 1920,
-  maxHeight: number = 1080
+  maxHeight: number = 1080,
+  texts?: DrawingTextItem[]
 ): string | null {
   try {
     if (!canvas || canvas.width === 0 || canvas.height === 0) return null;
 
-    // Falls das Original-Canvas innerhalb der Max-Grenzen liegt, direkt exportieren
-    if (canvas.width <= maxWidth && canvas.height <= maxHeight) {
-      return canvas.toDataURL('image/png');
-    }
-
-    // Wenn größer, proportional herunterskalieren für speicherschonenden Datentransfer
-    const scale = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
+    const scale = Math.min(1, maxWidth / canvas.width, maxHeight / canvas.height);
     const tempCanvas = document.createElement('canvas');
     tempCanvas.width = Math.round(canvas.width * scale);
     tempCanvas.height = Math.round(canvas.height * scale);
@@ -282,6 +406,13 @@ export function exportDrawingSnapshot(
     if (!tempCtx) return canvas.toDataURL('image/png');
 
     tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+
+    if (texts && texts.length > 0) {
+      for (const textItem of texts) {
+        renderTextItemOnCanvas(tempCtx, textItem, tempCanvas.width, tempCanvas.height);
+      }
+    }
+
     return tempCanvas.toDataURL('image/png');
   } catch (e) {
     console.error('Failed to export drawing snapshot:', e);

@@ -8,6 +8,7 @@ import {
   Bot, FileText, Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { IconButton } from './ui';
 
 interface SpotlightItem {
   id: string;
@@ -112,51 +113,57 @@ export default function Spotlight() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000]  flex items-start justify-center pt-[15vh] px-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-[1000] flex items-start justify-center pt-[15vh] px-4"
             onClick={() => setIsOpen(false)}
           >
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: -20 }}
+              initial={{ opacity: 0, scale: 0.96, y: -16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: -20 }}
-              className="w-full max-w-2xl bg-white rounded-[2.5rem] shadow-[0_30px_90px_rgba(0,0,0,0.5)] border border-slate-100 "
+              exit={{ opacity: 0, scale: 0.96, y: -16 }}
+              transition={{ duration: 0.15 }}
+              className="w-full max-w-2xl bg-[var(--surface-card,var(--surface))] rounded-[2rem] shadow-2xl border border-[var(--border-default,var(--border))] overflow-hidden text-[var(--text-primary)]"
               onClick={e => e.stopPropagation()}
               onKeyDown={handleKeyDown}
             >
               <div className="relative group">
-                <div className="absolute left-8 top-1/2 -translate-y-1/2 flex items-center gap-2 text-slate-300">
-                  <Search size={22} className="group-focus-within:text-emerald-500 transition-colors" />
+                <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center gap-2 text-[var(--text-muted)] pointer-events-none">
+                  <Search size={20} className="group-focus-within:text-[var(--accent)] transition-colors" />
                 </div>
                 <input 
                   autoFocus
                   type="text" 
                   placeholder="Inhalte suchen, Seiten wechseln oder Schüler finden..."
-                  className="w-full h-20 pl-20 pr-8 bg-transparent text-[1rem] font-medium border-b border-slate-50 outline-none placeholder:text-slate-200"
+                  className="w-full h-18 pl-16 pr-24 bg-transparent text-[0.9375rem] font-medium border-b border-[var(--border-default,var(--border))]/60 outline-none placeholder:text-[var(--text-muted)] text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring,var(--accent))]"
                   value={query}
                   onChange={e => {
                     setQuery(e.target.value);
                     setSelectedIndex(0);
                   }}
                 />
-                <div className="absolute right-8 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                   <div className="flex items-center gap-1 text-[0.5625rem] font-black uppercase text-slate-300 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                   <div className="flex items-center gap-1 text-[0.625rem] font-black uppercase text-[var(--text-muted)] bg-[var(--surface-subtle,var(--surface2))] px-2 py-1 rounded-lg border border-[var(--border-default,var(--border))]">
                       <Command size={10} />
                       <span>K</span>
                    </div>
-                   <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-slate-50 rounded-lg text-slate-300 transition-colors">
+                   <IconButton 
+                     variant="ghost" 
+                     size="sm" 
+                     aria-label="Schließen" 
+                     onClick={() => setIsOpen(false)}
+                   >
                       <X size={18} />
-                   </button>
+                   </IconButton>
                 </div>
               </div>
 
-              <div className="max-h-[50vh] overflow-y-auto no-scrollbar py-4 px-4">
+              <div className="max-h-[50vh] overflow-y-auto no-scrollbar py-3 px-3">
                 {filteredItems.length === 0 ? (
-                  <div className="py-20 text-center space-y-4">
-                     <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center text-4xl mx-auto opacity-50">🔍</div>
-                     <p className="text-slate-400 font-bold text-[0.875rem]">Keine Ergebnisse für "{query}"</p>
+                  <div className="py-16 text-center space-y-3">
+                     <div className="w-14 h-14 bg-[var(--surface-subtle,var(--surface2))] rounded-2xl flex items-center justify-center text-3xl mx-auto border border-[var(--border-default,var(--border))]">🔍</div>
+                     <p className="text-[var(--text-muted)] font-bold text-[0.875rem]">Keine Ergebnisse für &quot;{query}&quot;</p>
                   </div>
                 ) : (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     {/* Group by sections */}
                     {['Navigation', 'Planung', 'Tools', 'KI-Assistenten', 'Schüler:innen', 'Aktionen'].map(section => {
                       const sectionItems = filteredItems.filter(item => item.section === section);
@@ -164,26 +171,40 @@ export default function Spotlight() {
                       
                       return (
                         <div key={section} className="space-y-1">
-                          <h4 className="px-4 text-[0.625rem] font-black uppercase tracking-[0.25em] text-slate-300 mb-2">{section}</h4>
-                          {sectionItems.map((item, idx) => {
+                          <h4 className="px-3 text-[0.625rem] font-black uppercase tracking-[0.2em] text-[var(--text-muted)] mb-1">{section}</h4>
+                          {sectionItems.map((item) => {
                             const globalIdx = filteredItems.indexOf(item);
                             const isSelected = globalIdx === selectedIndex;
                             
                             return (
                               <button
                                 key={item.id}
-                                className={`w-full flex items-center justify-between gap-4 px-4 py-4 rounded-2xl transition-all ${isSelected ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/20' : 'hover:bg-slate-50 text-slate-600'}`}
+                                type="button"
+                                className={`w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl transition-all cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] ${
+                                  isSelected 
+                                    ? 'shadow-sm font-bold' 
+                                    : 'hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                }`}
+                                style={isSelected ? { backgroundColor: 'var(--accent)', color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}
                                 onClick={() => handleSelect(item)}
                                 onMouseEnter={() => setSelectedIndex(globalIdx)}
                               >
-                                <div className="flex items-center gap-4">
-                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${isSelected ? 'bg-white/20' : item.highlight ? 'bg-amber-100 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
+                                <div className="flex items-center gap-3">
+                                  <div 
+                                    className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors shrink-0 ${
+                                      isSelected 
+                                        ? 'bg-white/20' 
+                                        : item.highlight 
+                                          ? 'bg-[var(--warning-soft)] text-[var(--warning-text)]' 
+                                          : 'bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted)]'
+                                    }`}
+                                  >
                                     {item.icon}
                                   </div>
                                   <span className="text-[0.875rem] font-bold tracking-tight">{item.label}</span>
                                 </div>
                                 {isSelected && (
-                                  <div className="flex items-center gap-1 opacity-60">
+                                  <div className="flex items-center gap-1 opacity-80 shrink-0">
                                     <span className="text-[0.625rem] font-black uppercase">Auswählen</span>
                                     <ArrowUpRight size={14} />
                                   </div>
@@ -198,15 +219,15 @@ export default function Spotlight() {
                 )}
               </div>
 
-              <div className="bg-slate-50 p-4 px-8 border-t border-slate-100 flex items-center gap-6">
-                 <div className="flex items-center gap-1.5 text-slate-400">
-                    <div className="p-1 bg-white border border-slate-200 rounded shadow-sm">
+              <div className="bg-[var(--surface-subtle,var(--surface2))] p-3 px-6 border-t border-[var(--border-default,var(--border))] flex items-center gap-6">
+                 <div className="flex items-center gap-1.5 text-[var(--text-muted)]">
+                    <div className="p-1 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-md shadow-xs">
                        <ArrowUpRight size={10} className="rotate-90" />
                     </div>
                     <span className="text-[0.625rem] font-black uppercase tracking-widest">Wählen</span>
                  </div>
-                 <div className="flex items-center gap-1.5 text-slate-400">
-                    <div className="px-2 py-0.5 bg-white border border-slate-200 rounded shadow-sm text-[0.625rem] font-black uppercase">Esc</div>
+                 <div className="flex items-center gap-1.5 text-[var(--text-muted)]">
+                    <div className="px-2 py-0.5 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-md shadow-xs text-[0.625rem] font-black uppercase text-[var(--text-secondary)]">Esc</div>
                     <span className="text-[0.625rem] font-black uppercase tracking-widest">Schließen</span>
                  </div>
               </div>

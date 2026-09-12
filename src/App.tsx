@@ -144,7 +144,7 @@ const FULL_HEIGHT_PAGES = ['ki-helfer', 'sitzplan', 'elternbrief', 'differenzier
 function AppContent() {
   const { app, setApp, setPage } = useApp();
   const { showToast } = useToast();
-  const currentPage = app.currentPage || 'cockpit';
+  const currentPage = app.currentPage || 'dashboard';
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showDiagnostikAnleitung, setShowDiagnostikAnleitung] = useState(false);
@@ -206,7 +206,32 @@ function AppContent() {
     (app?.schueler && app.schueler.length > 0)
   );
     
-  const [showSetup, setShowSetup] = useState(!setupAbgeschlossen);
+  const [manualSetupRequested, setManualSetupRequested] = useState(false);
+
+  // Setup soll angezeigt werden, wenn noch keine Klasse existiert (und kein Demo-Modus)
+  // oder wenn der Nutzer manuell 'setup' bzw. 'setup_new' aufgerufen hat
+  const isSetupActive = (!setupAbgeschlossen && !app.demoModusAktiv) || manualSetupRequested || currentPage === 'setup' || currentPage === 'setup_new';
+
+  // Nur beim allerersten Laden der App: Wenn bereits eine Klasse angelegt ist,
+  // aber der gespeicherte Zustand noch 'setup' war, ins Dashboard wechseln.
+  // Manuelle Klicks während der Session (z.B. 'setup_new' oder 'Klasse hinzufügen') dürfen NICHT blockiert werden!
+  const hasCheckedInitialSetup = React.useRef(false);
+  React.useEffect(() => {
+    if (!hasCheckedInitialSetup.current) {
+      hasCheckedInitialSetup.current = true;
+      if (setupAbgeschlossen && !manualSetupRequested && (currentPage === 'setup' || currentPage === 'setup_new')) {
+        setPage('dashboard');
+      }
+    }
+  }, [setupAbgeschlossen, manualSetupRequested, currentPage, setPage]);
+
+  // Wenn der Nutzer oder ein Modul 'setup' oder 'setup_new' anwählt, Intent als aktiv markieren
+  React.useEffect(() => {
+    if (currentPage === 'setup' || currentPage === 'setup_new') {
+      setManualSetupRequested(true);
+    }
+  }, [currentPage]);
+
   const [hasAiKey, setHasAiKey] = useState<boolean | null>(null);
   const [showAiWarning, setShowAiWarning] = useState(true);
 
@@ -549,14 +574,14 @@ function AppContent() {
       // Just a placeholder to show I matched properly
   }
 
-  if (showSetup || currentPage === 'setup' || currentPage === 'setup_new') {
+  if (isSetupActive) {
     return (
       <React.Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div></div>}>
         <SetupWizard 
           isNewClass={currentPage === 'setup_new'} 
           key={currentPage === 'setup_new' ? 'new_setup' : (app?.activeClassId || 'setup')} 
           onComplete={() => {
-            setShowSetup(false);
+            setManualSetupRequested(false);
             setPage('dashboard');
           }} 
         />
@@ -632,7 +657,7 @@ function AppContent() {
   const getPageTitle = () => {
     switch (currentPage) {
       case 'dashboard': return 'Dashboard';
-      case 'schueler': return 'Schüler';
+      case 'schueler': return 'Schüler*Innen';
       case 'noten': return 'Notenmappe';
       case 'ki-helfer':
       case 'ki-paedagogik':
@@ -691,7 +716,10 @@ function AppContent() {
           setPage={setPage} 
           isOpen={sidebarOpen} 
           setIsOpen={setSidebarOpen} 
-          openSetup={() => setShowSetup(true)}
+          openSetup={() => {
+            setManualSetupRequested(true);
+            setPage('setup');
+          }}
         />
       )}
       
@@ -762,7 +790,7 @@ function AppContent() {
               <button 
                 onClick={() => {
                   removeDemoData();
-                  setShowSetup(true);
+                  setManualSetupRequested(true);
                   setPage('setup');
                 }}
                 className="flex-1 md:flex-none px-5 py-2 bg-white text-emerald-700 font-black text-[0.75rem] uppercase tracking-wider rounded-xl shadow-sm hover:bg-emerald-50 transition-all"

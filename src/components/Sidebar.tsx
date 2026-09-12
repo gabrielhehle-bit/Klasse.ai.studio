@@ -11,7 +11,7 @@ import {
   Target, Replace, Archive, Bot, ChevronLeft, ChevronRight, Database, LayoutGrid,
   MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X
 } from 'lucide-react';
-import { Button, IconButton, Badge, Chip } from './ui';
+import { Button, IconButton, Chip } from './ui';
 
 interface SidebarProps {
   currentPage: string;
@@ -42,7 +42,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} />, section: 'Unterricht' },
     { id: 'cockpit', label: 'LEHRERCOCKPIT', icon: <Play size={14} />, section: 'Unterricht' },
     { id: 'ki-helfer', label: 'KI Helfer', icon: <Bot size={14} />, section: 'Unterricht' },
-    { id: 'schueler', label: 'Schüler', icon: <Users size={14} />, section: 'Werkzeuge' },
+    { id: 'schueler', label: 'Schüler*Innen', icon: <Users size={14} />, section: 'Werkzeuge' },
     { id: 'sitzplan', label: 'Sitzplan', icon: <MapIcon size={14} />, section: 'Werkzeuge' },
     { id: 'anwesenheit', label: 'Anwesenheit', icon: <Pin size={14} />, section: 'Werkzeuge' },
     { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={14} />, section: 'Werkzeuge' },
@@ -66,7 +66,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
       { id: 'ki-helfer', label: 'KI Helfer', icon: <Bot size={18} />, highlight: true },
     ]},
     { section: 'Werkzeuge', items: [
-      { id: 'schueler', label: 'Schüler', icon: <Users size={18} /> },
+      { id: 'schueler', label: 'Schüler*Innen', icon: <Users size={18} /> },
       { id: 'sitzplan', label: 'Sitzplan', icon: <MapIcon size={18} /> },
       { id: 'anwesenheit', label: 'Anwesenheit', icon: <Pin size={18} /> },
       { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={18} /> },
@@ -124,28 +124,6 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                   <span className="text-[0.75rem] text-accent font-bold uppercase tracking-widest leading-none mt-1 inline-block">Volksschule</span>
                 </h1>
                 
-                <div className="mt-2 flex items-center justify-between gap-1 w-full">
-                  <div className="flex flex-wrap gap-1">
-                    {disabledModules.includes('jahresplanung') && disabledModules.includes('statistik') && disabledModules.includes('sitzplan') ? (
-                      <Badge variant="success" size="sm">🌱 Fokus</Badge>
-                    ) : disabledModules.includes('statistik') && !disabledModules.includes('orga') ? (
-                      <Badge variant="info" size="sm">🚀 Standard</Badge>
-                    ) : (
-                      <Badge variant="neutral" size="sm">👑 Experte</Badge>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowCustomizeModal(true)}
-                    className="p-1 px-2 hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg transition-all active:scale-95 cursor-pointer flex items-center gap-1 text-[0.625rem] font-bold uppercase tracking-wider border border-[var(--border-default,var(--border))] shrink-0 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]"
-                    title="Seitenleiste anpassen"
-                    aria-label="Seitenleiste anpassen"
-                  >
-                    <SettingsIcon size={11} className="text-[var(--text-muted)] group-hover:rotate-45 transition-transform" />
-                    <span>Anpassen</span>
-                  </button>
-                </div>
-                
                 <div className="relative mt-4">
                   <div 
                     className={`inline-flex items-center gap-2 text-[0.6875rem] font-bold px-3.5 py-2.5 rounded-xl cursor-pointer transition-all border group whitespace-nowrap w-full justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] ${
@@ -167,7 +145,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                       <div className="fixed inset-0 z-[160]" onClick={() => setShowClassMenu(false)} />
                       <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--surface-card,var(--surface))]/98 backdrop-blur-xl rounded-2xl shadow-2xl border border-[var(--border-default,var(--border))] py-2 z-[161] min-w-[200px] max-h-[300px] overflow-y-auto elegant-scrollbar">
                         <div className="px-4 py-2 text-[0.625rem] font-black text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border-default,var(--border))]/60 mb-1">Meine Klassen</div>
-                        {(app.classes || []).map(c => (
+                        {((app.classes && app.classes.length > 0) ? app.classes : (app?.klassenbezeichnung ? [{ id: app.activeClassId || 'default', name: app.klassenbezeichnung, stufe: app.stufe || 1, klassenvorstand: app.klassenvorstand }] : [])).map(c => (
                           <div 
                             key={c.id} 
                             onClick={() => { switchClass(c.id); setShowClassMenu(false); }}
@@ -233,7 +211,16 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             )}
             
             {!isCollapsed && (
-              <div className="absolute right-3 top-6 hidden lg:block">
+              <div className="absolute right-3 top-6 hidden lg:flex items-center gap-1">
+                <IconButton 
+                  onClick={() => setShowCustomizeModal(true)}
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Seitenleiste anpassen"
+                  title="Seitenleiste anpassen"
+                >
+                  <SettingsIcon size={16} />
+                </IconButton>
                 <IconButton 
                   onClick={toggleCollapse}
                   variant="ghost"
@@ -251,7 +238,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             {navItems.map((sec, idx) => (
               <div key={idx} className="px-2">
                 {!isCollapsed && (
-                  <div className="px-3.5 py-1.5 text-[0.625rem] font-bold uppercase tracking-[0.16em] text-text-muted mb-1">
+                  <div className="px-3.5 py-1.5 text-[0.625rem] font-bold uppercase tracking-[0.16em] text-[var(--text-muted)] mb-1">
                     {sec.section}
                   </div>
                 )}
@@ -264,13 +251,13 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                       data-menu-id={item.id}
                       aria-current={currentPage === item.id ? 'page' : undefined}
                       title={isCollapsed ? item.label : ''}
-                      className={`w-full text-left flex items-center gap-3 px-3.5 py-2.5 cursor-pointer rounded-xl transition-all duration-200 text-[0.8125rem] relative overflow-hidden
+                      className={`w-full text-left flex items-center gap-3 px-3.5 py-2.5 cursor-pointer rounded-xl transition-all duration-200 text-[0.8125rem] relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]
                         ${currentPage === item.id 
-                          ? 'text-white shadow-sm font-bold'
-                          : 'text-text-secondary hover:bg-surface2 hover:text-text-primary group'} 
-                        ${item.highlight && currentPage !== item.id && item.id !== 'ki-helfer' ? 'bg-amber-100/50 text-amber-900 font-black border border-amber-200/50' : ''} 
+                          ? 'shadow-xs font-bold' 
+                          : 'text-[var(--text-secondary)] hover:bg-[var(--surface-subtle,var(--surface2))] hover:text-[var(--text-primary)] group'} 
+                        ${item.highlight && currentPage !== item.id && item.id !== 'ki-helfer' ? 'bg-[var(--warning-soft)] text-[var(--warning-text)] font-extrabold border border-[var(--warning)]/30' : ''} 
                         ${isCollapsed ? 'justify-center px-0' : ''}`}
-                      style={currentPage === item.id ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--btn-text, #ffffff)' } : {}}
+                      style={currentPage === item.id ? { backgroundColor: 'var(--accent)', color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}
                       onClick={() => {
                         setPage(item.id);
                         if (window.innerWidth < 1024) setIsOpen(false);
@@ -284,8 +271,8 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                           transition={{ type: "spring", stiffness: 380, damping: 30 }}
                         />
                       )}
-                      <span className={`${currentPage === item.id ? '' : item.highlight ? 'text-amber-700' : 'text-text-muted group-hover:text-accent transition-colors'}`} style={currentPage === item.id ? { color: 'var(--btn-text, #ffffff)' } : {}}>{item.icon}</span>
-                      {!isCollapsed && <span className="text-wrap leading-tight break-words tracking-tight" style={currentPage === item.id ? { color: 'var(--btn-text, #ffffff)' } : {}}>{item.label}</span>}
+                      <span className={`${currentPage === item.id ? '' : item.highlight ? 'text-[var(--warning-text)]' : 'text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors'}`} style={currentPage === item.id ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}>{item.icon}</span>
+                      {!isCollapsed && <span className="text-wrap leading-tight break-words tracking-tight" style={currentPage === item.id ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}>{item.label}</span>}
                     </button>
                   ))}
                 </div>
@@ -293,15 +280,15 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             ))}
           </nav>
 
-          <div className={`p-5 border-t border-border ${isCollapsed ? 'flex justify-center' : ''}`}>
+          <div className={`p-5 border-t border-[var(--border-default,var(--border))] ${isCollapsed ? 'flex justify-center' : ''}`}>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-surface2 border border-border flex items-center justify-center text-[1.25rem] shadow-sm shrink-0 leading-none">
+              <div className="w-10 h-10 rounded-2xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] flex items-center justify-center text-[1.25rem] shadow-xs shrink-0 leading-none">
                 {app.anrede === 'Frau' ? '👩‍🏫' : '👨‍🏫'}
               </div>
               {!isCollapsed && (
                 <div className="">
-                  <div className="text-[0.6875rem] font-black text-text-muted uppercase tracking-widest leading-none mb-1">Aktiv</div>
-                  <div className="text-[0.8125rem] font-bold text-text-primary text-wrap leading-tight break-words">{app.vorname || 'Lehrkraft'}</div>
+                  <div className="text-[0.6875rem] font-black text-[var(--text-muted)] uppercase tracking-widest leading-none mb-1">Aktiv</div>
+                  <div className="text-[0.8125rem] font-bold text-[var(--text-primary)] text-wrap leading-tight break-words">{app.vorname || 'Lehrkraft'}</div>
                 </div>
               )}
             </div>
@@ -312,23 +299,25 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
       {/* Freikonfigurierbares Sidebar-Anpassungsmodal */}
       {showCustomizeModal && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs select-none">
-          <div className="bg-surface rounded-[2rem] border border-border shadow-2xl w-full max-w-lg  flex flex-col max-h-[85vh]">
+          <div className="bg-[var(--surface-card,var(--surface))] rounded-[2rem] border border-[var(--border-default,var(--border))] shadow-2xl w-full max-w-lg flex flex-col max-h-[85vh] overflow-hidden text-[var(--text-primary)]">
             {/* Header */}
-            <div className="p-6 border-b border-border/50 flex items-start justify-between gap-4">
+            <div className="p-6 border-b border-[var(--border-default,var(--border))]/60 flex items-start justify-between gap-4">
               <div className="space-y-1">
-                <h3 className="text-[1rem] leading-normal font-black text-text-primary tracking-tight flex items-center gap-2">
+                <h3 className="text-[1rem] leading-normal font-black text-[var(--text-primary)] tracking-tight flex items-center gap-2">
                   📋 Seitenleiste anpassen
                 </h3>
-                <p className="text-[0.6875rem] text-text-muted leading-relaxed font-medium">
+                <p className="text-[0.6875rem] text-[var(--text-muted)] leading-relaxed font-medium">
                   Schalte einzelne Werkzeuge aus oder ein, um das Klassenbuch exakt auf deine Bedürfnisse abzustimmen.
                 </p>
               </div>
-              <button
+              <IconButton
+                variant="ghost"
+                size="sm"
+                aria-label="Schließen"
                 onClick={() => setShowCustomizeModal(false)}
-                className="p-1.5 px-3 bg-surface2 hover:bg-surface3/60 border border-border hover:text-text-primary text-text-secondary rounded-xl text-[0.75rem] leading-tight font-bold transition-all cursor-pointer"
               >
-                ✕
-              </button>
+                <X size={18} />
+              </IconButton>
             </div>
 
             {/* List with Groups */}
@@ -337,7 +326,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                 const sectItems = ALL_MODULES.filter(m => m.section === section);
                 return (
                   <div key={section} className="space-y-2">
-                    <h4 className="text-[0.5625rem] font-black uppercase tracking-wider text-text-muted">
+                    <h4 className="text-[0.5625rem] font-black uppercase tracking-wider text-[var(--text-muted)]">
                       {section}
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -348,12 +337,12 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                             key={item.id}
                             className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
                               !isHidden
-                                ? 'bg-surface2 border-border text-text-primary font-bold'
-                                : 'bg-surface border-border/40 text-text-muted font-medium'
+                                ? 'bg-[var(--surface-subtle,var(--surface2))] border-[var(--border-default,var(--border))] text-[var(--text-primary)] font-bold'
+                                : 'bg-[var(--surface-card,var(--surface))] border-[var(--border-default,var(--border))]/40 text-[var(--text-muted)] font-medium'
                             }`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <span className={!isHidden ? 'text-accent' : 'text-text-muted/60'}>
+                              <span className={!isHidden ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]/60'}>
                                 {item.icon}
                               </span>
                               <span className="text-[0.6875rem] text-wrap leading-tight break-words">
@@ -381,7 +370,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                                   };
                                 });
                               }}
-                              className="accent-accent scale-105 cursor-pointer"
+                              className="accent-[var(--accent)] scale-105 cursor-pointer"
                             />
                           </label>
                         );
@@ -393,9 +382,11 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             </div>
 
             {/* Actions Footer */}
-            <div className="p-4 bg-surface2 border-t border-border/50 flex items-center justify-between gap-2.5 flex-wrap">
+            <div className="p-4 bg-[var(--surface-subtle,var(--surface2))] border-t border-[var(--border-default,var(--border))]/60 flex items-center justify-between gap-2.5 flex-wrap">
               <div className="flex gap-1.5 items-center">
-                <button
+                <Button
+                  size="sm"
+                  variant={disabledModules.includes('jahresplanung') && disabledModules.includes('statistik') && disabledModules.includes('sitzplan') ? 'success' : 'secondary'}
                   onClick={() => {
                     setApp(prev => ({
                       ...prev,
@@ -406,11 +397,12 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                     }));
                     showToast("🌱 Auf minimalistischen Fokus-Modus umgestellt!", "success");
                   }}
-                  className={`px-2.5 py-1.5 rounded-lg text-[0.5625rem] font-extrabold uppercase tracking-wider transition-all border ${disabledModules.includes('jahresplanung') && disabledModules.includes('statistik') && disabledModules.includes('sitzplan') ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-surface hover:bg-surface3/60 text-text-secondary border-border'}`}
                 >
                   🌱 Fokus
-                </button>
-                <button
+                </Button>
+                <Button
+                  size="sm"
+                  variant={disabledModules.includes('statistik') && !disabledModules.includes('sitzplan') && !disabledModules.includes('orga') ? 'selected' : 'secondary'}
                   onClick={() => {
                     setApp(prev => ({
                       ...prev,
@@ -421,11 +413,12 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                     }));
                     showToast("🚀 Auf Standard-Modus umgestellt!", "success");
                   }}
-                  className={`px-2.5 py-1.5 rounded-lg text-[0.5625rem] font-extrabold uppercase tracking-wider transition-all border ${disabledModules.includes('statistik') && !disabledModules.includes('sitzplan') && !disabledModules.includes('orga') ? 'bg-sky-500/10 text-sky-600 border-sky-500/20' : 'bg-surface hover:bg-surface3/60 text-text-secondary border-border'}`}
                 >
                   🚀 Standard
-                </button>
-                <button
+                </Button>
+                <Button
+                  size="sm"
+                  variant={disabledModules.length === 0 ? 'primary' : 'secondary'}
                   onClick={() => {
                     setApp(prev => ({
                       ...prev,
@@ -436,18 +429,18 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                     }));
                     showToast("👑 Alle Werkzeuge wurden aktiviert!", "success");
                   }}
-                  className={`px-2.5 py-1.5 rounded-lg text-[0.5625rem] font-extrabold uppercase tracking-wider transition-all border ${disabledModules.length === 0 ? 'bg-accent text-accent-text border-accent' : 'bg-surface hover:bg-surface3/60 text-text-secondary border-border'}`}
                 >
                   👑 Experte
-                </button>
+                </Button>
               </div>
 
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={() => setShowCustomizeModal(false)}
-                className="px-5 py-2 bg-accent hover:bg-accent/90 text-accent-text rounded-full text-[0.6875rem] font-extrabold uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95"
               >
                 Akzeptieren
-              </button>
+              </Button>
             </div>
           </div>
         </div>

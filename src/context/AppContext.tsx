@@ -48,7 +48,7 @@ interface AppContextType {
   deleteStudent: (id: string) => void;
   setPage: (page: string) => void;
   switchClass: (id: string) => void;
-  addClass: (name: string, stufe: number, isKV: boolean) => void;
+  addClass: (name: string, stufe: number, isKV: boolean, targetPage?: string) => void;
   removeClass: (id: string) => void;
   deleteClass: (id?: string) => void;
   notenUpdateTrigger: number;
@@ -112,7 +112,7 @@ const initialAppState: AppState = {
   wochenplanung: {},
   firstLogin: true,
   tourAbgeschlossen: false,
-  currentPage: 'cockpit',
+  currentPage: 'dashboard',
   previousPage: 'wochenplanung',
   currentKW: getKW(new Date()),
   notenMeta: {},
@@ -511,11 +511,31 @@ function normalizeAppState(raw: any): AppState {
   }
 
   const schuelerExist = parsed.schueler && parsed.schueler.length > 0;
-  const computedTourAbgeschlossen = schuelerExist ? true : (parsed.tourAbgeschlossen ?? false);
+  const hasExistingClass = Boolean(
+    (parsed.classes && parsed.classes.length > 0) ||
+    (parsed.klassenbezeichnung && parsed.klassenbezeichnung.trim().length > 0) ||
+    schuelerExist
+  );
+  const computedTourAbgeschlossen = hasExistingClass ? true : (parsed.tourAbgeschlossen ?? false);
+  const computedFirstLogin = hasExistingClass ? false : (parsed.firstLogin ?? true);
+
+  // Wenn bereits eine Klasse angelegt ist, nach dem Entsperren direkt ins Dashboard leiten, falls zuvor setup oder unbestimmt
+  let computedCurrentPage = parsed.currentPage;
+  if (hasExistingClass) {
+    if (!computedCurrentPage || computedCurrentPage === 'setup') {
+      computedCurrentPage = 'dashboard';
+    }
+  } else {
+    if (!computedCurrentPage) {
+      computedCurrentPage = 'setup';
+    }
+  }
 
   return {
     ...initialAppState,
     ...parsed,
+    currentPage: computedCurrentPage,
+    firstLogin: computedFirstLogin,
     bundesland: parsed.bundesland || 'VBG',
     tourAbgeschlossen: computedTourAbgeschlossen,
     historicalStudents: parsed.historicalStudents || DEFAULT_HISTORICAL_STUDENTS,
@@ -960,14 +980,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const decrypted = await loadEncryptedAppState(key);
       if (decrypted) {
-        setApp(normalizeAppState(decrypted));
+        const normalized = normalizeAppState(decrypted);
+        const hasExistingClass = Boolean(
+          (normalized.classes && normalized.classes.length > 0) ||
+          (normalized.klassenbezeichnung && normalized.klassenbezeichnung.trim().length > 0) ||
+          (normalized.schueler && normalized.schueler.length > 0)
+        );
+        if (hasExistingClass) {
+          normalized.currentPage = 'dashboard';
+          normalized.firstLogin = false;
+        } else {
+          normalized.currentPage = 'setup';
+        }
+        setApp(normalized);
         setIsVaultUnlocked(true);
         return true;
       } else {
-        // Vault ist neu eingerichtet / leer
-        setApp(initialAppState);
+        // Vault ist neu eingerichtet / leer -> Ersteinrichtung der Klasse
+        const emptyState = { ...initialAppState, currentPage: 'setup' };
+        setApp(emptyState);
         setIsVaultUnlocked(true);
-        await saveEncryptedAppState(initialAppState, key);
+        await saveEncryptedAppState(emptyState, key);
         return true;
       }
     } catch (err) {
@@ -1061,13 +1094,89 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteStudent = React.useCallback((id: string) => {
-    setApp(prev => ({
-      ...prev,
-      schueler: prev.schueler.filter(s => s.id !== id),
-      noten: { ...prev.noten, [id]: undefined } as any,
-      mitarbeit: { ...prev.mitarbeit, [id]: undefined } as any,
-      karten: { ...prev.karten, [id]: undefined } as any,
-    }));
+    setApp(prev => {
+      // 1. Filter schueler
+      const updatedSchueler = (prev.schueler || []).filter(s => s.id !== id);
+
+      // 2. Cleanly delete from noten, mitarbeit, karten (without leaving key as undefined)
+      const updatedNoten = { ...(prev.noten || {}) };
+      delete updatedNoten[id];
+
+      const updatedMitarbeit = { ...(prev.mitarbeit || {}) };
+      delete updatedMitarbeit[id];
+
+      const updatedKarten = { ...(prev.karten || {}) };
+      delete updatedKarten[id];
+
+      // 3. Cleanly update classes array
+      const updatedClasses = (prev.classes || []).map(c => {
+        const cNoten = c.noten ? { ...c.noten } : undefined;
+        if (cNoten) delete cNoten[id];
+        const cMitarbeit = c.mitarbeit ? { ...c.mitarbeit } : undefined;
+        if (cMitarbeit) delete cMitarbeit[id];
+        const cKarten = c.karten ? { ...c.karten } : undefined;
+        if (cKarten) delete cKarten[id];
+        return {
+          ...c,
+          schueler: (c.schueler || []).filter((s: any) => s.id !== id),
+          noten: cNoten,
+          mitarbeit: cMitarbeit,
+          karten: cKarten,
+        };
+      });
+
+      // 4. Clean up sitzplan_schueler
+      const updatedSitzplan = { ...(prev.sitzplan_schueler || {}) };
+      delete updatedSitzplan[id];
+
+      // 5. Clean up differenzierungsGruppen
+      const updatedDiff = (prev.differenzierungsGruppen || []).map(g => ({
+        ...g,
+        schuelerIds: (g.schuelerIds || []).filter(sid => sid !== id)
+      }));
+
+      // 6. Clean up dienste
+      const updatedDienste = (prev.dienste || []).map(d => ({
+        ...d,
+        schuelerIds: (d.schuelerIds || []).filter(sid => sid !== id)
+      }));
+
+      // 7. Clean up notizen & diagnostik
+      const updatedNotizen = (prev.notizen || []).filter(n => n.schuelerId !== id);
+      const updatedDiagnostik = (prev.diagnostikErhebungen || []).filter(d => d.schuelerId !== id);
+
+      // 8. Clean up wunschpartner / sperrpartner in remaining students
+      const cleanSchueler = updatedSchueler.map(s => {
+        let changed = false;
+        let wp = s.wunschpartner;
+        let sp = s.sperrpartner;
+        if (wp && wp.includes(id)) {
+          wp = wp.filter(pId => pId !== id);
+          changed = true;
+        }
+        if (sp && sp.includes(id)) {
+          sp = sp.filter(pId => pId !== id);
+          changed = true;
+        }
+        return changed ? { ...s, wunschpartner: wp, sperrpartner: sp } : s;
+      });
+
+      return {
+        ...prev,
+        schueler: cleanSchueler,
+        noten: updatedNoten,
+        mitarbeit: updatedMitarbeit,
+        karten: updatedKarten,
+        classes: updatedClasses,
+        sitzplan_schueler: updatedSitzplan,
+        differenzierungsGruppen: updatedDiff,
+        dienste: updatedDienste,
+        notizen: updatedNotizen,
+        diagnostikErhebungen: updatedDiagnostik,
+        // Immediately navigate back to the student list page
+        currentPage: 'schueler',
+      };
+    });
   }, []);
 
   const setPage = React.useCallback((page: string) => {
@@ -1189,7 +1298,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const addClass = React.useCallback((name: string, stufe: number, isKV: boolean) => {
+  const addClass = React.useCallback((name: string, stufe: number, isKV: boolean, targetPage?: string) => {
     const id = 'class-' + Math.random().toString(36).substring(2, 9);
     setApp(prev => {
       const newClass: any = {
@@ -1232,55 +1341,59 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const classes = [...(prev.classes || [])];
       const activeIdx = classes.findIndex(c => c.id === prev.activeClassId);
       
+      const currentClassSnapshot = {
+        id: prev.activeClassId || 'class-main',
+        name: prev.klassenbezeichnung || 'Klasse 1',
+        stufe: prev.stufe || 1,
+        klassenvorstand: prev.klassenvorstand !== undefined ? prev.klassenvorstand : true,
+        schueler: prev.schueler ? JSON.parse(JSON.stringify(prev.schueler)) : [],
+        noten: prev.noten ? JSON.parse(JSON.stringify(prev.noten)) : {},
+        mitarbeit: prev.mitarbeit ? JSON.parse(JSON.stringify(prev.mitarbeit)) : {},
+        verhalten: prev.verhalten ? JSON.parse(JSON.stringify(prev.verhalten)) : {},
+        karten: prev.karten ? JSON.parse(JSON.stringify(prev.karten)) : {},
+        jahresplanung: prev.jahresplanung ? JSON.parse(JSON.stringify(prev.jahresplanung)) : {},
+        jahresplan_faecher: prev.jahresplan_faecher,
+        wochenplanung: prev.wochenplanung ? JSON.parse(JSON.stringify(prev.wochenplanung)) : {},
+        stammplan: prev.stammplan ? JSON.parse(JSON.stringify(prev.stammplan)) : {},
+        anwesenheit: prev.anwesenheit,
+        anwesenheitDetail: prev.anwesenheitDetail,
+        schuelerStimmung: prev.schuelerStimmung,
+        dienste: prev.dienste,
+        checklisten: prev.checklisten ? JSON.parse(JSON.stringify(prev.checklisten)) : [],
+        customLists: prev.customLists ? JSON.parse(JSON.stringify(prev.customLists)) : [],
+        klassenglas_count: prev.klassenglas_count,
+        klassenglas_ziel: prev.klassenglas_ziel,
+        klassenglas_belohnung: prev.klassenglas_belohnung,
+        klassenkasse: prev.klassenkasse,
+        behavior_status: prev.behavior_status,
+        behavior_notes: prev.behavior_notes,
+        sue_kontrolle: prev.sue_kontrolle,
+        sitzplan_schueler: prev.sitzplan_schueler,
+        sitzplan_objekte: prev.sitzplan_objekte,
+        lastGroups: prev.lastGroups,
+        stundenZeiten: prev.stundenZeiten,
+        tageplan: prev.tageplan ? JSON.parse(JSON.stringify(prev.tageplan)) : undefined,
+        faecher: prev.faecher ? [...prev.faecher] : undefined,
+        fachConfig: prev.fachConfig ? JSON.parse(JSON.stringify(prev.fachConfig)) : undefined,
+        theme: prev.theme,
+        customBgColor: prev.customBgColor,
+        customAccentColor: prev.customAccentColor,
+        customTextColor: prev.customTextColor,
+        customText2Color: prev.customText2Color,
+        settings: prev.settings ? JSON.parse(JSON.stringify(prev.settings)) : undefined,
+        schuljahr: prev.schuljahr
+      };
+
       if (activeIdx !== -1) {
-        classes[activeIdx] = {
-          ...classes[activeIdx],
-          name: prev.klassenbezeichnung,
-          stufe: prev.stufe,
-          klassenvorstand: prev.klassenvorstand,
-          schueler: prev.schueler ? JSON.parse(JSON.stringify(prev.schueler)) : [],
-          noten: prev.noten ? JSON.parse(JSON.stringify(prev.noten)) : {},
-          mitarbeit: prev.mitarbeit ? JSON.parse(JSON.stringify(prev.mitarbeit)) : {},
-          verhalten: prev.verhalten ? JSON.parse(JSON.stringify(prev.verhalten)) : {},
-          karten: prev.karten ? JSON.parse(JSON.stringify(prev.karten)) : {},
-          jahresplanung: prev.jahresplanung ? JSON.parse(JSON.stringify(prev.jahresplanung)) : {},
-          jahresplan_faecher: prev.jahresplan_faecher,
-          wochenplanung: prev.wochenplanung ? JSON.parse(JSON.stringify(prev.wochenplanung)) : {},
-          stammplan: prev.stammplan ? JSON.parse(JSON.stringify(prev.stammplan)) : {},
-          anwesenheit: prev.anwesenheit,
-          anwesenheitDetail: prev.anwesenheitDetail,
-          schuelerStimmung: prev.schuelerStimmung,
-          dienste: prev.dienste,
-          checklisten: prev.checklisten ? JSON.parse(JSON.stringify(prev.checklisten)) : [],
-          customLists: prev.customLists ? JSON.parse(JSON.stringify(prev.customLists)) : [],
-          klassenglas_count: prev.klassenglas_count,
-          klassenglas_ziel: prev.klassenglas_ziel,
-          klassenglas_belohnung: prev.klassenglas_belohnung,
-          klassenkasse: prev.klassenkasse,
-          behavior_status: prev.behavior_status,
-          behavior_notes: prev.behavior_notes,
-          sue_kontrolle: prev.sue_kontrolle,
-          sitzplan_schueler: prev.sitzplan_schueler,
-          sitzplan_objekte: prev.sitzplan_objekte,
-          lastGroups: prev.lastGroups,
-          stundenZeiten: prev.stundenZeiten,
-          tageplan: prev.tageplan ? JSON.parse(JSON.stringify(prev.tageplan)) : undefined,
-          faecher: prev.faecher ? [...prev.faecher] : undefined,
-          fachConfig: prev.fachConfig ? JSON.parse(JSON.stringify(prev.fachConfig)) : undefined,
-          theme: prev.theme,
-          customBgColor: prev.customBgColor,
-          customAccentColor: prev.customAccentColor,
-          customTextColor: prev.customTextColor,
-          customText2Color: prev.customText2Color,
-          settings: prev.settings ? JSON.parse(JSON.stringify(prev.settings)) : undefined,
-          schuljahr: prev.schuljahr
-        };
+        classes[activeIdx] = currentClassSnapshot;
+      } else if (prev.klassenbezeichnung) {
+        classes.push(currentClassSnapshot);
       }
 
-      // 2. Add new class and switch immediately to it with currentPage: 'setup'
+      // 2. Add new class and switch immediately to it with currentPage preserved (defaulting to dashboard)
       return {
         ...prev,
-        currentPage: 'setup',
+        currentPage: targetPage || prev.currentPage || 'dashboard',
         activeClassId: id,
         classes: [...classes, newClass],
         klassenbezeichnung: newClass.name,

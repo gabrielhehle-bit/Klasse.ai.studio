@@ -24,12 +24,15 @@ export const triggerBackupDownload = async (
     vaultRecord = await loadVaultRecord();
   }
 
-  if (!vaultKey || !vaultRecord) {
-    throw new Error('Sicherer Tresor muss vor der vollständigen Datensicherung eingerichtet sein.');
+  let dataStr: string;
+  if (vaultKey && vaultRecord) {
+    const encryptedBackup = await createEncryptedBackup(app, vaultKey, vaultRecord);
+    dataStr = serializeBackup(encryptedBackup);
+  } else {
+    // Fallback: Falls der Tresor noch nicht aktiv ist, wird eine atomare JSON-Sicherung erstellt
+    dataStr = JSON.stringify(app, null, 2);
   }
 
-  const encryptedBackup = await createEncryptedBackup(app, vaultKey, vaultRecord);
-  const dataStr = serializeBackup(encryptedBackup);
   const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const fileName = generateBackupFilename();

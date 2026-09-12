@@ -228,7 +228,13 @@ export default function StudentList() {
     }
   };
 
-  if (selectedFolderStudent) {
+  useEffect(() => {
+    if (selectedFolderStudent && !schueler.some(s => s.id === selectedFolderStudent)) {
+      setSelectedFolderStudent(null);
+    }
+  }, [selectedFolderStudent, schueler]);
+
+  if (selectedFolderStudent && schueler.some(s => s.id === selectedFolderStudent)) {
     return (
       <div className="space-y-4 w-full min-w-0 overflow-hidden">
         <StudentDossier 
@@ -681,7 +687,15 @@ export default function StudentList() {
                        <button onClick={e => { e.stopPropagation(); setSelectedFolderStudent(s.id); }} aria-label={`Dossier von ${s.vorname} ${s.nachname} öffnen`} className={`text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Dossier öffnen"><GraduationCap size={isCompact ? 14 : isLarge ? 18 : 16} strokeWidth={2.5} /></button>
                        <button onClick={e => { e.stopPropagation(); setInteractionModalStudent(s.id); }} aria-label={`Notiz oder Interaktion für ${s.vorname} ${s.nachname}`} className={`text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Notiz oder Interaktion"><MessageSquare size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
                        <button onClick={e => { e.stopPropagation(); setEditingStudent(s); setIsModalOpen(true); }} aria-label={`${s.vorname} ${s.nachname} bearbeiten`} className={`text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Bearbeiten"><Edit2 size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
-                       <button onClick={e => { e.stopPropagation(); if(confirm('Sicher löschen?')) deleteStudent(s.id); }} aria-label={`${s.vorname} ${s.nachname} löschen`} className={`text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Löschen"><Trash2 size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
+                       <button onClick={e => {
+                         e.stopPropagation();
+                         if (confirm(`Möchtest du ${s.vorname} ${s.nachname} wirklich löschen?`)) {
+                           if (selectedFolderStudent === s.id) setSelectedFolderStudent(null);
+                           setEditingStudent(null);
+                           setIsModalOpen(false);
+                           deleteStudent(s.id);
+                         }
+                       }} aria-label={`${s.vorname} ${s.nachname} löschen`} className={`text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Löschen"><Trash2 size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
                     </div>
                  </motion.div>
                  );
@@ -742,7 +756,7 @@ export default function StudentList() {
                                  />
                               ) : (
                                  <div className="w-20 h-20 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-[1.5rem] leading-normal font-black border border-slate-200 shadow-inner">
-                                    {curS?.emoji ? <span className="text-5xl leading-none drop-shadow-sm">{curS.emoji}</span> : `${curS?.vorname.charAt(0)}${curS?.nachname.charAt(0)}`}
+                                    {curS?.emoji ? <span className="text-5xl leading-none drop-shadow-sm">{curS.emoji}</span> : `${curS?.vorname ? curS.vorname.charAt(0) : ''}${curS?.nachname ? curS.nachname.charAt(0) : ''}`}
                                  </div>
                               );
                            })()}
@@ -1205,7 +1219,15 @@ export default function StudentList() {
                      <Edit2 size={isCompact ? 9 : isLarge ? 14 : 12} />
                    </button>
                    <button 
-                     onClick={(e) => { e.stopPropagation(); if(confirm('Sicher löschen?')) deleteStudent(s.id); }}
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       if (confirm(`Möchtest du ${s.vorname} ${s.nachname} wirklich löschen?`)) {
+                         if (selectedFolderStudent === s.id) setSelectedFolderStudent(null);
+                         setEditingStudent(null);
+                         setIsModalOpen(false);
+                         deleteStudent(s.id);
+                       }
+                     }}
                      className={`flex items-center justify-center bg-slate-50 hover:bg-red-55 border border-slate-200/40 text-slate-450 hover:text-red-600 rounded-lg transition-all active:scale-90 cursor-pointer ${
                        isCompact ? 'w-5 h-5' : isLarge ? 'w-8.5 h-8.5' : 'w-7 h-7'
                      }`}
@@ -1884,7 +1906,7 @@ export default function StudentList() {
                                 key={wpId}
                                 className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[0.625rem] font-black uppercase tracking-tight rounded-xl border border-emerald-200/50"
                               >
-                                <span>{partner.vorname} {partner.nachname.charAt(0)}.</span>
+                                <span>{partner.vorname} {(partner.nachname || '').charAt(0)}.</span>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -1941,7 +1963,7 @@ export default function StudentList() {
                                 key={spId}
                                 className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-50 text-red-700 text-[0.625rem] font-black uppercase tracking-tight rounded-xl border border-red-200/50"
                               >
-                                <span>{partner.vorname} {partner.nachname.charAt(0)}.</span>
+                                <span>{partner.vorname} {(partner.nachname || '').charAt(0)}.</span>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -2147,18 +2169,36 @@ export default function StudentList() {
               </form>
             </div>
 
-            <div className="p-3 sm:p-4 sm:p-8 border-t border-slate-100 bg-slate-50/50 shrink-0 flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <div className="p-3 sm:p-4 sm:p-8 border-t border-slate-100 bg-slate-50/50 shrink-0 flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch">
+              {editingStudent?.id && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm(`Möchtest du ${editingStudent.vorname || ''} ${editingStudent.nachname || ''} wirklich löschen?`)) {
+                      const idToDelete = editingStudent.id!;
+                      setIsModalOpen(false);
+                      setEditingStudent(null);
+                      if (selectedFolderStudent === idToDelete) setSelectedFolderStudent(null);
+                      deleteStudent(idToDelete);
+                    }
+                  }}
+                  className="btn btn-ghost text-red-600 hover:bg-red-50 hover:text-red-700 py-3 sm:py-4 order-3 sm:order-1 flex items-center justify-center gap-1.5 font-bold"
+                >
+                  <Trash2 size={16} />
+                  Löschen
+                </button>
+              )}
               <button 
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="btn btn-ghost flex-1 py-3 sm:py-4 order-2 sm:order-1"
+                className="btn btn-ghost flex-1 py-3 sm:py-4 order-2"
               >
                 Abbrechen
               </button>
               <button 
                 type="submit"
                 form="student-form"
-                className="btn btn-accent flex-1 py-3 sm:py-4 shadow-xl shadow-accent/20 order-1 sm:order-2"
+                className="btn btn-accent flex-1 py-3 sm:py-4 shadow-xl shadow-accent/20 order-1 sm:order-3"
               >
                 {editingStudent?.id ? 'Speichern' : 'Anlegen'}
               </button>

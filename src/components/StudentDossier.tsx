@@ -180,7 +180,7 @@ export const getActiveMainArea = (tab: DossierTab): MainAreaId => {
 };
 
 export default function StudentDossier({ schuelerId, onBack, onStudentChange }: StudentDossierProps) {
-  const { app, setApp, setPage } = useApp();
+  const { app, setApp, setPage, deleteStudent } = useApp();
   const student = app.schueler.find(s => s.id === schuelerId);
   
   // Always start with 'uebersicht'
@@ -594,7 +594,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                <img src={student.foto} alt="" className="w-12 h-12 rounded-xl object-cover ring-2 ring-white/10 shadow-md" referrerPolicy="no-referrer" />
              ) : (
                <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center text-[1rem] leading-normal font-black shrink-0 shadow-inner">
-                 {student.vorname.charAt(0)}{student.nachname.charAt(0)}
+                 {(student.vorname || '').charAt(0)}{(student.nachname || '').charAt(0)}
                </div>
              )}
              <div className="min-w-0">
@@ -611,6 +611,21 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
           >
             <Download size={14} className="text-emerald-400" />
             <span>Interner Export (PDF)</span>
+          </button>
+
+          <button 
+            type="button"
+            onClick={() => {
+              if (confirm(`Möchtest du ${student.vorname} ${student.nachname} wirklich endgültig löschen? Alle zugehörigen Noten und Daten werden unwiderruflich entfernt.`)) {
+                if (onBack) onBack();
+                deleteStudent(student.id);
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 hover:text-rose-100 rounded-xl transition-all border border-rose-500/20 active:scale-95 cursor-pointer text-[0.6875rem] leading-tight font-bold tracking-wider uppercase shadow-3xs focus:outline-none focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+            title="Schüler/in aus der Klasse entfernen"
+          >
+            <Trash2 size={13} />
+            <span>Schüler/in löschen</span>
           </button>
         </div>
       </div>

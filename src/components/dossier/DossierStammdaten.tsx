@@ -16,7 +16,8 @@ import {
   Check,
   Building2,
   Clock,
-  Heart
+  Heart,
+  Trash2
 } from 'lucide-react';
 
 interface DossierStammdatenProps {
@@ -24,7 +25,7 @@ interface DossierStammdatenProps {
 }
 
 export default function DossierStammdaten({ student }: DossierStammdatenProps) {
-  const { app, setApp } = useApp();
+  const { app, setApp, deleteStudent } = useApp();
   const [isEditing, setIsEditing] = useState(false);
   const [showSvnr, setShowSvnr] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -531,6 +532,25 @@ export default function DossierStammdaten({ student }: DossierStammdatenProps) {
             </div>
           </div>
         </section>
+      </div>
+
+      {/* Danger Zone: Delete Student */}
+      <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
+        <div className="text-xs text-slate-500">
+          Diesen Schüler/diese Schülerin unwiderruflich aus dem Klassenverband entfernen:
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm(`Möchtest du ${student.vorname} ${student.nachname} wirklich endgültig löschen? Alle zugehörigen Noten und Daten werden unwiderruflich entfernt.`)) {
+              deleteStudent(student.id);
+            }
+          }}
+          className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-xl transition-all border border-rose-200 cursor-pointer"
+        >
+          <Trash2 size={14} />
+          <span>Schüler/in löschen</span>
+        </button>
       </div>
 
       {/* Footer information */}

@@ -18,7 +18,14 @@ import { Bundesland, BUNDESLAND_NAMEN } from '../lib/ferienOesterreich';
 import { FachColorPicker } from './FachColorPicker';
 import { getFachHexColor, STANDARD_COLOR_MAP } from '../lib/fachColorUtils';
 import { saveEncryptedAppState } from '../lib/secureStorageService';
-import { getActiveVaultKey } from '../lib/vaultStorage';
+import { getActiveVaultKey, setActiveVaultSession } from '../lib/vaultStorage';
+import { 
+  isEncryptedBackupV1, 
+  isLegacyPlaintextBackup, 
+  decryptBackup, 
+  recoverBackup,
+  unlockAndDecryptBackup 
+} from '../lib/backupCryptoService';
 
 export default function SetupWizard({ onComplete, isNewClass }: { onComplete: () => void, isNewClass?: boolean }) {
   const { app, setApp } = useApp();
@@ -256,16 +263,81 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const importedData = JSON.parse(event.target?.result as string);
-        
-        if (typeof importedData !== 'object' || importedData === null) {
-          throw new Error('Ungültiges Format');
-        }
-        
-        if (!importedData.schueler && !importedData.classes && !importedData.klassenbezeichnung) {
-          throw new Error('Diese Datei ist kein gültiges Lehrermappe-Backup');
+        const rawContent = (event.target?.result as string) || '';
+        let cleanContent = rawContent.trim();
+        if (cleanContent.charCodeAt(0) === 0xFEFF) {
+          cleanContent = cleanContent.slice(1).trim();
         }
 
+        let parsedData: any;
+        try {
+          parsedData = JSON.parse(cleanContent);
+        } catch {
+          const firstBrace = cleanContent.indexOf('{');
+          const lastBrace = cleanContent.lastIndexOf('}');
+          if (firstBrace !== -1 && lastBrace > firstBrace) {
+            try {
+              parsedData = JSON.parse(cleanContent.slice(firstBrace, lastBrace + 1));
+            } catch {
+              throw new Error('Die Datei enthält kein lesbares JSON-Format.');
+            }
+          } else {
+            throw new Error('Die Datei enthält kein lesbares JSON-Format.');
+          }
+        }
+        
+        if (typeof parsedData !== 'object' || parsedData === null) {
+          throw new Error('Ungültiges Dateiformat');
+        }
+
+        let importedData: any = null;
+
+        // Fall 1: Verschlüsseltes Backup
+        if (isEncryptedBackupV1(parsedData)) {
+          let decryptedState: any = null;
+          const activeKey = getActiveVaultKey();
+
+          if (activeKey) {
+            try {
+              decryptedState = await decryptBackup(parsedData, activeKey);
+            } catch {
+              decryptedState = null;
+            }
+          }
+
+          if (!decryptedState) {
+            const userInput = prompt(
+              'Dieses Backup ist clientseitig verschlüsselt.\n\nBitte gib dein Tresor-Passwort oder deinen 128-Bit Recovery-Code ein, um die Daten wiederherzustellen:'
+            );
+            if (!userInput) {
+              if (fileInputRef.current) fileInputRef.current.value = '';
+              return;
+            }
+
+            try {
+              if (userInput.replace(/[-\s]/g, '').length === 32) {
+                const res = await recoverBackup(parsedData, userInput);
+                decryptedState = res.appState;
+                setActiveVaultSession(res.vaultKey, res.vaultRecord);
+              } else {
+                const res = await unlockAndDecryptBackup(parsedData, userInput);
+                decryptedState = res.appState;
+                setActiveVaultSession(res.vaultKey, res.vaultRecord);
+              }
+            } catch {
+              alert('Wiederherstellung fehlgeschlagen: Ungültiges Passwort oder falscher Recovery-Code.');
+              if (fileInputRef.current) fileInputRef.current.value = '';
+              return;
+            }
+          }
+
+          importedData = decryptedState;
+        } else if (isLegacyPlaintextBackup(parsedData) || ('schueler' in parsedData) || ('classes' in parsedData) || ('klassenbezeichnung' in parsedData)) {
+          importedData = parsedData;
+        } else {
+          throw new Error('Diese Datei ist kein gültiges Lehrermappe-Backup');
+        }
+        
         const classCount = Array.isArray(importedData.classes) ? importedData.classes.length : (importedData.klassenbezeichnung ? 1 : 0);
         const studentCount = Array.isArray(importedData.schueler)
           ? importedData.schueler.length
@@ -298,10 +370,11 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
         sessionStorage.removeItem('hehle_v3_temp');
         sessionStorage.removeItem(WIZARD_PROGRESS_KEY);
         localStorage.removeItem(WIZARD_PROGRESS_KEY);
-
-        onComplete();
-      } catch (err) {
-        alert('Fehler beim Importieren: ' + (err instanceof Error ? err.message : 'Die Datei ist ungültig oder beschädigt.'));
+        window.location.reload();
+      } catch (err: any) {
+        alert(err?.message || 'Fehler beim Wiederherstellen des Backups.');
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
     reader.readAsText(file);
@@ -345,8 +418,10 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
         setShowSokratesModal(true);
       }
     } catch (err: any) {
-      console.error('Fehler beim Sokrates-Import:', err);
-      alert('Fehler beim Einlesen: ' + (err.message || 'Unbekannter Fehler'));
+      if (import.meta.env?.DEV) {
+        console.error('Technischer Fehler beim Sokrates-Import:', err?.message || err);
+      }
+      alert(err?.message || 'Die PDF-Datei konnte nicht gelesen werden. Bitte versuche es erneut oder verwende alternativ den CSV-/Excel-Import.');
     } finally {
       setIsAnalyzingSokrates(false);
       e.target.value = '';
@@ -573,6 +648,31 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
        
        setApp((prevOrig: any) => {
          const prev = filterDemo(prevOrig);
+         let nextClasses = [...(prev.classes || [])];
+         if (!isFirstSetup && prev.activeClassId) {
+           const activeIdx = nextClasses.findIndex((c: any) => c.id === prev.activeClassId);
+           if (activeIdx !== -1) {
+             nextClasses[activeIdx] = {
+               ...nextClasses[activeIdx],
+               name: prev.klassenbezeichnung,
+               stufe: prev.stufe,
+               klassenvorstand: prev.klassenvorstand,
+               schueler: prev.schueler ? JSON.parse(JSON.stringify(prev.schueler)) : [],
+               noten: prev.noten ? JSON.parse(JSON.stringify(prev.noten)) : {},
+               mitarbeit: prev.mitarbeit ? JSON.parse(JSON.stringify(prev.mitarbeit)) : {},
+               stammplan: prev.stammplan ? JSON.parse(JSON.stringify(prev.stammplan)) : {},
+               tageplan: prev.tageplan ? JSON.parse(JSON.stringify(prev.tageplan)) : {},
+               stundenZeiten: prev.stundenZeiten,
+               faecher: prev.faecher,
+               fachConfig: prev.fachConfig,
+               theme: prev.theme,
+               schuljahr: prev.schuljahr
+             };
+           }
+         }
+         if (!isFirstSetup) {
+           nextClasses.push(mainClass);
+         }
          return {
            ...prev,
          ...(isFirstSetup ? {
@@ -580,7 +680,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            klassenbezeichnung, stufe, schuljahr: schuljahr, schueler: finalStudents,
            classes: [mainClass], activeClassId: classId, firstLogin: true, tourAbgeschlossen: false
          } : {
-           classes: [...(prev.classes || []), mainClass], 
+           classes: nextClasses, 
            activeClassId: classId,
            klassenbezeichnung, stufe, schuljahr: schuljahr, schueler: finalStudents
          }),
@@ -806,7 +906,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
 
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-50 flex items-start justify-center p-0 md:p-8">
-      <input type="file" accept=".json" ref={fileInputRef} onChange={handleBackupImport} className="hidden" />
+      <input type="file" accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain,*" ref={fileInputRef} onChange={handleBackupImport} className="hidden" />
       <input type="file" accept=".csv" ref={csvInputRef} onChange={handleCSVImport} className="hidden" />
       <input type="file" accept=".pdf,.csv,.txt" ref={sokratesFileInputRef} onChange={handleSokratesFileUpload} className="hidden" />
 
@@ -937,7 +1037,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                        <Upload size={20} className="text-emerald-500" />
                        <div className="text-left">
                          <div className="text-[0.875rem] leading-snug font-black whitespace-nowrap">Backup wiederherstellen</div>
-                         <div className="text-[0.625rem] text-slate-500 font-medium uppercase tracking-wider">Aus einer .json Datei</div>
+                         <div className="text-[0.625rem] text-slate-500 font-medium uppercase tracking-wider">Aus einer Sicherungsdatei (.json)</div>
                        </div>
                     </button>
 
@@ -1655,9 +1755,9 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                   <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <FileUp size={20} />
                   </div>
-                  <h4 className="text-[0.875rem] font-black text-emerald-700 border-b border-transparent">📋 Liste importieren</h4>
+                  <h4 className="text-[0.875rem] font-black text-emerald-700 border-b border-transparent">📋 Sokrates / Liste</h4>
                   <p className="text-[0.75rem] text-emerald-600 mt-2 leading-relaxed">
-                    Bequemer Import als CSV-Datei oder per Copy-Paste direkt aus Excel.
+                    Sokrates-PDF Klassenliste, CSV oder Excel per Upload oder Drag & Drop übernehmen.
                   </p>
                 </div>
 

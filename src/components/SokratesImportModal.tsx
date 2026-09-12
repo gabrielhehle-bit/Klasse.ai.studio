@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   Check, 
@@ -19,14 +19,14 @@ import {
   Edit3,
   HelpCircle
 } from 'lucide-react';
-import { ParsedSokratesResult, ParsedSokratesStudent, convertToAppStudents, formatDateDE, normalizeDate } from '../lib/sokratesParser';
+import { ParsedSokratesResult, ParsedSokratesStudent, convertToAppStudents, formatDateDE, normalizeDate, sanitizeStudentContact } from '../lib/sokratesParser';
 import { Student } from '../types';
 
 interface SokratesImportModalProps {
   importResult: ParsedSokratesResult;
   isOpen: boolean;
   onClose: () => void;
-  onApply: (students: Student[], meta: { klasse?: string; schuljahr?: string; lehrerName?: string; schulName?: string; schulkennzahl?: string }) => void;
+  onApply: (students: Student[], meta?: { klasse?: string; schuljahr?: string; lehrerName?: string; schulName?: string; schulkennzahl?: string }) => void;
 }
 
 export const SokratesImportModal: React.FC<SokratesImportModalProps> = ({
@@ -35,7 +35,9 @@ export const SokratesImportModal: React.FC<SokratesImportModalProps> = ({
   onClose,
   onApply
 }) => {
-  const [students, setStudents] = useState<ParsedSokratesStudent[]>(() => [...importResult.students]);
+  const [students, setStudents] = useState<ParsedSokratesStudent[]>(() => 
+    importResult.students.map(s => sanitizeStudentContact(s, importResult.schulOrt || 'Feldkirch'))
+  );
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
@@ -50,6 +52,17 @@ export const SokratesImportModal: React.FC<SokratesImportModalProps> = ({
   // Options to apply metadata
   const [applyKlasse, setApplyKlasse] = useState(!!importResult.klasse);
   const [applySchuljahr, setApplySchuljahr] = useState(!!importResult.schuljahr);
+
+  useEffect(() => {
+    setStudents(importResult.students.map(s => sanitizeStudentContact(s, importResult.schulOrt || 'Feldkirch')));
+    setKlasse(importResult.klasse || '');
+    setSchuljahr(importResult.schuljahr || '');
+    setLehrerName(importResult.lehrerName || '');
+    setSchulName(importResult.schulName || '');
+    setSchulkennzahl(importResult.schulkennzahl || '');
+    setApplyKlasse(!!importResult.klasse);
+    setApplySchuljahr(!!importResult.schuljahr);
+  }, [importResult]);
 
   if (!isOpen) return null;
 
@@ -87,7 +100,7 @@ export const SokratesImportModal: React.FC<SokratesImportModalProps> = ({
       telefon_mutter: '',
       telefon_vater: '',
       email_eltern: '',
-      erstsprache: 'Deutsch',
+      erstsprache: '',
       notiz: ''
     };
     setStudents(prev => [...prev, newStudent]);
@@ -625,26 +638,57 @@ export const SokratesImportModal: React.FC<SokratesImportModalProps> = ({
                     </div>
 
                     {/* Address & Contacts */}
-                    <div className="mt-3 pt-2 border-t border-slate-100 space-y-1.5 text-xs">
-                      <div className="flex items-center gap-1.5 text-slate-600">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <input
-                          type="text"
-                          value={s.anschrift ? `${s.anschrift}, ${s.plz} ${s.ort}`.trim() : ''}
-                          onChange={e => {
-                            updateStudent(s.id, 'anschrift', e.target.value);
-                          }}
-                          placeholder="Wohnadresse"
-                          className="w-full px-1.5 py-0.5 bg-slate-50 rounded text-xs border border-transparent hover:border-slate-200"
-                        />
+                    <div className="mt-3 pt-2 border-t border-slate-100 space-y-2 text-xs">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5 text-slate-700">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <input
+                            type="text"
+                            value={s.anschrift || ''}
+                            onChange={e => updateStudent(s.id, 'anschrift', e.target.value)}
+                            placeholder="Wohnadresse (Straße, Nr)"
+                            className="w-full px-1.5 py-1 bg-slate-50 rounded text-xs border border-slate-200 outline-none"
+                          />
+                        </div>
+                        <div className="grid grid-cols-3 gap-1 pl-5">
+                          <input
+                            type="text"
+                            value={s.plz || ''}
+                            onChange={e => updateStudent(s.id, 'plz', e.target.value)}
+                            placeholder="PLZ (6800)"
+                            className="col-span-1 px-1.5 py-1 bg-slate-50 rounded text-xs font-mono border border-slate-200 outline-none"
+                          />
+                          <input
+                            type="text"
+                            value={s.ort || ''}
+                            onChange={e => updateStudent(s.id, 'ort', e.target.value)}
+                            placeholder="Ort (Feldkirch)"
+                            className="col-span-2 px-1.5 py-1 bg-slate-50 rounded text-xs border border-slate-200 outline-none"
+                          />
+                        </div>
                       </div>
 
-                      {(s.telefon_mutter || s.telefon_vater) && (
-                        <div className="flex flex-col gap-1 text-[0.6875rem] text-slate-500 pl-5">
-                          {s.telefon_mutter && <div>Mutter: {s.telefon_mutter}</div>}
-                          {s.telefon_vater && <div>Vater: {s.telefon_vater}</div>}
+                      <div className="space-y-1 pt-1 border-t border-slate-100">
+                        <div className="flex items-center gap-1.5 text-slate-700">
+                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <input
+                            type="text"
+                            value={s.telefon_mutter || ''}
+                            onChange={e => updateStudent(s.id, 'telefon_mutter', e.target.value)}
+                            placeholder="Tel. Mutter"
+                            className="w-full px-1.5 py-1 bg-slate-50 rounded text-xs border border-slate-200 outline-none"
+                          />
                         </div>
-                      )}
+                        <div className="flex items-center gap-1.5 text-slate-700 pl-5">
+                          <input
+                            type="text"
+                            value={s.telefon_vater || ''}
+                            onChange={e => updateStudent(s.id, 'telefon_vater', e.target.value)}
+                            placeholder="Tel. Vater"
+                            className="w-full px-1.5 py-1 bg-slate-50 rounded text-xs border border-slate-200 outline-none"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

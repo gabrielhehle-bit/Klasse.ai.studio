@@ -14,6 +14,11 @@ import {
   renderStroke,
   renderAllStrokes,
   setupCanvasDPR,
+  createDrawingTextItem,
+  createTextId,
+  DRAWING_FONT_SIZES,
+  DRAWING_TEXT_STYLES,
+  renderTextItemOnCanvas,
 } from './drawingAlgorithm';
 import { getWidgetSizeCategory, WIDGET_MIN_SIZES } from '../components/cockpit/widgetLayout';
 
@@ -254,3 +259,73 @@ test('F19 Drawing: 22. Andere Widgets unverändert', () => {
   assert.equal(WIDGET_MIN_SIZES.qrcode.minW, 280);
   assert.equal(WIDGET_MIN_SIZES.image.minW, 280);
 });
+
+test('F19 Drawing: 23. Text-Item Erstellung & Valide Standardwerte', () => {
+  const textItem = createDrawingTextItem('Merke: Punkt vor Strich', 25, 40, '#0f172a', 'large', 'yellow');
+  
+  assert.ok(textItem.id.startsWith('txt_'));
+  assert.equal(textItem.text, 'Merke: Punkt vor Strich');
+  assert.equal(textItem.x, 25);
+  assert.equal(textItem.y, 40);
+  assert.equal(textItem.fontSize, 'large');
+  assert.equal(textItem.cardStyle, 'yellow');
+  assert.equal(textItem.color, '#0f172a');
+  assert.equal(DRAWING_FONT_SIZES.large.px, 24);
+  const yellowStyle = DRAWING_TEXT_STYLES.find((s) => s.id === 'yellow');
+  assert.equal(yellowStyle?.bg, '#fef9c3');
+});
+
+test('F19 Drawing: 24. Text-Rendering auf Canvas (Mocked Context)', () => {
+  const fills: string[] = [];
+  const textsDrawn: string[] = [];
+  
+  const mockCtx: any = {
+    save: () => {},
+    restore: () => {},
+    beginPath: () => {},
+    moveTo: () => {},
+    lineTo: () => {},
+    quadraticCurveTo: () => {},
+    closePath: () => {},
+    roundRect: () => {},
+    fill: () => {},
+    stroke: () => {},
+    measureText: (txt: string) => ({ width: txt.length * 10 }),
+    fillText: (txt: string, x: number, y: number) => {
+      textsDrawn.push(txt);
+    },
+    clearRect: () => {},
+    fillRect: () => {},
+    set fillStyle(val: string) {
+      fills.push(val);
+    },
+    get fillStyle() {
+      return fills[fills.length - 1] || '#ffffff';
+    },
+    strokeStyle: '',
+    lineWidth: 1,
+    font: '',
+    textBaseline: '',
+  };
+
+  const item = {
+    id: 't-1',
+    x: 10, // 10% von 800 = 80
+    y: 20, // 20% von 600 = 120
+    text: 'Aufgabe 1:\nRechne 12 + 15',
+    color: '#0f172a',
+    fontSize: 'medium' as const,
+    cardStyle: 'blue' as const,
+  };
+
+  renderTextItemOnCanvas(mockCtx, item, 800, 600);
+  assert.equal(textsDrawn.length, 2);
+  assert.equal(textsDrawn[0], 'Aufgabe 1:');
+  assert.equal(textsDrawn[1], 'Rechne 12 + 15');
+
+  // renderAllStrokes mit Texten
+  textsDrawn.length = 0;
+  renderAllStrokes(mockCtx, [], 800, 600, '#ffffff', [item]);
+  assert.equal(textsDrawn.length, 2);
+});
+

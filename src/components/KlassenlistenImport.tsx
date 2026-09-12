@@ -1,8 +1,69 @@
 import React, { useState, useRef } from 'react';
-import { X, FileUp, AlertTriangle, ArrowLeftRight, Upload, Clipboard, Sparkles, FileText } from 'lucide-react';
+import { X, FileUp, AlertTriangle, ArrowLeftRight, Upload, Clipboard, Sparkles, FileText, Play } from 'lucide-react';
 import { parseKlassenliste, ParsedStudent } from '../lib/klassenlistenImport';
-import { parseSokratesFile, ParsedSokratesResult } from '../lib/sokratesParser';
+import { parseSokratesFile, parseSokratesText, ParsedSokratesResult } from '../lib/sokratesParser';
 import { SokratesImportModal } from './SokratesImportModal';
+
+export const SAMPLE_SOKRATES_LIST = `Volksschule Gisingen-Oberau
+6800 Feldkirch, Hämmerlestraße 2
++43 5522 3044530
+
+Schülerliste der Klasse 2b
+17 SchülerInnen, 10m/7w
+Klassenlehrerin: Martina Bitschnau, BEd Schuljahr: 2026/27
+
+Nr. Name BJ Geb.Datum SVNR Religion Staat Adressdaten Telefon
+
+1 Arnautović Merjem 3 11.12.2017 islam. (IGGÖ) Österreich Hämmerlestraße 43 Top 5 6800 Feldkirch Mutter: +43 660 1455983
+4042111217
+
+2 Benchakri Adam 2 16.05.2019 islam. (IGGÖ) Österreich Torkelgasse 18 Top 3 6800 Feldkirch Mutter: +43 660 6230889 Vater: +43 0660 3104606
+4308160519
+
+3 Büchle Mats E. 2 20.09.2018 röm.-kath. Österreich Kapfstraße 101a Top 3 6800 Feldkirch Mutter: +43 650 3526028 Vater: +43 699 10525326
+4781200918
+
+4 Cheikhmous Ayaz 3 13.04.2018 islam. (IGGÖ) Syrien Hämmerlesiedlung 6a Top 2 6800 Feldkirch Mutter: +43 676 6201845 Vater: +43 676 7449434
+5213130418
+
+5 Dautovic Malik 2 14.10.2018 islam. (IGGÖ) Österreich Sägerstrasse 45 6800 Feldkirch Mutter: +43 660 7250855
+3318141018
+
+6 Elshani Lorena 2 16.02.2019 islam. (IGGÖ) Kosovo Kapfstraße 76d 6800 Feldkirch Mutter: +43 660 2026582 Vater: +43 660 5171126
+3916160219
+
+7 Gassner Gabriel A. 2 14.05.2019 röm.-kath. Österreich Sägerstraße 50 Top 1 6800 Feldkirch Mutter: +43 676 5913159 Vater: +43 676 5913159
+5680140519
+
+8 Hilby Lars C. 2 10.01.2019 röm.-kath. Österreich Winkelgasse 15 Top 3 6800 Feldkirch Mutter: +43 650 8611493 Vater: +43 664 6297055
+5297100119
+
+9 Kern Luke V. 2 19.03.2019 o.B. Deutschland Marienstraße 5 6800 Feldkirch Mutter: +43 670 5085898
+6918190319
+
+10 Lodi Slattery Clara 2 31.10.2018 o.B. Großbritannien Hämmerlestraße 34 Top 307 6800 Feldkirch Mutter: +43 664 2038582
+6727311018
+
+11 Mader Mahdia 3 09.08.2018 islam. (IGGÖ) Somalia Hämmerlestraße 41 Top 2 6800 Feldkirch Mutter: +43 681 20435001 Vater: +43 681 81176892
+5586090818
+
+12 Čotkarajev Atai 3 29.07.2018 islam. (IGGÖ) Tschechien Flurgasse 22a Top 18 6800 Feldkirch Mutter: +43 676 7501354 Vater: +43 676 9114811
+3430290718
+
+13 Riegler Aria 2 20.05.2019 o.B. Österreich Hämmerlestraße 53 6800 Feldkirch Mutter: +43 699 18715220
+4421200519
+
+14 Ropele Enias D. 2 01.07.2019 o.B. Österreich Sonnengasse 33 6800 Feldkirch Mutter: +43 664 99639140
+4343010719
+
+15 Sahitaj Elona 3 11.06.2018 islam. (IGGÖ) Kosovo Hämmerlestraße 23 6800 Feldkirch Mutter: +43 664 75093580
+3049110618
+
+16 Saideminov Abubakar 3 25.06.2018 islam. (IGGÖ) Russland Hämmerlestraße 27a Top 12 6800 Feldkirch Mutter: +43 677 64450084
+5355250618
+
+17 Stieger Malou 2 01.11.2018 o.B. Österreich Josefgasse 20 6800 Feldkirch Mutter: +43 660 2996176 Vater: +43660 5551054
+4543011118`;
 
 interface KlassenlistenImportProps {
   onClose: () => void;
@@ -22,8 +83,32 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const handleLoadSampleSokrates = () => {
+    setErrorMsg(null);
+    const res = parseSokratesText(SAMPLE_SOKRATES_LIST);
+    setSokratesResult(res);
+    setShowSokratesModal(true);
+  };
+
   const processText = (text: string) => {
     setErrorMsg(null);
+    if (!text || !text.trim()) {
+      setPreviewStudents([]);
+      setWarnings([]);
+      return;
+    }
+
+    // Auto-detect Sokrates format in pasted or uploaded text
+    if (/Sokrates|Schülerliste|SchülerInnen|Geb\.Datum|BJ\b|Arnautović|Čotkarajev|Bitschnau/i.test(text) || 
+        /^\s*[0-9]{1,2}[\.\)\s\t]+[\p{Lu}].*\b(?:20[0-2][0-9]|19[89][0-9])/um.test(text)) {
+      const sokratesRes = parseSokratesText(text);
+      if (sokratesRes.students.length > 0) {
+        setSokratesResult(sokratesRes);
+        setShowSokratesModal(true);
+        return;
+      }
+    }
+
     const result = parseKlassenliste(text);
     setPreviewStudents(result.schueler);
     setWarnings(result.warnungen);
@@ -44,8 +129,10 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
           setShowSokratesModal(true);
         }
       } catch (err: any) {
-        console.error("Fehler beim PDF-Import:", err);
-        setErrorMsg("Fehler beim Verarbeiten der PDF-Datei: " + (err.message || "Unbekannter Fehler"));
+        if (import.meta.env?.DEV) {
+          console.error("Technischer Fehler beim PDF-Import:", err?.message || err);
+        }
+        setErrorMsg(err?.message || "Die PDF-Datei konnte nicht gelesen werden. Bitte versuche es erneut oder verwende alternativ den CSV-/Excel-Import.");
       } finally {
         setIsAnalyzingPDF(false);
       }
@@ -299,6 +386,21 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
                 <span className="text-[0.625rem] font-bold text-slate-400 block">Es werden automatisch Spalten für Vorname, Nachname und Geburtsdatum erkannt.</span>
               </div>
             )}
+
+            {/* Quick Sample Test */}
+            <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl mt-3">
+              <div className="flex items-center gap-2 text-[0.75rem] text-slate-600">
+                <Sparkles size={16} className="text-emerald-600 shrink-0" />
+                <span>Testen mit der echten Sokrates-Beispielliste (Klasse 2b, 17 Kinder, VS Gisingen-Oberau)?</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleLoadSampleSokrates}
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[0.6875rem] font-bold rounded-lg transition-all shadow-sm flex items-center gap-1.5 shrink-0 cursor-pointer"
+              >
+                <Play size={12} /> Beispielliste testen
+              </button>
+            </div>
           </div>
 
           {/* Area 2: Preview & Warnings for CSV/Text */}

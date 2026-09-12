@@ -42,7 +42,7 @@ export default function BackupSettings({
   const handleExportBackup = async () => {
     try {
       await triggerBackupDownload(app);
-      showToast('Verschlüsselte Sicherung (.lehrerapp) erfolgreich heruntergeladen!', 'success');
+      showToast('Sicherung (.json) erfolgreich heruntergeladen!', 'success');
     } catch (e: any) {
       showToast(e?.message || 'Fehler beim Exportieren der Sicherung.', 'error');
     }
@@ -55,8 +55,27 @@ export default function BackupSettings({
       fileReader.readAsText(file, "UTF-8");
       fileReader.onload = async (event) => {
         try {
-          const raw = event.target?.result as string;
-          const parsedData = JSON.parse(raw);
+          const raw = (event.target?.result as string) || '';
+          let cleanContent = raw.trim();
+          if (cleanContent.charCodeAt(0) === 0xFEFF) {
+            cleanContent = cleanContent.slice(1).trim();
+          }
+          let parsedData: any;
+          try {
+            parsedData = JSON.parse(cleanContent);
+          } catch {
+            const firstBrace = cleanContent.indexOf('{');
+            const lastBrace = cleanContent.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace > firstBrace) {
+              try {
+                parsedData = JSON.parse(cleanContent.slice(firstBrace, lastBrace + 1));
+              } catch {
+                throw new Error('Die Datei enthält kein lesbares JSON-Format.');
+              }
+            } else {
+              throw new Error('Die Datei enthält kein lesbares JSON-Format.');
+            }
+          }
 
           // Fall 1: Verschlüsseltes Backup (LehrerAppEncryptedBackupV1)
           if (isEncryptedBackupV1(parsedData)) {
@@ -111,10 +130,10 @@ export default function BackupSettings({
           }
 
           // Fall 2: Unverschlüsseltes Alt-Backup (Legacy Plaintext .json)
-          if (isLegacyPlaintextBackup(parsedData)) {
-            if (confirm('Altes unverschlüsseltes Backup erkannt. Möchtest du diese Sicherungsdatei wirklich einlesen? Künftige Sicherungen werden automatisch verschlüsselt.')) {
+          if (isLegacyPlaintextBackup(parsedData) || ('schueler' in parsedData) || ('classes' in parsedData) || ('klassenbezeichnung' in parsedData)) {
+            if (confirm('Sicherungsdatei erkannt. Möchtest du diese Daten wirklich einlesen? Alle aktuellen Daten werden durch das Backup ersetzt.')) {
               setApp(parsedData);
-              showToast('Legacy-Sicherung erfolgreich eingelesen! Künftige Exporte werden verschlüsselt.', 'success');
+              showToast('Sicherung erfolgreich eingelesen!', 'success');
             }
             return;
           }
@@ -185,7 +204,7 @@ export default function BackupSettings({
             className="px-6 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-md active:scale-95"
           >
             <Download size={18} />
-            <span>Verschlüsselte Sicherung (.lehrerapp)</span>
+            <span>Sicherung herunterladen (.json)</span>
           </button>
 
           {/* Import Button */}
@@ -193,7 +212,7 @@ export default function BackupSettings({
             <input
               id="backup-file-input-sub"
               type="file"
-              accept=".lehrerapp,.lehrerapp-backup,.json"
+              accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain,*"
               onChange={handleImportBackup}
               className="hidden"
             />
@@ -202,7 +221,7 @@ export default function BackupSettings({
               className="w-full h-full px-6 py-4 bg-white border-2 border-dashed border-stone-300 hover:border-emerald-500 text-slate-700 hover:text-emerald-700 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all cursor-pointer text-center"
             >
               <Upload size={18} />
-              <span>Sicherung einlesen (.lehrerapp / .json)</span>
+              <span>Sicherung einlesen (.json / .lehrerapp)</span>
             </label>
           </div>
         </div>

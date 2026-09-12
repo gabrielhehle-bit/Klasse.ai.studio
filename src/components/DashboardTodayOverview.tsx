@@ -38,6 +38,10 @@ import {
   Grid,
   Bug,
   ExternalLink,
+  ChevronDown,
+  Plus,
+  GraduationCap,
+  X,
 } from "lucide-react";
 
 export type DashboardDayMode = "morning" | "teaching" | "review";
@@ -151,9 +155,18 @@ export default function DashboardTodayOverview({
   weekEvents,
   monthEvents,
 }: DashboardTodayOverviewProps) {
-  const { app, setApp } = useApp();
+  const { app, setApp, switchClass, addClass } = useApp();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [upcomingTab, setUpcomingTab] = useState<"morgen" | "woche" | "monat">("morgen");
+  const [showClassMenu, setShowClassMenu] = useState(false);
+  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
+  const [quickClassName, setQuickClassName] = useState('');
+  const [quickClassStufe, setQuickClassStufe] = useState<number>(1);
+  const [quickClassIsKV, setQuickClassIsKV] = useState(true);
+
+  const availableClasses = app?.classes && app.classes.length > 0 
+    ? app.classes 
+    : (app?.klassenbezeichnung ? [{ id: app.activeClassId || 'default', name: app.klassenbezeichnung, stufe: app.stufe || 1, schueler: app.schueler || [] }] : []);
 
   const primaryLesson = currentLesson || nextLesson;
 
@@ -168,10 +181,121 @@ export default function DashboardTodayOverview({
           {/* Linke Seite: Begrüßung & Datum & Klasse */}
           <div className="space-y-0.5">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[0.6875rem] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/60 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                {klasseLabel || "Klasse 3a"}
-              </span>
+              {/* Klasse Dropdown Button */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowClassMenu(!showClassMenu)}
+                  className="text-[0.6875rem] font-black uppercase tracking-wider text-emerald-800 bg-emerald-50 hover:bg-emerald-100/90 px-3 py-1 rounded-full border border-emerald-200/80 flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer active:scale-95"
+                  title="Klasse wechseln oder neue Klasse anlegen"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>{klasseLabel || app?.klassenbezeichnung || "Klasse 3a"}</span>
+                  <ChevronDown size={13} className={`text-emerald-600 transition-transform duration-200 ${showClassMenu ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Popover */}
+                {showClassMenu && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowClassMenu(false)} 
+                    />
+                    <div className="absolute left-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-100 text-left">
+                      <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                        <span className="text-[0.625rem] font-black text-slate-400 uppercase tracking-wider">Deine Klassen</span>
+                        <span className="text-[0.625rem] font-bold text-slate-500">{availableClasses.length} {availableClasses.length === 1 ? 'Klasse' : 'Klassen'}</span>
+                      </div>
+                      
+                      {/* Klassenliste */}
+                      <div className="max-h-48 overflow-y-auto py-1 space-y-1">
+                        {availableClasses.map((c: any) => {
+                          const isActive = (c.id === app?.activeClassId) || (availableClasses.length === 1 && !app?.activeClassId);
+                          const studentCount = c.schueler?.length ?? (isActive ? (app?.schueler?.length || 0) : 0);
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => {
+                                if (c.id !== app?.activeClassId) {
+                                  switchClass(c.id);
+                                }
+                                setShowClassMenu(false);
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all cursor-pointer ${
+                                isActive 
+                                  ? 'bg-emerald-50 text-emerald-900 font-black border border-emerald-200/60 shadow-2xs' 
+                                  : 'text-slate-700 hover:bg-slate-50 font-bold'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <GraduationCap size={15} className={isActive ? 'text-emerald-600' : 'text-slate-400'} />
+                                <div>
+                                  <div className="leading-tight">{c.name || 'Unbenannte Klasse'}</div>
+                                  <div className="text-[0.625rem] font-medium text-slate-400">
+                                    {c.stufe ? `${c.stufe}. Stufe` : ''}{c.stufe && ' • '}{studentCount} Schüler:innen
+                                  </div>
+                                </div>
+                              </div>
+                              {isActive && <Check size={14} className="text-emerald-600 shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Aktionen */}
+                      <div className="border-t border-slate-100 pt-1.5 mt-1 space-y-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowClassMenu(false);
+                            setShowQuickAddModal(true);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-black text-emerald-700 hover:bg-emerald-50 transition-colors flex items-center gap-2 cursor-pointer"
+                        >
+                          <Plus size={14} className="text-emerald-600 shrink-0" />
+                          <span>+ Neue Klasse anlegen</span>
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowClassMenu(false);
+                            onNavigate('setup_new');
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2 cursor-pointer"
+                        >
+                          <Sparkles size={14} className="text-indigo-500 shrink-0" />
+                          <span>Klasse mit Assistent / Sokrates</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowClassMenu(false);
+                            onNavigate('setup');
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-xl text-[0.6875rem] font-bold text-slate-500 hover:bg-slate-50 transition-colors flex items-center gap-2 cursor-pointer"
+                        >
+                          <Settings size={13} className="text-slate-400 shrink-0" />
+                          <span>Klassen-Einstellungen öffnen</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Schneller Button: + Klasse */}
+              <button
+                type="button"
+                onClick={() => setShowQuickAddModal(true)}
+                className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-700 hover:text-emerald-800 bg-slate-100 hover:bg-emerald-50 px-2.5 py-1 rounded-full border border-slate-200/80 hover:border-emerald-200/80 flex items-center gap-1 transition-all cursor-pointer shadow-2xs active:scale-95"
+                title="Neue Klasse direkt im Dashboard hinzufügen"
+              >
+                <Plus size={12} className="text-emerald-600" />
+                <span>+ Klasse</span>
+              </button>
               
               {manualDateOffset !== 0 && (
                 <span className="text-[0.625rem] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200/60">
@@ -697,6 +821,124 @@ export default function DashboardTodayOverview({
           <span>{simpleMode ? "Alle Widgets" : "Einfachmodus"}</span>
         </button>
       </div>
+
+      {/* ==================================================
+          8. SCHNELLANLAGE MODAL (NEUE KLASSE)
+         ================================================== */}
+      {showQuickAddModal && (
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 w-full max-w-md shadow-2xl relative space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shadow-2xs">
+                  <GraduationCap size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 leading-tight">Neue Klasse anlegen</h3>
+                  <p className="text-xs text-slate-500 font-medium">Erstelle eine neue Klasse für dein Klassenbuch</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQuickAddModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Schließen"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const trimmed = quickClassName.trim();
+                if (!trimmed) return;
+                addClass(trimmed, quickClassStufe, quickClassIsKV, 'dashboard');
+                setShowQuickAddModal(false);
+                setQuickClassName('');
+                onNavigate('dashboard');
+              }}
+              className="space-y-4"
+            >
+              {/* Klassenbezeichnung */}
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                  Klassenbezeichnung <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={quickClassName}
+                  onChange={(e) => setQuickClassName(e.target.value)}
+                  placeholder="z. B. 2b, 4a, 1c..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all placeholder:text-slate-400"
+                />
+              </div>
+
+              {/* Schulstufe */}
+              <div>
+                <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                  Schulstufe
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {[1, 2, 3, 4].map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setQuickClassStufe(st)}
+                      className={`py-2 text-xs font-black rounded-xl border transition-all cursor-pointer ${
+                        quickClassStufe === st
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {st}. Stufe
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Klassenvorstand Checkbox */}
+              <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-100 cursor-pointer hover:bg-slate-100/70 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={quickClassIsKV}
+                  onChange={(e) => setQuickClassIsKV(e.target.checked)}
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                />
+                <span className="text-xs font-bold text-slate-700 select-none">
+                  Ich bin Klassenvorstand / Klassenlehrkraft
+                </span>
+              </label>
+
+              {/* Buttons */}
+              <div className="pt-2 flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowQuickAddModal(false);
+                    onNavigate('setup_new');
+                  }}
+                  className="flex-1 py-2.5 px-3 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/70 text-indigo-700 text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  title="Öffnet den Einrichtungsassistenten inkl. Sokrates Schülerimport"
+                >
+                  <Sparkles size={14} className="text-indigo-500" />
+                  <span>Mit Assistent & Sokrates</span>
+                </button>
+                <button
+                  type="submit"
+                  disabled={!quickClassName.trim()}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-black shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Check size={14} />
+                  <span>Klasse anlegen</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

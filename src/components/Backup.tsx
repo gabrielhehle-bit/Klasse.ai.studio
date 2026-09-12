@@ -198,16 +198,38 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const content = e.target?.result as string;
-        const importedData = JSON.parse(content);
+        const rawContent = (e.target?.result as string) || '';
+        let cleanContent = rawContent.trim();
+        // UTF-8 BOM entfernen falls vorhanden
+        if (cleanContent.charCodeAt(0) === 0xFEFF) {
+          cleanContent = cleanContent.slice(1).trim();
+        }
+
+        let importedData: any;
+        try {
+          importedData = JSON.parse(cleanContent);
+        } catch {
+          // Falls die Datei im Browser als JavaScript (.js) oder mit Variablendeklaration gespeichert wurde
+          const firstBrace = cleanContent.indexOf('{');
+          const lastBrace = cleanContent.lastIndexOf('}');
+          if (firstBrace !== -1 && lastBrace > firstBrace) {
+            try {
+              importedData = JSON.parse(cleanContent.slice(firstBrace, lastBrace + 1));
+            } catch {
+              throw new Error('Die Datei enthält kein gültiges JSON-Format.');
+            }
+          } else {
+            throw new Error('Die Datei enthält kein lesbares JSON-Format.');
+          }
+        }
         
         if (typeof importedData !== 'object' || importedData === null) {
-          throw new Error('Ungültiges Format');
+          throw new Error('Ungültiges Dateiformat');
         }
         
         let targetData: any = null;
 
-        // Fall 1: Verschlüsseltes Backup (.lehrerapp)
+        // Fall 1: Verschlüsseltes Backup (.lehrerapp / .json)
         if (isEncryptedBackupV1(importedData)) {
           let decrypted: any = null;
           const activeKey = getActiveVaultKey();
@@ -246,8 +268,8 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
             }
           }
           targetData = decrypted;
-        } else if (isLegacyPlaintextBackup(importedData)) {
-          // Fall 2: Unverschlüsseltes Alt-Backup (Legacy)
+        } else if (isLegacyPlaintextBackup(importedData) || ('schueler' in importedData) || ('classes' in importedData) || ('klassenbezeichnung' in importedData)) {
+          // Fall 2: Unverschlüsseltes Alt-Backup (Legacy Plaintext .json)
           targetData = importedData;
         } else {
           throw new Error('Diese Datei ist kein gültiges LehrerAPP-Backup.');
@@ -306,10 +328,8 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file && (file.type === "application/json" || file.name.endsWith('.json'))) {
+    if (file) {
       processFile(file);
-    } else {
-      alert('Bitte lade eine gültige .json Backup-Datei hoch.');
     }
   };
 
@@ -1201,10 +1221,10 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
           <div className="pt-6">
             <input 
               type="file" 
-              aria-label="LehrerAPP-Sicherungsdatei auswählen (.lehrerapp / .json)"
+              aria-label="LehrerAPP-Sicherungsdatei auswählen (.json / .lehrerapp)"
               ref={fileInputRef} 
               onChange={importData} 
-              accept=".lehrerapp,.lehrerapp-backup,.json,application/json" 
+              accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain,*" 
               className="hidden" 
             />
             <button 

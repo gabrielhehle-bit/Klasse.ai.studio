@@ -70,116 +70,124 @@ export function capitalizeName(name: string): string {
  * Scans the entire AppState for data consistency errors across modules.
  */
 export function scanDataConsistency(app: AppState): ConsistencyIssue[] {
-  const issues: ConsistencyIssue[] = [];
-  const students = app.schueler || [];
-  const studentIds = new Set(students.map(s => s.id));
-  const studentNames = students.map(s => `${(s.vorname || '').trim().toLowerCase()} ${(s.nachname || '').trim().toLowerCase()}`);
+  try {
+    const issues: ConsistencyIssue[] = [];
+    const students = app?.schueler || [];
+    const studentIds = new Set(students.map(s => s.id));
+    const studentNames = students.map(s => `${(s.vorname || '').trim().toLowerCase()} ${(s.nachname || '').trim().toLowerCase()}`);
 
-  // 1. Check for Duplicate Student IDs
-  const seenIds = new Set<string>();
-  students.forEach(s => {
-    if (seenIds.has(s.id)) {
-      issues.push({
-        id: `dup-id-${s.id}`,
-        type: 'duplicate_id',
-        severity: 'error',
-        title: 'Duplizierte Schüler-ID',
-        description: `Der Schüler "${s.vorname} ${s.nachname}" teilt sich die ID (${s.id}) mit einem anderen Eintrag. Dies führt zu Datenüberschreibungen.`,
-        affectedId: s.id,
-        module: 'schueler',
-        fixable: true
+    // 1. Check for Duplicate Student IDs
+    const seenIds = new Set<string>();
+    students.forEach(s => {
+      if (!s || !s.id) return;
+      if (seenIds.has(s.id)) {
+        issues.push({
+          id: `dup-id-${s.id}`,
+          type: 'duplicate_id',
+          severity: 'error',
+          title: 'Duplizierte Schüler-ID',
+          description: `Der Schüler "${s.vorname || ''} ${s.nachname || ''}" teilt sich die ID (${s.id}) mit einem anderen Eintrag. Dies führt zu Datenüberschreibungen.`,
+          affectedId: s.id,
+          module: 'schueler',
+          fixable: true
+        });
+      }
+      seenIds.add(s.id);
+    });
+
+    // 2. Check for Duplicate Student Names
+    const duplicateNamesChecked = new Set<string>();
+    students.forEach((s, idx) => {
+      if (!s) return;
+      const fullName = `${(s.vorname || '').trim()} ${(s.nachname || '').trim()}`;
+      const key = fullName.toLowerCase();
+      if (studentNames.filter(n => n === key).length > 1 && !duplicateNamesChecked.has(key)) {
+        duplicateNamesChecked.add(key);
+        issues.push({
+          id: `dup-name-${s.id}`,
+          type: 'duplicate_name',
+          severity: 'warning',
+          title: 'Namensgleichheit im Schülerstamm',
+          description: `Es wurden mehrere Schüler mit dem Namen "${fullName}" gefunden. Bitte überprüfe die Unterscheidbarkeit in Noteneinträgen.`,
+          affectedId: s.id,
+          module: 'schueler',
+          fixable: false
+        });
+      }
+    });
+
+    // 3. Check for Orphaned Grades in app.noten
+    if (app?.noten) {
+      Object.keys(app.noten).forEach(sid => {
+        if (!studentIds.has(sid)) {
+          const rec = app.noten[sid];
+          if (rec && typeof rec === 'object') {
+            const strVal = JSON.stringify(rec) || '';
+            if (strVal.length > 20) {
+              issues.push({
+                id: `orph-noten-${sid}`,
+                type: 'orphaned_grades',
+                severity: 'warning',
+                title: 'Verwaiste Noteneinträge',
+                description: `In der Notenmappe existieren Leistungsaufzeichnungen für einen Schüler mit der ID "${sid}", der nicht mehr in der Schülerliste existiert.`,
+                affectedId: sid,
+                details: `Leistungsdatensatz: ${strVal.substring(0, 100)}...`,
+                module: 'noten',
+                fixable: true
+              });
+            }
+          }
+        }
       });
     }
-    seenIds.add(s.id);
-  });
 
-  // 2. Check for Duplicate Student Names
-  const duplicateNamesChecked = new Set<string>();
-  students.forEach((s, idx) => {
-    const fullName = `${(s.vorname || '').trim()} ${(s.nachname || '').trim()}`;
-    const key = fullName.toLowerCase();
-    if (studentNames.filter(n => n === key).length > 1 && !duplicateNamesChecked.has(key)) {
-      duplicateNamesChecked.add(key);
-      issues.push({
-        id: `dup-name-${s.id}`,
-        type: 'duplicate_name',
-        severity: 'warning',
-        title: 'Namensgleichheit im Schülerstamm',
-        description: `Es wurden mehrere Schüler mit dem Namen "${fullName}" gefunden. Bitte überprüfe die Unterscheidbarkeit in Noteneinträgen.`,
-        affectedId: s.id,
-        module: 'schueler',
-        fixable: false
+    // 4. Check for Orphaned Diagnostics in app.diagnostikErhebungen
+    if (app?.diagnostikErhebungen) {
+      const orphanedDiagnosticsMap = new Map<string, number>();
+      app.diagnostikErhebungen.forEach(e => {
+        if (e && e.schuelerId && !studentIds.has(e.schuelerId)) {
+          orphanedDiagnosticsMap.set(e.schuelerId, (orphanedDiagnosticsMap.get(e.schuelerId) || 0) + 1);
+        }
+      });
+      orphanedDiagnosticsMap.forEach((count, sid) => {
+        issues.push({
+          id: `orph-diagnostik-${sid}`,
+          type: 'orphaned_diagnostics',
+          severity: 'warning',
+          title: 'Verwaiste Diagnose-Daten',
+          description: `Es existieren ${count} diagnostische Testergebnisse (Lernforschritte/Meilensteine) für einen Schüler mit der ID "${sid}", der nicht mehr gelistet ist.`,
+          affectedId: sid,
+          details: `${count} Erhebung(en) betroffen`,
+          module: 'diagnostik',
+          fixable: true
+        });
       });
     }
-  });
 
-  // 3. Check for Orphaned Grades in app.noten
-  if (app.noten) {
-    Object.keys(app.noten).forEach(sid => {
-      if (!studentIds.has(sid)) {
-        // Only report if there is actual grade records saved
-        const hasRecords = JSON.stringify(app.noten[sid]).length > 20; 
-        if (hasRecords) {
-          issues.push({
-            id: `orph-noten-${sid}`,
-            type: 'orphaned_grades',
-            severity: 'warning',
-            title: 'Verwaiste Noteneinträge',
-            description: `In der Notenmappe existieren Leistungsaufzeichnungen für einen Schüler mit der ID "${sid}", der nicht mehr in der Schülerliste existiert.`,
-            affectedId: sid,
-            details: `Leistungsdatensatz: ${JSON.stringify(app.noten[sid]).substring(0, 100)}...`,
-            module: 'noten',
-            fixable: true
-          });
+    // 5. Check for Orphaned Mitarbeit
+    if (app?.mitarbeit) {
+      Object.keys(app.mitarbeit).forEach(sid => {
+        if (!studentIds.has(sid)) {
+          const rec = app.mitarbeit[sid];
+          if (rec && typeof rec === 'object') {
+            const strVal = JSON.stringify(rec) || '';
+            if (strVal.length > 15) {
+              issues.push({
+                id: `orph-mitarbeit-${sid}`,
+                type: 'orphaned_mitarbeit',
+                severity: 'warning',
+                title: 'Verwaiste Mitarbeit-Einträge',
+                description: `Es sind Mitarbeit-Dokumentationen (Notenmappe) unter der nicht existenten Schüler-ID "${sid}" verzeichnet.`,
+                affectedId: sid,
+                details: `Mitarbeitsdatensatz: ${strVal.substring(0, 80)}...`,
+                module: 'mitarbeit',
+                fixable: true
+              });
+            }
+          }
         }
-      }
-    });
-  }
-
-  // 4. Check for Orphaned Diagnostics in app.diagnostikErhebungen
-  if (app.diagnostikErhebungen) {
-    const orphanedDiagnosticsMap = new Map<string, number>();
-    app.diagnostikErhebungen.forEach(e => {
-      if (e.schuelerId && !studentIds.has(e.schuelerId)) {
-        orphanedDiagnosticsMap.set(e.schuelerId, (orphanedDiagnosticsMap.get(e.schuelerId) || 0) + 1);
-      }
-    });
-    orphanedDiagnosticsMap.forEach((count, sid) => {
-      issues.push({
-        id: `orph-diagnostik-${sid}`,
-        type: 'orphaned_diagnostics',
-        severity: 'warning',
-        title: 'Verwaiste Diagnose-Daten',
-        description: `Es existieren ${count} diagnostische Testergebnisse (Lernforschritte/Meilensteine) für einen Schüler mit der ID "${sid}", der nicht mehr gelistet ist.`,
-        affectedId: sid,
-        details: `${count} Erhebung(en) betroffen`,
-        module: 'diagnostik',
-        fixable: true
       });
-    });
-  }
-
-  // 5. Check for Orphaned Mitarbeit
-  if (app.mitarbeit) {
-    Object.keys(app.mitarbeit).forEach(sid => {
-      if (!studentIds.has(sid)) {
-        const hasRecords = JSON.stringify(app.mitarbeit[sid]).length > 15;
-        if (hasRecords) {
-          issues.push({
-            id: `orph-mitarbeit-${sid}`,
-            type: 'orphaned_mitarbeit',
-            severity: 'warning',
-            title: 'Verwaiste Mitarbeit-Einträge',
-            description: `Es sind Mitarbeit-Dokumentationen (Notenmappe) unter der nicht existenten Schüler-ID "${sid}" verzeichnet.`,
-            affectedId: sid,
-            details: `Mitarbeitsdatensatz: ${JSON.stringify(app.mitarbeit[sid]).substring(0, 80)}...`,
-            module: 'mitarbeit',
-            fixable: true
-          });
-        }
-      }
-    });
-  }
+    }
 
   // 6. Check for Orphaned Behavior (Verhalten / Warnkarten)
   if (app.verhalten) {
@@ -357,7 +365,11 @@ export function scanDataConsistency(app: AppState): ConsistencyIssue[] {
     }
   });
 
-  return issues;
+    return issues;
+  } catch (error) {
+    console.error('Data consistency scan error:', error);
+    return [];
+  }
 }
 
 /**

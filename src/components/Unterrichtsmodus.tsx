@@ -131,7 +131,6 @@ import {
   MoreHorizontal,
   Unlock,
   PenTool,
-  Presentation,
 } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import {
@@ -164,7 +163,6 @@ import MorningRiddleWidget from "./MorningRiddleWidget";
 import QuizWidget from "./QuizWidget";
 import MindmapWidget from "./MindmapWidget";
 import WhiteboardWidget from "./WhiteboardWidget";
-import Tafel from "./Tafel";
 import LernwoerterWidget from "./LernwoerterWidget";
 import FlowerPuzzleWidget from "./FlowerPuzzleWidget";
 const MemoizedFlowerPuzzleWidget = memo(FlowerPuzzleWidget);
@@ -3952,48 +3950,6 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   };
   const [showSyncInfo, setShowSyncInfo] = useState(false);
   const [syncModalTab, setSyncModalTab] = useState<'remote' | 'wifi'>('remote');
-  const [isTafelOpen, setIsTafelOpen] = useState(false);
-  const isInitialMountRef = useRef(true);
-  const prevActiveClassIdRef = useRef(app.activeClassId);
-
-  // Klasse gewechselt -> Tafel stets geschlossen halten
-  useEffect(() => {
-    if (prevActiveClassIdRef.current !== app.activeClassId) {
-      prevActiveClassIdRef.current = app.activeClassId;
-      setIsTafelOpen(false);
-      if (app.boardSettings?.isTafelOpen) {
-        setApp((prev: any) => ({
-          ...prev,
-          boardSettings: {
-            ...prev.boardSettings,
-            isTafelOpen: false,
-          },
-        }));
-      }
-    }
-  }, [app.activeClassId, app.boardSettings?.isTafelOpen, setApp]);
-
-  // Synchronisation mit Remote-Fernbedienung: Nur bei Live-Aktionen NACH dem Initial-Mount
-  useEffect(() => {
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      // Beim Betreten des Lehrercockpits / Reload bleibt die Digitale Tafel stets geschlossen
-      if (app.boardSettings?.isTafelOpen) {
-        setApp((prev: any) => ({
-          ...prev,
-          boardSettings: {
-            ...prev.boardSettings,
-            isTafelOpen: false,
-          },
-        }));
-      }
-      return;
-    }
-    // Nach dem Laden nur explizite Live-Events der Remote-Steuerung berücksichtigen
-    if (app.boardSettings?.isTafelOpen !== undefined) {
-      setIsTafelOpen(!!app.boardSettings.isTafelOpen);
-    }
-  }, [app.boardSettings?.isTafelOpen, setApp]);
   const isSmartboardOnly = !!(
     app.boardSettings?.splitSmartboardMode &&
     !app.boardSettings?.isRemoteController
@@ -9492,24 +9448,6 @@ ${content}
                             <span>Whiteboard</span>
                           </button>
 
-                          {/* Primary Action 3: Digitale Tafel (Große Vollbild-Tafel) */}
-                          <button
-                            type="button"
-                            id="btn-open-digitale-tafel"
-                            onClick={() => setIsTafelOpen(true)}
-                            className={`h-8 px-2.5 rounded-lg border font-bold text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all duration-200 shadow-sm cursor-pointer ${
-                              isTafelOpen
-                                ? "bg-emerald-600 border-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]"
-                                : currentIsLight
-                                  ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-800 hover:text-emerald-700"
-                                  : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white hover:text-emerald-400"
-                            }`}
-                            title="Digitale Tafel im großen Vollbild-Arbeitsmodus öffnen"
-                          >
-                            <Presentation size={11} className="text-emerald-500" />
-                            <span>Digitale Tafel</span>
-                          </button>
-
                           {/* Secondary Actions: Dropdown Menu (••• Optionen) */}
                           <div className="relative">
                             <button
@@ -9536,25 +9474,6 @@ ${content}
                                     : "bg-zinc-900 border-white/10 text-white animate-in fade-in slide-in-from-top-2 duration-150"
                                 }`}
                               >
-                                <div className="px-2 py-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-white/5">
-                                  Tafel-Optionen
-                                </div>
-
-                                <button
-                                  type="button"
-                                  id="btn-menu-open-digitale-tafel"
-                                  onClick={() => {
-                                    setIsTafelOpen(true);
-                                    setIsMoreOptionsMenuOpen(false);
-                                  }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
-                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
-                                  }`}
-                                >
-                                  <Presentation size={12} className="text-emerald-500 shrink-0" />
-                                  <span>Digitale Tafel öffnen</span>
-                                </button>
-
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -11333,7 +11252,6 @@ ${content}
                                           }
                                           app={app}
                                           setApp={setApp}
-                                          onOpenInTafel={() => setIsTafelOpen(true)}
                                           showSettings={
                                             widgetSettingsOpenId === widget.id
                                           }
@@ -18448,24 +18366,6 @@ ${content}
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Tafel full-screen fixed-overlay */}
-      {isTafelOpen && (
-        <Tafel
-          onClose={() => {
-            setIsTafelOpen(false);
-            if (app.boardSettings?.isTafelOpen) {
-              setApp((prev: any) => ({
-                ...prev,
-                boardSettings: {
-                  ...prev.boardSettings,
-                  isTafelOpen: false,
-                },
-              }));
-            }
-          }}
-        />
-      )}
 
       {/* Cockpit Vorlagen Modal */}
       <CockpitVorlagenModal

@@ -35,7 +35,7 @@ import {
 
 export const BACKUP_FORMAT_IDENTIFIER = 'LehrerAPP_Encrypted_Backup' as const;
 export const CURRENT_BACKUP_VERSION = 1 as const;
-export const BACKUP_FILE_EXTENSION = '.lehrerapp';
+export const BACKUP_FILE_EXTENSION = '.json';
 export const DEFAULT_APP_VERSION = '3.0.0';
 
 /**
