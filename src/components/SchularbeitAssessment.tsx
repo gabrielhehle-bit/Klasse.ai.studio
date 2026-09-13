@@ -1064,77 +1064,65 @@ export default function SchularbeitAssessment({
 
   const generatePedagogicalFeedback = () => {
     const student = app.schueler?.find((s) => s.id === studentId);
-    const firstName = student ? student.vorname : studentName;
-    const traits = student?.charakter || [];
+    const firstName = student?.vorname || studentName || 'Kind';
 
-    let intro = "";
-    if (traits.includes("kreativ")) {
-      intro = `Liebe/r ${firstName}, deine kreative Vorstellungskraft glänzt in dieser Schularbeit förmlich auf! `;
-    } else if (traits.includes("lebhaft")) {
-      intro = `Liebe/r ${firstName}, mit deiner lebendigen und dynamischen Art hast du eine wirklich schwungvolle Geschichte verfasst. `;
-    } else if (
-      traits.includes("konzentriert") ||
-      traits.includes("aufmerksam")
+    const scoredCriteria = activeAspects
+      .flatMap((aspect) =>
+        aspect.criteria.map((criterion) => ({
+          aspect: aspect.title,
+          label: criterion.label,
+          points: Number(criterion.points) || 0,
+          maxPoints: Number(criterion.maxPoints) || 0,
+        })),
+      )
+      .filter((criterion) => criterion.maxPoints > 0);
+
+    const totalPoints = scoredCriteria.reduce((sum, criterion) => sum + criterion.points, 0);
+    const totalMax = scoredCriteria.reduce((sum, criterion) => sum + criterion.maxPoints, 0);
+
+    const ranked = [...scoredCriteria].sort((a, b) => {
+      const ratioA = a.maxPoints > 0 ? a.points / a.maxPoints : 0;
+      const ratioB = b.maxPoints > 0 ? b.points / b.maxPoints : 0;
+      return ratioB - ratioA;
+    });
+
+    const strongest = ranked[0];
+    const nextStep = ranked.length > 1 ? ranked[ranked.length - 1] : undefined;
+    const parts: string[] = [];
+
+    if (totalMax > 0) {
+      parts.push(`${firstName}: Im Kriterienraster wurden ${totalPoints} von ${totalMax} Punkten erreicht.`);
+    }
+
+    if (strongest && strongest.points > 0) {
+      parts.push(
+        `Besonders viele Punkte wurden beim Kriterium „${strongest.label}“ erreicht (${strongest.points}/${strongest.maxPoints}).`,
+      );
+    }
+
+    if (
+      nextStep &&
+      (!strongest || nextStep.label !== strongest.label) &&
+      nextStep.points < nextStep.maxPoints
     ) {
-      intro = `Liebe/r ${firstName}, deine konzentrierte Arbeitsweise spiegelt sich wunderbar in der Struktur deines Textes wider. `;
-    } else if (traits.includes("ruhig") || traits.includes("interessiert")) {
-      intro = `Liebe/r ${firstName}, deine besonnene und interessierte Herangehensweise ist beim Lesen der Zeilen deutlich spürbar. `;
-    } else {
-      intro = `Liebe/r ${firstName}, du hast dir bei dieser Schularbeit viel Mühe gegeben! `;
+      parts.push(
+        `Als nächster Übungsschwerpunkt bietet sich „${nextStep.label}“ an (${nextStep.points}/${nextStep.maxPoints}).`,
+      );
     }
 
-    let textFeeback = "";
-    if (arbeitsNote === 1) {
-      textFeeback =
-        "Inhaltlich und sprachlich ist dir ein meisterhafter Bogen gelungen. Deine Satzstrukturen sind abwechslungsreich und der rote Faden zieht sich schlüssig durch.";
-    } else if (arbeitsNote === 2) {
-      textFeeback =
-        "Du hast die Geschichte gut aufgebaut, einen passenden Wortschatz gewählt und dich sehr präzise ausgedrückt. Ein paar kleine Formulierungen könnten noch runder sein.";
-    } else if (arbeitsNote === 3) {
-      textFeeback =
-        "Die grundlegenden Elemente deiner Erzählung sind vorhanden und gut verständlich. Achte nächstes Mal noch bewusster auf die abwechslungsreiche Satzgestaltung und die Zeitenfolge.";
-    } else if (arbeitsNote === 4) {
-      textFeeback =
-        "Deine Erzählung ist im Kern verständlich und du hast das Thema umgesetzt. Es wäre jedoch hilfreich, den Wortschatz weiter auszubauen und Erzählschritte genauer auszuführen.";
-    } else {
-      textFeeback =
-        "Um deinen Schreibstil und den Textaufbau zu festigen, werden wir in den nächsten Wochen gemeinsam noch ein paar gezielte Schreib- und Strukturierungsübungen machen.";
+    if (wordCount > 0) {
+      parts.push(
+        `Für den Text sind ${wordCount} Wörter und ${errorCount} erfasste Rechtschreibfehler dokumentiert.`,
+      );
+    } else if (errorCount > 0) {
+      parts.push(`Es sind ${errorCount} Rechtschreibfehler erfasst.`);
     }
 
-    let spellingFeedback = "";
-    if (rechtschreibNote === 1) {
-      spellingFeedback =
-        "Besonders erfreulich ist deine hervorragende Rechtschreibung. Deine Fokussierung beim Schreiben zahlt sich voll aus!";
-    } else if (rechtschreibNote === 2) {
-      spellingFeedback =
-        "Auch deine Rechtschreibkompetenz ist gut ausgeprägt, nur wenige Flüchtigkeitsfehler haben sich eingeschlichen.";
-    } else if (rechtschreibNote === 3) {
-      spellingFeedback =
-        "Rechtschreiblich gibt es noch ein paar Unsicherheiten, z.B. bei der Wortschreibung oder den Satzanfängen, die wir gemeinsam festigen können.";
-    } else if (rechtschreibNote === 4) {
-      spellingFeedback =
-        "Bezüglich der Rechtschreibung ist es ratsam, künftig noch sorgfältiger Korrektur zu lesen und bekannte Regeln (wie Groß- und Kleinschreibung) intensiv anzuwenden.";
-    } else {
-      spellingFeedback =
-        "In der Rechtschreibung zeigen sich größere Lücken. Mit gezieltem Wörter-Training und Silbenlesen werden wir hier Schritt für Schritt Sicherheit gewinnen.";
+    if (parts.length === 0) {
+      return 'Noch keine ausreichenden Kriterienwerte für einen datenbasierten Rückmeldungsvorschlag vorhanden.';
     }
 
-    let closing = "";
-    if (gesamtnote <= 2) {
-      closing =
-        " Mach weiter so, ich bin sehr stolz auf deine hervorragende Leistung!";
-    } else if (gesamtnote === 3) {
-      closing =
-        " Ein schöner Erfolg! Mit etwas mehr Schreibübung kletterst du bald noch weiter nach oben.";
-    } else if (gesamtnote === 4) {
-      closing =
-        " Ein solider Schritt nach vorn! Lass den Kopf nicht hängen – wir üben weiter und das nächste Mal klappt es noch besser.";
-    } else {
-      closing =
-        " Lass uns diesen Bogen als Motivation nehmen. Ich unterstütze dich voll und ganz dabei, beim nächsten Mal wieder durchzustarten!";
-    }
-
-    return `${intro}${textFeeback} ${spellingFeedback}${closing}`;
+    return parts.join(' ');
   };
 
   const pointsToGrade = (points: number) => {
@@ -2860,20 +2848,20 @@ export default function SchularbeitAssessment({
                       setFeedback(generated);
                     }}
                     className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[0.5625rem] font-black uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm cursor-pointer"
-                    title="Generiert einen feinfühligen und personalisierten Feedbacktext basierend auf den berechneten Noten und den Merkmalen des Schülers."
+                    title="Erstellt einen neutralen Rückmeldungsvorschlag ausschließlich aus tatsächlich erfassten Kriterienpunkten sowie Wort- und Fehlerzahl."
                   >
                     <Sparkles
                       size={11}
                       className="text-indigo-600 animate-pulse"
                     />{" "}
-                    KI-Vorschlag
+                    Vorschlag aus Kriterien
                   </button>
                 </div>
 
                 <textarea
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
-                  placeholder="Beschreibe kurz die Stärken und nächsten Lernschritte oder generiere eine feinfühlige, personalisierte Verbalbeurteilung per 'KI-Vorschlag'..."
+                  placeholder="Beschreibe kurz beobachtbare Stärken und nächste Lernschritte oder erstelle einen neutralen Vorschlag aus den tatsächlich erfassten Kriterien..."
                   className="w-full h-24 xl:h-32 p-3 text-[0.75rem] leading-tight font-semibold text-zinc-700 bg-zinc-50 border border-zinc-200/60 rounded-xl outline-none focus:border-indigo-500 focus:bg-white resize-none shadow-inner leading-relaxed transition-all"
                 />
 
