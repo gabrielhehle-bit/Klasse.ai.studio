@@ -44,6 +44,7 @@ export default function Materialbibliothek() {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialItem | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [weekPlanMaterial, setWeekPlanMaterial] = useState<MaterialItem | null>(null);
 
   // Stats
   const storageMB = useMemo(() => calculateStorageSize(app.materialien || []), [app.materialien]);
@@ -681,10 +682,20 @@ export default function Materialbibliothek() {
             onDelete={() => handleDelete(selectedMaterial.id)}
             onToggleFavorit={(e) => handleToggleFavorit(e, selectedMaterial.id)}
             onMarkUsed={() => handleMarkUsed(selectedMaterial.id)}
+            onSendToWeekPlan={() => {
+              setShowDetail(false);
+              setWeekPlanMaterial(selectedMaterial);
+            }}
             onEdit={() => {
               setShowDetail(false);
               setIsAdding(true);
             }}
+          />
+        )}
+        {weekPlanMaterial && (
+          <MaterialToWeekPlanModal
+            item={weekPlanMaterial}
+            onClose={() => setWeekPlanMaterial(null)}
           />
         )}
       </AnimatePresence>
@@ -1427,7 +1438,7 @@ function TypeSelectionCard({ icon, label, desc, color, onClick }: any) {
   );
 }
 
-function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkUsed, onEdit }: any) {
+function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkUsed, onSendToWeekPlan, onEdit }: any) {
   const { app } = useApp();
   const getSafeLink = (url?: string) => {
     if (!url) return '';
@@ -1593,6 +1604,7 @@ function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkU
          </div>
 
          <div className="p-8 pt-4 bg-slate-50/50 border-t border-slate-100 flex flex-wrap gap-3 no-print">
+            <button onClick={onSendToWeekPlan} className="btn bg-indigo-600 text-white flex items-center gap-2 px-6 h-14"><ClipboardList size={20} /> In Wochenplan</button>
             <button onClick={onMarkUsed} className="btn bg-emerald-600 text-white flex items-center gap-2 px-6 h-14"><Check size={20} /> Als verwendet markieren</button>
             <button onClick={onEdit} className="btn bg-white border border-slate-200 text-slate-600 flex items-center gap-2 px-6 h-14"><Edit3 size={20} /> Bearbeiten</button>
             <button onClick={onDelete} className="p-4 text-rose-500 hover:bg-rose-50 rounded-2xl transition-all ml-auto"><Trash2 size={24} /></button>
@@ -1622,6 +1634,161 @@ function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkU
 }
 
 // Utility export for Step 8
+
+function getIsoWeekNumber(date = new Date()): number {
+  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = target.getUTCDay() || 7;
+  target.setUTCDate(target.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  return Math.ceil((((target.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClose: () => void }) {
+  const { app, setApp, setPage } = useApp();
+  const [kw, setKw] = useState(getIsoWeekNumber());
+  const [day, setDay] = useState('Montag');
+  const [hour, setHour] = useState(1);
+  const [mode, setMode] = useState<'append' | 'replace'>('append');
+
+  const days = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
+  const availableHours = useMemo(() => {
+    const configured = Object.keys((app.stammplan as any)?.[day] || {})
+      .map(Number)
+      .filter(value => Number.isFinite(value) && value > 0)
+      .sort((a, b) => a - b);
+    return configured.length > 0 ? configured : [1, 2, 3, 4, 5, 6, 7, 8];
+  }, [app.stammplan, day]);
+
+  useEffect(() => {
+    if (!availableHours.includes(hour)) setHour(availableHours[0] || 1);
+  }, [availableHours, hour]);
+
+  const existing = (app.wochenplanung as any)?.[kw]?.[day]?.[hour - 1] || {};
+  const existingMaterialIds = Array.isArray(existing.materialIds) ? existing.materialIds : [];
+  const alreadyLinked = existingMaterialIds.includes(item.id);
+
+  const save = () => {
+    setApp(prev => {
+      const wochenplanung = { ...(prev.wochenplanung || {}) } as any;
+      const week = { ...(wochenplanung[kw] || {}) } as any;
+      const dayPlan = { ...(week[day] || {}) } as any;
+      const index = hour - 1;
+      const slot = { ...(dayPlan[index] || {}) } as any;
+      const currentIds = Array.isArray(slot.materialIds) ? slot.materialIds : [];
+      const materialIds = mode === 'replace'
+        ? [item.id]
+        : Array.from(new Set([...currentIds, item.id]));
+
+      dayPlan[index] = {
+        ...slot,
+        fach: slot.fach || (prev.stammplan as any)?.[day]?.[hour] || item.faecher?.[0] || '',
+        material: mode === 'replace' ? '' : (slot.material || ''),
+        materialIds,
+      };
+      week[day] = dayPlan;
+      wochenplanung[kw] = week;
+
+      return {
+        ...prev,
+        wochenplanung,
+        materialien: (prev.materialien || []).map(material =>
+          material.id === item.id
+            ? { ...material, zuletztVerwendet: new Date().toISOString() }
+            : material
+        ),
+      };
+    });
+
+    onClose();
+    setPage('wochenplanung');
+  };
+
+  return (
+    <div className="fixed inset-0 z-[270] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 18 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 18 }}
+        className="w-full max-w-lg rounded-[2rem] bg-white shadow-2xl border border-slate-100 overflow-hidden"
+      >
+        <div className="p-6 border-b border-slate-100 flex items-start justify-between gap-4">
+          <div>
+            <div className="text-[0.625rem] font-black uppercase tracking-widest text-indigo-500">Material → Wochenplan</div>
+            <h3 className="mt-1 text-xl font-black text-slate-900">{item.titel}</h3>
+          </div>
+          <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500" aria-label="Schließen">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div className="grid grid-cols-3 gap-3">
+            <label className="space-y-1.5">
+              <span className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">KW</span>
+              <input
+                type="number"
+                min={1}
+                max={53}
+                value={kw}
+                onChange={event => setKw(Math.min(53, Math.max(1, Number(event.target.value) || 1)))}
+                className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-800"
+              />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Tag</span>
+              <select value={day} onChange={event => setDay(event.target.value)} className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-800 bg-white">
+                {days.map(value => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Stunde</span>
+              <select value={hour} onChange={event => setHour(Number(event.target.value))} className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-800 bg-white">
+                {availableHours.map(value => <option key={value} value={value}>{value}.</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
+            <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Zielstunde</div>
+            <div className="mt-1 text-sm font-black text-slate-800">{existing.fach || (app.stammplan as any)?.[day]?.[hour] || 'Noch kein Fach eingetragen'}</div>
+            <div className="mt-1 text-xs text-slate-500">{existing.thema || 'Noch kein Thema eingetragen'}</div>
+            {alreadyLinked && (
+              <div className="mt-2 inline-flex items-center gap-1.5 text-[0.6875rem] font-bold text-emerald-700">
+                <Check size={13} /> Dieses Material ist bereits verknüpft – es wird nicht doppelt gespeichert.
+              </div>
+            )}
+          </div>
+
+          <fieldset className="space-y-2">
+            <legend className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400 mb-2">Übernahme</legend>
+            <label className="flex gap-3 p-3.5 rounded-2xl border border-slate-200 cursor-pointer">
+              <input type="radio" name="materialTransferMode" checked={mode === 'append'} onChange={() => setMode('append')} />
+              <span>
+                <strong className="block text-sm text-slate-900">Ergänzen</strong>
+                <span className="block text-xs text-slate-500 mt-0.5">Vorhandene Materialien bleiben; dieses Material kommt einmalig dazu.</span>
+              </span>
+            </label>
+            <label className="flex gap-3 p-3.5 rounded-2xl border border-slate-200 cursor-pointer">
+              <input type="radio" name="materialTransferMode" checked={mode === 'replace'} onChange={() => setMode('replace')} />
+              <span>
+                <strong className="block text-sm text-slate-900">Ersetzen</strong>
+                <span className="block text-xs text-slate-500 mt-0.5">Nur die Materialzuordnung dieser Stunde wird ersetzt; Fach, Thema und übrige Planung bleiben erhalten.</span>
+              </span>
+            </label>
+          </fieldset>
+        </div>
+
+        <div className="p-6 pt-0 flex gap-3">
+          <button type="button" onClick={onClose} className="h-12 px-5 rounded-xl border border-slate-200 text-slate-600 font-bold">Abbrechen</button>
+          <button type="button" onClick={save} className="h-12 flex-1 rounded-xl bg-indigo-600 text-white font-black flex items-center justify-center gap-2">
+            <ClipboardList size={17} /> In Wochenplan übernehmen
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 export function useMaterialLibrary() {
   const { setApp } = useApp();
   
