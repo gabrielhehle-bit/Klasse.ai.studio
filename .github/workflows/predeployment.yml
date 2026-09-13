@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - fix/pre-deployment-blockers
+      - reconcile/klassio-source-of-truth
   workflow_dispatch:
 
 permissions:
