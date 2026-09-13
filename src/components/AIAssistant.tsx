@@ -313,6 +313,7 @@ export default function AIAssistant() {
   const [fkStufe, setFkStufe] = useState(app.stufe || 1);
   const [fkImageBase64, setFkImageBase64] = useState<{data: string, mimeType: string} | null>(null);
   const [fkImagePreview, setFkImagePreview] = useState<string | null>(null);
+  const [fkPrivacyConfirmed, setFkPrivacyConfirmed] = useState(false);
   const [fkFokus, setFkFokus] = useState({rechtschreibung: true, grammatik: true, ausdruck: true, aufbau: true, inhalt: true});
 
   const [wpStufe, setWpStufe] = useState(app.stufe || 1);
@@ -1101,7 +1102,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                         
                         <div className="bg-rose-50/50 border border-rose-100 rounded-2xl p-3.5 flex items-start gap-3 mb-4">
                           <Shield size={16} className="text-rose-500 shrink-0 mt-0.5" />
-                          <p className="text-[0.6875rem] font-bold text-rose-700 leading-normal">Datenschutz: Achte darauf, dass kein Schülername auf dem Foto sichtbar ist – decke Namen vor dem Fotografieren ab.</p>
+                          <p className="text-[0.6875rem] font-bold text-rose-700 leading-normal">Datenschutz: Vor dem Hochladen müssen Name, Adresse und andere personenbezogene Angaben im Foto unkenntlich gemacht werden. Das Bild wird erst nach deiner Bestätigung an die KI gesendet.</p>
                         </div>
  
                         <div className="mb-4">
@@ -1134,6 +1135,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                                   ctx?.drawImage(img, 0, 0, width, height);
                                   const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                                   setFkImagePreview(dataUrl);
+                                  setFkPrivacyConfirmed(false);
                                   const base64Data = dataUrl.split(',')[1];
                                   setFkImageBase64({ data: base64Data, mimeType: 'image/jpeg' });
                                 };
@@ -1163,13 +1165,25 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                           </div>
                         </div>
  
+                        <label className="mb-4 flex items-start gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={fkPrivacyConfirmed}
+                            onChange={(e) => setFkPrivacyConfirmed(e.target.checked)}
+                            className="mt-0.5 rounded"
+                          />
+                          <span className="text-[0.6875rem] font-semibold leading-relaxed text-slate-700">
+                            Ich bestätige, dass Name und andere personenbezogene Angaben im Bild unkenntlich gemacht wurden.
+                          </span>
+                        </label>
+
                         <button 
                           onClick={() => {
                             const foki = Object.entries(fkFokus).filter(([_,v]) => v).map(([k]) => k).join(', ');
                             const prompt = `Analysiere diesen Schülertext der ${fkStufe}. Stufe. Fokus auf: ${foki}.`;
-                            handleSend(prompt, fkImageBase64);
+                            handleSend(prompt, fkImageBase64, fkPrivacyConfirmed);
                           }} 
-                          disabled={!fkImageBase64 || isLoading} 
+                          disabled={!fkImageBase64 || !fkPrivacyConfirmed || isLoading || aiAvailability === 'missing'} 
                           className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:shadow-red-500/20 transition-all active:scale-[0.99] disabled:bg-slate-200 cursor-pointer"
                         >
                           Text analysieren
