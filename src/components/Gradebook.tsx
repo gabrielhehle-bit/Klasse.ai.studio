@@ -4100,7 +4100,33 @@ export default function Gradebook() {
                     <button
                       onClick={(e) => {
                         setShowAddAssessmentModal(false);
-                        addColumn(e, 'wp');
+                        e.stopPropagation();
+
+                        const subjectMeta = app.notenMeta?.[activeFach] || {};
+                        const alreadyEnabled = subjectMeta.enableObj === true || getFachCfg(app, activeFach).obj;
+                        if (!alreadyEnabled) {
+                          setApp(prev => {
+                            const meta = { ...(prev.notenMeta || {}) };
+                            const current = { ...(meta[activeFach] || {}) };
+                            const counts = { ...(current.colCounts || { lzk: 4, wp: 4, obj: 4 }), obj: 1 };
+                            const labels = { ...(current.labels || {}), obj: current.labels?.obj || 'Sonstige Leistungen' };
+                            return {
+                              ...prev,
+                              notenMeta: {
+                                ...meta,
+                                [activeFach]: {
+                                  ...current,
+                                  enableObj: true,
+                                  labels,
+                                  colCounts: counts,
+                                },
+                              },
+                            };
+                          });
+                          setEditingAssessmentModal({ typ: 'obj', idx: 0, isNew: false });
+                        } else {
+                          addColumn(e, 'obj');
+                        }
                       }}
                       className="p-4 rounded-2xl border border-purple-200 bg-purple-50/50 hover:bg-purple-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
                     >
@@ -4109,7 +4135,7 @@ export default function Gradebook() {
                         Sonstige Leistung
                       </div>
                       <div className="text-[0.75rem] text-purple-700 leading-snug">
-                        Wochenplan, Referat oder Projektarbeit
+                        Referat, Projekt, Präsentation oder andere Leistung
                       </div>
                     </button>
                   </div>
