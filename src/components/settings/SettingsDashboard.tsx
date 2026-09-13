@@ -58,7 +58,7 @@ export default function SettingsDashboard({
       id: 'sync' as SettingsCategory,
       title: 'Synchronisierung',
       subtitle: 'Smartboard & Smartphone-Kopplung',
-      desc: 'Steuere deine LehrerAPP drahtlos vom Smartphone aus oder erstelle eine Live-Verbindung zum Smartboard.',
+      desc: 'Steuere deine Klassio drahtlos vom Smartphone aus oder erstelle eine Live-Verbindung zum Smartboard.',
       icon: Smartphone,
       badge: hasActiveSync ? 'Kopplung aktiv' : 'Live-Sync',
       badgeColor: hasActiveSync ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600',
@@ -95,7 +95,7 @@ export default function SettingsDashboard({
             Übersichtliche Verwaltung
           </div>
           <h2 className="text-xl md:text-2xl font-black tracking-tight font-sans">
-            Möchtest du Anpassungen an deiner LehrerAPP vornehmen?
+            Möchtest du Anpassungen an deiner Klassio vornehmen?
           </h2>
           <p className="text-sm text-emerald-100 font-medium leading-relaxed">
             Wähle unten einen der 6 Hauptbereiche aus. Alle Einstellungen greifen sofort. Deine Daten und eingegebenen Schülereinträge bleiben stets sicher geschützt.
