@@ -2585,78 +2585,7 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
   },
 ];
 
-const DEFAULT_WORKSPACE_PROFILES = [
-  {
-    id: "profile_morgen",
-    name: "Morgenkreis",
-    layout: DEFAULT_COCKPIT_LAYOUT.map((w) => ({
-      ...w,
-      visible: [
-        "clock",
-        "weather",
-        "kidweather",
-        "dailyquotes",
-        "todo",
-        "timeline",
-      ].includes(w.type)
-        ? true
-        : false,
-      x: ["clock", "weather", "kidweather"].includes(w.type) ? 5 : w.x,
-      y: ["clock", "weather", "kidweather"].includes(w.type) ? 5 : w.y,
-    })),
-  },
-  {
-    id: "profile_still",
-    name: "Stillarbeit",
-    layout: DEFAULT_COCKPIT_LAYOUT.map((w) => ({
-      ...w,
-      visible: [
-        "timer",
-        "trafficlight",
-        "noisemeter",
-        "instruction",
-        "timeline",
-      ].includes(w.type)
-        ? true
-        : false,
-    })),
-  },
-  {
-    id: "profile_mathe",
-    name: "Mathe",
-    layout: DEFAULT_COCKPIT_LAYOUT.map((w) => ({
-      ...w,
-      visible: [
-        "calculator",
-        "mathbalancer",
-        "kopfrechnen",
-        "numberline",
-        "timer",
-        "timeline",
-      ].includes(w.type)
-        ? true
-        : false,
-    })),
-  },
-  {
-    id: "profile_deutsch",
-    name: "Deutsch",
-    layout: DEFAULT_COCKPIT_LAYOUT.map((w) => ({
-      ...w,
-      visible: [
-        "vocabulary",
-        "wordchain",
-        "wordgrid",
-        "wortsatzwerkstatt",
-        "wordbuilder",
-        "timer",
-        "timeline",
-      ].includes(w.type)
-        ? true
-        : false,
-    })),
-  },
-];
+const DEFAULT_WORKSPACE_PROFILES: any[] = [];
 
 const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
   const knownTypes = [
@@ -3066,9 +2995,9 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [slotNames, setSlotNames] = useState<{ [key: string]: string }>(() => {
     try {
       const saved = localStorage.getItem("cockpit_slot_names_v2");
-      return saved ? JSON.parse(saved) : { A: "Morgenkreis 🌅", B: "Gruppenarbeit 👥", C: "Mathestunde 📐" };
+      return saved ? JSON.parse(saved) : { A: "Layout A", B: "Layout B", C: "Layout C" };
     } catch (e) {
-      return { A: "Morgenkreis 🌅", B: "Gruppenarbeit 👥", C: "Mathestunde 📐" };
+      return { A: "Layout A", B: "Layout B", C: "Layout C" };
     }
   });
 
@@ -3126,17 +3055,11 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isLuckyDrawing, setIsLuckyDrawing] = useState(false);
 
   const startLuckyDraw = () => {
-    const students = app?.schueler && app.schueler.length > 0 ? app.schueler : [
-      { id: 'mock-1', name: 'Max Müller', vorname: 'Max', nachname: 'Müller', emoji: '👦' },
-      { id: 'mock-2', name: 'Anna Schmid', vorname: 'Anna', nachname: 'Schmid', emoji: '👧' },
-      { id: 'mock-3', name: 'Lukas Bauer', vorname: 'Lukas', nachname: 'Bauer', emoji: '👦' },
-      { id: 'mock-4', name: 'Emma Fischer', vorname: 'Emma', nachname: 'Fischer', emoji: '👧' },
-      { id: 'mock-5', name: 'Ben Weber', vorname: 'Ben', nachname: 'Weber', emoji: '👦' },
-      { id: 'mock-6', name: 'Mia Lehner', vorname: 'Mia', nachname: 'Lehner', emoji: '👧' },
-      { id: 'mock-7', name: 'Jonas Kraus', vorname: 'Jonas', nachname: 'Kraus', emoji: '👦' },
-      { id: 'mock-8', name: 'Laura Hofer', vorname: 'Laura', nachname: 'Hofer', emoji: '👧' }
-    ];
-    if (!students || students.length === 0) return;
+    const students = app?.schueler || [];
+    if (students.length === 0) {
+      showToast("Keine Kinder in der aktuellen Klasse vorhanden.", "info");
+      return;
+    }
     setIsLuckyDrawing(true);
     setLuckyStudent(null);
     playSound("laser");
@@ -18442,7 +18365,7 @@ ${content}
             ...p,
             cockpitLayout: DEFAULT_COCKPIT_LAYOUT,
           }));
-          showToast("Layout auf Werksstandard zurückgesetzt.", "info");
+          showToast("Unterrichtsfläche geleert.", "info");
         }}
         currentIsLight={currentIsLight}
         slotNames={slotNames}
