@@ -4505,7 +4505,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         onOpenRemoteSetup={() => setShowRemoteSetup(true)}
         onOpenBackup={handleDownloadBackup}
         onOpenPrint={() => window.print()}
-        onOpenSettings={() => setPage("einstellungen")}
+        onOpenSettings={() => setPage("settings")}
         onOpenCustomize={() => setShowCustomizePanel(true)}
 
         totalStudents={(app?.schueler || []).length}
