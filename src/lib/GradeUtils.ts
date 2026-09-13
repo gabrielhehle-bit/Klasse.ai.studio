@@ -159,12 +159,15 @@ export function getFachCfg(app: AppState, fach: string) {
     hue: isHueAllowed,
     objLabel: customObjLabel
   };
+  const genericAssessmentEnabled = base.obj || app.notenMeta?.[fach]?.enableObj === true;
   const cfg = {
     ...base,
     sa: base.saCount > 0 && g.sa > 0,
     lzk: base.lzk && g.lzk > 0,
     wp: base.wp && g.wp > 0,
-    obj: base.obj && g.obj > 0,
+    // The generic "Sonstige Leistung" area may be visible even at 0% weighting.
+    // It only influences berechne() once a positive obj weighting is configured.
+    obj: genericAssessmentEnabled,
     g: {
       ...g,
       hue: (gw.hue || 0) / 100 // add hue percentage weight
@@ -172,8 +175,8 @@ export function getFachCfg(app: AppState, fach: string) {
   };
 
   // Nebenfächer fallback
-  if (cfg.obj && cfg.g.obj === 0) cfg.g.obj = 0.6;
-  if (cfg.obj && cfg.g.mi === 0) cfg.g.mi = 0.4;
+  if (base.obj && cfg.g.obj === 0) cfg.g.obj = 0.6;
+  if (base.obj && cfg.g.mi === 0) cfg.g.mi = 0.4;
   
   return cfg;
 }
