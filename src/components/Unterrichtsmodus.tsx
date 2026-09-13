@@ -8253,18 +8253,18 @@ ${content}
                                   {[
                                     { id: "all", label: "Alle Hilfen" },
                                     { id: "favorites", label: "★ Favoriten" },
-                                    { id: "struct", label: "📂 Struktur" },
+                                    { id: "struct", label: "📂 Ablauf & Organisation" },
                                     {
                                       id: "interactivity",
-                                      label: "👥 Interaktion",
+                                      label: "👥 Klasse & Interaktion",
                                     },
                                     { id: "mathe", label: "🔢 Mathematik" },
                                     { id: "deutsch", label: "📖 Deutsch" },
                                     {
                                       id: "sachunterricht",
-                                      label: "🌍 Sachkunde",
+                                      label: "🌍 Sachunterricht",
                                     },
-                                    { id: "tools", label: "🛠️ Tools" },
+                                    { id: "tools", label: "🛠️ Werkzeuge" },
                                     {
                                       id: "mindfulness",
                                       label: "🍃 Spiele & Fokus",
@@ -9478,6 +9478,7 @@ ${content}
                                 <button
                                   type="button"
                                   onClick={() => {
+                                    setIsBoardWriting(false);
                                     setIsLayoutLocked((prev) => !prev);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
@@ -9525,7 +9526,7 @@ ${content}
                               >
                                 <div className="flex items-center justify-between px-2 py-1 border-b border-slate-100 dark:border-white/5">
                                   <div className="text-[8px] font-black uppercase tracking-wider text-slate-400">
-                                    Arbeitsbereiche & Profile
+                                    Gespeicherte Arbeitsflächen
                                   </div>
                                   <button
                                     type="button"
@@ -9618,7 +9619,7 @@ ${content}
 
                                 <div className="px-2 pt-1 pb-2 border-t border-slate-100 dark:border-white/5 mt-1">
                                   <div className="text-[8px] font-black uppercase tracking-wider text-slate-400 mb-1.5">
-                                    Schnell-Slots
+                                    Schnell-Layouts A/B/C
                                   </div>
                                   {["A", "B", "C"].map((slot) => {
                                     const isSaved = slot === "A"
@@ -9684,7 +9685,7 @@ ${content}
                                   }}
                                   className="w-full px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider text-rose-500 text-center hover:bg-rose-500/10 transition-all cursor-pointer"
                                 >
-                                  Standard laden
+                                  Widget-Anordnung zurücksetzen
                                 </button>
                               </div>
                             )}
@@ -9695,11 +9696,7 @@ ${content}
                       {/* Gemeinsame weiße Unterrichtsfläche: Schreiben, Zeichnen und Widgets */}
                       <div
                         ref={boardRef}
-                        className={`flex-1 relative group rounded-2xl border overflow-hidden pointer-events-auto h-full w-full min-h-[460px] select-none ${
-                          currentIsLight
-                            ? "bg-white border-slate-200 shadow-sm"
-                            : "bg-white border-slate-200 shadow-inner"
-                        }`}
+                        className="flex-1 relative group rounded-2xl border overflow-hidden pointer-events-auto h-full w-full min-h-[460px] select-none bg-white border-slate-200 shadow-sm"
                         id="widget-board-stage"
                       >
                         <BoardInk key={app.activeClassId} active={isBoardWriting}
