@@ -932,6 +932,10 @@ export interface ClassRoom {
   klassenvorstand: boolean;
   schueler: Student[];
   noten: Record<string, Record<string, Record<string, GradeData>>>;
+  /** Per-class assessment modes, column metadata/labels and related gradebook configuration. */
+  notenMeta?: Record<string, any>;
+  /** Per-class subject/category weightings. */
+  notenGewichtung?: Record<string, any>;
   mitarbeit: Record<string, Record<string, Record<string, number>>>;
   verhalten: Record<string, number>;
   karten: Record<string, { gelb: number; rot: number; archiv: any[] }>;
