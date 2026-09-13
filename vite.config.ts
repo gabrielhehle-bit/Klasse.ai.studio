@@ -17,6 +17,7 @@ export default defineConfig(({mode}) => {
           enabled: false
         },
         workbox: {
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
           // index.html immer frisch vom Netz, damit Updates ankommen:
           navigateFallback: '/index.html',
           runtimeCaching: [
