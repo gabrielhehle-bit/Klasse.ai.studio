@@ -279,11 +279,9 @@ export default function YearlyPlan() {
   const handleJahresplanImport = (importedRows: JahresplanImportRow[], mode: 'merge' | 'overwrite') => {
     setApp(prev => {
       const existingJp = prev.jahresplanung || {};
-      let newJahresplanung: Record<number, Record<string, any>> = {};
-
-      if (mode === 'merge') {
-        newJahresplanung = JSON.parse(JSON.stringify(existingJp));
-      }
+      // Preserve weeks/subjects omitted from the import. "Overwrite" replaces
+      // only cells explicitly supplied by the spreadsheet.
+      let newJahresplanung: Record<number, Record<string, any>> = JSON.parse(JSON.stringify(existingJp));
 
       importedRows.forEach(row => {
         const kw = row.kw;
@@ -1054,6 +1052,12 @@ export default function YearlyPlan() {
   };
 
   const downloadCSV = () => {
+    const sanitizeCsvCell = (value: unknown): string => {
+      const text = String(value ?? '').replace(/"/g, '""');
+      // Spreadsheet formula injection protection for exported teacher content.
+      const protectedText = /^[\s\t\r\n]*[=+\-@]/.test(text) ? `'${text}` : text;
+      return `"${protectedText}"`;
+    };
     const headers = ['SW', 'KW', ...subjects.map(s => s.label)];
     const rows = weeks.map(({ sw, kw, year }) => {
       const plannedWeek = app.jahresplanung[kw] || {};
@@ -1071,7 +1075,9 @@ export default function YearlyPlan() {
       ];
     });
 
-    const csvContent = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const csvContent = [headers, ...rows]
+      .map(r => r.map(sanitizeCsvCell).join(','))
+      .join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
