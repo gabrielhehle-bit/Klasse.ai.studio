@@ -114,7 +114,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const LEGACY_WIZARD_PROGRESS_KEY = 'gabic_setup_wizard_progress';
 
   const magicAutofillStammplan = () => {
-    if (!window.confirm("Bist du sicher? Dein aktueller Stammplan wird überschrieben.")) return;
+    if (!window.confirm("Klassio erstellt einen Vorschlag anhand der Stundentafel. Dein aktuell eingetragener Stammstundenplan wird dabei überschrieben. Fortfahren?")) return;
     
     let newStammplan: any = {};
     const emptySlots: { tag: string, h: number }[] = [];
@@ -867,26 +867,15 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
             })}
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-             {(isEditing || isNewClass) && (
-               <button onClick={handleCancel} className="flex-1 sm:flex-none px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl transition-all">
-                 Abbrechen
-               </button>
-             )}
-             {currStep === STEPS.length - 1 ? (
-                <button onClick={() => handleSaveAndComplete()} className="flex-1 sm:flex-none px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 transform hover:-translate-y-0.5">
-                  <Check size={16} /> Speichern
-                </button>
-             ) : (
-                <button onClick={nextStep} className="flex-1 sm:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl shadow-md shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer">
-                  {currStep === 0 ? 'Einrichtung starten' : 'Weiter'}
-                </button>
-             )}
-          </div>
+          {(isEditing || isNewClass) && (
+            <button onClick={handleCancel} className="w-full sm:w-auto px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl transition-all">
+              Abbrechen
+            </button>
+          )}
         </div>
 
         {/* CONTENT */}
-        <div className="flex-1 overflow-y-auto w-full p-4 md:p-8 pb-32 soft-scrollbar relative">
+        <div className="flex-1 overflow-y-auto w-full p-4 md:p-8 pb-8 soft-scrollbar relative">
            
            {STEPS[currStep].title === 'Start' && (
               <div className="max-w-2xl mx-auto text-center space-y-8 py-8 md:py-16 bg-emerald-50/50 rounded-[32px] border border-emerald-100/50 mb-12 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
@@ -1055,7 +1044,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            {STEPS[currStep].title === 'Fächer' && (
            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
              <div className="border-b border-slate-100 pb-2">
-                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Palette className="text-emerald-500" size={22}/> Fächer & Notenmappe</h3>
+                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Palette className="text-emerald-500" size={22}/> Fächer</h3>
+                 <p className="mt-1 text-[0.75rem] text-slate-500">Wähle die Fächer deiner Klasse. Mit „Leistungen“ legst du fest, welche Fächer später in der Notenmappe geführt werden.</p>
              </div>
              
              <div className="bg-slate-50 p-6 rounded-[24px] border border-slate-100 space-y-5">
@@ -1106,14 +1096,14 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                     faecher.forEach(f => newConfig[f] = { ...(newConfig[f] || {}), unterrichtet: true });
                     setFachConfig(newConfig);
                  }} className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all shadow-sm border border-emerald-200">
-                   Alle Notenmappen ein
+                   Alle für Leistungen aktivieren
                  </button>
                  <button onClick={() => {
                     const newConfig = { ...fachConfig };
                     faecher.forEach(f => newConfig[f] = { ...(newConfig[f] || {}), unterrichtet: false });
                     setFachConfig(newConfig);
                  }} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all shadow-sm border border-rose-200">
-                   Alle Notenmappen aus
+                   Alle für Leistungen deaktivieren
                  </button>
                  <button onClick={() => {
                     if (window.confirm("Bist du sicher? Alle benutzerdefinierten Fächer werden entfernt und die Standardfarben wiederhergestellt.")) {
@@ -1151,7 +1141,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                           onChange={e => setFachConfig({...fachConfig, [fach]: { ...(fachConfig[fach]||{}), unterrichtet: e.target.checked }})}
                           className="w-3.5 h-3.5 text-emerald-500 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
                         />
-                        <span className={`text-[0.5625rem] font-black uppercase tracking-wider ${isUnterrichtet ? 'text-emerald-700' : 'text-slate-500'}`}>Notenmappe</span>
+                        <span className={`text-[0.5625rem] font-black uppercase tracking-wider ${isUnterrichtet ? 'text-emerald-700' : 'text-slate-500'}`}>Leistungen</span>
                       </label>
                       <button onClick={() => setFaecher(faecher.filter(f => f !== fach))} className="text-slate-400 hover:text-rose-500 p-1 rounded-md transition-all shrink-0 bg-slate-50 hover:bg-rose-50 border border-transparent hover:border-rose-100">
                          <Trash2 size={14} />
@@ -1166,18 +1156,19 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            {STEPS[currStep].title === 'Stundenplan' && (
            <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
              <div className="border-b border-slate-100 pb-2">
-                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Calendar className="text-emerald-500" size={22}/> Stundenplan & Stundentafel</h3>
+                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Calendar className="text-emerald-500" size={22}/> Stundenplan</h3>
+                 <p className="mt-1 text-[0.75rem] text-slate-500">Richte deinen Stammstundenplan in drei Schritten ein. Du kannst alles später jederzeit ändern.</p>
              </div>
 
              {/* Zeiten Setup Row */}
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                <div className="bg-slate-50 p-6 rounded-[24px] border border-slate-100">
                   <div>
-                    <h4 className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide mb-1 flex items-center gap-2">Unterrichtszeiten</h4>
-                    <p className="text-[0.625rem] text-slate-500 font-medium leading-tight mb-4">Trage hier durch Klicken in die Felder die korrekten Beginn- und Endzeiten ein.</p>
+                    <h4 className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide mb-1 flex items-center gap-2">1. Unterrichtszeiten</h4>
+                    <p className="text-[0.625rem] text-slate-500 font-medium leading-tight mb-4">Trage Beginn und Ende deiner Unterrichtsstunden ein. Nicht benötigte Stunden können leer bleiben.</p>
                   </div>
                  <div className="grid grid-cols-2 gap-3">
-                   {[1,2,3,4,5,6,7,8].map(h => (
+                   {[1,2,3,4,5,6,7,8,9,10].map(h => (
                        <div key={h} className="relative group">
                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.625rem] font-black text-slate-400 group-hover:text-emerald-500 transition-colors">{h}.</span>
                          <input type="text" value={stundenZeiten[h] || ''} onChange={e => setStundenZeiten((prev: any) => ({ ...prev, [h]: e.target.value }))} className="w-full pl-8 pr-8 py-2.5 text-[0.6875rem] bg-white border border-slate-200 focus:border-emerald-500 hover:border-emerald-300 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 font-bold outline-none transition-all shadow-sm group-hover:shadow-md cursor-text" placeholder={`Zeit definieren`} />
@@ -1199,12 +1190,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                
                <div className="bg-slate-50 p-6 rounded-[24px] border border-slate-100">
                  <div className="flex justify-between items-center mb-4">
-                   <h4 className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Tägliche Stunden</h4>
+                   <h4 className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">2. Stunden pro Tag</h4>
                    <div className="flex items-center gap-2">
                      <button onClick={magicAutofillStammplan} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5">
                        <Sparkles size={12} /> Automatisch verteilen
                      </button>
-                     <span className="text-[0.625rem] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Rahmen definieren</span>
+                     <span className="text-[0.625rem] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">Unterrichtstage festlegen</span>
                    </div>
                  </div>
                  <div className="space-y-2">
@@ -1253,7 +1244,11 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
 
              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
                {/* 5. Stammstundenplan */}
-               <div className="xl:col-span-8  sm:overflow-x-auto border border-slate-200 rounded-[24px] bg-slate-50 p-4 sm:p-6 soft-scrollbar">
+               <div className="xl:col-span-8 sm:overflow-x-auto border border-slate-200 rounded-[24px] bg-slate-50 p-4 sm:p-6 soft-scrollbar">
+                   <div className="mb-4">
+                     <h4 className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">3. Fächer eintragen</h4>
+                     <p className="mt-1 text-[0.625rem] text-slate-500 font-medium leading-tight">Wähle für jede aktive Stunde das passende Fach. Freie Stunden können leer bleiben.</p>
+                   </div>
                    
                    {/* Mobile View */}
                    <div className="block sm:hidden">
@@ -1270,7 +1265,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                       </div>
                       
                       <div className="space-y-2">
-                        {Array.from({ length: 8 }, (_, i) => i + 1).map(h => {
+                        {Array.from({ length: 10 }, (_, i) => i + 1).map(h => {
                             if (h === mittagspauseNachStunde + 1) {
                               return (
                                 <div key={`pause-${h}`} className="flex items-center justify-center gap-4 my-3">
@@ -1334,7 +1329,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                          <div key={tag} className="text-[0.625rem] font-black text-slate-700 uppercase tracking-widest text-center">{tag.slice(0,2)}</div>
                        ))}
                      </div>
-                     {Array.from({ length: 8 }, (_, i) => i + 1).map(h => (
+                     {Array.from({ length: 10 }, (_, i) => i + 1).map(h => (
                        <React.Fragment key={h}>
                          {h === mittagspauseNachStunde + 1 && (
                            <div className="grid grid-cols-6 gap-2 my-2 items-center">
@@ -1408,7 +1403,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                <div className="xl:col-span-4 bg-white border border-slate-200 rounded-[24px] p-5 shadow-sm xl:sticky top-[100px]">
                  <div className="flex justify-between items-end mb-4 border-b border-slate-100 pb-3">
                    <div>
-                     <h4 className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide mb-1">Stundentafel Chart</h4>
+                     <h4 className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide mb-1">Wochenstunden im Blick</h4>
                      <p className="text-[0.625rem] text-slate-500 font-medium leading-tight">Wochenstunden lt. Lehrplan {stufe === 0 ? 'V' : stufe}.Klasse</p>
                    </div>
                    <div className="w-8 h-8 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center border border-violet-100"><Calendar size={14} /></div>
@@ -1723,34 +1718,40 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
              </div>
            )}
 
-           {/* Mobile bottom nav spacer */}
-           <div className="h-12 md:hidden" />
-           
         </div>
-        
-        {/* Floating Prev/Next for desktop if not on start/end */}
-        {STEPS[currStep].title !== 'Start' && currStep < STEPS.length - 1 && (
-          <div className="absolute bottom-6 left-6 right-6 flex justify-between pointer-events-none z-40">
-            <button onClick={prevStep} className={(currStep === 0 || (isEditing && currStep === 0)) ? "opacity-0 pointer-events-none" : "pointer-events-auto px-5 py-2.5 bg-white border border-slate-200 hover:border-slate-300 text-slate-600 text-[0.75rem] leading-tight font-black uppercase tracking-wider rounded-xl shadow-lg shadow-slate-200/50 transition-all flex items-center gap-2"}>
-              Zurück
-            </button>
-            <button onClick={nextStep} className="pointer-events-auto px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[0.75rem] leading-tight font-black uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 transform hover:-translate-y-0.5 cursor-pointer">
-              Nächster Schritt
-            </button>
+
+        <div className="shrink-0 border-t border-slate-100 bg-white/95 backdrop-blur-sm px-4 md:px-6 py-4 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={prevStep}
+            disabled={currStep === 0}
+            className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 disabled:opacity-0 disabled:pointer-events-none font-bold text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl transition-all"
+          >
+            Zurück
+          </button>
+
+          <div className="hidden sm:block text-[0.6875rem] font-semibold text-slate-400">
+            {STEPS[currStep].title}
           </div>
-        )}
-        
-        {/* Final step buttons */}
-        {STEPS[currStep].title === 'Übersicht' && (
-          <div className="absolute bottom-6 border-t border-slate-100 bg-white/80 backdrop-blur-sm left-6 right-6 pt-4 flex justify-between items-center z-40">
-             <button onClick={prevStep} className="px-6 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl transition-all shadow-sm">
-               Zurück
-             </button>
-             <button onClick={() => handleSaveAndComplete()} className="px-8 py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[0.875rem] leading-snug uppercase tracking-wider rounded-2xl shadow-xl shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all transform hover:-translate-y-1">
-                Einrichtung abschließen <Check size={18} />
-             </button>
-          </div>
-        )}
+
+          {currStep === STEPS.length - 1 ? (
+            <button
+              type="button"
+              onClick={() => handleSaveAndComplete()}
+              className="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+            >
+              {isEditing ? 'Änderungen speichern' : isNewClass ? 'Klasse anlegen' : 'Einrichtung abschließen'} <Check size={16} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={nextStep}
+              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl shadow-md shadow-emerald-900/20 transition-all"
+            >
+              {currStep === 0 ? 'Einrichtung starten' : 'Weiter'}
+            </button>
+          )}
+        </div>
       </div>
       {isKlassenlistImportOpen && (
         <KlassenlistenImport
