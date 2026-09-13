@@ -279,6 +279,342 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   // Existing paired devices still use their encrypted sync protocol for GET/PUT.
   app.delete('/api/sync/:code', requireAccess);
 
+  // --- Canva Connect integration -------------------------------------------------
+  // OAuth tokens never leave the server. The browser receives only a random
+  // HttpOnly session identifier; the token payload itself is AES-256-GCM encrypted.
+  type CanvaTokenPayload = {
+    access_token: string;
+    refresh_token?: string;
+    expires_at: number;
+    scope?: string;
+    token_type?: string;
+  };
+
+  const CANVA_CLIENT_ID = (process.env.CANVA_CLIENT_ID || '').trim();
+  const CANVA_CLIENT_SECRET = (process.env.CANVA_CLIENT_SECRET || '').trim();
+  const canvaConfigured = Boolean(CANVA_CLIENT_ID && CANVA_CLIENT_SECRET);
+  const CANVA_SCOPES = ['design:meta:read', 'design:content:read', 'design:content:write'].join(' ');
+
+  const canvaOauthFlows = new Map<string, { state: string; verifier: string; createdAt: number }>();
+  const canvaSessions = new Map<string, { iv: string; tag: string; ciphertext: string; updatedAt: number }>();
+
+  const canvaTokenKey = crypto
+    .createHash('sha256')
+    .update(process.env.CANVA_TOKEN_ENCRYPTION_KEY || SESSION_SECRET)
+    .digest();
+
+  function encryptCanvaTokens(payload: CanvaTokenPayload) {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', canvaTokenKey, iv);
+    const ciphertext = Buffer.concat([
+      cipher.update(JSON.stringify(payload), 'utf8'),
+      cipher.final()
+    ]);
+    return {
+      iv: iv.toString('base64url'),
+      tag: cipher.getAuthTag().toString('base64url'),
+      ciphertext: ciphertext.toString('base64url'),
+      updatedAt: Date.now()
+    };
+  }
+
+  function decryptCanvaTokens(record: { iv: string; tag: string; ciphertext: string }): CanvaTokenPayload {
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      canvaTokenKey,
+      Buffer.from(record.iv, 'base64url')
+    );
+    decipher.setAuthTag(Buffer.from(record.tag, 'base64url'));
+    const plain = Buffer.concat([
+      decipher.update(Buffer.from(record.ciphertext, 'base64url')),
+      decipher.final()
+    ]).toString('utf8');
+    return JSON.parse(plain) as CanvaTokenPayload;
+  }
+
+  function canvaBasicAuth() {
+    return 'Basic ' + Buffer.from(`${CANVA_CLIENT_ID}:${CANVA_CLIENT_SECRET}`).toString('base64');
+  }
+
+  function getCanvaSessionId(req: express.Request) {
+    return parseCookies(req).klassio_canva_session;
+  }
+
+  function setCanvaSessionCookie(req: express.Request, res: express.Response, sessionId: string) {
+    res.cookie('klassio_canva_session', sessionId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+  }
+
+  async function exchangeCanvaToken(body: URLSearchParams): Promise<CanvaTokenPayload> {
+    if (!canvaConfigured) throw new Error('Canva ist serverseitig nicht konfiguriert.');
+    const response = await fetch('https://api.canva.com/rest/v1/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': canvaBasicAuth(),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body.toString(),
+    });
+    const data: any = await response.json().catch(() => ({}));
+    if (!response.ok || !data.access_token) {
+      throw new Error(data?.message || data?.error_description || data?.error || `Canva OAuth Fehler (${response.status})`);
+    }
+    return {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: Date.now() + Math.max(60, Number(data.expires_in || 14400)) * 1000,
+      scope: data.scope,
+      token_type: data.token_type,
+    };
+  }
+
+  async function getCanvaAccessToken(req: express.Request): Promise<string> {
+    const sessionId = getCanvaSessionId(req);
+    if (!sessionId) throw Object.assign(new Error('Canva ist nicht verbunden.'), { status: 401 });
+    const encrypted = canvaSessions.get(sessionId);
+    if (!encrypted) throw Object.assign(new Error('Canva-Sitzung ist abgelaufen. Bitte neu verbinden.'), { status: 401 });
+
+    let tokenData: CanvaTokenPayload;
+    try {
+      tokenData = decryptCanvaTokens(encrypted);
+    } catch {
+      canvaSessions.delete(sessionId);
+      throw Object.assign(new Error('Canva-Sitzung konnte nicht sicher gelesen werden. Bitte neu verbinden.'), { status: 401 });
+    }
+
+    if (tokenData.expires_at > Date.now() + 90_000) {
+      return tokenData.access_token;
+    }
+    if (!tokenData.refresh_token) {
+      canvaSessions.delete(sessionId);
+      throw Object.assign(new Error('Canva-Sitzung ist abgelaufen. Bitte neu verbinden.'), { status: 401 });
+    }
+
+    // Canva refresh tokens are rotated. Always replace the stored refresh token
+    // with the one returned by the latest refresh response.
+    const refreshed = await exchangeCanvaToken(new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: tokenData.refresh_token,
+    }));
+    canvaSessions.set(sessionId, encryptCanvaTokens(refreshed));
+    return refreshed.access_token;
+  }
+
+  async function canvaApi(req: express.Request, url: string, init: RequestInit = {}) {
+    const accessToken = await getCanvaAccessToken(req);
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(init.headers || {}),
+      },
+    });
+    const data: any = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error: any = new Error(data?.message || data?.error?.message || data?.error || `Canva API Fehler (${response.status})`);
+      error.status = response.status;
+      throw error;
+    }
+    return data;
+  }
+
+  app.use('/api/canva', (req, res, next) => {
+    if (req.path === '/callback') return next();
+    requireAccess(req, res, next);
+  });
+
+  app.get('/api/canva/status', (req, res) => {
+    const sessionId = getCanvaSessionId(req);
+    const connected = Boolean(sessionId && canvaSessions.has(sessionId));
+    res.json({
+      configured: canvaConfigured,
+      connected: canvaConfigured && connected,
+      reason: canvaConfigured ? undefined : 'CANVA_CLIENT_ID/CANVA_CLIENT_SECRET fehlen',
+    });
+  });
+
+  app.get('/api/canva/auth-url', (req, res) => {
+    if (!canvaConfigured) return res.json({ configured: false });
+
+    const flowId = crypto.randomBytes(32).toString('base64url');
+    const verifier = crypto.randomBytes(96).toString('base64url');
+    const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+    const state = crypto.randomBytes(48).toString('base64url');
+    canvaOauthFlows.set(flowId, { state, verifier, createdAt: Date.now() });
+
+    res.cookie('klassio_canva_flow', flowId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/api/canva/callback',
+      maxAge: 10 * 60 * 1000,
+    });
+
+    const appUrl = (process.env.APP_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
+    const redirectUri = `${appUrl}/api/canva/callback`;
+    const params = new URLSearchParams({
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+      scope: CANVA_SCOPES,
+      response_type: 'code',
+      client_id: CANVA_CLIENT_ID,
+      state,
+      redirect_uri: redirectUri,
+    });
+    res.json({
+      configured: true,
+      url: `https://www.canva.com/api/oauth/authorize?${params.toString()}`,
+    });
+  });
+
+  app.get('/api/canva/callback', async (req, res) => {
+    const callbackOrigin = new URL(process.env.APP_URL || 'http://127.0.0.1:3000').origin;
+    const flowId = parseCookies(req).klassio_canva_flow;
+    const flow = flowId ? canvaOauthFlows.get(flowId) : undefined;
+    const code = typeof req.query.code === 'string' ? req.query.code : '';
+    const state = typeof req.query.state === 'string' ? req.query.state : '';
+    const oauthError = typeof req.query.error === 'string' ? req.query.error : '';
+
+    res.clearCookie('klassio_canva_flow', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/api/canva/callback',
+    });
+    if (flowId) canvaOauthFlows.delete(flowId);
+
+    const fail = (message: string) => res.status(400).type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva-Verbindung fehlgeschlagen</h2><p>${escapeHtml(message)}</p><script>if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_ERROR',error:${scriptJson(message)}},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),1500);</script></body></html>`);
+
+    if (oauthError) return fail('Canva-Anmeldung wurde abgebrochen oder abgelehnt.');
+    if (!flow || Date.now() - flow.createdAt > 10 * 60 * 1000 || !state || state !== flow.state || !code) {
+      return fail('Canva-Anmeldung ist abgelaufen oder ungültig. Bitte erneut verbinden.');
+    }
+
+    try {
+      const appUrl = (process.env.APP_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
+      const tokenData = await exchangeCanvaToken(new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        code_verifier: flow.verifier,
+        redirect_uri: `${appUrl}/api/canva/callback`,
+      }));
+      const sessionId = crypto.randomBytes(32).toString('base64url');
+      canvaSessions.set(sessionId, encryptCanvaTokens(tokenData));
+      setCanvaSessionCookie(req, res, sessionId);
+      return res.type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva verbunden</h2><p>Du kannst zu Klassio zurückkehren.</p><script>if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_SUCCESS'},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),700);</script></body></html>`);
+    } catch (error: any) {
+      return fail(error?.message || 'Canva-Token konnte nicht erzeugt werden.');
+    }
+  });
+
+  app.post('/api/canva/disconnect', async (req, res) => {
+    const sessionId = getCanvaSessionId(req);
+    const record = sessionId ? canvaSessions.get(sessionId) : undefined;
+    if (record && canvaConfigured) {
+      try {
+        const tokenData = decryptCanvaTokens(record);
+        const token = tokenData.refresh_token || tokenData.access_token;
+        await fetch('https://api.canva.com/rest/v1/oauth/revoke', {
+          method: 'POST',
+          headers: {
+            'Authorization': canvaBasicAuth(),
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({ token }).toString(),
+        });
+      } catch (error) {
+        console.warn('[Canva] Token-Revoke fehlgeschlagen; lokale Sitzung wird trotzdem entfernt.');
+      }
+    }
+    if (sessionId) canvaSessions.delete(sessionId);
+    res.clearCookie('klassio_canva_session', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/',
+    });
+    res.json({ success: true });
+  });
+
+  app.get('/api/canva/designs', async (req, res, next) => {
+    try {
+      const params = new URLSearchParams();
+      for (const key of ['query', 'continuation', 'ownership', 'sort_by', 'limit']) {
+        const value = req.query[key];
+        if (typeof value === 'string' && value.trim()) params.set(key, value.trim());
+      }
+      const data = await canvaApi(req, `https://api.canva.com/rest/v1/designs?${params.toString()}`);
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  app.post('/api/canva/designs', async (req, res, next) => {
+    try {
+      const kind = String(req.body?.kind || '');
+      const title = typeof req.body?.title === 'string' ? req.body.title.slice(0, 255) : 'Klassio Design';
+      const presets: Record<string, any> = {
+        presentation: { type: 'preset', name: 'presentation' },
+        whiteboard: { type: 'preset', name: 'whiteboard' },
+        doc: { type: 'preset', name: 'doc' },
+        // A4 portrait at 300 dpi. Well within Canva's custom-design size limits.
+        a4: { type: 'custom', width: 2480, height: 3508 },
+      };
+      const designType = presets[kind];
+      if (!designType) return res.status(400).json({ error: 'Unbekannter Canva-Designtyp.' });
+
+      const data = await canvaApi(req, 'https://api.canva.com/rest/v1/designs', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'type_and_asset',
+          design_type: designType,
+          title,
+        }),
+      });
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  app.post('/api/canva/exports', async (req, res, next) => {
+    try {
+      const designId = typeof req.body?.design_id === 'string' ? req.body.design_id.trim() : '';
+      const format = String(req.body?.format || '').toLowerCase();
+      if (!designId || !['pdf', 'png', 'jpg', 'pptx'].includes(format)) {
+        return res.status(400).json({ error: 'Ungültiger Canva-Export.' });
+      }
+      const data = await canvaApi(req, 'https://api.canva.com/rest/v1/exports', {
+        method: 'POST',
+        body: JSON.stringify({
+          design_id: designId,
+          format: { type: format },
+        }),
+      });
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  app.get('/api/canva/exports/:id', async (req, res, next) => {
+    try {
+      const jobId = encodeURIComponent(String(req.params.id || ''));
+      if (!jobId) return res.status(400).json({ error: 'Export-ID fehlt.' });
+      const data = await canvaApi(req, `https://api.canva.com/rest/v1/exports/${jobId}`);
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  const canvaCleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [id, flow] of canvaOauthFlows.entries()) {
+      if (now - flow.createdAt > 15 * 60 * 1000) canvaOauthFlows.delete(id);
+    }
+  }, 10 * 60 * 1000);
+  canvaCleanupTimer.unref();
+
   // Startup diagnostic logging
   const apiKey = process.env.GEMINI_API_KEY;
   const isKeySet = apiKey ? "ja" : "nein";
