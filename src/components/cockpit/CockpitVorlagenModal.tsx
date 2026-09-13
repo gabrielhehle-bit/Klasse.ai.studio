@@ -198,13 +198,13 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-black tracking-tight flex items-center gap-2">
-                Layouts
+                Gespeicherte Arbeitsflächen
                 <Badge variant="neutral" size="sm">
                   {allProfiles.length} Vorlagen
                 </Badge>
               </h3>
               <p className="text-xs text-[var(--text-muted)] font-medium">
-                Speichere und lade nur deine eigenen Arbeitsbereiche
+                Speichere und lade nur deine eigenen Arbeitsflächen
               </p>
             </div>
           </div>
@@ -230,7 +230,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
               leftIcon={<LayoutGrid size={14} />}
               onClick={() => setActiveTab("browse")}
             >
-              Eigene Layouts
+              Eigene Gespeicherte Arbeitsflächen
             </Button>
 
             <Button
@@ -239,7 +239,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
               leftIcon={<Plus size={14} />}
               onClick={() => setActiveTab("create")}
             >
-              <span>Aktuelles Board als Vorlage speichern</span>
+              <span>Aktuelle Arbeitsfläche speichern</span>
               <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/15">
                 {activeWidgets.length} Widgets
               </span>
@@ -253,7 +253,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Eigene Layouts suchen..."
+                placeholder="Eigene Arbeitsflächen suchen..."
                 className="w-full pl-8 pr-3 py-1.5 rounded-xl text-xs font-medium border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--focus-ring,var(--accent))]"
               />
             </div>
@@ -269,11 +269,11 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                 <div className="flex items-center gap-2.5 mb-2">
                   <Sparkles size={18} />
                   <h4 className="text-xs font-black uppercase tracking-wider">
-                    Aktuelles Cockpit-Layout erfassen
+                    Aktuelle Arbeitsfläche speichern
                   </h4>
                 </div>
                 <p className="text-xs font-medium leading-relaxed opacity-90">
-                  Speichere dein aktuelles Arrangement aus Positionen, Größen und Einstellungen der <strong>{activeWidgets.length} geöffneten Widgets</strong> dauerhaft als Vorlage.
+                  Speichere Positionen, Größen und Einstellungen der <strong>{activeWidgets.length} geöffneten Widgets</strong> dauerhaft als Vorlage.
                 </p>
 
                 {/* Preview Active Widgets Chips */}
@@ -300,14 +300,14 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                 {/* Name */}
                 <div className="space-y-1">
                   <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] block">
-                    Vorlagen-Name *
+                    Name *
                   </label>
                   <Input
                     type="text"
                     required
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Name für dein Layout..."
+                    placeholder="z. B. Morgenkreis oder Stillarbeit"
                   />
                 </div>
 
@@ -552,11 +552,11 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                   <div className="flex items-center gap-2">
                     <Clock size={15} className="text-[var(--accent)]" />
                     <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-                      Schnell-Slots (Tastatur / Quick-Presets)
+                      Schnell-Layouts A/B/C
                     </h4>
                   </div>
                   <span className="text-[10px] text-[var(--text-muted)] font-medium">
-                    1-Klick Plätze für den täglichen Wechsel
+                    Eigene Layouts für häufige Unterrichtssituationen
                   </span>
                 </div>
 
@@ -573,9 +573,9 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                           </span>
                           <input
                             type="text"
-                            value={slotNames[slot] || `Schnell-Slot ${slot}`}
+                            value={slotNames[slot] || `Layout ${slot}`}
                             onChange={(e) => saveSlotName(slot, e.target.value)}
-                            placeholder={`Slot ${slot} Name...`}
+                            placeholder={`Layout ${slot} benennen...`}
                             className="flex-1 bg-transparent text-xs font-bold text-[var(--text-primary)] outline-none"
                           />
                         </div>
@@ -614,13 +614,13 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                   size="sm"
                   className="text-[var(--danger-text)]"
                   onClick={() => {
-                    if (window.confirm("Bist du sicher, dass du das Board auf das Werkseinstellungs-Standardlayout zurücksetzen möchtest?")) {
+                    if (window.confirm("Alle Unterrichtshilfen werden geschlossen und ihre Positionen auf die Ausgangswerte zurückgesetzt. Schrift und Zeichnungen auf der weißen Fläche bleiben erhalten. Fortfahren?")) {
                       onResetToDefault();
                       onClose();
                     }
                   }}
                 >
-                  ⚠️ Werks-Standardlayout laden
+                  Widget-Anordnung zurücksetzen
                 </Button>
               </div>
             </div>
