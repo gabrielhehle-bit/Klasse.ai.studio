@@ -42,25 +42,28 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const disabledModules = app?.settings?.disabledModules || [];
 
   const ALL_MODULES = [
-    { id: 'dashboard', label: 'Mein Schultag', icon: <LayoutDashboard size={14} />, section: 'Unterricht' },
-    { id: 'cockpit', label: 'Unterricht starten', icon: <Play size={14} />, section: 'Unterricht' },
-    { id: 'ki-helfer', label: 'KI-Assistent', icon: <Bot size={14} />, section: 'Unterricht' },
+    { id: 'dashboard', label: 'Heute', icon: <LayoutDashboard size={14} />, section: 'Hauptbereiche' },
+    { id: 'klasse', label: 'Klasse', icon: <Users size={14} />, section: 'Hauptbereiche' },
+    { id: 'planung', label: 'Planung', icon: <CalendarDays size={14} />, section: 'Hauptbereiche' },
+    { id: 'leistungen', label: 'Leistungen', icon: <BarChart3 size={14} />, section: 'Hauptbereiche' },
+    { id: 'cockpit', label: 'Unterricht', icon: <Play size={14} />, section: 'Hauptbereiche' },
+    { id: 'ki-helfer', label: 'KI-Helfer', icon: <Bot size={14} />, section: 'Unterricht & Helfer' },
     { id: 'schueler', label: 'Kinder & Dossiers', icon: <Users size={14} />, section: 'Klasse & Kinder' },
-    { id: 'sitzplan', label: 'Sitzplan', icon: <MapIcon size={14} />, section: 'Klasse & Kinder' },
-    { id: 'anwesenheit', label: 'Anwesenheit', icon: <Pin size={14} />, section: 'Klasse & Kinder' },
-    { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={14} />, section: 'Klasse & Kinder' },
-    { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={14} />, section: 'Klasse & Kinder' },
+    { id: 'sitzplan', label: 'Sitzplan & Gruppen', icon: <MapIcon size={14} />, section: 'Klasse & Kinder' },
+    { id: 'anwesenheit', label: 'Anwesenheit & Befinden', icon: <Pin size={14} />, section: 'Klasse & Kinder' },
+    { id: 'orga', label: 'Organisation', icon: <Wallet size={14} />, section: 'Klasse & Kinder' },
+    { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={14} />, section: 'Leistungen' },
+    { id: 'statistik', label: 'Statistik & Profile', icon: <LineChart size={14} />, section: 'Leistungen' },
+    { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={14} />, section: 'Leistungen' },
     { id: 'planungszentrale', label: 'Planungsübersicht', icon: <Target size={14} />, section: 'Planung' },
     { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={14} />, section: 'Planung' },
     { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={14} />, section: 'Planung' },
     { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={14} />, section: 'Planung' },
     { id: 'uebergabemappe', label: 'Übergabemappe', icon: <ClipboardList size={14} />, section: 'Planung' },
-    { id: 'statistik', label: 'Statistik & Profile', icon: <LineChart size={14} />, section: 'Entwicklung & Berichte' },
-    { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={14} />, section: 'Entwicklung & Berichte' },
     { id: 'klassengemeinschaft', label: 'Wir-Gefühl', icon: <Heart size={14} />, section: 'Entwicklung & Berichte' },
     { id: 'jahresbericht', label: 'Jahresbericht', icon: <FileText size={14} />, section: 'Entwicklung & Berichte' },
     { id: 'archiv', label: 'Archiv', icon: <Archive size={14} />, section: 'Entwicklung & Berichte' },
-    { id: 'drucken', label: 'Drucken', icon: <Printer size={14} />, section: 'Ausgabe & Daten' },
+    { id: 'drucken', label: 'Druckzentrum', icon: <Printer size={14} />, section: 'Ausgabe & Daten' },
     { id: 'datensicherung', label: 'Backup & Daten', icon: <Database size={14} />, section: 'Ausgabe & Daten' },
     { id: 'settings', label: 'Einstellungen', icon: <SettingsIcon size={14} />, section: 'Ausgabe & Daten' },
   ];
@@ -68,7 +71,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const availableModules = ALL_MODULES.filter(item => app.klassenvorstand || !['orga', 'uebergabemappe', 'diagnostik', 'klassengemeinschaft', 'jahresbericht'].includes(item.id));
   const grouped = groupSidebarItems(availableModules, disabledModules, currentPage, showMorePages);
   const navItems = [
-    { section: 'Für deinen Schultag', items: grouped.daily },
+    { section: 'Klassio', items: grouped.daily },
     ...(grouped.expanded ? [...new Set(grouped.extra.map(item => item.section))].map(section => ({
       section, items: grouped.extra.filter(item => item.section === section),
     })) : [{ section: 'Aktuell geöffnet', items: grouped.extra.filter(item => item.id === currentPage) }]),
@@ -231,7 +234,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                         ${currentPage === item.id 
                           ? 'shadow-xs font-bold'
                           : 'text-[var(--text-secondary)] hover:bg-[var(--surface-subtle,var(--surface2))] hover:text-[var(--text-primary)] group'}
-                        ${item.id === 'cockpit' && currentPage !== item.id ? 'bg-[var(--warning-soft)] text-[var(--warning-text)] font-extrabold border border-[var(--warning)]/30' : ''}
+                        ${item.id === 'cockpit' && currentPage !== item.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-extrabold border border-[var(--accent)]/25' : ''}
                         ${isCollapsed ? 'justify-center px-0' : ''}`}
                       style={currentPage === item.id ? { backgroundColor: 'var(--accent)', color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}
                       onClick={() => {
@@ -247,7 +250,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                           transition={{ type: "spring", stiffness: 380, damping: 30 }}
                         />
                       )}
-                      <span className={`${currentPage === item.id ? '' : item.id === 'cockpit' ? 'text-[var(--warning-text)]' : 'text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors'}`} style={currentPage === item.id ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}>{item.icon}</span>
+                      <span className={`${currentPage === item.id ? '' : item.id === 'cockpit' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors'}`} style={currentPage === item.id ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}>{item.icon}</span>
                       {!isCollapsed && <span className="text-wrap leading-tight break-words tracking-tight" style={currentPage === item.id ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}>{item.label}</span>}
                     </button>
                   ))}
@@ -255,12 +258,12 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
               </div>
             ))}
             {grouped.extra.length > 0 && <div className="px-2">
-              <button type="button" aria-expanded={grouped.expanded} aria-label="Weitere Funktionen anzeigen"
-                title="Weitere Funktionen" onClick={() => setShowMorePages(value => !value)}
+              <button type="button" aria-expanded={grouped.expanded} aria-label="Mehr Bereiche anzeigen"
+                title="Mehr" onClick={() => setShowMorePages(value => !value)}
                 className="w-full min-h-12 flex items-center gap-3 px-3.5 rounded-xl border border-border text-sm font-semibold text-text-primary hover:bg-[var(--surface2)]">
-                <LayoutGrid size={18} />{!isCollapsed && <span>{grouped.expanded ? 'Weniger anzeigen' : 'Weitere Funktionen'}</span>}
+                <LayoutGrid size={18} />{!isCollapsed && <span>{grouped.expanded ? 'Weniger' : 'Mehr'}</span>}
               </button>
-              {!isCollapsed && !grouped.expanded && <p className="px-3.5 mt-2 text-xs leading-relaxed text-text-muted">Jahresplanung, Materialien, Diagnostik und mehr</p>}
+              {!isCollapsed && !grouped.expanded && <p className="px-3.5 mt-2 text-xs leading-relaxed text-text-muted">Alle Fach-, Organisations- und Zusatzbereiche</p>}
             </div>}
           </nav>
 
