@@ -5,6 +5,7 @@ import {
   createVault,
   unlockVault,
   unlockVaultWithRecoveryCode,
+  MIN_PASSWORD_LENGTH,
   type VaultRecordV1,
 } from '../lib/vaultService';
 import {
@@ -120,8 +121,8 @@ export default function VaultGate({ children }: VaultGateProps) {
     e.preventDefault();
     setErrorMessage(null);
 
-    if (password.length < 8) {
-      setErrorMessage('Das Passwort muss mindestens 8 Zeichen lang sein.');
+    if (password.trim().length < MIN_PASSWORD_LENGTH) {
+      setErrorMessage(`Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein.`);
       triggerShake();
       return;
     }
@@ -354,7 +355,7 @@ export default function VaultGate({ children }: VaultGateProps) {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mindestens 8 Zeichen"
+                  placeholder={`Mindestens ${MIN_PASSWORD_LENGTH} Zeichen`}
                   required
                   className="w-full bg-[var(--surface-subtle,var(--surface))] border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
                 />
