@@ -522,7 +522,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
       const text = await askAI(modusId, userMsg + contextStr, activeMessages, manualImageBase64 || undefined, imagePrivacyConfirmed);
       const normalized = (text || '').trim();
       if (!normalized) throw new Error('Die KI hat keine Antwort geliefert.');
-      if (/^(KI-|Rate Limit|Timeout:|KI momentan|Bildanalyse blockiert|KI-Anfrage aus Datenschutzgründen|GEMINI_|Zu viele KI-Anfragen)/i.test(normalized)) {
+      if (/^(KI-|Rate Limit|Timeout:|KI momentan|Bildanalyse blockiert|KI-Anfrage aus Datenschutzgründen|GEMINI_|Zu viele KI-Anfragen|Failed to fetch|fetch failed|NetworkError|Internal Server Error|Modus nicht gefunden)/i.test(normalized)) {
         throw new Error(normalized);
       }
       const responseMessages: Message[] = [...newMessages, { role: 'ai', content: normalized }];
