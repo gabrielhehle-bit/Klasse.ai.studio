@@ -9,8 +9,10 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
   return <section aria-label="Heute" className="space-y-5 text-slate-900">
     <header className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><p className="text-sm font-medium text-slate-600">{p.klasseLabel || 'Deine Klasse'}</p>
-          <h1 className="mt-1 text-2xl sm:text-3xl font-semibold tracking-tight">Heute</h1>
+        <div>
+          <p className="text-sm font-medium text-slate-600">{p.klasseLabel || 'Deine Klasse'}</p>
+          <h1 className="mt-1 text-2xl sm:text-3xl font-semibold tracking-tight">{p.greeting}</h1>
+          <p className="mt-1 text-sm font-medium text-slate-500">{p.dateLabel}</p>
           <p className="mt-2 text-sm text-slate-600">Unterricht vorbereiten, Anwesenheit prüfen und Wichtiges im Blick behalten.</p>
         </div>
         <button className={button + ' flex items-center gap-2'} aria-pressed={p.privacyMode} onClick={() => p.onPrivacyModeChange(!p.privacyMode)}>
@@ -72,8 +74,27 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
       </section>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
         <h2 className="text-lg font-semibold flex items-center gap-2"><Users size={20} className="text-sky-600" />Anwesenheit heute</h2>
-        <p className="text-3xl font-semibold">{p.totalStudents}<span className="ml-2 text-base font-normal text-slate-600">Kinder</span></p>
-        <p className="text-sm text-slate-700">{p.totalStudents === 0 ? 'Lege zuerst deine Klassenliste an.' : p.attendanceRecorded ? `${p.absentCount} als abwesend eingetragen` : 'Erfassung noch offen – bitte Anwesenheit prüfen.'}</p>
+        <p className="text-3xl font-semibold">
+          {p.privacyMode
+            ? '••'
+            : p.totalStudents === 0
+              ? '0'
+              : p.attendanceRecorded
+                ? `${p.presentCount} / ${p.totalStudents}`
+                : 'Offen'}
+          {p.totalStudents > 0 && p.attendanceRecorded && !p.privacyMode && <span className="ml-2 text-base font-normal text-slate-600">anwesend</span>}
+        </p>
+        <p className="text-sm text-slate-700">
+          {p.totalStudents === 0
+            ? 'Lege zuerst deine Klassenliste an.'
+            : p.attendanceRecorded
+              ? p.privacyMode
+                ? 'Anwesenheit wurde geprüft.'
+                : p.absentCount === 0
+                  ? 'Alle Kinder sind als anwesend erfasst.'
+                  : `${p.absentCount} als abwesend eingetragen.`
+              : 'Noch nicht geprüft – es wird niemand automatisch als anwesend angenommen.'}
+        </p>
         <button className={button + ' w-full'} onClick={() => p.onNavigate(p.totalStudents ? 'anwesenheit' : 'schueler')}>{p.totalStudents ? 'Anwesenheit prüfen' : 'Kinder hinzufügen'}</button>
         <p className="text-xs leading-relaxed text-slate-500">Die Übersicht ersetzt keine Anwesenheitskontrolle.</p>
       </section>
