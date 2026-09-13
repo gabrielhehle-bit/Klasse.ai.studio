@@ -25,6 +25,7 @@ Legende:
 
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
+| SetupWizard | 🟡 | Klassio-Branding, geführter Ablauf, dynamische Schuljahre, strukturierte Lehrkraftdaten, echte Schülerimporte und konsistenter 10-Stunden-Plan umgesetzt; Browser-Abnahme offen. |
 | Dashboard / Heute | 🟡 | Funktional vorhanden; letzte visuelle Browser-Abnahme offen. |
 | Kernnavigation | ✅ | Heute, Klasse, Planung, Leistungen, Unterricht + Utilities per Regressionstest abgesichert. |
 | Notizen | 🔴 | Eigene Sidebar-Seite geplant: freie Notizen, Konferenznotizen, To-dos und mit Schüler:innen verknüpfte Notizen inkl. Rückverlinkung ins Dossier. |
