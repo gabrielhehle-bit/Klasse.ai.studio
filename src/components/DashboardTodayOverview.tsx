@@ -174,7 +174,7 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[0.6875rem] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200/60 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                {klasseLabel || "Klasse 3a"}
+                {klasseLabel || "Deine Klasse"}
               </span>
               
               {manualDateOffset !== 0 && (
@@ -258,14 +258,24 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
 
             <div>
               <div className="text-2xl font-black text-slate-900 tracking-tight">
-                {privacyMode ? "••" : `${presentCount} / ${totalStudents}`}
+                {privacyMode
+                  ? "••"
+                  : totalStudents === 0
+                    ? "0"
+                    : attendanceRecorded
+                      ? `${presentCount} / ${totalStudents}`
+                      : "Offen"}
               </div>
               <p className="text-xs font-bold text-slate-500 mt-0.5">
                 {privacyMode
-                  ? "Verborgen"
-                  : absentCount === 0
-                  ? "Alle anwesend"
-                  : `${absentCount} abwesend`}
+                  ? attendanceRecorded ? "Geprüft" : "Noch nicht geprüft"
+                  : totalStudents === 0
+                    ? "Noch keine Kinder angelegt"
+                    : !attendanceRecorded
+                      ? "Noch nicht geprüft"
+                      : absentCount === 0
+                        ? "Alle anwesend"
+                        : `${absentCount} abwesend`}
               </p>
             </div>
           </div>
