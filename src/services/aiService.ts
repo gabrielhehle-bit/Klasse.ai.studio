@@ -66,9 +66,9 @@ export async function callServerAI(action: string, params: any): Promise<string>
     
     if (appState && ((appState.schueler && appState.schueler.length > 0) || (appState.classes && appState.classes.length > 0))) {
       // Vor der Pseudonymisierung: Geburtsdaten aus params maskieren
-      const { imageBase64, ...restParams } = params;
-      if (imageBase64) {
-        throw new Error('Bilddaten können bei geladenen Schülerdaten derzeit nicht sicher pseudonymisiert werden.');
+      const { imageBase64, imagePrivacyConfirmed, ...restParams } = params;
+      if (imageBase64 && !imagePrivacyConfirmed) {
+        throw new Error('Bildanalyse blockiert: Bitte bestätige zuerst, dass Namen und andere personenbezogene Angaben im Bild unkenntlich gemacht wurden.');
       }
       let paramsStr = JSON.stringify(restParams);
       paramsStr = paramsStr.replace(/\b\d{1,2}\.\d{1,2}\.\d{2,4}\b/g, "[Datum entfernt]");
@@ -104,7 +104,7 @@ export async function callServerAI(action: string, params: any): Promise<string>
         throw new Error("Rate Limit überschritten: Die KI braucht eine kurze Pause. Bitte versuche es in 10-20 Sekunden erneut.");
       }
       if (response.status === 401 || response.status === 403) {
-        throw new Error("KI-Authentifizierungsfehler: Dein API-Schlüssel ist abgelaufen oder ungültig. Bitte erneuere ihn in den App-Einstellungen.");
+        throw new Error("KI-Authentifizierungsfehler: Der serverseitige Gemini-Zugang ist nicht gültig oder nicht eingerichtet.");
       }
       throw new Error(errorData.error || "KI momentan nicht erreichbar");
     }
@@ -374,18 +374,8 @@ export async function getDailyInsight(name: string, stufe: number, count: number
     dailyInsightMemoryCache.set(cacheKey, parsed);
     return parsed;
   } catch (error: any) {
-    console.warn("getDailyInsight failed, using quiet fallback:", error);
-    return {
-      greeting: `Hallo ${name || 'Lehrkraft'} 🌟`,
-      focus: "Fokus & Balance",
-      tip: "Achte heute besonders auf klare Übergänge zwischen den Unterrichtsphasen. Das gibt den Schülern Sicherheit.",
-      quote: "Ein strukturierter Tag bringt Ruhe in den Klassenraum.",
-      recommendation: "Gönn dir in der 2. großen Pause 5 Min. frische Luft.",
-      actionItems: ["Pausenaufsicht prüfen", "Material für morgen vorbereiten"],
-      focusedStudentName: "Samy",
-      studentSupportArea: "Konzentration",
-      studentSupportExample: "Einem Schüler, der unruhig ist, könnte heute eine kleine Sonderaufgabe (z.B. 'Materialdienst') helfen, um sich wieder zu fokussieren."
-    } as DailyInsight;
+    console.warn("getDailyInsight failed:", error);
+    return `KI-Tagesimpuls derzeit nicht verfügbar: ${error?.message || 'KI momentan nicht erreichbar'}`;
   }
 }
 
@@ -659,11 +649,11 @@ Antworte NUR mit einem gültigen JSON-Array von Strings, das die IDs der passend
   }
 }
 
-export async function askAI(modusId: string, userMessage: string, history: { role: 'user' | 'ai', content: string }[] = [], imageBase64?: { data: string, mimeType: string }): Promise<string | null> {
+export async function askAI(modusId: string, userMessage: string, history: { role: 'user' | 'ai', content: string }[] = [], imageBase64?: { data: string, mimeType: string }, imagePrivacyConfirmed: boolean = false): Promise<string | null> {
   if (userMessage.trim().length < 2) return "Bitte gib eine längere Nachricht ein.";
 
   try {
-    return await callServerAI("askAI", { modusId, userMessage, history, imageBase64 });
+    return await callServerAI("askAI", { modusId, userMessage, history, imageBase64, imagePrivacyConfirmed });
   } catch (error: any) {
     return error.message;
   }
