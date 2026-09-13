@@ -750,22 +750,29 @@ export default function Gradebook() {
   const addColumn = (e: React.MouseEvent, typ: 'lzk' | 'wp' | 'obj') => {
     e.stopPropagation();
     const currentCount = colCounts[typ] || 0;
-    setApp(prev => {
-      const nm = { ...(prev.notenMeta || {}) };
-      
-      const currentFachData = { ...(nm[activeFach] || {}) };
-      const counts = { ...(currentFachData.colCounts || { lzk: 4, wp: 4, obj: 4 }) };
-      const newCounts = { ...counts, [typ]: (counts[typ] || 0) + 1 };
-      
-      const updatedMeta = {
-        ...nm,
-        [activeFach]: { ...currentFachData, colCounts: newCounts }
-      };
+    const dataKey: 'lzk' | 'wp' | 'aufgaben' = typ === 'obj' ? 'aufgaben' : typ;
 
-      
-      return { ...prev, notenMeta: updatedMeta };
-    });
-    setEditingAssessmentModal({ typ, idx: currentCount, isNew: true });
+    // Reuse the first genuinely empty visible slot before creating another column.
+    let reusableIndex = -1;
+    for (let idx = 0; idx < currentCount; idx++) {
+      const hasStudentValue = (app.schueler || []).some((student) => {
+        const values = app.noten?.[student.id]?.[activeFach]?.[sem]?.[dataKey] || [];
+        const value = values[idx];
+        return value !== undefined && value !== null && value !== '';
+      });
+      const hasMeta =
+        !!app.notenMeta?.[activeFach]?.colLabels?.[typ]?.[idx] ||
+        !!app.notenMeta?.[activeFach]?.colDates?.[typ]?.[idx] ||
+        app.notenMeta?.[activeFach]?.maxPoints?.[typ]?.[idx] !== undefined;
+
+      if (!hasStudentValue && !hasMeta) {
+        reusableIndex = idx;
+        break;
+      }
+    }
+
+    const idx = reusableIndex >= 0 ? reusableIndex : currentCount;
+    setEditingAssessmentModal({ typ, idx, isNew: reusableIndex < 0 });
   };
 
   const removeColumn = (e: React.MouseEvent, typ: 'lzk' | 'wp' | 'obj') => {
@@ -4251,6 +4258,29 @@ export default function Gradebook() {
               isOpen={editingAssessmentModal !== null}
               onClose={() => setEditingAssessmentModal(null)}
               onSave={(labelVal, dateVal, maxPointsVal) => {
+                if (editingAssessmentModal.isNew) {
+                  setApp(prev => {
+                    const meta = { ...(prev.notenMeta || {}) };
+                    const subjectMeta = { ...(meta[activeFach] || {}) };
+                    const counts = { ...(subjectMeta.colCounts || { lzk: 4, wp: 4, obj: 4 }) };
+                    return {
+                      ...prev,
+                      notenMeta: {
+                        ...meta,
+                        [activeFach]: {
+                          ...subjectMeta,
+                          colCounts: {
+                            ...counts,
+                            [editingAssessmentModal.typ]: Math.max(
+                              counts[editingAssessmentModal.typ] || 0,
+                              editingAssessmentModal.idx + 1,
+                            ),
+                          },
+                        },
+                      },
+                    };
+                  });
+                }
                 updateColMeta(editingAssessmentModal.typ, editingAssessmentModal.idx, labelVal, dateVal, maxPointsVal);
               }}
               onOpenSchularbeitRaster={() => {
