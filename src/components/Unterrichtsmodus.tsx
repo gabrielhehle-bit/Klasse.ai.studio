@@ -8175,13 +8175,12 @@ ${content}
                       {/* Board Utility Toolbar Header (outside stage, prevents overlapping with stage active widgets or drawing board) */}
                       <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 px-3.5 py-2 rounded-xl no-print shrink-0 bg-white/90 dark:bg-zinc-900/80 border border-slate-200 dark:border-white/10 shadow-sm relative z-50">
                         <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${isLayoutLocked ? "bg-amber-500" : "bg-emerald-500"} animate-pulse`} />
                           <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-neutral-300">
                             Unterrichtsfläche
                           </h3>
-                          {isLayoutLocked && (
-                            <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                              Fixiert
+                          {!isLayoutLocked && (
+                            <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                              Anordnung bearbeiten
                             </span>
                           )}
                         </div>
@@ -9415,21 +9414,6 @@ ${content}
 
                                 <button
                                   type="button"
-                                  id="btn-menu-open-digitale-tafel"
-                                  onClick={() => {
-                                    setIsTafelOpen(true);
-                                    setIsMoreOptionsMenuOpen(false);
-                                  }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
-                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
-                                  }`}
-                                >
-                                  <Presentation size={12} className="text-emerald-500 shrink-0" />
-                                  <span>Alte Tafelinhalte öffnen (Archiv)</span>
-                                </button>
-
-                                <button
-                                  type="button"
                                   onClick={() => {
                                     handleAutoArrangeWidgets();
                                     setIsMoreOptionsMenuOpen(false);
@@ -9511,6 +9495,25 @@ ${content}
                                 >
                                   <Trash2 size={12} className="shrink-0" />
                                   <span>Alle Unterrichtshilfen schließen</span>
+                                </button>
+
+                                <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
+                                <div className="px-2 py-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
+                                  Archiv
+                                </div>
+                                <button
+                                  type="button"
+                                  id="btn-menu-open-digitale-tafel"
+                                  onClick={() => {
+                                    setIsTafelOpen(true);
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Presentation size={12} className="text-slate-400 shrink-0" />
+                                  <span>Alte Tafelinhalte öffnen</span>
                                 </button>
                               </div>
                             )}
