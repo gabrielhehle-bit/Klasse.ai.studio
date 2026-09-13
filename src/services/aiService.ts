@@ -67,6 +67,9 @@ export async function callServerAI(action: string, params: any): Promise<string>
     if (appState && ((appState.schueler && appState.schueler.length > 0) || (appState.classes && appState.classes.length > 0))) {
       // Vor der Pseudonymisierung: Geburtsdaten aus params maskieren
       const { imageBase64, ...restParams } = params;
+      if (imageBase64) {
+        throw new Error('Bilddaten können bei geladenen Schülerdaten derzeit nicht sicher pseudonymisiert werden.');
+      }
       let paramsStr = JSON.stringify(restParams);
       paramsStr = paramsStr.replace(/\b\d{1,2}\.\d{1,2}\.\d{2,4}\b/g, "[Datum entfernt]");
 
@@ -80,7 +83,9 @@ export async function callServerAI(action: string, params: any): Promise<string>
       }
     }
   } catch (e) {
-    console.warn("Pseudonymization step failed", e);
+    clearTimeout(timeoutId);
+    console.error("Pseudonymization step failed; request blocked", e);
+    throw new Error("KI-Anfrage aus Datenschutzgründen abgebrochen. Bitte entferne personenbezogene Daten bzw. Bildanhänge und versuche es erneut.");
   }
 
   try {
