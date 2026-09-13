@@ -2917,7 +2917,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [activeWidgetCategory, setActiveWidgetCategory] =
-    useState<string>("everyday");
+    useState<string>("all");
   const [widgetSearch, setWidgetSearch] = useState<string>("");
 
   useEffect(() => {
@@ -3702,7 +3702,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const handleClearAllWidgets = () => {
     const visibleCount = cockpitWidgets.filter((w) => w.visible).length;
     if (visibleCount === 0) {
-      showToast("Die Tafel ist bereits leer.", "info");
+      showToast("Es sind keine Unterrichtshilfen geöffnet.", "info");
       return;
     }
     const cleared = cockpitWidgets.map((w) => ({ ...w, visible: false }));
@@ -3711,7 +3711,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       ...p,
       cockpitLayout: cleared,
     }));
-    showToast("Tafel geleert: Alle Widgets geschlossen.", "info");
+    showToast("Alle Unterrichtshilfen wurden geschlossen.", "info");
   };
 
   const handleCloseWidget = (id: string, type: string) => {
@@ -8251,7 +8251,6 @@ ${content}
                                 {/* Category Switcher Tab Bar */}
                                 <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
                                   {[
-                                    { id: "everyday", label: "Für den Unterricht" },
                                     { id: "all", label: "Alle Hilfen" },
                                     { id: "favorites", label: "★ Favoriten" },
                                     { id: "struct", label: "📂 Struktur" },
@@ -8500,9 +8499,7 @@ ${content}
                                     ];
 
                                     let count = 0;
-                                    if (cat.id === "everyday") {
-                                      count = allAvailableWidgets.filter(item => ["timer", "todo", "trafficlight", "clock", "randomname", "groups", "noisemeter", "instruction"].includes(item.type)).length;
-                                    } else if (cat.id === "all") {
+                                    if (cat.id === "all") {
                                       count = allAvailableWidgets.length;
                                     } else if (cat.id === "favorites") {
                                       count = (
@@ -9128,9 +9125,7 @@ ${content}
                                         }
 
                                         let matchesCategory = false;
-                                        if (activeWidgetCategory === "everyday") {
-                                          matchesCategory = ["timer", "todo", "trafficlight", "clock", "randomname", "groups", "noisemeter", "instruction"].includes(item.type);
-                                        } else if (activeWidgetCategory === "all") {
+                                        if (activeWidgetCategory === "all") {
                                           matchesCategory =
                                             true;
                                         } else if (
@@ -9382,12 +9377,6 @@ ${content}
                             )}
                           </div>
 
-                          <button type="button" aria-pressed={!isLayoutLocked} onClick={() => { setIsBoardWriting(false); setIsLayoutLocked(locked => !locked); }}
-                            className={`min-h-10 px-3 rounded-xl border text-xs font-semibold flex items-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isLayoutLocked ? (currentIsLight ? "bg-white border-slate-300 text-slate-700" : "bg-zinc-900 border-white/20 text-white") : "bg-emerald-600 border-emerald-500 text-white"}`}>
-                            {isLayoutLocked ? <Lock size={15} /> : <Check size={15} />}
-                            {isLayoutLocked ? 'Anordnung ändern' : 'Anordnung fertig'}
-                          </button>
-
                           <button type="button" aria-pressed={isBoardWriting}
                             onClick={() => { setIsBoardWriting(value => !value); setIsLayoutLocked(true); }}
                             className={`min-h-11 px-4 rounded-xl text-sm font-semibold border ${isBoardWriting ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'}`}>
@@ -9399,7 +9388,7 @@ ${content}
                             <button
                               type="button"
                               onClick={() => setIsMoreOptionsMenuOpen((prev) => !prev)}
-                              className={`h-8 px-2.5 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              className={`min-h-11 px-3 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                                 isMoreOptionsMenuOpen
                                   ? "bg-indigo-600 border-indigo-600 text-white"
                                   : currentIsLight
@@ -9436,7 +9425,7 @@ ${content}
                                   }`}
                                 >
                                   <Presentation size={12} className="text-emerald-500 shrink-0" />
-                                  <span>Bisherige Tafelinhalte öffnen</span>
+                                  <span>Alte Tafelinhalte öffnen (Archiv)</span>
                                 </button>
 
                                 <button
@@ -9464,7 +9453,7 @@ ${content}
                                   }`}
                                 >
                                   <Layout size={12} className="text-indigo-500 shrink-0" />
-                                  <span className="flex-1">Vorlagen & Profile</span>
+                                  <span className="flex-1">Gespeicherte Arbeitsflächen</span>
                                   <span className="px-1.5 py-0.2 rounded-full text-[8px] font-black bg-indigo-500 text-white">
                                     {app.workspaceProfiles && app.workspaceProfiles.length > 0
                                       ? app.workspaceProfiles.length
@@ -9483,7 +9472,7 @@ ${content}
                                   }`}
                                 >
                                   <Settings2 size={12} className="text-slate-400 shrink-0" />
-                                  <span>Layouts & Schnell-Slots</span>
+                                  <span>Eigene Schnell-Layouts</span>
                                 </button>
 
                                 <button
@@ -9499,12 +9488,12 @@ ${content}
                                   {isLayoutLocked ? (
                                     <>
                                       <Unlock size={12} className="text-emerald-500 shrink-0" />
-                                      <span>Layout entsperren</span>
+                                      <span>Widgets verschieben & Größe ändern</span>
                                     </>
                                   ) : (
                                     <>
                                       <Lock size={12} className="text-amber-500 shrink-0" />
-                                      <span>Layout fixieren</span>
+                                      <span>Anordnung fertig</span>
                                     </>
                                   )}
                                 </button>
@@ -9520,7 +9509,7 @@ ${content}
                                   className="w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold text-rose-500 hover:bg-rose-500/10 flex items-center gap-2 text-left transition-colors cursor-pointer"
                                 >
                                   <Trash2 size={12} className="shrink-0" />
-                                  <span>Tafel leeren (Alle schließen)</span>
+                                  <span>Alle Unterrichtshilfen schließen</span>
                                 </button>
                               </div>
                             )}
@@ -9688,7 +9677,7 @@ ${content}
                                       cockpitLayout: DEFAULT_COCKPIT_LAYOUT,
                                     }));
                                     showToast(
-                                      "Layout auf Standard zurückgesetzt.",
+                                      "Widget-Anordnung zurückgesetzt.",
                                       "info",
                                     );
                                     setIsSlotMenuOpen(false);
@@ -9703,7 +9692,7 @@ ${content}
                         </div>
                       </div>
 
-                      {/* Widget Board (classroomscreen.com style) */}
+                      {/* Gemeinsame weiße Unterrichtsfläche: Schreiben, Zeichnen und Widgets */}
                       <div
                         ref={boardRef}
                         className={`flex-1 relative group rounded-2xl border overflow-hidden pointer-events-auto h-full w-full min-h-[460px] select-none ${
@@ -9775,43 +9764,6 @@ ${content}
                                   Abbrechen
                                 </button>
                               </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Empty Board Subtle Guidance */}
-                        {cockpitWidgets.filter((w) => w.visible).length === 0 && !isBoardWriting && !(app.boardSettings?.cockpitInkByClass?.[app.activeClassId]?.length) && (
-                          <div
-                            id="cockpit-empty-state-hint"
-                            className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center select-none pointer-events-none"
-                          >
-                            <div className="flex flex-col items-center max-w-xl gap-4 pointer-events-auto bg-white/95 text-slate-900 border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
-                              <div
-                                className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${
-                                  currentIsLight
-                                    ? "bg-slate-100/90 border-slate-200/80 text-slate-400"
-                                    : "bg-white/[0.04] border-white/10 text-neutral-500"
-                                }`}
-                              >
-                                <Plus size={24} strokeWidth={2} className="opacity-70" />
-                              </div>
-                              <div className="space-y-1">
-                                <h3
-                                  className="text-xl sm:text-2xl font-semibold text-slate-900"
-                                >
-                                  Eine Fläche für deinen Unterricht
-                                </h3>
-                                <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                                  Schreibe direkt auf die Fläche oder lege Unterrichtshilfen dazu.
-                                  Alles bleibt an einem Ort.
-                                </p>
-                              </div>
-                              <button type="button" onClick={() => { setIsBoardWriting(true); setIsLayoutLocked(true); }} className="w-full min-h-12 px-5 py-3 rounded-xl bg-indigo-600 text-white font-semibold text-base">
-                                Schreiben & Zeichnen
-                              </button>
-                              <button type="button" onClick={() => setIsAddWidgetMenuOpen(true)} className="mt-3 min-h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
-                                Widget hinzufügen
-                              </button>
                             </div>
                           </div>
                         )}
@@ -18365,7 +18317,7 @@ ${content}
             ...p,
             cockpitLayout: DEFAULT_COCKPIT_LAYOUT,
           }));
-          showToast("Unterrichtsfläche geleert.", "info");
+          showToast("Widget-Anordnung zurückgesetzt.", "info");
         }}
         currentIsLight={currentIsLight}
         slotNames={slotNames}
