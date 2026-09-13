@@ -8903,7 +8903,7 @@ ${content}
                                       },
                                       {
                                         type: "drawing",
-                                        label: "🖍️ Zeichentafel Canvas",
+                                        label: "🖍️ Zeichenfeld",
                                         desc: "Skizzen & Handschrift auf Tafel",
                                         category: "tools",
                                       },
