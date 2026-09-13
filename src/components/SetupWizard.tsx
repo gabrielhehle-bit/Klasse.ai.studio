@@ -72,7 +72,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const [setupMode, setSetupMode] = useState<'quick' | 'expert'>(() => {
     if (isEditing || isNewClass) return 'expert';
     try {
-      return JSON.parse(localStorage.getItem('gabic_setup_wizard_progress') || '{}').setupMode === 'expert' ? 'expert' : 'quick';
+      return JSON.parse(localStorage.getItem('klassio_setup_wizard_ui_v1') || '{}').setupMode === 'expert' ? 'expert' : 'quick';
     } catch {
       return 'quick';
     }
@@ -95,7 +95,9 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const csvInputRef = useRef<HTMLInputElement>(null);
   const sokratesFileInputRef = useRef<HTMLInputElement>(null);
 
-  const WIZARD_PROGRESS_KEY = 'gabic_setup_wizard_progress';
+  // Only non-sensitive wizard UI state may be persisted in plaintext.
+  const WIZARD_PROGRESS_KEY = 'klassio_setup_wizard_ui_v1';
+  const LEGACY_WIZARD_PROGRESS_KEY = 'gabic_setup_wizard_progress';
 
   const magicAutofillStammplan = () => {
     if (!window.confirm("Bist du sicher? Dein aktueller Stammplan wird überschrieben.")) return;
@@ -156,63 +158,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     setStammplan(newStammplan);
   };
 
-  // Restore progress if available
+  // Datenschutz: alte Klartext-Setupstände können Schüler-/Schuldaten enthalten.
+  // Sie werden beim Öffnen des Wizards entfernt und nicht mehr wiederhergestellt.
   useEffect(() => {
-    if (isFirstSetup) {
-      const saved = sessionStorage.getItem(WIZARD_PROGRESS_KEY) || localStorage.getItem(WIZARD_PROGRESS_KEY);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (window.confirm('Es wurde ein unvollständiges Klassen-Setup gefunden.\nMöchtest du dieses wiederherstellen und dort weitermachen?')) {
-            if (parsed.lehrerName !== undefined) setLehrerName(parsed.lehrerName);
-            if (parsed.schulName !== undefined) setSchulName(parsed.schulName);
-            if (parsed.schulkennzahl !== undefined) setSchulkennzahl(parsed.schulkennzahl);
-            if (parsed.schulOrt !== undefined) setSchulOrt(parsed.schulOrt);
-            if (parsed.schulPlz !== undefined) setSchulPlz(parsed.schulPlz);
-            if (parsed.bundesland !== undefined) setBundesland(parsed.bundesland);
-            if (parsed.klassenbezeichnung !== undefined) setKlassenbezeichnung(parsed.klassenbezeichnung);
-            if (parsed.schuljahr !== undefined) setSchuljahr(parsed.schuljahr);
-            if (parsed.stufe !== undefined) setStufe(parsed.stufe);
-            if (parsed.theme !== undefined) setTheme(parsed.theme);
-            if (parsed.fontFamily !== undefined) setFontFamily(parsed.fontFamily);
-            if (parsed.faecher !== undefined) setFaecher(parsed.faecher);
-            if (parsed.fachConfig !== undefined) setFachConfig(parsed.fachConfig);
-            if (parsed.stundenZeiten !== undefined) setStundenZeiten(parsed.stundenZeiten);
-            if (parsed.mittagspauseNachStunde !== undefined) setMittagspauseNachStunde(parsed.mittagspauseNachStunde);
-            if (parsed.tageplan !== undefined) setTageplan(parsed.tageplan);
-            if (parsed.stammplan !== undefined) setStammplan(parsed.stammplan);
-            if (parsed.studentsList !== undefined) setStudentsList(parsed.studentsList);
-            if (parsed.uiScale !== undefined) setUiScale(parsed.uiScale);
-          } else {
-            sessionStorage.removeItem(WIZARD_PROGRESS_KEY);
-            localStorage.removeItem(WIZARD_PROGRESS_KEY);
-          }
-        } catch (e) {
-          console.error("Could not restore setup progress", e);
-        }
-      }
-    }
-  }, [isFirstSetup]); // Empty dependency array, but isFirstSetup is constant on mount usually
-
-  // Auto-save logic (sichert temporär in sessionStorage - kein unverschlüsselter localStorage)
-  useEffect(() => {
-    if (isFirstSetup) {
-      const saveTimeout = setTimeout(() => {
-        let existingProgress: any = {};
-        try { existingProgress = JSON.parse(sessionStorage.getItem(WIZARD_PROGRESS_KEY) || '{}'); } catch {}
-        const progress = {
-          ...existingProgress,
-          lehrerName, schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
-          klassenbezeichnung, stufe, theme, fontFamily,
-          faecher, fachConfig, stundenZeiten, mittagspauseNachStunde, tageplan, stammplan, studentsList, uiScale, schuljahr
-        };
-        sessionStorage.setItem(WIZARD_PROGRESS_KEY, JSON.stringify(progress));
-        // Säubere eventuelle Altbestände aus unverschlüsseltem localStorage
-        localStorage.removeItem(WIZARD_PROGRESS_KEY);
-      }, 500);
-      return () => clearTimeout(saveTimeout);
-    }
-  }, [isFirstSetup, lehrerName, schulName, schulkennzahl, schulOrt, schulPlz, bundesland, klassenbezeichnung, stufe, theme, fontFamily, faecher, fachConfig, stundenZeiten, mittagspauseNachStunde, tageplan, stammplan, studentsList, uiScale, schuljahr]);
+    sessionStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
+    localStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -279,6 +230,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
         await restoreAppData(importedData);
         sessionStorage.removeItem(WIZARD_PROGRESS_KEY);
         localStorage.removeItem(WIZARD_PROGRESS_KEY);
+        sessionStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
+        localStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
         onComplete();
       } catch (err: any) {
         alert(err?.message || 'Fehler beim Wiederherstellen des Backups.');
@@ -584,6 +537,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     
     if (isFirstSetup) {
       localStorage.removeItem(WIZARD_PROGRESS_KEY);
+      sessionStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
+      localStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
     }
     onComplete();
   };
