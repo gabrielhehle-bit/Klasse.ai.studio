@@ -27,6 +27,7 @@ Legende:
 |---|---:|---|
 | Dashboard / Heute | 🟡 | Funktional vorhanden; letzte visuelle Browser-Abnahme offen. |
 | Kernnavigation | ✅ | Heute, Klasse, Planung, Leistungen, Unterricht + Utilities per Regressionstest abgesichert. |
+| Notizen | 🔴 | Eigene Sidebar-Seite geplant: freie Notizen, Konferenznotizen, To-dos und mit Schüler:innen verknüpfte Notizen inkl. Rückverlinkung ins Dossier. |
 | Lehrercockpit: weiße freie Fläche | 🟡 | Leerer Start ohne sichtbare Standardwidgets; Schreiben/Zeichnen + Widgets vorhanden. Browser-Abnahme offen. |
 | Cockpit: Schreiben und Zeichnen | 🟡 | BoardInk + Unterrichtsfläche implementiert; Browser/Stiftprüfung offen. |
 | Cockpit: Widgets frei platzieren | 🟡 | Layoutsystem und Widgetmenü vorhanden; Browserprüfung offen. |
