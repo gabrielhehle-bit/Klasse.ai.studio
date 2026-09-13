@@ -678,7 +678,7 @@ export default function Gradebook() {
       const manualMitarbeitMissing =
         cfg.mi &&
         mitarbeitSettings.mode === 'manual' &&
-        (nd.miDirekt === undefined || nd.miDirekt === null || nd.miDirekt === '');
+        (nd.miDirekt === undefined || nd.miDirekt === null || (nd.miDirekt as any) === '');
       const isMissing = (cfg.sa && hasMissing(nd.sa || [], cfg.saCount)) ||
                         (cfg.lzk && hasMissing(nd.lzk || [], colCounts.lzk)) ||
                         (cfg.wp && hasMissing(nd.wp || [], colCounts.wp)) ||
@@ -690,7 +690,7 @@ export default function Gradebook() {
     });
 
     return count;
-  }, [app.schueler, app.noten, activeFach, sem, colCounts, cfg, mitarbeitSettings.mode]);
+  }, [app, activeFach, sem, colCounts, mitarbeitSettings.mode]);
 
   const hasAnyAssessment = useMemo(() => {
     return (app.schueler || []).some((student) => {
@@ -913,7 +913,7 @@ export default function Gradebook() {
         if (
           cfg.mi &&
           mitarbeitSettings.mode === 'manual' &&
-          (nd.miDirekt === undefined || nd.miDirekt === null || nd.miDirekt === '')
+          (nd.miDirekt === undefined || nd.miDirekt === null || (nd.miDirekt as any) === '')
         ) return true;
         return false;
       });
