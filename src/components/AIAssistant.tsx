@@ -19,7 +19,6 @@ import WorksheetGenerator from './WorksheetGenerator';
 import ScheduleOptimizer from './ScheduleOptimizer';
 import { StationenbetriebManager } from './StationenbetriebManager';
 import { askAI } from '../services/aiService';
-import { KI_SYSTEM_PROMPTS } from '../kiSystemPrompts';
 import { useMaterialLibrary, calculateStorageSize } from './Materialbibliothek';
 import { FAECHER_ALLE } from '../constants';
 import { LEHRPLAN_VS_2023 } from '../lehrplan';
@@ -597,7 +596,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                 <div className="flex items-center gap-1.5 whitespace-nowrap">
                   <span className={`w-1.5 h-1.5 rounded-full ${aiAvailability === 'ready' ? 'bg-emerald-500' : aiAvailability === 'missing' ? 'bg-amber-500' : aiAvailability === 'offline' ? 'bg-rose-500' : 'bg-slate-300 animate-pulse'}`} />
                   <span className="text-[0.5rem] font-black uppercase tracking-widest text-slate-400 leading-none">
-                    {aiAvailability === 'ready' ? 'KI bereit' : aiAvailability === 'missing' ? 'Nicht eingerichtet' : aiAvailability === 'offline' ? 'Verbindung unklar' : 'Prüfe Verbindung'}
+                    {aiAvailability === 'ready' ? 'KI eingerichtet' : aiAvailability === 'missing' ? 'Nicht eingerichtet' : aiAvailability === 'offline' ? 'Verbindung unklar' : 'Prüfe Verbindung'}
                   </span>
                 </div>
               </div>
@@ -836,6 +835,11 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                            <p className="text-[0.8125rem] text-slate-600 font-medium leading-relaxed">
                              Wähle eine der folgenden Vorlagen oder stelle eine eigene Frage an deinen persönlichen KI-Helfer.
                            </p>
+                           {activeTab === 'ki-recht' && (
+                             <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[0.6875rem] font-semibold leading-relaxed text-amber-800">
+                               Schulrecht kann sich ändern. Prüfe wichtige Fristen, Paragraphen und Entscheidungen zusätzlich in einer aktuellen offiziellen Quelle.
+                             </p>
+                           )}
                          </div>
 
                          {/* Recent Chats Section - Part of the Overview Enhancements */}
