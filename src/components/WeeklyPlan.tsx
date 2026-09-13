@@ -690,11 +690,9 @@ export default function WeeklyPlan() {
       const existingWp = prev.wochenplanung || {};
       const existingWeek = existingWp[targetKW] || {};
 
-      let newWeekData: Record<string, any> = {};
-
-      if (mode === 'merge') {
-        newWeekData = JSON.parse(JSON.stringify(existingWeek));
-      }
+      // Always start from the current week. "Overwrite" applies only to slots
+      // explicitly present in the import file; omitted rows must never delete lessons.
+      let newWeekData: Record<string, any> = JSON.parse(JSON.stringify(existingWeek));
 
       importedRows.forEach(row => {
         const tag = row.tag;
