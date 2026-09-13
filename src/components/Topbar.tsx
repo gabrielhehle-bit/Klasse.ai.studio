@@ -5,7 +5,7 @@ import {
   CloudSnow, CloudLightning, Wind, ChevronDown, ChevronRight, FlagTriangleLeft, 
   Wifi, WifiOff, Sparkles, Smartphone, X, Copy, Search, Maximize, Minimize, 
   Lock, ShieldAlert, ShieldCheck, ExternalLink, RefreshCw, MoreHorizontal, User, Settings,
-  Users, Plus, ToggleLeft, ToggleRight, Info, Eye, CalendarDays, LogOut, Heart, Bug,
+  Users, Plus, Info, Eye, CalendarDays, LogOut, Heart, Bug,
   Bold, Italic, Save, Sliders
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -72,16 +72,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   const [showWeatherDetails, setShowWeatherDetails] = useState(false);
   const [showSchoolYearDetails, setShowSchoolYearDetails] = useState(false);
   
-  // Einfachmodus Toggle (saved in localStorage)
-  const [simpleHeaderMode, setSimpleHeaderMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('header_simple_mode');
-    return saved !== null ? saved === 'true' : false;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('header_simple_mode', simpleHeaderMode.toString());
-  }, [simpleHeaderMode]);
-
   // State for Modals & Systems
   const [currentTime, setCurrentTime] = useState(new Date());
   const [weather, setWeather] = useState<any>(null);
@@ -331,33 +321,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
 
           {/* Rechter Bereich: Wetter & Schuljahr-Zeitdiagramm & PayPal & Fehler melden & Mehr */}
           <div className="flex items-center gap-2 sm:gap-2.5">
-            
-            {/* Fehler melden Google Sheet Link */}
-            <a
-              href="https://docs.google.com/spreadsheets/d/15bWUTQyXcJnVKkR9VlIR-h2CMJ3a8ua5GO68JT7vmDc/edit?gid=1159556393#gid=1159556393"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Fehler oder Feedback direkt in Google Sheet eintragen"
-              aria-label="Fehler in Google Sheet melden"
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-2xl text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
-            >
-              <Bug size={15} className="text-amber-500 shrink-0" />
-              <span className="hidden sm:inline">Fehler melden</span>
-            </a>
-
-            {/* PayPal Unterstützen Link */}
-            <a
-              href="https://paypal.me/gabrielhehle"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="LehrerAPP freiwillig unterstützen"
-              aria-label="LehrerAPP freiwillig unterstützen"
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-2xl text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
-            >
-              <Heart size={15} className="text-rose-500 fill-rose-500/20 shrink-0" />
-              <span className="hidden xs:inline">Unterstützen</span>
-            </a>
-
             {/* Speichern Button */}
             <Button
               variant="primary"
@@ -588,6 +551,33 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                       </button>
                     </div>
 
+                    {/* Hilfe & Feedback */}
+                    <div className="space-y-1.5">
+                      <div className="text-[0.5625rem] font-bold uppercase tracking-widest text-[var(--text-muted)] px-1">
+                        Hilfe &amp; Feedback
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <a
+                          href="https://docs.google.com/spreadsheets/d/15bWUTQyXcJnVKkR9VlIR-h2CMJ3a8ua5GO68JT7vmDc/edit?gid=1159556393#gid=1159556393"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-1.5 p-2.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-xl text-xs font-bold text-[var(--text-primary)] transition-colors"
+                        >
+                          <Bug size={14} className="text-amber-500" />
+                          Fehler melden
+                        </a>
+                        <a
+                          href="https://paypal.me/gabrielhehle"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-1.5 p-2.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-xl text-xs font-bold text-[var(--text-primary)] transition-colors"
+                        >
+                          <Heart size={14} className="text-rose-500" />
+                          Unterstützen
+                        </a>
+                      </div>
+                    </div>
+
                     {/* Dashboard: Struktur & Vorschau-Zeiten */}
                     <div className="space-y-1.5">
                       <div className="text-[0.5625rem] font-bold uppercase tracking-widest text-[var(--text-muted)] px-1">
@@ -609,24 +599,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                           <span>Struktur &amp; Vorschau-Zeiten</span>
                         </div>
                         <ChevronRight size={14} className="text-[var(--text-muted)] shrink-0" />
-                      </button>
-                    </div>
-
-                    {/* Header Modus Umschalter (Einfachmodus Toggle) */}
-                    <div className="bg-[var(--surface-subtle,var(--surface2))] p-2.5 rounded-2xl border border-[var(--border-default,var(--border))] flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Eye size={15} className="text-[var(--accent)]" />
-                        <div>
-                          <div className="text-xs font-bold text-[var(--text-primary)]">Einfachmodus</div>
-                          <div className="text-[0.625rem] font-medium text-[var(--text-muted)]">Header auf 4 Elemente beschränken</div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setSimpleHeaderMode(!simpleHeaderMode)}
-                        className={`p-1 rounded-xl transition-colors cursor-pointer ${simpleHeaderMode ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
-                        title={simpleHeaderMode ? "Einfachmodus deaktivieren" : "Einfachmodus aktivieren"}
-                      >
-                        {simpleHeaderMode ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
                       </button>
                     </div>
 
