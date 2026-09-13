@@ -196,6 +196,7 @@ export default function Gradebook() {
   const [sortBy, setSortBy] = useState<'name' | 'avg' | 'triage'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [filterMissing, setFilterMissing] = useState(false);
+  const [showHueSettings, setShowHueSettings] = useState(false);
   const [isolatedCol, setIsolatedCol] = useState<{typ: 'sa'|'lzk'|'wp'|'obj', idx: number} | null>(null);
   const [editingAssessmentModal, setEditingAssessmentModal] = useState<{
     typ: 'sa' | 'lzk' | 'wp' | 'obj';
@@ -538,6 +539,26 @@ export default function Gradebook() {
   const [visibleLimit, setVisibleLimit] = useState(15);
   const sentinelRef = useRef<HTMLTableRowElement | null>(null);
 
+  const focusQuickEntry = (kind: 'mitarbeit' | 'hue', currentIndex: number, direction: 1 | -1) => {
+    const targetIndex = currentIndex + direction;
+    const target = document.querySelector<HTMLElement>(
+      `[data-quick-entry="${kind}"][data-student-index="${targetIndex}"]`
+    );
+    target?.focus();
+  };
+
+  const handleQuickEntryKey = (
+    event: React.KeyboardEvent<HTMLElement>,
+    kind: 'mitarbeit' | 'hue',
+    currentIndex: number
+  ) => {
+    const backward = event.key === 'ArrowUp' || (event.key === 'Enter' && event.shiftKey);
+    const forward = event.key === 'ArrowDown' || (event.key === 'Enter' && !event.shiftKey);
+    if (!backward && !forward) return;
+    event.preventDefault();
+    focusQuickEntry(kind, currentIndex, backward ? -1 : 1);
+  };
+
   useEffect(() => {
     setVisibleLimit(20);
   }, [activeFach, activeView, sortBy, sortOrder]);
@@ -654,17 +675,22 @@ export default function Gradebook() {
         }
         return false;
       };
-      const isMissing = (cfg.sa && hasMissing(nd.sa || [], cfg.saCount)) || 
+      const manualMitarbeitMissing =
+        cfg.mi &&
+        mitarbeitSettings.mode === 'manual' &&
+        (nd.miDirekt === undefined || nd.miDirekt === null || nd.miDirekt === '');
+      const isMissing = (cfg.sa && hasMissing(nd.sa || [], cfg.saCount)) ||
                         (cfg.lzk && hasMissing(nd.lzk || [], colCounts.lzk)) ||
                         (cfg.wp && hasMissing(nd.wp || [], colCounts.wp)) ||
-                        (cfg.obj && hasMissing(nd.aufgaben || [], colCounts.obj));
+                        (cfg.obj && hasMissing(nd.aufgaben || [], colCounts.obj)) ||
+                        manualMitarbeitMissing;
       if (isMissing) {
         count++;
       }
     });
 
     return count;
-  }, [app.schueler, app.noten, activeFach, sem, colCounts]);
+  }, [app.schueler, app.noten, activeFach, sem, colCounts, cfg, mitarbeitSettings.mode]);
 
   const hasAnyAssessment = useMemo(() => {
     return (app.schueler || []).some((student) => {
@@ -867,7 +893,9 @@ export default function Gradebook() {
       };
     });
 
-    if (filterMissing) {
+    // "Unvollständig" is a grade-entry aid only. It must never hide children in
+    // the fast Mitarbeit/Hausübung views.
+    if (filterMissing && activeView === 'noten') {
       list = list.filter(s => {
         const nd = app?.noten?.[s.id]?.[activeFach]?.[sem];
         if (!nd) return true; // entirely missing
@@ -880,6 +908,13 @@ export default function Gradebook() {
         };
         if (cfg.sa && hasMissing(nd.sa || [], cfg.saCount)) return true;
         if (cfg.lzk && hasMissing(nd.lzk || [], colCounts.lzk)) return true;
+        if (cfg.wp && hasMissing(nd.wp || [], colCounts.wp)) return true;
+        if (cfg.obj && hasMissing(nd.aufgaben || [], colCounts.obj)) return true;
+        if (
+          cfg.mi &&
+          mitarbeitSettings.mode === 'manual' &&
+          (nd.miDirekt === undefined || nd.miDirekt === null || nd.miDirekt === '')
+        ) return true;
         return false;
       });
     }
@@ -919,7 +954,7 @@ export default function Gradebook() {
       }
       return 0;
     });
-  }, [app.schueler, app.noten, activeFach, sem, sortBy, sortOrder, filterMissing, cfg, colCounts, assessmentMode]);
+  }, [app.schueler, app.noten, activeFach, sem, sortBy, sortOrder, filterMissing, cfg, colCounts, assessmentMode, activeView, mitarbeitSettings.mode]);
 
   const columnAverages = useMemo(() => {
     const results: Record<string, { avg: number | null }> = {};
@@ -2126,6 +2161,9 @@ export default function Gradebook() {
                                               <button
                                                 key={n}
                                                 onClick={() => setMIDirekt(s.id, n.toString())}
+                                                onKeyDown={(event) => handleQuickEntryKey(event, 'mitarbeit', idx)}
+                                                data-quick-entry={n === 1 ? 'mitarbeit' : undefined}
+                                                data-student-index={n === 1 ? idx : undefined}
                                                 className={`font-black transition-all transform active:scale-95 ${zoomLevel === 'compact' ? 'w-7 h-7 text-[0.75rem] rounded-md' : zoomLevel === 'large' ? 'w-11 h-11 text-[1rem] rounded-xl' : 'w-9 h-9 text-[0.875rem] rounded-lg'} ${String(currentMIDirekt) === String(n) ? (n === 1 ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-100' : n === 2 ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-100' : n === 3 ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-100' : n === 4 ? 'bg-orange-500 text-white shadow-sm ring-2 ring-orange-100' : 'bg-red-500 text-white shadow-sm ring-2 ring-red-100') : 'bg-white text-slate-500 hover:text-slate-800 hover:shadow-3xs border border-slate-150'}`}
                                               >
                                                 {n}
@@ -2165,6 +2203,9 @@ export default function Gradebook() {
                                                   min="0"
                                                   value={val || ''}
                                                   onChange={(e) => setMIVal(s.id, e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
+                                                  onKeyDown={(event) => handleQuickEntryKey(event, 'mitarbeit', idx)}
+                                                  data-quick-entry="mitarbeit"
+                                                  data-student-index={idx}
                                                   className={`bg-transparent outline-none font-black ${currentSymbol.color} tabular-nums leading-none tracking-tight appearance-none p-0 m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${zoomLevel === 'compact' ? 'w-[32px] text-[1.125rem]' : zoomLevel === 'large' ? 'w-[52px] text-[1.875rem]' : 'w-[40px] text-[1.5rem]'}`}
                                                   placeholder="0"
                                                 />
@@ -2257,7 +2298,17 @@ export default function Gradebook() {
                   </p>
                </div>
                
-               <div className="flex flex-wrap items-center gap-2.5">
+               <div className="flex flex-col xl:items-end gap-2.5">
+                 <button
+                   type="button"
+                   onClick={() => setShowHueSettings(prev => !prev)}
+                   aria-expanded={showHueSettings}
+                   className="px-3.5 py-2 bg-white border border-rose-200 text-rose-800 rounded-xl text-[0.625rem] font-black uppercase tracking-wider shadow-3xs hover:bg-rose-50 active:scale-95 transition-all"
+                 >
+                   {showHueSettings ? 'HÜ-Einstellungen schließen' : 'HÜ-Einstellungen'}
+                 </button>
+                 {showHueSettings && (
+                 <div className="flex flex-wrap items-center justify-end gap-2.5">
                  {/* Mode Toggle */}
                  <div className="flex bg-rose-100/70 p-1 rounded-xl">
                    <button
@@ -2385,6 +2436,7 @@ export default function Gradebook() {
                      Gewichten
                    </button>
                  </div>
+                 )}
                </div>
             </div>
 
@@ -2439,6 +2491,9 @@ export default function Gradebook() {
                                 value={hasHueTracking ? val : ''}
                                 placeholder="0"
                                 onChange={(e) => setHUEVal(s.id, e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
+                                onKeyDown={(event) => handleQuickEntryKey(event, 'hue', idx)}
+                                data-quick-entry="hue"
+                                data-student-index={idx}
                                 className={`text-center font-black bg-rose-50/70 border border-rose-200 rounded-xl py-1 text-rose-700 outline-none focus:bg-white focus:border-rose-400 shadow-3xs ${zoomLevel === 'compact' ? 'w-12 text-[0.8125rem]' : zoomLevel === 'large' ? 'w-20 text-[1.25rem]' : 'w-16 text-[1rem]'}`}
                               />
 
