@@ -47,6 +47,13 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const [anrede, setAnrede] = useState(app.anrede || legacyTeacherParts.anrede);
   const [vorname, setVorname] = useState(app.vorname || legacyTeacherParts.vorname);
   const [nachname, setNachname] = useState(app.nachname || legacyTeacherParts.nachname);
+  const applyTeacherName = (value: string) => {
+    setLehrerName(value);
+    const parsed = parseLegacyTeacherName(value);
+    setAnrede(parsed.anrede);
+    setVorname(parsed.vorname);
+    setNachname(parsed.nachname);
+  };
   const [schulName, setSchulName] = useState(app.schulName || '');
   const [schulkennzahl, setSchulkennzahl] = useState(app.schulkennzahl || '');
   const [schulOrt, setSchulOrt] = useState(app.schulOrt || '');
@@ -822,7 +829,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
             setStudentsList(importedStudents);
             if (meta?.klasse) setKlassenbezeichnung(meta.klasse);
             if (meta?.schuljahr) setSchuljahr(meta.schuljahr);
-            if (meta?.lehrerName) setLehrerName(meta.lehrerName);
+            if (meta?.lehrerName) applyTeacherName(meta.lehrerName);
             if (meta?.schulName) setSchulName(meta.schulName);
             if (meta?.schulkennzahl) setSchulkennzahl(meta.schulkennzahl);
             setActiveInputMode('manual');
@@ -1760,7 +1767,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
             mergeStudents(importedStudents);
             if (meta?.klasse) setKlassenbezeichnung(meta.klasse);
             if (meta?.schuljahr) setSchuljahr(meta.schuljahr);
-            if (meta?.lehrerName) setLehrerName(meta.lehrerName);
+            if (meta?.lehrerName) applyTeacherName(meta.lehrerName);
             if (meta?.schulName) setSchulName(meta.schulName);
             if (meta?.schulkennzahl) setSchulkennzahl(meta.schulkennzahl);
             setActiveInputMode('manual');
