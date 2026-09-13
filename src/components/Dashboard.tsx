@@ -533,7 +533,7 @@ const ClosedEventsWidget: React.FC<EventsWidgetProps> = ({
   for (let d = 0; d <= 30; d++) {
     const testDate = new Date(today);
     testDate.setDate(today.getDate() + d);
-    const hName = isHoliday(testDate, [], 'VBG');
+    const hName = isHoliday(testDate, app?.calendarSettings?.disabledHolidays || [], app?.bundesland || 'VBG');
     if (hName) {
       const exists = allEvents.some(
         (e) => e.type === "holiday" && e.name === `🏝️ Feiertag: ${hName}`
@@ -2263,7 +2263,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const list: Array<{ type: string; title: string; desc?: string; color: string }> = [];
 
     // 1. Is it a holiday?
-    const hName = isHoliday(scheduleDatum, [], 'VBG');
+    const hName = isHoliday(scheduleDatum, app?.calendarSettings?.disabledHolidays || [], app?.bundesland || 'VBG');
     if (hName) {
       list.push({
         type: "holiday",
@@ -2490,7 +2490,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         </span>
       );
     const firstId = Math.min(...stundenIds);
-    const startTime = (app.stundenZeiten || STUNDEN_INFO)[firstId + 1]?.split("–")[0] || "";
+    const startTime = (app.stundenZeiten || STUNDEN_INFO)[firstId]?.split("–")[0] || "";
     return (
       <span className="text-stone-400 text-[0.875rem] leading-snug">
         Du hast heute {count} Stunden Unterricht, erste Stunde beginnt um{" "}
@@ -2924,7 +2924,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const tomorrow = new Date(scheduleDatum);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const list: Array<{ title: string; subtitle?: string; type: string }> = [];
-    const hName = isHoliday(tomorrow, [], 'VBG');
+    const hName = isHoliday(tomorrow, app?.calendarSettings?.disabledHolidays || [], app?.bundesland || 'VBG');
     if (hName) {
       list.push({ title: `🏝️ Feiertag: ${hName}`, subtitle: "Schulfreier Tag", type: "Feiertag" });
     }
@@ -3070,7 +3070,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     for (let d = 0; d <= 14; d++) {
       const testDate = new Date(heute);
       testDate.setDate(heute.getDate() + d);
-      const hName = isHoliday(testDate, [], 'VBG');
+      const hName = isHoliday(testDate, app?.calendarSettings?.disabledHolidays || [], app?.bundesland || 'VBG');
       if (hName) {
         const exists = events.some(
           (e) => e.source === "holiday" && e.text === `Feiertag: ${hName}`
