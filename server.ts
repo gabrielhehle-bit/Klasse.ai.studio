@@ -2,6 +2,7 @@ import { escapeHtml, scriptJson, createOAuthState, verifyOAuthState } from './sr
 import express from "express";
 import path from "path";
 import crypto from "crypto";
+import nodemailer from "nodemailer";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { KI_SYSTEM_PROMPTS, GLOBAL_KI_RULES } from "./src/kiSystemPrompts.ts";
@@ -46,6 +47,17 @@ function validateProductionEnvironment() {
 
   if (!process.env.MICROSOFT_CLIENT_ID || !process.env.MICROSOFT_CLIENT_SECRET) {
     console.warn("[KONFIGURATIONSHINWEIS] Microsoft OneDrive Secrets sind nicht vollständig konfiguriert. Cloud-Backups sind im Client deaktiviert.");
+  }
+
+  const wantsEmailLogin = Boolean(process.env.SMTP_HOST || process.env.SMTP_FROM || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS);
+  if (wantsEmailLogin) {
+    const domains = (process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean);
+    if (!process.env.SMTP_HOST || !process.env.SMTP_FROM || domains.length === 0) {
+      console.warn("[KONFIGURATIONSHINWEIS] E-Mail-Login ist nur aktiv, wenn SMTP_HOST, SMTP_FROM und LEHRERAPP_ALLOWED_EMAIL_DOMAINS gesetzt sind.");
+    }
   }
 }
 
@@ -144,6 +156,63 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const ACCESS_TEAM_CODE = (process.env.LEHRERAPP_ACCESS_TEAM || (process.env.NODE_ENV === "production" ? "" : "team2026")).trim();
   const ACCESS_EXTERNAL_CODE = (process.env.LEHRERAPP_ACCESS_EXTERNAL || (process.env.NODE_ENV === "production" ? "" : "gast2026")).trim();
 
+  const SMTP_HOST = (process.env.SMTP_HOST || '').trim();
+  const SMTP_PORT = Math.max(1, Number(process.env.SMTP_PORT || 587) || 587);
+  const SMTP_SECURE = (process.env.SMTP_SECURE || '').trim().toLowerCase() === 'true' || SMTP_PORT === 465;
+  const SMTP_USER = (process.env.SMTP_USER || '').trim();
+  const SMTP_PASS = process.env.SMTP_PASS || '';
+  const SMTP_FROM = (process.env.SMTP_FROM || '').trim();
+  const ALLOWED_EMAIL_DOMAINS = (process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
+    .split(',')
+    .map(value => value.trim().toLowerCase().replace(/^@/, ''))
+    .filter(Boolean);
+  const emailLoginEnabled = Boolean(SMTP_HOST && SMTP_FROM && ALLOWED_EMAIL_DOMAINS.length > 0);
+  const mailTransporter = emailLoginEnabled
+    ? nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_SECURE,
+        ...(SMTP_USER && SMTP_PASS ? { auth: { user: SMTP_USER, pass: SMTP_PASS } } : {})
+      })
+    : null;
+
+  type EmailAccessChallenge = {
+    codeHash: string;
+    expiresAt: number;
+    attempts: number;
+    lastSentAt: number;
+  };
+  const emailAccessChallenges = new Map<string, EmailAccessChallenge>();
+  const emailRequestThrottle = new Map<string, number>();
+
+  function normalizeEmail(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const normalized = value.trim().toLowerCase();
+    if (normalized.length < 5 || normalized.length > 254) return null;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
+    return normalized;
+  }
+
+  function isAllowedEmail(email: string): boolean {
+    const domain = email.split('@')[1] || '';
+    return ALLOWED_EMAIL_DOMAINS.some(allowed => domain === allowed || domain.endsWith('.' + allowed));
+  }
+
+  function hashEmailCode(email: string, code: string): string {
+    return crypto
+      .createHmac('sha256', SESSION_SECRET)
+      .update('klassio-email-access:' + email + ':' + code)
+      .digest('hex');
+  }
+
+  function maskEmail(email: string): string {
+    const parts = email.split('@');
+    const local = parts[0] || '';
+    const domain = parts[1] || '';
+    const visible = local.length <= 2 ? local.slice(0, 1) : local.slice(0, 2);
+    return visible + '*'.repeat(Math.max(2, Math.min(8, local.length - visible.length))) + '@' + domain;
+  }
+
   function parseCookies(req: express.Request): Record<string, string> {
     const list: Record<string, string> = {};
     const rc = req.headers.cookie;
@@ -183,6 +252,18 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     }
   }
 
+  function setAccessSession(req: express.Request, res: express.Response): string {
+    const token = createAccessToken();
+    const isProd = process.env.NODE_ENV === 'production';
+    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+    const secureFlag = (isProd || isSecure) ? '; Secure' : '';
+    res.setHeader(
+      'Set-Cookie',
+      'lehrerapp_access_token=' + token + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureFlag
+    );
+    return token;
+  }
+
   const failedLoginAttempts = new Map<string, { count: number; resetAt: number }>();
 
   function checkRateLimit(ip: string): { allowed: boolean; waitSeconds?: number } {
@@ -216,7 +297,99 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const cookies = parseCookies(req);
     const token = cookies.lehrerapp_access_token || (req.headers.authorization ? req.headers.authorization.replace('Bearer ', '') : undefined);
     const isValid = verifyAccessToken(token);
-    res.json({ authenticated: isValid });
+    res.json({ authenticated: isValid, emailLoginEnabled });
+  });
+
+  app.post("/api/access/email/request", async (req, res) => {
+    if (!emailLoginEnabled || !mailTransporter) {
+      return res.status(503).json({ success: false, error: 'E-Mail-Anmeldung ist auf diesem Server noch nicht konfiguriert.' });
+    }
+
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const email = normalizeEmail(req.body?.email);
+    if (!email || !isAllowedEmail(email)) {
+      return res.status(400).json({ success: false, error: 'Diese E-Mail-Adresse ist für Klassio nicht freigeschaltet.' });
+    }
+
+    const throttleKey = ip + ':' + email;
+    const now = Date.now();
+    const lastRequest = emailRequestThrottle.get(throttleKey) || 0;
+    const retryAfterMs = 60_000 - (now - lastRequest);
+    if (retryAfterMs > 0) {
+      return res.status(429).json({
+        success: false,
+        error: 'Bitte warte noch ' + Math.ceil(retryAfterMs / 1000) + ' Sekunden, bevor du einen neuen Code anforderst.'
+      });
+    }
+
+    const code = crypto.randomInt(100000, 1000000).toString();
+    emailAccessChallenges.set(email, {
+      codeHash: hashEmailCode(email, code),
+      expiresAt: now + 10 * 60 * 1000,
+      attempts: 0,
+      lastSentAt: now
+    });
+    emailRequestThrottle.set(throttleKey, now);
+
+    try {
+      await mailTransporter.sendMail({
+        from: SMTP_FROM,
+        to: email,
+        subject: 'Dein Klassio-Anmeldecode',
+        text: 'Dein Klassio-Anmeldecode lautet: ' + code + '\n\nDer Code ist 10 Minuten gültig. Wenn du diese Anmeldung nicht angefordert hast, kannst du diese Nachricht ignorieren.',
+        html: '<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#0f172a"><h2>Klassio</h2><p>Dein Anmeldecode:</p><div style="font-size:34px;font-weight:800;letter-spacing:8px;padding:18px 20px;background:#f1f5f9;border-radius:14px;text-align:center">' + code + '</div><p style="color:#64748b">Der Code ist 10 Minuten gültig. Wenn du diese Anmeldung nicht angefordert hast, kannst du diese Nachricht ignorieren.</p></div>'
+      });
+      return res.json({ success: true, maskedEmail: maskEmail(email), expiresInSeconds: 600 });
+    } catch (error) {
+      emailAccessChallenges.delete(email);
+      console.error('[Access] E-Mail-Code konnte nicht versendet werden:', error);
+      return res.status(502).json({ success: false, error: 'Der Anmeldecode konnte nicht versendet werden. Bitte später erneut versuchen.' });
+    }
+  });
+
+  app.post("/api/access/email/verify", (req, res) => {
+    if (!emailLoginEnabled) {
+      return res.status(503).json({ success: false, error: 'E-Mail-Anmeldung ist auf diesem Server noch nicht konfiguriert.' });
+    }
+
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const rateLimit = checkRateLimit(ip);
+    if (!rateLimit.allowed) {
+      return res.status(429).json({ success: false, error: 'Zu viele Versuche. Bitte warte ' + rateLimit.waitSeconds + ' Sekunden.' });
+    }
+
+    const email = normalizeEmail(req.body?.email);
+    const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+    if (!email || !/^\d{6}$/.test(code) || !isAllowedEmail(email)) {
+      recordFailedAttempt(ip);
+      return res.status(400).json({ success: false, error: 'E-Mail-Adresse oder Anmeldecode ist ungültig.' });
+    }
+
+    const challenge = emailAccessChallenges.get(email);
+    if (!challenge || challenge.expiresAt < Date.now()) {
+      emailAccessChallenges.delete(email);
+      recordFailedAttempt(ip);
+      return res.status(400).json({ success: false, error: 'Der Anmeldecode ist abgelaufen. Bitte fordere einen neuen Code an.' });
+    }
+    if (challenge.attempts >= 5) {
+      emailAccessChallenges.delete(email);
+      recordFailedAttempt(ip);
+      return res.status(429).json({ success: false, error: 'Zu viele Fehlversuche. Bitte fordere einen neuen Code an.' });
+    }
+
+    challenge.attempts += 1;
+    const expected = Buffer.from(challenge.codeHash, 'hex');
+    const received = Buffer.from(hashEmailCode(email, code), 'hex');
+    const matches = expected.length === received.length && crypto.timingSafeEqual(expected, received);
+    if (!matches) {
+      recordFailedAttempt(ip);
+      return res.status(401).json({ success: false, error: 'Der Anmeldecode ist nicht gültig.' });
+    }
+
+    emailAccessChallenges.delete(email);
+    resetFailedAttempts(ip);
+    setAccessSession(req, res);
+    return res.json({ success: true });
   });
 
   app.post("/api/access/verify", (req, res) => {
@@ -241,11 +414,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
     if (isTeam || isExternal) {
       resetFailedAttempts(ip);
-      const token = createAccessToken();
-      const isProd = process.env.NODE_ENV === 'production';
-      const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-      const secureFlag = (isProd || isSecure) ? '; Secure' : '';
-      res.setHeader('Set-Cookie', `lehrerapp_access_token=${token}; Max-Age=${30 * 24 * 60 * 60}; Path=/; HttpOnly; SameSite=Lax${secureFlag}`);
+      const token = setAccessSession(req, res);
       return res.json({ success: true, token });
     } else {
       recordFailedAttempt(ip);
@@ -264,7 +433,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const requireAccess: express.RequestHandler = (req, res, next) => {
     const token = parseCookies(req).lehrerapp_access_token;
     if (!verifyAccessToken(token)) {
-      res.status(401).json({ error: 'Bitte zuerst mit dem Zugangscode anmelden.' });
+      res.status(401).json({ error: 'Bitte zuerst bei Klassio anmelden.' });
       return;
     }
     next();
