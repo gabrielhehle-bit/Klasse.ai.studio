@@ -2824,17 +2824,29 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     });
   }, [app?.anwesenheit, app?.schueler, heute]);
 
+  const actualTodayTagName = getTodayName(heute);
+  const todayActiveHours: number[] = actualTodayTagName ? (app?.tageplan?.[actualTodayTagName]?.stunden || []) : [];
+  const todayHolidayName = isHoliday(
+    heute,
+    app?.calendarSettings?.disabledHolidays || [],
+    app?.bundesland || "VBG",
+  );
+  const attendanceRequiredToday =
+    (app?.schueler || []).length > 0 &&
+    !isWeekend &&
+    !todayHolidayName &&
+    todayActiveHours.length > 0;
+
   const attendanceRecordedToday = React.useMemo(() => {
     const students = app?.schueler || [];
-    const activeHours: number[] = tagName ? (app?.tageplan?.[tagName]?.stunden || []) : [];
-    if (students.length === 0 || activeHours.length === 0) return false;
+    if (!attendanceRequiredToday) return false;
 
     const todayStrFull = heute.toISOString().split("T")[0];
     return students.every((student) => {
       const record = app?.anwesenheit?.[student.id]?.[todayStrFull] || {};
-      return activeHours.every((hour) => Boolean(record[hour]));
+      return todayActiveHours.every((hour) => Boolean(record[hour]));
     });
-  }, [app?.anwesenheit, app?.schueler, app?.tageplan, tagName, heute]);
+  }, [app?.anwesenheit, app?.schueler, attendanceRequiredToday, todayActiveHours, heute]);
 
   const [simpleDashboardMode, setSimpleDashboardMode] = useState<boolean>(() => {
     const saved = localStorage.getItem("dashboard_simple_mode");
@@ -4518,6 +4530,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         absentCount={missingToday.length}
         presentCount={Math.max(0, (app?.schueler || []).length - missingToday.length)}
         attendanceRecorded={attendanceRecordedToday}
+        attendanceRequired={attendanceRequiredToday}
 
         todayLessonCount={todayLessonsList.length}
         currentLesson={currentHourData}
