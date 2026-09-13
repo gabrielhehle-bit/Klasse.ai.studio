@@ -65,4 +65,30 @@ jobs:
           grep -q '"status":"ok"' /tmp/health.json
           curl --fail --silent http://127.0.0.1:3100/ > /tmp/index.html
           grep -qi '<!doctype html' /tmp/index.html
-          echo "Production server smoke test passed."
+
+          curl --fail --silent http://127.0.0.1:3100/api/access/status > /tmp/access-before.json
+          grep -q '"authenticated":false' /tmp/access-before.json
+          grep -q '"emailLoginEnabled":false' /tmp/access-before.json
+
+          curl --fail --silent \
+            -c /tmp/klassio-cookies.txt \
+            -H 'Content-Type: application/json' \
+            -d '{"code":"ci-team-access-code-2026"}' \
+            http://127.0.0.1:3100/api/access/verify > /tmp/access-login.json
+          grep -q '"success":true' /tmp/access-login.json
+
+          curl --fail --silent \
+            -b /tmp/klassio-cookies.txt \
+            http://127.0.0.1:3100/api/access/status > /tmp/access-after.json
+          grep -q '"authenticated":true' /tmp/access-after.json
+
+          EMAIL_STATUS=$(curl --silent \
+            -o /tmp/email-disabled.json \
+            -w '%{http_code}' \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"teacher@example.at"}' \
+            http://127.0.0.1:3100/api/access/email/request)
+          test "$EMAIL_STATUS" = "503"
+          grep -q '"success":false' /tmp/email-disabled.json
+
+          echo "Production server, access session and email-login fallback smoke tests passed."
