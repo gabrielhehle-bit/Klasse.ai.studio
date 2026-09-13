@@ -363,7 +363,7 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
 
           <button
             type="button"
-            onClick={() => onNavigate(openCollectionsCount > 0 ? "geldsammlung" : "orga")}
+            onClick={() => onNavigate("orga")}
             className="mt-4 w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
           >
             <ListTodo size={14} />
