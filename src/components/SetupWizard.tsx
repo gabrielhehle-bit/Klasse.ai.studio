@@ -2,8 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import LZString from 'lz-string';
 import { getCurrentSchuljahr } from '../lib/utils';
-import { createBeispielklasse } from '../data/beispielklasse';
-import { FAECHER_ALLE, DEFAULT_TAGEPLAN, DEFAULT_FACH_COLORS, STUNDEN_INFO, TAGE_NAMEN, STUNDENTAFEL, AESTHETIC_THEMES, FONTS, DEUTSCH_UNTERFAECHER } from '../constants';
+import { FAECHER_ALLE, DEFAULT_TAGEPLAN, DEFAULT_FACH_COLORS, STUNDEN_INFO, TAGE_NAMEN, STUNDENTAFEL, DEUTSCH_UNTERFAECHER } from '../constants';
 import { 
   GraduationCap, Users, Clock, Calendar, 
   Sparkles, User, Palette, Check, Trash2, Upload, AlertCircle, Play, Edit3, FileUp,
@@ -195,10 +194,6 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     root.setAttribute('data-zoom', zoomLevel);
   }, [theme, fontFamily, uiScale]);
 
-  const COLORS = [
-    'slate', 'stone', 'red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose'
-  ];
-
   const triggerBackupSelect = () => { fileInputRef.current?.click(); };
   const handleBackupImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -332,7 +327,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     const finalStudents = overrideStudents !== undefined ? overrideStudents : studentsList;
     if (!klassenbezeichnung.trim()) {
       setShowMissingKlassenbezeichnung(true);
-      const classStepIdx = STEPS.findIndex(s => s.title === 'Klasse & Theme');
+      const classStepIdx = STEPS.findIndex(s => s.title === 'Klasse');
       if (currStep !== classStepIdx && classStepIdx !== -1) setCurrStep(classStepIdx);
       return;
     }
@@ -544,14 +539,14 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   };
 
   const expertSteps = isEditing
-    ? [ { title: 'Profil & Schule', icon: User }, { title: 'Klasse & Theme', icon: GraduationCap }, { title: 'Fächer', icon: Palette }, { title: 'Stundenplan', icon: Calendar }, { title: 'Schüler', icon: Users }, { title: 'Übersicht', icon: ListChecks } ]
+    ? [ { title: 'Profil & Schule', icon: User }, { title: 'Klasse', icon: GraduationCap }, { title: 'Fächer', icon: Palette }, { title: 'Stundenplan', icon: Calendar }, { title: 'Schüler', icon: Users }, { title: 'Übersicht', icon: ListChecks } ]
     : isNewClass
-      ? [ { title: 'Klasse & Theme', icon: GraduationCap }, { title: 'Fächer', icon: Palette }, { title: 'Stundenplan', icon: Calendar }, { title: 'Schüler', icon: Users }, { title: 'Übersicht', icon: ListChecks } ]
-      : [ { title: 'Start', icon: Sparkles }, { title: 'Profil & Schule', icon: User }, { title: 'Klasse & Theme', icon: GraduationCap }, { title: 'Fächer', icon: Palette }, { title: 'Stundenplan', icon: Calendar }, { title: 'Schüler', icon: Users }, { title: 'Übersicht', icon: ListChecks } ];
+      ? [ { title: 'Klasse', icon: GraduationCap }, { title: 'Fächer', icon: Palette }, { title: 'Stundenplan', icon: Calendar }, { title: 'Schüler', icon: Users }, { title: 'Übersicht', icon: ListChecks } ]
+      : [ { title: 'Start', icon: Sparkles }, { title: 'Profil & Schule', icon: User }, { title: 'Klasse', icon: GraduationCap }, { title: 'Fächer', icon: Palette }, { title: 'Stundenplan', icon: Calendar }, { title: 'Schüler', icon: Users }, { title: 'Übersicht', icon: ListChecks } ];
   const quickSteps = [
     { title: 'Start', icon: Sparkles },
     { title: 'Profil & Schule', icon: User },
-    { title: 'Klasse & Theme', icon: GraduationCap },
+    { title: 'Klasse', icon: GraduationCap },
     { title: 'Schüler', icon: Users },
     { title: 'Übersicht', icon: ListChecks }
   ];
@@ -592,7 +587,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
 
   const handleStepClick = (idx: number) => {
     if (idx === currStep) return;
-    const classStepIdx = STEPS.findIndex(s => s.title === 'Klasse & Theme');
+    const classStepIdx = STEPS.findIndex(s => s.title === 'Klasse');
     // Any jump beyond the class step requires a class name, even when the user
     // navigates there from an earlier step via the progress indicator.
     if (classStepIdx !== -1 && idx > classStepIdx && !klassenbezeichnung.trim()) {
@@ -605,7 +600,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   };
 
   const nextStep = () => {
-    const classStepIdx = STEPS.findIndex(s => s.title === 'Klasse & Theme');
+    const classStepIdx = STEPS.findIndex(s => s.title === 'Klasse');
     if (currStep === classStepIdx && !klassenbezeichnung.trim()) {
       setShowMissingKlassenbezeichnung(true);
       return;
@@ -631,8 +626,6 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     setApp((prev: any) => ({ ...prev, currentPage: 'dashboard' }));
     onComplete();
   };
-
-  const [activeColorPicker, setActiveColorPicker] = useState<string | null>(null);
 
   const getSubjectCount = (fach: string) => {
     let count = 0;
@@ -733,6 +726,25 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     const active = new Set<number>(tageplan[tag]?.stunden || []);
     return sum + Object.entries(stammplan[tag] || {}).filter(([hour, subject]) => active.has(Number(hour)) && Boolean(subject)).length;
   }, 0);
+  const schoolYearOptions = React.useMemo(() => {
+    const current = getCurrentSchuljahr();
+    const startYear = Number(current.slice(0, 4));
+    const options = Number.isFinite(startYear)
+      ? Array.from({ length: 5 }, (_, index) => {
+          const year = startYear + index;
+          return `${year}/${String((year + 1) % 100).padStart(2, '0')}`;
+        })
+      : [current];
+    if (schuljahr && !options.includes(schuljahr)) options.unshift(schuljahr);
+    return options;
+  }, [schuljahr]);
+
+  const wizardTitle = isNewClass
+    ? 'Neue Klasse'
+    : isEditing
+      ? 'Klassen-Einstellungen'
+      : 'Klassio einrichten';
+
   const setupWarnings = [
     studentsList.length === 0 ? 'Noch keine Schüler:innen angelegt – das kannst du später nachholen.' : null,
     assignedLessonSlots === 0 ? 'Noch kein Stammstundenplan ausgefüllt.' : null,
@@ -788,7 +800,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
         {/* HEADER */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 border-b border-slate-100 bg-white sticky top-0 z-50 shrink-0 gap-4">
           <div>
-            <h2 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">Klassen-Einstellungen</h2>
+            <h2 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">{wizardTitle}</h2>
             <p className="text-[0.75rem] leading-tight font-medium text-slate-500 mt-1 uppercase tracking-wider">
               Schritt {currStep + 1} von {STEPS.length}: {STEPS[currStep].title}
             </p>
@@ -837,7 +849,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
         </div>
 
         {/* CONTENT */}
-        <div className="flex-1 overflow-y-auto w-full p-4 md:p-8 pb-32 soft-scrollbar relative" onClick={() => setActiveColorPicker(null)}>
+        <div className="flex-1 overflow-y-auto w-full p-4 md:p-8 pb-32 soft-scrollbar relative">
            
            {STEPS[currStep].title === 'Start' && (
               <div className="max-w-2xl mx-auto text-center space-y-8 py-8 md:py-16 bg-emerald-50/50 rounded-[32px] border border-emerald-100/50 mb-12 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
@@ -845,8 +857,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                    <Sparkles size={41} />
                  </div>
                  <div className="px-6">
-                   <h1 className="text-[1.875rem] leading-tight md:text-4xl font-black text-slate-900 tracking-tight mb-3">Willkommen bei GABIC!</h1>
-                   <p className="text-[0.875rem] font-black text-emerald-600 tracking-widest uppercase mb-4">Gabriel Intelligent Classroom</p>
+                   <h1 className="text-[1.875rem] leading-tight md:text-4xl font-black text-slate-900 tracking-tight mb-3">Willkommen bei Klassio!</h1>
+                   <p className="text-[0.875rem] font-black text-emerald-600 tracking-widest uppercase mb-4">Deine digitale Lehrermappe</p>
                    <p className="text-slate-500 font-medium max-w-lg mx-auto">Klicke auf Weiter, um deine Klasse einzurichten. Alternativ kannst du hier ein Backup hochladen, um dort weiterzumachen, wo du aufgehört hast.</p>
                  </div>
 
@@ -865,7 +877,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                      className={`p-4 rounded-2xl border-2 text-left transition-all ${setupMode === 'expert' ? 'border-indigo-500 bg-white shadow-md' : 'border-slate-200 bg-white/50 hover:border-slate-300'}`}
                    >
                      <div className="flex items-center gap-2 font-black text-slate-800"><Settings2 size={17} className="text-indigo-500" /> Vollständig einrichten</div>
-                     <p className="mt-1 text-[0.75rem] text-slate-500">Fächer, Farben und Stammstundenplan direkt konfigurieren.</p>
+                     <p className="mt-1 text-[0.75rem] text-slate-500">Fächer und Stammstundenplan direkt konfigurieren.</p>
                    </button>
                  </div>
                  
@@ -878,23 +890,6 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                        </div>
                     </button>
 
-                    <button 
-                       onClick={() => {
-                         const demoData = createBeispielklasse();
-                         setApp(prev => ({
-                           ...prev,
-                           ...demoData
-                         }));
-                         onComplete();
-                       }} 
-                       className="px-6 py-4 border-2 border-slate-200 hover:border-emerald-500 hover:bg-white bg-white/50 text-slate-700 rounded-2xl flex items-center gap-3 transition-all font-bold w-full sm:w-auto shadow-sm hover:shadow-md pointer-events-auto cursor-pointer relative z-50"
-                    >
-                       <Sparkles size={20} />
-                       <div className="text-left">
-                         <div className="text-[0.875rem] leading-snug font-black whitespace-nowrap">Beispielklasse erkunden</div>
-                         <div className="text-[0.625rem] text-slate-500 font-medium uppercase tracking-wider">Sofort ansehen ohne Setup</div>
-                       </div>
-                    </button>
                  </div>
               </div>
            )}
@@ -945,103 +940,64 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            </div>
            )}
 
-           {STEPS[currStep].title === 'Klasse & Theme' && (
-           <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
-             <div className="border-b border-slate-100 pb-2">
-                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><GraduationCap className="text-emerald-500" size={22}/> Klasse & Theme</h3>
-             </div>
-             
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-               {/* Controls */}
+           {STEPS[currStep].title === 'Klasse' && (
+             <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+               <div className="border-b border-slate-100 pb-2">
+                 <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3">
+                   <GraduationCap className="text-emerald-500" size={22}/> Klasse
+                 </h3>
+                 <p className="mt-1 text-[0.75rem] text-slate-500">
+                   Lege hier nur die Grunddaten deiner Klasse fest. Design, Schrift und Darstellung kannst du später jederzeit in den Einstellungen ändern.
+                 </p>
+               </div>
+
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-6 rounded-[24px] border border-slate-100">
-                 <div className="space-y-1.5 sm:col-span-1">
-                    <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Klassenbezeichnung *</label>
-                    <input autoFocus type="text" placeholder="z.B. 1A" value={klassenbezeichnung} onChange={e => {setKlassenbezeichnung(e.target.value); if(e.target.value.trim()) setShowMissingKlassenbezeichnung(false);}} className={`w-full px-4 py-2.5 bg-white shadow-sm border focus:ring-4 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all ${showMissingKlassenbezeichnung ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/10' : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'}`} />
-                    {showMissingKlassenbezeichnung && (
-                        <p className="text-[0.75rem] leading-tight text-rose-500 font-bold mt-1">Pflichtfeld.</p>
-                    )}
+                 <div className="space-y-1.5">
+                   <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Klassenbezeichnung *</label>
+                   <input
+                     autoFocus
+                     type="text"
+                     placeholder="z. B. 3a"
+                     value={klassenbezeichnung}
+                     onChange={e => {
+                       setKlassenbezeichnung(e.target.value);
+                       if (e.target.value.trim()) setShowMissingKlassenbezeichnung(false);
+                     }}
+                     className={`w-full px-4 py-2.5 bg-white shadow-sm border focus:ring-4 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all ${showMissingKlassenbezeichnung ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/10' : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'}`}
+                   />
+                   {showMissingKlassenbezeichnung && (
+                     <p className="text-[0.75rem] leading-tight text-rose-500 font-bold mt-1">Bitte gib eine Klassenbezeichnung ein.</p>
+                   )}
                  </div>
-                 <div className="space-y-1.5 sm:col-span-1">
-                    <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schuljahr *</label>
-                    <select 
-                      value={schuljahr} 
-                      onChange={e => setSchuljahr(e.target.value)} 
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm cursor-pointer"
-                    >
-                      <option value="2026/27">2026/27</option>
-                      <option value="2027/28">2027/28</option>
-                      <option value="2028/29">2028/29</option>
-                      <option value="2029/30">2029/30</option>
-                    </select>
-                 </div>
-                 <div className="space-y-2 sm:col-span-2">
-                    <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schulstufe *</label>
-                    <div className="grid grid-cols-5 gap-2">
-                      {[0, 1, 2, 3, 4].map(st => (
-                        <button key={st} type="button" onClick={() => setStufe(st)} className={`py-2 rounded-xl text-[0.875rem] leading-snug font-black border transition-all ${stufe === st ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/10' : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'}`}>{st === 0 ? 'V' : st+'.'}</button>
-                      ))}
-                    </div>
-                 </div>
-                 <div className="space-y-2 sm:col-span-2">
-                    <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Visuelles Theme</label>
-                    <select value={theme} onChange={e => setTheme(e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 font-semibold bg-white cursor-pointer transition-all">
-                       {AESTHETIC_THEMES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                    </select>
-                 </div>
-                 <div className="space-y-2 sm:col-span-1">
-                    <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schriftart</label>
-                    <select value={fontFamily} onChange={e => setFontFamily(e.target.value)} className="w-full px-4 py-2.5 border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 font-semibold bg-white cursor-pointer transition-all">
-                       {FONTS.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
-                    </select>
-                 </div>
-                 <div className="space-y-2 sm:col-span-1">
-                    <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">UI Größe (Zoom)</label>
-                    <select value={uiScale} onChange={e => setUiScale(Number(e.target.value))} className="w-full px-4 py-2.5 border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 font-semibold bg-white cursor-pointer transition-all">
-                       <option value={0.85}>Kompakt (Klein)</option>
-                       <option value={1}>Standard</option>
-                       <option value={1.15}>Groß</option>
-                    </select>
-                 </div>
-               </div>
 
-               {/* Live Preview */}
-               <div className="border border-slate-200 rounded-[24px]  flex flex-col bg-slate-100 shadow-inner h-full min-h-[400px] relative">
-                 <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none text-[7.5rem] font-black italic">
-                   VORSCHAU
+                 <div className="space-y-1.5">
+                   <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schuljahr *</label>
+                   <select
+                     value={schuljahr}
+                     onChange={e => setSchuljahr(e.target.value)}
+                     className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm cursor-pointer"
+                   >
+                     {schoolYearOptions.map(year => <option key={year} value={year}>{year}</option>)}
+                   </select>
                  </div>
-                 
-                 <div className="flex-1 p-6 relative z-10 transition-colors duration-300 pointer-events-none flex flex-col justify-center bg-[var(--bg)]" data-style={theme} data-theme={theme !== 'deep_dark' ? 'light' : 'dark'} style={{ zoom: uiScale, fontFamily: fontFamily === 'handwritten' ? 'Kalam, cursive' : fontFamily === 'dyslexic' ? 'Lexend, sans-serif' : fontFamily === 'elegant' ? 'Cinzel, serif' : fontFamily === 'playful' ? 'Comic Sans MS, cursive' : fontFamily === 'mono' ? 'monospace' : fontFamily === 'comfort' ? 'Comfortaa, sans-serif' : fontFamily === 'friendly' ? 'Fredoka, sans-serif' : fontFamily === 'geometric' ? 'Outfit, sans-serif' : 'DM Sans, sans-serif' }}>
-                   
-                   <div className="bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-glow)] rounded-[var(--radius-xl)] p-5 mb-5 transition-colors duration-300">
-                     <div className="flex items-center justify-between mb-4">
-                       <div>
-                         <h4 className="text-[1.25rem] leading-normal font-bold text-[var(--text)] transition-colors duration-300">Guten Morgen!</h4>
-                         <p className="text-[0.75rem] leading-tight text-[var(--text2)] font-medium mt-1 transition-colors duration-300">Willkommen in der {klassenbezeichnung || 'Klasse'}.</p>
-                       </div>
-                       <div className="w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300" style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>
-                         <Sparkles size={18} />
-                       </div>
-                     </div>
-                     <div className="space-y-2 mt-4">
-                       <div className="h-3 w-3/4 rounded-full transition-colors duration-300" style={{ backgroundColor: 'var(--surface2)' }} />
-                       <div className="h-3 w-1/2 rounded-full transition-colors duration-300" style={{ backgroundColor: 'var(--surface2)' }} />
-                     </div>
-                   </div>
 
-                   <div className="grid grid-cols-2 gap-4">
-                     <div className="bg-[var(--surface)] border border-[var(--border)] shadow-sm rounded-[var(--radius-xl)] p-4 transition-colors duration-300">
-                       <h5 className="text-[0.625rem] font-bold text-[var(--text3)] uppercase tracking-wider mb-2 transition-colors duration-300">Schüler</h5>
-                       <div className="text-[1.5rem] leading-normal font-black transition-colors duration-300" style={{ color: 'var(--accent)' }}>{studentsList.length || 24}</div>
-                     </div>
-                     <div className="rounded-[var(--radius-xl)] p-4 shadow-sm transition-colors duration-300 flex flex-col justify-center" style={{ backgroundColor: 'var(--accent)', color: 'var(--btn-text)' }}>
-                       <h5 className="text-[0.625rem] font-bold opacity-80 uppercase tracking-wider mb-1">Aktuell</h5>
-                       <div className="text-[1.125rem] leading-normal font-black">{faecher[0] || 'Mathematik'}</div>
-                     </div>
+                 <div className="space-y-2 sm:col-span-2">
+                   <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schulstufe *</label>
+                   <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                     {[0, 1, 2, 3, 4].map(level => (
+                       <button
+                         key={level}
+                         type="button"
+                         onClick={() => setStufe(level)}
+                         className={`py-2.5 rounded-xl text-[0.875rem] leading-snug font-black border transition-all ${stufe === level ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/10' : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'}`}
+                       >
+                         {level === 0 ? 'Vorschule' : `${level}. Klasse`}
+                       </button>
+                     ))}
                    </div>
                  </div>
                </div>
              </div>
-           </div>
            )}
 
            {STEPS[currStep].title === 'Fächer' && (
@@ -1779,7 +1735,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
 
                {setupMode === 'quick' && (
                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-[0.8125rem] text-indigo-800">
-                   <strong>Schnellmodus:</strong> Fächer, Farben und Stammstundenplan kannst du jederzeit unter „Klassen-Einstellungen“ ergänzen.
+                   <strong>Schnellmodus:</strong> Fächer und Stammstundenplan kannst du jederzeit unter „Klassen-Einstellungen“ ergänzen.
                  </div>
                )}
              </div>
