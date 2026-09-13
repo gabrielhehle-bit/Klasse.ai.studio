@@ -46,6 +46,7 @@ const WeeklyPlan = lazyRetry(() => import('./components/WeeklyPlan'));
 const SeatingPlan = lazyRetry(() => import('./components/SeatingPlan'));
 const Uebergabemappe = lazyRetry(() => import('./components/Uebergabemappe'));
 const Materialbibliothek = lazyRetry(() => import('./components/Materialbibliothek'));
+const CanvaIntegration = lazyRetry(() => import('./components/CanvaIntegration'));
 const Drafts = lazyRetry(() => import('./components/Drafts'));
 const MeetingLogs = lazyRetry(() => import('./components/MeetingLogs'));
 const GradeOverview = lazyRetry(() => import('./components/GradeOverview'));
@@ -142,7 +143,7 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
 
 const MobileRemoteController = lazyRetry(() => import('./components/MobileRemoteController').then(m => ({ default: m.MobileRemoteController })));
 
-const FULL_HEIGHT_PAGES = ['klasse', 'planung', 'leistungen', 'ki-helfer', 'sitzplan', 'elternbrief', 'differenzierung', 'verbal', 'materialien', 'jahresplanung', 'diagnostik', 'stunden', 'eltern', 'orga', 'notenTabelle', 'arbeitsblatt', 'stationenbetrieb', 'planungszentrale'];
+const FULL_HEIGHT_PAGES = ['klasse', 'planung', 'leistungen', 'canva', 'ki-helfer', 'sitzplan', 'elternbrief', 'differenzierung', 'verbal', 'materialien', 'jahresplanung', 'diagnostik', 'stunden', 'eltern', 'orga', 'notenTabelle', 'arbeitsblatt', 'stationenbetrieb', 'planungszentrale'];
 
 function AppContent() {
   const { app, setApp, setPage } = useApp();
@@ -595,6 +596,7 @@ function AppContent() {
       case 'sitzplan': return <SeatingPlan />;
       case 'uebergabemappe': return <Uebergabemappe />;
       case 'materialien': return <Materialbibliothek />;
+      case 'canva': return <CanvaIntegration />;
       case 'stunden': return <Drafts />;
       case 'eltern': return <MeetingLogs />;
       case 'klassengemeinschaft': return <Klassengemeinschaft />;
@@ -657,6 +659,7 @@ function AppContent() {
       case 'wochenplanung': return 'Wochenplanung';
       case 'uebergabemappe': return 'Übergabemappe';
       case 'materialien': return 'Materialbibliothek';
+      case 'canva': return 'Canva';
       case 'stunden': return 'Stundenentwürfe';
       case 'eltern': return 'Erläuterungen';
       case 'klassengemeinschaft': return 'Wir-Gefühl & Klasse';
