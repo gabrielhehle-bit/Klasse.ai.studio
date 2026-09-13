@@ -253,6 +253,15 @@ function AISaveButton({ content, userPrompt, type, onSave }: AISaveButtonProps) 
 
 type AiTab = 'ki-helfer' | 'ki-paedagogik' | 'ki-wissen' | 'ki-recht' | 'ki-elternbrief' | 'ki-differenzierung' | 'ki-beurteilung' | 'ki-korrektur' | 'ki-reflexion' | 'ki-arbeitsblatt' | 'ki-foto-korrektur' | 'ki-wochenplan' | 'ki-stundenplan-check' | 'ki-lernziele' | 'ki-stationenbetrieb';
 
+const GUIDED_TOOL_TABS: AiTab[] = [
+  'ki-elternbrief',
+  'ki-differenzierung',
+  'ki-beurteilung',
+  'ki-korrektur',
+  'ki-stundenplan-check',
+  'ki-stationenbetrieb',
+];
+
 export default function AIAssistant() {
   const { app, setApp, setPage } = useApp();
   const zoomLevel = app?.settings?.zoomLevel || 'standard';
@@ -335,8 +344,7 @@ export default function AIAssistant() {
       setActiveMessages([]);
       setActiveChatId(null);
       // Decide if we should show guided tool by default (original behavior)
-      const isSpecialized = ['ki-elternbrief', 'ki-differenzierung', 'ki-beurteilung', 'ki-korrektur', 'ki-stundenplan-check', 'ki-stationenbetrieb'].includes(tab);
-      setShowGuidedTool(isSpecialized);
+      setShowGuidedTool(GUIDED_TOOL_TABS.includes(tab));
     }
   }, [app.currentPage]);
   
@@ -344,8 +352,7 @@ export default function AIAssistant() {
   useEffect(() => {
     setActiveMessages([]);
     setActiveChatId(null);
-    const isSpecialized = ['ki-elternbrief', 'ki-differenzierung', 'ki-beurteilung', 'ki-korrektur', 'ki-stundenplan-check', 'ki-stationenbetrieb'].includes(activeTab);
-    setShowGuidedTool(isSpecialized);
+    setShowGuidedTool(GUIDED_TOOL_TABS.includes(activeTab));
   }, [activeTab]);
   
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -668,26 +675,26 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
               {tabs.filter(t => t.category === 'tool').map(tab => (
                 <button
                   key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setShowGuidedTool(true); }}
+                  onClick={() => { setActiveTab(tab.id); setShowGuidedTool(GUIDED_TOOL_TABS.includes(tab.id)); }}
                   title={isSidebarCollapsed ? tab.label : undefined}
                   className={`group flex items-center p-3 rounded-xl transition-all border ${isSidebarCollapsed ? 'w-12 h-12 justify-center' : 'w-full gap-3'} ${
-                    activeTab === tab.id && showGuidedTool
+                    activeTab === tab.id
                       ? 'shadow-lg -translate-y-0.5 font-bold' 
                       : 'bg-white border-transparent text-slate-500 hover:bg-slate-50 hover:border-slate-100'
                   }`}
-                  style={activeTab === tab.id && showGuidedTool ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--btn-text, #ffffff)', borderColor: 'var(--accent, #10b981)' } : {}}
+                  style={activeTab === tab.id ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--btn-text, #ffffff)', borderColor: 'var(--accent, #10b981)' } : {}}
                 >
-                  <div className={`transition-transform duration-300 ${!isSidebarCollapsed ? 'group-hover:scale-110' : ''}`} style={activeTab === tab.id && showGuidedTool ? { color: 'var(--btn-text, #ffffff)' } : {}}>
+                  <div className={`transition-transform duration-300 ${!isSidebarCollapsed ? 'group-hover:scale-110' : ''}`} style={activeTab === tab.id ? { color: 'var(--btn-text, #ffffff)' } : {}}>
                     {React.cloneElement(tab.icon as React.ReactElement<any>, { size: isSidebarCollapsed ? 20 : 16 })}
                   </div>
                   {!isSidebarCollapsed && (
                     <>
                       <div className="flex flex-col items-start min-w-0">
-                        <span className="text-[0.625rem] font-black uppercase tracking-tight" style={activeTab === tab.id && showGuidedTool ? { color: 'var(--btn-text, #ffffff)' } : { color: '#334155' }}>
+                        <span className="text-[0.625rem] font-black uppercase tracking-tight" style={activeTab === tab.id ? { color: 'var(--btn-text, #ffffff)' } : { color: '#334155' }}>
                           {tab.label}
                         </span>
                       </div>
-                      {activeTab === tab.id && showGuidedTool && (
+                      {activeTab === tab.id && (
                         <div className="ml-auto w-1.5 h-1.5 bg-emerald-400 rounded-full shadow-sm animate-pulse shrink-0" />
                       )}
                     </>
