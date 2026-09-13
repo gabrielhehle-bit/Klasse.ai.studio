@@ -2582,7 +2582,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const timesMap = app.stundenZeiten || STUNDEN_INFO;
     
     const parsedZeiten: { start: number; end: number; id: number }[] = [];
-    for (let id = 1; id <= 8; id++) {
+    for (let id = 1; id <= 10; id++) {
       const zStr = timesMap[id];
       if (zStr) {
         const parts = zStr.split(/[–-]/).map(p => p.trim());
@@ -2623,7 +2623,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const stammItems = app?.stammplan?.[tagName] || {};
     
     let lastRealHourId = -1;
-    for (let id = 1; id <= 8; id++) {
+    for (let id = 1; id <= 10; id++) {
       const displayFach = tagPlan[id - 1]?.fach || stammItems[id] || "";
       if (displayFach) {
         lastRealHourId = id;
@@ -2845,7 +2845,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const list: any[] = [];
     const tagPlan = tagName ? (app?.wochenplanung?.[kw]?.[tagName] || {}) : {};
     const stammItems = app?.stammplan?.[tagName] || {};
-    for (let id = 1; id <= 8; id++) {
+    for (let id = 1; id <= 10; id++) {
       const fach = tagPlan[id - 1]?.fach || stammItems[id] || "";
       if (fach) {
         list.push({
@@ -4847,7 +4847,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
 
       {/* Birthdays this week alert slider banner */}
       <AnimatePresence>
-        {birthdaysThisWeek.length > 0 && (
+        {!simpleDashboardMode && birthdaysThisWeek.length > 0 && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -5047,7 +5047,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                         <div className="text-[0.5rem] font-black uppercase tracking-wider text-accent/60 mb-1.5 text-center">
                           {tag.slice(0, 2)}
                         </div>
-                        {Array.from({ length: 8 }, (_, i) => i + 1).map((h) => {
+                        {Array.from({ length: 10 }, (_, i) => i + 1).map((h) => {
                           const fach = app.stammplan?.[tag]?.[h];
                           if (!fach)
                             return (
