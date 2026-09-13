@@ -35,6 +35,10 @@ ZIP-Dateien, Downloads, Chat-Anhänge, lokale Kopien und World4You-Releases sind
 
 Keine ältere Quelle darf eine neuere bestätigte Produktentscheidung still überschreiben.
 
+## Harte Produktregel
+
+UI/UX darf vereinfacht und neu geordnet werden, aber bestehende Fachfunktionen dürfen nicht still entfernt werden. Insbesondere müssen Notenmappe, Punkte/Prozent/Noten, Gewichtungen, Notenrechner, Schularbeitenauswertung, LZK/WOPL, Fachkonfiguration, Statistiken sowie Daten-/Backupfunktionen erhalten bleiben, solange keine ausdrücklich neuere Produktentscheidung ihre Entfernung verlangt.
+
 ## Aktueller Reconciliation-Ausgangspunkt
 
 Der Branch `fix/pre-deployment-blockers` wurde als Basis gewählt, weil er:
