@@ -85,6 +85,7 @@ export interface DashboardTodayOverviewProps {
   absentCount: number;
   presentCount: number;
   attendanceRecorded: boolean;
+  attendanceRequired: boolean;
 
   // Mein Tag Card
   todayLessonCount: number;
@@ -133,6 +134,7 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
   absentCount,
   presentCount,
   attendanceRecorded,
+  attendanceRequired,
 
   todayLessonCount,
   currentLesson,
@@ -252,7 +254,7 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
                   ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
                   : "bg-amber-50 text-amber-700 border border-amber-200/60"
               }`}>
-                {attendanceRecorded ? "Geprüft" : "Offen"}
+                {!attendanceRequired ? "Nicht nötig" : attendanceRecorded ? "Geprüft" : "Offen"}
               </span>
             </div>
 
@@ -271,9 +273,11 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
                   ? attendanceRecorded ? "Geprüft" : "Noch nicht geprüft"
                   : totalStudents === 0
                     ? "Noch keine Kinder angelegt"
-                    : !attendanceRecorded
-                      ? "Noch nicht geprüft"
-                      : absentCount === 0
+                    : !attendanceRequired
+                      ? "Für heute keine Prüfung geplant"
+                      : !attendanceRecorded
+                        ? "Noch nicht geprüft"
+                        : absentCount === 0
                         ? "Alle anwesend"
                         : `${absentCount} abwesend`}
               </p>
@@ -282,11 +286,11 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
 
           <button
             type="button"
-            onClick={() => onNavigate("anwesenheit")}
+            onClick={() => onNavigate(totalStudents > 0 ? "anwesenheit" : "schueler")}
             className="mt-4 w-full py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
           >
             <UserCheck size={14} />
-            <span>Prüfen</span>
+            <span>{totalStudents > 0 ? "Anwesenheit öffnen" : "Kinder hinzufügen"}</span>
           </button>
         </div>
 
