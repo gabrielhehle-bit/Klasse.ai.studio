@@ -2382,25 +2382,25 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     });
 
     return list;
-  }, [scheduleDatum, app?.schueler, app?.wochenplanung, app?.jahresplanung, kw, tagName, dashboardSettings.customEvents]);
+  }, [scheduleDatum, app?.schueler, app?.wochenplanung, app?.jahresplanung, app?.bundesland, app?.calendarSettings?.disabledHolidays, kw, tagName, dashboardSettings.customEvents]);
 
   const getLessonProgress = (idx: number) => {
     if (idx < 0) return 0;
     const now = heute.getHours() * 60 + heute.getMinutes();
-    const zeiten = [
-      { start: 480, end: 530 }, // 1: 08:00 - 08:50
-      { start: 530, end: 585 }, // 2: 08:50 - 09:45
-      { start: 600, end: 650 }, // 3: 10:00 - 10:50
-      { start: 650, end: 705 }, // 4: 10:50 - 11:45
-      { start: 705, end: 750 }, // 5: 11:45 - 12:30
-      { start: 810, end: 860 }, // 6: 13:30 - 14:20
-      { start: 860, end: 910 }, // 7: 14:20 - 15:10
-      { start: 910, end: 960 }, // 8: 15:10 - 16:00
-    ];
-    const unit = zeiten[idx];
-    if (!unit) return 0;
-    const total = unit.end - unit.start;
-    const elapsed = now - unit.start;
+    const timeRange = (app.stundenZeiten || STUNDEN_INFO)[idx + 1];
+    if (!timeRange) return 0;
+
+    const [startRaw, endRaw] = String(timeRange).split(/[–-]/).map((part) => part.trim());
+    if (!startRaw || !endRaw) return 0;
+    const [startHour, startMinute] = startRaw.split(":").map(Number);
+    const [endHour, endMinute] = endRaw.split(":").map(Number);
+    if ([startHour, startMinute, endHour, endMinute].some(Number.isNaN)) return 0;
+
+    const start = startHour * 60 + startMinute;
+    const end = endHour * 60 + endMinute;
+    const total = end - start;
+    if (total <= 0) return 0;
+    const elapsed = now - start;
     return Math.max(0, Math.min(100, (elapsed / total) * 100));
   };
 
@@ -2937,7 +2937,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
       }
     });
     return list;
-  }, [scheduleDatum, app?.wochenplanung]);
+  }, [scheduleDatum, app?.wochenplanung, app?.bundesland, app?.calendarSettings?.disabledHolidays]);
 
   const weekEventsList = React.useMemo(() => {
     const list: Array<{ title: string; subtitle?: string; dayLabel?: string; type: string }> = [];
@@ -3351,6 +3351,8 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     app?.luuise_active,
     heute,
     app?.schuljahr,
+    app?.bundesland,
+    app?.calendarSettings?.disabledHolidays,
     kwNow,
   ]);
 
