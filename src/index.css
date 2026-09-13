@@ -82,16 +82,16 @@
 
 @layer base {
   :root {
-    --bg: #F9FAFB;
+    --bg: #f6f8f7;
     --surface: #ffffff;
-    --surface2: #f4f6f8;
-    --surface3: #edeff2;
-    --border: #eef1f5;
-    --border2: #e2e8f0;
-    --text: #0f172a;
-    --text2: #344154;
-    --text3: #5b6e85;  /* Enhanced from #94a3b8 to exceed WCAG AA 4.5:1 contrast ratio */
-    --accent: #10b981; /* Emerald 500 */
+    --surface2: #f0f4f2;
+    --surface3: #e7edeb;
+    --border: #dce5e2;
+    --border2: #c5d2ce;
+    --text: #17211f;
+    --text2: #40504c;
+    --text3: #667772;
+    --accent: #0f766e;
     --btn-text: #ffffff;
     --green: #10b981;
     --green-light: #ecfdf5;
@@ -103,7 +103,7 @@
     --blue-light: #eff6ff;
     --purple: #8b5cf6;
     --purple-light: #f5f3ff;
-    --app-font: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --app-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
 
     /* F-DS2 Semantische Surface-Tokens (Defaults) */
     --surface-app: var(--bg);
@@ -155,16 +155,18 @@
   }
 
   [data-style="classic_light"] {
-    --bg: #f5f7fa;
+    --bg: #f6f8f7;
     --surface: #ffffff;
-    --surface2: #f3f6f8;
-    --surface3: #e8edf1;
-    --border: #dfe5eb;
-    --border2: #c5d0da;
-    --text: #172033;
-    --text2: #435168;
-    --text3: #68778d;
+    --surface2: #f0f4f2;
+    --surface3: #e7edeb;
+    --border: #dce5e2;
+    --border2: #c5d2ce;
+    --text: #17211f;
+    --text2: #40504c;
+    --text3: #667772;
     --accent: #0f766e;
+    --accent-hover: #115e59;
+    --accent-soft: #e6f4f1;
     --btn-text: #ffffff;
     --bg-pattern: none;
     --bg-size: 24px 24px;
