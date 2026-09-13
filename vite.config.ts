@@ -45,14 +45,14 @@ export default defineConfig(({mode}) => {
           cleanupOutdatedCaches: true
         },
         manifest: {
-          name: 'Lehrermappe – Digitaler Schulplaner',
-          short_name: 'Lehrermappe',
-          description: 'Dein digitaler Schulplaner für die Volksschule',
+          name: 'Klassio – Digitaler Schulplaner',
+          short_name: 'Klassio',
+          description: 'Klassio – digitale Planung, Organisation und Dokumentation für den Schulalltag',
           lang: 'de-AT',
           start_url: '/',
           display: 'standalone',
-          background_color: '#fafaf9',
-          theme_color: '#10b981',
+          background_color: '#f6f8f7',
+          theme_color: '#0f766e',
           icons: [
             {
               src: '/pwa-192.png',
