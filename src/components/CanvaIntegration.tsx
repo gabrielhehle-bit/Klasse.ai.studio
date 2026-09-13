@@ -100,11 +100,11 @@ export default function CanvaIntegration() {
     try {
       const data = await apiJson('/api/canva/auth-url');
       if (!data?.configured) {
-        showToast('Canva ist serverseitig noch nicht konfiguriert.', 'warning');
+        showToast('Canva ist serverseitig noch nicht konfiguriert.', 'info');
         return;
       }
       const popup = window.open(data.url, 'klassio-canva-oauth', 'width=720,height=780,resizable=yes,scrollbars=yes');
-      if (!popup) showToast('Bitte Pop-ups für Klassio erlauben.', 'warning');
+      if (!popup) showToast('Bitte Pop-ups für Klassio erlauben.', 'info');
     } catch (error: any) {
       showToast(error?.message || 'Canva-Verbindung konnte nicht gestartet werden.', 'error');
     }
