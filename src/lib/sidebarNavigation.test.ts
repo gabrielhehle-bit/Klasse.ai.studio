@@ -1,18 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { groupSidebarItems } from './sidebarNavigation';
-const items = ['dashboard', 'cockpit', 'wochenplanung', 'schueler', 'anwesenheit', 'noten', 'diagnostik', 'jahresplanung', 'datensicherung', 'settings'].map(id => ({ id, section: 'Test' }));
-test('everyday navigation has six ordered entries and keeps utilities separate', () => {
+
+const items = [
+  'dashboard', 'klasse', 'planung', 'leistungen', 'cockpit',
+  'schueler', 'anwesenheit', 'noten', 'diagnostik', 'jahresplanung',
+  'datensicherung', 'settings'
+].map(id => ({ id, section: 'Test' }));
+
+test('Klassio core navigation has Heute, Klasse, Planung, Leistungen and Unterricht in order', () => {
   const result = groupSidebarItems(items, [], 'dashboard', false);
-  assert.deepEqual(result.daily.map(i => i.id), items.slice(0, 6).map(i => i.id));
+  assert.deepEqual(result.daily.map(i => i.id), ['dashboard', 'klasse', 'planung', 'leistungen', 'cockpit']);
   assert.deepEqual(result.utilities.map(i => i.id), ['datensicherung', 'settings']);
-  assert.deepEqual(result.extra.map(i => i.id), ['diagnostik', 'jahresplanung']);
+  assert.deepEqual(result.extra.map(i => i.id), ['schueler', 'anwesenheit', 'noten', 'diagnostik', 'jahresplanung']);
   assert.equal(result.expanded, false);
   assert.equal(new Set([...result.daily, ...result.extra, ...result.utilities].map(i => i.id)).size, items.length);
 });
+
 test('custom visibility is preserved but an already open page remains discoverable', () => {
-  const result = groupSidebarItems(items, ['cockpit', 'diagnostik', 'settings', 'datensicherung'], 'diagnostik', false);
-  assert.equal(result.daily.some(i => i.id === 'cockpit'), false);
+  const result = groupSidebarItems(items, ['diagnostik', 'settings', 'datensicherung'], 'diagnostik', false);
+  assert.equal(result.daily.map(i => i.id).join(','), 'dashboard,klasse,planung,leistungen,cockpit');
   assert.equal(result.extra.some(i => i.id === 'diagnostik'), true);
   assert.deepEqual(result.utilities.map(i => i.id), ['datensicherung', 'settings']);
   assert.equal(result.expanded, false);
