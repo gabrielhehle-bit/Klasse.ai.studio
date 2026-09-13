@@ -4,70 +4,69 @@ Stand: 2026-09-13
 
 ## Verbindliche Quelle
 
-Die einzige verbindliche Quelle für Klassio ist:
+Die einzige verbindliche Entwicklungsquelle für Klassio ist:
 
 - Repository: `gabrielhehle-bit/Klasse.ai.studio`
 - Produktionsbranch: `main`
-- Reconciliation: `reconcile/klassio-source-of-truth`
-- aktuelles Abschluss-Paket: `fix/reconciliation-finalization`
+- Integrations-/Reconciliation-Branch bis zur Freigabe: `reconcile/klassio-source-of-truth`
+- finaler Integrations-PR: `#5` (`reconcile/klassio-source-of-truth` → `main`)
 
-ZIP-Dateien sind ausschließlich Backup- oder Release-Artefakte. Sie sind niemals
-Entwicklungsgrundlage. Vor jeder Änderung müssen GitHub-HEAD, Branches und offene
-Pull Requests geprüft werden.
+ZIP-Dateien sind ausschließlich Backup- oder Release-Artefakte. Sie sind niemals Entwicklungsgrundlage. Vor jeder Änderung müssen GitHub-`main`-HEAD, Branches, offene Pull Requests und diese beiden Projektdateien geprüft werden.
 
-## Reconciliation-Status
+## Aktueller Reconciliation-Status
 
-`main` ist noch nicht der vollständige reconciliierte Stand. Deshalb darf die
-Abschlussarbeit noch nicht direkt auf `main` weitergeführt werden.
+`main` ist noch nicht der vollständige reconciliierte Stand. Der vollständige Abschlussstand liegt bis zur Staging-Freigabe auf `reconcile/klassio-source-of-truth`.
 
-Aktuell geprüfter Abschluss-Commit:
+Der frühere Abschlussbranch `fix/reconciliation-finalization` wurde vollständig in den Reconciliation-Branch übernommen. Zusätzlich wurde eine commitgebundene World4You-Release-Pipeline ergänzt. Der letzte vor dieser Dokumentationsaktualisierung geprüfte Reconciliation-Commit war:
 
-- Branch: `fix/reconciliation-finalization`
-- Commit: `499861eb6f7913e22329488afa527810e3dce1bf`
-- Basis: `reconcile/klassio-source-of-truth`
+- Commit: `05bbbbdd438256db59c73f1303c137a86e58be62`
 - GitHub Actions: Pre-Deployment Audit erfolgreich
+- Installation: `bun install --frozen-lockfile` erfolgreich
 - TypeScript: erfolgreich
 - Tests: 669/669 erfolgreich
 - Production Build: erfolgreich
 - PWA-Ausgabe: erfolgreich
 - Production-Server-Smoke-Test: erfolgreich
-- Zugangscode-/30-Tage-Session-Smoke-Test: erfolgreich
+- Zugangscode-/Session-Smoke-Test: erfolgreich
+- World4You-Staging-Artefakt: erfolgreich erzeugt und mit Branch/Commit markiert
 
-Der Abschluss-Branch enthält zusätzlich zum Reconciliation-Stand:
+Nach jeder weiteren Änderung ist ausschließlich der neue GitHub-HEAD verbindlich und derselbe Audit muss erneut grün sein. Das Deployment-ZIP enthält deshalb selbst `KLASSIO_DEPLOYMENT_COMMIT.txt` und `KLASSIO_DEPLOYMENT_BRANCH.txt`.
 
-- Canva-CI-Korrektur
-- fertige Mitarbeit-/Hausübungs-Schnellerfassung
-- echten nativen PowerPoint-`.pptx`-Export für KEL
-- E-Mail-Einmalcode-Login mit SMTP, Domain-Allowlist und Rate-Limits
-- optionales 30-Tage-Gerätevertrauen für den lokalen Datentresor
-- direkten Materialbibliothek→Wochenplan-Transfer mit Ergänzen/Ersetzen und Duplikatschutz
-- aktualisierte Produktions- und Login-Dokumentation
+## Enthaltener Funktionsstand
+
+Der Reconciliation-Stand enthält unter anderem:
+
+- vereinfachte Kernnavigation und Lehrercockpit mit gemeinsamer weißer Schreib-/Zeichen-/Widgetfläche
+- Anwesenheit, Befinden, Schülerliste, Schülerdossier und Diagnostik
+- vollständige Notenmappe mit Noten/Prozent/Punkten, Gewichtung, fachbezogenen Bewertungsabschnitten, Schularbeiten, LZK/WOPL und sonstigen Leistungen
+- schnelle Mitarbeit- und Hausübungs-Erfassung
+- Wochen- und Jahresplanung inklusive Vollbild, Excel-Roundtrip und Aufgabenblattgenerator
+- Materialbibliothek inklusive Übergabe in den Wochenplan
+- verschlüsselten lokalen Datentresor, verschlüsselte JSON-Backups und Legacy-Parser
+- E-Mail-Einmalcode-Login mit administrativem Zugangscode als Fallback
+- optionales 30-Tage-Gerätevertrauen für den Datentresor
+- Canva-Integration
+- nativen KEL-PowerPoint-`.pptx`-Export
+- OneDrive und verschlüsselten Smartboard-Sync
+- PWA-/Offline-Unterstützung
+
+Die genaue Abnahme steht in `KLASSIO_FEATURE_MATRIX.md`.
 
 ## Sicherheitsentscheidungen
 
 ### Account-Anmeldung
 
-Klassio kann einen sechsstelligen E-Mail-Einmalcode senden, sofern SMTP und die
-erlaubten Schul-Domains am Server konfiguriert sind. Erfolgreiche Anmeldung setzt
-eine HttpOnly-Session für bis zu 30 Tage. Der bisherige Zugangscode bleibt als
-administrativer Fallback.
+Klassio kann einen sechsstelligen E-Mail-Einmalcode senden, sofern SMTP und die erlaubten Schul-Domains am Server konfiguriert sind. Eine erfolgreiche Anmeldung setzt eine HttpOnly-Session für bis zu 30 Tage. Der bisherige Zugangscode bleibt als administrativer Fallback.
 
 ### Lokaler Datentresor
 
 Die Account-Anmeldung ersetzt den lokalen AES-GCM-256-Datentresor nicht.
 
-Optional kann eine Lehrkraft auf einem persönlichen, geschützten Dienstgerät
-`Diesem Gerät 30 Tage vertrauen` aktivieren. Dabei wird der Vault-Key nur
-verschlüsselt gespeichert. Der Geräteschlüssel ist ein nicht exportierbarer
-Web-Crypto-`CryptoKey` in IndexedDB.
-
-Passwort und Wiederherstellungscode werden nicht gespeichert.
+Optional kann eine Lehrkraft auf einem persönlichen, geschützten Dienstgerät `Diesem Gerät 30 Tage vertrauen` aktivieren. Dabei wird der Vault-Key nur verschlüsselt gespeichert. Der Geräteschlüssel ist ein nicht exportierbarer Web-Crypto-`CryptoKey` in IndexedDB. Passwort und Wiederherstellungscode werden nicht gespeichert.
 
 ### Recovery per E-Mail
 
-Der Wiederherstellungscode des lokalen Datentresors wird bewusst **nicht**
-unverschlüsselt per E-Mail versendet. Ein kompromittiertes E-Mail-Konto darf
-nicht automatisch zur Entschlüsselung lokaler Schülerdaten führen.
+Der Wiederherstellungscode des lokalen Datentresors wird bewusst **nicht** unverschlüsselt per E-Mail versendet. Ein kompromittiertes E-Mail-Konto darf nicht automatisch zur Entschlüsselung lokaler Schülerdaten führen.
 
 ## Datenmigration und Kompatibilität
 
@@ -82,33 +81,26 @@ Automatisiert abgesichert sind:
 - Abbruch bei beschädigten oder strukturell ungültigen Backups
 - Race-Condition-Schutz zwischen Autosave und Restore
 
-Noch nicht mit einem echten, vom Benutzer bereitgestellten historischen
-Klassio/AI-Studio-Datenexport geprüft: Real-World-Altbackup. Das ist ein
-Abnahmetest, keine bekannte Code-Lücke.
+Ein echter historischer Benutzer-Backup-Datensatz ist weiterhin ein Abnahmetest, sobald ein solcher bewusst bereitgestellt wird. Synthetische Legacy-Regressionstests sind grün.
 
 ## Ferienkalender
 
-Der Ferienalgorithmus für das Schuljahr 2026/27 wurde am 13.09.2026 gegen die
-offiziellen österreichischen Termine geprüft. Die Semesterferien-Gruppen für
-alle Bundesländer sowie Weihnachts-, Oster-, Pfingst- und Sommerferien stimmen
-für 2026/27. Vorarlberg: Semesterferien 15.–20.02.2027.
+Der Ferienalgorithmus für das Schuljahr 2026/27 wurde am 13.09.2026 gegen die offiziellen österreichischen Termine geprüft. Die Semesterferien-Gruppen für alle Bundesländer sowie Weihnachts-, Oster-, Pfingst- und Sommerferien stimmen für 2026/27. Vorarlberg: Semesterferien 15.–20.02.2027.
 
-## Deployment
+## World4You-Staging
 
-Bekanntes World4You-Ziel aus dem vorangegangenen Staging:
+Die Release-Pipeline erzeugt nur aus einem erfolgreichen GitHub-Build ein commitgebundenes World4You-Artefakt. Das Paket enthält `dist/`, `package.json`, `bun.lock`, `.env.example`, README sowie Branch-/Commitmarker und startet mit `node dist/server.cjs`.
 
-- Runtime-Verzeichnis: `/var/www/klassio`
-- bestehender älterer Stagingstand war bereits per `/api/health` erreichbar
+Beim letzten Server-Shell-Check wurde auf World4You `Node v18.20.4`, `npm 9.2.0` und kein Bun festgestellt. Als Shell-Arbeitsverzeichnis wurde `/home/www/web` angezeigt. Eine ältere Notiz nannte `/var/www/klassio`; deshalb darf dieser alte Pfad nicht ungeprüft als aktuelles Ziel verwendet werden.
 
-Der Commit `499861e...` ist **noch nicht** auf World4You ausgerollt.
-Vor Merge nach `main` sind noch erforderlich:
+Vor Merge nach `main` sind noch zwingend:
 
-1. Abschluss-Branch in `reconcile/klassio-source-of-truth` übernehmen.
-2. Reconciliation-Commit nochmals vollständig testen/builden.
-3. Genau diesen Commit auf World4You-Staging deployen.
-4. Realen Browser-Walkthrough durchführen.
-5. Erst danach Reconciliation nach `main` mergen.
-6. `main` nochmals per CI prüfen und optional taggen.
+1. aktuellen Reconciliation-HEAD samt Dokumentationsstand vollständig per CI prüfen und das dazugehörige Artefakt erzeugen
+2. exakt dieses Artefakt auf das tatsächlich aktive World4You-Staging-Ziel ausrollen
+3. `/api/health` und Serverstart prüfen
+4. realen Browser-Walkthrough auf demselben Commit durchführen
+5. erst danach PR #5 nach `main` mergen
+6. `main` nochmals per CI prüfen und anschließend optional taggen
 
 ## Externe Konfiguration für Staging
 
@@ -127,18 +119,14 @@ Für Canva:
 - `CANVA_CLIENT_SECRET`
 - optional `CANVA_TOKEN_ENCRYPTION_KEY`
 
-Secrets gehören ausschließlich in die Server-/Deployment-Konfiguration, niemals
-in GitHub-Dateien oder Commits.
+Weitere Produktionswerte wie `SESSION_SECRET`, Zugangscodes, `APP_URL`, Gemini- und OneDrive-Zugangsdaten gehören ausschließlich in die Server-/Deployment-Konfiguration, niemals in GitHub-Dateien oder Commits.
 
-## Regel für die nächsten Chats
+## Pflicht für jeden neuen Chat
 
-Ein neuer Chat arbeitet nicht von ZIPs, Erinnerungen oder früheren Berichten aus.
-Er liest zuerst:
+Ein neuer Chat arbeitet nicht von ZIPs, Erinnerungen oder früheren Berichten aus. Er liest zuerst:
 
-1. aktuellen GitHub-`main`-HEAD,
-2. Branches und Pull Requests,
-3. diese Datei,
-4. `KLASSIO_FEATURE_MATRIX.md`.
-
-Bis der Reconciliation-PR nach `main` gemergt ist, muss zusätzlich der aktuelle
-Reconciliation-/Abschlussbranch geprüft werden.
+1. aktuellen GitHub-`main`-HEAD
+2. Branches und Pull Requests
+3. `KLASSIO_SOURCE_OF_TRUTH.md`
+4. `KLASSIO_FEATURE_MATRIX.md`
+5. solange PR #5 nicht gemergt ist zusätzlich den aktuellen Reconciliation-HEAD und dessen letzten CI-Lauf
