@@ -3891,28 +3891,19 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   };
 
   const handleSaveLayoutSlot = (slot: "A" | "B" | "C") => {
-    if (slot === "C") {
-      localStorage.setItem("cockpitLayoutC", JSON.stringify(cockpitWidgets));
-    } else {
-      const field = slot === "A" ? "cockpitLayoutA" : "cockpitLayoutB";
-      setApp((prev) => ({
-        ...prev,
-        [field]: cockpitWidgets,
-      }));
-    }
+    const field = slot === "A" ? "cockpitLayoutA" : slot === "B" ? "cockpitLayoutB" : "cockpitLayoutC";
+    setApp((prev) => ({
+      ...prev,
+      [field]: JSON.parse(JSON.stringify(cockpitWidgets)),
+    }));
+    // Remove legacy plaintext slot if it exists.
+    if (slot === "C") localStorage.removeItem("cockpitLayoutC");
     showToast(`Layout "${slotNames[slot] || slot}" erfolgreich gespeichert!`, "success");
   };
 
   const handleLoadLayoutSlot = (slot: "A" | "B" | "C") => {
-    let saved = null;
-    if (slot === "C") {
-      try {
-        saved = JSON.parse(localStorage.getItem("cockpitLayoutC") || "null");
-      } catch (e) {}
-    } else {
-      const field = slot === "A" ? "cockpitLayoutA" : "cockpitLayoutB";
-      saved = app[field];
-    }
+    const field = slot === "A" ? "cockpitLayoutA" : slot === "B" ? "cockpitLayoutB" : "cockpitLayoutC";
+    const saved = app[field];
     if (saved && Array.isArray(saved) && saved.length > 0) {
       const loaded = loadAndSanitizeLayout(saved);
       setCockpitWidgets(loaded);
@@ -9718,12 +9709,11 @@ ${content}
                                     Schnell-Slots
                                   </div>
                                   {["A", "B", "C"].map((slot) => {
-                                    let isSaved = false;
-                                    if (slot === "C") {
-                                      isSaved = !!localStorage.getItem("cockpitLayoutC");
-                                    } else {
-                                      isSaved = slot === "A" ? !!app.cockpitLayoutA : !!app.cockpitLayoutB;
-                                    }
+                                    const isSaved = slot === "A"
+                                      ? !!app.cockpitLayoutA
+                                      : slot === "B"
+                                        ? !!app.cockpitLayoutB
+                                        : !!app.cockpitLayoutC;
                                     return (
                                       <div
                                         key={slot}
@@ -9896,16 +9886,8 @@ ${content}
                               <button type="button" onClick={() => { setIsBoardWriting(true); setIsLayoutLocked(true); }} className="w-full min-h-12 px-5 py-3 rounded-xl bg-indigo-600 text-white font-semibold text-base">
                                 Schreiben & Zeichnen
                               </button>
-                              <div className="grid grid-cols-2 gap-2 w-full">
-                                {([{ type: 'timer', label: 'Timer starten' }, { type: 'instruction', label: 'Arbeitsauftrag' }] as const).map(item => (
-                                  <button key={item.type} type="button" onClick={() => handleOpenWidgetInCockpitLayout(item.type)} className="min-h-12 p-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 text-sm font-semibold">{item.label}</button>
-                                ))}
-                              </div>
                               <button type="button" onClick={() => setIsAddWidgetMenuOpen(true)} className="mt-3 min-h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
-                                Unterrichtshilfe auswählen
-                              </button>
-                              <button type="button" onClick={() => setIsVorlagenModalOpen(true)} className={`min-h-11 px-4 rounded-xl border font-semibold text-sm ${currentIsLight ? "border-slate-300 text-slate-700" : "border-white/20 text-white/80"}`}>
-                                Gespeicherte Anordnung laden
+                                Widget hinzufügen
                               </button>
                             </div>
                           </div>
