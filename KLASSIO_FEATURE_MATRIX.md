@@ -17,7 +17,7 @@ Stand: 2026-09-13
 | Klassio Designsystem | 🟡 | Off-White/Weiß/Graphit/Petrol, Theme-System, Typografie getrennt von Farbwelt |
 | Lehrercockpit – weiße Fläche | 🟡 | eine gemeinsame weiße Fläche für Schreiben, Zeichnen und Widgets |
 | Lehrercockpit – leerer Start | 🟡 | keine Beispielwidgets, keine Beispiel-Layouts, keine vorgefüllte Schnellwahl |
-| Cockpit Widget-Bereinigung | 🔴 | entfernte Gimmick-Widgets nicht wieder einführen; Fachtools in Fachmodule verschieben |
+| Cockpit Widgets | 🟡 | neueste Produktentscheidung: bestehende sinnvolle Widgets erhalten; Cockpit startet trotzdem ohne Beispielwidgets, ohne Schnellwahl und ohne vorgegebenes Layout; Widgets nur besser ordnen/auffindbar machen |
 | Cockpit Runtime | 🟡 | tldraw/useEditor-Kontextfehler dauerhaft beheben und testen |
 | Anwesenheit & Befinden | 🟡 | gemeinsame Datenlogik, 5 Befindensstufen, kein Auto-Speichern als anwesend |
 | Schülerliste | 🟡 | reduzierte Standardansicht; Dossier Hauptaktion; kritische Flags nur Anzeige |
