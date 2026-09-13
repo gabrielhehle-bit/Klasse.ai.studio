@@ -2227,7 +2227,8 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
 
 export async function startServer() {
   const app = await createApp();
-  const PORT = 3000;
+  const configuredPort = Number.parseInt(process.env.PORT || '3000', 10);
+  const PORT = Number.isFinite(configuredPort) && configuredPort > 0 ? configuredPort : 3000;
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
