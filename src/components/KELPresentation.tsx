@@ -601,27 +601,32 @@ export default function KELPresentation({
 
   const handleRepairIkmData = () => {
     setApp((prev: any) => {
-      const existingRecords = prev.ikmRecords || [];
-      const updatedIkmRecords = existingRecords.map((r: any) => {
-        if (r.schuelerId === student.id) {
-          return {
-            ...r,
-            mathematikPR: typeof r.mathematikPR === 'number' && !isNaN(r.mathematikPR) ? r.mathematikPR : 54,
-            deutschLesenPR: typeof r.deutschLesenPR === 'number' && !isNaN(r.deutschLesenPR) ? r.deutschLesenPR : 58,
-            matheDetails: {
-              zahlen: 4.2,
-              operationen: 3.8,
-              groessen: 5.1,
-              ebeneRaum: 4.5
-            }
-          };
-        }
-        return r;
+      const cleanNumber = (value: any) =>
+        typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+
+      const updatedIkmRecords = (prev.ikmRecords || []).map((record: any) => {
+        if (record.schuelerId !== student.id) return record;
+
+        const cleanedDetails = record.matheDetails && typeof record.matheDetails === 'object'
+          ? Object.fromEntries(
+              Object.entries(record.matheDetails)
+                .filter(([, value]) => typeof value === 'number' && Number.isFinite(value))
+            )
+          : undefined;
+
+        return {
+          ...record,
+          mathematikPR: cleanNumber(record.mathematikPR),
+          deutschLesenPR: cleanNumber(record.deutschLesenPR),
+          deutschZuhoerenPR: cleanNumber(record.deutschZuhoerenPR),
+          deutschSprachbewusstseinPR: cleanNumber(record.deutschSprachbewusstseinPR),
+          ...(cleanedDetails && Object.keys(cleanedDetails).length > 0
+            ? { matheDetails: cleanedDetails }
+            : { matheDetails: undefined })
+        };
       });
-      return {
-        ...prev,
-        ikmRecords: updatedIkmRecords
-      };
+
+      return { ...prev, ikmRecords: updatedIkmRecords };
     });
   };
   const [slideIndex, setSlideIndex] = useState<number>(0);
@@ -819,195 +824,130 @@ Antworte AUSSCHLIESSLICH mit dem übersetzten JSON-Objekt in exakt derselben Str
   const [ikmChartModus, setIkmChartModus] = useState<'mathe' | 'deutsch'>('mathe');
   const [isAnalyzingProfile, setIsAnalyzingProfile] = useState<boolean>(false);
 
-  const generateFallbackAnalysis = (student: any, ikmRecord: any, app: any, sem: string) => {
-    const mathGrade = berechne ? (berechne(app, student.id, 'Mathematik', sem) || 3) : 3;
-    const deutschGrade = berechne ? (berechne(app, student.id, 'Deutsch', sem) || 3) : 3;
-    
-    let staerken = "";
-    let herausforderungen = "";
-    let stationen = [];
-    let elternTipps = [];
-
-    if (mathGrade <= 2) {
-      staerken += `Ich besitze ein hervorragendes mathematisches Grundverständnis. Mir gelingt es sehr schnell, neue Rechenwege zu erfassen, Muster zu erkennen und Logikrätsel selbstständig zu lösen.\n`;
-    } else {
-      staerken += `Ich arbeite fleißig an Rechenaufgaben und zeige großes Interesse daran, neue mathematische Lösungswege schrittweise zu verstehen.\n`;
-    }
-    
-    if (deutschGrade <= 2) {
-      staerken += `Das flüssige und sinnerfassende Lesen von Texten bereitet mir große Freude. Ich kann Gehörtes und Gelesenes schnell auffassen, interpretieren und meinen Mitschülern verständlich erklären.`;
-    } else {
-      staerken += `Ich bemühe mich sehr beim Lesen von Texten und kann mir unbekannte Wörter zunehmend selbstständig erschließen.`;
-    }
-
-    staerken += ` Im sozialen Miteinander bin ich stets hilfsbereit und arbeite gerne kooperativ in Gruppenarbeiten mit meinen Mitschülern zusammen.`;
-
-    if (mathGrade >= 3) {
-      herausforderungen += `Rechen-König werden: Wir nehmen uns vor, das Einmaleins und die Grundrechenarten weiter zu automatisieren, um bei größeren Sachaufgaben noch mehr Zeit und Sicherheit zu haben.\n`;
-    } else {
-      herausforderungen += `Knifflige Logikrätsel: Wir wollen anspruchsvolle Sach- und Geometrieaufgaben ausprobieren, um mein mathematisches Denken noch tiefer zu fordern.\n`;
-    }
-
-    if (deutschGrade >= 3) {
-      herausforderungen += `Lesefluss-Reise: Ich möchte täglich 10 Minuten laut vorlesen, um mein Lesetempo zu steigern, und die Rechtschreibung schwieriger Wörter im Schreibtagebuch aktiv üben.`;
-    } else {
-      herausforderungen += `Kreatives Schreiben: Ich möchte mein Vokabular und meine Satzstrukturen erweitern, indem ich eigene kleine Geschichten verfasse und diese stolz präsentiere.`;
-    }
-
-    if (mathGrade >= deutschGrade) {
-      stationen = [
-        { titel: 'Insel der Zahlenreisen', aufgabe: 'Erforsche das große Einmaleins mit unserem magischen Mal-Rad im Klassenzimmer.', ziel: 'Einmaleins-Automatisierung für blitzschnelles Kopfrechnen', icon: 'map' },
-        { titel: 'Dschungel der Geschichten', aufgabe: 'Lies wöchentlich 2 kurze Abenteuergeschichten und erzähle einer Begleitperson das Ende.', ziel: 'Sinnerfassendes Lesen und freies Nacherzählen am Lagerfeuer', icon: 'star' },
-        { titel: 'Gipfel des Erfolgs', aufgabe: 'Löse ein echtes IKM-Meisterrätsel und trage die goldene Lösungsflagge ins Ziel.', ziel: 'Eigenständiges Lösen komplexer Knobelaufgaben', icon: 'flag' }
-      ];
-      elternTipps = [
-        "🎲 Multiplikations-Duell: Spielen Sie ein rasches Würfelspiel zu Hause, bei dem beide gewürfelten Zahlen blitzschnell malgenommen werden müssen.",
-        "📖 Lesetandem am Abend: Lesen Sie abwechselnd eine Seite aus einem spannenden Buch laut vor und sprechen Sie über die skurrilen Figuren."
-      ];
-    } else {
-      stationen = [
-        { titel: 'Wortakrobatik-Tal', aufgabe: 'Sammle wöchentlich 5 schwierige Wörter in deiner Schatzkiste und baue Witze damit.', ziel: 'Wortschatz-Erweiterung und kreativer Umgang mit Schriftsprache', icon: 'map' },
-        { titel: 'Zahlen-Brücke', aufgabe: 'Spiele das Zahlenlinien-Rennen und hüpfe auf dem Spielplatz in Einer-, Zehner- oder Hunderterschritten.', ziel: 'Sicherheit im Zahlenraum und räumliches Vorstellungsvermögen', icon: 'star' },
-        { titel: 'Gipfel des Erfolgs', aufgabe: 'Schreibe einen kleinen Eltern-Ratgeber als Schatzkarte für ein anderes Kind und präsentiere es.', ziel: 'Selbstreflexion und Stolz auf eigene schulische Meilensteine', icon: 'flag' }
-      ];
-      elternTipps = [
-        "🍳 Rezept-Detektiv: Lassen Sie Ihr Kind beim Kochen oder Backen die Mengenangaben und Schritte der Zutatenliste laut vorlesen und abmessen.",
-        "🃏 Stadt-Land-Zahl: Eine spielerische Variante, bei der schnell kleine Rechenrätsel gelöst werden müssen, um den nächsten Buchstaben freizuschalten."
-      ];
-    }
-
-    return { staerken, herausforderungen, stationen, elternTipps };
+  const generateFallbackAnalysis = (_student: any, ikmRecord: any, currentApp: any, _sem: string) => {
+    const existingPath = currentApp.lernpfade?.[student.id] || {};
+    return {
+      staerken: typeof ikmRecord?.diagnoseStaerken === 'string' ? ikmRecord.diagnoseStaerken : '',
+      herausforderungen: typeof ikmRecord?.diagnoseHerausforderungen === 'string' ? ikmRecord.diagnoseHerausforderungen : '',
+      stationen: Array.isArray(existingPath.stationen) ? existingPath.stationen : [],
+      elternTipps: Array.isArray(existingPath.elternTipps) ? existingPath.elternTipps : []
+    };
   };
-
   const runProfileAnalysis = async () => {
     setIsAnalyzingProfile(true);
     const ikmRecord: any = (app.ikmRecords || []).find((r: any) => r.schuelerId === student.id) || null;
     try {
-      const mathGrade = berechne ? (berechne(app, student.id, 'Mathematik', sem) || 3) : 3;
-      const deutschGrade = berechne ? (berechne(app, student.id, 'Deutsch', sem) || 3) : 3;
-      const suGrade = berechne ? (berechne(app, student.id, 'Sachunterricht', sem) || 3) : 3;
-      
-      
-      
-      // B1.5 DATENSCHUTZ: Keine Namen, keine Religion und keine Roh-Schülerprofile an die KI übertragen!
-      // Nur didaktisch relevante Kompetenzwerte und Förderziele pseudonymisiert bereitstellen.
+      const mathGrade = berechne ? berechne(app, student.id, 'Mathematik', sem) : null;
+      const deutschGrade = berechne ? berechne(app, student.id, 'Deutsch', sem) : null;
+      const suGrade = berechne ? berechne(app, student.id, 'Sachunterricht', sem) : null;
+
       const sanitizedIkm = ikmRecord ? {
         mathematikPR: ikmRecord.mathematikPR,
         deutschLesenPR: ikmRecord.deutschLesenPR,
         deutschZuhoerenPR: ikmRecord.deutschZuhoerenPR,
+        deutschSprachbewusstseinPR: ikmRecord.deutschSprachbewusstseinPR,
         diagnoseStaerken: ikmRecord.diagnoseStaerken,
         diagnoseHerausforderungen: ikmRecord.diagnoseHerausforderungen
       } : null;
 
-      const badgeNames = (student.badges || []).map((b: any) => typeof b === 'string' ? b : b.name).filter(Boolean);
+      const badgeNames = (student.badges || [])
+        .map((b: any) => typeof b === 'string' ? b : b.name)
+        .filter(Boolean);
       const foerderZiele = (student.foerderprofil?.foerderziele || [])
-        .map((z: any) => z.ziel ? `${z.ziel} (${z.bereich || 'Allgemein'})` : '')
+        .map((z: any) => z.ziel ? `${z.ziel} (${z.bereich || 'ohne Bereichsangabe'})` : '')
+        .filter(Boolean);
+      const documentedStrengths = (student.foerderprofil?.staerken || []).filter(Boolean);
+      const observations = getStudentNotes(app, student.id)
+        .slice(0, 8)
+        .map((note: any) => note.inhalt || note.notiz || note.text || note.titel)
         .filter(Boolean);
 
-      const promptText = `Analysiere die Lernausgangslage für ein Kind der Volksschule (Pseudonym: Kind A).
-      Klasse/Stufe: ${app.stufe || '4'}. Schulstufe.
-      Relevante Kompetenzdaten (IKM-Auszug): ${sanitizedIkm ? JSON.stringify(sanitizedIkm) : 'Keine IKM-Daten vorhanden'}.
-      Noten-Einstufung: Mathematik: ${mathGrade}, Deutsch: ${deutschGrade}, Sachunterricht: ${suGrade}.
-      Besondere Interessen & Stärken: ${badgeNames.length > 0 ? badgeNames.join(', ') : 'Vielseitig interessiert'}.
-      Vorhandene Förderziele: ${foerderZiele.length > 0 ? foerderZiele.join(', ') : 'Reguläre Kompetenzvertiefung'}.
-      Schuljahr: ${app.schuljahr || 'Aktuelles Schuljahr'}.
+      const gradeData = [
+        mathGrade !== null ? `Mathematik: ${Number(mathGrade).toFixed(2)}` : '',
+        deutschGrade !== null ? `Deutsch: ${Number(deutschGrade).toFixed(2)}` : '',
+        suGrade !== null ? `Sachunterricht: ${Number(suGrade).toFixed(2)}` : ''
+      ].filter(Boolean);
 
-      Gib uns das Ergebnis als JSON-Struktur zurück mit:
-      {
-        "staerken": "Ein kurzer, extrem positiver, schülerzentrierter Absatz in der 'Ich-Form' (z.B. 'Ich kann sehr gut logisch denken...'), der die Stärken für die KEL-Präsentation zusammenfasst.",
-        "herausforderungen": "Ein motivierender, konkreter Absatz in der 'Wir-Form' oder 'Ich-Form' (z.B. 'Wir nehmen uns vor, das Einmaleins zu festigen...'), der die nächsten Ziele zusammenfasst.",
-        "stationen": [
-          { "titel": "Station 1", "aufgabe": "Beschreibung einer konkreten Aufgabe", "ziel": "Was lernt das Kind dabei", "icon": "map" },
-          { "titel": "Station 2", "aufgabe": "Beschreibung einer konkreten Aufgabe", "ziel": "Was lernt das Kind dabei", "icon": "star" },
-          { "titel": "Station 3", "aufgabe": "Beschreibung einer konkreten Aufgabe", "ziel": "Was lernt das Kind dabei", "icon": "flag" }
-        ],
-        "elternTipps": [
-          "Konkrete Idee 1 für zu Hause",
-          "Konkrete Idee 2 für zu Hause"
-        ]
-      }`;
+      const hasEvidence = Boolean(
+        sanitizedIkm ||
+        gradeData.length ||
+        badgeNames.length ||
+        foerderZiele.length ||
+        documentedStrengths.length ||
+        observations.length
+      );
+      if (!hasEvidence) return;
+
+      const promptText = `Erstelle einen KEL-Entwurf ausschließlich aus den folgenden dokumentierten Daten für ein pseudonymisiertes Kind (Kind A).
+Erfinde keine Persönlichkeit, Motivation, Stärken, Schwächen, Diagnosen, Leistungen, Förderbedarfe oder häuslichen Umstände.
+Wenn eine Aussage durch die Daten nicht belegt ist, lasse sie weg. Formuliere Vorschläge ausdrücklich als Vorschläge, nicht als Tatsachen.
+
+Schulstufe: ${app.stufe ? `${app.stufe}. Schulstufe` : 'nicht erfasst'}
+IKM-/Diagnostikdaten: ${sanitizedIkm ? JSON.stringify(sanitizedIkm) : 'nicht vorhanden'}
+Erfasste Leistungswerte: ${gradeData.length ? gradeData.join('; ') : 'nicht vorhanden'}
+Dokumentierte Stärken/Badges: ${[...documentedStrengths, ...badgeNames].join('; ') || 'nicht vorhanden'}
+Vorhandene Förderziele: ${foerderZiele.join('; ') || 'nicht vorhanden'}
+Dokumentierte Beobachtungen: ${observations.join('; ') || 'nicht vorhanden'}
+
+Antworte ausschließlich als JSON:
+{
+  "staerken": "Nur belegte Stärken; sonst leerer String",
+  "herausforderungen": "Nur belegte bzw. bereits dokumentierte nächste Ziele; sonst leerer String",
+  "stationen": [
+    { "titel": "Vorschlag", "aufgabe": "konkrete Übung auf Basis eines belegten Ziels", "ziel": "zugehöriges belegtes Ziel", "icon": "map" }
+  ],
+  "elternTipps": ["Optionaler Vorschlag auf Basis eines belegten Ziels"]
+}`;
 
       const responseText = await askAI('ki-lernpfad', promptText);
-      if (responseText) {
-        let cleanText = responseText.trim();
-        if (cleanText.startsWith('```json')) {
-          cleanText = cleanText.substring(7);
-        }
-        if (cleanText.endsWith('```')) {
-          cleanText = cleanText.substring(0, cleanText.length - 3);
-        }
-        cleanText = cleanText.trim();
-        
-        const pathData = JSON.parse(cleanText);
-        
-        setApp(prev => {
-          const newLernpfade = { ...(prev.lernpfade || {}), [student.id]: { stationen: pathData.stationen, elternTipps: pathData.elternTipps } };
-          const existingRecords = prev.ikmRecords || [];
-          const recIdx = existingRecords.findIndex((r: any) => r.schuelerId === student.id);
-          let updatedIkmRecords = [...existingRecords];
-          
-          if (recIdx >= 0) {
-            updatedIkmRecords[recIdx] = {
-              ...updatedIkmRecords[recIdx],
-              diagnoseStaerken: pathData.staerken || updatedIkmRecords[recIdx].diagnoseStaerken,
-              diagnoseHerausforderungen: pathData.herausforderungen || updatedIkmRecords[recIdx].diagnoseHerausforderungen,
-            };
-          } else {
-            updatedIkmRecords.push({
-              id: 'ikm-' + Date.now(),
-              schuelerId: student.id,
-              datum: new Date().toISOString(),
-              schuljahr: prev.schuljahr || '—',
-              schulstufe: prev.stufe || 4,
-              diagnoseStaerken: pathData.staerken,
-              diagnoseHerausforderungen: pathData.herausforderungen
-            });
-          }
+      if (!responseText) return;
 
-          return {
-            ...prev,
-            lernpfade: newLernpfade,
-            ikmRecords: updatedIkmRecords
-          };
-        });
-      }
-    } catch (error) {
-      console.error('AI Profile Analysis failed, using smart fallback', error);
-      const fallback = generateFallbackAnalysis(student, ikmRecord, app, sem);
+      let cleanText = responseText.trim()
+        .replace(/^\`\`\`json\s*/i, '')
+        .replace(/^\`\`\`\s*/i, '')
+        .replace(/\`\`\`$/, '')
+        .trim();
+      const pathData = JSON.parse(cleanText);
+
+      const safeStations = Array.isArray(pathData.stationen) ? pathData.stationen : [];
+      const safeTips = Array.isArray(pathData.elternTipps) ? pathData.elternTipps : [];
+
       setApp(prev => {
-        const newLernpfade = { ...(prev.lernpfade || {}), [student.id]: { stationen: fallback.stationen, elternTipps: fallback.elternTipps } };
+        const newLernpfade = {
+          ...(prev.lernpfade || {}),
+          [student.id]: {
+            stationen: safeStations,
+            elternTipps: safeTips,
+            source: 'ai-draft',
+            generatedAt: new Date().toISOString()
+          }
+        };
+
         const existingRecords = prev.ikmRecords || [];
         const recIdx = existingRecords.findIndex((r: any) => r.schuelerId === student.id);
-        let updatedIkmRecords = [...existingRecords];
-        
+        let updatedIkmRecords = existingRecords;
+
         if (recIdx >= 0) {
+          updatedIkmRecords = [...existingRecords];
           updatedIkmRecords[recIdx] = {
             ...updatedIkmRecords[recIdx],
-            diagnoseStaerken: fallback.staerken,
-            diagnoseHerausforderungen: fallback.herausforderungen,
+            diagnoseStaerken: typeof pathData.staerken === 'string' && pathData.staerken.trim()
+              ? pathData.staerken.trim()
+              : updatedIkmRecords[recIdx].diagnoseStaerken,
+            diagnoseHerausforderungen: typeof pathData.herausforderungen === 'string' && pathData.herausforderungen.trim()
+              ? pathData.herausforderungen.trim()
+              : updatedIkmRecords[recIdx].diagnoseHerausforderungen,
           };
-        } else {
-          updatedIkmRecords.push({
-            id: 'ikm-' + Date.now(),
-            schuelerId: student.id,
-            datum: new Date().toISOString(),
-            schuljahr: prev.schuljahr || '—',
-            schulstufe: prev.stufe || 4,
-            diagnoseStaerken: fallback.staerken,
-            diagnoseHerausforderungen: fallback.herausforderungen
-          });
         }
-        return {
-          ...prev,
-          lernpfade: newLernpfade,
-          ikmRecords: updatedIkmRecords
-        };
+
+        return { ...prev, lernpfade: newLernpfade, ikmRecords: updatedIkmRecords };
       });
+    } catch (error) {
+      console.error('AI profile analysis failed; no fallback content was created.', error);
     } finally {
       setIsAnalyzingProfile(false);
     }
   };
-
   const handleSaveAreaComment = (areaId: string, type: 'teacher' | 'student', text: string) => {
     setApp(prev => {
       const kelGespraeche = prev.kelGespraeche || [];
@@ -1090,7 +1030,7 @@ Antworte AUSSCHLIESSLICH mit dem übersetzten JSON-Objekt in exakt derselben Str
           };
 
       const key = type === 'teacher' ? 'einschaetzungLehrperson' : 'selbsteinschaetzungKind';
-      const existingVal = targetMeeting[key]?.[areaId] || { wert: 2, kommentar: '' };
+      const existingVal = targetMeeting[key]?.[areaId] || { kommentar: '' };
       
       const updatedMeeting = {
         ...targetMeeting,
@@ -2906,15 +2846,8 @@ Antworte AUSSCHLIESSLICH mit dem übersetzten JSON-Objekt in exakt derselben Str
                 })()}
 
                 {currentSlide.type === 'ikm' && (() => {
-                  const record = (app.ikmRecords || []).find((r: any) => r.schuelerId === student.id) || currentSlide?.record || {
-                    id: 'ikm-fallback',
-                    schuelerId: student?.id || '',
-                    datum: new Date().toISOString(),
-                    schuljahr: app?.schuljahr || '—',
-                    schulstufe: app?.stufe || 4,
-                    mathematikPR: 54,
-                    deutschLesenPR: 58
-                  };
+                  const record = (app.ikmRecords || []).find((r: any) => r.schuelerId === student.id) || currentSlide?.record;
+                  if (!record) return null;
                   const rawLernpfad = app.lernpfade?.[student.id];
 
                   // Class average computations for reference lines in chart
@@ -2924,7 +2857,7 @@ Antworte AUSSCHLIESSLICH mit dem übersetzten JSON-Objekt in exakt derselben Str
                       .map((r: any) => r[key])
                       .filter((val: any) => val !== undefined && val !== null && !isNaN(Number(val)))
                       .map(Number);
-                    if (validScores.length === 0) return 50; // default average percentile rank
+                    if (validScores.length === 0) return null;
                     return Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length);
                   };
                   const avgRead = calcClassAvg('deutschLesenPR');
