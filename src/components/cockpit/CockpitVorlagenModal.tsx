@@ -79,7 +79,7 @@ const WIDGET_NAME_MAP: Record<string, string> = {
   scoreboard: "Punkte",
   wheel: "Glücksrad",
   breathing: "Atemübung",
-  drawing: "Whiteboard",
+  drawing: "Zeichenfeld",
   pet: "Klassentier",
   timeline: "Zeitstrahl",
   mathbalancer: "Zahlen-Waage",
@@ -290,7 +290,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                     ))
                   ) : (
                     <span className="text-xs text-[var(--warning-text)] font-bold italic">
-                      ⚠️ Hinweis: Aktuell sind keine Widgets auf dem Board geöffnet.
+                      ⚠️ Hinweis: Aktuell sind keine Unterrichtshilfen auf der Arbeitsfläche geöffnet.
                     </span>
                   )}
                 </div>
@@ -505,7 +505,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                           leftIcon={<RefreshCw size={12} />}
                           onClick={() => {
                             onUpdateProfile(p.id);
-                            showToast(`Vorlage "${p.name}" mit aktuellem Board-Layout aktualisiert!`, "success");
+                            showToast(`Vorlage "${p.name}" mit der aktuellen Arbeitsfläche aktualisiert!`, "success");
                           }}
                         >
                           Überschreiben
