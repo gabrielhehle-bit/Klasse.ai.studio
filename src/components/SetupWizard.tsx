@@ -63,8 +63,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const [klassenbezeichnung, setKlassenbezeichnung] = useState(isNewClass ? '' : (activeClassLocal ? activeClassLocal.name : app.klassenbezeichnung || ''));
   const [schuljahr, setSchuljahr] = useState(isNewClass ? getCurrentSchuljahr() : (activeClassLocal?.schuljahr || app.schuljahr || getCurrentSchuljahr()));
   const [stufe, setStufe] = useState<number>(isNewClass ? 1 : (activeClassLocal?.stufe !== undefined ? Number(activeClassLocal.stufe) : (app.stufe !== undefined ? Number(app.stufe) : 1)));
-  const [theme, setTheme] = useState<any>(isNewClass ? 'classic_light' : (activeClassLocal?.theme || (activeClassLocal?.settings as any)?.theme || app.theme || 'classic_light'));
-  const [fontFamily, setFontFamily] = useState<any>(isNewClass ? 'standard' : (activeClassLocal?.settings?.fontFamily || (activeClassLocal as any)?.fontFamily || 'standard'));
+  const [theme] = useState<any>(activeClassLocal?.theme || (activeClassLocal?.settings as any)?.theme || app.theme || (app.settings as any)?.theme || 'classic_light');
+  const [fontFamily] = useState<any>(activeClassLocal?.settings?.fontFamily || (activeClassLocal as any)?.fontFamily || app.settings?.fontFamily || 'standard');
 
   const [faecher, setFaecher] = useState<string[]>(isNewClass ? FAECHER_ALLE : (activeClassLocal?.faecher?.length ? activeClassLocal.faecher : FAECHER_ALLE));
   const [fachConfig, setFachConfig] = useState<any>(isNewClass ? DEFAULT_FACH_COLORS : (activeClassLocal?.fachConfig || DEFAULT_FACH_COLORS));
@@ -78,7 +78,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const initialStudents = isNewClass ? [] : (activeClassLocal?.schueler?.length ? activeClassLocal.schueler : (isEditing ? (app.schueler || []) : []));
   const [studentsList, setStudentsList] = useState<any[]>(initialStudents);
   const [currentStudent, setCurrentStudent] = useState({ vorname: '', nachname: '' });
-  const [uiScale, setUiScale] = useState<number>(activeClassLocal?.settings?.uiScale || (app as any).uiScale || 1);
+  const [uiScale] = useState<number>(activeClassLocal?.settings?.uiScale || app.settings?.uiScale || (app as any).uiScale || 1);
 
   const [csvPreview, setCsvPreview] = useState<any[] | null>(null);
   const [csvError, setCsvError] = useState(false);
