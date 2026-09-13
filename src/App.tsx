@@ -32,6 +32,9 @@ function lazyRetry<T extends React.ComponentType<any>>(
 }
 
 const Dashboard = lazyRetry(() => import('./components/Dashboard'));
+const KlasseHub = lazyRetry(() => import('./components/KlasseHub'));
+const PlanungHub = lazyRetry(() => import('./components/PlanungHub'));
+const LeistungenHub = lazyRetry(() => import('./components/LeistungenHub'));
 const StudentList = lazyRetry(() => import('./components/StudentList'));
 const Gradebook = lazyRetry(() => import('./components/Gradebook'));
 const AIAssistant = lazyRetry(() => import('./components/AIAssistant'));
@@ -139,12 +142,12 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
 
 const MobileRemoteController = lazyRetry(() => import('./components/MobileRemoteController').then(m => ({ default: m.MobileRemoteController })));
 
-const FULL_HEIGHT_PAGES = ['ki-helfer', 'sitzplan', 'elternbrief', 'differenzierung', 'verbal', 'materialien', 'jahresplanung', 'diagnostik', 'stunden', 'eltern', 'orga', 'notenTabelle', 'arbeitsblatt', 'stationenbetrieb', 'planungszentrale'];
+const FULL_HEIGHT_PAGES = ['klasse', 'planung', 'leistungen', 'ki-helfer', 'sitzplan', 'elternbrief', 'differenzierung', 'verbal', 'materialien', 'jahresplanung', 'diagnostik', 'stunden', 'eltern', 'orga', 'notenTabelle', 'arbeitsblatt', 'stationenbetrieb', 'planungszentrale'];
 
 function AppContent() {
   const { app, setApp, setPage } = useApp();
   const { showToast } = useToast();
-  const currentPage = app.currentPage || 'cockpit';
+  const currentPage = app.currentPage || 'dashboard';
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showDiagnostikAnleitung, setShowDiagnostikAnleitung] = useState(false);
@@ -568,6 +571,9 @@ function AppContent() {
     switch (currentPage) {
       case 'cockpit': return null;
       case 'dashboard': return <Dashboard />;
+      case 'klasse': return <KlasseHub />;
+      case 'planung': return <PlanungHub />;
+      case 'leistungen': return <LeistungenHub />;
       case 'schueler': return <StudentList />;
       case 'noten': return <Gradebook />;
       case 'ki-helfer': 
@@ -631,7 +637,10 @@ function AppContent() {
 
   const getPageTitle = () => {
     switch (currentPage) {
-      case 'dashboard': return 'Dashboard';
+      case 'dashboard': return 'Heute';
+      case 'klasse': return 'Klasse';
+      case 'planung': return 'Planung';
+      case 'leistungen': return 'Leistungen';
       case 'schueler': return 'Schüler';
       case 'noten': return 'Notenmappe';
       case 'ki-helfer':
@@ -640,7 +649,7 @@ function AppContent() {
       case 'ki-recht':
       case 'ki-stationenbetrieb':
         return 'KI Helfer';
-      case 'cockpit': return 'LEHRERCOCKPIT';
+      case 'cockpit': return 'Unterricht';
       case 'sitzplan': return 'Sitzplan';
       case 'anwesenheit': return 'Anwesenheit';
       case 'verhalten': return 'Verhalten & Notizen';
