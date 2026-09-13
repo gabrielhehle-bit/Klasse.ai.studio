@@ -1419,6 +1419,7 @@ export interface AppState {
   cockpitLayout?: CockpitWidgetConfig[];
   cockpitLayoutA?: CockpitWidgetConfig[];
   cockpitLayoutB?: CockpitWidgetConfig[];
+  cockpitLayoutC?: CockpitWidgetConfig[];
   boardSettings: {
     paperType?: 'blank' | 'lined' | 'squared' | 'writing-lines' | 'millimeter';
     paperSize?: number;
