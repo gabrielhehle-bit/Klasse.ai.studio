@@ -956,7 +956,6 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                     <p className="text-[0.625rem] text-slate-500">Bestehender Anzeigename wurde übernommen. Bitte kurz prüfen.</p>
                   )}
                 </div>
-                </div>
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schulname</label>
                   <input type="text" value={schulName} onChange={e => setSchulName(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm" />
