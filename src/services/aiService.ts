@@ -89,6 +89,11 @@ export async function callServerAI(action: string, params: any): Promise<string>
   }
 
   try {
+    if (params && typeof params === 'object' && 'imagePrivacyConfirmed' in params) {
+      const { imagePrivacyConfirmed: _localConfirmation, ...serverParams } = params;
+      params = serverParams;
+    }
+
     const response = await fetch("/api/ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
