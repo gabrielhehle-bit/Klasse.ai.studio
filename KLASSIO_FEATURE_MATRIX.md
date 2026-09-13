@@ -27,6 +27,7 @@ Legende:
 |---|---:|---|
 | SetupWizard | 🟡 | Klassio-Branding, geführter Ablauf, dynamische Schuljahre, strukturierte Lehrkraftdaten, echte Schülerimporte und konsistenter 10-Stunden-Plan umgesetzt; Browser-Abnahme offen. |
 | Dashboard / Heute | 🟡 | Kompakte Standardansicht geschärft: echte Begrüßung/Datum, vollständige Anwesenheitslogik ohne angenommene Präsenz, schulfreie Tage berücksichtigt, 10 Stunden konsistent, Bundesland-Feiertage und Routen korrigiert; Browser-Abnahme offen. |
+| KI-Helfer | 🟡 | Einheitliches Klassio-Branding, reale Serverstatus-Anzeige, klare Bereiche/Werkzeuge, transparenter Klassenkontext, konkrete Fehlerzustände, Foto-Korrektur mit expliziter Datenschutzbestätigung und ohne Fake-Fallbacks umgesetzt; Browser-/Live-Gemini-Abnahme offen. |
 | Kernnavigation | ✅ | Heute, Klasse, Planung, Leistungen, Unterricht + Utilities per Regressionstest abgesichert. |
 | Notizen | 🔴 | Eigene Sidebar-Seite geplant: freie Notizen, Konferenznotizen, To-dos und mit Schüler:innen verknüpfte Notizen inkl. Rückverlinkung ins Dossier. |
 | Lehrercockpit: weiße freie Fläche | 🟡 | Gemeinsame Unterrichtsfläche bleibt unabhängig vom App-Theme weiß; leerer Start ohne Einführungskarte, Standardwidgets oder vorgegebene Schnell-Auswahl. Browser-Abnahme offen. |
