@@ -1,6 +1,6 @@
 # KLASSIO – Feature Matrix
 
-Stand: 2026-09-13 · Abschluss-Branch `fix/reconciliation-finalization`
+Stand: 2026-09-13 · Integrationsbranch `reconcile/klassio-source-of-truth`
 
 Legende:
 
@@ -15,8 +15,10 @@ Legende:
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
 | GitHub als einzige Source of Truth | ✅ | Repository-Regeln dokumentiert; ZIP ist keine Arbeitsgrundlage. |
-| Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | 669/669 Tests, TS, Production-Build, PWA und Server-Smoke grün. |
+| Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
+| Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | 669/669 Tests, TS, Production-Build, PWA und Server-Smoke grün; nach jedem neuen Commit erneut verpflichtend. |
+| Commitgebundenes World4You-Artefakt | ✅ | CI erzeugt nur nach grünem Audit ein ZIP mit `dist`, Branch-/Commitmarker und Startkommando. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 ## Oberfläche und Navigation
@@ -78,7 +80,7 @@ Legende:
 | PBKDF2 / Recovery / Passwortwechsel | ✅ | 600.000 Iterationen; Recovery-/Rotation-/Passwortwechseltests grün. |
 | JSON-Backup verschlüsselt | ✅ | Export verweigert fehlenden Vault; Roundtrip und Restore getestet. |
 | Legacy-JSON/JS-Wrapper Parser | ✅ | JSON, BOM und einfache historische Wrapper werden ohne JavaScript-Ausführung gelesen. |
-| Echter historischer Benutzer-Backup-Import | 🟡 | Kein realer Altbackup-Datensatz im Repository/Chat verfügbar; synthetische Legacy-Tests grün. |
+| Echter historischer Benutzer-Backup-Import | 🟡 | Kein realer Altbackup-Datensatz als Abnahmedatensatz hinterlegt; synthetische Legacy-Tests grün. |
 | Pre-Import-Rücksicherung | ✅ | Restore legt verschlüsselten Vorzustand an; Fehler brechen Restore ab. |
 | E-Mail-Einmalcode-Login | 🟡 | Server + UI + Rate-Limits + 30-Tage-Session fertig; reales SMTP-Staging noch testen. |
 | Administrativer Zugangscode | ✅ | Bleibt als Fallback; CI-Smoke prüft Cookie-Session. |
@@ -100,7 +102,8 @@ Legende:
 
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
-| World4You Runtime grundsätzlich | 🟡 | Älterer Stagingstand war erreichbar; neuer Abschlusscommit noch nicht ausgerollt. |
-| World4You Abschluss-Staging | 🔴 | Exakten Reconciliation-Commit deployen. |
-| Finaler Browser-Test | 🔴 | Nach Deployment: Kernnavigation, Tresor, Login, Planung, Gradebook, Canva-Status, PPTX, PWA. |
-| Merge nach `main` | 🔴 | Erst nach grünem Staging-/Browser-Test. |
+| World4You Runtime grundsätzlich | 🟡 | Server hat Node 18.20.4 und npm 9.2.0; aktives Zielverzeichnis muss vor dem finalen Upload am Server eindeutig geprüft werden. |
+| World4You Release-Paket | ✅ | CI-Artefakt wird aus exakt dem geprüften Reconciliation-Commit erzeugt und trägt Branch-/Commitmarker. |
+| World4You Abschluss-Staging | 🔴 | Exaktes aktuelles Reconciliation-Artefakt auf das aktive Staging-Ziel deployen und `/api/health` prüfen. |
+| Finaler Browser-Test | 🔴 | Nach Deployment: Login, Tresor, Kernnavigation, Cockpit, Klasse/Dossier, Planung, Gradebook, Canva-Status, PPTX/PDF, Backup/Restore, PWA/Offline und responsive Viewports. |
+| Merge nach `main` | 🔴 | Erst nach grünem Staging-/Browser-Test PR #5 mergen. |
