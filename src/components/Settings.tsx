@@ -425,7 +425,7 @@ export default function Settings() {
 
       <div className="pt-4 text-center">
         <p className="text-[0.625rem] font-bold text-slate-300 uppercase tracking-[0.4em]">
-          Lehrkraft Manager v4.2.0 • Lokale Web-App
+          Klassio • Lokale, verschlüsselte Web-App
         </p>
       </div>
     </div>
