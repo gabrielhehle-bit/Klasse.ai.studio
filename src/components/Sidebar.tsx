@@ -96,7 +96,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                 </h1>
                 
                 <div className="mt-2 flex items-center justify-between gap-1 w-full">
-                  <span className="text-xs text-text-muted">Deine Lehrermappe</span>
+                  <span className="text-xs text-text-muted">Klassio</span>
                   <button
                     type="button"
                     onClick={() => setShowCustomizeModal(true)}
