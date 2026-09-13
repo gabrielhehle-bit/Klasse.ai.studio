@@ -2436,6 +2436,7 @@ export default function Gradebook() {
                      Gewichten
                    </button>
                  </div>
+                 </div>
                  )}
                </div>
             </div>
