@@ -5,6 +5,7 @@ on:
     branches:
       - fix/pre-deployment-blockers
       - reconcile/klassio-source-of-truth
+      - fix/reconciliation-finalization
   workflow_dispatch:
 
 permissions:
