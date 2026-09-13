@@ -777,7 +777,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                       </div>
                    </div>
                    <div className="flex items-center gap-2">
-                     <label className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-[0.625rem] font-bold text-slate-600 cursor-pointer" title="Schulstufe, Bundesland, Klassengröße und aktuelle Wochenplanthemen verwenden. Schülernamen werden nicht automatisch ergänzt.">
+                     <label className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-[0.625rem] font-bold text-slate-600 cursor-pointer" title="Der normale Klassenkontext enthält Schulstufe, Bundesland, Klassengröße und Wochenplanthemen ohne Namen. Im Lernziel-Modul können interne Schülerstände ergänzt werden; Namen werden vor der externen KI-Anfrage pseudonymisiert.">
                        <input type="checkbox" checked={useClassContext} onChange={(e) => setUseClassContext(e.target.checked)} className="rounded" />
                        Klassenkontext
                      </label>
