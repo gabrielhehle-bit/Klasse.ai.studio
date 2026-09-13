@@ -19,6 +19,12 @@ import {
   getValidStudentDiagnostics,
   isDiagnosticAlert
 } from '../../lib/diagnosticData';
+import {
+  loadEncryptedStorageItem,
+  removeStorageItem,
+  saveEncryptedStorageItem
+} from '../../lib/secureStorageService';
+import { getActiveVaultKey } from '../../lib/vaultStorage';
 
 interface DossierKIPortfolioProps {
   student: Student;
@@ -123,9 +129,27 @@ export default function DossierKIPortfolio({ student, semester, onSemesterChange
           : 'Die vorhandenen Daten prüfen und daraus ein beobachtbares nächstes Lernziel ableiten.';
 
   useEffect(() => {
-    const cached = localStorage.getItem(`ki_portfolio_summary_${student.id}_${selectedSemester}`);
-    setAiSummary(cached || null);
-    setError(null);
+    let active = true;
+    const cacheKey = `ki_portfolio_summary_${student.id}_${selectedSemester}`;
+    const loadCachedDraft = async () => {
+      const vaultKey = getActiveVaultKey();
+      const cached = await loadEncryptedStorageItem<string>(cacheKey, vaultKey);
+      if (!active) return;
+      setAiSummary(cached || null);
+      setError(null);
+
+      // Transparent migration of a legacy plaintext cache to the encrypted cache format.
+      if (cached && vaultKey) {
+        await saveEncryptedStorageItem(cacheKey, cached, vaultKey);
+      }
+    };
+    void loadCachedDraft().catch(() => {
+      if (active) {
+        setAiSummary(null);
+        setError('Ein früherer KI-Entwurf konnte nicht sicher geladen werden.');
+      }
+    });
+    return () => { active = false; };
   }, [student.id, selectedSemester]);
 
   const buildPromptData = () => {
@@ -187,7 +211,11 @@ export default function DossierKIPortfolio({ student, semester, onSemesterChange
         throw new Error('KI nicht verfügbar');
       }
       setAiSummary(result);
-      localStorage.setItem(`ki_portfolio_summary_${student.id}_${selectedSemester}`, result);
+      const vaultKey = getActiveVaultKey();
+      if (!vaultKey) {
+        throw new Error('Tresor ist nicht entsperrt');
+      }
+      await saveEncryptedStorageItem(`ki_portfolio_summary_${student.id}_${selectedSemester}`, result, vaultKey);
     } catch {
       setError('Die KI ist nicht eingerichtet oder momentan nicht erreichbar. Die sachliche Datenübersicht bleibt vollständig verfügbar.');
     } finally {
@@ -196,7 +224,7 @@ export default function DossierKIPortfolio({ student, semester, onSemesterChange
   };
 
   const clearAiDraft = () => {
-    localStorage.removeItem(`ki_portfolio_summary_${student.id}_${selectedSemester}`);
+    removeStorageItem(`ki_portfolio_summary_${student.id}_${selectedSemester}`);
     setAiSummary(null);
     setError(null);
   };
