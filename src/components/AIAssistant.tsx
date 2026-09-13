@@ -516,7 +516,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
       const text = await askAI(modusId, userMsg + contextStr, activeMessages, manualImageBase64 || undefined, imagePrivacyConfirmed);
       const normalized = (text || '').trim();
       if (!normalized) throw new Error('Die KI hat keine Antwort geliefert.');
-      if (/^(KI-|Rate Limit|Timeout:|KI momentan|Bildanalyse blockiert|KI-Anfrage aus Datenschutzgründen)/i.test(normalized)) {
+      if (/^(KI-|Rate Limit|Timeout:|KI momentan|Bildanalyse blockiert|KI-Anfrage aus Datenschutzgründen|GEMINI_|Zu viele KI-Anfragen)/i.test(normalized)) {
         throw new Error(normalized);
       }
       const responseMessages: Message[] = [...newMessages, { role: 'ai', content: normalized }];
@@ -791,6 +791,22 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                       </button>
                    </div>
                 </div>
+
+                {aiAvailability !== 'ready' && (
+                  <div className={`mx-4 lg:mx-8 mt-3 rounded-xl border px-4 py-3 text-xs font-semibold ${
+                    aiAvailability === 'missing'
+                      ? 'bg-amber-50 border-amber-200 text-amber-800'
+                      : aiAvailability === 'offline'
+                        ? 'bg-rose-50 border-rose-200 text-rose-800'
+                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                  }`}>
+                    {aiAvailability === 'missing'
+                      ? 'Der KI-Helfer ist serverseitig noch nicht eingerichtet. Für den Betrieb muss GEMINI_API_KEY in der Serverumgebung gesetzt sein.'
+                      : aiAvailability === 'offline'
+                        ? 'Der KI-Status konnte nicht geprüft werden. Bei einer Anfrage zeigt Klassio die konkrete Fehlermeldung an.'
+                        : 'Klassio prüft gerade die KI-Verbindung …'}
+                  </div>
+                )}
 
                 <div className={`flex-1 overflow-y-auto scrollbar-hide scroll-smooth ${
                   isCompact ? 'py-4 pb-28' : isLarge ? 'py-6 pb-36' : 'py-8 pb-40'
@@ -1255,7 +1271,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                           onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                         />
                         <button 
-                          disabled={isLoading || !input.trim()}
+                          disabled={isLoading || !input.trim() || aiAvailability === 'missing'}
                           onClick={() => handleSend()}
                           className={`flex items-center justify-center text-white transition-all shadow-md hover:shadow-indigo-500/10 active:scale-95 shrink-0 ml-1 mb-1 cursor-pointer ${
                             isCompact ? 'w-10 h-10 rounded-xl' : 'w-12 h-12 rounded-2xl'
@@ -1265,9 +1281,15 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                           <Send size={18} />
                         </button>
                      </div>
-                     <span className="text-[10px] text-center text-slate-400 font-bold select-none leading-none">
-                       Tipp: Drücke <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Enter</kbd> zum Senden • <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Shift+Enter</kbd> für Zeilenumbruch
-                     </span>
+                     <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-[10px] text-slate-400 font-bold select-none">
+                       <label className="md:hidden flex items-center gap-1.5 cursor-pointer">
+                         <input type="checkbox" checked={useClassContext} onChange={(e) => setUseClassContext(e.target.checked)} className="rounded" />
+                         Klassenkontext verwenden
+                       </label>
+                       <span>
+                         <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Enter</kbd> senden · <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Shift+Enter</kbd> Zeilenumbruch
+                       </span>
+                     </div>
                   </div>
                 </div>
               </motion.div>
@@ -1299,11 +1321,18 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                         </div>
                      </div>
                      <button 
-                       onClick={() => setShowGuidedTool(false)} 
+                       onClick={() => {
+                         if (activeTabData.chat) {
+                           setShowGuidedTool(false);
+                         } else {
+                           setActiveTab('ki-helfer');
+                           setShowGuidedTool(false);
+                         }
+                       }} 
                        className="px-5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full text-[0.5625rem] font-black uppercase tracking-widest flex items-center gap-2 border border-slate-200 shadow-sm"
                      >
                         <MessageSquare size={12} className="text-indigo-400" />
-                        Im Chat fragen
+                        {activeTabData.chat ? 'Im Chat fragen' : 'Zum KI-Helfer'}
                      </button>
                   </div>
                   <div className="flex-1 overflow-y-auto no-scrollbar">
