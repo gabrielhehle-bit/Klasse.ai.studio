@@ -27,25 +27,25 @@ import Markdown from 'react-markdown';
 
 const EXAMPLE_PROMPTS: Record<string, { text: string; icon: any }[]> = {
   'ki-helfer': [
-    { text: "Methode für Einstieg in den Wasserkreislauf für 4. Klasse", icon: BookOpen },
+    { text: "Methode für den Einstieg in den Wasserkreislauf passend zu meiner Klasse", icon: BookOpen },
     { text: "Wie differenziere ich eine Lesestunde für DaZ-Kinder?", icon: Layers },
     { text: "Spielerische Übung für die Stille-Wiederholung", icon: MessageSquare },
-    { text: "Gruppenarbeit mit klaren Rollen für eine 4. Klasse", icon: Target },
+    { text: "Gruppenarbeit mit klaren Rollen für meine Klasse", icon: Target },
     { text: "5-Minuten-Aktivierungsspiel für regnerische Pausen", icon: Activity },
     { text: "Unterrichtsidee zum Thema 'Demokratie & Klassensprecher'", icon: User },
     { text: "Einstiegs-Rätsel für eine Geometrie-Stunde (Körper & Formen)", icon: Sparkles },
     { text: "Fördertipps für Kinder mit Rechenschwierigkeiten (Zehnerübergang)", icon: Zap },
-    { text: "Kreative Schreibaufgabe für die 3. Klasse: Abenteuergeschichte", icon: PenTool },
+    { text: "Kreative Schreibaufgabe Abenteuergeschichte passend zu meiner Klasse", icon: PenTool },
     { text: "Wie erkläre ich den Unterschied zwischen Nadel- & Laubwald?", icon: Waves },
   ],
   'ki-lernziele': [
-    { text: "Welche Ziele aus dem Deutsch-Lehrplan fehlen uns noch in der 3. Klasse?", icon: Target },
+    { text: "Welche Ziele aus dem Deutsch-Lehrplan fehlen uns noch?", icon: Target },
     { text: "Schlage mir Stationen vor, um die offenen Lese-Ziele zu erarbeiten.", icon: Layers },
     { text: "Was sind sinnvolle Lernziele für ein Kind mit SPF nächste Woche?", icon: Target },
     { text: "Bitte analysiere den aktuellen Klassen-Fortschritt in Sachunterricht.", icon: Sparkles },
   ],
   'ki-wissen': [
-    { text: "Was sind die Bildungsstandards für Mathematik 4. Klasse?", icon: BookOpen },
+    { text: "Welche Bildungsstandards sind für Mathematik in meiner Schulstufe wichtig?", icon: BookOpen },
     { text: "Wie funktioniert die Beurteilung mit MIKA-D?", icon: Scale },
     { text: "Was ist der Unterschied zwischen formativer und summativer Bewertung?", icon: Info },
     { text: "Welche Methoden zur Lese-Diagnostik gibt es?", icon: Search },
@@ -87,9 +87,9 @@ const EXAMPLE_PROMPTS: Record<string, { text: string; icon: any }[]> = {
     { text: "Häufige Rechtschreibfehler in 4. Klasse", icon: Search },
   ],
   'ki-arbeitsblatt': [
-    { text: "Rechenpäckchen Einmaleins mit 6, Stufe 2, 10 Aufgaben", icon: FileEdit },
+    { text: "Rechenpäckchen Einmaleins mit 6, passend zu meiner Schulstufe, 10 Aufgaben", icon: FileEdit },
     { text: "Lückentext zum Thema Waldtiere, Sachunterricht", icon: Layers },
-    { text: "Satzglieder bestimmen, Deutsch 4. Klasse, mittel", icon: Target },
+    { text: "Satzglieder bestimmen, passend zu meiner Schulstufe, mittel", icon: Target },
   ],
   'ki-foto-korrektur': [
     { text: "Fokus auf Rechtschreibung und Grammatik", icon: Search },
@@ -99,7 +99,7 @@ const EXAMPLE_PROMPTS: Record<string, { text: string; icon: any }[]> = {
   'ki-wochenplan': [
     { text: "Wochenplan KW 23, Mathe S.45 und Deutsch Lernwörter", icon: ClipboardList },
     { text: "Freiarbeitsplan mit Basis und Fordernd Differenzierung", icon: Layers },
-    { text: "Stationenbetrieb zum Thema Bauernhof, 2. Stufe", icon: BookOpen },
+    { text: "Stationenbetrieb zum Thema Bauernhof, passend zu meiner Schulstufe", icon: BookOpen },
   ],
 };
 
@@ -262,7 +262,23 @@ export default function AIAssistant() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<AiTab>('ki-helfer');
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [aiAvailability, setAiAvailability] = useState<'checking' | 'ready' | 'missing' | 'offline'>('checking');
+  const [useClassContext, setUseClassContext] = useState(true);
   const processedPromptTimestampRef = useRef<number>(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/ai/status')
+      .then(async (response) => {
+        if (!response.ok) throw new Error('status unavailable');
+        const data = await response.json();
+        if (!cancelled) setAiAvailability(data?.available ? 'ready' : 'missing');
+      })
+      .catch(() => {
+        if (!cancelled) setAiAvailability('offline');
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Form States for new modes
   const [abFach, setAbFach] = useState('Deutsch');
@@ -400,16 +416,45 @@ export default function AIAssistant() {
     }
   };
 
-  const handleSend = async (manualText?: string, manualImageBase64?: {data: string, mimeType: string} | null) => {
+  const buildClassContext = () => {
+    const currentWeek = app.currentKW;
+    const weekPlan = currentWeek ? app.wochenplanung?.[currentWeek] : undefined;
+    const weekTopics: string[] = [];
+
+    if (weekPlan && typeof weekPlan === 'object') {
+      Object.entries(weekPlan).forEach(([day, cells]: [string, any]) => {
+        if (!cells || typeof cells !== 'object') return;
+        Object.values(cells).forEach((cell: any) => {
+          if (!cell?.thema && !cell?.fach) return;
+          const summary = [day, cell?.fach, cell?.thema].filter(Boolean).join(' – ');
+          if (summary && !weekTopics.includes(summary)) weekTopics.push(summary);
+        });
+      });
+    }
+
+    return `\n\n[KLASSIO-KLASSENKONTEXT – ohne automatisch übermittelte Schülernamen]
+Schulstufe: ${app.stufe || 'nicht angegeben'}
+Bundesland: ${app.bundesland || 'nicht angegeben'}
+Klassengröße: ${(app.schueler || []).length}
+Aktuelle Kalenderwoche: ${currentWeek || 'nicht angegeben'}
+Wochenplanthemen:
+${weekTopics.slice(0, 12).map(topic => `- ${topic}`).join('\n') || '- keine Themen hinterlegt'}`;
+  };
+
+  const handleSend = async (manualText?: string, manualImageBase64?: {data: string, mimeType: string} | null, imagePrivacyConfirmed: boolean = false) => {
     const userMsg = (manualText || input).trim();
     if (!userMsg || isLoading) return;
+    if (aiAvailability === 'missing') {
+      showToast('Der KI-Helfer ist serverseitig noch nicht eingerichtet.', 'error');
+      return;
+    }
     
     const currentTab = activeTab;
     const modusId = currentTab;
     
     if (!manualText) setInp('');
     
-    let contextStr = '';
+    let contextStr = useClassContext ? buildClassContext() : '';
     if (modusId === 'ki-lernziele' && activeMessages.length === 0) {
       const students = app.schueler || [];
       const trackerDB = app.lernzielTracker || {};
@@ -447,7 +492,7 @@ export default function AIAssistant() {
         }
       });
       
-      contextStr = `\n\n[SYSTEM: INTERNER KONTEXT]
+      contextStr += `\n\n[ZUSÄTZLICHER LERNZIEL-KONTEXT]
 Aktuelle Ziele im Klassen-Tracker:
 ${classProgress || 'Keine Ziele definiert.'}
 
@@ -467,14 +512,20 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
     setIsLoading(true);
 
     try {
-      const text = await askAI(modusId, userMsg + contextStr, activeMessages, manualImageBase64 || undefined);
-      const responseMessages: Message[] = [...newMessages, { role: 'ai', content: text || 'Keine Antwort erhalten.' }];
+      const text = await askAI(modusId, userMsg + contextStr, activeMessages, manualImageBase64 || undefined, imagePrivacyConfirmed);
+      const normalized = (text || '').trim();
+      if (!normalized) throw new Error('Die KI hat keine Antwort geliefert.');
+      if (/^(KI-|Rate Limit|Timeout:|KI momentan|Bildanalyse blockiert|KI-Anfrage aus Datenschutzgründen)/i.test(normalized)) {
+        throw new Error(normalized);
+      }
+      const responseMessages: Message[] = [...newMessages, { role: 'ai', content: normalized }];
       setActiveMessages(responseMessages);
       saveChatHistory(currentTab, responseMessages, activeChatId, userMsg);
     } catch (err) {
       console.error(err);
-      showToast('Verbindung zur KI fehlgeschlagen.', 'error');
-      const errorMsg: Message = { role: 'ai', content: 'Ups, da gab es ein Problem mit der Verbindung. Bitte prüfe deinen API-Key.' };
+      const message = err instanceof Error ? err.message : 'KI momentan nicht erreichbar.';
+      showToast(message, 'error');
+      const errorMsg: Message = { role: 'ai', content: `⚠️ ${message}` };
       setActiveMessages(prev => [...prev, errorMsg]);
     } finally {
       setIsLoading(false);
@@ -503,19 +554,19 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
   };
 
   const tabs: { id: AiTab, label: string, icon: React.ReactNode, color: string, colorClass: string, bgClass: string, buttonColor: string, description: string, chat: boolean, category: 'advisor' | 'tool' }[] = [
-    { id: 'ki-helfer', label: 'Pädagogik', icon: <Bot size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#059669', description: 'Methoden & Planung', chat: true, category: 'advisor' },
-    { id: 'ki-wissen', label: 'Wissen', icon: <BookOpen size={20} />, color: 'amber', colorClass: 'text-amber-500/70', bgClass: 'bg-amber-600', buttonColor: '#d97706', description: 'Fachwissen & Sachkunde', chat: true, category: 'advisor' },
+    { id: 'ki-helfer', label: 'Unterricht & Pädagogik', icon: <Bot size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#059669', description: 'Methoden & Planung', chat: true, category: 'advisor' },
+    { id: 'ki-wissen', label: 'Wissen', icon: <BookOpen size={20} />, color: 'amber', colorClass: 'text-amber-500/70', bgClass: 'bg-amber-600', buttonColor: '#d97706', description: 'Fachwissen & Sachunterricht', chat: true, category: 'advisor' },
     { id: 'ki-recht', label: 'Schulrecht', icon: <Scale size={20} />, color: 'slate', colorClass: 'text-slate-500/70', bgClass: 'bg-slate-600', buttonColor: '#475569', description: 'Gesetze & Regeln', chat: true, category: 'advisor' },
     { id: 'ki-reflexion', label: 'Reflexion', icon: <MessageSquare size={20} />, color: 'teal', colorClass: 'text-teal-500/70', bgClass: 'bg-teal-600', buttonColor: '#0d9488', description: 'Feedback & Coaching', chat: true, category: 'advisor' },
     { id: 'ki-elternbrief', label: 'Elternkommunikation', icon: <Mail size={20} />, color: 'indigo', colorClass: 'text-indigo-500/70', bgClass: 'bg-indigo-600', buttonColor: '#4f46e5', description: 'Information & Förderung', chat: true, category: 'tool' },
     { id: 'ki-differenzierung', label: 'Differenzierung', icon: <Layers size={20} />, color: 'sky', colorClass: 'text-sky-500/70', bgClass: 'bg-sky-600', buttonColor: '#0284c7', description: 'DaZ & Förderbedarf', chat: true, category: 'tool' },
     { id: 'ki-beurteilung', label: 'Leistungsbeurteilung', icon: <FileEdit size={20} />, color: 'orange', colorClass: 'text-orange-500/70', bgClass: 'bg-orange-600', buttonColor: '#ea580c', description: 'Noten & KEL', chat: true, category: 'tool' },
-    { id: 'ki-korrektur', label: 'KI Check', icon: <Check size={20} />, color: 'rose', colorClass: 'text-rose-500/70', bgClass: 'bg-rose-600', buttonColor: '#e11d48', description: 'Korrekturlesen', chat: true, category: 'tool' },
+    { id: 'ki-korrektur', label: 'Text prüfen', icon: <Check size={20} />, color: 'rose', colorClass: 'text-rose-500/70', bgClass: 'bg-rose-600', buttonColor: '#e11d48', description: 'Korrekturlesen', chat: true, category: 'tool' },
     { id: 'ki-arbeitsblatt', label: 'Arbeitsblätter', icon: <FileText size={20} />, color: 'cyan', colorClass: 'text-cyan-500/70', bgClass: 'bg-cyan-600', buttonColor: '#0891b2', description: 'Fördern & Talente', chat: true, category: 'tool' },
     { id: 'ki-foto-korrektur', label: 'Text-Korrektur (Foto)', icon: <Camera size={20} />, color: 'red', colorClass: 'text-red-500/70', bgClass: 'bg-red-500', buttonColor: '#ef4444', description: 'Schülertexte korrigieren', chat: true, category: 'tool' },
     { id: 'ki-wochenplan', label: 'Wochenplan-Arbeit', icon: <ClipboardList size={20} />, color: 'purple', colorClass: 'text-purple-500/70', bgClass: 'bg-purple-600', buttonColor: '#9333ea', description: 'Pläne & Freiarbeit', chat: true, category: 'tool' },
-    { id: 'ki-lernziele', label: 'Lernziel-Wizard', icon: <Target size={20} />, color: 'blue', colorClass: 'text-blue-500/70', bgClass: 'bg-blue-600', buttonColor: '#2563eb', description: 'Planung & Empfehlungen', chat: true, category: 'tool' },
-    { id: 'ki-stundenplan-check', label: 'Stundenplan Check', icon: <Activity size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#10b981', description: 'Wochenplanung prüfen', chat: false, category: 'tool' },
+    { id: 'ki-lernziele', label: 'Lernziele', icon: <Target size={20} />, color: 'blue', colorClass: 'text-blue-500/70', bgClass: 'bg-blue-600', buttonColor: '#2563eb', description: 'Planung & Empfehlungen', chat: true, category: 'tool' },
+    { id: 'ki-stundenplan-check', label: 'Wochenplan prüfen', icon: <Activity size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#10b981', description: 'Wochenplanung prüfen', chat: false, category: 'tool' },
     { id: 'ki-stationenbetrieb', label: 'Lernwerkstätten', icon: <LayoutGrid size={20} />, color: 'indigo', colorClass: 'text-indigo-500/70', bgClass: 'bg-indigo-600', buttonColor: '#4f46e5', description: 'Lernwerkstatt & Stationenbetrieb', chat: false, category: 'tool' },
   ];
 
@@ -541,10 +592,12 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
             </div>
             {!isSidebarCollapsed && (
               <div className="">
-                <h2 className="text-[1.125rem] leading-normal font-black text-slate-900 tracking-tight whitespace-nowrap">ExpertISE-KI</h2>
-                <div className="flex items-center gap-1.5 opacity-50 whitespace-nowrap">
-                  <Sparkles size={10} className="text-indigo-500" />
-                  <span className="text-[0.5rem] font-black uppercase tracking-widest text-slate-400 leading-none">Vernetzte Intelligenz</span>
+                <h2 className="text-[1.125rem] leading-normal font-black text-slate-900 tracking-tight whitespace-nowrap">KI-Helfer</h2>
+                <div className="flex items-center gap-1.5 whitespace-nowrap">
+                  <span className={`w-1.5 h-1.5 rounded-full ${aiAvailability === 'ready' ? 'bg-emerald-500' : aiAvailability === 'missing' ? 'bg-amber-500' : aiAvailability === 'offline' ? 'bg-rose-500' : 'bg-slate-300 animate-pulse'}`} />
+                  <span className="text-[0.5rem] font-black uppercase tracking-widest text-slate-400 leading-none">
+                    {aiAvailability === 'ready' ? 'KI bereit' : aiAvailability === 'missing' ? 'Nicht eingerichtet' : aiAvailability === 'offline' ? 'Verbindung unklar' : 'Prüfe Verbindung'}
+                  </span>
                 </div>
               </div>
             )}
@@ -557,7 +610,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
             {!isSidebarCollapsed && (
               <div className="flex items-center gap-2 mb-3 px-2">
                 <MessageSquare size={12} className="text-slate-300" />
-                <span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-300 whitespace-nowrap">Beratung & Coaching</span>
+                <span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-300 whitespace-nowrap">Fragen & Beratung</span>
               </div>
             )}
             {isSidebarCollapsed && (
@@ -603,7 +656,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
             {!isSidebarCollapsed && (
               <div className="flex items-center gap-2 mb-3 px-2">
                 <Wand2 size={12} className="text-slate-300" />
-                <span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-300 whitespace-nowrap">Spezial-Werkzeuge</span>
+                <span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-300 whitespace-nowrap">Werkzeuge</span>
               </div>
             )}
             {isSidebarCollapsed && (
@@ -668,23 +721,17 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
             <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
               <Bot size={16} />
             </div>
-            <span className="text-[0.625rem] font-black uppercase tracking-tight text-slate-900">AI Expert</span>
+            <span className="text-[0.625rem] font-black uppercase tracking-tight text-slate-900">KI-Helfer</span>
           </div>
           <div className="flex items-center gap-1">
-             <div className="flex items-center gap-1 h-8 bg-slate-50 p-1 rounded-lg">
-                {tabs.map(t => (
-                  <button 
-                    key={t.id}
-                    onClick={() => setActiveTab(t.id)}
-                    aria-label={`${t.label}: ${t.description}`}
-                    aria-pressed={activeTab === t.id}
-                    title={`${t.label} – ${t.description}`}
-                    className={`w-6 h-6 flex items-center justify-center rounded-md ${activeTab === t.id ? 'bg-white shadow-sm text-slate-900' : 'text-slate-300'}`}
-                  >
-                    {React.cloneElement(t.icon as React.ReactElement<any>, { size: 12 })}
-                  </button>
-                ))}
-             </div>
+             <select
+               value={activeTab}
+               onChange={(e) => setActiveTab(e.target.value as AiTab)}
+               aria-label="KI-Bereich wählen"
+               className="h-9 max-w-[210px] rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs font-bold text-slate-700 outline-none"
+             >
+               {tabs.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+             </select>
              <button 
                onClick={() => setIsFullScreen(!isFullScreen)}
                aria-label={isFullScreen ? "Vollbild beenden" : "Vollbild öffnen"}
@@ -724,18 +771,24 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                       <div>
                          <div className="flex items-center gap-2 mb-0.5">
                             <h1 className="text-[0.875rem] leading-snug font-black uppercase tracking-tight text-slate-900">{activeTabData.label}</h1>
-                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                            <div className={`w-2 h-2 rounded-full ${aiAvailability === 'ready' ? 'bg-emerald-500' : aiAvailability === 'missing' ? 'bg-amber-500' : aiAvailability === 'offline' ? 'bg-rose-500' : 'bg-slate-300 animate-pulse'}`} />
                          </div>
                          <p className="text-[0.6875rem] font-semibold text-slate-500">{activeTabData.description}</p>
                       </div>
                    </div>
-                   <button 
-                      onClick={() => { setActiveMessages([]); setActiveChatId(null); }}
-                      className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[0.625rem] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2 transition-all active:scale-95"
-                    >
-                      <RefreshCw size={10} className="text-indigo-400" />
-                      Zurücksetzen
-                    </button>
+                   <div className="flex items-center gap-2">
+                     <label className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-[0.625rem] font-bold text-slate-600 cursor-pointer" title="Schulstufe, Bundesland, Klassengröße und aktuelle Wochenplanthemen verwenden. Schülernamen werden nicht automatisch ergänzt.">
+                       <input type="checkbox" checked={useClassContext} onChange={(e) => setUseClassContext(e.target.checked)} className="rounded" />
+                       Klassenkontext
+                     </label>
+                     <button 
+                        onClick={() => { setActiveMessages([]); setActiveChatId(null); }}
+                        className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[0.625rem] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2 transition-all active:scale-95"
+                      >
+                        <RefreshCw size={10} className="text-indigo-400" />
+                        Neuer Chat
+                      </button>
+                   </div>
                 </div>
 
                 <div className={`flex-1 overflow-y-auto scrollbar-hide scroll-smooth ${
@@ -931,7 +984,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                            </div>
                            <div className="flex-1 bg-white border border-slate-100 rounded-3xl p-5 shadow-xl shadow-slate-100/40 flex flex-col gap-3.5 min-w-[300px]">
                               <div className="flex items-center gap-2">
-                                 <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-wider animate-pulse">KI-Experte formuliert</span>
+                                 <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-wider animate-pulse">KI-Helfer formuliert</span>
                                  <span className="text-[10px] font-bold text-slate-400">Denkvorgang läuft...</span>
                               </div>
                               <div className="space-y-2.5">
@@ -1236,7 +1289,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                        className="px-5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full text-[0.5625rem] font-black uppercase tracking-widest flex items-center gap-2 border border-slate-200 shadow-sm"
                      >
                         <MessageSquare size={12} className="text-indigo-400" />
-                        Chat-Beratung
+                        Im Chat fragen
                      </button>
                   </div>
                   <div className="flex-1 overflow-y-auto no-scrollbar">
