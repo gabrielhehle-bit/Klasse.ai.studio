@@ -7,7 +7,7 @@ import {
   FileText, Link as LinkIcon, Sparkles, BookOpen, LifeBuoy, Mail, StickyNote,
   X, Download, ExternalLink, Copy, Printer, Info, AlertTriangle, Check,
   Folder, Database, ArrowLeft, Upload, ClipboardList, Wand2, Loader2,
-  LayoutGrid, List, CheckSquare, Square, FolderClosed, Trash, BarChart2, Tag, UploadCloud
+  LayoutGrid, List, CheckSquare, Square, FolderClosed, Trash, BarChart2, Tag, UploadCloud, Palette
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { FAECHER_ALLE } from '../constants';
@@ -28,7 +28,7 @@ export const calculateStorageSize = (items: MaterialItem[]) => {
 };
 
 export default function Materialbibliothek() {
-  const { app, setApp } = useApp();
+  const { app, setApp, setPage } = useApp();
   const [activeTab, setActiveTab] = useState<string>('Alle');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterFach, setFilterFach] = useState('');
@@ -293,18 +293,26 @@ export default function Materialbibliothek() {
            </div>
         </div>
         
-        <button 
-          onClick={() => {
-            setSelectedMaterial(null);
-            setIsAdding(true);
-          }}
-          className={`btn btn-primary flex shrink-0 items-center gap-2 shadow-xl shadow-indigo-100 hover:scale-[1.02] transition-transform ${
-            isCompact ? 'h-11 px-5 rounded-xl text-xs mt-1 md:mt-4' : isLarge ? 'h-16 px-10 rounded-[1.5rem] text-lg mt-3 md:mt-10' : 'h-14 px-8 mt-2 md:mt-8'
-          }`}
-        >
-          <Plus size={isCompact ? 18 : isLarge ? 28 : 24} />
-          <span>Neues Material</span>
-        </button>
+        <div className={`flex shrink-0 flex-col gap-2 sm:flex-row ${isCompact ? 'mt-1 md:mt-4' : isLarge ? 'mt-3 md:mt-10' : 'mt-2 md:mt-8'}`}>
+          <button
+            type="button"
+            onClick={() => setPage('canva')}
+            className={`flex items-center justify-center gap-2 rounded-xl border border-[var(--accent)]/25 bg-[var(--accent-soft)] px-5 font-black text-[var(--accent)] transition hover:border-[var(--accent)]/45 hover:bg-[var(--surface)] ${isCompact ? 'h-11 text-xs' : isLarge ? 'h-16 text-lg' : 'h-14 text-sm'}`}
+          >
+            <Palette size={isCompact ? 18 : isLarge ? 28 : 22} />
+            <span>Mit Canva gestalten</span>
+          </button>
+          <button 
+            onClick={() => {
+              setSelectedMaterial(null);
+              setIsAdding(true);
+            }}
+            className={`btn btn-primary flex shrink-0 items-center gap-2 shadow-xl hover:scale-[1.02] transition-transform ${isCompact ? 'h-11 px-5 rounded-xl text-xs' : isLarge ? 'h-16 px-10 rounded-[1.5rem] text-lg' : 'h-14 px-8'}`}
+          >
+            <Plus size={isCompact ? 18 : isLarge ? 28 : 24} />
+            <span>Neues Material</span>
+          </button>
+        </div>
       </div>
 
       {storageMB > 4 && (
