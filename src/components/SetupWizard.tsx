@@ -1426,7 +1426,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                   <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Users className="text-emerald-500" size={22}/> Schülerliste ({studentsList.length})</h3>
                 </div>
                <button onClick={() => setIsKlassenlistImportOpen(true)} className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[0.625rem] font-bold uppercase tracking-wider rounded-lg transition-all border border-emerald-100 shadow-sm">
-                    <FileUp size={12} /> Liste importieren
+                    <FileUp size={12} /> Liste / Excel importieren
                </button>
              </div>
 
@@ -1548,55 +1548,22 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                   <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                     <FileUp size={20} />
                   </div>
-                  <h4 className="text-[0.875rem] font-black text-emerald-700 border-b border-transparent">📋 Liste importieren</h4>
+                  <h4 className="text-[0.875rem] font-black text-emerald-700 border-b border-transparent">📋 Liste / Excel importieren</h4>
                   <p className="text-[0.75rem] text-emerald-600 mt-2 leading-relaxed">
                     Bequemer Import als CSV-Datei oder per Copy-Paste direkt aus Excel.
                   </p>
                 </div>
 
                 <div 
-                  onClick={() => {
-                    const demoNames = [
-                      { v: 'Lukas', n: 'Gruber', g: 'm' },
-                      { v: 'Sophie', n: 'Wimmer', g: 'w' },
-                      { v: 'Maximilian', n: 'Huber', g: 'm' },
-                      { v: 'Elena', n: 'Bauer', g: 'w' },
-                      { v: 'Tobias', n: 'Müller', g: 'm' },
-                      { v: 'Sarah', n: 'Steiner', g: 'w' },
-                      { v: 'Felix', n: 'Moser', g: 'm' },
-                      { v: 'Mia', n: 'Hofmann', g: 'w' },
-                      { v: 'Jakob', n: 'Leitner', g: 'm' },
-                      { v: 'Anna', n: 'Pichler', g: 'w' },
-                      { v: 'Leo', n: 'Fischer', g: 'm' },
-                      { v: 'Julia', n: 'Schmid', g: 'w' },
-                      { v: 'Paul', n: 'Eder', g: 'm' },
-                      { v: 'Laura', n: 'Ebner', g: 'w' },
-                      { v: 'David', n: 'Haas', g: 'm' }
-                    ];
-                    const loaded = demoNames.map((item, idx) => ({
-                      id: 'demo-s' + (idx + 1),
-                      vorname: item.v,
-                      nachname: item.n,
-                      name: `${item.v} ${item.n}`,
-                      geschlecht: item.g,
-                      niveau: 1,
-                      geburtstag: '',
-                      staatsbuergerschaft: 'Österreich',
-                      religion: 'r.k.',
-                      gruppen: [],
-                      erstelltAm: new Date().toISOString()
-                    }));
-                    setStudentsList(loaded);
-                    setActiveInputMode('manual');
-                  }}
+                  onClick={() => sokratesFileInputRef.current?.click()}
                   className="p-6 bg-white border border-indigo-200 rounded-[24px] shadow-sm hover:border-indigo-500 hover:shadow-lg hover:shadow-indigo-500/5 cursor-pointer transition-all flex flex-col items-center text-center group"
                 >
                   <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Sparkles size={20} />
+                    <FileUp size={20} />
                   </div>
-                  <h4 className="text-[0.875rem] font-black text-indigo-700">Beispielschüler laden</h4>
+                  <h4 className="text-[0.875rem] font-black text-indigo-700">Sokrates importieren</h4>
                   <p className="text-[0.75rem] text-indigo-600 mt-2 leading-relaxed">
-                    Lade sofort 15 Beispielschüler, um das Klassenbuch direkt live vorzuführen.
+                    Übernimm Schülerdaten aus einer Sokrates-PDF oder CSV und prüfe sie vor dem Import.
                   </p>
                 </div>
               </div>
@@ -1613,44 +1580,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                   ) : (
                     <div />
                   )}
-                  <button
-                    onClick={() => {
-                      const demoNames = [
-                        { v: 'Lukas', n: 'Gruber', g: 'm' },
-                        { v: 'Sophie', n: 'Wimmer', g: 'w' },
-                        { v: 'Maximilian', n: 'Huber', g: 'm' },
-                        { v: 'Elena', n: 'Bauer', g: 'w' },
-                        { v: 'Tobias', n: 'Müller', g: 'm' },
-                        { v: 'Sarah', n: 'Steiner', g: 'w' },
-                        { v: 'Felix', n: 'Moser', g: 'm' },
-                        { v: 'Mia', n: 'Hofmann', g: 'w' },
-                        { v: 'Jakob', n: 'Leitner', g: 'm' },
-                        { v: 'Anna', n: 'Pichler', g: 'w' },
-                        { v: 'Leo', n: 'Fischer', g: 'm' },
-                        { v: 'Julia', n: 'Schmid', g: 'w' },
-                        { v: 'Paul', n: 'Eder', g: 'm' },
-                        { v: 'Laura', n: 'Ebner', g: 'w' },
-                        { v: 'David', n: 'Haas', g: 'm' }
-                      ];
-                      const loaded = demoNames.map((item, idx) => ({
-                        id: 'demo-s' + (idx + 1),
-                        vorname: item.v,
-                        nachname: item.n,
-                        name: `${item.v} ${item.n}`,
-                        geschlecht: item.g,
-                        niveau: 1,
-                        geburtstag: '',
-                        staatsbuergerschaft: 'Österreich',
-                        religion: 'r.k.',
-                        gruppen: [],
-                        erstelltAm: new Date().toISOString()
-                      }));
-                      setStudentsList(loaded);
-                    }}
-                    className="text-[0.6875rem] font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 transition-colors bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl border border-indigo-100 shadow-sm"
-                  >
-                    ✨ Beispielschüler laden
-                  </button>
+
                 </div>
                <div className="flex flex-col sm:flex-row gap-3 mb-6">
                  <input type="text" ref={vornameRef} autoFocus placeholder="Vorname" value={currentStudent.vorname} onChange={e => setCurrentStudent(p => ({ ...p, vorname: e.target.value }))} className="flex-1 px-4 py-3 text-[0.875rem] leading-snug border border-slate-200 bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl font-semibold shadow-sm transition-all"         onKeyDown={e => {
