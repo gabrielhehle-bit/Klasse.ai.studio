@@ -142,12 +142,8 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
 
   const activeWidgets = cockpitWidgets.filter((w) => w.visible);
 
-  // Combine user profiles and default profiles
-  const allProfiles: WorkspaceProfile[] = [
-    ...(workspaceProfiles && workspaceProfiles.length > 0
-      ? workspaceProfiles
-      : defaultProfiles),
-  ];
+  // Only explicitly saved user profiles are shown. Klassio ships without example layouts.
+  const allProfiles: WorkspaceProfile[] = workspaceProfiles || [];
 
   const filteredProfiles = allProfiles.filter((p) => {
     const isCustom = p.id.startsWith("profile_custom_") || p.id.startsWith("profile_1") || p.id.startsWith("profile_2") || p.id.startsWith("profile_3");
@@ -202,13 +198,13 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-black tracking-tight flex items-center gap-2">
-                Lehrercockpit Vorlagen & Layouts
+                Layouts
                 <Badge variant="neutral" size="sm">
                   {allProfiles.length} Vorlagen
                 </Badge>
               </h3>
               <p className="text-xs text-[var(--text-muted)] font-medium">
-                Erstelle, verwalte und lade Arbeitsbereich-Vorlagen für deinen Unterricht
+                Speichere und lade nur deine eigenen Arbeitsbereiche
               </p>
             </div>
           </div>
@@ -234,7 +230,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
               leftIcon={<LayoutGrid size={14} />}
               onClick={() => setActiveTab("browse")}
             >
-              Vorlagen Durchsuchen
+              Eigene Layouts
             </Button>
 
             <Button
@@ -257,7 +253,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Vorlagen suchen..."
+                placeholder="Eigene Layouts suchen..."
                 className="w-full pl-8 pr-3 py-1.5 rounded-xl text-xs font-medium border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--focus-ring,var(--accent))]"
               />
             </div>
@@ -311,7 +307,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                     required
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="z.B. Mathe-Freiarbeit 3. Klasse, Morgenkreis, Stille-Test..."
+                    placeholder="Name für dein Layout..."
                   />
                 </div>
 
@@ -536,7 +532,7 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                   <div className="col-span-2 text-center py-12 border-2 border-dashed border-[var(--border-default,var(--border))] rounded-3xl opacity-60">
                     <Bookmark size={32} className="mx-auto mb-2 text-[var(--text-muted)]" />
                     <p className="text-sm font-bold text-[var(--text-muted)]">
-                      Keine passenden Vorlagen gefunden.
+                      Noch keine passenden eigenen Layouts.
                     </p>
                     <Button
                       variant="primary"
