@@ -29,11 +29,11 @@ Legende:
 | Dashboard / Heute | 🟡 | Kompakte Standardansicht geschärft: echte Begrüßung/Datum, vollständige Anwesenheitslogik ohne angenommene Präsenz, schulfreie Tage berücksichtigt, 10 Stunden konsistent, Bundesland-Feiertage und Routen korrigiert; Browser-Abnahme offen. |
 | Kernnavigation | ✅ | Heute, Klasse, Planung, Leistungen, Unterricht + Utilities per Regressionstest abgesichert. |
 | Notizen | 🔴 | Eigene Sidebar-Seite geplant: freie Notizen, Konferenznotizen, To-dos und mit Schüler:innen verknüpfte Notizen inkl. Rückverlinkung ins Dossier. |
-| Lehrercockpit: weiße freie Fläche | 🟡 | Leerer Start ohne sichtbare Standardwidgets; Schreiben/Zeichnen + Widgets vorhanden. Browser-Abnahme offen. |
-| Cockpit: Schreiben und Zeichnen | 🟡 | BoardInk + Unterrichtsfläche implementiert; Browser/Stiftprüfung offen. |
-| Cockpit: Widgets frei platzieren | 🟡 | Layoutsystem und Widgetmenü vorhanden; Browserprüfung offen. |
-| Cockpit: benutzerdefinierte Layout-Slots | 🟡 | A/B/C-Slots bleiben als eigene, adaptierbare Layouts; keine sichtbaren Beispielwidgets beim leeren Start. |
-| Veraltete Cockpit-Kompatibilität | ✅ | Legacy-Komponente enthält keine Demo-/Fake-Daten; aktive Fläche ist Unterrichtsmodus. |
+| Lehrercockpit: weiße freie Fläche | 🟡 | Gemeinsame Unterrichtsfläche bleibt unabhängig vom App-Theme weiß; leerer Start ohne Einführungskarte, Standardwidgets oder vorgegebene Schnell-Auswahl. Browser-Abnahme offen. |
+| Cockpit: Schreiben und Zeichnen | 🟡 | BoardInk schreibt/zeichnet direkt auf derselben Fläche wie Widgets; Text, Stift, Radierer, Rückgängig/Wiederholen und getrenntes Löschen der Schrift/Zeichnung vorhanden. Browser-/Stiftprüfung offen. |
+| Cockpit: Widgets frei platzieren | 🟡 | Alle Unterrichtshilfen bleiben erhalten; Suche/Favoriten/Fachkategorien vorhanden. Anordnung/Größe liegt als seltene Funktion unter Optionen statt im Hauptworkflow. Browserprüfung offen. |
+| Cockpit: benutzerdefinierte Layout-Slots | 🟡 | A/B/C bleiben ausschließlich eigene, umbenennbare Schnell-Layouts; gespeicherte Arbeitsflächen enthalten keine mitgelieferten Beispielprofile. |
+| Veraltete Cockpit-Kompatibilität | ✅ | Legacy-Komponente enthält keine Demo-/Fake-Daten; aktive Fläche ist Unterrichtsmodus. Alte separate Tafel ist nur noch als Archiv zugänglich; gespeicherte Flags öffnen sie nicht automatisch, Regressionstest vorhanden. |
 | Mobile/responsive Nutzung | 🟡 | Responsive Code vorhanden; reale Browser-/Viewport-Abnahme offen. |
 
 ## Klasse und Schüler
