@@ -617,7 +617,7 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
 
           <button
             type="button"
-            onClick={() => onNavigate("kalender")}
+            onClick={() => onNavigate("jahresplanung")}
             className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-0.5 cursor-pointer"
           >
             <span>Kalender</span>
@@ -684,7 +684,7 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
                     </div>
                     <button
                       type="button"
-                      onClick={() => onNavigate("kalender")}
+                      onClick={() => onNavigate("jahresplanung")}
                       className="text-xs font-bold text-indigo-600 hover:underline"
                     >
                       Öffnen
