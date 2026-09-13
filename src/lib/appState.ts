@@ -178,6 +178,8 @@ export function syncActiveClass(state: AppState): AppState {
     schuljahr: state.schuljahr,
     schueler: state.schueler ? JSON.parse(JSON.stringify(state.schueler)) : [],
     noten: state.noten ? JSON.parse(JSON.stringify(state.noten)) : {},
+    notenMeta: state.notenMeta ? JSON.parse(JSON.stringify(state.notenMeta)) : {},
+    notenGewichtung: state.notenGewichtung ? JSON.parse(JSON.stringify(state.notenGewichtung)) : {},
     mitarbeit: state.mitarbeit ? JSON.parse(JSON.stringify(state.mitarbeit)) : {},
     verhalten: state.verhalten ? { ...state.verhalten } : {},
     karten: state.karten ? JSON.parse(JSON.stringify(state.karten)) : {},
@@ -259,6 +261,8 @@ export function normalizeAppState(raw: any): AppState {
       klassenvorstand: parsed.klassenvorstand !== undefined ? parsed.klassenvorstand : true,
       schueler: parsed.schueler || [],
       noten: parsed.noten || {},
+      notenMeta: parsed.notenMeta || {},
+      notenGewichtung: parsed.notenGewichtung || {},
       mitarbeit: parsed.mitarbeit || {},
       verhalten: parsed.verhalten || {},
       karten: parsed.karten || {},
@@ -301,6 +305,8 @@ export function normalizeAppState(raw: any): AppState {
         klassenvorstand: c.klassenvorstand !== undefined ? c.klassenvorstand : true,
         schueler: c.schueler || [],
         noten: c.noten || {},
+        notenMeta: c.notenMeta ?? (c.id === parsed.activeClassId ? parsed.notenMeta : undefined) ?? {},
+        notenGewichtung: c.notenGewichtung ?? (c.id === parsed.activeClassId ? parsed.notenGewichtung : undefined) ?? {},
         mitarbeit: c.mitarbeit || {},
         verhalten: c.verhalten || {},
         karten: c.karten || {},
@@ -347,6 +353,8 @@ export function normalizeAppState(raw: any): AppState {
     parsed.klassenvorstand = activeClass.klassenvorstand;
     parsed.schueler = activeClass.schueler;
     parsed.noten = activeClass.noten;
+    parsed.notenMeta = activeClass.notenMeta || {};
+    parsed.notenGewichtung = activeClass.notenGewichtung || {};
     parsed.mitarbeit = activeClass.mitarbeit;
     parsed.verhalten = activeClass.verhalten;
     parsed.karten = activeClass.karten;
@@ -510,8 +518,10 @@ export function switchClassState(prev: AppState, id: string): AppState {
     schueler: targetClass.schueler ? JSON.parse(JSON.stringify(targetClass.schueler)) : [],
     saAssessments: targetClass.saAssessments || {},
     scheduleAnalysis: targetClass.scheduleAnalysis,
-    noten: targetClass.noten,
-    mitarbeit: targetClass.mitarbeit,
+    noten: targetClass.noten || {},
+    notenMeta: targetClass.notenMeta || {},
+    notenGewichtung: targetClass.notenGewichtung || {},
+    mitarbeit: targetClass.mitarbeit || {},
     verhalten: targetClass.verhalten,
     karten: targetClass.karten,
     jahresplanung: targetClass.jahresplanung,
