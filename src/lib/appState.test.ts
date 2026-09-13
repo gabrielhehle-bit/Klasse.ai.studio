@@ -8,6 +8,8 @@ function fixture() {
     classes: ['a', 'b'].map(id => ({
       id, name: id, schueler: [{ id: `student-${id}` }],
       saAssessments: { [`student-${id}`]: { Mathematik: { '1': { '0': { marker: id } } } } },
+      notenMeta: { Mathematik: { assessmentMode: id === 'a' ? 'grades' : 'points', labels: { wp: `wp-${id}` } } },
+      notenGewichtung: { Mathematik: { sa: id === 'a' ? 60 : 40, lzk: 20, wp: 20, obj: 0, mi: id === 'a' ? 0 : 20 } },
       stundenZeiten: { 1: `${id}-08:00` }, scheduleAnalysis: { marker: id },
       lastGroups: [{ marker: id }], customBgColor: id,
       wochenplanung: { 37: { Montag: [{ thema: id }] } },
@@ -24,10 +26,19 @@ test('A → B → edit → A → reload preserves both classes and their assessm
   assert.deepEqual(b.saAssessments, a.classes[1].saAssessments);
   assert.equal(b.stundenZeiten[1], 'b-08:00');
   assert.equal((b.scheduleAnalysis as any).marker, 'b');
-  b = syncActiveClass({ ...b, saAssessments: { ...b.saAssessments, newAssessment: { 0: { value: 2 } } } } as any);
+  assert.equal(b.notenMeta.Mathematik.assessmentMode, 'points');
+  assert.equal(b.notenGewichtung.Mathematik.sa, 40);
+  b = syncActiveClass({
+    ...b,
+    saAssessments: { ...b.saAssessments, newAssessment: { 0: { value: 2 } } },
+    notenMeta: { ...b.notenMeta, Mathematik: { ...b.notenMeta.Mathematik, labels: { wp: 'edited-b' } } },
+  } as any);
   const reloaded = normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(switchClassState(b, 'a')))));
   assert.deepEqual(reloaded.saAssessments, originalA.saAssessments);
+  assert.deepEqual(reloaded.notenMeta, originalA.notenMeta);
+  assert.deepEqual(reloaded.notenGewichtung, originalA.notenGewichtung);
   assert.equal(reloaded.classes[1].saAssessments.newAssessment[0].value, 2);
+  assert.equal(reloaded.classes[1].notenMeta.Mathematik.labels.wp, 'edited-b');
   assert.equal(reloaded.classes[1].wochenplanung[37].Montag[0].thema, 'b');
   assert.deepEqual((reloaded.classes[1] as any).futureExtension, { preserved: 'b' });
 });
