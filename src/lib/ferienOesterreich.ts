@@ -91,9 +91,10 @@ export function getFerien(bundesland: Bundesland = 'VBG', schuljahr: string = '2
   ];
 
   // 1. Herbstferien
-  const herbstStartDay = (schuljahr === '2025/26' && bundesland !== 'VBG') ? 27 : 26;
-  const herbstEndDay = (schuljahr === '2025/26') ? 31 : 2;
-  const herbstEndMonth = (schuljahr === '2025/26') ? 9 : 10;
+  // Herbstferien: 27.–31. Oktober; der 26.10. ist separat als Nationalfeiertag enthalten.
+  const herbstStartDay = 27;
+  const herbstEndDay = 31;
+  const herbstEndMonth = 9;
   list.push({
     id: `herbst_${startYear}`,
     name: `Herbstferien ${startYear}`,
@@ -137,7 +138,12 @@ export function getFerien(bundesland: Bundesland = 'VBG', schuljahr: string = '2
   let semStartDay = firstMonday;
   if (bundesland === 'W' || bundesland === 'NOE') {
     semStartDay = firstMonday;
-  } else if (bundesland === 'OOE' || bundesland === 'STMK') {
+  } else if (
+    bundesland === 'OOE' ||
+    bundesland === 'STMK' ||
+    (schuljahr === '2026/27' && ['SBG', 'T', 'VBG'].includes(bundesland))
+  ) {
+    // 2026/27: OÖ, Salzburg, Steiermark, Tirol und Vorarlberg 15.–20.02.2027.
     semStartDay = firstMonday + 14;
   } else {
     semStartDay = firstMonday + 7;
@@ -175,13 +181,9 @@ export function getFerien(bundesland: Bundesland = 'VBG', schuljahr: string = '2
   // 5. Pfingstferien
   const pfingstenStart = new Date(easterDate);
   const pfingstenEnd = new Date(easterDate);
-  if (bundesland === 'VBG') {
-    pfingstenStart.setDate(easterDate.getDate() + 50);
-    pfingstenEnd.setDate(easterDate.getDate() + 51);
-  } else {
-    pfingstenStart.setDate(easterDate.getDate() + 48);
-    pfingstenEnd.setDate(easterDate.getDate() + 50);
-  }
+  // Pfingstferien gelten schulweit von Samstag bis Pfingstmontag.
+  pfingstenStart.setDate(easterDate.getDate() + 48);
+  pfingstenEnd.setDate(easterDate.getDate() + 50);
   list.push({
     id: `pfingsten_${startYear + 1}`,
     name: `Pfingstferien ${startYear + 1}`,
