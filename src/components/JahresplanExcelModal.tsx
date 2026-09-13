@@ -256,9 +256,9 @@ export default function JahresplanExcelModal({
                       className="text-emerald-600 mt-0.5"
                     />
                     <div>
-                      <span className="block text-rose-900 font-bold">Vollständig überschreiben</span>
+                      <span className="block text-rose-900 font-bold">Importierte Felder überschreiben</span>
                       <span className="text-[11px] text-slate-500 font-normal">
-                        Ersetzt die bisherige Jahresplanung komplett durch den Inhalt dieser Datei.
+                        Überschreibt nur Wochen und Fächer, die in dieser Datei tatsächlich enthalten sind.
                       </span>
                     </div>
                   </label>
