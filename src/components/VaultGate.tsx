@@ -13,8 +13,11 @@ import {
   loadVaultRecord,
   setActiveVaultSession,
   getActiveVaultKey,
-  hasVault,
 } from '../lib/vaultStorage';
+import {
+  rememberTrustedDevice,
+  tryUnlockTrustedDevice,
+} from '../lib/trustedDeviceVault';
 import {
   hasLegacyPlaintextData,
   migrateLegacyStorageToEncrypted,
@@ -68,6 +71,7 @@ export default function VaultGate({ children }: VaultGateProps) {
   const [showUnlockPassword, setShowUnlockPassword] = useState(false);
   const [useRecoveryMode, setUseRecoveryMode] = useState(false);
   const [recoveryCodeInput, setRecoveryCodeInput] = useState('');
+  const [trustThisDevice, setTrustThisDevice] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
@@ -86,19 +90,33 @@ export default function VaultGate({ children }: VaultGateProps) {
           return;
         }
 
-        const vaultExists = await hasVault();
+        const record = await loadVaultRecord();
         const legacyExists = await hasLegacyPlaintextData();
 
         if (!isMounted) return;
         setHasLegacyData(legacyExists);
 
-        if (!vaultExists) {
+        if (!record) {
           setGateState('needs_setup');
-        } else if (isVaultUnlocked) {
-          setGateState('unlocked');
-        } else {
-          setGateState('locked');
+          return;
         }
+
+        if (isVaultUnlocked) {
+          setGateState('unlocked');
+          return;
+        }
+
+        const trustedKey = await tryUnlockTrustedDevice(record);
+        if (trustedKey) {
+          setActiveVaultSession(trustedKey, record);
+          const success = await unlockAppVault(trustedKey);
+          if (success) {
+            if (isMounted) setGateState('unlocked');
+            return;
+          }
+        }
+
+        if (isMounted) setGateState('locked');
       } catch (err) {
         console.error('Fehler bei Vault-Status-Prüfung:', err);
         if (isMounted) setGateState('locked');
@@ -136,7 +154,7 @@ export default function VaultGate({ children }: VaultGateProps) {
     setIsProcessing(true);
     try {
       // Erzeugt den VaultRecord, den VaultKey (CryptoKey) und den 128-Bit Recovery-Code
-      const result = await createVault(password);
+      const result = await createVault(password, trustThisDevice);
       setTempVaultRecord(result.vaultRecord);
       setTempVaultKey(result.vaultKey);
       setGeneratedRecoveryCode(result.recoveryCode);
@@ -164,8 +182,19 @@ export default function VaultGate({ children }: VaultGateProps) {
       // 1. VaultRecord persistent in IndexedDB speichern
       await saveVaultRecord(tempVaultRecord);
 
-      // 2. Aktive Session im flüchtigen RAM setzen
-      setActiveVaultSession(tempVaultKey, tempVaultRecord);
+      // 2. Optional: VaultKey auf diesem persönlichen Gerät verschlüsselt merken.
+      // Der aktive Sitzungsschlüssel wird danach wieder nicht exportierbar gehalten.
+      let activeVaultKey = tempVaultKey;
+      if (trustThisDevice) {
+        try {
+          activeVaultKey = await rememberTrustedDevice(tempVaultRecord, tempVaultKey);
+        } catch (error) {
+          console.warn('[Datenschutz] Gerätevertrauen konnte nicht gespeichert werden:', error);
+          activeVaultKey = await unlockVault(tempVaultRecord, password, false);
+          showToast('Tresor eingerichtet, aber dieses Gerät konnte nicht als vertrauenswürdig gespeichert werden.', 'info');
+        }
+      }
+      setActiveVaultSession(activeVaultKey, tempVaultRecord);
 
       // 3. Wenn Altdaten vorhanden sind: Atomare Migration durchführen
       if (hasLegacyData) {
@@ -177,7 +206,7 @@ export default function VaultGate({ children }: VaultGateProps) {
       }
 
       // 4. AppState im React-Kontext entsperren und laden
-      await unlockAppVault(tempVaultKey);
+      await unlockAppVault(activeVaultKey);
       setGateState('unlocked');
       showToast('Datentresor erfolgreich eingerichtet! 🔐', 'success');
     } catch (err: any) {
@@ -208,7 +237,16 @@ export default function VaultGate({ children }: VaultGateProps) {
       }
 
       // Entsperren & Schlüssel ableiten (PBKDF2-SHA-256)
-      const vaultKey = await unlockVault(record, unlockPassword);
+      let vaultKey = await unlockVault(record, unlockPassword, trustThisDevice);
+      if (trustThisDevice) {
+        try {
+          vaultKey = await rememberTrustedDevice(record, vaultKey);
+        } catch (error) {
+          console.warn('[Datenschutz] Gerätevertrauen konnte nicht gespeichert werden:', error);
+          vaultKey = await unlockVault(record, unlockPassword, false);
+          showToast('Entsperrt, aber dieses Gerät konnte nicht dauerhaft als vertrauenswürdig gespeichert werden.', 'info');
+        }
+      }
 
       // Session im flüchtigen RAM aktivieren
       setActiveVaultSession(vaultKey, record);
@@ -252,7 +290,16 @@ export default function VaultGate({ children }: VaultGateProps) {
         throw new Error('Kein gespeicherter Datentresor gefunden.');
       }
 
-      const vaultKey = await unlockVaultWithRecoveryCode(record, recoveryCodeInput.trim());
+      let vaultKey = await unlockVaultWithRecoveryCode(record, recoveryCodeInput.trim(), trustThisDevice);
+      if (trustThisDevice) {
+        try {
+          vaultKey = await rememberTrustedDevice(record, vaultKey);
+        } catch (error) {
+          console.warn('[Datenschutz] Gerätevertrauen konnte nicht gespeichert werden:', error);
+          vaultKey = await unlockVaultWithRecoveryCode(record, recoveryCodeInput.trim(), false);
+          showToast('Wiederhergestellt, aber dieses Gerät konnte nicht dauerhaft als vertrauenswürdig gespeichert werden.', 'info');
+        }
+      }
       setActiveVaultSession(vaultKey, record);
 
       const success = await unlockAppVault(vaultKey);
@@ -383,6 +430,19 @@ export default function VaultGate({ children }: VaultGateProps) {
               />
             </div>
 
+            <label className="flex items-start gap-2.5 p-3 rounded-xl bg-[var(--surface-subtle,var(--surface))] border border-[var(--border)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={trustThisDevice}
+                onChange={(e) => setTrustThisDevice(e.target.checked)}
+                className="mt-0.5 rounded border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+              />
+              <span className="text-xs leading-snug text-[var(--text-secondary)]">
+                <strong className="text-[var(--text-primary)]">Diesem persönlichen Gerät 30 Tage vertrauen.</strong>
+                {' '}Dann wird der Tresor nach einem Neuladen automatisch entsperrt. Nur auf einem geschützten eigenen Dienstgerät verwenden.
+              </span>
+            </label>
+
             <button
               type="submit"
               disabled={isProcessing}
@@ -497,6 +557,19 @@ export default function VaultGate({ children }: VaultGateProps) {
               </div>
             </div>
 
+            <label className="flex items-start gap-2.5 p-3 rounded-xl bg-[var(--surface-subtle,var(--surface))] border border-[var(--border)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={trustThisDevice}
+                onChange={(e) => setTrustThisDevice(e.target.checked)}
+                className="mt-0.5 rounded border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+              />
+              <span className="text-xs leading-snug text-[var(--text-secondary)]">
+                <strong className="text-[var(--text-primary)]">Auf diesem persönlichen Gerät 30 Tage entsperrt bleiben.</strong>
+                {' '}Der Vault-Key wird nur verschlüsselt und mit einem nicht exportierbaren Geräteschlüssel im Browser gespeichert.
+              </span>
+            </label>
+
             <button
               type="submit"
               disabled={isProcessing}
@@ -545,6 +618,18 @@ export default function VaultGate({ children }: VaultGateProps) {
               />
             </div>
 
+            <label className="flex items-start gap-2.5 p-3 rounded-xl bg-[var(--surface-subtle,var(--surface))] border border-[var(--border)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={trustThisDevice}
+                onChange={(e) => setTrustThisDevice(e.target.checked)}
+                className="mt-0.5 rounded border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+              />
+              <span className="text-xs leading-snug text-[var(--text-secondary)]">
+                Diesem persönlichen Gerät nach der Wiederherstellung 30 Tage vertrauen.
+              </span>
+            </label>
+
             <div className="flex gap-2">
               <button
                 type="button"
@@ -578,7 +663,7 @@ export default function VaultGate({ children }: VaultGateProps) {
         <div className="mt-6 pt-4 border-t border-[var(--border)] text-center">
           <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] font-mono">
             <Shield size={12} className="text-[var(--text-muted)]" />
-            AES-GCM-256 Verschlüsselung auf diesem Gerät
+            AES-GCM-256 · optionales Gerätevertrauen speichert keinen Klartext-Schlüssel
           </span>
         </div>
       </motion.div>
