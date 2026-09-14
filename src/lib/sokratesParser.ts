@@ -2,6 +2,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Student } from '../types';
 import { normalizeStudentGender } from './studentListData';
+import { cleanSokratesPhoneNumber, cleanStudentNameString, splitSokratesName, extractContactAndAddress } from './sokratesParsingHelpers';
 
 export interface ParsedSokratesStudent {
   id?: string;
@@ -102,15 +103,21 @@ export function normalizeCountry(cntry: string): string {
   if (c === 'ITA' || c === 'ITALIEN') return 'Italien';
   if (c === 'CHE' || c === 'SCHWEIZ') return 'Schweiz';
   if (c === 'LIE' || c === 'LIECHTENSTEIN') return 'Liechtenstein';
+  if (c === 'KOS' || c === 'KOSOVO') return 'Kosovo';
+  if (c === 'GBR' || c === 'UK' || c === 'GROSSBRITANNIEN' || c === 'GROßBRITANNIEN') return 'Großbritannien';
+  if (c === 'SOM' || c === 'SOMALIA') return 'Somalia';
+  if (c === 'CZE' || c === 'TSCHECHIEN' || c === 'TSCHECHISCHE REPUBLIK') return 'Tschechien';
+  if (c === 'RUS' || c === 'RUSSLAND') return 'Russland';
+  if (c === 'MKD' || c === 'NORDMAZEDONIEN' || c === 'MAZEDONIEN') return 'Nordmazedonien';
+  if (c === 'POL' || c === 'POLEN') return 'Polen';
+  if (c === 'SVK' || c === 'SLOWAKEI') return 'Slowakei';
+  if (c === 'SVN' || c === 'SLOWENIEN') return 'Slowenien';
   return cntry.trim();
 }
 
 // Clean phone numbers
 export function cleanPhoneNumber(phone: string): string {
-  if (!phone) return '';
-  let clean = phone.trim().replace(/^tel(?:\.|efon)?[:\s]*/i, '');
-  clean = clean.replace(/^(?:mutter|mama|vater|papa)[:\s]*/i, '');
-  return clean.trim();
+  return cleanSokratesPhoneNumber(phone);
 }
 
 /**
@@ -228,7 +235,7 @@ export function parseSokratesText(rawText: string): ParsedSokratesResult {
   let currentBlock: string[] = [];
 
   // Detect if lines start with sequence number: "1.", "1 ", "01.", etc.
-  const startsWithIndex = (line: string) => /^\s*([0-9]{1,2})[\.\)\s\t]+[A-ZÄÖÜ]/.test(line);
+  const startsWithIndex = (line: string) => /^\s*([0-9]{1,2})[\.\)\s\t]+[\p{Lu}]/u.test(line);
 
   lines.forEach(line => {
     // Filter out obvious header/footer lines
@@ -329,40 +336,13 @@ export function parseSokratesText(rawText: string): ParsedSokratesResult {
       staatsbuergerschaft = normalizeCountry(stMatch[1]);
     }
 
-    // PLZ & Ort (4-digit Austrian PLZ + Town name)
-    const plzMatch = fullBlockText.match(/\b([1-9][0-9]{3})\s+([A-ZÄÖÜ][a-zäöüßA-ZÄÖÜ\s\-\/]+?)(?=\s+(?:Tel|Mutter|Vater|Mama|Papa|06|\+43|$|,|;))/);
-    if (plzMatch) {
-      plz = plzMatch[1].trim();
-      ort = plzMatch[2].trim().replace(/[\,\;]+$/, '');
-    }
-
-    // Address (Street + House number / Top)
-    const addrMatch = fullBlockText.match(/\b([A-ZÄÖÜ][a-zäöüßA-ZÄÖÜ\.\s\-]+(?:straße|strasse|str\.|weg|gasse|platz|allee|ring|rain|ried|dorf|anger|siedlung|hof|[0-9]+)\s+[0-9]+[a-zA-Z]?(?:\s*[\/\-]\s*[0-9]+[a-zA-Z]*)?)/i);
-    if (addrMatch) {
-      anschrift = addrMatch[1].trim();
-    }
-
-    // Phones: Mutter & Vater
-    const telMutterMatch = fullBlockText.match(/(?:Tel(?:\.|efon)?\.?\s*(?:M(?:utter)?|Mama|Obs(?:orge)?\s*1)|Mutter\s*Tel)[:\s]*([+0-9\s/()\-]{7,25})/i);
-    if (telMutterMatch) {
-      telefon_mutter = cleanPhoneNumber(telMutterMatch[1]);
-    }
-
-    const telVaterMatch = fullBlockText.match(/(?:Tel(?:\.|efon)?\.?\s*(?:V(?:ater)?|Papa|Obs(?:orge)?\s*2)|Vater\s*Tel)[:\s]*([+0-9\s/()\-]{7,25})/i);
-    if (telVaterMatch) {
-      telefon_vater = cleanPhoneNumber(telVaterMatch[1]);
-    }
-
-    // Fallback: If generic phone numbers exist without label
-    if (!telefon_mutter && !telefon_vater) {
-      const allPhones = fullBlockText.match(/(?:\+43|0043|06[56789][0-9]|0[1-9][0-9]{1,3})[\s/()\-0-9]{5,18}/g);
-      if (allPhones && allPhones.length > 0) {
-        telefon_mutter = cleanPhoneNumber(allPhones[0]);
-        if (allPhones.length > 1) {
-          telefon_vater = cleanPhoneNumber(allPhones[1]);
-        }
-      }
-    }
+    // Address/contact values are extracted only when present in the source record.
+    const contactInfo = extractContactAndAddress(block);
+    anschrift = contactInfo.anschrift;
+    plz = contactInfo.plz;
+    ort = contactInfo.ort;
+    telefon_mutter = contactInfo.telefon_mutter;
+    telefon_vater = contactInfo.telefon_vater;
 
     // Email
     const emailMatch = fullBlockText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
@@ -370,32 +350,11 @@ export function parseSokratesText(rawText: string): ParsedSokratesResult {
       email_eltern = emailMatch[0].trim();
     }
 
-    // Names Extraction from line 1
-    const firstLineWithoutIndex = block[0].replace(/^\s*[0-9]{1,2}[\.\)\s\t]+/, '').trim();
-    
-    // In Sokrates, columns are usually "Zuname Vorname" or "Zuname, Vorname"
-    if (firstLineWithoutIndex.includes(',')) {
-      const parts = firstLineWithoutIndex.split(',').map(p => p.trim());
-      nachname = parts[0];
-      // Vorname might contain other tokens (e.g. birthdate etc.)
-      const vTokens = parts[1].split(/\s+/);
-      vorname = vTokens[0] || '';
-      if (vTokens.length > 1 && /^[A-ZÄÖÜ]/.test(vTokens[1]) && !vTokens[1].includes('.') && !/^[0-9]/.test(vTokens[1])) {
-        vorname += ' ' + vTokens[1];
-      }
-    } else {
-      // Split tokens on line 1
-      const tokens = firstLineWithoutIndex.split(/\s+/);
-      if (tokens.length >= 2) {
-        nachname = tokens[0];
-        vorname = tokens[1];
-        if (tokens.length > 2 && /^[A-ZÄÖÜ]/.test(tokens[2]) && !tokens[2].includes('.') && !/^[0-9]/.test(tokens[2])) {
-          vorname += ' ' + tokens[2];
-        }
-      } else if (tokens.length === 1) {
-        nachname = tokens[0];
-      }
-    }
+    // Sokrates exports surname first. Strip adjacent metadata before splitting the name.
+    const cleanedName = cleanStudentNameString(block[0]);
+    const parsedName = splitSokratesName(cleanedName);
+    nachname = parsedName.nachname;
+    vorname = parsedName.vorname;
 
     // Geschlecht detection based on Vorname or explicit label
     if (/\b(?:w|weiblich|w\.|m\u00e4dchen)\b/i.test(fullBlockText)) {
