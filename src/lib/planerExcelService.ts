@@ -1,8 +1,9 @@
 import * as XLSX from 'xlsx';
 import { AppState } from '../types';
-import { STUNDEN_INFO, TAGE_NAMEN, DEFAULT_YEARLY_SUBJECTS } from '../constants';
+import { STUNDEN_INFO, TAGE_NAMEN, DEFAULT_YEARLY_SUBJECTS, MAX_LESSON_SLOTS } from '../constants';
 import { getStartYear, getSchulstartKW, kwToMonday, kwYear, getKW, isHoliday, sortYearlySubjects } from './utils';
 import { yearPlanCellEntries } from './yearlyPlanData';
+import { configuredLessonTime } from './weeklyPlanData';
 
 // ==========================================
 // TYPES & INTERFACES
@@ -138,12 +139,12 @@ export function generateWochenplanTemplate(app: AppState, activeKW: number) {
     'Fördergruppe: Hunderterfeld bereitstellen'
   ]);
 
-  // Pre-fill empty planning rows for Montag to Freitag (hours 1 to 6)
+  // Pre-fill empty planning rows for Montag to Freitag (hours 1 to 10)
   // If user has stammplan, pre-populate subjects!
   const days = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
   days.forEach(day => {
-    for (let stunde = 1; stunde <= 6; stunde++) {
-      const timeStr = STUNDEN_INFO[stunde] || '';
+    for (let stunde = 1; stunde <= MAX_LESSON_SLOTS; stunde++) {
+      const timeStr = configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, stunde);
       const stammFach = app.stammplan?.[day]?.[stunde] || '';
       rows.push([
         day,
@@ -274,6 +275,17 @@ export async function parseWochenplanExcel(file: File): Promise<WochenplanImport
     const notizKey = findColKey(['notiz', 'reflexion', 'bemerkung', 'anmerkung', 'differenzierung']);
 
     // Check essential headers
+    if (!dayKey || !stundeKey) {
+      return {
+        success: false,
+        error: "Erforderliche Spalten fehlen. Die Tabelle muss 'Wochentag' und 'Stunde' enthalten. Bitte verwende die Klassio-Vorlage.",
+        rows: [],
+        totalRows: rawData.length,
+        validRows: 0,
+        detectedDays: []
+      };
+    }
+
     if (!fachKey && !themaKey) {
       return {
         success: false,
@@ -300,7 +312,7 @@ export async function parseWochenplanExcel(file: File): Promise<WochenplanImport
       return null;
     };
 
-    let currentDayFallback = 'Montag';
+    let currentDayFallback: string | null = null;
 
     for (let i = 0; i < rawData.length; i++) {
       const item = rawData[i];
@@ -309,20 +321,26 @@ export async function parseWochenplanExcel(file: File): Promise<WochenplanImport
       const isExample = String(rawDayVal || '').toLowerCase().includes('beispiel') ||
                         String(item[fachKey || ''] || '').toLowerCase().includes('beispiel');
 
+      const rawDayText = String(rawDayVal || '').trim();
       const normalizedDay = normalizeDay(rawDayVal);
       if (normalizedDay) {
         currentDayFallback = normalizedDay;
       }
-      const finalDay = normalizedDay || currentDayFallback;
-
-      // Determine Stunde (1..10)
-      let stundeNum = 1;
-      if (stundeKey && item[stundeKey] !== undefined && item[stundeKey] !== '') {
-        const parsed = parseInt(String(item[stundeKey]).replace(/[^0-9]/g, ''), 10);
-        if (!isNaN(parsed) && parsed >= 1 && parsed <= 12) {
-          stundeNum = parsed;
-        }
+      const finalDay = normalizedDay || (!rawDayText ? currentDayFallback : null);
+      if (!finalDay) {
+        continue;
       }
+
+      // Determine Stunde (1..10) without inventing a fallback slot
+      const rawStunde = item[stundeKey];
+      if (rawStunde === undefined || rawStunde === null || String(rawStunde).trim() === '') {
+        continue;
+      }
+      const parsedStunde = parseInt(String(rawStunde).replace(/[^0-9]/g, ''), 10);
+      if (isNaN(parsedStunde) || parsedStunde < 1 || parsedStunde > MAX_LESSON_SLOTS) {
+        continue;
+      }
+      const stundeNum = parsedStunde;
 
       const fachVal = fachKey ? String(item[fachKey] || '').trim() : '';
       const themaVal = themaKey ? String(item[themaKey] || '').trim() : '';
@@ -343,7 +361,7 @@ export async function parseWochenplanExcel(file: File): Promise<WochenplanImport
         tag: finalDay,
         stunde: stundeNum,
         idx: Math.max(0, stundeNum - 1),
-        uhrzeit: uhrzeitVal || STUNDEN_INFO[stundeNum] || '',
+        uhrzeit: uhrzeitVal,
         fach: fachVal,
         thema: themaVal,
         lernziel: lernzielVal,
