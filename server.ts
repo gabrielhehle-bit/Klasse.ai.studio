@@ -1,4 +1,5 @@
 import { escapeHtml, scriptJson, createOAuthState, verifyOAuthState } from './src/lib/oauthSecurity';
+import { ONEDRIVE_BACKUP_PRIMARY_NAME, getOneDriveBackupCandidateNames } from './src/lib/cloudBackupNames';
 import express from "express";
 import path from "path";
 import crypto from "crypto";
@@ -2585,15 +2586,15 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       }
     }
 
-    // Striktes Durchsetzen des verschlüsselten LehrerAPP-Backup-Formats
+    // Intern bleibt das historische verschlüsselte Format aus Kompatibilitätsgründen erhalten.
     if (!isValidEncryptedBackup(body)) {
-      return res.status(400).json({ 
-        error: "Ungültiges Backup-Format. Server akzeptiert ausschließlich verschlüsselte LehrerAPP-Backups (V1)." 
+      return res.status(400).json({
+        error: "Ungültiges Backup-Format. Server akzeptiert ausschließlich verschlüsselte Klassio-Sicherungen (V1)."
       });
     }
 
     try {
-      const response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp:/content", {
+      const response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${ONEDRIVE_BACKUP_PRIMARY_NAME}:/content`, {
         method: "PUT",
         headers: {
           "Authorization": authHeader,
@@ -2618,23 +2619,17 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(401).json({ error: "Authorization Header fehlt" });
     }
     try {
-      // 1. Primär nach neuem verschlüsseltem .lehrerapp suchen
-      let response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp:/content", {
-        headers: {
-          "Authorization": authHeader
-        }
-      });
-
-      // 2. Abwärtskompatibler Fallback auf altes .json, falls noch keine neue Sicherung existiert
-      if (response.status === 404) {
-        response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/Lehrermappe_Backup.json:/content", {
+      let response: Response | null = null;
+      for (const fileName of getOneDriveBackupCandidateNames()) {
+        response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`, {
           headers: {
             "Authorization": authHeader
           }
         });
+        if (response.status !== 404) break;
       }
 
-      if (response.status === 404) {
+      if (!response || response.status === 404) {
         return res.status(404).json({ error: "Keine Sicherungsdatei auf OneDrive gefunden." });
       }
       if (!response.ok) {
@@ -2654,23 +2649,21 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(401).json({ error: "Authorization Header fehlt" });
     }
     try {
-      // 1. Zuerst neues .lehrerapp prüfen
-      let response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp", {
-        headers: {
-          "Authorization": authHeader
-        }
-      });
-
-      // 2. Fallback auf altes .json zur Bestandsanzeige
-      if (response.status === 404) {
-        response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/Lehrermappe_Backup.json", {
+      let response: Response | null = null;
+      let resolvedFileName: string | null = null;
+      for (const fileName of getOneDriveBackupCandidateNames()) {
+        response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}`, {
           headers: {
             "Authorization": authHeader
           }
         });
+        if (response.status !== 404) {
+          resolvedFileName = fileName;
+          break;
+        }
       }
 
-      if (response.status === 404) {
+      if (!response || response.status === 404) {
         return res.json({ exists: false });
       }
       if (!response.ok) {
@@ -2678,7 +2671,12 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
         return res.status(response.status).json({ error: `OneDrive API Fehler: ${errText}` });
       }
       const data = await response.json();
-      res.json({ exists: true, lastModifiedDateTime: data.lastModifiedDateTime, size: data.size });
+      res.json({
+        exists: true,
+        fileName: resolvedFileName,
+        lastModifiedDateTime: data.lastModifiedDateTime,
+        size: data.size
+      });
     } catch (err: any) {
       res.status(500).json({ error: err.message || "Metadaten-Abruf fehlgeschlagen" });
     }

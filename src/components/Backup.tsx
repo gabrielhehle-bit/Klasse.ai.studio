@@ -7,6 +7,7 @@ import { triggerBackupDownload } from '../utils/backupUtils';
 import { createEncryptedBackup } from '../lib/backupCryptoService';
 import { getActiveVaultKey, getActiveVaultRecord, loadVaultRecord } from '../lib/vaultStorage';
 import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
+import { ONEDRIVE_BACKUP_PRIMARY_NAME } from '../lib/cloudBackupNames';
 
 export default function Backup() {
   const { app, setApp, restoreAppData } = useApp();
@@ -814,7 +815,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
                         <div className="flex gap-2 items-start">
                           <span className="text-emerald-600 font-bold shrink-0">✓</span>
                           <div>
-                            <strong className="text-slate-800">Keine Datenspeicherung auf Fremdservern:</strong> Die Sicherungsdatei <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-emerald-700">Lehrermappe_Backup.json</code> wird direkt und verschlüsselt vom App-Dienst in den persönlichen OneDrive-Speicher der angemeldeten Lehrkraft übertragen. Es findet keine dauerhafte zentrale Zwischenspeicherung auf fremden Servern statt.
+                            <strong className="text-slate-800">Keine Datenspeicherung auf Fremdservern:</strong> Die Sicherungsdatei <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-emerald-700">Klassio_Backup.json</code> wird direkt und verschlüsselt vom App-Dienst in den persönlichen OneDrive-Speicher der angemeldeten Lehrkraft übertragen. Es findet keine dauerhafte zentrale Zwischenspeicherung auf fremden Servern statt.
                           </div>
                         </div>
 
@@ -888,7 +889,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
                     </div>
                   ) : cloudBackupMetadata.exists ? (
                     <p className="text-[0.75rem] font-bold text-slate-800 mt-1">
-                      Vorhanden ({new Date(cloudBackupMetadata.lastModifiedDateTime).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })})
+                      {cloudBackupMetadata.fileName || ONEDRIVE_BACKUP_PRIMARY_NAME} · {new Date(cloudBackupMetadata.lastModifiedDateTime).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </p>
                   ) : (
                     <p className="text-[0.75rem] font-bold text-rose-600 mt-1">Keine Cloud-Sicherung vorhanden</p>
