@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { LERNZIELE_BY_STUFE } from './LernzielTracker';
 import { analyzePortfolioEntryForGoals } from '../services/aiService';
+import { formatLocalDateKey } from '../lib/utils';
 
 const getFachStyles = (fachName: string) => {
   const name = (fachName || '').toLowerCase();
@@ -78,7 +79,7 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
 
     const entry: PortfolioEntry = {
       id: crypto.randomUUID(),
-      datum: new Date().toISOString(),
+      datum: formatLocalDateKey(new Date()),
       titel: newEntry.titel,
       beschreibung: newEntry.beschreibung,
       bildUrl: newEntry.bildUrl,
@@ -190,7 +191,7 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
                   schuelerId: schuelerId,
                   bereich: 'schule',
                   zielText: goal.text,
-                  datum: new Date().toISOString().split('T')[0],
+                  datum: formatLocalDateKey(new Date()),
                   status: 'aktiv'
               }
           ]
