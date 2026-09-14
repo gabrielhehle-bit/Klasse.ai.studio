@@ -1,0 +1,41 @@
+name: Visible Branding Final Audit
+
+on:
+  push:
+    branches:
+      - fix/visible-branding-final-pass
+  pull_request:
+    branches:
+      - reconcile/klassio-source-of-truth
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: TypeScript
+        run: bun run lint
+      - name: Tests
+        run: bun run test
+      - name: Production build
+        run: bun run build
+      - name: Audit visible legacy product names
+        run: |
+          echo '=== Visible legacy strings in source (informational contexts) ==='
+          grep -R -n --exclude='*.test.ts' --exclude='backupCryptoService.ts' --exclude='secureStorageService.ts' --exclude='backupRestore.ts' -E 'LEHRERAPP|LehrerAPP|Lehrermappe|SchoolBase|KLASSE\.AI\.STUDIO|Klasse\.ai\.studio|Gabic Quest|GABIC' src index.html README.md metadata.json || true
+          echo '=== Hard fail on known user-visible legacy phrases ==='
+          ! grep -R -n --exclude='*.test.ts' -E 'LEHRERAPP WOCHENPLANER|LEHRERAPP JAHRESPLANER|Schul-Lehrermappe Sync|digitale Lehrermappe|SchoolBase|KLASSE\.AI\.STUDIO|Klasse\.ai\.studio|Gabic Quest|GABIC' src index.html README.md metadata.json
+      - name: Verify build output
+        run: |
+          test -f dist/index.html
+          test -f dist/server.cjs
+          test -f dist/manifest.webmanifest
+          test -f dist/sw.js
