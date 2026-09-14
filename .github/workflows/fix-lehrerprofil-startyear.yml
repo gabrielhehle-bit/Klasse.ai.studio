@@ -1,0 +1,38 @@
+name: Fix Lehrerprofil Start Year
+
+on:
+  push:
+    branches:
+      - fix/klassio-visible-branding
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/klassio-visible-branding
+          fetch-depth: 0
+      - name: Fix removed startYear reference
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/components/LehrerProfilView.tsx')
+          s = p.read_text()
+          old = 'Kanzlei-Register-Nr: VS{startYear}'
+          new = "Kanzlei-Register-Nr: VS{Number.isFinite(configuredStartYear) ? configuredStartYear : ''}"
+          if s.count(old) != 1:
+              raise SystemExit(f'expected exactly one startYear reference, found {s.count(old)}')
+          p.write_text(s.replace(old, new))
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/LehrerProfilView.tsx
+          git commit -m "fix(profile): remove stale startYear reference"
+          git push origin HEAD:fix/klassio-visible-branding
