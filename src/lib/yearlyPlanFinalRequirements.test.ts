@@ -26,19 +26,12 @@ test('Jahresplanung: Import nutzt verlustfreie Mehrfachthemen-Logik', () => {
   );
 });
 
-test('Jahresplanung: Schulwochen-Anzeigen berücksichtigen das Bundesland', () => {
-  assert.match(
-    yearly,
-    /getSW\(kwToMonday\(editingCell\.kw,[\s\S]{0,180}app\?\.bundesland \|\| 'VBG'\)/,
-  );
-  assert.match(
-    yearly,
-    /getSW\(kwToMonday\(s\.kw,[\s\S]{0,180}app\?\.bundesland \|\| 'VBG'\)/,
-  );
-  assert.match(
-    excel,
-    /getSchulstartKW\(app\.schuljahr, bundesland\)/,
-  );
+test('Jahresplanung: Schulwochen-Anzeigen berücksichtigen Bundesland und echtes Wochenjahr', () => {
+  assert.match(yearly, /weeks\.find\(w => w\.kw === editingCell\.kw\)/);
+  assert.match(yearly, /getSW\(week\.monday, app\?\.schuljahr, app\?\.bundesland \|\| 'VBG'\)/);
+  assert.match(yearly, /weeks\.find\(w => w\.kw === s\.kw\)/);
+  assert.match(yearly, /getSW\(suggestionWeek\.monday, app\?\.schuljahr, app\?\.bundesland \|\| 'VBG'\)/);
+  assert.match(excel, /getSchulstartKW\(app\.schuljahr, bundesland\)/);
 });
 
 test('Jahresplanung: Excel verlangt Fach und Thema statt stille Fehlzuordnung', () => {
