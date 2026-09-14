@@ -228,6 +228,13 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
   const newDiagnosticResults = (app.diagnosticResults || []).filter((r: any) => r.studentId === student.id);
   const totalDiagnosticCount = studentErhebungen.length + newDiagnosticResults.length;
 
+  const handleSelectArea = (areaId: MainAreaId) => {
+    const targetArea = MAIN_AREAS.find(area => area.id === areaId);
+    if (!targetArea) return;
+    if (targetArea.tabs.some(tab => tab.id === activeTab)) return;
+    setActiveTab(targetArea.defaultTab);
+  };
+
   const getFilteredSubTabs = (areaId: MainAreaId) => {
     const area = MAIN_AREAS.find(a => a.id === areaId);
     return area?.tabs || [];
