@@ -16,7 +16,7 @@ import { askAI } from '../services/aiService';
 import { getSW } from '../lib/utils';
 import { berechne, getAssessmentMode } from '../lib/GradeUtils';
 import { getDiagnosticTestById } from '../lib/diagnosticCoreUtils';
-import { formatTransferGradeValue, getHandoverLessonPlans, getHandoverLessonTime } from '../lib/handoverUtils';
+import { formatTransferGradeValue, getHandoverLessonPlans, getHandoverLessonTime, toLocalDateInputValue } from '../lib/handoverUtils';
 import { calculateMaterialStorageSize, MATERIAL_LIBRARY_MAX_MB, removeMaterialReferencesFromClasses, removeMaterialReferencesFromWeeklyPlan, upsertMaterial } from '../lib/materialLibraryUtils';
 import Markdown from 'react-markdown';
 
@@ -79,10 +79,14 @@ export default function Uebergabemappe() {
 
   // --- TAB 1: Config & Assignment State ---
   const [rangeMode, setRangeMode] = useState<'single' | 'multi' | 'week'>('single');
-  const [singleDate, setSingleDate] = useState(new Date().toISOString().split('T')[0]);
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-  const [weekDate, setWeekDate] = useState(new Date().toISOString().split('T')[0]);
+  const [singleDate, setSingleDate] = useState(() => toLocalDateInputValue(new Date()));
+  const [startDate, setStartDate] = useState(() => toLocalDateInputValue(new Date()));
+  const [endDate, setEndDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 2);
+    return toLocalDateInputValue(date);
+  });
+  const [weekDate, setWeekDate] = useState(() => toLocalDateInputValue(new Date()));
   
   // Assignments: Key is "YYYY-MM-DD-Std", Value is Stundenbild ID
   const [assignedStundenbilder, setAssignedStundenbilder] = useState<Record<string, string>>({});
@@ -576,15 +580,15 @@ export default function Uebergabemappe() {
               <div className="grid grid-cols-2 gap-3 text-[0.75rem] leading-tight">
                 <div className="p-2 bg-rose-50/20 border border-rose-100 rounded-xl">
                   <p className="text-[0.4375rem] font-black text-rose-500 uppercase">Direktion / Schulleitung</p>
-                  <p className="font-extrabold text-slate-800 text-[0.6875rem] text-wrap leading-tight break-words">{schulleitungName}</p>
+                  <p className="font-extrabold text-slate-800 text-[0.6875rem] text-wrap leading-tight break-words">{schulleitungName || '—'}</p>
                 </div>
                 <div className="p-2 bg-slate-50 border border-slate-100 rounded-xl">
                   <p className="text-[0.4375rem] font-black text-slate-400 uppercase">Sekretariat / Kanzlei</p>
-                  <p className="font-extrabold text-slate-800 text-[0.6875rem] text-wrap leading-tight break-words">{sekretariatTel}</p>
+                  <p className="font-extrabold text-slate-800 text-[0.6875rem] text-wrap leading-tight break-words">{sekretariatTel || '—'}</p>
                 </div>
                 <div className="col-span-2 p-2 bg-slate-50 border border-slate-100 rounded-xl">
                   <p className="text-[0.4375rem] font-black text-slate-400 uppercase">Betreuende Lehrkraft (Ansprechpartner Nachbarklasse)</p>
-                  <p className="font-extrabold text-slate-800 text-[0.6875rem] text-wrap leading-tight break-words">{nachbarKlasse}</p>
+                  <p className="font-extrabold text-slate-800 text-[0.6875rem] text-wrap leading-tight break-words">{nachbarKlasse || '—'}</p>
                 </div>
               </div>
             </div>
@@ -602,7 +606,7 @@ export default function Uebergabemappe() {
       daysToPrint.forEach((currentDay, dayIdx) => {
         const kw = getISOWeek(currentDay);
         const dayName = getDayName(currentDay);
-        const dayStr = currentDay.toISOString().split('T')[0];
+        const dayStr = toLocalDateInputValue(currentDay);
         const birthdaysToday = getBirthdaysToday(currentDay);
 
         pages.push(
@@ -982,7 +986,7 @@ export default function Uebergabemappe() {
 
     // PAGE 5: WORKWHEETS FOR LESSON PLANS
     const assignedWorksheets = daysToPrint.flatMap(date => {
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = toLocalDateInputValue(date);
       return LESSON_SLOT_NUMBERS.map(std => {
         const id = assignedStundenbilder[`${dateStr}-${std}`];
         return lessonPlans.find(m => m.id === id);
@@ -1272,7 +1276,7 @@ export default function Uebergabemappe() {
               </div>
               <span className="text-[0.75rem] font-bold text-indigo-950 flex items-center gap-1.5">
                 {privacyMode ? <EyeOff size={14} className="text-indigo-600" /> : <Eye size={14} className="text-slate-500" />}
-                DSGVO-Datenschutzmodus (anonymisiert)
+                Datenschutzansicht (Initialen, sensible Stammdaten ausgeblendet)
               </span>
             </div>
 
@@ -1649,7 +1653,7 @@ export default function Uebergabemappe() {
                       type="button"
                       onClick={() => {
                         setRangeMode('single');
-                        setSingleDate(new Date().toISOString().split('T')[0]);
+                        setSingleDate(toLocalDateInputValue(new Date()));
                       }}
                       className="px-2 py-2 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-xl text-[0.625rem] font-black uppercase tracking-wider transition-all text-slate-200"
                     >
@@ -1661,7 +1665,7 @@ export default function Uebergabemappe() {
                         setRangeMode('single');
                         const tom = new Date();
                         tom.setDate(tom.getDate() + 1);
-                        setSingleDate(tom.toISOString().split('T')[0]);
+                        setSingleDate(toLocalDateInputValue(tom));
                       }}
                       className="px-2 py-2 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-xl text-[0.625rem] font-black uppercase tracking-wider transition-all text-slate-200"
                     >
@@ -1671,7 +1675,7 @@ export default function Uebergabemappe() {
                       type="button"
                       onClick={() => {
                         setRangeMode('week');
-                        setWeekDate(new Date().toISOString().split('T')[0]);
+                        setWeekDate(toLocalDateInputValue(new Date()));
                       }}
                       className="px-2 py-2 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-xl text-[0.625rem] font-black uppercase tracking-wider transition-all text-slate-200"
                     >
@@ -1839,7 +1843,7 @@ export default function Uebergabemappe() {
                   <div className="space-y-4">
                     {getDaysToPrint().map(date => {
                       const dName = getDayName(date);
-                      const dateStr = date.toISOString().split('T')[0];
+                      const dateStr = toLocalDateInputValue(date);
                       const kw = getISOWeek(date);
 
                       return (
@@ -1930,7 +1934,7 @@ export default function Uebergabemappe() {
                   <p className="text-[0.5625rem] font-black uppercase tracking-widest text-emerald-400">📝 Tagesbezogene Hinweise:</p>
                   <div className="space-y-3">
                     {getDaysToPrint().map(date => {
-                      const dateStr = date.toISOString().split('T')[0];
+                      const dateStr = toLocalDateInputValue(date);
                       return (
                         <div key={dateStr} className="space-y-1 bg-slate-950 p-2.5 border border-slate-850 rounded-xl">
                           <span className="text-[0.5625rem] font-black text-indigo-400 uppercase tracking-widest">{formatDate(date)}</span>
@@ -2162,7 +2166,7 @@ export default function Uebergabemappe() {
 
       {/* PAGE 4: DETAILED LESSON PLANS */}
         {getDaysToPrint().flatMap(date => {
-          const dateStr = date.toISOString().split('T')[0];
+          const dateStr = toLocalDateInputValue(date);
           return LESSON_SLOT_NUMBERS.map(std => {
             const id = assignedStundenbilder[`${dateStr}-${std}`];
             return lessonPlans.find(m => m.id === id);
@@ -2687,7 +2691,7 @@ export default function Uebergabemappe() {
                                </div>
                                <div className="bg-slate-50 p-4 rounded-2xl">
                                   <p className="text-[0.5625rem] font-black uppercase text-slate-400 mb-1">Geburtsdatum</p>
-                                  <p className="font-black text-[1.125rem] leading-normal">{app.schueler.find(s => s.id === transferStudentId)?.geburtstag || '--'}</p>
+                                  <p className="font-black text-[1.125rem] leading-normal">{privacyMode ? 'Ausgeblendet' : (app.schueler.find(s => s.id === transferStudentId)?.geburtstag || '--')}</p>
                                </div>
                             </div>
                             <div className="space-y-4">
@@ -2697,7 +2701,7 @@ export default function Uebergabemappe() {
                                 </div>
                                 <div className="bg-slate-50 p-4 rounded-2xl">
                                    <p className="text-[0.5625rem] font-black uppercase text-slate-400 mb-1">Religionsbekenntnis</p>
-                                   <p className="font-black text-[1.125rem] leading-normal">{app.schueler.find(s => s.id === transferStudentId)?.religion || '--'}</p>
+                                   <p className="font-black text-[1.125rem] leading-normal">{privacyMode ? 'Ausgeblendet' : (app.schueler.find(s => s.id === transferStudentId)?.religion || '--')}</p>
                                 </div>
                              </div>
                           </div>
