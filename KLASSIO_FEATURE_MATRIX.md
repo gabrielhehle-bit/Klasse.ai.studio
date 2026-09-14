@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `3e89a27b5739747dcbe3082523f7e6e3049c85b3`: Pre-Deployment Audit #106 grün, 802/802 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #106 erzeugte `klassio-world4you-3e89a27b5739747dcbe3082523f7e6e3049c85b3` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `9d29a4b0b1536ea6095f040c9173ba764cb1502b`: Pre-Deployment Audit #108 grün, 807/807 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #108 erzeugte `klassio-world4you-9d29a4b0b1536ea6095f040c9173ba764cb1502b` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 
@@ -31,8 +31,8 @@ Legende:
 | 2 | Lehrercockpit | ✅ | PR #35 integriert; Audit #101 grün; reale Maus-/Touch-/Stift-Abnahme im Gesamt-Walkthrough |
 | 3 | KI-Helfer | ✅ | PR #37 integriert; Audit #104 grün; reale Gemini-/Browser-Abnahme im Gesamt-Walkthrough |
 | 4 | Notizen | ✅ | PR #39 integriert; Audit #106 grün; reale Browser-/Staging-Abnahme im Gesamt-Walkthrough |
-| 5 | Schüler:innen | 🔴 | als Nächstes einzeln prüfen und abschließen |
-| 6 | Sitzplan | 🔴 | danach |
+| 5 | Schüler:innen | ✅ | PR #41 integriert; Audit #108 grün; reale Browser-/Staging-Abnahme im Gesamt-Walkthrough |
+| 6 | Sitzplan | 🔴 | als Nächstes einzeln prüfen und abschließen |
 | 7 | Anwesenheit | 🔴 | danach |
 | 8 | Notenmappe | 🔴 | danach |
 | 9 | Kassa & Orga | 🔴 | danach |
@@ -81,12 +81,12 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 | Anwesenheit | ✅ | Abschluss füllt nur leere Stunden; vorhandene Fehl-/Entschuldigungswerte bleiben erhalten. Dashboard verlangt Erfassung nur an echten Schultagen und zeigt „geprüft“ erst, wenn für alle Kinder alle aktiven Stunden erfasst sind; lokaler Kalendertag statt UTC; Regressionstests vorhanden. |
 | Befinden | ✅ | Einheitliche 5-Stufen-Skala von sehr gut bis schlecht. |
 | Sokrates PDF-Import | ✅ | PR #16 integriert: PDF.js-Worker lokal gebundelt, `.mjs` im PWA-Precache, geometrische Tabellenerkennung und keine erfundenen Stammdaten; Regressionstests vorhanden. |
-| Schülerliste | 🟡 | Suche, Filter, Liste/Karten/Karte, Import, Dossier, Notiz/Interaktion und Bearbeiten/Löschen bleiben erhalten; ISO- und österreichische Geburtsdaten werden konsistent ausgewertet. CSV/Excel/Sokrates-Import erfindet fehlendes Geschlecht, Erstsprache oder Staatsbürgerschaft nicht; Browser-Abnahme offen. |
+| Schülerliste | 🟡 | PR #41: Suche, Filter, Liste/Karten/Karte, Import, Dossier, Notiz/Interaktion und Bearbeiten/Löschen bleiben erhalten. Alter und Alterssortierung sind kalendergenau; Suche umfasst auch SV-Nummer. Reimporte erkennen bestehende Kinder und aktualisieren nur Stammdaten, ohne pädagogische Daten zu überschreiben; Sokrates-Metadaten werden übernommen. Löschen bereinigt die zugehörigen personenbezogenen Klassendaten vollständig, während Kassenbuchungen entkoppelt erhalten bleiben. Klassenwechsel schließen alte Dossier-/Modalzustände. Kartenmarker sind lokal gebündelt; Photon erhält nur PLZ/Ort und der Hinweis ist sichtbar. Automatisierte Tests und Audit #108 grün; reale Browser-Abnahme offen. |
 | Schülerdossier Struktur | ✅ | Fünf feste Hauptbereiche: Übersicht; Lernen & Leistungen; Entwicklung & Diagnostik; Stammdaten & Organisation; Berichte & Materialien. Alte Einfach/Experte-/Ausblendlogik entfernt; Regressionstest vorhanden. |
 | Schülerdossier Semesterwechsel | ✅ | Auswahl Semester 1/2 wird korrekt übernommen; Regressionstest vorhanden. |
 | Schülerdossier Browser-Abnahme | 🟡 | Navigation, Detailtabs, Fokusmodus und responsive Darstellung müssen im finalen Browser-Walkthrough praktisch geprüft werden. |
 | Diagnostik | 🟡 | PR #9 integriert: 3-stufige Hierarchie/Checks/Ergebnisse, klassenlokale iKM-/Antolin-/Ziel-/Beobachtungs-/Metakognitionsdaten, aktive Klassen-ID für strukturierte Ergebnisse und lokale Datumsprüfung. Vollständiger Browser-Walkthrough offen. |
-| Multi-Class | ✅ | Klassenwechsel/Migration/Erweiterungsfelder, Cockpit-Ink sowie Notizen/Journal/Statusverlauf per Tests klassenlokal abgesichert. |
+| Multi-Class | ✅ | Klassenwechsel/Migration/Erweiterungsfelder, Cockpit-Ink sowie Notizen/Journal/Statusverlauf per Tests klassenlokal abgesichert; Schüler-Dossier-, Editor- und Interaktionszustände werden beim Klassenwechsel zurückgesetzt. |
 
 ## Leistungen
 
