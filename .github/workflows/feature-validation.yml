@@ -1,0 +1,48 @@
+name: Feature Validation
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'fix/**'
+      - 'chore/**'
+  pull_request:
+    branches:
+      - main
+      - reconcile/klassio-source-of-truth
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: TypeScript
+        run: bun run lint
+
+      - name: Tests
+        run: bun run test
+
+      - name: Production build
+        run: bun run build
+
+      - name: Verify build output
+        run: |
+          test -f dist/index.html
+          test -f dist/server.cjs
+          test -f dist/manifest.webmanifest
+          test -f dist/sw.js
+          echo "Feature validation passed."
