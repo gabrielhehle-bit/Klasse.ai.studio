@@ -252,3 +252,39 @@ test('legacy root-only chronicle and behavior history are assigned only to the a
   assert.deepEqual(switchClassState(loaded, 'b').notes, []);
   assert.deepEqual(switchClassState(loaded, 'b').statusLog, []);
 });
+
+
+test('legacy mixed multi-class chronicle is partitioned by student while general entries stay active', () => {
+  const loaded = normalizeAppState({
+    activeClassId: 'a',
+    notes: [
+      { id: 'note-a', datum: '2026-09-14T08:00:00.000Z', kategorie: 'Verhalten', inhalt: 'A', schuelerId: 'student-a' },
+      { id: 'note-b', datum: '2026-09-14T09:00:00.000Z', kategorie: 'Erfolg', inhalt: 'B', schuelerId: 'student-b' },
+      { id: 'general', datum: '2026-09-14T10:00:00.000Z', kategorie: 'Journal', inhalt: 'Allgemein' },
+    ],
+    journal: [
+      { id: 'note-a', datum: '2026-09-14T08:00:00.000Z', kategorie: 'Verhalten', inhalt: 'A', schuelerId: 'student-a' },
+      { id: 'note-b', datum: '2026-09-14T09:00:00.000Z', kategorie: 'Erfolg', inhalt: 'B', schuelerId: 'student-b' },
+      { id: 'general', datum: '2026-09-14T10:00:00.000Z', kategorie: 'Journal', inhalt: 'Allgemein' },
+    ],
+    statusLog: [
+      { id: 'status-a', schuelerId: 'student-a', datum: '2026-09-14', iconId: '1', timestamp: 1 },
+      { id: 'status-b', schuelerId: 'student-b', datum: '2026-09-14', iconId: '4', timestamp: 2 },
+    ],
+    classes: [
+      { id: 'a', schueler: [{ id: 'student-a' }] },
+      { id: 'b', schueler: [{ id: 'student-b' }] },
+    ],
+  });
+
+  assert.deepEqual(loaded.classes[0].notes?.map((entry: any) => entry.id), ['note-a', 'general']);
+  assert.deepEqual(loaded.classes[1].notes?.map((entry: any) => entry.id), ['note-b']);
+  assert.deepEqual(loaded.classes[0].journal?.map((entry: any) => entry.id), ['note-a', 'general']);
+  assert.deepEqual(loaded.classes[1].journal?.map((entry: any) => entry.id), ['note-b']);
+  assert.deepEqual(loaded.classes[0].statusLog?.map((entry: any) => entry.id), ['status-a']);
+  assert.deepEqual(loaded.classes[1].statusLog?.map((entry: any) => entry.id), ['status-b']);
+
+  const b = switchClassState(loaded, 'b');
+  assert.deepEqual(b.notes?.map((entry: any) => entry.id), ['note-b']);
+  assert.deepEqual(b.statusLog?.map((entry: any) => entry.id), ['status-b']);
+});
