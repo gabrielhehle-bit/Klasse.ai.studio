@@ -138,7 +138,7 @@ export function generateWochenplanTemplate(app: AppState, activeKW: number) {
 
   // Add a second sheet with helpful instructions
   const infoRows = [
-    ['LEHRERAPP WOCHENPLANER - AUSFÜLLHILFE'],
+    ['KLASSIO WOCHENPLANER - AUSFÜLLHILFE'],
     [''],
     ['Spalte', 'Beschreibung', 'Beispielwerte'],
     ['Wochentag', 'Wochentag (Montag, Dienstag, Mittwoch, Donnerstag, Freitag)', 'Montag, Di, Mi, Do, Fr'],
@@ -479,7 +479,7 @@ export function generateJahresplanTemplate(app: AppState) {
 
   // Add notes sheet
   const infoRows = [
-    ['LEHRERAPP JAHRESPLANER - AUSFÜLLHILFE'],
+    ['KLASSIO JAHRESPLANER - AUSFÜLLHILFE'],
     [''],
     ['Spalte', 'Beschreibung', 'Erlaubte Werte / Hinweise'],
     ['Kalenderwoche', 'Kalenderwoche als Zahl (1 bis 53)', '38, 39, 40...'],
