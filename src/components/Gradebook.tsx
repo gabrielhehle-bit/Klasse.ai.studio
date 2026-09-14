@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { logActivity, getAccentTextColor } from '../lib/utils';
-import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage } from '../lib/GradeUtils';
+import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput } from '../lib/GradeUtils';
 import { getFachHexColor } from '../lib/fachColorUtils';
 import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
@@ -1138,49 +1138,11 @@ export default function Gradebook() {
   };
 
   const setNote = (sid: string, typ: 'sa' | 'lzk' | 'wp' | 'aufgaben', idx: number, val: string) => {
-    let validated: number | string | null = null;
     const mode = getAssessmentMode(app, activeFach);
-    
-    if (!val || val.trim() === '') {
-      validated = null;
-    } else {
-      const stripped = val.trim().toLowerCase();
-      if (['f', 'x', 'e', '-'].includes(stripped)) {
-        validated = 'f';
-      } else if (mode === 'percent') {
-        const cleanStr = stripped.replace('%', '').replace(',', '.');
-        const n = parseFloat(cleanStr);
-        if (!isNaN(n)) {
-          validated = Math.min(100, Math.max(0, Math.round(n * 10) / 10));
-        } else {
-          validated = null;
-        }
-      } else if (mode === 'points') {
-        const maxP = getMaxPoints(app, activeFach, typ, idx);
-        const cleanStr = stripped.replace(/p(?:kt)?/g, '').replace(',', '.');
-        const n = parseFloat(cleanStr);
-        if (!isNaN(n)) {
-          validated = Math.min(maxP, Math.max(0, Math.round(n * 10) / 10));
-        } else {
-          validated = null;
-        }
-      } else {
-        // Standard Noten 1..5
-        const n = parseFloat(stripped.replace(',', '.'));
-        if (!isNaN(n)) {
-          if (n < 1) validated = 1;
-          else if (n > 5) validated = 5;
-          else validated = n;
-        } else {
-          const match = stripped.match(/([1-5])/);
-          if (match) {
-            validated = parseInt(match[1], 10);
-          } else {
-            validated = null;
-          }
-        }
-      }
-    }
+    const maxP = getMaxPoints(app, activeFach, typ, idx);
+    const parsedInput = parseAssessmentInput(val, mode, maxP);
+    if (!parsedInput.valid) return;
+    const validated = parsedInput.value;
 
     setApp(prev => {
       const isSyncWP = prev.notenMeta?.syncWpDeutschMath;
