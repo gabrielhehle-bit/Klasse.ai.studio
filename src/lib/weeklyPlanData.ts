@@ -70,3 +70,47 @@ export function weeklyLessonDurationSlots(
   if (!Number.isFinite(requested) || requested < 1) return 1;
   return Math.min(remainingSlots, Math.floor(requested));
 }
+
+
+export type IncompleteWeeklyLessonSlot = {
+  tag: string;
+  idx: number;
+  fach: string;
+  thema: string;
+};
+
+export function collectIncompleteWeeklyLessonSlots(
+  currentWeekPlan: Record<string, any> | undefined,
+): IncompleteWeeklyLessonSlot[] {
+  const slots: IncompleteWeeklyLessonSlot[] = [];
+
+  for (const tag of ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag']) {
+    const dayData = currentWeekPlan?.[tag] || {};
+    for (const [idxStr, lesson] of Object.entries(dayData)) {
+      const zeroBasedIndex = Number(idxStr);
+      if (
+        !Number.isInteger(zeroBasedIndex) ||
+        zeroBasedIndex < 0 ||
+        zeroBasedIndex >= MAX_LESSON_SLOTS ||
+        !lesson ||
+        typeof lesson !== 'object'
+      ) {
+        continue;
+      }
+
+      const value = lesson as any;
+      const thema = String(value.thema || '').trim();
+      const isDone = value.erledigt === true || value.completed === true;
+      if (!thema || isDone) continue;
+
+      slots.push({
+        tag,
+        idx: zeroBasedIndex + 1,
+        fach: String(value.fach || 'Fach'),
+        thema,
+      });
+    }
+  }
+
+  return slots;
+}
