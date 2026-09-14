@@ -1,6 +1,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { Users, UserCheck, Armchair, Wallet, MessagesSquare, Heart, ChevronRight } from 'lucide-react';
+import { toLocalDateKey } from '../lib/localDate';
 
 type HubItem = {
   id: string;
@@ -14,7 +15,7 @@ type HubItem = {
 export default function KlasseHub() {
   const { app, setPage } = useApp();
   const students = app.schueler || [];
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toLocalDateKey();
   const todayAttendance = app.anwesenheit?.[today] || {};
   const recordedToday = Object.keys(todayAttendance).length;
 
