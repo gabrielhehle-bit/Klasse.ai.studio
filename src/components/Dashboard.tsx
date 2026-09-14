@@ -2377,7 +2377,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const fmt = `${String(scheduleDatum.getDate()).padStart(2, '0')}.${String(scheduleDatum.getMonth() + 1).padStart(2, '0')}.${scheduleDatum.getFullYear()}`;
     const fmtShort = `${String(scheduleDatum.getDate()).padStart(2, '0')}.${String(scheduleDatum.getMonth() + 1).padStart(2, '0')}.`;
     (dashboardSettings.customEvents || []).forEach((ev: any) => {
-      if (ev.date === fmt || ev.date === fmtShort || ev.date === scheduleDatum.toISOString().split('T')[0]) {
+      if (ev.date === fmt || ev.date === fmtShort || ev.date === formatLocalDateKey(scheduleDatum)) {
         list.push({
           type: "custom",
           title: `📌 ${ev.name}`,
@@ -2388,7 +2388,17 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     });
 
     return list;
-  }, [scheduleDatum, app?.schueler, app?.wochenplanung, app?.jahresplanung, kw, tagName, dashboardSettings.customEvents]);
+  }, [
+    scheduleDatum,
+    app?.schueler,
+    app?.wochenplanung,
+    app?.jahresplanung,
+    app?.bundesland,
+    app?.calendarSettings?.disabledHolidays,
+    kw,
+    tagName,
+    dashboardSettings.customEvents,
+  ]);
 
   const getLessonProgress = (idx: number) => {
     if (idx < 0) return 0;
