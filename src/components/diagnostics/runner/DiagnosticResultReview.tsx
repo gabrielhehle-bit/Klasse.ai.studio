@@ -48,6 +48,7 @@ export const DiagnosticResultReview: React.FC<DiagnosticResultReviewProps> = ({
   onBackToTasks,
   onCancel,
 }) => {
+  const { app } = useApp();
   const [editableNextStep, setEditableNextStep] = useState(evaluation.suggestedNextStep);
   const [generalNotes, setGeneralNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
