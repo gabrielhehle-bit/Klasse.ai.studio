@@ -25,7 +25,6 @@ test('Unterricht hub exposes the cockpit and previously scattered teaching tools
 
 test('Klasse, Planung and Leistungen hubs expose their remaining legacy tools', () => {
   assertContainsAll(source('KlasseHub.tsx'), ['schueler', 'anwesenheit', 'sitzplan', 'verhalten', 'orga', 'kel', 'klassengemeinschaft']);
-  assertContainsAll(source('PlanungHub.tsx'), ['planungszentrale', 'wochenplanung', 'jahresplanung', 'stunden', 'materialien', 'canva', 'uebergabemappe']);
-  assert.match(source('PlanungHub.tsx'), /setPage\(['"]vertretung['"]\)/);
+  assertContainsAll(source('PlanungHub.tsx'), ['planungszentrale', 'wochenplanung', 'jahresplanung', 'stunden', 'materialien', 'canva', 'vertretung', 'uebergabemappe']);
   assertContainsAll(source('LeistungenHub.tsx'), ['noten', 'portfolio', 'diagnostik', 'statistik', 'kel', 'notenTabelle', 'verbal', 'jahresbericht']);
 });
