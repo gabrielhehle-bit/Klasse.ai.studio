@@ -215,7 +215,7 @@ export default function BackupSettings({
             <Smartphone size={20} />
           </div>
           <div>
-            <h2 className="text-base font-black text-slate-900">LehrerAPP auf dem Gerät installieren (PWA)</h2>
+            <h2 className="text-base font-black text-slate-900">Klassio auf dem Gerät installieren (PWA)</h2>
             <p className="text-xs text-slate-500 font-medium">Nutze die App wie eine native Anwendung ohne Browser-Leiste.</p>
           </div>
         </div>
@@ -223,7 +223,7 @@ export default function BackupSettings({
         {isStandalone ? (
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2 text-emerald-800 text-xs font-bold">
             <Check size={16} className="text-emerald-600" />
-            <span>✓ Die LehrerAPP ist bereits als eigenständige App auf diesem Gerät installiert.</span>
+            <span>✓ Klassio ist bereits als eigenständige App auf diesem Gerät installiert.</span>
           </div>
         ) : (
           <div className="space-y-3">
