@@ -1630,69 +1630,14 @@ Antworte exakt im vorgegebenen JSON-Format.`;
     }
   });
 
-  // Weather Fallback Helper
-  function getFallbackWeatherData(lat: any, lon: any) {
-    return {
-      latitude: Number(lat || 47.2333),
-      longitude: Number(lon || 9.6),
-      timezone: "Europe/Vienna",
-      current: {
-        time: new Date().toISOString().substring(0, 16),
-        temperature_2m: 21.5,
-        precipitation: 0.0,
-        wind_speed_10m: 7.5,
-        weather_code: 0
-      },
-      current_weather: {
-        temperature: 21.5,
-        windspeed: 7.5,
-        winddirection: 120,
-        weathercode: 0,
-        time: new Date().toISOString().substring(0, 16)
-      },
-      hourly: {
-        time: Array.from({ length: 6 }, (_, i) => {
-          const d = new Date();
-          d.setHours(d.getHours() + i);
-          return d.toISOString();
-        }),
-        temperature_2m: [19, 20, 21, 22, 21, 19],
-        precipitation: [0, 0, 0, 0, 0, 0],
-        weather_code: [0, 0, 0, 0, 0, 0]
-      },
-      daily: {
-        time: Array.from({ length: 7 }, (_, i) => {
-          const d = new Date();
-          d.setDate(d.getDate() + i);
-          return d.toISOString().substring(0, 10);
-        }),
-        weathercode: [0, 1, 3, 0, 1, 2, 0],
-        temperature_2m_max: [22.5, 23.1, 21.4, 22.0, 24.5, 25.0, 23.8],
-        temperature_2m_min: [11.2, 12.0, 11.5, 10.8, 12.5, 13.0, 12.2]
-      }
-    };
-  }
-
-  // Geocoding Fallback Helper
-  function getFallbackGeocodingData(name: string) {
-    return {
-      results: [
-        {
-          id: 2780775,
-          name: name || "Feldkirch",
-          latitude: 47.2333,
-          longitude: 9.6,
-          country: "Österreich"
-        }
-      ]
-    };
-  }
-
   // Weather Proxy Route
   app.get("/api/weather", async (req, res) => {
     const { lat, lon, latitude, longitude, current_weather, daily, current, hourly, timezone, forecast_days } = req.query;
-    const finalLat = lat || latitude || "47.2333";
-    const finalLon = lon || longitude || "9.6";
+    const finalLat = lat || latitude;
+    const finalLon = lon || longitude;
+    if (typeof finalLat !== 'string' || typeof finalLon !== 'string' || !finalLat || !finalLon) {
+      return res.status(400).json({ error: "Für Wetterdaten werden latitude/longitude benötigt." });
+    }
 
     try {
       const baseUrl = "https://api.open-meteo.com/v1/forecast";
@@ -1723,13 +1668,17 @@ Antworte exakt im vorgegebenen JSON-Format.`;
       const data = await response.json();
       res.json(data);
     } catch (error: any) {
-      res.json(getFallbackWeatherData(finalLat, finalLon));
+      console.warn("[Weather Proxy] Wetterdienst nicht erreichbar:", error?.message || error);
+      res.status(502).json({ error: "Wetterdaten sind derzeit nicht verfügbar." });
     }
   });
 
   // Geocoding Proxy Route
   app.get("/api/geocoding", async (req, res) => {
     const { name } = req.query;
+    if (typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: "Für die Ortssuche wird ein Name benötigt." });
+    }
     try {
       const baseUrl = "https://geocoding-api.open-meteo.com/v1/search";
       const params = new URLSearchParams();
@@ -1747,7 +1696,8 @@ Antworte exakt im vorgegebenen JSON-Format.`;
       const data = await response.json();
       res.json(data);
     } catch (error: any) {
-      res.json(getFallbackGeocodingData((name as string) || "Feldkirch"));
+      console.warn("[Geocoding Proxy] Dienst nicht erreichbar:", error?.message || error);
+      res.status(502).json({ error: "Ortssuche ist derzeit nicht verfügbar." });
     }
   });
 
@@ -2180,14 +2130,18 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       const data = await response.json();
       res.json(data);
     } catch (e: any) {
-      res.json(getFallbackGeocodingData(req.query.city as string || "Feldkirch"));
+      console.warn("[Weather Geocode] Dienst nicht erreichbar:", e?.message || e);
+      res.status(502).json({ error: "Wetter-Ortssuche ist derzeit nicht verfügbar." });
     }
   });
 
   // API Route for Forecast (Weather)
   app.get("/api/weather/forecast", async (req, res) => {
-    const lat = req.query.lat as string || "47.2333";
-    const lon = req.query.lon as string || "9.6";
+    const lat = req.query.lat as string;
+    const lon = req.query.lon as string;
+    if (!lat || !lon) {
+      return res.status(400).json({ error: "Für die Wetterprognose werden lat/lon benötigt." });
+    }
     try {
       const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current=temperature_2m,precipitation,wind_speed_10m,weather_code&hourly=temperature_2m,precipitation,weather_code&timezone=Europe/Vienna&forecast_days=1`;
       const response = await fetch(weatherUrl, { signal: AbortSignal.timeout(6000) });
@@ -2195,7 +2149,8 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       const data = await response.json();
       res.json(data);
     } catch (e: any) {
-      res.json(getFallbackWeatherData(lat, lon));
+      console.warn("[Weather Forecast] Dienst nicht erreichbar:", e?.message || e);
+      res.status(502).json({ error: "Wetterprognose ist derzeit nicht verfügbar." });
     }
   });
 
