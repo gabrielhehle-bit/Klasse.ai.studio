@@ -33,7 +33,7 @@ export const DiagnosticResults: React.FC<DiagnosticResultsProps> = ({
   onBackToHome,
   onStartIndividual,
   onStartClass,
-  activeClassName = '2a',
+  activeClassName,
 }) => {
   // Perspective toggle: 'kind' (default) vs 'klasse'
   const [perspective, setPerspective] = useState<ResultsPerspective>('kind');
@@ -108,7 +108,7 @@ export const DiagnosticResults: React.FC<DiagnosticResultsProps> = ({
 
         <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
           <span className="w-2 h-2 rounded-full bg-emerald-500" />
-          <span>{results.length} neue Diagnostikergebnisse</span>
+          <span>{results.length} Diagnostikergebnisse</span>
         </div>
       </div>
 
