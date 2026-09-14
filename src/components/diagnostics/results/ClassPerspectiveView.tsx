@@ -42,7 +42,7 @@ interface ClassPerspectiveViewProps {
 export const ClassPerspectiveView: React.FC<ClassPerspectiveViewProps> = ({
   students = [],
   results = [],
-  activeClassName = '2a',
+  activeClassName,
   onSelectStudent,
   onStartIndividualTest = () => {},
   onStartClassScreening,
@@ -86,7 +86,7 @@ export const ClassPerspectiveView: React.FC<ClassPerspectiveViewProps> = ({
 
         <div className="space-y-1.5">
           <h3 className="text-lg font-bold text-slate-900">
-            Noch keine Diagnostikergebnisse für Klasse {activeClassName}
+            Noch keine Diagnostikergebnisse{activeClassName ? ` für Klasse ${activeClassName}` : ''}
           </h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
             Die Klassenperspektive fasst die 1:1-Checks aller Kinder übersichtlich zusammen. Führe erste standardisierte Checks durch, um Kompetenzverteilungen und Förderbedarfe zu sehen.
