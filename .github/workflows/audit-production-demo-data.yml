@@ -1,0 +1,25 @@
+name: Audit Production Demo Data
+
+on:
+  push:
+    branches:
+      - audit/production-demo-data
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/production-demo-data
+      - name: Find demo-data references
+        run: |
+          echo '=== historicalStudents ==='
+          grep -R -n --exclude-dir=node_modules --exclude='*.test.ts' --exclude='*.test.tsx' 'historicalStudents\|DEFAULT_HISTORICAL_STUDENTS' src || true
+          echo '=== fake teacher/profile strings ==='
+          grep -R -n --exclude-dir=node_modules --exclude='*.test.ts' --exclude='*.test.tsx' 'Maximilian Musterlehrer\|Volksschule Musterstadt\|Pädagogik mit Herz' src || true
+          echo '=== stale product strings ==='
+          grep -R -n --exclude-dir=node_modules --exclude='*.test.ts' --exclude='*.test.tsx' 'SchoolBase\|KLASSE.AI.STUDIO\|LehrerAPP' src README.md index.html metadata.json || true
