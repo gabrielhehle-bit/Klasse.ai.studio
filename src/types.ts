@@ -362,6 +362,9 @@ export interface PortfolioEntry {
   datum: string;
   titel: string;
   beschreibung?: string;
+  /** Legacy portfolio metadata retained during migration. */
+  fach?: string;
+  bewertung?: string;
   bildUrl?: string; // base64 or file reference
   tags?: string[];
   isInKEL?: boolean; // Highlight for KEL
