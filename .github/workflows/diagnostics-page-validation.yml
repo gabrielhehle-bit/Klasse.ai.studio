@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/performance-diagnostics-final
+  pull_request:
+    branches:
+      - reconcile/klassio-source-of-truth
 
 permissions:
   contents: read
