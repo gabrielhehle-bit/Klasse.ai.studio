@@ -506,7 +506,7 @@ export default function OrgaLists() {
             <div className="flex items-center gap-2">
               <h1 className="text-[1.125rem] font-black text-slate-900 tracking-tight leading-tight">Kasse & Orga</h1>
               <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[0.6875rem] font-bold">
-                Klasse {app.klassenbezeichnung || app.klasse || '2a'}
+                {app.klassenbezeichnung || app.klasse ? `Klasse ${app.klassenbezeichnung || app.klasse}` : 'Kassa & Orga'}
               </span>
             </div>
             <p className="text-[0.75rem] font-medium text-slate-500">
@@ -773,7 +773,7 @@ export default function OrgaLists() {
                               {formatEuro(s.betrag)} pro Kind
                               {s.faelligkeit && (
                                 <span className="ml-2 text-slate-400 font-normal">
-                                  • Fällig: {new Date(s.faelligkeit).toLocaleDateString('de-AT')}
+                                  • Fällig: {formatOrgaDate(s.faelligkeit)}
                                 </span>
                               )}
                             </p>
@@ -872,7 +872,7 @@ export default function OrgaLists() {
                           </div>
                           {c.datum && (
                             <p className="text-[0.6875rem] font-semibold text-slate-400">
-                              Termin: {new Date(c.datum).toLocaleDateString('de-AT')}
+                              Termin: {formatOrgaDate(c.datum)}
                             </p>
                           )}
                         </div>
@@ -1190,7 +1190,7 @@ export default function OrgaLists() {
                       <div className="min-w-0 flex-1 pr-3">
                         <div className="font-bold text-slate-900 truncate">{tx.titel}</div>
                         <div className="text-[0.6875rem] text-slate-400 flex items-center gap-1.5 flex-wrap">
-                          <span>{new Date(tx.datum).toLocaleDateString('de-AT')}</span>
+                          <span>{formatOrgaDate(tx.datum)}</span>
                           <span>•</span>
                           <span>{tx.kategorie === 'ausgabe' ? 'Ausgabe' : tx.kategorie === 'sammlung' ? 'Geldsammlung' : tx.kategorie === 'sonstiges' ? 'Sonstiges' : tx.kategorie || 'Allgemein'}</span>
                           {isManual && (
@@ -1458,7 +1458,7 @@ export default function OrgaLists() {
                 <div key={s.id} className="bg-white rounded-2xl border border-slate-200/80 p-4 flex items-center justify-between gap-4">
                   <div>
                     <h3 className="text-[0.875rem] font-bold text-slate-900">{s.titel}</h3>
-                    <p className="text-[0.6875rem] text-slate-400">{formatEuro(s.betrag)} pro Kind • Erstellt am {new Date(s.erstelltAm).toLocaleDateString('de-AT')}</p>
+                    <p className="text-[0.6875rem] text-slate-400">{formatEuro(s.betrag)} pro Kind • Erstellt am {formatOrgaDate(s.erstelltAm)}</p>
                   </div>
 
                   <button
@@ -1937,7 +1937,7 @@ export default function OrgaLists() {
                 <div className="flex justify-between items-center text-[0.8125rem]">
                   <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400">Datum</span>
                   <span className="font-bold text-slate-700">
-                    {new Date(txToDelete.datum).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    {formatOrgaDate(txToDelete.datum)}
                   </span>
                 </div>
                 <div className="flex justify-between items-start text-[0.8125rem] gap-2">
