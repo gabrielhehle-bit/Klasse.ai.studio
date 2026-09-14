@@ -305,7 +305,7 @@ STRIKTE REGELN FÜR DAS LAYOUT (A4-PRINT-PERFEKTION):
 2. A4-Spezifikation: Das Haupt-Container-Element MUSS exakt folgende CSS-Eigenschaften haben:
    \`width: 210mm; min-height: 297mm; padding: 15mm; margin: 0 auto; background: white; color: black; box-sizing: border-box;\`
 3. Print-Optimierung: Verwende keine dunklen Hintergrundfarben (Tinte sparen!). Nutze maximal feine, hellgraue Rahmen. Bette Schreibtrennlinien (border-b border-dashed border-gray-300 h-6 w-full) ein, damit Kinder handschriftliche Antworten eintragen können.
-4. Typografie: Verwende klare, serifenlose Schriften (Sans-Serif wie Inter, Arial). Schriftgröße für die 4. Klasse muss mindestens 12pt (16px) betragen. Verwende großzügigen Zeilenabstand (leading-relaxed oder leading-loose) und freie Schreiblinien, um ausreichend Platz für handschriftliche Notizen und Rechnungen zu lassen.
+4. Typografie: Verwende klare, serifenlose Schriften (Sans-Serif wie Inter, Arial). Schriftgröße für die ${worksheetGrade}. Schulstufe muss mindestens 12pt (16px) betragen. Verwende großzügigen Zeilenabstand (leading-relaxed oder leading-loose) und freie Schreiblinien, um ausreichend Platz für handschriftliche Notizen und Rechnungen zu lassen.
 5. Struktur und 2-Seiten-Fluss (Word-Dokument-Verhalten):
    Generiere das Arbeitsblatt so, dass es exakt ZWEI getrennte Seiten ausdruckt:
    - Seite 1 (Aufgaben für die Schüler):
