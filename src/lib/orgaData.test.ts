@@ -6,6 +6,8 @@ import {
   deleteManualCashTransaction,
   formatOrgaDate,
   getCollectionPaymentStatus,
+  getLocalOrgaDateKey,
+  normalizeKlassenkasse,
   markCollectionPaidForStudents,
   parseEuroInput,
   roundEuro,
@@ -125,4 +127,26 @@ test('date-only form values are stored without UTC day drift', () => {
   assert.equal(formatOrgaDate('2026-09-14'), '14.9.2026');
   assert.equal(formatOrgaDate(iso), '14.9.2026');
   assert.equal(dateInputToLocalNoonIso('2026-02-31'), undefined);
+});
+
+
+test('legacy class cash is normalized into a collection', () => {
+  const normalized = normalizeKlassenkasse({
+    beitrag_pro_kind: 9.5,
+    kontostand: 19,
+    zahlungen: { a: true, b: false },
+    transaktionen: [],
+  });
+
+  assert.equal(normalized.kontostand, 19);
+  assert.equal(normalized.sammlungen.length, 1);
+  assert.equal(normalized.sammlungen[0].betrag, 9.5);
+  assert.equal(normalized.sammlungen[0].status.a, 'bezahlt');
+  assert.equal(normalized.sammlungen[0].status.b, 'offen');
+  assert.equal(normalized.sammlungen[0].betraege.a, 9.5);
+  assert.equal(normalized.sammlungen[0].betraege.b, 0);
+});
+
+test('local organization date key uses local calendar fields', () => {
+  assert.equal(getLocalOrgaDateKey(new Date(2026, 8, 14, 23, 30)), '2026-09-14');
 });
