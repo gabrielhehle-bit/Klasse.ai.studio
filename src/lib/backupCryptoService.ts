@@ -258,11 +258,11 @@ export async function unlockAndDecryptBackup<T = any>(
 /**
  * Erzeugt einen standardisierten, sicheren Dateinamen für den Backup-Export.
  * Enthält ein Datum, aber KEINERLEI personenbezogene Daten (keine Namen, Klassen, Schulen).
- * Format: LehrerAPP_Sicherung_YYYY-MM-DD.lehrerapp
+ * Format: Klassio_Sicherung_YYYY-MM-DD.lehrerapp
  */
 export function generateBackupFilename(date: Date = new Date()): string {
   const dateStr = date.toISOString().split('T')[0];
-  return `LehrerAPP_Sicherung_${dateStr}${BACKUP_FILE_EXTENSION}`;
+  return `Klassio_Sicherung_${dateStr}${BACKUP_FILE_EXTENSION}`;
 }
 
 /**
