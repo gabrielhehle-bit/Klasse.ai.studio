@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `6bc13a05502f9c4cb71f22b852ec63a58524b37d`: Pre-Deployment Audit #124 grün, 900/900 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #124 erzeugte `klassio-world4you-6bc13a05502f9c4cb71f22b852ec63a58524b37d` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `3c970e709f1623507212c3ed8c346ef41f0c2209`: Pre-Deployment Audit #126 grün, 920/920 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #126 erzeugte `klassio-world4you-3c970e709f1623507212c3ed8c346ef41f0c2209` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 
@@ -40,8 +40,8 @@ Legende:
 | 11 | Jahresplanung | ✅ | PR #53 integriert; Audit #120 grün; reale Browser-/Touch-/Druck-/Excel-/Staging-Abnahme im Gesamt-Walkthrough |
 | 12 | Wochenplanung | ✅ | PR #55 integriert; Audit #122 grün; reale Browser-/Touch-/Druck-/Excel-/Staging-Abnahme im Gesamt-Walkthrough |
 | 13 | Materialbibliothek | ✅ | PR #57 integriert; Audit #124 grün; reale Browser-/Touch-/Datei-/Link-/Staging-Abnahme im Gesamt-Walkthrough |
-| 14 | Übergabemappe | 🔴 | als Nächstes einzeln prüfen und abschließen |
-| 15 | Statistik & Profile | 🔴 | danach |
+| 14 | Übergabemappe | ✅ | PR #59 integriert; Audit #126 grün; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme im Gesamt-Walkthrough |
+| 15 | Statistik & Profile | 🔴 | als Nächstes einzeln prüfen und abschließen |
 | 16 | Diagnostik | 🔴 | danach |
 | 17 | Wir-Gefühl | 🔴 | danach |
 | 18 | Jahresbericht | 🔴 | danach |
@@ -118,7 +118,7 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 | Materialbibliothek | 🟡 | PR #57: Anlegen, bearbeiten, suchen, filtern, gruppieren und favorisieren bleiben erhalten. Lokale Dateien sind auf PDF/JPG/PNG/WebP/GIF mit zentralen Größenlimits begrenzt; Links werden auf HTTP/HTTPS validiert und veraltete Datei-/Linkdaten beim Typwechsel entfernt. KI- und Arbeitsblatt-Speicher deduplizieren IDs, bewahren bestehende Metadaten und melden Erfolg nur bei tatsächlichem Speichern. Gelöschte globale Materialien werden aus Wochenplan-Verknüpfungen aller Klassen entfernt. Automatisierte Tests und Audit #124 grün; reale Browser-/Touch-/Datei-/Link-Abnahme offen. |
 | Materialbibliothek CRUD | ✅ | PR #57: Anlegen, bearbeiten, suchen, filtern, gruppieren, favorisieren und löschen; Sammelaktionen bleiben auf sichtbare Treffer begrenzt. |
 | Materialbibliothek → Wochenplan | ✅ | PR #57: Direkter Dialog für aktuelle KW/Tag/Stunde 1–10; Ergänzen/Ersetzen; IDs werden dedupliziert; Löschen räumt Verknüpfungen in allen Klassen auf, übrige Planung bleibt erhalten. |
-| Vertretungsplan | 🟡 | Reale Stundenplan-/Wochenplan-/Materialdaten; Browser-Abnahme offen. |
+| Übergabemappe / Vertretung | 🟡 | PR #59: 10-Slot-Tagesvertretung mit klassenkonfigurierten Zeiten, Materialbibliothek-Stundenbildern und einmaliger Legacy-Migration; Bearbeiten/Löschen ist mit Materialbibliothek und Wochenplan-Verknüpfungen konsistent. Vertretungshinweise sind klassenlokal, Notfallcheckliste startet ungeprüft, hardcodierte Schulkontakte wurden entfernt. Schulwechsel-Dossier enthält Stammdaten, Leistungsstand, klassenlokale Chronik, IKM-Plus und Diagnostik/Förderbedarf; Datenschutzansicht pseudonymisiert Namen und blendet sensible Stammdaten aus. Automatisierte Tests und Audit #126 grün; reale Browser-/Touch-/Druck-/Datenschutz-Abnahme offen. |
 | Printcenter | 🟡 | Druckmodule vorhanden; realer Browser-/PDF-/Druckcheck offen. |
 | Ferienlogik alle Bundesländer 2026/27 | ✅ | Gegen offizielle österreichische Termine geprüft. |
 
