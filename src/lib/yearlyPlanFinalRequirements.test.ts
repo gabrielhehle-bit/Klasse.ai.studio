@@ -46,3 +46,10 @@ test('Jahresplanung: Excel verlangt Fach und Thema statt stille Fehlzuordnung', 
   assert.match(excel, /resolveJahresplanSubjectId/);
   assert.doesNotMatch(excel, /return availableSubjects\[0\]\?\.id/);
 });
+
+
+test('Jahresplanung: Verschieben nutzt echte Unterrichtswochen statt KW plus eins', () => {
+  assert.match(yearly, /shiftYearPlanSubjectForward/);
+  assert.match(yearly, /orderedTeachingKws/);
+  assert.doesNotMatch(yearly, /let nextKw = currentKw \+ 1/);
+});
