@@ -542,15 +542,33 @@ export function normalizeAppState(raw: any): AppState {
   }
 
   // Migration / projection: chronicle, journal and behavior history are class-local.
-  // Legacy root-only data belongs to the active class only; inactive classes start empty.
+  // For old multi-class snapshots, student-linked root records are assigned to the
+  // class that actually contains that child. General entries without a child stay
+  // with the active class because older data has no reliable class marker for them.
   if (parsed.classes && Array.isArray(parsed.classes) && parsed.classes.length > 0) {
+    const rootNotes = Array.isArray(parsed.notes) ? parsed.notes : [];
+    const rootJournal = Array.isArray(parsed.journal) ? parsed.journal : [];
+    const rootStatusLog = Array.isArray(parsed.statusLog) ? parsed.statusLog : [];
+    const knownStudentIds = new Set<string>(
+      parsed.classes.flatMap((classroom: any) =>
+        (classroom.schueler || []).map((student: any) => student?.id).filter(Boolean)
+      )
+    );
+
     parsed.classes = parsed.classes.map((c: any) => {
       const isActive = c.id === parsed.activeClassId;
+      const studentIds = new Set<string>((c.schueler || []).map((student: any) => student?.id).filter(Boolean));
+      const belongsToClass = (entry: any) => {
+        if (!entry?.schuelerId) return isActive;
+        if (studentIds.has(entry.schuelerId)) return true;
+        return isActive && !knownStudentIds.has(entry.schuelerId);
+      };
+
       return {
         ...c,
-        notes: c.notes ?? (isActive ? (parsed.notes || []) : []),
-        journal: c.journal ?? (isActive ? (parsed.journal || []) : []),
-        statusLog: c.statusLog ?? (isActive ? (parsed.statusLog || []) : [])
+        notes: c.notes ?? rootNotes.filter(belongsToClass),
+        journal: c.journal ?? rootJournal.filter(belongsToClass),
+        statusLog: c.statusLog ?? rootStatusLog.filter(belongsToClass)
       };
     });
 
