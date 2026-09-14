@@ -26,28 +26,28 @@ export default function LehrerProfilView() {
       const data = localStorage.getItem('school_worksheets');
       if (data) {
         const parsed = JSON.parse(data);
-        return Array.isArray(parsed) ? parsed.length : 3;
+        return Array.isArray(parsed) ? parsed.length : 0;
       }
     } catch (e) {}
-    return 3;
+    return 0;
   }, []);
 
   const materialsCount = app.materialien?.length || 0;
   const totalDigitalFiles = worksheetsCount + materialsCount;
-  const totalPaperSaved = totalDigitalFiles * (app.schueler?.length || 22);
-  const treesSavedCount = Math.max(1, Math.floor(totalPaperSaved / 150));
+  const totalPaperSaved = totalDigitalFiles * (app.schueler?.length || 0);
+  const treesSavedCount = Math.floor(totalPaperSaved / 150);
 
   // Active profile with robust defaults
   const profile = useMemo(() => {
     return app.lehrerProfil || {
-      schulstundenJaehrlich: 120,
-      schularbeitenManuell: 4,
-      testsManuell: 8,
-      ausfluegeManuell: 3,
-      name: "Maximilian Musterlehrer",
-      schule: "Volksschule Musterstadt",
-      motto: "Pädagogik mit Herz ❤️",
-      gegruendetYear: "2018"
+      schulstundenJaehrlich: 0,
+      schularbeitenManuell: 0,
+      testsManuell: 0,
+      ausfluegeManuell: 0,
+      name: '',
+      schule: '',
+      motto: '',
+      gegruendetYear: ''
     };
   }, [app.lehrerProfil]);
 
@@ -56,11 +56,11 @@ export default function LehrerProfilView() {
     name: profile.name || '',
     schule: profile.schule || '',
     motto: profile.motto || '',
-    gegruendetYear: profile.gegruendetYear || '2018',
-    schulstundenJaehrlich: profile.schulstundenJaehrlich || 120,
-    schularbeitenManuell: profile.schularbeitenManuell || 4,
-    testsManuell: profile.testsManuell || 8,
-    ausfluegeManuell: profile.ausfluegeManuell || 3
+    gegruendetYear: profile.gegruendetYear || '',
+    schulstundenJaehrlich: profile.schulstundenJaehrlich ?? 0,
+    schularbeitenManuell: profile.schularbeitenManuell ?? 0,
+    testsManuell: profile.testsManuell ?? 0,
+    ausfluegeManuell: profile.ausfluegeManuell ?? 0
   });
 
   const handleStartEdit = () => {
@@ -68,11 +68,11 @@ export default function LehrerProfilView() {
       name: profile.name || '',
       schule: profile.schule || '',
       motto: profile.motto || '',
-      gegruendetYear: profile.gegruendetYear || '2018',
-      schulstundenJaehrlich: profile.schulstundenJaehrlich || 120,
-      schularbeitenManuell: profile.schularbeitenManuell || 4,
-      testsManuell: profile.testsManuell || 8,
-      ausfluegeManuell: profile.ausfluegeManuell || 3
+      gegruendetYear: profile.gegruendetYear || '',
+      schulstundenJaehrlich: profile.schulstundenJaehrlich ?? 0,
+      schularbeitenManuell: profile.schularbeitenManuell ?? 0,
+      testsManuell: profile.testsManuell ?? 0,
+      ausfluegeManuell: profile.ausfluegeManuell ?? 0
     });
     setIsEditing(true);
   };
@@ -105,14 +105,14 @@ export default function LehrerProfilView() {
     } else {
       setApp(prev => {
         const currentProf = prev.lehrerProfil || {
-          schulstundenJaehrlich: 120,
-          schularbeitenManuell: 4,
-          testsManuell: 8,
-          ausfluegeManuell: 3,
-          name: "Maximilian Musterlehrer",
-          schule: "Volksschule Musterstadt",
-          motto: "Pädagogik mit Herz ❤️",
-          gegruendetYear: "2018"
+          schulstundenJaehrlich: 0,
+          schularbeitenManuell: 0,
+          testsManuell: 0,
+          ausfluegeManuell: 0,
+          name: '',
+          schule: '',
+          motto: '',
+          gegruendetYear: ''
         };
         const updatedVal = Math.max(0, (Number(currentProf[field]) || 0) + delta);
         return {
@@ -177,7 +177,7 @@ export default function LehrerProfilView() {
     // Final stunden count: if they have a stammplan, use that. Otherwise fallback nicely to planned slots or profile default.
     const taughtHours = stammHoursCalculatedYearly > 0 
       ? stammHoursCalculatedYearly 
-      : (plannedLessonsCount > 0 ? plannedLessonsCount : (profile.schulstundenJaehrlich || 120));
+      : (plannedLessonsCount > 0 ? plannedLessonsCount : (profile.schulstundenJaehrlich || 0));
 
     // 2. Schularbeiten calculation
     // From Gradebook (app.noten): Find maximum grade indexes filled under "sa" array per student per subject
@@ -223,7 +223,7 @@ export default function LehrerProfilView() {
       }
     });
 
-    const schularbeiten = Math.max(saFromGradebook, saFromLessons) || profile.schularbeitenManuell || 4;
+    const schularbeiten = Math.max(saFromGradebook, saFromLessons) || profile.schularbeitenManuell || 0;
 
     // 3. Tests calculation
     // From Gradebook (app.noten): count max filled index under "lzk" (Lernzielkontrolle / Test)
@@ -268,7 +268,7 @@ export default function LehrerProfilView() {
       }
     });
 
-    const tests = Math.max(lzkFromGradebook, testsFromLessons) || profile.testsManuell || 8;
+    const tests = Math.max(lzkFromGradebook, testsFromLessons) || profile.testsManuell || 0;
 
     // 4. Ausflüge / Wandertage calculation
     let outingsCount = 0;
@@ -310,7 +310,7 @@ export default function LehrerProfilView() {
       }
     });
 
-    const ausfluege = outingsCount || profile.ausfluegeManuell || 3;
+    const ausfluege = outingsCount || profile.ausfluegeManuell || 0;
 
     return {
       weeklyStammHours,
@@ -359,23 +359,25 @@ export default function LehrerProfilView() {
     return Array.from(classMap.values()).sort((a, b) => b.year.localeCompare(a.year));
   }, [historicalStudents]);
 
-  const archivedClassesCount = archivedClasses.length; // usually 5
-  
-  // Total career duration
+  const archivedClassesCount = archivedClasses.length;
+
+  // Career duration is shown only when the teacher entered a real start year.
   const currentYear = new Date().getFullYear();
-  const startYear = parseInt(profile.gegruendetYear || '2018') || 2018;
-  const careerYears = Math.max(1, currentYear - startYear + 1);
+  const configuredStartYear = Number.parseInt(profile.gegruendetYear || '', 10);
+  const careerYears = Number.isFinite(configuredStartYear) && configuredStartYear > 1900 && configuredStartYear <= currentYear
+    ? currentYear - configuredStartYear + 1
+    : 0;
 
-  // Lifelong totals with historical calculations (Each archived year has default stats, combined with current dynamic auto/manual calculations)
-  const averageHoursPerArchivedYear = 720; 
-  const lifetimeSchulstundenTotal = (archivedClassesCount * averageHoursPerArchivedYear) + Number(finalCurrentStunden);
-  const lifetimeSchularbeitenTotal = (archivedClassesCount * 4) + Number(finalCurrentSchularbeiten);
-  const lifetimeTestsTotal = (archivedClassesCount * 8) + Number(finalCurrentTests);
-  const lifetimeAusfluegeTotal = (archivedClassesCount * 3) + Number(finalCurrentAusfluege);
+  // Never invent historical workload. Archived student records currently contain
+  // student outcomes, not historical lesson/test/outing totals.
+  const lifetimeSchulstundenTotal = Number(finalCurrentStunden) || 0;
+  const lifetimeSchularbeitenTotal = Number(finalCurrentSchularbeiten) || 0;
+  const lifetimeTestsTotal = Number(finalCurrentTests) || 0;
+  const lifetimeAusfluegeTotal = Number(finalCurrentAusfluege) || 0;
 
-  // Lifetime homework logs and grades given estimated dynamically
-  const estimatedHomeworkCorrected = lifetimeStudentsTotal * 38; 
-  const estimatedGradesGiven = lifetimeStudentsTotal * 3 * 6;
+  // These legacy estimate slots stay neutral until backed by recorded data.
+  const estimatedHomeworkCorrected = 0;
+  const estimatedGradesGiven = 0;
 
   // Milestones configured from lifetime stats
   const badges = [
@@ -839,10 +841,10 @@ export default function LehrerProfilView() {
                   <div className="space-y-1">
                     <p className="text-[0.625rem] italic font-serif text-stone-500 font-sans">In feierlicher Würdigung hervorragender Verdienste erlassen für:</p>
                     <h1 className="text-[1.5rem] leading-normal font-serif font-black text-amber-950 font-semibold tracking-wide capitalize py-1.5 border-b border-amber-200/40 w-5/6 mx-auto">
-                      {profile.name || "Maximilian Musterlehrer"}
+                      {profile.name || "Lehrkraft"}
                     </h1>
                     <p className="text-[0.625rem] font-serif text-stone-500 font-bold tracking-tight pt-1">
-                      Lehrkraft an der Institution: <span className="underline decoration-amber-300 font-black">{profile.schule || "Grundschule Musterstadt"}</span>
+                      Lehrkraft an der Institution: <span className="underline decoration-amber-300 font-black">{profile.schule || "—"}</span>
                     </p>
                   </div>
 
@@ -868,7 +870,7 @@ export default function LehrerProfilView() {
                   </div>
 
                   <p className="text-[0.625rem] font-serif leading-relaxed text-stone-500 max-w-sm mx-auto">
-                    Hiermit wird bescheinigt, dass {profile.name || "Maximilian Musterlehrer"} die Ideale moderner, liebevoller Bildungspflege zur Förderung kommender Generationen beispielhaft gelebt hat.
+                    Hiermit wird bescheinigt, dass {profile.name || "Lehrkraft"} die Ideale moderner, liebevoller Bildungspflege zur Förderung kommender Generationen beispielhaft gelebt hat.
                   </p>
                 </div>
 

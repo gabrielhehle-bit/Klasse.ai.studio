@@ -1,7 +1,6 @@
 import type { AppState } from '../types';
 import { DEFAULT_TAGEPLAN, FAECHER_ALLE, STUNDEN_INFO, DEFAULT_YEARLY_SUBJECTS, DEFAULT_FACH_COLORS } from '../constants';
 import { getCurrentSchuljahr, getKW } from './utils';
-import { DEFAULT_HISTORICAL_STUDENTS } from '../data/historicalStudents';
 import { DEFAULT_MORNING_WIDGETS } from '../data/morningWidgets';
 
 export const initialAppState: AppState = {
@@ -19,7 +18,7 @@ export const initialAppState: AppState = {
   anrede: '',
   klassenbezeichnung: '',
   klassenvorstand: true,
-  motto: 'Lernen mit Freude ✨',
+  motto: '',
   theme: 'classic_light',
   faecher: FAECHER_ALLE,
   morningWidgets: DEFAULT_MORNING_WIDGETS,
@@ -76,17 +75,17 @@ export const initialAppState: AppState = {
   klassenglas_belohnung: 'Gemeinsame Spielzeit',
   ampel_status: 'gruen',
   lehrerProfil: {
-    schulstundenJaehrlich: 120,
-    schularbeitenManuell: 4,
-    testsManuell: 8,
-    ausfluegeManuell: 3,
-    name: "Maximilian Musterlehrer",
-    schule: "Volksschule Musterstadt",
-    motto: "Pädagogik mit Herz ❤️",
-    gegruendetYear: "2018"
+    schulstundenJaehrlich: 0,
+    schularbeitenManuell: 0,
+    testsManuell: 0,
+    ausfluegeManuell: 0,
+    name: '',
+    schule: '',
+    motto: '',
+    gegruendetYear: ''
   },
   unterrichtsmodus_sidebar_open: false,
-  historicalStudents: DEFAULT_HISTORICAL_STUDENTS,
+  historicalStudents: [],
   klassenkasse: {
     kontostand: 0,
     sammlungen: [],
@@ -113,16 +112,10 @@ export const initialAppState: AppState = {
   behavior_notes: {},
   behavior_class_note: '',
   behavior_rules: '',
-  quickLinks: [
-    { id: '1', label: 'YouTube', url: 'https://youtube.com', icon: 'youtube', color: 'rose' },
-    { id: '2', label: 'Kahoot', url: 'https://kahoot.it', icon: 'gamepad', color: 'emerald' },
-    { id: '3', label: 'Gemini', url: 'https://gemini.google.com', icon: 'zap', color: 'indigo' },
-    { id: '4', label: 'Antolin', url: 'https://antolin.westermann.de/', icon: 'link', color: 'sky' },
-    { id: '5', label: 'Anton.app', url: 'https://anton.app/', icon: 'link', color: 'indigo' }
-  ],
+  quickLinks: [],
   schuelerNotizen: {},
   morgenAufgaben: [],
-  tempQrValue: 'https://google.at',
+  tempQrValue: '',
   cockpitTheme: 'dark',
   sidebarState: 'full',
   ampelLabels: { red: 'Stopp', yellow: 'Vorbereiten', green: 'Arbeiten' },
@@ -396,15 +389,33 @@ export function normalizeAppState(raw: any): AppState {
 
   parsed.schuelerWochenplaene = parsed.schuelerWochenplaene || {};
   parsed.morningWidgets = parsed.morningWidgets || DEFAULT_MORNING_WIDGETS;
+  const legacyHistoricalStudents = Array.isArray(parsed.historicalStudents) ? parsed.historicalStudents : [];
+  const isLegacyBundledArchive = legacyHistoricalStudents.length === 25
+    && legacyHistoricalStudents[0]?.id === 'h1'
+    && legacyHistoricalStudents[0]?.name === 'Alina Beck'
+    && legacyHistoricalStudents[24]?.id === 'h25'
+    && legacyHistoricalStudents[24]?.name === 'Elena Rhomberg';
+  parsed.historicalStudents = isLegacyBundledArchive ? [] : legacyHistoricalStudents;
+
+  const parsedIdentityName = [parsed.anrede || parsed.vorname, parsed.nachname]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const hasLegacyDemoProfile = parsed.lehrerProfil
+    && parsed.lehrerProfil.name === 'Maximilian Musterlehrer'
+    && parsed.lehrerProfil.schule === 'Volksschule Musterstadt'
+    && parsed.lehrerProfil.motto === 'Pädagogik mit Herz ❤️';
+  if (hasLegacyDemoProfile) parsed.lehrerProfil = undefined;
+
   parsed.lehrerProfil = parsed.lehrerProfil || {
-    schulstundenJaehrlich: 120,
-    schularbeitenManuell: 4,
-    testsManuell: 8,
-    ausfluegeManuell: 3,
-    name: parsed.anrede && parsed.nachname ? `${parsed.anrede} ${parsed.nachname}` : "Maximilian Musterlehrer",
-    schule: parsed.schulName || "Volksschule Musterstadt",
-    motto: parsed.motto || "Pädagogik mit Herz ❤️",
-    gegruendetYear: "2018"
+    schulstundenJaehrlich: 0,
+    schularbeitenManuell: 0,
+    testsManuell: 0,
+    ausfluegeManuell: 0,
+    name: parsedIdentityName,
+    schule: parsed.schulName || '',
+    motto: parsed.motto || '',
+    gegruendetYear: ''
   };
 
   const iconMap: Record<string, string> = {
@@ -476,7 +487,7 @@ export function normalizeAppState(raw: any): AppState {
     ...parsed,
     bundesland: parsed.bundesland || 'VBG',
     tourAbgeschlossen: computedTourAbgeschlossen,
-    historicalStudents: parsed.historicalStudents || DEFAULT_HISTORICAL_STUDENTS,
+    historicalStudents: parsed.historicalStudents || [],
     notes: parsed.notes || [],
     settings: { ...initialAppState.settings, ...(parsed.settings || {}) },
     boardSettings: {
