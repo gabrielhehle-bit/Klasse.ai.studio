@@ -117,11 +117,12 @@ test("Cockpit: Schrift und Zeichnung lassen sich getrennt löschen", () => {
 
 
 test("Cockpit: nutzt die konfigurierten zehn Stunden-Slots statt acht fest verdrahteter Einheiten", () => {
-  assert.match(teachingSurface, /LESSON_SLOT_NUMBERS/);
+  assert.match(teachingSurface, /lessonTimeSlots\.map\(\(\{ slot \}\) =>/);
   assert.match(teachingSurface, /MAX_LESSON_SLOTS/);
   assert.match(teachingSurface, /buildLessonTimeSlots\(app\.stundenZeiten, STUNDEN_INFO, MAX_LESSON_SLOTS\)/);
   assert.doesNotMatch(teachingSurface, /\[0, 1, 2, 3, 4, 5, 6, 7\]\.map/);
   assert.doesNotMatch(teachingSurface, /for \(let i = 0; i < 8; i\+\+\)/);
+  assert.match(teachingSurface, /findCurrentLessonBreak\(lessonTimeSlots,/);
 });
 
 test("Cockpit: erfindet weder Klasse noch Klassentier im frischen Zustand", () => {
