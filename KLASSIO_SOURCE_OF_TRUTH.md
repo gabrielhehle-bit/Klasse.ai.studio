@@ -47,6 +47,7 @@ Anschließend wurden die letzten funktionalen Reste aus historischen Divergenzen
 - PR #39: `Notizen & Beobachtungen` wurde im Modul-für-Modul-Abschluss mehrklassensicher und alltagstauglich gehärtet. Chronik, Journal und Verhaltens-Statusverlauf werden vollständig pro Klasse gespeichert und geladen; Undo/Redo sowie Schülerauswahl werden beim Klassenwechsel zurückgesetzt. Alte gemischte Mehrklassen-Daten werden anhand der Schüler-ID wieder der passenden Klasse zugeordnet, allgemeine nicht zuordenbare Journal-Einträge bleiben bei der aktiven Klasse. Der Tages-Reset löscht keine ungespeicherten Schnellnotizen mehr; `Nur Schüler-Notizen` filtert tatsächlich nach verknüpftem Kind und die Suche findet auch Schülernamen. Stimm-Notizen bleiben bewusst ein separates Unterrichtswerkzeug.
 - PR #41: Der Bereich `Schüler:innen` wurde im Modul-für-Modul-Abschluss daten- und alltagssicher gehärtet. Beim Löschen eines Kindes werden zugehörige Bewertungen, Anwesenheit, Notizen/Chronik, Statusverlauf, Interaktionen, Diagnostik, Lernziele, Sitzplan- und Organisationsbezüge konsistent entfernt; Kassenbuchungen bleiben für die Bilanz erhalten, werden aber personenbezogen entkoppelt. Klassenwechsel übernehmen kein geöffnetes Dossier oder Interaktionsfenster. CSV-/Excel-/Sokrates-Reimporte erkennen bestehende Kinder anhand stabiler Merkmale und aktualisieren Stammdaten, ohne pädagogische Daten zu überschreiben; Sokrates-Metadaten werden tatsächlich übernommen. Alter und Alterssortierung sind kalendergenau. Die Kartenansicht verwendet lokale Leaflet-Marker und weist transparent darauf hin, dass nur PLZ/Ort an Photon gehen.
 - PR #43: Der `Sitzplan` wurde im Modul-für-Modul-Abschluss mehrklassensicher und regelkonsistent gehärtet. Sitzpositionen, Möbel und Sitzplan-Regeln sind vollständig klassenlokal; alte globale Regeln werden anhand der referenzierten Schüler:innen zur richtigen Klasse migriert. Alle vier Regeltypen (`nicht nebeneinander`, `nebeneinander`, `feste Zone`, `fester Platz`) werden zentral geprüft; feste Plätze speichern die konkrete Position, Zonen richten sich nach der realen Entfernung zur Tafel und Sitzplatz-Kollisionen werden erkannt. Würfelvorschau und Planungs-Analyse verwenden dieselbe Regeldefinition, der Optimierer berücksichtigt explizite Regeln und hält Fixplätze fest. Abwesenheiten werden im Sitzplan aus den tatsächlichen Anwesenheitsdaten mit lokalem Kalendertag abgeleitet. Sitzplan-spezifische Auswahl-, Vorschau-, Undo-, Analyse- und Lotto-Zustände werden beim Klassenwechsel zurückgesetzt.
+- PR #45: Die `Anwesenheit` wurde im Modul-für-Modul-Abschluss tages-, mehrklassen- und statistikfest gehärtet. Lokale Kalendertage ersetzen verbleibende UTC-Datumswege; Wochenenden und Feiertage werden bei der Datumsnavigation korrekt als schulfrei behandelt. Ohne konfigurierte Unterrichtsstunden erfindet Klassio weder sechs Stunden noch angenommene Anwesenheit. Stundenstatus, Fehlstunden, Entschuldigungsstatus, Notizen und Verspätungen bleiben konsistent; die zuvor nicht mehr erreichbare Verspätungseingabe ist wieder direkt zugänglich. Anwesenheits-Undo und offene Dialoge werden beim Klassenwechsel zurückgesetzt, während Anwesenheits- und Detaildaten selbst klassenlokal bleiben. Fehltage, Semesterstatistiken und Trends beziehen sich nur auf das aktive Schuljahr, verwenden die Bundesland-Semestergrenzen und ISO-Kalenderwochen über Jahreswechsel hinweg.
 
 Die historischen divergierenden Branches `audit/production-demo-data`, `audit/visible-legacy-branding`, `audit/visible-legacy-branding-final`, `fix/klassio-visible-branding`, `fix/json-backups-and-critical-data-flows` und `feature/final-app-polish` wurden anschließend gezielt gegen den aktuellen Reconciliation-Stand geprüft. Ihre noch eigenen Commits enthalten entweder nur temporäre Audit-/CI-Workflows oder ältere Varianten von Funktionen, die im aktuellen Stand bereits gleichwertig oder neuer umgesetzt sind. Sie werden deshalb **nicht** in den Produktstand gemergt.
 
@@ -54,18 +55,18 @@ Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist kei
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Reconciliation-Stand liegt nach PR #43 auf Commit `fa71446db28fa2f3952e0c6c982117f99d53e397` und wurde vollständig geprüft:
+Der letzte codehaltige Reconciliation-Stand liegt nach PR #45 auf Commit `607e8f9443d390ffbf0c9b60422a5807b525e8d5` und wurde vollständig geprüft:
 
-- Pre-Deployment Audit #110: erfolgreich
+- Pre-Deployment Audit #112: erfolgreich
 - TypeScript: erfolgreich
-- Tests: 818/818 erfolgreich
+- Tests: 830/830 erfolgreich
 - Production Build: erfolgreich
 - PWA-/Build-Ausgabe: erfolgreich
 - Production-Server- und `/api/health`-Smoke: erfolgreich
 - Zugangscode-/Session-/E-Mail-Fallback-Smoke: erfolgreich
-- World4You-Artefakt: `klassio-world4you-fa71446db28fa2f3952e0c6c982117f99d53e397`
+- World4You-Artefakt: `klassio-world4you-607e8f9443d390ffbf0c9b60422a5807b525e8d5`
 
-PR #43 wurde nach grüner Feature- und PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `fa71446db28fa2f3952e0c6c982117f99d53e397`.
+PR #45 wurde nach grüner Feature- und PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `607e8f9443d390ffbf0c9b60422a5807b525e8d5`.
 
 Der aktuelle Branch-HEAD kann danach reine Dokumentationscommits enthalten. Deshalb wird der verbindliche Reconciliation-HEAD **nicht dauerhaft in dieser Datei festgeschrieben**, sondern vor jeder Arbeit live aus GitHub gelesen und mit seinem neuesten erfolgreichen `Pre-Deployment Audit` abgeglichen.
 
@@ -81,7 +82,8 @@ Der Reconciliation-Stand enthält unter anderem:
 - KI-Helfer mit serverseitiger Verfügbarkeitsprüfung, datensparsamem optionalem Klassenkontext, ausschließlich aggregiertem Lernzielkontext ohne automatisch übermittelte Schülernamen, klassenlokalen Chatverläufen sowie expliziter Bild-Datenschutzfreigabe; JPG/PNG/WebP sind auf 8 MB begrenzt
 - Notizen & Beobachtungen mit klassenlokaler Chronik, Journal, Schnellnotizen und Statusverlauf; alte gemischte Mehrklassen-Einträge werden beim Laden anhand der Schüler-ID getrennt, Filter/Suche sind auf den Lehreralltag abgestimmt; Stimm-Notizen bleiben separat
 - SetupWizard mit strukturiertem Lehrkraftprofil, dynamischen Schuljahren und 10 frei konfigurierbaren Stunden-Slots
-- Anwesenheit, Befinden und Schülerliste; das Schülerdossier hat fünf feste Hauptbereiche (Übersicht, Lernen & Leistungen, Entwicklung & Diagnostik, Stammdaten & Organisation, Berichte & Materialien) ohne ausblendbare Alt-Navigation; Schülerimporte normalisieren österreichische/ISO-Geburtsdaten und Geschlechtswerte konsistent, Reimporte aktualisieren erkannte Stammdaten ohne pädagogische Daten zu überschreiben, und das Löschen eines Kindes bereinigt die zugehörigen personenbezogenen Klassendaten konsistent
+- Anwesenheit mit klassenlokalen Stunden- und Detaildaten, lokalem Kalendertag, echten Schultagen, konsistenten Fehlstunden/Entschuldigungen/Verspätungen sowie schuljahresbezogenen Semester- und Trendstatistiken; ohne konfigurierte Stunden werden keine Stunden oder Anwesenheitswerte erfunden
+- Befinden und Schülerliste; das Schülerdossier hat fünf feste Hauptbereiche (Übersicht, Lernen & Leistungen, Entwicklung & Diagnostik, Stammdaten & Organisation, Berichte & Materialien) ohne ausblendbare Alt-Navigation; Schülerimporte normalisieren österreichische/ISO-Geburtsdaten und Geschlechtswerte konsistent, Reimporte aktualisieren erkannte Stammdaten ohne pädagogische Daten zu überschreiben, und das Löschen eines Kindes bereinigt die zugehörigen personenbezogenen Klassendaten konsistent
 - Sitzplan mit klassenlokalen Positionen, Möbeln und Regeln, vollständiger Regelprüfung für Trennen/Zusammen/feste Zone/festen Platz, tafelorientierter Zonenlogik, regelbewusster Würfelvorschau und Planungs-Analyse sowie echter Abwesenheitsdarstellung aus den Anwesenheitsdaten
 - vollständige Notenmappe mit Noten/Prozent/Punkten, Gewichtung, fachbezogenen Bewertungsabschnitten, Schularbeiten, LZK/WOPL und sonstigen Leistungen
 - schnelle Mitarbeit- und Hausübungs-Erfassung
@@ -122,6 +124,7 @@ Automatisiert abgesichert sind:
 - Klassenwechsel ohne Vermischung von Bewertungen/Metadaten
 - Klassenwechsel ohne Vermischung von Chronik, Journal, Schnellnotizen und Verhaltens-Statusverlauf; Legacy-Mehrklassendaten werden nach Schüler-ID getrennt
 - Klassenwechsel ohne Vermischung von Sitzpositionen, Möbeln oder Sitzplan-Regeln; alte globale Regeln werden nach referenzierten Schüler:innen auf Klassen verteilt
+- Klassenwechsel ohne Vermischung von Anwesenheit und Anwesenheitsdetails; Anwesenheits-Undo und offene Anwesenheitsdialoge werden beim Wechsel zurückgesetzt
 - verschlüsselte JSON-Backups
 - BOM/JSON und einfache historische JS-Wrapper ohne Codeausführung
 - Pre-Import-Sicherungsstand vor Wiederherstellung
@@ -220,6 +223,8 @@ Aktueller Fortschritt:
 - Notizen: technisch abgeschlossen; PR #39 integriert, Audit #106 grün; reale Browser-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Schüler:innen: technisch abgeschlossen; PR #41 integriert, Audit #108 grün; reale Browser-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Sitzplan: technisch abgeschlossen; PR #43 integriert, Audit #110 grün; reale Maus-/Touch-/Browser-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
+- Anwesenheit: technisch abgeschlossen; PR #45 integriert, Audit #112 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
+- Nächster Bereich: Notenmappe.
 
 ## Pflicht für jeden neuen Chat
 
