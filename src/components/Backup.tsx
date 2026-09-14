@@ -1073,7 +1073,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
           <div className="pt-6">
             <input 
               type="file" 
-              aria-label="LehrerAPP-Sicherungsdatei auswählen (.json / .lehrerapp)"
+              aria-label="Klassio-Sicherungsdatei auswählen (.json / .lehrerapp)"
               ref={fileInputRef} 
               onChange={importData} 
               accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain"
