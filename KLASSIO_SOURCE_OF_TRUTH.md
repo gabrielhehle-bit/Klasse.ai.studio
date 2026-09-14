@@ -57,18 +57,18 @@ Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist kei
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Reconciliation-Stand liegt nach PR #49 auf Commit `42ecae0d2b5e3a5aa5c2085be7106d0dbc8afbdf` und wurde vollständig geprüft:
+Der letzte codehaltige Reconciliation-Stand liegt nach PR #51 auf Commit `cbc0cc28a33a360114a2affb07c2b3093f03ddd3` und wurde vollständig geprüft:
 
-- Pre-Deployment Audit #116: erfolgreich
+- Pre-Deployment Audit #118: erfolgreich
 - TypeScript: erfolgreich
-- Tests: 850/850 erfolgreich
+- Tests: 857/857 erfolgreich
 - Production Build: erfolgreich
 - PWA-/Build-Ausgabe: erfolgreich
 - Production-Server- und `/api/health`-Smoke: erfolgreich
 - Zugangscode-/Session-/E-Mail-Fallback-Smoke: erfolgreich
-- World4You-Artefakt: `klassio-world4you-42ecae0d2b5e3a5aa5c2085be7106d0dbc8afbdf`
+- World4You-Artefakt: `klassio-world4you-cbc0cc28a33a360114a2affb07c2b3093f03ddd3`
 
-PR #49 wurde nach grüner Feature- und PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `42ecae0d2b5e3a5aa5c2085be7106d0dbc8afbdf`.
+PR #51 wurde nach grüner Feature- und PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `cbc0cc28a33a360114a2affb07c2b3093f03ddd3`.
 
 Der aktuelle Branch-HEAD kann danach reine Dokumentationscommits enthalten. Deshalb wird der verbindliche Reconciliation-HEAD **nicht dauerhaft in dieser Datei festgeschrieben**, sondern vor jeder Arbeit live aus GitHub gelesen und mit seinem neuesten erfolgreichen `Pre-Deployment Audit` abgeglichen.
 
@@ -90,6 +90,7 @@ Der Reconciliation-Stand enthält unter anderem:
 - vollständige Notenmappe mit Noten/Prozent/Punkten, Gewichtung, fachbezogenen Bewertungsabschnitten, Schularbeiten, LZK/WOPL und sonstigen Leistungen; ungültige Bereichswerte werden abgewiesen, HÜ-Regeln sind fachbezogen, Mitarbeit-Bewertungsregeln klassenlokal und WOPL-Spiegelung ist bewertungsartsicher
 - schnelle Mitarbeit- und Hausübungs-Erfassung mit fachbezogenem HÜ-Modus, Prozentabzug und Mitarbeitsabzug
 - Kassa & Orga mit centgenauen Geldsammlungen/Teilzahlungen/Kassenbuch, Checklisten, flexiblen Listen und klassenlokalen Klassenlogins; Legacy-Basisbeiträge und frühere globale Klassenlogins werden verlustfrei migriert
+- Planungszentrale mit vollständigem 10-Slot-Vertrag, ehrlichen leeren Fachzuständen, expliziter Wochenwahl ohne stillen Wochenend-Sprung sowie klassenlokaler Parkgarage und Wochenvorlagen; KI-Themenvorschläge werden sichtbar dargestellt und Fehler erzeugen keine erfundenen Ersatzantworten
 - Wochen- und Jahresplanung inklusive Vollbild, Excel-Roundtrip und Aufgabenblattgenerator
 - Materialbibliothek inklusive Übergabe in den Wochenplan
 - Sokrates-PDF-Import mit lokal gebündeltem PDF.js-Worker und Offline/PWA-Unterstützung
@@ -229,7 +230,8 @@ Aktueller Fortschritt:
 - Anwesenheit: technisch abgeschlossen; PR #45 integriert, Audit #112 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Notenmappe: technisch abgeschlossen; PR #47 integriert, Audit #114 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Kassa & Orga: technisch abgeschlossen; PR #49 integriert, Audit #116 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
-- Nächster Bereich: Planungszentrale.
+- Planungszentrale: technisch abgeschlossen; PR #51 integriert, Audit #118 grün; reale Browser-/Touch-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
+- Nächster Bereich: Jahresplanung.
 
 ## Pflicht für jeden neuen Chat
 
