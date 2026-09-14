@@ -22,6 +22,36 @@ Legende:
 | Commitgebundenes World4You-Artefakt | ✅ | Audit #98 erzeugte `klassio-world4you-0cb024b322db5821c038a689c5491575addd2706` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
+
+## Schritt-für-Schritt-Modulabnahme
+
+| # | Bereich | Technischer Status | Nächster Schritt |
+|---:|---|---:|---|
+| 1 | Dashboard / Heute | ✅ | Code/Tests abgeschlossen; visuelle Staging-Abnahme im Gesamt-Walkthrough |
+| 2 | Lehrercockpit | 🔴 | als Nächstes einzeln prüfen und abschließen |
+| 3 | KI-Helfer | 🔴 | danach |
+| 4 | Notizen | 🔴 | danach |
+| 5 | Schüler:innen | 🔴 | danach |
+| 6 | Sitzplan | 🔴 | danach |
+| 7 | Anwesenheit | 🔴 | danach |
+| 8 | Notenmappe | 🔴 | danach |
+| 9 | Kassa & Orga | 🔴 | danach |
+| 10 | Planungszentrale | 🔴 | danach |
+| 11 | Jahresplanung | 🔴 | danach |
+| 12 | Wochenplanung | 🔴 | danach |
+| 13 | Materialbibliothek | 🔴 | danach |
+| 14 | Übergabemappe | 🔴 | danach |
+| 15 | Statistik & Profile | 🔴 | danach |
+| 16 | Diagnostik | 🔴 | danach |
+| 17 | Wir-Gefühl | 🔴 | danach |
+| 18 | Jahresbericht | 🔴 | danach |
+| 19 | Archiv | 🔴 | danach |
+| 20 | Druckzentrum | 🔴 | danach |
+| 21 | Datenarchiv / Datensicherung | 🔴 | danach |
+| 22 | Einstellungen | 🔴 | danach |
+
+Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **ersten roten Modul dieser Tabelle** fort. Ein Modul wird erst auf ✅ gesetzt, wenn seine Änderungen integriert und der vollständige Reconciliation-Audit grün ist. Die reale Browser-/Staging-Abnahme bleibt davon getrennt und wird am Abschlussstand durchgeführt.
+
 ## Oberfläche und Navigation
 
 | Bereich | Status | Nachweis / Rest |

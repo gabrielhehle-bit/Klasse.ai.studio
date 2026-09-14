@@ -162,6 +162,52 @@ Für Canva:
 
 Weitere Produktionswerte wie `SESSION_SECRET`, Zugangscodes, `APP_URL`, Gemini- und OneDrive-Zugangsdaten gehören ausschließlich in die Server-/Deployment-Konfiguration, niemals in GitHub-Dateien oder Commits.
 
+
+## Verbindliche Modul-für-Modul-Abnahme
+
+Nach dem Reconciliation-Aufbau wird Klassio jetzt bewusst **nicht mehr quer durch mehrere Bereiche gleichzeitig** weiterentwickelt. Die bestehende App wird in dieser festen Reihenfolge einzeln geprüft, verbessert und technisch abgeschlossen:
+
+1. Dashboard / Heute
+2. Lehrercockpit
+3. KI-Helfer
+4. Notizen
+5. Schüler:innen
+6. Sitzplan
+7. Anwesenheit
+8. Notenmappe
+9. Kassa & Orga
+10. Planungszentrale
+11. Jahresplanung
+12. Wochenplanung
+13. Materialbibliothek
+14. Übergabemappe
+15. Statistik & Profile
+16. Diagnostik
+17. Wir-Gefühl
+18. Jahresbericht
+19. Archiv
+20. Druckzentrum
+21. Datenarchiv / Datensicherung
+22. Einstellungen
+
+Für jeden Bereich gilt:
+- zuerst aktuellen GitHub-Stand und vorhandene Funktionalität vollständig erfassen
+- nichts Vorhandenes versehentlich entfernen
+- UX, Verständlichkeit, tote Wege, Doppelungen und Alltagstauglichkeit prüfen
+- Änderungen auf einem frischen Branch vom aktuellen Reconciliation-HEAD
+- passende Regressionstests ergänzen
+- Feature-CI grün
+- PR in `reconcile/klassio-source-of-truth`
+- vollständigen Pre-Deployment-Audit auf dem neuen Reconciliation-HEAD abwarten
+- Status in `KLASSIO_FEATURE_MATRIX.md` aktualisieren
+- erst dann zum nächsten Bereich wechseln
+
+**Pflicht für neue Chats:** Solange diese Modul-Abnahme läuft, liest jeder neue Chat nach dem Source-of-Truth-Check zusätzlich diese Reihenfolge und setzt beim **ersten noch nicht technisch abgeschlossenen Modul** fort. Bereits abgeschlossene Module werden nicht ohne konkreten neuen Befund erneut umgebaut.
+
+Aktueller Fortschritt:
+- Dashboard / Heute: technisch abgeschlossen; reale visuelle Browser-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
+- Nächster Bereich: Lehrercockpit.
+
 ## Pflicht für jeden neuen Chat
 
 Ein neuer Chat arbeitet nicht von ZIPs, Erinnerungen oder früheren Berichten aus. Er liest zuerst:
