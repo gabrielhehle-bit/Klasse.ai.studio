@@ -992,6 +992,7 @@ export interface ClassRoom {
   lastGroups?: string[][];
   sitzplan_schueler: Record<string, { x: number; y: number }>;
   sitzplan_objekte: any[];
+  sitzplanRegeln?: SitzplanRegel[];
   tageplan?: Record<string, any>;
   faecher?: string[];
   fachConfig?: Record<string, { color: string; scaleColor?: 'blue' | 'red' | 'emerald'; unterrichtet?: boolean }>;
@@ -1096,7 +1097,8 @@ export interface SitzplanRegel {
   typ: 'nicht_nebeneinander' | 'nebeneinander' | 'feste_zone' | 'fester_platz';
   schuelerIds: string[]; // 1 oder 2 IDs
   zone?: 'vorne' | 'mitte' | 'hinten'; // nur bei feste_zone
-  platzId?: string; // nur bei fester_platz, ID des Sitzplatzes
+  platzId?: string; // Legacy-Feld für ältere Sitzplatzreferenzen
+  position?: { x: number; y: number }; // exakte Position für einen festen Platz
   notiz?: string; // optionaler Grund
 }
 

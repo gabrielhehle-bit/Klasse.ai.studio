@@ -2,6 +2,7 @@ import type { AppState } from '../types';
 import { DEFAULT_TAGEPLAN, FAECHER_ALLE, STUNDEN_INFO, DEFAULT_YEARLY_SUBJECTS, DEFAULT_FACH_COLORS } from '../constants';
 import { getCurrentSchuljahr, getKW } from './utils';
 import { DEFAULT_MORNING_WIDGETS } from '../data/morningWidgets';
+import { sanitizeSeatingRules } from './seatingPlanRules';
 
 export const initialAppState: AppState = {
   ipsativeGewichtung: 70,
@@ -220,6 +221,7 @@ export function syncActiveClass(state: AppState): AppState {
     lastGroups: state.lastGroups,
     sitzplan_schueler: state.sitzplan_schueler ? JSON.parse(JSON.stringify(state.sitzplan_schueler)) : {},
     sitzplan_objekte: state.sitzplan_objekte ? JSON.parse(JSON.stringify(state.sitzplan_objekte)) : [],
+    sitzplanRegeln: state.sitzplanRegeln ? JSON.parse(JSON.stringify(state.sitzplanRegeln)) : [],
     tageplan: state.tageplan ? JSON.parse(JSON.stringify(state.tageplan)) : undefined,
     faecher: state.faecher ? [...state.faecher] : undefined,
     fachConfig: state.fachConfig ? JSON.parse(JSON.stringify(state.fachConfig)) : undefined,
@@ -315,6 +317,7 @@ export function normalizeAppState(raw: any): AppState {
       sue_kontrolle: parsed.sue_kontrolle || {},
       sitzplan_schueler: parsed.sitzplan_schueler || {},
       sitzplan_objekte: parsed.sitzplan_objekte || [],
+      sitzplanRegeln: parsed.sitzplanRegeln || [],
       tageplan: parsed.tageplan || DEFAULT_TAGEPLAN,
       faecher: parsed.faecher || FAECHER_ALLE,
       fachConfig: parsed.fachConfig || DEFAULT_FACH_COLORS
@@ -373,6 +376,7 @@ export function normalizeAppState(raw: any): AppState {
         sue_kontrolle: c.sue_kontrolle || {},
         sitzplan_schueler: c.sitzplan_schueler || {},
         sitzplan_objekte: c.sitzplan_objekte || [],
+        sitzplanRegeln: c.sitzplanRegeln,
         tageplan: c.tageplan || DEFAULT_TAGEPLAN,
         faecher: c.faecher || FAECHER_ALLE,
         fachConfig: c.fachConfig || DEFAULT_FACH_COLORS,
@@ -381,6 +385,40 @@ export function normalizeAppState(raw: any): AppState {
         settings: c.settings || {}
       };
     }).filter(Boolean);
+  }
+
+  // Migration / projection: seating-plan rules are class-local.
+  // Older snapshots stored them only at root level, so partition them by the
+  // students referenced by each rule. Unknown legacy references stay with the
+  // active class instead of leaking into every class.
+  if (parsed.classes && Array.isArray(parsed.classes) && parsed.classes.length > 0) {
+    const rootRules = Array.isArray(parsed.sitzplanRegeln) ? parsed.sitzplanRegeln : [];
+    const knownStudentIds = new Set<string>(
+      parsed.classes.flatMap((classroom: any) =>
+        (classroom.schueler || []).map((student: any) => student?.id).filter(Boolean)
+      )
+    );
+
+    parsed.classes = parsed.classes.map((c: any) => {
+      const studentIds = new Set<string>((c.schueler || []).map((student: any) => student?.id).filter(Boolean));
+      const isActive = c.id === parsed.activeClassId;
+      const legacyRules = rootRules.filter((rule: any) => {
+        const ids = Array.isArray(rule?.schuelerIds) ? rule.schuelerIds.filter(Boolean) : [];
+        if (ids.length === 0) return isActive;
+        if (ids.every((id: string) => studentIds.has(id))) return true;
+        return isActive && ids.every((id: string) => !knownStudentIds.has(id));
+      });
+      const sourceRules = Array.isArray(c.sitzplanRegeln) ? c.sitzplanRegeln : legacyRules;
+
+      return {
+        ...c,
+        sitzplanRegeln: sanitizeSeatingRules(
+          sourceRules,
+          c.schueler || [],
+          c.sitzplan_schueler || {}
+        )
+      };
+    });
   }
 
   // Active Class Sync
@@ -433,6 +471,7 @@ export function normalizeAppState(raw: any): AppState {
     parsed.sue_kontrolle = activeClass.sue_kontrolle;
     parsed.sitzplan_schueler = activeClass.sitzplan_schueler;
     parsed.sitzplan_objekte = activeClass.sitzplan_objekte;
+    parsed.sitzplanRegeln = activeClass.sitzplanRegeln || [];
     parsed.tageplan = activeClass.tageplan;
     parsed.faecher = activeClass.faecher;
     parsed.fachConfig = activeClass.fachConfig;
@@ -670,6 +709,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     sue_kontrolle: targetClass.sue_kontrolle || {},
     sitzplan_schueler: targetClass.sitzplan_schueler || {},
     sitzplan_objekte: targetClass.sitzplan_objekte || [],
+    sitzplanRegeln: targetClass.sitzplanRegeln || [],
     lastGroups: targetClass.lastGroups,
     stundenZeiten: targetClass.stundenZeiten || STUNDEN_INFO,
     tageplan: targetClass.tageplan || prev.tageplan || DEFAULT_TAGEPLAN,

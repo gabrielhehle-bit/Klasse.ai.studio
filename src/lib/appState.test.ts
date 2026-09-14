@@ -40,6 +40,9 @@ function fixture() {
       notes: [{ id: `note-${id}`, datum: '2026-09-14T10:00:00.000Z', kategorie: 'Journal', inhalt: `note-${id}` }],
       journal: [{ id: `note-${id}`, datum: '2026-09-14T10:00:00.000Z', kategorie: 'Journal', inhalt: `note-${id}` }],
       statusLog: [{ id: `status-${id}`, schuelerId: `student-${id}`, datum: '2026-09-14', iconId: id === 'a' ? '1' : '4', timestamp: id === 'a' ? 1 : 2 }],
+      sitzplan_schueler: { [`student-${id}`]: { x: id === 'a' ? 100 : 300, y: id === 'a' ? 150 : 350 } },
+      sitzplan_objekte: [{ id: `board-${id}`, type: 'blackboard', x: id === 'a' ? 20 : 500, y: 10, w: 200, h: 10 }],
+      sitzplanRegeln: [{ id: `rule-${id}`, typ: 'feste_zone', schuelerIds: [`student-${id}`], zone: id === 'a' ? 'vorne' : 'hinten' }],
       wochenplanung: { 37: { Montag: [{ thema: id }] } },
       customLists: [{ id }], klassenglas_missions: [id],
       futureExtension: { preserved: id },
@@ -287,4 +290,79 @@ test('legacy mixed multi-class chronicle is partitioned by student while general
   const b = switchClassState(loaded, 'b');
   assert.deepEqual(b.notes?.map((entry: any) => entry.id), ['note-b']);
   assert.deepEqual(b.statusLog?.map((entry: any) => entry.id), ['status-b']);
+});
+
+
+test('class switches isolate seating positions, furniture and rules', () => {
+  const state = fixture();
+
+  assert.deepEqual(state.sitzplan_schueler, state.classes[0].sitzplan_schueler);
+  assert.equal(state.sitzplan_objekte[0].id, 'board-a');
+  assert.equal(state.sitzplanRegeln?.[0]?.id, 'rule-a');
+
+  let b = switchClassState(state, 'b');
+  assert.deepEqual(b.sitzplan_schueler, state.classes[1].sitzplan_schueler);
+  assert.equal(b.sitzplan_objekte[0].id, 'board-b');
+  assert.equal(b.sitzplanRegeln?.[0]?.id, 'rule-b');
+
+  b = syncActiveClass({
+    ...b,
+    sitzplan_schueler: { 'student-b': { x: 444, y: 555 } },
+    sitzplan_objekte: [{ id: 'board-b-edited', type: 'blackboard', x: 600, y: 20, w: 200, h: 10 }],
+    sitzplanRegeln: [{ id: 'rule-b-edited', typ: 'fester_platz', schuelerIds: ['student-b'], position: { x: 444, y: 555 } }],
+  } as any);
+
+  const a = switchClassState(b, 'a');
+  assert.deepEqual(a.sitzplan_schueler, state.classes[0].sitzplan_schueler);
+  assert.equal(a.sitzplan_objekte[0].id, 'board-a');
+  assert.equal(a.sitzplanRegeln?.[0]?.id, 'rule-a');
+
+  const reloaded = normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(a))));
+  assert.deepEqual(reloaded.classes[1].sitzplan_schueler, { 'student-b': { x: 444, y: 555 } });
+  assert.equal(reloaded.classes[1].sitzplan_objekte[0].id, 'board-b-edited');
+  assert.equal(reloaded.classes[1].sitzplanRegeln?.[0]?.id, 'rule-b-edited');
+});
+
+test('legacy global seating rules are partitioned by referenced students', () => {
+  const loaded = normalizeAppState({
+    activeClassId: 'a',
+    sitzplanRegeln: [
+      { id: 'rule-a', typ: 'feste_zone', schuelerIds: ['student-a'], zone: 'vorne' },
+      { id: 'rule-b', typ: 'feste_zone', schuelerIds: ['student-b'], zone: 'hinten' },
+    ],
+    classes: [
+      {
+        id: 'a', name: 'A', stufe: 3, klassenvorstand: true,
+        schueler: [{ id: 'student-a', vorname: 'Anna', nachname: 'A' }],
+        sitzplan_schueler: { 'student-a': { x: 100, y: 100 } },
+        sitzplan_objekte: [],
+      },
+      {
+        id: 'b', name: 'B', stufe: 4, klassenvorstand: true,
+        schueler: [{ id: 'student-b', vorname: 'Ben', nachname: 'B' }],
+        sitzplan_schueler: { 'student-b': { x: 200, y: 200 } },
+        sitzplan_objekte: [],
+      },
+    ],
+  });
+
+  assert.deepEqual(loaded.classes[0].sitzplanRegeln?.map((rule: any) => rule.id), ['rule-a']);
+  assert.deepEqual(loaded.classes[1].sitzplanRegeln?.map((rule: any) => rule.id), ['rule-b']);
+  assert.deepEqual(switchClassState(loaded, 'b').sitzplanRegeln?.map((rule: any) => rule.id), ['rule-b']);
+});
+
+test('legacy fixed-seat rule captures the current classroom coordinate during normalization', () => {
+  const loaded = normalizeAppState({
+    activeClassId: 'a',
+    sitzplanRegeln: [{ id: 'fixed', typ: 'fester_platz', schuelerIds: ['student-a'] }],
+    classes: [{
+      id: 'a', name: 'A', stufe: 3, klassenvorstand: true,
+      schueler: [{ id: 'student-a', vorname: 'Anna', nachname: 'A' }],
+      sitzplan_schueler: { 'student-a': { x: 120, y: 240 } },
+      sitzplan_objekte: [],
+    }],
+  });
+
+  assert.deepEqual(loaded.sitzplanRegeln?.[0]?.position, { x: 120, y: 240 });
+  assert.deepEqual(loaded.classes[0].sitzplanRegeln?.[0]?.position, { x: 120, y: 240 });
 });
