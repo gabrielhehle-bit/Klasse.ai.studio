@@ -17,7 +17,7 @@ Legende:
 | GitHub als einzige Source of Truth | ✅ | Repository-Regeln dokumentiert; ZIP ist keine Arbeitsgrundlage. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | 685/685 Tests, TS, Production-Build, PWA und Server-Smoke auf `b905971` grün; nach jedem neuen Commit erneut verpflichtend. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | 707/707 Tests, TS, Production-Build, PWA, Zugangscode-/Session-Smoke und World4You-Artefakt auf `e85e78c` grün; nach jedem neuen Commit erneut verpflichtend. |
 | Commitgebundenes World4You-Artefakt | ✅ | CI erzeugt nur nach grünem Audit ein ZIP mit `dist`, Branch-/Commitmarker und Startkommando. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
@@ -27,6 +27,7 @@ Legende:
 |---|---:|---|
 | Dashboard / Heute | 🟡 | Funktional vorhanden; letzte visuelle Browser-Abnahme offen. |
 | Kernnavigation | ✅ | Heute, Klasse, Planung, Leistungen, Unterricht + Utilities per Regressionstest abgesichert. |
+| Sichtbares Produktbranding | ✅ | Setup, Demo-Hinweise, Diagnostik, Quest, Einstellungen, Backup-UI und Drucktexte verwenden Klassio/Klassio Quest; interne Legacy-Crypto-/Storage-Kennungen bleiben aus Kompatibilitätsgründen bewusst bestehen. |
 | Lehrercockpit: finale Anforderungen | ✅ | PR #6 integriert; freie weiße Fläche ohne Startkarte, keine Standardwidgets, verständliche Kategorien, Optionen/Archiv und sprachliche Bereinigung per Regressionstests abgesichert. |
 | Lehrercockpit: weiße freie Fläche | ✅ | Fläche bleibt unabhängig vom Theme weiß; leere Startkarte entfernt; Standardlayout enthält 0 sichtbare Widgets. |
 | Cockpit: Schreiben und Zeichnen | ✅ | BoardInk liegt auf derselben Fläche wie Widgets; Stift, Text, Radierer, Undo/Redo sowie getrenntes Löschen von Schrift/Zeichnung sind umgesetzt. |
@@ -40,9 +41,9 @@ Legende:
 
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
-| Anwesenheit | ✅ | Abschluss füllt nur leere Stunden; vorhandene Fehl-/Entschuldigungswerte bleiben erhalten; Regressionstest vorhanden. |
+| Anwesenheit | ✅ | Abschluss füllt nur leere Stunden; vorhandene Fehl-/Entschuldigungswerte bleiben erhalten; „Heute“ verwendet den lokalen Kalendertag statt UTC; Regressionstest vorhanden. |
 | Befinden | ✅ | Einheitliche 5-Stufen-Skala von sehr gut bis schlecht. |
-| Schülerliste | 🟡 | Suche, Filter, Liste/Karten/Karte, Import, Dossier, Notiz/Interaktion und Bearbeiten/Löschen bleiben erhalten; Browser-Abnahme offen. |
+| Schülerliste | 🟡 | Suche, Filter, Liste/Karten/Karte, Import, Dossier, Notiz/Interaktion und Bearbeiten/Löschen bleiben erhalten; ISO- und österreichische Geburtsdaten werden konsistent ausgewertet, CSV/Excel/Sokrates-Geschlecht wird normalisiert und fehlende Werte nicht erfunden; Browser-Abnahme offen. |
 | Schülerdossier Struktur | ✅ | Fünf feste Hauptbereiche: Übersicht; Lernen & Leistungen; Entwicklung & Diagnostik; Stammdaten & Organisation; Berichte & Materialien. Alte Einfach/Experte-/Ausblendlogik entfernt; Regressionstest vorhanden. |
 | Schülerdossier Semesterwechsel | ✅ | Auswahl Semester 1/2 wird korrekt übernommen; Regressionstest vorhanden. |
 | Schülerdossier Browser-Abnahme | 🟡 | Navigation, Detailtabs, Fokusmodus und responsive Darstellung müssen im finalen Browser-Walkthrough praktisch geprüft werden. |
@@ -82,8 +83,9 @@ Legende:
 |---|---:|---|
 | AES-GCM-256 Datentresor | ✅ | Sicherheits- und Integritätstests grün. |
 | PBKDF2 / Recovery / Passwortwechsel | ✅ | 600.000 Iterationen; Recovery-/Rotation-/Passwortwechseltests grün. |
-| JSON-Backup verschlüsselt | ✅ | Export verweigert fehlenden Vault; Roundtrip und Restore getestet. |
+| JSON-Backup verschlüsselt | ✅ | Export verweigert fehlenden Vault; Roundtrip und Restore getestet; neue Downloads heißen `Klassio_Sicherung_YYYY-MM-DD.json`, internes Backup-Format bleibt kompatibel. |
 | Legacy-JSON/JS-Wrapper Parser | ✅ | JSON, BOM und einfache historische Wrapper werden ohne JavaScript-Ausführung gelesen. |
+| Frischer Produktivzustand ohne Demo-Fakedaten | ✅ | Kein Musterlehrer, kein gebündeltes 25-Schüler-Archiv, keine erfundenen Lehrerstatistiken, Schnelllinks oder Beispiel-QR-Werte; die Beispielklasse wird nur nach ausdrücklicher Auswahl geladen. |
 | Echter historischer Benutzer-Backup-Import | 🟡 | Kein realer Altbackup-Datensatz als Abnahmedatensatz hinterlegt; synthetische Legacy-Tests grün. |
 | Pre-Import-Rücksicherung | ✅ | Restore legt verschlüsselten Vorzustand an; Fehler brechen Restore ab. |
 | E-Mail-Einmalcode-Login | 🟡 | Server + UI + Rate-Limits + 30-Tage-Session fertig; reales SMTP-Staging noch testen. |
