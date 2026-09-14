@@ -981,15 +981,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           tageplan: DEFAULT_TAGEPLAN,
           notes: cleanNotes,
           differenzierungsGruppen: cleanDiffGruppen,
-          diagnostikErgebnisse: [],
-          diagnostikErhebungen: [],
-          diagnosticResults: [],
-          ikmRecords: [],
-          antolinRecords: [],
-          schuelerGoals: [],
-          observations: [],
-          metaKognitionsProtokolle: [],
-          interaktionsLog: { eintraege: [], wochenEmpfehlung: null },
           stimmNotizen: cleanStimmNotizen,
           tourAbgeschlossen: false
         };
