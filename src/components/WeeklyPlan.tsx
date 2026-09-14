@@ -1257,17 +1257,12 @@ export default function WeeklyPlan() {
 
     const futureWeeks: number[] = [];
     if (repeatWeekly) {
-      let currentMonday = kwToMonday(36, startYear);
-      let foundActive = false;
-      for (let i = 0; i < 52; i++) {
-        const kw = getKW(currentMonday);
-        if (kw === activeKW) {
-          foundActive = true;
-        }
-        if (foundActive) {
-          futureWeeks.push(kw);
-        }
-        currentMonday.setDate(currentMonday.getDate() + 7);
+      const schoolWeeks = buildSchoolYearWeekList(app.schuljahr, app.bundesland || 'VBG').map((week) => week.kw);
+      const activeIndex = schoolWeeks.indexOf(activeKW);
+      if (activeIndex >= 0) {
+        futureWeeks.push(...schoolWeeks.slice(activeIndex));
+      } else {
+        futureWeeks.push(activeKW);
       }
     } else {
       futureWeeks.push(activeKW);
