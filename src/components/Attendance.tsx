@@ -350,19 +350,27 @@ export default function Attendance() {
               action: () => {
                 setApp((prev) => {
                   const studentAttendance = prev.anwesenheit[s.id] || {};
-                  const dateAttendance = { ...(studentAttendance[selectedDate] || {}) };
-                  Object.keys(dateAttendance).forEach((h) => {
-                    if (dateAttendance[h] === "e" || dateAttendance[h] === "u") {
-                      dateAttendance[h] = "a";
-                    }
-                  });
+                  const details = prev.anwesenheitDetail || {};
+                  const studentDetails = details[s.id] || {};
+                  const updated = markAttendancePresent(
+                    studentAttendance[selectedDate] || {},
+                    studentDetails[selectedDate] || {},
+                    activeHours
+                  );
                   return {
                     ...prev,
                     anwesenheit: {
                       ...prev.anwesenheit,
                       [s.id]: {
                         ...studentAttendance,
-                        [selectedDate]: dateAttendance,
+                        [selectedDate]: updated.day,
+                      },
+                    },
+                    anwesenheitDetail: {
+                      ...details,
+                      [s.id]: {
+                        ...studentDetails,
+                        [selectedDate]: updated.detail,
                       },
                     },
                   };
@@ -415,19 +423,26 @@ export default function Attendance() {
               action: () => {
                 setApp((prev) => {
                   const studentAttendance = prev.anwesenheit[s.id] || {};
-                  const dateAttendance = { ...(studentAttendance[selectedDate] || {}) };
-                  Object.keys(dateAttendance).forEach((h) => {
-                    if (dateAttendance[h] === "u") {
-                      dateAttendance[h] = "e";
-                    }
-                  });
+                  const details = prev.anwesenheitDetail || {};
+                  const studentDetails = details[s.id] || {};
+                  const updated = markAttendanceExcused(
+                    studentAttendance[selectedDate] || {},
+                    studentDetails[selectedDate] || {}
+                  );
                   return {
                     ...prev,
                     anwesenheit: {
                       ...prev.anwesenheit,
                       [s.id]: {
                         ...studentAttendance,
-                        [selectedDate]: dateAttendance,
+                        [selectedDate]: updated.day,
+                      },
+                    },
+                    anwesenheitDetail: {
+                      ...details,
+                      [s.id]: {
+                        ...studentDetails,
+                        [selectedDate]: updated.detail,
                       },
                     },
                   };
@@ -549,22 +564,57 @@ export default function Attendance() {
     ]);
 
     setApp((prev) => {
-      if (onlyMissing) return { ...prev, anwesenheit: completeMissingAttendance(prev.anwesenheit, prev.schueler.map(s => s.id), selectedDate, activeHours) };
+      if (onlyMissing) {
+        return {
+          ...prev,
+          anwesenheit: completeMissingAttendance(
+            prev.anwesenheit,
+            prev.schueler.map(s => s.id),
+            selectedDate,
+            activeHours
+          )
+        };
+      }
+
       const newAnwesenheit = { ...prev.anwesenheit };
+      const newDetails = { ...(prev.anwesenheitDetail || {}) };
+
       prev.schueler.forEach((s) => {
         const studentAttendance = newAnwesenheit[s.id] || {};
-        const newDayAttendance: Record<string, string> = {};
+        const studentDetails = newDetails[s.id] || {};
 
+        if (statusVal === "a") {
+          const updated = markAttendancePresent(
+            studentAttendance[selectedDate] || {},
+            studentDetails[selectedDate] || {},
+            activeHours
+          );
+          newAnwesenheit[s.id] = {
+            ...studentAttendance,
+            [selectedDate]: updated.day,
+          };
+          newDetails[s.id] = {
+            ...studentDetails,
+            [selectedDate]: updated.detail,
+          };
+          return;
+        }
+
+        const newDayAttendance: Record<string, string> = {};
         activeHours.forEach((hourNum) => {
           newDayAttendance[hourNum] = statusVal;
         });
-
         newAnwesenheit[s.id] = {
           ...studentAttendance,
           [selectedDate]: newDayAttendance,
         };
       });
-      return { ...prev, anwesenheit: newAnwesenheit };
+
+      return {
+        ...prev,
+        anwesenheit: newAnwesenheit,
+        anwesenheitDetail: newDetails,
+      };
     });
   };
 
