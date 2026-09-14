@@ -845,7 +845,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                    <Sparkles size={41} />
                  </div>
                  <div className="px-6">
-                   <h1 className="text-[1.875rem] leading-tight md:text-4xl font-black text-slate-900 tracking-tight mb-3">Willkommen bei GABIC!</h1>
+                   <h1 className="text-[1.875rem] leading-tight md:text-4xl font-black text-slate-900 tracking-tight mb-3">Willkommen bei Klassio!</h1>
                    <p className="text-[0.875rem] font-black text-emerald-600 tracking-widest uppercase mb-4">Gabriel Intelligent Classroom</p>
                    <p className="text-slate-500 font-medium max-w-lg mx-auto">Klicke auf Weiter, um deine Klasse einzurichten. Alternativ kannst du hier ein Backup hochladen, um dort weiterzumachen, wo du aufgehört hast.</p>
                  </div>
