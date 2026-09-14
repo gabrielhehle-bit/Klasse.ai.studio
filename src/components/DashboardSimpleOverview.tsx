@@ -9,8 +9,10 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
   return <section aria-label="Heute" className="space-y-5 text-slate-900">
     <header className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div><p className="text-sm font-medium text-slate-600">{p.klasseLabel || 'Deine Klasse'}</p>
-          <h1 className="mt-1 text-2xl sm:text-3xl font-semibold tracking-tight">Heute</h1>
+        <div>
+          <p className="text-sm font-medium text-slate-600">{p.klasseLabel || 'Deine Klasse'}</p>
+          <h1 className="mt-1 text-2xl sm:text-3xl font-semibold tracking-tight">{p.greeting}</h1>
+          <p className="mt-1 text-sm font-medium text-slate-500">{p.dateLabel}</p>
           <p className="mt-2 text-sm text-slate-600">Unterricht vorbereiten, Anwesenheit prüfen und Wichtiges im Blick behalten.</p>
         </div>
         <button className={button + ' flex items-center gap-2'} aria-pressed={p.privacyMode} onClick={() => p.onPrivacyModeChange(!p.privacyMode)}>
@@ -18,11 +20,25 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
         </button>
       </div>
       <button
-        onClick={() => p.onNavigate(!p.attendanceRecorded && p.totalStudents > 0 ? 'anwesenheit' : 'cockpit')}
+        onClick={() =>
+          p.onNavigate(
+            p.totalStudents === 0
+              ? 'schueler'
+              : p.attendanceRequired && !p.attendanceRecorded
+                ? 'anwesenheit'
+                : 'cockpit',
+          )
+        }
         className="mt-6 flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[var(--accent)] px-6 py-4 text-base font-semibold text-white transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:w-auto"
       >
-        {!p.attendanceRecorded && p.totalStudents > 0 ? <Users size={20} /> : <Play size={20} />}
-        {!p.attendanceRecorded && p.totalStudents > 0 ? 'Anwesenheit prüfen' : p.currentLesson ? 'Unterricht öffnen' : 'Unterricht starten'}
+        {p.totalStudents === 0 || (p.attendanceRequired && !p.attendanceRecorded) ? <Users size={20} /> : <Play size={20} />}
+        {p.totalStudents === 0
+          ? 'Kinder hinzufügen'
+          : p.attendanceRequired && !p.attendanceRecorded
+            ? 'Anwesenheit prüfen'
+            : p.currentLesson
+              ? 'Unterricht öffnen'
+              : 'Unterricht starten'}
         <ArrowRight size={18} />
       </button>
     </header>
@@ -30,12 +46,12 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
     <section aria-label="Tagesfokus" className="grid grid-cols-1 gap-3 md:grid-cols-3">
       <button
         type="button"
-        onClick={() => p.onNavigate(!p.attendanceRecorded && p.totalStudents > 0 ? 'anwesenheit' : 'wochenplanung')}
+        onClick={() => p.onNavigate(p.attendanceRequired && !p.attendanceRecorded && p.totalStudents > 0 ? 'anwesenheit' : 'wochenplanung')}
         className="group rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:border-[var(--accent)]/35 hover:shadow-sm"
       >
         <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.14em] text-[var(--accent)]"><SunMedium size={16} />Vorbereiten</span>
-        <strong className="mt-2 block text-sm text-slate-900">{!p.attendanceRecorded && p.totalStudents > 0 ? 'Anwesenheit zuerst prüfen' : 'Plan für heute ansehen'}</strong>
-        <span className="mt-1 block text-xs leading-relaxed text-slate-500">{!p.attendanceRecorded && p.totalStudents > 0 ? 'Offene Anwesenheit bleibt sichtbar und wird nicht automatisch bestätigt.' : 'Wochenplan, Material und Unterrichtsthemen vorbereiten.'}</span>
+        <strong className="mt-2 block text-sm text-slate-900">{p.attendanceRequired && !p.attendanceRecorded && p.totalStudents > 0 ? 'Anwesenheit zuerst prüfen' : 'Plan für heute ansehen'}</strong>
+        <span className="mt-1 block text-xs leading-relaxed text-slate-500">{p.attendanceRequired && !p.attendanceRecorded && p.totalStudents > 0 ? 'Offene Anwesenheit bleibt sichtbar und wird nicht automatisch bestätigt.' : 'Wochenplan, Material und Unterrichtsthemen vorbereiten.'}</span>
       </button>
 
       <button
@@ -72,9 +88,32 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
       </section>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
         <h2 className="text-lg font-semibold flex items-center gap-2"><Users size={20} className="text-sky-600" />Anwesenheit heute</h2>
-        <p className="text-3xl font-semibold">{p.totalStudents}<span className="ml-2 text-base font-normal text-slate-600">Kinder</span></p>
-        <p className="text-sm text-slate-700">{p.totalStudents === 0 ? 'Lege zuerst deine Klassenliste an.' : p.attendanceRecorded ? `${p.absentCount} als abwesend eingetragen` : 'Erfassung noch offen – bitte Anwesenheit prüfen.'}</p>
-        <button className={button + ' w-full'} onClick={() => p.onNavigate(p.totalStudents ? 'anwesenheit' : 'schueler')}>{p.totalStudents ? 'Anwesenheit prüfen' : 'Kinder hinzufügen'}</button>
+        <p className="text-3xl font-semibold">
+          {p.privacyMode
+            ? '••'
+            : p.totalStudents === 0
+              ? '0'
+              : !p.attendanceRequired
+                ? '—'
+                : p.attendanceRecorded
+                  ? `${p.presentCount} / ${p.totalStudents}`
+                  : 'Offen'}
+          {p.totalStudents > 0 && p.attendanceRecorded && !p.privacyMode && <span className="ml-2 text-base font-normal text-slate-600">anwesend</span>}
+        </p>
+        <p className="text-sm text-slate-700">
+          {p.totalStudents === 0
+            ? 'Lege zuerst deine Klassenliste an.'
+            : !p.attendanceRequired
+              ? 'Für diesen Tag ist keine Anwesenheitsprüfung vorgesehen.'
+              : p.attendanceRecorded
+                ? p.privacyMode
+                  ? 'Anwesenheit wurde geprüft.'
+                  : p.absentCount === 0
+                    ? 'Alle Kinder sind als anwesend erfasst.'
+                    : `${p.absentCount} als abwesend eingetragen.`
+                : 'Noch nicht geprüft – es wird niemand automatisch als anwesend angenommen.'}
+        </p>
+        <button className={button + ' w-full'} onClick={() => p.onNavigate(p.totalStudents ? 'anwesenheit' : 'schueler')}>{p.totalStudents ? 'Anwesenheit öffnen' : 'Kinder hinzufügen'}</button>
         <p className="text-xs leading-relaxed text-slate-500">Die Übersicht ersetzt keine Anwesenheitskontrolle.</p>
       </section>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4">
