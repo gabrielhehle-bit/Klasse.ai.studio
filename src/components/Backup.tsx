@@ -701,7 +701,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
                           Navigieren Sie zu <strong>Identität → Anwendungen → App-Registrierungen</strong> und wählen Sie <strong>Neue Registrierung</strong>.
                         </li>
                         <li>
-                          Geben Sie einen Anzeigenamen ein (z. B. <em>„Schul-Lehrermappe Sync“</em>).
+                          Geben Sie einen Anzeigenamen ein (z. B. <em>„Klassio OneDrive Sync“</em>).
                         </li>
                         <li>
                           Wählen Sie den Kontotyp:
@@ -740,7 +740,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
                           Erstellen Sie unter <strong>Zertifikate & Geheimnisse</strong> einen <strong>Neuen geheimen Clientschlüssel</strong> (Client Secret). Kopieren Sie den <em>Wert</em> (Value).
                         </li>
                         <li>
-                          Tragen Sie die <strong>Anwendungs-ID (Client ID)</strong> als <code className="bg-slate-100 px-1 py-0.5 rounded text-violet-700 font-bold">MICROSOFT_CLIENT_ID</code> und das Secret als <code className="bg-slate-100 px-1 py-0.5 rounded text-violet-700 font-bold">MICROSOFT_CLIENT_SECRET</code> in den Umgebungsvariablen / AI Studio Secrets ein.
+                          Tragen Sie die <strong>Anwendungs-ID (Client ID)</strong> als <code className="bg-slate-100 px-1 py-0.5 rounded text-violet-700 font-bold">MICROSOFT_CLIENT_ID</code> und das Secret als <code className="bg-slate-100 px-1 py-0.5 rounded text-violet-700 font-bold">MICROSOFT_CLIENT_SECRET</code> in den Server-/World4You-Umgebungsvariablen ein.
                         </li>
                       </ol>
                     </div>
@@ -755,7 +755,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
                           <span>Verteilung & Steuerung über Microsoft Intune (MDM / MAM)</span>
                         </h5>
                         <p className="text-slate-600 font-medium text-[11px]">
-                          Verteilen Sie die digitale Lehrermappe auf schulische iPads, MacBooks und Windows-Dienstgeräte Ihrer Lehrkräfte mit integrierter M365-Anmeldung.
+                          Verteilen Sie die Klassio auf schulische iPads, MacBooks und Windows-Dienstgeräte Ihrer Lehrkräfte mit integrierter M365-Anmeldung.
                         </p>
                       </div>
 
@@ -1074,7 +1074,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
           <div className="pt-6">
             <input 
               type="file" 
-              aria-label="Klassio-Sicherungsdatei auswählen (.json / .lehrerapp)"
+              aria-label="Klassio-Sicherungsdatei auswählen (.json / Legacy .lehrerapp)"
               ref={fileInputRef} 
               onChange={importData} 
               accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain"
