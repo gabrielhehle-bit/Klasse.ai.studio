@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getFachCfg, berechne, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput } from './GradeUtils';
+import { getFachCfg, berechne, getAssessmentStorageValue, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput } from './GradeUtils';
 
 function baseApp() {
   return {
@@ -80,4 +80,12 @@ test('gradebook parser clamps numeric values to the configured mode', () => {
   assert.deepEqual(parseAssessmentInput('150', 'percent', 100), { valid: true, value: 100 });
   assert.deepEqual(parseAssessmentInput('25', 'points', 20), { valid: true, value: 20 });
   assert.deepEqual(parseAssessmentInput('7', 'grades', 20), { valid: true, value: 5 });
+});
+
+
+test('assessment storage keeps points and percent modes distinct from grades', () => {
+  assert.equal(getAssessmentStorageValue('grades', 12, 20, 2), 2);
+  assert.equal(getAssessmentStorageValue('points', 12, 20, 2), 12);
+  assert.equal(getAssessmentStorageValue('percent', 12, 20, 2), 60);
+  assert.equal(getAssessmentStorageValue('percent', 0, 20, 5), 0);
 });
