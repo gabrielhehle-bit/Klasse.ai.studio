@@ -1,5 +1,6 @@
 import { assertRestorableAppState } from '../lib/backupRestore';
 import { initialAppState, syncActiveClass, normalizeAppState, switchClassState } from '../lib/appState';
+import { removeStudentFromAppState } from '../lib/studentState';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import localforage from 'localforage';
@@ -628,14 +629,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteStudent = React.useCallback((id: string) => {
-    setApp(prev => ({
-      ...prev,
-      schueler: prev.schueler.filter(s => s.id !== id),
-      noten: { ...prev.noten, [id]: undefined } as any,
-      mitarbeit: { ...prev.mitarbeit, [id]: undefined } as any,
-      karten: { ...prev.karten, [id]: undefined } as any,
-    }));
-  }, []);
+    setApp(prev => removeStudentFromAppState(prev, id));
+  }, [setApp]);
 
   const setPage = React.useCallback((page: string) => {
     setApp(prev => {
