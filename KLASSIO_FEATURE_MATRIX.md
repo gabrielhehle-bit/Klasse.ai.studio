@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `cbc0cc28a33a360114a2affb07c2b3093f03ddd3`: Pre-Deployment Audit #118 grün, 857/857 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #118 erzeugte `klassio-world4you-cbc0cc28a33a360114a2affb07c2b3093f03ddd3` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `611bd0ddf7cbd778ea5152d6eff246a2bfacc9d4`: Pre-Deployment Audit #120 grün, 874/874 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #120 erzeugte `klassio-world4you-611bd0ddf7cbd778ea5152d6eff246a2bfacc9d4` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 
@@ -37,8 +37,8 @@ Legende:
 | 8 | Notenmappe | ✅ | PR #47 integriert; Audit #114 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme im Gesamt-Walkthrough |
 | 9 | Kassa & Orga | ✅ | PR #49 integriert; Audit #116 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme im Gesamt-Walkthrough |
 | 10 | Planungszentrale | ✅ | PR #51 integriert; Audit #118 grün; reale Browser-/Touch-/Staging-Abnahme im Gesamt-Walkthrough |
-| 11 | Jahresplanung | 🔴 | als Nächstes einzeln prüfen und abschließen |
-| 12 | Wochenplanung | 🔴 | danach |
+| 11 | Jahresplanung | ✅ | PR #53 integriert; Audit #120 grün; reale Browser-/Touch-/Druck-/Excel-/Staging-Abnahme im Gesamt-Walkthrough |
+| 12 | Wochenplanung | 🔴 | als Nächstes einzeln prüfen und abschließen |
 | 13 | Materialbibliothek | 🔴 | danach |
 | 14 | Übergabemappe | 🔴 | danach |
 | 15 | Statistik & Profile | 🔴 | danach |
@@ -106,13 +106,14 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 |---|---:|---|
 | Kassa & Orga | 🟡 | PR #49: Geldsammlungen, Teilzahlungen, Kassenbuch, Checklisten, flexible Listen und Klassenlogins bleiben erhalten. Geldbeträge werden centgenau verarbeitet; Überzahlungen werden abgewiesen, `Alle bezahlt` bucht nur offene Differenzen und manuelle Buchungen werden beim Löschen korrekt gegengebucht. Automatische Sammlungsbuchungen sind vor manueller Löschung geschützt. Legacy-`beitrag_pro_kind` wird zentral auch für inaktive Klassen migriert; frühere globale Klassenlogins werden einmalig in alle bestehenden Klassen übernommen und danach pro Klasse getrennt geführt. Datumsfelder nutzen lokale Kalendertage und offene Editor-/Dialogzustände werden beim Klassenwechsel zurückgesetzt. Automatisierte Tests und Audit #116 grün; reale Browser-/Touch-/Druck-Abnahme offen. |
 | Planungszentrale | 🟡 | PR #51: Übersicht und Planungswerkzeuge nutzen alle 10 Stunden-Slots; leere Klassen erfinden keine Fächer und das Öffnen am Wochenende verändert die ausgewählte KW nicht still. Parkgarage und Wochenvorlagen sind klassenlokal inklusive Legacy-Migration. KI-Themenvorschläge werden sichtbar auswählbar dargestellt; Fehlerzustände bleiben transparent und erzeugen keine erfundenen Ersatzvorschläge oder Schulstufen. Automatisierte Tests und Audit #118 grün; reale Browser-/Touch-Abnahme offen. |
+| Jahresplanung | 🟡 | PR #53: Vollbild, Lehrplan-Drawer, KI-Vorschläge, Druck und mehrere Themen bleiben erhalten. Mehrfachthemen sind in Excel/CSV/Monatsansicht verlustfrei; Excel-Import hat klare Ergänzen-/Überschreiben-Semantik, Schulwochen sind bundesland- und jahreswechselrichtig und Verschieben folgt echten Unterrichtswochen statt KW+1. Automatisierte Tests und Audit #120 grün; reale Browser-/Touch-/Druck-/Excel-Abnahme offen. |
 | Stundenplan 10 Slots | ✅ | PR #13 integriert: Setup-Zeitfelder, Tagesrahmen, mobile/desktop Stammplan-Raster und Dashboard-Vorschau verwenden 10 Slots. Für 9./10. Stunde werden keine Standardzeiten erfunden; frei konfigurierbar. |
 | Wochenplan Vollbild | ✅ | Implementiert. |
 | Wochenplan Excel Roundtrip | ✅ | Vorlage + Import, Ergänzen/Lücken füllen oder überschreiben. |
 | Wochenplan-Aufgabenblatt | ✅ | Generator vorhanden. |
 | Jahresplan Vollbild | ✅ | Implementiert. |
-| Jahresplan Excel Roundtrip | ✅ | Vorlage + Merge/Overwrite; nicht importierte Felder bleiben erhalten. |
-| Mehrere Themen pro Fach/KW | ✅ | `items`-Struktur und Mehrfachanzeige vorhanden. |
+| Jahresplan Excel Roundtrip | ✅ | PR #53: Vorlage + verlustfreier Merge/Overwrite. Mehrere Excel-Zeilen derselben KW/Fach-Zelle bleiben als Mehrfachthemen erhalten; Ergänzen bewahrt bestehende Themen und dedupliziert neue, Überschreiben ersetzt nur importierte Zellen. Schulstart/SW berücksichtigen Bundesland und Jahreswechsel; unbekannte Fächer werden nicht still dem ersten Fach zugeordnet. |
+| Mehrere Themen pro Fach/KW | ✅ | PR #53: `items`-Struktur bleibt in Tabelle, Monatsansicht, CSV, Druck und Excel-Roundtrip erhalten; leere Zellen bleiben echte leere Zellen. |
 | Materialbibliothek CRUD | ✅ | Anlegen, bearbeiten, suchen, gruppieren, favorisieren und löschen. |
 | Materialbibliothek → Wochenplan | ✅ | Direkter Dialog für KW/Tag/Stunde; Ergänzen/Ersetzen; IDs werden dedupliziert; übrige Planung bleibt erhalten. |
 | Vertretungsplan | 🟡 | Reale Stundenplan-/Wochenplan-/Materialdaten; Browser-Abnahme offen. |
