@@ -14,7 +14,7 @@ import { FAECHER_ALLE, LESSON_SLOT_NUMBERS } from '../constants';
 import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { MaterialItem } from '../types';
 import { generateTeachingMaterial } from '../services/aiService';
-import { calculateMaterialStorageSize, MATERIAL_LIBRARY_MAX_MB, normalizeMaterialExternalLink, removeMaterialReferencesFromWeeklyPlan, sanitizeMaterialForType, upsertMaterial, validateMaterialFile } from '../lib/materialLibraryUtils';
+import { calculateMaterialStorageSize, MATERIAL_LIBRARY_MAX_MB, normalizeMaterialExternalLink, removeMaterialReferencesFromClasses, removeMaterialReferencesFromWeeklyPlan, sanitizeMaterialForType, upsertMaterial, validateMaterialFile } from '../lib/materialLibraryUtils';
 export { calculateMaterialStorageSize as calculateStorageSize } from '../lib/materialLibraryUtils';
 
 const normalizeMaterialItem = (item: MaterialItem): MaterialItem => ({
@@ -158,6 +158,7 @@ export default function Materialbibliothek() {
         ...prev,
         materialien: prev.materialien?.filter(m => !removedIds.includes(m.id)),
         wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung, removedIds),
+        classes: removeMaterialReferencesFromClasses(prev.classes, removedIds),
       }));
       setSelectedItems([]);
     }
@@ -206,6 +207,7 @@ export default function Materialbibliothek() {
         ...prev,
         materialien: prev.materialien?.filter(m => m.id !== id),
         wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung, [id]),
+        classes: removeMaterialReferencesFromClasses(prev.classes, [id]),
       }));
       setSelectedItems(prev => prev.filter(selectedId => selectedId !== id));
       setShowDetail(false);
@@ -283,6 +285,7 @@ export default function Materialbibliothek() {
                              ...prev,
                              materialien: [],
                              wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung),
+                             classes: removeMaterialReferencesFromClasses(prev.classes),
                            }));
                            setSelectedItems([]);
                          }
