@@ -1,7 +1,7 @@
 import React, { useState, useRef, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
-import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, logActivity, safeJsonParse, inferDateFromText, inferEventType, sortYearlySubjects } from '../lib/utils';
+import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, logActivity, safeJsonParse, inferDateFromText, inferEventType, sortYearlySubjects, formatLocalDateKey } from '../lib/utils';
 import { TAGE_NAMEN, VM_ZEITEN, STUNDENTAFEL, FAECHER_ALLE, DEUTSCH_UNTERFAECHER, DEFAULT_YEARLY_SUBJECTS, STUNDEN_INFO } from '../constants';
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, Layout, Calendar, Info, Search, X, Check, Clock, PartyPopper, Lightbulb, Filter, Flag, AlertTriangle, Star, MessageSquare, Users, User, Users2, Smartphone, BookOpen, Printer, Sparkles, Loader2, Book, RefreshCw, GripVertical, Zap, Pencil, BarChart2, Eye, EyeOff, Copy, Clipboard, CheckSquare, Paperclip, ExternalLink, MoreHorizontal, Maximize2, Minimize2, FileSpreadsheet, Download, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -881,7 +881,7 @@ export default function WeeklyPlan() {
   };
 
   const getDayStatus = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatLocalDateKey(date);
     const override = app.calendarOverrides?.[dateStr];
     if (override) return { status: override, isOverride: true, holidayName: isHoliday(date, app.calendarSettings?.disabledHolidays || [], app.bundesland || 'VBG') };
     
@@ -1235,10 +1235,10 @@ export default function WeeklyPlan() {
       alert("Bitte geben Sie zuerst ein Fach und ein Thema ein.");
       return;
     }
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatLocalDateKey(new Date());
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + 14);
-    const naechsteWiederholung = targetDate.toISOString().split('T')[0];
+    const naechsteWiederholung = formatLocalDateKey(targetDate);
 
     const newEntry = {
       id: `sp-${Date.now()}`,
@@ -1361,7 +1361,7 @@ export default function WeeklyPlan() {
         if (dayIdx !== -1) {
           const d = new Date(mon);
           d.setDate(mon.getDate() + dayIdx);
-          dateStr = d.toISOString().split('T')[0];
+          dateStr = formatLocalDateKey(d);
         }
 
         if (dateStr && thema.trim() && trimmedFach) {
@@ -2398,7 +2398,7 @@ export default function WeeklyPlan() {
                   {TAGE_NAMEN.map((tag, i) => {
                     const date = new Date(monday);
                     date.setDate(monday.getDate() + i);
-                    const dateStr = date.toISOString().split('T')[0];
+                    const dateStr = formatLocalDateKey(date);
                     const isToday = date.toDateString() === actualToday.toDateString();
                     const { status, isOverride, holidayName } = getDayStatus(date);
                     
