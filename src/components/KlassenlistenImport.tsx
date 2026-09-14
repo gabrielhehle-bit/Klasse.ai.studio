@@ -3,6 +3,7 @@ import { X, FileUp, AlertTriangle, ArrowLeftRight, Upload, Clipboard, Sparkles, 
 import { parseKlassenliste, ParsedStudent } from '../lib/klassenlistenImport';
 import { parseSokratesFile, ParsedSokratesResult } from '../lib/sokratesParser';
 import { SokratesImportModal } from './SokratesImportModal';
+import { normalizeStudentGender } from '../lib/studentListData';
 
 interface KlassenlistenImportProps {
   onClose: () => void;
@@ -151,7 +152,7 @@ export const KlassenlistenImport: React.FC<KlassenlistenImportProps> = ({ onClos
       vorname: s.vorname.trim(),
       nachname: s.nachname.trim(),
       name: `${s.vorname.trim()} ${s.nachname.trim()}`,
-      geschlecht: s.geschlecht || 'w',
+      geschlecht: normalizeStudentGender(s.geschlecht),
       niveau: 1,
       geburtstag: s.geburtstag || '',
       geburtsdatum: s.geburtstag || '',

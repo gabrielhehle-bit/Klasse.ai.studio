@@ -1425,6 +1425,7 @@ export default function StudentList() {
                         <option value="">–</option>
                         <option value="weiblich">weiblich</option>
                         <option value="männlich">männlich</option>
+                        <option value="divers">divers</option>
                       </select>
                     </div>
                     <div className="space-y-0.5">
@@ -2214,7 +2215,7 @@ export default function StudentList() {
 
         <div className="mt-8 pt-4 border-t border-slate-200 grid grid-cols-2 gap-4 sm:p-8 text-[0.625rem] text-slate-400 font-bold uppercase tracking-wider print:break-inside-avoid">
           <div>Zusammenfassung: Gesucht/Gefiltert: {filteredStudents.length} von {schueler.length} Schüler/innen</div>
-          <div className="text-right">Klassenliste • Gedruckt mit SchoolBase Pro</div>
+          <div className="text-right">Klassenliste • Gedruckt mit Klassio</div>
         </div>
       </div>
 

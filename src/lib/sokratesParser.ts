@@ -1,5 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import { Student } from '../types';
+import { normalizeStudentGender } from './studentListData';
 
 export interface ParsedSokratesStudent {
   id?: string;
@@ -284,7 +285,7 @@ export function parseSokratesText(rawText: string): ParsedSokratesResult {
     let telefon_vater = '';
     let email_eltern = '';
     let erstsprache = 'Deutsch';
-    let geschlecht = 'w';
+    let geschlecht = '';
     let notiz = '';
 
     // Birthdate (DD.MM.YYYY)
@@ -401,7 +402,7 @@ export function parseSokratesText(rawText: string): ParsedSokratesResult {
     } else if (/\b(?:m|m\u00e4nnlich|m\.|knabe|bube)\b/i.test(fullBlockText)) {
       geschlecht = 'm';
     } else {
-      geschlecht = 'w'; // default
+      geschlecht = ''; // unknown: do not infer gender without source data
     }
 
     if (vorname || nachname) {
@@ -498,7 +499,7 @@ export function convertToAppStudents(parsedList: ParsedSokratesStudent[]): Stude
       espf: false,
       spf: false,
       erstsprache: s.erstsprache || 'Deutsch',
-      geschlecht: s.geschlecht || 'w',
+      geschlecht: normalizeStudentGender(s.geschlecht),
       gruppen: [],
       anschrift: s.anschrift || '',
       plz: s.plz || '',
