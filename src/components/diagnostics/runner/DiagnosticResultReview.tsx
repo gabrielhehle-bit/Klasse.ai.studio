@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { formatLocalDateKey } from '../../../lib/utils';
+import { useApp } from '../../../context/AppContext';
+import { getDiagnosticClassId } from '../../../lib/diagnosticData';
 import { 
   CheckCircle2, 
   RotateCcw, 
@@ -74,7 +76,7 @@ export const DiagnosticResultReview: React.FC<DiagnosticResultReviewProps> = ({
       id: `diag-res-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       schemaVersion: 1,
       studentId: student.id,
-      classId: (student as any).schulklasseId || (student as any).klasse || 'default',
+      classId: getDiagnosticClassId(app),
       testId: test.id,
       date: isoDate,
       mode: (test.mode as any) || 'oneToOne',
