@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `0cb024b322db5821c038a689c5491575addd2706`: Pre-Deployment Audit #98 grün, 776/776 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #98 erzeugte `klassio-world4you-0cb024b322db5821c038a689c5491575addd2706` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `2c29ed7705da832fe93499d7da19d007fc61d8e6`: Pre-Deployment Audit #101 grün, 788/788 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #101 erzeugte `klassio-world4you-2c29ed7705da832fe93499d7da19d007fc61d8e6` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 
@@ -28,8 +28,8 @@ Legende:
 | # | Bereich | Technischer Status | Nächster Schritt |
 |---:|---|---:|---|
 | 1 | Dashboard / Heute | ✅ | Code/Tests abgeschlossen; visuelle Staging-Abnahme im Gesamt-Walkthrough |
-| 2 | Lehrercockpit | 🔴 | als Nächstes einzeln prüfen und abschließen |
-| 3 | KI-Helfer | 🔴 | danach |
+| 2 | Lehrercockpit | ✅ | PR #35 integriert; Audit #101 grün; reale Maus-/Touch-/Stift-Abnahme im Gesamt-Walkthrough |
+| 3 | KI-Helfer | 🔴 | als Nächstes einzeln prüfen und abschließen |
 | 4 | Notizen | 🔴 | danach |
 | 5 | Schüler:innen | 🔴 | danach |
 | 6 | Sitzplan | 🔴 | danach |
@@ -64,10 +64,10 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 | Hauptbereich-Hubs | ✅ | PR #26: Klasse ist in `Kinder & Alltag` sowie `Organisation & Gemeinschaft`, Planung in `Kernplanung` sowie `Vorbereitung & Weitergabe` und Leistungen in `Bewerten & Beurteilen` sowie `Lernentwicklung & Gespräche` gegliedert. Doppelte Schnellnavigation wurde entfernt; alle bisherigen Ziele bleiben erreichbar. |
 | Produktivdaten: Wetter/WLAN/Klasse | ✅ | PR #19: keine erfundenen Klassen-, WLAN-, Wetter- oder Prognosewerte; fehlende Daten werden transparent angezeigt, WLAN-QR nur bei echter SSID. |
 | Sichtbares Produktbranding | ✅ | PR #21 finalisiert: Setup, Demo-Hinweise, Diagnostik, Quest, Einstellungen, Backup-UI, OneDrive-Hilfe sowie Wochen-/Jahresplaner-Excel verwenden Klassio/Klassio Quest; `.lehrerapp` ist als Legacy-Format gekennzeichnet. Interne Legacy-Crypto-/Storage-Kennungen bleiben aus Kompatibilitätsgründen bewusst bestehen. |
-| Lehrercockpit: finale Anforderungen | ✅ | PR #6 integriert; freie weiße Fläche ohne Startkarte, keine Standardwidgets, verständliche Kategorien, Optionen/Archiv und sprachliche Bereinigung per Regressionstests abgesichert. |
+| Lehrercockpit: finale Anforderungen | ✅ | PR #6 + #35: freie weiße Fläche ohne Startkarte und ohne automatisch eingeblendetes Klassentier, keine Standardwidgets, verständliche Kategorien, sekundäre Ansichtssteuerung unter `Optionen → Ansicht`, konfigurierbare 1–10 Stunden-Slots/Pausen, klassenlokaler Tages-Sicherungsstatus und keine erfundene Klasse `4c`; Regressionstests und Audit #101 grün. |
 | Lehrercockpit: weiße freie Fläche | ✅ | Fläche bleibt unabhängig vom Theme weiß; leere Startkarte entfernt; Standardlayout enthält 0 sichtbare Widgets. |
 | Cockpit: Schreiben und Zeichnen | ✅ | BoardInk liegt auf derselben Fläche wie Widgets; Stift, Text, Radierer, Undo/Redo sowie getrenntes Löschen von Schrift/Zeichnung sind umgesetzt. |
-| Cockpit: vollständiger Widgetkatalog | ✅ | 108/108 erhaltene Widgettypen sind in Picker und Kategorie-Zählern vorhanden; vier frühere Mathe-Altlasten rendern wieder ihre echten Komponenten. |
+| Cockpit: vollständiger Widgetkatalog | ✅ | 108/108 erhaltene Widgettypen sind in Standardlayout, Picker und Kategorie-Zählern vorhanden; exakte Anzahl ist per Regressionstest festgeschrieben, vier frühere Mathe-Altlasten rendern wieder ihre echten Komponenten. |
 | Cockpit: Widgets frei platzieren | 🟡 | Verschieben/Größe ist nur über `Optionen → Anordnung ändern` freischaltbar; realer Maus-/Touch-/Stift-Browsercheck bleibt offen. |
 | Cockpit: benutzerdefinierte Layout-Slots | 🟡 | A/B/C-Slots bleiben als eigene, benennbare Layouts; keine mitgelieferten Beispielprofile. Browser-Abnahme offen. |
 | Veraltete Cockpit-Kompatibilität | ✅ | Alte Tafel bleibt erhalten unter `Optionen → Archiv → Alte Tafelinhalte öffnen`; unerwartetes Öffnen ist per Regressionstest blockiert. |
