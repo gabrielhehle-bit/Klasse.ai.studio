@@ -22,7 +22,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useApp } from "../context/AppContext";
 import { logActivity } from "../lib/utils";
-import { getAssessmentMode, getMaxPoints } from "../lib/GradeUtils";
+import { getAssessmentMode, getAssessmentStorageValue, getMaxPoints } from "../lib/GradeUtils";
 import SchularbeitClassStats from "./SchularbeitClassStats";
 import SchularbeitClassTable from "./SchularbeitClassTable";
 
@@ -1041,6 +1041,8 @@ export default function SchularbeitAssessment({
     // Bestehende Schüler aktualisieren; den Standard speichern wir danach in den Klassen-Zustand.
     const newAssessments = { ...(app.saAssessments || {}) };
     const notenState = { ...(app.noten || {}) };
+    const assessmentMode = getAssessmentMode(app, subject);
+    const configuredMaxPoints = getMaxPoints(app, subject, 'sa', saIndex) || 40;
     let changedCount = 0;
 
     Object.keys(newAssessments).forEach((sid) => {
@@ -1093,22 +1095,17 @@ export default function SchularbeitAssessment({
         else if (sQuotient <= config.spelling3Q) sNote = 3;
         else if (sQuotient <= config.spelling4Q) sNote = 4;
 
-        let arbeitsNote = 0;
-        let rechtschreibNote = sNote;
-        
-        let gNoteInner = 0;
         let grammatikNote = 0;
-
+        let parsedGrammarPoints = 0;
         const hasGrammar = config.enableGrammar && subject !== "Mathematik" && subject !== "Mathe" && !existing.exemptFromGrammar;
 
-        if (hasGrammar) {
-          let parsedGrammarPoints = 0;
-          if (typeof existing.grammarAchievedPoints === 'string') {
-            parsedGrammarPoints = parseFloat(existing.grammarAchievedPoints.replace(',', '.')) || 0;
-          } else if (typeof existing.grammarAchievedPoints === 'number') {
-            parsedGrammarPoints = existing.grammarAchievedPoints;
-          }
+        if (typeof existing.grammarAchievedPoints === 'string') {
+          parsedGrammarPoints = parseFloat(existing.grammarAchievedPoints.replace(',', '.')) || 0;
+        } else if (typeof existing.grammarAchievedPoints === 'number') {
+          parsedGrammarPoints = existing.grammarAchievedPoints;
+        }
 
+        if (hasGrammar) {
           if (parsedGrammarPoints >= config.grammar1Points) grammatikNote = 1;
           else if (parsedGrammarPoints >= config.grammar2Points) grammatikNote = 2;
           else if (parsedGrammarPoints >= config.grammar3Points) grammatikNote = 3;
@@ -1116,19 +1113,30 @@ export default function SchularbeitAssessment({
           else grammatikNote = 5;
         }
 
-        // To keep logic fully consistent across components:
-        // Text-Arbeitsnote combines points (aNote) + spelling (sNote)
-        arbeitsNote = Math.round((aNote * 3 + sNote) / 4);
+        // Use the same weighting semantics as the single-student calculation.
+        const textWeight = Number(config.weightText) > 0 ? Number(config.weightText) : 1;
+        let totalGradeWeight = textWeight;
+        let weightedGradeSum = aNote * textWeight;
+
+        if (config.enableSpelling !== false) {
+          const spellingWeight = Number(config.weightSpelling) >= 0 ? Number(config.weightSpelling) : 1;
+          totalGradeWeight += spellingWeight;
+          weightedGradeSum += sNote * spellingWeight;
+        }
 
         if (hasGrammar) {
-          const wArbeit = config.weightArbeit || 1;
-          const wGrammatik = config.weightGrammar || 1;
-          const totalWeight = wArbeit + wGrammatik;
-          const weightedSum = arbeitsNote * wArbeit + grammatikNote * wGrammatik;
-          gNoteInner = Math.round(weightedSum / totalWeight);
-        } else {
-          gNoteInner = arbeitsNote;
+          const grammarWeight = Number(config.weightGrammar) > 0 ? Number(config.weightGrammar) : 1;
+          totalGradeWeight += grammarWeight;
+          weightedGradeSum += grammatikNote * grammarWeight;
         }
+
+        const gNoteInner = Math.round(weightedGradeSum / Math.max(1, totalGradeWeight));
+        const arbeitsNote = aNote;
+        const rechtschreibNote = sNote;
+        const totalAchievedPoints = totalArbeitsPoints + (hasGrammar ? parsedGrammarPoints : 0);
+        const calculatedPct = configuredMaxPoints > 0
+          ? Math.round((totalAchievedPoints / configuredMaxPoints) * 1000) / 10
+          : 0;
 
         // Update the assessment
         newAssessments[sid][subject][semester][saIndex] = {
@@ -1138,6 +1146,9 @@ export default function SchularbeitAssessment({
           arbeitsNote,
           rechtschreibNote,
           grammatikNote: hasGrammar ? grammatikNote : undefined,
+          totalPoints: totalAchievedPoints,
+          maxPoints: configuredMaxPoints,
+          percent: calculatedPct,
           gesamtnote: gNoteInner,
           config: { ...config }
         };
@@ -1148,7 +1159,12 @@ export default function SchularbeitAssessment({
         if (!notenState[sid][subject][semester]) notenState[sid][subject][semester] = { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
         
         const saArray = [...(notenState[sid][subject][semester].sa || [])];
-        saArray[saIndex] = gNoteInner;
+        saArray[saIndex] = getAssessmentStorageValue(
+          assessmentMode,
+          totalAchievedPoints,
+          configuredMaxPoints,
+          gNoteInner,
+        );
         notenState[sid][subject][semester].sa = saArray;
 
         changedCount++;
@@ -1470,13 +1486,12 @@ export default function SchularbeitAssessment({
       };
       const saArray = [...(mainSemData.sa || [])];
       
-      if (mode === 'points') {
-        saArray[saIndex] = totalAchievedPoints;
-      } else if (mode === 'percent') {
-        saArray[saIndex] = calculatedPct;
-      } else {
-        saArray[saIndex] = tendency ? `${gesamtnote}${tendency}` : gesamtnote;
-      }
+      saArray[saIndex] = getAssessmentStorageValue(
+        mode,
+        totalAchievedPoints,
+        configuredMaxPoints,
+        tendency ? `${gesamtnote}${tendency}` : gesamtnote,
+      );
 
       return {
         ...prev,
