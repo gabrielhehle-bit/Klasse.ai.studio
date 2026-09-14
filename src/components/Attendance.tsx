@@ -544,22 +544,47 @@ export default function Attendance() {
 
     setApp((prev) => {
       const studentAttendance = prev.anwesenheit[sid] || {};
-      const newDayAttendance: Record<string, string> = {};
-
+      const details = prev.anwesenheitDetail || {};
+      const studentDetails = details[sid] || {};
+      const dayDetail = studentDetails[selectedDate] || {};
       const effectiveHours = activeHours;
+
+      if (statusVal === "a") {
+        const updated = markAttendancePresent(
+          studentAttendance[selectedDate] || {},
+          dayDetail,
+          effectiveHours
+        );
+        return {
+          ...prev,
+          anwesenheit: {
+            ...prev.anwesenheit,
+            [sid]: {
+              ...studentAttendance,
+              [selectedDate]: updated.day,
+            },
+          },
+          anwesenheitDetail: {
+            ...details,
+            [sid]: {
+              ...studentDetails,
+              [selectedDate]: updated.detail,
+            },
+          },
+        };
+      }
+
+      const newDayAttendance: Record<string, string> = {};
       effectiveHours.forEach((hourNum) => {
         newDayAttendance[hourNum] = statusVal;
       });
 
-      const details = prev.anwesenheitDetail || {};
-      const studentDetails = details[sid] || {};
-      const dayDetail = studentDetails[selectedDate] || {};
-
-      const updatedDayDetail = { ...dayDetail };
-      if (statusVal === "a") {
-        delete updatedDayDetail.fehlstunden;
-      } else {
-        updatedDayDetail.fehlstunden = effectiveHours.length;
+      const updatedDayDetail = {
+        ...dayDetail,
+        fehlstunden: effectiveHours.length,
+      };
+      if (statusVal === "e" && updatedDayDetail.notiz === "Unentschuldigt") {
+        delete updatedDayDetail.notiz;
       }
 
       return {
@@ -681,18 +706,33 @@ export default function Attendance() {
   };
 
   const saveDelay = (sid: string) => {
+    const s = app.schueler.find((student) => student.id === sid);
+    const sName = s ? `${s.vorname} ${s.nachname}` : "Schüler";
+    registerUndo(sid, sName);
+
     setApp((prev) => {
       const details = prev.anwesenheitDetail || {};
       const studentDetails = details[sid] || {};
+      const studentAttendance = prev.anwesenheit[sid] || {};
+      const currentDay = studentAttendance[selectedDate] || {};
+      const hasAbsence = activeHours.some(hour =>
+        currentDay[hour] === "e" || currentDay[hour] === "u"
+      );
+
+      const nextAttendance = hasAbsence
+        ? prev.anwesenheit
+        : completeMissingAttendance(prev.anwesenheit, [sid], selectedDate, activeHours);
+
       return {
         ...prev,
+        anwesenheit: nextAttendance,
         anwesenheitDetail: {
           ...details,
           [sid]: {
             ...studentDetails,
             [selectedDate]: {
               ...(studentDetails[selectedDate] || {}),
-              verspaetung: currentDelay,
+              verspaetung: Math.max(0, Number(currentDelay) || 0),
             },
           },
         },
@@ -1429,6 +1469,22 @@ export default function Attendance() {
                           className={studentFehlstunden > 0 ? "text-indigo-600 stroke-[2.5]" : ""}
                         />
                         {studentFehlstunden > 0 && <span>{studentFehlstunden} Std.</span>}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCurrentDelay(details?.verspaetung || 0);
+                          setActiveDelaySid(s.id);
+                        }}
+                        className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                          details?.verspaetung
+                            ? "bg-orange-100 text-orange-700"
+                            : "text-slate-400 hover:bg-slate-100"
+                        }`}
+                        title="Verspätung eintragen"
+                      >
+                        <Clock size={15} />
                       </button>
 
                       <button
