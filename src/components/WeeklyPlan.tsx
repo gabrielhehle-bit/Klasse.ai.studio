@@ -12,7 +12,7 @@ import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
 import WochenplanExcelModal from './WochenplanExcelModal';
 import { generateWochenplanTemplate, WochenplanImportRow } from '../lib/planerExcelService';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
-import { buildSchoolYearWeekList, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots } from '../lib/weeklyPlanData';
+import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots } from '../lib/weeklyPlanData';
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
 
 const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> = {
@@ -609,27 +609,10 @@ export default function WeeklyPlan() {
 
   const parkedLessons = app.parkgarage || [];
 
-  const incompleteWeeklySlots = useMemo(() => {
-    const currentWeekPlan = app.wochenplanung?.[activeKW] || {};
-    const slots: { tag: string; idx: number; fach: string; thema: string }[] = [];
-    const tage = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
-    tage.forEach(tag => {
-      const dayData = currentWeekPlan[tag] || {};
-      Object.keys(dayData).forEach(idxStr => {
-        const idx = parseInt(idxStr);
-        const lesson = dayData[idx];
-        if (lesson && lesson.thema && !lesson.completed) {
-          slots.push({
-            tag,
-            idx,
-            fach: lesson.fach || 'Fach',
-            thema: lesson.thema
-          });
-        }
-      });
-    });
-    return slots;
-  }, [app.wochenplanung, activeKW]);
+  const incompleteWeeklySlots = useMemo(
+    () => collectIncompleteWeeklyLessonSlots(app.wochenplanung?.[activeKW]),
+    [app.wochenplanung, activeKW],
+  );
 
   const incompleteDenkzettelNotes = useMemo(() => {
     return (app.denkzettelNotes || []).filter((note: any) => !note.completed);
