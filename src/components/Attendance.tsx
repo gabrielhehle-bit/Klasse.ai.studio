@@ -307,10 +307,11 @@ export default function Attendance() {
       const statusData = app.anwesenheit[s.id]?.[selectedDate] || {};
       const details = app.anwesenheitDetail?.[s.id]?.[selectedDate];
       const dismissedAlerts = details?.dismissedAlerts || [];
+      const activeStates = activeHours.map(hour => statusData[hour]).filter(Boolean);
 
-      const hasAbsence = Object.values(statusData).some((st) => st === "e" || st === "u");
+      const hasAbsence = activeStates.some((st) => st === "e" || st === "u");
       const hasDelay = !!(details?.verspaetung && details.verspaetung > 0);
-      const isUnexcused = Object.values(statusData).some((st) => st === "u");
+      const isUnexcused = activeStates.some((st) => st === "u");
       const hasNote = !!(details?.notiz && details.notiz.trim().length > 0);
 
       // 1. Contradiction
@@ -487,6 +488,25 @@ export default function Attendance() {
 
       const currentStatus = dateAttendance[hourNum] || "a";
       const nextStatus = currentStatus === statusVal ? "a" : statusVal;
+      const nextDayAttendance = {
+        ...dateAttendance,
+        [hourNum]: nextStatus,
+      };
+
+      const details = prev.anwesenheitDetail || {};
+      const studentDetails = details[sid] || {};
+      const nextDayDetail = { ...(studentDetails[selectedDate] || {}) };
+      const missedHours = activeHours.filter(hour =>
+        nextDayAttendance[hour] === "e" || nextDayAttendance[hour] === "u"
+      ).length;
+
+      if (missedHours > 0) nextDayDetail.fehlstunden = missedHours;
+      else delete nextDayDetail.fehlstunden;
+
+      const hasUnexcused = activeHours.some(hour => nextDayAttendance[hour] === "u");
+      if (!hasUnexcused && nextDayDetail.notiz === "Unentschuldigt") {
+        delete nextDayDetail.notiz;
+      }
 
       return {
         ...prev,
@@ -494,10 +514,14 @@ export default function Attendance() {
           ...prev.anwesenheit,
           [sid]: {
             ...studentAttendance,
-            [selectedDate]: {
-              ...dateAttendance,
-              [hourNum]: nextStatus,
-            },
+            [selectedDate]: nextDayAttendance,
+          },
+        },
+        anwesenheitDetail: {
+          ...details,
+          [sid]: {
+            ...studentDetails,
+            [selectedDate]: nextDayDetail,
           },
         },
       };
@@ -1137,7 +1161,7 @@ export default function Attendance() {
                 const statusData = app.anwesenheit[s.id]?.[selectedDate] || {};
                 const details = app.anwesenheitDetail?.[s.id]?.[selectedDate];
 
-                const states = Object.values(statusData);
+                const states = activeHours.map(hour => statusData[hour]).filter(Boolean);
                 const absentHoursCount = states.filter((st) => st === "e" || st === "u").length;
                 const studentFehlstunden =
                   details?.fehlstunden !== undefined
@@ -1149,7 +1173,10 @@ export default function Attendance() {
                 const isAbsent = states.some((st) => st === "e" || st === "u") || studentFehlstunden > 0;
                 const isUnexcused = states.some((st) => st === "u") || details?.notiz === "Unentschuldigt";
                 const isExcused = (states.some((st) => st === "e") || studentFehlstunden > 0) && !isUnexcused;
-                const isPresent = !isAbsent && states.length > 0;
+                const isPresent =
+                  !isAbsent &&
+                  activeHours.length > 0 &&
+                  activeHours.every(hour => statusData[hour] === "a");
 
                 const missedDays = getStudentAbsenceDates(
                   app.anwesenheit[s.id] || {},
