@@ -87,3 +87,37 @@ test('teacher profile UI contains no invented identity or fallback workload stat
     assert.equal(source.includes(forbidden), false, `forbidden demo fallback remains: ${forbidden}`);
   }
 });
+
+
+test('topbar and weather server contain no invented live data or credentials', () => {
+  const topbar = readFileSync(new URL('../components/Topbar.tsx', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('../../server.ts', import.meta.url), 'utf8');
+
+  for (const forbidden of [
+    'Schul-WLAN-Klasse',
+    'Schule2026!',
+    'Lehrer-Smartphone-Hotspot',
+    'Klassenzimmer123',
+    'Schule-Gaeste',
+    "app?.klassenbezeichnung || 'Klasse 3a'",
+    ": '20°C'",
+    ": 'Sonnig'",
+    ": '5 km/h'",
+    'Vorarlberg / Öst.',
+    'latitude=47.2333&longitude=9.6',
+  ]) {
+    assert.equal(topbar.includes(forbidden), false, `invented Topbar fallback remains: ${forbidden}`);
+  }
+
+  assert.match(topbar, /app\?\.klassenbezeichnung \|\| 'Keine Klasse gewählt'/);
+  assert.match(topbar, /app\?\.schulOrt \|\| 'Ort nicht gesetzt'/);
+  assert.match(topbar, /Noch keine WLAN-Daten hinterlegt/);
+  assert.match(topbar, /Keine Wetterprognose verfügbar/);
+
+  assert.equal(server.includes('getFallbackWeatherData'), false);
+  assert.equal(server.includes('getFallbackGeocodingData'), false);
+  assert.equal(server.includes('temperature_2m: 21.5'), false);
+  assert.equal(server.includes('47.2333'), false);
+  assert.match(server, /Wetterdaten sind derzeit nicht verfügbar/);
+  assert.match(server, /Wetter-Ortssuche ist derzeit nicht verfügbar/);
+});
