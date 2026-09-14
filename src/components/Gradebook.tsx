@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { logActivity, getAccentTextColor } from '../lib/utils';
-import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel } from '../lib/GradeUtils';
+import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage } from '../lib/GradeUtils';
 import { getFachHexColor } from '../lib/fachColorUtils';
 import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
@@ -889,7 +889,7 @@ export default function Gradebook() {
       }
       return {
         ...s,
-        currentAvg: avg || 99 // Placeholder for sorting
+        currentAvg: hasCalculatedAverage(avg) ? avg : 99 // Placeholder for sorting
       };
     });
 
@@ -1062,8 +1062,8 @@ export default function Gradebook() {
     const rows = students.map(s => {
       const avg = berechne(app, s.id, activeFach, sem);
       const nd = app.noten?.[s.id]?.[activeFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
-      const en = (s.spf || s.espf) && nd.endnote ? nd.endnote : (avg ? (assessmentMode === 'grades' ? Math.round(avg) : `${Math.round(avg)}%`) : '');
-      return [`${s.nachname} ${s.vorname}`, avg ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '', en];
+      const en = (s.spf || s.espf) && nd.endnote ? nd.endnote : (hasCalculatedAverage(avg) ? (assessmentMode === 'grades' ? Math.round(avg) : `${Math.round(avg)}%`) : '');
+      return [`${s.nachname} ${s.vorname}`, hasCalculatedAverage(avg) ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '', en];
     });
     
     const csvContent = [header, ...rows].map(e => e.join(';')).join('\n');
@@ -1096,12 +1096,12 @@ export default function Gradebook() {
   };
 
   const getGradeColor = (rawVal: number | string | null | undefined, isRequired: boolean = false, typ?: string, idx?: number) => {
-    const isMissing = !rawVal || rawVal === 'e' || rawVal === 'f' || rawVal === '-' || rawVal === ' ' || rawVal === '';
+    const isMissing = isAssessmentValueMissing(rawVal);
     if (filterMissing && isRequired && isMissing) {
       return '!bg-rose-100 ring-2 ring-rose-500 ring-inset border-rose-500 text-rose-800 animate-pulse z-10 font-bold';
     }
     
-    if (!rawVal) return '';
+    if (isAssessmentValueMissing(rawVal)) return '';
     if (rawVal === 'f' || rawVal === 'x' || rawVal === '-') return 'bg-slate-50 text-slate-400 opacity-60';
     if (!heatmapMode) return '';
     
