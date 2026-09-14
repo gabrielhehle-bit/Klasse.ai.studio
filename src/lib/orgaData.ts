@@ -6,6 +6,43 @@ export type KlassenkasseState = {
   transaktionen: KassenTransaktion[];
 };
 
+export function normalizeKlassenkasse(raw: any): KlassenkasseState {
+  if (!raw || typeof raw !== 'object') {
+    return { kontostand: 0, sammlungen: [], transaktionen: [] };
+  }
+
+  if (raw.beitrag_pro_kind !== undefined) {
+    const target = roundEuro(Number(raw.beitrag_pro_kind) || 0);
+    const status: Geldsammlung['status'] = {};
+    const betraege: Geldsammlung['betraege'] = {};
+
+    for (const [studentId, paid] of Object.entries(raw.zahlungen || {})) {
+      status[studentId] = paid ? 'bezahlt' : 'offen';
+      betraege[studentId] = paid ? target : 0;
+    }
+
+    return {
+      kontostand: roundEuro(Number(raw.kontostand) || 0),
+      sammlungen: target > 0 ? [{
+        id: 'basis-migration',
+        titel: 'Basisbeitrag',
+        betrag: target,
+        erstelltAm: raw.erstelltAm || new Date(0).toISOString(),
+        abgeschlossen: false,
+        status,
+        betraege,
+      }] : [],
+      transaktionen: Array.isArray(raw.transaktionen) ? raw.transaktionen : [],
+    };
+  }
+
+  return {
+    kontostand: roundEuro(Number(raw.kontostand) || 0),
+    sammlungen: Array.isArray(raw.sammlungen) ? raw.sammlungen : [],
+    transaktionen: Array.isArray(raw.transaktionen) ? raw.transaktionen : [],
+  };
+}
+
 export function roundEuro(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.round((value + Number.EPSILON) * 100) / 100;
