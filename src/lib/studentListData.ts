@@ -50,6 +50,19 @@ export function toDateInputValue(value?: string | null): string {
   return `${year}-${month}-${day}`;
 }
 
+export function calculateStudentAge(value?: string | null, referenceDate = new Date()): number | null {
+  const birthday = parseStudentBirthday(value);
+  if (!birthday) return null;
+
+  let age = referenceDate.getFullYear() - birthday.getFullYear();
+  const birthdayNotReached =
+    referenceDate.getMonth() < birthday.getMonth() ||
+    (referenceDate.getMonth() === birthday.getMonth() && referenceDate.getDate() < birthday.getDate());
+
+  if (birthdayNotReached) age -= 1;
+  return age >= 0 ? age : null;
+}
+
 export function getStudentComparableName(student: StudentIdentityLike): string {
   const explicitName = String(student.name || '').trim();
   const fallbackName = `${String(student.vorname || '').trim()} ${String(student.nachname || '').trim()}`.trim();
