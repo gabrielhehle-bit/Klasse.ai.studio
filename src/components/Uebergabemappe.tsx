@@ -662,7 +662,7 @@ export default function Uebergabemappe() {
                     const assignedId = assignedStundenbilder[assignmentKey];
                     const assignedSb = lessonPlans.find(m => m.id === assignedId);
 
-                    const effectiveFach = (assignedSb?.faecher && assignedSb.faecher[0]) || wpItem?.fach || stammFach || '—';
+                    const effectiveFach = assignedSb?.fach || wpItem?.fach || stammFach || '—';
                     const effectiveInhalt = assignedSb?.titel || wpItem?.thema || '—';
 
                     if (stammFach === 'frei' && !assignedSb && !wpItem) {
