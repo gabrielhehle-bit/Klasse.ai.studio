@@ -142,6 +142,14 @@ export default function Attendance() {
           app.bundesland || "VBG"
         ),
       };
+
+    if (date.getDay() === 0 || date.getDay() === 6) {
+      return {
+        status: "free" as const,
+        holidayName: "Wochenende",
+      };
+    }
+
     const holiday = isHoliday(
       date,
       app.calendarSettings?.disabledHolidays,
@@ -161,7 +169,7 @@ export default function Attendance() {
   const hasConfiguredHours = activeHours.length > 0;
 
   // Active class name – keine erfundene Fallback-Klasse anzeigen.
-  const classLabel = app.klassenbezeichnung || app.klasse || "Keine Klasse";
+  const classLabel = app.klassenbezeichnung || app.klasse || "";
 
   // Formatted German Date string
   const formattedDate = useMemo(() => {
@@ -824,9 +832,11 @@ export default function Attendance() {
               <h1 className="text-[1.125rem] font-black text-slate-900 tracking-tight leading-none uppercase">
                 Anwesenheit
               </h1>
-              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[0.6875rem] font-extrabold border border-slate-200/60">
-                Klasse {classLabel}
-              </span>
+              {classLabel && (
+                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[0.6875rem] font-extrabold border border-slate-200/60">
+                  Klasse {classLabel}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 mt-1">
               <label className="text-[0.875rem] font-bold text-slate-600 hover:text-emerald-700 transition-colors cursor-pointer flex items-center gap-1.5">
@@ -1153,7 +1163,9 @@ export default function Attendance() {
             <div className="divide-y divide-slate-100">
               {sortedStudents.length === 0 && (
                 <div className="p-8 text-center text-sm font-bold text-slate-400">
-                  Noch keine Schüler:innen in Klasse {classLabel} angelegt.
+                  {classLabel
+                    ? `Noch keine Schüler:innen in Klasse ${classLabel} angelegt.`
+                    : "Noch keine Schüler:innen angelegt."}
                 </div>
               )}
 
