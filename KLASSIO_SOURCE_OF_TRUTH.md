@@ -55,24 +55,26 @@ PR #53 schloss anschließend die Einzelabnahme der Jahresplanung ab: Mehrfachthe
 
 PR #55 schloss danach die Einzelabnahme der Wochenplanung ab: Raster, Fortschritt, wichtige Termine, Duplizieren, Schnellplanung und Schüler-Wochenplan arbeiten durchgängig mit 10 Stunden-Slots. Stunde 9/10 erhalten keine erfundenen Standardzeiten; aktuelle Stunde und Excel-Vorlage verwenden die tatsächlich konfigurierten Stundenzeiten. Vorwoche, Wochenwahl und wöchentliche Wiederholung folgen der zentralen bundesland- und jahreswechselrichtigen Schulwochenlogik. Mehrstundenblöcke reichen nie über Slot 10 hinaus, die Mittagspause folgt der Klassenkonfiguration und `Restlicher Tag` spannt nur über die verbleibenden Slots. Der Excel-Import akzeptiert ausschließlich Stunde 1–10 und verwirft ungültige oder fehlende Tages-/Stundenangaben statt Montag/1. Stunde zu erfinden. Der Wochenabschluss verwendet den echten `erledigt`-Status, bleibt mit alten `completed`-Daten kompatibel und zeigt Stunden 1-basiert. Der Schüler-Wochenplan übernimmt auch Aufgaben aus Stunde 9 und 10.
 
+PR #57 schloss anschließend die Einzelabnahme der Materialbibliothek ab: Anlegen, Bearbeiten, Suche, Filter, Gruppierung und Favoriten bleiben erhalten; Dateiimporte werden auf PDF/JPG/PNG/WebP/GIF und zentrale Größenlimits begrenzt, Linkmaterial akzeptiert ausschließlich HTTP/HTTPS und beim Typwechsel werden veraltete Datei-/Linkdaten entfernt. Die PDF-Anzeige verwendet keinen `document.write`-Pfad mehr. Material → Wochenplan arbeitet mit allen 10 Stunden-Slots und der aktuell gewählten KW; beim Löschen, Sammellöschen oder vollständigen Leeren der globalen Bibliothek werden Materialverknüpfungen in den Wochenplänen aller Klassen bereinigt, ohne übrige Unterrichtsdaten anzutasten. Verdeckte Auswahl wird bei Filterwechseln entfernt. KI-Material wird per ID aktualisiert statt doppelt angelegt, Speicherlimits gelten auch für KI-/Arbeitsblatt-/Stundenplan-Speicherwege und Erfolgsmeldungen erscheinen nur nach tatsächlichem Speichern. Der Arbeitsblattgenerator und die Material-KI verwenden die aktive Schulstufe statt fest verdrahteter 4./1. Schulstufe.
+
 Die historischen divergierenden Branches `audit/production-demo-data`, `audit/visible-legacy-branding`, `audit/visible-legacy-branding-final`, `fix/klassio-visible-branding`, `fix/json-backups-and-critical-data-flows` und `feature/final-app-polish` wurden anschließend gezielt gegen den aktuellen Reconciliation-Stand geprüft. Ihre noch eigenen Commits enthalten entweder nur temporäre Audit-/CI-Workflows oder ältere Varianten von Funktionen, die im aktuellen Stand bereits gleichwertig oder neuer umgesetzt sind. Sie werden deshalb **nicht** in den Produktstand gemergt.
 
 Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist keine Arbeitsgrundlage. Seine relevanten funktionalen Lücken wurden selektiv auf frischen Branches vom jeweils aktuellen Reconciliation-HEAD neu umgesetzt. Verbleibende Unterschiede in Cockpit/BoardInk/Vorlagen stammen aus älteren UI-Varianten und werden nicht über den neueren, bereits getesteten Cockpit-Stand aus PR #6 gelegt.
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Reconciliation-Stand liegt nach PR #55 auf Commit `712f7f4b48e59f44b701cedf09aed7c69cba81e8` und wurde vollständig geprüft:
+Der letzte codehaltige Reconciliation-Stand liegt nach PR #57 auf Commit `6bc13a05502f9c4cb71f22b852ec63a58524b37d` und wurde vollständig geprüft:
 
-- Pre-Deployment Audit #122: erfolgreich
+- Pre-Deployment Audit #124: erfolgreich
 - TypeScript: erfolgreich
-- Tests: 886/886 erfolgreich
+- Tests: 900/900 erfolgreich
 - Production Build: erfolgreich
 - PWA-/Build-Ausgabe: erfolgreich
 - Production-Server- und `/api/health`-Smoke: erfolgreich
 - Zugangscode-/Session-/E-Mail-Fallback-Smoke: erfolgreich
-- World4You-Artefakt: `klassio-world4you-712f7f4b48e59f44b701cedf09aed7c69cba81e8`
+- World4You-Artefakt: `klassio-world4you-6bc13a05502f9c4cb71f22b852ec63a58524b37d`
 
-PR #55 wurde nach grüner Feature- und PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `712f7f4b48e59f44b701cedf09aed7c69cba81e8`.
+PR #57 wurde nach grüner Feature- und PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `6bc13a05502f9c4cb71f22b852ec63a58524b37d`.
 
 Der aktuelle Branch-HEAD kann danach reine Dokumentationscommits enthalten. Deshalb wird der verbindliche Reconciliation-HEAD **nicht dauerhaft in dieser Datei festgeschrieben**, sondern vor jeder Arbeit live aus GitHub gelesen und mit seinem neuesten erfolgreichen `Pre-Deployment Audit` abgeglichen.
 
@@ -96,7 +98,7 @@ Der Reconciliation-Stand enthält unter anderem:
 - Kassa & Orga mit centgenauen Geldsammlungen/Teilzahlungen/Kassenbuch, Checklisten, flexiblen Listen und klassenlokalen Klassenlogins; Legacy-Basisbeiträge und frühere globale Klassenlogins werden verlustfrei migriert
 - Planungszentrale mit vollständigem 10-Slot-Vertrag, ehrlichen leeren Fachzuständen, expliziter Wochenwahl ohne stillen Wochenend-Sprung sowie klassenlokaler Parkgarage und Wochenvorlagen; KI-Themenvorschläge werden sichtbar dargestellt und Fehler erzeugen keine erfundenen Ersatzantworten
 - Wochen- und Jahresplanung inklusive Vollbild, Excel-Roundtrip und Aufgabenblattgenerator; die Wochenplanung nutzt durchgängig 10 Slots, konfigurierte Stundenzeiten/Mittagspause, jahreswechselrichtige Vorwochen und bundeslandabhängige Schulwochen ohne erfundene Excel-Zuordnungen; die Jahresplanung bewahrt mehrere Themen pro Fach/KW verlustfrei in Excel/CSV/Monatsansicht, nutzt bundeslandrichtige Schulwochen und verschiebt Inhalte entlang echter Unterrichtswochen
-- Materialbibliothek inklusive Übergabe in den Wochenplan
+- Materialbibliothek mit CRUD, Suche/Filter/Gruppierung/Favoriten, validierten lokalen PDF-/Bilddateien und HTTP/HTTPS-Links, KI-/Arbeitsblatt-Inhalten sowie 10-Slot-Übergabe in den Wochenplan; Löschvorgänge räumen Materialverknüpfungen klassenübergreifend auf
 - Sokrates-PDF-Import mit lokal gebündeltem PDF.js-Worker und Offline/PWA-Unterstützung
 - verschlüsselten lokalen Datentresor, verschlüsselte JSON-Backups und Legacy-Parser; lokale Sicherungsdateien heißen `Klassio_Sicherung_YYYY-MM-DD.json`, neue OneDrive-Sicherungen `Klassio_Backup.json`; historische OneDrive-Dateinamen und das interne verschlüsselte Legacy-Format bleiben kompatibel
 - E-Mail-Einmalcode-Login mit administrativem Zugangscode als Fallback
@@ -237,7 +239,8 @@ Aktueller Fortschritt:
 - Planungszentrale: technisch abgeschlossen; PR #51 integriert, Audit #118 grün; reale Browser-/Touch-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Jahresplanung: technisch abgeschlossen; PR #53 integriert, Audit #120 grün; reale Browser-/Touch-/Druck-/Excel-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Wochenplanung: technisch abgeschlossen; PR #55 integriert, Audit #122 grün; reale Browser-/Touch-/Druck-/Excel-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
-- Nächster Bereich: Materialbibliothek.
+- Materialbibliothek: technisch abgeschlossen; PR #57 integriert, Audit #124 grün; reale Browser-/Touch-/Datei-/Link-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
+- Nächster Bereich: Übergabemappe.
 
 ## Pflicht für jeden neuen Chat
 
