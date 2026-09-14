@@ -119,7 +119,7 @@ export function extractContactAndAddress(
   let ort = '';
   let anschrift = '';
 
-  const plzOrt = textWithoutPhones.match(/\b([1-9][0-9]{3})\s+([A-ZÄÖÜ][a-zäöüßA-ZÄÖÜ\-/]+(?:\s+[A-ZÄÖÜ][a-zäöüßA-ZÄÖÜ\-/]+)*)/);
+  const plzOrt = textWithoutPhones.match(/\b([1-9][0-9]{3})\s+([A-ZÄÖÜ][a-zäöüßA-ZÄÖÜ\-/]+(?:\s+[A-ZÄÖÜ][a-zäöüßA-ZÄÖÜ\-/]+)*?)(?=\s+(?:Mutter|Vater|Mama|Papa|Tel|Telefon|Obsorge|\+43|0043|06)|$|,|;)/);
   if (plzOrt) {
     plz = plzOrt[1];
     ort = plzOrt[2].trim();
