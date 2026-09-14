@@ -21,6 +21,21 @@ export function getMaxPoints(app: AppState, fach: string, typ: string, idx: numb
   return 20; // default for lzk & obj
 }
 
+export function isAssessmentValueMissing(value: unknown): boolean {
+  return value === null ||
+    value === undefined ||
+    value === '' ||
+    value === ' ' ||
+    value === 'e' ||
+    value === 'f' ||
+    value === 'x' ||
+    value === '-';
+}
+
+export function hasCalculatedAverage(value: number | null | undefined): value is number {
+  return value !== null && value !== undefined && !Number.isNaN(value);
+}
+
 export function calculateItemPercent(
   rawVal: number | string | null | undefined,
   mode: AssessmentMode,
