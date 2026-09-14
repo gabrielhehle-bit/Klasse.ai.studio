@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { BarChart3, Target, Activity, LineChart, MessagesSquare, Table2, FileText, ChevronRight } from 'lucide-react';
+import { BarChart3, Target, Activity, LineChart, MessagesSquare, Table2, FileText, MessageSquareText, ChevronRight } from 'lucide-react';
 
 const items = [
   { id: 'noten', title: 'Notenmappe', description: 'Noten, Prozent, Punkte, Gewichtungen, Schularbeiten, LZK, WOPL und sonstige Leistungen.', icon: BarChart3 },
@@ -9,6 +9,7 @@ const items = [
   { id: 'statistik', title: 'Statistik & Profile', description: 'Auswertungen und grafische Übersichten auf Basis tatsächlich erfasster Daten.', icon: LineChart },
   { id: 'kel', title: 'KEL-Gespräche', description: 'Vorbereiten, Einschätzen, Gespräch führen, Ziele vereinbaren und Präsentation erstellen.', icon: MessagesSquare },
   { id: 'notenTabelle', title: 'Notenübersicht', description: 'Kompakte tabellarische Übersicht über vorhandene Leistungsdaten.', icon: Table2 },
+  { id: 'verbal', title: 'Verbale Beurteilung', description: 'Formulierungen und dokumentierte Beobachtungen für verbale Rückmeldungen nutzen.', icon: MessageSquareText },
   { id: 'jahresbericht', title: 'Jahresbericht', description: 'Dokumentierte Jahresübersichten und Berichte ohne erfundene Aussagen.', icon: FileText },
 ] as const;
 
@@ -22,7 +23,7 @@ export default function LeistungenHub() {
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent)]">Leistungen</p>
         <h1 className="mt-2 text-2xl font-black tracking-tight text-[var(--text)] sm:text-3xl">Leistungen, Entwicklung & Gespräche</h1>
         <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-[var(--text2)]">
-          Erfassen und auswerten – ohne Funktionen zu verstecken oder pädagogische Aussagen aus fehlenden Daten zu erfinden.
+          Erfassen, beurteilen und auswerten – ohne Funktionen zu verstecken oder pädagogische Aussagen aus fehlenden Daten zu erfinden.
         </p>
       </header>
 

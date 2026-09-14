@@ -1,18 +1,20 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { LayoutDashboard, CalendarDays, CalendarRange, BookOpen, Folder, Palette, Replace, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, CalendarRange, BookOpen, Folder, Palette, Replace, ClipboardList, ChevronRight } from 'lucide-react';
 
 const items = [
   { id: 'planungszentrale', label: 'Übersicht', description: 'Aktuelle Woche, offene Planung und Planungswerkzeuge.', icon: LayoutDashboard },
   { id: 'wochenplanung', label: 'Woche', description: 'Wochenplan im Raster, Vollbild, Excel-Roundtrip und Aufgabenblatt.', icon: CalendarDays },
   { id: 'jahresplanung', label: 'Jahr', description: 'Jahres- und Stoffplanung mit Schulwochen und Excel-Roundtrip.', icon: CalendarRange },
-  { id: 'stunden', label: 'Unterricht', description: 'Stundenentwürfe und vorbereitete Unterrichtsabläufe.', icon: BookOpen },
+  { id: 'stunden', label: 'Unterrichtsentwürfe', description: 'Stundenentwürfe und vorbereitete Unterrichtsabläufe.', icon: BookOpen },
   { id: 'materialien', label: 'Material', description: 'Materialbibliothek, Entwürfe und Übergabe in den Wochenplan.', icon: Folder },
   { id: 'canva', label: 'Canva', description: 'Designs suchen, erstellen, in Canva bearbeiten und exportieren.', icon: Palette },
+  { id: 'uebergabemappe', label: 'Übergabemappe', description: 'Wichtige Informationen und Unterlagen für eine Klassenübergabe bündeln.', icon: ClipboardList, klassenvorstandOnly: true },
 ] as const;
 
 export default function PlanungHub() {
-  const { setPage } = useApp();
+  const { app, setPage } = useApp();
+  const visibleItems = items.filter(item => !('klassenvorstandOnly' in item) || !item.klassenvorstandOnly || app.klassenvorstand);
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-6 sm:px-6">
@@ -24,8 +26,8 @@ export default function PlanungHub() {
         </p>
       </header>
 
-      <div className="grid grid-cols-2 gap-3 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-3 sm:grid-cols-3 lg:grid-cols-6">
-        {items.map(({ id, label, icon: Icon }) => (
+      <div className="grid grid-cols-2 gap-3 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-3 sm:grid-cols-3 lg:grid-cols-4">
+        {visibleItems.map(({ id, label, icon: Icon }) => (
           <button key={id} type="button" onClick={() => setPage(id)}
             className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-2xl px-3 py-3 text-center text-sm font-bold text-[var(--text2)] transition hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]">
             <Icon size={19} />
@@ -35,7 +37,7 @@ export default function PlanungHub() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {items.map(({ id, label, description, icon: Icon }) => (
+        {visibleItems.map(({ id, label, description, icon: Icon }) => (
           <button key={id} type="button" onClick={() => setPage(id)}
             className="group flex items-center gap-4 rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] p-5 text-left shadow-sm transition hover:border-[var(--accent)]/35 hover:shadow-md">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]"><Icon size={21} /></span>

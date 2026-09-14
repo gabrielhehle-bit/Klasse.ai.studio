@@ -46,19 +46,33 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'klasse', label: 'Klasse', icon: <Users size={14} />, section: 'Hauptbereiche' },
     { id: 'planung', label: 'Planung', icon: <CalendarDays size={14} />, section: 'Hauptbereiche' },
     { id: 'leistungen', label: 'Leistungen', icon: <BarChart3 size={14} />, section: 'Hauptbereiche' },
-    { id: 'cockpit', label: 'Unterricht', icon: <Play size={14} />, section: 'Hauptbereiche' },
+    { id: 'unterricht', label: 'Unterricht', icon: <Play size={14} />, section: 'Hauptbereiche' },
+    { id: 'cockpit', label: 'Lehrercockpit', icon: <Play size={14} />, section: 'Unterricht & Helfer' },
     { id: 'ki-helfer', label: 'KI-Helfer', icon: <Bot size={14} />, section: 'Unterricht & Helfer' },
+    { id: 'arbeitsblatt', label: 'Arbeitsblatt-Generator', icon: <FileEdit size={14} />, section: 'Unterricht & Helfer' },
+    { id: 'stationenbetrieb', label: 'Stationenbetrieb', icon: <LayoutGrid size={14} />, section: 'Unterricht & Helfer' },
+    { id: 'stimmnotizen', label: 'Stimm-Notizen', icon: <Mic size={14} />, section: 'Unterricht & Helfer' },
+    { id: 'differenzierung', label: 'Differenzierung', icon: <Target size={14} />, section: 'Unterricht & Helfer' },
+    { id: 'elternbrief', label: 'Elternbrief', icon: <Mail size={14} />, section: 'Unterricht & Helfer' },
     { id: 'schueler', label: 'Kinder & Dossiers', icon: <Users size={14} />, section: 'Klasse & Kinder' },
     { id: 'sitzplan', label: 'Sitzplan & Gruppen', icon: <MapIcon size={14} />, section: 'Klasse & Kinder' },
     { id: 'anwesenheit', label: 'Anwesenheit & Befinden', icon: <Pin size={14} />, section: 'Klasse & Kinder' },
+    { id: 'verhalten', label: 'Notizen & Beobachtungen', icon: <Notebook size={14} />, section: 'Klasse & Kinder' },
     { id: 'orga', label: 'Organisation', icon: <Wallet size={14} />, section: 'Klasse & Kinder' },
     { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={14} />, section: 'Leistungen' },
     { id: 'statistik', label: 'Statistik & Profile', icon: <LineChart size={14} />, section: 'Leistungen' },
     { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={14} />, section: 'Leistungen' },
+    { id: 'portfolio', label: 'Lernziele & Portfolio', icon: <Briefcase size={14} />, section: 'Leistungen' },
+    { id: 'notenTabelle', label: 'Notenübersicht', icon: <Table size={14} />, section: 'Leistungen' },
+    { id: 'verbal', label: 'Verbale Beurteilung', icon: <FileText size={14} />, section: 'Leistungen' },
+    { id: 'kel', label: 'KEL-Gespräche', icon: <MessagesSquare size={14} />, section: 'Leistungen' },
     { id: 'planungszentrale', label: 'Planungsübersicht', icon: <Target size={14} />, section: 'Planung' },
     { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={14} />, section: 'Planung' },
     { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={14} />, section: 'Planung' },
     { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={14} />, section: 'Planung' },
+    { id: 'stunden', label: 'Stundenentwürfe', icon: <Notebook size={14} />, section: 'Planung' },
+    { id: 'canva', label: 'Canva', icon: <LayoutGrid size={14} />, section: 'Planung' },
+    { id: 'vertretung', label: 'Vertretung', icon: <Replace size={14} />, section: 'Planung' },
     { id: 'uebergabemappe', label: 'Übergabemappe', icon: <ClipboardList size={14} />, section: 'Planung' },
     { id: 'klassengemeinschaft', label: 'Wir-Gefühl', icon: <Heart size={14} />, section: 'Entwicklung & Berichte' },
     { id: 'jahresbericht', label: 'Jahresbericht', icon: <FileText size={14} />, section: 'Entwicklung & Berichte' },
@@ -234,7 +248,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                         ${currentPage === item.id 
                           ? 'shadow-xs font-bold'
                           : 'text-[var(--text-secondary)] hover:bg-[var(--surface-subtle,var(--surface2))] hover:text-[var(--text-primary)] group'}
-                        ${item.id === 'cockpit' && currentPage !== item.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-extrabold border border-[var(--accent)]/25' : ''}
+                        ${item.id === 'unterricht' && currentPage !== item.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-extrabold border border-[var(--accent)]/25' : ''}
                         ${isCollapsed ? 'justify-center px-0' : ''}`}
                       style={currentPage === item.id ? { backgroundColor: 'var(--accent)', color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}
                       onClick={() => {
@@ -250,7 +264,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                           transition={{ type: "spring", stiffness: 380, damping: 30 }}
                         />
                       )}
-                      <span className={`${currentPage === item.id ? '' : item.id === 'cockpit' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors'}`} style={currentPage === item.id ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}>{item.icon}</span>
+                      <span className={`${currentPage === item.id ? '' : item.id === 'unterricht' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors'}`} style={currentPage === item.id ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}>{item.icon}</span>
                       {!isCollapsed && <span className="text-wrap leading-tight break-words tracking-tight" style={currentPage === item.id ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}>{item.label}</span>}
                     </button>
                   ))}

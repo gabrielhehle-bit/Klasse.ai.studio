@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Users, UserCheck, Armchair, Wallet, MessagesSquare, Heart, ChevronRight } from 'lucide-react';
+import { Users, UserCheck, Armchair, Wallet, MessagesSquare, Heart, Notebook, ChevronRight } from 'lucide-react';
 import { toLocalDateKey } from '../lib/localDate';
 
 type HubItem = {
@@ -23,6 +23,7 @@ export default function KlasseHub() {
     { id: 'schueler', title: 'Kinder & Dossiers', description: 'Stammdaten, Dossiers, Kontakte und individuelle Informationen.', icon: Users, meta: `${students.length} Kinder` },
     { id: 'anwesenheit', title: 'Anwesenheit & Befinden', description: 'Anwesenheit erfassen und Befinden dokumentieren – ohne automatische Einträge.', icon: UserCheck, meta: recordedToday > 0 ? 'Heute bereits Einträge' : 'Heute noch offen' },
     { id: 'sitzplan', title: 'Sitzplan & Gruppen', description: 'Sitzordnung, feste Gruppen und organisatorische Regeln verwalten.', icon: Armchair },
+    { id: 'verhalten', title: 'Notizen & Beobachtungen', description: 'Pädagogische Beobachtungen und wichtige Notizen zur Klasse festhalten.', icon: Notebook },
     { id: 'orga', title: 'Organisation', description: 'Klassenkasse, Geldsammlungen, Listen, Checklisten und Zugänge.', icon: Wallet, klassenvorstandOnly: true },
     { id: 'kel', title: 'KEL-Gespräche', description: 'Gespräche vorbereiten, Einschätzungen vergleichen, Ziele und Vereinbarungen dokumentieren.', icon: MessagesSquare, klassenvorstandOnly: true },
     { id: 'klassengemeinschaft', title: 'Wir-Gefühl & Klasse', description: 'Klassenklima und bewusst dokumentierte Gemeinschaftsaktivitäten.', icon: Heart, klassenvorstandOnly: true },
@@ -38,7 +39,7 @@ export default function KlasseHub() {
           Alles rund um deine Klasse
         </h1>
         <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-[var(--text2)]">
-          Kinder, Anwesenheit, Sitzplan und Organisation an einem Ort. Fachliche Detailfunktionen bleiben in den jeweiligen Bereichen erhalten.
+          Kinder, Anwesenheit, Beobachtungen, Sitzplan und Organisation an einem Ort. Fachliche Detailfunktionen bleiben in den jeweiligen Bereichen erhalten.
         </p>
       </header>
 
