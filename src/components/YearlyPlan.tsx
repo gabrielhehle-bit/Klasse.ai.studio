@@ -1943,7 +1943,10 @@ export default function YearlyPlan() {
                   <div className="text-[0.5625rem] font-black uppercase tracking-widest text-text-muted mb-1">
                     KW {editingCell.kw}
                     {(() => {
-                      const sw = getSW(kwToMonday(editingCell.kw, getStartYear(app?.schuljahr)), app?.schuljahr, app?.bundesland || 'VBG');
+                      const week = weeks.find(w => w.kw === editingCell.kw);
+                      const sw = week
+                        ? getSW(week.monday, app?.schuljahr, app?.bundesland || 'VBG')
+                        : null;
                       return sw ? ` (SW ${sw})` : '';
                     })()}
                     {` • ${subjects.find(s => s.id === editingCell.subjectId)?.label}`}
@@ -2371,7 +2374,10 @@ export default function YearlyPlan() {
                       {aiSuggestions.map((s, idx) => {
                         const subName = subjects.find(sub => sub.id === s.subjectId)?.label || s.subjectId;
                         const subColor = subjects.find(sub => sub.id === s.subjectId)?.color || 'bg-stone-100';
-                        const sw = getSW(kwToMonday(s.kw, getStartYear(app?.schuljahr)), app?.schuljahr, app?.bundesland || 'VBG');
+                        const suggestionWeek = weeks.find(w => w.kw === s.kw);
+                        const sw = suggestionWeek
+                          ? getSW(suggestionWeek.monday, app?.schuljahr, app?.bundesland || 'VBG')
+                          : null;
 
                         return (
                           <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-stone-50 border border-stone-200/50 rounded-xl hover:bg-stone-50/80 transition-all">
