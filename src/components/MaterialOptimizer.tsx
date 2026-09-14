@@ -21,7 +21,7 @@ function AISaveButton({ content, context }: { content: string; context: string }
   const handleSave = () => {
     if (isStorageFull) return;
 
-    addMaterialFromAI({
+    const saved = addMaterialFromAI({
       titel: `KI-Check: ${context.substring(0, 30)}${context.length > 30 ? '...' : ''}`,
       beschreibung: `Optimiert am ${new Date().toLocaleDateString('de-DE')} via KI-Helfer.`,
       typ: 'notiz',
@@ -32,6 +32,7 @@ function AISaveButton({ content, context }: { content: string; context: string }
       kiGeneriert: true,
       erstelltAm: new Date().toISOString()
     }, 'KI-Helfer');
+    if (!saved) return;
 
     setIsSaved(true);
     setShowOverlay(false);

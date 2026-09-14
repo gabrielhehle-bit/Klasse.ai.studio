@@ -32,6 +32,7 @@ interface WorksheetGeneratorProps {
 
 export default function WorksheetGenerator({ initialStudentId, embeddedMode = false }: WorksheetGeneratorProps = {}) {
   const { app } = useApp();
+  const worksheetGrade = Math.min(4, Math.max(1, Number(app.stufe) || 1));
   const { showToast } = useToast();
   const { addMaterialFromAI } = useMaterialLibrary();
 
@@ -290,7 +291,7 @@ export default function WorksheetGenerator({ initialStudentId, embeddedMode = fa
       .filter(Boolean)
       .join(', ');
 
-    const systemPrompt = `Du bist ein erfahrener Volksschullehrer und Experte für Didaktik der 4. Schulstufe gemäß dem österreichischen Lehrplan. 
+    const systemPrompt = `Du bist ein erfahrener Volksschullehrer und Experte für Didaktik der ${worksheetGrade}. Schulstufe gemäß dem österreichischen Lehrplan. 
 Deine Aufgabe ist es, ein perfekt formatiertes, druckfertiges Arbeitsblatt oder eine Lernzielkontrolle im HTML/Tailwind-Format zu generieren.
 
 STRIKTE REGELN FÜR DEN INHALT:
@@ -304,7 +305,7 @@ STRIKTE REGELN FÜR DAS LAYOUT (A4-PRINT-PERFEKTION):
 2. A4-Spezifikation: Das Haupt-Container-Element MUSS exakt folgende CSS-Eigenschaften haben:
    \`width: 210mm; min-height: 297mm; padding: 15mm; margin: 0 auto; background: white; color: black; box-sizing: border-box;\`
 3. Print-Optimierung: Verwende keine dunklen Hintergrundfarben (Tinte sparen!). Nutze maximal feine, hellgraue Rahmen. Bette Schreibtrennlinien (border-b border-dashed border-gray-300 h-6 w-full) ein, damit Kinder handschriftliche Antworten eintragen können.
-4. Typografie: Verwende klare, serifenlose Schriften (Sans-Serif wie Inter, Arial). Schriftgröße für die 4. Klasse muss mindestens 12pt (16px) betragen. Verwende großzügigen Zeilenabstand (leading-relaxed oder leading-loose) und freie Schreiblinien, um ausreichend Platz für handschriftliche Notizen und Rechnungen zu lassen.
+4. Typografie: Verwende klare, serifenlose Schriften (Sans-Serif wie Inter, Arial). Schriftgröße für die ${worksheetGrade}. Schulstufe muss mindestens 12pt (16px) betragen. Verwende großzügigen Zeilenabstand (leading-relaxed oder leading-loose) und freie Schreiblinien, um ausreichend Platz für handschriftliche Notizen und Rechnungen zu lassen.
 5. Struktur und 2-Seiten-Fluss (Word-Dokument-Verhalten):
    Generiere das Arbeitsblatt so, dass es exakt ZWEI getrennte Seiten ausdruckt:
    - Seite 1 (Aufgaben für die Schüler):
@@ -327,7 +328,7 @@ Generiere jetzt das Arbeitsblatt basierend auf folgenden Variablen und Vorgaben:
 - Modus: ${modus === 'förderung' ? 'Individuelle Förderung' : modus === 'klassenuebung' ? 'Klassen-Übung' : modus === 'test' ? 'Test' : 'Schularbeit'}
 - Thema: ${finalSubject} - ${finalType}
 - Differenzierung: ${computedLevel}
-- Schulstufe: 4. Schulstufe (Österreichischer Lehrplan)
+- Schulstufe: ${worksheetGrade}. Schulstufe (Österreichischer Lehrplan)
 - Pädagogische Schwerpunkte:
   * Zielgruppe: ${selectedStudents.length > 0 ? `${selectedStudents.length} Schüler/in(nen) (Differenzierungsgruppe)` : 'Die gesamte Klasse'}
   * Namenszeile: Erzeuge oben eine neutrale Ausfüllzeile für handschriftliche Schülernamen (z.B. "Name: ________________________  Datum: ____________"). Schreibe keine echten Namen in den Aufgabentext.
@@ -444,18 +445,23 @@ Das Arbeitsblatt MUSS exakt 1 A4-Seite einnehmen. Der Lösungsbogen MUSS exakt 1
       setActiveSavedId(newSheet.id);
       
       // Save directly into the shared Teacher's Material Library (Materialbibliothek)
-      addMaterialFromAI({
+      const savedInLibrary = addMaterialFromAI({
         id: newSheet.id,
         titel: newSheet.title || `Arbeitsblatt: ${finalType} - ${finalSubject}`,
-        beschreibung: `Österreichischer Lehrplan 4. Schulstufe | Modus: ${modus === 'förderung' ? 'Individuelle Förderung' : modus === 'klassenuebung' ? 'Klassen-Übung' : modus === 'test' ? 'Test LZK' : 'Schularbeit'} | Niveau: ${computedLevelLabel} | Story: ${finalInteressen} | Für: ${newSheet.targetStudents.join(', ')}`,
+        beschreibung: `Österreichischer Lehrplan ${worksheetGrade}. Schulstufe | Modus: ${modus === 'förderung' ? 'Individuelle Förderung' : modus === 'klassenuebung' ? 'Klassen-Übung' : modus === 'test' ? 'Test LZK' : 'Schularbeit'} | Niveau: ${computedLevelLabel} | Story: ${finalInteressen} | Für: ${newSheet.targetStudents.join(', ')}`,
         typ: 'sonstiges', // Valid material type under types.ts Category
         faecher: [finalSubject],
-        schulstufen: [4],
+        schulstufen: [worksheetGrade],
         tags: [finalSubject, 'Arbeitsblatt', computedLevelLabel, modus].filter(Boolean) as string[],
         inhaltText: generatedContent
       }, 'ki-arbeitsblatt');
 
-      showToast('Arbeitsblatt gespeichert & in Materialbibliothek hinterlegt! 💾', 'success');
+      showToast(
+        savedInLibrary
+          ? 'Arbeitsblatt gespeichert & in Materialbibliothek hinterlegt! 💾'
+          : 'Arbeitsblatt gespeichert, aber die Materialbibliothek ist voll.',
+        savedInLibrary ? 'success' : 'error',
+      );
     }
   };
 
@@ -666,7 +672,7 @@ Das Arbeitsblatt MUSS exakt 1 A4-Seite einnehmen. Der Lösungsbogen MUSS exakt 1
                 <div>
                   <h2 className="text-[0.875rem] leading-snug font-black text-slate-800 tracking-tight flex items-center gap-1.5">
                     Didaktischer Arbeitsblatt-Generator 
-                    <span className="text-[0.5625rem] font-black uppercase tracking-wider bg-indigo-100 px-2 py-0.5 rounded-full text-indigo-700">4. Schulstufe</span>
+                    <span className="text-[0.5625rem] font-black uppercase tracking-wider bg-indigo-100 px-2 py-0.5 rounded-full text-indigo-700">{worksheetGrade}. Schulstufe</span>
                   </h2>
                   <p className="text-[0.625rem] text-slate-400 font-bold">Inklusions-optimiertes & gamifiziertes Unterrichtsmaterial für den österreichischen Lehrplan</p>
                 </div>
