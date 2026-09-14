@@ -270,7 +270,7 @@ export function generateBackupFilename(date: Date = new Date()): string {
  */
 export function serializeBackup(backup: LehrerAppEncryptedBackupV1): string {
   if (!isEncryptedBackupV1(backup)) {
-    throw new CryptoError('INVALID_PAYLOAD', 'Objekt ist kein gültiges LehrerAppEncryptedBackupV1.');
+    throw new CryptoError('INVALID_PAYLOAD', 'Kein gültiges Klassio-Backup (V1).');
   }
   return JSON.stringify(backup, null, 2);
 }
