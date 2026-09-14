@@ -191,3 +191,34 @@ export function yearPlanCellDisplayText(cell: YearPlanCell | undefined | null): 
     .filter(Boolean)
     .join(' · ');
 }
+
+
+export function shiftYearPlanSubjectForward(
+  existingPlan: Record<number, Record<string, YearPlanCell>>,
+  subjectId: string,
+  startKw: number,
+  orderedTeachingKws: number[],
+): Record<number, Record<string, YearPlanCell>> {
+  const next: Record<number, Record<string, YearPlanCell>> =
+    JSON.parse(JSON.stringify(existingPlan || {}));
+  const startIndex = orderedTeachingKws.indexOf(startKw);
+  if (startIndex < 0) return next;
+
+  const sourceKws = orderedTeachingKws
+    .slice(startIndex)
+    .filter(kw => next[kw]?.[subjectId])
+    .reverse();
+
+  for (const currentKw of sourceKws) {
+    const index = orderedTeachingKws.indexOf(currentKw);
+    const nextKw = orderedTeachingKws[index + 1];
+    if (!nextKw) continue;
+
+    if (!next[nextKw]) next[nextKw] = {};
+    next[nextKw][subjectId] = next[currentKw][subjectId];
+    delete next[currentKw][subjectId];
+    if (Object.keys(next[currentKw]).length === 0) delete next[currentKw];
+  }
+
+  return next;
+}
