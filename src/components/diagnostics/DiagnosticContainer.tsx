@@ -23,7 +23,7 @@ export const DiagnosticContainer: React.FC = () => {
 
   const students = app.schueler || [];
   const diagnosticResults = app.diagnosticResults || [];
-  const activeClassName = (app as any).schulklasse || app.stufe || '2a';
+  const activeClassName = app.klassenbezeichnung?.trim() || app.klasse?.trim() || undefined;
 
   const handleSaveResult = (newResult: DiagnosticResult) => {
     const currentList = app.diagnosticResults || [];
