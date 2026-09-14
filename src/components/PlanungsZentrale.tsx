@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   getSW, getStartYear, getKW, kwYear, kwToMonday, getCurrentSchuljahr, getSchulstartKW, formatLocalDateKey 
 } from '../lib/utils';
-import { TAGE_NAMEN } from '../constants';
+import { LESSON_SLOT_NUMBERS, MAX_LESSON_SLOTS, TAGE_NAMEN } from '../constants';
 import { ErrorBoundaryLogger } from './ErrorBoundaryLogger';
 import { 
   BrainCircuit, CalendarRange, ArrowRight, Activity, AlertCircle, Sparkles, 
@@ -25,21 +25,8 @@ export default function PlanungsZentrale() {
   
   const currDate = new Date();
   const actualKW = getKW(currDate);
-  const isWeekend = currDate.getDay() === 0 || currDate.getDay() === 6;
 
-  const [hasBumped, setHasBumped] = useState(false);
-
-  // Auto-advance calendar week during weekend
-  useEffect(() => {
-    if (isWeekend && app.currentKW === actualKW && !hasBumped) {
-       const nextWeekDate = new Date(currDate);
-       nextWeekDate.setDate(currDate.getDate() + 7);
-       const bumpedKw = getKW(nextWeekDate);
-       setApp(prev => ({ ...prev, currentKW: bumpedKw }));
-       setHasBumped(true);
-    }
-  }, [isWeekend, actualKW, app.currentKW, hasBumped, setApp]);
-
+  // Opening the overview must never silently change the globally selected week.
   const nextKW = app.currentKW || actualKW;
   const startYear = getStartYear(app.schuljahr);
   const year = kwYear(nextKW, startYear, app.bundesland || 'VBG');
@@ -51,7 +38,7 @@ export default function PlanungsZentrale() {
   const [isEinfachModus, setIsEinfachModus] = useState<boolean>(true);
   const [showMehrMenu, setShowMehrMenu] = useState<boolean>(false);
   const [quickPlanOpen, setQuickPlanOpen] = useState<boolean>(false);
-  const [quickPlanType, setQuickPlanType] = useState<'lesson' | 'event' | 'task'>('lesson');
+  const [quickPlanType, setQuickPlanType] = useState<'lesson' | 'event'>('lesson');
 
   // Planning Center Focus states
   const [planningFocus, setPlanningFocus] = useState<'day' | 'week' | 'year'>('week');
@@ -90,12 +77,10 @@ export default function PlanungsZentrale() {
 
   const DAYS_DE = useMemo(() => ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'], []);
 
-  const availableSubjects = useMemo(() => {
-    return app.faecher && app.faecher.length > 0 ? app.faecher : [
-      'Mathematik', 'Deutsch', 'Sachunterricht', 'Religion', 'Englisch', 
-      'Musikerziehung', 'Bildnerische Erziehung', 'Werken (TEC)', 'Werken (TEX)', 'Bewegung und Sport'
-    ];
-  }, [app.faecher]);
+  const availableSubjects = useMemo(
+    () => (Array.isArray(app.faecher) ? app.faecher.filter(Boolean) : []),
+    [app.faecher],
+  );
 
   const todayDayIdx = useMemo(() => {
     const day = currDate.getDay(); // 0: Sun, 1: Mon ... 5: Fri
@@ -233,7 +218,7 @@ export default function PlanungsZentrale() {
       setCustomMaterialText(lesson.customMaterial || '');
     } else {
       const defaultFach = app.stammplan?.[dayName]?.[hourIdx + 1] || '';
-      setActiveSubject(defaultFach || availableSubjects[0] || 'Mathematik');
+      setActiveSubject(defaultFach || availableSubjects[0] || '');
       setLessonTopic('');
       setLessonHomework('');
       setDidacticType('Einführung');
@@ -252,6 +237,12 @@ export default function PlanungsZentrale() {
 
   // Save current lesson slot
   const handleSaveLesson = () => {
+    if (!activeSubject.trim()) {
+      setSuccessMessage('Bitte zuerst ein Fach auswählen oder in den Einstellungen anlegen.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      return;
+    }
+
     const dayName = DAYS_DE[selectedDayIdx];
     const materialSummary = [
       ...selectedMaterials,
@@ -632,7 +623,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
       const dayKey = useIdx ? dIdx : dayName;
       const dayPlan = wp[dayKey] || {};
 
-      for (let hIdx = 0; hIdx < 6; hIdx++) {
+      for (let hIdx = 0; hIdx < MAX_LESSON_SLOTS; hIdx++) {
         const lesson = dayPlan[hIdx];
         const defaultFach = app.stammplan?.[dayName]?.[hIdx + 1] || '';
 
@@ -861,10 +852,10 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' 
                   : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
               }`}
-              title="Zwischen einfachem Modus und erweiterter Ansicht umschalten"
+              title="Zwischen Übersicht und Planungswerkzeugen wechseln"
             >
               <Sliders size={14} className={isEinfachModus ? 'text-emerald-600' : 'text-slate-500'} />
-              <span>{isEinfachModus ? 'Einfachmodus AN' : 'Erweiterter Modus'}</span>
+              <span>{isEinfachModus ? 'Übersicht' : 'Planungswerkzeuge'}</span>
             </button>
 
             {/* KW Switcher */}
@@ -1049,7 +1040,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
 
                   {/* List of Today's Scheduled Lessons */}
                   <div className="space-y-2.5">
-                    {[0, 1, 2, 3, 4, 5].map(hourIdx => {
+                    {LESSON_SLOT_NUMBERS.map(slot => {
+                      const hourIdx = slot - 1;
                       const dayName = DAYS_DE[todayDayIdx];
                       const wp = app.wochenplanung?.[nextKW] || {};
                       const useIdx = wp[todayDayIdx] !== undefined;
@@ -1384,7 +1376,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                   onClick={() => { setPlanningFocus('week'); setActiveTab('wochenplan'); }}
                   className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${planningFocus === 'week' && activeTab === 'wochenplan' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`}
                 >
-                  <LayoutGrid size={15} /> Wochenplan-Gitter (5x6)
+                  <LayoutGrid size={15} /> Wochenplan-Gitter (5×10)
                 </button>
 
                 <button 
@@ -1525,7 +1517,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                   )}
                 </div>
               ) : (
-                /* CLASSIC 5x6 TIMETABLE MATRIX GRID */
+                /* CLASSIC 5x10 TIMETABLE MATRIX GRID */
                 <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <h3 className="font-extrabold text-slate-800 text-sm">Wochenstunden-Gitter (KW {nextKW})</h3>
@@ -1545,8 +1537,9 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                             <span>{dayName}</span>
                           </div>
 
-                          <div className="grid grid-cols-6 gap-2">
-                            {[0, 1, 2, 3, 4, 5].map(hourIdx => {
+                          <div className="grid grid-cols-2 sm:grid-cols-5 xl:grid-cols-10 gap-2">
+                            {LESSON_SLOT_NUMBERS.map(slot => {
+                      const hourIdx = slot - 1;
                               const lesson = dayPlan[hourIdx];
                               const defaultFach = app.stammplan?.[dayName]?.[hourIdx + 1] || '';
 
@@ -1636,7 +1629,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                 </div>
 
                 {/* Type Selection Tabs */}
-                <div className="grid grid-cols-3 bg-slate-100 p-1 rounded-2xl gap-1 text-xs font-extrabold text-center">
+                <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-2xl gap-1 text-xs font-extrabold text-center">
                   <button
                     onClick={() => setQuickPlanType('lesson')}
                     className={`py-2 rounded-xl transition cursor-pointer ${quickPlanType === 'lesson' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600'}`}
@@ -1677,8 +1670,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                           onChange={(e) => setSelectedHour(parseInt(e.target.value))}
                           className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
                         >
-                          {[0, 1, 2, 3, 4, 5].map(h => (
-                            <option key={h} value={h}>{h + 1}. Stunde</option>
+                          {LESSON_SLOT_NUMBERS.map(slot => (
+                            <option key={slot} value={slot - 1}>{slot}. Stunde</option>
                           ))}
                         </select>
                       </div>
@@ -1705,6 +1698,23 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                           );
                         })}
                       </div>
+                      {availableSubjects.length === 0 && !activeSubject && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                          <span className="text-[11px] font-semibold text-amber-900">
+                            Für diese Klasse sind noch keine Fächer eingerichtet.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickPlanOpen(false);
+                              setPage('settings');
+                            }}
+                            className="text-[11px] font-black text-amber-900 underline underline-offset-2"
+                          >
+                            Einstellungen öffnen
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Topic Field */}
