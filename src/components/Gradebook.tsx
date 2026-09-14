@@ -890,15 +890,25 @@ export default function Gradebook() {
     setApp(prev => {
       const nm = { ...(prev.notenMeta || {}) };
       const currentFach = { ...(nm[fach] || {}) };
+      const nextMeta: Record<string, any> = {
+        ...nm,
+        [fach]: {
+          ...currentFach,
+          assessmentMode: newMode
+        }
+      };
+
+      if (nextMeta.syncWpDeutschMath && (fach === 'Deutsch' || fach === 'Mathematik')) {
+        const otherFach = fach === 'Deutsch' ? 'Mathematik' : 'Deutsch';
+        const otherMode = getAssessmentMode(prev, otherFach);
+        if (otherMode !== newMode) {
+          nextMeta.syncWpDeutschMath = false;
+        }
+      }
+
       return {
         ...prev,
-        notenMeta: {
-          ...nm,
-          [fach]: {
-            ...currentFach,
-            assessmentMode: newMode
-          }
-        }
+        notenMeta: nextMeta
       };
     });
   };
