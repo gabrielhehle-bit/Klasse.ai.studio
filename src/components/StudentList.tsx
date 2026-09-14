@@ -528,7 +528,22 @@ export default function StudentList() {
           </div>
         </div>
 
-  {schueler.length > 0 && viewMode === 'list' ? (
+  {filteredStudents.length === 0 ? (
+        <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center print:hidden">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300 mb-4">
+            <Search size={20} />
+          </div>
+          <h4 className="font-black text-slate-900">Keine passenden Schüler:innen</h4>
+          <p className="text-sm text-slate-500 mt-1">Passe die Suche oder den Filter an.</p>
+          <button
+            type="button"
+            onClick={() => { setSearchTerm(''); setActiveFilter('all'); }}
+            className="mt-4 px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-wider hover:bg-slate-800 transition-colors"
+          >
+            Suche & Filter zurücksetzen
+          </button>
+        </div>
+      ) : viewMode === 'list' ? (
         <div className={`bg-white border border-slate-200 shadow-sm overflow-x-auto flex flex-col ${
           isCompact ? 'rounded-xl' : isLarge ? 'rounded-3xl' : 'rounded-2xl'
         }`}>
