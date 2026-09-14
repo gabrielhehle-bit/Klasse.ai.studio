@@ -10,6 +10,91 @@ export function getAssessmentMode(app: AppState, fach: string): AssessmentMode {
   return 'grades';
 }
 
+export interface HomeworkGradebookSettings {
+  mode: 'grade' | 'document';
+  percentDeduction: number;
+  participationDeduction: number;
+}
+
+export function getHomeworkGradebookSettings(app: AppState, fach: string): HomeworkGradebookSettings {
+  const meta = app.notenMeta?.[fach] || {};
+  const legacyDocumentOnly =
+    app.settings?.hueMode === 'document' || app.settings?.hueGewichten === false;
+
+  const mode: 'grade' | 'document' =
+    meta.hueMode === 'document' || meta.hueMode === 'grade'
+      ? meta.hueMode
+      : legacyDocumentOnly
+      ? 'document'
+      : 'grade';
+
+  const rawDeduction = meta.hueDeduction ?? app.settings?.huePercentDeduction ?? 5;
+  const percentDeduction = Number.isFinite(Number(rawDeduction))
+    ? Math.max(0, Number(rawDeduction))
+    : 5;
+
+  const legacyParticipation =
+    app.settings?.hueWeight !== undefined
+      ? app.settings.hueWeight
+      : legacyDocumentOnly
+      ? 0
+      : 1;
+  const rawParticipation = meta.hueMitarbeitWeight ?? legacyParticipation;
+  const participationDeduction = Number.isFinite(Number(rawParticipation))
+    ? Math.max(0, Number(rawParticipation))
+    : 1;
+
+  return { mode, percentDeduction, participationDeduction };
+}
+
+export function parseFinalGradeInput(input: string): { valid: boolean; value: string } {
+  const trimmed = String(input ?? '').trim();
+  if (trimmed === '') return { valid: true, value: '' };
+  const upper = trimmed.toUpperCase();
+  if (upper === 'SPF' || upper === 'ESPF') return { valid: true, value: upper };
+
+  const normalized = trimmed.replace(',', '.');
+  if (!/^(?:[1-4](?:\.\d+)?|5(?:\.0+)?)$/.test(normalized)) {
+    return { valid: false, value: '' };
+  }
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > 5) {
+    return { valid: false, value: '' };
+  }
+  return { valid: true, value: String(parsed) };
+}
+
+export function getMirroredAssessmentValue(
+  rawValue: number | string | null,
+  sourceMode: AssessmentMode,
+  sourceMaxPoints: number,
+  targetMode: AssessmentMode,
+  targetMaxPoints: number,
+): { sync: boolean; value: number | string | null } {
+  if (typeof rawValue === 'string' && ['e', 'f', 'x', '-'].includes(rawValue.toLowerCase())) {
+    return { sync: true, value: rawValue.toLowerCase() };
+  }
+  if (rawValue === null) return { sync: true, value: null };
+  if (sourceMode !== targetMode) return { sync: false, value: rawValue };
+
+  if (sourceMode !== 'points') {
+    return { sync: true, value: rawValue };
+  }
+
+  if (typeof rawValue !== 'number' || !Number.isFinite(rawValue)) {
+    return { sync: false, value: rawValue };
+  }
+  if (!(sourceMaxPoints > 0) || !(targetMaxPoints > 0)) {
+    return { sync: false, value: rawValue };
+  }
+
+  const proportional = Math.round((rawValue / sourceMaxPoints) * targetMaxPoints * 10) / 10;
+  return {
+    sync: true,
+    value: Math.min(targetMaxPoints, Math.max(0, proportional)),
+  };
+}
+
 export function getMaxPoints(app: AppState, fach: string, typ: string, idx: number): number {
   const key = typ === 'aufgaben' ? 'obj' : typ;
   const custom = app.notenMeta?.[fach]?.maxPoints?.[key]?.[idx];
@@ -60,14 +145,18 @@ export function parseAssessmentInput(
   const parsed = Number(normalized);
   if (!Number.isFinite(parsed)) return { valid: false, value: null };
 
+  const rounded = Math.round(parsed * 10) / 10;
   if (mode === 'percent') {
-    return { valid: true, value: Math.min(100, Math.max(0, Math.round(parsed * 10) / 10)) };
+    if (rounded < 0 || rounded > 100) return { valid: false, value: null };
+    return { valid: true, value: rounded };
   }
   if (mode === 'points') {
     const safeMax = Number.isFinite(maxPoints) && maxPoints > 0 ? maxPoints : 0;
-    return { valid: true, value: Math.min(safeMax, Math.max(0, Math.round(parsed * 10) / 10)) };
+    if (safeMax <= 0 || rounded < 0 || rounded > safeMax) return { valid: false, value: null };
+    return { valid: true, value: rounded };
   }
-  return { valid: true, value: Math.min(5, Math.max(1, Math.round(parsed * 10) / 10)) };
+  if (rounded < 1 || rounded > 5) return { valid: false, value: null };
+  return { valid: true, value: rounded };
 }
 
 export function getAssessmentStorageValue(
@@ -290,7 +379,8 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
   let miNote: number | null = null;
   
   let adjustedMiRaw = miRaw;
-  const hueWeight = app.settings?.hueWeight !== undefined ? app.settings.hueWeight : (app.settings?.hueGewichten === false ? 0 : 1);
+  const homeworkSettings = getHomeworkGradebookSettings(app, fach);
+  const hueWeight = homeworkSettings.mode === 'document' ? 0 : homeworkSettings.participationDeduction;
   if (hueWeight > 0) {
     adjustedMiRaw = Math.max(0, miRaw - (nd.hue || 0) * hueWeight);
   }
@@ -326,16 +416,15 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
     let miPercent: number | null = null;
     if (cfg.g.mi > 0) {
       if (miNote !== null) {
-        if (miNote > 5) {
-          miPercent = Math.min(100, Math.max(0, miNote));
-        } else if (assessmentMode === 'points' && miNote <= 5 && s.mode === 'manual' && nd.miDirekt !== undefined && nd.miDirekt > 0) {
-          // In points mode with direct entry <= 5, if max points for mi is configured, use it
+        if (assessmentMode === 'points' && s.mode === 'manual' && nd.miDirekt !== undefined && nd.miDirekt !== null) {
           const maxMiPoints = app.notenMeta?.[fach]?.maxPoints?.mi?.[0] || 20;
-          if (maxMiPoints > 5) {
-            miPercent = Math.min(100, Math.max(0, (nd.miDirekt / maxMiPoints) * 100));
-          } else {
-            miPercent = Math.min(100, Math.max(0, (6 - miNote) * 20));
-          }
+          miPercent = maxMiPoints > 0
+            ? Math.min(100, Math.max(0, (nd.miDirekt / maxMiPoints) * 100))
+            : null;
+        } else if (assessmentMode === 'percent' && s.mode === 'manual' && nd.miDirekt !== undefined && nd.miDirekt !== null) {
+          miPercent = Math.min(100, Math.max(0, nd.miDirekt));
+        } else if (miNote > 5) {
+          miPercent = Math.min(100, Math.max(0, miNote));
         } else {
           // Standard Austrian 1..5 scale to percentage (1=100%, 2=80%, 3=60%, 4=40%, 5=20%)
           miPercent = Math.min(100, Math.max(0, (6 - miNote) * 20));
@@ -347,13 +436,12 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
     }
 
     let huePercent: number | null = null;
-    const isHueDocumentOnly = app.notenMeta?.[fach]?.hueMode === 'document' || app.settings?.hueGewichten === false;
+    const isHueDocumentOnly = homeworkSettings.mode === 'document';
     const hasHomeworkData = nd.hueErfasst === true || (nd.hue || 0) > 0 || (nd.hueAnm || []).length > 0;
     
     if (cfg.g.hue && cfg.g.hue > 0 && hasHomeworkData && !isHueDocumentOnly) {
       const missCount = nd.hue || 0;
-      const deductionPerMiss = app.notenMeta?.[fach]?.hueDeduction ?? app.settings?.huePercentDeduction ?? 5;
-      huePercent = Math.max(0, 100 - missCount * deductionPerMiss);
+      huePercent = Math.max(0, 100 - missCount * homeworkSettings.percentDeduction);
     }
 
     if (cfg.miOnly) {
@@ -420,12 +508,12 @@ export function berechne(app: AppState, sid: string, fach: string, sem: string):
     { avg: miAvg, gw: cfg.g.mi * 100 },
   ];
 
-  const isHueDocumentOnly = app.notenMeta?.[fach]?.hueMode === 'document' || app.settings?.hueGewichten === false;
+  const isHueDocumentOnly = homeworkSettings.mode === 'document';
   const hasHomeworkData = nd.hueErfasst === true || (nd.hue || 0) > 0 || (nd.hueAnm || []).length > 0;
   if (cfg.g.hue && cfg.g.hue > 0 && hasHomeworkData && !isHueDocumentOnly) {
     let hueNote = 1;
     const missCount = nd.hue || 0;
-    const deductionPerMiss = app.notenMeta?.[fach]?.hueDeduction ?? app.settings?.huePercentDeduction;
+    const deductionPerMiss = homeworkSettings.percentDeduction;
     
     if (deductionPerMiss !== undefined && deductionPerMiss > 0) {
       // Calculate grade based on percentage deduction from 100%
