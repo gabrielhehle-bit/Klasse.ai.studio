@@ -44,6 +44,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { DebouncedInput } from './DebouncedInput';
 import { polishText } from '../services/aiService';
 import { logObservation, logActivity } from '../lib/utils';
+import { filterChronicleEntries } from '../lib/behaviorChronicle';
 import { NoteEntry } from '../types';
 
 export default function Behavior() {
@@ -192,6 +193,16 @@ export default function Behavior() {
     setVisibleLimit(15);
   }, [app.activeClassId]);
 
+  const chronicleEntries = React.useMemo(
+    () => filterChronicleEntries(
+      app.notes || [],
+      chronikFilter,
+      chronikSearch,
+      app.schueler || []
+    ).sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime()),
+    [app.notes, app.schueler, chronikFilter, chronikSearch]
+  );
+
   const [showIconPicker, setShowIconPicker] = useState<number | null>(null);
   const commonIcons = ['🌟', '😊', '😐', '⚠️', '🚫', '🔥', '❤️', '👍', '👎', '👏', '🙌', '🤝', '💎', '🏆', '👑', '✨', '🚀', '⭐', '🎈', '🎉', '📝', '💬', '📖', '💡', '⏰', '🍎', '🎒', '🎨', '🧩', '⚽', '💻', '🦁', '🐘', '🦎', '🦉', '🐝'];
 
@@ -213,8 +224,7 @@ export default function Behavior() {
       app.schueler.forEach((s: any) => { newStatusMap[s.id] = defaultStageId; });
       setApp((prev: any) => ({ 
         ...prev, 
-        behavior_status: newStatusMap, 
-        behavior_notes: {},
+        behavior_status: newStatusMap,
         statusLog: [...newHistoryEntries, ...(prev.statusLog || [])]
       }));
     }
@@ -590,15 +600,7 @@ export default function Behavior() {
 
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 print:grid-cols-1 print:gap-4">
                   <AnimatePresence>
-                    {(app.notes || [])
-                      .filter(entry => {
-                         const searchLower = chronikSearch.toLowerCase();
-                         const matchesSearch = entry.inhalt.toLowerCase().includes(searchLower) || (entry.kategorie || '').toLowerCase().includes(searchLower);
-                         const matchesFilter = chronikFilter === 'all' ? true : chronikFilter === 'journal' ? entry.kategorie === 'Journal' : entry.kategorie === 'Verhalten';
-                         return matchesSearch && matchesFilter;
-                      })
-                      .sort((a,b) => new Date(b.datum).getTime() - new Date(a.datum).getTime())
-                      .map((entry) => {
+                    {chronicleEntries.map((entry) => {
                          const student = entry.schuelerId ? app.schueler.find(s => s.id === entry.schuelerId) : null;
                          const categoryColors: Record<string, string> = {
                            'Journal': 'bg-blue-50 text-blue-600 border-blue-100 print:bg-white print:text-black print:border-black',
@@ -661,12 +663,18 @@ export default function Behavior() {
                   </AnimatePresence>
                </div>
                
-               {(!app.notes || app.notes.length === 0) && (
+               {chronicleEntries.length === 0 && (
                   <div className="py-32 bg-slate-50 rounded-[3rem] border-4 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-300 space-y-6">
                      <History size={64} className="opacity-10" strokeWidth={1} />
                      <div className="text-center space-y-2">
-                        <p className="text-[0.875rem] leading-snug font-black uppercase tracking-[0.2em]">Deine Chronik ist noch leer</p>
-                        <p className="text-[0.75rem] leading-tight font-bold opacity-60">Erfasse deinen ersten Eintrag im Feld oben.</p>
+                        <p className="text-[0.875rem] leading-snug font-black uppercase tracking-[0.2em]">
+                          {(app.notes || []).length === 0 ? 'Deine Chronik ist noch leer' : 'Keine passenden Einträge'}
+                        </p>
+                        <p className="text-[0.75rem] leading-tight font-bold opacity-60">
+                          {(app.notes || []).length === 0
+                            ? 'Erfasse deinen ersten Eintrag im Feld oben.'
+                            : 'Passe Suche oder Filter an.'}
+                        </p>
                      </div>
                   </div>
                )}
