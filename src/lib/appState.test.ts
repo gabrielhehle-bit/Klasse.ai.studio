@@ -8,7 +8,18 @@ function fixture() {
     classes: ['a', 'b'].map(id => ({
       id, name: id, schueler: [{ id: `student-${id}` }],
       saAssessments: { [`student-${id}`]: { Mathematik: { '1': { '0': { marker: id } } } } },
-      notenMeta: { Mathematik: { assessmentMode: id === 'a' ? 'grades' : 'points', labels: { wp: `wp-${id}` } } },
+      notenMeta: {
+        __customSaPresets: [{ id: `preset-${id}`, title: `Raster ${id}` }],
+        Mathematik: {
+          assessmentMode: id === 'a' ? 'grades' : 'points',
+          labels: { wp: `wp-${id}` },
+          saDefaults: {
+            '1': {
+              0: { config: { marker: id }, aspects: [{ id: `aspect-${id}`, title: id, criteria: [] }] },
+            },
+          },
+        },
+      },
       notenGewichtung: { Mathematik: { sa: id === 'a' ? 60 : 40, lzk: 20, wp: 20, obj: 0, mi: id === 'a' ? 0 : 20 } },
       stundenZeiten: { 1: `${id}-08:00` }, scheduleAnalysis: { marker: id },
       lastGroups: [{ marker: id }], customBgColor: id,
@@ -39,6 +50,10 @@ test('A → B → edit → A → reload preserves both classes and their assessm
   assert.deepEqual(reloaded.notenGewichtung, originalA.notenGewichtung);
   assert.equal(reloaded.classes[1].saAssessments.newAssessment[0].value, 2);
   assert.equal(reloaded.classes[1].notenMeta.Mathematik.labels.wp, 'edited-b');
+  assert.equal(reloaded.classes[0].notenMeta.Mathematik.saDefaults['1'][0].config.marker, 'a');
+  assert.equal(reloaded.classes[1].notenMeta.Mathematik.saDefaults['1'][0].config.marker, 'b');
+  assert.equal(reloaded.classes[0].notenMeta.__customSaPresets[0].id, 'preset-a');
+  assert.equal(reloaded.classes[1].notenMeta.__customSaPresets[0].id, 'preset-b');
   assert.equal(reloaded.classes[1].wochenplanung[37].Montag[0].thema, 'b');
   assert.deepEqual((reloaded.classes[1] as any).futureExtension, { preserved: 'b' });
 });
