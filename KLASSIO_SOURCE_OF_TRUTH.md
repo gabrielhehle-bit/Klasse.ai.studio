@@ -30,20 +30,26 @@ Im finalen Reconciliation-Lauf am 14.09.2026 wurden zusätzlich die geprüften P
 - PR #12: Dashboard/Heute mit korrekter Schultags-/Anwesenheitslogik, lokalen Tagesdaten und vollständiger Erfassung statt angenommener Anwesenheit.
 - PR #13: durchgängiger 10-Stunden-Slot-Vertrag für Setup und Dashboard; für Stunde 9/10 werden keine Uhrzeiten erfunden, sie bleiben frei konfigurierbar.
 
+Anschließend wurden die letzten funktionalen Reste aus historischen Divergenzen selektiv auf frischen Branches vom jeweils aktuellen Reconciliation-HEAD umgesetzt:
+- PR #15: neue OneDrive-Sicherungen heißen sichtbar `Klassio_Backup.json`; historische `LehrerAPP_Backup.json`, `LehrerAPP_Backup.lehrerapp` und `Lehrermappe_Backup.json` bleiben lesbar.
+- PR #16: Sokrates-PDF-Import mit lokal gebündeltem PDF.js-Worker, PWA-Precache für `.mjs`, robuster geometrischer Tabellenerkennung und quelltreuer Stammdatenübernahme ohne erfundene Werte.
+
+Die historischen divergierenden Branches `audit/production-demo-data`, `audit/visible-legacy-branding`, `audit/visible-legacy-branding-final`, `fix/klassio-visible-branding`, `fix/json-backups-and-critical-data-flows` und `feature/final-app-polish` wurden anschließend gezielt gegen den aktuellen Reconciliation-Stand geprüft. Ihre noch eigenen Commits enthalten entweder nur temporäre Audit-/CI-Workflows oder ältere Varianten von Funktionen, die im aktuellen Stand bereits gleichwertig oder neuer umgesetzt sind. Sie werden deshalb **nicht** in den Produktstand gemergt.
+
 Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist keine Arbeitsgrundlage. Seine relevanten funktionalen Lücken wurden selektiv auf frischen Branches vom jeweils aktuellen Reconciliation-HEAD neu umgesetzt. Verbleibende Unterschiede in Cockpit/BoardInk/Vorlagen stammen aus älteren UI-Varianten und werden nicht über den neueren, bereits getesteten Cockpit-Stand aus PR #6 gelegt.
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Abschlussstand wurde vor dieser Dokumentationsaktualisierung vollständig geprüft:
+Der aktuelle codehaltige Reconciliation-Stand enthält zusätzlich PR #15 und PR #16. PR #16 wurde auf Commit `f1f7d0db5134f5c6ab111997b6bb5edb08b88e1c` vollständig geprüft:
 
-- geprüfter Anwendungscommit aus PR #13: `983b04c08a3c9e978ad867000da29cc9b7f3f2e9`
 - TypeScript: erfolgreich
-- Tests: 738/738 erfolgreich
+- Tests: 746/746 erfolgreich
 - Production Build: erfolgreich
-- PWA-/Build-Ausgabe: erfolgreich
-- PR #13 wurde anschließend ohne weitere Anwendungsänderung nach `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `911645b8560e149af2f7867f7fb7e0c6b97954aa`
+- lokaler PDF-Worker im Build: erfolgreich
+- PDF-Worker im PWA-Precache: erfolgreich
+- kein externer cdnjs-PDF-Worker im Bundle
 
-Dokumentationsänderungen verändern den Anwendungscode nicht. Trotzdem ist vor Staging ausschließlich der **aktuelle Reconciliation-HEAD** verbindlich und dessen GitHub-Actions-`Pre-Deployment Audit` muss grün sein. Dieser Audit umfasst zusätzlich Production-Server-Smoke, Zugangscode-/Session-Smoke und die Erzeugung des commitgebundenen World4You-Artefakts. Der jeweils aktuelle CI-Lauf ist maßgeblicher als eine hier festgeschriebene ältere Build-SHA. Das Deployment-ZIP enthält `KLASSIO_DEPLOYMENT_COMMIT.txt` und `KLASSIO_DEPLOYMENT_BRANCH.txt`.
+Der aktuelle Reconciliation-HEAD ist nach Merge von PR #16 `14fec812000ab9b40a819cbac2d465e05f764013`. Nach jeder Dokumentations- oder Codeänderung ist weiterhin ausschließlich der **neue** GitHub-HEAD verbindlich; dessen `Pre-Deployment Audit` muss erneut grün sein. Dieser Audit umfasst TypeScript, vollständige Testsuite, Production-Build, PWA-Ausgabe, Production-Server-Smoke, Zugangscode-/Session-Smoke und die Erzeugung des commitgebundenen World4You-Artefakts. Das Deployment-ZIP enthält `KLASSIO_DEPLOYMENT_COMMIT.txt` und `KLASSIO_DEPLOYMENT_BRANCH.txt`.
 
 ## Enthaltener Funktionsstand
 
@@ -58,7 +64,8 @@ Der Reconciliation-Stand enthält unter anderem:
 - schnelle Mitarbeit- und Hausübungs-Erfassung
 - Wochen- und Jahresplanung inklusive Vollbild, Excel-Roundtrip und Aufgabenblattgenerator
 - Materialbibliothek inklusive Übergabe in den Wochenplan
-- verschlüsselten lokalen Datentresor, verschlüsselte JSON-Backups und Legacy-Parser; neue Sicherungsdateien tragen sichtbar `Klassio_Sicherung_YYYY-MM-DD.json`, das interne verschlüsselte Legacy-Format bleibt kompatibel
+- Sokrates-PDF-Import mit lokal gebündeltem PDF.js-Worker und Offline/PWA-Unterstützung
+- verschlüsselten lokalen Datentresor, verschlüsselte JSON-Backups und Legacy-Parser; lokale Sicherungsdateien heißen `Klassio_Sicherung_YYYY-MM-DD.json`, neue OneDrive-Sicherungen `Klassio_Backup.json`; historische OneDrive-Dateinamen und das interne verschlüsselte Legacy-Format bleiben kompatibel
 - E-Mail-Einmalcode-Login mit administrativem Zugangscode als Fallback
 - optionales 30-Tage-Gerätevertrauen für den Datentresor
 - Canva-Integration
