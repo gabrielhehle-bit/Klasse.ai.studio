@@ -724,25 +724,23 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
   const startKW = getSchulstartKW(app.schuljahr || getCurrentSchuljahr(), app.bundesland || 'VBG');
   const yearWeeks = useMemo(() => {
     const list: { kwNum: number; swNum: number; mondayDate: Date }[] = [];
+    const endYear = startYear + 1;
+    const currentMonday = kwToMonday(startKW, startYear);
     let currentSW = 1;
-    let runKw = startKW;
-    let runYear = startYear;
 
-    for (let i = 0; i < 42; i++) {
-      const mon = kwToMonday(runKw, runYear);
+    while (
+      currentMonday.getFullYear() < endYear ||
+      (currentMonday.getFullYear() === endYear && currentMonday.getMonth() < 7)
+    ) {
       list.push({
-        kwNum: runKw,
+        kwNum: getKW(currentMonday),
         swNum: currentSW,
-        mondayDate: mon
+        mondayDate: new Date(currentMonday)
       });
-
       currentSW++;
-      runKw++;
-      if (runKw > 52) {
-        runKw = 1;
-        runYear++;
-      }
+      currentMonday.setDate(currentMonday.getDate() + 7);
     }
+
     return list;
   }, [startKW, startYear]);
 
