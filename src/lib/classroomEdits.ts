@@ -25,3 +25,79 @@ export function updateSubjectColumn(meta: AppState['notenMeta'], subject: string
     maxPoints: { ...current.maxPoints, [type]: points },
   } };
 }
+
+
+export function removeSubjectColumn(
+  noten: AppState['noten'],
+  meta: AppState['notenMeta'],
+  subject: string,
+  type: 'lzk' | 'wp' | 'obj',
+  newCount: number,
+): { noten: AppState['noten']; notenMeta: AppState['notenMeta'] } {
+  const safeCount = Math.max(0, Math.floor(newCount));
+  const dataKey: 'lzk' | 'wp' | 'aufgaben' = type === 'obj' ? 'aufgaben' : type;
+
+  const nextNoten: AppState['noten'] = { ...(noten || {}) };
+  for (const [studentId, studentData] of Object.entries(noten || {})) {
+    const subjectData = studentData?.[subject];
+    if (!subjectData) continue;
+
+    let subjectChanged = false;
+    const nextSubjectData: Record<string, any> = { ...subjectData };
+
+    for (const semester of ['1', '2']) {
+      const semData = subjectData?.[semester];
+      if (!semData) continue;
+      const values = Array.isArray((semData as any)[dataKey]) ? (semData as any)[dataKey] : [];
+      if (values.length <= safeCount) continue;
+      nextSubjectData[semester] = {
+        ...semData,
+        [dataKey]: values.slice(0, safeCount),
+      };
+      subjectChanged = true;
+    }
+
+    if (subjectChanged) {
+      nextNoten[studentId] = {
+        ...studentData,
+        [subject]: nextSubjectData,
+      };
+    }
+  }
+
+  const trimIndexedRecord = (record: Record<string | number, any> | undefined) => {
+    const result: Record<number, any> = {};
+    Object.entries(record || {}).forEach(([key, value]) => {
+      const index = Number(key);
+      if (Number.isFinite(index) && index < safeCount) result[index] = value;
+    });
+    return result;
+  };
+
+  const current = meta?.[subject] || {};
+  const counts = { ...(current.colCounts || { lzk: 4, wp: 4, obj: 4 }), [type]: safeCount };
+  const nextSubjectMeta = {
+    ...current,
+    colCounts: counts,
+    colLabels: {
+      ...(current.colLabels || {}),
+      [type]: trimIndexedRecord(current.colLabels?.[type]),
+    },
+    colDates: {
+      ...(current.colDates || {}),
+      [type]: trimIndexedRecord(current.colDates?.[type]),
+    },
+    maxPoints: {
+      ...(current.maxPoints || {}),
+      [type]: trimIndexedRecord(current.maxPoints?.[type] as any),
+    },
+  };
+
+  return {
+    noten: nextNoten,
+    notenMeta: {
+      ...(meta || {}),
+      [subject]: nextSubjectMeta,
+    },
+  };
+}
