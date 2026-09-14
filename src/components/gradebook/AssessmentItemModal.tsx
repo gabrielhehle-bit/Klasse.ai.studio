@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { formatLocalDateKey } from '../../lib/utils';
 import { 
   X, 
   Calendar, 
@@ -100,8 +101,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
     }
     const d = new Date();
     d.setDate(d.getDate() + offsetDays);
-    const iso = d.toISOString().split('T')[0];
-    setDate(iso);
+    setDate(formatLocalDateKey(d));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
