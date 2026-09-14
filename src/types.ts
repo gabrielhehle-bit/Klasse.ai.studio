@@ -936,6 +936,10 @@ export interface ClassRoom {
   notenMeta?: Record<string, any>;
   /** Per-class subject/category weightings. */
   notenGewichtung?: Record<string, any>;
+  /** Class-local learning-goal tracker and individual ratings. */
+  lernzielTracker?: AppState['lernzielTracker'];
+  studentLernzielBewertungen?: AppState['studentLernzielBewertungen'];
+  studentLernzielSemesterBewertungen?: AppState['studentLernzielSemesterBewertungen'];
   mitarbeit: Record<string, Record<string, Record<string, number>>>;
   verhalten: Record<string, number>;
   karten: Record<string, { gelb: number; rot: number; archiv: any[] }>;
