@@ -2,7 +2,7 @@ import React, { useState, useRef, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, logActivity, safeJsonParse, inferDateFromText, inferEventType, sortYearlySubjects, formatLocalDateKey } from '../lib/utils';
-import { TAGE_NAMEN, VM_ZEITEN, STUNDENTAFEL, FAECHER_ALLE, DEUTSCH_UNTERFAECHER, DEFAULT_YEARLY_SUBJECTS, STUNDEN_INFO } from '../constants';
+import { TAGE_NAMEN, STUNDENTAFEL, FAECHER_ALLE, DEUTSCH_UNTERFAECHER, DEFAULT_YEARLY_SUBJECTS, STUNDEN_INFO, MAX_LESSON_SLOTS, LESSON_SLOT_NUMBERS } from '../constants';
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, Layout, Calendar, Info, Search, X, Check, Clock, PartyPopper, Lightbulb, Filter, Flag, AlertTriangle, Star, MessageSquare, Users, User, Users2, Smartphone, BookOpen, Printer, Sparkles, Loader2, Book, RefreshCw, GripVertical, Zap, Pencil, BarChart2, Eye, EyeOff, Copy, Clipboard, CheckSquare, Paperclip, ExternalLink, MoreHorizontal, Maximize2, Minimize2, FileSpreadsheet, Download, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getLessonSuggestion, generateWeeklyPlanFromYearlyPlan, checkWeeklyPlanAlignmentAI, generateMagicPlanning } from '../services/aiService';
@@ -12,6 +12,8 @@ import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
 import WochenplanExcelModal from './WochenplanExcelModal';
 import { generateWochenplanTemplate, WochenplanImportRow } from '../lib/planerExcelService';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
+import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots } from '../lib/weeklyPlanData';
+import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
 
 const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> = {
   'Deutsch': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -251,7 +253,8 @@ export default function WeeklyPlan() {
     if (!window.confirm('Achtung: Dies überschreibt die aktuelle Woche! Fortfahren?')) return;
     setApp(prev => {
       const wp = { ...(prev.wochenplanung || {}) };
-      const lastWp = wp[activeKW - 1];
+      const previousKw = getPreviousCalendarWeekKw(activeKW, prev.schuljahr);
+      const lastWp = wp[previousKw];
       if (lastWp) {
         wp[activeKW] = JSON.parse(JSON.stringify(lastWp));
       }
@@ -606,27 +609,10 @@ export default function WeeklyPlan() {
 
   const parkedLessons = app.parkgarage || [];
 
-  const incompleteWeeklySlots = useMemo(() => {
-    const currentWeekPlan = app.wochenplanung?.[activeKW] || {};
-    const slots: { tag: string; idx: number; fach: string; thema: string }[] = [];
-    const tage = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
-    tage.forEach(tag => {
-      const dayData = currentWeekPlan[tag] || {};
-      Object.keys(dayData).forEach(idxStr => {
-        const idx = parseInt(idxStr);
-        const lesson = dayData[idx];
-        if (lesson && lesson.thema && !lesson.completed) {
-          slots.push({
-            tag,
-            idx,
-            fach: lesson.fach || 'Fach',
-            thema: lesson.thema
-          });
-        }
-      });
-    });
-    return slots;
-  }, [app.wochenplanung, activeKW]);
+  const incompleteWeeklySlots = useMemo(
+    () => collectIncompleteWeeklyLessonSlots(app.wochenplanung?.[activeKW]),
+    [app.wochenplanung, activeKW],
+  );
 
   const incompleteDenkzettelNotes = useMemo(() => {
     return (app.denkzettelNotes || []).filter((note: any) => !note.completed);
@@ -714,7 +700,7 @@ export default function WeeklyPlan() {
           material: row.material || existingSlot?.material || '',
           housework: row.housework || existingSlot?.housework || '',
           reflexion: row.reflexion || existingSlot?.reflexion || '',
-          zeit: row.uhrzeit || existingSlot?.zeit || STUNDEN_INFO[row.stunde] || '',
+          zeit: row.uhrzeit || existingSlot?.zeit || configuredLessonTime(prev.stundenZeiten, STUNDEN_INFO, row.stunde),
         };
       });
 
@@ -735,7 +721,7 @@ export default function WeeklyPlan() {
     let missingMat = 0;
     const currentWeekPlan = app.wochenplanung?.[activeKW] || {};
     TAGE_NAMEN.forEach(tag => {
-      for (let idx = 0; idx < 8; idx++) {
+      for (let idx = 0; idx < MAX_LESSON_SLOTS; idx++) {
         const item = currentWeekPlan[tag]?.[idx];
         const stammFach = app.stammplan?.[tag]?.[idx + 1] || '';
         if (item?.fach || item?.thema || stammFach) {
@@ -776,7 +762,7 @@ export default function WeeklyPlan() {
         }
       });
 
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < MAX_LESSON_SLOTS; i++) {
         const item = dayData[i];
         if (item && (item.type === 'sa' || item.type === 'test' || item.type === 'event')) {
           events.push({
@@ -1054,8 +1040,9 @@ export default function WeeklyPlan() {
     };
   }, [monday, app.calendarOverrides, app.calendarSettings, app.bundesland]);
 
-  const sw = getSW(monday, app.schuljahr);
+  const sw = getSW(monday, app.schuljahr, app.bundesland || 'VBG');
   const plan = (app.wochenplanung || {})[activeKW] || {};
+  const lunchAfterSlot = Math.max(1, Math.min(MAX_LESSON_SLOTS - 1, app.mittagspauseNachStunde || 5));
 
   const isCurrentHour = (tag: string, zIdx: number): boolean => {
     const days = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
@@ -1063,29 +1050,19 @@ export default function WeeklyPlan() {
     const dayName = days[now.getDay()];
     if (dayName !== tag) return false;
 
-    const timeString = STUNDEN_INFO[zIdx + 1];
-    if (!timeString) return false;
+    const timeString = configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, zIdx + 1);
+    const parsed = parseLessonTimeRange(timeString);
+    if (!parsed) return false;
 
-    const [startStr, endStr] = timeString.split('–');
-    if (!startStr || !endStr) return false;
-
-    const [startH, startM] = startStr.split(':').map(Number);
-    const [endH, endM] = endStr.split(':').map(Number);
-
-    const startTime = new Date(now);
-    startTime.setHours(startH, startM, 0, 0);
-
-    const endTime = new Date(now);
-    endTime.setHours(endH, endM, 0, 0);
-
-    return now >= startTime && now <= endTime;
+    const minuteOfDay = now.getHours() * 60 + now.getMinutes();
+    return minuteOfDay >= parsed.start && minuteOfDay < parsed.end;
   };
 
   const getDayProgress = (tag: string) => {
     const dayData = plan[tag] || {};
     let total = 0;
     let completed = 0;
-    for (let idx = 0; idx < 8; idx++) {
+    for (let idx = 0; idx < MAX_LESSON_SLOTS; idx++) {
       const item = dayData[idx];
       const displayFach = item?.fach || app.stammplan?.[tag]?.[idx + 1] || '';
       if (displayFach || item?.thema) {
@@ -1124,7 +1101,7 @@ export default function WeeklyPlan() {
     if (!item) return;
     
     const nextIdx = idx + 1;
-    if (nextIdx < 8) {
+    if (nextIdx < MAX_LESSON_SLOTS) {
       setApp(prev => {
         const wp = { ...(prev.wochenplanung || {}) };
         const currentWeekObj = { ...wp[activeKW] };
@@ -1264,17 +1241,12 @@ export default function WeeklyPlan() {
 
     const futureWeeks: number[] = [];
     if (repeatWeekly) {
-      let currentMonday = kwToMonday(36, startYear);
-      let foundActive = false;
-      for (let i = 0; i < 52; i++) {
-        const kw = getKW(currentMonday);
-        if (kw === activeKW) {
-          foundActive = true;
-        }
-        if (foundActive) {
-          futureWeeks.push(kw);
-        }
-        currentMonday.setDate(currentMonday.getDate() + 7);
+      const schoolWeeks = buildSchoolYearWeekList(app.schuljahr, app.bundesland || 'VBG').map((week) => week.kw);
+      const activeIndex = schoolWeeks.indexOf(activeKW);
+      if (activeIndex >= 0) {
+        futureWeeks.push(...schoolWeeks.slice(activeIndex));
+      } else {
+        futureWeeks.push(activeKW);
       }
     } else {
       futureWeeks.push(activeKW);
@@ -1306,7 +1278,7 @@ export default function WeeklyPlan() {
               social,
               reflexion: reflexion.trim(),
               schwerpunkte,
-              duration
+              duration: duration === 'all' ? 'all' : weeklyLessonDurationSlots(duration, idx)
             }
           };
         }
@@ -1342,7 +1314,7 @@ export default function WeeklyPlan() {
                     social,
                     reflexion: reflexion.trim(),
                     schwerpunkte,
-                    duration
+                    duration: duration === 'all' ? 'all' : weeklyLessonDurationSlots(duration, Number(dIdx))
                   }
                 };
               }
@@ -1684,8 +1656,8 @@ export default function WeeklyPlan() {
     
     // Find empty slot for that day
     const dayPlan = (app.wochenplanung?.[activeKW]?.[targetTag]) || {};
-    let chosenIdx = 5; // fallback index 5
-    for (let i = 0; i < 6; i++) {
+    let chosenIdx = MAX_LESSON_SLOTS - 1;
+    for (let i = 0; i < MAX_LESSON_SLOTS; i++) {
       if (!dayPlan[i] || !dayPlan[i].fach) {
         chosenIdx = i;
         break;
@@ -1713,18 +1685,11 @@ export default function WeeklyPlan() {
     }
   };
 
-  const generateWeeksList = () => {
-    const weeks = [];
-    let currentMonday = kwToMonday(36, startYear);
-    for (let i = 0; i < 52; i++) {
-        weeks.push({ 
-          kw: getKW(currentMonday), 
-          sw_val: getSW(currentMonday, app.schuljahr) 
-        });
-        currentMonday.setDate(currentMonday.getDate() + 7);
-    }
-    return weeks;
-  };
+  const generateWeeksList = () =>
+    buildSchoolYearWeekList(app.schuljahr, app.bundesland || 'VBG').map((week) => ({
+      kw: week.kw,
+      sw_val: week.sw,
+    }));
 
   const handleToggleDayStatus = (dateStr: string, status: 'school' | 'free') => {
     setApp(prev => ({
@@ -1758,10 +1723,11 @@ export default function WeeklyPlan() {
   const unscheduledSuggestionsCount = yearlyPlanItems.filter(item => !isYearlyItemScheduled(item)).length;
 
   const skipCells = new Set<string>();
-  (Object.values(STUNDEN_INFO) as string[]).forEach((_, zIdx) => {
+  LESSON_SLOT_NUMBERS.forEach((slot) => {
+    const zIdx = slot - 1;
     TAGE_NAMEN.forEach((tag) => {
       const item = plan[tag]?.[zIdx];
-      const duration = item?.duration === 'all' ? (8 - zIdx) : (Number(item?.duration) || 1);
+      const duration = weeklyLessonDurationSlots(item?.duration, zIdx);
       if (duration > 1) {
         for (let d = 1; d < duration; d++) {
           skipCells.add(`${tag}-${zIdx + d}`);
@@ -2621,8 +2587,10 @@ export default function WeeklyPlan() {
                 </div>
 
                 {/* FOLLOWING ROWS: TIME SLOTS */}
-                {(Object.values(STUNDEN_INFO) as string[]).map((zeit, zIdx) => {
-                  const gridRowStart = zIdx + 2 + (zIdx >= 5 ? 1 : 0);
+                {LESSON_SLOT_NUMBERS.map((slot) => {
+                  const zIdx = slot - 1;
+                  const zeit = configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, slot);
+                  const gridRowStart = zIdx + 2 + (zIdx >= lunchAfterSlot ? 1 : 0);
                   
                   return (
                   <React.Fragment key={zIdx}>
@@ -2664,8 +2632,8 @@ export default function WeeklyPlan() {
                       const { status, holidayName } = getDayStatus(date);
                       const isFree = status === 'free';
                       const isToday = date.toDateString() === actualToday.toDateString();
-                      const cellDuration = item?.duration === 'all' ? (8 - zIdx) : (Number(item?.duration) || 1);
-                      const crossesLunch = zIdx < 5 && (zIdx + cellDuration) > 5;
+                      const cellDuration = weeklyLessonDurationSlots(item?.duration, zIdx);
+                      const crossesLunch = zIdx < lunchAfterSlot && (zIdx + cellDuration) > lunchAfterSlot;
                       const spanValue = cellDuration + (crossesLunch ? 1 : 0);
                       
                       const scheduleAnalysisForWeek = app.scheduleAnalysis?.[activeKW];
@@ -2866,7 +2834,7 @@ export default function WeeklyPlan() {
                                <div className="mt-auto pt-1.5 flex flex-wrap gap-1 border-t border-black/[0.03] relative z-10">
                                  {item.duration === 'all' && (
                                    <div className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[0.4375rem] font-black uppercase tracking-wider shadow-sm flex items-center gap-0.5">
-                                     <Calendar size={8} /> Ganztägig
+                                     <Calendar size={8} /> Restlicher Tag
                                    </div>
                                  )}
                                  {typeof item.duration === 'number' && item.duration > 1 && (
@@ -2922,18 +2890,18 @@ export default function WeeklyPlan() {
                         </div>
                       );
                     })}
-                    {zIdx === 4 && (
+                    {zIdx === lunchAfterSlot - 1 && (
                       <React.Fragment>
-                        <div style={{ gridColumn: 1, gridRow: 7 }} className="sticky left-0 bg-slate-100/50 backdrop-blur-sm border-r border-slate-200 flex items-center justify-center p-1 z-[90]">
+                        <div style={{ gridColumn: 1, gridRow: lunchAfterSlot + 2 }} className="sticky left-0 bg-slate-100/50 backdrop-blur-sm border-r border-slate-200 flex items-center justify-center p-1 z-[90]">
                            <span className="text-[0.375rem] font-black text-slate-400 uppercase tracking-widest [writing-mode:vertical-lr] rotate-180">Pause</span>
                         </div>
                         {(() => {
                           const isDayCrossed = (tag: string) => {
-                            return [0, 1, 2, 3, 4].some((hIdx) => {
+                            return Array.from({ length: lunchAfterSlot }, (_, hIdx) => hIdx).some((hIdx) => {
                               const item = plan[tag]?.[hIdx];
                               if (!item) return false;
-                              const dur = item.duration === 'all' ? (8 - hIdx) : (Number(item.duration) || 1);
-                              return hIdx + dur > 5;
+                              const dur = weeklyLessonDurationSlots(item.duration, hIdx);
+                              return hIdx + dur > lunchAfterSlot;
                             });
                           };
                           const nonCrossedTags = TAGE_NAMEN.filter(tag => !isDayCrossed(tag));
@@ -2945,7 +2913,7 @@ export default function WeeklyPlan() {
                             return (
                               <div 
                                 key={`pause-screen-${tag}`}
-                                style={{ gridColumn: tIdx + 2, gridRow: 7 }} 
+                                style={{ gridColumn: tIdx + 2, gridRow: lunchAfterSlot + 2 }} 
                                 className="h-8 bg-slate-50/10 flex items-center justify-center border-b border-slate-100 relative z-20"
                               >
                                  <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
@@ -3470,7 +3438,7 @@ export default function WeeklyPlan() {
                              <label className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.2em]">Dauer</label>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                             {[1, 2, 3, 4, 5, 6].map(d => (
+                             {Array.from({ length: editingCell ? MAX_LESSON_SLOTS - editingCell.idx : MAX_LESSON_SLOTS }, (_, index) => index + 1).map(d => (
                                <button
                                  key={d}
                                  onClick={() => setTempDuration(d)}
@@ -3484,7 +3452,7 @@ export default function WeeklyPlan() {
                                className={`px-4 py-3 rounded-2xl border transition-all font-black text-sm flex items-center justify-center gap-1.5 shrink-0 ${tempDuration === 'all' ? 'bg-amber-600 text-white border-amber-700 shadow-md scale-105' : 'bg-slate-50 text-amber-600/70 border-slate-200 hover:bg-amber-50/50 hover:border-amber-300'}`}
                              >
                                <Calendar size={14} />
-                               <span>Ganztägig</span>
+                               <span>Restlicher Tag</span>
                              </button>
                           </div>
                        </div>
@@ -4826,9 +4794,15 @@ export default function WeeklyPlan() {
                       onChange={e => setQuickPlanStunde(Number(e.target.value))}
                       className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
                     >
-                      {[0, 1, 2, 3, 4, 5, 6, 7].map(st => (
-                        <option key={st} value={st}>{st + 1}. Stunde ({VM_ZEITEN[st + 1] || `${st + 1}`})</option>
-                      ))}
+                      {LESSON_SLOT_NUMBERS.map((slot) => {
+                        const st = slot - 1;
+                        const time = configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, slot);
+                        return (
+                          <option key={st} value={st}>
+                            {slot}. Stunde{time ? ` (${time})` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 )}

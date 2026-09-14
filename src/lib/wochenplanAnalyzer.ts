@@ -1,4 +1,5 @@
 import { AppState, SchuelerWochenplan, SchuelerWochenplanAufgabe, SchuelerAufgabeTyp } from '../types';
+import { MAX_LESSON_SLOTS } from '../constants';
 import { kwToMonday, getStartYear, kwYear } from './utils';
 
 export const WOCHENPLAN_TAGE = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
@@ -176,8 +177,8 @@ export function analyzeWochenplanForStudents(
   WOCHENPLAN_TAGE.forEach(tag => {
     const dayPlan = plan[tag] || {};
 
-    // 1. Stunden-basierte Einträge (1. bis 8. Stunde)
-    const stdIndices = [0, 1, 2, 3, 4, 5, 6, 7];
+    // 1. Stunden-basierte Einträge (1. bis 10. Stunde)
+    const stdIndices = Array.from({ length: MAX_LESSON_SLOTS }, (_, idx) => idx);
     stdIndices.forEach(idx => {
       const stdNum = idx + 1;
       const item = dayPlan[idx];
