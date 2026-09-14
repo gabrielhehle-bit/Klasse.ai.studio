@@ -72,3 +72,23 @@ test('Jahresplan-Excel: unbekannte Fächer werden nicht dem ersten Fach zugeschl
     undefined,
   );
 });
+
+
+test('Jahresplan-Excel: Ferienwochen verschieben die SW-Zählung nicht gegenüber der App', () => {
+  const app: any = {
+    schuljahr: '2026/27',
+    bundesland: 'VBG',
+    jahresplan_faecher: [{ id: 'lesen', label: 'Lesen', color: '' }],
+    jahresplanung: {},
+    calendarSettings: { disabledHolidays: [] },
+  };
+
+  const rows = buildJahresplanTemplateRows(app).slice(4);
+  const holidayIndex = rows.findIndex(row => row[3] === 'Ferien / Schulfrei');
+  assert.ok(holidayIndex >= 0, 'mindestens eine Ferienwoche muss in der Vorlage vorkommen');
+
+  const holidaySw = Number(rows[holidayIndex][1]);
+  const nextTeaching = rows.slice(holidayIndex + 1).find(row => row[3] === 'Lesen');
+  assert.ok(nextTeaching, 'nach der Ferienwoche muss wieder eine Unterrichtswoche folgen');
+  assert.equal(Number(nextTeaching![1]), holidaySw + 1);
+});
