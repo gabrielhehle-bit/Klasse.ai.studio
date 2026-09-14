@@ -6,7 +6,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   getSW, getStartYear, getKW, kwYear, kwToMonday, getCurrentSchuljahr, getSchulstartKW, formatLocalDateKey 
 } from '../lib/utils';
-import { TAGE_NAMEN } from '../constants';
+import { LESSON_SLOT_NUMBERS, TAGE_NAMEN } from '../constants';
+import {
+  clonePlanningData,
+  getPreviousCalendarWeekNumber,
+  getYearPlanWeekFocus,
+  setYearPlanWeekFocus,
+} from '../lib/planningCenter';
 import { ErrorBoundaryLogger } from './ErrorBoundaryLogger';
 import { 
   BrainCircuit, CalendarRange, ArrowRight, Activity, AlertCircle, Sparkles, 
@@ -51,7 +57,7 @@ export default function PlanungsZentrale() {
   const [isEinfachModus, setIsEinfachModus] = useState<boolean>(true);
   const [showMehrMenu, setShowMehrMenu] = useState<boolean>(false);
   const [quickPlanOpen, setQuickPlanOpen] = useState<boolean>(false);
-  const [quickPlanType, setQuickPlanType] = useState<'lesson' | 'event' | 'task'>('lesson');
+  const [quickPlanType, setQuickPlanType] = useState<'lesson' | 'event'>('lesson');
 
   // Planning Center Focus states
   const [planningFocus, setPlanningFocus] = useState<'day' | 'week' | 'year'>('week');
@@ -89,6 +95,7 @@ export default function PlanungsZentrale() {
   const [jahresplanInput, setJahresplanInput] = useState<string>('');
 
   const DAYS_DE = useMemo(() => ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'], []);
+  const planningHourIndexes = useMemo(() => LESSON_SLOT_NUMBERS.map(slot => slot - 1), []);
 
   const availableSubjects = useMemo(() => {
     return app.faecher && app.faecher.length > 0 ? app.faecher : [
@@ -183,18 +190,14 @@ export default function PlanungsZentrale() {
   };
 
   const getJahresplanTheme = (kwNum: number) => {
-    const item = app.jahresplanung?.[kwNum];
-    if (!item) return '';
-    if (typeof item === 'string') return item;
-    return item.themen || item.titel || item.beschreibung || '';
+    return getYearPlanWeekFocus(app.jahresplanung?.[kwNum]);
   };
 
   const handleSaveJahresplan = () => {
-    setApp(prev => {
-      const jp = { ...(prev.jahresplanung || {}) };
-      jp[nextKW] = jahresplanInput;
-      return { ...prev, jahresplanung: jp };
-    });
+    setApp(prev => ({
+      ...prev,
+      jahresplanung: setYearPlanWeekFocus(prev.jahresplanung, nextKW, jahresplanInput),
+    }));
     setEditingJahresplan(false);
     setSuccessMessage('Jahresplan-Thema für diese Woche erfolgreich aktualisiert!');
     setTimeout(() => setSuccessMessage(''), 3000);
@@ -392,7 +395,7 @@ export default function PlanungsZentrale() {
       return;
     }
 
-    const currentWeekPlan = app.wochenplanung?.[nextKW] || {};
+    const currentWeekPlan = clonePlanningData(app.wochenplanung?.[nextKW] || {});
 
     setApp(prev => ({
       ...prev,
@@ -409,17 +412,20 @@ export default function PlanungsZentrale() {
 
   // Load Template
   const handleLoadTemplate = (tName: string) => {
-    const templateData = app.savedWeekTemplates?.[tName];
-    if (!templateData) return;
+    if (!app.savedWeekTemplates?.[tName]) return;
 
     if (window.confirm(`Möchtest du die Vorlage "${tName}" in die aktuelle KW ${nextKW} laden? Bisherige Einträge dieser Woche werden überschrieben.`)) {
-      setApp(prev => ({
-        ...prev,
-        wochenplanung: {
-          ...(prev.wochenplanung || {}),
-          [nextKW]: templateData
-        }
-      }));
+      setApp(prev => {
+        const templateData = prev.savedWeekTemplates?.[tName];
+        if (!templateData) return prev;
+        return {
+          ...prev,
+          wochenplanung: {
+            ...(prev.wochenplanung || {}),
+            [nextKW]: clonePlanningData(templateData)
+          }
+        };
+      });
       setSuccessMessage(`Vorlage "${tName}" geladen!`);
       setTimeout(() => setSuccessMessage(''), 2500);
     }
@@ -512,7 +518,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
 
   // Carry forward unfinished lessons from previous week
   const handleCarryOverUnfinished = () => {
-    const prevKWNum = nextKW - 1;
+    const prevKWNum = getPreviousCalendarWeekNumber(monday);
     const prevWeekPlan = app.wochenplanung?.[prevKWNum] || {};
 
     let carriedCount = 0;
@@ -598,7 +604,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
       });
     });
     return count;
-  }, [app.wochenplanung, nextKW, DAYS_DE]);
+  }, [app.wochenplanung, nextKW, DAYS_DE, monday]);
 
   const weekStats = useMemo(() => {
     const wp = app.wochenplanung?.[nextKW] || {};
@@ -632,7 +638,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
       const dayKey = useIdx ? dIdx : dayName;
       const dayPlan = wp[dayKey] || {};
 
-      for (let hIdx = 0; hIdx < 6; hIdx++) {
+      for (const hIdx of planningHourIndexes) {
         const lesson = dayPlan[hIdx];
         const defaultFach = app.stammplan?.[dayName]?.[hIdx + 1] || '';
 
@@ -660,7 +666,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
       }
     });
     return list;
-  }, [app.wochenplanung, app.stammplan, nextKW, DAYS_DE]);
+  }, [app.wochenplanung, app.stammplan, nextKW, DAYS_DE, planningHourIndexes]);
 
   // Planning Checklist
   const planningStepsChecklist = useMemo(() => {
@@ -695,7 +701,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
 
   // Recent history stream
   const recentLessonsHistory = useMemo(() => {
-    const prevKWNum = nextKW - 1;
+    const prevKWNum = getPreviousCalendarWeekNumber(monday);
     const prevPlan = app.wochenplanung?.[prevKWNum] || {};
     const history: any[] = [];
 
@@ -829,7 +835,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
               <div className="flex items-center gap-2.5">
                 <h1 className="text-lg font-black text-slate-900 tracking-tight">Planungs-Zentrale</h1>
                 <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider">
-                  {app.klasse || 'Klasse 3a'}
+                  {app.klassenbezeichnung || app.klasse || 'Planung'}
                 </span>
               </div>
               <p className="text-xs font-semibold text-slate-500 mt-0.5">
@@ -1049,7 +1055,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
 
                   {/* List of Today's Scheduled Lessons */}
                   <div className="space-y-2.5">
-                    {[0, 1, 2, 3, 4, 5].map(hourIdx => {
+                    {planningHourIndexes.map(hourIdx => {
                       const dayName = DAYS_DE[todayDayIdx];
                       const wp = app.wochenplanung?.[nextKW] || {};
                       const useIdx = wp[todayDayIdx] !== undefined;
@@ -1545,8 +1551,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                             <span>{dayName}</span>
                           </div>
 
-                          <div className="grid grid-cols-6 gap-2">
-                            {[0, 1, 2, 3, 4, 5].map(hourIdx => {
+                          <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-2">
+                            {planningHourIndexes.map(hourIdx => {
                               const lesson = dayPlan[hourIdx];
                               const defaultFach = app.stammplan?.[dayName]?.[hourIdx + 1] || '';
 
@@ -1623,7 +1629,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                     </div>
                     <div>
                       <h3 className="font-black text-slate-900 text-sm">2. Schnell Planen</h3>
-                      <p className="text-[11px] text-slate-500 font-medium">Unterrichtsstunde, Termin oder Aufgabe hinzufügen</p>
+                      <p className="text-[11px] text-slate-500 font-medium">Unterrichtsstunde oder Termin hinzufügen</p>
                     </div>
                   </div>
 
@@ -1677,7 +1683,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                           onChange={(e) => setSelectedHour(parseInt(e.target.value))}
                           className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
                         >
-                          {[0, 1, 2, 3, 4, 5].map(h => (
+                          {planningHourIndexes.map(h => (
                             <option key={h} value={h}>{h + 1}. Stunde</option>
                           ))}
                         </select>
