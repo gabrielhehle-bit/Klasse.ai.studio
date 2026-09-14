@@ -967,6 +967,12 @@ export interface ClassRoom {
   wochenplanung: Record<number, any>;
   wochenplanSyncSet?: string[];
   scheduleAnalysis?: Record<number, any>;
+  /** Class-local planning-center week templates. */
+  savedWeekTemplates?: Record<string, any>;
+  /** Class-local lessons temporarily parked from weekly planning. */
+  parkgarage?: any[];
+  /** Class-local planning events / dates created from the planning center. */
+  termine?: any[];
   stammplan: Record<string, Record<number, string>>;
   anwesenheit: Record<string, Record<string, Record<string, string>>>;
   anwesenheitDetail?: Record<string, Record<string, { verspaetung?: number; notiz?: string; dismissedAlerts?: string[]; fehlstunden?: number }>>;
