@@ -8,12 +8,16 @@ import {
   Filter, ArrowUpDown, ChevronRight, Trash2, Edit3, Heart, History, User, BarChart3, FileCheck, Activity, Star, Map as MapIcon, ArrowLeft, RefreshCw, ShieldAlert
 } from 'lucide-react';
 import { RichTextEditor } from './RichTextEditor';
-import { TAGE_NAMEN, STUNDEN_INFO, FAECHER_ALLE } from '../constants';
+import { TAGE_NAMEN, STUNDEN_INFO, FAECHER_ALLE, LESSON_SLOT_NUMBERS } from '../constants';
 import { LEHRPLAN_VS_2023 } from '../lehrplan';
-import { VertretungsStundenbild, VORLAGEN_VERTRETUNGSSTUNDEN, MaterialItem } from '../types';
-import { createMaterialItemFromStundenbild } from '../utils/materialienUtils';
+import { VertretungsStundenbild, VORLAGEN_VERTRETUNGSSTUNDEN } from '../types';
+import { createMaterialItemFromStundenbild, migrateStundenbilderToMaterialien } from '../utils/materialienUtils';
 import { askAI } from '../services/aiService';
 import { getSW } from '../lib/utils';
+import { berechne, getAssessmentMode } from '../lib/GradeUtils';
+import { getDiagnosticTestById } from '../lib/diagnosticCoreUtils';
+import { formatTransferGradeValue, getHandoverLessonPlans, getHandoverLessonTime } from '../lib/handoverUtils';
+import { calculateMaterialStorageSize, MATERIAL_LIBRARY_MAX_MB, removeMaterialReferencesFromClasses, removeMaterialReferencesFromWeeklyPlan, upsertMaterial } from '../lib/materialLibraryUtils';
 import Markdown from 'react-markdown';
 
 // Help functions for date handling
@@ -42,15 +46,25 @@ export default function Uebergabemappe() {
   const [transferStudentId, setTransferStudentId] = useState<string | null>(null);
   const [showTransferPrint, setShowTransferPrint] = useState(false);
   
-  // Initialization of lesson plans
+  // One-time migration of the former handover lesson-plan collection into the shared material library.
   useEffect(() => {
-    if (!app.vertretungsStundenbilder || app.vertretungsStundenbilder.length === 0) {
-      setApp(prev => ({
+    if (app.stundenbilderMigriert) return;
+    setApp(prev => {
+      const legacyLessonPlans =
+        prev.vertretungsStundenbilder && prev.vertretungsStundenbilder.length > 0
+          ? prev.vertretungsStundenbilder
+          : VORLAGEN_VERTRETUNGSSTUNDEN;
+      const migrationState = {
         ...prev,
-        vertretungsStundenbilder: VORLAGEN_VERTRETUNGSSTUNDEN
-      }));
-    }
-  }, []);
+        vertretungsStundenbilder: legacyLessonPlans,
+      };
+      return {
+        ...migrationState,
+        materialien: migrateStundenbilderToMaterialien(migrationState),
+        stundenbilderMigriert: true,
+      };
+    });
+  }, [app.stundenbilderMigriert, setApp]);
 
   // Trigger print configuration modal automatically if requested from Print Center
   useEffect(() => {
@@ -96,9 +110,9 @@ export default function Uebergabemappe() {
   });
   
   const [emergencyChecklist, setEmergencyChecklist] = useState([
-    { id: '1', text: 'Klassenzimmer-Schlüssel beim Schulwart hinterlegt', checked: true },
-    { id: '2', text: 'Klassendienste (Tafeldienst etc.) zugeteilt', checked: true },
-    { id: '3', text: 'Allergie- & Notfallkontaktliste liegt sichtbar am Lehrertisch', checked: true },
+    { id: '1', text: 'Klassenzimmer-Schlüssel beim Schulwart hinterlegt', checked: false },
+    { id: '2', text: 'Klassendienste (Tafeldienst etc.) zugeteilt', checked: false },
+    { id: '3', text: 'Allergie- & Notfallkontaktliste liegt sichtbar am Lehrertisch', checked: false },
     { id: '4', text: 'Pausenregeln und Aufsichtszeiten kurz notiert', checked: false },
     { id: '5', text: 'Arbeitsblätter & Handreichungen kopiert und bereitgelegt', checked: false },
     { id: '6', text: 'Zugangsdaten / Logins für Schul-Tablets & WLAN vermerkt', checked: false }
@@ -113,10 +127,14 @@ export default function Uebergabemappe() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showSinglePrint, setShowSinglePrint] = useState(false);
 
+  const lessonPlans = useMemo(
+    () => getHandoverLessonPlans(app.materialien),
+    [app.materialien],
+  );
+
   // Popular tags computed dynamically from material list + fallbacks
   const popularTags = useMemo(() => {
-    const list = (app.materialien || []).filter(m => m.typ === 'stundenentwurf') as unknown as VertretungsStundenbild[];
-    const allTags = list.flatMap(s => s.tags || []);
+    const allTags = lessonPlans.flatMap(s => s.tags || []);
     const counts: Record<string, number> = {};
     allTags.forEach(tag => {
       counts[tag] = (counts[tag] || 0) + 1;
@@ -127,11 +145,11 @@ export default function Uebergabemappe() {
     const defaults = ["Spiele", "Einstieg", "Kreativ", "Bewegung", "Rätsel", "Partnerarbeit", "Lesen", "Rechnen", "Gruppe"];
     const merged = Array.from(new Set([...dynamic, ...defaults])).slice(0, 10);
     return merged;
-  }, [app.materialien]);
+  }, [lessonPlans]);
 
   // Filtered and Sorted list
   const filteredStundenbilder = useMemo(() => {
-    let list = (app.materialien || []).filter(m => m.typ === 'stundenentwurf') as unknown as VertretungsStundenbild[];
+    let list = [...lessonPlans];
     
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -162,7 +180,7 @@ export default function Uebergabemappe() {
     });
     
     return list;
-  }, [app.materialien, searchQuery, filterFach, filterStufe, filterDauer, filterSchwierigkeit, sortBy, selectedTag]);
+  }, [lessonPlans, searchQuery, filterFach, filterStufe, filterDauer, filterSchwierigkeit, sortBy, selectedTag]);
 
   const handleAiSuggest = async () => {
     if (!editingStundenbild?.fach || !editingStundenbild?.schulstufen?.length || !editingStundenbild?.dauer) {
@@ -202,24 +220,47 @@ export default function Uebergabemappe() {
   };
 
   const handleSaveStundenbild = () => {
-    if (!editingStundenbild?.titel || !editingStundenbild?.fach) return;
-    
-    const newId = editingStundenbild.id || `custom-${Date.now()}`;
-    const sb = {
+    if (!editingStundenbild?.titel?.trim() || !editingStundenbild?.fach) {
+      alert('Bitte Titel und Fach angeben.');
+      return;
+    }
+
+    const newId = editingStundenbild.id || `custom-${globalThis.crypto?.randomUUID?.() || Date.now()}`;
+    const sb: VertretungsStundenbild = {
       ...editingStundenbild as VertretungsStundenbild,
       id: newId,
-      erstelltAm: editingStundenbild.erstelltAm || new Date().toISOString().split('T')[0],
-      istEigeneVorlage: true
+      titel: editingStundenbild.titel.trim(),
+      erstelltAm: editingStundenbild.erstelltAm || new Date().toISOString(),
+      istEigeneVorlage: true,
+      schulstufen: editingStundenbild.schulstufen || [app.stufe || 1],
+      dauer: editingStundenbild.dauer || 45,
+      schwierigkeit: editingStundenbild.schwierigkeit || 'mittel',
+      beschreibung: editingStundenbild.beschreibung || '',
+      benoetigtesMaterial: editingStundenbild.benoetigtesMaterial || [],
+      lernziel: editingStundenbild.lernziel || '',
+      tags: editingStundenbild.tags || [],
     };
-    
-    const materialItem = createMaterialItemFromStundenbild(sb);
+
+    const existing = (app.materialien || []).find(material => material.id === newId);
+    const created = createMaterialItemFromStundenbild(sb);
+    const materialItem = existing
+      ? {
+          ...existing,
+          ...created,
+          erstelltAm: existing.erstelltAm || created.erstelltAm,
+          favorit: existing.favorit,
+          zuletztVerwendet: existing.zuletztVerwendet,
+        }
+      : created;
+    const nextMaterials = upsertMaterial(app.materialien || [], materialItem);
+    if (calculateMaterialStorageSize(nextMaterials) > MATERIAL_LIBRARY_MAX_MB) {
+      alert('Speicher voll. Bitte lösche alte Materialien oder kürze das Stundenbild.');
+      return;
+    }
 
     setApp(prev => ({
       ...prev,
-      materialien: [
-        ...(prev.materialien?.filter(m => m.id !== newId) || []),
-        materialItem
-      ]
+      materialien: upsertMaterial(prev.materialien || [], materialItem),
     }));
     setIsEditing(false);
     setEditingStundenbild(null);
@@ -229,8 +270,13 @@ export default function Uebergabemappe() {
     if (confirm("Möchtest du dieses Stundenbild wirklich löschen?")) {
       setApp(prev => ({
         ...prev,
-        materialien: prev.materialien?.filter(m => m.id !== id)
+        materialien: prev.materialien?.filter(m => m.id !== id),
+        wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung, [id]),
+        classes: removeMaterialReferencesFromClasses(prev.classes, [id]),
       }));
+      setAssignedStundenbilder(prev => Object.fromEntries(
+        Object.entries(prev).filter(([, materialId]) => materialId !== id),
+      ));
     }
   };
 
@@ -272,11 +318,21 @@ export default function Uebergabemappe() {
   });
   const [klassenlisteOrientation, setKlassenlisteOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [density, setDensity] = useState<'standard' | 'compact'>('standard');
-  const [schulleitungName, setSchulleitungName] = useState('Volker Gabriel (VD.)');
-  const [sekretariatTel, setSekretariatTel] = useState('+43 5522 72412');
-  const [nachbarKlasse, setNachbarKlasse] = useState('Frau Petra Gruber (Klasse 3B)');
+  const [schulleitungName, setSchulleitungName] = useState('');
+  const [sekretariatTel, setSekretariatTel] = useState('');
+  const [nachbarKlasse, setNachbarKlasse] = useState('');
   const [dayNotes, setDayNotes] = useState<Record<string, string>>({});
   const [zoomLevel, setZoomLevel] = useState<number>(0.7);
+
+  useEffect(() => {
+    setPrintNotes(app.vertretungHinweise || '');
+    setAssignedStundenbilder({});
+    setDayNotes({});
+    setTransferStudentId(null);
+    setShowTransferPrint(false);
+    setSelectedStundenbild(null);
+    setShowDetailModal(false);
+  }, [app.activeClassId]);
 
   // Generate list of dates to print
   const getDaysToPrint = () => {
@@ -875,7 +931,7 @@ export default function Uebergabemappe() {
           </div>
 
           <div className="text-center text-[0.53125rem] text-slate-400 border-t pt-2 mt-4 select-none">
-            Hinterlassen am Lehrertisch – Schulplaner Handover System.
+            Hinterlassen am Lehrertisch – Klassio · Übergabemappe.
           </div>
         </div>
       );
@@ -1173,7 +1229,7 @@ export default function Uebergabemappe() {
               </div>
               <span className="text-[0.75rem] font-bold text-indigo-950 flex items-center gap-1.5">
                 {privacyMode ? <EyeOff size={14} className="text-indigo-600" /> : <Eye size={14} className="text-slate-500" />}
-                GDPR Datenschutz-Modus (Anonymisiert)
+                DSGVO-Datenschutzmodus (anonymisiert)
               </span>
             </div>
 
@@ -1378,10 +1434,13 @@ export default function Uebergabemappe() {
                   <ArrowUpDown size={14} className="text-indigo-500" />
                   <select 
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
+                    onChange={(e) => setSortBy(e.target.value as 'used' | 'date' | 'title')}
                     className="bg-transparent text-[0.75rem] leading-tight font-bold text-indigo-700 outline-none cursor-pointer"
                   >
-                         </select>
+                    <option value="used">Zuletzt verwendet</option>
+                    <option value="date">Neueste zuerst</option>
+                    <option value="title">Titel A–Z</option>
+                  </select>
                 </div>
              </div>
 
