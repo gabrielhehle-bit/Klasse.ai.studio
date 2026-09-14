@@ -35,6 +35,11 @@ function fixture() {
       interaktionsLog: { eintraege: [{ id: `interaction-${id}`, schuelerId: `student-${id}` }], wochenEmpfehlung: null },
       stundenZeiten: { 1: `${id}-08:00` }, scheduleAnalysis: { marker: id },
       lastGroups: [{ marker: id }], customBgColor: id,
+      behavior_status: { [`student-${id}`]: id === 'a' ? '1' : '4' },
+      behavior_notes: { [`student-${id}`]: `quick-${id}` },
+      notes: [{ id: `note-${id}`, datum: '2026-09-14T10:00:00.000Z', kategorie: 'Journal', inhalt: `note-${id}` }],
+      journal: [{ id: `note-${id}`, datum: '2026-09-14T10:00:00.000Z', kategorie: 'Journal', inhalt: `note-${id}` }],
+      statusLog: [{ id: `status-${id}`, schuelerId: `student-${id}`, datum: '2026-09-14', iconId: id === 'a' ? '1' : '4', timestamp: id === 'a' ? 1 : 2 }],
       wochenplanung: { 37: { Montag: [{ thema: id }] } },
       customLists: [{ id }], klassenglas_missions: [id],
       futureExtension: { preserved: id },
@@ -187,4 +192,63 @@ test('legacy root-only diagnostic data is assigned only to the active class', ()
   assert.equal(loaded.classes[0].ikmRecords?.[0]?.id, 'root-ikm');
   assert.deepEqual(loaded.classes[1].diagnosticResults, []);
   assert.deepEqual(loaded.classes[1].ikmRecords, []);
+});
+
+
+test('class switches isolate chronicle, journal and behavior status history', () => {
+  const state = fixture();
+
+  assert.equal(state.notes?.[0]?.id, 'note-a');
+  assert.equal(state.journal?.[0]?.id, 'note-a');
+  assert.equal(state.statusLog?.[0]?.id, 'status-a');
+  assert.equal(state.behavior_status?.['student-a'], '1');
+
+  let b = switchClassState(state, 'b');
+  assert.equal(b.notes?.[0]?.id, 'note-b');
+  assert.equal(b.journal?.[0]?.id, 'note-b');
+  assert.equal(b.statusLog?.[0]?.id, 'status-b');
+  assert.equal(b.behavior_status?.['student-b'], '4');
+  assert.equal(b.notes?.some((entry: any) => entry.id === 'note-a'), false);
+  assert.equal(b.statusLog?.some((entry: any) => entry.id === 'status-a'), false);
+
+  b = syncActiveClass({
+    ...b,
+    notes: [{ id: 'note-b-edited', datum: '2026-09-14T11:00:00.000Z', kategorie: 'Verhalten', inhalt: 'edited' }],
+    journal: [{ id: 'note-b-edited', datum: '2026-09-14T11:00:00.000Z', kategorie: 'Verhalten', inhalt: 'edited' }],
+    statusLog: [{ id: 'status-b-edited', schuelerId: 'student-b', datum: '2026-09-14', iconId: '2', timestamp: 3 }],
+    behavior_status: { 'student-b': '2' },
+  } as any);
+
+  const a = switchClassState(b, 'a');
+  assert.equal(a.notes?.[0]?.id, 'note-a');
+  assert.equal(a.statusLog?.[0]?.id, 'status-a');
+  assert.equal(a.behavior_status?.['student-a'], '1');
+
+  const reloaded = normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(a))));
+  assert.equal(reloaded.classes[1].notes?.[0]?.id, 'note-b-edited');
+  assert.equal(reloaded.classes[1].journal?.[0]?.id, 'note-b-edited');
+  assert.equal(reloaded.classes[1].statusLog?.[0]?.id, 'status-b-edited');
+  assert.equal(reloaded.classes[1].behavior_status?.['student-b'], '2');
+});
+
+test('legacy root-only chronicle and behavior history are assigned only to the active class', () => {
+  const loaded = normalizeAppState({
+    activeClassId: 'a',
+    notes: [{ id: 'legacy-note', datum: '2026-09-14T10:00:00.000Z', kategorie: 'Journal', inhalt: 'legacy' }],
+    journal: [{ id: 'legacy-note', datum: '2026-09-14T10:00:00.000Z', kategorie: 'Journal', inhalt: 'legacy' }],
+    statusLog: [{ id: 'legacy-status', schuelerId: 'student-a', datum: '2026-09-14', iconId: '1', timestamp: 1 }],
+    classes: [
+      { id: 'a', schueler: [{ id: 'student-a' }] },
+      { id: 'b', schueler: [{ id: 'student-b' }] },
+    ],
+  });
+
+  assert.equal(loaded.classes[0].notes?.[0]?.id, 'legacy-note');
+  assert.equal(loaded.classes[0].journal?.[0]?.id, 'legacy-note');
+  assert.equal(loaded.classes[0].statusLog?.[0]?.id, 'legacy-status');
+  assert.deepEqual(loaded.classes[1].notes, []);
+  assert.deepEqual(loaded.classes[1].journal, []);
+  assert.deepEqual(loaded.classes[1].statusLog, []);
+  assert.deepEqual(switchClassState(loaded, 'b').notes, []);
+  assert.deepEqual(switchClassState(loaded, 'b').statusLog, []);
 });
