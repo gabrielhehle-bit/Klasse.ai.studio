@@ -17,7 +17,7 @@ import {
   formatLocalDateKey,
 } from "../lib/utils";
 import { getFerien } from "../lib/ferienOesterreich";
-import { VM_ZEITEN, STUNDEN_INFO, FAECHER_ALLE, AESTHETIC_THEMES, DASHBOARD_CURATED_FONTS, DASHBOARD_FONT_SIZES } from "../constants";
+import { VM_ZEITEN, STUNDEN_INFO, FAECHER_ALLE, AESTHETIC_THEMES, DASHBOARD_CURATED_FONTS, DASHBOARD_FONT_SIZES, MAX_LESSON_SLOTS, LESSON_SLOT_NUMBERS } from "../constants";
 import { berechne } from "../lib/GradeUtils";
 import { isDiagnosticAlert } from "../lib/diagnosticData";
 import { isAttendanceCompleteForDay, isAttendanceRequiredForDay } from "../lib/dashboardAttendance";
@@ -2598,7 +2598,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const timesMap = app.stundenZeiten || STUNDEN_INFO;
     
     const parsedZeiten: { start: number; end: number; id: number }[] = [];
-    for (let id = 1; id <= 10; id++) {
+    for (let id = 1; id <= MAX_LESSON_SLOTS; id++) {
       const zStr = timesMap[id];
       if (zStr) {
         const parts = zStr.split(/[–-]/).map(p => p.trim());
@@ -2639,7 +2639,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const stammItems = app?.stammplan?.[tagName] || {};
     
     let lastRealHourId = -1;
-    for (let id = 1; id <= 10; id++) {
+    for (let id = 1; id <= MAX_LESSON_SLOTS; id++) {
       const displayFach = tagPlan[id - 1]?.fach || stammItems[id] || "";
       if (displayFach) {
         lastRealHourId = id;
@@ -2887,7 +2887,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const list: any[] = [];
     const tagPlan = tagName ? (app?.wochenplanung?.[kw]?.[tagName] || {}) : {};
     const stammItems = app?.stammplan?.[tagName] || {};
-    for (let id = 1; id <= 10; id++) {
+    for (let id = 1; id <= MAX_LESSON_SLOTS; id++) {
       const fach = tagPlan[id - 1]?.fach || stammItems[id] || "";
       if (fach) {
         list.push({
@@ -5090,7 +5090,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                         <div className="text-[0.5rem] font-black uppercase tracking-wider text-accent/60 mb-1.5 text-center">
                           {tag.slice(0, 2)}
                         </div>
-                        {Array.from({ length: 8 }, (_, i) => i + 1).map((h) => {
+                        {LESSON_SLOT_NUMBERS.map((h) => {
                           const fach = app.stammplan?.[tag]?.[h];
                           if (!fach)
                             return (

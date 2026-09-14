@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import LZString from 'lz-string';
 import { getCurrentSchuljahr } from '../lib/utils';
 import { createBeispielklasse } from '../data/beispielklasse';
-import { FAECHER_ALLE, DEFAULT_TAGEPLAN, DEFAULT_FACH_COLORS, STUNDEN_INFO, TAGE_NAMEN, STUNDENTAFEL, AESTHETIC_THEMES, FONTS, DEUTSCH_UNTERFAECHER } from '../constants';
+import { FAECHER_ALLE, DEFAULT_TAGEPLAN, DEFAULT_FACH_COLORS, STUNDEN_INFO, TAGE_NAMEN, STUNDENTAFEL, AESTHETIC_THEMES, FONTS, DEUTSCH_UNTERFAECHER, LESSON_SLOT_NUMBERS } from '../constants';
 import { 
   GraduationCap, Users, Clock, Calendar, 
   Sparkles, User, Palette, Check, Trash2, Upload, AlertCircle, Play, Edit3, FileUp,
@@ -1221,7 +1221,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                     <p className="text-[0.625rem] text-slate-500 font-medium leading-tight mb-4">Trage hier durch Klicken in die Felder die korrekten Beginn- und Endzeiten ein.</p>
                   </div>
                  <div className="grid grid-cols-2 gap-3">
-                   {[1,2,3,4,5,6,7,8].map(h => (
+                   {LESSON_SLOT_NUMBERS.map(h => (
                        <div key={h} className="relative group">
                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.625rem] font-black text-slate-400 group-hover:text-emerald-500 transition-colors">{h}.</span>
                          <input type="text" value={stundenZeiten[h] || ''} onChange={e => setStundenZeiten((prev: any) => ({ ...prev, [h]: e.target.value }))} className="w-full pl-8 pr-8 py-2.5 text-[0.6875rem] bg-white border border-slate-200 focus:border-emerald-500 hover:border-emerald-300 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 font-bold outline-none transition-all shadow-sm group-hover:shadow-md cursor-text" placeholder={`Zeit definieren`} />
@@ -1258,7 +1258,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                           <div key={tag} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 shadow-sm">
                             <span className="text-[0.75rem] leading-tight font-bold text-slate-700">{tag}</span>
                             <div className="flex items-center gap-1">
-                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(h => {
+                              {LESSON_SLOT_NUMBERS.map(h => {
                                 const isActive = stundenArr.includes(h);
                                 return (
                                   <button 
@@ -1314,7 +1314,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                       </div>
                       
                       <div className="space-y-2">
-                        {Array.from({ length: 8 }, (_, i) => i + 1).map(h => {
+                        {LESSON_SLOT_NUMBERS.map(h => {
                             if (h === mittagspauseNachStunde + 1) {
                               return (
                                 <div key={`pause-${h}`} className="flex items-center justify-center gap-4 my-3">
@@ -1378,7 +1378,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                          <div key={tag} className="text-[0.625rem] font-black text-slate-700 uppercase tracking-widest text-center">{tag.slice(0,2)}</div>
                        ))}
                      </div>
-                     {Array.from({ length: 8 }, (_, i) => i + 1).map(h => (
+                     {LESSON_SLOT_NUMBERS.map(h => (
                        <React.Fragment key={h}>
                          {h === mittagspauseNachStunde + 1 && (
                            <div className="grid grid-cols-6 gap-2 my-2 items-center">
