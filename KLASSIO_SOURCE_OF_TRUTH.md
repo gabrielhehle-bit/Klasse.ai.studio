@@ -42,6 +42,7 @@ Anschließend wurden die letzten funktionalen Reste aus historischen Divergenzen
 - PR #26: Die Hauptbereiche `Klasse`, `Planung` und `Leistungen` wurden weiter aufgeräumt. Doppelte Schnellnavigation wurde entfernt, Karten sind in sinnvolle Untergruppen gegliedert, Klassenvorstand-Sichtbarkeit bleibt erhalten und alle bisherigen Ziele bleiben erreichbar. Regressionstests sichern Struktur und vollständige Zielmenge.
 - PR #30: Die Startseite `Heute` wurde navigationssicher gemacht. Die kompakte Lehreransicht bleibt Standard; tote Legacy-Ziele `einstellungen`, `geldsammlung` und `kalender` wurden auf die realen Bereiche Einstellungen, Organisation und Planung umgestellt. Ein neuer Vertragstest gleicht Dashboard-Ziele gegen das echte App-Routing ab.
 - PR #32: Die kompakte `Heute`-Ansicht wurde als tägliche Lehrerstartseite final vereinfacht. Die doppelte Dreifach-Leiste `Vorbereiten · Unterrichten · Abschließen` entfällt; die Informationsfolge ist jetzt `Jetzt → Heute → Wichtig → Schnell`. Unterricht, laufende Stunde, Anwesenheit, Hinweise und offene Punkte bleiben erhalten; Schnellzugriffe führen zu Wochenplan, Notizen und Organisation. Backup bleibt im eigenen Datenbereich, die erweiterte Widgetansicht bleibt vollständig verfügbar. Strukturtests sichern diese reduzierte Startansicht.
+- PR #35: Das Lehrercockpit wurde im Modul-für-Modul-Abschluss final gehärtet. Die weiße Schreib-/Zeichen-/Widgetfläche und alle 108 Widgettypen bleiben erhalten; sekundäre Ansichtsaktionen liegen gesammelt unter `Optionen → Ansicht`. Cockpit und Tagesplan verwenden die konfigurierten 1–10 Stunden-Slots und daraus abgeleitete Pausen statt acht fest verdrahteter Zeiten. Ein frischer Zustand erfindet weder Klasse `4c` noch ein sichtbares Klassentier. Der tägliche Cockpit-Sicherungsstatus ist klassenlokal und ein zu frühes Schließen markiert den Tag nicht mehr fälschlich als gespeichert. Regressionstests sichern diese Anforderungen.
 
 Die historischen divergierenden Branches `audit/production-demo-data`, `audit/visible-legacy-branding`, `audit/visible-legacy-branding-final`, `fix/klassio-visible-branding`, `fix/json-backups-and-critical-data-flows` und `feature/final-app-polish` wurden anschließend gezielt gegen den aktuellen Reconciliation-Stand geprüft. Ihre noch eigenen Commits enthalten entweder nur temporäre Audit-/CI-Workflows oder ältere Varianten von Funktionen, die im aktuellen Stand bereits gleichwertig oder neuer umgesetzt sind. Sie werden deshalb **nicht** in den Produktstand gemergt.
 
@@ -49,18 +50,18 @@ Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist kei
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Reconciliation-Stand liegt nach PR #32 auf Commit `0cb024b322db5821c038a689c5491575addd2706` und wurde vollständig geprüft:
+Der letzte codehaltige Reconciliation-Stand liegt nach PR #35 auf Commit `2c29ed7705da832fe93499d7da19d007fc61d8e6` und wurde vollständig geprüft:
 
-- Pre-Deployment Audit #98: erfolgreich
+- Pre-Deployment Audit #101: erfolgreich
 - TypeScript: erfolgreich
-- Tests: 776/776 erfolgreich
+- Tests: 788/788 erfolgreich
 - Production Build: erfolgreich
 - PWA-/Build-Ausgabe: erfolgreich
 - Production-Server- und `/api/health`-Smoke: erfolgreich
 - Zugangscode-/Session-/E-Mail-Fallback-Smoke: erfolgreich
-- World4You-Artefakt: `klassio-world4you-0cb024b322db5821c038a689c5491575addd2706`
+- World4You-Artefakt: `klassio-world4you-2c29ed7705da832fe93499d7da19d007fc61d8e6`
 
-PR #32 wurde nach grüner Feature-Branch-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `0cb024b322db5821c038a689c5491575addd2706`.
+PR #35 wurde nach grüner Feature- und PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `2c29ed7705da832fe93499d7da19d007fc61d8e6`.
 
 Der aktuelle Branch-HEAD kann danach reine Dokumentationscommits enthalten. Deshalb wird der verbindliche Reconciliation-HEAD **nicht dauerhaft in dieser Datei festgeschrieben**, sondern vor jeder Arbeit live aus GitHub gelesen und mit seinem neuesten erfolgreichen `Pre-Deployment Audit` abgeglichen.
 
@@ -71,7 +72,7 @@ Nach jeder Dokumentations- oder Codeänderung ist ausschließlich der **neue** G
 Der Reconciliation-Stand enthält unter anderem:
 
 - vereinfachte Kernnavigation mit `Heute`, `Klasse`, `Planung`, `Leistungen` und `Unterricht`; der neue Unterricht-Hub bündelt Lehrercockpit, KI-Helfer, Arbeitsblatt-Generator, Stationenbetrieb, Stimm-Notizen, Differenzierung und Elternbrief. Die übrigen Bestandswerkzeuge sind ihren fachlichen Hubs oder `Mehr` zugeordnet, statt unsichtbar zu bleiben. Detailseiten zeigen zusätzlich ihren Hauptbereich und bieten einen eindeutigen Rückweg dorthin.
-- Lehrercockpit mit freier weißer Schreib-/Zeichen-/Widgetfläche ohne Startkarte; 108/108 erhaltene Widgets sind über Suche/Kategorien erreichbar, Favoriten bleiben benutzerdefiniert
+- Lehrercockpit mit freier weißer Schreib-/Zeichen-/Widgetfläche ohne Startkarte; 108/108 erhaltene Widgets sind über Suche/Kategorien erreichbar, Favoriten bleiben benutzerdefiniert; sekundäre Ansichtssteuerung ist unter `Optionen → Ansicht` gebündelt, Stunden/Pausen folgen den konfigurierten 1–10 Slots und der tägliche Sicherungsstatus ist klassenlokal
 - Dashboard/Heute mit ehrlicher Anwesenheitslogik und kompakter Lehrerstartseite: keine angenommene Präsenz, keine Pflicht an freien Tagen, „geprüft“ erst nach vollständiger Stunden-Erfassung; Standardansicht folgt `Jetzt → Heute → Wichtig → Schnell`, erweiterte Widgets bleiben optional erreichbar
 - KI-Helfer mit serverseitiger Verfügbarkeitsprüfung, datensparsamem Klassenkontext und expliziter Bild-Datenschutzfreigabe
 - SetupWizard mit strukturiertem Lehrkraftprofil, dynamischen Schuljahren und 10 frei konfigurierbaren Stunden-Slots
@@ -206,7 +207,8 @@ Für jeden Bereich gilt:
 
 Aktueller Fortschritt:
 - Dashboard / Heute: technisch abgeschlossen; reale visuelle Browser-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
-- Nächster Bereich: Lehrercockpit.
+- Lehrercockpit: technisch abgeschlossen; PR #35 integriert, Audit #101 grün; reale Maus-/Touch-/Stift-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
+- Nächster Bereich: KI-Helfer.
 
 ## Pflicht für jeden neuen Chat
 
