@@ -53,6 +53,7 @@ test('Arbeitsblatt-Generator: Prompt und Bibliotheksmetadaten nutzen die aktive 
   assert.match(worksheet, />\{worksheetGrade\}\. Schulstufe</);
   assert.doesNotMatch(worksheet, /schulstufen: \[4\]/);
   assert.doesNotMatch(worksheet, />4\. Schulstufe</);
+  assert.doesNotMatch(worksheet, /für die 4\. Klasse/);
 });
 
 
