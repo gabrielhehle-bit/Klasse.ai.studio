@@ -4,6 +4,7 @@ import {
   applyYearPlanImportRows,
   yearPlanCellDisplayText,
   yearPlanCellEntries,
+  shiftYearPlanSubjectForward,
 } from './yearlyPlanData';
 
 test('Jahresplanung: mehrere Themen derselben KW und desselben Fachs bleiben erhalten', () => {
@@ -67,4 +68,36 @@ test('Jahresplanung: Anzeige und Exporttext enthalten alle Mehrfachthemen', () =
   };
 
   assert.equal(yearPlanCellDisplayText(cell), 'Lesen (S. 4) · Rechtschreiben (S. 8)');
+});
+
+
+test('Jahresplanung: Verschieben folgt der Schulwochen-Reihenfolge über den Jahreswechsel', () => {
+  const existing = {
+    51: { lesen: { thema: 'A', type: 'standard' } },
+    52: { lesen: { thema: 'B', type: 'standard' } },
+    2: { lesen: { thema: 'C', type: 'standard' } },
+  };
+
+  const shifted = shiftYearPlanSubjectForward(
+    existing,
+    'lesen',
+    51,
+    [51, 52, 2, 3],
+  );
+
+  assert.equal(shifted[51]?.lesen, undefined);
+  assert.equal(shifted[52].lesen.thema, 'A');
+  assert.equal(shifted[2].lesen.thema, 'B');
+  assert.equal(shifted[3].lesen.thema, 'C');
+});
+
+test('Jahresplanung: Verschieben erfindet keine Woche hinter dem Schuljahresende', () => {
+  const existing = {
+    30: { lesen: { thema: 'Letztes Thema', type: 'standard' } },
+  };
+
+  const shifted = shiftYearPlanSubjectForward(existing, 'lesen', 30, [29, 30]);
+
+  assert.equal(shifted[30].lesen.thema, 'Letztes Thema');
+  assert.equal((shifted as any)[31], undefined);
 });
