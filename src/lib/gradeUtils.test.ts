@@ -160,3 +160,41 @@ test('weekly-plan mirroring never reinterprets a raw value across different asse
     { sync: true, value: 'e' },
   );
 });
+
+
+test('different subjects can apply different homework rules without affecting each other', () => {
+  const app = baseApp();
+  app.faecher = ['Deutsch', 'Mathematik'];
+  app.fachConfig.Mathematik = { color: '#000000', unterrichtet: true };
+  app.noten.s1.Mathematik = {
+    '1': {
+      sa: [],
+      lzk: [2],
+      wp: [],
+      aufgaben: [],
+      hue: 2,
+      hueErfasst: true,
+      hueAnm: [],
+    },
+  };
+  app.noten.s1.Deutsch['1'].hue = 2;
+  app.noten.s1.Deutsch['1'].hueErfasst = true;
+  app.notenMeta.Deutsch = {
+    ...app.notenMeta.Deutsch,
+    hueMode: 'grade',
+    hueDeduction: 10,
+  };
+  app.notenMeta.Mathematik = {
+    assessmentMode: 'grades',
+    hueMode: 'document',
+    colCounts: { lzk: 1, wp: 0, obj: 0 },
+  };
+  app.notenGewichtung.Deutsch = { sa: 0, lzk: 50, wp: 0, obj: 0, mi: 0, hue: 50 };
+  app.notenGewichtung.Mathematik = { sa: 0, lzk: 100, wp: 0, obj: 0, mi: 0, hue: 0 };
+
+  const deutsch = berechne(app, 's1', 'Deutsch', '1');
+  const mathe = berechne(app, 's1', 'Mathematik', '1');
+
+  assert.equal(deutsch, 1.5);
+  assert.equal(mathe, 2);
+});
