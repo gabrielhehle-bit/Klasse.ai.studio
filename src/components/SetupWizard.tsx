@@ -265,8 +265,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
       if (result.students && result.students.length > 0) {
         const newKids = result.students.map((s: any) => ({
           id: crypto.randomUUID(), vorname: s.vorname || '', nachname: s.nachname || '', name: `${s.vorname||''} ${s.nachname||''}`.trim(),
-          geschlecht: s.geschlecht || 'w', niveau: 1, geburtstag: s.geburtstag || '', staatsbuergerschaft: 'Österreich',
-          religion: s.religion || '', gruppen: [], erstelltAm: new Date().toISOString()
+          geschlecht: s.geschlecht || '', niveau: 1, geburtstag: s.geburtstag || '', staatsbuergerschaft: s.staatsbuergerschaft || '',
+          religion: s.religion || '', erstsprache: s.erstsprache || '', gruppen: [], erstelltAm: new Date().toISOString()
         }));
         setCsvPreview(newKids);
         setCsvError(false);
@@ -311,7 +311,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     const newKid = {
       id: crypto.randomUUID(), vorname: currentStudent.vorname.trim(), nachname: currentStudent.nachname.trim(),
       name: `${currentStudent.vorname.trim()} ${currentStudent.nachname.trim()}`, geschlecht: '', niveau: 1,
-      geburtstag: '', staatsbuergerschaft: 'Österreich', religion: '', gruppen: [], erstelltAm: new Date().toISOString()
+      geburtstag: '', staatsbuergerschaft: '', religion: '', erstsprache: '', gruppen: [], erstelltAm: new Date().toISOString()
     };
     setStudentsList(prev => [...prev, newKid]);
     setStudentMessage(null);
@@ -943,9 +943,24 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                 <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><User className="text-emerald-500" size={22}/> Profil & Schule</h3>
              </div>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-6 rounded-[24px] border border-slate-100">
+                <div className="space-y-1.5">
+                  <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Anrede</label>
+                  <select autoFocus value={anrede} onChange={e => setAnrede(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm">
+                    <option value="">Keine Angabe</option>
+                    <option value="Frau">Frau</option>
+                    <option value="Herr">Herr</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Vorname</label>
+                  <input type="text" value={vorname} onChange={e => setVorname(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm" />
+                </div>
                 <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Dein Name / Titel</label>
-                  <input autoFocus type="text" placeholder="z.B. Frau Prof. Müller" value={lehrerName} onChange={e => setLehrerName(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm" />
+                  <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Nachname</label>
+                  <input type="text" value={nachname} onChange={e => setNachname(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm" />
+                  {legacyTeacherName && !app.nachname && (
+                    <p className="text-[0.625rem] text-slate-500">Der bisherige Anzeigename wurde übernommen und in die neuen Profilfelder aufgeteilt.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schulname</label>
@@ -1006,10 +1021,9 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                       onChange={e => setSchuljahr(e.target.value)} 
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm cursor-pointer"
                     >
-                      <option value="2026/27">2026/27</option>
-                      <option value="2027/28">2027/28</option>
-                      <option value="2028/29">2028/29</option>
-                      <option value="2029/30">2029/30</option>
+                      {schoolYearOptions.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
                     </select>
                  </div>
                  <div className="space-y-2 sm:col-span-2">
@@ -1859,7 +1873,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
             mergeStudents(importedStudents);
             if (meta?.klasse) setKlassenbezeichnung(meta.klasse);
             if (meta?.schuljahr) setSchuljahr(meta.schuljahr);
-            if (meta?.lehrerName) setLehrerName(meta.lehrerName);
+            if (meta?.lehrerName) applyTeacherName(meta.lehrerName);
             if (meta?.schulName) setSchulName(meta.schulName);
             if (meta?.schulkennzahl) setSchulkennzahl(meta.schulkennzahl);
             setActiveInputMode('manual');
