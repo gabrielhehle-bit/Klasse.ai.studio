@@ -1,4 +1,5 @@
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { Student } from '../types';
 import { normalizeStudentGender } from './studentListData';
 
@@ -85,7 +86,7 @@ export function normalizeReligion(rel: string): string {
 
 // Normalize Country
 export function normalizeCountry(cntry: string): string {
-  if (!cntry) return 'Österreich';
+  if (!cntry) return '';
   const c = cntry.trim().toUpperCase();
   if (c === 'AUT' || c === 'A' || c === 'ÖSTERREICH' || c === 'OESTERREICH') return 'Österreich';
   if (c === 'DEU' || c === 'D' || c === 'DEUTSCHLAND') return 'Deutschland';
@@ -117,9 +118,9 @@ export function cleanPhoneNumber(phone: string): string {
  */
 export async function extractTextFromPDF(arrayBuffer: ArrayBuffer): Promise<{ rawText: string; lines: string[] }> {
   try {
-    // Configure worker
+    // Bundle the worker locally so PDF import works offline and does not depend on a third-party CDN.
     if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version || '4.10.38'}/pdf.worker.min.mjs`;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
     }
 
     const loadingTask = pdfjsLib.getDocument({
@@ -274,17 +275,17 @@ export function parseSokratesText(rawText: string): ParsedSokratesResult {
     let vorname = '';
     let nachname = '';
     let geburtstag = '';
-    let besuchsjahr = '1';
+    let besuchsjahr = '';
     let sv_nummer = '';
     let religion = '';
-    let staatsbuergerschaft = 'Österreich';
+    let staatsbuergerschaft = '';
     let anschrift = '';
     let plz = '';
     let ort = '';
     let telefon_mutter = '';
     let telefon_vater = '';
     let email_eltern = '';
-    let erstsprache = 'Deutsch';
+    let erstsprache = '';
     let geschlecht = '';
     let notiz = '';
 
@@ -413,7 +414,7 @@ export function parseSokratesText(rawText: string): ParsedSokratesResult {
         nachname: nachname.trim(),
         geschlecht,
         geburtstag,
-        besuchsjahr: besuchsjahr || '1',
+        besuchsjahr,
         sv_nummer,
         religion,
         staatsbuergerschaft,
@@ -493,12 +494,12 @@ export function convertToAppStudents(parsedList: ParsedSokratesStudent[]): Stude
       notiz: s.notiz || '',
       geburtstag: s.geburtstag || '',
       geburtsdatum: s.geburtstag || '',
-      staatsbuergerschaft: s.staatsbuergerschaft || 'Österreich',
+      staatsbuergerschaft: s.staatsbuergerschaft || '',
       religion: s.religion || '',
-      besuchsjahr: s.besuchsjahr || '1', // Sokrates BJ -> LehrerAPP Besuchsjahr
+      besuchsjahr: s.besuchsjahr || '', // fehlende Besuchsjahre nicht erfinden
       espf: false,
       spf: false,
-      erstsprache: s.erstsprache || 'Deutsch',
+      erstsprache: s.erstsprache || '',
       geschlecht: normalizeStudentGender(s.geschlecht),
       gruppen: [],
       anschrift: s.anschrift || '',
