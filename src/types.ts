@@ -979,6 +979,8 @@ export interface ClassRoom {
   klassenglas_completed_missions?: any[];
   checklisten?: OrgCheckliste[];
   customLists?: CustomList[];
+  /** Class-local portal/login credentials shown in Kassa & Orga. */
+  zugangsdaten?: Zugangsdaten[];
   klassenkasse?: {
     kontostand: number;
     sammlungen: Geldsammlung[];
