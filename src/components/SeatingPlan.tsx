@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { berechne } from '../lib/GradeUtils';
 import SeatingPlanAnalysis from './SeatingPlanAnalysis';
+import { classifySeatPositions, findSeatingRuleViolations, sanitizeSeatingRules, sameSeat } from '../lib/seatingPlanRules';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
   if (!geburtstagStr) return false;
@@ -1123,11 +1124,11 @@ const RulesGeneratorModal = ({
     notiz?: string;
   }>({ typ: 'nicht_nebeneinander', schuelerIds: [] });
 
-  const [pickingSeat, setPickingSeat] = useState(false);
-
-  // Filter students that actually exist (if deleted)
-  const existingRules = (app.sitzplanRegeln || []).filter((r: any) => 
-    r.schuelerIds.every((id: string) => app.schueler.some((s: any) => s.id === id))
+  // Filter malformed/legacy rules and capture missing fixed-seat positions safely.
+  const existingRules = sanitizeSeatingRules(
+    app.sitzplanRegeln || [],
+    app.schueler || [],
+    app.sitzplan_schueler || {}
   );
 
   const students = [...app.schueler].sort((a: any, b: any) => a.vorname.localeCompare(b.vorname));
@@ -1138,8 +1139,31 @@ const RulesGeneratorModal = ({
       alert("Maximal 20 Regeln erlaubt.");
       return;
     }
-    const rule = { ...newRule, id: Date.now().toString() };
-    setApp({ ...app, sitzplanRegeln: [...existingRules, rule] });
+
+    const primaryStudentId = newRule.schuelerIds[0];
+    const fixedPosition = newRule.typ === 'fester_platz'
+      ? app.sitzplan_schueler?.[primaryStudentId]
+      : undefined;
+
+    if (newRule.typ === 'fester_platz' && !fixedPosition) {
+      alert("Bitte platziere das Kind zuerst im Sitzplan. Erst dann kann dieser Platz fixiert werden.");
+      return;
+    }
+
+    const rule = {
+      ...newRule,
+      id: crypto.randomUUID(),
+      ...(newRule.typ === 'feste_zone' ? { zone: newRule.zone || 'vorne' } : {}),
+      ...(fixedPosition ? { position: { ...fixedPosition } } : {})
+    };
+
+    setApp((prev: any) => ({
+      ...prev,
+      sitzplanRegeln: [
+        ...sanitizeSeatingRules(prev.sitzplanRegeln || [], prev.schueler || [], prev.sitzplan_schueler || {}),
+        rule
+      ]
+    }));
     setNewRule({ typ: 'nicht_nebeneinander', schuelerIds: [] });
   };
 
@@ -1173,7 +1197,10 @@ const RulesGeneratorModal = ({
                       {r.notiz && <span className="text-xs text-slate-400 truncate">{r.notiz}</span>}
                     </div>
                     <button 
-                      onClick={() => setApp({ ...app, sitzplanRegeln: existingRules.filter((er: any) => er.id !== r.id) })}
+                      onClick={() => setApp((prev: any) => ({
+                        ...prev,
+                        sitzplanRegeln: (prev.sitzplanRegeln || []).filter((er: any) => er.id !== r.id)
+                      }))}
                       className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
                     >
                       <Trash2 size={16} />
@@ -1198,7 +1225,6 @@ const RulesGeneratorModal = ({
                     key={t.typ}
                     onClick={() => {
                       setNewRule({ typ: t.typ as any, schuelerIds: [] });
-                      setPickingSeat(false);
                     }}
                     className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${newRule.typ === t.typ ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-200 hover:bg-slate-50'}`}
                   >
@@ -1244,7 +1270,9 @@ const RulesGeneratorModal = ({
                   {newRule.typ === 'fester_platz' && (
                      <div className="flex-1 flex items-center">
                         <span className="text-xs text-slate-500 italic mr-2 bg-slate-100 p-2 rounded-lg">
-                          Aktueller Platz wird automatisch übernommen
+                          {newRule.schuelerIds[0] && app.sitzplan_schueler?.[newRule.schuelerIds[0]]
+                            ? `Aktueller Platz wird fixiert (${Math.round(app.sitzplan_schueler[newRule.schuelerIds[0]].x)} / ${Math.round(app.sitzplan_schueler[newRule.schuelerIds[0]].y)})`
+                            : 'Kind zuerst im Raum platzieren'}
                         </span>
                      </div>
                   )}
@@ -1260,7 +1288,11 @@ const RulesGeneratorModal = ({
 
                 <button 
                   onClick={handleSave}
-                  disabled={newRule.schuelerIds.length === 0 || ((newRule.typ === 'nicht_nebeneinander' || newRule.typ === 'nebeneinander') && newRule.schuelerIds.length < 2)}
+                  disabled={
+                    newRule.schuelerIds.length === 0 ||
+                    ((newRule.typ === 'nicht_nebeneinander' || newRule.typ === 'nebeneinander') && newRule.schuelerIds.length < 2) ||
+                    (newRule.typ === 'fester_platz' && !app.sitzplan_schueler?.[newRule.schuelerIds[0]])
+                  }
                   className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-black disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/20"
                 >
                   Regel speichern
