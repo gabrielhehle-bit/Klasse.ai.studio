@@ -506,7 +506,7 @@ function AppContent() {
         <React.Suspense fallback={
           <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 gap-4">
             <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-            <div className="text-stone-400 font-mono text-[9px] uppercase tracking-wider font-bold">Lade GabicQuest...</div>
+            <div className="text-stone-400 font-mono text-[9px] uppercase tracking-wider font-bold">Lade Klassio Quest...</div>
           </div>
         }>
           <div className="w-full min-h-full max-w-7xl relative bg-white rounded-[2.5rem] shadow-2xl flex flex-col">
@@ -767,7 +767,7 @@ function AppContent() {
                 <Sparkles size={20} className="text-white" />
               </div>
               <p className="text-[0.875rem] font-bold leading-tight">
-                Du erkundest GABIC gerade mit einer Beispielklasse. Möchtest du eine eigene Klasse anlegen oder die Beispieldaten als Basis behalten?
+                Du erkundest Klassio gerade mit einer Beispielklasse. Möchtest du eine eigene Klasse anlegen oder die Beispieldaten als Basis behalten?
               </p>
             </div>
             <div className="flex items-center gap-3 w-full md:w-auto">
