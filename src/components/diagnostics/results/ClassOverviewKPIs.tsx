@@ -32,7 +32,7 @@ const DOMAIN_ACCENT_BG: Record<string, string> = {
 
 export const ClassOverviewKPIs: React.FC<ClassOverviewKPIsProps> = ({
   kpis,
-  activeClassName = '2a',
+  activeClassName,
 }) => {
   return (
     <div className="space-y-4">
@@ -52,7 +52,7 @@ export const ClassOverviewKPIs: React.FC<ClassOverviewKPIsProps> = ({
             <span className="text-xs text-slate-500 font-medium">Kinder</span>
           </div>
           <p className="text-[11px] text-slate-500">
-            Klasse {activeClassName}
+            {activeClassName ? `Klasse ${activeClassName}` : 'Aktuelle Klasse'}
           </p>
         </div>
 
