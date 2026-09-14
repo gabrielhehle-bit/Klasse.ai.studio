@@ -152,7 +152,7 @@ export default function BackupSettings({
               className="w-full h-full px-6 py-4 bg-white border-2 border-dashed border-stone-300 hover:border-emerald-500 text-slate-700 hover:text-emerald-700 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all cursor-pointer text-center"
             >
               <Upload size={18} />
-              <span>Sicherung einlesen (.json / .lehrerapp)</span>
+              <span>Sicherung einlesen (.json / Legacy .lehrerapp)</span>
             </label>
           </div>
         </div>
