@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `42ecae0d2b5e3a5aa5c2085be7106d0dbc8afbdf`: Pre-Deployment Audit #116 grün, 850/850 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #116 erzeugte `klassio-world4you-42ecae0d2b5e3a5aa5c2085be7106d0dbc8afbdf` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `cbc0cc28a33a360114a2affb07c2b3093f03ddd3`: Pre-Deployment Audit #118 grün, 857/857 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #118 erzeugte `klassio-world4you-cbc0cc28a33a360114a2affb07c2b3093f03ddd3` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 
@@ -36,8 +36,8 @@ Legende:
 | 7 | Anwesenheit | ✅ | PR #45 integriert; Audit #112 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme im Gesamt-Walkthrough |
 | 8 | Notenmappe | ✅ | PR #47 integriert; Audit #114 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme im Gesamt-Walkthrough |
 | 9 | Kassa & Orga | ✅ | PR #49 integriert; Audit #116 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme im Gesamt-Walkthrough |
-| 10 | Planungszentrale | 🔴 | als Nächstes einzeln prüfen und abschließen |
-| 11 | Jahresplanung | 🔴 | danach |
+| 10 | Planungszentrale | ✅ | PR #51 integriert; Audit #118 grün; reale Browser-/Touch-/Staging-Abnahme im Gesamt-Walkthrough |
+| 11 | Jahresplanung | 🔴 | als Nächstes einzeln prüfen und abschließen |
 | 12 | Wochenplanung | 🔴 | danach |
 | 13 | Materialbibliothek | 🔴 | danach |
 | 14 | Übergabemappe | 🔴 | danach |
@@ -105,6 +105,7 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
 | Kassa & Orga | 🟡 | PR #49: Geldsammlungen, Teilzahlungen, Kassenbuch, Checklisten, flexible Listen und Klassenlogins bleiben erhalten. Geldbeträge werden centgenau verarbeitet; Überzahlungen werden abgewiesen, `Alle bezahlt` bucht nur offene Differenzen und manuelle Buchungen werden beim Löschen korrekt gegengebucht. Automatische Sammlungsbuchungen sind vor manueller Löschung geschützt. Legacy-`beitrag_pro_kind` wird zentral auch für inaktive Klassen migriert; frühere globale Klassenlogins werden einmalig in alle bestehenden Klassen übernommen und danach pro Klasse getrennt geführt. Datumsfelder nutzen lokale Kalendertage und offene Editor-/Dialogzustände werden beim Klassenwechsel zurückgesetzt. Automatisierte Tests und Audit #116 grün; reale Browser-/Touch-/Druck-Abnahme offen. |
+| Planungszentrale | 🟡 | PR #51: Übersicht und Planungswerkzeuge nutzen alle 10 Stunden-Slots; leere Klassen erfinden keine Fächer und das Öffnen am Wochenende verändert die ausgewählte KW nicht still. Parkgarage und Wochenvorlagen sind klassenlokal inklusive Legacy-Migration. KI-Themenvorschläge werden sichtbar auswählbar dargestellt; Fehlerzustände bleiben transparent und erzeugen keine erfundenen Ersatzvorschläge oder Schulstufen. Automatisierte Tests und Audit #118 grün; reale Browser-/Touch-Abnahme offen. |
 | Stundenplan 10 Slots | ✅ | PR #13 integriert: Setup-Zeitfelder, Tagesrahmen, mobile/desktop Stammplan-Raster und Dashboard-Vorschau verwenden 10 Slots. Für 9./10. Stunde werden keine Standardzeiten erfunden; frei konfigurierbar. |
 | Wochenplan Vollbild | ✅ | Implementiert. |
 | Wochenplan Excel Roundtrip | ✅ | Vorlage + Import, Ergänzen/Lücken füllen oder überschreiben. |
