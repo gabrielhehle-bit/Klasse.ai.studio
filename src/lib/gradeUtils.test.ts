@@ -182,7 +182,7 @@ test('different subjects can apply different homework rules without affecting ea
   app.notenMeta.Deutsch = {
     ...app.notenMeta.Deutsch,
     hueMode: 'grade',
-    hueDeduction: 10,
+    hueDeduction: 5,
   };
   app.notenMeta.Mathematik = {
     assessmentMode: 'grades',
