@@ -2941,7 +2941,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         type: "money",
         text: `💶 Geldsammlung: ${g.titel}`,
         category: "Finanzen",
-        linkPage: "geldsammlung",
+        linkPage: "orga",
         urgent: false,
       });
     });
@@ -4547,7 +4547,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         onOpenRemoteSetup={() => setShowRemoteSetup(true)}
         onOpenBackup={handleDownloadBackup}
         onOpenPrint={() => window.print()}
-        onOpenSettings={() => setPage("einstellungen")}
+        onOpenSettings={() => setPage("settings")}
         onOpenCustomize={() => setShowCustomizePanel(true)}
 
         totalStudents={(app?.schueler || []).length}
