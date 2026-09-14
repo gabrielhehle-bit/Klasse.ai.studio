@@ -943,6 +943,16 @@ export interface ClassRoom {
   lernzielTracker?: AppState['lernzielTracker'];
   studentLernzielBewertungen?: AppState['studentLernzielBewertungen'];
   studentLernzielSemesterBewertungen?: AppState['studentLernzielSemesterBewertungen'];
+  /** Class-local diagnostic and student-development data. */
+  diagnostikErgebnisse?: AppState['diagnostikErgebnisse'];
+  diagnostikErhebungen?: AppState['diagnostikErhebungen'];
+  diagnosticResults?: AppState['diagnosticResults'];
+  ikmRecords?: AppState['ikmRecords'];
+  antolinRecords?: AppState['antolinRecords'];
+  schuelerGoals?: AppState['schuelerGoals'];
+  observations?: AppState['observations'];
+  metaKognitionsProtokolle?: AppState['metaKognitionsProtokolle'];
+  interaktionsLog?: AppState['interaktionsLog'];
   mitarbeit: Record<string, Record<string, Record<string, number>>>;
   verhalten: Record<string, number>;
   karten: Record<string, { gelb: number; rot: number; archiv: any[] }>;
@@ -1297,6 +1307,8 @@ export interface AppState {
   elterngespraeche: ParentMeeting[];
   kelGespraeche?: KELGespraech[];
   diagnostikTests?: DiagnostikTest[];
+  /** Legacy diagnostic result collection retained for migration/compatibility. */
+  diagnostikErgebnisse?: any[];
   diagnostikErhebungen?: DiagnostikErhebung[];
   /** Neues strukturiertes, kompetenzorientiertes Diagnostik-Ergebnis-Modell (Schritt 1) */
   diagnosticResults?: DiagnosticResult[];
