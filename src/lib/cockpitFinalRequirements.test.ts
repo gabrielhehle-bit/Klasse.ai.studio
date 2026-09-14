@@ -55,6 +55,10 @@ test("Cockpit: alle erhaltenen Standard-Widgettypen sind im Picker und in den Ka
   const pickerEnd = teachingSurface.indexOf("const resolvedActiveFach", starts[1]);
   const pickerCatalog = widgetTypes(teachingSurface.slice(starts[1], pickerEnd));
 
+  assert.equal(defaults.length, 108, "Standardlayout muss alle 108 Widgettypen enthalten");
+  assert.equal(counterCatalog.length, 108, "Kategorie-Zähler muss alle 108 Widgettypen kennen");
+  assert.equal(pickerCatalog.length, 108, "Widget-Picker muss alle 108 Widgettypen enthalten");
+
   for (const type of defaults) {
     assert.ok(counterCatalog.includes(type), `Kategorie-Zähler kennt ${type} nicht`);
     assert.ok(pickerCatalog.includes(type), `Widget-Picker kennt ${type} nicht`);
