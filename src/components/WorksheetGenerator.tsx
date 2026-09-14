@@ -32,6 +32,7 @@ interface WorksheetGeneratorProps {
 
 export default function WorksheetGenerator({ initialStudentId, embeddedMode = false }: WorksheetGeneratorProps = {}) {
   const { app } = useApp();
+  const worksheetGrade = Math.min(4, Math.max(1, Number(app.stufe) || 1));
   const { showToast } = useToast();
   const { addMaterialFromAI } = useMaterialLibrary();
 
@@ -290,7 +291,7 @@ export default function WorksheetGenerator({ initialStudentId, embeddedMode = fa
       .filter(Boolean)
       .join(', ');
 
-    const systemPrompt = `Du bist ein erfahrener Volksschullehrer und Experte für Didaktik der 4. Schulstufe gemäß dem österreichischen Lehrplan. 
+    const systemPrompt = `Du bist ein erfahrener Volksschullehrer und Experte für Didaktik der ${worksheetGrade}. Schulstufe gemäß dem österreichischen Lehrplan. 
 Deine Aufgabe ist es, ein perfekt formatiertes, druckfertiges Arbeitsblatt oder eine Lernzielkontrolle im HTML/Tailwind-Format zu generieren.
 
 STRIKTE REGELN FÜR DEN INHALT:
@@ -327,7 +328,7 @@ Generiere jetzt das Arbeitsblatt basierend auf folgenden Variablen und Vorgaben:
 - Modus: ${modus === 'förderung' ? 'Individuelle Förderung' : modus === 'klassenuebung' ? 'Klassen-Übung' : modus === 'test' ? 'Test' : 'Schularbeit'}
 - Thema: ${finalSubject} - ${finalType}
 - Differenzierung: ${computedLevel}
-- Schulstufe: 4. Schulstufe (Österreichischer Lehrplan)
+- Schulstufe: ${worksheetGrade}. Schulstufe (Österreichischer Lehrplan)
 - Pädagogische Schwerpunkte:
   * Zielgruppe: ${selectedStudents.length > 0 ? `${selectedStudents.length} Schüler/in(nen) (Differenzierungsgruppe)` : 'Die gesamte Klasse'}
   * Namenszeile: Erzeuge oben eine neutrale Ausfüllzeile für handschriftliche Schülernamen (z.B. "Name: ________________________  Datum: ____________"). Schreibe keine echten Namen in den Aufgabentext.
@@ -447,10 +448,10 @@ Das Arbeitsblatt MUSS exakt 1 A4-Seite einnehmen. Der Lösungsbogen MUSS exakt 1
       addMaterialFromAI({
         id: newSheet.id,
         titel: newSheet.title || `Arbeitsblatt: ${finalType} - ${finalSubject}`,
-        beschreibung: `Österreichischer Lehrplan 4. Schulstufe | Modus: ${modus === 'förderung' ? 'Individuelle Förderung' : modus === 'klassenuebung' ? 'Klassen-Übung' : modus === 'test' ? 'Test LZK' : 'Schularbeit'} | Niveau: ${computedLevelLabel} | Story: ${finalInteressen} | Für: ${newSheet.targetStudents.join(', ')}`,
+        beschreibung: `Österreichischer Lehrplan ${worksheetGrade}. Schulstufe | Modus: ${modus === 'förderung' ? 'Individuelle Förderung' : modus === 'klassenuebung' ? 'Klassen-Übung' : modus === 'test' ? 'Test LZK' : 'Schularbeit'} | Niveau: ${computedLevelLabel} | Story: ${finalInteressen} | Für: ${newSheet.targetStudents.join(', ')}`,
         typ: 'sonstiges', // Valid material type under types.ts Category
         faecher: [finalSubject],
-        schulstufen: [4],
+        schulstufen: [worksheetGrade],
         tags: [finalSubject, 'Arbeitsblatt', computedLevelLabel, modus].filter(Boolean) as string[],
         inhaltText: generatedContent
       }, 'ki-arbeitsblatt');
@@ -666,7 +667,7 @@ Das Arbeitsblatt MUSS exakt 1 A4-Seite einnehmen. Der Lösungsbogen MUSS exakt 1
                 <div>
                   <h2 className="text-[0.875rem] leading-snug font-black text-slate-800 tracking-tight flex items-center gap-1.5">
                     Didaktischer Arbeitsblatt-Generator 
-                    <span className="text-[0.5625rem] font-black uppercase tracking-wider bg-indigo-100 px-2 py-0.5 rounded-full text-indigo-700">4. Schulstufe</span>
+                    <span className="text-[0.5625rem] font-black uppercase tracking-wider bg-indigo-100 px-2 py-0.5 rounded-full text-indigo-700">{worksheetGrade}. Schulstufe</span>
                   </h2>
                   <p className="text-[0.625rem] text-slate-400 font-bold">Inklusions-optimiertes & gamifiziertes Unterrichtsmaterial für den österreichischen Lehrplan</p>
                 </div>
