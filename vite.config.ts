@@ -18,6 +18,8 @@ export default defineConfig(({mode}) => {
         },
         workbox: {
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+          // pdfjs-dist emits its worker as .mjs; include it so Sokrates PDF import works offline.
+          globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,woff2}'],
           // index.html immer frisch vom Netz, damit Updates ankommen:
           navigateFallback: '/index.html',
           runtimeCaching: [
