@@ -656,6 +656,43 @@ function getDefaultPreset(subject: string, saIndex: number) {
   return PRESETS.erlebniserzaehlung;
 }
 
+function getFactoryAssessmentConfig(subject: string, saIndex: number) {
+  const preset = getDefaultPreset(subject, saIndex);
+  const base = preset.config || {
+    weightText: 3,
+    weightSpelling: 1,
+    grade1Points: 16,
+    grade2Points: 13,
+    grade3Points: 10,
+    grade4Points: 7,
+    spelling1Q: 10,
+    spelling2Q: 29,
+    spelling3Q: 59,
+    spelling4Q: 90,
+    spellingFactor: 1000,
+  };
+
+  return {
+    spellingFactor: 1000,
+    enableGrammar: false,
+    weightArbeit: 1,
+    weightGrammar: 1,
+    grammar1Points: 18,
+    grammar2Points: 15,
+    grammar3Points: 11,
+    grammar4Points: 7,
+    maxGrammarPoints: 20,
+    ...base,
+  };
+}
+
+function resetAssessmentAspectPoints(aspects: Aspect[]): Aspect[] {
+  return aspects.map((aspect) => ({
+    ...aspect,
+    criteria: aspect.criteria.map((crit) => ({ ...crit, points: 0 })),
+  }));
+}
+
 export default function SchularbeitAssessment({
   studentId,
   studentName,
@@ -694,73 +731,42 @@ export default function SchularbeitAssessment({
 
   const [showConfig, setShowConfig] = useState(false);
   const [config, setConfig] = useState(() => {
-    const defaultPreset = getDefaultPreset(subject, saIndex);
-    const defaultConf = defaultPreset.config || {
-      weightText: 3,
-      weightSpelling: 1,
-      grade1Points: 16,
-      grade2Points: 13,
-      grade3Points: 10,
-      grade4Points: 7,
-      spelling1Q: 10,
-      spelling2Q: 29,
-      spelling3Q: 59,
-      spelling4Q: 90,
-      spellingFactor: 1000,
-    };
-
-    // Check if there is a class-wide default config saved for this Schularbeit
-    let loadedDefaultConf = defaultConf;
-    try {
-      const savedDefaultConf = localStorage.getItem(
-        `sa_default_config_${subject}_${semester}_${saIndex}`,
-      );
-      if (savedDefaultConf) {
-        loadedDefaultConf = JSON.parse(savedDefaultConf);
+    const stateDefault = (app.notenMeta as any)?.[subject]?.saDefaults?.[semester]?.[saIndex]?.config;
+    let legacyDefault: any = undefined;
+    if (!stateDefault) {
+      try {
+        const savedDefaultConf = localStorage.getItem(
+          `sa_default_config_${subject}_${semester}_${saIndex}`,
+        );
+        legacyDefault = savedDefaultConf ? JSON.parse(savedDefaultConf) : undefined;
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
     }
-
-    const raw = existingData?.config || loadedDefaultConf;
     return {
-      spellingFactor: 1000,
-      enableGrammar: false,
-      weightArbeit: 1,
-      weightGrammar: 1,
-      grammar1Points: 18,
-      grammar2Points: 15,
-      grammar3Points: 11,
-      grammar4Points: 7,
-      maxGrammarPoints: 20,
-      ...raw,
+      ...getFactoryAssessmentConfig(subject, saIndex),
+      ...(existingData?.config || stateDefault || legacyDefault || {}),
     };
   });
 
   const [activeAspects, setActiveAspects] = useState<Aspect[]>(() => {
     if (existingData?.aspects) return existingData.aspects;
-    let baseAspects: Aspect[];
-    try {
-      const savedDefaults = localStorage.getItem(
-        `sa_default_aspects_${subject}_${semester}_${saIndex}`,
-      );
-      if (savedDefaults) {
-        baseAspects = JSON.parse(savedDefaults);
-      } else {
-        baseAspects = getDefaultPreset(subject, saIndex).aspects;
+
+    const stateDefault = (app.notenMeta as any)?.[subject]?.saDefaults?.[semester]?.[saIndex]?.aspects;
+    let baseAspects: Aspect[] | undefined = Array.isArray(stateDefault) ? stateDefault : undefined;
+
+    if (!baseAspects) {
+      try {
+        const savedDefaults = localStorage.getItem(
+          `sa_default_aspects_${subject}_${semester}_${saIndex}`,
+        );
+        if (savedDefaults) baseAspects = JSON.parse(savedDefaults);
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
-      baseAspects = getDefaultPreset(subject, saIndex).aspects;
     }
-    // Reset points to 0 to prevent carrying over points from default template saves
-    return baseAspects.map((aspect) => ({
-      ...aspect,
-      criteria: aspect.criteria.map((crit) => ({
-        ...crit,
-        points: 0,
-      })),
-    }));
+
+    return resetAssessmentAspectPoints(baseAspects || getDefaultPreset(subject, saIndex).aspects);
   });
 
   const [isFullscreen, setIsFullscreen] = useState(true);
@@ -841,6 +847,8 @@ export default function SchularbeitAssessment({
   const [isTableFullScreen, setIsTableFullScreen] = useState(false);
   const [newPresetTitle, setNewPresetTitle] = useState("");
   const [customPresets, setCustomPresets] = useState<any[]>(() => {
+    const statePresets = (app.notenMeta as any)?.__customSaPresets;
+    if (Array.isArray(statePresets)) return statePresets;
     try {
       const saved = localStorage.getItem("hehle_custom_sa_presets");
       return saved ? JSON.parse(saved) : [];
@@ -848,6 +856,111 @@ export default function SchularbeitAssessment({
       return [];
     }
   });
+
+  const persistCustomPresets = (updated: any[]) => {
+    setCustomPresets(updated);
+    setApp((prev) => ({
+      ...prev,
+      notenMeta: {
+        ...(prev.notenMeta || {}),
+        __customSaPresets: updated,
+      },
+    }));
+  };
+
+  const persistSchularbeitDefault = (showConfirmation = true) => {
+    const cleanAspects = resetAssessmentAspectPoints(activeAspects);
+    setApp((prev) => {
+      const meta = { ...(prev.notenMeta || {}) } as any;
+      const subjectMeta = { ...(meta[subject] || {}) };
+      const saDefaults = { ...(subjectMeta.saDefaults || {}) };
+      const semesterDefaults = { ...(saDefaults[semester] || {}) };
+
+      semesterDefaults[saIndex] = {
+        aspects: cleanAspects,
+        config: { ...config },
+      };
+      saDefaults[semester] = semesterDefaults;
+      meta[subject] = { ...subjectMeta, saDefaults };
+
+      return { ...prev, notenMeta: meta };
+    });
+
+    if (showConfirmation) {
+      alert(
+        "Dieses Raster & die maximalen Kriterienpunkte wurden als Standard für diese Schularbeit gespeichert. Die Vorlage ist Teil des verschlüsselten Klassio-Datenbestands und damit in Backups enthalten.",
+      );
+    }
+  };
+
+  // One-time migration of legacy browser-only Schularbeitsvorlagen into the encrypted app state.
+  React.useEffect(() => {
+    const existingDefault = (app.notenMeta as any)?.[subject]?.saDefaults?.[semester]?.[saIndex];
+    const existingCustomPresets = (app.notenMeta as any)?.__customSaPresets;
+
+    let legacyConfig: any = undefined;
+    let legacyAspects: any = undefined;
+    let legacyCustomPresets: any = undefined;
+
+    try {
+      if (!existingDefault) {
+        const rawConfig = localStorage.getItem(`sa_default_config_${subject}_${semester}_${saIndex}`);
+        const rawAspects = localStorage.getItem(`sa_default_aspects_${subject}_${semester}_${saIndex}`);
+        legacyConfig = rawConfig ? JSON.parse(rawConfig) : undefined;
+        legacyAspects = rawAspects ? JSON.parse(rawAspects) : undefined;
+      }
+      if (!Array.isArray(existingCustomPresets)) {
+        const rawCustom = localStorage.getItem("hehle_custom_sa_presets");
+        legacyCustomPresets = rawCustom ? JSON.parse(rawCustom) : undefined;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    if (!legacyConfig && !legacyAspects && !Array.isArray(legacyCustomPresets)) return;
+
+    setApp((prev) => {
+      const meta = { ...(prev.notenMeta || {}) } as any;
+
+      if ((legacyConfig || legacyAspects) && !meta?.[subject]?.saDefaults?.[semester]?.[saIndex]) {
+        const subjectMeta = { ...(meta[subject] || {}) };
+        const saDefaults = { ...(subjectMeta.saDefaults || {}) };
+        const semesterDefaults = { ...(saDefaults[semester] || {}) };
+        semesterDefaults[saIndex] = {
+          config: legacyConfig || getFactoryAssessmentConfig(subject, saIndex),
+          aspects: resetAssessmentAspectPoints(
+            Array.isArray(legacyAspects) ? legacyAspects : getDefaultPreset(subject, saIndex).aspects,
+          ),
+        };
+        saDefaults[semester] = semesterDefaults;
+        meta[subject] = { ...subjectMeta, saDefaults };
+      }
+
+      if (Array.isArray(legacyCustomPresets) && !Array.isArray(meta.__customSaPresets)) {
+        meta.__customSaPresets = legacyCustomPresets;
+      }
+
+      return { ...prev, notenMeta: meta };
+    });
+
+    if (Array.isArray(legacyCustomPresets)) setCustomPresets(legacyCustomPresets);
+  }, [subject, semester, saIndex]);
+
+  // Remove legacy plaintext copies only after the encrypted app state contains the migrated values.
+  React.useEffect(() => {
+    try {
+      const migratedDefault = (app.notenMeta as any)?.[subject]?.saDefaults?.[semester]?.[saIndex];
+      if (migratedDefault) {
+        localStorage.removeItem(`sa_default_config_${subject}_${semester}_${saIndex}`);
+        localStorage.removeItem(`sa_default_aspects_${subject}_${semester}_${saIndex}`);
+      }
+      if (Array.isArray((app.notenMeta as any)?.__customSaPresets)) {
+        localStorage.removeItem("hehle_custom_sa_presets");
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [app.notenMeta, subject, semester, saIndex]);
 
   const saveCustomPreset = (title: string) => {
     if (!title.trim()) {
@@ -869,8 +982,7 @@ export default function SchularbeitAssessment({
       config,
     };
     const updated = [...customPresets, newPreset];
-    setCustomPresets(updated);
-    localStorage.setItem("hehle_custom_sa_presets", JSON.stringify(updated));
+    persistCustomPresets(updated);
     setNewPresetTitle("");
     alert(
       `Vorlage "${title}" wurde erfolgreich als eigenes Raster gespeichert! Sie kann nun bei jedem Schüler oder jeder Schularbeit als Basis geladen werden.`,
@@ -880,36 +992,12 @@ export default function SchularbeitAssessment({
   const deleteCustomPreset = (id: string, name: string) => {
     if (confirm(`Möchtest du die Vorlage "${name}" wirklich löschen?`)) {
       const updated = customPresets.filter((p) => p.id !== id);
-      setCustomPresets(updated);
-      localStorage.setItem("hehle_custom_sa_presets", JSON.stringify(updated));
+      persistCustomPresets(updated);
     }
   };
 
   const saveAsSchularbeitDefault = () => {
-    try {
-      // Clean points to 0 before saving as default template!
-      const cleanAspects = activeAspects.map((aspect) => ({
-        ...aspect,
-        criteria: aspect.criteria.map((crit) => ({
-          ...crit,
-          points: 0,
-        })),
-      }));
-      localStorage.setItem(
-        `sa_default_aspects_${subject}_${semester}_${saIndex}`,
-        JSON.stringify(cleanAspects),
-      );
-      localStorage.setItem(
-        `sa_default_config_${subject}_${semester}_${saIndex}`,
-        JSON.stringify(config),
-      );
-      alert(
-        "Dieses Raster & die maximalen Kriterienpunkte wurden erfolgreich als Standard für diese Schularbeit gespeichert! Alle Schüler ohne gespeicherte Noten laden zukünftig automatisch dieses leere Raster zum individuellen Ausfüllen.",
-      );
-    } catch (e) {
-      console.error(e);
-      alert("Fehler beim Speichern der Standards.");
-    }
+    persistSchularbeitDefault(true);
   };
 
   const resetToFactoryDefault = () => {
@@ -918,14 +1006,30 @@ export default function SchularbeitAssessment({
         "Möchtest du dieses Raster wirklich auf den ursprünglichen Standard-Entwurf zurücksetzen? Alle individuellen Anpassungen dieses Rasters für diese Schularbeit gehen verloren.",
       )
     ) {
-      localStorage.removeItem(
-        `sa_default_aspects_${subject}_${semester}_${saIndex}`,
-      );
-      localStorage.removeItem(
-        `sa_default_config_${subject}_${semester}_${saIndex}`,
-      );
-      setActiveAspects(getDefaultPreset(subject, saIndex).aspects);
-      alert("Erfolgreich zurückgesetzt!");
+      setApp((prev) => {
+        const meta = { ...(prev.notenMeta || {}) } as any;
+        const subjectMeta = { ...(meta[subject] || {}) };
+        const saDefaults = { ...(subjectMeta.saDefaults || {}) };
+        const semesterDefaults = { ...(saDefaults[semester] || {}) };
+        delete semesterDefaults[saIndex];
+
+        if (Object.keys(semesterDefaults).length > 0) saDefaults[semester] = semesterDefaults;
+        else delete saDefaults[semester];
+
+        meta[subject] = { ...subjectMeta, saDefaults };
+        return { ...prev, notenMeta: meta };
+      });
+
+      try {
+        localStorage.removeItem(`sa_default_aspects_${subject}_${semester}_${saIndex}`);
+        localStorage.removeItem(`sa_default_config_${subject}_${semester}_${saIndex}`);
+      } catch (e) {
+        console.error(e);
+      }
+
+      setConfig(getFactoryAssessmentConfig(subject, saIndex));
+      setActiveAspects(resetAssessmentAspectPoints(getDefaultPreset(subject, saIndex).aspects));
+      alert("Werkseinstellung wiederhergestellt.");
     }
   };
 
@@ -934,10 +1038,7 @@ export default function SchularbeitAssessment({
       return;
     }
     
-    // 1. Zuerst auch als Standard speichern für künftige Schüler
-    saveAsSchularbeitDefault();
-
-    // 2. Jetzt für alle bereits existierenden Noten derselben SA anwenden
+    // Bestehende Schüler aktualisieren; den Standard speichern wir danach in den Klassen-Zustand.
     const newAssessments = { ...(app.saAssessments || {}) };
     const notenState = { ...(app.noten || {}) };
     let changedCount = 0;
@@ -1056,9 +1157,13 @@ export default function SchularbeitAssessment({
 
     if (changedCount > 0) {
       setApp({ ...app, saAssessments: newAssessments, noten: notenState });
-      alert(`Die Konfiguration wurde erfolgreich auf alle ${changedCount} bisher angelegten Schularbeiten dieser Klasse übertragen.`);
+    }
+    persistSchularbeitDefault(false);
+
+    if (changedCount > 0) {
+      alert(`Die Konfiguration wurde erfolgreich auf alle ${changedCount} bisher angelegten Schularbeiten dieser Klasse übertragen und als Standard gespeichert.`);
     } else {
-      alert(`Die Konfiguration wurde als Standard gesichert. Es wurden keine bestehenden Daten gefunden, die aktualisiert werden mussten.`);
+      alert("Die Konfiguration wurde als Standard gesichert. Es wurden keine bestehenden Daten gefunden, die aktualisiert werden mussten.");
     }
   };
 
