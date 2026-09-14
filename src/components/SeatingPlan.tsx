@@ -12,7 +12,7 @@ import {
 import { berechne } from '../lib/GradeUtils';
 import SeatingPlanAnalysis from './SeatingPlanAnalysis';
 import { areSeatingNeighbors, classifySeatPositions, findSeatingRuleViolations, sanitizeSeatingRules, sameSeat } from '../lib/seatingPlanRules';
-import { getLocalDateKey, getSeatingPlanAbsentStudents } from '../lib/seatingPlanData';
+import { getLocalDateKey, getSeatingPlanAbsentStudents, isStudentAbsentOnDate } from '../lib/seatingPlanData';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
   if (!geburtstagStr) return false;
@@ -175,10 +175,7 @@ const StudentCard = React.memo(({
   };
 
   const isTodayAbsent = () => {
-    const today = new Date().toISOString().split('T')[0];
-    const data = app.anwesenheit?.[s.id]?.[today];
-    if (data && Object.values(data).some(v => v && v !== 'a')) return true;
-    return false;
+    return isStudentAbsentOnDate(app, s.id, getLocalDateKey());
   };
 
   // Boundary logic to prevent info box from clipping at screen edges
