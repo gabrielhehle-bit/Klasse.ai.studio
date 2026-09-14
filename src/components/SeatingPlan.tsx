@@ -1420,6 +1420,8 @@ export default function SeatingPlan() {
     setShowGenerator(false);
     setShowRulesModal(false);
     setShowAnalysisPanel(false);
+    setShowFilterMenu(false);
+    setShowPresetsMenu(false);
     setHighlightedStudentIds(null);
     setHoveredStudentId(null);
     setPinnedStudentId(null);
