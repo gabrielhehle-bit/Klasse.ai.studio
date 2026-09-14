@@ -15,10 +15,13 @@ test('Materialbibliothek: Wochenplan-Übergabe unterstützt alle zehn Stunden-Sl
   assert.match(material, /useState\(app\.currentKW \|\| getIsoWeekNumber\(\)\)/);
 });
 
-test('Materialbibliothek: Löschen räumt Wochenplan-Verknüpfungen konsistent auf', () => {
+test('Materialbibliothek: Löschen räumt Wochenplan-Verknüpfungen in allen Klassen konsistent auf', () => {
   assert.match(material, /removeMaterialReferencesFromWeeklyPlan\(prev\.wochenplanung, removedIds\)/);
+  assert.match(material, /removeMaterialReferencesFromClasses\(prev\.classes, removedIds\)/);
   assert.match(material, /removeMaterialReferencesFromWeeklyPlan\(prev\.wochenplanung, \[id\]\)/);
+  assert.match(material, /removeMaterialReferencesFromClasses\(prev\.classes, \[id\]\)/);
   assert.match(material, /removeMaterialReferencesFromWeeklyPlan\(prev\.wochenplanung\)/);
+  assert.match(material, /removeMaterialReferencesFromClasses\(prev\.classes\)/);
 });
 
 test('Materialbibliothek: Datei- und Linkdaten werden validiert und typgerecht bereinigt', () => {
