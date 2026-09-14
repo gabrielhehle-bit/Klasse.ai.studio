@@ -8482,12 +8482,47 @@ ${content}
                                         type: "piano",
                                         category: "mindfulness",
                                       },
+                                      { type: "studentlist", category: "interactivity" },
+                                      { type: "scrambler", category: "deutsch" },
+                                      { type: "fractions", category: "mathe" },
+                                      { type: "sorting", category: "mathe" },
+                                      { type: "piggybank", category: "mathe" },
+                                      { type: "spellingdetective", category: "deutsch" },
+                                      { type: "numberline", category: "mathe" },
+                                      { type: "mathchain", category: "mathe" },
+                                      { type: "thermometer", category: "struct" },
+                                      { type: "compoundsplit", category: "deutsch" },
+                                      { type: "mathduel", category: "mathe" },
+                                      { type: "shapepuzzle", category: "mathe" },
+                                      { type: "secretagent", category: "mindfulness" },
+                                      { type: "fractioncake", category: "mathe" },
+                                      { type: "sentencebuilding", category: "deutsch" },
+                                      { type: "patternmaker", category: "tools" },
+                                      { type: "wordexplorer", category: "deutsch" },
+                                      { type: "weightscale", category: "mathe" },
+                                      { type: "geographyquiz", category: "sachunterricht" },
+                                      { type: "reflexgame", category: "mindfulness" },
+                                      { type: "wastebin", category: "sachunterricht" },
+                                      { type: "tonetrainer", category: "tools" },
+                                      { type: "rhymemachine", category: "deutsch" },
+                                      { type: "alphabetsoup", category: "deutsch" },
+                                      { type: "divrobot", category: "mathe" },
+                                      { type: "classtarget", category: "interactivity" },
+                                      { type: "morsecode", category: "tools" },
+                                      { type: "punctuationzoo", category: "deutsch" },
+                                      { type: "fractiongrid", category: "mathe" },
+                                      { type: "wordbuilder", category: "deutsch" },
+                                      { type: "soundmachine", category: "tools" },
+                                      { type: "multitrainer", category: "mathe" },
+                                      { type: "abcorder", category: "deutsch" },
+                                      { type: "tischcheck", category: "interactivity" },
+                                      { type: "faircall", category: "interactivity" },
+                                      { type: "hangman", category: "deutsch" },
+                                      { type: "anschauung", category: "mathe" },
                                     ];
 
                                     let count = 0;
-                                    if (cat.id === "everyday") {
-                                      count = allAvailableWidgets.filter(item => ["timer", "todo", "trafficlight", "clock", "randomname", "groups", "noisemeter", "instruction"].includes(item.type)).length;
-                                    } else if (cat.id === "all") {
+                                    if (cat.id === "all") {
                                       count = allAvailableWidgets.length;
                                     } else if (cat.id === "favorites") {
                                       count = (
