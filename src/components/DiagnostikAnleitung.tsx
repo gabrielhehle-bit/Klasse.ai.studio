@@ -49,11 +49,11 @@ const DiagnostikAnleitung: React.FC<DiagnostikAnleitungProps> = ({ onClose }) =>
     },
     {
       id: 'gabicquest',
-      title: 'GabicQuest',
+      title: 'Klassio Quest',
       icon: <Gamepad2 className="text-orange-400" />,
       description: 'Gamifizierte Diagnostik der Wahrnehmungsbereiche.',
       guide: 'Kinder spielen ein kurzes "Mini-Game". Währenddessen messen wir im Hintergrund unbemerkt Reaktionszeiten und Fehlermuster. Das nimmt den Testdruck und liefert objektive Daten.',
-      tips: ['Lass die Kinder GabicQuest als "Belohnung" spielen.', 'Die Daten zeigen oft Diskrepanzen zwischen Spielleistung und Unterrichtsleistung.']
+      tips: ['Lass die Kinder Klassio Quest als "Belohnung" spielen.', 'Die Daten zeigen oft Diskrepanzen zwischen Spielleistung und Unterrichtsleistung.']
     },
     {
       id: 'detective',
