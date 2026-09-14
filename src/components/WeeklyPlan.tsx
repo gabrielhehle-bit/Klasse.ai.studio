@@ -12,7 +12,7 @@ import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
 import WochenplanExcelModal from './WochenplanExcelModal';
 import { generateWochenplanTemplate, WochenplanImportRow } from '../lib/planerExcelService';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
-import { buildSchoolYearWeekList, configuredLessonTime, getPreviousCalendarWeekKw } from '../lib/weeklyPlanData';
+import { buildSchoolYearWeekList, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots } from '../lib/weeklyPlanData';
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
 
 const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> = {
@@ -1059,6 +1059,7 @@ export default function WeeklyPlan() {
 
   const sw = getSW(monday, app.schuljahr, app.bundesland || 'VBG');
   const plan = (app.wochenplanung || {})[activeKW] || {};
+  const lunchAfterSlot = Math.max(1, Math.min(MAX_LESSON_SLOTS - 1, app.mittagspauseNachStunde || 5));
 
   const isCurrentHour = (tag: string, zIdx: number): boolean => {
     const days = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
@@ -1294,7 +1295,7 @@ export default function WeeklyPlan() {
               social,
               reflexion: reflexion.trim(),
               schwerpunkte,
-              duration
+              duration: duration === 'all' ? 'all' : weeklyLessonDurationSlots(duration, idx)
             }
           };
         }
@@ -1330,7 +1331,7 @@ export default function WeeklyPlan() {
                     social,
                     reflexion: reflexion.trim(),
                     schwerpunkte,
-                    duration
+                    duration: duration === 'all' ? 'all' : weeklyLessonDurationSlots(duration, Number(dIdx))
                   }
                 };
               }
@@ -1743,7 +1744,7 @@ export default function WeeklyPlan() {
     const zIdx = slot - 1;
     TAGE_NAMEN.forEach((tag) => {
       const item = plan[tag]?.[zIdx];
-      const duration = item?.duration === 'all' ? (MAX_LESSON_SLOTS - zIdx) : (Number(item?.duration) || 1);
+      const duration = weeklyLessonDurationSlots(item?.duration, zIdx);
       if (duration > 1) {
         for (let d = 1; d < duration; d++) {
           skipCells.add(`${tag}-${zIdx + d}`);
@@ -2606,7 +2607,7 @@ export default function WeeklyPlan() {
                 {LESSON_SLOT_NUMBERS.map((slot) => {
                   const zIdx = slot - 1;
                   const zeit = configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, slot);
-                  const gridRowStart = zIdx + 2 + (zIdx >= 5 ? 1 : 0);
+                  const gridRowStart = zIdx + 2 + (zIdx >= lunchAfterSlot ? 1 : 0);
                   
                   return (
                   <React.Fragment key={zIdx}>
@@ -2648,8 +2649,8 @@ export default function WeeklyPlan() {
                       const { status, holidayName } = getDayStatus(date);
                       const isFree = status === 'free';
                       const isToday = date.toDateString() === actualToday.toDateString();
-                      const cellDuration = item?.duration === 'all' ? (MAX_LESSON_SLOTS - zIdx) : (Number(item?.duration) || 1);
-                      const crossesLunch = zIdx < 5 && (zIdx + cellDuration) > 5;
+                      const cellDuration = weeklyLessonDurationSlots(item?.duration, zIdx);
+                      const crossesLunch = zIdx < lunchAfterSlot && (zIdx + cellDuration) > lunchAfterSlot;
                       const spanValue = cellDuration + (crossesLunch ? 1 : 0);
                       
                       const scheduleAnalysisForWeek = app.scheduleAnalysis?.[activeKW];
@@ -2850,7 +2851,7 @@ export default function WeeklyPlan() {
                                <div className="mt-auto pt-1.5 flex flex-wrap gap-1 border-t border-black/[0.03] relative z-10">
                                  {item.duration === 'all' && (
                                    <div className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[0.4375rem] font-black uppercase tracking-wider shadow-sm flex items-center gap-0.5">
-                                     <Calendar size={8} /> Ganztägig
+                                     <Calendar size={8} /> Restlicher Tag
                                    </div>
                                  )}
                                  {typeof item.duration === 'number' && item.duration > 1 && (
@@ -2906,18 +2907,18 @@ export default function WeeklyPlan() {
                         </div>
                       );
                     })}
-                    {zIdx === 4 && (
+                    {zIdx === lunchAfterSlot - 1 && (
                       <React.Fragment>
-                        <div style={{ gridColumn: 1, gridRow: 7 }} className="sticky left-0 bg-slate-100/50 backdrop-blur-sm border-r border-slate-200 flex items-center justify-center p-1 z-[90]">
+                        <div style={{ gridColumn: 1, gridRow: lunchAfterSlot + 2 }} className="sticky left-0 bg-slate-100/50 backdrop-blur-sm border-r border-slate-200 flex items-center justify-center p-1 z-[90]">
                            <span className="text-[0.375rem] font-black text-slate-400 uppercase tracking-widest [writing-mode:vertical-lr] rotate-180">Pause</span>
                         </div>
                         {(() => {
                           const isDayCrossed = (tag: string) => {
-                            return [0, 1, 2, 3, 4].some((hIdx) => {
+                            return Array.from({ length: lunchAfterSlot }, (_, hIdx) => hIdx).some((hIdx) => {
                               const item = plan[tag]?.[hIdx];
                               if (!item) return false;
-                              const dur = item.duration === 'all' ? (MAX_LESSON_SLOTS - hIdx) : (Number(item.duration) || 1);
-                              return hIdx + dur > 5;
+                              const dur = weeklyLessonDurationSlots(item.duration, hIdx);
+                              return hIdx + dur > lunchAfterSlot;
                             });
                           };
                           const nonCrossedTags = TAGE_NAMEN.filter(tag => !isDayCrossed(tag));
@@ -2929,7 +2930,7 @@ export default function WeeklyPlan() {
                             return (
                               <div 
                                 key={`pause-screen-${tag}`}
-                                style={{ gridColumn: tIdx + 2, gridRow: 7 }} 
+                                style={{ gridColumn: tIdx + 2, gridRow: lunchAfterSlot + 2 }} 
                                 className="h-8 bg-slate-50/10 flex items-center justify-center border-b border-slate-100 relative z-20"
                               >
                                  <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
@@ -3454,7 +3455,7 @@ export default function WeeklyPlan() {
                              <label className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.2em]">Dauer</label>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                             {[1, 2, 3, 4, 5, 6].map(d => (
+                             {Array.from({ length: editingCell ? MAX_LESSON_SLOTS - editingCell.idx : MAX_LESSON_SLOTS }, (_, index) => index + 1).map(d => (
                                <button
                                  key={d}
                                  onClick={() => setTempDuration(d)}
@@ -3468,7 +3469,7 @@ export default function WeeklyPlan() {
                                className={`px-4 py-3 rounded-2xl border transition-all font-black text-sm flex items-center justify-center gap-1.5 shrink-0 ${tempDuration === 'all' ? 'bg-amber-600 text-white border-amber-700 shadow-md scale-105' : 'bg-slate-50 text-amber-600/70 border-slate-200 hover:bg-amber-50/50 hover:border-amber-300'}`}
                              >
                                <Calendar size={14} />
-                               <span>Ganztägig</span>
+                               <span>Restlicher Tag</span>
                              </button>
                           </div>
                        </div>
