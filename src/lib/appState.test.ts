@@ -21,6 +21,9 @@ function fixture() {
         },
       },
       notenGewichtung: { Mathematik: { sa: id === 'a' ? 60 : 40, lzk: 20, wp: 20, obj: 0, mi: id === 'a' ? 0 : 20 } },
+      lernzielTracker: { Mathematik: { [`goal-${id}`]: { text: id, abgehakt: id === 'a', abgehaktAm: null, kw: 37 } } },
+      studentLernzielBewertungen: { [`student-${id}`]: { [`goal-${id}`]: id === 'a' ? 1 : 3 } },
+      studentLernzielSemesterBewertungen: { [`student-${id}`]: { '1': { [`goal-${id}`]: id === 'a' ? 1 : 3 } } },
       stundenZeiten: { 1: `${id}-08:00` }, scheduleAnalysis: { marker: id },
       lastGroups: [{ marker: id }], customBgColor: id,
       wochenplanung: { 37: { Montag: [{ thema: id }] } },
@@ -54,6 +57,10 @@ test('A → B → edit → A → reload preserves both classes and their assessm
   assert.equal(reloaded.classes[1].notenMeta.Mathematik.saDefaults['1'][0].config.marker, 'b');
   assert.equal(reloaded.classes[0].notenMeta.__customSaPresets[0].id, 'preset-a');
   assert.equal(reloaded.classes[1].notenMeta.__customSaPresets[0].id, 'preset-b');
+  assert.equal(reloaded.classes[0].lernzielTracker.Mathematik['goal-a'].text, 'a');
+  assert.equal(reloaded.classes[1].lernzielTracker.Mathematik['goal-b'].text, 'b');
+  assert.equal(reloaded.classes[0].studentLernzielSemesterBewertungen['student-a']['1']['goal-a'], 1);
+  assert.equal(reloaded.classes[1].studentLernzielSemesterBewertungen['student-b']['1']['goal-b'], 3);
   assert.equal(reloaded.classes[1].wochenplanung[37].Montag[0].thema, 'b');
   assert.deepEqual((reloaded.classes[1] as any).futureExtension, { preserved: 'b' });
 });
@@ -113,4 +120,20 @@ test('classroom ink survives class changes, snapshots and reload without mixing 
 test('old app snapshots load without inventing or replacing classroom ink', () => {
   const old = fixture();
   assert.equal(normalizeAppState(JSON.parse(JSON.stringify(old))).boardSettings.cockpitInkByClass, undefined);
+});
+
+
+test('class switches replace root learning-goal data instead of mixing classes', () => {
+  const state = fixture();
+  const b = switchClassState(state, 'b');
+  assert.equal(b.lernzielTracker.Mathematik['goal-b'].text, 'b');
+  assert.equal(b.lernzielTracker.Mathematik['goal-a'], undefined);
+  assert.equal(b.studentLernzielBewertungen['student-b']['goal-b'], 3);
+  assert.equal(b.studentLernzielBewertungen['student-a'], undefined);
+
+  const a = switchClassState(b, 'a');
+  assert.equal(a.lernzielTracker.Mathematik['goal-a'].text, 'a');
+  assert.equal(a.lernzielTracker.Mathematik['goal-b'], undefined);
+  assert.equal(a.studentLernzielSemesterBewertungen['student-a']['1']['goal-a'], 1);
+  assert.equal(a.studentLernzielSemesterBewertungen['student-b'], undefined);
 });
