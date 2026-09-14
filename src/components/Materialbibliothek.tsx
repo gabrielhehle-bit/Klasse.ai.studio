@@ -1801,29 +1801,47 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
 }
 
 export function useMaterialLibrary() {
-  const { setApp } = useApp();
+  const { app, setApp } = useApp();
   
-  const addMaterialFromAI = (item: Partial<MaterialItem>, quelleModul: string = 'ki-helfer') => {
+  const addMaterialFromAI = (item: Partial<MaterialItem>, quelleModul: string = 'ki-helfer'): boolean => {
+    const existing = (app.materialien || []).find(material => material.id === item.id);
     const newItem: MaterialItem = {
-      id: item.id || `ai-${Date.now()}`,
-      titel: item.titel || 'KI Generiertes Material',
+      ...(existing || {}),
+      id: item.id || `ai-${globalThis.crypto?.randomUUID?.() || Date.now()}`,
+      titel: item.titel || existing?.titel || 'KI Generiertes Material',
       beschreibung: item.beschreibung || '',
-      typ: item.typ || 'stundenentwurf',
-      faecher: item.faecher || [],
-      schulstufen: item.schulstufen || [],
-      tags: item.tags || [],
-      erstelltAm: new Date().toISOString(),
-      favorit: false,
+      typ: item.typ || existing?.typ || 'stundenentwurf',
+      faecher: item.faecher || existing?.faecher || [],
+      schulstufen: item.schulstufen || existing?.schulstufen || [],
+      tags: item.tags || existing?.tags || [],
+      erstelltAm: existing?.erstelltAm || new Date().toISOString(),
+      favorit: existing?.favorit || false,
       kiGeneriert: true,
       quelleModul,
       inhaltText: item.inhaltText,
       externerLink: item.externerLink,
+      zuletztVerwendet: existing?.zuletztVerwendet,
     };
 
+    const candidate = upsertMaterial(app.materialien || [], newItem);
+    if (calculateMaterialStorageSize(candidate) > MATERIAL_LIBRARY_MAX_MB) {
+      window.alert("Speicher voll. Bitte lösche alte Materialien oder kürze den Inhalt.");
+      return false;
+    }
+
     setApp(prev => {
-      const nextMaterials = upsertMaterial(prev.materialien || [], newItem);
+      const prevExisting = (prev.materialien || []).find(material => material.id === newItem.id);
+      const mergedItem = prevExisting
+        ? {
+            ...prevExisting,
+            ...newItem,
+            erstelltAm: prevExisting.erstelltAm || newItem.erstelltAm,
+            favorit: prevExisting.favorit,
+            zuletztVerwendet: prevExisting.zuletztVerwendet,
+          }
+        : newItem;
+      const nextMaterials = upsertMaterial(prev.materialien || [], mergedItem);
       if (calculateMaterialStorageSize(nextMaterials) > MATERIAL_LIBRARY_MAX_MB) {
-        window.alert("Speicher voll. Bitte lösche alte Materialien oder kürze den Inhalt.");
         return prev;
       }
       return {
@@ -1831,6 +1849,7 @@ export function useMaterialLibrary() {
         materialien: nextMaterials,
       };
     });
+    return true;
   };
 
   return { addMaterialFromAI };
