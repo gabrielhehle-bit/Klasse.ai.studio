@@ -405,16 +405,234 @@ export function parseSokratesText(rawText: string): ParsedSokratesResult {
 }
 
 /**
+ * Geometric Sokrates PDF parser.
+ * Uses table coordinates to keep contact/address columns from bleeding into names.
+ * Values are only set when they are present in the source; no student attributes are guessed.
+ */
+export async function parseSokratesPDF(arrayBuffer: ArrayBuffer): Promise<ParsedSokratesResult> {
+  try {
+    if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+    }
+
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(arrayBuffer),
+      useSystemFonts: true,
+    });
+    const pdfDoc = await loadingTask.promise;
+
+    const students: ParsedSokratesStudent[] = [];
+    let klasse = '';
+    let schuljahr = '';
+    let lehrerName = '';
+    let schulName = '';
+    let schulkennzahl = '';
+    let schulOrt = '';
+    let schulPlz = '';
+    const warnings: string[] = [];
+
+    for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+      const page = await pdfDoc.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      const items = (textContent.items as Array<{ str: string; transform: number[]; width?: number; height?: number }>)
+        .filter(item => item.str && item.str.trim())
+        .map(item => ({
+          text: item.str.trim(),
+          x: item.transform[4],
+          y: item.transform[5],
+          width: item.width || 0,
+          height: item.height || 0,
+        }));
+
+      if (items.length === 0) continue;
+
+      for (const item of items) {
+        const text = item.text;
+        const klMatch = text.match(/\bKlasse[:\s]+([0-9]+[a-zA-Z]?|[a-zA-Z0-9_\-]+)\b/i);
+        if (klMatch && !klasse) klasse = klMatch[1].trim();
+
+        const sjMatch = text.match(/\bSchuljahr[:\s]+([0-9]{4}\s*[\/\-]\s*[0-9]{2,4})/i);
+        if (sjMatch && !schuljahr) schuljahr = sjMatch[1].replace(/\s+/g, '').replace('-', '/');
+
+        const kvMatch = text.match(/\b(?:Klassenlehrer(?:in)?|Klassenlehrkraft|Klassenlehrperson|Klassenleitung|Klassenvorstand|KV|Lehrperson|Lehrer(?:in)?)[:\s]+([^,;\n]+)/i);
+        if (kvMatch && !lehrerName) lehrerName = kvMatch[1].replace(/\s+Schuljahr.*$/i, '').trim();
+
+        if (/^(?:Volksschule|VS|Mittelschule|MS|AHS|Gymnasium|Sonderschule|ASO)\b/i.test(text) && !schulName) {
+          schulName = text;
+        }
+
+        const skzMatch = text.match(/\b(?:SKZ|Schulkennzahl)[:\s]+([0-9]{6})\b/i);
+        if (skzMatch && !schulkennzahl) schulkennzahl = skzMatch[1];
+
+        const schoolPlace = text.match(/\b([1-9][0-9]{3})\s+([A-ZÄÖÜ][a-zäöüßA-ZÄÖÜ\s\-]+?)(?:,|$)/);
+        if (schoolPlace && !schulPlz) {
+          schulPlz = schoolPlace[1].trim();
+          schulOrt = schoolPlace[2].trim();
+        }
+      }
+
+      const headerItems = items.filter(item =>
+        /^(?:Nr\.?|Name|Familienname|Vorname|BJ|Besuchsjahr|Geb\.?Datum|Geburtstag|SVNR|Religion|Bekenntnis|Staat|StB|Adressdaten|Adresse|Telefon|Tel\.?)$/i.test(item.text)
+      );
+
+      const tableHeaderY = headerItems.length >= 2 ? Math.max(...headerItems.map(item => item.y)) : 0;
+      const minHeaderY = headerItems.length >= 2 ? Math.min(...headerItems.map(item => item.y)) : 0;
+
+      let colNrMax = 65;
+      let colNameMax = 195;
+      let colBJMax = 225;
+      let colGebMax = 295;
+      let colRelMax = 375;
+
+      const nameHeader = headerItems.find(item => /^(?:Name|Familienname)$/i.test(item.text));
+      const bjHeader = headerItems.find(item => /^(?:BJ|Besuchsjahr)$/i.test(item.text));
+      const gebHeader = headerItems.find(item => /^(?:Geb\.?Datum|Geburtstag|SVNR)$/i.test(item.text));
+      const relHeader = headerItems.find(item => /^(?:Religion|Bekenntnis)$/i.test(item.text));
+      const addrHeader = headerItems.find(item => /^(?:Adressdaten|Adresse)$/i.test(item.text));
+
+      if (nameHeader) colNrMax = nameHeader.x - 4;
+      if (bjHeader) colNameMax = bjHeader.x - 4;
+      if (gebHeader) colBJMax = gebHeader.x - 4;
+      if (relHeader) colGebMax = relHeader.x - 4;
+      if (addrHeader) colRelMax = addrHeader.x - 4;
+
+      const rowNumbers = items
+        .filter(item => item.x <= colNrMax + 8 && (tableHeaderY === 0 || item.y < tableHeaderY - 6) && item.y > 35)
+        .filter(item => /^[1-9][0-9]?$/.test(item.text))
+        .map(item => ({ nr: Number(item.text), y: item.y }))
+        .sort((a, b) => b.y - a.y);
+
+      const uniqueRows: Array<{ nr: number; y: number }> = [];
+      const seenPositions = new Set<string>();
+      for (const row of rowNumbers) {
+        const key = `${row.nr}:${Math.round(row.y)}`;
+        if (!seenPositions.has(key)) {
+          seenPositions.add(key);
+          uniqueRows.push(row);
+        }
+      }
+
+      if (uniqueRows.length < 2) continue;
+
+      const rowBands = uniqueRows.map((row, index) => {
+        const previous = uniqueRows[index - 1];
+        const next = uniqueRows[index + 1];
+        const topY = index === 0
+          ? (minHeaderY > 0 ? Math.min(minHeaderY - 2, row.y + 18) : row.y + 20)
+          : (previous.y + row.y) / 2;
+        const bottomY = index === uniqueRows.length - 1
+          ? Math.max(25, row.y - (previous ? (previous.y - row.y) / 2 : 12))
+          : (row.y + next.y) / 2;
+        return { ...row, topY, bottomY };
+      });
+
+      const isHeaderWord = (text: string) =>
+        /^(?:Nr\.?|Name|Familienname|Vorname|BJ|Besuchsjahr|Geb\.?Datum|Geburtstag|SVNR|Religion|Bekenntnis|Staat|StB|Adressdaten|Adresse|Wohnadresse|Wohnort|Anschrift|PLZ|Ort|Telefon|Tel\.?|Handy|Telefonnummer|Erziehungsberechtigte|Notfallkontakt|Kontaktdaten)$/i.test(text.trim());
+
+      for (const band of rowBands) {
+        const rowItems = items.filter(item =>
+          item.y >= band.bottomY &&
+          item.y < band.topY &&
+          item.x > colNrMax - 10 &&
+          !isHeaderWord(item.text)
+        );
+        if (rowItems.length === 0) continue;
+
+        const nameItems = rowItems.filter(item => item.x >= colNrMax && item.x < colNameMax)
+          .sort((a, b) => b.y - a.y || a.x - b.x);
+        const bjItems = rowItems.filter(item => item.x >= colNameMax && item.x < colBJMax)
+          .sort((a, b) => b.y - a.y || a.x - b.x);
+        const gebItems = rowItems.filter(item => item.x >= colBJMax && item.x < colGebMax)
+          .sort((a, b) => b.y - a.y || a.x - b.x);
+        const relItems = rowItems.filter(item => item.x >= colGebMax && item.x < colRelMax)
+          .sort((a, b) => b.y - a.y || a.x - b.x);
+        const contactItems = rowItems.filter(item => item.x >= colRelMax);
+
+        const parsedName = splitSokratesName(cleanStudentNameString(nameItems.map(item => item.text).join(' ')));
+        if (!parsedName.nachname && !parsedName.vorname) continue;
+
+        const bjText = bjItems.map(item => item.text).join(' ');
+        const bjMatch = bjText.match(/\b([1-4]|V)\b/i);
+        const besuchsjahr = bjMatch
+          ? bjMatch[1].toUpperCase()
+          : (klasse && /^[1-4]/.test(klasse) ? klasse.charAt(0) : '');
+
+        const gebText = gebItems.map(item => item.text).join(' ');
+        const birthMatch = gebText.match(/\b(0[1-9]|[12][0-9]|3[01])\.(0[1-9]|1[0-2])\.(19[89][0-9]|20[0-2][0-9])\b/);
+        const geburtstag = birthMatch ? normalizeDate(birthMatch[0]) : '';
+        const svMatch = gebText.match(/\b([0-9]{10})\b/) || gebText.match(/\b([0-9]{4})\s*([0-9]{6})\b/);
+        const sv_nummer = svMatch ? svMatch.slice(1).filter(Boolean).join('') : '';
+
+        const relText = relItems.map(item => item.text).join(' ');
+        const relMatch = relText.match(/(?<!\p{L})(röm\.?-?kath\.?|r\.?k\.?|evang?\.?|isl(?:am)?\.?(?:\s*\(IGGÖ\))?|o\.?B\.?|orthodox|alevi|buddh|israelit)(?!\p{L})/ui);
+        const religion = relMatch ? normalizeReligion(relMatch[1]) : '';
+        const stateMatch = relText.match(/(?<!\p{L})(AUT|DEU|TUR|SYR|AFG|UKR|ROU|SRB|BIH|HRV|HUN|ITA|CHE|LIE|KOS|GBR|SOM|CZE|RUS|MKD|POL|SVK|SVN|Österreich|Deutschland|Türkei|Syrien|Kosovo|Großbritannien|Somalia|Tschechien|Russland|Nordmazedonien|Polen|Slowakei|Slowenien|Liechtenstein)(?!\p{L})/ui);
+        const staatsbuergerschaft = stateMatch ? normalizeCountry(stateMatch[1]) : '';
+
+        const contact = extractContactAndAddress(contactItems);
+        const rowText = rowItems.map(item => item.text).join(' ');
+        const email = rowText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] || '';
+        let geschlecht = '';
+        if (/\b(?:weiblich|mädchen)\b/i.test(rowText)) geschlecht = 'w';
+        else if (/\b(?:männlich|knabe|bube)\b/i.test(rowText)) geschlecht = 'm';
+        else if (/\b(?:divers|inter|offen)\b/i.test(rowText)) geschlecht = 'd';
+
+        students.push({
+          id: crypto.randomUUID(),
+          lfdNr: band.nr,
+          vorname: parsedName.vorname,
+          nachname: parsedName.nachname,
+          geschlecht,
+          geburtstag,
+          besuchsjahr,
+          sv_nummer,
+          religion,
+          staatsbuergerschaft,
+          anschrift: contact.anschrift,
+          plz: contact.plz,
+          ort: contact.ort,
+          telefon_mutter: contact.telefon_mutter,
+          telefon_vater: contact.telefon_vater,
+          email_eltern: email,
+          erstsprache: '',
+          notiz: '',
+        });
+      }
+    }
+
+    if (students.length > 0) {
+      return {
+        students,
+        klasse,
+        schuljahr,
+        lehrerName,
+        schulName,
+        schulkennzahl,
+        schulOrt,
+        schulPlz,
+        schuelerAnzahl: students.length,
+        warnings,
+        sourceMethod: 'pdf_local',
+      };
+    }
+
+    const { rawText } = await extractTextFromPDF(arrayBuffer);
+    const fallback = parseSokratesText(rawText);
+    fallback.sourceMethod = 'pdf_local';
+    return fallback;
+  } catch (err) {
+    if (import.meta.env?.DEV) console.error('Technischer Fehler beim lokalen Sokrates-PDF-Import:', err);
+    throw new Error('Die PDF-Datei konnte nicht gelesen werden. Bitte versuche es erneut oder verwende alternativ den CSV-/Excel-Import.');
+  }
+}
+
+/**
  * Client-Side Sokrates PDF Parsing (Zero-Knowledge)
  * Highly sensitive official student data (SVNR, addresses, religion, contacts)
  * is parsed 100% locally in the browser and NEVER sent to external servers or AI endpoints.
  */
 export async function parseSokratesPDFWithAI(file: File): Promise<ParsedSokratesResult> {
-  const arrayBuffer = await file.arrayBuffer();
-  const { rawText } = await extractTextFromPDF(arrayBuffer);
-  const localResult = parseSokratesText(rawText);
-  localResult.sourceMethod = 'pdf_local';
-  return localResult;
+  return parseSokratesPDF(await file.arrayBuffer());
 }
 
 /**
@@ -425,12 +643,7 @@ export async function parseSokratesFile(file: File): Promise<ParsedSokratesResul
   const isPDF = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
 
   if (isPDF) {
-    // 100% Client-side local extraction: Zero-Knowledge privacy protection
-    const arrayBuffer = await file.arrayBuffer();
-    const { rawText } = await extractTextFromPDF(arrayBuffer);
-    const localResult = parseSokratesText(rawText);
-    localResult.sourceMethod = 'pdf_local';
-    return localResult;
+    return parseSokratesPDF(await file.arrayBuffer());
   }
 
   // 3. CSV / Text file parsing
