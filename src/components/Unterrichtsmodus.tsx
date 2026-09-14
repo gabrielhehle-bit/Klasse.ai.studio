@@ -7739,114 +7739,7 @@ ${content}
 
             {/* Quick Palette Indicator Selector */}
             <div className="flex items-center gap-1 sm:gap-2 justify-end flex-nowrap">
-              {/* Functional Controls Buttons Cluster */}
-              <div className="flex items-center gap-1 sm:gap-1.5 py-1 justify-end flex-nowrap">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (sidebarMode === "hidden") {
-                      changeSidebarMode(prevSidebarMode || "expanded");
-                    } else {
-                      changeSidebarMode("hidden");
-                    }
-                  }}
-                  className={`p-1 px-1.5 sm:p-1.5 sm:px-2 rounded-lg h-8 sm:h-8.5 transition-all border shadow-sm cursor-pointer flex items-center gap-1 font-bold text-[9px] sm:text-xs uppercase tracking-wider ${
-                    sidebarMode !== "hidden"
-                      ? "bg-amber-500 border-amber-500 text-amber-950"
-                      : currentIsLight
-                        ? "bg-black/5 border-black/10 text-slate-700 hover:text-slate-900 hover:bg-black/10"
-                        : "bg-[#18181b]/40 border-white/10 text-white/90 hover:text-white hover:bg-white/10"
-                  }`}
-                  title={
-                    sidebarMode !== "hidden"
-                      ? "Schülerliste ausblenden"
-                      : "Schülerliste einblenden"
-                  }
-                >
-                  <Users size={12} strokeWidth={2.5} />
-                  <span className="hidden xl:inline">SCHÜLERLISTE</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setApp((prev: any) => {
-                      const existing = prev.classPet;
-                      const currentlyEnabled = existing
-                        ? existing.enabled !== false
-                        : false;
-                      return {
-                        ...prev,
-                        classPet: {
-                          ...(existing || {
-                            enabled: false,
-                            animalType: "dino",
-                            name: "Spike",
-                            energy: 50,
-                            accessories: [],
-                            history: [],
-                            memories: [],
-                          }),
-                          enabled: !currentlyEnabled,
-                        },
-                      };
-                    });
-                  }}
-                  className={`p-1 px-1.5 sm:p-1.5 sm:px-2 rounded-lg h-8 sm:h-8.5 transition-all border shadow-sm cursor-pointer flex items-center gap-1 font-bold text-[9px] sm:text-xs uppercase tracking-wider ${
-                    classPetEnabled
-                      ? "bg-indigo-600 border-indigo-600 text-white"
-                      : currentIsLight
-                        ? "bg-black/5 border-black/10 text-slate-700 hover:text-slate-900 hover:bg-black/10"
-                        : "bg-[#18181b]/40 border-white/10 text-white/90 hover:text-white hover:bg-white/10"
-                  }`}
-                  title={
-                    classPetEnabled
-                      ? "Klassentier ausblenden"
-                      : "Klassentier einblenden"
-                  }
-                >
-                  <span>
-                    🐾 <span className="hidden xl:inline">KLASSENTIER</span>
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsThemePickerOpen((prev) => !prev)}
-                  className={`flex items-center gap-1 p-1 px-1.5 sm:p-1.5 sm:px-2 text-[9px] sm:text-xs font-black uppercase tracking-wider rounded-lg h-8 sm:h-8.5 transition-all border shadow-sm cursor-pointer ${isThemePickerOpen ? "bg-emerald-500 border-emerald-500 text-white" : currentIsLight ? "bg-black/5 border-black/10 text-slate-700 hover:text-slate-900 hover:bg-black/10" : "bg-[#18181b]/40 border-white/10 text-white/90 hover:text-white hover:bg-white/10"}`}
-                  title="Design & Themes anpassen"
-                >
-                  <Palette size={12} />
-                  <span className="hidden xl:inline">DESIGN</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsFocusModeLightOff((prev) => !prev)}
-                  className={`p-1 sm:p-1.5 flex items-center justify-center rounded-lg h-8 sm:h-8.5 transition-all border shadow-lg backdrop-blur-lg cursor-pointer ${isFocusModeLightOff ? "bg-amber-500 border-amber-400 text-amber-950 shadow-[0_0_12px_rgba(245,158,11,0.55)]" : currentIsLight ? "bg-black/5 border-black/10 text-slate-500 hover:text-slate-900 hover:bg-black/10" : "bg-[#18181b]/40 border-white/10 text-white/60 hover:text-white hover:bg-white/10"}`}
-                  title="Fokus-Modus: Licht aus"
-                >
-                  <Lightbulb
-                    size={12}
-                    className={
-                      isFocusModeLightOff ? "fill-amber-950 text-amber-950" : ""
-                    }
-                  />
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleFullscreen}
-                  className={`p-1 sm:p-1.5 flex items-center justify-center rounded-lg h-8 sm:h-8.5 transition-all border shadow-lg backdrop-blur-lg cursor-pointer ${currentIsLight ? "bg-black/5 border-black/10 text-slate-500 hover:text-slate-900 hover:bg-black/10" : "bg-[#18181b]/40 border-white/10 text-white/60 hover:text-white hover:bg-white/10"}`}
-                  title={isFullscreen ? "Vollbild beenden" : "Vollbildmodus"}
-                >
-                  {isFullscreen ? (
-                    <Minimize size={13} />
-                  ) : (
-                    <Maximize size={13} />
-                  )}
-                </button>
-              </div>
-            </div>
+                          </div>
           </div>
         </div>
       </header>
@@ -9512,6 +9405,105 @@ ${content}
                                       <span>Anordnung fertig</span>
                                     </>
                                   )}
+                                </button>
+
+                                <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
+                                <div className="px-2 pt-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
+                                  Ansicht
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (sidebarMode === "hidden") {
+                                      changeSidebarMode(prevSidebarMode || "expanded");
+                                    } else {
+                                      changeSidebarMode("hidden");
+                                    }
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Users size={12} className="text-amber-500 shrink-0" />
+                                  <span>{sidebarMode !== "hidden" ? "Schülerliste ausblenden" : "Schülerliste einblenden"}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setApp((prev: any) => {
+                                      const existing = prev.classPet;
+                                      const currentlyEnabled = existing
+                                        ? existing.enabled !== false
+                                        : false;
+                                      return {
+                                        ...prev,
+                                        classPet: {
+                                          ...(existing || {
+                                            enabled: false,
+                                            animalType: "dino",
+                                            name: "Spike",
+                                            energy: 50,
+                                            accessories: [],
+                                            history: [],
+                                            memories: [],
+                                          }),
+                                          enabled: !currentlyEnabled,
+                                        },
+                                      };
+                                    });
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <span className="w-3 text-center shrink-0">🐾</span>
+                                  <span>{classPetEnabled ? "Klassentier ausblenden" : "Klassentier einblenden"}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsThemePickerOpen(true);
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Palette size={12} className="text-emerald-500 shrink-0" />
+                                  <span>Design & Darstellung</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsFocusModeLightOff((prev) => !prev);
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Lightbulb size={12} className="text-amber-500 shrink-0" />
+                                  <span>Fokusmodus{isFocusModeLightOff ? " beenden" : ""}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    toggleFullscreen();
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  {isFullscreen ? <Minimize size={12} className="text-slate-400 shrink-0" /> : <Maximize size={12} className="text-slate-400 shrink-0" />}
+                                  <span>{isFullscreen ? "Vollbild beenden" : "Vollbildmodus"}</span>
                                 </button>
 
                                 <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
