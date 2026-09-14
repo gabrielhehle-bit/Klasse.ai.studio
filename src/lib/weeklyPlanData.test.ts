@@ -4,6 +4,7 @@ import {
   buildSchoolYearWeekList,
   configuredLessonTime,
   getPreviousCalendarWeekKw,
+  weeklyLessonDurationSlots,
 } from './weeklyPlanData';
 
 test('Wochenplanung: Vorwoche funktioniert über den Jahreswechsel', () => {
@@ -32,4 +33,13 @@ test('Wochenplanung: Stunde 9 und 10 bekommen keine erfundene Standardzeit', () 
 test('Wochenplanung: explizit leere konfigurierte Uhrzeit bleibt leer', () => {
   const fallback = { 1: '08:00–08:50' };
   assert.equal(configuredLessonTime({ 1: '' }, fallback, 1), '');
+});
+
+
+test('Wochenplanung: Mehrstundenblöcke reichen nie über Slot 10 hinaus', () => {
+  assert.equal(weeklyLessonDurationSlots('all', 0), 10);
+  assert.equal(weeklyLessonDurationSlots('all', 7), 3);
+  assert.equal(weeklyLessonDurationSlots(6, 7), 3);
+  assert.equal(weeklyLessonDurationSlots(2, 8), 2);
+  assert.equal(weeklyLessonDurationSlots(4, 9), 1);
 });
