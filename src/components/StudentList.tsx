@@ -19,22 +19,13 @@ import confetti from 'canvas-confetti';
 import StudentTimeline from './StudentTimeline';
 import { exportSchuelerPDF } from '../lib/exportService';
 import { InteractionModal } from './InteractionModal';
+import { getStudentComparableName, parseStudentBirthday, toDateInputValue } from '../lib/studentListData';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
-  if (!geburtstagStr) return false;
-  try {
-    const today = new Date();
-    let bday: Date;
-    const parts = geburtstagStr.split(".");
-    if (parts.length === 3) {
-      bday = new Date(today.getFullYear(), parseInt(parts[1]) - 1, parseInt(parts[0]));
-    } else {
-      bday = new Date(geburtstagStr);
-    }
-    return bday.getDate() === today.getDate() && bday.getMonth() === today.getMonth();
-  } catch (e) {
-    return false;
-  }
+  const bday = parseStudentBirthday(geburtstagStr);
+  if (!bday) return false;
+  const today = new Date();
+  return bday.getDate() === today.getDate() && bday.getMonth() === today.getMonth();
 };
 
 const playBirthdayJingle = () => {
@@ -133,7 +124,7 @@ export default function StudentList() {
   const isDuplicateName = useMemo(() => {
     if (!editingStudent?.vorname || !editingStudent?.nachname) return false;
     const currentFullName = `${editingStudent.vorname.trim()} ${editingStudent.nachname.trim()}`.toLowerCase();
-    return schueler.some(s => s.id !== editingStudent.id && s.name.toLowerCase() === currentFullName);
+    return schueler.some(s => s.id !== editingStudent.id && getStudentComparableName(s) === currentFullName);
   }, [editingStudent?.vorname, editingStudent?.nachname, schueler, editingStudent?.id]);
 
   const { maleCount, femaleCount, dazCount, spfCount, espfCount } = useMemo(() => {
@@ -156,15 +147,8 @@ export default function StudentList() {
 
   const { avgAge, minAge, maxAge } = useMemo(() => {
     const agesList = schueler.map(s => {
-      if (!s.geburtstag) return null;
-      let bday: Date;
-      const parts = s.geburtstag.split(".");
-      if (parts.length === 3) {
-        bday = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-      } else {
-        bday = new Date(s.geburtstag);
-      }
-      if (isNaN(bday.getTime())) return null;
+      const bday = parseStudentBirthday(s.geburtstag);
+      if (!bday) return null;
       const ageDifMs = Date.now() - bday.getTime();
       const ageDate = new Date(ageDifMs);
       return Math.abs(ageDate.getUTCFullYear() - 1970);
@@ -204,8 +188,8 @@ export default function StudentList() {
         } else if (sortBy === 'vorname') {
           comparison = (a.vorname || '').localeCompare(b.vorname || '', 'de');
         } else if (sortBy === 'alter') {
-          const dateA = a.geburtstag ? new Date(a.geburtstag).getTime() : 0;
-          const dateB = b.geburtstag ? new Date(b.geburtstag).getTime() : 0;
+          const dateA = parseStudentBirthday(a.geburtstag)?.getTime() ?? 0;
+          const dateB = parseStudentBirthday(b.geburtstag)?.getTime() ?? 0;
           comparison = dateA - dateB;
         }
         return sortOrder === 'asc' ? comparison : -comparison;
@@ -1474,7 +1458,7 @@ export default function StudentList() {
                          type="date"
                          aria-label="Geburtsdatum"
                          className="input-field py-2 sm:py-3"
-                         value={editingStudent?.geburtstag || ''}
+                         value={toDateInputValue(editingStudent?.geburtstag)}
                          onChange={e => setEditingStudent({...editingStudent, geburtstag: e.target.value})}
                        />
                      </div>
