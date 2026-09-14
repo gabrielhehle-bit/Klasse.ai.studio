@@ -70,6 +70,20 @@ export function parseAssessmentInput(
   return { valid: true, value: Math.min(5, Math.max(1, Math.round(parsed * 10) / 10)) };
 }
 
+export function getAssessmentStorageValue(
+  mode: AssessmentMode,
+  totalPoints: number,
+  maxPoints: number,
+  gradeValue: number | string,
+): number | string {
+  if (mode === 'points') return totalPoints;
+  if (mode === 'percent') {
+    if (!Number.isFinite(maxPoints) || maxPoints <= 0) return 0;
+    return Math.round((totalPoints / maxPoints) * 1000) / 10;
+  }
+  return gradeValue;
+}
+
 export function calculateItemPercent(
   rawVal: number | string | null | undefined,
   mode: AssessmentMode,
