@@ -1,6 +1,7 @@
 // Client-side AI Service calling the server proxy
 import { pseudonymisiere, depseudonymisiere, PseudonymMap } from '../lib/pseudonymisierung';
 import { AppState } from '../types';
+import { validateAiImagePrivacy } from '../lib/aiPrivacy';
 
 export interface LessonSuggestion {
   thema: string;
@@ -65,9 +66,8 @@ export async function callServerAI(action: string, params: any): Promise<string>
     }
     
     const { imageBase64, imagePrivacyConfirmed, ...restParams } = params || {};
-    if (imageBase64 && imagePrivacyConfirmed !== true) {
-      throw new Error('Bildanalyse blockiert: Bitte bestätige zuerst, dass Namen und andere personenbezogene Angaben im Bild unkenntlich gemacht wurden.');
-    }
+    const imagePrivacyError = validateAiImagePrivacy(imageBase64, imagePrivacyConfirmed === true);
+    if (imagePrivacyError) throw new Error(imagePrivacyError);
 
     if (appState && ((appState.schueler && appState.schueler.length > 0) || (appState.classes && appState.classes.length > 0))) {
       // Text-/JSON-Daten werden weiter pseudonymisiert. Bilddaten dürfen nur nach expliziter
