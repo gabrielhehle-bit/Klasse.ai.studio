@@ -297,6 +297,49 @@ export default function Uebergabemappe() {
     }
     return `${s.vorname} ${s.nachname}`;
   };
+
+  const transferNotes = useMemo(() => {
+    if (!transferStudentId) return [];
+    const source = (app.notes && app.notes.length > 0) ? app.notes : (app.journal || []);
+    return source
+      .filter(note => note.schuelerId === transferStudentId)
+      .slice()
+      .sort((a, b) => String(b.datum || '').localeCompare(String(a.datum || '')))
+      .slice(0, 5);
+  }, [app.notes, app.journal, transferStudentId]);
+
+  const transferGradeRows = useMemo(() => {
+    if (!transferStudentId) return [];
+    const subjects = Array.from(new Set(app.faecher || FAECHER_ALLE))
+      .filter(fach => app.fachConfig?.[fach]?.unterrichtet !== false);
+
+    return subjects.flatMap(fach => {
+      const mode = getAssessmentMode(app, fach);
+      const firstData = app.noten?.[transferStudentId]?.[fach]?.['1'];
+      const secondData = app.noten?.[transferStudentId]?.[fach]?.['2'];
+      const firstRaw = firstData?.endnote ?? berechne(app, transferStudentId, fach, '1');
+      const secondRaw = secondData?.endnote ?? berechne(app, transferStudentId, fach, '2');
+      const hasFirst = firstRaw !== null && firstRaw !== undefined && firstRaw !== '';
+      const hasSecond = secondRaw !== null && secondRaw !== undefined && secondRaw !== '';
+      if (!hasFirst && !hasSecond) return [];
+
+      return [{
+        fach,
+        mode,
+        semester1: formatTransferGradeValue(firstRaw, mode),
+        semester2: formatTransferGradeValue(secondRaw, mode),
+      }];
+    });
+  }, [app, transferStudentId]);
+
+  const transferDiagnosticResults = useMemo(() => {
+    if (!transferStudentId) return [];
+    return (app.diagnosticResults || [])
+      .filter(result => result.studentId === transferStudentId)
+      .slice()
+      .sort((a, b) => String(b.createdAt || b.date || '').localeCompare(String(a.createdAt || a.date || '')))
+      .slice(0, 5);
+  }, [app.diagnosticResults, transferStudentId]);
   const [printColumns, setPrintColumns] = useState<Record<string, boolean>>({
     geschlecht: true,
     geburtstag: true,
@@ -1276,7 +1319,7 @@ export default function Uebergabemappe() {
                       <FileText size={16} className="text-indigo-500" />
                       <div>
                         <p className="text-[0.5625rem] font-black uppercase text-slate-400">Beobachtungen</p>
-                        <p className="text-[0.75rem] font-black text-slate-700">{app.notizen?.filter(n => n.schuelerId === transferStudentId).length || 0} Berichte</p>
+                        <p className="text-[0.75rem] font-black text-slate-700">{transferNotes.length} Berichte</p>
                       </div>
                     </div>
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-2.5">
@@ -1294,8 +1337,10 @@ export default function Uebergabemappe() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {[
                         { key: 'stammdaten', label: 'Stammdaten & Schulausschnitt' },
+                        { key: 'leistungen', label: 'Leistungsstand' },
                         { key: 'beobachtungen', label: 'Pädagogische Notizen' },
                         { key: 'ikm', label: 'IKM Plus Testergebnisse' },
+                        { key: 'diagnostik', label: 'Diagnostik & Förderbedarf' },
                       ].map((mod) => (
                         <label key={mod.key} className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:border-amber-200 transition-all">
                           <input 
@@ -2659,6 +2704,44 @@ export default function Uebergabemappe() {
                        </section>
                       )}
 
+
+                      {transferModules.leistungen && (
+                        <section className="space-y-4">
+                          <h3 className="text-[1.5rem] leading-normal font-black uppercase tracking-tight flex items-center gap-3 border-b-2 border-slate-900 pb-2">
+                            <BarChart3 className="text-emerald-500" /> Leistungsstand
+                          </h3>
+                          {transferGradeRows.length > 0 ? (
+                            <div className="overflow-hidden rounded-2xl border border-slate-200">
+                              <table className="w-full text-left text-[0.875rem]">
+                                <thead className="bg-slate-50">
+                                  <tr>
+                                    <th className="p-3 font-black">Fach</th>
+                                    <th className="p-3 font-black">1. Semester</th>
+                                    <th className="p-3 font-black">2. Semester</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {transferGradeRows.map(row => (
+                                    <tr key={row.fach} className="border-t border-slate-100">
+                                      <td className="p-3 font-bold">{row.fach}</td>
+                                      <td className="p-3">{row.semester1}</td>
+                                      <td className="p-3">{row.semester2}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <p className="p-8 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center text-slate-400 font-bold italic">
+                              Keine Leistungsdaten erfasst.
+                            </p>
+                          )}
+                          <p className="text-[0.625rem] text-slate-400 font-bold">
+                            Prozent- und Punktebewertung werden als berechneter Gesamtstand in Prozent ausgegeben; Notenmodus als Notenwert.
+                          </p>
+                        </section>
+                      )}
+
                       {/* Notizen */}
                       {transferModules.beobachtungen && (
                         <section className="space-y-4">
@@ -2666,13 +2749,13 @@ export default function Uebergabemappe() {
                              <FileText className="text-indigo-500" /> Pädagogische Beobachtungen
                            </h3>
                            <div className="p-8 bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-3xl min-h-32 text-[1.125rem] leading-normal italic leading-relaxed text-slate-700">
-                              {app.notizen?.filter(n => n.schuelerId === transferStudentId).sort((a,b) => b.timestamp - a.timestamp).slice(0,3).map((n, i) => (
-                                <div key={i} className="mb-4">
-                                   <span className="text-[0.625rem] font-black uppercase text-slate-400 bg-white px-2 py-0.5 rounded-lg border border-slate-100">{n.termin || new Date(n.timestamp).toLocaleDateString('de-AT')}</span>
-                                   <p className="mt-1">{n.inhalt}</p>
+                              {transferNotes.map((note) => (
+                                <div key={note.id} className="mb-4">
+                                   <span className="text-[0.625rem] font-black uppercase text-slate-400 bg-white px-2 py-0.5 rounded-lg border border-slate-100">{note.datum || 'Ohne Datum'}</span>
+                                   <p className="mt-1">{note.inhalt}</p>
                                 </div>
                               ))}
-                              {!app.notizen?.some(n => n.schuelerId === transferStudentId) && <p className="text-slate-400">Keine aktuellen Notizen vorhanden.</p>}
+                              {transferNotes.length === 0 && <p className="text-slate-400">Keine aktuellen Notizen vorhanden.</p>}
                            </div>
                         </section>
                       )}
@@ -2708,6 +2791,47 @@ export default function Uebergabemappe() {
                            ) : (
                              <p className="p-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center text-slate-400 font-bold italic">Keine IKM Plus Ergebnisse erfasst.</p>
                            )}
+                        </section>
+                      )}
+
+
+                      {transferModules.diagnostik && (
+                        <section className="space-y-4">
+                          <h3 className="text-[1.5rem] leading-normal font-black uppercase tracking-tight flex items-center gap-3 border-b-2 border-slate-900 pb-2">
+                            <Activity className="text-purple-500" /> Diagnostik & Förderbedarf
+                          </h3>
+                          {transferDiagnosticResults.length > 0 ? (
+                            <div className="space-y-3">
+                              {transferDiagnosticResults.map(result => {
+                                const definition = getDiagnosticTestById(result.testId);
+                                return (
+                                  <div key={result.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div>
+                                        <p className="font-black text-slate-900">{definition?.title || result.testId}</p>
+                                        <p className="text-[0.6875rem] font-bold text-slate-400">
+                                          {result.date} · Niveau {result.gradeLevel || app.stufe}
+                                        </p>
+                                      </div>
+                                      <span className="text-[0.6875rem] font-black text-purple-700 bg-purple-50 px-2 py-1 rounded-lg">
+                                        {result.competencyResults?.length || 0} Kompetenzen
+                                      </span>
+                                    </div>
+                                    {result.nextStep && (
+                                      <div className="mt-3 pt-3 border-t border-slate-200">
+                                        <p className="text-[0.625rem] font-black uppercase text-slate-400">Nächster pädagogischer Schritt</p>
+                                        <p className="mt-1 text-[0.8125rem] font-bold text-slate-700">{result.nextStep}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="p-8 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center text-slate-400 font-bold italic">
+                              Keine Ergebnisse aus dem kompetenzorientierten Diagnostiksystem erfasst.
+                            </p>
+                          )}
                         </section>
                       )}
                    </div>
