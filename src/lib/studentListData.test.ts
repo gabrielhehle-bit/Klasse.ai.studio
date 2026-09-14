@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getStudentComparableName, mergeImportedStudents, normalizeStudentGender, parseStudentBirthday, sortStudentsForList, toDateInputValue } from './studentListData';
+import { calculateStudentAge, getStudentComparableName, mergeImportedStudents, normalizeStudentGender, parseStudentBirthday, sortStudentsForList, toDateInputValue } from './studentListData';
 
 test('student birthdays parse Austrian, short-year Austrian and ISO formats', () => {
   const austrian = parseStudentBirthday('15.09.2017');
@@ -117,4 +117,13 @@ test('re-import matches by SV number and never merges conflicting known birthday
   assert.equal(merged.added, 1);
   assert.equal(merged.students.find(s => s.id === 'sv')?.vorname, 'Maximilian');
   assert.equal(merged.students.filter(s => s.nachname === 'Test').length, 2);
+});
+
+
+test('student age uses calendar birthdays instead of elapsed milliseconds', () => {
+  const beforeBirthday = new Date(2026, 8, 14);
+  const onBirthday = new Date(2026, 8, 15);
+  assert.equal(calculateStudentAge('2017-09-15', beforeBirthday), 8);
+  assert.equal(calculateStudentAge('2017-09-15', onBirthday), 9);
+  assert.equal(calculateStudentAge('31.02.2017', onBirthday), null);
 });
