@@ -15,6 +15,7 @@ import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { MaterialItem } from '../types';
 import { generateTeachingMaterial } from '../services/aiService';
 import { calculateMaterialStorageSize, upsertMaterial } from '../lib/materialLibraryUtils';
+export { calculateMaterialStorageSize as calculateStorageSize } from '../lib/materialLibraryUtils';
 
 const normalizeMaterialItem = (item: MaterialItem): MaterialItem => ({
   ...item,
