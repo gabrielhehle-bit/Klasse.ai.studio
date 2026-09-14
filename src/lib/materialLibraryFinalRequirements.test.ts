@@ -4,6 +4,9 @@ import { readFileSync } from 'node:fs';
 
 const material = readFileSync('src/components/Materialbibliothek.tsx', 'utf8');
 const worksheet = readFileSync('src/components/WorksheetGenerator.tsx', 'utf8');
+const aiAssistant = readFileSync('src/components/AIAssistant.tsx', 'utf8');
+const optimizer = readFileSync('src/components/MaterialOptimizer.tsx', 'utf8');
+const lessonPlanner = readFileSync('src/components/LessonPlannerAI.tsx', 'utf8');
 
 test('Materialbibliothek: Wochenplan-Übergabe unterstützt alle zehn Stunden-Slots', () => {
   assert.match(material, /LESSON_SLOT_NUMBERS/);
@@ -50,4 +53,17 @@ test('Arbeitsblatt-Generator: Prompt und Bibliotheksmetadaten nutzen die aktive 
   assert.match(worksheet, />\{worksheetGrade\}\. Schulstufe</);
   assert.doesNotMatch(worksheet, /schulstufen: \[4\]/);
   assert.doesNotMatch(worksheet, />4\. Schulstufe</);
+});
+
+
+test('Materialbibliothek: KI-Aufrufer melden Erfolg nur nach tatsächlichem Speichern', () => {
+  assert.match(material, /addMaterialFromAI = \(item: Partial<MaterialItem>, quelleModul: string = 'ki-helfer'\): boolean/);
+  assert.match(aiAssistant, /const saved = addMaterialFromAI\(/);
+  assert.match(aiAssistant, /if \(!saved\) return;/);
+  assert.match(optimizer, /const saved = addMaterialFromAI\(/);
+  assert.match(optimizer, /if \(!saved\) return;/);
+  assert.match(worksheet, /const savedInLibrary = addMaterialFromAI\(/);
+  assert.match(worksheet, /savedInLibrary \? 'success' : 'error'/);
+  assert.match(lessonPlanner, /const saved = addMaterialFromAI\(/);
+  assert.match(lessonPlanner, /if \(!saved\) return;/);
 });
