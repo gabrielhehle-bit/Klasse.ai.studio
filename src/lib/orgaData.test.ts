@@ -124,8 +124,9 @@ test('manual transaction deletion cannot remove collection-generated journal ent
 test('date-only form values are stored without UTC day drift', () => {
   const iso = dateInputToLocalNoonIso('2026-09-14');
   assert.ok(iso);
-  assert.equal(formatOrgaDate('2026-09-14'), '14.9.2026');
-  assert.equal(formatOrgaDate(iso), '14.9.2026');
+  const expected = new Date(2026, 8, 14, 12).toLocaleDateString('de-AT');
+  assert.equal(formatOrgaDate('2026-09-14'), expected);
+  assert.equal(formatOrgaDate(iso), expected);
   assert.equal(dateInputToLocalNoonIso('2026-02-31'), undefined);
 });
 
