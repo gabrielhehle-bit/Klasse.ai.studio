@@ -87,8 +87,12 @@ test('Jahresplan-Excel: Ferienwochen verschieben die SW-Zählung nicht gegenübe
   const holidayIndex = rows.findIndex(row => row[3] === 'Ferien / Schulfrei');
   assert.ok(holidayIndex >= 0, 'mindestens eine Ferienwoche muss in der Vorlage vorkommen');
 
-  const holidaySw = Number(rows[holidayIndex][1]);
-  const nextTeaching = rows.slice(holidayIndex + 1).find(row => row[3] === 'Lesen');
-  assert.ok(nextTeaching, 'nach der Ferienwoche muss wieder eine Unterrichtswoche folgen');
-  assert.equal(Number(nextTeaching![1]), holidaySw + 1);
+  const nextTeachingOffset = rows.slice(holidayIndex + 1).findIndex(row => row[3] === 'Lesen');
+  assert.ok(nextTeachingOffset >= 0, 'nach den Ferien muss wieder eine Unterrichtswoche folgen');
+
+  const nextTeachingIndex = holidayIndex + 1 + nextTeachingOffset;
+  const lastHolidaySw = Number(rows[nextTeachingIndex - 1][1]);
+  const nextTeachingSw = Number(rows[nextTeachingIndex][1]);
+
+  assert.equal(nextTeachingSw, lastHolidaySw + 1);
 });
