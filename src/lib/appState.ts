@@ -224,6 +224,7 @@ export function syncActiveClass(state: AppState): AppState {
     notes: state.notes ? JSON.parse(JSON.stringify(state.notes)) : [],
     journal: state.journal ? JSON.parse(JSON.stringify(state.journal)) : [],
     statusLog: state.statusLog ? JSON.parse(JSON.stringify(state.statusLog)) : [],
+    vertretungHinweise: state.vertretungHinweise || '',
     stundenZeiten: state.stundenZeiten ? { ...state.stundenZeiten } : {},
     sue_kontrolle: state.sue_kontrolle ? JSON.parse(JSON.stringify(state.sue_kontrolle)) : {},
     lastGroups: state.lastGroups,
@@ -509,6 +510,7 @@ export function normalizeAppState(raw: any): AppState {
     parsed.klassenkasse = normalizeKlassenkasse(activeClass.klassenkasse);
     parsed.behavior_status = activeClass.behavior_status;
     parsed.behavior_notes = activeClass.behavior_notes;
+    parsed.vertretungHinweise = activeClass.vertretungHinweise ?? parsed.vertretungHinweise ?? '';
     parsed.sue_kontrolle = activeClass.sue_kontrolle;
     parsed.sitzplan_schueler = activeClass.sitzplan_schueler;
     parsed.sitzplan_objekte = activeClass.sitzplan_objekte;
@@ -751,6 +753,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     notes: targetClass.notes ? JSON.parse(JSON.stringify(targetClass.notes)) : [],
     journal: targetClass.journal ? JSON.parse(JSON.stringify(targetClass.journal)) : [],
     statusLog: targetClass.statusLog ? JSON.parse(JSON.stringify(targetClass.statusLog)) : [],
+    vertretungHinweise: targetClass.vertretungHinweise || '',
     sue_kontrolle: targetClass.sue_kontrolle || {},
     sitzplan_schueler: targetClass.sitzplan_schueler || {},
     sitzplan_objekte: targetClass.sitzplan_objekte || [],
