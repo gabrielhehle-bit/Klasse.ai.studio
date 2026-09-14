@@ -356,7 +356,8 @@ export function normalizeAppState(raw: any): AppState {
         metaKognitionsProtokolle: c.metaKognitionsProtokolle ?? (c.id === parsed.activeClassId ? parsed.metaKognitionsProtokolle : undefined) ?? [],
         interaktionsLog: c.interaktionsLog ?? (c.id === parsed.activeClassId ? parsed.interaktionsLog : undefined) ?? { eintraege: [], wochenEmpfehlung: null },
         mitarbeit: c.mitarbeit || {},
-        mitarbeit_settings: c.mitarbeit_settings ?? (c.id === parsed.activeClassId ? parsed.mitarbeit_settings : undefined) ?? { thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 }, mode: 'absolute' },
+        // Legacy multi-class snapshots had one shared root setting; copy it to every class once during migration.
+        mitarbeit_settings: c.mitarbeit_settings ?? parsed.mitarbeit_settings ?? { thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 }, mode: 'absolute' },
         verhalten: c.verhalten || {},
         karten: c.karten || {},
         jahresplanung: c.jahresplanung || {},
