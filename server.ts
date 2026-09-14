@@ -417,8 +417,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
     if (isTeam || isExternal) {
       resetFailedAttempts(ip);
-      const token = setAccessSession(req, res);
-      return res.json({ success: true, token });
+      setAccessSession(req, res);
+      return res.json({ success: true });
     } else {
       recordFailedAttempt(ip);
       return res.json({ success: false, error: "Der Zugangscode ist nicht gültig." });
