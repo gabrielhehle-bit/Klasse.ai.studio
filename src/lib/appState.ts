@@ -3,6 +3,7 @@ import { DEFAULT_TAGEPLAN, FAECHER_ALLE, STUNDEN_INFO, DEFAULT_YEARLY_SUBJECTS, 
 import { getCurrentSchuljahr, getKW } from './utils';
 import { DEFAULT_MORNING_WIDGETS } from '../data/morningWidgets';
 import { sanitizeSeatingRules } from './seatingPlanRules';
+import { normalizeKlassenkasse } from './orgaData';
 
 export const initialAppState: AppState = {
   ipsativeGewichtung: 70,
@@ -210,7 +211,7 @@ export function syncActiveClass(state: AppState): AppState {
     klassenglas_belohnung: state.klassenglas_belohnung,
     klassenglas_missions: state.klassenglas_missions,
     klassenglas_completed_missions: state.klassenglas_completed_missions,
-    klassenkasse: state.klassenkasse ? JSON.parse(JSON.stringify(state.klassenkasse)) : undefined,
+    klassenkasse: normalizeKlassenkasse(state.klassenkasse),
     checklisten: state.checklisten ? JSON.parse(JSON.stringify(state.checklisten)) : [],
     customLists: state.customLists ? JSON.parse(JSON.stringify(state.customLists)) : [],
     zugangsdaten: state.zugangsdaten ? JSON.parse(JSON.stringify(state.zugangsdaten)) : [],
@@ -315,7 +316,7 @@ export function normalizeAppState(raw: any): AppState {
       klassenglas_count: parsed.klassenglas_count || 0,
       klassenglas_ziel: parsed.klassenglas_ziel || 20,
       klassenglas_belohnung: parsed.klassenglas_belohnung || 'Gemeinsame Spielzeit',
-      klassenkasse: parsed.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
+      klassenkasse: normalizeKlassenkasse(parsed.klassenkasse),
       zugangsdaten: parsed.zugangsdaten || [],
       behavior_status: parsed.behavior_status || {},
       behavior_notes: parsed.behavior_notes || {},
@@ -379,7 +380,7 @@ export function normalizeAppState(raw: any): AppState {
         klassenglas_count: c.klassenglas_count !== undefined ? Number(c.klassenglas_count) : 0,
         klassenglas_ziel: c.klassenglas_ziel !== undefined ? Number(c.klassenglas_ziel) : 20,
         klassenglas_belohnung: c.klassenglas_belohnung || 'Gemeinsame Spielzeit',
-        klassenkasse: c.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
+        klassenkasse: normalizeKlassenkasse(c.klassenkasse),
         behavior_status: c.behavior_status || {},
         behavior_notes: c.behavior_notes || {},
         sue_kontrolle: c.sue_kontrolle || {},
@@ -476,7 +477,7 @@ export function normalizeAppState(raw: any): AppState {
     parsed.klassenglas_count = activeClass.klassenglas_count;
     parsed.klassenglas_ziel = activeClass.klassenglas_ziel;
     parsed.klassenglas_belohnung = activeClass.klassenglas_belohnung;
-    parsed.klassenkasse = activeClass.klassenkasse;
+    parsed.klassenkasse = normalizeKlassenkasse(activeClass.klassenkasse);
     parsed.behavior_status = activeClass.behavior_status;
     parsed.behavior_notes = activeClass.behavior_notes;
     parsed.sue_kontrolle = activeClass.sue_kontrolle;
@@ -713,7 +714,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     klassenglas_count: targetClass.klassenglas_count,
     klassenglas_ziel: targetClass.klassenglas_ziel,
     klassenglas_belohnung: targetClass.klassenglas_belohnung || 'Gemeinsame Spielzeit',
-    klassenkasse: targetClass.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
+    klassenkasse: normalizeKlassenkasse(targetClass.klassenkasse),
     behavior_status: targetClass.behavior_status || {},
     behavior_notes: targetClass.behavior_notes || {},
     notes: targetClass.notes ? JSON.parse(JSON.stringify(targetClass.notes)) : [],
