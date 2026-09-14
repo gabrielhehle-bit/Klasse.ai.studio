@@ -667,6 +667,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         noten: {},
         notenMeta: {},
         notenGewichtung: {},
+        lernzielTracker: {},
+        studentLernzielBewertungen: {},
+        studentLernzielSemesterBewertungen: {},
         mitarbeit: {},
         verhalten: {},
         karten: {},
@@ -713,6 +716,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         noten: newClass.noten,
         notenMeta: newClass.notenMeta || {},
         notenGewichtung: newClass.notenGewichtung || {},
+        lernzielTracker: {},
+        studentLernzielBewertungen: {},
+        studentLernzielSemesterBewertungen: {},
         mitarbeit: newClass.mitarbeit,
         verhalten: newClass.verhalten,
         karten: newClass.karten,
@@ -811,7 +817,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return res;
       };
 
-      const cleanLernzielTracker = filterStudentMap(prev.lernzielTracker);
+      const cleanLernzielBewertungen = filterStudentMap(prev.studentLernzielBewertungen);
       const cleanLernzielSemesterBewertungen = filterStudentMap(prev.studentLernzielSemesterBewertungen);
 
       // If other classes are remaining:
@@ -828,7 +834,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ikmRecords: cleanIkmRecords,
             stimmNotizen: cleanStimmNotizen,
             interaktionsLog: cleanInteraktionsLog,
-            lernzielTracker: cleanLernzielTracker,
+            studentLernzielBewertungen: cleanLernzielBewertungen,
             studentLernzielSemesterBewertungen: cleanLernzielSemesterBewertungen
           };
         }
@@ -853,6 +859,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           noten: nextClass.noten || {},
           notenMeta: nextClass.notenMeta || {},
           notenGewichtung: nextClass.notenGewichtung || {},
+          lernzielTracker: nextClass.lernzielTracker ? JSON.parse(JSON.stringify(nextClass.lernzielTracker)) : {},
+          studentLernzielBewertungen: nextClass.studentLernzielBewertungen ? JSON.parse(JSON.stringify(nextClass.studentLernzielBewertungen)) : {},
+          studentLernzielSemesterBewertungen: nextClass.studentLernzielSemesterBewertungen ? JSON.parse(JSON.stringify(nextClass.studentLernzielSemesterBewertungen)) : {},
           mitarbeit: nextClass.mitarbeit || {},
           verhalten: nextClass.verhalten || {},
           karten: nextClass.karten || {},
@@ -895,9 +904,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           diagnosticResults: cleanDiagnosticResults,
           ikmRecords: cleanIkmRecords,
           stimmNotizen: cleanStimmNotizen,
-          interaktionsLog: cleanInteraktionsLog,
-          lernzielTracker: cleanLernzielTracker,
-          studentLernzielSemesterBewertungen: cleanLernzielSemesterBewertungen
+          interaktionsLog: cleanInteraktionsLog
         };
       } else {
         // NO classes remaining -> reset cleanly and navigate to setup
@@ -911,6 +918,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
           klassenvorstand: true,
           schueler: [],
           noten: {},
+          notenMeta: {},
+          notenGewichtung: {},
+          lernzielTracker: {},
+          studentLernzielBewertungen: {},
+          studentLernzielSemesterBewertungen: {},
           mitarbeit: {},
           verhalten: {},
           karten: {},
@@ -944,8 +956,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ikmRecords: cleanIkmRecords,
           stimmNotizen: cleanStimmNotizen,
           interaktionsLog: cleanInteraktionsLog,
-          lernzielTracker: cleanLernzielTracker,
-          studentLernzielSemesterBewertungen: cleanLernzielSemesterBewertungen,
           tourAbgeschlossen: false
         };
       }
