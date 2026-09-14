@@ -151,6 +151,9 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
     assert.ok(cookieStr.includes("HttpOnly"));
     assert.ok(cookieStr.includes("SameSite=Lax"));
     assert.ok(cookieStr.includes("Path=/"));
+    const payload = await res.json();
+    assert.equal(payload.success, true);
+    assert.equal('token' in payload, false, 'Session-Token darf nicht zusätzlich an Browser-JavaScript zurückgegeben werden');
   });
 
   await t.test('Unbekannte API-Routen liefern sauberes JSON 404', async () => {

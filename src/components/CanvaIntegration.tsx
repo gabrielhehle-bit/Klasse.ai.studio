@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ExternalLink, FileDown, FileText, Image, Loader2, LogOut, Palette,
   Plus, Presentation, RefreshCw, Search, ShieldCheck, Sparkles
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { isTrustedOAuthPopupMessage } from '../lib/oauthPopupSecurity';
 
 type CanvaDesign = {
   id: string;
@@ -41,6 +42,7 @@ export default function CanvaIntegration() {
   const [loading, setLoading] = useState(true);
   const [designLoading, setDesignLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const oauthPopupRef = useRef<Window | null>(null);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -82,13 +84,15 @@ export default function CanvaIntegration() {
 
   useEffect(() => {
     const onMessage = async (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
+      if (!isTrustedOAuthPopupMessage(event.origin, event.source, window.location.origin, oauthPopupRef.current)) return;
       if (event.data?.type === 'CANVA_AUTH_SUCCESS') {
+        oauthPopupRef.current = null;
         await refreshStatus();
         await loadDesigns();
         showToast('Canva ist verbunden.', 'success');
       }
       if (event.data?.type === 'CANVA_AUTH_ERROR') {
+        oauthPopupRef.current = null;
         showToast(event.data?.error || 'Canva-Verbindung fehlgeschlagen.', 'error');
       }
     };
@@ -104,6 +108,7 @@ export default function CanvaIntegration() {
         return;
       }
       const popup = window.open(data.url, 'klassio-canva-oauth', 'width=720,height=780,resizable=yes,scrollbars=yes');
+      oauthPopupRef.current = popup;
       if (!popup) showToast('Bitte Pop-ups für Klassio erlauben.', 'info');
     } catch (error: any) {
       showToast(error?.message || 'Canva-Verbindung konnte nicht gestartet werden.', 'error');
