@@ -8,6 +8,7 @@ import { createEncryptedBackup } from '../lib/backupCryptoService';
 import { getActiveVaultKey, getActiveVaultRecord, loadVaultRecord } from '../lib/vaultStorage';
 import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
 import { ONEDRIVE_BACKUP_PRIMARY_NAME } from '../lib/cloudBackupNames';
+import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
 
 export default function Backup() {
   const { app, setApp, restoreAppData } = useApp();
@@ -248,9 +249,10 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
     setDeleteModalOpen(false);
     
     try {
+      await clearTrustedDeviceUnlock();
       await localforage.clear();
     } catch (e) {
-      console.error('IndexedDB-Löschung fehlgeschlagen', e);
+      console.error('Lokale Tresor-/IndexedDB-Löschung fehlgeschlagen', e);
     }
     
     localStorage.clear();

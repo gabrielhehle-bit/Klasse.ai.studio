@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import localforage from 'localforage';
 import { getSpeicherStatus } from '../lib/utils';
+import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
 
 // Subcomponents
 import SettingsHeader, { SettingsCategory } from './settings/SettingsHeader';
@@ -221,7 +222,9 @@ export default function Settings() {
 
     if (resetType === 'all') {
       try {
+        await clearTrustedDeviceUnlock();
         localStorage.clear();
+        sessionStorage.clear();
         await localforage.clear();
         window.location.reload();
       } catch (e) {
