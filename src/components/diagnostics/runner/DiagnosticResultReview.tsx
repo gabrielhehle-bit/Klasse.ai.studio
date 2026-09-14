@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatLocalDateKey } from '../../../lib/utils';
 import { 
   CheckCircle2, 
   RotateCcw, 
@@ -55,7 +56,7 @@ export const DiagnosticResultReview: React.FC<DiagnosticResultReviewProps> = ({
     setIsSaving(true);
 
     const now = new Date();
-    const isoDate = now.toISOString().split('T')[0];
+    const isoDate = formatLocalDateKey(now);
 
     const finalCompetencyResults = evaluation.competencyResults && evaluation.competencyResults.length > 0
       ? evaluation.competencyResults
