@@ -96,3 +96,20 @@ test('legacy fixed-seat rule can use the pre-shuffle reference plan', () => {
     1
   );
 });
+
+
+test('rule checking reports two students occupying the exact same seat', () => {
+  const students: any[] = [
+    { id: 'a', vorname: 'Anna', nachname: 'A' },
+    { id: 'b', vorname: 'Ben', nachname: 'B' },
+  ];
+
+  const violations = findSeatingRuleViolations(
+    { a: { x: 100, y: 100 }, b: { x: 100, y: 100 } },
+    [],
+    students
+  );
+
+  assert.equal(violations.length, 1);
+  assert.match(violations[0].message, /denselben Platz/);
+});
