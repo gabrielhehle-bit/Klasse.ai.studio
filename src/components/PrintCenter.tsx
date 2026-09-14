@@ -117,6 +117,28 @@ export default function PrintCenter() {
   const zoomLevel = app.settings?.zoomLevel || 'standard';
   const students = app?.schueler || [];
   const startYear = getStartYear(app?.schuljahr);
+  const schoolYearKws = useMemo(() => {
+    const schuljahr = app?.schuljahr || getCurrentSchuljahr();
+    const bundesland = app?.bundesland || 'VBG';
+    const startKw = getSchulstartKW(schuljahr, bundesland);
+    const startMonday = kwToMonday(startKw, startYear);
+    const endYear = startYear + 1;
+    const weeks: number[] = [];
+    const currentMonday = new Date(startMonday);
+
+    while (
+      currentMonday.getFullYear() < endYear ||
+      (currentMonday.getFullYear() === endYear && currentMonday.getMonth() < 7)
+    ) {
+      weeks.push(getKW(currentMonday));
+      currentMonday.setDate(currentMonday.getDate() + 7);
+    }
+    return weeks;
+  }, [app?.schuljahr, app?.bundesland, startYear]);
+
+  const fallbackPlanningKW = schoolYearKws.includes(app?.currentKW || -1)
+    ? (app?.currentKW as number)
+    : (schoolYearKws[0] || getKW(new Date()));
 
   // Iframe check state
   const [isInIframe, setIsInIframe] = useState(false);
@@ -231,7 +253,7 @@ export default function PrintCenter() {
   const [znSelectedSubjects, setZnSelectedSubjects] = useState<string[]>(() => [...FAECHER_ALLE]);
 
   // C. Wochenplan Options
-  const [wpKW, setWpKW] = useState<number>(app?.currentKW || getKW(new Date()));
+  const [wpKW, setWpKW] = useState<number>(fallbackPlanningKW);
   const [wpShowTimes, setWpShowTimes] = useState(true);
   const [wpShowSubjectOnly, setWpShowSubjectOnly] = useState(false);
   const [wpShowReflexion, setWpShowReflexion] = useState(true);
@@ -239,10 +261,10 @@ export default function PrintCenter() {
   const [wpShowEmptyNotesBox, setWpShowEmptyNotesBox] = useState(true);
 
   // D. Klassenbuch Wochenbericht Options
-  const [kbKW, setKbKW] = useState<number>(app?.currentKW || getKW(new Date()));
+  const [kbKW, setKbKW] = useState<number>(fallbackPlanningKW);
   const [kbMode, setKbMode] = useState<'single' | 'range' | 'all'>('single');
-  const [kbStartKW, setKbStartKW] = useState<number>(app?.currentKW || getKW(new Date()));
-  const [kbEndKW, setKbEndKW] = useState<number>(app?.currentKW || getKW(new Date()));
+  const [kbStartKW, setKbStartKW] = useState<number>(fallbackPlanningKW);
+  const [kbEndKW, setKbEndKW] = useState<number>(fallbackPlanningKW);
   const [kbIncludeAbsentees, setKbIncludeAbsentees] = useState(true);
   const [kbIncludeOccurrences, setKbIncludeOccurrences] = useState(true);
   const [kbCustomNotesValue, setKbCustomNotesValue] = useState('');
@@ -669,10 +691,11 @@ export default function PrintCenter() {
   // B. Weekly Calendar helpers
   const kwToDates = (kw: number) => {
     try {
-      const mon = kwToMonday(kw, startYear);
+      const isoYear = kwYear(kw, startYear, app?.bundesland || 'VBG');
+      const mon = kwToMonday(kw, isoYear);
       const fri = new Date(mon);
       fri.setDate(mon.getDate() + 4);
-      const sw = getSW(mon, app?.schuljahr || '2023/24');
+      const sw = getSW(mon, app?.schuljahr || getCurrentSchuljahr(), app?.bundesland || 'VBG');
       return { monday: mon, friday: fri, sw };
     } catch {
       return { monday: new Date(), friday: new Date(), sw: 1 };
@@ -826,7 +849,7 @@ export default function PrintCenter() {
   const getAbsenteesForWeek = (targetKW: number) => {
     const list: { name: string; info: string }[] = [];
     try {
-      const mon = kwToMonday(targetKW, startYear);
+      const mon = kwToDates(targetKW).monday;
       const datesOfPrevWeek = Array.from({ length: 5 }).map((_, i) => {
         const d = new Date(mon);
         d.setDate(mon.getDate() + i);
@@ -2174,8 +2197,7 @@ export default function PrintCenter() {
                       onChange={(e) => setWpKW(parseInt(e.target.value))}
                       className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[0.75rem] leading-tight font-bold focus:ring-1"
                     >
-                      {Array.from({ length: 45 }).map((_, idx) => {
-                        const val = idx < 18 ? idx + 36 : idx - 17; // 36 to 52, then 1 to 27
+                      {schoolYearKws.map((val) => {
                         const dateDetails = kwToDates(val);
                         return (
                           <option key={val} value={val}>
@@ -2276,8 +2298,7 @@ export default function PrintCenter() {
                         onChange={(e) => setKbKW(parseInt(e.target.value))}
                         className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[0.75rem] leading-tight font-bold focus:ring-1"
                       >
-                        {Array.from({ length: 45 }).map((_, idx) => {
-                          const val = idx < 18 ? idx + 36 : idx - 17;
+                        {schoolYearKws.map((val) => {
                           const dateDetails = kwToDates(val);
                           return (
                             <option key={val} value={val}>
@@ -2302,8 +2323,7 @@ export default function PrintCenter() {
                           }}
                           className="w-full px-2 py-1.5 rounded-lg bg-white border border-indigo-100 text-[0.65625rem] font-bold focus:ring-1 text-slate-850"
                         >
-                          {Array.from({ length: 45 }).map((_, idx) => {
-                            const val = idx < 18 ? idx + 36 : idx - 17;
+                          {schoolYearKws.map((val) => {
                             const dateDetails = kwToDates(val);
                             return (
                               <option key={val} value={val}>
@@ -2324,8 +2344,7 @@ export default function PrintCenter() {
                           }}
                           className="w-full px-2 py-1.5 rounded-lg bg-white border border-indigo-100 text-[0.65625rem] font-bold focus:ring-1 text-slate-850"
                         >
-                          {Array.from({ length: 45 }).map((_, idx) => {
-                            const val = idx < 18 ? idx + 36 : idx - 17;
+                          {schoolYearKws.map((val) => {
                             const dateDetails = kwToDates(val);
                             return (
                               <option key={val} value={val}>
@@ -4202,23 +4221,16 @@ export default function PrintCenter() {
   );
 
   function getKwIndex(kw: number) {
-    if (kw >= 36) {
-      return kw - 36;
-    }
-    return kw + 17;
+    return schoolYearKws.indexOf(kw);
   }
 
   function getActiveKbWeeks() {
     const startIdx = getKwIndex(kbStartKW);
     const endIdx = getKwIndex(kbEndKW);
+    if (startIdx < 0 || endIdx < 0) return [];
     const minIdx = Math.min(startIdx, endIdx);
     const maxIdx = Math.max(startIdx, endIdx);
-    const weeks: number[] = [];
-    for (let idx = minIdx; idx <= maxIdx; idx++) {
-      const kw = idx < 18 ? idx + 36 : idx - 17;
-      weeks.push(kw);
-    }
-    return weeks;
+    return schoolYearKws.slice(minIdx, maxIdx + 1);
   }
 
   function getKbWeeksToRender() {
@@ -4226,7 +4238,7 @@ export default function PrintCenter() {
     if (kbMode === 'single') {
       weeks = [kbKW];
     } else if (kbMode === 'all') {
-      weeks = Array.from({ length: 45 }).map((_, idx) => idx < 18 ? idx + 36 : idx - 17);
+      weeks = [...schoolYearKws];
     } else {
       weeks = getActiveKbWeeks();
     }
@@ -5140,7 +5152,7 @@ export default function PrintCenter() {
 
         // Generate actual sequence of school weeks (similar to YearlyPlan.tsx)
         const startYearVal = getStartYear(app?.schuljahr);
-        const startKW = getSchulstartKW(app?.schuljahr || '2023/24');
+        const startKW = getSchulstartKW(app?.schuljahr || getCurrentSchuljahr(), app?.bundesland || 'VBG');
         const endYear = startYearVal + 1;
         const startMonday = kwToMonday(startKW, startYearVal);
         const weeksList: Array<{ sw: number, kw: number, year: number, monday: Date }> = [];
