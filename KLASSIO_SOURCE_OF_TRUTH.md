@@ -37,6 +37,7 @@ Anschließend wurden die letzten funktionalen Reste aus historischen Divergenzen
 - PR #19: Topbar/Wetter/WLAN ohne erfundene Produktivdaten; fehlende Klasse/Wetter/WLAN-Daten werden transparent als fehlend angezeigt statt plausibel simuliert.
 - PR #20: vollständiger Werksreset löscht auch das 30-Tage-Gerätevertrauen; abgelaufene, unvollständige oder fremde Trusted-Device-Einträge werden automatisch bereinigt.
 - PR #21: letzte sichtbare LehrerAPP-/Lehrermappe-/AI-Studio-Reste in Excel-Exporten und OneDrive-Hilfe auf Klassio/Server-Umgebungsvariablen umgestellt; interne Legacy-Kennungen bleiben kompatibel.
+- PR #23: Navigation vollständig gemacht, ohne die vereinfachte Kernnavigation wieder aufzublähen. `Unterricht` ist jetzt ein eigener Hub; Lehrercockpit, KI-Helfer, Arbeitsblatt-Generator, Stationenbetrieb, Stimm-Notizen, Differenzierung und Elternbrief sind dort gebündelt. Klasse, Planung und Leistungen enthalten zusätzlich die zuvor verstreuten Detailwerkzeuge; das Cockpit kehrt beim Schließen in den Unterrichtsbereich zurück. Eine neue Feature-Branch-CI prüft TypeScript, Tests, Build und PWA-Ausgabe bereits vor der Integration.
 
 Die historischen divergierenden Branches `audit/production-demo-data`, `audit/visible-legacy-branding`, `audit/visible-legacy-branding-final`, `fix/klassio-visible-branding`, `fix/json-backups-and-critical-data-flows` und `feature/final-app-polish` wurden anschließend gezielt gegen den aktuellen Reconciliation-Stand geprüft. Ihre noch eigenen Commits enthalten entweder nur temporäre Audit-/CI-Workflows oder ältere Varianten von Funktionen, die im aktuellen Stand bereits gleichwertig oder neuer umgesetzt sind. Sie werden deshalb **nicht** in den Produktstand gemergt.
 
@@ -44,14 +45,18 @@ Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist kei
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Stand vor dieser Dokumentationsaktualisierung wurde in PR #21 auf Commit `79340ad579aee6fd6d7f4d6dc7fa3f6856632f61` vollständig geprüft:
+Der aktuelle codehaltige Reconciliation-Stand wurde nach PR #23 auf Commit `c745dc35050995b9b6baf990296d23a80aa2a61a` vollständig geprüft:
 
+- Pre-Deployment Audit #90: erfolgreich
 - TypeScript: erfolgreich
-- Tests: 759/759 erfolgreich
+- Tests: 761/761 erfolgreich
 - Production Build: erfolgreich
 - PWA-/Build-Ausgabe: erfolgreich
+- Production-Server- und `/api/health`-Smoke: erfolgreich
+- Zugangscode-/Session-/E-Mail-Fallback-Smoke: erfolgreich
+- World4You-Artefakt: `klassio-world4you-c745dc35050995b9b6baf990296d23a80aa2a61a`
 
-PR #21 wurde anschließend ohne weitere Anwendungsänderung nach `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `e4713209f3c2ea3510d281e3b0eb2389eb2eb4e1`.
+PR #23 wurde nach grüner Feature-Branch-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `c745dc35050995b9b6baf990296d23a80aa2a61a`.
 
 Nach jeder Dokumentations- oder Codeänderung ist ausschließlich der **neue** GitHub-HEAD verbindlich; dessen `Pre-Deployment Audit` muss erneut grün sein. Dieser Audit umfasst TypeScript, vollständige Testsuite, Production-Build, PWA-Ausgabe, Production-Server-Smoke, Zugangscode-/Session-Smoke und die Erzeugung des commitgebundenen World4You-Artefakts. Das Deployment-ZIP enthält `KLASSIO_DEPLOYMENT_COMMIT.txt` und `KLASSIO_DEPLOYMENT_BRANCH.txt`.
 
@@ -59,7 +64,8 @@ Nach jeder Dokumentations- oder Codeänderung ist ausschließlich der **neue** G
 
 Der Reconciliation-Stand enthält unter anderem:
 
-- vereinfachte Kernnavigation und Lehrercockpit mit freier weißer Schreib-/Zeichen-/Widgetfläche ohne Startkarte; 108/108 erhaltene Widgets sind über Suche/Kategorien erreichbar, Favoriten bleiben benutzerdefiniert
+- vereinfachte Kernnavigation mit `Heute`, `Klasse`, `Planung`, `Leistungen` und `Unterricht`; der neue Unterricht-Hub bündelt Lehrercockpit, KI-Helfer, Arbeitsblatt-Generator, Stationenbetrieb, Stimm-Notizen, Differenzierung und Elternbrief. Die übrigen Bestandswerkzeuge sind ihren fachlichen Hubs oder `Mehr` zugeordnet, statt unsichtbar zu bleiben.
+- Lehrercockpit mit freier weißer Schreib-/Zeichen-/Widgetfläche ohne Startkarte; 108/108 erhaltene Widgets sind über Suche/Kategorien erreichbar, Favoriten bleiben benutzerdefiniert
 - Dashboard/Heute mit ehrlicher Anwesenheitslogik: keine angenommene Präsenz, keine Pflicht an freien Tagen, „geprüft“ erst nach vollständiger Stunden-Erfassung
 - KI-Helfer mit serverseitiger Verfügbarkeitsprüfung, datensparsamem Klassenkontext und expliziter Bild-Datenschutzfreigabe
 - SetupWizard mit strukturiertem Lehrkraftprofil, dynamischen Schuljahren und 10 frei konfigurierbaren Stunden-Slots
