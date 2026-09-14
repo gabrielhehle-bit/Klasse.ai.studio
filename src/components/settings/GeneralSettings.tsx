@@ -327,7 +327,7 @@ export default function GeneralSettings({
               <h2 className="text-sm font-black text-slate-900">Einführungstour</h2>
             </div>
             <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              Starte die interaktive Erklärung der LehrerAPP erneut beim nächsten Besuch des Cockpits.
+              Starte die interaktive Erklärung von Klassio erneut beim nächsten Besuch des Cockpits.
             </p>
           </div>
 
