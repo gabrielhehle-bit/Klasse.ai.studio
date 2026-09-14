@@ -18,7 +18,7 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | PR #16: 746/746 Tests, TypeScript, Production-Build, lokaler PDF-Worker und PWA-Precache grün. Vor Staging bleibt der `Pre-Deployment Audit` des aktuellen Reconciliation-HEADs verpflichtend; er prüft zusätzlich Server-/Session-Smoke und erzeugt das commitgebundene World4You-Artefakt. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | PR #21: 759/759 Tests, TypeScript, Production-Build und PWA-/Build-Ausgabe grün. Vor Staging bleibt der `Pre-Deployment Audit` des aktuellen Reconciliation-HEADs verpflichtend; er prüft zusätzlich Server-/Session-Smoke und erzeugt das commitgebundene World4You-Artefakt. |
 | Commitgebundenes World4You-Artefakt | ✅ | CI erzeugt nur nach grünem Audit ein ZIP mit `dist`, Branch-/Commitmarker und Startkommando. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
@@ -30,7 +30,8 @@ Legende:
 | SetupWizard | 🟡 | PR #11 integriert: Anrede/Vorname/Nachname mit Legacy-Migration, dynamische Schuljahre, Importdaten ohne erfundene Standardwerte; realer Setup-/Import-Browsercheck offen. |
 | KI-Helfer | 🟡 | PR #10 integriert: echte Serverstatus-Anzeige, optionaler datensparsamer Klassenkontext ohne automatisch übermittelte Schülernamen, konkrete Fehlerzustände und explizite Foto-Datenschutzfreigabe. Live-Gemini-/Browser-Abnahme offen. |
 | Kernnavigation | ✅ | Heute, Klasse, Planung, Leistungen, Unterricht + Utilities per Regressionstest abgesichert. |
-| Sichtbares Produktbranding | ✅ | Setup, Demo-Hinweise, Diagnostik, Quest, Einstellungen, Backup-UI und Drucktexte verwenden Klassio/Klassio Quest; interne Legacy-Crypto-/Storage-Kennungen bleiben aus Kompatibilitätsgründen bewusst bestehen. |
+| Produktivdaten: Wetter/WLAN/Klasse | ✅ | PR #19: keine erfundenen Klassen-, WLAN-, Wetter- oder Prognosewerte; fehlende Daten werden transparent angezeigt, WLAN-QR nur bei echter SSID. |
+| Sichtbares Produktbranding | ✅ | PR #21 finalisiert: Setup, Demo-Hinweise, Diagnostik, Quest, Einstellungen, Backup-UI, OneDrive-Hilfe sowie Wochen-/Jahresplaner-Excel verwenden Klassio/Klassio Quest; `.lehrerapp` ist als Legacy-Format gekennzeichnet. Interne Legacy-Crypto-/Storage-Kennungen bleiben aus Kompatibilitätsgründen bewusst bestehen. |
 | Lehrercockpit: finale Anforderungen | ✅ | PR #6 integriert; freie weiße Fläche ohne Startkarte, keine Standardwidgets, verständliche Kategorien, Optionen/Archiv und sprachliche Bereinigung per Regressionstests abgesichert. |
 | Lehrercockpit: weiße freie Fläche | ✅ | Fläche bleibt unabhängig vom Theme weiß; leere Startkarte entfernt; Standardlayout enthält 0 sichtbare Widgets. |
 | Cockpit: Schreiben und Zeichnen | ✅ | BoardInk liegt auf derselben Fläche wie Widgets; Stift, Text, Radierer, Undo/Redo sowie getrenntes Löschen von Schrift/Zeichnung sind umgesetzt. |
@@ -95,18 +96,18 @@ Legende:
 | Pre-Import-Rücksicherung | ✅ | Restore legt verschlüsselten Vorzustand an; Fehler brechen Restore ab. |
 | E-Mail-Einmalcode-Login | 🟡 | Server + UI + Rate-Limits + 30-Tage-Session fertig; reales SMTP-Staging noch testen. |
 | Administrativer Zugangscode | ✅ | Bleibt als Fallback; CI-Smoke prüft Cookie-Session. |
-| Vertrauenswürdiges Gerät für Tresor | 🟡 | 30 Tage optional; Vault-Key nur verschlüsselt, Device-CryptoKey nicht exportierbar; Browser/IndexedDB-Test offen. |
+| Vertrauenswürdiges Gerät für Tresor | 🟡 | PR #20: 30 Tage optional; Vault-Key nur verschlüsselt, Device-CryptoKey nicht exportierbar; Werksreset entfernt Trusted-Device-Daten und stale/fremde Einträge werden bereinigt. Realer Browser/IndexedDB-Test offen. |
 | Recovery-Code per E-Mail | 🔒 | Bewusst nicht umgesetzt: E-Mail-Kompromittierung darf den lokalen Tresor nicht entschlüsseln. |
 | KI-Bilddatenschutz | ✅ | Fotoanalyse ist client- und serverseitig ohne explizite Bestätigung blockiert; Base64-Bilddaten laufen nicht durch Text-Regexfilter; nur JPEG/PNG/WebP für `askAI`; Regressionstests vorhanden. |
-| Smartboard-Sync | 🟡 | Verschlüsselter Sync vorhanden; Browser-/Geräteabnahme offen. |
+| Smartboard-Sync | 🟡 | PR #18: SessionKey nur aus URL-Fragment, Query-Key abgewiesen und Ablaufzeit serverseitig gemessen; Browser-/Geräteabnahme offen. |
 | Offline / PWA | 🟡 | Build und Service-Worker-Ausgabe grün; realer Offline-Browsercheck offen. |
 
 ## Integrationen und Ausgabe
 
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
-| Canva | 🟡 | OAuth/PKCE, serverseitig verschlüsselte Tokens, Designsuche/-erstellung und PDF/PNG/JPG/PPTX-Export implementiert; Live-OAuth mit Staging-Secrets offen. |
-| PowerPoint KEL | 🟡 | Echter `.pptx`-Export mit nativen editierbaren Diagrammen implementiert; Download/Öffnen in PowerPoint auf Staging offen. |
+| Canva | 🟡 | PR #18: OAuth/PKCE, serverseitig verschlüsselte Tokens, Designsuche/-erstellung und PDF/PNG/JPG/PPTX-Export; Popup-Nachrichten nur von Klassio-Origin und exakt geöffnetem Popup akzeptiert. Live-OAuth mit Staging-Secrets offen. |
+| PowerPoint KEL | 🟡 | PR #18 bestätigt echten `.pptx`-Export mit nativen editierbaren Diagrammen per Integrationsvertrag; Download/Öffnen in PowerPoint auf Staging offen. |
 | PDF-Handout KEL | 🟡 | Bestehender PDF-Export bleibt; Browserprüfung offen. |
 | OneDrive Backup-Dateikompatibilität | ✅ | PR #15 integriert: neue Cloud-Sicherung `Klassio_Backup.json`; historische `LehrerAPP_Backup.json`, `LehrerAPP_Backup.lehrerapp` und `Lehrermappe_Backup.json` bleiben lesbar. |
 | OneDrive | 🟡 | Konfigurierbar; OAuth-State/Cookiebindung und Popup-Origin/Source sind automatisiert abgesichert; Live-OAuth/Backup-Abnahme auf Staging offen. |
