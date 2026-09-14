@@ -46,7 +46,7 @@ import {
 import Markdown from 'react-markdown';
 import PrintHeader from './PrintHeader';
 import { exportSchuelerPDF } from '../lib/exportService';
-import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySubjects, getSchulstartKW, getSemester, getCurrentSchuljahr } from '../lib/utils';
+import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySubjects, getSchulstartKW, getSemester, getCurrentSchuljahr, formatLocalDateKey } from '../lib/utils';
 import { getFachCfg, berechne, getNotenLabel } from '../lib/GradeUtils';
 import { DEFAULT_YEARLY_SUBJECTS, FAECHER_ALLE } from '../constants';
 
@@ -231,7 +231,7 @@ export default function PrintCenter() {
   const [znSelectedSubjects, setZnSelectedSubjects] = useState<string[]>(() => [...FAECHER_ALLE]);
 
   // C. Wochenplan Options
-  const [wpKW, setWpKW] = useState<number>(app?.currentKW || 36);
+  const [wpKW, setWpKW] = useState<number>(app?.currentKW || getKW(new Date()));
   const [wpShowTimes, setWpShowTimes] = useState(true);
   const [wpShowSubjectOnly, setWpShowSubjectOnly] = useState(false);
   const [wpShowReflexion, setWpShowReflexion] = useState(true);
@@ -239,10 +239,10 @@ export default function PrintCenter() {
   const [wpShowEmptyNotesBox, setWpShowEmptyNotesBox] = useState(true);
 
   // D. Klassenbuch Wochenbericht Options
-  const [kbKW, setKbKW] = useState<number>(app?.currentKW || 36);
+  const [kbKW, setKbKW] = useState<number>(app?.currentKW || getKW(new Date()));
   const [kbMode, setKbMode] = useState<'single' | 'range' | 'all'>('single');
-  const [kbStartKW, setKbStartKW] = useState<number>(36);
-  const [kbEndKW, setKbEndKW] = useState<number>(app?.currentKW || 36);
+  const [kbStartKW, setKbStartKW] = useState<number>(app?.currentKW || getKW(new Date()));
+  const [kbEndKW, setKbEndKW] = useState<number>(app?.currentKW || getKW(new Date()));
   const [kbIncludeAbsentees, setKbIncludeAbsentees] = useState(true);
   const [kbIncludeOccurrences, setKbIncludeOccurrences] = useState(true);
   const [kbCustomNotesValue, setKbCustomNotesValue] = useState('');
@@ -318,9 +318,9 @@ export default function PrintCenter() {
   const [umShowKlassenliste, setUmShowKlassenliste] = useState(true);
   const [umShowSitzplan, setUmShowSitzplan] = useState(true);
   const [umShowFeedback, setUmShowFeedback] = useState(true);
-  const [umSchulleitung, setUmSchulleitung] = useState('Dir. Maria Musterfrau');
-  const [umSekretariat, setUmSekretariat] = useState('02742 - 123456');
-  const [umNachbarKlasse, setUmNachbarKlasse] = useState('Klasse 2b - Herr Huber');
+  const [umSchulleitung, setUmSchulleitung] = useState('');
+  const [umSekretariat, setUmSekretariat] = useState('');
+  const [umNachbarKlasse, setUmNachbarKlasse] = useState('');
   const [umVertretungsZeitraum, setUmVertretungsZeitraum] = useState('');
   const [umKrankheitNotes, setUmKrankheitNotes] = useState('');
 
@@ -350,7 +350,7 @@ export default function PrintCenter() {
   const [stUrkundeType, setStUrkundeType] = useState<'rechnen' | 'lesen' | 'helfer' | 'sport' | 'custom'>('rechnen');
   const [stUrkundeTitle, setStUrkundeTitle] = useState('Urkunde: Rechen-Meister/in 🧮');
   const [stUrkundeText, setStUrkundeText] = useState('für herausragende Leistungen beim Rechnen im Zahlenraum 100 und die erfolgreiche Bewältigung aller Mathe-Quests!');
-  const [stUrkundeDate, setStUrkundeDate] = useState('10. Juli 2026');
+  const [stUrkundeDate, setStUrkundeDate] = useState(() => new Date().toLocaleDateString('de-AT'));
   const [stUrkundeStudentId, setStUrkundeStudentId] = useState<string>('all');
   
   // 3. Labels
@@ -360,7 +360,7 @@ export default function PrintCenter() {
   const [stNewLabelText, setStNewLabelText] = useState('');
   
   // 4. Mini Student IDs
-  const [stSchoolName, setStSchoolName] = useState('Volksschule Sonnenweg');
+  const [stSchoolName, setStSchoolName] = useState(app?.schulName || '');
   
   // 5. Homework Joker
   const [stJokerType, setStJokerType] = useState<'homework' | 'reading' | 'custom'>('homework');
@@ -378,10 +378,10 @@ export default function PrintCenter() {
   });
   
   // 7. Parents Meeting Slips
-  const [stMeetingDate, setStMeetingDate] = useState('24. November 2026');
-  const [stMeetingRoom, setStMeetingRoom] = useState('Klassenraum 2a (1. Stock)');
+  const [stMeetingDate, setStMeetingDate] = useState(() => new Date().toLocaleDateString('de-AT'));
+  const [stMeetingRoom, setStMeetingRoom] = useState('');
   const [stMeetingTimes, setStMeetingTimes] = useState<Record<string, string>>({});
-  const [stMeetingDocs, setStMeetingDocs] = useState('Schreibzeug, Portfolio-Mappe');
+  const [stMeetingDocs, setStMeetingDocs] = useState('');
 
   // --- KASSENÜBERSICHT (EINNAHMEN & AUSGABEN) OPTIONS ---
   const [koPeriodMode, setKoPeriodMode] = useState<'schuljahr' | 'monat' | 'custom'>('schuljahr');
@@ -395,7 +395,7 @@ export default function PrintCenter() {
     return `${startYr}-09-01`;
   });
   const [koCustomEndDate, setKoCustomEndDate] = useState<string>(() => {
-    return new Date().toISOString().split('T')[0];
+    return formatLocalDateKey(new Date());
   });
   const [koCategoryFilter, setKoCategoryFilter] = useState<'all' | 'sammlung' | 'ausgabe' | 'sonstiges'>('all');
   const [koShowSignatures, setKoShowSignatures] = useState<boolean>(true);
@@ -448,7 +448,7 @@ export default function PrintCenter() {
 
     // custom
     const s = koCustomStartDate || `${startYear}-09-01`;
-    const e = koCustomEndDate || new Date().toISOString().split('T')[0];
+    const e = koCustomEndDate || formatLocalDateKey(new Date());
     const sFormatted = new Date(s).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const eFormatted = new Date(e).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const label = `${sFormatted} – ${eFormatted}`;
@@ -830,7 +830,7 @@ export default function PrintCenter() {
       const datesOfPrevWeek = Array.from({ length: 5 }).map((_, i) => {
         const d = new Date(mon);
         d.setDate(mon.getDate() + i);
-        return d.toISOString().split('T')[0];
+        return formatLocalDateKey(d);
       });
 
       const stMap: Record<string, { daysLost: string[]; reasons: string[] }> = {};
@@ -5006,7 +5006,7 @@ export default function PrintCenter() {
 
             <div className="pt-2 border-t border-dashed border-zinc-200 flex justify-between items-center text-[0.5625rem] text-zinc-400 font-bold uppercase tracking-wider">
               <span>* SPF/ESPF = Sonderpädagogischer Förderbedarf / Erhöhter sonderpädagogischer Förderbedarf</span>
-              <span>Druckdatum: {new Date().toLocaleDateString('de-DE')} • Erstellt mit AI Studio</span>
+              <span>Druckdatum: {new Date().toLocaleDateString('de-DE')} • Erstellt mit Klassio</span>
             </div>
           </div>
         );
@@ -8263,17 +8263,10 @@ export default function PrintCenter() {
                     </div>
                   );
                 })}
-                {/* Fallback to default nice styled view if no comments have been recorded yet */}
                 {(!kelRow || !STANDARD_KEL_BEREICHE.some(f => kelRow.selbsteinschaetzungKind?.[f.id]?.kommentar || kelRow.einschaetzungLehrperson?.[f.id]?.kommentar)) && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1 bg-zinc-50 p-3 rounded-xl border border-zinc-200/50">
-                      <span className="text-[0.5625rem] font-black uppercase text-indigo-700 tracking-wider block">Kind Selbsteinschätzung (Beispiel)</span>
-                      <p className="italic text-zinc-650 font-bold">"Ich kann mich in der Klasse gut konzentrieren und halte mich meistens an die vereinbarten Klassenregeln."</p>
-                    </div>
-                    <div className="space-y-1 bg-zinc-50 p-3 rounded-xl border border-zinc-200/50">
-                      <span className="text-[0.5625rem] font-black uppercase text-emerald-700 tracking-wider block">Lehrperson Einschätzung (Beispiel)</span>
-                      <p className="italic text-zinc-650 font-bold">"Sehr fleißige und bewusste Mitarbeit. Teilt sich Aufgaben klug ein. Helfende Hand in Gruppenstunden."</p>
-                    </div>
+                  <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center">
+                    <span className="text-[0.625rem] font-black uppercase tracking-wider text-zinc-500">Noch keine Einschätzungen erfasst</span>
+                    <p className="mt-1 text-[0.6875rem] font-medium text-zinc-500">Für dieses Kind liegen noch keine KEL-Kommentare vor.</p>
                   </div>
                 )}
               </div>
