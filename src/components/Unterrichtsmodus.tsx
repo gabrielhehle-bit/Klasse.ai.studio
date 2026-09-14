@@ -3847,19 +3847,19 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const cockpitAutoSaveStorageKey =
+    `cockpit_last_auto_save_date_${app.activeClassId || "unassigned"}`;
   const [hasAutoSavedToday, setHasAutoSavedToday] = useState<string | null>(
-    () =>
-      localStorage.getItem(
-        `cockpit_last_auto_save_date_${(app as any)?.id || "default"}`,
-      ),
-  ); // ISO date of last auto-save
+    () => localStorage.getItem(cockpitAutoSaveStorageKey),
+  ); // ISO date of last successful daily save for the active class
+
+  useEffect(() => {
+    setHasAutoSavedToday(localStorage.getItem(cockpitAutoSaveStorageKey));
+  }, [cockpitAutoSaveStorageKey]);
 
   const updateHasAutoSavedToday = (dateStr: string) => {
     setHasAutoSavedToday(dateStr);
-    localStorage.setItem(
-      `cockpit_last_auto_save_date_${(app as any)?.id || "default"}`,
-      dateStr,
-    );
+    localStorage.setItem(cockpitAutoSaveStorageKey, dateStr);
   };
   const [showSyncInfo, setShowSyncInfo] = useState(false);
   const [syncModalTab, setSyncModalTab] = useState<'remote' | 'wifi'>('remote');
@@ -6544,20 +6544,19 @@ ${content}
       if (currentMinuteOfDay >= lastHourEnd) {
         console.log("Auto-saving behavior & mitarbeit at end of school day...");
         commitBehaviorToHistory(true);
-        updateHasAutoSavedToday(todayStr);
       }
     }
   }, [time, commitAllowance, commitBehaviorToHistory, hasAutoSavedToday, lessonTimeSlots]);
 
   const handleCloseCockpit = () => {
-    // Attempt auto-saving if we have not auto-saved today yet
+    // Nur dann beim Schließen sichern, wenn der Tagesabschluss bereits freigegeben ist.
+    // Ein zu frühes Schließen darf den Tag niemals fälschlich als gespeichert markieren.
     const todayStr = new Date().toISOString().split("T")[0];
-    if (hasAutoSavedToday !== todayStr) {
+    if (hasAutoSavedToday !== todayStr && commitAllowance.allowed) {
       console.log(
         "Auto-saving behavior & mitarbeit on closing classroom cockpit...",
       );
       commitBehaviorToHistory(true);
-      updateHasAutoSavedToday(todayStr);
     }
     onClose();
   };
@@ -7647,7 +7646,7 @@ ${content}
                       </div>
                     )}
                     <span className="hidden xl:inline">
-                      {alreadySavedToday ? "Gespeichert" : "Abschließen"}
+                      {alreadySavedToday ? "Gespeichert" : "Tag sichern"}
                     </span>
                     {pendingCount > 0 && !alreadySavedToday && (
                       <span className="bg-black/20 px-1 py-0.5 rounded-lg text-[8px] font-black">
@@ -7661,14 +7660,14 @@ ${content}
                       className={`flex flex-col items-start leading-none shrink-0 ${currentIsLight ? "text-slate-500" : "text-white/30"}`}
                     >
                       <span className="text-[7px] font-black uppercase tracking-tighter mb-0.5 opacity-50">
-                        Sperre
+                        Verfügbar
                       </span>
                       <span
                         className={`text-[9px] font-black tabular-nums ${currentIsLight ? "text-slate-800" : "text-white/60"}`}
                       >
                         {alreadySavedToday
-                          ? "Bis Morgen"
-                          : commitAllowance.allowedFromTime}
+                          ? "Morgen wieder"
+                          : `ab ${commitAllowance.allowedFromTime}`}
                       </span>
                     </div>
                   )}
