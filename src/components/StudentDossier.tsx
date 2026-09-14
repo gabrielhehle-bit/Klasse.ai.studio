@@ -5,7 +5,7 @@ import {
   Stethoscope, GraduationCap, Banknote, FileText, ChevronRight, ChevronDown,
   ArrowLeft, Download, Printer, Clock, Save, Edit3, Trash2, Award, ClipboardList,
   AlertCircle, Compass, Maximize2, Minimize2, Calendar, Shield, CheckCircle2,
-  SlidersHorizontal, BookOpen, Phone
+  BookOpen, Phone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { exportSchuelerPDF } from '../lib/exportService';
@@ -196,60 +196,12 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
   const [presentationModeActive, setPresentationModeActive] = useState<boolean>(false);
   const [sem, setSem] = useState<'1' | '2'>('1');
   const changeSemester = (nextSemester: '1' | '2') => {
-    setSem('1');
+    setSem(nextSemester);
   };
   const activeFaecher = FAECHER_ALLE.filter(f => !app.faecher || app.faecher.includes(f));
 
-  // Mode and Custom Visibility states preserved for compatibility
-  const [dossierMode, setDossierMode] = useState<'einfach' | 'experte'>(() => {
-    return (localStorage.getItem('dossier_mode') as 'einfach' | 'experte') || 'experte';
-  });
-
-  const [customVisibleTabs, setCustomVisibleTabs] = useState<Record<DossierTab, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem('dossier_custom_visible_tabs');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    
-    return {
-      uebersicht: true,
-      stammdaten: true,
-      kontakte_einwilligungen: true,
-      finanzen: true,
-      leistungen: true,
-      lernziele: true,
-      mika_d: true,
-      entwicklungsuebersicht: true,
-      diagnostik: true,
-      foerderung: true,
-      beobachtungen_verlauf: true,
-      berichte: true,
-      beurteilung_gespraeche: true,
-      materialien: true,
-      stats: true,
-      kel_reflexion: true,
-      ki_summary: true,
-      foerderprofil: true,
-      erlaeuterung: true,
-      arbeitsblatt: true,
-      eltern_report: true,
-    } as Record<DossierTab, boolean>;
-  });
-
-  const [showVisibilityModal, setShowVisibilityModal] = useState(false);
   const [lernzieleInitialFach, setLernzieleInitialFach] = useState<string | undefined>(undefined);
 
-  const EINFACH_TABS: DossierTab[] = [
-    'uebersicht',
-    'leistungen',
-    'entwicklungsuebersicht',
-    'diagnostik',
-    'foerderung',
-    'beobachtungen_verlauf',
-    'stammdaten',
-    'kontakte_einwilligungen',
-    'berichte'
-  ];
 
   useEscapeKey(() => setPresentationModeActive(false), presentationModeActive);
 
@@ -276,46 +228,12 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
   const newDiagnosticResults = (app.diagnosticResults || []).filter((r: any) => r.studentId === student.id);
   const totalDiagnosticCount = studentErhebungen.length + newDiagnosticResults.length;
 
-  const isTabVisible = (tabId: DossierTab): boolean => {
-    if (tabId === 'uebersicht') return true;
-    return customVisibleTabs[tabId] !== false;
-  };
-
-  const handleSelectArea = (areaId: MainAreaId) => {
-    const targetArea = MAIN_AREAS.find(a => a.id === areaId);
-    if (!targetArea) return;
-    if (targetArea.tabs.some(t => t.id === activeTab)) {
-      return;
-    }
-    setActiveTab(targetArea.defaultTab);
-  };
-
   const getFilteredSubTabs = (areaId: MainAreaId) => {
     const area = MAIN_AREAS.find(a => a.id === areaId);
-    if (!area) return [];
-    return area.tabs.filter(subTab => isTabVisible(subTab.id));
+    return area?.tabs || [];
   };
 
-  const getFilteredMainAreas = () => {
-    return MAIN_AREAS.filter(area => {
-      const subtabs = getFilteredSubTabs(area.id);
-      return subtabs.length > 0;
-    });
-  };
-
-  // Adjust active tab if it gets hidden
-  useEffect(() => {
-    if (!isTabVisible(activeTab)) {
-      const allTabs: DossierTab[] = [
-        'uebersicht', 'leistungen', 'lernziele', 'mika_d',
-        'diagnostik', 'foerderprofil', 'stats', 'kel_reflexion',
-        'stammdaten', 'finanzen',
-        'ki_summary', 'eltern_report', 'erlaeuterung', 'arbeitsblatt'
-      ];
-      const visibleFallback = allTabs.find(t => isTabVisible(t)) || 'uebersicht';
-      setActiveTab(visibleFallback);
-    }
-  }, [activeTab, customVisibleTabs]);
+  const getFilteredMainAreas = () => MAIN_AREAS;
 
   // Helper metric calculations 
   const gradeSummary = getStudentGradeSummary(app, student.id, activeFaecher, sem);
@@ -924,15 +842,6 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
 
                 {/* view controls */}
                 <div className="hidden lg:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => setShowVisibilityModal(true)}
-                    className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all shadow-2xs active:scale-95 cursor-pointer"
-                    title="Sichtbare Dossier-Bereiche konfigurieren"
-                  >
-                    <SlidersHorizontal size={12} className="text-indigo-500" />
-                    <span>Bereiche</span>
-                  </button>
 
                   <button
                     type="button"
@@ -1130,159 +1039,6 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
               berechne={berechne}
               STANDARD_KEL_BEREICHE={STANDARD_KEL_BEREICHE}
             />
-          </ModalPortal>
-        )}
-      </AnimatePresence>
-
-      {/* VISIBILITY CONFIGURATION MODAL */}
-      <AnimatePresence>
-        {showVisibilityModal && (
-          <ModalPortal>
-            <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-250">
-              <div 
-                className="bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl max-w-2xl w-full overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-250"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Modal Header */}
-                <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                  <div className="space-y-1">
-                    <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight flex items-center gap-2">
-                      <span>⚙️ Sichtbare Bereiche konfigurieren</span>
-                    </h3>
-                    <p className="text-[0.75rem] text-slate-500 font-bold leading-normal">
-                      Entscheiden Sie selbst, welche Bereiche im Schülerprofil sichtbar sein sollen, um die Übersichtlichkeit zu maximieren.
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => setShowVisibilityModal(false)}
-                    className="w-10 h-10 rounded-full bg-white hover:bg-slate-100 text-slate-450 hover:text-slate-900 border border-slate-200/60 transition-all flex items-center justify-center cursor-pointer shadow-3xs"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Modal Body */}
-                <div className="p-6 md:p-8 overflow-y-auto space-y-6 flex-1">
-                  {/* Quick presets */}
-                  <div className="bg-indigo-50/40 border border-indigo-100/50 p-4.5 rounded-2xl space-y-2">
-                    <span className="text-[0.625rem] font-black uppercase tracking-widest text-indigo-850">Schnell-Einstellungen</span>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const reset: Record<DossierTab, boolean> = {} as any;
-                          const allTabs: DossierTab[] = [
-                            'uebersicht', 'stammdaten', 'finanzen', 'leistungen', 
-                            'mika_d', 'stats', 'kel_reflexion', 'ki_summary', 
-                            'diagnostik', 'foerderprofil', 'erlaeuterung', 
-                            'lernziele', 'arbeitsblatt', 'eltern_report'
-                          ];
-                          allTabs.forEach(t => { reset[t] = true; });
-                          setCustomVisibleTabs(reset);
-                          localStorage.setItem('dossier_custom_visible_tabs', JSON.stringify(reset));
-                        }}
-                        className="px-3.5 py-1.5 bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-750 font-black text-[0.6875rem] leading-tight uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-3xs"
-                      >
-                        Alle einblenden
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const reset: Record<DossierTab, boolean> = {} as any;
-                          const allTabs: DossierTab[] = [
-                            'uebersicht', 'stammdaten', 'finanzen', 'leistungen', 
-                            'mika_d', 'stats', 'kel_reflexion', 'ki_summary', 
-                            'diagnostik', 'foerderprofil', 'erlaeuterung', 
-                            'lernziele', 'arbeitsblatt', 'eltern_report'
-                          ];
-                          allTabs.forEach(t => {
-                            reset[t] = EINFACH_TABS.includes(t);
-                          });
-                          setCustomVisibleTabs(reset);
-                          localStorage.setItem('dossier_custom_visible_tabs', JSON.stringify(reset));
-                        }}
-                        className="px-3.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-705 font-black text-[0.6875rem] leading-tight uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-3xs"
-                      >
-                        Standard-Auswahl
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Tab Categories List */}
-                  <div className="space-y-6">
-                    {MAIN_AREAS.map((mainArea) => {
-                      const subTabs = mainArea.tabs;
-                      return (
-                        <div key={mainArea.id} className="space-y-2.5">
-                          <h4 className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1 flex items-center gap-2">
-                            <span>{mainArea.label}</span>
-                          </h4>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            {subTabs.map((subTab) => {
-                              const isChecked = customVisibleTabs[subTab.id] !== false;
-                              const Icon = subTab.icon;
-                              
-                              // Overview (uebersicht) cannot be disabled to avoid blank screens
-                              const isRequired = subTab.id === 'uebersicht';
-                              
-                              return (
-                                <label 
-                                  key={subTab.id}
-                                  className={`flex items-center justify-between p-3.5 rounded-2xl border transition-all select-none ${
-                                    isRequired
-                                      ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed'
-                                      : isChecked
-                                        ? 'bg-indigo-50/20 border-indigo-200/80 hover:bg-indigo-50/40 cursor-pointer'
-                                        : 'bg-slate-50/30 border-slate-100 hover:border-slate-200 cursor-pointer'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg ${isChecked ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-400'}`}>
-                                      <Icon size={14} />
-                                    </div>
-                                    <span className="text-[0.75rem] font-bold text-slate-800 leading-tight">
-                                      {subTab.label}
-                                    </span>
-                                  </div>
-                                  {!isRequired ? (
-                                    <input 
-                                      type="checkbox"
-                                      checked={isChecked}
-                                      onChange={(e) => {
-                                        const updated = {
-                                          ...customVisibleTabs,
-                                          [subTab.id]: e.target.checked
-                                        };
-                                        setCustomVisibleTabs(updated);
-                                        localStorage.setItem('dossier_custom_visible_tabs', JSON.stringify(updated));
-                                      }}
-                                      className="w-4.5 h-4.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-550 cursor-pointer"
-                                    />
-                                  ) : (
-                                    <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400 bg-slate-200 px-1.5 py-0.5 rounded">Erforderlich</span>
-                                  )}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Modal Footer */}
-                <div className="p-6 md:p-8 border-t border-slate-100 flex justify-end bg-slate-50/50">
-                  <button 
-                    type="button"
-                    onClick={() => setShowVisibilityModal(false)}
-                    className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-[0.75rem] leading-tight uppercase tracking-widest rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
-                  >
-                    Schließen & Anwenden
-                  </button>
-                </div>
-              </div>
-            </div>
           </ModalPortal>
         )}
       </AnimatePresence>
