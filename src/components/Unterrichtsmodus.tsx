@@ -160,7 +160,8 @@ const SeatingPlan = React.lazy(() => import("./SeatingPlan"));
 const Gradebook = React.lazy(() => import("./Gradebook"));
 
 import { UEBUNGEN, STANDARD_DIENSTE } from "./Rituale";
-import { FONTS } from "../constants";
+import { FONTS, LESSON_SLOT_NUMBERS, MAX_LESSON_SLOTS, STUNDEN_INFO } from "../constants";
+import { buildLessonTimeSlots, findCurrentLessonSlot } from "../lib/lessonTimeSlots";
 import MorningCircleWidget from "./MorningCircleWidget";
 import MorningRiddleWidget from "./MorningRiddleWidget";
 import QuizWidget from "./QuizWidget";
@@ -2781,6 +2782,12 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const { app, setApp, setPage } = useApp();
   const { showToast } = useToast();
   const [time, setTime] = useState(new Date());
+  const cockpitClassLabel = (app.klassenbezeichnung || "").trim();
+  const classPetEnabled = app.classPet ? app.classPet.enabled !== false : false;
+  const lessonTimeSlots = useMemo(
+    () => buildLessonTimeSlots(app.stundenZeiten, STUNDEN_INFO, MAX_LESSON_SLOTS),
+    [app.stundenZeiten],
+  );
 
   const checkIsAutoBirthday = (geburtstagStr: string | undefined | null) => {
     if (!geburtstagStr) return false;
@@ -4077,14 +4084,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [petIsWaving, setPetIsWaving] = useState<boolean>(false);
   const [petIsWakingUp, setPetIsWakingUp] = useState<boolean>(false);
   const [isDeactivatingPet, setIsDeactivatingPet] = useState<boolean>(false);
-  const [actualShowPet, setActualShowPet] = useState<boolean>(() => {
-    const isEnabled = app.classPet?.enabled ?? true;
-    return isEnabled;
-  });
+  const [actualShowPet, setActualShowPet] = useState<boolean>(() => classPetEnabled);
 
   useEffect(() => {
-    const isEnabled = app.classPet?.enabled ?? true;
-    const shouldBeActive = isEnabled;
+    const shouldBeActive = classPetEnabled;
 
     if (shouldBeActive && !actualShowPet) {
       // Re-activating: skip animation or reset it
@@ -4094,7 +4097,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       // Trigger deactivation animation
       setIsDeactivatingPet(true);
     }
-  }, [app.classPet?.enabled, actualShowPet, isDeactivatingPet]);
+  }, [classPetEnabled, actualShowPet, isDeactivatingPet]);
 
   const petLastHoverTimeRef = useRef<number>(0);
 
@@ -5016,7 +5019,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
   const handleExportTafelbild = () => {
     const content = app.vertretungHinweise || "";
-    const title = `Tafelbild_${app.klassenbezeichnung || "4c"}_${new Date().toLocaleDateString("de-DE")}`;
+    const safeClassPart = cockpitClassLabel
+      ? "_" + cockpitClassLabel.replace(/[^\p{L}\p{N}._-]+/gu, "_")
+      : "";
+    const title = `Tafelbild${safeClassPart}_${new Date().toLocaleDateString("de-DE")}`;
     const fontToLoadStr =
       activeFont === "font-druckschrift"
         ? "Druckschrift"
@@ -5098,7 +5104,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 <body>
   <div class="container">
     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-      <h1>Tafelbild • Klasse ${app.klassenbezeichnung || "4c"}</h1>
+      <h1>Tafelbild${cockpitClassLabel ? ` • Klasse ${cockpitClassLabel}` : ""}</h1>
       <span class="meta-badge">Schrift: ${fontToLoadStr}</span>
     </div>
     <div class="date">Erstellt am ${new Date().toLocaleDateString("de-DE")} • Unterrichtsassistent</div>
@@ -5344,21 +5350,10 @@ ${content}
   }, [isFocusMode]);
 
   const getCurrentHour = () => {
-    const zeiten = [
-      { start: 480, end: 530 }, // 1. 08:00 - 08:50
-      { start: 530, end: 585 }, // 2. 08:50 - 09:45
-      { start: 600, end: 650 }, // 3. 10:00 - 10:50
-      { start: 650, end: 705 }, // 4. 10:50 - 11:45
-      { start: 705, end: 750 }, // 5. 11:45 - 12:30
-      { start: 810, end: 860 }, // 6. 13:30 - 14:20
-      { start: 860, end: 910 }, // 7. 14:20 - 15:10
-      { start: 910, end: 960 }, // 8. 15:10 - 16:00
-    ];
-
     const now = time.getHours() * 60 + time.getMinutes();
-    const unitIdx = zeiten.findIndex((z) => now >= z.start && now < z.end);
-    if (unitIdx === -1) return null;
-    const current = zeiten[unitIdx];
+    const current = findCurrentLessonSlot(lessonTimeSlots, now);
+    if (!current) return null;
+    const unitIdx = current.slot - 1;
     const progress = Math.max(
       0,
       Math.min(
@@ -5453,20 +5448,9 @@ ${content}
     const now = new Date();
     const minutes = now.getHours() * 60 + now.getMinutes();
 
-    // Logic matching getCurrentHour
-    const zeiten = [
-      { start: 480, end: 530 },
-      { start: 530, end: 585 },
-      { start: 600, end: 650 },
-      { start: 650, end: 705 },
-      { start: 705, end: 750 },
-      { start: 810, end: 860 },
-      { start: 860, end: 910 },
-      { start: 910, end: 960 },
-    ];
-    const unitIdx = zeiten.findIndex(
-      (z) => minutes >= z.start && minutes < z.end,
-    );
+    // Logic matching getCurrentHour and the configured 1–10 lesson slots.
+    const currentSlot = findCurrentLessonSlot(lessonTimeSlots, minutes);
+    const unitIdx = currentSlot ? currentSlot.slot - 1 : -1;
 
     if (unitIdx !== -1) {
       const lessonNum = unitIdx + 1;
@@ -6382,7 +6366,7 @@ ${content}
     const sp = app.stammplan?.[todayTag] || {};
 
     let lastActiveHourIdx = -1;
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < MAX_LESSON_SLOTS; i++) {
       const wpItem = wp[i];
       const spItem = sp[i + 1];
       let hasSubject = false;
@@ -6404,17 +6388,6 @@ ${content}
       }
     }
 
-    const zeiten = [
-      { start: 480, end: 530 }, // 1. 08:00 - 08:50
-      { start: 530, end: 585 }, // 2. 08:50 - 09:45
-      { start: 600, end: 650 }, // 3. 10:00 - 10:50
-      { start: 650, end: 705 }, // 4. 10:50 - 11:45
-      { start: 705, end: 750 }, // 5. 11:45 - 12:30
-      { start: 810, end: 860 }, // 6. 13:30 - 14:20
-      { start: 860, end: 910 }, // 7. 14:20 - 15:10
-      { start: 910, end: 960 }, // 8. 15:10 - 16:00
-    ];
-
     if (lastActiveHourIdx === -1) {
       return {
         allowed: true,
@@ -6424,9 +6397,19 @@ ${content}
       };
     }
 
-    const currentMinuteOfDay = time.getHours() * 60 + time.getMinutes();
-    const lastHour = zeiten[lastActiveHourIdx];
+    const lastHour = lessonTimeSlots.find(
+      (slot) => slot.slot === lastActiveHourIdx + 1,
+    );
+    if (!lastHour) {
+      return {
+        allowed: true,
+        reason: "",
+        lastHourIdx: lastActiveHourIdx,
+        allowedFromTime: "",
+      };
+    }
 
+    const currentMinuteOfDay = time.getHours() * 60 + time.getMinutes();
     const startOfAllowedPeriod = lastHour.end - 10;
     const allowed = currentMinuteOfDay >= startOfAllowedPeriod;
 
@@ -6440,7 +6423,7 @@ ${content}
       lastHourIdx: lastActiveHourIdx,
       allowedFromTime,
     };
-  }, [time, app.wochenplanung, app.stammplan]);
+  }, [time, app.wochenplanung, app.stammplan, lessonTimeSlots]);
 
   // Commit current teacher cockpit student behaviors to the persistent chronicle history (At End of Lesson)
   const commitBehaviorToHistory = useCallback((skipConfetti = false) => {
@@ -6550,19 +6533,13 @@ ${content}
 
     // We only auto-save if the last active lesson is truly over
     if (commitAllowance.allowed && commitAllowance.lastHourIdx !== -1) {
-      const zeiten = [
-        { start: 480, end: 530 },
-        { start: 530, end: 585 },
-        { start: 600, end: 650 },
-        { start: 650, end: 705 },
-        { start: 705, end: 750 },
-        { start: 810, end: 860 },
-        { start: 860, end: 910 },
-        { start: 910, end: 960 },
-      ];
+      const lastHour = lessonTimeSlots.find(
+        (slot) => slot.slot === commitAllowance.lastHourIdx + 1,
+      );
+      if (!lastHour) return;
 
       const currentMinuteOfDay = time.getHours() * 60 + time.getMinutes();
-      const lastHourEnd = zeiten[commitAllowance.lastHourIdx].end;
+      const lastHourEnd = lastHour.end;
 
       // Auto-save happens exactly at the end of the last hour or afterwards
       if (currentMinuteOfDay >= lastHourEnd) {
@@ -6571,7 +6548,7 @@ ${content}
         updateHasAutoSavedToday(todayStr);
       }
     }
-  }, [time, commitAllowance, commitBehaviorToHistory, hasAutoSavedToday]);
+  }, [time, commitAllowance, commitBehaviorToHistory, hasAutoSavedToday, lessonTimeSlots]);
 
   const handleCloseCockpit = () => {
     // Attempt auto-saving if we have not auto-saved today yet
@@ -7510,8 +7487,8 @@ ${content}
           <button
             onClick={handleCloseCockpit}
             className={`p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer border shadow-md hover:scale-105 active:scale-95 ${currentIsLight ? "bg-black/5 border-black/10 text-slate-700 hover:bg-black/10 hover:text-black" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/15 hover:text-white"}`}
-            title="Zurück"
-            aria-label="Zurück zum Hauptmenü"
+            title="Zurück zu Unterricht"
+            aria-label="Zurück zu Unterricht"
           >
             <ArrowLeft size={16} strokeWidth={2.5} />
           </button>
@@ -7521,12 +7498,14 @@ ${content}
               className={`text-xs sm:text-sm font-black tracking-tight flex items-center gap-1 sm:gap-1.5 ${currentIsLight ? "text-slate-950" : "text-white"}`}
             >
               LEHRERCOCKPIT
-              <span
-                className={`px-1 sm:px-1.5 py-0.5 border rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-300 ${getThemeClassBadgeClasses()}`}
-                style={getThemeClassBadgeStyle()}
-              >
-                {app.klassenbezeichnung || "4c"}
-              </span>
+              {cockpitClassLabel && (
+                <span
+                  className={`px-1 sm:px-1.5 py-0.5 border rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-300 ${getThemeClassBadgeClasses()}`}
+                  style={getThemeClassBadgeStyle()}
+                >
+                  {cockpitClassLabel}
+                </span>
+              )}
             </div>
             {/* 1. Auto-Save & Manual-Commit status indicator */}
             <div className="flex items-center gap-1 mt-0.5 select-none">
@@ -7541,7 +7520,7 @@ ${content}
                 )}
               </span>
               <span className={`text-[7.5px] font-black uppercase tracking-wider ${hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "text-emerald-500" : "text-amber-500"}`}>
-                {hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "Heute gesichert" : "Echtzeit-Tracker"}
+                {hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "Heute gesichert" : "Speichert beim Beenden"}
               </span>
             </div>
           </div>
@@ -7589,12 +7568,13 @@ ${content}
                   </div>
                   {/* Day Hours Indicator */}
                   <div className="flex gap-1 justify-center mt-1.5 w-full select-none">
-                    {[0, 1, 2, 3, 4, 5, 6, 7].map((hIdx) => {
+                    {LESSON_SLOT_NUMBERS.map((slot) => {
+                      const hIdx = slot - 1;
                       const isPast = hIdx < currentHour.idx;
                       const isCurrent = hIdx === currentHour.idx;
                       return (
                         <div
-                          key={hIdx}
+                          key={slot}
                           className={`h-1 rounded-full transition-all duration-300 ${
                             isCurrent
                               ? `w-4 ${subjectColors.bg}`
@@ -7602,7 +7582,7 @@ ${content}
                                 ? 'w-2 bg-emerald-500/60'
                                 : 'w-1 bg-black/10 dark:bg-white/10'
                           }`}
-                          title={`${hIdx + 1}. Stunde`}
+                          title={`${slot}. Stunde`}
                         />
                       );
                     })}
@@ -7790,31 +7770,37 @@ ${content}
                 <button
                   type="button"
                   onClick={() => {
-                    setApp((prev: any) => ({
-                      ...prev,
-                      classPet: {
-                        ...(prev.classPet || {
-                          enabled: true,
-                          animalType: "dino",
-                          name: "Spike",
-                          energy: 50,
-                          accessories: [],
-                          history: [],
-                          memories: [],
-                        }),
-                        enabled: !(prev.classPet?.enabled ?? true),
-                      },
-                    }));
+                    setApp((prev: any) => {
+                      const existing = prev.classPet;
+                      const currentlyEnabled = existing
+                        ? existing.enabled !== false
+                        : false;
+                      return {
+                        ...prev,
+                        classPet: {
+                          ...(existing || {
+                            enabled: false,
+                            animalType: "dino",
+                            name: "Spike",
+                            energy: 50,
+                            accessories: [],
+                            history: [],
+                            memories: [],
+                          }),
+                          enabled: !currentlyEnabled,
+                        },
+                      };
+                    });
                   }}
                   className={`p-1 px-1.5 sm:p-1.5 sm:px-2 rounded-lg h-8 sm:h-8.5 transition-all border shadow-sm cursor-pointer flex items-center gap-1 font-bold text-[9px] sm:text-xs uppercase tracking-wider ${
-                    (app.classPet?.enabled ?? true)
+                    classPetEnabled
                       ? "bg-indigo-600 border-indigo-600 text-white"
                       : currentIsLight
                         ? "bg-black/5 border-black/10 text-slate-700 hover:text-slate-900 hover:bg-black/10"
                         : "bg-[#18181b]/40 border-white/10 text-white/90 hover:text-white hover:bg-white/10"
                   }`}
                   title={
-                    (app.classPet?.enabled ?? true)
+                    classPetEnabled
                       ? "Klassentier ausblenden"
                       : "Klassentier einblenden"
                   }
