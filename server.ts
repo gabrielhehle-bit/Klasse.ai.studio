@@ -6,6 +6,7 @@ import nodemailer from "nodemailer";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { KI_SYSTEM_PROMPTS, GLOBAL_KI_RULES } from "./src/kiSystemPrompts.ts";
+import { validateAiServerImageRequest } from "./src/lib/aiPrivacy.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
 // that do `typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url))`
@@ -1060,20 +1061,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     // erst nach der Text-/JSON-Sanitization unverändert wieder angehängt.
     const imageBase64 = params?.imageBase64;
     const imagePrivacyConfirmed = params?.imagePrivacyConfirmed === true;
-    if (imageBase64) {
-      if (action !== 'askAI') {
-        return res.status(400).json({ error: "Bildanhänge sind für diese KI-Aktion nicht zulässig." });
-      }
-      if (!imagePrivacyConfirmed) {
-        return res.status(400).json({ error: "Bildanalyse blockiert: Datenschutzbestätigung fehlt." });
-      }
-      if (
-        typeof imageBase64?.data !== 'string' ||
-        typeof imageBase64?.mimeType !== 'string' ||
-        !/^image\/(jpeg|png|webp)$/i.test(imageBase64.mimeType)
-      ) {
-        return res.status(400).json({ error: "Bildanalyse blockiert: Ungültiges Bildformat." });
-      }
+    const imageRequestError = validateAiServerImageRequest(action, imageBase64, imagePrivacyConfirmed);
+    if (imageRequestError) {
+      return res.status(400).json({ error: imageRequestError });
     }
 
     const { imageBase64: _image, imagePrivacyConfirmed: _confirmation, ...textParams } = params;
