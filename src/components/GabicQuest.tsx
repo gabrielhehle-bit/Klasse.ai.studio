@@ -186,7 +186,7 @@ const GabicQuest: React.FC<GabicQuestProps> = ({ forcedTab }) => {
         title: "Wähle deinen Begleiter",
         category: "kognition",
         categoryLabel: "Start",
-        storyDescription: "Willkommen bei GabicQuest! Hier beginnt dein großes Zauberabenteuer. Welcher schlaue Begleiter soll dich heute begleiten und dir Tipps geben?",
+        storyDescription: "Willkommen bei Klassio Quest! Hier beginnt dein großes Zauberabenteuer. Welcher schlaue Begleiter soll dich heute begleiten und dir Tipps geben?",
         instructions: "Tippe auf den Begleiter, den du am liebsten magst, um das Abenteuer zu starten!",
         character: "Elias",
         characterMood: "happy",
@@ -402,7 +402,7 @@ const GabicQuest: React.FC<GabicQuestProps> = ({ forcedTab }) => {
     if (!existingTest) {
       const newTestTemplate: any = {
         id: testId,
-        name: "GabicQuest Diagnosetest",
+        name: "Klassio Quest Diagnosetest",
         kategorie: "kognition",
         kurzbeschreibung: "Spielerisches Echtzeit-Erlebnismonitoring zur kognitiven & Erstdiagnostik",
         einheit: "punkte",
@@ -417,7 +417,7 @@ const GabicQuest: React.FC<GabicQuestProps> = ({ forcedTab }) => {
       }));
     }
 
-    let diagnosticSummary = `GabicQuest Gamifizierte Diagnostik vom ${new Date().toLocaleDateString("de-DE")}.\n`;
+    let diagnosticSummary = `Klassio Quest – gamifizierte Diagnostik vom ${new Date().toLocaleDateString("de-DE")}.\n`;
     diagnosticSummary += `Begleiter: ${companionChoice === "treah" ? "Elias 🦉" : "Kimi 🦎"}\n`;
     diagnosticSummary += `Erreichte Punkte: ${totalCorrectCount} von 20 Quests gelöst.\n\nBeobachtungsverlauf:\n`;
 
@@ -448,7 +448,7 @@ const GabicQuest: React.FC<GabicQuestProps> = ({ forcedTab }) => {
       rohwert: totalCorrectCount,
       ergebniswert: totalCorrectCount,
       kommentar: diagnosticSummary,
-      durchgefuehrtVon: "GabicQuest Engine (Synchronisiert)",
+      durchgefuehrtVon: "Klassio Quest Engine (synchronisiert)",
       foerderbedarfErkannt: false,
       auffaelligkeitErkannt: isForderbedarf,
       classId: getDiagnosticClassId(app),
@@ -467,7 +467,7 @@ const GabicQuest: React.FC<GabicQuestProps> = ({ forcedTab }) => {
 
     logActivity(
       setApp,
-      `GabicQuest Diagnostik für ${activeStudent.vorname} abgeschlossen (${totalCorrectCount}/20)`,
+      `Klassio Quest Diagnostik für ${activeStudent.vorname} abgeschlossen (${totalCorrectCount}/20)`,
       "diagnostik",
       testId
     );
@@ -503,7 +503,7 @@ const GabicQuest: React.FC<GabicQuestProps> = ({ forcedTab }) => {
             </div>
             <div>
               <h1 className="text-[0.75rem] leading-tight font-black uppercase tracking-wider text-amber-300">
-                GabicQuest 🎮
+                Klassio Quest 🎮
               </h1>
               <p className="text-[0.5625rem] font-bold text-slate-400">
                 Gamifizierte Diagnostik & Lehrer-Fernsteuerung
@@ -565,7 +565,7 @@ const GabicQuest: React.FC<GabicQuestProps> = ({ forcedTab }) => {
                     👑 Pädagogische Diagnostik
                   </span>
                   <h2 className="text-[1.25rem] leading-normal font-extrabold text-slate-900 dark:text-neutral-100 mt-1">
-                    Kind & Stufe für GabicQuest festlegen
+                    Kind & Stufe für Klassio Quest festlegen
                   </h2>
                   <p className="text-[0.6875rem] text-slate-500 dark:text-neutral-400 leading-relaxed font-semibold">
                     Hier startest du das Sagen-Abenteuer für dein Kind. Wähle das Ziel-Kind aus, um dessen Diagnosestufe zu konfigurieren.
@@ -698,7 +698,7 @@ const GabicQuest: React.FC<GabicQuestProps> = ({ forcedTab }) => {
                 </div>
                 <div className="text-left">
                   <span className="text-[0.5625rem] font-black text-amber-400 block uppercase tracking-wider leading-none">
-                    ⭐ GABICQUEST ZAUBERLAND ⭐
+                    ⭐ KLASSIO QUEST ZAUBERLAND ⭐
                   </span>
                   <span className="text-[0.75rem] leading-tight md:text-[0.875rem] leading-snug font-extrabold text-slate-100 uppercase tracking-widest block mt-0.5">
                     {activeStudent ? `Abenteuer von ${activeStudent.vorname}` : "Kind-Zauberspiel"} • {currentQuestStep === 0 ? "Einleitung" : currentQuestStep === 21 ? "FINALE!" : `Prüfung ${currentQuestStep} von 20`}
