@@ -813,7 +813,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const remainingClasses = classes.filter(c => c.id !== idToDelete);
 
       // Clean up orphaned data related to deleted students
-      const cleanNotes = (prev.notes || []).filter(n => !n.id || (!deletedStudentIds.has(n.id) && !deletedStudentIds.has(n.schuelerId)));
       const cleanDiffGruppen = (prev.differenzierungsGruppen || []).filter(g => {
         if (!g.schuelerIds) return true;
         const validIds = g.schuelerIds.filter(sid => !deletedStudentIds.has(sid));
