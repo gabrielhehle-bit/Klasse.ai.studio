@@ -160,8 +160,8 @@ const SeatingPlan = React.lazy(() => import("./SeatingPlan"));
 const Gradebook = React.lazy(() => import("./Gradebook"));
 
 import { UEBUNGEN, STANDARD_DIENSTE } from "./Rituale";
-import { FONTS, LESSON_SLOT_NUMBERS, MAX_LESSON_SLOTS, STUNDEN_INFO } from "../constants";
-import { buildLessonTimeSlots, findCurrentLessonSlot } from "../lib/lessonTimeSlots";
+import { FONTS, MAX_LESSON_SLOTS, STUNDEN_INFO } from "../constants";
+import { buildLessonTimeSlots, findCurrentLessonBreak, findCurrentLessonSlot } from "../lib/lessonTimeSlots";
 import MorningCircleWidget from "./MorningCircleWidget";
 import MorningRiddleWidget from "./MorningRiddleWidget";
 import QuizWidget from "./QuizWidget";
@@ -6137,22 +6137,21 @@ ${content}
       }
     }
 
-    // 3. Break Active Notifications (Automatic check based on minutes)
-    // Morning Break: 09:45 (585) to 10:00 (600)
-    // Lunch Break: 12:30 (750) to 13:30 (810)
-    const isMorningBreak = totalMinutes >= 585 && totalMinutes < 600;
-    const isLunchBreak = totalMinutes >= 750 && totalMinutes < 810;
+    // 3. Pausen folgen den in Klassio eingestellten Stundenzeiten.
+    const currentBreak = findCurrentLessonBreak(lessonTimeSlots, totalMinutes);
+    const isLunchBreak =
+      currentBreak?.afterSlot === (app.mittagspauseNachStunde || 5);
 
-    if (isMorningBreak || isLunchBreak) {
-      const breakTypeKey = isMorningBreak ? 585 : 750;
+    if (currentBreak) {
+      const breakTypeKey = currentBreak.start;
       if (lastClassroomAlertRef.current.lastNotifiedBreakMin !== breakTypeKey) {
         lastClassroomAlertRef.current.lastNotifiedBreakMin = breakTypeKey;
 
-        const breakGreetings = isMorningBreak
+        const breakGreetings = !isLunchBreak
           ? [
-              `☀️ Juhu, Hofpause! Packt das Pausenbrot aus und holt euch frische Luft! 🏃‍♂️🍎`,
+              `☀️ Juhu, Pause! Packt das Pausenbrot aus und holt euch frische Luft! 🏃‍♂️🍎`,
               `🎒 Pause! Macht euch locker, spielt draußen eine Runde und atmet tief durch! 🌿✨`,
-              `🎈 Hofpause! Ich halte hier fleißig die Stellung, während ihr draußen tobt! 👣`,
+              `🎈 Pause! Ich halte hier fleißig die Stellung, während ihr draußen tobt! 👣`,
             ]
           : [
               `🍕 Mmh, Mittagszeit! Zeit für ein leckeres Mittagessen und Entspannung! Guten Appetit! 😋🥗`,
@@ -6172,7 +6171,7 @@ ${content}
         lastClassroomAlertRef.current.lastNotifiedBreakMin = null;
       }
     }
-  }, [time, petBehaviorState, app.classPet?.name]);
+  }, [time, petBehaviorState, app.classPet?.name, app.classPet?.behaviorMode, app.mittagspauseNachStunde, lessonTimeSlots]);
 
   // Global Timer Sync - only active when ZenFocus overlay is open to avoid 1-second global re-renders in standard cockpit mode
   useEffect(() => {
@@ -7248,7 +7247,7 @@ ${content}
     isLight: currentIsLight,
   };
 
-  // Theme-compliant styling for the class badge ("4c") pill and other indicators
+  // Theme-compliant styling for the current class badge and other indicators
   const getThemeClassBadgeClasses = () => {
     switch (activePultTheme) {
       case "deep_dark":
@@ -7568,7 +7567,7 @@ ${content}
                   </div>
                   {/* Day Hours Indicator */}
                   <div className="flex gap-1 justify-center mt-1.5 w-full select-none">
-                    {LESSON_SLOT_NUMBERS.map((slot) => {
+                    {lessonTimeSlots.map(({ slot }) => {
                       const hIdx = slot - 1;
                       const isPast = hIdx < currentHour.idx;
                       const isCurrent = hIdx === currentHour.idx;
@@ -14302,7 +14301,7 @@ ${content}
                                 const wp = tagName ? (app.wochenplanung?.[kw]?.[tagName] || {}) : {};
                                 const sp = app.stammplan?.[tagName];
                                 const result = [];
-                                for (let i = 0; i < 8; i++) {
+                                for (let i = 0; i < MAX_LESSON_SLOTS; i++) {
                                   if (wp && wp[i] && wp[i].fach)
                                     result.push({ idx: i, ...wp[i] });
                                   else if (sp && sp[i + 1]) {
@@ -14825,8 +14824,13 @@ ${content}
                       const nowMins =
                         today.getHours() * 60 + today.getMinutes();
 
-                      const isMorningBreak = nowMins >= 585 && nowMins < 600;
-                      const isLunchBreak = nowMins >= 750 && nowMins < 810;
+                      const currentBreak = findCurrentLessonBreak(
+                        lessonTimeSlots,
+                        nowMins,
+                      );
+                      const isLunchBreak =
+                        currentBreak?.afterSlot ===
+                        (app.mittagspauseNachStunde || 5);
 
                       let greetings: string[] = [];
                       if (petBehaviorState === "learning") {
@@ -14842,7 +14846,7 @@ ${content}
                             ? `Mit deinem Abzeichen '${badgeMention}' bist du ein echtes Vorbild, ${randomStudent}! 🏅`
                             : `Leise knistert das Papier... so gutes Lernen! 📄`,
                         ];
-                      } else if (isMorningBreak || isLunchBreak) {
+                      } else if (currentBreak) {
                         greetings = [
                           `Hey ${randomStudent}! Schnapp dir ein Pausenbrot! Wir haben gerade Pause! 🥪⚽`,
                           `Huhu! Genieß die freie Zeit der Pause, ${randomStudent}! 🥳✨`,
