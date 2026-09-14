@@ -36,3 +36,14 @@ test('Planungszentrale benennt ihre beiden Ebenen verständlich', () => {
   assert.doesNotMatch(source, /Einfachmodus AN/);
   assert.equal((source.match(/grid grid-cols-2 bg-slate-100/g) || []).length >= 1, true);
 });
+
+
+test('Planungszentrale zeigt echte KI-Vorschläge und erfindet bei Fehlern keine Ersatzantwort', () => {
+  assert.match(source, /aiSuggestions\.length > 0/);
+  assert.match(source, /aiSuggestions\.slice\(0, 3\)\.map/);
+  assert.match(source, /KI-Vorschläge konnten nicht geladen werden/);
+  assert.match(source, /Der KI-Wocheneinblick konnte nicht geladen werden/);
+  assert.doesNotMatch(source, /Stationenbetrieb & Forscherauftrag/);
+  assert.doesNotMatch(source, /Volksschulklasse 3/);
+  assert.doesNotMatch(source, /Schulstufe \$\{app\.stufe \|\| 3\}/);
+});
