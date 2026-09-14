@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `fa71446db28fa2f3952e0c6c982117f99d53e397`: Pre-Deployment Audit #110 grün, 818/818 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #110 erzeugte `klassio-world4you-fa71446db28fa2f3952e0c6c982117f99d53e397` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `607e8f9443d390ffbf0c9b60422a5807b525e8d5`: Pre-Deployment Audit #112 grün, 830/830 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #112 erzeugte `klassio-world4you-607e8f9443d390ffbf0c9b60422a5807b525e8d5` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 
@@ -33,8 +33,8 @@ Legende:
 | 4 | Notizen | ✅ | PR #39 integriert; Audit #106 grün; reale Browser-/Staging-Abnahme im Gesamt-Walkthrough |
 | 5 | Schüler:innen | ✅ | PR #41 integriert; Audit #108 grün; reale Browser-/Staging-Abnahme im Gesamt-Walkthrough |
 | 6 | Sitzplan | ✅ | PR #43 integriert; Audit #110 grün; reale Maus-/Touch-/Browser-/Staging-Abnahme im Gesamt-Walkthrough |
-| 7 | Anwesenheit | 🔴 | danach |
-| 8 | Notenmappe | 🔴 | danach |
+| 7 | Anwesenheit | ✅ | PR #45 integriert; Audit #112 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme im Gesamt-Walkthrough |
+| 8 | Notenmappe | 🔴 | als Nächstes einzeln prüfen und abschließen |
 | 9 | Kassa & Orga | 🔴 | danach |
 | 10 | Planungszentrale | 🔴 | danach |
 | 11 | Jahresplanung | 🔴 | danach |
@@ -78,7 +78,7 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
-| Anwesenheit | ✅ | Abschluss füllt nur leere Stunden; vorhandene Fehl-/Entschuldigungswerte bleiben erhalten. Dashboard verlangt Erfassung nur an echten Schultagen und zeigt „geprüft“ erst, wenn für alle Kinder alle aktiven Stunden erfasst sind; lokaler Kalendertag statt UTC; Regressionstests vorhanden. |
+| Anwesenheit | 🟡 | PR #45: Stunden- und Detaildaten bleiben klassenlokal; Undo und offene Dialoge werden beim Klassenwechsel zurückgesetzt. Lokale Kalendertage, Wochenenden/Feiertage und echte konfigurierte Unterrichtsstunden steuern die Erfassung; ohne Stunden werden keine sechs Stunden oder Anwesenheitswerte erfunden. Stundenstatus, Fehlstunden, Entschuldigung, Notiz und Verspätung werden konsistent gehalten; die Verspätungseingabe ist wieder direkt erreichbar. Fehltage, Semesterstatistik und Trends sind auf das aktive Schuljahr begrenzt, verwenden Bundesland-Semestergrenzen und ISO-KW. Abschluss füllt weiterhin nur leere Stunden. Automatisierte Tests und Audit #112 grün; reale Browser-/Touch-/Druck-Abnahme offen. |
 | Befinden | ✅ | Einheitliche 5-Stufen-Skala von sehr gut bis schlecht. |
 | Sokrates PDF-Import | ✅ | PR #16 integriert: PDF.js-Worker lokal gebundelt, `.mjs` im PWA-Precache, geometrische Tabellenerkennung und keine erfundenen Stammdaten; Regressionstests vorhanden. |
 | Schülerliste | 🟡 | PR #41: Suche, Filter, Liste/Karten/Karte, Import, Dossier, Notiz/Interaktion und Bearbeiten/Löschen bleiben erhalten. Alter und Alterssortierung sind kalendergenau; Suche umfasst auch SV-Nummer. Reimporte erkennen bestehende Kinder und aktualisieren nur Stammdaten, ohne pädagogische Daten zu überschreiben; Sokrates-Metadaten werden übernommen. Löschen bereinigt die zugehörigen personenbezogenen Klassendaten vollständig, während Kassenbuchungen entkoppelt erhalten bleiben. Klassenwechsel schließen alte Dossier-/Modalzustände. Kartenmarker sind lokal gebündelt; Photon erhält nur PLZ/Ort und der Hinweis ist sichtbar. Automatisierte Tests und Audit #108 grün; reale Browser-Abnahme offen. |
@@ -87,7 +87,7 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 | Schülerdossier Browser-Abnahme | 🟡 | Navigation, Detailtabs, Fokusmodus und responsive Darstellung müssen im finalen Browser-Walkthrough praktisch geprüft werden. |
 | Sitzplan | 🟡 | PR #43: Positionen, Möbel und Regeln sind klassenlokal; Legacy-Regeln werden nach Schülerzugehörigkeit migriert. `nicht nebeneinander`, `nebeneinander`, `feste Zone` und `fester Platz` werden zentral geprüft, Fixplätze speichern ihre Position und Zonen richten sich an der realen Tafelposition aus. Würfelvorschau und Planungs-Analyse nutzen dieselbe Regelengine, erkennen Sitzkollisionen und der Optimierer hält Fixplätze sowie explizite Regeln ein. Abwesenheiten stammen aus den echten Anwesenheitsdaten mit lokalem Kalendertag. Sitzplan-UI-Zustände werden beim Klassenwechsel zurückgesetzt. Automatisierte Tests und Audit #110 grün; reale Drag/Drop-, Maus-/Touch- und Druck-/Browser-Abnahme offen. |
 | Diagnostik | 🟡 | PR #9 integriert: 3-stufige Hierarchie/Checks/Ergebnisse, klassenlokale iKM-/Antolin-/Ziel-/Beobachtungs-/Metakognitionsdaten, aktive Klassen-ID für strukturierte Ergebnisse und lokale Datumsprüfung. Vollständiger Browser-Walkthrough offen. |
-| Multi-Class | ✅ | Klassenwechsel/Migration/Erweiterungsfelder, Cockpit-Ink sowie Notizen/Journal/Statusverlauf per Tests klassenlokal abgesichert; Schüler-Dossier-, Editor- und Interaktionszustände sowie Sitzplan-Auswahl/Vorschau/Undo werden beim Klassenwechsel zurückgesetzt. Sitzpositionen, Möbel und Sitzplan-Regeln bleiben strikt pro Klasse getrennt. |
+| Multi-Class | ✅ | Klassenwechsel/Migration/Erweiterungsfelder, Cockpit-Ink sowie Notizen/Journal/Statusverlauf per Tests klassenlokal abgesichert; Schüler-Dossier-, Editor- und Interaktionszustände sowie Sitzplan-Auswahl/Vorschau/Undo werden beim Klassenwechsel zurückgesetzt. Sitzpositionen, Möbel und Sitzplan-Regeln bleiben strikt pro Klasse getrennt. Anwesenheit und Anwesenheitsdetails sind ebenfalls klassenlokal; Anwesenheits-Undo und offene Anwesenheitsdialoge werden beim Klassenwechsel verworfen. |
 
 ## Leistungen
 
