@@ -53,3 +53,15 @@ test('Jahresplanung: Verschieben nutzt echte Unterrichtswochen statt KW plus ein
   assert.match(yearly, /orderedTeachingKws/);
   assert.doesNotMatch(yearly, /let nextKw = currentKw \+ 1/);
 });
+
+
+test('Jahresplanung: leere Zellen bleiben echte leere Zellen', () => {
+  assert.match(
+    yearly,
+    /const isDraggable = !!data && !!\(/,
+  );
+  assert.doesNotMatch(
+    yearly,
+    /const isDraggable = !!\(data\?\.items\?\.length > 0 \|\| data\?\.thema \|\| data\?\.buch \|\| data\?\.type !== 'standard'\)/,
+  );
+});
