@@ -35,8 +35,12 @@ test('Materialbibliothek: versteckte Auswahl kann nicht unbemerkt gesammelt gelÃ
   assert.match(material, /filteredMaterials\.every\(material => selectedItems\.includes\(material\.id\)\)/);
 });
 
-test('Materialbibliothek: KI-Speichern dedupliziert IDs und respektiert das Speicherlimit', () => {
-  assert.match(material, /const nextMaterials = upsertMaterial\(prev\.materialien \|\| \[\], newItem\)/);
+test('Materialbibliothek: KI-Speichern dedupliziert IDs, bewahrt Metadaten und respektiert das Speicherlimit', () => {
+  assert.match(material, /const candidate = upsertMaterial\(app\.materialien \|\| \[\], newItem\)/);
+  assert.match(material, /const nextMaterials = upsertMaterial\(prev\.materialien \|\| \[\], mergedItem\)/);
+  assert.match(material, /favorit: prevExisting\.favorit/);
+  assert.match(material, /erstelltAm: prevExisting\.erstelltAm \|\| newItem\.erstelltAm/);
+  assert.match(material, /calculateMaterialStorageSize\(candidate\) > MATERIAL_LIBRARY_MAX_MB/);
   assert.match(material, /calculateMaterialStorageSize\(nextMaterials\) > MATERIAL_LIBRARY_MAX_MB/);
   assert.doesNotMatch(material, /materialien: \[\.\.\.\(prev\.materialien \|\| \[\]\), newItem\]/);
 });
