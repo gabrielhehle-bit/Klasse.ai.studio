@@ -3623,7 +3623,7 @@ export default function Gradebook() {
                             </div>
                           </div>
                         </td>
-                        <td className={`${zoomLevel === 'compact' ? 'px-0.5 py-1 text-[0.75rem]' : zoomLevel === 'large' ? 'px-2 py-2 text-[0.9375rem]' : 'px-1 py-1.5 text-[0.8125rem]'} text-center border-b border-r border-border/40 font-bold font-mono relative ${avg && assessmentMode === 'grades' && avg >= 4.5 ? 'text-red-700 bg-red-50/40' : avg && assessmentMode !== 'grades' && avg < 50 ? 'text-red-700 bg-red-50/40' : avg ? 'text-blue-900 bg-blue-50/40' : 'text-slate-400'}`}>
+                        <td className={`${zoomLevel === 'compact' ? 'px-0.5 py-1 text-[0.75rem]' : zoomLevel === 'large' ? 'px-2 py-2 text-[0.9375rem]' : 'px-1 py-1.5 text-[0.8125rem]'} text-center border-b border-r border-border/40 font-bold font-mono relative ${hasCalculatedAverage(avg) && assessmentMode === 'grades' && avg >= 4.5 ? 'text-red-700 bg-red-50/40' : hasCalculatedAverage(avg) && assessmentMode !== 'grades' && avg < 50 ? 'text-red-700 bg-red-50/40' : hasCalculatedAverage(avg) ? 'text-blue-900 bg-blue-50/40' : 'text-slate-400'}`}>
                           {avg !== null && assessmentMode === 'grades' && (avg % 1 >= 0.45 && avg % 1 <= 0.55) && (
                             <div className="absolute top-1 right-1 text-[0.5rem] leading-none font-black text-amber-700 bg-amber-100 border border-amber-300 rounded-full w-4 h-4 flex items-center justify-center shadow-3xs" title="Grenzentscheidung zwischen zwei Noten: Der Notendurchschnitt liegt genau in der Mitte (.5)">
                               !
@@ -3635,14 +3635,14 @@ export default function Gradebook() {
                               aria-label={`Endnote für ${s.vorname} ${s.nachname}`}
                               value={nd.endnote || ''}
                               onChange={(val) => setEndnote(s.id, val)}
-                              placeholder={avg ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '-'}
+                              placeholder={hasCalculatedAverage(avg) ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '-'}
                               title="Endnote (SPF/ESPF) manuell überschreiben"
                               debounceMs={400}
                               className={`mx-auto block text-center bg-white/80 border border-slate-200 hover:border-emerald-500 focus:border-emerald-600 focus:bg-white transition-all outline-none font-black text-slate-800 placeholder:text-slate-400 print:bg-transparent print:border-none shadow-3xs ${zoomLevel === 'compact' ? 'rounded-md py-0.5 text-[0.75rem] w-10' : zoomLevel === 'large' ? 'rounded-xl py-2 text-[0.9375rem] w-14' : 'rounded-lg py-1 text-[0.8125rem] w-12'}`}
                             />
                           ) : (
                             <div className={`${zoomLevel === 'compact' ? 'py-1 text-[0.75rem]' : zoomLevel === 'large' ? 'py-4 text-[0.9375rem]' : 'py-2.5 text-[0.8125rem]'} font-extrabold`}>
-                              {avg ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '–'}
+                              {hasCalculatedAverage(avg) ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '–'}
                             </div>
                           )}
                         </td>
@@ -3942,7 +3942,7 @@ export default function Gradebook() {
                           </td>
                         )}
                         <td className={`${zoomLevel === 'compact' ? 'px-2.5 py-1 text-[0.75rem]' : zoomLevel === 'large' ? 'px-5 py-4 text-[0.9375rem]' : 'px-4 py-3 text-[0.8125rem]'} text-center font-display font-bold border-b border-border/10 bg-surface/50 ${isolatedCol ? 'hidden' : ''}`}>
-                          {avg ? (
+                          {hasCalculatedAverage(avg) ? (
                             <div className="flex flex-col items-center justify-center gap-1 group/ball relative">
                               {assessmentMode === 'grades' ? (
                                 <div 
@@ -4005,7 +4005,7 @@ export default function Gradebook() {
                       <td className="px-4 py-4 border-t px-2 border-neutral-700 border-r border-r-neutral-800 sticky left-0 z-40 bg-neutral-900 print:relative print:left-0 shadow-[2px_0_5px_rgba(0,0,0,0.2)]">∑</td>
                       <td className="px-5 py-4 text-left border-t border-neutral-700 border-r border-r-neutral-800 sticky left-[4rem] z-40 bg-neutral-900 print:relative print:left-0 uppercase text-white shadow-[2px_0_5px_rgba(0,0,0,0.2)]">∅ Klasse</td>
                       <td className="px-2 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-800 text-white border-x-2">
-                        {stats?.avg ? (assessmentMode === 'grades' ? stats.avg.toFixed(2) : `${stats.avg.toFixed(1)}%`) : '–'}
+                        {hasCalculatedAverage(stats?.avg) ? (assessmentMode === 'grades' ? stats!.avg.toFixed(2) : `${stats!.avg.toFixed(1)}%`) : '–'}
                       </td>
                       {cfg.sa && Array.from({length: cfg.saCount}).map((_, idx) => (
                         <td key={`fsa-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
@@ -4205,7 +4205,7 @@ export default function Gradebook() {
             {selectedGradeExplanationStudent && (() => {
               const s = selectedGradeExplanationStudent;
               const avg = berechne(app, s.id, activeFach, sem);
-              const roundedNote = avg ? Math.round(avg) : null;
+              const roundedNote = hasCalculatedAverage(avg) ? Math.round(avg) : null;
               const rawNd = (app.noten?.[s.id]?.[activeFach]?.[sem] || {}) as any;
 
               return (
@@ -4261,7 +4261,7 @@ export default function Gradebook() {
                           Berechneter Notenschnitt
                         </div>
                         <div className="text-[1.25rem] font-black text-slate-900">
-                          {avg ? avg.toFixed(2) : 'Keine Noten'}{' '}
+                          {hasCalculatedAverage(avg) ? avg.toFixed(2) : 'Keine Noten'}{' '}
                           {roundedNote && (
                             <span className="text-[0.875rem] font-bold text-slate-500 font-sans">
                               ({NOTE_LABELS[roundedNote]})
