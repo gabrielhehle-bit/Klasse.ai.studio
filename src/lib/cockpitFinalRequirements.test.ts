@@ -55,6 +55,10 @@ test("Cockpit: alle erhaltenen Standard-Widgettypen sind im Picker und in den Ka
   const pickerEnd = teachingSurface.indexOf("const resolvedActiveFach", starts[1]);
   const pickerCatalog = widgetTypes(teachingSurface.slice(starts[1], pickerEnd));
 
+  assert.equal(defaults.length, 108, "Standardlayout muss alle 108 Widgettypen enthalten");
+  assert.equal(counterCatalog.length, 108, "Kategorie-Zähler muss alle 108 Widgettypen kennen");
+  assert.equal(pickerCatalog.length, 108, "Widget-Picker muss alle 108 Widgettypen enthalten");
+
   for (const type of defaults) {
     assert.ok(counterCatalog.includes(type), `Kategorie-Zähler kennt ${type} nicht`);
     assert.ok(pickerCatalog.includes(type), `Widget-Picker kennt ${type} nicht`);
@@ -113,4 +117,70 @@ test("Cockpit: Schrift und Zeichnung lassen sich getrennt löschen", () => {
   assert.match(boardInk, /\['pen', 'Stift'\]/);
   assert.match(boardInk, /\['text', 'Text'\]/);
   assert.match(boardInk, /\['erase', 'Radierer'\]/);
+});
+
+
+test("Cockpit: nutzt die konfigurierten zehn Stunden-Slots statt acht fest verdrahteter Einheiten", () => {
+  assert.match(teachingSurface, /lessonTimeSlots\.map\(\(\{ slot \}\) =>/);
+  assert.match(teachingSurface, /MAX_LESSON_SLOTS/);
+  assert.match(teachingSurface, /buildLessonTimeSlots\(app\.stundenZeiten, STUNDEN_INFO, MAX_LESSON_SLOTS\)/);
+  assert.doesNotMatch(teachingSurface, /\[0, 1, 2, 3, 4, 5, 6, 7\]\.map/);
+  assert.doesNotMatch(teachingSurface, /for \(let i = 0; i < 8; i\+\+\)/);
+  assert.match(teachingSurface, /findCurrentLessonBreak\(lessonTimeSlots,/);
+});
+
+test("Cockpit: erfindet weder Klasse noch Klassentier im frischen Zustand", () => {
+  assert.doesNotMatch(teachingSurface, /app\.klassenbezeichnung \|\| "4c"/);
+  assert.match(teachingSurface, /const cockpitClassLabel = \(app\.klassenbezeichnung \|\| ""\)\.trim\(\)/);
+  assert.match(teachingSurface, /const classPetEnabled = app\.classPet \? app\.classPet\.enabled !== false : false/);
+  assert.doesNotMatch(teachingSurface, /const isEnabled = app\.classPet\?\.enabled \?\? true/);
+});
+
+test("Cockpit: sekundäre Ansichtssteuerung liegt gesammelt unter Optionen", () => {
+  for (const label of [
+    "Schülerliste einblenden",
+    "Schülerliste ausblenden",
+    "Klassentier einblenden",
+    "Klassentier ausblenden",
+    "Design & Darstellung",
+    "Fokusmodus",
+    "Vollbildmodus",
+  ]) {
+    assert.ok(teachingSurface.includes(label), `Ansichtsoption fehlt: ${label}`);
+  }
+  assert.match(teachingSurface, />\s*Ansicht\s*</);
+  assert.doesNotMatch(teachingSurface, /Functional Controls Buttons Cluster/);
+});
+
+test("Cockpit: Status und Zurück-Navigation sind lehrerfreundlich beschriftet", () => {
+  assert.match(teachingSurface, /Speichert beim Beenden/);
+  assert.doesNotMatch(teachingSurface, /Echtzeit-Tracker/);
+  assert.match(teachingSurface, /aria-label="Zurück zu Unterricht"/);
+});
+
+
+test("Cockpit: Tages-Sicherungsstatus ist klassenlokal", () => {
+  assert.match(
+    teachingSurface,
+    /cockpit_last_auto_save_date_\$\{app\.activeClassId \|\| "unassigned"\}/,
+  );
+  assert.doesNotMatch(
+    teachingSurface,
+    /cockpit_last_auto_save_date_\$\{\(app as any\)\?\.id \|\| "default"\}/,
+  );
+});
+
+test("Cockpit: Schließen markiert einen nicht gespeicherten Tag nicht fälschlich als gesichert", () => {
+  const closeStart = teachingSurface.indexOf("const handleCloseCockpit");
+  const closeEnd = teachingSurface.indexOf("const cycleBehavior", closeStart);
+  assert.ok(closeStart >= 0 && closeEnd > closeStart);
+  const closeHandler = teachingSurface.slice(closeStart, closeEnd);
+  assert.match(closeHandler, /hasAutoSavedToday !== todayStr && commitAllowance\.allowed/);
+  assert.doesNotMatch(closeHandler, /updateHasAutoSavedToday/);
+});
+
+test("Cockpit: Tagesabschluss ist verständlich statt technisch beschriftet", () => {
+  assert.match(teachingSurface, /"Tag sichern"/);
+  assert.match(teachingSurface, />\s*Verfügbar\s*</);
+  assert.doesNotMatch(teachingSurface, />\s*Sperre\s*</);
 });

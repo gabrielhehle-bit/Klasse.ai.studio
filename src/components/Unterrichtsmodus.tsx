@@ -160,7 +160,8 @@ const SeatingPlan = React.lazy(() => import("./SeatingPlan"));
 const Gradebook = React.lazy(() => import("./Gradebook"));
 
 import { UEBUNGEN, STANDARD_DIENSTE } from "./Rituale";
-import { FONTS } from "../constants";
+import { FONTS, MAX_LESSON_SLOTS, STUNDEN_INFO } from "../constants";
+import { buildLessonTimeSlots, findCurrentLessonBreak, findCurrentLessonSlot } from "../lib/lessonTimeSlots";
 import MorningCircleWidget from "./MorningCircleWidget";
 import MorningRiddleWidget from "./MorningRiddleWidget";
 import QuizWidget from "./QuizWidget";
@@ -2781,6 +2782,12 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const { app, setApp, setPage } = useApp();
   const { showToast } = useToast();
   const [time, setTime] = useState(new Date());
+  const cockpitClassLabel = (app.klassenbezeichnung || "").trim();
+  const classPetEnabled = app.classPet ? app.classPet.enabled !== false : false;
+  const lessonTimeSlots = useMemo(
+    () => buildLessonTimeSlots(app.stundenZeiten, STUNDEN_INFO, MAX_LESSON_SLOTS),
+    [app.stundenZeiten],
+  );
 
   const checkIsAutoBirthday = (geburtstagStr: string | undefined | null) => {
     if (!geburtstagStr) return false;
@@ -3840,19 +3847,19 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const cockpitAutoSaveStorageKey =
+    `cockpit_last_auto_save_date_${app.activeClassId || "unassigned"}`;
   const [hasAutoSavedToday, setHasAutoSavedToday] = useState<string | null>(
-    () =>
-      localStorage.getItem(
-        `cockpit_last_auto_save_date_${(app as any)?.id || "default"}`,
-      ),
-  ); // ISO date of last auto-save
+    () => localStorage.getItem(cockpitAutoSaveStorageKey),
+  ); // ISO date of last successful daily save for the active class
+
+  useEffect(() => {
+    setHasAutoSavedToday(localStorage.getItem(cockpitAutoSaveStorageKey));
+  }, [cockpitAutoSaveStorageKey]);
 
   const updateHasAutoSavedToday = (dateStr: string) => {
     setHasAutoSavedToday(dateStr);
-    localStorage.setItem(
-      `cockpit_last_auto_save_date_${(app as any)?.id || "default"}`,
-      dateStr,
-    );
+    localStorage.setItem(cockpitAutoSaveStorageKey, dateStr);
   };
   const [showSyncInfo, setShowSyncInfo] = useState(false);
   const [syncModalTab, setSyncModalTab] = useState<'remote' | 'wifi'>('remote');
@@ -4077,14 +4084,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [petIsWaving, setPetIsWaving] = useState<boolean>(false);
   const [petIsWakingUp, setPetIsWakingUp] = useState<boolean>(false);
   const [isDeactivatingPet, setIsDeactivatingPet] = useState<boolean>(false);
-  const [actualShowPet, setActualShowPet] = useState<boolean>(() => {
-    const isEnabled = app.classPet?.enabled ?? true;
-    return isEnabled;
-  });
+  const [actualShowPet, setActualShowPet] = useState<boolean>(() => classPetEnabled);
 
   useEffect(() => {
-    const isEnabled = app.classPet?.enabled ?? true;
-    const shouldBeActive = isEnabled;
+    const shouldBeActive = classPetEnabled;
 
     if (shouldBeActive && !actualShowPet) {
       // Re-activating: skip animation or reset it
@@ -4094,7 +4097,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       // Trigger deactivation animation
       setIsDeactivatingPet(true);
     }
-  }, [app.classPet?.enabled, actualShowPet, isDeactivatingPet]);
+  }, [classPetEnabled, actualShowPet, isDeactivatingPet]);
 
   const petLastHoverTimeRef = useRef<number>(0);
 
@@ -5016,7 +5019,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
   const handleExportTafelbild = () => {
     const content = app.vertretungHinweise || "";
-    const title = `Tafelbild_${app.klassenbezeichnung || "4c"}_${new Date().toLocaleDateString("de-DE")}`;
+    const safeClassPart = cockpitClassLabel
+      ? "_" + cockpitClassLabel.replace(/[^\p{L}\p{N}._-]+/gu, "_")
+      : "";
+    const title = `Tafelbild${safeClassPart}_${new Date().toLocaleDateString("de-DE")}`;
     const fontToLoadStr =
       activeFont === "font-druckschrift"
         ? "Druckschrift"
@@ -5098,7 +5104,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 <body>
   <div class="container">
     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-      <h1>Tafelbild • Klasse ${app.klassenbezeichnung || "4c"}</h1>
+      <h1>Tafelbild${cockpitClassLabel ? ` • Klasse ${cockpitClassLabel}` : ""}</h1>
       <span class="meta-badge">Schrift: ${fontToLoadStr}</span>
     </div>
     <div class="date">Erstellt am ${new Date().toLocaleDateString("de-DE")} • Unterrichtsassistent</div>
@@ -5344,21 +5350,10 @@ ${content}
   }, [isFocusMode]);
 
   const getCurrentHour = () => {
-    const zeiten = [
-      { start: 480, end: 530 }, // 1. 08:00 - 08:50
-      { start: 530, end: 585 }, // 2. 08:50 - 09:45
-      { start: 600, end: 650 }, // 3. 10:00 - 10:50
-      { start: 650, end: 705 }, // 4. 10:50 - 11:45
-      { start: 705, end: 750 }, // 5. 11:45 - 12:30
-      { start: 810, end: 860 }, // 6. 13:30 - 14:20
-      { start: 860, end: 910 }, // 7. 14:20 - 15:10
-      { start: 910, end: 960 }, // 8. 15:10 - 16:00
-    ];
-
     const now = time.getHours() * 60 + time.getMinutes();
-    const unitIdx = zeiten.findIndex((z) => now >= z.start && now < z.end);
-    if (unitIdx === -1) return null;
-    const current = zeiten[unitIdx];
+    const current = findCurrentLessonSlot(lessonTimeSlots, now);
+    if (!current) return null;
+    const unitIdx = current.slot - 1;
     const progress = Math.max(
       0,
       Math.min(
@@ -5453,20 +5448,9 @@ ${content}
     const now = new Date();
     const minutes = now.getHours() * 60 + now.getMinutes();
 
-    // Logic matching getCurrentHour
-    const zeiten = [
-      { start: 480, end: 530 },
-      { start: 530, end: 585 },
-      { start: 600, end: 650 },
-      { start: 650, end: 705 },
-      { start: 705, end: 750 },
-      { start: 810, end: 860 },
-      { start: 860, end: 910 },
-      { start: 910, end: 960 },
-    ];
-    const unitIdx = zeiten.findIndex(
-      (z) => minutes >= z.start && minutes < z.end,
-    );
+    // Logic matching getCurrentHour and the configured 1–10 lesson slots.
+    const currentSlot = findCurrentLessonSlot(lessonTimeSlots, minutes);
+    const unitIdx = currentSlot ? currentSlot.slot - 1 : -1;
 
     if (unitIdx !== -1) {
       const lessonNum = unitIdx + 1;
@@ -6153,22 +6137,21 @@ ${content}
       }
     }
 
-    // 3. Break Active Notifications (Automatic check based on minutes)
-    // Morning Break: 09:45 (585) to 10:00 (600)
-    // Lunch Break: 12:30 (750) to 13:30 (810)
-    const isMorningBreak = totalMinutes >= 585 && totalMinutes < 600;
-    const isLunchBreak = totalMinutes >= 750 && totalMinutes < 810;
+    // 3. Pausen folgen den in Klassio eingestellten Stundenzeiten.
+    const currentBreak = findCurrentLessonBreak(lessonTimeSlots, totalMinutes);
+    const isLunchBreak =
+      currentBreak?.afterSlot === (app.mittagspauseNachStunde || 5);
 
-    if (isMorningBreak || isLunchBreak) {
-      const breakTypeKey = isMorningBreak ? 585 : 750;
+    if (currentBreak) {
+      const breakTypeKey = currentBreak.start;
       if (lastClassroomAlertRef.current.lastNotifiedBreakMin !== breakTypeKey) {
         lastClassroomAlertRef.current.lastNotifiedBreakMin = breakTypeKey;
 
-        const breakGreetings = isMorningBreak
+        const breakGreetings = !isLunchBreak
           ? [
-              `☀️ Juhu, Hofpause! Packt das Pausenbrot aus und holt euch frische Luft! 🏃‍♂️🍎`,
+              `☀️ Juhu, Pause! Packt das Pausenbrot aus und holt euch frische Luft! 🏃‍♂️🍎`,
               `🎒 Pause! Macht euch locker, spielt draußen eine Runde und atmet tief durch! 🌿✨`,
-              `🎈 Hofpause! Ich halte hier fleißig die Stellung, während ihr draußen tobt! 👣`,
+              `🎈 Pause! Ich halte hier fleißig die Stellung, während ihr draußen tobt! 👣`,
             ]
           : [
               `🍕 Mmh, Mittagszeit! Zeit für ein leckeres Mittagessen und Entspannung! Guten Appetit! 😋🥗`,
@@ -6188,7 +6171,7 @@ ${content}
         lastClassroomAlertRef.current.lastNotifiedBreakMin = null;
       }
     }
-  }, [time, petBehaviorState, app.classPet?.name]);
+  }, [time, petBehaviorState, app.classPet?.name, app.classPet?.behaviorMode, app.mittagspauseNachStunde, lessonTimeSlots]);
 
   // Global Timer Sync - only active when ZenFocus overlay is open to avoid 1-second global re-renders in standard cockpit mode
   useEffect(() => {
@@ -6382,7 +6365,7 @@ ${content}
     const sp = app.stammplan?.[todayTag] || {};
 
     let lastActiveHourIdx = -1;
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < MAX_LESSON_SLOTS; i++) {
       const wpItem = wp[i];
       const spItem = sp[i + 1];
       let hasSubject = false;
@@ -6404,17 +6387,6 @@ ${content}
       }
     }
 
-    const zeiten = [
-      { start: 480, end: 530 }, // 1. 08:00 - 08:50
-      { start: 530, end: 585 }, // 2. 08:50 - 09:45
-      { start: 600, end: 650 }, // 3. 10:00 - 10:50
-      { start: 650, end: 705 }, // 4. 10:50 - 11:45
-      { start: 705, end: 750 }, // 5. 11:45 - 12:30
-      { start: 810, end: 860 }, // 6. 13:30 - 14:20
-      { start: 860, end: 910 }, // 7. 14:20 - 15:10
-      { start: 910, end: 960 }, // 8. 15:10 - 16:00
-    ];
-
     if (lastActiveHourIdx === -1) {
       return {
         allowed: true,
@@ -6424,9 +6396,19 @@ ${content}
       };
     }
 
-    const currentMinuteOfDay = time.getHours() * 60 + time.getMinutes();
-    const lastHour = zeiten[lastActiveHourIdx];
+    const lastHour = lessonTimeSlots.find(
+      (slot) => slot.slot === lastActiveHourIdx + 1,
+    );
+    if (!lastHour) {
+      return {
+        allowed: true,
+        reason: "",
+        lastHourIdx: lastActiveHourIdx,
+        allowedFromTime: "",
+      };
+    }
 
+    const currentMinuteOfDay = time.getHours() * 60 + time.getMinutes();
     const startOfAllowedPeriod = lastHour.end - 10;
     const allowed = currentMinuteOfDay >= startOfAllowedPeriod;
 
@@ -6440,7 +6422,7 @@ ${content}
       lastHourIdx: lastActiveHourIdx,
       allowedFromTime,
     };
-  }, [time, app.wochenplanung, app.stammplan]);
+  }, [time, app.wochenplanung, app.stammplan, lessonTimeSlots]);
 
   // Commit current teacher cockpit student behaviors to the persistent chronicle history (At End of Lesson)
   const commitBehaviorToHistory = useCallback((skipConfetti = false) => {
@@ -6550,38 +6532,31 @@ ${content}
 
     // We only auto-save if the last active lesson is truly over
     if (commitAllowance.allowed && commitAllowance.lastHourIdx !== -1) {
-      const zeiten = [
-        { start: 480, end: 530 },
-        { start: 530, end: 585 },
-        { start: 600, end: 650 },
-        { start: 650, end: 705 },
-        { start: 705, end: 750 },
-        { start: 810, end: 860 },
-        { start: 860, end: 910 },
-        { start: 910, end: 960 },
-      ];
+      const lastHour = lessonTimeSlots.find(
+        (slot) => slot.slot === commitAllowance.lastHourIdx + 1,
+      );
+      if (!lastHour) return;
 
       const currentMinuteOfDay = time.getHours() * 60 + time.getMinutes();
-      const lastHourEnd = zeiten[commitAllowance.lastHourIdx].end;
+      const lastHourEnd = lastHour.end;
 
       // Auto-save happens exactly at the end of the last hour or afterwards
       if (currentMinuteOfDay >= lastHourEnd) {
         console.log("Auto-saving behavior & mitarbeit at end of school day...");
         commitBehaviorToHistory(true);
-        updateHasAutoSavedToday(todayStr);
       }
     }
-  }, [time, commitAllowance, commitBehaviorToHistory, hasAutoSavedToday]);
+  }, [time, commitAllowance, commitBehaviorToHistory, hasAutoSavedToday, lessonTimeSlots]);
 
   const handleCloseCockpit = () => {
-    // Attempt auto-saving if we have not auto-saved today yet
+    // Nur dann beim Schließen sichern, wenn der Tagesabschluss bereits freigegeben ist.
+    // Ein zu frühes Schließen darf den Tag niemals fälschlich als gespeichert markieren.
     const todayStr = new Date().toISOString().split("T")[0];
-    if (hasAutoSavedToday !== todayStr) {
+    if (hasAutoSavedToday !== todayStr && commitAllowance.allowed) {
       console.log(
         "Auto-saving behavior & mitarbeit on closing classroom cockpit...",
       );
       commitBehaviorToHistory(true);
-      updateHasAutoSavedToday(todayStr);
     }
     onClose();
   };
@@ -7271,7 +7246,7 @@ ${content}
     isLight: currentIsLight,
   };
 
-  // Theme-compliant styling for the class badge ("4c") pill and other indicators
+  // Theme-compliant styling for the current class badge and other indicators
   const getThemeClassBadgeClasses = () => {
     switch (activePultTheme) {
       case "deep_dark":
@@ -7510,8 +7485,8 @@ ${content}
           <button
             onClick={handleCloseCockpit}
             className={`p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer border shadow-md hover:scale-105 active:scale-95 ${currentIsLight ? "bg-black/5 border-black/10 text-slate-700 hover:bg-black/10 hover:text-black" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/15 hover:text-white"}`}
-            title="Zurück"
-            aria-label="Zurück zum Hauptmenü"
+            title="Zurück zu Unterricht"
+            aria-label="Zurück zu Unterricht"
           >
             <ArrowLeft size={16} strokeWidth={2.5} />
           </button>
@@ -7521,12 +7496,14 @@ ${content}
               className={`text-xs sm:text-sm font-black tracking-tight flex items-center gap-1 sm:gap-1.5 ${currentIsLight ? "text-slate-950" : "text-white"}`}
             >
               LEHRERCOCKPIT
-              <span
-                className={`px-1 sm:px-1.5 py-0.5 border rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-300 ${getThemeClassBadgeClasses()}`}
-                style={getThemeClassBadgeStyle()}
-              >
-                {app.klassenbezeichnung || "4c"}
-              </span>
+              {cockpitClassLabel && (
+                <span
+                  className={`px-1 sm:px-1.5 py-0.5 border rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-300 ${getThemeClassBadgeClasses()}`}
+                  style={getThemeClassBadgeStyle()}
+                >
+                  {cockpitClassLabel}
+                </span>
+              )}
             </div>
             {/* 1. Auto-Save & Manual-Commit status indicator */}
             <div className="flex items-center gap-1 mt-0.5 select-none">
@@ -7541,7 +7518,7 @@ ${content}
                 )}
               </span>
               <span className={`text-[7.5px] font-black uppercase tracking-wider ${hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "text-emerald-500" : "text-amber-500"}`}>
-                {hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "Heute gesichert" : "Echtzeit-Tracker"}
+                {hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "Heute gesichert" : "Speichert beim Beenden"}
               </span>
             </div>
           </div>
@@ -7589,12 +7566,13 @@ ${content}
                   </div>
                   {/* Day Hours Indicator */}
                   <div className="flex gap-1 justify-center mt-1.5 w-full select-none">
-                    {[0, 1, 2, 3, 4, 5, 6, 7].map((hIdx) => {
+                    {lessonTimeSlots.map(({ slot }) => {
+                      const hIdx = slot - 1;
                       const isPast = hIdx < currentHour.idx;
                       const isCurrent = hIdx === currentHour.idx;
                       return (
                         <div
-                          key={hIdx}
+                          key={slot}
                           className={`h-1 rounded-full transition-all duration-300 ${
                             isCurrent
                               ? `w-4 ${subjectColors.bg}`
@@ -7602,7 +7580,7 @@ ${content}
                                 ? 'w-2 bg-emerald-500/60'
                                 : 'w-1 bg-black/10 dark:bg-white/10'
                           }`}
-                          title={`${hIdx + 1}. Stunde`}
+                          title={`${slot}. Stunde`}
                         />
                       );
                     })}
@@ -7668,7 +7646,7 @@ ${content}
                       </div>
                     )}
                     <span className="hidden xl:inline">
-                      {alreadySavedToday ? "Gespeichert" : "Abschließen"}
+                      {alreadySavedToday ? "Gespeichert" : "Tag sichern"}
                     </span>
                     {pendingCount > 0 && !alreadySavedToday && (
                       <span className="bg-black/20 px-1 py-0.5 rounded-lg text-[8px] font-black">
@@ -7682,14 +7660,14 @@ ${content}
                       className={`flex flex-col items-start leading-none shrink-0 ${currentIsLight ? "text-slate-500" : "text-white/30"}`}
                     >
                       <span className="text-[7px] font-black uppercase tracking-tighter mb-0.5 opacity-50">
-                        Sperre
+                        Verfügbar
                       </span>
                       <span
                         className={`text-[9px] font-black tabular-nums ${currentIsLight ? "text-slate-800" : "text-white/60"}`}
                       >
                         {alreadySavedToday
-                          ? "Bis Morgen"
-                          : commitAllowance.allowedFromTime}
+                          ? "Morgen wieder"
+                          : `ab ${commitAllowance.allowedFromTime}`}
                       </span>
                     </div>
                   )}
@@ -7759,108 +7737,7 @@ ${content}
 
             {/* Quick Palette Indicator Selector */}
             <div className="flex items-center gap-1 sm:gap-2 justify-end flex-nowrap">
-              {/* Functional Controls Buttons Cluster */}
-              <div className="flex items-center gap-1 sm:gap-1.5 py-1 justify-end flex-nowrap">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (sidebarMode === "hidden") {
-                      changeSidebarMode(prevSidebarMode || "expanded");
-                    } else {
-                      changeSidebarMode("hidden");
-                    }
-                  }}
-                  className={`p-1 px-1.5 sm:p-1.5 sm:px-2 rounded-lg h-8 sm:h-8.5 transition-all border shadow-sm cursor-pointer flex items-center gap-1 font-bold text-[9px] sm:text-xs uppercase tracking-wider ${
-                    sidebarMode !== "hidden"
-                      ? "bg-amber-500 border-amber-500 text-amber-950"
-                      : currentIsLight
-                        ? "bg-black/5 border-black/10 text-slate-700 hover:text-slate-900 hover:bg-black/10"
-                        : "bg-[#18181b]/40 border-white/10 text-white/90 hover:text-white hover:bg-white/10"
-                  }`}
-                  title={
-                    sidebarMode !== "hidden"
-                      ? "Schülerliste ausblenden"
-                      : "Schülerliste einblenden"
-                  }
-                >
-                  <Users size={12} strokeWidth={2.5} />
-                  <span className="hidden xl:inline">SCHÜLERLISTE</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setApp((prev: any) => ({
-                      ...prev,
-                      classPet: {
-                        ...(prev.classPet || {
-                          enabled: true,
-                          animalType: "dino",
-                          name: "Spike",
-                          energy: 50,
-                          accessories: [],
-                          history: [],
-                          memories: [],
-                        }),
-                        enabled: !(prev.classPet?.enabled ?? true),
-                      },
-                    }));
-                  }}
-                  className={`p-1 px-1.5 sm:p-1.5 sm:px-2 rounded-lg h-8 sm:h-8.5 transition-all border shadow-sm cursor-pointer flex items-center gap-1 font-bold text-[9px] sm:text-xs uppercase tracking-wider ${
-                    (app.classPet?.enabled ?? true)
-                      ? "bg-indigo-600 border-indigo-600 text-white"
-                      : currentIsLight
-                        ? "bg-black/5 border-black/10 text-slate-700 hover:text-slate-900 hover:bg-black/10"
-                        : "bg-[#18181b]/40 border-white/10 text-white/90 hover:text-white hover:bg-white/10"
-                  }`}
-                  title={
-                    (app.classPet?.enabled ?? true)
-                      ? "Klassentier ausblenden"
-                      : "Klassentier einblenden"
-                  }
-                >
-                  <span>
-                    🐾 <span className="hidden xl:inline">KLASSENTIER</span>
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsThemePickerOpen((prev) => !prev)}
-                  className={`flex items-center gap-1 p-1 px-1.5 sm:p-1.5 sm:px-2 text-[9px] sm:text-xs font-black uppercase tracking-wider rounded-lg h-8 sm:h-8.5 transition-all border shadow-sm cursor-pointer ${isThemePickerOpen ? "bg-emerald-500 border-emerald-500 text-white" : currentIsLight ? "bg-black/5 border-black/10 text-slate-700 hover:text-slate-900 hover:bg-black/10" : "bg-[#18181b]/40 border-white/10 text-white/90 hover:text-white hover:bg-white/10"}`}
-                  title="Design & Themes anpassen"
-                >
-                  <Palette size={12} />
-                  <span className="hidden xl:inline">DESIGN</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsFocusModeLightOff((prev) => !prev)}
-                  className={`p-1 sm:p-1.5 flex items-center justify-center rounded-lg h-8 sm:h-8.5 transition-all border shadow-lg backdrop-blur-lg cursor-pointer ${isFocusModeLightOff ? "bg-amber-500 border-amber-400 text-amber-950 shadow-[0_0_12px_rgba(245,158,11,0.55)]" : currentIsLight ? "bg-black/5 border-black/10 text-slate-500 hover:text-slate-900 hover:bg-black/10" : "bg-[#18181b]/40 border-white/10 text-white/60 hover:text-white hover:bg-white/10"}`}
-                  title="Fokus-Modus: Licht aus"
-                >
-                  <Lightbulb
-                    size={12}
-                    className={
-                      isFocusModeLightOff ? "fill-amber-950 text-amber-950" : ""
-                    }
-                  />
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleFullscreen}
-                  className={`p-1 sm:p-1.5 flex items-center justify-center rounded-lg h-8 sm:h-8.5 transition-all border shadow-lg backdrop-blur-lg cursor-pointer ${currentIsLight ? "bg-black/5 border-black/10 text-slate-500 hover:text-slate-900 hover:bg-black/10" : "bg-[#18181b]/40 border-white/10 text-white/60 hover:text-white hover:bg-white/10"}`}
-                  title={isFullscreen ? "Vollbild beenden" : "Vollbildmodus"}
-                >
-                  {isFullscreen ? (
-                    <Minimize size={13} />
-                  ) : (
-                    <Maximize size={13} />
-                  )}
-                </button>
-              </div>
-            </div>
+                          </div>
           </div>
         </div>
       </header>
@@ -9526,6 +9403,105 @@ ${content}
                                       <span>Anordnung fertig</span>
                                     </>
                                   )}
+                                </button>
+
+                                <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
+                                <div className="px-2 pt-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
+                                  Ansicht
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (sidebarMode === "hidden") {
+                                      changeSidebarMode(prevSidebarMode || "expanded");
+                                    } else {
+                                      changeSidebarMode("hidden");
+                                    }
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Users size={12} className="text-amber-500 shrink-0" />
+                                  <span>{sidebarMode !== "hidden" ? "Schülerliste ausblenden" : "Schülerliste einblenden"}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setApp((prev: any) => {
+                                      const existing = prev.classPet;
+                                      const currentlyEnabled = existing
+                                        ? existing.enabled !== false
+                                        : false;
+                                      return {
+                                        ...prev,
+                                        classPet: {
+                                          ...(existing || {
+                                            enabled: false,
+                                            animalType: "dino",
+                                            name: "Spike",
+                                            energy: 50,
+                                            accessories: [],
+                                            history: [],
+                                            memories: [],
+                                          }),
+                                          enabled: !currentlyEnabled,
+                                        },
+                                      };
+                                    });
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <span className="w-3 text-center shrink-0">🐾</span>
+                                  <span>{classPetEnabled ? "Klassentier ausblenden" : "Klassentier einblenden"}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsThemePickerOpen(true);
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Palette size={12} className="text-emerald-500 shrink-0" />
+                                  <span>Design & Darstellung</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsFocusModeLightOff((prev) => !prev);
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Lightbulb size={12} className="text-amber-500 shrink-0" />
+                                  <span>Fokusmodus{isFocusModeLightOff ? " beenden" : ""}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    toggleFullscreen();
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  {isFullscreen ? <Minimize size={12} className="text-slate-400 shrink-0" /> : <Maximize size={12} className="text-slate-400 shrink-0" />}
+                                  <span>{isFullscreen ? "Vollbild beenden" : "Vollbildmodus"}</span>
                                 </button>
 
                                 <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
@@ -14324,7 +14300,7 @@ ${content}
                                 const wp = tagName ? (app.wochenplanung?.[kw]?.[tagName] || {}) : {};
                                 const sp = app.stammplan?.[tagName];
                                 const result = [];
-                                for (let i = 0; i < 8; i++) {
+                                for (let i = 0; i < MAX_LESSON_SLOTS; i++) {
                                   if (wp && wp[i] && wp[i].fach)
                                     result.push({ idx: i, ...wp[i] });
                                   else if (sp && sp[i + 1]) {
@@ -14847,8 +14823,13 @@ ${content}
                       const nowMins =
                         today.getHours() * 60 + today.getMinutes();
 
-                      const isMorningBreak = nowMins >= 585 && nowMins < 600;
-                      const isLunchBreak = nowMins >= 750 && nowMins < 810;
+                      const currentBreak = findCurrentLessonBreak(
+                        lessonTimeSlots,
+                        nowMins,
+                      );
+                      const isLunchBreak =
+                        currentBreak?.afterSlot ===
+                        (app.mittagspauseNachStunde || 5);
 
                       let greetings: string[] = [];
                       if (petBehaviorState === "learning") {
@@ -14864,7 +14845,7 @@ ${content}
                             ? `Mit deinem Abzeichen '${badgeMention}' bist du ein echtes Vorbild, ${randomStudent}! 🏅`
                             : `Leise knistert das Papier... so gutes Lernen! 📄`,
                         ];
-                      } else if (isMorningBreak || isLunchBreak) {
+                      } else if (currentBreak) {
                         greetings = [
                           `Hey ${randomStudent}! Schnapp dir ein Pausenbrot! Wir haben gerade Pause! 🥪⚽`,
                           `Huhu! Genieß die freie Zeit der Pause, ${randomStudent}! 🥳✨`,
