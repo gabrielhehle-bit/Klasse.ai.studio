@@ -23,28 +23,36 @@ Am 14.09.2026 wurde außerdem PR #7 (`fix/class-student-dossier-final`) integrie
 
 Danach wurden die produktionsrelevanten Restpunkte direkt auf Folgebranches bereinigt und in den Reconciliation-Branch übernommen: lokaler Kalendertag für Anwesenheit, robuste Geburtsdatums-/Alterslogik und Importnormalisierung, konsistente Geschlechtswerte aus CSV/Excel/Sokrates, Entfernung mitgelieferter Demo-Archiv-/Musterprofildaten aus dem normalen Startzustand, neutrale Lehrerstatistik ohne erfundene Werte, sichtbares Branding vollständig auf Klassio/Klassio Quest, Klassio-Dateinamen für neue Backups sowie bereinigte Morgenaufgaben ohne redaktionelle Platzhalterreste. Die Beispielklasse bleibt ausschließlich als bewusst auswählbarer Demo-Modus erhalten.
 
+Im finalen Reconciliation-Lauf am 14.09.2026 wurden zusätzlich die geprüften PRs #9 bis #13 integriert:
+- PR #9: Diagnostikdaten klassenlokal isoliert, strukturierte Ergebnisse an die aktive Klasse gebunden, lokaler Kalendertag abgesichert.
+- PR #10: KI-Helfer mit echter Serverstatus-Anzeige, datensparsamem Klassenkontext sowie client- und serverseitiger Datenschutzfreigabe für anonymisierte Bilder.
+- PR #11: SetupWizard mit strukturiertem Lehrkraftprofil, dynamischer Schuljahrauswahl und Importen ohne erfundene Schülerdaten.
+- PR #12: Dashboard/Heute mit korrekter Schultags-/Anwesenheitslogik, lokalen Tagesdaten und vollständiger Erfassung statt angenommener Anwesenheit.
+- PR #13: durchgängiger 10-Stunden-Slot-Vertrag für Setup und Dashboard; für Stunde 9/10 werden keine Uhrzeiten erfunden, sie bleiben frei konfigurierbar.
+
+Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist keine Arbeitsgrundlage. Seine relevanten funktionalen Lücken wurden selektiv auf frischen Branches vom jeweils aktuellen Reconciliation-HEAD neu umgesetzt. Verbleibende Unterschiede in Cockpit/BoardInk/Vorlagen stammen aus älteren UI-Varianten und werden nicht über den neueren, bereits getesteten Cockpit-Stand aus PR #6 gelegt.
+
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte vor dieser Dokumentationsaktualisierung vollständig geprüfte Reconciliation-Commit war:
+Der letzte codehaltige Abschlussstand wurde vor dieser Dokumentationsaktualisierung vollständig geprüft:
 
-- Commit: `e85e78cc594467ed51820b5b1b2489114a2fde16`
-- GitHub Actions: Pre-Deployment Audit erfolgreich
-- Installation: `bun install --frozen-lockfile` erfolgreich
+- geprüfter Anwendungscommit aus PR #13: `983b04c08a3c9e978ad867000da29cc9b7f3f2e9`
 - TypeScript: erfolgreich
-- Tests: 707/707 erfolgreich
+- Tests: 738/738 erfolgreich
 - Production Build: erfolgreich
-- PWA-Ausgabe: erfolgreich
-- Production-Server-Smoke-Test: erfolgreich
-- Zugangscode-/Session-Smoke-Test: erfolgreich
-- World4You-Staging-Artefakt: erfolgreich erzeugt und mit Branch/Commit markiert
+- PWA-/Build-Ausgabe: erfolgreich
+- PR #13 wurde anschließend ohne weitere Anwendungsänderung nach `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `911645b8560e149af2f7867f7fb7e0c6b97954aa`
 
-Nach jeder weiteren Änderung ist ausschließlich der neue GitHub-HEAD verbindlich und derselbe Audit muss erneut grün sein. Das Deployment-ZIP enthält deshalb selbst `KLASSIO_DEPLOYMENT_COMMIT.txt` und `KLASSIO_DEPLOYMENT_BRANCH.txt`.
+Dokumentationsänderungen verändern den Anwendungscode nicht. Trotzdem ist vor Staging ausschließlich der **aktuelle Reconciliation-HEAD** verbindlich und dessen GitHub-Actions-`Pre-Deployment Audit` muss grün sein. Dieser Audit umfasst zusätzlich Production-Server-Smoke, Zugangscode-/Session-Smoke und die Erzeugung des commitgebundenen World4You-Artefakts. Der jeweils aktuelle CI-Lauf ist maßgeblicher als eine hier festgeschriebene ältere Build-SHA. Das Deployment-ZIP enthält `KLASSIO_DEPLOYMENT_COMMIT.txt` und `KLASSIO_DEPLOYMENT_BRANCH.txt`.
 
 ## Enthaltener Funktionsstand
 
 Der Reconciliation-Stand enthält unter anderem:
 
 - vereinfachte Kernnavigation und Lehrercockpit mit freier weißer Schreib-/Zeichen-/Widgetfläche ohne Startkarte; 108/108 erhaltene Widgets sind über Suche/Kategorien erreichbar, Favoriten bleiben benutzerdefiniert
+- Dashboard/Heute mit ehrlicher Anwesenheitslogik: keine angenommene Präsenz, keine Pflicht an freien Tagen, „geprüft“ erst nach vollständiger Stunden-Erfassung
+- KI-Helfer mit serverseitiger Verfügbarkeitsprüfung, datensparsamem Klassenkontext und expliziter Bild-Datenschutzfreigabe
+- SetupWizard mit strukturiertem Lehrkraftprofil, dynamischen Schuljahren und 10 frei konfigurierbaren Stunden-Slots
 - Anwesenheit, Befinden und Schülerliste; das Schülerdossier hat fünf feste Hauptbereiche (Übersicht, Lernen & Leistungen, Entwicklung & Diagnostik, Stammdaten & Organisation, Berichte & Materialien) ohne ausblendbare Alt-Navigation; Schülerimporte normalisieren österreichische/ISO-Geburtsdaten und Geschlechtswerte konsistent
 - vollständige Notenmappe mit Noten/Prozent/Punkten, Gewichtung, fachbezogenen Bewertungsabschnitten, Schularbeiten, LZK/WOPL und sonstigen Leistungen
 - schnelle Mitarbeit- und Hausübungs-Erfassung
