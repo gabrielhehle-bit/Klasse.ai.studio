@@ -56,6 +56,8 @@ export default function Portfolio() {
       }
 
       const vaultKey = getActiveVaultKey();
+      if (!vaultKey) return;
+
       const cached = await loadEncryptedStorageItem<LegacyPortfolioMap>(
         STORAGE_KEYS.PORTFOLIO_ENTRIES,
         vaultKey,
