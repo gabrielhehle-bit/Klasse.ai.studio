@@ -39,8 +39,12 @@ export const initialAppState: AppState = {
   jahresberichte: {},
   wochenrueckblick: null,
   lernzielTracker: {},
-  ikmRecords: [],
+  diagnostikErgebnisse: [],
+  diagnostikErhebungen: [],
   diagnosticResults: [],
+  ikmRecords: [],
+  antolinRecords: [],
+  schuelerGoals: [],
   klassenglas_completed_missions: [],
   dienste: [],
   backupEinstellungen: { letztesBackup: null, erinnerungAktiv: true },
@@ -176,6 +180,15 @@ export function syncActiveClass(state: AppState): AppState {
     lernzielTracker: state.lernzielTracker ? JSON.parse(JSON.stringify(state.lernzielTracker)) : {},
     studentLernzielBewertungen: state.studentLernzielBewertungen ? JSON.parse(JSON.stringify(state.studentLernzielBewertungen)) : {},
     studentLernzielSemesterBewertungen: state.studentLernzielSemesterBewertungen ? JSON.parse(JSON.stringify(state.studentLernzielSemesterBewertungen)) : {},
+    diagnostikErgebnisse: state.diagnostikErgebnisse ? JSON.parse(JSON.stringify(state.diagnostikErgebnisse)) : [],
+    diagnostikErhebungen: state.diagnostikErhebungen ? JSON.parse(JSON.stringify(state.diagnostikErhebungen)) : [],
+    diagnosticResults: state.diagnosticResults ? JSON.parse(JSON.stringify(state.diagnosticResults)) : [],
+    ikmRecords: state.ikmRecords ? JSON.parse(JSON.stringify(state.ikmRecords)) : [],
+    antolinRecords: state.antolinRecords ? JSON.parse(JSON.stringify(state.antolinRecords)) : [],
+    schuelerGoals: state.schuelerGoals ? JSON.parse(JSON.stringify(state.schuelerGoals)) : [],
+    observations: state.observations ? JSON.parse(JSON.stringify(state.observations)) : [],
+    metaKognitionsProtokolle: state.metaKognitionsProtokolle ? JSON.parse(JSON.stringify(state.metaKognitionsProtokolle)) : [],
+    interaktionsLog: state.interaktionsLog ? JSON.parse(JSON.stringify(state.interaktionsLog)) : { eintraege: [], wochenEmpfehlung: null },
     mitarbeit: state.mitarbeit ? JSON.parse(JSON.stringify(state.mitarbeit)) : {},
     verhalten: state.verhalten ? { ...state.verhalten } : {},
     karten: state.karten ? JSON.parse(JSON.stringify(state.karten)) : {},
@@ -233,7 +246,6 @@ export function normalizeAppState(raw: any): AppState {
   const parsed = {
     ...initialAppState,
     ...raw,
-    interaktionsLog: raw.interaktionsLog ?? { eintraege: [], wochenEmpfehlung: null },
     ipsativeGewichtung: raw.ipsativeGewichtung ?? 70,
     tourAbgeschlossen: raw.tourAbgeschlossen ?? (raw.schueler?.length > 0 || raw.klassen?.length > 0 || raw.classes?.length > 0 ? true : false),
     stimmNotizen: raw.stimmNotizen ?? [],
@@ -241,7 +253,15 @@ export function normalizeAppState(raw: any): AppState {
     wochenrueckblick: raw.wochenrueckblick ?? null,
     lernzielTracker: raw.lernzielTracker ?? {},
     differenzierungsGruppen: raw.differenzierungsGruppen ?? [],
+    diagnostikErgebnisse: raw.diagnostikErgebnisse ?? [],
+    diagnostikErhebungen: raw.diagnostikErhebungen ?? [],
+    diagnosticResults: raw.diagnosticResults ?? [],
     ikmRecords: raw.ikmRecords ?? [],
+    antolinRecords: raw.antolinRecords ?? [],
+    schuelerGoals: raw.schuelerGoals ?? [],
+    observations: raw.observations ?? [],
+    metaKognitionsProtokolle: raw.metaKognitionsProtokolle ?? [],
+    interaktionsLog: raw.interaktionsLog ?? { eintraege: [], wochenEmpfehlung: null },
     klassenglas_completed_missions: raw.klassenglas_completed_missions ?? [],
     dienste: raw.dienste ?? [],
     backupEinstellungen: raw.backupEinstellungen ?? { letztesBackup: null, erinnerungAktiv: true },
@@ -262,6 +282,15 @@ export function normalizeAppState(raw: any): AppState {
       lernzielTracker: parsed.lernzielTracker || {},
       studentLernzielBewertungen: parsed.studentLernzielBewertungen || {},
       studentLernzielSemesterBewertungen: parsed.studentLernzielSemesterBewertungen || {},
+      diagnostikErgebnisse: parsed.diagnostikErgebnisse || [],
+      diagnostikErhebungen: parsed.diagnostikErhebungen || [],
+      diagnosticResults: parsed.diagnosticResults || [],
+      ikmRecords: parsed.ikmRecords || [],
+      antolinRecords: parsed.antolinRecords || [],
+      schuelerGoals: parsed.schuelerGoals || [],
+      observations: parsed.observations || [],
+      metaKognitionsProtokolle: parsed.metaKognitionsProtokolle || [],
+      interaktionsLog: parsed.interaktionsLog || { eintraege: [], wochenEmpfehlung: null },
       mitarbeit: parsed.mitarbeit || {},
       verhalten: parsed.verhalten || {},
       karten: parsed.karten || {},
@@ -309,6 +338,15 @@ export function normalizeAppState(raw: any): AppState {
         lernzielTracker: c.lernzielTracker ?? (c.id === parsed.activeClassId ? parsed.lernzielTracker : undefined) ?? {},
         studentLernzielBewertungen: c.studentLernzielBewertungen ?? (c.id === parsed.activeClassId ? parsed.studentLernzielBewertungen : undefined) ?? {},
         studentLernzielSemesterBewertungen: c.studentLernzielSemesterBewertungen ?? (c.id === parsed.activeClassId ? parsed.studentLernzielSemesterBewertungen : undefined) ?? {},
+        diagnostikErgebnisse: c.diagnostikErgebnisse ?? (c.id === parsed.activeClassId ? parsed.diagnostikErgebnisse : undefined) ?? [],
+        diagnostikErhebungen: c.diagnostikErhebungen ?? (c.id === parsed.activeClassId ? parsed.diagnostikErhebungen : undefined) ?? [],
+        diagnosticResults: c.diagnosticResults ?? (c.id === parsed.activeClassId ? parsed.diagnosticResults : undefined) ?? [],
+        ikmRecords: c.ikmRecords ?? (c.id === parsed.activeClassId ? parsed.ikmRecords : undefined) ?? [],
+        antolinRecords: c.antolinRecords ?? (c.id === parsed.activeClassId ? parsed.antolinRecords : undefined) ?? [],
+        schuelerGoals: c.schuelerGoals ?? (c.id === parsed.activeClassId ? parsed.schuelerGoals : undefined) ?? [],
+        observations: c.observations ?? (c.id === parsed.activeClassId ? parsed.observations : undefined) ?? [],
+        metaKognitionsProtokolle: c.metaKognitionsProtokolle ?? (c.id === parsed.activeClassId ? parsed.metaKognitionsProtokolle : undefined) ?? [],
+        interaktionsLog: c.interaktionsLog ?? (c.id === parsed.activeClassId ? parsed.interaktionsLog : undefined) ?? { eintraege: [], wochenEmpfehlung: null },
         mitarbeit: c.mitarbeit || {},
         verhalten: c.verhalten || {},
         karten: c.karten || {},
@@ -360,6 +398,15 @@ export function normalizeAppState(raw: any): AppState {
     parsed.lernzielTracker = activeClass.lernzielTracker || {};
     parsed.studentLernzielBewertungen = activeClass.studentLernzielBewertungen || {};
     parsed.studentLernzielSemesterBewertungen = activeClass.studentLernzielSemesterBewertungen || {};
+    parsed.diagnostikErgebnisse = activeClass.diagnostikErgebnisse || [];
+    parsed.diagnostikErhebungen = activeClass.diagnostikErhebungen || [];
+    parsed.diagnosticResults = activeClass.diagnosticResults || [];
+    parsed.ikmRecords = activeClass.ikmRecords || [];
+    parsed.antolinRecords = activeClass.antolinRecords || [];
+    parsed.schuelerGoals = activeClass.schuelerGoals || [];
+    parsed.observations = activeClass.observations || [];
+    parsed.metaKognitionsProtokolle = activeClass.metaKognitionsProtokolle || [];
+    parsed.interaktionsLog = activeClass.interaktionsLog || { eintraege: [], wochenEmpfehlung: null };
     parsed.mitarbeit = activeClass.mitarbeit;
     parsed.verhalten = activeClass.verhalten;
     parsed.karten = activeClass.karten;
@@ -547,6 +594,15 @@ export function switchClassState(prev: AppState, id: string): AppState {
     lernzielTracker: targetClass.lernzielTracker ? JSON.parse(JSON.stringify(targetClass.lernzielTracker)) : {},
     studentLernzielBewertungen: targetClass.studentLernzielBewertungen ? JSON.parse(JSON.stringify(targetClass.studentLernzielBewertungen)) : {},
     studentLernzielSemesterBewertungen: targetClass.studentLernzielSemesterBewertungen ? JSON.parse(JSON.stringify(targetClass.studentLernzielSemesterBewertungen)) : {},
+    diagnostikErgebnisse: targetClass.diagnostikErgebnisse ? JSON.parse(JSON.stringify(targetClass.diagnostikErgebnisse)) : [],
+    diagnostikErhebungen: targetClass.diagnostikErhebungen ? JSON.parse(JSON.stringify(targetClass.diagnostikErhebungen)) : [],
+    diagnosticResults: targetClass.diagnosticResults ? JSON.parse(JSON.stringify(targetClass.diagnosticResults)) : [],
+    ikmRecords: targetClass.ikmRecords ? JSON.parse(JSON.stringify(targetClass.ikmRecords)) : [],
+    antolinRecords: targetClass.antolinRecords ? JSON.parse(JSON.stringify(targetClass.antolinRecords)) : [],
+    schuelerGoals: targetClass.schuelerGoals ? JSON.parse(JSON.stringify(targetClass.schuelerGoals)) : [],
+    observations: targetClass.observations ? JSON.parse(JSON.stringify(targetClass.observations)) : [],
+    metaKognitionsProtokolle: targetClass.metaKognitionsProtokolle ? JSON.parse(JSON.stringify(targetClass.metaKognitionsProtokolle)) : [],
+    interaktionsLog: targetClass.interaktionsLog ? JSON.parse(JSON.stringify(targetClass.interaktionsLog)) : { eintraege: [], wochenEmpfehlung: null },
     mitarbeit: targetClass.mitarbeit || {},
     verhalten: targetClass.verhalten,
     karten: targetClass.karten,

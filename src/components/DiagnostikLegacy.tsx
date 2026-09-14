@@ -6,7 +6,7 @@ import {
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { useApp } from '../context/AppContext';
 import { DiagnostikTest, DiagnostikErhebung, VORSCHLAG_DIAGNOSTIK_TESTS, Student } from '../types';
-import { logActivity } from '../lib/utils';
+import { formatLocalDateKey, logActivity } from '../lib/utils';
 import { berechneIpsativ } from '../lib/ipsativeAnalyse';
 import { PedagogicalTextHelper } from './PedagogicalTextHelper';
 import ErrorDetective from './ErrorDetective';
@@ -125,7 +125,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
   const [editingTest, setEditingTest] = useState<Partial<DiagnostikTest> | null>(null);
   const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
   const [batchEntry, setBatchEntry] = useState<Record<string, { rohwert: string, ergebniswert: string, kommentar: string }>>({});
-  const [batchMeta, setBatchMeta] = useState({ datum: new Date().toISOString().split('T')[0], schulstufe: app.stufe, durchgefuehrtVon: 'Lehrperson' });
+  const [batchMeta, setBatchMeta] = useState({ datum: formatLocalDateKey(new Date()), schulstufe: app.stufe, durchgefuehrtVon: 'Lehrperson' });
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>('class-overview');
   const [classChartSelectedTestId, setClassChartSelectedTestId] = useState<string>('live-lesefluessigkeit');
   const [classChartOverlayStudents, setClassChartOverlayStudents] = useState<string[]>([]);
@@ -163,7 +163,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
 
   const [antolinUploadRawText, setAntolinUploadRawText] = useState('');
   const [antolinSelectedStudentId, setAntolinSelectedStudentId] = useState<string>('all');
-  const [antolinUploadDate, setAntolinUploadDate] = useState(new Date().toISOString().split('T')[0]);
+  const [antolinUploadDate, setAntolinUploadDate] = useState(formatLocalDateKey(new Date()));
   const [isAnalyzingAntolin, setIsAnalyzingAntolin] = useState(false);
   const [antolinAnalysisPreview, setAntolinAnalysisPreview] = useState<any[] | null>(null);
   
@@ -177,7 +177,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
   const [goalStudentId, setGoalStudentId] = useState('');
   const [goalBereich, setGoalBereich] = useState<'schule' | 'leben'>('schule');
   const [goalText, setGoalText] = useState('');
-  const [goalDate, setGoalDate] = useState(new Date().toISOString().split('T')[0]);
+  const [goalDate, setGoalDate] = useState(formatLocalDateKey(new Date()));
   const [isRefiningGoal, setIsRefiningGoal] = useState(false);
   const [goalFilterStudentId, setGoalFilterStudentId] = useState('all');
   const [goalFilterStatus, setGoalFilterStatus] = useState<'all' | 'aktiv' | 'erreicht' | 'verworfen'>('all');
@@ -189,7 +189,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
 
   // Exekutive form states
   const [exeStudentId, setExeStudentId] = useState<string>('');
-  const [exeDate, setExeDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [exeDate, setExeDate] = useState<string>(formatLocalDateKey(new Date()));
   const [exeKontext, setExeKontext] = useState<string>('Plenum');
   const [exeScores, setExeScores] = useState({ arbeitsgedaechtnis: 5, inhibition: 5, flexibilitaet: 5, aktivierung: 5, emotionen: 5 });
   const [exeComment, setExeComment] = useState<string>('');
@@ -466,7 +466,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
       .map(p => ({
         id: crypto.randomUUID(),
         schuelerId: p.mappedStudentId!,
-        datum: new Date().toISOString().split('T')[0],
+        datum: formatLocalDateKey(new Date()),
         schuljahr: app.schuljahr || '2023/24',
         schulstufe: app.stufe || 3,
         classId: getDiagnosticClassId(app),
@@ -648,7 +648,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
   const sparseDataStudents = useMemo(() => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 28);
-    const cutoffStr = thirtyDaysAgo.toISOString().split('T')[0];
+    const cutoffStr = formatLocalDateKey(thirtyDaysAgo);
 
     return (sortedStudentsForDiagnostik || []).filter(s => {
       const studentEntries = (erhebungen || []).filter(e => e.schuelerId === s.id);
@@ -1228,7 +1228,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
     if (!ikmUploadState) return;
     const studentExists = (app.schueler || []).some(student => student.id === ikmUploadState.schuelerId);
     if (!studentExists) return alert('Bitte ein Kind aus der aktuellen Klasse auswählen.');
-    if (!ikmUploadState.datum || ikmUploadState.datum > new Date().toISOString().slice(0, 10)) {
+    if (!ikmUploadState.datum || ikmUploadState.datum > formatLocalDateKey(new Date())) {
       return alert('Bitte ein gültiges Datum verwenden, das nicht in der Zukunft liegt.');
     }
     const prValues = [
@@ -1360,7 +1360,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
       return;
     }
     
-    if (!antolinUploadDate || antolinUploadDate > new Date().toISOString().slice(0, 10)) {
+    if (!antolinUploadDate || antolinUploadDate > formatLocalDateKey(new Date())) {
       return alert('Bitte ein gültiges Importdatum verwenden, das nicht in der Zukunft liegt.');
     }
     const hasInvalidValues = validPreviews.some(preview => {
@@ -1537,7 +1537,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
       return;
     }
     const values = [manualAntolinBooks, manualAntolinPoints, manualAntolinLeistung, manualAntolinSchwierigkeit].map(Number);
-    if (!antolinUploadDate || antolinUploadDate > new Date().toISOString().slice(0, 10)) {
+    if (!antolinUploadDate || antolinUploadDate > formatLocalDateKey(new Date())) {
       return alert('Bitte ein gültiges Datum verwenden, das nicht in der Zukunft liegt.');
     }
     if (values.some(value => !Number.isFinite(value) || value < 0) || values[2] > 100) {
@@ -3459,7 +3459,7 @@ Antworte NUR mit dem veredelten Ich-Ziel, ohne Anführungszeichen, ohne Einleitu
                                           ...prev,
                                           schuelerGoals: prev.schuelerGoals.map((g: any) => 
                                             g.id === goal.id 
-                                              ? { ...g, status: 'erreicht', erledigtAm: new Date().toISOString().split('T')[0], reflexion } 
+                                              ? { ...g, status: 'erreicht', erledigtAm: formatLocalDateKey(new Date()), reflexion } 
                                               : g
                                           )
                                         }));
@@ -3941,7 +3941,7 @@ Antworte NUR mit dem veredelten Ich-Ziel, ohne Anführungszeichen, ohne Einleitu
                                     id: crypto.randomUUID(),
                                     schuelerId: ipsativStudentId,
                                     testId: 'ipsativ_1',
-                                    datum: new Date().toISOString().split('T')[0],
+                                    datum: formatLocalDateKey(new Date()),
                                     schuljahr: app.schuljahr,
                                     schulstufe: app.stufe,
                                     rohwert: 0,
@@ -5267,7 +5267,7 @@ Antworte NUR mit dem veredelten Ich-Ziel, ohne Anführungszeichen, ohne Einleitu
                                                           bereich: test.kategorie || 'Lernen',
                                                           ziel: newLabel,
                                                           status: 'offen',
-                                                          startDatum: new Date().toISOString().split('T')[0],
+                                                          startDatum: formatLocalDateKey(new Date()),
                                                           zielDatum: ''
                                                         });
                                                       }
@@ -5776,7 +5776,7 @@ Antworte NUR mit dem veredelten Ich-Ziel, ohne Anführungszeichen, ohne Einleitu
                                       const testName = test?.name || 'Unbekannter Test';
                                       const newZiel = `Fokusbedarf aufholen: ${testName} (Ergebnis: ${entry.ergebniswert})`;
                                       if (!ziele.some(z => z.ziel === newZiel)) {
-                                        ziele.push({ id: crypto.randomUUID(), bereich: test?.kategorie || 'Lernen', ziel: newZiel, status: 'offen', startDatum: new Date().toISOString().split('T')[0], zielDatum: '' });
+                                        ziele.push({ id: crypto.randomUUID(), bereich: test?.kategorie || 'Lernen', ziel: newZiel, status: 'offen', startDatum: formatLocalDateKey(new Date()), zielDatum: '' });
                                       }
                                       students[sIdx] = { ...student, foerderprofil: { ...fp, foerderziele: ziele } };
                                       return { ...prev, schueler: students };

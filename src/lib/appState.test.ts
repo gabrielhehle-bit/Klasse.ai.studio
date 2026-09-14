@@ -24,6 +24,15 @@ function fixture() {
       lernzielTracker: { Mathematik: { [`goal-${id}`]: { text: id, abgehakt: id === 'a', abgehaktAm: null, kw: 37 } } },
       studentLernzielBewertungen: { [`student-${id}`]: { [`goal-${id}`]: id === 'a' ? 1 : 3 } },
       studentLernzielSemesterBewertungen: { [`student-${id}`]: { '1': { [`goal-${id}`]: id === 'a' ? 1 : 3 } } },
+      diagnostikErgebnisse: [{ id: `legacy-result-${id}`, schuelerId: `student-${id}` }],
+      diagnostikErhebungen: [{ id: `legacy-run-${id}`, schuelerId: `student-${id}`, datum: '2026-09-14' }],
+      diagnosticResults: [{ id: `result-${id}`, studentId: `student-${id}`, date: '2026-09-14' }],
+      ikmRecords: [{ id: `ikm-${id}`, schuelerId: `student-${id}` }],
+      antolinRecords: [{ id: `antolin-${id}`, schuelerId: `student-${id}` }],
+      schuelerGoals: [{ id: `student-goal-${id}`, schuelerId: `student-${id}` }],
+      observations: [{ id: `observation-${id}`, schuelerId: `student-${id}` }],
+      metaKognitionsProtokolle: [{ id: `meta-${id}`, schuelerId: `student-${id}` }],
+      interaktionsLog: { eintraege: [{ id: `interaction-${id}`, schuelerId: `student-${id}` }], wochenEmpfehlung: null },
       stundenZeiten: { 1: `${id}-08:00` }, scheduleAnalysis: { marker: id },
       lastGroups: [{ marker: id }], customBgColor: id,
       wochenplanung: { 37: { Montag: [{ thema: id }] } },
@@ -136,4 +145,46 @@ test('class switches replace root learning-goal data instead of mixing classes',
   assert.equal(a.lernzielTracker.Mathematik['goal-b'], undefined);
   assert.equal(a.studentLernzielSemesterBewertungen['student-a']['1']['goal-a'], 1);
   assert.equal(a.studentLernzielSemesterBewertungen['student-b'], undefined);
+});
+
+
+test('class switches isolate diagnostic, iKM, Antolin and student-development records', () => {
+  const state = fixture();
+  const b = switchClassState(state, 'b');
+
+  assert.equal(b.diagnosticResults?.[0]?.id, 'result-b');
+  assert.equal((b.diagnostikErhebungen as any[])?.[0]?.id, 'legacy-run-b');
+  assert.equal(b.ikmRecords?.[0]?.id, 'ikm-b');
+  assert.equal(b.antolinRecords?.[0]?.id, 'antolin-b');
+  assert.equal(b.schuelerGoals?.[0]?.id, 'student-goal-b');
+  assert.equal(b.observations?.[0]?.id, 'observation-b');
+  assert.equal(b.metaKognitionsProtokolle?.[0]?.id, 'meta-b');
+  assert.equal(b.interaktionsLog?.eintraege?.[0]?.id, 'interaction-b');
+  assert.equal(b.diagnosticResults?.some((entry: any) => entry.id === 'result-a'), false);
+
+  const a = switchClassState(syncActiveClass(b), 'a');
+  assert.equal(a.diagnosticResults?.[0]?.id, 'result-a');
+  assert.equal(a.ikmRecords?.[0]?.id, 'ikm-a');
+  assert.equal(a.antolinRecords?.[0]?.id, 'antolin-a');
+  assert.equal(a.schuelerGoals?.[0]?.id, 'student-goal-a');
+  assert.equal(a.observations?.[0]?.id, 'observation-a');
+  assert.equal(a.metaKognitionsProtokolle?.[0]?.id, 'meta-a');
+  assert.equal(a.interaktionsLog?.eintraege?.[0]?.id, 'interaction-a');
+});
+
+test('legacy root-only diagnostic data is assigned only to the active class', () => {
+  const loaded = normalizeAppState({
+    activeClassId: 'a',
+    diagnosticResults: [{ id: 'root-result', studentId: 'student-a' }],
+    ikmRecords: [{ id: 'root-ikm', schuelerId: 'student-a' }],
+    classes: [
+      { id: 'a', schueler: [{ id: 'student-a' }] },
+      { id: 'b', schueler: [{ id: 'student-b' }] },
+    ],
+  });
+
+  assert.equal(loaded.classes[0].diagnosticResults?.[0]?.id, 'root-result');
+  assert.equal(loaded.classes[0].ikmRecords?.[0]?.id, 'root-ikm');
+  assert.deepEqual(loaded.classes[1].diagnosticResults, []);
+  assert.deepEqual(loaded.classes[1].ikmRecords, []);
 });
