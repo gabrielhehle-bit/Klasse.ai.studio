@@ -8,6 +8,12 @@ import { LERNZIELE_BY_STUFE } from './LernzielTracker';
 import { analyzePortfolioEntryForGoals } from '../services/aiService';
 import { formatLocalDateKey } from '../lib/utils';
 
+const formatPortfolioDate = (value: string, pattern: string) => {
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) return 'Datum nicht erfasst';
+  return format(date, pattern, { locale: de });
+};
+
 const getFachStyles = (fachName: string) => {
   const name = (fachName || '').toLowerCase();
   if (name.includes('math') || name.includes('rechnen')) {
@@ -310,7 +316,7 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
                   
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                     <span className="text-[0.5625rem] font-bold text-slate-400">
-                      {format(new Date(entry.datum), "dd.MM.yyyy", { locale: de })}
+                      {formatPortfolioDate(entry.datum, "dd.MM.yyyy")}
                     </span>
                     {entry.tags && entry.tags[0] && (
                       <span className={`text-[0.5625rem] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${getFachStyles(entry.tags[0])}`}>
@@ -539,7 +545,7 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
                 {/* Card Header metadata */}
                 <div className="flex flex-wrap items-center gap-2 mb-3.5">
                   <div className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-150">
-                    <Calendar size={10} /> {format(new Date(entry.datum), "dd. MMMM yyyy", { locale: de })}
+                    <Calendar size={10} /> {formatPortfolioDate(entry.datum, "dd. MMMM yyyy")}
                   </div>
                   {isKelHighlight && (
                     <span className="text-[0.5625rem] font-black uppercase tracking-wider text-amber-700 bg-amber-100/75 px-2.5 py-1 rounded-full border border-amber-200/40 flex items-center gap-1">
