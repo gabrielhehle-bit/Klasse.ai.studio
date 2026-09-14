@@ -53,6 +53,45 @@ export interface JahresplanImportResult {
   detectedWeeks: number[];
 }
 
+export function resolveJahresplanSubjectId(
+  subjectName: string,
+  availableSubjects: { id: string; label: string }[],
+): string | undefined {
+  const lower = subjectName.toLocaleLowerCase('de-AT').trim();
+  if (!lower) return undefined;
+
+  const direct = availableSubjects.find(
+    s => s.id.toLocaleLowerCase('de-AT') === lower || s.label.toLocaleLowerCase('de-AT') === lower,
+  );
+  if (direct) return direct.id;
+
+  const partial = availableSubjects.find(s => {
+    const label = s.label.toLocaleLowerCase('de-AT');
+    return lower.includes(label) || label.includes(lower);
+  });
+  if (partial) return partial.id;
+
+  const aliases: Array<[RegExp, string[]]> = [
+    [/deutsch|sprache|lesen/, ['deutsch_sprache', 'deutsch', 'lesen']],
+    [/mathe/, ['mathe_et', 'mathematik']],
+    [/sach/, ['sachunterricht']],
+    [/englisch/, ['englisch']],
+    [/sport|bewegung/, ['bewegung_sport', 'sport']],
+    [/musik/, ['musik']],
+    [/kunst|zeichen|bildner/, ['bildnerische_erziehung', 'kunst']],
+    [/werk/, ['technisches_werken', 'werken']],
+    [/religion/, ['religion']],
+  ];
+
+  for (const [pattern, ids] of aliases) {
+    if (!pattern.test(lower)) continue;
+    const match = availableSubjects.find(s => ids.includes(s.id));
+    if (match) return match.id;
+  }
+
+  return availableSubjects.find(s => s.id === 'sonstiges')?.id;
+}
+
 // ==========================================
 // 1. WOCHENPLANER: TEMPLATE GENERATOR
 // ==========================================
@@ -624,10 +663,10 @@ export async function parseJahresplanExcel(
       };
     }
 
-    if (!fachKey && !themaKey) {
+    if (!fachKey || !themaKey) {
       return {
         success: false,
-        error: "Erforderliche Spalten fehlen. Die Tabelle muss mindestens 'Fach' und 'Thema' enthalten. Bitte verwende die Klassio-Vorlage.",
+        error: "Erforderliche Spalten fehlen. Die Tabelle muss die Spalten 'Fach' und 'Thema' enthalten. Bitte verwende die Klassio-Vorlage.",
         rows: [],
         totalRows: rawData.length,
         validRows: 0,
@@ -637,31 +676,6 @@ export async function parseJahresplanExcel(
 
     const detectedWeeksSet = new Set<number>();
     const parsedRows: JahresplanImportRow[] = [];
-
-    // Helper to resolve Subject ID
-    const resolveSubjectId = (subjectName: string): string => {
-      const lower = subjectName.toLowerCase().trim();
-      // 1. Direct match by id
-      const direct = availableSubjects.find(s => s.id.toLowerCase() === lower || s.label.toLowerCase() === lower);
-      if (direct) return direct.id;
-
-      // 2. Partial match
-      const partial = availableSubjects.find(s => lower.includes(s.label.toLowerCase()) || s.label.toLowerCase().includes(lower));
-      if (partial) return partial.id;
-
-      // 3. Fallback standard subjects
-      if (lower.includes('deutsch') || lower.includes('sprache') || lower.includes('lesen')) return 'deutsch_sprache';
-      if (lower.includes('mathe')) return 'mathe_et';
-      if (lower.includes('sach')) return 'sachunterricht';
-      if (lower.includes('englisch')) return 'englisch';
-      if (lower.includes('sport') || lower.includes('bewegung')) return 'bewegung_sport';
-      if (lower.includes('musik')) return 'musik';
-      if (lower.includes('kunst') || lower.includes('zeichen')) return 'bildnerische_erziehung';
-      if (lower.includes('werk')) return 'technisches_werken';
-      if (lower.includes('religion')) return 'religion';
-
-      return availableSubjects[0]?.id || 'sonstiges';
-    };
 
     for (let i = 0; i < rawData.length; i++) {
       const item = rawData[i];
@@ -707,7 +721,10 @@ export async function parseJahresplanExcel(
       const finalThema = rawThema || rawInhalte;
       const combinedBuch = [rawBuch, rawInhalte && rawInhalte !== finalThema ? `Ziele: ${rawInhalte}` : ''].filter(Boolean).join(' | ');
 
-      const resolvedSubjId = resolveSubjectId(rawFach);
+      const resolvedSubjId = resolveJahresplanSubjectId(rawFach, availableSubjects);
+      if (!resolvedSubjId) {
+        continue;
+      }
 
       detectedWeeksSet.add(kwNum);
 
