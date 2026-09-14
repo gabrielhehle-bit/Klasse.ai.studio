@@ -36,6 +36,40 @@ export function hasCalculatedAverage(value: number | null | undefined): value is
   return value !== null && value !== undefined && !Number.isNaN(value);
 }
 
+export function parseAssessmentInput(
+  input: string,
+  mode: AssessmentMode,
+  maxPoints: number
+): { valid: boolean; value: number | string | null } {
+  const stripped = input.trim().toLowerCase();
+  if (stripped === '') return { valid: true, value: null };
+  if (['f', 'x', 'e', '-'].includes(stripped)) return { valid: true, value: stripped };
+
+  const normalized = stripped
+    .replace(mode === 'percent' ? '%' : /p(?:kt)?/g, '')
+    .replace(',', '.')
+    .trim();
+
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) {
+    if (mode === 'grades' && /^[1-5][+-]$/.test(stripped)) {
+      return { valid: true, value: stripped };
+    }
+    return { valid: false, value: null };
+  }
+
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) return { valid: false, value: null };
+
+  if (mode === 'percent') {
+    return { valid: true, value: Math.min(100, Math.max(0, Math.round(parsed * 10) / 10)) };
+  }
+  if (mode === 'points') {
+    const safeMax = Number.isFinite(maxPoints) && maxPoints > 0 ? maxPoints : 0;
+    return { valid: true, value: Math.min(safeMax, Math.max(0, Math.round(parsed * 10) / 10)) };
+  }
+  return { valid: true, value: Math.min(5, Math.max(1, Math.round(parsed * 10) / 10)) };
+}
+
 export function calculateItemPercent(
   rawVal: number | string | null | undefined,
   mode: AssessmentMode,
