@@ -353,7 +353,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     dictionary: "📚 Emoji-Wörterbuch",
     piano: "🎹 Klassen-Klavier",
     bodyparts: "🦴 Körper-Entdecker",
-    drawing: "🖍️ Zeichentafel",
+    drawing: "🖍️ Zeichenfeld",
     pet: "🐾 Klassentier",
     toothbrush: "🪥 Zahnputz-Station",
     challenge: "🎯 Klassen-Challenge",
