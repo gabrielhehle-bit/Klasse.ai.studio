@@ -134,3 +134,21 @@ export function removeMaterialReferencesFromWeeklyPlan(
 
   return changed ? next : source;
 }
+
+
+export function removeMaterialReferencesFromClasses<T extends { wochenplanung?: Record<number, any> }>(
+  classes: T[] | undefined,
+  removedIds?: Iterable<string>,
+): T[] | undefined {
+  if (!classes) return classes;
+
+  let changed = false;
+  const next = classes.map(classroom => {
+    const cleaned = removeMaterialReferencesFromWeeklyPlan(classroom.wochenplanung, removedIds);
+    if (cleaned === classroom.wochenplanung) return classroom;
+    changed = true;
+    return { ...classroom, wochenplanung: cleaned };
+  });
+
+  return changed ? next : classes;
+}
