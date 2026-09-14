@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { buildAiClassContext } from '../lib/aiPrivacy';
+import { buildAiClassContext, buildAiLearningGoalContext, getAiChatHistory, getAiChatHistoryKey } from '../lib/aiPrivacy';
 import { ChatEntry, Message } from '../types';
 import { 
   Send, Bot, Sparkles, User, RefreshCw, X, 
@@ -349,6 +349,12 @@ export default function AIAssistant() {
     const isSpecialized = ['ki-elternbrief', 'ki-differenzierung', 'ki-beurteilung', 'ki-korrektur', 'ki-stundenplan-check', 'ki-stationenbetrieb'].includes(activeTab);
     setShowGuidedTool(isSpecialized);
   }, [activeTab]);
+
+  // A conversation must never remain open when the active class changes.
+  useEffect(() => {
+    setActiveMessages([]);
+    setActiveChatId(null);
+  }, [app.activeClassId]);
   
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -361,6 +367,13 @@ export default function AIAssistant() {
 
   const currentModusId = activeTab;
   const messages = activeMessages;
+  const classCount = Array.isArray(app.classes) ? app.classes.length : (app.activeClassId ? 1 : 0);
+  const activeChatHistory = getAiChatHistory(
+    app.aiChats as Record<string, ChatEntry[]> | undefined,
+    app.activeClassId,
+    activeTab,
+    classCount,
+  );
 
   useEffect(() => {
     const syncScrollPosition = () => {
@@ -376,46 +389,45 @@ export default function AIAssistant() {
   }, [messages, isLoading, activeTab]);
 
   const saveChatHistory = (tab: AiTab, msgList: Message[], chatId: string | null, firstQuestion?: string) => {
-    const chatEntries = [ ...(app.aiChats?.[tab] || []) ];
-    let targetId = chatId;
+    const storageKey = getAiChatHistoryKey(app.activeClassId, tab);
+    const chatEntries = [
+      ...getAiChatHistory(
+        app.aiChats as Record<string, ChatEntry[]> | undefined,
+        app.activeClassId,
+        tab,
+        classCount,
+      ),
+    ];
 
-    if (!targetId) {
-      targetId = Math.random().toString(36).substring(7);
-      setActiveChatId(targetId);
-      const newEntry: ChatEntry = {
-        id: targetId,
-        timestamp: Date.now(),
-        frage: firstQuestion || msgList[0]?.content || 'Neue Unterhaltung',
-        nachrichten: msgList
-      };
-      // Keep only last 20 total, but user only sees 5 in preview
-      const updatedEntries = [newEntry, ...chatEntries].slice(0, 20);
-      setApp(prev => ({
-        ...prev,
-        aiChats: {
-          ...(prev.aiChats || {}),
-          [tab]: updatedEntries
-        }
-      }));
-    } else {
-      const idx = chatEntries.findIndex(c => c.id === targetId);
-      if (idx !== -1) {
-        chatEntries[idx] = {
-          ...chatEntries[idx],
+    const targetId = chatId || Math.random().toString(36).substring(7);
+    setActiveChatId(targetId);
+
+    const existingIndex = chatEntries.findIndex(entry => entry.id === targetId);
+    const nextEntry: ChatEntry = existingIndex >= 0
+      ? {
+          ...chatEntries[existingIndex],
           timestamp: Date.now(),
-          nachrichten: msgList
+          nachrichten: msgList,
+        }
+      : {
+          id: targetId,
+          timestamp: Date.now(),
+          frage: firstQuestion || msgList[0]?.content || 'Neue Unterhaltung',
+          nachrichten: msgList,
         };
-        // Move to top
-        const updatedEntries = [chatEntries[idx], ...chatEntries.filter((_, i) => i !== idx)];
-        setApp(prev => ({
-           ...prev,
-           aiChats: {
-             ...(prev.aiChats || {}),
-             [tab]: updatedEntries
-           }
-        }));
-      }
-    }
+
+    const updatedEntries = [
+      nextEntry,
+      ...chatEntries.filter(entry => entry.id !== targetId),
+    ].slice(0, 20);
+
+    setApp(prev => ({
+      ...prev,
+      aiChats: {
+        ...(prev.aiChats || {}),
+        [storageKey]: updatedEntries,
+      },
+    }));
   };
 
   const handleSend = async (manualText?: string, manualImageBase64?: {data: string, mimeType: string} | null, imagePrivacyConfirmed: boolean = false) => {
@@ -432,50 +444,8 @@ export default function AIAssistant() {
     if (!manualText) setInp('');
     
     let contextStr = useClassContext ? buildAiClassContext(app) : '';
-    if (modusId === 'ki-lernziele' && activeMessages.length === 0) {
-      const students = app.schueler || [];
-      const trackerDB = app.lernzielTracker || {};
-      
-      let classProgress = '';
-      Object.keys(trackerDB).forEach(fach => {
-        const goals = trackerDB[fach];
-        classProgress += `\nFach ${fach}:\n`;
-        Object.keys(goals).forEach(goalId => {
-          const g = goals[goalId];
-          if (g.abgehakt) {
-             classProgress += `- Erreicht: ${g.text}\n`;
-          } else {
-             classProgress += `- Offen: ${g.text}\n`;
-          }
-        });
-      });
-      
-      let studentProgressStr = '';
-      students.forEach(s => {
-        const savedEval = localStorage.getItem(`student_lernziele_${s.id}`);
-        if (savedEval) {
-           try {
-             const evalData = JSON.parse(savedEval);
-             let count1 = 0, count2 = 0, count3 = 0;
-             Object.values(evalData).forEach(val => {
-               if (val === 1) count1++;
-               if (val === 2) count2++;
-               if (val === 3) count3++;
-             });
-             studentProgressStr += `${s.vorname}: ${count1} voll erreicht, ${count2} tw. erreicht, ${count3} minimal.\n`;
-           } catch (e) {
-             // Ignore error
-           }
-        }
-      });
-      
-      contextStr += `\n\n[ZUSÄTZLICHER LERNZIEL-KONTEXT]
-Aktuelle Ziele im Klassen-Tracker:
-${classProgress || 'Keine Ziele definiert.'}
-
-Einschätzungen der Klasse (Oberau-Skalen-Daten):
-${studentProgressStr || 'Keine Schülerdaten.'}
-`;
+    if (useClassContext && modusId === 'ki-lernziele' && activeMessages.length === 0) {
+      contextStr += buildAiLearningGoalContext(app);
     }
 
     // Convert imageBase64 back to a user-friendly string tag in the chat message
@@ -514,7 +484,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
     const remotePrompt = app.boardSettings?.activeAIPrompt;
     if (remotePrompt && remotePrompt.timestamp && remotePrompt.timestamp > processedPromptTimestampRef.current) {
       processedPromptTimestampRef.current = remotePrompt.timestamp;
-      console.log("[Remote AI] Processing sync prompt from mobile phone:", remotePrompt.text);
+      console.log("[Remote AI] Sync-Prompt empfangen.");
       
       // Force loading 'ki-helfer' standard chatbot focus and clear guide overlays on big wall
       setActiveTab('ki-helfer');
@@ -696,7 +666,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
             <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
               <Bot size={16} />
             </div>
-            <span className="text-[0.625rem] font-black uppercase tracking-tight text-slate-900">AI Expert</span>
+            <span className="text-[0.625rem] font-black uppercase tracking-tight text-slate-900">KI-Helfer</span>
           </div>
           <div className="flex items-center gap-1">
              <div className="flex items-center gap-1 h-8 bg-slate-50 p-1 rounded-lg">
@@ -819,14 +789,14 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                          </div>
 
                          {/* Recent Chats Section - Part of the Overview Enhancements */}
-                         {app.aiChats?.[activeTab] && app.aiChats[activeTab].length > 0 && (
+                         {activeChatHistory.length > 0 && (
                            <div className="w-full mb-10 bg-slate-50/50 rounded-2xl border border-slate-150 p-5 shadow-sm">
                               <div className="flex items-center gap-2 mb-4 px-1 text-slate-500">
                                  <Clock size={14} className="text-indigo-500 animate-pulse" />
-                                 <span className="text-[0.6875rem] font-black uppercase tracking-widest">Letzte Unterhaltungen ({app.aiChats[activeTab].length})</span>
+                                 <span className="text-[0.6875rem] font-black uppercase tracking-widest">Letzte Unterhaltungen ({activeChatHistory.length})</span>
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-                                 {app.aiChats[activeTab].slice(0, 4).map((entry) => (
+                                 {activeChatHistory.slice(0, 4).map((entry) => (
                                     <button
                                       key={entry.id}
                                       onClick={() => loadConversation(entry)}
@@ -1112,10 +1082,19 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                                  <span className="text-[9px] text-slate-400 font-medium">Bilder bis 8MB</span>
                                </>
                             )}
-                            <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                            <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
-                              if (file.size > 8 * 1024 * 1024) { showToast('Datei zu groß (max 8MB)', 'error'); return; }
+                              if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                                showToast('Bitte verwende ein JPG-, PNG- oder WebP-Bild.', 'error');
+                                e.currentTarget.value = '';
+                                return;
+                              }
+                              if (file.size > 8 * 1024 * 1024) {
+                                showToast('Datei zu groß (max. 8 MB).', 'error');
+                                e.currentTarget.value = '';
+                                return;
+                              }
                               
                               const reader = new FileReader();
                               reader.onload = (e) => {
