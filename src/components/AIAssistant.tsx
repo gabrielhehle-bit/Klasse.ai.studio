@@ -781,14 +781,36 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                          <p className="text-[0.6875rem] font-semibold text-slate-500">{activeTabData.description}</p>
                       </div>
                    </div>
-                   <button 
-                      onClick={() => { setActiveMessages([]); setActiveChatId(null); }}
-                      className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[0.625rem] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2 transition-all active:scale-95"
-                    >
-                      <RefreshCw size={10} className="text-indigo-400" />
-                      Zurücksetzen
-                    </button>
+                   <div className="flex items-center gap-2">
+                     <label className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-[0.625rem] font-bold text-slate-600 cursor-pointer" title="Übermittelt nur Schulstufe, Bundesland, Klassengröße und aktuelle Wochenplanthemen. Schülernamen werden nicht automatisch in diesen Klassenkontext aufgenommen.">
+                       <input type="checkbox" checked={useClassContext} onChange={(e) => setUseClassContext(e.target.checked)} className="rounded" />
+                       Klassenkontext
+                     </label>
+                     <button 
+                        onClick={() => { setActiveMessages([]); setActiveChatId(null); }}
+                        className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[0.625rem] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2 transition-all active:scale-95"
+                      >
+                        <RefreshCw size={10} className="text-indigo-400" />
+                        Neuer Chat
+                      </button>
+                   </div>
                 </div>
+
+                {aiAvailability !== 'ready' && (
+                  <div className={`mx-4 mt-3 rounded-xl border px-4 py-2.5 text-xs font-semibold ${
+                    aiAvailability === 'missing'
+                      ? 'bg-amber-50 border-amber-200 text-amber-800'
+                      : aiAvailability === 'offline'
+                        ? 'bg-rose-50 border-rose-200 text-rose-700'
+                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                  }`}>
+                    {aiAvailability === 'missing'
+                      ? 'Der KI-Helfer ist serverseitig noch nicht eingerichtet. Für den Betrieb muss GEMINI_API_KEY in der Serverumgebung gesetzt sein.'
+                      : aiAvailability === 'offline'
+                        ? 'Der KI-Status konnte nicht geprüft werden. Bei einer Anfrage zeigt Klassio die konkrete Fehlermeldung an.'
+                        : 'Klassio prüft gerade die KI-Verbindung …'}
+                  </div>
+                )}
 
                 <div className={`flex-1 overflow-y-auto scrollbar-hide scroll-smooth ${
                   isCompact ? 'py-4 pb-28' : isLarge ? 'py-6 pb-36' : 'py-8 pb-40'
@@ -1100,7 +1122,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                         
                         <div className="bg-rose-50/50 border border-rose-100 rounded-2xl p-3.5 flex items-start gap-3 mb-4">
                           <Shield size={16} className="text-rose-500 shrink-0 mt-0.5" />
-                          <p className="text-[0.6875rem] font-bold text-rose-700 leading-normal">Datenschutz: Achte darauf, dass kein Schülername auf dem Foto sichtbar ist – decke Namen vor dem Fotografieren ab.</p>
+                          <p className="text-[0.6875rem] font-bold text-rose-700 leading-normal">Datenschutz: Vor dem Hochladen müssen Name, Adresse und andere personenbezogene Angaben im Foto unkenntlich gemacht werden. Das Bild wird erst nach deiner Bestätigung an die KI gesendet.</p>
                         </div>
  
                         <div className="mb-4">
@@ -1133,6 +1155,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                                   ctx?.drawImage(img, 0, 0, width, height);
                                   const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                                   setFkImagePreview(dataUrl);
+                                  setFkPrivacyConfirmed(false);
                                   const base64Data = dataUrl.split(',')[1];
                                   setFkImageBase64({ data: base64Data, mimeType: 'image/jpeg' });
                                 };
@@ -1162,13 +1185,25 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                           </div>
                         </div>
  
+                        <label className="mb-4 flex items-start gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={fkPrivacyConfirmed}
+                            onChange={(e) => setFkPrivacyConfirmed(e.target.checked)}
+                            className="mt-0.5 rounded"
+                          />
+                          <span className="text-[0.6875rem] font-semibold leading-relaxed text-slate-700">
+                            Ich bestätige, dass Name, Adresse und andere personenbezogene Angaben im Bild unkenntlich gemacht wurden.
+                          </span>
+                        </label>
+
                         <button 
                           onClick={() => {
                             const foki = Object.entries(fkFokus).filter(([_,v]) => v).map(([k]) => k).join(', ');
                             const prompt = `Analysiere diesen Schülertext der ${fkStufe}. Stufe. Fokus auf: ${foki}.`;
-                            handleSend(prompt, fkImageBase64);
+                            handleSend(prompt, fkImageBase64, fkPrivacyConfirmed);
                           }} 
-                          disabled={!fkImageBase64 || isLoading} 
+                          disabled={!fkImageBase64 || !fkPrivacyConfirmed || isLoading || aiAvailability === 'missing'} 
                           className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:shadow-red-500/20 transition-all active:scale-[0.99] disabled:bg-slate-200 cursor-pointer"
                         >
                           Text analysieren
@@ -1250,9 +1285,15 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                           <Send size={18} />
                         </button>
                      </div>
-                     <span className="text-[10px] text-center text-slate-400 font-bold select-none leading-none">
-                       Tipp: Drücke <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Enter</kbd> zum Senden • <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Shift+Enter</kbd> für Zeilenumbruch
-                     </span>
+                     <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-[10px] text-slate-400 font-bold select-none">
+                       <label className="md:hidden flex items-center gap-1.5 cursor-pointer">
+                         <input type="checkbox" checked={useClassContext} onChange={(e) => setUseClassContext(e.target.checked)} className="rounded" />
+                         Klassenkontext verwenden
+                       </label>
+                       <span>
+                         <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Enter</kbd> senden · <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Shift+Enter</kbd> Zeilenumbruch
+                       </span>
+                     </div>
                   </div>
                 </div>
               </motion.div>
