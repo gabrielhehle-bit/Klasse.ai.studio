@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getStudentComparableName, normalizeStudentGender, parseStudentBirthday, toDateInputValue } from './studentListData';
+import { calculateStudentAge, getStudentComparableName, mergeImportedStudents, normalizeStudentGender, parseStudentBirthday, sortStudentsForList, toDateInputValue } from './studentListData';
 
 test('student birthdays parse Austrian, short-year Austrian and ISO formats', () => {
   const austrian = parseStudentBirthday('15.09.2017');
@@ -43,4 +43,87 @@ test('student gender is normalized to the app canonical labels without guessing 
   assert.equal(normalizeStudentGender('d'), 'divers');
   assert.equal(normalizeStudentGender(''), '');
   assert.equal(normalizeStudentGender(undefined), '');
+});
+
+
+test('age sorting uses actual age semantics and keeps missing birthdays last', () => {
+  const students: any[] = [
+    { id: 'old', vorname: 'Alt', nachname: 'Kind', name: 'Alt Kind', geburtstag: '2016-01-01' },
+    { id: 'young', vorname: 'Jung', nachname: 'Kind', name: 'Jung Kind', geburtstag: '2018-01-01' },
+    { id: 'missing', vorname: 'Ohne', nachname: 'Datum', name: 'Ohne Datum', geburtstag: '' },
+  ];
+
+  assert.deepEqual(sortStudentsForList(students, 'alter', 'asc').map(s => s.id), ['young', 'old', 'missing']);
+  assert.deepEqual(sortStudentsForList(students, 'alter', 'desc').map(s => s.id), ['old', 'young', 'missing']);
+});
+
+test('re-import updates matching master data without overwriting pedagogical student data', () => {
+  const existing: any[] = [{
+    id: 'existing-id',
+    vorname: 'Anna',
+    nachname: 'Muster',
+    name: 'Anna Muster',
+    geburtstag: '2017-09-15',
+    ort: 'Altstadt',
+    religion: 'röm.-kath.',
+    daz: true,
+    spf: true,
+    notiz: 'pädagogisch wichtig',
+    badges: [{ id: 'badge-1', name: 'Mut', icon: '⭐' }],
+    foerderprofil: { staerken: ['Lesen'] },
+  }];
+
+  const incoming: any[] = [{
+    id: 'fresh-import-id',
+    vorname: 'Anna',
+    nachname: 'Muster',
+    name: 'Anna Muster',
+    geburtstag: '2017-09-15',
+    ort: 'Neustadt',
+    religion: '',
+    daz: false,
+    spf: false,
+    notiz: '',
+    badges: [],
+    foerderprofil: undefined,
+  }];
+
+  const merged = mergeImportedStudents(existing, incoming);
+  assert.equal(merged.added, 0);
+  assert.equal(merged.updated, 1);
+  assert.equal(merged.students.length, 1);
+  assert.equal(merged.students[0].id, 'existing-id');
+  assert.equal(merged.students[0].ort, 'Neustadt');
+  assert.equal(merged.students[0].religion, 'röm.-kath.');
+  assert.equal(merged.students[0].daz, true);
+  assert.equal(merged.students[0].spf, true);
+  assert.equal(merged.students[0].notiz, 'pädagogisch wichtig');
+  assert.deepEqual(merged.students[0].badges, existing[0].badges);
+  assert.deepEqual(merged.students[0].foerderprofil, existing[0].foerderprofil);
+});
+
+test('re-import matches by SV number and never merges conflicting known birthdays by name alone', () => {
+  const existing: any[] = [
+    { id: 'sv', vorname: 'Max', nachname: 'Muster', name: 'Max Muster', geburtstag: '2017-01-01', sv_nummer: '1234' },
+    { id: 'same-name', vorname: 'Alex', nachname: 'Test', name: 'Alex Test', geburtstag: '2017-02-01' },
+  ];
+  const incoming: any[] = [
+    { id: 'new-sv', vorname: 'Maximilian', nachname: 'Muster', name: 'Maximilian Muster', geburtstag: '2017-01-01', sv_nummer: '1234', ort: 'Feldkirch' },
+    { id: 'conflict', vorname: 'Alex', nachname: 'Test', name: 'Alex Test', geburtstag: '2018-02-01' },
+  ];
+
+  const merged = mergeImportedStudents(existing, incoming);
+  assert.equal(merged.updated, 1);
+  assert.equal(merged.added, 1);
+  assert.equal(merged.students.find(s => s.id === 'sv')?.vorname, 'Maximilian');
+  assert.equal(merged.students.filter(s => s.nachname === 'Test').length, 2);
+});
+
+
+test('student age uses calendar birthdays instead of elapsed milliseconds', () => {
+  const beforeBirthday = new Date(2026, 8, 14);
+  const onBirthday = new Date(2026, 8, 15);
+  assert.equal(calculateStudentAge('2017-09-15', beforeBirthday), 8);
+  assert.equal(calculateStudentAge('2017-09-15', onBirthday), 9);
+  assert.equal(calculateStudentAge('31.02.2017', onBirthday), null);
 });
