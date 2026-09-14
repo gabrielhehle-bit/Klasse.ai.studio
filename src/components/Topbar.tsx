@@ -6,7 +6,7 @@ import {
   Wifi, WifiOff, Sparkles, Smartphone, X, Copy, Search, Maximize, Minimize, 
   Lock, ShieldAlert, ShieldCheck, ExternalLink, RefreshCw, MoreHorizontal, User, Settings,
   Users, Plus, ToggleLeft, ToggleRight, Info, Eye, CalendarDays, LogOut, Heart, Bug,
-  Bold, Italic, Save, Sliders
+  Bold, Italic, Save, Sliders, ArrowLeft
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -18,6 +18,7 @@ import { scanDataConsistency } from '../lib/DataConsistencyService';
 import { triggerBackupDownload } from '../utils/backupUtils';
 import { startSyncSession, createSyncUrl, getActiveEncodedSessionKey } from '../lib/syncService';
 import { Button, IconButton, Badge, Input } from './ui';
+import { getNavigationParent } from '../lib/navigationHierarchy';
 
 interface TopbarProps {
   title: string;
@@ -30,6 +31,8 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   const { app, setApp, setScreenLocked, setPage, switchClass, saveApp, lockAppVault } = useApp();
   const { showToast } = useToast();
   const consistencyIssues = React.useMemo(() => scanDataConsistency(app), [app]);
+  const currentPage = app.currentPage || 'dashboard';
+  const navigationParent = React.useMemo(() => getNavigationParent(currentPage), [currentPage]);
 
   // Speichern State
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -338,9 +341,8 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
       <div className="bg-[var(--surface-card,var(--surface))]/95 backdrop-blur-xl border-b border-[var(--border-default,var(--border))] py-2.5 px-3 sm:px-6 shadow-xs">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-2 sm:gap-4 w-full">
           
-          {/* Linker Bereich: Mobile Hamburger */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Mobile Hamburger Menu Button */}
+          {/* Linker Bereich: Navigation, Rückweg und Seitentitel */}
+          <div className="flex items-center gap-2 min-w-0">
             <IconButton
               variant="secondary"
               className="lg:hidden shrink-0"
@@ -350,6 +352,30 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
             >
               <Menu size={20} />
             </IconButton>
+
+            {navigationParent && (
+              <button
+                type="button"
+                onClick={() => setPage(navigationParent.id)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-2.5 py-1.5 text-xs font-bold text-[var(--text-secondary)] transition-all hover:border-[var(--accent)]/35 hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] shrink-0"
+                title={`Zurück zu ${navigationParent.label}`}
+                aria-label={`Zurück zu ${navigationParent.label}`}
+              >
+                <ArrowLeft size={14} />
+                <span className="hidden xl:inline">{navigationParent.label}</span>
+              </button>
+            )}
+
+            <div className="hidden md:flex min-w-0 flex-col leading-tight">
+              {navigationParent && (
+                <span className="text-[0.625rem] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)] truncate">
+                  {navigationParent.label}
+                </span>
+              )}
+              <span className="max-w-[220px] xl:max-w-[320px] truncate text-sm font-black text-[var(--text-primary)]">
+                {title}
+              </span>
+            </div>
           </div>
 
           {/* Rechter Bereich: Wetter & Schuljahr-Zeitdiagramm & PayPal & Fehler melden & Mehr */}
