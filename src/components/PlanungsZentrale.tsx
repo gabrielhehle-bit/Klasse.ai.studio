@@ -71,6 +71,8 @@ export default function PlanungsZentrale() {
   const [templateName, setTemplateName] = useState<string>('');
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [aiSuggestionError, setAiSuggestionError] = useState<string>('');
+  const [weeklyInsightError, setWeeklyInsightError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [editingJahresplan, setEditingJahresplan] = useState<boolean>(false);
   const [jahresplanInput, setJahresplanInput] = useState<string>('');
@@ -430,10 +432,12 @@ export default function PlanungsZentrale() {
     if (!activeSubject) return;
     setIsAiLoading(true);
     setAiSuggestions([]);
+    setAiSuggestionError('');
 
+    const gradeContext = app.stufe ? `Schulstufe ${app.stufe}` : 'Schulstufe nicht angegeben';
     const prompt = `Du bist ein erfahrener österreichischer Volksschul-Didaktiker.
-Gib mir 3 konkrete, kindgerechte, praxisnahe Unterrichts-Themenvorschläge für das Fach "${activeSubject}" (Schulstufe ${app.stufe || 3}).
-Globales Wochenthema: "${getJahresplanTheme(nextKW) || 'Allgemeines Thema'}".
+Gib mir 3 konkrete, kindgerechte, praxisnahe Unterrichts-Themenvorschläge für das Fach "${activeSubject}" (${gradeContext}).
+Globales Wochenthema: "${getJahresplanTheme(nextKW) || 'Kein Wochenthema eingetragen'}".
 Antworte NUR mit den 3 Themen, jeweils in einer neuen Zeile, ohne Aufzählungszeichen oder Zahlen.`;
 
     try {
@@ -442,11 +446,8 @@ Antworte NUR mit den 3 Themen, jeweils in einer neuen Zeile, ohne Aufzählungsze
       setAiSuggestions(suggestions);
     } catch (e) {
       console.error(e);
-      setAiSuggestions([
-        `Einführung: Vertiefung zu ${activeSubject}`,
-        `Stationenbetrieb & Forscherauftrag`,
-        `Differenzierte Übungseinheit mit Anschaulichkeit`
-      ]);
+      setAiSuggestions([]);
+      setAiSuggestionError('KI-Vorschläge konnten nicht geladen werden. Bitte später erneut versuchen.');
     } finally {
       setIsAiLoading(false);
     }
@@ -455,6 +456,7 @@ Antworte NUR mit den 3 Themen, jeweils in einer neuen Zeile, ohne Aufzählungsze
   // AI Weekly Curriculum Insight Analysis
   const handleGenerateWeeklyInsight = async () => {
     setIsAnalyzingWeek(true);
+    setWeeklyInsightError('');
 
     const weekPlan = app.wochenplanung?.[nextKW] || {};
     const plannedLessonsSummary: string[] = [];
@@ -471,7 +473,8 @@ Antworte NUR mit den 3 Themen, jeweils in einer neuen Zeile, ohne Aufzählungsze
       });
     });
 
-    const prompt = `Analysiere didaktisch den folgenden Wochenplan einer österreichischen Volksschulklasse (${app.klasse || 'Volksschulklasse 3'}, KW ${nextKW}, Schulwoche ${sw || 'N/A'}).
+    const gradeContext = app.stufe ? `Schulstufe ${app.stufe}` : 'Schulstufe nicht angegeben';
+    const prompt = `Analysiere didaktisch den folgenden Wochenplan einer österreichischen Volksschulklasse (${gradeContext}, KW ${nextKW}, Schulwoche ${sw || 'nicht ermittelt'}).
 
 Globales Wochenthema aus Jahresplan: "${getJahresplanTheme(nextKW) || 'Kein Wochenthema eingetragen'}"
 
@@ -496,6 +499,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
       }));
     } catch (e) {
       console.error(e);
+      setWeeklyInsightError('Der KI-Wocheneinblick konnte nicht geladen werden. Deine Planung wurde nicht verändert.');
     } finally {
       setIsAnalyzingWeek(false);
     }
@@ -1502,6 +1506,12 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                     </button>
                   </div>
 
+                  {weeklyInsightError && (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-800">
+                      {weeklyInsightError}
+                    </div>
+                  )}
+
                   {app.scheduleAnalysis?.[nextKW] ? (
                     <div className="prose prose-slate max-w-none text-xs leading-relaxed space-y-3">
                       <Markdown>{app.scheduleAnalysis[nextKW]}</Markdown>
@@ -1737,6 +1747,34 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                         placeholder="Was ist für diese Stunde geplant?"
                         className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-2xl h-20 font-medium focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       />
+
+                      {aiSuggestionError && (
+                        <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800">
+                          {aiSuggestionError}
+                        </p>
+                      )}
+
+                      {aiSuggestions.length > 0 && (
+                        <div className="space-y-1.5 rounded-xl border border-indigo-100 bg-indigo-50/60 p-2.5">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-indigo-700">
+                            KI-Vorschläge
+                          </p>
+                          {aiSuggestions.slice(0, 3).map((suggestion, index) => (
+                            <button
+                              key={`${suggestion}-${index}`}
+                              type="button"
+                              onClick={() => {
+                                setLessonTopic(suggestion);
+                                setAiSuggestions([]);
+                                setAiSuggestionError('');
+                              }}
+                              className="block w-full rounded-lg border border-indigo-100 bg-white px-2.5 py-2 text-left text-[11px] font-semibold text-slate-800 transition hover:border-indigo-300 hover:bg-indigo-50"
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Homework / Note */}
