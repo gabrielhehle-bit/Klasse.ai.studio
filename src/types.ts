@@ -744,6 +744,10 @@ export type AssessmentMode = 'grades' | 'percent' | 'points';
 export interface SubjectNotenMeta {
   saCount?: number;
   assessmentMode?: AssessmentMode;
+  /** Subject-specific homework handling. Legacy global settings are only migration fallbacks. */
+  hueMode?: 'document' | 'grade';
+  hueDeduction?: number;
+  hueMitarbeitWeight?: number;
   maxPoints?: {
     sa?: number[];
     lzk?: number[];
