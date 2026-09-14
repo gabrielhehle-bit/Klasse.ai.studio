@@ -76,10 +76,10 @@ export async function callServerAI(action: string, params: any): Promise<string>
       paramsStr = paramsStr.replace(/\b\d{1,2}\.\d{1,2}\.\d{2,4}\b/g, "[Datum entfernt]");
 
       const result = pseudonymisiere(paramsStr, appState as AppState);
-      params = { ...JSON.parse(result.text), ...(imageBase64 ? { imageBase64 } : {}) };
+      params = { ...JSON.parse(result.text), ...(imageBase64 ? { imageBase64, imagePrivacyConfirmed: true } : {}) };
       map = result.map;
     } else {
-      params = { ...restParams, ...(imageBase64 ? { imageBase64 } : {}) };
+      params = { ...restParams, ...(imageBase64 ? { imageBase64, imagePrivacyConfirmed: true } : {}) };
       if (!pseudonymizationWarningShown && (!appState || (!appState.schueler?.length && !appState.classes?.length))) {
         // Keine Schülerdaten im aktuellen RAM vorhanden (z. B. leeres System)
         pseudonymizationWarningShown = true;
