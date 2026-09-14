@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useApp } from "../context/AppContext";
-import { getKW, kwToMonday } from "../lib/utils";
+import { formatLocalDateKey, getKW, getSemester, getStartYear, kwToMonday, kwYear } from "../lib/utils";
 import {
   Target,
   ChevronLeft,
@@ -929,7 +929,7 @@ export default function LernzielTracker() {
           schuelerId: studentId,
           bereich: "schule",
           zielText,
-          datum: new Date().toISOString().split("T")[0],
+          datum: formatLocalDateKey(new Date()),
           status: "aktiv",
         },
       ],
@@ -1009,9 +1009,10 @@ export default function LernzielTracker() {
     });
   };
 
-  // Get week range
-  const currentYear = new Date().getFullYear(); // simplifying, not perfect cross-year
-  const startObj = kwToMonday(selectedWeek, currentYear);
+  // Get the selected school week's real ISO year, including the Jan/Feb year crossover.
+  const schoolStartYear = getStartYear(app.schuljahr);
+  const selectedWeekYear = kwYear(selectedWeek, schoolStartYear, app.bundesland || "VBG");
+  const startObj = kwToMonday(selectedWeek, selectedWeekYear);
   const endObj = new Date(startObj);
   endObj.setDate(endObj.getDate() + 4);
   const weekLabel = `${startObj.getDate()}.${startObj.getMonth() + 1}. – ${endObj.getDate()}.${endObj.getMonth() + 1}.`;
@@ -1218,6 +1219,7 @@ export default function LernzielTracker() {
           addSchuelerGoalFromWizard={addSchuelerGoalFromWizard}
           trackerDB={trackerDB}
           students={app.schueler}
+          selectedWeek={selectedWeek}
           setPage={setPage}
         />
       )}
@@ -1235,9 +1237,10 @@ function WizardModal({
   addSchuelerGoalFromWizard,
   trackerDB,
   students,
+  selectedWeek,
   setPage,
 }: any) {
-  const { setApp } = useApp();
+  const { app, setApp } = useApp();
   const [activeTab, setActiveTab] = useState<
     "auswahl" | "checkliste" | "zusammenfassung" | "klasse" | "ki"
   >("auswahl");
@@ -1261,16 +1264,66 @@ function WizardModal({
   const [compareStudentId, setCompareStudentId] = useState<string>("");
   const [compareGoalId, setCompareGoalId] = useState<string>("");
 
+  const selectedWeekStart = kwToMonday(
+    selectedWeek,
+    kwYear(selectedWeek, getStartYear(app.schuljahr), app.bundesland || "VBG"),
+  );
+  const selectedSemester = String(getSemester(formatLocalDateKey(selectedWeekStart))) as "1" | "2";
+
+  // One-time migration of old browser-only learning-goal ratings into the encrypted class state.
+  useEffect(() => {
+    const legacyByStudent: Record<string, Record<string, number | null>> = {};
+    (students || []).forEach((student: any) => {
+      if (app.studentLernzielBewertungen?.[student.id]) return;
+      try {
+        const raw = localStorage.getItem(`student_lernziele_${student.id}`);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          legacyByStudent[student.id] = parsed;
+        }
+      } catch {}
+    });
+
+    if (Object.keys(legacyByStudent).length === 0) return;
+
+    setApp((prev) => {
+      const legacyRatings = { ...(prev.studentLernzielBewertungen || {}) };
+      const semesterRatings = { ...(prev.studentLernzielSemesterBewertungen || {}) };
+
+      Object.entries(legacyByStudent).forEach(([studentId, ratings]) => {
+        if (!legacyRatings[studentId]) legacyRatings[studentId] = ratings;
+        const existingSemesters = { ...(semesterRatings[studentId] || {}) };
+        if (!existingSemesters[selectedSemester]) {
+          existingSemesters[selectedSemester] = ratings;
+        }
+        semesterRatings[studentId] = existingSemesters;
+      });
+
+      return {
+        ...prev,
+        studentLernzielBewertungen: legacyRatings,
+        studentLernzielSemesterBewertungen: semesterRatings,
+      };
+    });
+  }, [students, selectedSemester, app.studentLernzielBewertungen, setApp]);
+
+  useEffect(() => {
+    (students || []).forEach((student: any) => {
+      const migrated = app.studentLernzielSemesterBewertungen?.[student.id]?.[selectedSemester]
+        || app.studentLernzielBewertungen?.[student.id];
+      if (!migrated) return;
+      try {
+        localStorage.removeItem(`student_lernziele_${student.id}`);
+      } catch {}
+    });
+  }, [students, selectedSemester, app.studentLernzielSemesterBewertungen, app.studentLernzielBewertungen]);
+
   // Checkliste Handlers
   const getStudentRating = (studentId: string, goalId: string) => {
-    try {
-      const savedEval = localStorage.getItem(`student_lernziele_${studentId}`);
-      if (savedEval) {
-        const data = JSON.parse(savedEval);
-        return data[goalId] || null;
-      }
-    } catch (e) {}
-    return null;
+    const semesterRating = app.studentLernzielSemesterBewertungen?.[studentId]?.[selectedSemester]?.[goalId];
+    if (semesterRating !== undefined) return semesterRating;
+    return app.studentLernzielBewertungen?.[studentId]?.[goalId] ?? null;
   };
 
   const setStudentRating = (
@@ -1278,18 +1331,29 @@ function WizardModal({
     goalId: string,
     rating: number | null,
   ) => {
-    try {
-      let data: Record<string, number | null> = {};
-      const savedEval = localStorage.getItem(`student_lernziele_${studentId}`);
-      if (savedEval) data = JSON.parse(savedEval);
-      data[goalId] = rating;
-      localStorage.setItem(
-        `student_lernziele_${studentId}`,
-        JSON.stringify(data),
-      );
-      // Trigger a re-render to update the UI
-      setStudentProgress([...studentProgress]);
-    } catch (e) {}
+    setApp((prev) => {
+      const legacyRatings = {
+        ...(prev.studentLernzielBewertungen || {}),
+        [studentId]: {
+          ...(prev.studentLernzielBewertungen?.[studentId] || {}),
+          [goalId]: rating,
+        },
+      };
+      const semesters = { ...(prev.studentLernzielSemesterBewertungen?.[studentId] || {}) };
+      semesters[selectedSemester] = {
+        ...(semesters[selectedSemester] || {}),
+        [goalId]: rating,
+      };
+
+      return {
+        ...prev,
+        studentLernzielBewertungen: legacyRatings,
+        studentLernzielSemesterBewertungen: {
+          ...(prev.studentLernzielSemesterBewertungen || {}),
+          [studentId]: semesters,
+        },
+      };
+    });
   };
 
   const saveChecklistNote = (
@@ -1386,17 +1450,10 @@ function WizardModal({
       const classTotalGoals = totalGoals;
 
       const progress = (students || []).map((student: any) => {
-        let evaluationData: Record<string, number | null> = {};
-        try {
-          const savedEval = localStorage.getItem(
-            `student_lernziele_${student.id}`,
-          );
-          if (savedEval) {
-            evaluationData = JSON.parse(savedEval);
-          }
-        } catch (e) {
-          console.error("Error loading student data", e);
-        }
+        const evaluationData: Record<string, number | null> =
+          app.studentLernzielSemesterBewertungen?.[student.id]?.[selectedSemester]
+          || app.studentLernzielBewertungen?.[student.id]
+          || {};
 
         let count1 = 0;
         let count2 = 0;
@@ -1459,7 +1516,15 @@ function WizardModal({
         setAnomalyAlert(alert);
       }
     }
-  }, [activeTab, students, currentLernziele, totalGoals]);
+  }, [
+    activeTab,
+    students,
+    currentLernziele,
+    totalGoals,
+    selectedSemester,
+    app.studentLernzielBewertungen,
+    app.studentLernzielSemesterBewertungen,
+  ]);
 
   const handleGetRecommendations = async () => {
     setIsGenerating(true);
