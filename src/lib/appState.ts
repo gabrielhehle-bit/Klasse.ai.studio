@@ -409,6 +409,21 @@ export function normalizeAppState(raw: any): AppState {
         settings: c.settings || {}
       };
     }).filter(Boolean);
+
+    // Keep the root projection aligned with the active class immediately after
+    // loading. Otherwise the first class switch would sync stale root planning
+    // data back into the active class and overwrite its Parkgarage/templates.
+    const activePlanningClass = parsed.classes.find(
+      (classroom: any) => classroom?.id === parsed.activeClassId,
+    );
+    if (activePlanningClass) {
+      parsed.parkgarage = activePlanningClass.parkgarage
+        ? JSON.parse(JSON.stringify(activePlanningClass.parkgarage))
+        : [];
+      parsed.savedWeekTemplates = activePlanningClass.savedWeekTemplates
+        ? JSON.parse(JSON.stringify(activePlanningClass.savedWeekTemplates))
+        : {};
+    }
   }
 
   // Migration / projection: seating-plan rules are class-local.
