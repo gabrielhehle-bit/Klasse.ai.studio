@@ -14,11 +14,13 @@ import {
   syncNoteToPlanning,
   inferDateFromText,
   getTeacherFirstName,
+  formatLocalDateKey,
 } from "../lib/utils";
 import { getFerien } from "../lib/ferienOesterreich";
 import { VM_ZEITEN, STUNDEN_INFO, FAECHER_ALLE, AESTHETIC_THEMES, DASHBOARD_CURATED_FONTS, DASHBOARD_FONT_SIZES } from "../constants";
 import { berechne } from "../lib/GradeUtils";
 import { isDiagnosticAlert } from "../lib/diagnosticData";
+import { isAttendanceCompleteForDay, isAttendanceRequiredForDay } from "../lib/dashboardAttendance";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Users,
@@ -2263,7 +2265,11 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const list: Array<{ type: string; title: string; desc?: string; color: string }> = [];
 
     // 1. Is it a holiday?
-    const hName = isHoliday(scheduleDatum, [], 'VBG');
+    const hName = isHoliday(
+      scheduleDatum,
+      app?.calendarSettings?.disabledHolidays || [],
+      app?.bundesland || "VBG",
+    );
     if (hName) {
       list.push({
         type: "holiday",
@@ -2814,23 +2820,49 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     }
   };
 
+  const displayedDateKey = formatLocalDateKey(scheduleDatum);
+  const displayedDayName = getTodayName(scheduleDatum);
+  const displayedActiveHours: number[] = displayedDayName
+    ? (app?.tageplan?.[displayedDayName]?.stunden || [])
+    : [];
+  const displayedHolidayName = isHoliday(
+    scheduleDatum,
+    app?.calendarSettings?.disabledHolidays || [],
+    app?.bundesland || "VBG",
+  );
+  const displayedCalendarOverride = app?.calendarOverrides?.[displayedDateKey] as 'school' | 'free' | undefined;
+  const attendanceRequiredToday = isAttendanceRequiredForDay({
+    studentCount: (app?.schueler || []).length,
+    activeHours: displayedActiveHours,
+    isWeekend: scheduleDatum.getDay() === 0 || scheduleDatum.getDay() === 6,
+    holidayName: displayedHolidayName,
+    calendarOverride: displayedCalendarOverride,
+  });
+
   const missingToday = React.useMemo(() => {
-    const todayStrFull = heute.toISOString().split("T")[0];
     return (app?.schueler || []).filter((s) => {
-      const todayRecord = app?.anwesenheit?.[s.id]?.[todayStrFull] || {};
-      return Object.values(todayRecord).some(
+      const dayRecord = app?.anwesenheit?.[s.id]?.[displayedDateKey] || {};
+      return Object.values(dayRecord).some(
         (status) => status === "f" || status === "e" || status === "u",
       );
     });
-  }, [app?.anwesenheit, app?.schueler, heute]);
+  }, [app?.anwesenheit, app?.schueler, displayedDateKey]);
 
   const attendanceRecordedToday = React.useMemo(() => {
-    const todayStrFull = heute.toISOString().split("T")[0];
-    return (app?.schueler || []).some((student) => {
-      const record = app?.anwesenheit?.[student.id]?.[todayStrFull];
-      return Boolean(record && Object.keys(record).length > 0);
-    });
-  }, [app?.anwesenheit, app?.schueler, heute]);
+    if (!attendanceRequiredToday) return false;
+    return isAttendanceCompleteForDay(
+      app?.schueler || [],
+      app?.anwesenheit,
+      displayedDateKey,
+      displayedActiveHours,
+    );
+  }, [
+    app?.anwesenheit,
+    app?.schueler,
+    attendanceRequiredToday,
+    displayedDateKey,
+    displayedActiveHours,
+  ]);
 
   const [simpleDashboardMode, setSimpleDashboardMode] = useState<boolean>(() => {
     const saved = localStorage.getItem("dashboard_simple_mode");
@@ -4512,6 +4544,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         absentCount={missingToday.length}
         presentCount={Math.max(0, (app?.schueler || []).length - missingToday.length)}
         attendanceRecorded={attendanceRecordedToday}
+        attendanceRequired={attendanceRequiredToday}
 
         todayLessonCount={todayLessonsList.length}
         currentLesson={currentHourData}
