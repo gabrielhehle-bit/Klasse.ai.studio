@@ -165,6 +165,9 @@ export async function tryUnlockTrustedDevice(vaultRecord: VaultRecordV1): Promis
     ]);
 
     if (!deviceKey || !record || record.version !== 1 || record.vaultId !== vaultRecord.id) {
+      // Unvollständige oder zu einem anderen Tresor gehörende Komfortdaten dürfen
+      // nicht dauerhaft auf dem Gerät liegen bleiben.
+      if (deviceKey || record) await clearTrustedDeviceUnlock();
       return null;
     }
     if (record.expiresAt <= Date.now()) {
