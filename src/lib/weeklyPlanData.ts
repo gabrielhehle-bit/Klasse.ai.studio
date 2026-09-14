@@ -1,3 +1,4 @@
+import { MAX_LESSON_SLOTS } from '../constants';
 import { getKW, getSchulstartKW, getStartYear, getSW, kwToMonday } from './utils';
 
 export type WeeklyPlanWeek = {
@@ -54,4 +55,18 @@ export function configuredLessonTime(
     return configured[slot] || '';
   }
   return fallback[slot] || '';
+}
+
+
+export function weeklyLessonDurationSlots(
+  duration: number | 'all' | undefined,
+  startIndex: number,
+): number {
+  const normalizedStart = Math.max(0, Math.min(MAX_LESSON_SLOTS - 1, startIndex));
+  const remainingSlots = MAX_LESSON_SLOTS - normalizedStart;
+  if (duration === 'all') return remainingSlots;
+
+  const requested = Number(duration);
+  if (!Number.isFinite(requested) || requested < 1) return 1;
+  return Math.min(remainingSlots, Math.floor(requested));
 }
