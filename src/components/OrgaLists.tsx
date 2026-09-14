@@ -183,116 +183,54 @@ export default function OrgaLists() {
   // Handle 1-click toggle payment
   const toggleStudentPayment = (sid: string, sammlungId: string) => {
     setApp(prev => {
-      if (!prev.klassenkasse) return prev;
-      const sammlungen = prev.klassenkasse.sammlungen.map(s => {
-        if (s.id !== sammlungId) return s;
+      const currentKasse = normalizeKlassenkasse(prev.klassenkasse);
+      const collection = currentKasse.sammlungen.find(item => item.id === sammlungId);
+      if (!collection) return prev;
 
-        const currentStatus = s.status[sid] || 'offen';
-        const newStatus = (currentStatus === 'bezahlt' ? 'offen' : 'bezahlt') as 'offen' | 'teilweise' | 'bezahlt';
-        const diff = newStatus === 'bezahlt' ? s.betrag - (s.betraege[sid] || 0) : -(s.betraege[sid] || 0);
-
-        const newBetraege = { ...s.betraege, [sid]: newStatus === 'bezahlt' ? s.betrag : 0 };
-        const newStatusMap = { ...s.status, [sid]: newStatus };
-
-        return { ...s, status: newStatusMap, betraege: newBetraege, _diff: diff };
-      });
-
-      const updatedSammlung = sammlungen.find(s => s.id === sammlungId);
-      // @ts-ignore
-      const diff = updatedSammlung?._diff || 0;
-      sammlungen.forEach(s => {
-        // @ts-ignore
-        delete s._diff;
-      });
-
-      const newTrans: KassenTransaktion[] = [...prev.klassenkasse!.transaktionen];
-      if (diff !== 0) {
-        const student = students.find(st => st.id === sid);
-        const stName = student ? `${student.vorname} ${student.nachname}` : 'Schüler';
-        newTrans.unshift({
-          id: crypto.randomUUID(),
-          datum: new Date().toISOString(),
-          titel: `${stName} – ${updatedSammlung?.titel}`,
-          betrag: Math.abs(diff),
-          typ: diff > 0 ? 'plus' : 'minus',
-          kategorie: 'sammlung',
-          geldsammlungId: sammlungId,
-          schuelerId: sid
-        });
-      }
+      const currentPaid = collection.betraege?.[sid] || 0;
+      const isFullyPaid = currentPaid >= collection.betrag;
+      const student = (prev.schueler || []).find(st => st.id === sid);
+      const studentLabel = student ? `${student.vorname} ${student.nachname}`.trim() : 'Schüler:in';
 
       return {
         ...prev,
-        klassenkasse: {
-          ...prev.klassenkasse,
-          kontostand: prev.klassenkasse.kontostand + diff,
-          sammlungen,
-          transaktionen: newTrans
-        }
+        klassenkasse: setCollectionPaymentAmount(currentKasse, {
+          sammlungId,
+          studentId: sid,
+          paidAmount: isFullyPaid ? 0 : collection.betrag,
+          studentLabel,
+        }),
       };
     });
   };
 
   // Handle custom amount entry
   const applyPartialAmount = (sid: string, sammlungId: string, amountStr: string) => {
-    const rawVal = amountStr.replace(',', '.');
-    const amount = parseFloat(rawVal);
-    if (isNaN(amount) || amount < 0) {
-      alert('Bitte einen gültigen Betrag eingeben.');
+    const collection = kasse.sammlungen.find(item => item.id === sammlungId);
+    if (!collection) return;
+
+    const parsed = parseEuroInput(amountStr, { allowZero: true, max: collection.betrag });
+    if (!parsed.valid) {
+      alert(`Bitte einen gültigen Betrag zwischen 0 und ${formatEuro(collection.betrag)} eingeben.`);
       return;
     }
 
     setApp(prev => {
-      if (!prev.klassenkasse) return prev;
-      const sammlungen = prev.klassenkasse.sammlungen.map(s => {
-        if (s.id !== sammlungId) return s;
+      const currentKasse = normalizeKlassenkasse(prev.klassenkasse);
+      const currentCollection = currentKasse.sammlungen.find(item => item.id === sammlungId);
+      if (!currentCollection || parsed.value > currentCollection.betrag) return prev;
 
-        const oldPaid = s.betraege[sid] || 0;
-        const targetAmount = s.betrag;
-        const finalPaid = Math.min(amount, targetAmount);
-        const status: 'offen' | 'teilweise' | 'bezahlt' = 
-          finalPaid === 0 ? 'offen' : 
-          finalPaid >= targetAmount ? 'bezahlt' : 'teilweise';
-        const diff = finalPaid - oldPaid;
-
-        const newBetraege = { ...s.betraege, [sid]: finalPaid };
-        const newStatus = { ...s.status, [sid]: status };
-
-        return { ...s, status: newStatus, betraege: newBetraege, _diff: diff };
-      });
-
-      const updatedSammlung = sammlungen.find(s => s.id === sammlungId);
-      // @ts-ignore
-      const diff = updatedSammlung?._diff || 0;
-      sammlungen.forEach(s => {
-        // @ts-ignore
-        delete s._diff;
-      });
-
-      const newTrans = [...prev.klassenkasse.transaktionen];
-      if (diff !== 0) {
-        const student = students.find(st => st.id === sid);
-        const stName = student ? `${student.vorname} ${student.nachname}` : 'Schüler';
-        newTrans.unshift({
-          id: crypto.randomUUID(),
-          datum: new Date().toISOString(),
-          titel: `${stName} – ${updatedSammlung?.titel} (${formatEuro(amount)})`,
-          betrag: Math.abs(diff),
-          typ: diff > 0 ? 'plus' : 'minus',
-          kategorie: 'sammlung',
-          geldsammlungId: sammlungId,
-          schuelerId: sid
-        });
-      }
+      const student = (prev.schueler || []).find(st => st.id === sid);
+      const studentLabel = student ? `${student.vorname} ${student.nachname}`.trim() : 'Schüler:in';
 
       return {
         ...prev,
-        klassenkasse: {
-          ...prev.klassenkasse,
-          kontostand: prev.klassenkasse.kontostand + diff,
-          sammlungen,
-          transaktionen: newTrans
-        }
+        klassenkasse: setCollectionPaymentAmount(currentKasse, {
+          sammlungId,
+          studentId: sid,
+          paidAmount: parsed.value,
+          studentLabel,
+        }),
       };
     });
 
@@ -304,46 +242,20 @@ export default function OrgaLists() {
   const markAllPaidForSammlung = (samId: string) => {
     if (!confirm('Alle Schüler als vollständig bezahlt markieren?')) return;
     setApp(prev => {
-      if (!prev.klassenkasse) return prev;
-      let sumDiff = 0;
-      const newTrans = [...prev.klassenkasse.transaktionen];
-
-      const sammlungen = prev.klassenkasse.sammlungen.map(s => {
-        if (s.id !== samId) return s;
-        const newBetraege = { ...s.betraege };
-        const newStatus = { ...s.status };
-
-        students.forEach(st => {
-          const oldPaid = s.betraege[st.id] || 0;
-          const diff = s.betrag - oldPaid;
-          if (diff > 0) {
-            sumDiff += diff;
-            newTrans.unshift({
-              id: crypto.randomUUID(),
-              datum: new Date().toISOString(),
-              titel: `Sammel-Einzahlung: ${s.titel}`,
-              betrag: diff,
-              typ: 'plus',
-              kategorie: 'sammlung',
-              geldsammlungId: samId,
-              schuelerId: st.id
-            });
-          }
-          newBetraege[st.id] = s.betrag;
-          newStatus[st.id] = 'bezahlt';
-        });
-
-        return { ...s, betraege: newBetraege, status: newStatus };
-      });
+      const currentKasse = normalizeKlassenkasse(prev.klassenkasse);
+      const classStudents = (prev.schueler || []).map(student => ({
+        id: student.id,
+        label: `${student.vorname} ${student.nachname}`.trim() || 'Schüler:in',
+      }));
 
       return {
         ...prev,
-        klassenkasse: {
-          ...prev.klassenkasse,
-          kontostand: prev.klassenkasse.kontostand + sumDiff,
-          sammlungen,
-          transaktionen: newTrans
-        }
+        klassenkasse: markCollectionPaidForStudents(
+          currentKasse,
+          samId,
+          classStudents,
+          new Date().toISOString()
+        ),
       };
     });
   };
