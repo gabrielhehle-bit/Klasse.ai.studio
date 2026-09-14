@@ -6,6 +6,7 @@ import nodemailer from "nodemailer";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { KI_SYSTEM_PROMPTS, GLOBAL_KI_RULES } from "./src/kiSystemPrompts.ts";
+import { validateAiServerImageRequest } from "./src/lib/aiPrivacy.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
 // that do `typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url))`
@@ -1053,11 +1054,27 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       return res.status(400).json({ error: "Unbekannte oder unzulässige KI-Aktion." });
     }
 
-    let params = req.body.params;
+    let params = req.body.params || {};
 
-    // B1.5 Server-Schutznetz: Eingehende Parameter vor Weitergabe an Gemini prüfen & maskieren
+    // Bilddaten dürfen nicht durch Textfilter laufen: Regex-Ersetzungen würden Base64 beschädigen.
+    // Deshalb wird die explizite Datenschutzbestätigung serverseitig erneut geprüft und das Bild
+    // erst nach der Text-/JSON-Sanitization unverändert wieder angehängt.
+    const imageBase64 = params?.imageBase64;
+    const imagePrivacyConfirmed = params?.imagePrivacyConfirmed === true;
+    const imageRequestError = validateAiServerImageRequest(action, imageBase64, imagePrivacyConfirmed);
+    if (imageRequestError) {
+      return res.status(400).json({ error: imageRequestError });
+    }
+
+    const { imageBase64: _image, imagePrivacyConfirmed: _confirmation, ...textParams } = params;
+
+    // B1.5 Server-Schutznetz: Nur Text-/JSON-Parameter prüfen & maskieren.
     const privacyViolations: string[] = [];
-    params = sanitizeAIPayloadRecursively(params, privacyViolations);
+    const sanitizedTextParams = sanitizeAIPayloadRecursively(textParams, privacyViolations);
+    params = {
+      ...sanitizedTextParams,
+      ...(imageBase64 ? { imageBase64 } : {})
+    };
     if (privacyViolations.length > 0) {
       console.warn("[DATENSCHUTZ-WARNUNG] Sensibles Muster in KI-Request entfernt.");
     }

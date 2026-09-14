@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
+import { buildAiClassContext } from '../lib/aiPrivacy';
 import { ChatEntry, Message } from '../types';
 import { 
   Send, Bot, Sparkles, User, RefreshCw, X, 
@@ -262,7 +263,23 @@ export default function AIAssistant() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<AiTab>('ki-helfer');
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [aiAvailability, setAiAvailability] = useState<'checking' | 'ready' | 'missing' | 'offline'>('checking');
+  const [useClassContext, setUseClassContext] = useState(true);
   const processedPromptTimestampRef = useRef<number>(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/ai/status')
+      .then(async (response) => {
+        if (!response.ok) throw new Error('status unavailable');
+        const data = await response.json();
+        if (!cancelled) setAiAvailability(data?.available ? 'ready' : 'missing');
+      })
+      .catch(() => {
+        if (!cancelled) setAiAvailability('offline');
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Form States for new modes
   const [abFach, setAbFach] = useState('Deutsch');
@@ -297,6 +314,7 @@ export default function AIAssistant() {
   const [fkStufe, setFkStufe] = useState(app.stufe || 1);
   const [fkImageBase64, setFkImageBase64] = useState<{data: string, mimeType: string} | null>(null);
   const [fkImagePreview, setFkImagePreview] = useState<string | null>(null);
+  const [fkPrivacyConfirmed, setFkPrivacyConfirmed] = useState(false);
   const [fkFokus, setFkFokus] = useState({rechtschreibung: true, grammatik: true, ausdruck: true, aufbau: true, inhalt: true});
 
   const [wpStufe, setWpStufe] = useState(app.stufe || 1);
@@ -400,16 +418,20 @@ export default function AIAssistant() {
     }
   };
 
-  const handleSend = async (manualText?: string, manualImageBase64?: {data: string, mimeType: string} | null) => {
+  const handleSend = async (manualText?: string, manualImageBase64?: {data: string, mimeType: string} | null, imagePrivacyConfirmed: boolean = false) => {
     const userMsg = (manualText || input).trim();
     if (!userMsg || isLoading) return;
+    if (aiAvailability === 'missing') {
+      showToast('Der KI-Helfer ist serverseitig noch nicht eingerichtet.', 'error');
+      return;
+    }
     
     const currentTab = activeTab;
     const modusId = currentTab;
     
     if (!manualText) setInp('');
     
-    let contextStr = '';
+    let contextStr = useClassContext ? buildAiClassContext(app) : '';
     if (modusId === 'ki-lernziele' && activeMessages.length === 0) {
       const students = app.schueler || [];
       const trackerDB = app.lernzielTracker || {};
@@ -447,7 +469,7 @@ export default function AIAssistant() {
         }
       });
       
-      contextStr = `\n\n[SYSTEM: INTERNER KONTEXT]
+      contextStr += `\n\n[ZUSÄTZLICHER LERNZIEL-KONTEXT]
 Aktuelle Ziele im Klassen-Tracker:
 ${classProgress || 'Keine Ziele definiert.'}
 
@@ -467,14 +489,20 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
     setIsLoading(true);
 
     try {
-      const text = await askAI(modusId, userMsg + contextStr, activeMessages, manualImageBase64 || undefined);
-      const responseMessages: Message[] = [...newMessages, { role: 'ai', content: text || 'Keine Antwort erhalten.' }];
+      const text = await askAI(modusId, userMsg + contextStr, activeMessages, manualImageBase64 || undefined, imagePrivacyConfirmed);
+      const normalized = (text || '').trim();
+      if (!normalized) throw new Error('Die KI hat keine Antwort geliefert.');
+      if (/^(KI-|Rate Limit|Timeout:|KI momentan|Bildanalyse blockiert|KI-Anfrage aus Datenschutzgründen|GEMINI_|Zu viele KI-Anfragen|Failed to fetch|fetch failed|NetworkError|Internal Server Error|Modus nicht gefunden)/i.test(normalized)) {
+        throw new Error(normalized);
+      }
+      const responseMessages: Message[] = [...newMessages, { role: 'ai', content: normalized }];
       setActiveMessages(responseMessages);
       saveChatHistory(currentTab, responseMessages, activeChatId, userMsg);
     } catch (err) {
       console.error(err);
-      showToast('Verbindung zur KI fehlgeschlagen.', 'error');
-      const errorMsg: Message = { role: 'ai', content: 'Ups, da gab es ein Problem mit der Verbindung. Bitte prüfe deinen API-Key.' };
+      const message = err instanceof Error ? err.message : 'KI momentan nicht erreichbar.';
+      showToast(message, 'error');
+      const errorMsg: Message = { role: 'ai', content: `⚠️ ${message}` };
       setActiveMessages(prev => [...prev, errorMsg]);
     } finally {
       setIsLoading(false);
@@ -510,12 +538,12 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
     { id: 'ki-elternbrief', label: 'Elternkommunikation', icon: <Mail size={20} />, color: 'indigo', colorClass: 'text-indigo-500/70', bgClass: 'bg-indigo-600', buttonColor: '#4f46e5', description: 'Information & Förderung', chat: true, category: 'tool' },
     { id: 'ki-differenzierung', label: 'Differenzierung', icon: <Layers size={20} />, color: 'sky', colorClass: 'text-sky-500/70', bgClass: 'bg-sky-600', buttonColor: '#0284c7', description: 'DaZ & Förderbedarf', chat: true, category: 'tool' },
     { id: 'ki-beurteilung', label: 'Leistungsbeurteilung', icon: <FileEdit size={20} />, color: 'orange', colorClass: 'text-orange-500/70', bgClass: 'bg-orange-600', buttonColor: '#ea580c', description: 'Noten & KEL', chat: true, category: 'tool' },
-    { id: 'ki-korrektur', label: 'KI Check', icon: <Check size={20} />, color: 'rose', colorClass: 'text-rose-500/70', bgClass: 'bg-rose-600', buttonColor: '#e11d48', description: 'Korrekturlesen', chat: true, category: 'tool' },
+    { id: 'ki-korrektur', label: 'Text prüfen', icon: <Check size={20} />, color: 'rose', colorClass: 'text-rose-500/70', bgClass: 'bg-rose-600', buttonColor: '#e11d48', description: 'Korrekturlesen', chat: true, category: 'tool' },
     { id: 'ki-arbeitsblatt', label: 'Arbeitsblätter', icon: <FileText size={20} />, color: 'cyan', colorClass: 'text-cyan-500/70', bgClass: 'bg-cyan-600', buttonColor: '#0891b2', description: 'Fördern & Talente', chat: true, category: 'tool' },
     { id: 'ki-foto-korrektur', label: 'Text-Korrektur (Foto)', icon: <Camera size={20} />, color: 'red', colorClass: 'text-red-500/70', bgClass: 'bg-red-500', buttonColor: '#ef4444', description: 'Schülertexte korrigieren', chat: true, category: 'tool' },
     { id: 'ki-wochenplan', label: 'Wochenplan-Arbeit', icon: <ClipboardList size={20} />, color: 'purple', colorClass: 'text-purple-500/70', bgClass: 'bg-purple-600', buttonColor: '#9333ea', description: 'Pläne & Freiarbeit', chat: true, category: 'tool' },
-    { id: 'ki-lernziele', label: 'Lernziel-Wizard', icon: <Target size={20} />, color: 'blue', colorClass: 'text-blue-500/70', bgClass: 'bg-blue-600', buttonColor: '#2563eb', description: 'Planung & Empfehlungen', chat: true, category: 'tool' },
-    { id: 'ki-stundenplan-check', label: 'Stundenplan Check', icon: <Activity size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#10b981', description: 'Wochenplanung prüfen', chat: false, category: 'tool' },
+    { id: 'ki-lernziele', label: 'Lernziele', icon: <Target size={20} />, color: 'blue', colorClass: 'text-blue-500/70', bgClass: 'bg-blue-600', buttonColor: '#2563eb', description: 'Planung & Empfehlungen', chat: true, category: 'tool' },
+    { id: 'ki-stundenplan-check', label: 'Wochenplan prüfen', icon: <Activity size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#10b981', description: 'Wochenplanung prüfen', chat: false, category: 'tool' },
     { id: 'ki-stationenbetrieb', label: 'Lernwerkstätten', icon: <LayoutGrid size={20} />, color: 'indigo', colorClass: 'text-indigo-500/70', bgClass: 'bg-indigo-600', buttonColor: '#4f46e5', description: 'Lernwerkstatt & Stationenbetrieb', chat: false, category: 'tool' },
   ];
 
@@ -729,14 +757,36 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                          <p className="text-[0.6875rem] font-semibold text-slate-500">{activeTabData.description}</p>
                       </div>
                    </div>
-                   <button 
-                      onClick={() => { setActiveMessages([]); setActiveChatId(null); }}
-                      className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[0.625rem] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2 transition-all active:scale-95"
-                    >
-                      <RefreshCw size={10} className="text-indigo-400" />
-                      Zurücksetzen
-                    </button>
+                   <div className="flex items-center gap-2">
+                     <label className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-[0.625rem] font-bold text-slate-600 cursor-pointer" title="Übermittelt nur Schulstufe, Bundesland, Klassengröße und aktuelle Wochenplanthemen. Schülernamen werden nicht automatisch in diesen Klassenkontext aufgenommen.">
+                       <input type="checkbox" checked={useClassContext} onChange={(e) => setUseClassContext(e.target.checked)} className="rounded" />
+                       Klassenkontext
+                     </label>
+                     <button 
+                        onClick={() => { setActiveMessages([]); setActiveChatId(null); }}
+                        className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[0.625rem] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2 transition-all active:scale-95"
+                      >
+                        <RefreshCw size={10} className="text-indigo-400" />
+                        Neuer Chat
+                      </button>
+                   </div>
                 </div>
+
+                {aiAvailability !== 'ready' && (
+                  <div className={`mx-4 mt-3 rounded-xl border px-4 py-2.5 text-xs font-semibold ${
+                    aiAvailability === 'missing'
+                      ? 'bg-amber-50 border-amber-200 text-amber-800'
+                      : aiAvailability === 'offline'
+                        ? 'bg-rose-50 border-rose-200 text-rose-700'
+                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                  }`}>
+                    {aiAvailability === 'missing'
+                      ? 'Der KI-Helfer ist serverseitig noch nicht eingerichtet. Für den Betrieb muss GEMINI_API_KEY in der Serverumgebung gesetzt sein.'
+                      : aiAvailability === 'offline'
+                        ? 'Der KI-Status konnte nicht geprüft werden. Bei einer Anfrage zeigt Klassio die konkrete Fehlermeldung an.'
+                        : 'Klassio prüft gerade die KI-Verbindung …'}
+                  </div>
+                )}
 
                 <div className={`flex-1 overflow-y-auto scrollbar-hide scroll-smooth ${
                   isCompact ? 'py-4 pb-28' : isLarge ? 'py-6 pb-36' : 'py-8 pb-40'
@@ -1048,7 +1098,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                         
                         <div className="bg-rose-50/50 border border-rose-100 rounded-2xl p-3.5 flex items-start gap-3 mb-4">
                           <Shield size={16} className="text-rose-500 shrink-0 mt-0.5" />
-                          <p className="text-[0.6875rem] font-bold text-rose-700 leading-normal">Datenschutz: Achte darauf, dass kein Schülername auf dem Foto sichtbar ist – decke Namen vor dem Fotografieren ab.</p>
+                          <p className="text-[0.6875rem] font-bold text-rose-700 leading-normal">Datenschutz: Vor dem Hochladen müssen Name, Adresse und andere personenbezogene Angaben im Foto unkenntlich gemacht werden. Das Bild wird erst nach deiner Bestätigung an die KI gesendet.</p>
                         </div>
  
                         <div className="mb-4">
@@ -1081,6 +1131,7 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                                   ctx?.drawImage(img, 0, 0, width, height);
                                   const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                                   setFkImagePreview(dataUrl);
+                                  setFkPrivacyConfirmed(false);
                                   const base64Data = dataUrl.split(',')[1];
                                   setFkImageBase64({ data: base64Data, mimeType: 'image/jpeg' });
                                 };
@@ -1110,13 +1161,25 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                           </div>
                         </div>
  
+                        <label className="mb-4 flex items-start gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 p-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={fkPrivacyConfirmed}
+                            onChange={(e) => setFkPrivacyConfirmed(e.target.checked)}
+                            className="mt-0.5 rounded"
+                          />
+                          <span className="text-[0.6875rem] font-semibold leading-relaxed text-slate-700">
+                            Ich bestätige, dass Name, Adresse und andere personenbezogene Angaben im Bild unkenntlich gemacht wurden.
+                          </span>
+                        </label>
+
                         <button 
                           onClick={() => {
                             const foki = Object.entries(fkFokus).filter(([_,v]) => v).map(([k]) => k).join(', ');
                             const prompt = `Analysiere diesen Schülertext der ${fkStufe}. Stufe. Fokus auf: ${foki}.`;
-                            handleSend(prompt, fkImageBase64);
+                            handleSend(prompt, fkImageBase64, fkPrivacyConfirmed);
                           }} 
-                          disabled={!fkImageBase64 || isLoading} 
+                          disabled={!fkImageBase64 || !fkPrivacyConfirmed || isLoading || aiAvailability === 'missing'} 
                           className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:shadow-red-500/20 transition-all active:scale-[0.99] disabled:bg-slate-200 cursor-pointer"
                         >
                           Text analysieren
@@ -1198,9 +1261,15 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
                           <Send size={18} />
                         </button>
                      </div>
-                     <span className="text-[10px] text-center text-slate-400 font-bold select-none leading-none">
-                       Tipp: Drücke <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Enter</kbd> zum Senden • <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Shift+Enter</kbd> für Zeilenumbruch
-                     </span>
+                     <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-[10px] text-slate-400 font-bold select-none">
+                       <label className="md:hidden flex items-center gap-1.5 cursor-pointer">
+                         <input type="checkbox" checked={useClassContext} onChange={(e) => setUseClassContext(e.target.checked)} className="rounded" />
+                         Klassenkontext verwenden
+                       </label>
+                       <span>
+                         <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Enter</kbd> senden · <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Shift+Enter</kbd> Zeilenumbruch
+                       </span>
+                     </div>
                   </div>
                 </div>
               </motion.div>
