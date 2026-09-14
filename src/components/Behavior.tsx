@@ -73,6 +73,13 @@ export default function Behavior() {
     behavior_status: Record<string, string>;
   }[]>([]);
 
+  React.useEffect(() => {
+    // Undo/redo snapshots belong to exactly one class.
+    setBehaviorHistory([]);
+    setRedoHistory([]);
+    setSelectedStatStudentId(null);
+  }, [app.activeClassId]);
+
   const pushToHistory = (customLog?: any[], customStatus?: Record<string, string>) => {
     const logSnapshot = (customLog || app.statusLog || []).map((l: any) => ({ ...l }));
     const statusSnapshot = { ...(customStatus || app.behavior_status || {}) };
@@ -177,6 +184,13 @@ export default function Behavior() {
   const [newEntryText, setNewEntryText] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [aiLoading, setAiLoading] = useState(false);
+
+  React.useEffect(() => {
+    // Never carry a selected child from one class into another class's chronicle.
+    setSelectedStudentId('');
+    setChronikSearch('');
+    setVisibleLimit(15);
+  }, [app.activeClassId]);
 
   const [showIconPicker, setShowIconPicker] = useState<number | null>(null);
   const commonIcons = ['🌟', '😊', '😐', '⚠️', '🚫', '🔥', '❤️', '👍', '👎', '👏', '🙌', '🤝', '💎', '🏆', '👑', '✨', '🚀', '⭐', '🎈', '🎉', '📝', '💬', '📖', '💡', '⏰', '🍎', '🎒', '🎨', '🧩', '⚽', '💻', '🦁', '🐘', '🦎', '🦉', '🐝'];
@@ -336,8 +350,8 @@ export default function Behavior() {
         <div className="flex flex-wrap gap-2 p-1.5 bg-slate-50 rounded-[2rem] border border-slate-100 relative z-10 w-full sm:w-auto">
           {[
             { id: 'verhalten', label: 'Status', icon: <ShieldAlert size={14} /> },
-            { id: 'chronik', label: 'Chronik & Notizen', icon: <BookOpen size={14} /> },
-            { id: 'config', label: 'Setup', icon: <Settings size={14} /> }
+            { id: 'chronik', label: 'Chronik', icon: <BookOpen size={14} /> },
+            { id: 'config', label: 'Einstellungen', icon: <Settings size={14} /> }
           ].map(tab => (
             <button 
               key={tab.id}
@@ -352,7 +366,7 @@ export default function Behavior() {
         <div className="flex items-center gap-3 pr-4 relative z-10">
           <div className="text-right hidden md:block">
             <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Modul</p>
-            <p className="text-[0.875rem] leading-snug font-black text-slate-900">Verhalten & Notizen</p>
+            <p className="text-[0.875rem] leading-snug font-black text-slate-900">Notizen & Beobachtungen</p>
           </div>
           <div className="w-10 h-10 bg-accent/10 rounded-2xl flex items-center justify-center text-accent shadow-inner">
              <Notebook size={20} />
@@ -376,7 +390,7 @@ export default function Behavior() {
                       <ShieldAlert size={28} />
                     </div>
                     <div>
-                      <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">Verhaltens-Dashboard</h3>
+                      <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">Beobachtungsstatus</h3>
                       <p className="text-[0.875rem] text-slate-400 font-bold uppercase tracking-widest mt-1">Aktueller Status der Kinder</p>
                     </div>
                   </div>
