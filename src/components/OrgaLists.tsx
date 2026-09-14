@@ -11,6 +11,17 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import { Zugangsdaten, Geldsammlung, KassenTransaktion, CustomList, OrgCheckliste, CustomListColumn, CustomListColumnType } from '../types';
 import FlexibleListsView, { PRESET_TEMPLATES } from './orga/FlexibleListsView';
+import {
+  addManualCashTransaction,
+  dateInputToLocalNoonIso,
+  deleteManualCashTransaction,
+  formatOrgaDate,
+  getLocalOrgaDateKey,
+  markCollectionPaidForStudents,
+  normalizeKlassenkasse,
+  parseEuroInput,
+  setCollectionPaymentAmount,
+} from '../lib/orgaData';
 
 const formatEuro = (value: number) =>
   new Intl.NumberFormat('de-AT', {
@@ -78,7 +89,7 @@ export default function OrgaLists() {
   const [txAmount, setTxAmount] = useState('');
   const [txCategory, setTxCategory] = useState<'sammlung' | 'ausgabe' | 'sonstiges'>('sonstiges');
   const [txStudentId, setTxStudentId] = useState('');
-  const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0]);
+  const [txDate, setTxDate] = useState(getLocalOrgaDateKey());
   const [txToDelete, setTxToDelete] = useState<KassenTransaktion | null>(null);
 
   // Partial payment inline edit
@@ -100,38 +111,7 @@ export default function OrgaLists() {
   const checklisten = app.checklisten || [];
   const students = app.schueler || [];
 
-  // Migration logic for legacy structure
-  useEffect(() => {
-    // @ts-ignore
-    if (app.klassenkasse && (app.klassenkasse as any).beitrag_pro_kind !== undefined) {
-      const oldKasse = app.klassenkasse as any;
-      const initialSammlung: Geldsammlung = {
-        id: 'basis-migration',
-        titel: 'Basisbeitrag',
-        betrag: oldKasse.beitrag_pro_kind || 0,
-        erstelltAm: new Date().toISOString(),
-        abgeschlossen: false,
-        status: {},
-        betraege: {}
-      };
-
-      Object.entries(oldKasse.zahlungen || {}).forEach(([sid, paid]) => {
-        if (paid) {
-          initialSammlung.status[sid] = 'bezahlt';
-          initialSammlung.betraege[sid] = oldKasse.beitrag_pro_kind;
-        }
-      });
-
-      setApp(prev => ({
-        ...prev,
-        klassenkasse: {
-          kontostand: oldKasse.kontostand || 0,
-          sammlungen: [initialSammlung],
-          transaktionen: oldKasse.transaktionen || []
-        }
-      }));
-    }
-  }, []);
+  // Legacy cash migration is handled centrally by normalizeAppState / normalizeKlassenkasse.
 
   // Helper stats calculation
   const activeSammlungen = kasse.sammlungen.filter(s => !s.abgeschlossen);
