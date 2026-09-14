@@ -1,6 +1,6 @@
 # KLASSIO – Feature Matrix
 
-Stand: 2026-09-13 · Integrationsbranch `reconcile/klassio-source-of-truth`
+Stand: 2026-09-14 · Integrationsbranch `reconcile/klassio-source-of-truth`
 
 Legende:
 
@@ -17,7 +17,7 @@ Legende:
 | GitHub als einzige Source of Truth | ✅ | Repository-Regeln dokumentiert; ZIP ist keine Arbeitsgrundlage. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | 669/669 Tests, TS, Production-Build, PWA und Server-Smoke grün; nach jedem neuen Commit erneut verpflichtend. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | 679/679 Tests, TS, Production-Build, PWA und Server-Smoke auf `b967e5a` grün; nach jedem neuen Commit erneut verpflichtend. |
 | Commitgebundenes World4You-Artefakt | ✅ | CI erzeugt nur nach grünem Audit ein ZIP mit `dist`, Branch-/Commitmarker und Startkommando. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
@@ -27,11 +27,13 @@ Legende:
 |---|---:|---|
 | Dashboard / Heute | 🟡 | Funktional vorhanden; letzte visuelle Browser-Abnahme offen. |
 | Kernnavigation | ✅ | Heute, Klasse, Planung, Leistungen, Unterricht + Utilities per Regressionstest abgesichert. |
-| Lehrercockpit: weiße freie Fläche | 🟡 | Leerer Start ohne sichtbare Standardwidgets; Schreiben/Zeichnen + Widgets vorhanden. Browser-Abnahme offen. |
-| Cockpit: Schreiben und Zeichnen | 🟡 | BoardInk + Unterrichtsfläche implementiert; Browser/Stiftprüfung offen. |
-| Cockpit: Widgets frei platzieren | 🟡 | Layoutsystem und Widgetmenü vorhanden; Browserprüfung offen. |
-| Cockpit: benutzerdefinierte Layout-Slots | 🟡 | A/B/C-Slots bleiben als eigene, adaptierbare Layouts; keine sichtbaren Beispielwidgets beim leeren Start. |
-| Veraltete Cockpit-Kompatibilität | ✅ | Legacy-Komponente enthält keine Demo-/Fake-Daten; aktive Fläche ist Unterrichtsmodus. |
+| Lehrercockpit: finale Anforderungen | ✅ | PR #6 integriert; freie weiße Fläche ohne Startkarte, keine Standardwidgets, verständliche Kategorien, Optionen/Archiv und sprachliche Bereinigung per Regressionstests abgesichert. |
+| Lehrercockpit: weiße freie Fläche | ✅ | Fläche bleibt unabhängig vom Theme weiß; leere Startkarte entfernt; Standardlayout enthält 0 sichtbare Widgets. |
+| Cockpit: Schreiben und Zeichnen | ✅ | BoardInk liegt auf derselben Fläche wie Widgets; Stift, Text, Radierer, Undo/Redo sowie getrenntes Löschen von Schrift/Zeichnung sind umgesetzt. |
+| Cockpit: vollständiger Widgetkatalog | ✅ | 108/108 erhaltene Widgettypen sind in Picker und Kategorie-Zählern vorhanden; vier frühere Mathe-Altlasten rendern wieder ihre echten Komponenten. |
+| Cockpit: Widgets frei platzieren | 🟡 | Verschieben/Größe ist nur über `Optionen → Anordnung ändern` freischaltbar; realer Maus-/Touch-/Stift-Browsercheck bleibt offen. |
+| Cockpit: benutzerdefinierte Layout-Slots | 🟡 | A/B/C-Slots bleiben als eigene, benennbare Layouts; keine mitgelieferten Beispielprofile. Browser-Abnahme offen. |
+| Veraltete Cockpit-Kompatibilität | ✅ | Alte Tafel bleibt erhalten unter `Optionen → Archiv → Alte Tafelinhalte öffnen`; unerwartetes Öffnen ist per Regressionstest blockiert. |
 | Mobile/responsive Nutzung | 🟡 | Responsive Code vorhanden; reale Browser-/Viewport-Abnahme offen. |
 
 ## Klasse und Schüler

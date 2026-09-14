@@ -1,6 +1,6 @@
 # KLASSIO – Source of Truth
 
-Stand: 2026-09-13
+Stand: 2026-09-14
 
 ## Verbindliche Quelle
 
@@ -17,13 +17,15 @@ ZIP-Dateien sind ausschließlich Backup- oder Release-Artefakte. Sie sind niemal
 
 `main` ist noch nicht der vollständige reconciliierte Stand. Der vollständige Abschlussstand liegt bis zur Staging-Freigabe auf `reconcile/klassio-source-of-truth`.
 
-Der frühere Abschlussbranch `fix/reconciliation-finalization` wurde vollständig in den Reconciliation-Branch übernommen. Zusätzlich wurde eine commitgebundene World4You-Release-Pipeline ergänzt. Der letzte vor dieser Dokumentationsaktualisierung geprüfte Reconciliation-Commit war:
+Der frühere Abschlussbranch `fix/reconciliation-finalization` wurde vollständig in den Reconciliation-Branch übernommen. Zusätzlich wurde eine commitgebundene World4You-Release-Pipeline ergänzt. Am 14.09.2026 wurde PR #6 (`fix/cockpit-final-requirements`) in den Reconciliation-Branch integriert. Damit sind die final abgestimmten Lehrercockpit-Anforderungen technisch umgesetzt: freie weiße Fläche ohne Startkarte, gemeinsame Schreib-/Widgetfläche, getrenntes Löschen von Schrift und Zeichnung, verständliche Kategorien, vollständiger 108/108-Widgetkatalog, eigene Favoriten, A/B/C-Schnelllayouts, Archivzugang zu alten Tafelinhalten sowie reaktivierte historische Mathematik-Widgets.
 
-- Commit: `05bbbbdd438256db59c73f1303c137a86e58be62`
+Der letzte vor dieser Dokumentationsaktualisierung vollständig geprüfte Reconciliation-Commit war:
+
+- Commit: `b967e5a2ce384af33ca3260add969c74660dc3aa`
 - GitHub Actions: Pre-Deployment Audit erfolgreich
 - Installation: `bun install --frozen-lockfile` erfolgreich
 - TypeScript: erfolgreich
-- Tests: 669/669 erfolgreich
+- Tests: 679/679 erfolgreich
 - Production Build: erfolgreich
 - PWA-Ausgabe: erfolgreich
 - Production-Server-Smoke-Test: erfolgreich
@@ -36,7 +38,7 @@ Nach jeder weiteren Änderung ist ausschließlich der neue GitHub-HEAD verbindli
 
 Der Reconciliation-Stand enthält unter anderem:
 
-- vereinfachte Kernnavigation und Lehrercockpit mit gemeinsamer weißer Schreib-/Zeichen-/Widgetfläche
+- vereinfachte Kernnavigation und Lehrercockpit mit freier weißer Schreib-/Zeichen-/Widgetfläche ohne Startkarte; 108/108 erhaltene Widgets sind über Suche/Kategorien erreichbar, Favoriten bleiben benutzerdefiniert
 - Anwesenheit, Befinden, Schülerliste, Schülerdossier und Diagnostik
 - vollständige Notenmappe mit Noten/Prozent/Punkten, Gewichtung, fachbezogenen Bewertungsabschnitten, Schularbeiten, LZK/WOPL und sonstigen Leistungen
 - schnelle Mitarbeit- und Hausübungs-Erfassung
