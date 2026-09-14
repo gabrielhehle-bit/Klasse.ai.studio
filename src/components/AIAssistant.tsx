@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
+import { buildAiClassContext } from '../lib/aiPrivacy';
 import { ChatEntry, Message } from '../types';
 import { 
   Send, Bot, Sparkles, User, RefreshCw, X, 
@@ -417,31 +418,6 @@ export default function AIAssistant() {
     }
   };
 
-  const buildClassContext = () => {
-    const currentWeek = app.currentKW;
-    const weekPlan = currentWeek ? app.wochenplanung?.[currentWeek] : undefined;
-    const weekTopics: string[] = [];
-
-    if (weekPlan && typeof weekPlan === 'object') {
-      Object.entries(weekPlan).forEach(([day, cells]: [string, any]) => {
-        if (!cells || typeof cells !== 'object') return;
-        Object.values(cells).forEach((cell: any) => {
-          if (!cell?.thema && !cell?.fach) return;
-          const summary = [day, cell?.fach, cell?.thema].filter(Boolean).join(' – ');
-          if (summary && !weekTopics.includes(summary)) weekTopics.push(summary);
-        });
-      });
-    }
-
-    return `\n\n[KLASSIO-KLASSENKONTEXT – ohne automatisch übermittelte Schülernamen]
-Schulstufe: ${app.stufe || 'nicht angegeben'}
-Bundesland: ${app.bundesland || 'nicht angegeben'}
-Klassengröße: ${(app.schueler || []).length}
-Aktuelle Kalenderwoche: ${currentWeek || 'nicht angegeben'}
-Wochenplanthemen:
-${weekTopics.slice(0, 12).map(topic => `- ${topic}`).join('\n') || '- keine Themen hinterlegt'}`;
-  };
-
   const handleSend = async (manualText?: string, manualImageBase64?: {data: string, mimeType: string} | null, imagePrivacyConfirmed: boolean = false) => {
     const userMsg = (manualText || input).trim();
     if (!userMsg || isLoading) return;
@@ -455,7 +431,7 @@ ${weekTopics.slice(0, 12).map(topic => `- ${topic}`).join('\n') || '- keine Them
     
     if (!manualText) setInp('');
     
-    let contextStr = useClassContext ? buildClassContext() : '';
+    let contextStr = useClassContext ? buildAiClassContext(app) : '';
     if (modusId === 'ki-lernziele' && activeMessages.length === 0) {
       const students = app.schueler || [];
       const trackerDB = app.lernzielTracker || {};
