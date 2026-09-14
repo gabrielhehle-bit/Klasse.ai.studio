@@ -18,6 +18,7 @@ import { FachColorPicker } from './FachColorPicker';
 import { getFachHexColor, STANDARD_COLOR_MAP } from '../lib/fachColorUtils';
 import { getActiveVaultKey } from '../lib/vaultStorage';
 import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
+import { parseLegacyTeacherName, resolveTeacherDisplayName } from '../lib/teacherProfile';
 
 export default function SetupWizard({ onComplete, isNewClass }: { onComplete: () => void, isNewClass?: boolean }) {
   const { app, setApp, restoreAppData } = useApp();
@@ -32,7 +33,19 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   
   const activeClassLocal = (!isNewClass && app.classes) ? (app.classes.find(c => c.id === app.activeClassId) || app.classes[0]) : null;
 
-  const [lehrerName, setLehrerName] = useState(app.lehrerName || '');
+  const legacyTeacherName = (app.lehrerName || app.lehrerProfil?.name || '').trim();
+  const legacyTeacherParts = parseLegacyTeacherName(legacyTeacherName);
+  const [lehrerName, setLehrerName] = useState(legacyTeacherName);
+  const [anrede, setAnrede] = useState(app.anrede || legacyTeacherParts.anrede);
+  const [vorname, setVorname] = useState(app.vorname || legacyTeacherParts.vorname);
+  const [nachname, setNachname] = useState(app.nachname || legacyTeacherParts.nachname);
+  const applyTeacherName = (value: string) => {
+    setLehrerName(value);
+    const parsed = parseLegacyTeacherName(value);
+    setAnrede(parsed.anrede);
+    setVorname(parsed.vorname);
+    setNachname(parsed.nachname);
+  };
   const [schulName, setSchulName] = useState(app.schulName || '');
   const [schulkennzahl, setSchulkennzahl] = useState(app.schulkennzahl || '');
   const [schulOrt, setSchulOrt] = useState(app.schulOrt || '');
@@ -476,7 +489,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
 
          return {
            ...prev,
-           lehrerName, schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
+           lehrerName: resolvedLehrerName,
+           anrede,
+           vorname,
+           nachname,
+           lehrerProfil: { ...(prev.lehrerProfil || {}), name: resolvedLehrerName, schule: schulName },
+           schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
            klassenbezeichnung, stufe, schueler: finalStudents,
            classes,
            currentPage: 'dashboard',
@@ -511,7 +529,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
          return {
            ...prev,
          ...(isFirstSetup ? {
-           lehrerName, schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
+           lehrerName: resolvedLehrerName,
+           anrede,
+           vorname,
+           nachname,
+           lehrerProfil: { ...(prev.lehrerProfil || {}), name: resolvedLehrerName, schule: schulName },
+           schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
            klassenbezeichnung, stufe, schuljahr: schuljahr, schueler: finalStudents,
            classes: [mainClass], activeClassId: classId, firstLogin: true, tourAbgeschlossen: false
          } : {
@@ -733,11 +756,26 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     const active = new Set<number>(tageplan[tag]?.stunden || []);
     return sum + Object.entries(stammplan[tag] || {}).filter(([hour, subject]) => active.has(Number(hour)) && Boolean(subject)).length;
   }, 0);
+  const resolvedLehrerName = resolveTeacherDisplayName(anrede, vorname, nachname, lehrerName);
+
+  const schoolYearOptions = React.useMemo(() => {
+    const current = getCurrentSchuljahr();
+    const startYear = Number(current.slice(0, 4));
+    const options = Number.isFinite(startYear)
+      ? Array.from({ length: 5 }, (_, index) => {
+          const year = startYear + index;
+          return `${year}/${String((year + 1) % 100).padStart(2, '0')}`;
+        })
+      : [current];
+    if (schuljahr && !options.includes(schuljahr)) options.unshift(schuljahr);
+    return options;
+  }, [schuljahr]);
+
   const setupWarnings = [
     studentsList.length === 0 ? 'Noch keine Schüler:innen angelegt – das kannst du später nachholen.' : null,
     assignedLessonSlots === 0 ? 'Noch kein Stammstundenplan ausgefüllt.' : null,
     assignedLessonSlots > availableLessonSlots ? 'Der Stundenplan enthält mehr Einträge als verfügbare Stunden.' : null,
-    !lehrerName.trim() ? 'Der Name der Lehrkraft ist noch leer.' : null,
+    !resolvedLehrerName ? 'Der Name der Lehrkraft ist noch leer.' : null,
     !schulName.trim() ? 'Der Schulname ist noch leer.' : null
   ].filter(Boolean) as string[];
 
@@ -773,7 +811,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
             setStudentsList(importedStudents);
             if (meta?.klasse) setKlassenbezeichnung(meta.klasse);
             if (meta?.schuljahr) setSchuljahr(meta.schuljahr);
-            if (meta?.lehrerName) setLehrerName(meta.lehrerName);
+            if (meta?.lehrerName) applyTeacherName(meta.lehrerName);
             if (meta?.schulName) setSchulName(meta.schulName);
             if (meta?.schulkennzahl) setSchulkennzahl(meta.schulkennzahl);
             setActiveInputMode('manual');
