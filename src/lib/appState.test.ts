@@ -53,7 +53,45 @@ function fixture() {
       sitzplan_objekte: [{ id: `board-${id}`, type: 'blackboard', x: id === 'a' ? 20 : 500, y: 10, w: 200, h: 10 }],
       sitzplanRegeln: [{ id: `rule-${id}`, typ: 'feste_zone', schuelerIds: [`student-${id}`], zone: id === 'a' ? 'vorne' : 'hinten' }],
       wochenplanung: { 37: { Montag: [{ thema: id }] } },
-      customLists: [{ id }], klassenglas_missions: [id],
+      klassenkasse: {
+        kontostand: id === 'a' ? 12.5 : 7.25,
+        sammlungen: [{
+          id: `collection-${id}`,
+          titel: `Sammlung ${id}`,
+          betrag: id === 'a' ? 5 : 7.25,
+          erstelltAm: '2026-09-14T10:00:00.000Z',
+          status: { [`student-${id}`]: id === 'a' ? 'bezahlt' : 'offen' },
+          betraege: { [`student-${id}`]: id === 'a' ? 5 : 0 },
+        }],
+        transaktionen: [{
+          id: `tx-${id}`,
+          datum: '2026-09-14T10:00:00.000Z',
+          titel: `Buchung ${id}`,
+          betrag: id === 'a' ? 5 : 2.25,
+          typ: 'plus',
+          kategorie: 'sonstiges',
+        }],
+      },
+      checklisten: [{
+        id: `check-${id}`,
+        titel: `Check ${id}`,
+        spalten: [{ id: 'ok', label: 'OK' }],
+        eintraege: { [`student-${id}`]: { ok: id === 'a' } },
+      }],
+      customLists: [{
+        id: `list-${id}`,
+        titel: `Liste ${id}`,
+        spalten: [{ id: 'value', label: 'Wert', type: 'text' }],
+        werte: { [`student-${id}`]: { value: `value-${id}` } },
+      }],
+      zugangsdaten: [{
+        id: `login-${id}`,
+        bezeichnung: `Portal ${id}`,
+        benutzername: `user-${id}`,
+        passwort: `pw-${id}`,
+        kategorie: 'Lernportal',
+      }],
+      klassenglas_missions: [id],
       futureExtension: { preserved: id },
     })),
   });
@@ -465,4 +503,86 @@ test('legacy shared participation settings are copied to every existing class be
   assert.equal(legacy.classes[0].mitarbeit_settings?.thresholds?.[1], 18);
   assert.equal(legacy.classes[1].mitarbeit_settings?.thresholds?.[1], 18);
   assert.equal(switchClassState(legacy, 'b').mitarbeit_settings?.thresholds?.[1], 18);
+});
+
+
+test('class switches isolate Kassa & Orga data including class logins', () => {
+  const state = fixture();
+  assert.equal(state.klassenkasse?.kontostand, 12.5);
+  assert.equal(state.checklisten?.[0]?.id, 'check-a');
+  assert.equal(state.customLists?.[0]?.id, 'list-a');
+  assert.equal(state.zugangsdaten?.[0]?.id, 'login-a');
+
+  let b = switchClassState(state, 'b');
+  assert.equal(b.klassenkasse?.kontostand, 7.25);
+  assert.equal(b.klassenkasse?.sammlungen?.[0]?.id, 'collection-b');
+  assert.equal(b.checklisten?.[0]?.id, 'check-b');
+  assert.equal(b.customLists?.[0]?.id, 'list-b');
+  assert.equal(b.zugangsdaten?.[0]?.id, 'login-b');
+
+  b = syncActiveClass({
+    ...b,
+    klassenkasse: {
+      ...(b.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] }),
+      kontostand: 99.5,
+    },
+    checklisten: [{ ...(b.checklisten?.[0] as any), titel: 'edited-check-b' }],
+    customLists: [{ ...(b.customLists?.[0] as any), titel: 'edited-list-b' }],
+    zugangsdaten: [{ ...(b.zugangsdaten?.[0] as any), benutzername: 'edited-user-b' }],
+  } as any);
+
+  const a = switchClassState(b, 'a');
+  assert.equal(a.klassenkasse?.kontostand, 12.5);
+  assert.equal(a.checklisten?.[0]?.titel, 'Check a');
+  assert.equal(a.customLists?.[0]?.titel, 'Liste a');
+  assert.equal(a.zugangsdaten?.[0]?.benutzername, 'user-a');
+
+  const reloaded = normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(a))));
+  assert.equal(reloaded.classes[1].klassenkasse?.kontostand, 99.5);
+  assert.equal(reloaded.classes[1].checklisten?.[0]?.titel, 'edited-check-b');
+  assert.equal(reloaded.classes[1].customLists?.[0]?.titel, 'edited-list-b');
+  assert.equal(reloaded.classes[1].zugangsdaten?.[0]?.benutzername, 'edited-user-b');
+});
+
+test('legacy global Kassa & Orga logins are copied into every existing class once', () => {
+  const loaded = normalizeAppState({
+    activeClassId: 'a',
+    zugangsdaten: [{
+      id: 'legacy-login',
+      bezeichnung: 'Antolin',
+      benutzername: 'klasse',
+      passwort: 'secret',
+      kategorie: 'Lernportal',
+    }],
+    classes: [
+      { id: 'a', name: 'A', schueler: [], noten: {}, mitarbeit: {} },
+      { id: 'b', name: 'B', schueler: [], noten: {}, mitarbeit: {} },
+    ],
+  });
+
+  assert.equal(loaded.classes[0].zugangsdaten?.[0]?.id, 'legacy-login');
+  assert.equal(loaded.classes[1].zugangsdaten?.[0]?.id, 'legacy-login');
+  assert.equal(switchClassState(loaded, 'b').zugangsdaten?.[0]?.id, 'legacy-login');
+});
+
+test('legacy basis contribution is normalized for inactive classes too', () => {
+  const loaded = normalizeAppState({
+    activeClassId: 'a',
+    classes: [
+      {
+        id: 'a', name: 'A', schueler: [{ id: 'a1' }], noten: {}, mitarbeit: {},
+        klassenkasse: { beitrag_pro_kind: 10, kontostand: 10, zahlungen: { a1: true }, transaktionen: [] },
+      },
+      {
+        id: 'b', name: 'B', schueler: [{ id: 'b1' }], noten: {}, mitarbeit: {},
+        klassenkasse: { beitrag_pro_kind: 8.5, kontostand: 0, zahlungen: { b1: false }, transaktionen: [] },
+      },
+    ],
+  } as any);
+
+  assert.equal(loaded.classes[0].klassenkasse?.sammlungen?.[0]?.betrag, 10);
+  assert.equal(loaded.classes[0].klassenkasse?.sammlungen?.[0]?.status?.a1, 'bezahlt');
+  assert.equal(loaded.classes[1].klassenkasse?.sammlungen?.[0]?.betrag, 8.5);
+  assert.equal(loaded.classes[1].klassenkasse?.sammlungen?.[0]?.status?.b1, 'offen');
+  assert.equal(switchClassState(loaded, 'b').klassenkasse?.sammlungen?.[0]?.betrag, 8.5);
 });
