@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `607e8f9443d390ffbf0c9b60422a5807b525e8d5`: Pre-Deployment Audit #112 grün, 830/830 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #112 erzeugte `klassio-world4you-607e8f9443d390ffbf0c9b60422a5807b525e8d5` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `c770ac7f2957e4ba245d67691c06b0eecd60fc58`: Pre-Deployment Audit #114 grün, 837/837 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #114 erzeugte `klassio-world4you-c770ac7f2957e4ba245d67691c06b0eecd60fc58` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 
@@ -34,8 +34,8 @@ Legende:
 | 5 | Schüler:innen | ✅ | PR #41 integriert; Audit #108 grün; reale Browser-/Staging-Abnahme im Gesamt-Walkthrough |
 | 6 | Sitzplan | ✅ | PR #43 integriert; Audit #110 grün; reale Maus-/Touch-/Browser-/Staging-Abnahme im Gesamt-Walkthrough |
 | 7 | Anwesenheit | ✅ | PR #45 integriert; Audit #112 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme im Gesamt-Walkthrough |
-| 8 | Notenmappe | 🔴 | als Nächstes einzeln prüfen und abschließen |
-| 9 | Kassa & Orga | 🔴 | danach |
+| 8 | Notenmappe | ✅ | PR #47 integriert; Audit #114 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme im Gesamt-Walkthrough |
+| 9 | Kassa & Orga | 🔴 | als Nächstes einzeln prüfen und abschließen |
 | 10 | Planungszentrale | 🔴 | danach |
 | 11 | Jahresplanung | 🔴 | danach |
 | 12 | Wochenplanung | 🔴 | danach |
@@ -87,13 +87,13 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 | Schülerdossier Browser-Abnahme | 🟡 | Navigation, Detailtabs, Fokusmodus und responsive Darstellung müssen im finalen Browser-Walkthrough praktisch geprüft werden. |
 | Sitzplan | 🟡 | PR #43: Positionen, Möbel und Regeln sind klassenlokal; Legacy-Regeln werden nach Schülerzugehörigkeit migriert. `nicht nebeneinander`, `nebeneinander`, `feste Zone` und `fester Platz` werden zentral geprüft, Fixplätze speichern ihre Position und Zonen richten sich an der realen Tafelposition aus. Würfelvorschau und Planungs-Analyse nutzen dieselbe Regelengine, erkennen Sitzkollisionen und der Optimierer hält Fixplätze sowie explizite Regeln ein. Abwesenheiten stammen aus den echten Anwesenheitsdaten mit lokalem Kalendertag. Sitzplan-UI-Zustände werden beim Klassenwechsel zurückgesetzt. Automatisierte Tests und Audit #110 grün; reale Drag/Drop-, Maus-/Touch- und Druck-/Browser-Abnahme offen. |
 | Diagnostik | 🟡 | PR #9 integriert: 3-stufige Hierarchie/Checks/Ergebnisse, klassenlokale iKM-/Antolin-/Ziel-/Beobachtungs-/Metakognitionsdaten, aktive Klassen-ID für strukturierte Ergebnisse und lokale Datumsprüfung. Vollständiger Browser-Walkthrough offen. |
-| Multi-Class | ✅ | Klassenwechsel/Migration/Erweiterungsfelder, Cockpit-Ink sowie Notizen/Journal/Statusverlauf per Tests klassenlokal abgesichert; Schüler-Dossier-, Editor- und Interaktionszustände sowie Sitzplan-Auswahl/Vorschau/Undo werden beim Klassenwechsel zurückgesetzt. Sitzpositionen, Möbel und Sitzplan-Regeln bleiben strikt pro Klasse getrennt. Anwesenheit und Anwesenheitsdetails sind ebenfalls klassenlokal; Anwesenheits-Undo und offene Anwesenheitsdialoge werden beim Klassenwechsel verworfen. |
+| Multi-Class | ✅ | Klassenwechsel/Migration/Erweiterungsfelder, Cockpit-Ink sowie Notizen/Journal/Statusverlauf per Tests klassenlokal abgesichert; Schüler-Dossier-, Editor- und Interaktionszustände sowie Sitzplan-Auswahl/Vorschau/Undo werden beim Klassenwechsel zurückgesetzt. Sitzpositionen, Möbel und Sitzplan-Regeln bleiben strikt pro Klasse getrennt. Anwesenheit und Anwesenheitsdetails sind ebenfalls klassenlokal; Anwesenheits-Undo und offene Anwesenheitsdialoge werden beim Klassenwechsel verworfen. Noten, Noten-Metadaten, Gewichtungen und Mitarbeit-Bewertungsregeln bleiben pro Klasse getrennt; offene Notenmappe-Dialoge und lokale Gewichtungsentwürfe werden beim Klassenwechsel zurückgesetzt. |
 
 ## Leistungen
 
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
-| Notenmappe | 🟡 | Noten/Prozent/Punkte/Gewichtung/Schularbeiten usw. vorhanden; Browser-Abnahme offen. |
+| Notenmappe | 🟡 | PR #47: Noten/Prozent/Punkte, Gewichtung, Schularbeiten, LZK/WOPL, sonstige Leistungen, Mitarbeit und HÜ bleiben erhalten. Ungültige Werte außerhalb von Noten 1–5, 0–100% bzw. 0–Max-Punkten werden abgewiesen statt still korrigiert. Endnoten erlauben 1–5 sowie SPF/ESPF. HÜ-Modus, Prozentabzug und Mitarbeitsabzug sind fachbezogen; Mitarbeit-Bewertungsmodus und Schwellenwerte sind klassenlokal und Legacy-Mehrklassenstände werden verlustfrei migriert. WOPL-Spiegelung Deutsch↔Mathematik verhindert numerische Rohwertübernahme bei unterschiedlichen Bewertungsarten und skaliert Punkte bei unterschiedlichen Maximalpunkten proportional. Automatisierte Tests und Audit #114 grün; reale Browser-/Touch-/Druck-Abnahme offen. |
 | Fachbezogene Bewertungsabschnitte | ✅ | Metadaten eines Fachs verändern andere Fächer nicht; Regressionstest vorhanden. |
 | Mitarbeit | ✅ | Schnellerfassung inkl. Enter/↓ und Shift+Enter/↑; manuelle 1–5-Bewertung unterstützt. |
 | Hausübungen | ✅ | Schnellerfassung; 0 = vollständig; Detailoptionen hinter `HÜ-Einstellungen`. |
