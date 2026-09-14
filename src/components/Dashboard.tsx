@@ -14,11 +14,13 @@ import {
   syncNoteToPlanning,
   inferDateFromText,
   getTeacherFirstName,
+  formatLocalDateKey,
 } from "../lib/utils";
 import { getFerien } from "../lib/ferienOesterreich";
 import { VM_ZEITEN, STUNDEN_INFO, FAECHER_ALLE, AESTHETIC_THEMES, DASHBOARD_CURATED_FONTS, DASHBOARD_FONT_SIZES } from "../constants";
 import { berechne } from "../lib/GradeUtils";
 import { isDiagnosticAlert } from "../lib/diagnosticData";
+import { isAttendanceCompleteForDay, isAttendanceRequiredForDay } from "../lib/dashboardAttendance";
 import { QRCodeCanvas } from "qrcode.react";
 import {
   Users,
@@ -2263,7 +2265,11 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const list: Array<{ type: string; title: string; desc?: string; color: string }> = [];
 
     // 1. Is it a holiday?
-    const hName = isHoliday(scheduleDatum, [], 'VBG');
+    const hName = isHoliday(
+      scheduleDatum,
+      app?.calendarSettings?.disabledHolidays || [],
+      app?.bundesland || "VBG",
+    );
     if (hName) {
       list.push({
         type: "holiday",
@@ -2371,7 +2377,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const fmt = `${String(scheduleDatum.getDate()).padStart(2, '0')}.${String(scheduleDatum.getMonth() + 1).padStart(2, '0')}.${scheduleDatum.getFullYear()}`;
     const fmtShort = `${String(scheduleDatum.getDate()).padStart(2, '0')}.${String(scheduleDatum.getMonth() + 1).padStart(2, '0')}.`;
     (dashboardSettings.customEvents || []).forEach((ev: any) => {
-      if (ev.date === fmt || ev.date === fmtShort || ev.date === scheduleDatum.toISOString().split('T')[0]) {
+      if (ev.date === fmt || ev.date === fmtShort || ev.date === formatLocalDateKey(scheduleDatum)) {
         list.push({
           type: "custom",
           title: `📌 ${ev.name}`,
@@ -2382,7 +2388,17 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     });
 
     return list;
-  }, [scheduleDatum, app?.schueler, app?.wochenplanung, app?.jahresplanung, kw, tagName, dashboardSettings.customEvents]);
+  }, [
+    scheduleDatum,
+    app?.schueler,
+    app?.wochenplanung,
+    app?.jahresplanung,
+    app?.bundesland,
+    app?.calendarSettings?.disabledHolidays,
+    kw,
+    tagName,
+    dashboardSettings.customEvents,
+  ]);
 
   const getLessonProgress = (idx: number) => {
     if (idx < 0) return 0;
@@ -2490,7 +2506,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         </span>
       );
     const firstId = Math.min(...stundenIds);
-    const startTime = (app.stundenZeiten || STUNDEN_INFO)[firstId + 1]?.split("–")[0] || "";
+    const startTime = (app.stundenZeiten || STUNDEN_INFO)[firstId]?.split("–")[0] || "";
     return (
       <span className="text-stone-400 text-[0.875rem] leading-snug">
         Du hast heute {count} Stunden Unterricht, erste Stunde beginnt um{" "}
@@ -2582,7 +2598,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const timesMap = app.stundenZeiten || STUNDEN_INFO;
     
     const parsedZeiten: { start: number; end: number; id: number }[] = [];
-    for (let id = 1; id <= 8; id++) {
+    for (let id = 1; id <= 10; id++) {
       const zStr = timesMap[id];
       if (zStr) {
         const parts = zStr.split(/[–-]/).map(p => p.trim());
@@ -2623,7 +2639,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const stammItems = app?.stammplan?.[tagName] || {};
     
     let lastRealHourId = -1;
-    for (let id = 1; id <= 8; id++) {
+    for (let id = 1; id <= 10; id++) {
       const displayFach = tagPlan[id - 1]?.fach || stammItems[id] || "";
       if (displayFach) {
         lastRealHourId = id;
@@ -2814,23 +2830,49 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     }
   };
 
+  const displayedDateKey = formatLocalDateKey(scheduleDatum);
+  const displayedDayName = getTodayName(scheduleDatum);
+  const displayedActiveHours: number[] = displayedDayName
+    ? (app?.tageplan?.[displayedDayName]?.stunden || [])
+    : [];
+  const displayedHolidayName = isHoliday(
+    scheduleDatum,
+    app?.calendarSettings?.disabledHolidays || [],
+    app?.bundesland || "VBG",
+  );
+  const displayedCalendarOverride = app?.calendarOverrides?.[displayedDateKey] as 'school' | 'free' | undefined;
+  const attendanceRequiredToday = isAttendanceRequiredForDay({
+    studentCount: (app?.schueler || []).length,
+    activeHours: displayedActiveHours,
+    isWeekend: scheduleDatum.getDay() === 0 || scheduleDatum.getDay() === 6,
+    holidayName: displayedHolidayName,
+    calendarOverride: displayedCalendarOverride,
+  });
+
   const missingToday = React.useMemo(() => {
-    const todayStrFull = heute.toISOString().split("T")[0];
     return (app?.schueler || []).filter((s) => {
-      const todayRecord = app?.anwesenheit?.[s.id]?.[todayStrFull] || {};
-      return Object.values(todayRecord).some(
+      const dayRecord = app?.anwesenheit?.[s.id]?.[displayedDateKey] || {};
+      return Object.values(dayRecord).some(
         (status) => status === "f" || status === "e" || status === "u",
       );
     });
-  }, [app?.anwesenheit, app?.schueler, heute]);
+  }, [app?.anwesenheit, app?.schueler, displayedDateKey]);
 
   const attendanceRecordedToday = React.useMemo(() => {
-    const todayStrFull = heute.toISOString().split("T")[0];
-    return (app?.schueler || []).some((student) => {
-      const record = app?.anwesenheit?.[student.id]?.[todayStrFull];
-      return Boolean(record && Object.keys(record).length > 0);
-    });
-  }, [app?.anwesenheit, app?.schueler, heute]);
+    if (!attendanceRequiredToday) return false;
+    return isAttendanceCompleteForDay(
+      app?.schueler || [],
+      app?.anwesenheit,
+      displayedDateKey,
+      displayedActiveHours,
+    );
+  }, [
+    app?.anwesenheit,
+    app?.schueler,
+    attendanceRequiredToday,
+    displayedDateKey,
+    displayedActiveHours,
+  ]);
 
   const [simpleDashboardMode, setSimpleDashboardMode] = useState<boolean>(() => {
     const saved = localStorage.getItem("dashboard_simple_mode");
@@ -2845,7 +2887,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const list: any[] = [];
     const tagPlan = tagName ? (app?.wochenplanung?.[kw]?.[tagName] || {}) : {};
     const stammItems = app?.stammplan?.[tagName] || {};
-    for (let id = 1; id <= 8; id++) {
+    for (let id = 1; id <= 10; id++) {
       const fach = tagPlan[id - 1]?.fach || stammItems[id] || "";
       if (fach) {
         list.push({
@@ -4512,6 +4554,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         absentCount={missingToday.length}
         presentCount={Math.max(0, (app?.schueler || []).length - missingToday.length)}
         attendanceRecorded={attendanceRecordedToday}
+        attendanceRequired={attendanceRequiredToday}
 
         todayLessonCount={todayLessonsList.length}
         currentLesson={currentHourData}

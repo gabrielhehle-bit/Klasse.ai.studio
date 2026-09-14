@@ -85,6 +85,7 @@ export interface DashboardTodayOverviewProps {
   absentCount: number;
   presentCount: number;
   attendanceRecorded: boolean;
+  attendanceRequired: boolean;
 
   // Mein Tag Card
   todayLessonCount: number;
@@ -133,6 +134,7 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
   absentCount,
   presentCount,
   attendanceRecorded,
+  attendanceRequired,
 
   todayLessonCount,
   currentLesson,
@@ -248,35 +250,51 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
                 <span>Anwesenheit</span>
               </span>
               <span className={`px-2 py-0.5 rounded-full text-[0.5625rem] font-black uppercase tracking-wider ${
-                attendanceRecorded
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
-                  : "bg-amber-50 text-amber-700 border border-amber-200/60"
+                !attendanceRequired
+                  ? "bg-slate-50 text-slate-600 border border-slate-200/60"
+                  : attendanceRecorded
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                    : "bg-amber-50 text-amber-700 border border-amber-200/60"
               }`}>
-                {attendanceRecorded ? "Geprüft" : "Offen"}
+                {!attendanceRequired ? "Nicht nötig" : attendanceRecorded ? "Geprüft" : "Offen"}
               </span>
             </div>
 
             <div>
               <div className="text-2xl font-black text-slate-900 tracking-tight">
-                {privacyMode ? "••" : `${presentCount} / ${totalStudents}`}
+                {privacyMode
+                  ? "••"
+                  : totalStudents === 0
+                    ? "0"
+                    : !attendanceRequired
+                      ? "—"
+                      : attendanceRecorded
+                        ? `${presentCount} / ${totalStudents}`
+                        : "Offen"}
               </div>
               <p className="text-xs font-bold text-slate-500 mt-0.5">
                 {privacyMode
-                  ? "Verborgen"
-                  : absentCount === 0
-                  ? "Alle anwesend"
-                  : `${absentCount} abwesend`}
+                  ? attendanceRecorded ? "Geprüft" : !attendanceRequired ? "Nicht erforderlich" : "Noch nicht geprüft"
+                  : totalStudents === 0
+                    ? "Noch keine Kinder angelegt"
+                    : !attendanceRequired
+                      ? "Für diesen Tag keine Prüfung geplant"
+                      : !attendanceRecorded
+                        ? "Noch nicht geprüft"
+                        : absentCount === 0
+                          ? "Alle anwesend"
+                          : `${absentCount} abwesend`}
               </p>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={() => onNavigate("anwesenheit")}
+            onClick={() => onNavigate(totalStudents > 0 ? "anwesenheit" : "schueler")}
             className="mt-4 w-full py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
           >
             <UserCheck size={14} />
-            <span>Prüfen</span>
+            <span>{totalStudents > 0 ? "Anwesenheit öffnen" : "Kinder hinzufügen"}</span>
           </button>
         </div>
 
