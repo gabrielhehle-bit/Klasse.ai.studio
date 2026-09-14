@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   calculateMaterialStorageSize,
   normalizeMaterialExternalLink,
+  removeMaterialReferencesFromClasses,
   removeMaterialReferencesFromWeeklyPlan,
   sanitizeMaterialForType,
   upsertMaterial,
@@ -120,4 +121,26 @@ test('resetting the library clears all weekly-plan material ids without deleting
     thema: '9. Stunde',
     materialIds: [],
   });
+});
+
+
+test('deleting a global material cleans inactive class week plans too', () => {
+  const classes = [
+    {
+      id: 'a',
+      wochenplanung: {
+        38: { Montag: { 0: { thema: 'A', materialIds: ['shared', 'keep-a'] } } },
+      },
+    },
+    {
+      id: 'b',
+      wochenplanung: {
+        39: { Freitag: { 9: { thema: 'B', materialIds: ['shared', 'keep-b'] } } },
+      },
+    },
+  ];
+
+  const next = removeMaterialReferencesFromClasses(classes, ['shared'])!;
+  assert.deepEqual(next[0].wochenplanung?.[38].Montag[0].materialIds, ['keep-a']);
+  assert.deepEqual(next[1].wochenplanung?.[39].Freitag[9].materialIds, ['keep-b']);
 });
