@@ -2506,7 +2506,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         </span>
       );
     const firstId = Math.min(...stundenIds);
-    const startTime = (app.stundenZeiten || STUNDEN_INFO)[firstId + 1]?.split("–")[0] || "";
+    const startTime = (app.stundenZeiten || STUNDEN_INFO)[firstId]?.split("–")[0] || "";
     return (
       <span className="text-stone-400 text-[0.875rem] leading-snug">
         Du hast heute {count} Stunden Unterricht, erste Stunde beginnt um{" "}
@@ -2598,7 +2598,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const timesMap = app.stundenZeiten || STUNDEN_INFO;
     
     const parsedZeiten: { start: number; end: number; id: number }[] = [];
-    for (let id = 1; id <= 8; id++) {
+    for (let id = 1; id <= 10; id++) {
       const zStr = timesMap[id];
       if (zStr) {
         const parts = zStr.split(/[–-]/).map(p => p.trim());
@@ -2639,7 +2639,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const stammItems = app?.stammplan?.[tagName] || {};
     
     let lastRealHourId = -1;
-    for (let id = 1; id <= 8; id++) {
+    for (let id = 1; id <= 10; id++) {
       const displayFach = tagPlan[id - 1]?.fach || stammItems[id] || "";
       if (displayFach) {
         lastRealHourId = id;
@@ -2887,7 +2887,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const list: any[] = [];
     const tagPlan = tagName ? (app?.wochenplanung?.[kw]?.[tagName] || {}) : {};
     const stammItems = app?.stammplan?.[tagName] || {};
-    for (let id = 1; id <= 8; id++) {
+    for (let id = 1; id <= 10; id++) {
       const fach = tagPlan[id - 1]?.fach || stammItems[id] || "";
       if (fach) {
         list.push({
