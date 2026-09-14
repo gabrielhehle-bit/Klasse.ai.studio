@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `c770ac7f2957e4ba245d67691c06b0eecd60fc58`: Pre-Deployment Audit #114 grün, 837/837 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #114 erzeugte `klassio-world4you-c770ac7f2957e4ba245d67691c06b0eecd60fc58` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `42ecae0d2b5e3a5aa5c2085be7106d0dbc8afbdf`: Pre-Deployment Audit #116 grün, 850/850 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #116 erzeugte `klassio-world4you-42ecae0d2b5e3a5aa5c2085be7106d0dbc8afbdf` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 
@@ -35,8 +35,8 @@ Legende:
 | 6 | Sitzplan | ✅ | PR #43 integriert; Audit #110 grün; reale Maus-/Touch-/Browser-/Staging-Abnahme im Gesamt-Walkthrough |
 | 7 | Anwesenheit | ✅ | PR #45 integriert; Audit #112 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme im Gesamt-Walkthrough |
 | 8 | Notenmappe | ✅ | PR #47 integriert; Audit #114 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme im Gesamt-Walkthrough |
-| 9 | Kassa & Orga | 🔴 | als Nächstes einzeln prüfen und abschließen |
-| 10 | Planungszentrale | 🔴 | danach |
+| 9 | Kassa & Orga | ✅ | PR #49 integriert; Audit #116 grün; reale Browser-/Touch-/Druck-/Staging-Abnahme im Gesamt-Walkthrough |
+| 10 | Planungszentrale | 🔴 | als Nächstes einzeln prüfen und abschließen |
 | 11 | Jahresplanung | 🔴 | danach |
 | 12 | Wochenplanung | 🔴 | danach |
 | 13 | Materialbibliothek | 🔴 | danach |
@@ -87,7 +87,7 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 | Schülerdossier Browser-Abnahme | 🟡 | Navigation, Detailtabs, Fokusmodus und responsive Darstellung müssen im finalen Browser-Walkthrough praktisch geprüft werden. |
 | Sitzplan | 🟡 | PR #43: Positionen, Möbel und Regeln sind klassenlokal; Legacy-Regeln werden nach Schülerzugehörigkeit migriert. `nicht nebeneinander`, `nebeneinander`, `feste Zone` und `fester Platz` werden zentral geprüft, Fixplätze speichern ihre Position und Zonen richten sich an der realen Tafelposition aus. Würfelvorschau und Planungs-Analyse nutzen dieselbe Regelengine, erkennen Sitzkollisionen und der Optimierer hält Fixplätze sowie explizite Regeln ein. Abwesenheiten stammen aus den echten Anwesenheitsdaten mit lokalem Kalendertag. Sitzplan-UI-Zustände werden beim Klassenwechsel zurückgesetzt. Automatisierte Tests und Audit #110 grün; reale Drag/Drop-, Maus-/Touch- und Druck-/Browser-Abnahme offen. |
 | Diagnostik | 🟡 | PR #9 integriert: 3-stufige Hierarchie/Checks/Ergebnisse, klassenlokale iKM-/Antolin-/Ziel-/Beobachtungs-/Metakognitionsdaten, aktive Klassen-ID für strukturierte Ergebnisse und lokale Datumsprüfung. Vollständiger Browser-Walkthrough offen. |
-| Multi-Class | ✅ | Klassenwechsel/Migration/Erweiterungsfelder, Cockpit-Ink sowie Notizen/Journal/Statusverlauf per Tests klassenlokal abgesichert; Schüler-Dossier-, Editor- und Interaktionszustände sowie Sitzplan-Auswahl/Vorschau/Undo werden beim Klassenwechsel zurückgesetzt. Sitzpositionen, Möbel und Sitzplan-Regeln bleiben strikt pro Klasse getrennt. Anwesenheit und Anwesenheitsdetails sind ebenfalls klassenlokal; Anwesenheits-Undo und offene Anwesenheitsdialoge werden beim Klassenwechsel verworfen. Noten, Noten-Metadaten, Gewichtungen und Mitarbeit-Bewertungsregeln bleiben pro Klasse getrennt; offene Notenmappe-Dialoge und lokale Gewichtungsentwürfe werden beim Klassenwechsel zurückgesetzt. |
+| Multi-Class | ✅ | Klassenwechsel/Migration/Erweiterungsfelder, Cockpit-Ink sowie Notizen/Journal/Statusverlauf per Tests klassenlokal abgesichert; Schüler-Dossier-, Editor- und Interaktionszustände sowie Sitzplan-Auswahl/Vorschau/Undo werden beim Klassenwechsel zurückgesetzt. Sitzpositionen, Möbel und Sitzplan-Regeln bleiben strikt pro Klasse getrennt. Anwesenheit und Anwesenheitsdetails sind ebenfalls klassenlokal; Anwesenheits-Undo und offene Anwesenheitsdialoge werden beim Klassenwechsel verworfen. Noten, Noten-Metadaten, Gewichtungen und Mitarbeit-Bewertungsregeln bleiben pro Klasse getrennt; offene Notenmappe-Dialoge und lokale Gewichtungsentwürfe werden beim Klassenwechsel zurückgesetzt. Kassenstand/Sammlungen, Checklisten, flexible Listen und Klassenlogins sind ebenfalls klassenlokal; offene Kassa-/Orga- und Flexible-Listen-Zustände werden beim Klassenwechsel verworfen. |
 
 ## Leistungen
 
@@ -104,6 +104,7 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
+| Kassa & Orga | 🟡 | PR #49: Geldsammlungen, Teilzahlungen, Kassenbuch, Checklisten, flexible Listen und Klassenlogins bleiben erhalten. Geldbeträge werden centgenau verarbeitet; Überzahlungen werden abgewiesen, `Alle bezahlt` bucht nur offene Differenzen und manuelle Buchungen werden beim Löschen korrekt gegengebucht. Automatische Sammlungsbuchungen sind vor manueller Löschung geschützt. Legacy-`beitrag_pro_kind` wird zentral auch für inaktive Klassen migriert; frühere globale Klassenlogins werden einmalig in alle bestehenden Klassen übernommen und danach pro Klasse getrennt geführt. Datumsfelder nutzen lokale Kalendertage und offene Editor-/Dialogzustände werden beim Klassenwechsel zurückgesetzt. Automatisierte Tests und Audit #116 grün; reale Browser-/Touch-/Druck-Abnahme offen. |
 | Stundenplan 10 Slots | ✅ | PR #13 integriert: Setup-Zeitfelder, Tagesrahmen, mobile/desktop Stammplan-Raster und Dashboard-Vorschau verwenden 10 Slots. Für 9./10. Stunde werden keine Standardzeiten erfunden; frei konfigurierbar. |
 | Wochenplan Vollbild | ✅ | Implementiert. |
 | Wochenplan Excel Roundtrip | ✅ | Vorlage + Import, Ergänzen/Lücken füllen oder überschreiben. |
