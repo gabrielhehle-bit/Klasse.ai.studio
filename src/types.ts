@@ -954,6 +954,8 @@ export interface ClassRoom {
   metaKognitionsProtokolle?: AppState['metaKognitionsProtokolle'];
   interaktionsLog?: AppState['interaktionsLog'];
   mitarbeit: Record<string, Record<string, Record<string, number>>>;
+  /** Class-local participation grading thresholds/mode used by the gradebook. */
+  mitarbeit_settings?: AppState['mitarbeit_settings'];
   verhalten: Record<string, number>;
   karten: Record<string, { gelb: number; rot: number; archiv: any[] }>;
   jahresplanung: Record<number, any>;
