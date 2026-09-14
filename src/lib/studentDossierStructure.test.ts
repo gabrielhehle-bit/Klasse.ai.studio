@@ -21,6 +21,8 @@ test("Schülerdossier: genau fünf feste Hauptbereiche sind definiert", () => {
   }
 
   assert.match(dossier, /const getFilteredMainAreas = \(\) => MAIN_AREAS;/);
+  assert.match(dossier, /const handleSelectArea = \(areaId: MainAreaId\) =>/);
+  assert.match(dossier, /setActiveTab\(targetArea\.defaultTab\)/);
 });
 
 test("Schülerdossier: alte Sichtbarkeits- und Einfach/Experte-Logik ist aus der Oberfläche entfernt", () => {
