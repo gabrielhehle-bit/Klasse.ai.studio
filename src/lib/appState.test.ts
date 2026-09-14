@@ -49,6 +49,7 @@ function fixture() {
       notes: [{ id: `note-${id}`, datum: '2026-09-14T10:00:00.000Z', kategorie: 'Journal', inhalt: `note-${id}` }],
       journal: [{ id: `note-${id}`, datum: '2026-09-14T10:00:00.000Z', kategorie: 'Journal', inhalt: `note-${id}` }],
       statusLog: [{ id: `status-${id}`, schuelerId: `student-${id}`, datum: '2026-09-14', iconId: id === 'a' ? '1' : '4', timestamp: id === 'a' ? 1 : 2 }],
+      vertretungHinweise: `handover-${id}`,
       sitzplan_schueler: { [`student-${id}`]: { x: id === 'a' ? 100 : 300, y: id === 'a' ? 150 : 350 } },
       sitzplan_objekte: [{ id: `board-${id}`, type: 'blackboard', x: id === 'a' ? 20 : 500, y: 10, w: 200, h: 10 }],
       sitzplanRegeln: [{ id: `rule-${id}`, typ: 'feste_zone', schuelerIds: [`student-${id}`], zone: id === 'a' ? 'vorne' : 'hinten' }],
@@ -585,4 +586,25 @@ test('legacy basis contribution is normalized for inactive classes too', () => {
   assert.equal(loaded.classes[1].klassenkasse?.sammlungen?.[0]?.betrag, 8.5);
   assert.equal(loaded.classes[1].klassenkasse?.sammlungen?.[0]?.status?.b1, 'offen');
   assert.equal(switchClassState(loaded, 'b').klassenkasse?.sammlungen?.[0]?.betrag, 8.5);
+});
+
+
+test('class switches isolate Übergabemappe notes', () => {
+  const state = fixture();
+  assert.equal(state.vertretungHinweise, 'handover-a');
+
+  let b = switchClassState(state, 'b');
+  assert.equal(b.vertretungHinweise, 'handover-b');
+
+  b = syncActiveClass({
+    ...b,
+    vertretungHinweise: 'handover-b-edited',
+  } as any);
+
+  const a = switchClassState(b, 'a');
+  assert.equal(a.vertretungHinweise, 'handover-a');
+
+  const reloaded = normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(a))));
+  assert.equal(reloaded.classes[0].vertretungHinweise, 'handover-a');
+  assert.equal(reloaded.classes[1].vertretungHinweise, 'handover-b-edited');
 });
