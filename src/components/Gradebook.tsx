@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { logActivity, getAccentTextColor } from '../lib/utils';
-import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput } from '../lib/GradeUtils';
+import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput, getHomeworkGradebookSettings, getMirroredAssessmentValue } from '../lib/GradeUtils';
 import { getFachHexColor } from '../lib/fachColorUtils';
 import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
@@ -658,6 +658,27 @@ export default function Gradebook() {
   const colCounts = app.notenMeta?.[activeFach]?.colCounts || { lzk: 4, wp: 4, obj: 4 };
   const [pendingDelete, setPendingDelete] = useState<{typ: 'lzk' | 'wp' | 'obj', label: string} | null>(null);
 
+  useEffect(() => {
+    // Offene Notenmappe-Dialoge oder Schülerbezüge dürfen nie in die nächste Klasse mitwandern.
+    setShowWeights(false);
+    setShowGradeCalculator(false);
+    setShowStats(false);
+    setShowHueSettings(false);
+    setIsolatedCol(null);
+    setEditingAssessmentModal(null);
+    setEditingColLabel(null);
+    setSimulateModalForSid(null);
+    setFocusedCell(null);
+    setHoveredCell(null);
+    setPendingDelete(null);
+    setSaAssessment(null);
+    setSelectedTrendStudentId(null);
+    setSelectedGradeExplanationStudent(null);
+    setShowAddAssessmentModal(false);
+    setShowMoreMenu(false);
+    setConfirmedWarnings({});
+  }, [app.activeClassId]);
+
   const missingCount = useMemo(() => {
     let count = 0;
     if (!app.schueler || app.schueler.length === 0) return 0;
@@ -834,6 +855,7 @@ export default function Gradebook() {
 
   const cfg = getFachCfg(app, activeFach);
   const assessmentMode = getAssessmentMode(app, activeFach);
+  const homeworkSettings = getHomeworkGradebookSettings(app, activeFach);
 
   const handleModeChange = (fach: string, newMode: 'grades' | 'percent' | 'points') => {
     const currentMode = app.notenMeta?.[fach]?.assessmentMode || 'grades';
@@ -868,15 +890,25 @@ export default function Gradebook() {
     setApp(prev => {
       const nm = { ...(prev.notenMeta || {}) };
       const currentFach = { ...(nm[fach] || {}) };
+      const nextMeta: Record<string, any> = {
+        ...nm,
+        [fach]: {
+          ...currentFach,
+          assessmentMode: newMode
+        }
+      };
+
+      if (nextMeta.syncWpDeutschMath && (fach === 'Deutsch' || fach === 'Mathematik')) {
+        const otherFach = fach === 'Deutsch' ? 'Mathematik' : 'Deutsch';
+        const otherMode = getAssessmentMode(prev, otherFach);
+        if (otherMode !== newMode) {
+          nextMeta.syncWpDeutschMath = false;
+        }
+      }
+
       return {
         ...prev,
-        notenMeta: {
-          ...nm,
-          [fach]: {
-            ...currentFach,
-            assessmentMode: newMode
-          }
-        }
+        notenMeta: nextMeta
       };
     });
   };
@@ -1164,14 +1196,28 @@ export default function Gradebook() {
       newNoten[sid] = { ...sidData, [activeFach]: updatedFachData };
 
       if (shouldSync) {
-        const targetSidData = newNoten[sid] || {};
-        const targetFachData = targetSidData[targetFach] || {};
-        const targetSemData: GradeData = targetFachData[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
-        const targetArray = [...(targetSemData[typ] || [])];
-        targetArray[idx] = validated;
-        
-        const updatedTargetFachData = { ...targetFachData, [sem]: { ...targetSemData, [typ]: targetArray } };
-        newNoten[sid] = { ...targetSidData, [targetFach]: updatedTargetFachData };
+        const sourceMode = getAssessmentMode(prev, activeFach);
+        const targetMode = getAssessmentMode(prev, targetFach);
+        const sourceMax = getMaxPoints(prev, activeFach, typ, idx);
+        const targetMax = getMaxPoints(prev, targetFach, typ, idx);
+        const mirrored = getMirroredAssessmentValue(
+          validated as number | string | null,
+          sourceMode,
+          sourceMax,
+          targetMode,
+          targetMax,
+        );
+
+        if (mirrored.sync) {
+          const targetSidData = newNoten[sid] || {};
+          const targetFachData = targetSidData[targetFach] || {};
+          const targetSemData: GradeData = targetFachData[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
+          const targetArray = [...(targetSemData[typ] || [])];
+          targetArray[idx] = mirrored.value;
+          
+          const updatedTargetFachData = { ...targetFachData, [sem]: { ...targetSemData, [typ]: targetArray } };
+          newNoten[sid] = { ...targetSidData, [targetFach]: updatedTargetFachData };
+        }
       }
 
       return {
@@ -1196,20 +1242,9 @@ export default function Gradebook() {
   };
 
   const setEndnote = (sid: string, val: string) => {
-    let validated = val;
-    if (val && val.trim() !== '') {
-      const upper = val.trim().toUpperCase();
-      if (['SPF', 'ESPF'].includes(upper)) {
-        validated = upper;
-      } else {
-        const n = parseFloat(val.replace(',', '.'));
-        if (!isNaN(n)) {
-          if (n < 1) validated = '1';
-          else if (n > 5) validated = '5';
-          else validated = String(n);
-        }
-      }
-    }
+    const parsed = parseFinalGradeInput(val);
+    if (!parsed.valid) return;
+    const validated = parsed.value;
 
     setApp(prev => {
       const sidData = prev.noten[sid] || {};
@@ -1236,20 +1271,9 @@ export default function Gradebook() {
   };
 
   const updateSimpleGrade = (sid: string, targetSem: '1' | '2', val: string) => {
-    let validated = val;
-    if (val && val.trim() !== '') {
-      const upper = val.trim().toUpperCase();
-      if (['SPF', 'ESPF'].includes(upper)) {
-        validated = upper;
-      } else {
-        const n = parseFloat(val.replace(',', '.'));
-        if (!isNaN(n)) {
-          if (n < 1) validated = '1';
-          else if (n > 5) validated = '5';
-          else validated = String(n);
-        }
-      }
-    }
+    const parsed = parseFinalGradeInput(val);
+    if (!parsed.valid) return;
+    const validated = parsed.value;
 
     setApp(prev => {
       const currentNoten = prev.noten || {};
@@ -1305,16 +1329,10 @@ export default function Gradebook() {
   const setMIDirekt = (sid: string, val: string) => {
     let validated: number | undefined = undefined;
     if (val !== undefined && val !== null && String(val).trim() !== '') {
-      const n = parseFloat(String(val).replace(',', '.'));
-      if (!isNaN(n)) {
-        if (assessmentMode === 'percent') {
-          validated = Math.min(100, Math.max(0, n));
-        } else if (assessmentMode === 'points') {
-          validated = Math.max(0, n);
-        } else {
-          validated = (n >= 1 && n <= 5) ? n : undefined;
-        }
-      }
+      const maxMiPoints = app.notenMeta?.[activeFach]?.maxPoints?.mi?.[0] || 20;
+      const parsed = parseAssessmentInput(String(val), assessmentMode, maxMiPoints);
+      if (!parsed.valid || typeof parsed.value !== 'number') return;
+      validated = parsed.value;
     }
 
     setApp(prev => {
@@ -2251,14 +2269,14 @@ export default function Gradebook() {
                       <span>📖</span>
                       <span>Hausübungen · {activeFach}</span>
                     </h3>
-                    <span className={`text-[0.625rem] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${app.settings?.hueGewichten === false ? 'bg-amber-100 text-amber-900 border-amber-200' : 'bg-emerald-100 text-emerald-900 border-emerald-200'}`}>
-                      {app.settings?.hueGewichten === false ? 'Nur Dokumentieren' : 'In Bewertung aktiv'}
+                    <span className={`text-[0.625rem] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${homeworkSettings.mode === 'document' ? 'bg-amber-100 text-amber-900 border-amber-200' : 'bg-emerald-100 text-emerald-900 border-emerald-200'}`}>
+                      {homeworkSettings.mode === 'document' ? 'Nur Dokumentieren' : 'In Bewertung aktiv'}
                     </span>
                   </div>
                   <p className="text-[0.6875rem] text-rose-800/60 font-medium">
-                    {app.settings?.hueGewichten === false
+                    {homeworkSettings.mode === 'document'
                       ? 'Dokumentations-Modus: Fehlende Hausübungen werden erfasst, führen aber zu keinem automatischen Noten- oder Punkteabzug.'
-                      : `Bewertungs-Modus: Ausgangswert 100% minus ${app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}% pro vergessene HÜ. Gewichtung: ${Math.round(cfg.g.hue * 100)}%.`}
+                      : `Bewertungs-Modus: Ausgangswert 100% minus ${homeworkSettings.percentDeduction}% pro vergessene HÜ. Gewichtung: ${Math.round(cfg.g.hue * 100)}%.`}
                   </p>
                </div>
                
@@ -2278,32 +2296,37 @@ export default function Gradebook() {
                    <button
                      onClick={() => setApp(prev => ({
                        ...prev,
-                       settings: {
-                         ...prev.settings,
-                         hueGewichten: true
+                       notenMeta: {
+                         ...(prev.notenMeta || {}),
+                         [activeFach]: {
+                           ...(prev.notenMeta?.[activeFach] || {}),
+                           hueMode: 'grade'
+                         }
                        }
                      }))}
-                     className={`px-3 py-1.5 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all cursor-pointer ${app.settings?.hueGewichten !== false ? 'bg-white text-rose-900 shadow-xs' : 'text-rose-700 hover:text-rose-900'}`}
+                     className={`px-3 py-1.5 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all cursor-pointer ${homeworkSettings.mode !== 'document' ? 'bg-white text-rose-900 shadow-xs' : 'text-rose-700 hover:text-rose-900'}`}
                    >
                      Bewerten
                    </button>
                    <button
                      onClick={() => setApp(prev => ({
                        ...prev,
-                       settings: {
-                         ...prev.settings,
-                         hueGewichten: false,
-                         hueWeight: 0
+                       notenMeta: {
+                         ...(prev.notenMeta || {}),
+                         [activeFach]: {
+                           ...(prev.notenMeta?.[activeFach] || {}),
+                           hueMode: 'document'
+                         }
                        }
                      }))}
-                     className={`px-3 py-1.5 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all cursor-pointer ${app.settings?.hueGewichten === false ? 'bg-white text-amber-900 shadow-xs' : 'text-rose-700 hover:text-rose-900'}`}
+                     className={`px-3 py-1.5 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all cursor-pointer ${homeworkSettings.mode === 'document' ? 'bg-white text-amber-900 shadow-xs' : 'text-rose-700 hover:text-rose-900'}`}
                    >
                      Nur Doku
                    </button>
                  </div>
 
                  {/* %-Deduction Config (if evaluating) */}
-                 {app.settings?.hueGewichten !== false && (
+                 {homeworkSettings.mode !== 'document' && (
                    <div className="flex items-center gap-1.5 bg-white border border-rose-200 rounded-xl px-2.5 py-1.5 shadow-3xs">
                      <span className="text-[0.5625rem] font-black text-rose-800 uppercase tracking-widest leading-none">
                        %-Abzug / HÜ:
@@ -2313,14 +2336,17 @@ export default function Gradebook() {
                        min="0"
                        max="50"
                        className="w-10 text-center text-[0.6875rem] font-black bg-rose-50 border border-rose-200 rounded-md py-0.5 outline-none text-rose-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                       value={app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}
+                       value={homeworkSettings.percentDeduction}
                        onChange={(e) => {
                          const val = Math.max(0, parseInt(e.target.value) || 0);
                          setApp(prev => ({
                            ...prev,
-                           settings: {
-                             ...prev.settings,
-                             huePercentDeduction: val
+                           notenMeta: {
+                             ...(prev.notenMeta || {}),
+                             [activeFach]: {
+                               ...(prev.notenMeta?.[activeFach] || {}),
+                               hueDeduction: val
+                             }
                            }
                          }));
                        }}
@@ -2337,13 +2363,16 @@ export default function Gradebook() {
                    <div className="flex items-center gap-0.5">
                      <button
                        onClick={() => {
-                         const currentVal = app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1;
+                         const currentVal = homeworkSettings.participationDeduction;
                          const newVal = Math.max(0, currentVal - 0.5);
                          setApp(prev => ({
                            ...prev,
-                           settings: {
-                             ...prev.settings,
-                             hueWeight: newVal
+                           notenMeta: {
+                             ...(prev.notenMeta || {}),
+                             [activeFach]: {
+                               ...(prev.notenMeta?.[activeFach] || {}),
+                               hueMitarbeitWeight: newVal
+                             }
                            }
                          }));
                        }}
@@ -2357,27 +2386,33 @@ export default function Gradebook() {
                        min="0"
                        max="10"
                        className="w-8 text-center text-[0.6875rem] font-black bg-rose-50 border border-rose-200 rounded py-0.5 outline-none text-rose-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                       value={app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1}
+                       value={homeworkSettings.participationDeduction}
                        onChange={(e) => {
                          const val = Math.max(0, parseFloat(e.target.value) || 0);
                          setApp(prev => ({
                            ...prev,
-                           settings: {
-                             ...prev.settings,
-                             hueWeight: val
+                           notenMeta: {
+                             ...(prev.notenMeta || {}),
+                             [activeFach]: {
+                               ...(prev.notenMeta?.[activeFach] || {}),
+                               hueMitarbeitWeight: val
+                             }
                            }
                          }));
                        }}
                      />
                      <button
                        onClick={() => {
-                         const currentVal = app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1;
+                         const currentVal = homeworkSettings.participationDeduction;
                          const newVal = currentVal + 0.5;
                          setApp(prev => ({
                            ...prev,
-                           settings: {
-                             ...prev.settings,
-                             hueWeight: newVal
+                           notenMeta: {
+                             ...(prev.notenMeta || {}),
+                             [activeFach]: {
+                               ...(prev.notenMeta?.[activeFach] || {}),
+                               hueMitarbeitWeight: newVal
+                             }
                            }
                          }));
                        }}
@@ -2423,7 +2458,7 @@ export default function Gradebook() {
                     const hasHueTracking = nd.hueErfasst === true || val > 0 || ((nd.hueAnm || []).length > 0);
                     const comment = (nd.hueAnm && nd.hueAnm.length > 0) ? nd.hueAnm[0] : '';
                     
-                    const ded = app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5;
+                    const ded = homeworkSettings.percentDeduction;
                     const pct = Math.max(0, 100 - val * ded);
                     let note = 1;
                     if (pct >= 87.5) note = 1;
@@ -2480,7 +2515,7 @@ export default function Gradebook() {
                           />
                         </td>
                         <td className={`${zoomLevel === 'compact' ? 'px-3 py-1.5' : zoomLevel === 'large' ? 'px-8 py-5' : 'px-6 py-4'} text-center`}>
-                          {app.settings?.hueGewichten === false ? (
+                          {homeworkSettings.mode === 'document' ? (
                             <span className="text-[0.625rem] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full uppercase tracking-wider">
                               Nur Dokumentiert
                             </span>
@@ -3891,13 +3926,13 @@ export default function Gradebook() {
                           <td 
                             onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'hue', idx: 0})}
                             onMouseLeave={() => setHoveredCell(null)}
-                            title={app.settings?.hueGewichten === false ? `Hausübungen: ${nd.hue || 0}× vergessen (rein dokumentarisch, kein Notenabzug)` : `Hausübungen: ${nd.hue || 0}× vergessen (${Math.max(0, 100 - (nd.hue || 0) * (app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5))}% / Gewicht: ${Math.round(cfg.g.hue * 100)}%)`}
+                            title={homeworkSettings.mode === 'document' ? `Hausübungen: ${nd.hue || 0}× vergessen (rein dokumentarisch, kein Notenabzug)` : `Hausübungen: ${nd.hue || 0}× vergessen (${Math.max(0, 100 - (nd.hue || 0) * (homeworkSettings.percentDeduction))}% / Gewicht: ${Math.round(cfg.g.hue * 100)}%)`}
                             className={`${zoomLevel === 'compact' ? 'px-0.5 py-1' : zoomLevel === 'large' ? 'px-2 py-3' : 'px-1 py-2'} border-b border-r border-border/30 bg-rose-50/10 border-l-2 border-l-rose-400/50 text-center ${isolatedCol ? 'hidden' : ''} ${getHighlightClass(s.id, 'hue', 0)}`}>
                             <div className="flex flex-col items-center justify-center">
                               <span className={`${zoomLevel === 'compact' ? 'text-[0.75rem]' : zoomLevel === 'large' ? 'text-[0.9375rem]' : 'text-[0.8125rem]'} font-bold ${nd.hue > 0 ? 'text-rose-700 font-mono' : 'text-slate-400'}`}>
                                 {nd.hue || 0}
                               </span>
-                              {app.settings?.hueGewichten === false && (
+                              {homeworkSettings.mode === 'document' && (
                                 <span className="text-[0.5rem] font-bold text-amber-700/80 uppercase tracking-tighter leading-none">
                                   doku
                                 </span>

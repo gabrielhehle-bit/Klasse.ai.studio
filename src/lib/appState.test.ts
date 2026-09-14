@@ -21,6 +21,13 @@ function fixture() {
         },
       },
       notenGewichtung: { Mathematik: { sa: id === 'a' ? 60 : 40, lzk: 20, wp: 20, obj: 0, mi: id === 'a' ? 0 : 20 } },
+      mitarbeit: { [`student-${id}`]: { Mathematik: { '1': id === 'a' ? 3 : 7 } } },
+      mitarbeit_settings: {
+        mode: id === 'a' ? 'absolute' : 'manual',
+        thresholds: id === 'a'
+          ? { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 }
+          : { 1: 20, 2: 15, 3: 10, 4: 5, 5: 0 },
+      },
       lernzielTracker: { Mathematik: { [`goal-${id}`]: { text: id, abgehakt: id === 'a', abgehaktAm: null, kw: 37 } } },
       studentLernzielBewertungen: { [`student-${id}`]: { [`goal-${id}`]: id === 'a' ? 1 : 3 } },
       studentLernzielSemesterBewertungen: { [`student-${id}`]: { '1': { [`goal-${id}`]: id === 'a' ? 1 : 3 } } },
@@ -406,4 +413,56 @@ test('class switches isolate attendance and attendance details', () => {
   assert.equal(reloaded.classes[1].anwesenheit['student-b']['2026-09-14'][1], 'u');
   assert.equal(reloaded.classes[1].anwesenheitDetail?.['student-b']?.['2026-09-14']?.notiz, 'edited-b');
   assert.equal(reloaded.classes[1].anwesenheitDetail?.['student-b']?.['2026-09-14']?.fehlstunden, 1);
+});
+
+
+test('class switches isolate gradebook participation settings', () => {
+  const state = fixture();
+  assert.equal(state.mitarbeit_settings?.mode, 'absolute');
+  assert.equal(state.mitarbeit_settings?.thresholds?.[1], 13);
+
+  let b = switchClassState(state, 'b');
+  assert.equal(b.mitarbeit_settings?.mode, 'manual');
+  assert.equal(b.mitarbeit_settings?.thresholds?.[1], 20);
+  assert.equal(b.mitarbeit?.['student-b']?.Mathematik?.['1'], 7);
+  assert.equal(b.mitarbeit?.['student-a'], undefined);
+
+  b = syncActiveClass({
+    ...b,
+    mitarbeit_settings: {
+      ...(b.mitarbeit_settings || {}),
+      mode: 'relative',
+      relative_confirmed: true,
+      relative_thresholds: { 1: 25, 2: 10, 3: 0, 4: -15 },
+    },
+  } as any);
+
+  const a = switchClassState(b, 'a');
+  assert.equal(a.mitarbeit_settings?.mode, 'absolute');
+  assert.equal(a.mitarbeit_settings?.relative_confirmed, undefined);
+
+  const reloaded = normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(a))));
+  assert.equal(reloaded.classes[0].mitarbeit_settings?.mode, 'absolute');
+  assert.equal(reloaded.classes[1].mitarbeit_settings?.mode, 'relative');
+  assert.equal(reloaded.classes[1].mitarbeit_settings?.relative_confirmed, true);
+  assert.equal(reloaded.classes[1].mitarbeit_settings?.relative_thresholds?.[1], 25);
+});
+
+
+test('legacy shared participation settings are copied to every existing class before classes diverge', () => {
+  const legacy = normalizeAppState({
+    activeClassId: 'a',
+    mitarbeit_settings: {
+      mode: 'absolute',
+      thresholds: { 1: 18, 2: 14, 3: 9, 4: 5, 5: 0 },
+    },
+    classes: [
+      { id: 'a', name: 'a', schueler: [], noten: {}, mitarbeit: {} },
+      { id: 'b', name: 'b', schueler: [], noten: {}, mitarbeit: {} },
+    ],
+  });
+
+  assert.equal(legacy.classes[0].mitarbeit_settings?.thresholds?.[1], 18);
+  assert.equal(legacy.classes[1].mitarbeit_settings?.thresholds?.[1], 18);
+  assert.equal(switchClassState(legacy, 'b').mitarbeit_settings?.thresholds?.[1], 18);
 });

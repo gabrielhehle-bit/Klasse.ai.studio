@@ -191,6 +191,7 @@ export function syncActiveClass(state: AppState): AppState {
     metaKognitionsProtokolle: state.metaKognitionsProtokolle ? JSON.parse(JSON.stringify(state.metaKognitionsProtokolle)) : [],
     interaktionsLog: state.interaktionsLog ? JSON.parse(JSON.stringify(state.interaktionsLog)) : { eintraege: [], wochenEmpfehlung: null },
     mitarbeit: state.mitarbeit ? JSON.parse(JSON.stringify(state.mitarbeit)) : {},
+    mitarbeit_settings: state.mitarbeit_settings ? JSON.parse(JSON.stringify(state.mitarbeit_settings)) : { thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 }, mode: 'absolute' },
     verhalten: state.verhalten ? { ...state.verhalten } : {},
     karten: state.karten ? JSON.parse(JSON.stringify(state.karten)) : {},
     jahresplanung: state.jahresplanung ? JSON.parse(JSON.stringify(state.jahresplanung)) : {},
@@ -297,6 +298,7 @@ export function normalizeAppState(raw: any): AppState {
       metaKognitionsProtokolle: parsed.metaKognitionsProtokolle || [],
       interaktionsLog: parsed.interaktionsLog || { eintraege: [], wochenEmpfehlung: null },
       mitarbeit: parsed.mitarbeit || {},
+      mitarbeit_settings: parsed.mitarbeit_settings || { thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 }, mode: 'absolute' },
       verhalten: parsed.verhalten || {},
       karten: parsed.karten || {},
       jahresplanung: parsed.jahresplanung || {},
@@ -354,6 +356,8 @@ export function normalizeAppState(raw: any): AppState {
         metaKognitionsProtokolle: c.metaKognitionsProtokolle ?? (c.id === parsed.activeClassId ? parsed.metaKognitionsProtokolle : undefined) ?? [],
         interaktionsLog: c.interaktionsLog ?? (c.id === parsed.activeClassId ? parsed.interaktionsLog : undefined) ?? { eintraege: [], wochenEmpfehlung: null },
         mitarbeit: c.mitarbeit || {},
+        // Legacy multi-class snapshots had one shared root setting; copy it to every class once during migration.
+        mitarbeit_settings: c.mitarbeit_settings ?? parsed.mitarbeit_settings ?? { thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 }, mode: 'absolute' },
         verhalten: c.verhalten || {},
         karten: c.karten || {},
         jahresplanung: c.jahresplanung || {},
@@ -449,6 +453,7 @@ export function normalizeAppState(raw: any): AppState {
     parsed.metaKognitionsProtokolle = activeClass.metaKognitionsProtokolle || [];
     parsed.interaktionsLog = activeClass.interaktionsLog || { eintraege: [], wochenEmpfehlung: null };
     parsed.mitarbeit = activeClass.mitarbeit;
+    parsed.mitarbeit_settings = activeClass.mitarbeit_settings || { thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 }, mode: 'absolute' };
     parsed.verhalten = activeClass.verhalten;
     parsed.karten = activeClass.karten;
     parsed.jahresplanung = activeClass.jahresplanung;
@@ -683,6 +688,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     metaKognitionsProtokolle: targetClass.metaKognitionsProtokolle ? JSON.parse(JSON.stringify(targetClass.metaKognitionsProtokolle)) : [],
     interaktionsLog: targetClass.interaktionsLog ? JSON.parse(JSON.stringify(targetClass.interaktionsLog)) : { eintraege: [], wochenEmpfehlung: null },
     mitarbeit: targetClass.mitarbeit || {},
+    mitarbeit_settings: targetClass.mitarbeit_settings ? JSON.parse(JSON.stringify(targetClass.mitarbeit_settings)) : { thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 }, mode: 'absolute' },
     verhalten: targetClass.verhalten,
     karten: targetClass.karten,
     jahresplanung: targetClass.jahresplanung,
