@@ -21,13 +21,17 @@ Der frühere Abschlussbranch `fix/reconciliation-finalization` wurde vollständi
 
 Am 14.09.2026 wurde außerdem PR #7 (`fix/class-student-dossier-final`) integriert. Das Schülerdossier besitzt nun dauerhaft die fünf vereinbarten Hauptbereiche; die alte Einfach/Experte-/Sichtbarkeitslogik wurde aus der Oberfläche entfernt, Detailfunktionen bleiben erhalten und der Semesterwechsel 1/2 wurde repariert.
 
+Danach wurden die produktionsrelevanten Restpunkte direkt auf Folgebranches bereinigt und in den Reconciliation-Branch übernommen: lokaler Kalendertag für Anwesenheit, robuste Geburtsdatums-/Alterslogik und Importnormalisierung, konsistente Geschlechtswerte aus CSV/Excel/Sokrates, Entfernung mitgelieferter Demo-Archiv-/Musterprofildaten aus dem normalen Startzustand, neutrale Lehrerstatistik ohne erfundene Werte, sichtbares Branding vollständig auf Klassio/Klassio Quest, Klassio-Dateinamen für neue Backups sowie bereinigte Morgenaufgaben ohne redaktionelle Platzhalterreste. Die Beispielklasse bleibt ausschließlich als bewusst auswählbarer Demo-Modus erhalten.
+
+Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
+
 Der letzte vor dieser Dokumentationsaktualisierung vollständig geprüfte Reconciliation-Commit war:
 
-- Commit: `b9059713f3f101ce958cd9371fa0f59d24afc9ed`
+- Commit: `e85e78cc594467ed51820b5b1b2489114a2fde16`
 - GitHub Actions: Pre-Deployment Audit erfolgreich
 - Installation: `bun install --frozen-lockfile` erfolgreich
 - TypeScript: erfolgreich
-- Tests: 685/685 erfolgreich
+- Tests: 707/707 erfolgreich
 - Production Build: erfolgreich
 - PWA-Ausgabe: erfolgreich
 - Production-Server-Smoke-Test: erfolgreich
@@ -41,12 +45,12 @@ Nach jeder weiteren Änderung ist ausschließlich der neue GitHub-HEAD verbindli
 Der Reconciliation-Stand enthält unter anderem:
 
 - vereinfachte Kernnavigation und Lehrercockpit mit freier weißer Schreib-/Zeichen-/Widgetfläche ohne Startkarte; 108/108 erhaltene Widgets sind über Suche/Kategorien erreichbar, Favoriten bleiben benutzerdefiniert
-- Anwesenheit, Befinden und Schülerliste; das Schülerdossier hat fünf feste Hauptbereiche (Übersicht, Lernen & Leistungen, Entwicklung & Diagnostik, Stammdaten & Organisation, Berichte & Materialien) ohne ausblendbare Alt-Navigation
+- Anwesenheit, Befinden und Schülerliste; das Schülerdossier hat fünf feste Hauptbereiche (Übersicht, Lernen & Leistungen, Entwicklung & Diagnostik, Stammdaten & Organisation, Berichte & Materialien) ohne ausblendbare Alt-Navigation; Schülerimporte normalisieren österreichische/ISO-Geburtsdaten und Geschlechtswerte konsistent
 - vollständige Notenmappe mit Noten/Prozent/Punkten, Gewichtung, fachbezogenen Bewertungsabschnitten, Schularbeiten, LZK/WOPL und sonstigen Leistungen
 - schnelle Mitarbeit- und Hausübungs-Erfassung
 - Wochen- und Jahresplanung inklusive Vollbild, Excel-Roundtrip und Aufgabenblattgenerator
 - Materialbibliothek inklusive Übergabe in den Wochenplan
-- verschlüsselten lokalen Datentresor, verschlüsselte JSON-Backups und Legacy-Parser
+- verschlüsselten lokalen Datentresor, verschlüsselte JSON-Backups und Legacy-Parser; neue Sicherungsdateien tragen sichtbar `Klassio_Sicherung_YYYY-MM-DD.json`, das interne verschlüsselte Legacy-Format bleibt kompatibel
 - E-Mail-Einmalcode-Login mit administrativem Zugangscode als Fallback
 - optionales 30-Tage-Gerätevertrauen für den Datentresor
 - Canva-Integration
@@ -84,6 +88,8 @@ Automatisiert abgesichert sind:
 - Recovery-Code und fremdes Backup-Passwort
 - Abbruch bei beschädigten oder strukturell ungültigen Backups
 - Race-Condition-Schutz zwischen Autosave und Restore
+- exakte Erkennung und Entfernung des früher gebündelten 25-Schüler-Demoarchivs beim Laden; echte Benutzerarchive bleiben erhalten
+- frischer App-Zustand ohne Musterlehrer, erfundene Archivschüler, voreingestellte Schnelllinks oder Beispiel-QR-Wert
 
 Ein echter historischer Benutzer-Backup-Datensatz ist weiterhin ein Abnahmetest, sobald ein solcher bewusst bereitgestellt wird. Synthetische Legacy-Regressionstests sind grün.
 
