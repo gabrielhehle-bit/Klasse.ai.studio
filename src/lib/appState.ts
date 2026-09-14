@@ -61,6 +61,8 @@ export const initialAppState: AppState = {
   currentPage: 'cockpit',
   previousPage: 'wochenplanung',
   currentKW: getKW(new Date()),
+  parkgarage: [],
+  savedWeekTemplates: {},
   notenMeta: {},
   notenGewichtung: {},
   stundenentwuerfe: [],
@@ -199,6 +201,8 @@ export function syncActiveClass(state: AppState): AppState {
     jahresplanung: state.jahresplanung ? JSON.parse(JSON.stringify(state.jahresplanung)) : {},
     jahresplan_faecher: state.jahresplan_faecher ? [...state.jahresplan_faecher] : undefined,
     wochenplanung: state.wochenplanung ? JSON.parse(JSON.stringify(state.wochenplanung)) : {},
+    parkgarage: state.parkgarage ? JSON.parse(JSON.stringify(state.parkgarage)) : [],
+    savedWeekTemplates: state.savedWeekTemplates ? JSON.parse(JSON.stringify(state.savedWeekTemplates)) : {},
     scheduleAnalysis: state.scheduleAnalysis ? JSON.parse(JSON.stringify(state.scheduleAnalysis)) : undefined,
     stammplan: state.stammplan ? JSON.parse(JSON.stringify(state.stammplan)) : {},
     anwesenheit: state.anwesenheit ? JSON.parse(JSON.stringify(state.anwesenheit)) : {},
@@ -367,6 +371,16 @@ export function normalizeAppState(raw: any): AppState {
         jahresplanung: c.jahresplanung || {},
         jahresplan_faecher: c.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
         wochenplanung: c.wochenplanung || {},
+        // Legacy planning-center data lived at root level. Preserve it on the
+        // active class only so it cannot leak into unrelated classes.
+        parkgarage:
+          c.parkgarage ??
+          (c.id === parsed.activeClassId ? parsed.parkgarage : undefined) ??
+          [],
+        savedWeekTemplates:
+          c.savedWeekTemplates ??
+          (c.id === parsed.activeClassId ? parsed.savedWeekTemplates : undefined) ??
+          {},
         stammplan: c.stammplan || {},
         anwesenheit: c.anwesenheit || {},
         anwesenheitDetail: c.anwesenheitDetail || {},
@@ -701,6 +715,8 @@ export function switchClassState(prev: AppState, id: string): AppState {
     jahresplanung: targetClass.jahresplanung,
     jahresplan_faecher: targetClass.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
     wochenplanung: targetClass.wochenplanung ? JSON.parse(JSON.stringify(targetClass.wochenplanung)) : {},
+    parkgarage: targetClass.parkgarage ? JSON.parse(JSON.stringify(targetClass.parkgarage)) : [],
+    savedWeekTemplates: targetClass.savedWeekTemplates ? JSON.parse(JSON.stringify(targetClass.savedWeekTemplates)) : {},
     stammplan: targetClass.stammplan ? JSON.parse(JSON.stringify(targetClass.stammplan)) : {},
     anwesenheit: targetClass.anwesenheit,
     anwesenheitDetail: targetClass.anwesenheitDetail,
