@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `2c29ed7705da832fe93499d7da19d007fc61d8e6`: Pre-Deployment Audit #101 grün, 788/788 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #101 erzeugte `klassio-world4you-2c29ed7705da832fe93499d7da19d007fc61d8e6` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `03b8cb94f3757e0112df57ec25284077fb5ccfa4`: Pre-Deployment Audit #104 grün, 796/796 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #104 erzeugte `klassio-world4you-03b8cb94f3757e0112df57ec25284077fb5ccfa4` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 
@@ -29,8 +29,8 @@ Legende:
 |---:|---|---:|---|
 | 1 | Dashboard / Heute | ✅ | Code/Tests abgeschlossen; visuelle Staging-Abnahme im Gesamt-Walkthrough |
 | 2 | Lehrercockpit | ✅ | PR #35 integriert; Audit #101 grün; reale Maus-/Touch-/Stift-Abnahme im Gesamt-Walkthrough |
-| 3 | KI-Helfer | 🔴 | als Nächstes einzeln prüfen und abschließen |
-| 4 | Notizen | 🔴 | danach |
+| 3 | KI-Helfer | ✅ | PR #37 integriert; Audit #104 grün; reale Gemini-/Browser-Abnahme im Gesamt-Walkthrough |
+| 4 | Notizen | 🔴 | als Nächstes einzeln prüfen und abschließen |
 | 5 | Schüler:innen | 🔴 | danach |
 | 6 | Sitzplan | 🔴 | danach |
 | 7 | Anwesenheit | 🔴 | danach |
@@ -58,7 +58,7 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 |---|---:|---|
 | Dashboard / Heute | 🟡 | PR #12, #30 und #32: Datum/Ferien/Feiertage und ehrliche Anwesenheitslogik bleiben erhalten. Die kompakte Lehreransicht ist Standard und folgt `Jetzt → Heute → Wichtig → Schnell`; doppelte Tagesfokus-Karten wurden entfernt, laufende Stunde/Unterricht/Anwesenheit/Hinweise bleiben sichtbar, Schnellzugriffe führen zu Wochenplan, Notizen und Organisation. Backup liegt nicht mehr auf der täglichen Startseite; erweiterte Widgets bleiben optional verfügbar. Struktur- und Navigationstests grün; nur die reale visuelle Browser-Abnahme ist noch offen. |
 | SetupWizard | 🟡 | PR #11 integriert: Anrede/Vorname/Nachname mit Legacy-Migration, dynamische Schuljahre, Importdaten ohne erfundene Standardwerte; realer Setup-/Import-Browsercheck offen. |
-| KI-Helfer | 🟡 | PR #10 integriert: echte Serverstatus-Anzeige, optionaler datensparsamer Klassenkontext ohne automatisch übermittelte Schülernamen, konkrete Fehlerzustände und explizite Foto-Datenschutzfreigabe. Live-Gemini-/Browser-Abnahme offen. |
+| KI-Helfer | 🟡 | PR #10 + #37: echte Serverstatus-Anzeige, optionaler datensparsamer Klassenkontext und aggregierter Lernzielkontext ohne automatisch übermittelte Schülernamen; Chatverläufe sind klassenlokal, Klassenwechsel schließen aktive Chats. Bildanalyse akzeptiert nur JPG/PNG/WebP bis 8 MB mit expliziter Datenschutzfreigabe und serverseitiger Prüfung. Remote-Prompts werden nicht im Klartext protokolliert; schulspezifische Prompt-Altlasten sind entfernt. Automatisierte Datenschutz-/Isolationstests grün; Live-Gemini-/Browser-Abnahme offen. |
 | Kernnavigation | ✅ | PR #23: Heute, Klasse, Planung, Leistungen und Unterricht bleiben die fünf Kernbereiche. Unterricht ist jetzt ein eigener Hub; zuvor verstreute Bestandswerkzeuge sind vollständig den Hubs bzw. `Mehr` zugeordnet. Regressionstests sichern Vollständigkeit und Reihenfolge. |
 | Rücknavigation aus Detailseiten | ✅ | PR #25: Detailseiten kennen ihren fachlichen Hauptbereich; die Topbar zeigt Kontext + Seitentitel und bietet einen direkten Rückweg zu Unterricht, Klasse, Planung oder Leistungen. Utilities bleiben bewusst ohne künstlichen Elternbereich; Regressionstests sichern die Hierarchie. |
 | Hauptbereich-Hubs | ✅ | PR #26: Klasse ist in `Kinder & Alltag` sowie `Organisation & Gemeinschaft`, Planung in `Kernplanung` sowie `Vorbereitung & Weitergabe` und Leistungen in `Bewerten & Beurteilen` sowie `Lernentwicklung & Gespräche` gegliedert. Doppelte Schnellnavigation wurde entfernt; alle bisherigen Ziele bleiben erreichbar. |
