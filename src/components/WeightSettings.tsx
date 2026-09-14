@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { FAECHER_ALLE, DEFAULT_GEWICHTUNG } from '../constants';
-import { getHomeworkGradebookSettings, getNotenLabel } from '../lib/GradeUtils';
+import { getAssessmentMode, getHomeworkGradebookSettings, getNotenLabel } from '../lib/GradeUtils';
 import { Save, RotateCcw, AlertTriangle, Zap, BookOpen, Check, Info, FileText, CheckCircle2 } from 'lucide-react';
 
 export default function WeightSettings({ onBack }: { onBack: () => void }) {
@@ -81,15 +81,25 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
     setApp(prev => {
       const nm = { ...(prev.notenMeta || {}) };
       const currentFach = { ...(nm[fach] || {}) };
+      const nextMeta: Record<string, any> = {
+        ...nm,
+        [fach]: {
+          ...currentFach,
+          assessmentMode: newMode
+        }
+      };
+
+      if (nextMeta.syncWpDeutschMath && (fach === 'Deutsch' || fach === 'Mathematik')) {
+        const otherFach = fach === 'Deutsch' ? 'Mathematik' : 'Deutsch';
+        const otherMode = getAssessmentMode(prev, otherFach);
+        if (otherMode !== newMode) {
+          nextMeta.syncWpDeutschMath = false;
+        }
+      }
+
       return {
         ...prev,
-        notenMeta: {
-          ...nm,
-          [fach]: {
-            ...currentFach,
-            assessmentMode: newMode
-          }
-        }
+        notenMeta: nextMeta
       };
     });
   };
@@ -192,6 +202,8 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
     ? hueSettingsFach
     : (hueEligibleFaecher[0] || activeFaecher[0] || 'Deutsch');
   const homeworkSettings = getHomeworkGradebookSettings(app, effectiveHueFach);
+  const wpSyncCompatible =
+    getAssessmentMode(app, 'Deutsch') === getAssessmentMode(app, 'Mathematik');
 
   useEffect(() => {
     if (hueEligibleFaecher.length > 0 && !hueEligibleFaecher.includes(hueSettingsFach)) {
@@ -259,8 +271,10 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
             <input
               type="checkbox"
               className="hidden"
-              checked={app.notenMeta?.syncWpDeutschMath || false}
+              checked={Boolean(app.notenMeta?.syncWpDeutschMath && wpSyncCompatible)}
+              disabled={!wpSyncCompatible}
               onChange={(e) => {
+                if (!wpSyncCompatible) return;
                 setApp(prev => ({
                   ...prev,
                   notenMeta: {
@@ -271,7 +285,11 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
               }}
             />
           </label>
-          <p className="text-xs text-slate-600 mt-2">Bei Aktivierung werden eingegebene Noten auch im anderen Fach geändert. Abschnittsnamen, Datum, Höchstpunkte und Spalten bleiben pro Fach getrennt.</p>
+          <p className="text-xs text-slate-600 mt-2">
+            {wpSyncCompatible
+              ? 'Bei Aktivierung werden WOPL-Werte auch im anderen Fach geändert. In Punkte-Modus werden unterschiedliche Höchstpunkte proportional umgerechnet; Abschnittsnamen, Datum, Höchstpunkte und Spalten bleiben pro Fach getrennt.'
+              : 'Spiegelung ist nur möglich, wenn Deutsch und Mathematik dieselbe Bewertungsart verwenden.'}
+          </p>
         </div>
         <div className="flex gap-2 shrink-0">
           <button onClick={onBack} className="px-4 py-2 hover:bg-slate-50 border border-slate-250/70 text-slate-650 font-bold text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl transition-all cursor-pointer">Abbrechen</button>
