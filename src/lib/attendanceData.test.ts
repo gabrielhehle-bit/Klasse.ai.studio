@@ -56,7 +56,7 @@ test('school-year filtering excludes attendance from prior years', () => {
 test('semester split follows the configured federal-state semester holiday', () => {
   assert.equal(getAttendanceSemester('2027-02-12', '2026/27', 'VBG'), 1);
   assert.equal(getAttendanceSemester('2027-02-22', '2026/27', 'VBG'), 2);
-  assert.equal(getAttendanceSemester('2027-02-05', '2026/27', 'W'), 1);
+  assert.equal(getAttendanceSemester('2027-01-29', '2026/27', 'W'), 1);
   assert.equal(getAttendanceSemester('2027-02-08', '2026/27', 'W'), 2);
 });
 
