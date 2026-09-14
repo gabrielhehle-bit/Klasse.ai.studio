@@ -445,7 +445,7 @@ Das Arbeitsblatt MUSS exakt 1 A4-Seite einnehmen. Der Lösungsbogen MUSS exakt 1
       setActiveSavedId(newSheet.id);
       
       // Save directly into the shared Teacher's Material Library (Materialbibliothek)
-      addMaterialFromAI({
+      const savedInLibrary = addMaterialFromAI({
         id: newSheet.id,
         titel: newSheet.title || `Arbeitsblatt: ${finalType} - ${finalSubject}`,
         beschreibung: `Österreichischer Lehrplan ${worksheetGrade}. Schulstufe | Modus: ${modus === 'förderung' ? 'Individuelle Förderung' : modus === 'klassenuebung' ? 'Klassen-Übung' : modus === 'test' ? 'Test LZK' : 'Schularbeit'} | Niveau: ${computedLevelLabel} | Story: ${finalInteressen} | Für: ${newSheet.targetStudents.join(', ')}`,
@@ -456,7 +456,12 @@ Das Arbeitsblatt MUSS exakt 1 A4-Seite einnehmen. Der Lösungsbogen MUSS exakt 1
         inhaltText: generatedContent
       }, 'ki-arbeitsblatt');
 
-      showToast('Arbeitsblatt gespeichert & in Materialbibliothek hinterlegt! 💾', 'success');
+      showToast(
+        savedInLibrary
+          ? 'Arbeitsblatt gespeichert & in Materialbibliothek hinterlegt! 💾'
+          : 'Arbeitsblatt gespeichert, aber die Materialbibliothek ist voll.',
+        savedInLibrary ? 'success' : 'error',
+      );
     }
   };
 
