@@ -96,6 +96,7 @@ export const initialAppState: AppState = {
     sammlungen: [],
     transaktionen: []
   },
+  zugangsdaten: [],
   statusLog: [],
   settings: {
     theme: 'light',
@@ -212,6 +213,7 @@ export function syncActiveClass(state: AppState): AppState {
     klassenkasse: state.klassenkasse ? JSON.parse(JSON.stringify(state.klassenkasse)) : undefined,
     checklisten: state.checklisten ? JSON.parse(JSON.stringify(state.checklisten)) : [],
     customLists: state.customLists ? JSON.parse(JSON.stringify(state.customLists)) : [],
+    zugangsdaten: state.zugangsdaten ? JSON.parse(JSON.stringify(state.zugangsdaten)) : [],
     behavior_status: state.behavior_status ? { ...state.behavior_status } : {},
     behavior_notes: state.behavior_notes ? { ...state.behavior_notes } : {},
     notes: state.notes ? JSON.parse(JSON.stringify(state.notes)) : [],
@@ -314,6 +316,7 @@ export function normalizeAppState(raw: any): AppState {
       klassenglas_ziel: parsed.klassenglas_ziel || 20,
       klassenglas_belohnung: parsed.klassenglas_belohnung || 'Gemeinsame Spielzeit',
       klassenkasse: parsed.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
+      zugangsdaten: parsed.zugangsdaten || [],
       behavior_status: parsed.behavior_status || {},
       behavior_notes: parsed.behavior_notes || {},
       sue_kontrolle: parsed.sue_kontrolle || {},
@@ -370,6 +373,8 @@ export function normalizeAppState(raw: any): AppState {
         dienste: c.dienste || [],
         checklisten: c.checklisten || [],
         customLists: c.customLists || [],
+        // Legacy Kassa & Orga credentials were global; copy them into each class once.
+        zugangsdaten: c.zugangsdaten ?? parsed.zugangsdaten ?? [],
         saAssessments: c.saAssessments ?? (c.id === parsed.activeClassId ? parsed.saAssessments : undefined) ?? {},
         klassenglas_count: c.klassenglas_count !== undefined ? Number(c.klassenglas_count) : 0,
         klassenglas_ziel: c.klassenglas_ziel !== undefined ? Number(c.klassenglas_ziel) : 20,
@@ -466,6 +471,7 @@ export function normalizeAppState(raw: any): AppState {
     parsed.dienste = activeClass.dienste;
     parsed.checklisten = activeClass.checklisten || [];
     parsed.customLists = activeClass.customLists || [];
+    parsed.zugangsdaten = activeClass.zugangsdaten || [];
     parsed.saAssessments = activeClass.saAssessments;
     parsed.klassenglas_count = activeClass.klassenglas_count;
     parsed.klassenglas_ziel = activeClass.klassenglas_ziel;
@@ -701,6 +707,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     dienste: targetClass.dienste || [],
     checklisten: targetClass.checklisten || [],
     customLists: targetClass.customLists || [],
+    zugangsdaten: targetClass.zugangsdaten ? JSON.parse(JSON.stringify(targetClass.zugangsdaten)) : [],
     klassenglas_missions: targetClass.klassenglas_missions || [],
     klassenglas_completed_missions: targetClass.klassenglas_completed_missions || [],
     klassenglas_count: targetClass.klassenglas_count,
