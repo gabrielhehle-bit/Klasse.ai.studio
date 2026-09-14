@@ -15,9 +15,10 @@ Legende:
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
 | GitHub als einzige Source of Truth | ✅ | Repository-Regeln dokumentiert; ZIP ist keine Arbeitsgrundlage. |
+| Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Abschlussstand: 738/738 Tests, TS, Production-Build und PWA auf `983b04c` grün. Vor Staging muss zusätzlich der `Pre-Deployment Audit` des aktuellen Reconciliation-HEADs grün sein; er prüft Server-/Session-Smoke und erzeugt das commitgebundene World4You-Artefakt. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | PR #16: 746/746 Tests, TypeScript, Production-Build, lokaler PDF-Worker und PWA-Precache grün. Vor Staging bleibt der `Pre-Deployment Audit` des aktuellen Reconciliation-HEADs verpflichtend; er prüft zusätzlich Server-/Session-Smoke und erzeugt das commitgebundene World4You-Artefakt. |
 | Commitgebundenes World4You-Artefakt | ✅ | CI erzeugt nur nach grünem Audit ein ZIP mit `dist`, Branch-/Commitmarker und Startkommando. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
@@ -45,6 +46,7 @@ Legende:
 |---|---:|---|
 | Anwesenheit | ✅ | Abschluss füllt nur leere Stunden; vorhandene Fehl-/Entschuldigungswerte bleiben erhalten. Dashboard verlangt Erfassung nur an echten Schultagen und zeigt „geprüft“ erst, wenn für alle Kinder alle aktiven Stunden erfasst sind; lokaler Kalendertag statt UTC; Regressionstests vorhanden. |
 | Befinden | ✅ | Einheitliche 5-Stufen-Skala von sehr gut bis schlecht. |
+| Sokrates PDF-Import | ✅ | PR #16 integriert: PDF.js-Worker lokal gebundelt, `.mjs` im PWA-Precache, geometrische Tabellenerkennung und keine erfundenen Stammdaten; Regressionstests vorhanden. |
 | Schülerliste | 🟡 | Suche, Filter, Liste/Karten/Karte, Import, Dossier, Notiz/Interaktion und Bearbeiten/Löschen bleiben erhalten; ISO- und österreichische Geburtsdaten werden konsistent ausgewertet. CSV/Excel/Sokrates-Import erfindet fehlendes Geschlecht, Erstsprache oder Staatsbürgerschaft nicht; Browser-Abnahme offen. |
 | Schülerdossier Struktur | ✅ | Fünf feste Hauptbereiche: Übersicht; Lernen & Leistungen; Entwicklung & Diagnostik; Stammdaten & Organisation; Berichte & Materialien. Alte Einfach/Experte-/Ausblendlogik entfernt; Regressionstest vorhanden. |
 | Schülerdossier Semesterwechsel | ✅ | Auswahl Semester 1/2 wird korrekt übernommen; Regressionstest vorhanden. |
@@ -106,7 +108,8 @@ Legende:
 | Canva | 🟡 | OAuth/PKCE, serverseitig verschlüsselte Tokens, Designsuche/-erstellung und PDF/PNG/JPG/PPTX-Export implementiert; Live-OAuth mit Staging-Secrets offen. |
 | PowerPoint KEL | 🟡 | Echter `.pptx`-Export mit nativen editierbaren Diagrammen implementiert; Download/Öffnen in PowerPoint auf Staging offen. |
 | PDF-Handout KEL | 🟡 | Bestehender PDF-Export bleibt; Browserprüfung offen. |
-| OneDrive | 🟡 | Konfigurierbar; Live-OAuth/Backup-Abnahme auf Staging offen. |
+| OneDrive Backup-Dateikompatibilität | ✅ | PR #15 integriert: neue Cloud-Sicherung `Klassio_Backup.json`; historische `LehrerAPP_Backup.json`, `LehrerAPP_Backup.lehrerapp` und `Lehrermappe_Backup.json` bleiben lesbar. |
+| OneDrive | 🟡 | Konfigurierbar; OAuth-State/Cookiebindung und Popup-Origin/Source sind automatisiert abgesichert; Live-OAuth/Backup-Abnahme auf Staging offen. |
 
 ## Deployment
 
