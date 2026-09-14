@@ -10,7 +10,7 @@ import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { callServerAI } from '../services/aiService';
 import JahresplanExcelModal from './JahresplanExcelModal';
 import { generateJahresplanTemplate, JahresplanImportRow } from '../lib/planerExcelService';
-import { applyYearPlanImportRows, yearPlanCellDisplayText, yearPlanCellEntries } from '../lib/yearlyPlanData';
+import { applyYearPlanImportRows, shiftYearPlanSubjectForward, yearPlanCellDisplayText, yearPlanCellEntries } from '../lib/yearlyPlanData';
 
 const COLOR_PALETTES: Record<string, { name: string, desc: string, colors: Record<string, string> }> = {
   pastell: {
@@ -552,30 +552,34 @@ export default function YearlyPlan() {
   };
 
   const shiftEverythingDown = (startKw: number, subjectId: string) => {
-    setApp(prev => {
-      const jp = { ...(prev.jahresplanung || {}) };
-      
-      // Get all KWs containing this subject, sorted descending so we don't overwrite
-      const kws = Object.keys(jp).map(Number).filter(k => k >= startKw && jp[k]?.[subjectId]).sort((a, b) => b - a);
-      
-      // Find the next available KW for each one
-      for (const currentKw of kws) {
-         let nextKw = currentKw + 1;
-         // find next real week (skip holidays logically if possible, but keep simple: just +1 kw)
-         // we just move to the next key that exists in Weeks, but actually we just move to +1
-         // A more complex: move to next kw, if holiday skip. For now +1 kw.
-         if (!jp[nextKw]) jp[nextKw] = {};
-         
-         // we might need to find the next valid kw in the weeks array if we want to skip holidays,
-         // but a simple +1 offset is safe if the user just wants to push everything.
-         // Let's implement a safe shift: find the next week in `weeks` array that is not a holiday
-         
-         jp[nextKw][subjectId] = jp[currentKw][subjectId];
-         delete jp[currentKw][subjectId];
-      }
-      
-      return { ...prev, jahresplanung: jp };
-    });
+    const orderedTeachingKws = weeks
+      .filter(({ monday }) => {
+        const holiday = isHoliday(
+          monday,
+          app.calendarSettings?.disabledHolidays,
+          app.bundesland || 'VBG',
+        );
+        const normalized = (holiday || '').toLocaleLowerCase('de-AT');
+        return !(
+          holiday &&
+          (
+            normalized.includes('ferien') ||
+            normalized.includes('schluss') ||
+            normalized.includes('beginn')
+          )
+        );
+      })
+      .map(({ kw }) => kw);
+
+    setApp(prev => ({
+      ...prev,
+      jahresplanung: shiftYearPlanSubjectForward(
+        prev.jahresplanung || {},
+        subjectId,
+        startKw,
+        orderedTeachingKws,
+      ),
+    }));
   };
 
   const renderCellContent = (data: any, s: any, kw: number) => {
