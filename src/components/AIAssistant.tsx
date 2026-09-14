@@ -262,7 +262,23 @@ export default function AIAssistant() {
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<AiTab>('ki-helfer');
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [aiAvailability, setAiAvailability] = useState<'checking' | 'ready' | 'missing' | 'offline'>('checking');
+  const [useClassContext, setUseClassContext] = useState(true);
   const processedPromptTimestampRef = useRef<number>(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/ai/status')
+      .then(async (response) => {
+        if (!response.ok) throw new Error('status unavailable');
+        const data = await response.json();
+        if (!cancelled) setAiAvailability(data?.available ? 'ready' : 'missing');
+      })
+      .catch(() => {
+        if (!cancelled) setAiAvailability('offline');
+      });
+    return () => { cancelled = true; };
+  }, []);
 
   // Form States for new modes
   const [abFach, setAbFach] = useState('Deutsch');
@@ -297,6 +313,7 @@ export default function AIAssistant() {
   const [fkStufe, setFkStufe] = useState(app.stufe || 1);
   const [fkImageBase64, setFkImageBase64] = useState<{data: string, mimeType: string} | null>(null);
   const [fkImagePreview, setFkImagePreview] = useState<string | null>(null);
+  const [fkPrivacyConfirmed, setFkPrivacyConfirmed] = useState(false);
   const [fkFokus, setFkFokus] = useState({rechtschreibung: true, grammatik: true, ausdruck: true, aufbau: true, inhalt: true});
 
   const [wpStufe, setWpStufe] = useState(app.stufe || 1);
@@ -400,16 +417,45 @@ export default function AIAssistant() {
     }
   };
 
-  const handleSend = async (manualText?: string, manualImageBase64?: {data: string, mimeType: string} | null) => {
+  const buildClassContext = () => {
+    const currentWeek = app.currentKW;
+    const weekPlan = currentWeek ? app.wochenplanung?.[currentWeek] : undefined;
+    const weekTopics: string[] = [];
+
+    if (weekPlan && typeof weekPlan === 'object') {
+      Object.entries(weekPlan).forEach(([day, cells]: [string, any]) => {
+        if (!cells || typeof cells !== 'object') return;
+        Object.values(cells).forEach((cell: any) => {
+          if (!cell?.thema && !cell?.fach) return;
+          const summary = [day, cell?.fach, cell?.thema].filter(Boolean).join(' – ');
+          if (summary && !weekTopics.includes(summary)) weekTopics.push(summary);
+        });
+      });
+    }
+
+    return `\n\n[KLASSIO-KLASSENKONTEXT – ohne automatisch übermittelte Schülernamen]
+Schulstufe: ${app.stufe || 'nicht angegeben'}
+Bundesland: ${app.bundesland || 'nicht angegeben'}
+Klassengröße: ${(app.schueler || []).length}
+Aktuelle Kalenderwoche: ${currentWeek || 'nicht angegeben'}
+Wochenplanthemen:
+${weekTopics.slice(0, 12).map(topic => `- ${topic}`).join('\n') || '- keine Themen hinterlegt'}`;
+  };
+
+  const handleSend = async (manualText?: string, manualImageBase64?: {data: string, mimeType: string} | null, imagePrivacyConfirmed: boolean = false) => {
     const userMsg = (manualText || input).trim();
     if (!userMsg || isLoading) return;
+    if (aiAvailability === 'missing') {
+      showToast('Der KI-Helfer ist serverseitig noch nicht eingerichtet.', 'error');
+      return;
+    }
     
     const currentTab = activeTab;
     const modusId = currentTab;
     
     if (!manualText) setInp('');
     
-    let contextStr = '';
+    let contextStr = useClassContext ? buildClassContext() : '';
     if (modusId === 'ki-lernziele' && activeMessages.length === 0) {
       const students = app.schueler || [];
       const trackerDB = app.lernzielTracker || {};
@@ -447,7 +493,7 @@ export default function AIAssistant() {
         }
       });
       
-      contextStr = `\n\n[SYSTEM: INTERNER KONTEXT]
+      contextStr += `\n\n[ZUSÄTZLICHER LERNZIEL-KONTEXT]
 Aktuelle Ziele im Klassen-Tracker:
 ${classProgress || 'Keine Ziele definiert.'}
 
@@ -467,14 +513,20 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
     setIsLoading(true);
 
     try {
-      const text = await askAI(modusId, userMsg + contextStr, activeMessages, manualImageBase64 || undefined);
-      const responseMessages: Message[] = [...newMessages, { role: 'ai', content: text || 'Keine Antwort erhalten.' }];
+      const text = await askAI(modusId, userMsg + contextStr, activeMessages, manualImageBase64 || undefined, imagePrivacyConfirmed);
+      const normalized = (text || '').trim();
+      if (!normalized) throw new Error('Die KI hat keine Antwort geliefert.');
+      if (/^(KI-|Rate Limit|Timeout:|KI momentan|Bildanalyse blockiert|KI-Anfrage aus Datenschutzgründen|GEMINI_|Zu viele KI-Anfragen|Failed to fetch|fetch failed|NetworkError|Internal Server Error|Modus nicht gefunden)/i.test(normalized)) {
+        throw new Error(normalized);
+      }
+      const responseMessages: Message[] = [...newMessages, { role: 'ai', content: normalized }];
       setActiveMessages(responseMessages);
       saveChatHistory(currentTab, responseMessages, activeChatId, userMsg);
     } catch (err) {
       console.error(err);
-      showToast('Verbindung zur KI fehlgeschlagen.', 'error');
-      const errorMsg: Message = { role: 'ai', content: 'Ups, da gab es ein Problem mit der Verbindung. Bitte prüfe deinen API-Key.' };
+      const message = err instanceof Error ? err.message : 'KI momentan nicht erreichbar.';
+      showToast(message, 'error');
+      const errorMsg: Message = { role: 'ai', content: `⚠️ ${message}` };
       setActiveMessages(prev => [...prev, errorMsg]);
     } finally {
       setIsLoading(false);
@@ -510,12 +562,12 @@ ${studentProgressStr || 'Keine Schülerdaten.'}
     { id: 'ki-elternbrief', label: 'Elternkommunikation', icon: <Mail size={20} />, color: 'indigo', colorClass: 'text-indigo-500/70', bgClass: 'bg-indigo-600', buttonColor: '#4f46e5', description: 'Information & Förderung', chat: true, category: 'tool' },
     { id: 'ki-differenzierung', label: 'Differenzierung', icon: <Layers size={20} />, color: 'sky', colorClass: 'text-sky-500/70', bgClass: 'bg-sky-600', buttonColor: '#0284c7', description: 'DaZ & Förderbedarf', chat: true, category: 'tool' },
     { id: 'ki-beurteilung', label: 'Leistungsbeurteilung', icon: <FileEdit size={20} />, color: 'orange', colorClass: 'text-orange-500/70', bgClass: 'bg-orange-600', buttonColor: '#ea580c', description: 'Noten & KEL', chat: true, category: 'tool' },
-    { id: 'ki-korrektur', label: 'KI Check', icon: <Check size={20} />, color: 'rose', colorClass: 'text-rose-500/70', bgClass: 'bg-rose-600', buttonColor: '#e11d48', description: 'Korrekturlesen', chat: true, category: 'tool' },
+    { id: 'ki-korrektur', label: 'Text prüfen', icon: <Check size={20} />, color: 'rose', colorClass: 'text-rose-500/70', bgClass: 'bg-rose-600', buttonColor: '#e11d48', description: 'Korrekturlesen', chat: true, category: 'tool' },
     { id: 'ki-arbeitsblatt', label: 'Arbeitsblätter', icon: <FileText size={20} />, color: 'cyan', colorClass: 'text-cyan-500/70', bgClass: 'bg-cyan-600', buttonColor: '#0891b2', description: 'Fördern & Talente', chat: true, category: 'tool' },
     { id: 'ki-foto-korrektur', label: 'Text-Korrektur (Foto)', icon: <Camera size={20} />, color: 'red', colorClass: 'text-red-500/70', bgClass: 'bg-red-500', buttonColor: '#ef4444', description: 'Schülertexte korrigieren', chat: true, category: 'tool' },
     { id: 'ki-wochenplan', label: 'Wochenplan-Arbeit', icon: <ClipboardList size={20} />, color: 'purple', colorClass: 'text-purple-500/70', bgClass: 'bg-purple-600', buttonColor: '#9333ea', description: 'Pläne & Freiarbeit', chat: true, category: 'tool' },
-    { id: 'ki-lernziele', label: 'Lernziel-Wizard', icon: <Target size={20} />, color: 'blue', colorClass: 'text-blue-500/70', bgClass: 'bg-blue-600', buttonColor: '#2563eb', description: 'Planung & Empfehlungen', chat: true, category: 'tool' },
-    { id: 'ki-stundenplan-check', label: 'Stundenplan Check', icon: <Activity size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#10b981', description: 'Wochenplanung prüfen', chat: false, category: 'tool' },
+    { id: 'ki-lernziele', label: 'Lernziele', icon: <Target size={20} />, color: 'blue', colorClass: 'text-blue-500/70', bgClass: 'bg-blue-600', buttonColor: '#2563eb', description: 'Planung & Empfehlungen', chat: true, category: 'tool' },
+    { id: 'ki-stundenplan-check', label: 'Wochenplan prüfen', icon: <Activity size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#10b981', description: 'Wochenplanung prüfen', chat: false, category: 'tool' },
     { id: 'ki-stationenbetrieb', label: 'Lernwerkstätten', icon: <LayoutGrid size={20} />, color: 'indigo', colorClass: 'text-indigo-500/70', bgClass: 'bg-indigo-600', buttonColor: '#4f46e5', description: 'Lernwerkstatt & Stationenbetrieb', chat: false, category: 'tool' },
   ];
 
