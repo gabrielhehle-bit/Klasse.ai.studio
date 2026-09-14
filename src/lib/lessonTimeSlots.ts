@@ -54,3 +54,30 @@ export function buildLessonTimeSlots(
 export function findCurrentLessonSlot(slots: LessonTimeSlot[], minuteOfDay: number): LessonTimeSlot | null {
   return slots.find(slot => minuteOfDay >= slot.start && minuteOfDay < slot.end) || null;
 }
+
+export type LessonBreak = {
+  afterSlot: number;
+  beforeSlot: number;
+  start: number;
+  end: number;
+};
+
+export function findCurrentLessonBreak(
+  slots: LessonTimeSlot[],
+  minuteOfDay: number,
+): LessonBreak | null {
+  const ordered = [...slots].sort((a, b) => a.slot - b.slot);
+  for (let index = 0; index < ordered.length - 1; index += 1) {
+    const current = ordered[index];
+    const next = ordered[index + 1];
+    if (minuteOfDay >= current.end && minuteOfDay < next.start) {
+      return {
+        afterSlot: current.slot,
+        beforeSlot: next.slot,
+        start: current.end,
+        end: next.start,
+      };
+    }
+  }
+  return null;
+}
