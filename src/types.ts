@@ -980,6 +980,12 @@ export interface ClassRoom {
   };
   behavior_status?: Record<string, string>;
   behavior_notes?: Record<string, string>;
+  /** Class-local chronicle/observation entries. */
+  notes?: AppNote[];
+  /** Legacy mirror of class-local chronicle entries. */
+  journal?: NoteEntry[];
+  /** Class-local behavior status history. */
+  statusLog?: StatusHistory[];
   stundenZeiten?: Record<number, string>;
   mittagspauseNachStunde?: number;
   sue_kontrolle: Record<string, Record<string, string>>;

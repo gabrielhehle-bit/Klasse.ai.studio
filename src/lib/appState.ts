@@ -212,6 +212,9 @@ export function syncActiveClass(state: AppState): AppState {
     customLists: state.customLists ? JSON.parse(JSON.stringify(state.customLists)) : [],
     behavior_status: state.behavior_status ? { ...state.behavior_status } : {},
     behavior_notes: state.behavior_notes ? { ...state.behavior_notes } : {},
+    notes: state.notes ? JSON.parse(JSON.stringify(state.notes)) : [],
+    journal: state.journal ? JSON.parse(JSON.stringify(state.journal)) : [],
+    statusLog: state.statusLog ? JSON.parse(JSON.stringify(state.statusLog)) : [],
     stundenZeiten: state.stundenZeiten ? { ...state.stundenZeiten } : {},
     sue_kontrolle: state.sue_kontrolle ? JSON.parse(JSON.stringify(state.sue_kontrolle)) : {},
     lastGroups: state.lastGroups,
@@ -538,6 +541,43 @@ export function normalizeAppState(raw: any): AppState {
     parsed.notes = migratedNotes.sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime());
   }
 
+  // Migration / projection: chronicle, journal and behavior history are class-local.
+  // For old multi-class snapshots, student-linked root records are assigned to the
+  // class that actually contains that child. General entries without a child stay
+  // with the active class because older data has no reliable class marker for them.
+  if (parsed.classes && Array.isArray(parsed.classes) && parsed.classes.length > 0) {
+    const rootNotes = Array.isArray(parsed.notes) ? parsed.notes : [];
+    const rootJournal = Array.isArray(parsed.journal) ? parsed.journal : [];
+    const rootStatusLog = Array.isArray(parsed.statusLog) ? parsed.statusLog : [];
+    const knownStudentIds = new Set<string>(
+      parsed.classes.flatMap((classroom: any) =>
+        (classroom.schueler || []).map((student: any) => student?.id).filter(Boolean)
+      )
+    );
+
+    parsed.classes = parsed.classes.map((c: any) => {
+      const isActive = c.id === parsed.activeClassId;
+      const studentIds = new Set<string>((c.schueler || []).map((student: any) => student?.id).filter(Boolean));
+      const belongsToClass = (entry: any) => {
+        if (!entry?.schuelerId) return isActive;
+        if (studentIds.has(entry.schuelerId)) return true;
+        return isActive && !knownStudentIds.has(entry.schuelerId);
+      };
+
+      return {
+        ...c,
+        notes: c.notes ?? rootNotes.filter(belongsToClass),
+        journal: c.journal ?? rootJournal.filter(belongsToClass),
+        statusLog: c.statusLog ?? rootStatusLog.filter(belongsToClass)
+      };
+    });
+
+    const activeClassWithNotes = parsed.classes.find((c: any) => c.id === parsed.activeClassId);
+    parsed.notes = activeClassWithNotes?.notes || [];
+    parsed.journal = activeClassWithNotes?.journal || [];
+    parsed.statusLog = activeClassWithNotes?.statusLog || [];
+  }
+
   const schuelerExist = parsed.schueler && parsed.schueler.length > 0;
   const computedTourAbgeschlossen = schuelerExist ? true : (parsed.tourAbgeschlossen ?? false);
 
@@ -624,6 +664,9 @@ export function switchClassState(prev: AppState, id: string): AppState {
     klassenkasse: targetClass.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
     behavior_status: targetClass.behavior_status || {},
     behavior_notes: targetClass.behavior_notes || {},
+    notes: targetClass.notes ? JSON.parse(JSON.stringify(targetClass.notes)) : [],
+    journal: targetClass.journal ? JSON.parse(JSON.stringify(targetClass.journal)) : [],
+    statusLog: targetClass.statusLog ? JSON.parse(JSON.stringify(targetClass.statusLog)) : [],
     sue_kontrolle: targetClass.sue_kontrolle || {},
     sitzplan_schueler: targetClass.sitzplan_schueler || {},
     sitzplan_objekte: targetClass.sitzplan_objekte || [],

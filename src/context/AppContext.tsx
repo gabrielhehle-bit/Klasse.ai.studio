@@ -697,6 +697,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         klassenkasse: { kontostand: 0, sammlungen: [], transaktionen: [] },
         behavior_status: {},
         behavior_notes: {},
+        notes: [],
+        journal: [],
+        statusLog: [],
         sue_kontrolle: {},
         sitzplan_schueler: {},
         sitzplan_objekte: [],
@@ -758,6 +761,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         klassenkasse: newClass.klassenkasse,
         behavior_status: newClass.behavior_status,
         behavior_notes: newClass.behavior_notes,
+        notes: [],
+        journal: [],
+        statusLog: [],
         sue_kontrolle: newClass.sue_kontrolle,
         sitzplan_schueler: newClass.sitzplan_schueler,
         sitzplan_objekte: newClass.sitzplan_objekte,
@@ -807,7 +813,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const remainingClasses = classes.filter(c => c.id !== idToDelete);
 
       // Clean up orphaned data related to deleted students
-      const cleanNotes = (prev.notes || []).filter(n => !n.id || (!deletedStudentIds.has(n.id) && !deletedStudentIds.has(n.schuelerId)));
       const cleanDiffGruppen = (prev.differenzierungsGruppen || []).filter(g => {
         if (!g.schuelerIds) return true;
         const validIds = g.schuelerIds.filter(sid => !deletedStudentIds.has(sid));
@@ -844,7 +849,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return {
             ...prev,
             classes: remainingClasses,
-            notes: cleanNotes,
+            notes: prev.notes,
+            journal: prev.journal,
+            statusLog: prev.statusLog,
             differenzierungsGruppen: cleanDiffGruppen,
             diagnostikErgebnisse: cleanDiagnostikErgebnisse,
             diagnostikErhebungen: cleanDiagnostikErhebungen,
@@ -910,6 +917,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           klassenkasse: nextClass.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
           behavior_status: nextClass.behavior_status || {},
           behavior_notes: nextClass.behavior_notes || {},
+          notes: nextClass.notes ? JSON.parse(JSON.stringify(nextClass.notes)) : [],
+          journal: nextClass.journal ? JSON.parse(JSON.stringify(nextClass.journal)) : [],
+          statusLog: nextClass.statusLog ? JSON.parse(JSON.stringify(nextClass.statusLog)) : [],
           sue_kontrolle: nextClass.sue_kontrolle || {},
           sitzplan_schueler: nextClass.sitzplan_schueler || {},
           sitzplan_objekte: nextClass.sitzplan_objekte || [],
@@ -924,7 +934,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           customTextColor: nextClass.customTextColor || prev.customTextColor,
           customText2Color: nextClass.customText2Color || prev.customText2Color,
           settings: nextClass.settings ? JSON.parse(JSON.stringify(nextClass.settings)) : (prev.settings ? JSON.parse(JSON.stringify(prev.settings)) : {}),
-          notes: cleanNotes,
           differenzierungsGruppen: cleanDiffGruppen,
           stimmNotizen: cleanStimmNotizen
         };
@@ -973,13 +982,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
           klassenkasse: { kontostand: 0, sammlungen: [], transaktionen: [] },
           behavior_status: {},
           behavior_notes: {},
+          notes: [],
+          journal: [],
+          statusLog: [],
           sue_kontrolle: {},
           sitzplan_schueler: {},
           sitzplan_objekte: [],
           lastGroups: undefined,
           stundenZeiten: STUNDEN_INFO,
           tageplan: DEFAULT_TAGEPLAN,
-          notes: cleanNotes,
           differenzierungsGruppen: cleanDiffGruppen,
           stimmNotizen: cleanStimmNotizen,
           tourAbgeschlossen: false
