@@ -4,7 +4,7 @@ import { askAI } from '../services/aiService';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  getSW, getStartYear, getKW, kwYear, kwToMonday, getCurrentSchuljahr, getSchulstartKW 
+  getSW, getStartYear, getKW, kwYear, kwToMonday, getCurrentSchuljahr, getSchulstartKW, formatLocalDateKey 
 } from '../lib/utils';
 import { TAGE_NAMEN } from '../constants';
 import { ErrorBoundaryLogger } from './ErrorBoundaryLogger';
@@ -561,7 +561,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
     if (!quickEventTitle.trim()) return;
     const eventDate = new Date(monday);
     eventDate.setDate(monday.getDate() + selectedDayIdx);
-    const dateStr = eventDate.toISOString().split('T')[0];
+    const dateStr = formatLocalDateKey(eventDate);
 
     const newTermin = {
       id: `event-${Date.now()}`,
