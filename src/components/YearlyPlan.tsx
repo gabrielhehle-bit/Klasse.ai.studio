@@ -10,6 +10,7 @@ import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { callServerAI } from '../services/aiService';
 import JahresplanExcelModal from './JahresplanExcelModal';
 import { generateJahresplanTemplate, JahresplanImportRow } from '../lib/planerExcelService';
+import { applyYearPlanImportRows, shiftYearPlanSubjectForward, yearPlanCellDisplayText, yearPlanCellEntries } from '../lib/yearlyPlanData';
 
 const COLOR_PALETTES: Record<string, { name: string, desc: string, colors: Record<string, string> }> = {
   pastell: {
@@ -181,7 +182,7 @@ export default function YearlyPlan() {
       return Object.values(week).some((cell: any) => {
         if (typeof cell === 'string') return Boolean(cell.trim());
         if (!cell || typeof cell !== 'object') return false;
-        return typeof cell.thema === 'string' && Boolean(cell.thema.trim());
+        return yearPlanCellEntries(cell).length > 0;
       });
     })
   ), [app.jahresplanung]);
@@ -277,40 +278,14 @@ export default function YearlyPlan() {
   }, [isFullscreen]);
 
   const handleJahresplanImport = (importedRows: JahresplanImportRow[], mode: 'merge' | 'overwrite') => {
-    setApp(prev => {
-      const existingJp = prev.jahresplanung || {};
-      // Preserve weeks/subjects omitted from the import. "Overwrite" replaces
-      // only cells explicitly supplied by the spreadsheet.
-      let newJahresplanung: Record<number, Record<string, any>> = JSON.parse(JSON.stringify(existingJp));
-
-      importedRows.forEach(row => {
-        const kw = row.kw;
-        if (!kw) return;
-        if (!newJahresplanung[kw]) {
-          newJahresplanung[kw] = {};
-        }
-
-        const subjId = row.subjectId || 'sonstiges';
-        const existingItem = newJahresplanung[kw][subjId];
-
-        if (mode === 'merge' && existingItem && existingItem.thema && !row.thema) {
-          return;
-        }
-
-        newJahresplanung[kw][subjId] = {
-          ...(existingItem || {}),
-          thema: row.thema,
-          buch: row.buch || existingItem?.buch || '',
-          type: row.type || existingItem?.type || 'standard',
-          completed: row.completed !== undefined ? row.completed : existingItem?.completed || false,
-        };
-      });
-
-      return {
-        ...prev,
-        jahresplanung: newJahresplanung,
-      };
-    });
+    setApp(prev => ({
+      ...prev,
+      jahresplanung: applyYearPlanImportRows(
+        prev.jahresplanung || {},
+        importedRows,
+        mode,
+      ),
+    }));
   };
 
   const activePaletteKey = app.settings?.yearlyColorPalette || 'pastell';
@@ -577,34 +552,38 @@ export default function YearlyPlan() {
   };
 
   const shiftEverythingDown = (startKw: number, subjectId: string) => {
-    setApp(prev => {
-      const jp = { ...(prev.jahresplanung || {}) };
-      
-      // Get all KWs containing this subject, sorted descending so we don't overwrite
-      const kws = Object.keys(jp).map(Number).filter(k => k >= startKw && jp[k]?.[subjectId]).sort((a, b) => b - a);
-      
-      // Find the next available KW for each one
-      for (const currentKw of kws) {
-         let nextKw = currentKw + 1;
-         // find next real week (skip holidays logically if possible, but keep simple: just +1 kw)
-         // we just move to the next key that exists in Weeks, but actually we just move to +1
-         // A more complex: move to next kw, if holiday skip. For now +1 kw.
-         if (!jp[nextKw]) jp[nextKw] = {};
-         
-         // we might need to find the next valid kw in the weeks array if we want to skip holidays,
-         // but a simple +1 offset is safe if the user just wants to push everything.
-         // Let's implement a safe shift: find the next week in `weeks` array that is not a holiday
-         
-         jp[nextKw][subjectId] = jp[currentKw][subjectId];
-         delete jp[currentKw][subjectId];
-      }
-      
-      return { ...prev, jahresplanung: jp };
-    });
+    const orderedTeachingKws = weeks
+      .filter(({ monday }) => {
+        const holiday = isHoliday(
+          monday,
+          app.calendarSettings?.disabledHolidays,
+          app.bundesland || 'VBG',
+        );
+        const normalized = (holiday || '').toLocaleLowerCase('de-AT');
+        return !(
+          holiday &&
+          (
+            normalized.includes('ferien') ||
+            normalized.includes('schluss') ||
+            normalized.includes('beginn')
+          )
+        );
+      })
+      .map(({ kw }) => kw);
+
+    setApp(prev => ({
+      ...prev,
+      jahresplanung: shiftYearPlanSubjectForward(
+        prev.jahresplanung || {},
+        subjectId,
+        startKw,
+        orderedTeachingKws,
+      ),
+    }));
   };
 
   const renderCellContent = (data: any, s: any, kw: number) => {
-    const isDraggable = !!(data?.items?.length > 0 || data?.thema || data?.buch || data?.type !== 'standard');
+    const isDraggable = !!data && !!(data?.items?.length > 0 || data?.thema || data?.buch || (data?.type && data.type !== 'standard'));
     const isCompleted = !!data?.completed;
     const hasMultipleItems = data?.items && data.items.length > 0;
     const displayTitle = hasMultipleItems 
@@ -1070,7 +1049,7 @@ export default function YearlyPlan() {
         kw,
         ...subjects.map(s => {
           const item = plannedWeek[s.id];
-          return item ? `${item.thema}${item.buch ? ` (${item.buch})` : ''}`.replace(/,/g, ';') : '';
+          return item ? yearPlanCellDisplayText(item).replace(/,/g, ';') : '';
         })
       ];
     });
@@ -1655,7 +1634,7 @@ export default function YearlyPlan() {
                             key={s.id} 
                             role="button"
                             tabIndex={0}
-                            aria-label={`KW ${kw}, ${s.label}: ${data?.thema || 'leer'}`}
+                            aria-label={`KW ${kw}, ${s.label}: ${yearPlanCellDisplayText(data) || 'leer'}`}
                             className={`${cellPaddingClass} align-top border-r border-b border-stone-100 last:border-r-0 relative cursor-pointer transition-all ${dragOverCell?.kw === kw && dragOverCell?.subjectId === s.id ? 'ring-2 ring-emerald-400 bg-emerald-50' : colBg} hover:bg-white hover:z-20 hover:shadow-lg group/cell`}
                             onClick={() => handleCellClick(kw, s.id)}
                             onKeyDown={(e) => {
@@ -1857,17 +1836,17 @@ export default function YearlyPlan() {
                   const plannedWeek = app.jahresplanung[kw] || {};
                   subjects.forEach(s => {
                     const data = plannedWeek[s.id];
-                    if (data?.thema) {
+                    yearPlanCellEntries(data).forEach(entry => {
                       items.push({
-                        type: (data.type as any) || 'standard',
-                        label: data.thema,
-                        details: data.buch,
+                        type: (entry.type as any) || (data?.type as any) || 'standard',
+                        label: entry.thema,
+                        details: entry.buch,
                         subjectLabel: s.label,
                         colorClass: s.color,
                         kw,
                         sw
                       });
-                    }
+                    });
                   });
                 });
 
@@ -1964,7 +1943,10 @@ export default function YearlyPlan() {
                   <div className="text-[0.5625rem] font-black uppercase tracking-widest text-text-muted mb-1">
                     KW {editingCell.kw}
                     {(() => {
-                      const sw = getSW(kwToMonday(editingCell.kw, getStartYear(app?.schuljahr)), app?.schuljahr);
+                      const week = weeks.find(w => w.kw === editingCell.kw);
+                      const sw = week
+                        ? getSW(week.monday, app?.schuljahr, app?.bundesland || 'VBG')
+                        : null;
                       return sw ? ` (SW ${sw})` : '';
                     })()}
                     {` • ${subjects.find(s => s.id === editingCell.subjectId)?.label}`}
@@ -2392,7 +2374,10 @@ export default function YearlyPlan() {
                       {aiSuggestions.map((s, idx) => {
                         const subName = subjects.find(sub => sub.id === s.subjectId)?.label || s.subjectId;
                         const subColor = subjects.find(sub => sub.id === s.subjectId)?.color || 'bg-stone-100';
-                        const sw = getSW(kwToMonday(s.kw, getStartYear(app?.schuljahr)), app?.schuljahr);
+                        const suggestionWeek = weeks.find(w => w.kw === s.kw);
+                        const sw = suggestionWeek
+                          ? getSW(suggestionWeek.monday, app?.schuljahr, app?.bundesland || 'VBG')
+                          : null;
 
                         return (
                           <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-stone-50 border border-stone-200/50 rounded-xl hover:bg-stone-50/80 transition-all">
