@@ -343,6 +343,14 @@ test('Test 12: Neuer Export nach Import eines Legacy-Backups ist verschlüsselt 
 });
 
 // -------------------------------------------------------------
+// DATEINAME: sichtbares Klassio-Branding
+// -------------------------------------------------------------
+test('Backup-Download verwendet Klassio-Dateinamen bei unverändertem JSON-Format', () => {
+  const filename = generateBackupFilename(new Date('2026-09-14T12:00:00.000Z'));
+  assert.equal(filename, 'Klassio_Sicherung_2026-09-14.json');
+});
+
+// -------------------------------------------------------------
 // TEST 13: Ungültiges Backup verändert bestehenden State nicht
 // -------------------------------------------------------------
 test('Test 13: Ungültiges Backup wirft Fehler und bricht atomar ab (keine Zustandsverfälschung)', async () => {
