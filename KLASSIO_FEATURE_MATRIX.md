@@ -26,7 +26,7 @@ Legende:
 
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
-| Dashboard / Heute | 🟡 | PR #12 integriert: angezeigter Tag, lokale Datumsschlüssel, Bundesland/Ferien/Feiertage und Kalender-Ausnahmen werden berücksichtigt; Anwesenheit wird nicht automatisch als vollständig angenommen. Visuelle Browser-Abnahme offen. |
+| Dashboard / Heute | 🟡 | PR #12 integriert: angezeigter Tag, lokale Datumsschlüssel, Bundesland/Ferien/Feiertage und Kalender-Ausnahmen werden berücksichtigt; Anwesenheit wird nicht automatisch als vollständig angenommen. Die kompakte Lehreransicht ist standardmäßig aktiv; Dashboard-Aktionen führen nur zu real vorhandenen Bereichen wie Einstellungen, Organisation und Planung. Visuelle Browser-Abnahme offen. |
 | SetupWizard | 🟡 | PR #11 integriert: Anrede/Vorname/Nachname mit Legacy-Migration, dynamische Schuljahre, Importdaten ohne erfundene Standardwerte; realer Setup-/Import-Browsercheck offen. |
 | KI-Helfer | 🟡 | PR #10 integriert: echte Serverstatus-Anzeige, optionaler datensparsamer Klassenkontext ohne automatisch übermittelte Schülernamen, konkrete Fehlerzustände und explizite Foto-Datenschutzfreigabe. Live-Gemini-/Browser-Abnahme offen. |
 | Kernnavigation | ✅ | PR #23: Heute, Klasse, Planung, Leistungen und Unterricht bleiben die fünf Kernbereiche. Unterricht ist jetzt ein eigener Hub; zuvor verstreute Bestandswerkzeuge sind vollständig den Hubs bzw. `Mehr` zugeordnet. Regressionstests sichern Vollständigkeit und Reihenfolge. |
