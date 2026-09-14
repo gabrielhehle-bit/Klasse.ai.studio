@@ -7,6 +7,7 @@ on:
       - reconcile/klassio-source-of-truth
       - fix/reconciliation-finalization
       - chore/world4you-staging-artifact
+      - fix/world4you-hidden-env
   workflow_dispatch:
 
 permissions:
@@ -103,6 +104,8 @@ jobs:
           printf '%s\n' "$GITHUB_SHA" > world4you-release/KLASSIO_DEPLOYMENT_COMMIT.txt
           printf '%s\n' "$GITHUB_REF_NAME" > world4you-release/KLASSIO_DEPLOYMENT_BRANCH.txt
           printf '%s\n' "node dist/server.cjs" > world4you-release/START_COMMAND.txt
+          test -f world4you-release/.env.example
+          echo "World4You bundle contains required hidden environment template."
 
       - name: Upload World4You staging artifact
         uses: actions/upload-artifact@v4
@@ -110,4 +113,5 @@ jobs:
           name: klassio-world4you-${{ github.sha }}
           path: world4you-release/
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 14
