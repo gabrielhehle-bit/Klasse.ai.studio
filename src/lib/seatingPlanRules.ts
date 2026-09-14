@@ -130,6 +130,21 @@ export function findSeatingRuleViolations(
     return student ? `${student.vorname || ''} ${student.nachname || ''}`.trim() || id : id;
   };
 
+  const assignedEntries = Object.entries(assignments).filter(([, position]) => Boolean(position));
+  for (let i = 0; i < assignedEntries.length; i++) {
+    for (let j = i + 1; j < assignedEntries.length; j++) {
+      const [firstId, firstPosition] = assignedEntries[i];
+      const [secondId, secondPosition] = assignedEntries[j];
+      if (sameSeat(firstPosition, secondPosition)) {
+        violations.push({
+          ruleId: `collision:${firstId}:${secondId}`,
+          studentIds: [firstId, secondId],
+          message: `${nameOf(firstId)} & ${nameOf(secondId)} belegen denselben Platz`,
+        });
+      }
+    }
+  }
+
   for (const rule of rules || []) {
     const ids = rule.schuelerIds || [];
 
