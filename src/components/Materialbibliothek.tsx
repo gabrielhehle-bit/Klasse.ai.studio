@@ -127,6 +127,11 @@ export default function Materialbibliothek() {
     return list;
   }, [app.materialien, activeTab, searchQuery, onlyAi, filterFach, filterStufe, sortBy, filterTag]);
 
+  useEffect(() => {
+    const visibleIds = new Set(filteredMaterials.map(material => material.id));
+    setSelectedItems(prev => prev.filter(id => visibleIds.has(id)));
+  }, [filteredMaterials]);
+
   // Extract all unique tags
   const allTags = useMemo(() => {
     const tags = new Set<string>();
@@ -140,8 +145,10 @@ export default function Materialbibliothek() {
   };
 
   const selectAll = () => {
-    if (selectedItems.length === filteredMaterials.length) setSelectedItems([]);
-    else setSelectedItems(filteredMaterials.map(m => m.id));
+    const allVisibleSelected =
+      filteredMaterials.length > 0 &&
+      filteredMaterials.every(material => selectedItems.includes(material.id));
+    setSelectedItems(allVisibleSelected ? [] : filteredMaterials.map(material => material.id));
   };
 
   const handleBulkDelete = () => {
@@ -573,7 +580,7 @@ export default function Materialbibliothek() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={selectAll} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[0.75rem] leading-tight font-bold transition-colors">
-                    {selectedItems.length === filteredMaterials.length ? 'Auswahl aufheben' : 'Alle auswählen'}
+                    {filteredMaterials.length > 0 && filteredMaterials.every(material => selectedItems.includes(material.id)) ? 'Auswahl aufheben' : 'Alle auswählen'}
                   </button>
                   <button onClick={handleBulkFavorite} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[0.75rem] leading-tight font-bold transition-colors flex items-center gap-2">
                     <Heart size={14} /> Markieren
