@@ -17,7 +17,7 @@ import {
   formatLocalDateKey,
 } from "../lib/utils";
 import { getFerien } from "../lib/ferienOesterreich";
-import { VM_ZEITEN, STUNDEN_INFO, FAECHER_ALLE, AESTHETIC_THEMES, DASHBOARD_CURATED_FONTS, DASHBOARD_FONT_SIZES, MAX_LESSON_SLOTS } from "../constants";
+import { VM_ZEITEN, STUNDEN_INFO, FAECHER_ALLE, AESTHETIC_THEMES, DASHBOARD_CURATED_FONTS, DASHBOARD_FONT_SIZES, MAX_LESSON_SLOTS, LESSON_SLOT_NUMBERS } from "../constants";
 import { berechne } from "../lib/GradeUtils";
 import { isDiagnosticAlert } from "../lib/diagnosticData";
 import { isAttendanceCompleteForDay, isAttendanceRequiredForDay } from "../lib/dashboardAttendance";
@@ -5090,7 +5090,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                         <div className="text-[0.5rem] font-black uppercase tracking-wider text-accent/60 mb-1.5 text-center">
                           {tag.slice(0, 2)}
                         </div>
-                        {Array.from({ length: 8 }, (_, i) => i + 1).map((h) => {
+                        {LESSON_SLOT_NUMBERS.map((h) => {
                           const fach = app.stammplan?.[tag]?.[h];
                           if (!fach)
                             return (
