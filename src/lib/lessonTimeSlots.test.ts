@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildLessonTimeSlots,
+  findCurrentLessonBreak,
   findCurrentLessonSlot,
   parseLessonTimeRange,
 } from './lessonTimeSlots';
@@ -39,4 +40,32 @@ test('configured lesson times support all ten slots without invented defaults', 
 test('an explicitly blank configured slot stays blank instead of receiving a fake fallback time', () => {
   const slots = buildLessonTimeSlots({ 1: '' }, { 1: '08:00–08:50' }, 1);
   assert.deepEqual(slots, []);
+});
+
+
+test('lesson breaks follow the configured gaps instead of fixed clock times', () => {
+  const slots = buildLessonTimeSlots(
+    {
+      1: '08:10–09:00',
+      2: '09:20–10:10',
+      3: '10:10–11:00',
+      4: '12:30–13:20',
+    },
+    {},
+    10,
+  );
+
+  assert.deepEqual(findCurrentLessonBreak(slots, 9 * 60 + 10), {
+    afterSlot: 1,
+    beforeSlot: 2,
+    start: 540,
+    end: 560,
+  });
+  assert.deepEqual(findCurrentLessonBreak(slots, 11 * 60 + 30), {
+    afterSlot: 3,
+    beforeSlot: 4,
+    start: 660,
+    end: 750,
+  });
+  assert.equal(findCurrentLessonBreak(slots, 10 * 60 + 30), null);
 });
