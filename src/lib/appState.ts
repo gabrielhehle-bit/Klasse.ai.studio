@@ -173,6 +173,9 @@ export function syncActiveClass(state: AppState): AppState {
     noten: state.noten ? JSON.parse(JSON.stringify(state.noten)) : {},
     notenMeta: state.notenMeta ? JSON.parse(JSON.stringify(state.notenMeta)) : {},
     notenGewichtung: state.notenGewichtung ? JSON.parse(JSON.stringify(state.notenGewichtung)) : {},
+    lernzielTracker: state.lernzielTracker ? JSON.parse(JSON.stringify(state.lernzielTracker)) : {},
+    studentLernzielBewertungen: state.studentLernzielBewertungen ? JSON.parse(JSON.stringify(state.studentLernzielBewertungen)) : {},
+    studentLernzielSemesterBewertungen: state.studentLernzielSemesterBewertungen ? JSON.parse(JSON.stringify(state.studentLernzielSemesterBewertungen)) : {},
     mitarbeit: state.mitarbeit ? JSON.parse(JSON.stringify(state.mitarbeit)) : {},
     verhalten: state.verhalten ? { ...state.verhalten } : {},
     karten: state.karten ? JSON.parse(JSON.stringify(state.karten)) : {},
@@ -256,6 +259,9 @@ export function normalizeAppState(raw: any): AppState {
       noten: parsed.noten || {},
       notenMeta: parsed.notenMeta || {},
       notenGewichtung: parsed.notenGewichtung || {},
+      lernzielTracker: parsed.lernzielTracker || {},
+      studentLernzielBewertungen: parsed.studentLernzielBewertungen || {},
+      studentLernzielSemesterBewertungen: parsed.studentLernzielSemesterBewertungen || {},
       mitarbeit: parsed.mitarbeit || {},
       verhalten: parsed.verhalten || {},
       karten: parsed.karten || {},
@@ -300,6 +306,9 @@ export function normalizeAppState(raw: any): AppState {
         noten: c.noten || {},
         notenMeta: c.notenMeta ?? (c.id === parsed.activeClassId ? parsed.notenMeta : undefined) ?? {},
         notenGewichtung: c.notenGewichtung ?? (c.id === parsed.activeClassId ? parsed.notenGewichtung : undefined) ?? {},
+        lernzielTracker: c.lernzielTracker ?? (c.id === parsed.activeClassId ? parsed.lernzielTracker : undefined) ?? {},
+        studentLernzielBewertungen: c.studentLernzielBewertungen ?? (c.id === parsed.activeClassId ? parsed.studentLernzielBewertungen : undefined) ?? {},
+        studentLernzielSemesterBewertungen: c.studentLernzielSemesterBewertungen ?? (c.id === parsed.activeClassId ? parsed.studentLernzielSemesterBewertungen : undefined) ?? {},
         mitarbeit: c.mitarbeit || {},
         verhalten: c.verhalten || {},
         karten: c.karten || {},
@@ -348,6 +357,9 @@ export function normalizeAppState(raw: any): AppState {
     parsed.noten = activeClass.noten;
     parsed.notenMeta = activeClass.notenMeta || {};
     parsed.notenGewichtung = activeClass.notenGewichtung || {};
+    parsed.lernzielTracker = activeClass.lernzielTracker || {};
+    parsed.studentLernzielBewertungen = activeClass.studentLernzielBewertungen || {};
+    parsed.studentLernzielSemesterBewertungen = activeClass.studentLernzielSemesterBewertungen || {};
     parsed.mitarbeit = activeClass.mitarbeit;
     parsed.verhalten = activeClass.verhalten;
     parsed.karten = activeClass.karten;
@@ -532,6 +544,9 @@ export function switchClassState(prev: AppState, id: string): AppState {
     noten: targetClass.noten || {},
     notenMeta: targetClass.notenMeta || {},
     notenGewichtung: targetClass.notenGewichtung || {},
+    lernzielTracker: targetClass.lernzielTracker ? JSON.parse(JSON.stringify(targetClass.lernzielTracker)) : {},
+    studentLernzielBewertungen: targetClass.studentLernzielBewertungen ? JSON.parse(JSON.stringify(targetClass.studentLernzielBewertungen)) : {},
+    studentLernzielSemesterBewertungen: targetClass.studentLernzielSemesterBewertungen ? JSON.parse(JSON.stringify(targetClass.studentLernzielSemesterBewertungen)) : {},
     mitarbeit: targetClass.mitarbeit || {},
     verhalten: targetClass.verhalten,
     karten: targetClass.karten,
