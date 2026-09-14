@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `9d29a4b0b1536ea6095f040c9173ba764cb1502b`: Pre-Deployment Audit #108 grün, 807/807 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #108 erzeugte `klassio-world4you-9d29a4b0b1536ea6095f040c9173ba764cb1502b` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `fa71446db28fa2f3952e0c6c982117f99d53e397`: Pre-Deployment Audit #110 grün, 818/818 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #110 erzeugte `klassio-world4you-fa71446db28fa2f3952e0c6c982117f99d53e397` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 
@@ -32,7 +32,7 @@ Legende:
 | 3 | KI-Helfer | ✅ | PR #37 integriert; Audit #104 grün; reale Gemini-/Browser-Abnahme im Gesamt-Walkthrough |
 | 4 | Notizen | ✅ | PR #39 integriert; Audit #106 grün; reale Browser-/Staging-Abnahme im Gesamt-Walkthrough |
 | 5 | Schüler:innen | ✅ | PR #41 integriert; Audit #108 grün; reale Browser-/Staging-Abnahme im Gesamt-Walkthrough |
-| 6 | Sitzplan | 🔴 | als Nächstes einzeln prüfen und abschließen |
+| 6 | Sitzplan | ✅ | PR #43 integriert; Audit #110 grün; reale Maus-/Touch-/Browser-/Staging-Abnahme im Gesamt-Walkthrough |
 | 7 | Anwesenheit | 🔴 | danach |
 | 8 | Notenmappe | 🔴 | danach |
 | 9 | Kassa & Orga | 🔴 | danach |
@@ -85,8 +85,9 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 | Schülerdossier Struktur | ✅ | Fünf feste Hauptbereiche: Übersicht; Lernen & Leistungen; Entwicklung & Diagnostik; Stammdaten & Organisation; Berichte & Materialien. Alte Einfach/Experte-/Ausblendlogik entfernt; Regressionstest vorhanden. |
 | Schülerdossier Semesterwechsel | ✅ | Auswahl Semester 1/2 wird korrekt übernommen; Regressionstest vorhanden. |
 | Schülerdossier Browser-Abnahme | 🟡 | Navigation, Detailtabs, Fokusmodus und responsive Darstellung müssen im finalen Browser-Walkthrough praktisch geprüft werden. |
+| Sitzplan | 🟡 | PR #43: Positionen, Möbel und Regeln sind klassenlokal; Legacy-Regeln werden nach Schülerzugehörigkeit migriert. `nicht nebeneinander`, `nebeneinander`, `feste Zone` und `fester Platz` werden zentral geprüft, Fixplätze speichern ihre Position und Zonen richten sich an der realen Tafelposition aus. Würfelvorschau und Planungs-Analyse nutzen dieselbe Regelengine, erkennen Sitzkollisionen und der Optimierer hält Fixplätze sowie explizite Regeln ein. Abwesenheiten stammen aus den echten Anwesenheitsdaten mit lokalem Kalendertag. Sitzplan-UI-Zustände werden beim Klassenwechsel zurückgesetzt. Automatisierte Tests und Audit #110 grün; reale Drag/Drop-, Maus-/Touch- und Druck-/Browser-Abnahme offen. |
 | Diagnostik | 🟡 | PR #9 integriert: 3-stufige Hierarchie/Checks/Ergebnisse, klassenlokale iKM-/Antolin-/Ziel-/Beobachtungs-/Metakognitionsdaten, aktive Klassen-ID für strukturierte Ergebnisse und lokale Datumsprüfung. Vollständiger Browser-Walkthrough offen. |
-| Multi-Class | ✅ | Klassenwechsel/Migration/Erweiterungsfelder, Cockpit-Ink sowie Notizen/Journal/Statusverlauf per Tests klassenlokal abgesichert; Schüler-Dossier-, Editor- und Interaktionszustände werden beim Klassenwechsel zurückgesetzt. |
+| Multi-Class | ✅ | Klassenwechsel/Migration/Erweiterungsfelder, Cockpit-Ink sowie Notizen/Journal/Statusverlauf per Tests klassenlokal abgesichert; Schüler-Dossier-, Editor- und Interaktionszustände sowie Sitzplan-Auswahl/Vorschau/Undo werden beim Klassenwechsel zurückgesetzt. Sitzpositionen, Möbel und Sitzplan-Regeln bleiben strikt pro Klasse getrennt. |
 
 ## Leistungen
 
