@@ -186,7 +186,7 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
   const analyzeEntry = async (entry: PortfolioEntry) => {
     setAnalyzingId(entry.id);
     try {
-      const stufe = student?.niveau || 1;
+      const stufe = Math.max(1, Math.min(4, Number(app.stufe) || Number(student?.niveau) || 1));
       const allGoalsObj = LERNZIELE_BY_STUFE[stufe] || {};
       const availableGoals: {id: string, text: string, fach: string}[] = [];
       Object.keys(allGoalsObj).forEach(fach => {
