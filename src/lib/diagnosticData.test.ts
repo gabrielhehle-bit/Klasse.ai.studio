@@ -1,0 +1,62 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { getDiagnosticClassId, validateDiagnosticEntry } from './diagnosticData';
+
+test('diagnostic class id prefers the active class id', () => {
+  assert.equal(
+    getDiagnosticClassId({
+      activeClassId: 'class-a',
+      schuljahr: '2026/27',
+      klassenbezeichnung: '3a',
+    }),
+    'class-a',
+  );
+});
+
+test('diagnostic class id has a stable legacy fallback without an active class', () => {
+  assert.equal(
+    getDiagnosticClassId({
+      activeClassId: '',
+      schuljahr: '2026/27',
+      klassenbezeichnung: '3a',
+    }),
+    '2026/27:3a',
+  );
+});
+
+test('diagnostic validation warns when a record belongs to another class', () => {
+  const result = validateDiagnosticEntry(
+    {
+      activeClassId: 'class-a',
+      schuljahr: '2026/27',
+      klassenbezeichnung: '3a',
+      schueler: [{ id: 'student-a' }] as any,
+      diagnostikTests: [{
+        id: 'live-test',
+        name: 'Lernstandsbeobachtung',
+        kategorie: 'sonstige',
+        kurzbeschreibung: 'Test',
+        einheit: 'punkte',
+        schwellenwert: 1,
+        schwellenrichtung: 'unter',
+        schulstufen: [3],
+      }],
+    },
+    {
+      id: 'entry-1',
+      schuelerId: 'student-a',
+      testId: 'live-test',
+      datum: '2026-09-14',
+      schuljahr: '2026/27',
+      schulstufe: 3,
+      rohwert: 4,
+      ergebniswert: 4,
+      durchgefuehrtVon: 'Lehrperson',
+      foerderbedarfErkannt: false,
+      classId: 'class-b',
+    },
+  );
+
+  assert.equal(result.valid, true);
+  assert.equal(result.warnings.some(warning => warning.includes('anderen Klasse')), true);
+});
