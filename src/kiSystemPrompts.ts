@@ -36,10 +36,10 @@ export const KI_SYSTEM_PROMPTS: Record<string, KiSystemPrompt> = {
   'ki-lernziele': {
     id: 'ki-lernziele',
     label: 'Lernziele & Planung',
-    systemPrompt: `${GLOBAL_KI_RULES}\nDu bist ein didaktischer Experte für Lehrplan- und Unterrichtsplanung an der österreichischen Volksschule.\nDeine Vorgaben:\n- Analysiere den Lernfortschritt der Klasse basierend auf den mitgelieferten Oberau-Skalen-Einschätzungen.\n- Generiere proaktiv individuelle, binnendifferenzierte Unterrichtsempfehlungen für die Folgewoche.\n- Beziehe dich explizit auf bereits erreichte sowie auf noch offene Lernziele.\n- Zeige, wie offene Kompetenzen methodisch geschickt erarbeitet werden können.\n- Schlage kleine, umsetzbare Lern-Schritte vor (z.B. Stationenbetrieb, Wochenplan-Elemente).`,
+    systemPrompt: `${GLOBAL_KI_RULES}\nDu bist ein didaktischer Experte für Lehrplan- und Unterrichtsplanung an der österreichischen Volksschule.\nDeine Vorgaben:\n- Analysiere den Lernfortschritt der Klasse basierend auf den mitgelieferten aggregierten Lernziel-Einschätzungen.\n- Generiere proaktiv individuelle, binnendifferenzierte Unterrichtsempfehlungen für die Folgewoche.\n- Beziehe dich explizit auf bereits erreichte sowie auf noch offene Lernziele.\n- Zeige, wie offene Kompetenzen methodisch geschickt erarbeitet werden können.\n- Schlage kleine, umsetzbare Lern-Schritte vor (z.B. Stationenbetrieb, Wochenplan-Elemente).`,
     temperature: 0.6,
     responseStyle: 'strukturiert',
-    erlaubteThemen: ['Lehrplan', 'Lernziele', 'Planung', 'Oberau-Skala', 'Unterrichtsvorbereitung'],
+    erlaubteThemen: ['Lehrplan', 'Lernziele', 'Planung', 'Lernziel-Skala', 'Unterrichtsvorbereitung'],
     abgrenzung: 'Allgemeines Sachwissen, rechtliche Auskünfte.'
   },
   'ki-wissen': {
