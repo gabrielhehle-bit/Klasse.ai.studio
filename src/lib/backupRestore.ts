@@ -33,7 +33,7 @@ export async function prepareBackupRestore(
 
 export function assertRestorableAppState(state: unknown): asserts state is Record<string, any> {
   if (!isLegacyPlaintextBackup(state) || Array.isArray(state)) {
-    throw new Error('Diese Datei enthält keinen gültigen LehrerAPP-Datenbestand.');
+    throw new Error('Diese Datei enthält keinen gültigen Klassio-Datenbestand.');
   }
   const data = state as Record<string, any>;
   if (data.schueler !== undefined && !Array.isArray(data.schueler)) {
