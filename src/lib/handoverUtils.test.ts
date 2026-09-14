@@ -5,6 +5,7 @@ import {
   getHandoverLessonPlans,
   getHandoverLessonTime,
   materialToHandoverLessonPlan,
+  toLocalDateInputValue,
 } from './handoverUtils';
 
 const material = {
@@ -74,4 +75,10 @@ test('transfer grade formatting is honest for grades and percentage-like overall
   assert.equal(formatTransferGradeValue(76, 'points'), '76 %');
   assert.equal(formatTransferGradeValue(null, 'grades'), '—');
   assert.equal(formatTransferGradeValue('SPF', 'grades'), 'SPF');
+});
+
+
+test('handover date inputs use the local calendar day instead of UTC serialization', () => {
+  const local = new Date(2026, 8, 14, 0, 30, 0);
+  assert.equal(toLocalDateInputValue(local), '2026-09-14');
 });
