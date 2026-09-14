@@ -241,9 +241,9 @@ export default function JahresplanExcelModal({
                       className="text-emerald-600 mt-0.5"
                     />
                     <div>
-                      <span className="block text-slate-900 font-bold">Ergänzen / Aktualisieren</span>
+                      <span className="block text-slate-900 font-bold">Ergänzen</span>
                       <span className="text-[11px] text-slate-500 font-normal">
-                        Bestehende Themen bleiben erhalten; neue Themen aus Excel werden hinzugefügt.
+                        Bestehende Themen bleiben erhalten; neue Themen aus Excel werden ergänzt. Gleiche Einträge werden nicht doppelt angelegt.
                       </span>
                     </div>
                   </label>
