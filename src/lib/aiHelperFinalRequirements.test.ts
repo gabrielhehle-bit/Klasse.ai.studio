@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(join(here, '..', 'components', 'AIAssistant.tsx'), 'utf8');
+const prompts = readFileSync(join(here, '..', 'kiSystemPrompts.ts'), 'utf8');
 
 test('KI-Helfer: Lernzielkontext wird nur bei aktivem Klassenkontext ergänzt', () => {
   assert.match(
@@ -41,4 +42,10 @@ test('KI-Helfer: Status- und Mobilbeschriftung sind verständlich', () => {
   assert.match(source, /fetch\('\/api\/ai\/status'\)/);
   assert.match(source, />KI-Helfer<\/span>/);
   assert.doesNotMatch(source, />AI Expert<\/span>/);
+});
+
+
+test('KI-Helfer: Systemprompts enthalten keine schulspezifische Oberau-Altlast', () => {
+  assert.doesNotMatch(prompts, /Oberau/i);
+  assert.match(prompts, /aggregierten Lernziel-Einschätzungen/);
 });
