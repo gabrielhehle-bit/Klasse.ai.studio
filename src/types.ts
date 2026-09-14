@@ -965,6 +965,10 @@ export interface ClassRoom {
   jahresplanung: Record<number, any>;
   jahresplan_faecher?: { id: string; label: string; color: string }[];
   wochenplanung: Record<number, any>;
+  /** Class-local temporarily parked lessons from the planning center. */
+  parkgarage?: AppState['parkgarage'];
+  /** Class-local reusable weekly templates from the planning center. */
+  savedWeekTemplates?: AppState['savedWeekTemplates'];
   wochenplanSyncSet?: string[];
   scheduleAnalysis?: Record<number, any>;
   stammplan: Record<string, Record<number, string>>;
