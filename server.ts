@@ -8,6 +8,7 @@ import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { KI_SYSTEM_PROMPTS, GLOBAL_KI_RULES } from "./src/kiSystemPrompts.ts";
 import { validateAiServerImageRequest } from "./src/lib/aiPrivacy.ts";
+import { getServerSyncTimestamps, isSyncSessionExpired } from "./src/lib/syncServerPolicy.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
 // that do `typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url))`
@@ -2136,6 +2137,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
   interface ServerSyncSession {
     encryptedPayload: any;
     lastUpdated: number;
+    lastActivityAt: number;
     protocolVersion: 1;
   }
   const syncSessions: Record<string, ServerSyncSession> = {};
@@ -2232,10 +2234,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       code += characters.charAt(crypto.randomInt(0, characters.length));
     }
 
-    const lastUpdated = typeof encryptedPayload.updatedAt === 'number' ? encryptedPayload.updatedAt : Date.now();
+    const timing = getServerSyncTimestamps(encryptedPayload.updatedAt);
     syncSessions[code] = {
       encryptedPayload,
-      lastUpdated,
+      lastUpdated: timing.lastUpdated,
+      lastActivityAt: timing.lastActivityAt,
       protocolVersion: 1
     };
 
@@ -2271,12 +2274,13 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(413).json({ error: "Sync-Payload überschreitet das Limit von 15 MB." });
     }
 
-    const lastUpdated = typeof encryptedPayload.updatedAt === 'number' ? encryptedPayload.updatedAt : Date.now();
+    const timing = getServerSyncTimestamps(encryptedPayload.updatedAt);
     syncSessions[code].encryptedPayload = encryptedPayload;
-    syncSessions[code].lastUpdated = lastUpdated;
+    syncSessions[code].lastUpdated = timing.lastUpdated;
+    syncSessions[code].lastActivityAt = timing.lastActivityAt;
     syncSessions[code].protocolVersion = 1;
 
-    res.json({ success: true, lastUpdated });
+    res.json({ success: true, lastUpdated: timing.lastUpdated });
   });
 
   // Get encrypted state of a sync session
@@ -2294,6 +2298,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(400).json({ error: "unsupported legacy sync session" });
     }
 
+    session.lastActivityAt = Date.now();
     res.json({
       encryptedPayload: session.encryptedPayload,
       lastUpdated: session.lastUpdated,
@@ -2687,7 +2692,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     const now = Date.now();
     const MAX_INACTIVITY_MS = 2 * 60 * 60 * 1000; // 2 Stunden Inaktivität (Modul B4)
     Object.keys(syncSessions).forEach(code => {
-      if (now - syncSessions[code].lastUpdated > MAX_INACTIVITY_MS) {
+      if (isSyncSessionExpired(syncSessions[code].lastActivityAt, now, MAX_INACTIVITY_MS)) {
         delete syncSessions[code];
         // E3.18 Logging ohne Offenlegung des Sitzungscodes
         console.log("[Sync Server] Inaktive Sitzung bereinigt.");
