@@ -1606,7 +1606,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
         tipp: "Füllen Sie das Raster nach einer Beobachtungsphase aus. Rot markierte Felder zeigen sofortigen Handlungsbedarf."
       };
       case 'gabicquest': return {
-        title: "GabicQuest 🎮",
+        title: "Klassio Quest 🎮",
         tag: "Spielerische Lernstandserhebung",
         description: "Kinder erleben hier ein Abenteuer. Dabei werden Aufgaben zu mathematischen und sprachlichen Kompetenzen in einer spielerischen Form angeboten.",
         tipp: "Die Ergebnisse können standardisierte Beobachtungen ergänzen, sollten aber immer im pädagogischen Gesamtkontext betrachtet werden."
@@ -1756,7 +1756,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
               { id: 'liveDiagnostik', label: '1:1 Live-Tests (24)', icon: Activity, color: 'text-emerald-600', badge: 'Live' },
               { id: 'klassenscreening', label: 'Basis-Check', icon: Brain, color: 'text-indigo-600' },
               { id: 'detective', label: 'Error Detective', icon: Microscope, color: 'text-rose-600', badge: 'KI' },
-              { id: 'gabicquest', label: 'GabicQuest 🎮', icon: Gamepad2, color: 'text-amber-600' },
+              { id: 'gabicquest', label: 'Klassio Quest 🎮', icon: Gamepad2, color: 'text-amber-600' },
               { id: 'exekutiv', label: 'Exekutiv-Funktionen', icon: Zap, color: 'text-purple-600' },
               { id: 'eintragen', label: 'Erfassen', icon: Grid, color: 'text-teal-600' },
               { id: 'verlaeufe', label: 'Verläufe', icon: TrendingUp, color: 'text-blue-600' },
@@ -2034,7 +2034,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
                           </div>
                           <div>
                             <h4 className="font-black text-slate-900 text-sm group-hover:text-amber-800 transition-colors">
-                              GabicQuest 🎮
+                              Klassio Quest 🎮
                             </h4>
                             <p className="text-[0.6875rem] text-slate-500 font-semibold line-clamp-2 mt-0.5">
                               Gamifizierte Diagnose-Reise für Kinder mit animierten Aufgaben und Belohnungen.
@@ -6287,7 +6287,7 @@ const PrintClassOverview: React.FC<{ tests: DiagnostikTest[], erhebungen: Diagno
       </div>
       
       <div className="pt-20 text-[0.625rem] text-slate-400 font-bold uppercase tracking-widest text-center border-t border-slate-100 italic">
-        Vertrauliche Dokumentation • Generiert durch GABIC Diagnostics • {new Date().toLocaleString()}
+        Vertrauliche Dokumentation • Generiert durch Klassio Diagnostik • {new Date().toLocaleString()}
       </div>
     </div>
   </div>
