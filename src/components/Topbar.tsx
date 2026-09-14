@@ -450,21 +450,27 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                       <div className="text-[0.625rem] font-bold uppercase text-[var(--text-muted)] tracking-wider">
                         3-Tages-Prognose
                       </div>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {threeDayForecast.map((item, idx) => (
-                          <div key={idx} className="bg-[var(--surface-subtle,var(--surface2))] p-2 rounded-xl border border-[var(--border-default,var(--border))] flex flex-col items-center text-center space-y-0.5">
-                            <span className="text-[0.5625rem] font-bold text-[var(--text-muted)] uppercase tracking-tight">
-                              {item.label}
-                            </span>
-                            <div className="my-0.5">
-                              {getWeatherIcon(item.code, 18)}
+                      {threeDayForecast.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {threeDayForecast.map((item, idx) => (
+                            <div key={idx} className="bg-[var(--surface-subtle,var(--surface2))] p-2 rounded-xl border border-[var(--border-default,var(--border))] flex flex-col items-center text-center space-y-0.5">
+                              <span className="text-[0.5625rem] font-bold text-[var(--text-muted)] uppercase tracking-tight">
+                                {item.label}
+                              </span>
+                              <div className="my-0.5">
+                                {getWeatherIcon(item.code, 18)}
+                              </div>
+                              <div className="text-[0.625rem] font-bold text-[var(--text-primary)]">
+                                {item.max}° <span className="text-[var(--text-muted)] font-normal text-[0.5625rem]">{item.min}°</span>
+                              </div>
                             </div>
-                            <div className="text-[0.625rem] font-bold text-[var(--text-primary)]">
-                              {item.max}° <span className="text-[var(--text-muted)] font-normal text-[0.5625rem]">{item.min}°</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-[var(--border-default,var(--border))] px-3 py-4 text-center text-[0.6875rem] font-medium text-[var(--text-muted)]">
+                          Keine Wetterprognose verfügbar.
+                        </div>
+                      )}
                     </div>
 
                     {/* Info Footer */}
@@ -927,21 +933,27 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                           <span className="text-[0.5625rem] font-bold text-[var(--text-muted)] uppercase">3-Tages-Vorschau</span>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-1.5 pt-0.5">
-                          {threeDayForecast.map((item, idx) => (
-                            <div key={idx} className="bg-[var(--surface-card,var(--surface))] p-2 rounded-xl border border-[var(--border-default,var(--border))] flex flex-col items-center text-center space-y-0.5">
-                              <span className="text-[0.5625rem] font-bold text-[var(--text-muted)] uppercase tracking-tight">
-                                {item.label}
-                              </span>
-                              <div className="my-0.5">
-                                {getWeatherIcon(item.code, 16)}
+                        {threeDayForecast.length > 0 ? (
+                          <div className="grid grid-cols-3 gap-1.5 pt-0.5">
+                            {threeDayForecast.map((item, idx) => (
+                              <div key={idx} className="bg-[var(--surface-card,var(--surface))] p-2 rounded-xl border border-[var(--border-default,var(--border))] flex flex-col items-center text-center space-y-0.5">
+                                <span className="text-[0.5625rem] font-bold text-[var(--text-muted)] uppercase tracking-tight">
+                                  {item.label}
+                                </span>
+                                <div className="my-0.5">
+                                  {getWeatherIcon(item.code, 16)}
+                                </div>
+                                <div className="text-[0.625rem] font-bold text-[var(--text-primary)]">
+                                  {item.max}° <span className="text-[var(--text-muted)] font-normal text-[0.5625rem]">{item.min}°</span>
+                                </div>
                               </div>
-                              <div className="text-[0.625rem] font-bold text-[var(--text-primary)]">
-                                {item.max}° <span className="text-[var(--text-muted)] font-normal text-[0.5625rem]">{item.min}°</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-[var(--border-default,var(--border))] px-3 py-3 text-center text-[0.625rem] font-medium text-[var(--text-muted)]">
+                            Keine Wetterprognose verfügbar.
+                          </div>
+                        )}
                       </div>
 
                       {/* Zeitstrahl des Schuljahres */}
@@ -1211,68 +1223,45 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                 </div>
 
                 <div className="bg-white p-5 rounded-3xl border border-[var(--border-subtle,var(--border))] shadow-xl flex flex-col items-center justify-center transition-all">
-                  <QRCodeCanvas 
-                    value={wifiSecurity === 'nopass' 
-                      ? `WIFI:S:${wifiSsid};T:nopass;;` 
-                      : `WIFI:S:${wifiSsid};T:${wifiSecurity};P:${wifiPassword};;`
-                    }
-                    size={isWifiFullscreen ? 280 : 190}
-                    level="Q"
-                  />
-                  <div className="mt-3 text-center">
-                    <div className="font-mono font-bold text-[0.9375rem] text-slate-900 tracking-wider">
-                      WLAN: <span className="text-[var(--accent)]">{wifiSsid}</span>
-                    </div>
-                    {wifiSecurity !== 'nopass' && (
-                      <div className="font-mono text-[0.75rem] font-medium text-slate-600 tracking-wider mt-0.5">
-                        Passwort: <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-800">{wifiPassword}</span>
+                  {wifiSsid.trim() ? (
+                    <>
+                      <QRCodeCanvas
+                        value={wifiSecurity === 'nopass'
+                          ? `WIFI:S:${wifiSsid};T:nopass;;`
+                          : `WIFI:S:${wifiSsid};T:${wifiSecurity};P:${wifiPassword};;`
+                        }
+                        size={isWifiFullscreen ? 280 : 190}
+                        level="Q"
+                      />
+                      <div className="mt-3 text-center">
+                        <div className="font-mono font-bold text-[0.9375rem] text-slate-900 tracking-wider">
+                          WLAN: <span className="text-[var(--accent)]">{wifiSsid}</span>
+                        </div>
+                        {wifiSecurity !== 'nopass' && (
+                          <div className="font-mono text-[0.75rem] font-medium text-slate-600 tracking-wider mt-0.5">
+                            Passwort: <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-slate-800">{wifiPassword || '—'}</span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </>
+                  ) : (
+                    <div className="py-12 text-center">
+                      <Wifi size={32} className="mx-auto mb-3 text-slate-300" />
+                      <p className="text-sm font-bold text-slate-700">Noch keine WLAN-Daten hinterlegt.</p>
+                      <p className="mt-1 text-xs text-slate-500">Trage unten die tatsächlich verwendete SSID ein.</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="w-full space-y-2.5 text-left">
                   <div className="flex justify-between items-center">
-                    <span className="text-[0.625rem] font-bold uppercase text-[var(--text-muted)] tracking-wider">Schnell-Vorlagen:</span>
+                    <span className="text-[0.625rem] font-bold uppercase text-[var(--text-muted)] tracking-wider">WLAN-Daten</span>
                     <button
                       onClick={() => setIsWifiFullscreen(!isWifiFullscreen)}
                       className="text-[0.625rem] font-bold text-[var(--accent)] hover:underline flex items-center gap-1 cursor-pointer bg-transparent border-0"
                     >
                       {isWifiFullscreen ? <Minimize size={12} /> : <Maximize size={12} />}
                       {isWifiFullscreen ? 'Normalansicht' : 'Smartboard Großanzeige'}
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-1.5">
-                    <button
-                      onClick={() => {
-                        setWifiSsid('Schul-WLAN-Klasse');
-                        setWifiPassword('Schule2026!');
-                        setWifiSecurity('WPA');
-                      }}
-                      className="py-1.5 px-2 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-xl text-[0.5625rem] font-bold text-[var(--text-primary)] text-center cursor-pointer transition-colors"
-                    >
-                      🏫 Schul-WLAN
-                    </button>
-                    <button
-                      onClick={() => {
-                        setWifiSsid('Lehrer-Smartphone-Hotspot');
-                        setWifiPassword('Klassenzimmer123');
-                        setWifiSecurity('WPA');
-                      }}
-                      className="py-1.5 px-2 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-xl text-[0.5625rem] font-bold text-[var(--text-primary)] text-center cursor-pointer transition-colors"
-                    >
-                      📱 Handy-Hotspot
-                    </button>
-                    <button
-                      onClick={() => {
-                        setWifiSsid('Schule-Gaeste');
-                        setWifiPassword('');
-                        setWifiSecurity('nopass');
-                      }}
-                      className="py-1.5 px-2 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-xl text-[0.5625rem] font-bold text-[var(--text-primary)] text-center cursor-pointer transition-colors"
-                    >
-                      🔓 Offenes Gäste-WLAN
                     </button>
                   </div>
 
@@ -1290,7 +1279,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                     <div>
                       <label className="text-[0.5625rem] font-bold uppercase text-[var(--text-muted)] block mb-1">WLAN Passwort:</label>
                       <input
-                        type="text"
+                        type="password"
                         disabled={wifiSecurity === 'nopass'}
                         value={wifiPassword}
                         onChange={(e) => setWifiPassword(e.target.value)}
@@ -1304,7 +1293,12 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                     variant="primary"
                     size="md"
                     className="w-full"
+                    disabled={!wifiSsid.trim()}
                     onClick={() => {
+                      if (!wifiSsid.trim()) {
+                        showToast("Bitte zuerst den tatsächlichen WLAN-Namen eintragen.", "info");
+                        return;
+                      }
                       setApp((prev: any) => ({
                         ...prev,
                         boardSettings: {
