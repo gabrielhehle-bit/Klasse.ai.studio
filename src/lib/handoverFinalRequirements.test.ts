@@ -71,9 +71,21 @@ test('Übergabemappe: handover notes participate in class projection and class s
   assert.match(appState, /vertretungHinweise: targetClass\.vertretungHinweise \|\| ''/);
 });
 
-test('Übergabemappe: class change clears temporary print and transfer selections', () => {
+test('Übergabemappe: class change clears temporary print, transfer and checklist selections', () => {
   assert.match(handover, /setAssignedStundenbilder\(\{\}\)/);
   assert.match(handover, /setDayNotes\(\{\}\)/);
   assert.match(handover, /setTransferStudentId\(null\)/);
+  assert.match(handover, /setEmergencyChecklist\(DEFAULT_EMERGENCY_CHECKLIST\.map/);
   assert.match(handover, /\}, \[app\.activeClassId\]\)/);
+});
+
+test('Übergabemappe: date inputs use local dates instead of UTC serialization', () => {
+  assert.match(handover, /toLocalDateInputValue\(new Date\(\)\)/);
+  assert.doesNotMatch(handover, /setSingleDate\(new Date\(\)\.toISOString\(\)\.split\('T'\)\[0\]\)/);
+});
+
+test('Schulwechselpaket: privacy view hides sensitive identity fields, not only the name', () => {
+  assert.match(handover, /Datenschutzansicht \(Initialen, sensible Stammdaten ausgeblendet\)/);
+  assert.match(handover, /privacyMode \? 'Ausgeblendet' : \(app\.schueler\.find\(s => s\.id === transferStudentId\)\?\.geburtstag/);
+  assert.match(handover, /privacyMode \? 'Ausgeblendet' : \(app\.schueler\.find\(s => s\.id === transferStudentId\)\?\.religion/);
 });
