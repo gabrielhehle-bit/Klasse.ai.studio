@@ -17,7 +17,7 @@ Legende:
 | GitHub als einzige Source of Truth | ✅ | Repository-Regeln dokumentiert; ZIP ist keine Arbeitsgrundlage. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | 679/679 Tests, TS, Production-Build, PWA und Server-Smoke auf `b967e5a` grün; nach jedem neuen Commit erneut verpflichtend. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | 685/685 Tests, TS, Production-Build, PWA und Server-Smoke auf `b905971` grün; nach jedem neuen Commit erneut verpflichtend. |
 | Commitgebundenes World4You-Artefakt | ✅ | CI erzeugt nur nach grünem Audit ein ZIP mit `dist`, Branch-/Commitmarker und Startkommando. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
@@ -42,8 +42,10 @@ Legende:
 |---|---:|---|
 | Anwesenheit | ✅ | Abschluss füllt nur leere Stunden; vorhandene Fehl-/Entschuldigungswerte bleiben erhalten; Regressionstest vorhanden. |
 | Befinden | ✅ | Einheitliche 5-Stufen-Skala von sehr gut bis schlecht. |
-| Schülerliste | 🟡 | Dossier, Interaktion, Bearbeiten/Löschen und Statusaktionen vorhanden; Browser-Abnahme offen. |
-| Schülerdossier | 🟡 | Übersicht, Lernen & Leistungen, Entwicklung & Diagnostik, Stammdaten & Organisation vorhanden; Browser-Abnahme offen. |
+| Schülerliste | 🟡 | Suche, Filter, Liste/Karten/Karte, Import, Dossier, Notiz/Interaktion und Bearbeiten/Löschen bleiben erhalten; Browser-Abnahme offen. |
+| Schülerdossier Struktur | ✅ | Fünf feste Hauptbereiche: Übersicht; Lernen & Leistungen; Entwicklung & Diagnostik; Stammdaten & Organisation; Berichte & Materialien. Alte Einfach/Experte-/Ausblendlogik entfernt; Regressionstest vorhanden. |
+| Schülerdossier Semesterwechsel | ✅ | Auswahl Semester 1/2 wird korrekt übernommen; Regressionstest vorhanden. |
+| Schülerdossier Browser-Abnahme | 🟡 | Navigation, Detailtabs, Fokusmodus und responsive Darstellung müssen im finalen Browser-Walkthrough praktisch geprüft werden. |
 | Diagnostik | 🟡 | 3-stufige Hierarchie/Checks/Ergebnisse vorhanden; vollständiger Browser-Walkthrough offen. |
 | Multi-Class | ✅ | Klassenwechsel/Migration/Erweiterungsfelder und Cockpit-Ink per Tests abgesichert. |
 

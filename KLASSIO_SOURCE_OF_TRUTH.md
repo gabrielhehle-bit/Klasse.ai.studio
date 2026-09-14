@@ -19,13 +19,15 @@ ZIP-Dateien sind ausschließlich Backup- oder Release-Artefakte. Sie sind niemal
 
 Der frühere Abschlussbranch `fix/reconciliation-finalization` wurde vollständig in den Reconciliation-Branch übernommen. Zusätzlich wurde eine commitgebundene World4You-Release-Pipeline ergänzt. Am 14.09.2026 wurde PR #6 (`fix/cockpit-final-requirements`) in den Reconciliation-Branch integriert. Damit sind die final abgestimmten Lehrercockpit-Anforderungen technisch umgesetzt: freie weiße Fläche ohne Startkarte, gemeinsame Schreib-/Widgetfläche, getrenntes Löschen von Schrift und Zeichnung, verständliche Kategorien, vollständiger 108/108-Widgetkatalog, eigene Favoriten, A/B/C-Schnelllayouts, Archivzugang zu alten Tafelinhalten sowie reaktivierte historische Mathematik-Widgets.
 
+Am 14.09.2026 wurde außerdem PR #7 (`fix/class-student-dossier-final`) integriert. Das Schülerdossier besitzt nun dauerhaft die fünf vereinbarten Hauptbereiche; die alte Einfach/Experte-/Sichtbarkeitslogik wurde aus der Oberfläche entfernt, Detailfunktionen bleiben erhalten und der Semesterwechsel 1/2 wurde repariert.
+
 Der letzte vor dieser Dokumentationsaktualisierung vollständig geprüfte Reconciliation-Commit war:
 
-- Commit: `b967e5a2ce384af33ca3260add969c74660dc3aa`
+- Commit: `b9059713f3f101ce958cd9371fa0f59d24afc9ed`
 - GitHub Actions: Pre-Deployment Audit erfolgreich
 - Installation: `bun install --frozen-lockfile` erfolgreich
 - TypeScript: erfolgreich
-- Tests: 679/679 erfolgreich
+- Tests: 685/685 erfolgreich
 - Production Build: erfolgreich
 - PWA-Ausgabe: erfolgreich
 - Production-Server-Smoke-Test: erfolgreich
@@ -39,7 +41,7 @@ Nach jeder weiteren Änderung ist ausschließlich der neue GitHub-HEAD verbindli
 Der Reconciliation-Stand enthält unter anderem:
 
 - vereinfachte Kernnavigation und Lehrercockpit mit freier weißer Schreib-/Zeichen-/Widgetfläche ohne Startkarte; 108/108 erhaltene Widgets sind über Suche/Kategorien erreichbar, Favoriten bleiben benutzerdefiniert
-- Anwesenheit, Befinden, Schülerliste, Schülerdossier und Diagnostik
+- Anwesenheit, Befinden und Schülerliste; das Schülerdossier hat fünf feste Hauptbereiche (Übersicht, Lernen & Leistungen, Entwicklung & Diagnostik, Stammdaten & Organisation, Berichte & Materialien) ohne ausblendbare Alt-Navigation
 - vollständige Notenmappe mit Noten/Prozent/Punkten, Gewichtung, fachbezogenen Bewertungsabschnitten, Schularbeiten, LZK/WOPL und sonstigen Leistungen
 - schnelle Mitarbeit- und Hausübungs-Erfassung
 - Wochen- und Jahresplanung inklusive Vollbild, Excel-Roundtrip und Aufgabenblattgenerator
