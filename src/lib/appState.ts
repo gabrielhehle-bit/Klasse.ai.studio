@@ -246,7 +246,6 @@ export function normalizeAppState(raw: any): AppState {
   const parsed = {
     ...initialAppState,
     ...raw,
-    interaktionsLog: raw.interaktionsLog ?? { eintraege: [], wochenEmpfehlung: null },
     ipsativeGewichtung: raw.ipsativeGewichtung ?? 70,
     tourAbgeschlossen: raw.tourAbgeschlossen ?? (raw.schueler?.length > 0 || raw.klassen?.length > 0 || raw.classes?.length > 0 ? true : false),
     stimmNotizen: raw.stimmNotizen ?? [],
