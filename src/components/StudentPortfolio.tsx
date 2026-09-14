@@ -66,11 +66,46 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Bitte wähle eine Bilddatei aus.');
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Das Bild ist zu groß. Bitte wähle ein Bild unter 15 MB.');
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      setNewEntry(prev => ({ ...prev, bildUrl: event.target?.result as string }));
+      const source = event.target?.result;
+      if (typeof source !== 'string') return;
+
+      const image = new window.Image();
+      image.onload = () => {
+        const maxDimension = 1600;
+        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          alert('Das Bild konnte nicht verarbeitet werden.');
+          return;
+        }
+        context.drawImage(image, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.82);
+        if (compressed.length > 4 * 1024 * 1024) {
+          alert('Das komprimierte Bild ist noch zu groß. Bitte wähle ein kleineres Bild.');
+          return;
+        }
+        setNewEntry(prev => ({ ...prev, bildUrl: compressed }));
+      };
+      image.onerror = () => alert('Das Bild konnte nicht gelesen werden.');
+      image.src = source;
     };
+    reader.onerror = () => alert('Das Bild konnte nicht gelesen werden.');
     reader.readAsDataURL(file);
   };
 
