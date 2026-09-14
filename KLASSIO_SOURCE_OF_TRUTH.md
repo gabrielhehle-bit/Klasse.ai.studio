@@ -45,6 +45,7 @@ Anschließend wurden die letzten funktionalen Reste aus historischen Divergenzen
 - PR #35: Das Lehrercockpit wurde im Modul-für-Modul-Abschluss final gehärtet. Die weiße Schreib-/Zeichen-/Widgetfläche und alle 108 Widgettypen bleiben erhalten; sekundäre Ansichtsaktionen liegen gesammelt unter `Optionen → Ansicht`. Cockpit und Tagesplan verwenden die konfigurierten 1–10 Stunden-Slots und daraus abgeleitete Pausen statt acht fest verdrahteter Zeiten. Ein frischer Zustand erfindet weder Klasse `4c` noch ein sichtbares Klassentier. Der tägliche Cockpit-Sicherungsstatus ist klassenlokal und ein zu frühes Schließen markiert den Tag nicht mehr fälschlich als gespeichert. Regressionstests sichern diese Anforderungen.
 - PR #37: Der KI-Helfer wurde im Modul-für-Modul-Abschluss datenschutz- und mehrklassensicher gehärtet. Lernzielkontext wird nur bei aktiviertem Klassenkontext ergänzt und ausschließlich aggregiert übertragen; der alte Namenspfad über `student_lernziele_*` entfällt. KI-Chats sind an die aktive Klasse gebunden, Klassenwechsel schließen den geöffneten Chat, Ein-Klassen-Altbestände bleiben kompatibel. Bildanalyse akzeptiert JPG/PNG/WebP bis 8 MB mit bestehender expliziter Datenschutzbestätigung und zusätzlicher serverseitiger Größenprüfung. Remote-Prompt-Inhalte werden nicht mehr protokolliert; schulspezifische `Oberau-Skala`-Alttexte wurden neutralisiert.
 - PR #39: `Notizen & Beobachtungen` wurde im Modul-für-Modul-Abschluss mehrklassensicher und alltagstauglich gehärtet. Chronik, Journal und Verhaltens-Statusverlauf werden vollständig pro Klasse gespeichert und geladen; Undo/Redo sowie Schülerauswahl werden beim Klassenwechsel zurückgesetzt. Alte gemischte Mehrklassen-Daten werden anhand der Schüler-ID wieder der passenden Klasse zugeordnet, allgemeine nicht zuordenbare Journal-Einträge bleiben bei der aktiven Klasse. Der Tages-Reset löscht keine ungespeicherten Schnellnotizen mehr; `Nur Schüler-Notizen` filtert tatsächlich nach verknüpftem Kind und die Suche findet auch Schülernamen. Stimm-Notizen bleiben bewusst ein separates Unterrichtswerkzeug.
+- PR #41: Der Bereich `Schüler:innen` wurde im Modul-für-Modul-Abschluss daten- und alltagssicher gehärtet. Beim Löschen eines Kindes werden zugehörige Bewertungen, Anwesenheit, Notizen/Chronik, Statusverlauf, Interaktionen, Diagnostik, Lernziele, Sitzplan- und Organisationsbezüge konsistent entfernt; Kassenbuchungen bleiben für die Bilanz erhalten, werden aber personenbezogen entkoppelt. Klassenwechsel übernehmen kein geöffnetes Dossier oder Interaktionsfenster. CSV-/Excel-/Sokrates-Reimporte erkennen bestehende Kinder anhand stabiler Merkmale und aktualisieren Stammdaten, ohne pädagogische Daten zu überschreiben; Sokrates-Metadaten werden tatsächlich übernommen. Alter und Alterssortierung sind kalendergenau. Die Kartenansicht verwendet lokale Leaflet-Marker und weist transparent darauf hin, dass nur PLZ/Ort an Photon gehen.
 
 Die historischen divergierenden Branches `audit/production-demo-data`, `audit/visible-legacy-branding`, `audit/visible-legacy-branding-final`, `fix/klassio-visible-branding`, `fix/json-backups-and-critical-data-flows` und `feature/final-app-polish` wurden anschließend gezielt gegen den aktuellen Reconciliation-Stand geprüft. Ihre noch eigenen Commits enthalten entweder nur temporäre Audit-/CI-Workflows oder ältere Varianten von Funktionen, die im aktuellen Stand bereits gleichwertig oder neuer umgesetzt sind. Sie werden deshalb **nicht** in den Produktstand gemergt.
 
@@ -52,18 +53,18 @@ Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist kei
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Reconciliation-Stand liegt nach PR #39 auf Commit `3e89a27b5739747dcbe3082523f7e6e3049c85b3` und wurde vollständig geprüft:
+Der letzte codehaltige Reconciliation-Stand liegt nach PR #41 auf Commit `9d29a4b0b1536ea6095f040c9173ba764cb1502b` und wurde vollständig geprüft:
 
-- Pre-Deployment Audit #106: erfolgreich
+- Pre-Deployment Audit #108: erfolgreich
 - TypeScript: erfolgreich
-- Tests: 802/802 erfolgreich
+- Tests: 807/807 erfolgreich
 - Production Build: erfolgreich
 - PWA-/Build-Ausgabe: erfolgreich
 - Production-Server- und `/api/health`-Smoke: erfolgreich
 - Zugangscode-/Session-/E-Mail-Fallback-Smoke: erfolgreich
-- World4You-Artefakt: `klassio-world4you-3e89a27b5739747dcbe3082523f7e6e3049c85b3`
+- World4You-Artefakt: `klassio-world4you-9d29a4b0b1536ea6095f040c9173ba764cb1502b`
 
-PR #39 wurde nach grüner Feature- und PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `3e89a27b5739747dcbe3082523f7e6e3049c85b3`.
+PR #41 wurde nach grüner Feature- und PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `9d29a4b0b1536ea6095f040c9173ba764cb1502b`.
 
 Der aktuelle Branch-HEAD kann danach reine Dokumentationscommits enthalten. Deshalb wird der verbindliche Reconciliation-HEAD **nicht dauerhaft in dieser Datei festgeschrieben**, sondern vor jeder Arbeit live aus GitHub gelesen und mit seinem neuesten erfolgreichen `Pre-Deployment Audit` abgeglichen.
 
@@ -79,7 +80,7 @@ Der Reconciliation-Stand enthält unter anderem:
 - KI-Helfer mit serverseitiger Verfügbarkeitsprüfung, datensparsamem optionalem Klassenkontext, ausschließlich aggregiertem Lernzielkontext ohne automatisch übermittelte Schülernamen, klassenlokalen Chatverläufen sowie expliziter Bild-Datenschutzfreigabe; JPG/PNG/WebP sind auf 8 MB begrenzt
 - Notizen & Beobachtungen mit klassenlokaler Chronik, Journal, Schnellnotizen und Statusverlauf; alte gemischte Mehrklassen-Einträge werden beim Laden anhand der Schüler-ID getrennt, Filter/Suche sind auf den Lehreralltag abgestimmt; Stimm-Notizen bleiben separat
 - SetupWizard mit strukturiertem Lehrkraftprofil, dynamischen Schuljahren und 10 frei konfigurierbaren Stunden-Slots
-- Anwesenheit, Befinden und Schülerliste; das Schülerdossier hat fünf feste Hauptbereiche (Übersicht, Lernen & Leistungen, Entwicklung & Diagnostik, Stammdaten & Organisation, Berichte & Materialien) ohne ausblendbare Alt-Navigation; Schülerimporte normalisieren österreichische/ISO-Geburtsdaten und Geschlechtswerte konsistent
+- Anwesenheit, Befinden und Schülerliste; das Schülerdossier hat fünf feste Hauptbereiche (Übersicht, Lernen & Leistungen, Entwicklung & Diagnostik, Stammdaten & Organisation, Berichte & Materialien) ohne ausblendbare Alt-Navigation; Schülerimporte normalisieren österreichische/ISO-Geburtsdaten und Geschlechtswerte konsistent, Reimporte aktualisieren erkannte Stammdaten ohne pädagogische Daten zu überschreiben, und das Löschen eines Kindes bereinigt die zugehörigen personenbezogenen Klassendaten konsistent
 - vollständige Notenmappe mit Noten/Prozent/Punkten, Gewichtung, fachbezogenen Bewertungsabschnitten, Schularbeiten, LZK/WOPL und sonstigen Leistungen
 - schnelle Mitarbeit- und Hausübungs-Erfassung
 - Wochen- und Jahresplanung inklusive Vollbild, Excel-Roundtrip und Aufgabenblattgenerator
@@ -214,7 +215,8 @@ Aktueller Fortschritt:
 - Lehrercockpit: technisch abgeschlossen; PR #35 integriert, Audit #101 grün; reale Maus-/Touch-/Stift-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - KI-Helfer: technisch abgeschlossen; PR #37 integriert, Audit #104 grün; reale Gemini-/Browser-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Notizen: technisch abgeschlossen; PR #39 integriert, Audit #106 grün; reale Browser-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
-- Nächster Bereich: Schüler:innen.
+- Schüler:innen: technisch abgeschlossen; PR #41 integriert, Audit #108 grün; reale Browser-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
+- Nächster Bereich: Sitzplan.
 
 ## Pflicht für jeden neuen Chat
 
