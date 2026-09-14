@@ -10,11 +10,11 @@ import {
   LayoutGrid, List, CheckSquare, Square, FolderClosed, Trash, BarChart2, Tag, UploadCloud, Palette
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { FAECHER_ALLE } from '../constants';
+import { FAECHER_ALLE, LESSON_SLOT_NUMBERS } from '../constants';
 import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { MaterialItem } from '../types';
 import { generateTeachingMaterial } from '../services/aiService';
-import { calculateMaterialStorageSize, upsertMaterial } from '../lib/materialLibraryUtils';
+import { calculateMaterialStorageSize, MATERIAL_LIBRARY_MAX_MB, normalizeMaterialExternalLink, removeMaterialReferencesFromWeeklyPlan, sanitizeMaterialForType, upsertMaterial, validateMaterialFile } from '../lib/materialLibraryUtils';
 export { calculateMaterialStorageSize as calculateStorageSize } from '../lib/materialLibraryUtils';
 
 const normalizeMaterialItem = (item: MaterialItem): MaterialItem => ({
@@ -51,6 +51,10 @@ export default function Materialbibliothek() {
   const storageMB = useMemo(() => calculateMaterialStorageSize(app.materialien || []), [app.materialien]);
   const favoritesCount = useMemo(() => (app.materialien || []).filter(m => m.favorit).length, [app.materialien]);
   const totalCount = (app.materialien || []).length;
+
+  useEffect(() => {
+    setWeekPlanMaterial(null);
+  }, [app.activeClassId]);
 
   const activeFiltersCount = useMemo(() => {
     return (activeTab !== 'Alle' ? 1 : 0) + 
@@ -142,9 +146,11 @@ export default function Materialbibliothek() {
 
   const handleBulkDelete = () => {
     if (confirm(`Möchtest du die ${selectedItems.length} markierten Materialien wirklich löschen?`)) {
+      const removedIds = [...selectedItems];
       setApp(prev => ({
         ...prev,
-        materialien: prev.materialien?.filter(m => !selectedItems.includes(m.id))
+        materialien: prev.materialien?.filter(m => !removedIds.includes(m.id)),
+        wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung, removedIds),
       }));
       setSelectedItems([]);
     }
@@ -191,8 +197,10 @@ export default function Materialbibliothek() {
     if (confirm("Möchtest du dieses Material wirklich löschen?")) {
       setApp(prev => ({
         ...prev,
-        materialien: prev.materialien?.filter(m => m.id !== id)
+        materialien: prev.materialien?.filter(m => m.id !== id),
+        wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung, [id]),
       }));
+      setSelectedItems(prev => prev.filter(selectedId => selectedId !== id));
       setShowDetail(false);
     }
   };
@@ -264,7 +272,12 @@ export default function Materialbibliothek() {
                        onClick={(e) => {
                          e.stopPropagation();
                          if (confirm("Möchtest du den gesamten Speicher zurücksetzen? Das löscht alle deine hochgeladenen und generierten Materialien.")) {
-                           setApp(prev => ({ ...prev, materialien: [] }));
+                           setApp(prev => ({
+                             ...prev,
+                             materialien: [],
+                             wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung),
+                           }));
+                           setSelectedItems([]);
                          }
                        }}
                        title="Speicher zurücksetzen"
@@ -279,7 +292,7 @@ export default function Materialbibliothek() {
                      isCompact ? 'text-[1rem]' : isLarge ? 'text-[1.625rem]' : 'text-[1.25rem]'
                    } ${storageMB > 4 ? 'text-rose-700' : 'text-indigo-800'}`}>
                       {storageMB.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      <span className={`${isCompact ? 'text-[0.625rem]' : isLarge ? 'text-[0.875rem]' : 'text-[0.75rem]'} font-bold text-slate-400`}> MB von 5 MB</span>
+                      <span className={`${isCompact ? 'text-[0.625rem]' : isLarge ? 'text-[0.875rem]' : 'text-[0.75rem]'} font-bold text-slate-400`}> MB von {MATERIAL_LIBRARY_MAX_MB} MB</span>
                    </span>
                    {/* Storage Progress Bar */}
                    <div className={`w-full bg-slate-200/70 rounded-full overflow-hidden ${isCompact ? 'h-1 mt-0.5' : isLarge ? 'h-2 mt-2' : 'h-1.5 mt-1'}`}>
@@ -287,7 +300,7 @@ export default function Materialbibliothek() {
                        className={`h-full rounded-full transition-all duration-500 ${
                          storageMB > 4 ? 'bg-rose-600' : storageMB > 2.5 ? 'bg-amber-500' : 'bg-indigo-600'
                        }`}
-                       style={{ width: `${Math.min(100, (storageMB / 5) * 100)}%` }}
+                       style={{ width: `${Math.min(100, (storageMB / MATERIAL_LIBRARY_MAX_MB) * 100)}%` }}
                      />
                    </div>
                  </div>
@@ -664,7 +677,7 @@ export default function Materialbibliothek() {
             onSave={(item) => {
               const nextMaterials = upsertMaterial(app.materialien || [], item);
               const totalNewSize = calculateMaterialStorageSize(nextMaterials);
-              if (totalNewSize > 5) {
+              if (totalNewSize > MATERIAL_LIBRARY_MAX_MB) {
                 alert("Speicher voll. Bitte lösche alte Materialien oder reduziere die Dateigröße.");
                 return;
               }
@@ -915,14 +928,12 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
     setFileError(null);
     setFileWarning(null);
 
-    const sizeMB = file.size / (1024 * 1024);
-    if (sizeMB > 3) {
-      setFileError("Datei zu groß (> 3MB). Bitte verkleinere die Datei.");
+    const validation = validateMaterialFile(file);
+    if (validation.error) {
+      setFileError(validation.error);
       return;
     }
-    if (sizeMB > 1) {
-      setFileWarning("Hinweis: Datei ist über 1 MB groß. Das kann den Speicher schnell füllen.");
-    }
+    setFileWarning(validation.warning);
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -964,7 +975,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiFach, setAiFach] = useState('');
   const [aiThema, setAiThema] = useState('');
-  const [aiStufe, setAiStufe] = useState(1);
+  const [aiStufe, setAiStufe] = useState(Math.min(4, Math.max(1, Number(app.stufe) || 1)));
   const [aiArt, setAiArt] = useState('Lesetext');
   const [aiDiff, setAiDiff] = useState(false);
 
@@ -1000,22 +1011,21 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
       return;
     }
 
-    let finalLink = formData.externerLink;
-    if (typ === 'link' && finalLink) {
-      if (!finalLink.startsWith('http://') && !finalLink.startsWith('https://')) {
-        finalLink = 'https://' + finalLink;
-      }
-      try {
-        new URL(finalLink);
-      } catch (e) {
-        alert("Ungültige URL");
-        return;
-      }
+    const finalLink = typ === 'link'
+      ? normalizeMaterialExternalLink(formData.externerLink)
+      : undefined;
+    if (typ === 'link' && !finalLink) {
+      alert("Bitte einen gültigen http- oder https-Link angeben.");
+      return;
+    }
+    if (typ === 'datei' && !formData.dateiInhalt) {
+      alert("Bitte zuerst eine unterstützte Datei auswählen.");
+      return;
     }
 
-    const finalItem: MaterialItem = {
+    const finalItem = sanitizeMaterialForType({
       ...formData as MaterialItem,
-      id: initialData?.id || `mat-${Date.now()}`,
+      id: initialData?.id || `mat-${globalThis.crypto?.randomUUID?.() || Date.now()}`,
       typ,
       externerLink: finalLink,
       erstelltAm: initialData?.erstelltAm || new Date().toISOString(),
@@ -1028,7 +1038,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
       inhaltText: (typ === 'stundenentwurf' && formData.lernziel) 
         ? `Lernziel: ${formData.lernziel}\n\nMaterial: ${formData.benoetigtesMaterial?.join(', ') || '-'}\n\nAblauf:\n${formData.inhaltText || ''}`
         : formData.inhaltText
-    };
+    });
     onSave(finalItem);
   };
 
@@ -1452,11 +1462,8 @@ function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkU
   };
 
   const handleOpenPdf = () => {
-    if (item.dateiInhalt) {
-      const win = window.open();
-      if (win) {
-         win.document.write(`<iframe src="${item.dateiInhalt}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-      }
+    if (item.dateiInhalt && item.dateiTyp === 'application/pdf') {
+      window.open(item.dateiInhalt, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -1648,19 +1655,13 @@ function getIsoWeekNumber(date = new Date()): number {
 
 function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClose: () => void }) {
   const { app, setApp, setPage } = useApp();
-  const [kw, setKw] = useState(getIsoWeekNumber());
+  const [kw, setKw] = useState(app.currentKW || getIsoWeekNumber());
   const [day, setDay] = useState('Montag');
   const [hour, setHour] = useState(1);
   const [mode, setMode] = useState<'append' | 'replace'>('append');
 
   const days = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
-  const availableHours = useMemo(() => {
-    const configured = Object.keys((app.stammplan as any)?.[day] || {})
-      .map(Number)
-      .filter(value => Number.isFinite(value) && value > 0)
-      .sort((a, b) => a - b);
-    return configured.length > 0 ? configured : [1, 2, 3, 4, 5, 6, 7, 8];
-  }, [app.stammplan, day]);
+  const availableHours = LESSON_SLOT_NUMBERS;
 
   useEffect(() => {
     if (!availableHours.includes(hour)) setHour(availableHours[0] || 1);
@@ -1812,10 +1813,17 @@ export function useMaterialLibrary() {
       externerLink: item.externerLink,
     };
 
-    setApp(prev => ({
-      ...prev,
-      materialien: [...(prev.materialien || []), newItem]
-    }));
+    setApp(prev => {
+      const nextMaterials = upsertMaterial(prev.materialien || [], newItem);
+      if (calculateMaterialStorageSize(nextMaterials) > MATERIAL_LIBRARY_MAX_MB) {
+        window.alert("Speicher voll. Bitte lösche alte Materialien oder kürze den Inhalt.");
+        return prev;
+      }
+      return {
+        ...prev,
+        materialien: nextMaterials,
+      };
+    });
   };
 
   return { addMaterialFromAI };
