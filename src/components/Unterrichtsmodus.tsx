@@ -289,7 +289,6 @@ import { KopfrechenStudioContent } from "./cockpit/KopfrechenStudioContent";
 import { FractionVisualizerContent } from "./cockpit/FractionVisualizerContent";
 import { TimerWidgetContent } from "./cockpit/TimerWidgetContent";
 import { InstructionWidget } from "./cockpit/widgets/InstructionWidget";
-import { RetiredMathWidgetFallback } from "./cockpit/widgets/RetiredMathWidgetFallback";
 import { CockpitWidgetConfig } from "../types";
 
 // Web Audio API Sound Generation
@@ -9952,18 +9951,9 @@ ${content}
 
                                     case "sorting":
                                       return (
-                                        <RetiredMathWidgetFallback
+                                        <SortingWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
-                                          onRemove={() =>
-                                            handleCloseWidget(
-                                              widget.id,
-                                              widget.type,
-                                            )
-                                          }
-                                          onOpenZahlenraum={() =>
-                                            toggleWidget("zahlenraum")
-                                          }
                                         />
                                       );
 
@@ -10178,20 +10168,18 @@ ${content}
                                       );
 
                                     case "mathduel":
-                                    case "shapepuzzle":
                                       return (
-                                        <RetiredMathWidgetFallback
+                                        <MathduelWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
-                                          onRemove={() =>
-                                            handleCloseWidget(
-                                              widget.id,
-                                              widget.type,
-                                            )
-                                          }
-                                          onOpenZahlenraum={() =>
-                                            toggleWidget("zahlenraum")
-                                          }
+                                        />
+                                      );
+
+                                    case "shapepuzzle":
+                                      return (
+                                        <ShapepuzzleWidgetContent
+                                          widget={widget}
+                                          currentIsLight={currentIsLight}
                                         />
                                       );
 
@@ -10340,18 +10328,9 @@ ${content}
 
                                     case "divrobot":
                                       return (
-                                        <RetiredMathWidgetFallback
+                                        <DivrobotWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
-                                          onRemove={() =>
-                                            handleCloseWidget(
-                                              widget.id,
-                                              widget.type,
-                                            )
-                                          }
-                                          onOpenZahlenraum={() =>
-                                            toggleWidget("zahlenraum")
-                                          }
                                         />
                                       );
 
