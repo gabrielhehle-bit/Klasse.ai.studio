@@ -33,6 +33,8 @@ function fixture() {
       observations: [{ id: `observation-${id}`, schuelerId: `student-${id}` }],
       metaKognitionsProtokolle: [{ id: `meta-${id}`, schuelerId: `student-${id}` }],
       interaktionsLog: { eintraege: [{ id: `interaction-${id}`, schuelerId: `student-${id}` }], wochenEmpfehlung: null },
+      anwesenheit: { [`student-${id}`]: { '2026-09-14': { 1: id === 'a' ? 'a' : 'e', 2: 'a' } } },
+      anwesenheitDetail: { [`student-${id}`]: { '2026-09-14': { verspaetung: id === 'a' ? 5 : 0, notiz: `attendance-${id}` } } },
       stundenZeiten: { 1: `${id}-08:00` }, scheduleAnalysis: { marker: id },
       lastGroups: [{ marker: id }], customBgColor: id,
       behavior_status: { [`student-${id}`]: id === 'a' ? '1' : '4' },
@@ -365,4 +367,43 @@ test('legacy fixed-seat rule captures the current classroom coordinate during no
 
   assert.deepEqual(loaded.sitzplanRegeln?.[0]?.position, { x: 120, y: 240 });
   assert.deepEqual(loaded.classes[0].sitzplanRegeln?.[0]?.position, { x: 120, y: 240 });
+});
+
+
+test('class switches isolate attendance and attendance details', () => {
+  const state = fixture();
+  assert.equal(state.anwesenheit['student-a']['2026-09-14'][1], 'a');
+  assert.equal(state.anwesenheitDetail?.['student-a']?.['2026-09-14']?.notiz, 'attendance-a');
+
+  let b = switchClassState(state, 'b');
+  assert.equal(b.anwesenheit['student-b']['2026-09-14'][1], 'e');
+  assert.equal(b.anwesenheitDetail?.['student-b']?.['2026-09-14']?.notiz, 'attendance-b');
+  assert.equal(b.anwesenheit['student-a'], undefined);
+
+  b = syncActiveClass({
+    ...b,
+    anwesenheit: {
+      ...b.anwesenheit,
+      'student-b': {
+        ...b.anwesenheit['student-b'],
+        '2026-09-14': { 1: 'u', 2: 'a' },
+      },
+    },
+    anwesenheitDetail: {
+      ...(b.anwesenheitDetail || {}),
+      'student-b': {
+        ...(b.anwesenheitDetail?.['student-b'] || {}),
+        '2026-09-14': { verspaetung: 0, notiz: 'edited-b', fehlstunden: 1 },
+      },
+    },
+  } as any);
+
+  const a = switchClassState(b, 'a');
+  assert.equal(a.anwesenheit['student-a']['2026-09-14'][1], 'a');
+  assert.equal(a.anwesenheitDetail?.['student-a']?.['2026-09-14']?.notiz, 'attendance-a');
+
+  const reloaded = normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(a))));
+  assert.equal(reloaded.classes[1].anwesenheit['student-b']['2026-09-14'][1], 'u');
+  assert.equal(reloaded.classes[1].anwesenheitDetail?.['student-b']?.['2026-09-14']?.notiz, 'edited-b');
+  assert.equal(reloaded.classes[1].anwesenheitDetail?.['student-b']?.['2026-09-14']?.fehlstunden, 1);
 });

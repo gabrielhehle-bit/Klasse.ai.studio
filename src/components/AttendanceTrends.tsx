@@ -1,70 +1,20 @@
 import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, CartesianGrid } from 'recharts';
 import { useApp } from '../context/AppContext';
-import { BarChart3, Calendar, AlertCircle } from 'lucide-react';
+import { Calendar, AlertCircle } from 'lucide-react';
+import { buildAttendanceTrendData } from '../lib/attendanceData';
 
 export default function AttendanceTrends() {
   const { app } = useApp();
 
-  const trends = useMemo(() => {
-    const dayLabels = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
-    const weekdayCounts = [0, 0, 0, 0, 0];
-    const weeklyCounts: Record<string, { e: number, u: number }> = {};
-
-    Object.values(app.anwesenheit || {}).forEach(studentData => {
-      Object.entries(studentData).forEach(([dateStr, hoursData]) => {
-        const d = new Date(dateStr);
-        // exclude weekends
-        if (d.getDay() === 0 || d.getDay() === 6) return;
-        
-        let absentCount = 0;
-        let eCount = 0;
-        let uCount = 0;
-        Object.values(hoursData).forEach(status => {
-          if (status === 'e' || status === 'u') absentCount++;
-          if (status === 'e') eCount++;
-          if (status === 'u') uCount++;
-        });
-
-        // Wochentag
-        if (absentCount > 0) {
-          const weekdayIdx = d.getDay() - 1; // 1=Mo -> 0, 5=Fr -> 4
-          if (weekdayIdx >= 0 && weekdayIdx <= 4) {
-            weekdayCounts[weekdayIdx] += absentCount;
-          }
-        }
-
-        // Wochen-Verlauf
-        const year = d.getFullYear();
-        // simple week number based on 1st Jan
-        const firstJan = new Date(year, 0, 1);
-        const days = Math.floor((d.getTime() - firstJan.getTime()) / (24 * 60 * 60 * 1000));
-        const weekNum = Math.ceil((d.getDay() + 1 + days) / 7);
-        const weekKey = `KW ${weekNum}`;
-        if (!weeklyCounts[weekKey]) weeklyCounts[weekKey] = { e: 0, u: 0 };
-        weeklyCounts[weekKey].e += eCount;
-        weeklyCounts[weekKey].u += uCount;
-      });
-    });
-
-    const weekdayData = dayLabels.map((lbl, i) => ({
-      name: lbl,
-      Fehlstunden: weekdayCounts[i],
-    }));
-
-    // limit to last 6 weeks present in data
-    const weeklyKeys = Object.keys(weeklyCounts).sort((a,b) => {
-      return parseInt(a.split(' ')[1]) - parseInt(b.split(' ')[1]);
-    }).slice(-6);
-
-    const weeklyData = weeklyKeys.map(k => ({
-      name: k,
-      Entschuldigt: weeklyCounts[k].e,
-      Unentschuldigt: weeklyCounts[k].u,
-    }));
-
-    return { weekdayData, weeklyData };
-  }, [app.anwesenheit]);
+  const trends = useMemo(
+    () => buildAttendanceTrendData(
+      app.anwesenheit,
+      app.anwesenheitDetail,
+      app.schuljahr
+    ),
+    [app.anwesenheit, app.anwesenheitDetail, app.schuljahr]
+  );
 
   if (trends.weekdayData.every(d => d.Fehlstunden === 0) && trends.weeklyData.length === 0) {
          return null;
