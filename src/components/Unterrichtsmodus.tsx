@@ -289,22 +289,7 @@ import { KopfrechenStudioContent } from "./cockpit/KopfrechenStudioContent";
 import { FractionVisualizerContent } from "./cockpit/FractionVisualizerContent";
 import { TimerWidgetContent } from "./cockpit/TimerWidgetContent";
 import { InstructionWidget } from "./cockpit/widgets/InstructionWidget";
-import { RetiredMathWidgetFallback } from "./cockpit/widgets/RetiredMathWidgetFallback";
 import { CockpitWidgetConfig } from "../types";
-
-const QUICK_WIDGET_META: Record<string, { label: string; icon: string }> = {
-  timer: { label: "Timer", icon: "⏳" },
-  stopwatch: { label: "Stoppuhr", icon: "⏱️" },
-  randomname: { label: "Zufall", icon: "🎯" },
-  groups: { label: "Gruppen", icon: "👥" },
-  trafficlight: { label: "Ampel", icon: "🚦" },
-  noisemeter: { label: "Lautstärke", icon: "🔊" },
-  wheel: { label: "Glücksrad", icon: "🎡" },
-  todo: { label: "Aufgaben", icon: "✅" },
-  clock: { label: "Uhr", icon: "🕒" },
-};
-
-const DEFAULT_QUICK_WIDGETS = ["timer", "randomname", "groups", "trafficlight"];
 
 // Web Audio API Sound Generation
 const playSound = (
@@ -2917,7 +2902,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [activeWidgetCategory, setActiveWidgetCategory] =
-    useState<string>("everyday");
+    useState<string>("all");
   const [widgetSearch, setWidgetSearch] = useState<string>("");
 
   useEffect(() => {
@@ -3702,7 +3687,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const handleClearAllWidgets = () => {
     const visibleCount = cockpitWidgets.filter((w) => w.visible).length;
     if (visibleCount === 0) {
-      showToast("Die Tafel ist bereits leer.", "info");
+      showToast("Es sind keine Unterrichtshilfen geöffnet.", "info");
       return;
     }
     const cleared = cockpitWidgets.map((w) => ({ ...w, visible: false }));
@@ -3711,7 +3696,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       ...p,
       cockpitLayout: cleared,
     }));
-    showToast("Tafel geleert: Alle Widgets geschlossen.", "info");
+    showToast("Alle Unterrichtshilfen wurden geschlossen.", "info");
   };
 
   const handleCloseWidget = (id: string, type: string) => {
@@ -3777,7 +3762,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         ),
       };
     });
-    showToast("Vorlage mit aktuellem Board-Layout aktualisiert!", "success");
+    showToast("Vorlage mit aktueller Unterrichtsfläche aktualisiert!", "success");
   };
 
   const handleLoadProfile = (profileId: string) => {
@@ -8251,21 +8236,20 @@ ${content}
                                 {/* Category Switcher Tab Bar */}
                                 <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
                                   {[
-                                    { id: "everyday", label: "Für den Unterricht" },
                                     { id: "all", label: "Alle Hilfen" },
                                     { id: "favorites", label: "★ Favoriten" },
-                                    { id: "struct", label: "📂 Struktur" },
+                                    { id: "struct", label: "🗂️ Ablauf & Organisation" },
                                     {
                                       id: "interactivity",
-                                      label: "👥 Interaktion",
+                                      label: "👥 Klasse & Interaktion",
                                     },
                                     { id: "mathe", label: "🔢 Mathematik" },
                                     { id: "deutsch", label: "📖 Deutsch" },
                                     {
                                       id: "sachunterricht",
-                                      label: "🌍 Sachkunde",
+                                      label: "🌍 Sachunterricht",
                                     },
-                                    { id: "tools", label: "🛠️ Tools" },
+                                    { id: "tools", label: "🛠️ Werkzeuge" },
                                     {
                                       id: "mindfulness",
                                       label: "🍃 Spiele & Fokus",
@@ -8497,12 +8481,47 @@ ${content}
                                         type: "piano",
                                         category: "mindfulness",
                                       },
+                                      { type: "studentlist", category: "interactivity" },
+                                      { type: "scrambler", category: "deutsch" },
+                                      { type: "fractions", category: "mathe" },
+                                      { type: "sorting", category: "mathe" },
+                                      { type: "piggybank", category: "mathe" },
+                                      { type: "spellingdetective", category: "deutsch" },
+                                      { type: "numberline", category: "mathe" },
+                                      { type: "mathchain", category: "mathe" },
+                                      { type: "thermometer", category: "struct" },
+                                      { type: "compoundsplit", category: "deutsch" },
+                                      { type: "mathduel", category: "mathe" },
+                                      { type: "shapepuzzle", category: "mathe" },
+                                      { type: "secretagent", category: "mindfulness" },
+                                      { type: "fractioncake", category: "mathe" },
+                                      { type: "sentencebuilding", category: "deutsch" },
+                                      { type: "patternmaker", category: "tools" },
+                                      { type: "wordexplorer", category: "deutsch" },
+                                      { type: "weightscale", category: "mathe" },
+                                      { type: "geographyquiz", category: "sachunterricht" },
+                                      { type: "reflexgame", category: "mindfulness" },
+                                      { type: "wastebin", category: "sachunterricht" },
+                                      { type: "tonetrainer", category: "tools" },
+                                      { type: "rhymemachine", category: "deutsch" },
+                                      { type: "alphabetsoup", category: "deutsch" },
+                                      { type: "divrobot", category: "mathe" },
+                                      { type: "classtarget", category: "interactivity" },
+                                      { type: "morsecode", category: "tools" },
+                                      { type: "punctuationzoo", category: "deutsch" },
+                                      { type: "fractiongrid", category: "mathe" },
+                                      { type: "wordbuilder", category: "deutsch" },
+                                      { type: "soundmachine", category: "tools" },
+                                      { type: "multitrainer", category: "mathe" },
+                                      { type: "abcorder", category: "deutsch" },
+                                      { type: "tischcheck", category: "interactivity" },
+                                      { type: "faircall", category: "interactivity" },
+                                      { type: "hangman", category: "deutsch" },
+                                      { type: "anschauung", category: "mathe" },
                                     ];
 
                                     let count = 0;
-                                    if (cat.id === "everyday") {
-                                      count = allAvailableWidgets.filter(item => ["timer", "todo", "trafficlight", "clock", "randomname", "groups", "noisemeter", "instruction"].includes(item.type)).length;
-                                    } else if (cat.id === "all") {
+                                    if (cat.id === "all") {
                                       count = allAvailableWidgets.length;
                                     } else if (cat.id === "favorites") {
                                       count = (
@@ -8907,7 +8926,7 @@ ${content}
                                       },
                                       {
                                         type: "drawing",
-                                        label: "🖍️ Zeichentafel Canvas",
+                                        label: "🖍️ Zeichenfeld",
                                         desc: "Skizzen & Handschrift auf Tafel",
                                         category: "tools",
                                       },
@@ -9069,6 +9088,28 @@ ${content}
                                         desc: "Spiele Töne und lerne Melodien nach Gehör",
                                         category: "mindfulness",
                                       },
+                                      { type: "studentlist", label: "⭐ Schülerliste", desc: "Schülerinnen und Schüler direkt auf der Unterrichtsfläche anzeigen", category: "interactivity" },
+                                      { type: "scrambler", label: "✍️ Wort- & Satzwerkstatt", desc: "Wörter und Sätze spielerisch ordnen und untersuchen", category: "deutsch" },
+                                      { type: "fractions", label: "◐ Bruch-Visualisierer", desc: "Brüche anschaulich darstellen", category: "mathe" },
+                                      { type: "sorting", label: "🔢 Zahlensortierer", desc: "Zahlen vergleichen und sortieren", category: "mathe" },
+                                      { type: "piggybank", label: "🐷 Klassen-Sparschwein", desc: "Geldbeträge spielerisch darstellen", category: "mathe" },
+                                      { type: "spellingdetective", label: "🔤 Rechtschreib-Detektiv", desc: "Wörter untersuchen und Rechtschreibung trainieren", category: "deutsch" },
+                                      { type: "numberline", label: "🔢 Zahlenstrahl", desc: "Zahlen auf dem Zahlenstrahl verorten", category: "mathe" },
+                                      { type: "mathchain", label: "🧠 Rechenkette", desc: "Rechenketten gemeinsam bearbeiten", category: "mathe" },
+                                      { type: "thermometer", label: "🌡️ Ziel-Thermometer", desc: "Fortschritt und Ziele sichtbar machen", category: "struct" },
+                                      { type: "compoundsplit", label: "✍️ Zusammengesetzte Wörter", desc: "Wortbausteine erkennen und zusammensetzen", category: "deutsch" },
+                                      { type: "mathduel", label: "⚔️ Mathe-Duell", desc: "Kurze Rechenduelle für die Klasse", category: "mathe" },
+                                      { type: "shapepuzzle", label: "📐 Formen-Entdecker", desc: "Geometrische Formen entdecken und zuordnen", category: "mathe" },
+                                      { type: "fractioncake", label: "🍰 Bruch-Kuchen", desc: "Bruchteile mit anschaulichen Flächen darstellen", category: "mathe" },
+                                      { type: "sentencebuilding", label: "✍️ Satzbau", desc: "Sätze aufbauen und Satzteile ordnen", category: "deutsch" },
+                                      { type: "divrobot", label: "🤖 Teilbarkeits-Roboter", desc: "Teilbarkeit spielerisch untersuchen", category: "mathe" },
+                                      { type: "classtarget", label: "🎯 Klassen-Ziel", desc: "Gemeinsame Ziele sichtbar verfolgen", category: "interactivity" },
+                                      { type: "fractiongrid", label: "◐ Bruch-Raster", desc: "Brüche im Raster visualisieren", category: "mathe" },
+                                      { type: "wordbuilder", label: "🔤 Wort-Baukasten", desc: "Wörter aus Bausteinen zusammensetzen", category: "deutsch" },
+                                      { type: "soundmachine", label: "🎵 Klang-Maschine", desc: "Klänge und Signale im Unterricht einsetzen", category: "tools" },
+                                      { type: "multitrainer", label: "🧠 Multi-Trainer", desc: "Verschiedene Rechenarten trainieren", category: "mathe" },
+                                      { type: "abcorder", label: "🔤 ABC-Sortierer", desc: "Wörter alphabetisch ordnen", category: "deutsch" },
+                                      { type: "anschauung", label: "🔢 Zahlenraum-Studio", desc: "Zahlenräume anschaulich darstellen", category: "mathe" },
                                     ];
 
                                     const resolvedActiveFach =
@@ -9128,9 +9169,7 @@ ${content}
                                         }
 
                                         let matchesCategory = false;
-                                        if (activeWidgetCategory === "everyday") {
-                                          matchesCategory = ["timer", "todo", "trafficlight", "clock", "randomname", "groups", "noisemeter", "instruction"].includes(item.type);
-                                        } else if (activeWidgetCategory === "all") {
+                                        if (activeWidgetCategory === "all") {
                                           matchesCategory =
                                             true;
                                         } else if (
@@ -9382,12 +9421,6 @@ ${content}
                             )}
                           </div>
 
-                          <button type="button" aria-pressed={!isLayoutLocked} onClick={() => { setIsBoardWriting(false); setIsLayoutLocked(locked => !locked); }}
-                            className={`min-h-10 px-3 rounded-xl border text-xs font-semibold flex items-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${isLayoutLocked ? (currentIsLight ? "bg-white border-slate-300 text-slate-700" : "bg-zinc-900 border-white/20 text-white") : "bg-emerald-600 border-emerald-500 text-white"}`}>
-                            {isLayoutLocked ? <Lock size={15} /> : <Check size={15} />}
-                            {isLayoutLocked ? 'Anordnung ändern' : 'Anordnung fertig'}
-                          </button>
-
                           <button type="button" aria-pressed={isBoardWriting}
                             onClick={() => { setIsBoardWriting(value => !value); setIsLayoutLocked(true); }}
                             className={`min-h-11 px-4 rounded-xl text-sm font-semibold border ${isBoardWriting ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'}`}>
@@ -9423,21 +9456,6 @@ ${content}
                                 <div className="px-2 py-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-white/5">
                                   Weitere Funktionen
                                 </div>
-
-                                <button
-                                  type="button"
-                                  id="btn-menu-open-digitale-tafel"
-                                  onClick={() => {
-                                    setIsTafelOpen(true);
-                                    setIsMoreOptionsMenuOpen(false);
-                                  }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
-                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
-                                  }`}
-                                >
-                                  <Presentation size={12} className="text-emerald-500 shrink-0" />
-                                  <span>Bisherige Tafelinhalte öffnen</span>
-                                </button>
 
                                 <button
                                   type="button"
@@ -9489,6 +9507,7 @@ ${content}
                                 <button
                                   type="button"
                                   onClick={() => {
+                                    setIsBoardWriting(false);
                                     setIsLayoutLocked((prev) => !prev);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
@@ -9499,12 +9518,12 @@ ${content}
                                   {isLayoutLocked ? (
                                     <>
                                       <Unlock size={12} className="text-emerald-500 shrink-0" />
-                                      <span>Layout entsperren</span>
+                                      <span>Anordnung ändern</span>
                                     </>
                                   ) : (
                                     <>
                                       <Lock size={12} className="text-amber-500 shrink-0" />
-                                      <span>Layout fixieren</span>
+                                      <span>Anordnung fertig</span>
                                     </>
                                   )}
                                 </button>
@@ -9520,7 +9539,25 @@ ${content}
                                   className="w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold text-rose-500 hover:bg-rose-500/10 flex items-center gap-2 text-left transition-colors cursor-pointer"
                                 >
                                   <Trash2 size={12} className="shrink-0" />
-                                  <span>Tafel leeren (Alle schließen)</span>
+                                  <span>Alle Unterrichtshilfen schließen</span>
+                                </button>
+                                <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
+                                <div className="px-2 pt-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
+                                  Archiv
+                                </div>
+                                <button
+                                  type="button"
+                                  id="btn-menu-open-digitale-tafel"
+                                  onClick={() => {
+                                    setIsTafelOpen(true);
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Presentation size={12} className="text-slate-400 shrink-0" />
+                                  <span>Alte Tafelinhalte öffnen</span>
                                 </button>
                               </div>
                             )}
@@ -9688,14 +9725,14 @@ ${content}
                                       cockpitLayout: DEFAULT_COCKPIT_LAYOUT,
                                     }));
                                     showToast(
-                                      "Layout auf Standard zurückgesetzt.",
+                                      "Leere Ausgangsfläche geladen.",
                                       "info",
                                     );
                                     setIsSlotMenuOpen(false);
                                   }}
                                   className="w-full px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider text-rose-500 text-center hover:bg-rose-500/10 transition-all cursor-pointer"
                                 >
-                                  Standard laden
+                                  Leere Ausgangsfläche laden
                                 </button>
                               </div>
                             )}
@@ -9775,43 +9812,6 @@ ${content}
                                   Abbrechen
                                 </button>
                               </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Empty Board Subtle Guidance */}
-                        {cockpitWidgets.filter((w) => w.visible).length === 0 && !isBoardWriting && !(app.boardSettings?.cockpitInkByClass?.[app.activeClassId]?.length) && (
-                          <div
-                            id="cockpit-empty-state-hint"
-                            className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center select-none pointer-events-none"
-                          >
-                            <div className="flex flex-col items-center max-w-xl gap-4 pointer-events-auto bg-white/95 text-slate-900 border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
-                              <div
-                                className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${
-                                  currentIsLight
-                                    ? "bg-slate-100/90 border-slate-200/80 text-slate-400"
-                                    : "bg-white/[0.04] border-white/10 text-neutral-500"
-                                }`}
-                              >
-                                <Plus size={24} strokeWidth={2} className="opacity-70" />
-                              </div>
-                              <div className="space-y-1">
-                                <h3
-                                  className="text-xl sm:text-2xl font-semibold text-slate-900"
-                                >
-                                  Eine Fläche für deinen Unterricht
-                                </h3>
-                                <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                                  Schreibe direkt auf die Fläche oder lege Unterrichtshilfen dazu.
-                                  Alles bleibt an einem Ort.
-                                </p>
-                              </div>
-                              <button type="button" onClick={() => { setIsBoardWriting(true); setIsLayoutLocked(true); }} className="w-full min-h-12 px-5 py-3 rounded-xl bg-indigo-600 text-white font-semibold text-base">
-                                Schreiben & Zeichnen
-                              </button>
-                              <button type="button" onClick={() => setIsAddWidgetMenuOpen(true)} className="mt-3 min-h-11 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
-                                Widget hinzufügen
-                              </button>
                             </div>
                           </div>
                         )}
@@ -9951,18 +9951,9 @@ ${content}
 
                                     case "sorting":
                                       return (
-                                        <RetiredMathWidgetFallback
+                                        <SortingWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
-                                          onRemove={() =>
-                                            handleCloseWidget(
-                                              widget.id,
-                                              widget.type,
-                                            )
-                                          }
-                                          onOpenZahlenraum={() =>
-                                            toggleWidget("zahlenraum")
-                                          }
                                         />
                                       );
 
@@ -10177,20 +10168,18 @@ ${content}
                                       );
 
                                     case "mathduel":
-                                    case "shapepuzzle":
                                       return (
-                                        <RetiredMathWidgetFallback
+                                        <MathduelWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
-                                          onRemove={() =>
-                                            handleCloseWidget(
-                                              widget.id,
-                                              widget.type,
-                                            )
-                                          }
-                                          onOpenZahlenraum={() =>
-                                            toggleWidget("zahlenraum")
-                                          }
+                                        />
+                                      );
+
+                                    case "shapepuzzle":
+                                      return (
+                                        <ShapepuzzleWidgetContent
+                                          widget={widget}
+                                          currentIsLight={currentIsLight}
                                         />
                                       );
 
@@ -10339,18 +10328,9 @@ ${content}
 
                                     case "divrobot":
                                       return (
-                                        <RetiredMathWidgetFallback
+                                        <DivrobotWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
-                                          onRemove={() =>
-                                            handleCloseWidget(
-                                              widget.id,
-                                              widget.type,
-                                            )
-                                          }
-                                          onOpenZahlenraum={() =>
-                                            toggleWidget("zahlenraum")
-                                          }
                                         />
                                       );
 
