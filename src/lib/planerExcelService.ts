@@ -237,7 +237,7 @@ export async function parseWochenplanExcel(file: File): Promise<WochenplanImport
     if (!fachKey && !themaKey) {
       return {
         success: false,
-        error: "Erforderliche Spalten fehlen. Die Tabelle muss mindestens 'Fach' oder 'Thema / Inhalt' enthalten. Bitte verwende die LehrerAPP-Vorlage.",
+        error: "Erforderliche Spalten fehlen. Die Tabelle muss mindestens 'Fach' oder 'Thema / Inhalt' enthalten. Bitte verwende die Klassio-Vorlage.",
         rows: [],
         totalRows: rawData.length,
         validRows: 0,
@@ -574,7 +574,7 @@ export async function parseJahresplanExcel(
     if (!kwKey) {
       return {
         success: false,
-        error: "Spalte 'Kalenderwoche' (oder 'KW') fehlt. Bitte verwende die LehrerAPP-Vorlage.",
+        error: "Spalte 'Kalenderwoche' (oder 'KW') fehlt. Bitte verwende die Klassio-Vorlage.",
         rows: [],
         totalRows: rawData.length,
         validRows: 0,
@@ -585,7 +585,7 @@ export async function parseJahresplanExcel(
     if (!fachKey && !themaKey) {
       return {
         success: false,
-        error: "Erforderliche Spalten fehlen. Die Tabelle muss mindestens 'Fach' und 'Thema' enthalten. Bitte verwende die LehrerAPP-Vorlage.",
+        error: "Erforderliche Spalten fehlen. Die Tabelle muss mindestens 'Fach' und 'Thema' enthalten. Bitte verwende die Klassio-Vorlage.",
         rows: [],
         totalRows: rawData.length,
         validRows: 0,

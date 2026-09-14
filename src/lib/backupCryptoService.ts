@@ -284,7 +284,7 @@ export function deserializeBackup(rawContent: string): LehrerAppEncryptedBackupV
     if (!isEncryptedBackupV1(parsed)) {
       throw new CryptoError(
         'INVALID_PAYLOAD',
-        'Die Datei ist kein gültiges, verschlüsseltes LehrerAPP-Backup.'
+        'Die Datei ist kein gültiges, verschlüsseltes Klassio-Backup.'
       );
     }
     return parsed;

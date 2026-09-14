@@ -79,7 +79,7 @@ export default function PrintHeader({ title }: PrintHeaderProps) {
         <div className="w-1/3">
           <div className="text-[7pt] font-black uppercase tracking-widest text-slate-500 mb-1">Schule / Klasse</div>
           <h1 className="text-[12pt] font-black text-black leading-tight">
-            {app?.schulName || 'SchoolBase Pro'} {app?.schulkennzahl ? `(SKZ: ${app.schulkennzahl})` : ''} <br />
+            {app?.schulName || 'Klassio'} {app?.schulkennzahl ? `(SKZ: ${app.schulkennzahl})` : ''} <br />
             <span className="text-[10pt] font-bold">Klasse: {app?.klassenbezeichnung || 'N/A'} • SJ {app?.schuljahr || getCurrentSchuljahr()}</span>
           </h1>
         </div>

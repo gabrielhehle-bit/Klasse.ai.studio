@@ -69,7 +69,7 @@ export default function SettingsHeader({
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Was möchtest du an deiner LehrerAPP anpassen?
+              Was möchtest du in Klassio anpassen?
             </p>
           </div>
         </div>

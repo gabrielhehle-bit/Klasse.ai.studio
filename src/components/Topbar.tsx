@@ -362,8 +362,8 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
               href="https://paypal.me/gabrielhehle"
               target="_blank"
               rel="noopener noreferrer"
-              title="LehrerAPP freiwillig unterstützen"
-              aria-label="LehrerAPP freiwillig unterstützen"
+              title="Klassio freiwillig unterstützen"
+              aria-label="Klassio freiwillig unterstützen"
               className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-2xl text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
             >
               <Heart size={15} className="text-rose-500 fill-rose-500/20 shrink-0" />
@@ -986,11 +986,11 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                         rel="noopener noreferrer"
                         onClick={() => setShowMehrMenu(false)}
                         className="w-full flex items-center justify-between p-2 bg-[var(--surface-card,var(--surface))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-xl text-xs font-bold text-[var(--text-primary)] transition-colors cursor-pointer"
-                        title="LehrerAPP freiwillig unterstützen"
+                        title="Klassio freiwillig unterstützen"
                       >
                         <div className="flex items-center gap-2">
                           <Heart size={15} className="text-rose-500 fill-rose-500/20 shrink-0" />
-                          <span>LehrerAPP unterstützen (PayPal)</span>
+                          <span>Klassio unterstützen (PayPal)</span>
                         </div>
                         <ExternalLink size={13} className="text-[var(--text-muted)]" />
                       </a>
