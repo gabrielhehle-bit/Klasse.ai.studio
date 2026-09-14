@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Reconciliation-HEAD `c745dc35050995b9b6baf990296d23a80aa2a61a`: Pre-Deployment Audit #90 grün, 761/761 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-Branches bereits vor der Integration. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #90 erzeugte `klassio-world4you-c745dc35050995b9b6baf990296d23a80aa2a61a` mit `dist`, Branch-/Commitmarker und Startkommando. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Reconciliation-HEAD `09fafb52de67e1cd1a1d01e59e7089d23b1267c8`: Pre-Deployment Audit #92 grün, 765/765 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #92 erzeugte `klassio-world4you-09fafb52de67e1cd1a1d01e59e7089d23b1267c8` mit `dist`, Branch-/Commitmarker und Startkommando. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 ## Oberfläche und Navigation
@@ -30,6 +30,7 @@ Legende:
 | SetupWizard | 🟡 | PR #11 integriert: Anrede/Vorname/Nachname mit Legacy-Migration, dynamische Schuljahre, Importdaten ohne erfundene Standardwerte; realer Setup-/Import-Browsercheck offen. |
 | KI-Helfer | 🟡 | PR #10 integriert: echte Serverstatus-Anzeige, optionaler datensparsamer Klassenkontext ohne automatisch übermittelte Schülernamen, konkrete Fehlerzustände und explizite Foto-Datenschutzfreigabe. Live-Gemini-/Browser-Abnahme offen. |
 | Kernnavigation | ✅ | PR #23: Heute, Klasse, Planung, Leistungen und Unterricht bleiben die fünf Kernbereiche. Unterricht ist jetzt ein eigener Hub; zuvor verstreute Bestandswerkzeuge sind vollständig den Hubs bzw. `Mehr` zugeordnet. Regressionstests sichern Vollständigkeit und Reihenfolge. |
+| Rücknavigation aus Detailseiten | ✅ | PR #25: Detailseiten kennen ihren fachlichen Hauptbereich; die Topbar zeigt Kontext + Seitentitel und bietet einen direkten Rückweg zu Unterricht, Klasse, Planung oder Leistungen. Utilities bleiben bewusst ohne künstlichen Elternbereich; Regressionstests sichern die Hierarchie. |
 | Produktivdaten: Wetter/WLAN/Klasse | ✅ | PR #19: keine erfundenen Klassen-, WLAN-, Wetter- oder Prognosewerte; fehlende Daten werden transparent angezeigt, WLAN-QR nur bei echter SSID. |
 | Sichtbares Produktbranding | ✅ | PR #21 finalisiert: Setup, Demo-Hinweise, Diagnostik, Quest, Einstellungen, Backup-UI, OneDrive-Hilfe sowie Wochen-/Jahresplaner-Excel verwenden Klassio/Klassio Quest; `.lehrerapp` ist als Legacy-Format gekennzeichnet. Interne Legacy-Crypto-/Storage-Kennungen bleiben aus Kompatibilitätsgründen bewusst bestehen. |
 | Lehrercockpit: finale Anforderungen | ✅ | PR #6 integriert; freie weiße Fläche ohne Startkarte, keine Standardwidgets, verständliche Kategorien, Optionen/Archiv und sprachliche Bereinigung per Regressionstests abgesichert. |
