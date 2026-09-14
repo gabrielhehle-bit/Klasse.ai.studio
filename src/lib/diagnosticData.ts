@@ -1,4 +1,5 @@
 import { AppState, DiagnostikErhebung, DiagnostikTest } from '../types';
+import { formatLocalDateKey } from './utils';
 
 export type DiagnosticValidation = {
   valid: boolean;
@@ -48,6 +49,9 @@ const validDate = (value: string) => {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 };
 
+export const isDiagnosticDateInFuture = (value: string, now = new Date()) =>
+  value > formatLocalDateKey(now);
+
 export function validateDiagnosticEntry(
   app: Pick<AppState, 'schueler' | 'diagnostikTests' | 'activeClassId' | 'schuljahr' | 'klassenbezeichnung'>,
   entry: DiagnostikErhebung
@@ -65,7 +69,7 @@ export function validateDiagnosticEntry(
     errors.push('Verfahren ist nicht mehr im Diagnostik-Katalog vorhanden.');
   }
   if (!validDate(entry.datum)) errors.push('Datum ist ungültig.');
-  if (validDate(entry.datum) && entry.datum > new Date().toISOString().slice(0, 10)) {
+  if (validDate(entry.datum) && isDiagnosticDateInFuture(entry.datum)) {
     errors.push('Datum darf nicht in der Zukunft liegen.');
   }
   if (!entry.schuljahr) errors.push('Schuljahr fehlt.');
