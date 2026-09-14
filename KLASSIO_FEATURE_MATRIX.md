@@ -17,7 +17,7 @@ Legende:
 | GitHub als einzige Source of Truth | ✅ | Repository-Regeln dokumentiert; ZIP ist keine Arbeitsgrundlage. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | 707/707 Tests, TS, Production-Build, PWA, Zugangscode-/Session-Smoke und World4You-Artefakt auf `e85e78c` grün; nach jedem neuen Commit erneut verpflichtend. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Abschlussstand: 738/738 Tests, TS, Production-Build und PWA auf `983b04c` grün. Vor Staging muss zusätzlich der `Pre-Deployment Audit` des aktuellen Reconciliation-HEADs grün sein; er prüft Server-/Session-Smoke und erzeugt das commitgebundene World4You-Artefakt. |
 | Commitgebundenes World4You-Artefakt | ✅ | CI erzeugt nur nach grünem Audit ein ZIP mit `dist`, Branch-/Commitmarker und Startkommando. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
@@ -25,7 +25,9 @@ Legende:
 
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
-| Dashboard / Heute | 🟡 | Funktional vorhanden; letzte visuelle Browser-Abnahme offen. |
+| Dashboard / Heute | 🟡 | PR #12 integriert: angezeigter Tag, lokale Datumsschlüssel, Bundesland/Ferien/Feiertage und Kalender-Ausnahmen werden berücksichtigt; Anwesenheit wird nicht automatisch als vollständig angenommen. Visuelle Browser-Abnahme offen. |
+| SetupWizard | 🟡 | PR #11 integriert: Anrede/Vorname/Nachname mit Legacy-Migration, dynamische Schuljahre, Importdaten ohne erfundene Standardwerte; realer Setup-/Import-Browsercheck offen. |
+| KI-Helfer | 🟡 | PR #10 integriert: echte Serverstatus-Anzeige, optionaler datensparsamer Klassenkontext ohne automatisch übermittelte Schülernamen, konkrete Fehlerzustände und explizite Foto-Datenschutzfreigabe. Live-Gemini-/Browser-Abnahme offen. |
 | Kernnavigation | ✅ | Heute, Klasse, Planung, Leistungen, Unterricht + Utilities per Regressionstest abgesichert. |
 | Sichtbares Produktbranding | ✅ | Setup, Demo-Hinweise, Diagnostik, Quest, Einstellungen, Backup-UI und Drucktexte verwenden Klassio/Klassio Quest; interne Legacy-Crypto-/Storage-Kennungen bleiben aus Kompatibilitätsgründen bewusst bestehen. |
 | Lehrercockpit: finale Anforderungen | ✅ | PR #6 integriert; freie weiße Fläche ohne Startkarte, keine Standardwidgets, verständliche Kategorien, Optionen/Archiv und sprachliche Bereinigung per Regressionstests abgesichert. |
@@ -41,13 +43,13 @@ Legende:
 
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
-| Anwesenheit | ✅ | Abschluss füllt nur leere Stunden; vorhandene Fehl-/Entschuldigungswerte bleiben erhalten; „Heute“ verwendet den lokalen Kalendertag statt UTC; Regressionstest vorhanden. |
+| Anwesenheit | ✅ | Abschluss füllt nur leere Stunden; vorhandene Fehl-/Entschuldigungswerte bleiben erhalten. Dashboard verlangt Erfassung nur an echten Schultagen und zeigt „geprüft“ erst, wenn für alle Kinder alle aktiven Stunden erfasst sind; lokaler Kalendertag statt UTC; Regressionstests vorhanden. |
 | Befinden | ✅ | Einheitliche 5-Stufen-Skala von sehr gut bis schlecht. |
-| Schülerliste | 🟡 | Suche, Filter, Liste/Karten/Karte, Import, Dossier, Notiz/Interaktion und Bearbeiten/Löschen bleiben erhalten; ISO- und österreichische Geburtsdaten werden konsistent ausgewertet, CSV/Excel/Sokrates-Geschlecht wird normalisiert und fehlende Werte nicht erfunden; Browser-Abnahme offen. |
+| Schülerliste | 🟡 | Suche, Filter, Liste/Karten/Karte, Import, Dossier, Notiz/Interaktion und Bearbeiten/Löschen bleiben erhalten; ISO- und österreichische Geburtsdaten werden konsistent ausgewertet. CSV/Excel/Sokrates-Import erfindet fehlendes Geschlecht, Erstsprache oder Staatsbürgerschaft nicht; Browser-Abnahme offen. |
 | Schülerdossier Struktur | ✅ | Fünf feste Hauptbereiche: Übersicht; Lernen & Leistungen; Entwicklung & Diagnostik; Stammdaten & Organisation; Berichte & Materialien. Alte Einfach/Experte-/Ausblendlogik entfernt; Regressionstest vorhanden. |
 | Schülerdossier Semesterwechsel | ✅ | Auswahl Semester 1/2 wird korrekt übernommen; Regressionstest vorhanden. |
 | Schülerdossier Browser-Abnahme | 🟡 | Navigation, Detailtabs, Fokusmodus und responsive Darstellung müssen im finalen Browser-Walkthrough praktisch geprüft werden. |
-| Diagnostik | 🟡 | 3-stufige Hierarchie/Checks/Ergebnisse vorhanden; vollständiger Browser-Walkthrough offen. |
+| Diagnostik | 🟡 | PR #9 integriert: 3-stufige Hierarchie/Checks/Ergebnisse, klassenlokale iKM-/Antolin-/Ziel-/Beobachtungs-/Metakognitionsdaten, aktive Klassen-ID für strukturierte Ergebnisse und lokale Datumsprüfung. Vollständiger Browser-Walkthrough offen. |
 | Multi-Class | ✅ | Klassenwechsel/Migration/Erweiterungsfelder und Cockpit-Ink per Tests abgesichert. |
 
 ## Leistungen
@@ -65,6 +67,7 @@ Legende:
 
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
+| Stundenplan 10 Slots | ✅ | PR #13 integriert: Setup-Zeitfelder, Tagesrahmen, mobile/desktop Stammplan-Raster und Dashboard-Vorschau verwenden 10 Slots. Für 9./10. Stunde werden keine Standardzeiten erfunden; frei konfigurierbar. |
 | Wochenplan Vollbild | ✅ | Implementiert. |
 | Wochenplan Excel Roundtrip | ✅ | Vorlage + Import, Ergänzen/Lücken füllen oder überschreiben. |
 | Wochenplan-Aufgabenblatt | ✅ | Generator vorhanden. |
@@ -92,6 +95,7 @@ Legende:
 | Administrativer Zugangscode | ✅ | Bleibt als Fallback; CI-Smoke prüft Cookie-Session. |
 | Vertrauenswürdiges Gerät für Tresor | 🟡 | 30 Tage optional; Vault-Key nur verschlüsselt, Device-CryptoKey nicht exportierbar; Browser/IndexedDB-Test offen. |
 | Recovery-Code per E-Mail | 🔒 | Bewusst nicht umgesetzt: E-Mail-Kompromittierung darf den lokalen Tresor nicht entschlüsseln. |
+| KI-Bilddatenschutz | ✅ | Fotoanalyse ist client- und serverseitig ohne explizite Bestätigung blockiert; Base64-Bilddaten laufen nicht durch Text-Regexfilter; nur JPEG/PNG/WebP für `askAI`; Regressionstests vorhanden. |
 | Smartboard-Sync | 🟡 | Verschlüsselter Sync vorhanden; Browser-/Geräteabnahme offen. |
 | Offline / PWA | 🟡 | Build und Service-Worker-Ausgabe grün; realer Offline-Browsercheck offen. |
 
