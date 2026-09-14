@@ -56,6 +56,9 @@ export const initialAppState: AppState = {
   jahresplan_faecher: DEFAULT_YEARLY_SUBJECTS,
   fachConfig: DEFAULT_FACH_COLORS,
   wochenplanung: {},
+  savedWeekTemplates: {},
+  parkgarage: [],
+  termine: [],
   firstLogin: true,
   tourAbgeschlossen: false,
   currentPage: 'cockpit',
@@ -200,6 +203,9 @@ export function syncActiveClass(state: AppState): AppState {
     jahresplan_faecher: state.jahresplan_faecher ? [...state.jahresplan_faecher] : undefined,
     wochenplanung: state.wochenplanung ? JSON.parse(JSON.stringify(state.wochenplanung)) : {},
     scheduleAnalysis: state.scheduleAnalysis ? JSON.parse(JSON.stringify(state.scheduleAnalysis)) : undefined,
+    savedWeekTemplates: state.savedWeekTemplates ? JSON.parse(JSON.stringify(state.savedWeekTemplates)) : {},
+    parkgarage: state.parkgarage ? JSON.parse(JSON.stringify(state.parkgarage)) : [],
+    termine: state.termine ? JSON.parse(JSON.stringify(state.termine)) : [],
     stammplan: state.stammplan ? JSON.parse(JSON.stringify(state.stammplan)) : {},
     anwesenheit: state.anwesenheit ? JSON.parse(JSON.stringify(state.anwesenheit)) : {},
     anwesenheitDetail: state.anwesenheitDetail ? JSON.parse(JSON.stringify(state.anwesenheitDetail)) : undefined,
@@ -307,6 +313,10 @@ export function normalizeAppState(raw: any): AppState {
       jahresplanung: parsed.jahresplanung || {},
       jahresplan_faecher: parsed.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
       wochenplanung: parsed.wochenplanung || {},
+      scheduleAnalysis: parsed.scheduleAnalysis || {},
+      savedWeekTemplates: parsed.savedWeekTemplates || {},
+      parkgarage: parsed.parkgarage || [],
+      termine: parsed.termine || [],
       stammplan: parsed.stammplan || {},
       anwesenheit: parsed.anwesenheit || {},
       anwesenheitDetail: parsed.anwesenheitDetail || {},
@@ -367,6 +377,11 @@ export function normalizeAppState(raw: any): AppState {
         jahresplanung: c.jahresplanung || {},
         jahresplan_faecher: c.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
         wochenplanung: c.wochenplanung || {},
+        scheduleAnalysis: c.scheduleAnalysis ?? (c.id === parsed.activeClassId ? parsed.scheduleAnalysis : undefined) ?? {},
+        // Legacy planning-center helpers were root-global; preserve them in each existing class once.
+        savedWeekTemplates: c.savedWeekTemplates ?? parsed.savedWeekTemplates ?? {},
+        parkgarage: c.parkgarage ?? parsed.parkgarage ?? [],
+        termine: c.termine ?? parsed.termine ?? [],
         stammplan: c.stammplan || {},
         anwesenheit: c.anwesenheit || {},
         anwesenheitDetail: c.anwesenheitDetail || {},
@@ -465,6 +480,10 @@ export function normalizeAppState(raw: any): AppState {
     parsed.jahresplanung = activeClass.jahresplanung;
     parsed.jahresplan_faecher = activeClass.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS;
     parsed.wochenplanung = activeClass.wochenplanung;
+    parsed.scheduleAnalysis = activeClass.scheduleAnalysis || {};
+    parsed.savedWeekTemplates = activeClass.savedWeekTemplates || {};
+    parsed.parkgarage = activeClass.parkgarage || [];
+    parsed.termine = activeClass.termine || [];
     parsed.stammplan = activeClass.stammplan;
     parsed.anwesenheit = activeClass.anwesenheit;
     parsed.anwesenheitDetail = activeClass.anwesenheitDetail;
@@ -701,6 +720,10 @@ export function switchClassState(prev: AppState, id: string): AppState {
     jahresplanung: targetClass.jahresplanung,
     jahresplan_faecher: targetClass.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
     wochenplanung: targetClass.wochenplanung ? JSON.parse(JSON.stringify(targetClass.wochenplanung)) : {},
+    scheduleAnalysis: targetClass.scheduleAnalysis ? JSON.parse(JSON.stringify(targetClass.scheduleAnalysis)) : {},
+    savedWeekTemplates: targetClass.savedWeekTemplates ? JSON.parse(JSON.stringify(targetClass.savedWeekTemplates)) : {},
+    parkgarage: targetClass.parkgarage ? JSON.parse(JSON.stringify(targetClass.parkgarage)) : [],
+    termine: targetClass.termine ? JSON.parse(JSON.stringify(targetClass.termine)) : [],
     stammplan: targetClass.stammplan ? JSON.parse(JSON.stringify(targetClass.stammplan)) : {},
     anwesenheit: targetClass.anwesenheit,
     anwesenheitDetail: targetClass.anwesenheitDetail,
