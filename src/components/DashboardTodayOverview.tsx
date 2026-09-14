@@ -371,7 +371,7 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
 
           <button
             type="button"
-            onClick={() => onNavigate(openCollectionsCount > 0 ? "geldsammlung" : "orga")}
+            onClick={() => onNavigate("orga")}
             className="mt-4 w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
           >
             <ListTodo size={14} />
@@ -625,10 +625,10 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
 
           <button
             type="button"
-            onClick={() => onNavigate("kalender")}
+            onClick={() => onNavigate("planung")}
             className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-0.5 cursor-pointer"
           >
-            <span>Kalender</span>
+            <span>Planung</span>
             <ChevronRight size={14} />
           </button>
         </div>
@@ -692,10 +692,10 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
                     </div>
                     <button
                       type="button"
-                      onClick={() => onNavigate("kalender")}
+                      onClick={() => onNavigate("planung")}
                       className="text-xs font-bold text-indigo-600 hover:underline"
                     >
-                      Öffnen
+                      Planung öffnen
                     </button>
                   </div>
                 ))
