@@ -599,7 +599,7 @@ export default function Uebergabemappe() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[1, 2, 3, 4, 5, 6].map(std => {
+                  {LESSON_SLOT_NUMBERS.map(std => {
                     const stammFach = app.stammplan[dayName]?.[std];
                     const wpItem = app.wochenplanung[kw]?.[dayName]?.[std - 1];
                     const lpKey = `${kw}-${dayName}-${std - 1}`;
@@ -607,7 +607,7 @@ export default function Uebergabemappe() {
                     
                     const assignmentKey = `${dayStr}-${std}`;
                     const assignedId = assignedStundenbilder[assignmentKey];
-                    const assignedSb = app.materialien?.filter(m => m.typ === 'stundenentwurf').find(m => m.id === assignedId);
+                    const assignedSb = lessonPlans.find(m => m.id === assignedId);
 
                     const effectiveFach = (assignedSb?.faecher && assignedSb.faecher[0]) || wpItem?.fach || stammFach || '—';
                     const effectiveInhalt = assignedSb?.titel || wpItem?.thema || '—';
@@ -616,7 +616,7 @@ export default function Uebergabemappe() {
                       return (
                         <tr key={std} className="border-b border-slate-250 bg-slate-50/50 italic text-slate-400 select-none">
                           <td className="border border-slate-300 p-2 text-center font-bold bg-slate-50">{std}.</td>
-                          <td className="border border-slate-300 p-2 text-center text-[7.5pt]">{STUNDEN_INFO[std]}</td>
+                          <td className="border border-slate-300 p-2 text-center text-[7.5pt]">{getHandoverLessonTime(app.stundenZeiten, STUNDEN_INFO, std)}</td>
                           <td className="border border-slate-300 p-2 text-center font-bold" colSpan={3}>Unterrichtsfrei / Pause</td>
                         </tr>
                       );
@@ -625,7 +625,7 @@ export default function Uebergabemappe() {
                     return (
                       <tr key={std} className="border-b border-slate-200 text-slate-800">
                         <td className="border border-slate-300 p-2 font-black text-center bg-slate-50">{std}.</td>
-                        <td className="border border-slate-300 p-1.5 text-center text-[8pt] text-slate-500 font-semibold">{STUNDEN_INFO[std]}</td>
+                        <td className="border border-slate-300 p-1.5 text-center text-[8pt] text-slate-500 font-semibold">{getHandoverLessonTime(app.stundenZeiten, STUNDEN_INFO, std)}</td>
                         <td className="border border-slate-300 p-2 text-center font-bold">{effectiveFach}</td>
                         <td className="border border-slate-300 p-2 text-left">
                           <div>
@@ -940,9 +940,9 @@ export default function Uebergabemappe() {
     // PAGE 5: WORKWHEETS FOR LESSON PLANS
     const assignedWorksheets = daysToPrint.flatMap(date => {
       const dateStr = date.toISOString().split('T')[0];
-      return [1, 2, 3, 4, 5, 6].map(std => {
+      return LESSON_SLOT_NUMBERS.map(std => {
         const id = assignedStundenbilder[`${dateStr}-${std}`];
-        return app.materialien?.filter(m => m.typ === 'stundenentwurf').find(m => m.id === id);
+        return lessonPlans.find(m => m.id === id);
       }).filter(Boolean);
     }).reduce((acc: any[], curr) => {
       if (curr && !acc.some(a => a.id === curr.id)) acc.push(curr);
@@ -967,7 +967,7 @@ export default function Uebergabemappe() {
               </div>
               <div className="text-right text-[0.625rem]">
                 <span className="text-[0.5rem] font-black uppercase text-slate-400 block tracking-widest">Detail-Stundenbild</span>
-                <span className="font-bold text-slate-700">{sb.dauer} Min. • {sb.schueler?.length || app.stufe}. Stufe</span>
+                <span className="font-bold text-slate-700">{sb.dauer} Min. • {(sb.schulstufen.join(', ') || app.stufe)}. Stufe</span>
               </div>
             </div>
 
@@ -1801,7 +1801,7 @@ export default function Uebergabemappe() {
                         <div key={dateStr} className="space-y-2 bg-slate-950 p-3 rounded-xl border border-slate-850">
                           <p className="text-[0.625rem] font-extrabold text-indigo-400">{formatDate(date)}</p>
                           <div className="grid grid-cols-1 gap-2">
-                            {[1, 2, 3, 4, 5, 6].map(std => {
+                            {LESSON_SLOT_NUMBERS.map(std => {
                               const stammFach = app.stammplan[dName]?.[std];
                               const wpItem = app.wochenplanung[kw]?.[dName]?.[std - 1];
                               const hasContent = stammFach || wpItem?.thema;
@@ -1818,7 +1818,7 @@ export default function Uebergabemappe() {
                                     </div>
                                     <button 
                                       onClick={() => {
-                                        const firstSb = app.materialien?.find(m => m.typ === 'stundenentwurf');
+                                        const firstSb = lessonPlans[0];
                                         if (firstSb) {
                                           setAssignedStundenbilder(prev => ({ ...prev, [assignmentKey]: firstSb.id }));
                                         } else {
@@ -1848,7 +1848,7 @@ export default function Uebergabemappe() {
                                     className="flex-1 bg-transparent text-[0.65625rem] font-bold text-slate-200 outline-none cursor-pointer border-none p-0 focus:ring-0 animate-fade-in"
                                   >
                                     <option value="" className="bg-slate-950 text-slate-400">(Freie Stunde)</option>
-                                    {app.materialien?.filter(m => m.typ === 'stundenentwurf').map(sb => (
+                                    {lessonPlans.map(sb => (
                                       <option key={sb.id} value={sb.id} className="bg-slate-950 text-slate-100">{sb.titel} ({sb.dauer}m)</option>
                                     ))}
                                   </select>
@@ -2118,9 +2118,9 @@ export default function Uebergabemappe() {
       {/* PAGE 4: DETAILED LESSON PLANS */}
         {getDaysToPrint().flatMap(date => {
           const dateStr = date.toISOString().split('T')[0];
-          return [1, 2, 3, 4, 5, 6].map(std => {
+          return LESSON_SLOT_NUMBERS.map(std => {
             const id = assignedStundenbilder[`${dateStr}-${std}`];
-            return app.materialien?.filter(m => m.typ === 'stundenentwurf').find(m => m.id === id);
+            return lessonPlans.find(m => m.id === id);
           }).filter(Boolean);
         }).reduce((acc: any[], curr) => {
           if (curr && !acc.some(a => a.id === curr.id)) acc.push(curr);
