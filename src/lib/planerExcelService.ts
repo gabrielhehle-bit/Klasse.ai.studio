@@ -485,7 +485,7 @@ export function buildJahresplanTemplateRows(app: AppState): (string | number)[][
     if (isMajorHoliday) {
       rows.push([
         kw,
-        '-',
+        swIndex,
         dateStr,
         'Ferien / Schulfrei',
         holiday || '',
@@ -529,9 +529,9 @@ export function buildJahresplanTemplateRows(app: AppState): (string | number)[][
           ]);
         });
       });
-      swIndex++;
     }
 
+    swIndex++;
     currentMonday.setDate(currentMonday.getDate() + 7);
   }
 
