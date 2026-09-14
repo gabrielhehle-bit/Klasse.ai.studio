@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Student, DiagnostikErhebung, DiagnostikTest, VORSCHLAG_DIAGNOSTIK_TESTS } from '../types';
-import { logActivity } from '../lib/utils';
+import { formatLocalDateKey, logActivity } from '../lib/utils';
 import { ZahlenspanneTest } from './ZahlenspanneTest';
 import { MengenBlitzenTest } from './MengenBlitzenTest';
 import { GoNoGoTest } from './GoNoGoTest';
@@ -1170,7 +1170,7 @@ export default function LiveDiagnostik() {
       id: crypto.randomUUID(),
       schuelerId: selectedStudentId,
       testId: result.testId,
-      datum: new Date().toISOString().split('T')[0],
+      datum: formatLocalDateKey(new Date()),
       schuljahr: app.schuljahr || '2023/24',
       schulstufe: currentGrade,
       rohwert: result.score,
@@ -1489,7 +1489,7 @@ export default function LiveDiagnostik() {
       id: crypto.randomUUID(),
       schuelerId: selectedStudentId,
       testId,
-      datum: new Date().toISOString().split('T')[0],
+      datum: formatLocalDateKey(new Date()),
       schuljahr: app.schuljahr || '2023/24',
       schulstufe: currentGrade,
       rohwert: ergebnis,
