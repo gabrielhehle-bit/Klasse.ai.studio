@@ -40,6 +40,7 @@ Anschließend wurden die letzten funktionalen Reste aus historischen Divergenzen
 - PR #23: Navigation vollständig gemacht, ohne die vereinfachte Kernnavigation wieder aufzublähen. `Unterricht` ist jetzt ein eigener Hub; Lehrercockpit, KI-Helfer, Arbeitsblatt-Generator, Stationenbetrieb, Stimm-Notizen, Differenzierung und Elternbrief sind dort gebündelt. Klasse, Planung und Leistungen enthalten zusätzlich die zuvor verstreuten Detailwerkzeuge; das Cockpit kehrt beim Schließen in den Unterrichtsbereich zurück. Eine neue Feature-Branch-CI prüft TypeScript, Tests, Build und PWA-Ausgabe bereits vor der Integration.
 - PR #25: Detailseiten erhielten eine feste Navigationshierarchie. Die Topbar zeigt den zugehörigen Hauptbereich und bietet einen direkten Zurückweg zu `Unterricht`, `Klasse`, `Planung` oder `Leistungen`; Backup, Einstellungen, Druckzentrum und Archiv bleiben bewusst ohne künstlichen Elternbereich. Regressionstests sichern diese Zuordnung.
 - PR #26: Die Hauptbereiche `Klasse`, `Planung` und `Leistungen` wurden weiter aufgeräumt. Doppelte Schnellnavigation wurde entfernt, Karten sind in sinnvolle Untergruppen gegliedert, Klassenvorstand-Sichtbarkeit bleibt erhalten und alle bisherigen Ziele bleiben erreichbar. Regressionstests sichern Struktur und vollständige Zielmenge.
+- PR #30: Die Startseite `Heute` wurde navigationssicher gemacht. Die kompakte Lehreransicht bleibt Standard; tote Legacy-Ziele `einstellungen`, `geldsammlung` und `kalender` wurden auf die realen Bereiche Einstellungen, Organisation und Planung umgestellt. Ein neuer Vertragstest gleicht Dashboard-Ziele gegen das echte App-Routing ab.
 
 Die historischen divergierenden Branches `audit/production-demo-data`, `audit/visible-legacy-branding`, `audit/visible-legacy-branding-final`, `fix/klassio-visible-branding`, `fix/json-backups-and-critical-data-flows` und `feature/final-app-polish` wurden anschließend gezielt gegen den aktuellen Reconciliation-Stand geprüft. Ihre noch eigenen Commits enthalten entweder nur temporäre Audit-/CI-Workflows oder ältere Varianten von Funktionen, die im aktuellen Stand bereits gleichwertig oder neuer umgesetzt sind. Sie werden deshalb **nicht** in den Produktstand gemergt.
 
@@ -47,18 +48,18 @@ Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist kei
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Reconciliation-Stand liegt nach PR #26 auf Commit `892e9b90791edc30a84445bc859dfb448e1b8751` und wurde vollständig geprüft:
+Der letzte codehaltige Reconciliation-Stand liegt nach PR #30 auf Commit `d5026b5ee256f1b6fb238f834bb017c347d88246` und wurde vollständig geprüft:
 
-- Pre-Deployment Audit #93: erfolgreich
+- Pre-Deployment Audit #96: erfolgreich
 - TypeScript: erfolgreich
-- Tests: 769/769 erfolgreich
+- Tests: 772/772 erfolgreich
 - Production Build: erfolgreich
 - PWA-/Build-Ausgabe: erfolgreich
 - Production-Server- und `/api/health`-Smoke: erfolgreich
 - Zugangscode-/Session-/E-Mail-Fallback-Smoke: erfolgreich
-- World4You-Artefakt: `klassio-world4you-892e9b90791edc30a84445bc859dfb448e1b8751`
+- World4You-Artefakt: `klassio-world4you-d5026b5ee256f1b6fb238f834bb017c347d88246`
 
-PR #26 wurde nach grüner Feature-Branch-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `892e9b90791edc30a84445bc859dfb448e1b8751`.
+PR #30 wurde nach grüner Feature-Branch-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `d5026b5ee256f1b6fb238f834bb017c347d88246`.
 
 Der aktuelle Branch-HEAD kann danach reine Dokumentationscommits enthalten. Deshalb wird der verbindliche Reconciliation-HEAD **nicht dauerhaft in dieser Datei festgeschrieben**, sondern vor jeder Arbeit live aus GitHub gelesen und mit seinem neuesten erfolgreichen `Pre-Deployment Audit` abgeglichen.
 

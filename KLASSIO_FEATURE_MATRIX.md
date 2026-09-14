@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `892e9b90791edc30a84445bc859dfb448e1b8751`: Pre-Deployment Audit #93 grün, 769/769 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #93 erzeugte `klassio-world4you-892e9b90791edc30a84445bc859dfb448e1b8751` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `d5026b5ee256f1b6fb238f834bb017c347d88246`: Pre-Deployment Audit #96 grün, 772/772 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #96 erzeugte `klassio-world4you-d5026b5ee256f1b6fb238f834bb017c347d88246` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 ## Oberfläche und Navigation
