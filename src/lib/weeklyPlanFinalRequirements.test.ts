@@ -70,3 +70,16 @@ test('Schüler-Wochenplan: Stunde 9 und 10 werden als Aufgaben übernommen', () 
     [9, 10],
   );
 });
+
+
+test('Wochenplanung: Mittagspause und Mehrstundenblöcke folgen der Klassenkonfiguration', () => {
+  assert.match(weekly, /app\.mittagspauseNachStunde \|\| 5/);
+  assert.match(weekly, /zIdx >= lunchAfterSlot/);
+  assert.match(weekly, /zIdx === lunchAfterSlot - 1/);
+  assert.match(weekly, /weeklyLessonDurationSlots\(item\?\.duration, zIdx\)/);
+  assert.match(weekly, /MAX_LESSON_SLOTS - editingCell\.idx/);
+  assert.match(weekly, />Restlicher Tag</);
+  assert.doesNotMatch(weekly, /zIdx >= 5 \? 1 : 0/);
+  assert.doesNotMatch(weekly, /zIdx === 4 &&/);
+  assert.doesNotMatch(weekly, /\[1, 2, 3, 4, 5, 6\]\.map/);
+});
