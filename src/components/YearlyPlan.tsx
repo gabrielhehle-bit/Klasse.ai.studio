@@ -583,7 +583,7 @@ export default function YearlyPlan() {
   };
 
   const renderCellContent = (data: any, s: any, kw: number) => {
-    const isDraggable = !!(data?.items?.length > 0 || data?.thema || data?.buch || data?.type !== 'standard');
+    const isDraggable = !!data && !!(data?.items?.length > 0 || data?.thema || data?.buch || (data?.type && data.type !== 'standard'));
     const isCompleted = !!data?.completed;
     const hasMultipleItems = data?.items && data.items.length > 0;
     const displayTitle = hasMultipleItems 
