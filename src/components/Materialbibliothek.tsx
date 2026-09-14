@@ -1216,7 +1216,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
                       : 'border-indigo-200 bg-indigo-50/30 hover:bg-indigo-50/50 hover:border-indigo-400'
                   }`}
                 >
-                  <input type="file" accept="image/*,application/pdf" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" id="file-upload" onChange={handleFileChange} />
+                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" id="file-upload" onChange={handleFileChange} />
                   <div className="pointer-events-none">
                     <div className={`w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm group-hover:scale-110 transition-transform ${isDragging ? 'animate-bounce text-indigo-600' : 'text-indigo-500'}`}>
                        <UploadCloud size={32} />
