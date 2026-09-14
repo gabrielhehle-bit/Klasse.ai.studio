@@ -212,6 +212,9 @@ export function syncActiveClass(state: AppState): AppState {
     customLists: state.customLists ? JSON.parse(JSON.stringify(state.customLists)) : [],
     behavior_status: state.behavior_status ? { ...state.behavior_status } : {},
     behavior_notes: state.behavior_notes ? { ...state.behavior_notes } : {},
+    notes: state.notes ? JSON.parse(JSON.stringify(state.notes)) : [],
+    journal: state.journal ? JSON.parse(JSON.stringify(state.journal)) : [],
+    statusLog: state.statusLog ? JSON.parse(JSON.stringify(state.statusLog)) : [],
     stundenZeiten: state.stundenZeiten ? { ...state.stundenZeiten } : {},
     sue_kontrolle: state.sue_kontrolle ? JSON.parse(JSON.stringify(state.sue_kontrolle)) : {},
     lastGroups: state.lastGroups,
@@ -538,6 +541,25 @@ export function normalizeAppState(raw: any): AppState {
     parsed.notes = migratedNotes.sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime());
   }
 
+  // Migration / projection: chronicle, journal and behavior history are class-local.
+  // Legacy root-only data belongs to the active class only; inactive classes start empty.
+  if (parsed.classes && Array.isArray(parsed.classes) && parsed.classes.length > 0) {
+    parsed.classes = parsed.classes.map((c: any) => {
+      const isActive = c.id === parsed.activeClassId;
+      return {
+        ...c,
+        notes: c.notes ?? (isActive ? (parsed.notes || []) : []),
+        journal: c.journal ?? (isActive ? (parsed.journal || []) : []),
+        statusLog: c.statusLog ?? (isActive ? (parsed.statusLog || []) : [])
+      };
+    });
+
+    const activeClassWithNotes = parsed.classes.find((c: any) => c.id === parsed.activeClassId);
+    parsed.notes = activeClassWithNotes?.notes || [];
+    parsed.journal = activeClassWithNotes?.journal || [];
+    parsed.statusLog = activeClassWithNotes?.statusLog || [];
+  }
+
   const schuelerExist = parsed.schueler && parsed.schueler.length > 0;
   const computedTourAbgeschlossen = schuelerExist ? true : (parsed.tourAbgeschlossen ?? false);
 
@@ -624,6 +646,9 @@ export function switchClassState(prev: AppState, id: string): AppState {
     klassenkasse: targetClass.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
     behavior_status: targetClass.behavior_status || {},
     behavior_notes: targetClass.behavior_notes || {},
+    notes: targetClass.notes ? JSON.parse(JSON.stringify(targetClass.notes)) : [],
+    journal: targetClass.journal ? JSON.parse(JSON.stringify(targetClass.journal)) : [],
+    statusLog: targetClass.statusLog ? JSON.parse(JSON.stringify(targetClass.statusLog)) : [],
     sue_kontrolle: targetClass.sue_kontrolle || {},
     sitzplan_schueler: targetClass.sitzplan_schueler || {},
     sitzplan_objekte: targetClass.sitzplan_objekte || [],
