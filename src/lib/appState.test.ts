@@ -447,3 +447,22 @@ test('class switches isolate gradebook participation settings', () => {
   assert.equal(reloaded.classes[1].mitarbeit_settings?.relative_confirmed, true);
   assert.equal(reloaded.classes[1].mitarbeit_settings?.relative_thresholds?.[1], 25);
 });
+
+
+test('legacy shared participation settings are copied to every existing class before classes diverge', () => {
+  const legacy = normalizeAppState({
+    activeClassId: 'a',
+    mitarbeit_settings: {
+      mode: 'absolute',
+      thresholds: { 1: 18, 2: 14, 3: 9, 4: 5, 5: 0 },
+    },
+    classes: [
+      { id: 'a', name: 'a', schueler: [], noten: {}, mitarbeit: {} },
+      { id: 'b', name: 'b', schueler: [], noten: {}, mitarbeit: {} },
+    ],
+  });
+
+  assert.equal(legacy.classes[0].mitarbeit_settings?.thresholds?.[1], 18);
+  assert.equal(legacy.classes[1].mitarbeit_settings?.thresholds?.[1], 18);
+  assert.equal(switchClassState(legacy, 'b').mitarbeit_settings?.thresholds?.[1], 18);
+});
