@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildAiClassContext, validateAiImagePrivacy } from './aiPrivacy';
+import { buildAiClassContext, validateAiImagePrivacy, validateAiServerImageRequest } from './aiPrivacy';
 
 test('AI image payload requires explicit privacy confirmation', () => {
   const image = { data: 'base64', mimeType: 'image/jpeg' };
@@ -33,4 +33,17 @@ test('AI class context contains useful class facts but no student names', () => 
   assert.match(context, /Deutsch/);
   assert.match(context, /Wörtliche Rede/);
   assert.doesNotMatch(context, /Geheimkind|NochEinName|Privat/);
+});
+
+
+test('AI server rejects unconfirmed, unsupported and invalid image requests', () => {
+  const jpeg = { data: 'base64', mimeType: 'image/jpeg' };
+  assert.match(validateAiServerImageRequest('askAI', jpeg, false) || '', /Datenschutzbestätigung fehlt/);
+  assert.match(validateAiServerImageRequest('generateContent', jpeg, true) || '', /nicht zulässig/);
+  assert.match(
+    validateAiServerImageRequest('askAI', { data: 'base64', mimeType: 'application/pdf' }, true) || '',
+    /Ungültiges Bildformat/,
+  );
+  assert.equal(validateAiServerImageRequest('askAI', jpeg, true), null);
+  assert.equal(validateAiServerImageRequest('askAI', undefined, false), null);
 });
