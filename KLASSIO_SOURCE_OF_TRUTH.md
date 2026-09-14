@@ -57,24 +57,26 @@ PR #55 schloss danach die Einzelabnahme der Wochenplanung ab: Raster, Fortschrit
 
 PR #57 schloss anschließend die Einzelabnahme der Materialbibliothek ab: Anlegen, Bearbeiten, Suche, Filter, Gruppierung und Favoriten bleiben erhalten; Dateiimporte werden auf PDF/JPG/PNG/WebP/GIF und zentrale Größenlimits begrenzt, Linkmaterial akzeptiert ausschließlich HTTP/HTTPS und beim Typwechsel werden veraltete Datei-/Linkdaten entfernt. Die PDF-Anzeige verwendet keinen `document.write`-Pfad mehr. Material → Wochenplan arbeitet mit allen 10 Stunden-Slots und der aktuell gewählten KW; beim Löschen, Sammellöschen oder vollständigen Leeren der globalen Bibliothek werden Materialverknüpfungen in den Wochenplänen aller Klassen bereinigt, ohne übrige Unterrichtsdaten anzutasten. Verdeckte Auswahl wird bei Filterwechseln entfernt. KI-Material wird per ID aktualisiert statt doppelt angelegt, Speicherlimits gelten auch für KI-/Arbeitsblatt-/Stundenplan-Speicherwege und Erfolgsmeldungen erscheinen nur nach tatsächlichem Speichern. Der Arbeitsblattgenerator und die Material-KI verwenden die aktive Schulstufe statt fest verdrahteter 4./1. Schulstufe.
 
+PR #59 schloss danach die Einzelabnahme der Übergabemappe ab: Die frühere Stundenbild-Sammlung wird einmalig und verlustfrei in die gemeinsame Materialbibliothek migriert; Material-Stundenentwürfe werden für die Übergabe korrekt auf Fach, Schulstufe, Dauer, Lernziel, benötigte Materialien und Tags normalisiert. Tagesvertretung, Stundenbild-Zuordnung, Detailseiten und Druck arbeiten durchgängig mit 10 Stunden-Slots und den tatsächlich konfigurierten Klassenzeiten; für Stunde 9/10 werden keine Zeiten erfunden. Bearbeiten dedupliziert Material-IDs, bewahrt bestehende Metadaten und respektiert das gemeinsame Speicherlimit, Löschen entfernt Wochenplan-Verknüpfungen klassenübergreifend. Vertretungshinweise sind klassenlokal; temporäre Zuordnungen, Tageshinweise, Schülerauswahl und Checkliste werden beim Klassenwechsel zurückgesetzt. Notfallpunkte starten nicht fälschlich als erledigt, hardcodierte Schulpersonen/-kontakte wurden entfernt und Datumsfelder verwenden lokale Kalendertage. Das Schulwechsel-Paket nutzt klassenlokale Chronikdaten und enthält jetzt tatsächlich die auswählbaren Bausteine Leistungsstand, IKM-Plus und kompetenzorientierte Diagnostik/Förderbedarf. Die Datenschutzansicht pseudonymisiert Namen mit Initialen und blendet Geburtsdatum sowie Religionsbekenntnis aus.
+
 Die historischen divergierenden Branches `audit/production-demo-data`, `audit/visible-legacy-branding`, `audit/visible-legacy-branding-final`, `fix/klassio-visible-branding`, `fix/json-backups-and-critical-data-flows` und `feature/final-app-polish` wurden anschließend gezielt gegen den aktuellen Reconciliation-Stand geprüft. Ihre noch eigenen Commits enthalten entweder nur temporäre Audit-/CI-Workflows oder ältere Varianten von Funktionen, die im aktuellen Stand bereits gleichwertig oder neuer umgesetzt sind. Sie werden deshalb **nicht** in den Produktstand gemergt.
 
 Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist keine Arbeitsgrundlage. Seine relevanten funktionalen Lücken wurden selektiv auf frischen Branches vom jeweils aktuellen Reconciliation-HEAD neu umgesetzt. Verbleibende Unterschiede in Cockpit/BoardInk/Vorlagen stammen aus älteren UI-Varianten und werden nicht über den neueren, bereits getesteten Cockpit-Stand aus PR #6 gelegt.
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Reconciliation-Stand liegt nach PR #57 auf Commit `6bc13a05502f9c4cb71f22b852ec63a58524b37d` und wurde vollständig geprüft:
+Der letzte codehaltige Reconciliation-Stand liegt nach PR #59 auf Commit `3c970e709f1623507212c3ed8c346ef41f0c2209` und wurde vollständig geprüft:
 
-- Pre-Deployment Audit #124: erfolgreich
+- Pre-Deployment Audit #126: erfolgreich
 - TypeScript: erfolgreich
-- Tests: 900/900 erfolgreich
+- Tests: 920/920 erfolgreich
 - Production Build: erfolgreich
 - PWA-/Build-Ausgabe: erfolgreich
 - Production-Server- und `/api/health`-Smoke: erfolgreich
 - Zugangscode-/Session-/E-Mail-Fallback-Smoke: erfolgreich
-- World4You-Artefakt: `klassio-world4you-6bc13a05502f9c4cb71f22b852ec63a58524b37d`
+- World4You-Artefakt: `klassio-world4you-3c970e709f1623507212c3ed8c346ef41f0c2209`
 
-PR #57 wurde nach grüner Feature- und PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `6bc13a05502f9c4cb71f22b852ec63a58524b37d`.
+PR #59 wurde nach grüner Feature- und PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `3c970e709f1623507212c3ed8c346ef41f0c2209`.
 
 Der aktuelle Branch-HEAD kann danach reine Dokumentationscommits enthalten. Deshalb wird der verbindliche Reconciliation-HEAD **nicht dauerhaft in dieser Datei festgeschrieben**, sondern vor jeder Arbeit live aus GitHub gelesen und mit seinem neuesten erfolgreichen `Pre-Deployment Audit` abgeglichen.
 
@@ -99,6 +101,7 @@ Der Reconciliation-Stand enthält unter anderem:
 - Planungszentrale mit vollständigem 10-Slot-Vertrag, ehrlichen leeren Fachzuständen, expliziter Wochenwahl ohne stillen Wochenend-Sprung sowie klassenlokaler Parkgarage und Wochenvorlagen; KI-Themenvorschläge werden sichtbar dargestellt und Fehler erzeugen keine erfundenen Ersatzantworten
 - Wochen- und Jahresplanung inklusive Vollbild, Excel-Roundtrip und Aufgabenblattgenerator; die Wochenplanung nutzt durchgängig 10 Slots, konfigurierte Stundenzeiten/Mittagspause, jahreswechselrichtige Vorwochen und bundeslandabhängige Schulwochen ohne erfundene Excel-Zuordnungen; die Jahresplanung bewahrt mehrere Themen pro Fach/KW verlustfrei in Excel/CSV/Monatsansicht, nutzt bundeslandrichtige Schulwochen und verschiebt Inhalte entlang echter Unterrichtswochen
 - Materialbibliothek mit CRUD, Suche/Filter/Gruppierung/Favoriten, validierten lokalen PDF-/Bilddateien und HTTP/HTTPS-Links, KI-/Arbeitsblatt-Inhalten sowie 10-Slot-Übergabe in den Wochenplan; Löschvorgänge räumen Materialverknüpfungen klassenübergreifend auf
+- Übergabemappe mit 10-Slot-Tagesvertretung auf echten Klassenzeiten, Materialbibliothek-Stundenbildern und einmaliger Legacy-Migration, klassenlokalen Vertretungshinweisen, konfigurierbarer Druckmappe sowie Schulwechsel-Dossier mit Stammdaten, Leistungsstand, klassenlokaler Chronik, IKM-Plus und kompetenzorientierter Diagnostik; Datenschutzansicht blendet sensible Identitätsfelder aus
 - Sokrates-PDF-Import mit lokal gebündeltem PDF.js-Worker und Offline/PWA-Unterstützung
 - verschlüsselten lokalen Datentresor, verschlüsselte JSON-Backups und Legacy-Parser; lokale Sicherungsdateien heißen `Klassio_Sicherung_YYYY-MM-DD.json`, neue OneDrive-Sicherungen `Klassio_Backup.json`; historische OneDrive-Dateinamen und das interne verschlüsselte Legacy-Format bleiben kompatibel
 - E-Mail-Einmalcode-Login mit administrativem Zugangscode als Fallback
@@ -240,7 +243,8 @@ Aktueller Fortschritt:
 - Jahresplanung: technisch abgeschlossen; PR #53 integriert, Audit #120 grün; reale Browser-/Touch-/Druck-/Excel-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Wochenplanung: technisch abgeschlossen; PR #55 integriert, Audit #122 grün; reale Browser-/Touch-/Druck-/Excel-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Materialbibliothek: technisch abgeschlossen; PR #57 integriert, Audit #124 grün; reale Browser-/Touch-/Datei-/Link-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
-- Nächster Bereich: Übergabemappe.
+- Übergabemappe: technisch abgeschlossen; PR #59 integriert, Audit #126 grün; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
+- Nächster Bereich: Statistik & Profile.
 
 ## Pflicht für jeden neuen Chat
 
