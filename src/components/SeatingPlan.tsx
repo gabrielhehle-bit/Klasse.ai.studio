@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { berechne } from '../lib/GradeUtils';
 import SeatingPlanAnalysis from './SeatingPlanAnalysis';
-import { classifySeatPositions, findSeatingRuleViolations, sanitizeSeatingRules, sameSeat } from '../lib/seatingPlanRules';
+import { areSeatingNeighbors, classifySeatPositions, findSeatingRuleViolations, sanitizeSeatingRules, sameSeat } from '../lib/seatingPlanRules';
 import { getLocalDateKey, getSeatingPlanAbsentStudents } from '../lib/seatingPlanData';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
@@ -2338,6 +2338,29 @@ export default function SeatingPlan() {
           }
         } else {
           stillPendingIds.push(id);
+        }
+      });
+
+      // 3. Nebeneinander: if one partner is already constrained by a fixed
+      // seat/zone, place the other partner next to that position first.
+      rules.filter((r:any) => r.typ === 'nebeneinander').forEach((r:any) => {
+        const [firstId, secondId] = r.schuelerIds;
+        const firstPlaced = newPlan[firstId];
+        const secondPlaced = newPlan[secondId];
+        const pendingId = firstPlaced && !secondPlaced && stillPendingIds.includes(secondId)
+          ? secondId
+          : secondPlaced && !firstPlaced && stillPendingIds.includes(firstId)
+            ? firstId
+            : null;
+        const anchorPosition = firstPlaced || secondPlaced;
+
+        if (!pendingId || !anchorPosition) return;
+        const neighborIndex = unusedChairs.findIndex(chair =>
+          areSeatingNeighbors(anchorPosition, chair.position)
+        );
+        if (neighborIndex >= 0) {
+          newPlan[pendingId] = unusedChairs[neighborIndex].position;
+          unusedChairs.splice(neighborIndex, 1);
         }
       });
 
