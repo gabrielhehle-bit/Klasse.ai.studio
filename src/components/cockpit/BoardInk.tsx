@@ -15,7 +15,7 @@ export function BoardInk({ items, active, onChange, onDone }: Props) {
   const [redo, setRedo] = useState<InkItem[][]>([]);
   const [textAt, setTextAt] = useState<number[] | null>(null);
   const [text, setText] = useState('');
-  const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmClear, setConfirmClear] = useState<'drawing' | 'text' | null>(null);
   const lastItems = useRef(items);
   useEffect(() => {
     // A restore or remote replacement invalidates local undo snapshots.
@@ -23,7 +23,7 @@ export function BoardInk({ items, active, onChange, onDone }: Props) {
     lastItems.current = items;
   }, [items]);
   useEffect(() => {
-    if (!active) { stroke.current = null; pointer.current = null; setDraft(null); setTextAt(null); setConfirmClear(false); }
+    if (!active) { stroke.current = null; pointer.current = null; setDraft(null); setTextAt(null); setConfirmClear(null); }
   }, [active]);
   const apply = (next: InkItem[]) => { lastItems.current = next; onChange(next); };
   const commit = (next: InkItem[]) => {
@@ -69,7 +69,8 @@ export function BoardInk({ items, active, onChange, onDone }: Props) {
       <label className="flex items-center gap-2 text-sm">Strich <select aria-label="Strichstärke" value={width} onChange={e => setWidth(Number(e.target.value))} className={button}><option value={2}>Fein</option><option value={4}>Normal</option><option value={8}>Breit</option></select></label>
       <button className={button} disabled={!history.length} onClick={() => { setRedo(r => [...r, items]); apply(history[history.length - 1]); setHistory(h => h.slice(0, -1)); }}>Rückgängig</button>
       <button className={button} disabled={!redo.length} onClick={() => { setHistory(h => [...h, items]); apply(redo[redo.length - 1]); setRedo(r => r.slice(0, -1)); }}>Wiederholen</button>
-      <button className={button} disabled={!items.length} onClick={() => setConfirmClear(true)}>Zeichnung löschen</button>
+      <button className={button} disabled={!items.some(item => item.text === undefined)} onClick={() => setConfirmClear('drawing')}>Zeichnung löschen</button>
+      <button className={button} disabled={!items.some(item => item.text !== undefined)} onClick={() => setConfirmClear('text')}>Schrift löschen</button>
       <button className="min-h-11 px-4 rounded-lg bg-indigo-600 text-white font-semibold" onClick={onDone}>Fertig · Widgets bedienen</button>
       <span className="w-full text-center text-xs text-slate-600">{tool === 'erase' ? 'Strich oder Text antippen, um ihn zu entfernen.' : tool === 'text' ? 'Eine Stelle auf der Fläche antippen und Text eingeben.' : 'Direkt auf der Fläche schreiben – auch über Widgets.'}</span>
     </div>}
@@ -78,9 +79,12 @@ export function BoardInk({ items, active, onChange, onDone }: Props) {
       <input autoFocus aria-label="Text auf der Fläche" placeholder="Text eingeben …" value={text} onChange={e => setText(e.target.value)} className="min-w-0 flex-1 p-3 rounded border border-slate-300" />
       <button className={button} type="submit">Einfügen</button><button className={button} type="button" onClick={() => setTextAt(null)}>Abbrechen</button>
     </form>}
-    {active && confirmClear && <div role="dialog" aria-label="Zeichnung löschen" className="absolute top-4 inset-x-4 z-[22000] p-4 bg-white text-slate-900 rounded-xl border shadow-xl">
-      <p className="mb-3">Alle Striche und Texte auf dieser Fläche löschen? Die Widgets bleiben erhalten.</p>
-      <div className="flex gap-2"><button className={button} onClick={() => { commit([]); setConfirmClear(false); }}>Zeichnung löschen</button><button className={button} onClick={() => setConfirmClear(false)}>Abbrechen</button></div>
+    {active && confirmClear && <div role="dialog" aria-label={confirmClear === 'drawing' ? 'Zeichnung löschen' : 'Schrift löschen'} className="absolute top-4 inset-x-4 z-[22000] p-4 bg-white text-slate-900 rounded-xl border shadow-xl">
+      <p className="mb-3">{confirmClear === 'drawing' ? 'Alle gezeichneten Striche auf dieser Fläche löschen? Texte und Widgets bleiben erhalten.' : 'Alle eingefügten Texte auf dieser Fläche löschen? Zeichnungen und Widgets bleiben erhalten.'}</p>
+      <div className="flex gap-2"><button className={button} onClick={() => {
+        commit(confirmClear === 'drawing' ? items.filter(item => item.text !== undefined) : items.filter(item => item.text === undefined));
+        setConfirmClear(null);
+      }}>{confirmClear === 'drawing' ? 'Zeichnung löschen' : 'Schrift löschen'}</button><button className={button} onClick={() => setConfirmClear(null)}>Abbrechen</button></div>
     </div>}
   </>;
 }
