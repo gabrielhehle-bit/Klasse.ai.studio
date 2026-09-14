@@ -32,7 +32,9 @@ export default function PlanungsZentrale() {
   // Auto-advance calendar week during weekend
   useEffect(() => {
     if (isWeekend && app.currentKW === actualKW && !hasBumped) {
-       const bumpedKw = actualKW === 52 ? 1 : actualKW + 1;
+       const nextWeekDate = new Date(currDate);
+       nextWeekDate.setDate(currDate.getDate() + 7);
+       const bumpedKw = getKW(nextWeekDate);
        setApp(prev => ({ ...prev, currentKW: bumpedKw }));
        setHasBumped(true);
     }
@@ -40,7 +42,7 @@ export default function PlanungsZentrale() {
 
   const nextKW = app.currentKW || actualKW;
   const startYear = getStartYear(app.schuljahr);
-  const year = kwYear(nextKW, startYear);
+  const year = kwYear(nextKW, startYear, app.bundesland || 'VBG');
   const monday = kwToMonday(nextKW, year);
   const kw = app.wochenplanung?.[nextKW] || {};
   const sw = getSW(new Date(monday), app?.schuljahr || getCurrentSchuljahr(), app?.bundesland || 'VBG');
@@ -719,7 +721,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
   }, [app.wochenplanung, nextKW, DAYS_DE]);
 
   // Year weeks for Syllabus
-  const startKW = app.schuljahr ? getSchulstartKW(app.schuljahr, app.bundesland || 'VBG') : 36;
+  const startKW = getSchulstartKW(app.schuljahr || getCurrentSchuljahr(), app.bundesland || 'VBG');
   const yearWeeks = useMemo(() => {
     const list: { kwNum: number; swNum: number; mondayDate: Date }[] = [];
     let currentSW = 1;
