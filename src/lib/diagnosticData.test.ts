@@ -70,6 +70,7 @@ test('future-date checks use the local Austrian calendar day instead of UTC', ()
     assert.equal(isDiagnosticDateInFuture('2026-09-14', justAfterMidnightVienna), false);
     assert.equal(isDiagnosticDateInFuture('2026-09-15', justAfterMidnightVienna), true);
   } finally {
-    process.env.TZ = previousTz;
+    if (previousTz === undefined) delete process.env.TZ;
+    else process.env.TZ = previousTz;
   }
 });
