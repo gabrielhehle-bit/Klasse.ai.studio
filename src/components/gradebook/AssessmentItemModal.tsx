@@ -295,7 +295,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                   </div>
 
                   <p className="text-xs text-amber-900/90 leading-relaxed font-medium">
-                    <span className="font-bold">Funktionsweise:</span> Bei den Kindern gibst du die erreichte Punktzahl ein (z. B. 17). Die LehrerAPP ermittelt automatisch den Prozentwert und bezieht ihn in die Gesamtauswertung ein.
+                    <span className="font-bold">Funktionsweise:</span> Bei den Kindern gibst du die erreichte Punktzahl ein (z. B. 17). Klassio ermittelt automatisch den Prozentwert und bezieht ihn in die Gesamtauswertung ein.
                   </p>
                 </div>
               )}
