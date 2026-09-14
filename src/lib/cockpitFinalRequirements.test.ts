@@ -180,7 +180,7 @@ test("Cockpit: Schließen markiert einen nicht gespeicherten Tag nicht fälschli
 });
 
 test("Cockpit: Tagesabschluss ist verständlich statt technisch beschriftet", () => {
-  assert.match(teachingSurface, />\s*Tag sichern\s*</);
+  assert.match(teachingSurface, /"Tag sichern"/);
   assert.match(teachingSurface, />\s*Verfügbar\s*</);
   assert.doesNotMatch(teachingSurface, />\s*Sperre\s*</);
 });
