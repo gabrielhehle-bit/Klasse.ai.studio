@@ -666,7 +666,7 @@ export default function AIAssistant() {
             <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
               <Bot size={16} />
             </div>
-            <span className="text-[0.625rem] font-black uppercase tracking-tight text-slate-900">AI Expert</span>
+            <span className="text-[0.625rem] font-black uppercase tracking-tight text-slate-900">KI-Helfer</span>
           </div>
           <div className="flex items-center gap-1">
              <div className="flex items-center gap-1 h-8 bg-slate-50 p-1 rounded-lg">
