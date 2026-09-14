@@ -884,7 +884,7 @@ export default function LehrerProfilView() {
                         <span>SIEGEL</span>
                       </div>
                     </div>
-                    <span className="text-[0.4375rem] uppercase font-bold text-stone-400 font-mono">Kanzlei-Register-Nr: VS{startYear}</span>
+                    <span className="text-[0.4375rem] uppercase font-bold text-stone-400 font-mono">Kanzlei-Register-Nr: VS{Number.isFinite(configuredStartYear) ? configuredStartYear : ''}</span>
                   </div>
 
                   {/* Right: Signature line */}
