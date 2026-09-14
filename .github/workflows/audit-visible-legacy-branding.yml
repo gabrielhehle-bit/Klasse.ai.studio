@@ -1,0 +1,23 @@
+name: Audit Visible Legacy Branding
+
+on:
+  push:
+    branches:
+      - audit/visible-legacy-branding
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/visible-legacy-branding
+      - name: Find legacy product names
+        run: |
+          echo '=== GABIC / GabicQuest ==='
+          grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'GABIC|GabicQuest|Gabic Quest' src index.html README.md metadata.json || true
+          echo '=== LehrerAPP / SchoolBase / KLASSE.AI ==='
+          grep -R -n --exclude-dir=node_modules --exclude-dir=.git -E 'LehrerAPP|SchoolBase|KLASSE\.AI\.STUDIO|Klasse\.ai\.studio' src index.html README.md metadata.json || true
