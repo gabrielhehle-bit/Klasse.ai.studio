@@ -279,36 +279,45 @@ export default function OrgaLists() {
   // Create Geldsammlung
   const handleCreateSammlung = (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = parseFloat(sammlungAmount.replace(',', '.'));
-    if (!sammlungTitle.trim() || isNaN(amount) || amount < 0) {
-      alert('Bitte geben Sie einen gültigen Titel und Betrag ein.');
+    const parsed = parseEuroInput(sammlungAmount);
+    if (!sammlungTitle.trim() || !parsed.valid) {
+      alert('Bitte einen gültigen Titel und einen positiven Betrag mit höchstens zwei Nachkommastellen eingeben.');
       return;
     }
 
     const newSammlung: Geldsammlung = {
       id: crypto.randomUUID(),
       titel: sammlungTitle.trim(),
-      betrag: amount,
+      betrag: parsed.value,
       faelligkeit: sammlungDueDate || undefined,
-      beschreibung: sammlungNote || undefined,
+      beschreibung: sammlungNote.trim() || undefined,
       erstelltAm: new Date().toISOString(),
       abgeschlossen: false,
       status: {},
       betraege: {}
     };
 
-    students.forEach(s => {
-      newSammlung.status[s.id] = 'offen';
-      newSammlung.betraege[s.id] = 0;
-    });
+    setApp(prev => {
+      const currentKasse = normalizeKlassenkasse(prev.klassenkasse);
+      const collection = {
+        ...newSammlung,
+        status: {} as Geldsammlung['status'],
+        betraege: {} as Geldsammlung['betraege'],
+      };
 
-    setApp(prev => ({
-      ...prev,
-      klassenkasse: {
-        ...kasse,
-        sammlungen: [...kasse.sammlungen, newSammlung]
-      }
-    }));
+      (prev.schueler || []).forEach(student => {
+        collection.status[student.id] = 'offen';
+        collection.betraege[student.id] = 0;
+      });
+
+      return {
+        ...prev,
+        klassenkasse: {
+          ...currentKasse,
+          sammlungen: [...currentKasse.sammlungen, collection],
+        },
+      };
+    });
 
     setSammlungTitle('');
     setSammlungAmount('');
@@ -328,7 +337,7 @@ export default function OrgaLists() {
     const newList: OrgCheckliste = {
       id: crypto.randomUUID(),
       titel: checklisteTitle.trim(),
-      datum: checklisteDate ? new Date(checklisteDate).toISOString() : undefined,
+      datum: checklisteDate ? dateInputToLocalNoonIso(checklisteDate) : undefined,
       spalten: [
         { id: crypto.randomUUID(), label: 'Einverständnis' },
         { id: crypto.randomUUID(), label: 'Geld abgegeben' }
@@ -427,39 +436,38 @@ export default function OrgaLists() {
   // Add Manual Ledger Transaction
   const handleAddTransaction = (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = parseFloat(txAmount.replace(',', '.'));
-    if (isNaN(amount) || amount <= 0) {
-      alert('Bitte einen gültigen Betrag eingeben.');
+    const parsed = parseEuroInput(txAmount);
+    if (!parsed.valid) {
+      alert('Bitte einen positiven Betrag mit höchstens zwei Nachkommastellen eingeben.');
       return;
     }
 
-    const student = students.find(s => s.id === txStudentId);
-    const labelTitle = txTitle.trim() || (txType === 'plus' ? 'Einnahme' : 'Ausgabe');
-    const fullTitle = student ? `${student.vorname} ${student.nachname}: ${labelTitle}` : labelTitle;
+    setApp(prev => {
+      const student = (prev.schueler || []).find(s => s.id === txStudentId);
+      const labelTitle = txTitle.trim() || (txType === 'plus' ? 'Einnahme' : 'Ausgabe');
+      const fullTitle = student ? `${student.vorname} ${student.nachname}: ${labelTitle}` : labelTitle;
+      const dateIso = txDate ? dateInputToLocalNoonIso(txDate) : undefined;
 
-    const newTx: KassenTransaktion = {
-      id: crypto.randomUUID(),
-      datum: txDate ? new Date(txDate).toISOString() : new Date().toISOString(),
-      titel: fullTitle,
-      betrag: amount,
-      typ: txType,
-      kategorie: txCategory,
-      schuelerId: txStudentId || undefined
-    };
+      const newTx: KassenTransaktion = {
+        id: crypto.randomUUID(),
+        datum: dateIso || new Date().toISOString(),
+        titel: fullTitle,
+        betrag: parsed.value,
+        typ: txType,
+        kategorie: txCategory,
+        schuelerId: txStudentId || undefined
+      };
 
-    const diff = txType === 'plus' ? amount : -amount;
-    setApp(prev => ({
-      ...prev,
-      klassenkasse: {
-        ...kasse,
-        kontostand: kasse.kontostand + diff,
-        transaktionen: [newTx, ...kasse.transaktionen]
-      }
-    }));
+      return {
+        ...prev,
+        klassenkasse: addManualCashTransaction(normalizeKlassenkasse(prev.klassenkasse), newTx),
+      };
+    });
 
     setTxTitle('');
     setTxAmount('');
     setTxStudentId('');
+    setTxDate(getLocalOrgaDateKey());
     setIsNewModalOpen(false);
     setNewItemType(null);
     setActiveTab('kassenbuch');
@@ -468,18 +476,13 @@ export default function OrgaLists() {
   // Delete manual transaction
   const handleConfirmDeleteTransaction = () => {
     if (!txToDelete) return;
-    const balanceDiff = txToDelete.typ === 'plus' ? -txToDelete.betrag : txToDelete.betrag;
-    setApp(prev => {
-      if (!prev.klassenkasse) return prev;
-      return {
-        ...prev,
-        klassenkasse: {
-          ...prev.klassenkasse,
-          kontostand: (prev.klassenkasse.kontostand || 0) + balanceDiff,
-          transaktionen: (prev.klassenkasse.transaktionen || []).filter(t => t.id !== txToDelete.id)
-        }
-      };
-    });
+    setApp(prev => ({
+      ...prev,
+      klassenkasse: deleteManualCashTransaction(
+        normalizeKlassenkasse(prev.klassenkasse),
+        txToDelete.id
+      ),
+    }));
     setTxToDelete(null);
   };
 
