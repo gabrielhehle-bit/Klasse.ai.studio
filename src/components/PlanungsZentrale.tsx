@@ -94,6 +94,37 @@ export default function PlanungsZentrale() {
   const [editingJahresplan, setEditingJahresplan] = useState<boolean>(false);
   const [jahresplanInput, setJahresplanInput] = useState<string>('');
 
+  useEffect(() => {
+    setHasBumped(false);
+    setIsEinfachModus(true);
+    setShowMehrMenu(false);
+    setQuickPlanOpen(false);
+    setQuickPlanType('lesson');
+    setPlanningFocus('week');
+    setActiveTab('wochenplan');
+    setIsAnalyzingWeek(false);
+    setShowInfoOverlay(false);
+    setSelectedDayIdx(0);
+    setSelectedHour(0);
+    setHasSelectedSlot(false);
+    setShowExpandedDetailsInDrawer(false);
+    setQuickEventTitle('');
+    setQuickEventCategory('Termin');
+    setActiveSubject('');
+    setLessonTopic('');
+    setLessonHomework('');
+    setDidacticType('Einführung');
+    setSelectedMaterials([]);
+    setCustomMaterialText('');
+    setSocialForm('Einzelarbeit');
+    setTemplateName('');
+    setIsAiLoading(false);
+    setAiSuggestions([]);
+    setSuccessMessage('');
+    setEditingJahresplan(false);
+    setJahresplanInput('');
+  }, [app.activeClassId]);
+
   const DAYS_DE = useMemo(() => ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'], []);
   const planningHourIndexes = useMemo(() => LESSON_SLOT_NUMBERS.map(slot => slot - 1), []);
 
