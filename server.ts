@@ -1053,11 +1053,38 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       return res.status(400).json({ error: "Unbekannte oder unzulässige KI-Aktion." });
     }
 
-    let params = req.body.params;
+    let params = req.body.params || {};
 
-    // B1.5 Server-Schutznetz: Eingehende Parameter vor Weitergabe an Gemini prüfen & maskieren
+    // Bilddaten dürfen nicht durch Textfilter laufen: Regex-Ersetzungen würden Base64 beschädigen.
+    // Deshalb wird die explizite Datenschutzbestätigung serverseitig erneut geprüft und das Bild
+    // erst nach der Text-/JSON-Sanitization unverändert wieder angehängt.
+    const imageBase64 = params?.imageBase64;
+    const imagePrivacyConfirmed = params?.imagePrivacyConfirmed === true;
+    if (imageBase64) {
+      if (action !== 'askAI') {
+        return res.status(400).json({ error: "Bildanhänge sind für diese KI-Aktion nicht zulässig." });
+      }
+      if (!imagePrivacyConfirmed) {
+        return res.status(400).json({ error: "Bildanalyse blockiert: Datenschutzbestätigung fehlt." });
+      }
+      if (
+        typeof imageBase64?.data !== 'string' ||
+        typeof imageBase64?.mimeType !== 'string' ||
+        !/^image\/(jpeg|png|webp)$/i.test(imageBase64.mimeType)
+      ) {
+        return res.status(400).json({ error: "Bildanalyse blockiert: Ungültiges Bildformat." });
+      }
+    }
+
+    const { imageBase64: _image, imagePrivacyConfirmed: _confirmation, ...textParams } = params;
+
+    // B1.5 Server-Schutznetz: Nur Text-/JSON-Parameter prüfen & maskieren.
     const privacyViolations: string[] = [];
-    params = sanitizeAIPayloadRecursively(params, privacyViolations);
+    const sanitizedTextParams = sanitizeAIPayloadRecursively(textParams, privacyViolations);
+    params = {
+      ...sanitizedTextParams,
+      ...(imageBase64 ? { imageBase64 } : {})
+    };
     if (privacyViolations.length > 0) {
       console.warn("[DATENSCHUTZ-WARNUNG] Sensibles Muster in KI-Request entfernt.");
     }
