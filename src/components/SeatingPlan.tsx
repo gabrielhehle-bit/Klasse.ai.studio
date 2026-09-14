@@ -1401,6 +1401,36 @@ export default function SeatingPlan() {
   const [showPresetsMenu, setShowPresetsMenu] = useState(false);
   const [showAnalysisPanel, setShowAnalysisPanel] = useState(false);
   const [highlightedStudentIds, setHighlightedStudentIds] = useState<string[] | null>(null);
+  const lottoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  React.useEffect(() => {
+    // Seat-plan editing state must never cross a class boundary.
+    if (lottoIntervalRef.current) {
+      clearInterval(lottoIntervalRef.current);
+      lottoIntervalRef.current = null;
+    }
+    setSelectedObjId(null);
+    setShowGenerator(false);
+    setShowRulesModal(false);
+    setShowAnalysisPanel(false);
+    setHighlightedStudentIds(null);
+    setHoveredStudentId(null);
+    setPinnedStudentId(null);
+    setActiveDrag(null);
+    setSwapHoverTargetId(null);
+    setActiveTableDrag(null);
+    tableDragRef.current = null;
+    setHistory([]);
+    setPreviewState({ active: false, previousSitzplan: null, violatedRules: [], history: [], historyIndex: -1 });
+    setShowUndoShuffle(false);
+    setLastShuffleSitzplan(null);
+    setIsLottoRunning(false);
+    setLottoWinner(null);
+  }, [app.activeClassId]);
+
+  React.useEffect(() => () => {
+    if (lottoIntervalRef.current) clearInterval(lottoIntervalRef.current);
+  }, []);
 
   const toggleEmojis = () => {
     setShowEmojis(prev => {
@@ -2214,77 +2244,50 @@ export default function SeatingPlan() {
 
   const runLotto = () => {
     if (placedStudents.length === 0) return;
+    if (lottoIntervalRef.current) clearInterval(lottoIntervalRef.current);
+
     setIsLottoRunning(true);
     setLottoWinner(null);
     let counter = 0;
-    const interval = setInterval(() => {
+    lottoIntervalRef.current = setInterval(() => {
       const idx = Math.floor(Math.random() * placedStudents.length);
       if (placedStudents[idx]) setLottoWinner(placedStudents[idx].id);
       counter++;
       if (counter > 20) {
-        clearInterval(interval);
+        if (lottoIntervalRef.current) clearInterval(lottoIntervalRef.current);
+        lottoIntervalRef.current = null;
         setIsLottoRunning(false);
         setTimeout(() => setLottoWinner(null), 5000);
       }
     }, 100);
   };
 
-  const checkRuleViolations = (assignments: Record<string, { x: number, y: number }>) => {
-    const rules = app.sitzplanRegeln || [];
-    const violations: string[] = [];
-    
-    // Nearest neighbor: dx < 160 && dy < 60 OR dx < 60 && dy < 160
-    const areNeighbors = (p1: any, p2: any) => {
-      const dx = Math.abs(p1.x - p2.x);
-      const dy = Math.abs(p1.y - p2.y);
-      return (dx < 160 && dy < 60) || (dx < 60 && dy < 160);
-    };
-
-    rules.forEach((r: any) => {
-      if (r.typ === 'nicht_nebeneinander') {
-        const p1 = assignments[r.schuelerIds[0]];
-        const p2 = assignments[r.schuelerIds[1]];
-        if (p1 && p2 && areNeighbors(p1, p2)) {
-          violations.push(`${app.schueler.find((s:any) => s.id === r.schuelerIds[0])?.vorname} & ${app.schueler.find((s:any) => s.id === r.schuelerIds[1])?.vorname} (zu nah)`);
-        }
-      }
-    });
-    return violations;
+  const checkRuleViolations = (
+    assignments: Record<string, { x: number; y: number }>,
+    fixedReferencePlan: Record<string, { x: number; y: number }> = {}
+  ) => {
+    const rules = sanitizeSeatingRules(app.sitzplanRegeln || [], app.schueler || [], app.sitzplan_schueler || {});
+    return findSeatingRuleViolations(
+      assignments,
+      rules,
+      app.schueler || [],
+      app.sitzplan_objekte || [],
+      fixedReferencePlan
+    ).map(violation => violation.message);
   };
 
   const handleShuffleRules = () => {
     const existingPlan = app.sitzplan_schueler || {};
-    const rules = app.sitzplanRegeln || [];
-    // Only shuffle students that are already placed! So we only use existing positions.
-    const currentStudentIds = Object.keys(existingPlan);
+    const rules = sanitizeSeatingRules(app.sitzplanRegeln || [], app.schueler || [], existingPlan);
+    const currentStudentIds = (app.schueler || [])
+      .filter((student: any) => existingPlan[student.id])
+      .map((student: any) => student.id);
     if (currentStudentIds.length === 0) return;
 
-    // Get all chairs
-    const availableChairs = currentStudentIds.map(id => existingPlan[id]);
-    
-    // Find if the blackboard (Tafel) is placed at the bottom of the room
-    const blackboard = app.sitzplan_objekte?.find((obj: any) => obj.type === 'blackboard');
-    let isBlackboardAtBottom = false;
-    if (blackboard && availableChairs.length > 0) {
-      const avgY = availableChairs.reduce((sum, c) => sum + c.y, 0) / availableChairs.length;
-      if (blackboard.y > avgY) {
-        isBlackboardAtBottom = true;
-      }
-    }
-
-    // Sort vertical for zones. 
-    // If the blackboard is at the bottom, higher Y coords are closer to the blackboard ("vorne"), so sort descending.
-    // Otherwise, lower Y coords are closer to the blackboard ("vorne"), so sort ascending.
-    const sortedChairs = [...availableChairs].sort((a, b) => {
-      return isBlackboardAtBottom ? (b.y - a.y) : (a.y - b.y);
-    });
-    const third = Math.ceil(sortedChairs.length / 3);
-    const chairsWithZones = sortedChairs.map((pos, idx) => {
-      let zone = 'mitte';
-      if (idx < third) zone = 'vorne';
-      else if (idx >= sortedChairs.length - third) zone = 'hinten';
-      return { pos, zone };
-    });
+    // Seat zones are ranked by real distance to the current blackboard, so
+    // "vorne" also works when the board is at the bottom or side of the room.
+    const availableChairs = currentStudentIds.map((id: string) => ({ ...existingPlan[id] }));
+    const chairsWithZones = classifySeatPositions(availableChairs, app.sitzplan_objekte || []);
 
     let bestAssignments: any = null;
     let minViolations = 999;
@@ -2296,11 +2299,12 @@ export default function SeatingPlan() {
       const pendingIds: string[] = [];
 
       // 1. Fester Platz
-      currentStudentIds.forEach(id => {
-        const isFesterPlatz = rules.find((r:any) => r.typ === 'fester_platz' && r.schuelerIds.includes(id));
-        if (isFesterPlatz) {
-          newPlan[id] = existingPlan[id];
-          const idx = unusedChairs.findIndex(c => c.pos.x === existingPlan[id].x && c.pos.y === existingPlan[id].y);
+      currentStudentIds.forEach((id: string) => {
+        const fixedRule = rules.find((r:any) => r.typ === 'fester_platz' && r.schuelerIds.includes(id));
+        if (fixedRule) {
+          const fixedPosition = fixedRule.position || existingPlan[id];
+          newPlan[id] = { ...fixedPosition };
+          const idx = unusedChairs.findIndex(c => sameSeat(c.position, fixedPosition));
           if (idx !== -1) unusedChairs.splice(idx, 1);
         } else {
           pendingIds.push(id);
@@ -2315,7 +2319,7 @@ export default function SeatingPlan() {
           const validChairs = unusedChairs.filter(c => c.zone === zoneRule.zone);
           if (validChairs.length > 0) {
             const chairIdx = Math.floor(Math.random() * validChairs.length);
-            newPlan[id] = validChairs[chairIdx].pos;
+            newPlan[id] = validChairs[chairIdx].position;
             const globalIdx = unusedChairs.indexOf(validChairs[chairIdx]);
             unusedChairs.splice(globalIdx, 1);
           } else {
@@ -2343,11 +2347,11 @@ export default function SeatingPlan() {
         // Find neighborhood pair
         for (let j = 0; j < unusedChairs.length; j++) {
            for (let k = j + 1; k < unusedChairs.length; k++) {
-              const dx = Math.abs(unusedChairs[j].pos.x - unusedChairs[k].pos.x);
-              const dy = Math.abs(unusedChairs[j].pos.y - unusedChairs[k].pos.y);
+              const dx = Math.abs(unusedChairs[j].position.x - unusedChairs[k].position.x);
+              const dy = Math.abs(unusedChairs[j].position.y - unusedChairs[k].position.y);
               if ((dx < 160 && dy < 60) || (dx < 60 && dy < 160)) {
-                newPlan[id1] = unusedChairs[j].pos;
-                newPlan[id2] = unusedChairs[k].pos;
+                newPlan[id1] = unusedChairs[j].position;
+                newPlan[id2] = unusedChairs[k].position;
                 unusedChairs.splice(k, 1);
                 unusedChairs.splice(j, 1);
                 placed = true;
@@ -2356,13 +2360,14 @@ export default function SeatingPlan() {
            }
            if (placed) break;
         }
-        if (!placed) {
-          // just put them somewhere if no pair available
+        if (!placed && unusedChairs.length >= 2) {
+          // Fallback keeps both students placed, while the rule checker will
+          // still report if the two fallback seats are not actually adjacent.
           const r1 = Math.floor(Math.random() * unusedChairs.length);
-          newPlan[id1] = unusedChairs[r1].pos;
+          newPlan[id1] = unusedChairs[r1].position;
           unusedChairs.splice(r1, 1);
           const r2 = Math.floor(Math.random() * unusedChairs.length);
-          newPlan[id2] = unusedChairs[r2].pos;
+          newPlan[id2] = unusedChairs[r2].position;
           unusedChairs.splice(r2, 1);
         }
       }
@@ -2372,11 +2377,11 @@ export default function SeatingPlan() {
       for (const idx of remainingIds) {
         if (unusedChairs.length === 0) break;
         const cIdx = Math.floor(Math.random() * unusedChairs.length);
-        newPlan[idx] = unusedChairs[cIdx].pos;
+        newPlan[idx] = unusedChairs[cIdx].position;
         unusedChairs.splice(cIdx, 1);
       }
 
-      const currentViolations = checkRuleViolations(newPlan);
+      const currentViolations = checkRuleViolations(newPlan, existingPlan);
       if (currentViolations.length === 0) {
         bestAssignments = newPlan;
         finalViolations = [];
@@ -2390,20 +2395,23 @@ export default function SeatingPlan() {
       }
     }
 
+    const resolvedAssignments = bestAssignments || { ...existingPlan };
+    const resolvedViolations = bestAssignments ? finalViolations : checkRuleViolations(resolvedAssignments, existingPlan);
+
     setPreviewState(prev => {
       const isNew = !prev.active;
       const initialPlan = isNew ? { ...existingPlan } : prev.previousSitzplan;
-      const newHistoryItem = { plan: bestAssignments, violations: finalViolations };
+      const newHistoryItem = { plan: resolvedAssignments, violations: resolvedViolations };
       const newHistory = isNew ? [newHistoryItem] : [...prev.history.slice(0, prev.historyIndex + 1), newHistoryItem];
       return {
         active: true,
         previousSitzplan: initialPlan,
-        violatedRules: finalViolations,
+        violatedRules: resolvedViolations,
         history: newHistory,
         historyIndex: newHistory.length - 1
       };
     });
-    setApp(prev => ({ ...prev, sitzplan_schueler: bestAssignments }));
+    setApp(prev => ({ ...prev, sitzplan_schueler: resolvedAssignments }));
   };
 
   const handleReset = () => {
