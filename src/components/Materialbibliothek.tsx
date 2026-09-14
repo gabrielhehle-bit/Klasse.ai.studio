@@ -15,17 +15,29 @@ import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { MaterialItem } from '../types';
 import { generateTeachingMaterial } from '../services/aiService';
 
-// Helper for memory calculation
+// Helpers for material persistence and storage estimation.
 export const calculateStorageSize = (items: MaterialItem[]) => {
-  let totalBytes = 0;
-  items.forEach(item => {
-    if (item.dateiInhalt) totalBytes += item.dateiInhalt.length;
-    if (item.inhaltText) totalBytes += item.inhaltText.length;
-    // Rough estimate for metadata
-    totalBytes += JSON.stringify(item).length;
-  });
-  return totalBytes / (1024 * 1024); // MB
+  const json = JSON.stringify(items);
+  return new TextEncoder().encode(json).byteLength / (1024 * 1024);
 };
+
+export const upsertMaterial = (items: MaterialItem[], item: MaterialItem): MaterialItem[] => {
+  const exists = items.some(existing => existing.id === item.id);
+  return exists
+    ? items.map(existing => existing.id === item.id ? item : existing)
+    : [...items, item];
+};
+
+const normalizeMaterialItem = (item: MaterialItem): MaterialItem => ({
+  ...item,
+  titel: item.titel || '',
+  beschreibung: item.beschreibung || '',
+  typ: item.typ || 'notiz',
+  faecher: Array.isArray(item.faecher) ? item.faecher : [],
+  schulstufen: Array.isArray(item.schulstufen) ? item.schulstufen : [],
+  tags: Array.isArray(item.tags) ? item.tags : [],
+  erstelltAm: item.erstelltAm || '',
+});
 
 export default function Materialbibliothek() {
   const { app, setApp, setPage } = useApp();
@@ -71,7 +83,7 @@ export default function Materialbibliothek() {
 
   // Filtered & Sorted list
   const filteredMaterials = useMemo(() => {
-    let list = [...(app.materialien || [])];
+    let list = (app.materialien || []).map(normalizeMaterialItem);
     
     // Tab filter
     if (activeTab === 'Favoriten') list = list.filter(m => m.favorit);
@@ -87,9 +99,9 @@ export default function Materialbibliothek() {
     // Search
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(m => 
-        m.titel.toLowerCase().includes(q) || 
-        m.beschreibung.toLowerCase().includes(q) || 
+      list = list.filter(m =>
+        m.titel.toLowerCase().includes(q) ||
+        m.beschreibung.toLowerCase().includes(q) ||
         m.tags.some(t => t.toLowerCase().includes(q)) ||
         (m.inhaltText && m.inhaltText.toLowerCase().includes(q))
       );
@@ -125,7 +137,7 @@ export default function Materialbibliothek() {
   // Extract all unique tags
   const allTags = useMemo(() => {
     const tags = new Set<string>();
-    (app.materialien || []).forEach(m => m.tags.forEach(t => tags.add(t)));
+    (app.materialien || []).forEach(m => (m.tags || []).forEach(t => tags.add(t)));
     return Array.from(tags).sort();
   }, [app.materialien]);
 
@@ -162,9 +174,9 @@ export default function Materialbibliothek() {
     if (groupBy === 'none') return { 'Alle Materialien': filteredMaterials };
     const groups: Record<string, MaterialItem[]> = {};
     filteredMaterials.forEach(m => {
-      const key = groupBy === 'fach' 
+      const key = groupBy === 'fach'
         ? (m.faecher.length > 0 ? m.faecher[0] : 'Ohne Fach')
-        : (m.typ.charAt(0).toUpperCase() + m.typ.slice(1));
+        : ((m.typ || 'notiz').charAt(0).toUpperCase() + (m.typ || 'notiz').slice(1));
       if (!groups[key]) groups[key] = [];
       groups[key].push(m);
     });
@@ -661,15 +673,17 @@ export default function Materialbibliothek() {
           <AddMaterialModal 
             onClose={() => setIsAdding(false)} 
             onSave={(item) => {
-              const totalNewSize = storageMB + calculateStorageSize([item]);
+              const nextMaterials = upsertMaterial(app.materialien || [], item);
+              const totalNewSize = calculateStorageSize(nextMaterials);
               if (totalNewSize > 5) {
                 alert("Speicher voll. Bitte lösche alte Materialien oder reduziere die Dateigröße.");
                 return;
               }
               setApp(prev => ({
                 ...prev,
-                materialien: [...(prev.materialien || []), item]
+                materialien: upsertMaterial(prev.materialien || [], item)
               }));
+              setSelectedMaterial(null);
               setIsAdding(false);
             }}
             initialData={selectedMaterial && selectedMaterial.id ? selectedMaterial : undefined}
