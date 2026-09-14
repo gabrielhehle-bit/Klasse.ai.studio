@@ -114,3 +114,41 @@ test("Cockpit: Schrift und Zeichnung lassen sich getrennt löschen", () => {
   assert.match(boardInk, /\['text', 'Text'\]/);
   assert.match(boardInk, /\['erase', 'Radierer'\]/);
 });
+
+
+test("Cockpit: nutzt die konfigurierten zehn Stunden-Slots statt acht fest verdrahteter Einheiten", () => {
+  assert.match(teachingSurface, /LESSON_SLOT_NUMBERS/);
+  assert.match(teachingSurface, /MAX_LESSON_SLOTS/);
+  assert.match(teachingSurface, /buildLessonTimeSlots\(app\.stundenZeiten, STUNDEN_INFO, MAX_LESSON_SLOTS\)/);
+  assert.doesNotMatch(teachingSurface, /\[0, 1, 2, 3, 4, 5, 6, 7\]\.map/);
+  assert.doesNotMatch(teachingSurface, /for \(let i = 0; i < 8; i\+\+\)/);
+});
+
+test("Cockpit: erfindet weder Klasse noch Klassentier im frischen Zustand", () => {
+  assert.doesNotMatch(teachingSurface, /app\.klassenbezeichnung \|\| "4c"/);
+  assert.match(teachingSurface, /const cockpitClassLabel = \(app\.klassenbezeichnung \|\| ""\)\.trim\(\)/);
+  assert.match(teachingSurface, /const classPetEnabled = app\.classPet \? app\.classPet\.enabled !== false : false/);
+  assert.doesNotMatch(teachingSurface, /const isEnabled = app\.classPet\?\.enabled \?\? true/);
+});
+
+test("Cockpit: sekundäre Ansichtssteuerung liegt gesammelt unter Optionen", () => {
+  for (const label of [
+    "Schülerliste einblenden",
+    "Schülerliste ausblenden",
+    "Klassentier einblenden",
+    "Klassentier ausblenden",
+    "Design & Darstellung",
+    "Fokusmodus",
+    "Vollbildmodus",
+  ]) {
+    assert.ok(teachingSurface.includes(label), `Ansichtsoption fehlt: ${label}`);
+  }
+  assert.match(teachingSurface, />\s*Ansicht\s*</);
+  assert.doesNotMatch(teachingSurface, /Functional Controls Buttons Cluster/);
+});
+
+test("Cockpit: Status und Zurück-Navigation sind lehrerfreundlich beschriftet", () => {
+  assert.match(teachingSurface, /Speichert beim Beenden/);
+  assert.doesNotMatch(teachingSurface, /Echtzeit-Tracker/);
+  assert.match(teachingSurface, /aria-label="Zurück zu Unterricht"/);
+});
