@@ -155,7 +155,7 @@ function AISaveButton({ content, userPrompt, type, onSave }: AISaveButtonProps) 
     else if (type === 'reflexion') materialTyp = 'notiz';
     else if (type === 'beurteilung') materialTyp = 'beurteilung';
     
-    addMaterialFromAI({
+    const saved = addMaterialFromAI({
       titel: title || 'KI Generiertes Material',
       beschreibung: `Generiert am ${new Date().toLocaleDateString('de-DE')} via KI-Helfer.`,
       typ: materialTyp,
@@ -166,6 +166,7 @@ function AISaveButton({ content, userPrompt, type, onSave }: AISaveButtonProps) 
       kiGeneriert: true,
       erstelltAm: new Date().toISOString()
     }, 'KI-Helfer');
+    if (!saved) return;
 
     setIsSaved(true);
     setShowOverlay(false);
