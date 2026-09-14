@@ -12,6 +12,7 @@ import {
 import { berechne } from '../lib/GradeUtils';
 import SeatingPlanAnalysis from './SeatingPlanAnalysis';
 import { classifySeatPositions, findSeatingRuleViolations, sanitizeSeatingRules, sameSeat } from '../lib/seatingPlanRules';
+import { getLocalDateKey, getSeatingPlanAbsentStudents } from '../lib/seatingPlanData';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
   if (!geburtstagStr) return false;
@@ -554,11 +555,12 @@ const parseDateToMs = (dateStr: string) => {
 };
 
 const getTodayAttendanceStatus = (sid: string, app: any) => {
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalDateKey();
   const todayRecord = app?.anwesenheit?.[sid]?.[todayStr] || {};
   const statusValues = Object.values(todayRecord);
+  const todayDetail = app?.anwesenheitDetail?.[sid]?.[todayStr];
   
-  if (statusValues.length === 0) {
+  if (statusValues.length === 0 && Number(todayDetail?.fehlstunden || 0) <= 0) {
     return { label: "Kein Eintrag", color: "text-slate-500", bgColor: "bg-slate-50 border-slate-100", icon: "⚪" };
   }
   
@@ -567,6 +569,12 @@ const getTodayAttendanceStatus = (sid: string, app: any) => {
   }
   if (statusValues.some(st => st === 'e')) {
     return { label: "Entschuldigt fehlend", color: "text-amber-600", bgColor: "bg-amber-50 border-amber-150", icon: "🟡" };
+  }
+  if (Number(todayDetail?.fehlstunden || 0) > 0) {
+    const isUnexcused = todayDetail?.notiz === 'Unentschuldigt';
+    return isUnexcused
+      ? { label: "Unentschuldigt fehlend", color: "text-rose-600", bgColor: "bg-rose-50 border-rose-150", icon: "🔴" }
+      : { label: "Entschuldigt fehlend", color: "text-amber-600", bgColor: "bg-amber-50 border-amber-150", icon: "🟡" };
   }
   return { label: "Anwesend", color: "text-emerald-600", bgColor: "bg-emerald-50 border-emerald-150", icon: "🟢" };
 };
@@ -1352,7 +1360,6 @@ export default function SeatingPlan() {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [gridSnapType, setGridSnapType] = useState<'none' | '10' | '20' | '40'>('20');
   const snapToGrid = gridSnapType !== 'none';
-  const [absentStudents, setAbsentStudents] = useState<Record<string, boolean>>({});
   const [hoveredStudentId, setHoveredStudentId] = useState<string | null>(null);
   const [pinnedStudentId, setPinnedStudentId] = useState<string | null>(null);
   const [isLottoRunning, setIsLottoRunning] = useState(false);
@@ -1669,6 +1676,10 @@ export default function SeatingPlan() {
   const GRID_SIZE = gridSnapType === '10' ? 10 : gridSnapType === '20' ? 20 : gridSnapType === '40' ? 40 : 10;
 
   const students = app.schueler;
+  const absentStudents = React.useMemo(
+    () => getSeatingPlanAbsentStudents(app, (students || []).map((student: any) => student.id)),
+    [app.anwesenheit, app.anwesenheitDetail, students]
+  );
   
   // Safety fallback for seating data
   const sitzplan_schueler = app.sitzplan_schueler || {};
