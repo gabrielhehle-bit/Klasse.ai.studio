@@ -2,7 +2,7 @@ import React, { useState, useRef, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, logActivity, safeJsonParse, inferDateFromText, inferEventType, sortYearlySubjects, formatLocalDateKey } from '../lib/utils';
-import { TAGE_NAMEN, VM_ZEITEN, STUNDENTAFEL, FAECHER_ALLE, DEUTSCH_UNTERFAECHER, DEFAULT_YEARLY_SUBJECTS, STUNDEN_INFO } from '../constants';
+import { TAGE_NAMEN, STUNDENTAFEL, FAECHER_ALLE, DEUTSCH_UNTERFAECHER, DEFAULT_YEARLY_SUBJECTS, STUNDEN_INFO, MAX_LESSON_SLOTS, LESSON_SLOT_NUMBERS } from '../constants';
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, Layout, Calendar, Info, Search, X, Check, Clock, PartyPopper, Lightbulb, Filter, Flag, AlertTriangle, Star, MessageSquare, Users, User, Users2, Smartphone, BookOpen, Printer, Sparkles, Loader2, Book, RefreshCw, GripVertical, Zap, Pencil, BarChart2, Eye, EyeOff, Copy, Clipboard, CheckSquare, Paperclip, ExternalLink, MoreHorizontal, Maximize2, Minimize2, FileSpreadsheet, Download, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getLessonSuggestion, generateWeeklyPlanFromYearlyPlan, checkWeeklyPlanAlignmentAI, generateMagicPlanning } from '../services/aiService';
@@ -12,6 +12,8 @@ import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
 import WochenplanExcelModal from './WochenplanExcelModal';
 import { generateWochenplanTemplate, WochenplanImportRow } from '../lib/planerExcelService';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
+import { buildSchoolYearWeekList, configuredLessonTime, getPreviousCalendarWeekKw } from '../lib/weeklyPlanData';
+import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
 
 const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> = {
   'Deutsch': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -251,7 +253,8 @@ export default function WeeklyPlan() {
     if (!window.confirm('Achtung: Dies überschreibt die aktuelle Woche! Fortfahren?')) return;
     setApp(prev => {
       const wp = { ...(prev.wochenplanung || {}) };
-      const lastWp = wp[activeKW - 1];
+      const previousKw = getPreviousCalendarWeekKw(activeKW, prev.schuljahr);
+      const lastWp = wp[previousKw];
       if (lastWp) {
         wp[activeKW] = JSON.parse(JSON.stringify(lastWp));
       }
@@ -714,7 +717,7 @@ export default function WeeklyPlan() {
           material: row.material || existingSlot?.material || '',
           housework: row.housework || existingSlot?.housework || '',
           reflexion: row.reflexion || existingSlot?.reflexion || '',
-          zeit: row.uhrzeit || existingSlot?.zeit || STUNDEN_INFO[row.stunde] || '',
+          zeit: row.uhrzeit || existingSlot?.zeit || configuredLessonTime(prev.stundenZeiten, STUNDEN_INFO, row.stunde),
         };
       });
 
@@ -735,7 +738,7 @@ export default function WeeklyPlan() {
     let missingMat = 0;
     const currentWeekPlan = app.wochenplanung?.[activeKW] || {};
     TAGE_NAMEN.forEach(tag => {
-      for (let idx = 0; idx < 8; idx++) {
+      for (let idx = 0; idx < MAX_LESSON_SLOTS; idx++) {
         const item = currentWeekPlan[tag]?.[idx];
         const stammFach = app.stammplan?.[tag]?.[idx + 1] || '';
         if (item?.fach || item?.thema || stammFach) {
@@ -776,7 +779,7 @@ export default function WeeklyPlan() {
         }
       });
 
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < MAX_LESSON_SLOTS; i++) {
         const item = dayData[i];
         if (item && (item.type === 'sa' || item.type === 'test' || item.type === 'event')) {
           events.push({
@@ -1054,7 +1057,7 @@ export default function WeeklyPlan() {
     };
   }, [monday, app.calendarOverrides, app.calendarSettings, app.bundesland]);
 
-  const sw = getSW(monday, app.schuljahr);
+  const sw = getSW(monday, app.schuljahr, app.bundesland || 'VBG');
   const plan = (app.wochenplanung || {})[activeKW] || {};
 
   const isCurrentHour = (tag: string, zIdx: number): boolean => {
@@ -1063,29 +1066,19 @@ export default function WeeklyPlan() {
     const dayName = days[now.getDay()];
     if (dayName !== tag) return false;
 
-    const timeString = STUNDEN_INFO[zIdx + 1];
-    if (!timeString) return false;
+    const timeString = configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, zIdx + 1);
+    const parsed = parseLessonTimeRange(timeString);
+    if (!parsed) return false;
 
-    const [startStr, endStr] = timeString.split('–');
-    if (!startStr || !endStr) return false;
-
-    const [startH, startM] = startStr.split(':').map(Number);
-    const [endH, endM] = endStr.split(':').map(Number);
-
-    const startTime = new Date(now);
-    startTime.setHours(startH, startM, 0, 0);
-
-    const endTime = new Date(now);
-    endTime.setHours(endH, endM, 0, 0);
-
-    return now >= startTime && now <= endTime;
+    const minuteOfDay = now.getHours() * 60 + now.getMinutes();
+    return minuteOfDay >= parsed.start && minuteOfDay < parsed.end;
   };
 
   const getDayProgress = (tag: string) => {
     const dayData = plan[tag] || {};
     let total = 0;
     let completed = 0;
-    for (let idx = 0; idx < 8; idx++) {
+    for (let idx = 0; idx < MAX_LESSON_SLOTS; idx++) {
       const item = dayData[idx];
       const displayFach = item?.fach || app.stammplan?.[tag]?.[idx + 1] || '';
       if (displayFach || item?.thema) {
@@ -1124,7 +1117,7 @@ export default function WeeklyPlan() {
     if (!item) return;
     
     const nextIdx = idx + 1;
-    if (nextIdx < 8) {
+    if (nextIdx < MAX_LESSON_SLOTS) {
       setApp(prev => {
         const wp = { ...(prev.wochenplanung || {}) };
         const currentWeekObj = { ...wp[activeKW] };
@@ -1684,8 +1677,8 @@ export default function WeeklyPlan() {
     
     // Find empty slot for that day
     const dayPlan = (app.wochenplanung?.[activeKW]?.[targetTag]) || {};
-    let chosenIdx = 5; // fallback index 5
-    for (let i = 0; i < 6; i++) {
+    let chosenIdx = MAX_LESSON_SLOTS - 1;
+    for (let i = 0; i < MAX_LESSON_SLOTS; i++) {
       if (!dayPlan[i] || !dayPlan[i].fach) {
         chosenIdx = i;
         break;
@@ -1713,18 +1706,11 @@ export default function WeeklyPlan() {
     }
   };
 
-  const generateWeeksList = () => {
-    const weeks = [];
-    let currentMonday = kwToMonday(36, startYear);
-    for (let i = 0; i < 52; i++) {
-        weeks.push({ 
-          kw: getKW(currentMonday), 
-          sw_val: getSW(currentMonday, app.schuljahr) 
-        });
-        currentMonday.setDate(currentMonday.getDate() + 7);
-    }
-    return weeks;
-  };
+  const generateWeeksList = () =>
+    buildSchoolYearWeekList(app.schuljahr, app.bundesland || 'VBG').map((week) => ({
+      kw: week.kw,
+      sw_val: week.sw,
+    }));
 
   const handleToggleDayStatus = (dateStr: string, status: 'school' | 'free') => {
     setApp(prev => ({
@@ -1758,10 +1744,11 @@ export default function WeeklyPlan() {
   const unscheduledSuggestionsCount = yearlyPlanItems.filter(item => !isYearlyItemScheduled(item)).length;
 
   const skipCells = new Set<string>();
-  (Object.values(STUNDEN_INFO) as string[]).forEach((_, zIdx) => {
+  LESSON_SLOT_NUMBERS.forEach((slot) => {
+    const zIdx = slot - 1;
     TAGE_NAMEN.forEach((tag) => {
       const item = plan[tag]?.[zIdx];
-      const duration = item?.duration === 'all' ? (8 - zIdx) : (Number(item?.duration) || 1);
+      const duration = item?.duration === 'all' ? (MAX_LESSON_SLOTS - zIdx) : (Number(item?.duration) || 1);
       if (duration > 1) {
         for (let d = 1; d < duration; d++) {
           skipCells.add(`${tag}-${zIdx + d}`);
@@ -2621,7 +2608,9 @@ export default function WeeklyPlan() {
                 </div>
 
                 {/* FOLLOWING ROWS: TIME SLOTS */}
-                {(Object.values(STUNDEN_INFO) as string[]).map((zeit, zIdx) => {
+                {LESSON_SLOT_NUMBERS.map((slot) => {
+                  const zIdx = slot - 1;
+                  const zeit = configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, slot);
                   const gridRowStart = zIdx + 2 + (zIdx >= 5 ? 1 : 0);
                   
                   return (
@@ -2664,7 +2653,7 @@ export default function WeeklyPlan() {
                       const { status, holidayName } = getDayStatus(date);
                       const isFree = status === 'free';
                       const isToday = date.toDateString() === actualToday.toDateString();
-                      const cellDuration = item?.duration === 'all' ? (8 - zIdx) : (Number(item?.duration) || 1);
+                      const cellDuration = item?.duration === 'all' ? (MAX_LESSON_SLOTS - zIdx) : (Number(item?.duration) || 1);
                       const crossesLunch = zIdx < 5 && (zIdx + cellDuration) > 5;
                       const spanValue = cellDuration + (crossesLunch ? 1 : 0);
                       
@@ -2932,7 +2921,7 @@ export default function WeeklyPlan() {
                             return [0, 1, 2, 3, 4].some((hIdx) => {
                               const item = plan[tag]?.[hIdx];
                               if (!item) return false;
-                              const dur = item.duration === 'all' ? (8 - hIdx) : (Number(item.duration) || 1);
+                              const dur = item.duration === 'all' ? (MAX_LESSON_SLOTS - hIdx) : (Number(item.duration) || 1);
                               return hIdx + dur > 5;
                             });
                           };
@@ -4826,9 +4815,15 @@ export default function WeeklyPlan() {
                       onChange={e => setQuickPlanStunde(Number(e.target.value))}
                       className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
                     >
-                      {[0, 1, 2, 3, 4, 5, 6, 7].map(st => (
-                        <option key={st} value={st}>{st + 1}. Stunde ({VM_ZEITEN[st + 1] || `${st + 1}`})</option>
-                      ))}
+                      {LESSON_SLOT_NUMBERS.map((slot) => {
+                        const st = slot - 1;
+                        const time = configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, slot);
+                        return (
+                          <option key={st} value={st}>
+                            {slot}. Stunde{time ? ` (${time})` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 )}
