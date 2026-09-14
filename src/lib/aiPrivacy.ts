@@ -37,3 +37,22 @@ Aktuelle Kalenderwoche: ${currentWeek || 'nicht angegeben'}
 Wochenplanthemen:
 ${weekTopics.slice(0, 12).map(topic => `- ${topic}`).join('\n') || '- keine Themen hinterlegt'}`;
 }
+
+
+export function validateAiServerImageRequest(
+  action: string,
+  imageBase64: { data?: unknown; mimeType?: unknown } | undefined,
+  confirmed: boolean,
+): string | null {
+  if (!imageBase64) return null;
+  if (action !== 'askAI') return 'Bildanhänge sind für diese KI-Aktion nicht zulässig.';
+  if (!confirmed) return 'Bildanalyse blockiert: Datenschutzbestätigung fehlt.';
+  if (
+    typeof imageBase64.data !== 'string' ||
+    typeof imageBase64.mimeType !== 'string' ||
+    !/^image\/(jpeg|png|webp)$/i.test(imageBase64.mimeType)
+  ) {
+    return 'Bildanalyse blockiert: Ungültiges Bildformat.';
+  }
+  return null;
+}
