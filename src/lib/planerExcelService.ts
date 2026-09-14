@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { AppState } from '../types';
 import { STUNDEN_INFO, TAGE_NAMEN, DEFAULT_YEARLY_SUBJECTS } from '../constants';
 import { getStartYear, getSchulstartKW, kwToMonday, kwYear, getKW, isHoliday, sortYearlySubjects } from './utils';
+import { yearPlanCellEntries } from './yearlyPlanData';
 
 // ==========================================
 // TYPES & INTERFACES
@@ -349,10 +350,7 @@ export async function parseWochenplanExcel(file: File): Promise<WochenplanImport
 // 3. JAHRESPLANER: TEMPLATE GENERATOR
 // ==========================================
 
-export function generateJahresplanTemplate(app: AppState) {
-  const wb = XLSX.utils.book_new();
-
-  // Column definitions for the template
+export function buildJahresplanTemplateRows(app: AppState): (string | number)[][] {
   const headers = [
     'Kalenderwoche',
     'Schulwoche',
@@ -367,7 +365,6 @@ export function generateJahresplanTemplate(app: AppState) {
 
   const rows: (string | number)[][] = [headers];
 
-  // 1-3 clearly designated sample rows
   rows.push([
     38,
     2,
@@ -402,58 +399,96 @@ export function generateJahresplanTemplate(app: AppState) {
     'Nein'
   ]);
 
-  // Generate sequence of school weeks according to Schuljahr
   const startYearVal = getStartYear(app.schuljahr);
-  const startKW = getSchulstartKW(app.schuljahr);
+  const bundesland = app.bundesland || 'VBG';
+  const startKW = getSchulstartKW(app.schuljahr, bundesland);
   const endYear = startYearVal + 1;
   const startMonday = kwToMonday(startKW, startYearVal);
-
   const activeSubjects = sortYearlySubjects(app.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS);
+
+  const typeLabel = (type: string | undefined) =>
+    type === 'sa'
+      ? 'Schularbeit'
+      : type === 'lzk' || type === 'test'
+        ? 'Lernzielkontrolle'
+        : type === 'event'
+          ? 'Event'
+          : 'Standard';
 
   let currentMonday = new Date(startMonday);
   let swIndex = 1;
 
-  while (currentMonday.getFullYear() < endYear || (currentMonday.getFullYear() === endYear && currentMonday.getMonth() < 7)) {
+  while (
+    currentMonday.getFullYear() < endYear ||
+    (currentMonday.getFullYear() === endYear && currentMonday.getMonth() < 7)
+  ) {
     const kw = getKW(currentMonday);
-    const dateStr = currentMonday.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    
-    // Check if it's a holiday
-    const holiday = isHoliday(currentMonday, app.calendarSettings?.disabledHolidays, app.bundesland || 'VBG');
-    const isMajorHoliday = holiday && (holiday.toLowerCase().includes('ferien') || holiday.toLowerCase().includes('schluss') || holiday.toLowerCase().includes('beginn'));
+    const dateStr = currentMonday.toLocaleDateString('de-AT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    const holiday = isHoliday(
+      currentMonday,
+      app.calendarSettings?.disabledHolidays,
+      bundesland,
+    );
+    const holidayLower = (holiday || '').toLocaleLowerCase('de-AT');
+    const isMajorHoliday = Boolean(
+      holiday &&
+      (
+        holidayLower.includes('ferien') ||
+        holidayLower.includes('schluss') ||
+        holidayLower.includes('beginn')
+      )
+    );
 
     if (isMajorHoliday) {
       rows.push([
         kw,
-        `-`,
+        '-',
         dateStr,
         'Ferien / Schulfrei',
-        holiday,
+        holiday || '',
         '',
         '',
         'Event',
         ''
       ]);
     } else {
-      // Add empty row for primary subjects for this week
       activeSubjects.forEach((subj) => {
-        // If there's already an item in the existing jahresplanung, prefill it!
         const existing = app.jahresplanung?.[kw]?.[subj.id];
-        const thema = existing?.thema || '';
-        const buch = existing?.buch || '';
-        const typeStr = existing?.type === 'sa' ? 'Schularbeit' : existing?.type === 'lzk' || existing?.type === 'test' ? 'Lernzielkontrolle' : existing?.type === 'event' ? 'Event' : 'Standard';
+        const entries = yearPlanCellEntries(existing);
         const doneStr = existing?.completed ? 'Ja' : 'Nein';
 
-        rows.push([
-          kw,
-          swIndex,
-          dateStr,
-          subj.label,
-          thema,
-          '', // Inhalte_Lernziele
-          buch,
-          typeStr,
-          doneStr
-        ]);
+        if (entries.length === 0) {
+          rows.push([
+            kw,
+            swIndex,
+            dateStr,
+            subj.label,
+            '',
+            '',
+            '',
+            'Standard',
+            doneStr
+          ]);
+          return;
+        }
+
+        entries.forEach((entry) => {
+          rows.push([
+            kw,
+            swIndex,
+            dateStr,
+            subj.label,
+            entry.thema || '',
+            '',
+            entry.buch || '',
+            typeLabel(entry.type),
+            doneStr
+          ]);
+        });
       });
       swIndex++;
     }
@@ -461,23 +496,30 @@ export function generateJahresplanTemplate(app: AppState) {
     currentMonday.setDate(currentMonday.getDate() + 7);
   }
 
+  return rows;
+}
+
+export function generateJahresplanTemplate(app: AppState) {
+  const wb = XLSX.utils.book_new();
+  const rows = buildJahresplanTemplateRows(app);
+  const activeSubjects = sortYearlySubjects(app.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS);
+
   const ws = XLSX.utils.aoa_to_sheet(rows);
 
   ws['!cols'] = [
-    { wch: 15 }, // Kalenderwoche
-    { wch: 12 }, // Schulwoche
-    { wch: 14 }, // Datum_Von
-    { wch: 22 }, // Fach
-    { wch: 36 }, // Thema / Reihe
-    { wch: 30 }, // Inhalte_Lernziele
-    { wch: 22 }, // Buch_Material
-    { wch: 16 }, // Typ
-    { wch: 10 }  // Erledigt
+    { wch: 15 },
+    { wch: 12 },
+    { wch: 14 },
+    { wch: 22 },
+    { wch: 36 },
+    { wch: 30 },
+    { wch: 22 },
+    { wch: 16 },
+    { wch: 10 }
   ];
 
-  XLSX.utils.book_append_sheet(wb, ws, `Jahresplanung`);
+  XLSX.utils.book_append_sheet(wb, ws, 'Jahresplanung');
 
-  // Add notes sheet
   const infoRows = [
     ['KLASSIO JAHRESPLANER - AUSFÜLLHILFE'],
     [''],
@@ -492,10 +534,10 @@ export function generateJahresplanTemplate(app: AppState) {
     ['Typ', 'Art des Eintrags', 'Standard, Schularbeit, Lernzielkontrolle, Event'],
     ['Erledigt', 'Bearbeitungsstatus', 'Ja / Nein'],
     [''],
-    ['Hinweis:', 'Zeilen mit "(BEISPIEL)" werden beim Import automatisch ignoriert. Vorhandene Wochen/Fächer können ergänzt oder überschrieben werden.']
+    ['Hinweis:', 'Mehrere Zeilen mit derselben KW und demselben Fach werden als mehrere Themen derselben Jahresplan-Zelle importiert. Zeilen mit "(BEISPIEL)" werden ignoriert.']
   ];
   const wsInfo = XLSX.utils.aoa_to_sheet(infoRows);
-  wsInfo['!cols'] = [{ wch: 22 }, { wch: 45 }, { wch: 35 }];
+  wsInfo['!cols'] = [{ wch: 22 }, { wch: 55 }, { wch: 40 }];
   XLSX.utils.book_append_sheet(wb, wsInfo, 'Hinweise');
 
   const filename = `Jahresplanung_${app.schuljahr || 'Aktuell'}_Vorlage.xlsx`;
