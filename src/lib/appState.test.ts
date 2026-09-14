@@ -53,6 +53,9 @@ function fixture() {
       sitzplan_objekte: [{ id: `board-${id}`, type: 'blackboard', x: id === 'a' ? 20 : 500, y: 10, w: 200, h: 10 }],
       sitzplanRegeln: [{ id: `rule-${id}`, typ: 'feste_zone', schuelerIds: [`student-${id}`], zone: id === 'a' ? 'vorne' : 'hinten' }],
       wochenplanung: { 37: { Montag: [{ thema: id }] } },
+      savedWeekTemplates: { [`template-${id}`]: { Montag: { 0: { fach: 'Deutsch', thema: `template-${id}` } } } },
+      parkgarage: [{ id: `park-${id}`, fach: 'Deutsch', thema: `park-${id}` }],
+      termine: [{ id: `event-${id}`, datum: '2026-09-14', titel: `event-${id}`, kw: 37 }],
       klassenkasse: {
         kontostand: id === 'a' ? 12.5 : 7.25,
         sammlungen: [{
@@ -585,4 +588,64 @@ test('legacy basis contribution is normalized for inactive classes too', () => {
   assert.equal(loaded.classes[1].klassenkasse?.sammlungen?.[0]?.betrag, 8.5);
   assert.equal(loaded.classes[1].klassenkasse?.sammlungen?.[0]?.status?.b1, 'offen');
   assert.equal(switchClassState(loaded, 'b').klassenkasse?.sammlungen?.[0]?.betrag, 8.5);
+});
+
+
+test('class switches isolate planning-center templates, parked lessons and events', () => {
+  const state = fixture();
+  assert.equal(state.savedWeekTemplates?.['template-a']?.Montag?.[0]?.thema, 'template-a');
+  assert.equal(state.parkgarage?.[0]?.id, 'park-a');
+  assert.equal(state.termine?.[0]?.id, 'event-a');
+
+  let b = switchClassState(state, 'b');
+  assert.equal(b.savedWeekTemplates?.['template-b']?.Montag?.[0]?.thema, 'template-b');
+  assert.equal(b.savedWeekTemplates?.['template-a'], undefined);
+  assert.equal(b.parkgarage?.[0]?.id, 'park-b');
+  assert.equal(b.termine?.[0]?.id, 'event-b');
+
+  b = syncActiveClass({
+    ...b,
+    savedWeekTemplates: {
+      ...(b.savedWeekTemplates || {}),
+      'template-b': { Montag: { 0: { fach: 'Deutsch', thema: 'edited-template-b' } } },
+    },
+    parkgarage: [{ id: 'park-b-edited', fach: 'Mathematik', thema: 'edited-park-b' }],
+    termine: [{ id: 'event-b-edited', datum: '2026-09-15', titel: 'edited-event-b', kw: 38 }],
+  } as any);
+
+  const a = switchClassState(b, 'a');
+  assert.equal(a.savedWeekTemplates?.['template-a']?.Montag?.[0]?.thema, 'template-a');
+  assert.equal(a.parkgarage?.[0]?.id, 'park-a');
+  assert.equal(a.termine?.[0]?.id, 'event-a');
+
+  const reloaded = normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(a))));
+  assert.equal(reloaded.classes[1].savedWeekTemplates?.['template-b']?.Montag?.[0]?.thema, 'edited-template-b');
+  assert.equal(reloaded.classes[1].parkgarage?.[0]?.id, 'park-b-edited');
+  assert.equal(reloaded.classes[1].termine?.[0]?.id, 'event-b-edited');
+});
+
+test('legacy global planning-center helpers are copied into every existing class once', () => {
+  const loaded = normalizeAppState({
+    activeClassId: 'a',
+    savedWeekTemplates: {
+      legacy: { Montag: { 0: { fach: 'Deutsch', thema: 'Legacy' } } },
+    },
+    parkgarage: [{ id: 'legacy-park', fach: 'Deutsch', thema: 'Legacy' }],
+    termine: [{ id: 'legacy-event', datum: '2026-09-14', titel: 'Legacy', kw: 37 }],
+    classes: [
+      { id: 'a', name: 'A', schueler: [], noten: {}, mitarbeit: {} },
+      { id: 'b', name: 'B', schueler: [], noten: {}, mitarbeit: {} },
+    ],
+  });
+
+  for (const klass of loaded.classes) {
+    assert.equal(klass.savedWeekTemplates?.legacy?.Montag?.[0]?.thema, 'Legacy');
+    assert.equal(klass.parkgarage?.[0]?.id, 'legacy-park');
+    assert.equal(klass.termine?.[0]?.id, 'legacy-event');
+  }
+
+  const b = switchClassState(loaded, 'b');
+  assert.equal(b.savedWeekTemplates?.legacy?.Montag?.[0]?.thema, 'Legacy');
+  assert.equal(b.parkgarage?.[0]?.id, 'legacy-park');
+  assert.equal(b.termine?.[0]?.id, 'legacy-event');
 });
