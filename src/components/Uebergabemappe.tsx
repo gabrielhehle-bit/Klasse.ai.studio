@@ -39,6 +39,15 @@ function formatDate(date: Date) {
   return date.toLocaleDateString('de-AT', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+const DEFAULT_EMERGENCY_CHECKLIST = [
+  { id: '1', text: 'Klassenzimmer-Schlüssel beim Schulwart hinterlegt', checked: false },
+  { id: '2', text: 'Klassendienste (Tafeldienst etc.) zugeteilt', checked: false },
+  { id: '3', text: 'Allergie- & Notfallkontaktliste liegt sichtbar am Lehrertisch', checked: false },
+  { id: '4', text: 'Pausenregeln und Aufsichtszeiten kurz notiert', checked: false },
+  { id: '5', text: 'Arbeitsblätter & Handreichungen kopiert und bereitgelegt', checked: false },
+  { id: '6', text: 'Zugangsdaten / Logins für Schul-Tablets & WLAN vermerkt', checked: false },
+];
+
 export default function Uebergabemappe() {
   const { app, setApp, setPage } = useApp();
   const [activeTab, setActiveTab] = useState<'config' | 'manage' | 'transfer'>('config');
@@ -113,14 +122,9 @@ export default function Uebergabemappe() {
     diagnostik: true
   });
   
-  const [emergencyChecklist, setEmergencyChecklist] = useState([
-    { id: '1', text: 'Klassenzimmer-Schlüssel beim Schulwart hinterlegt', checked: false },
-    { id: '2', text: 'Klassendienste (Tafeldienst etc.) zugeteilt', checked: false },
-    { id: '3', text: 'Allergie- & Notfallkontaktliste liegt sichtbar am Lehrertisch', checked: false },
-    { id: '4', text: 'Pausenregeln und Aufsichtszeiten kurz notiert', checked: false },
-    { id: '5', text: 'Arbeitsblätter & Handreichungen kopiert und bereitgelegt', checked: false },
-    { id: '6', text: 'Zugangsdaten / Logins für Schul-Tablets & WLAN vermerkt', checked: false }
-  ]);
+  const [emergencyChecklist, setEmergencyChecklist] = useState(() =>
+    DEFAULT_EMERGENCY_CHECKLIST.map(item => ({ ...item })),
+  );
   const [newChecklistItem, setNewChecklistItem] = useState('');
 
   const [isEditing, setIsEditing] = useState(false);
@@ -377,6 +381,8 @@ export default function Uebergabemappe() {
     setDayNotes({});
     setTransferStudentId(null);
     setShowTransferPrint(false);
+    setEmergencyChecklist(DEFAULT_EMERGENCY_CHECKLIST.map(item => ({ ...item })));
+    setNewChecklistItem('');
     setSelectedStundenbild(null);
     setShowDetailModal(false);
   }, [app.activeClassId]);
