@@ -1,13 +1,19 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { FAECHER_ALLE, DEFAULT_GEWICHTUNG } from '../constants';
-import { getNotenLabel } from '../lib/GradeUtils';
+import { getHomeworkGradebookSettings, getNotenLabel } from '../lib/GradeUtils';
 import { Save, RotateCcw, AlertTriangle, Zap, BookOpen, Check, Info, FileText, CheckCircle2 } from 'lucide-react';
 
 export default function WeightSettings({ onBack }: { onBack: () => void }) {
   const { app, setApp } = useApp();
   const [localWeights, setLocalWeights] = useState({ ...app.notenGewichtung });
+  const [hueSettingsFach, setHueSettingsFach] = useState(() => app.faecher?.[0] || 'Deutsch');
+
+  useEffect(() => {
+    // Falls die Klasse während dieser Ansicht wechselt, niemals alte Entwürfe in die neue Klasse speichern.
+    setLocalWeights({ ...app.notenGewichtung });
+  }, [app.activeClassId]);
 
   const getWeight = (fach: string) => {
     return localWeights[fach] || DEFAULT_GEWICHTUNG[fach] || DEFAULT_GEWICHTUNG['Deutsch'];
@@ -181,6 +187,30 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
   };
 
   const activeFaecher = (app.faecher && app.faecher.length > 0 ? app.faecher : FAECHER_ALLE).filter(f => app.fachConfig?.[f]?.unterrichtet !== false);
+  const hueEligibleFaecher = activeFaecher.filter(f => ['deutsch', 'mathematik', 'mathe', 'sachunterricht'].some(key => f.toLowerCase().includes(key)));
+  const effectiveHueFach = hueEligibleFaecher.includes(hueSettingsFach)
+    ? hueSettingsFach
+    : (hueEligibleFaecher[0] || activeFaecher[0] || 'Deutsch');
+  const homeworkSettings = getHomeworkGradebookSettings(app, effectiveHueFach);
+
+  useEffect(() => {
+    if (hueEligibleFaecher.length > 0 && !hueEligibleFaecher.includes(hueSettingsFach)) {
+      setHueSettingsFach(hueEligibleFaecher[0]);
+    }
+  }, [app.activeClassId, app.faecher, hueSettingsFach]);
+
+  const updateHomeworkMeta = (patch: Record<string, any>) => {
+    setApp(prev => ({
+      ...prev,
+      notenMeta: {
+        ...(prev.notenMeta || {}),
+        [effectiveHueFach]: {
+          ...(prev.notenMeta?.[effectiveHueFach] || {}),
+          ...patch,
+        },
+      },
+    }));
+  };
   
   // Real-time metrics
   const totalFaecherCount = activeFaecher.length;
@@ -637,14 +667,26 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
               <BookOpen size={16} className="text-rose-600" />
               <span>Hausübungen · Berechnung &amp; Abzüge</span>
             </h4>
+            {hueEligibleFaecher.length > 0 && (
+              <select
+                value={effectiveHueFach}
+                onChange={(e) => setHueSettingsFach(e.target.value)}
+                className="mt-2 w-full sm:w-auto bg-white border border-rose-200 rounded-xl px-3 py-2 text-[0.75rem] font-bold text-rose-900 outline-none focus:border-rose-400"
+                aria-label="Fach für Hausübungsregeln"
+              >
+                {hueEligibleFaecher.map(fach => (
+                  <option key={fach} value={fach}>{fach}</option>
+                ))}
+              </select>
+            )}
             <p className="text-[0.6875rem] text-stone-400 font-medium">
               Vollständige Transparenz: Keine unsichtbaren Abzüge. Du bestimmst, wie vergessene HÜs einfließen.
             </p>
           </div>
           <div className="flex items-center gap-2 bg-rose-50 border border-rose-200/60 px-3 py-1.5 rounded-xl">
             <span className="text-[0.625rem] font-black uppercase tracking-wider text-rose-900">Modus:</span>
-            <span className={`text-[0.625rem] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${app.settings?.hueGewichten === false ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-emerald-100 text-emerald-900 border border-emerald-200'}`}>
-              {app.settings?.hueGewichten === false ? 'Nur Dokumentieren' : 'In Bewertung einrechnen'}
+            <span className={`text-[0.625rem] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${homeworkSettings.mode === 'document' ? 'bg-amber-100 text-amber-900 border border-amber-200' : 'bg-emerald-100 text-emerald-900 border border-emerald-200'}`}>
+              {homeworkSettings.mode === 'document' ? 'Nur Dokumentieren' : 'In Bewertung einrechnen'}
             </span>
           </div>
         </div>
@@ -654,18 +696,10 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
               type="button"
-              onClick={() => {
-                setApp(prev => ({
-                  ...prev,
-                  settings: {
-                    ...prev.settings,
-                    hueGewichten: true
-                  }
-                }));
-              }}
-              className={`p-5 rounded-3xl border-2 text-left transition-all flex items-start gap-3.5 cursor-pointer ${app.settings?.hueGewichten !== false ? 'bg-rose-50/50 border-rose-400 shadow-md ring-2 ring-rose-200/50' : 'bg-stone-50 border-stone-100 hover:border-rose-200'}`}
+              onClick={() => updateHomeworkMeta({ hueMode: 'grade' })}
+              className={`p-5 rounded-3xl border-2 text-left transition-all flex items-start gap-3.5 cursor-pointer ${homeworkSettings.mode !== 'document' ? 'bg-rose-50/50 border-rose-400 shadow-md ring-2 ring-rose-200/50' : 'bg-stone-50 border-stone-100 hover:border-rose-200'}`}
             >
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${app.settings?.hueGewichten !== false ? 'bg-rose-600 text-white shadow-xs' : 'bg-stone-200 text-stone-600'}`}>
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${homeworkSettings.mode !== 'document' ? 'bg-rose-600 text-white shadow-xs' : 'bg-stone-200 text-stone-600'}`}>
                 <CheckCircle2 size={18} />
               </div>
               <div className="space-y-1">
@@ -680,19 +714,10 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
 
             <button
               type="button"
-              onClick={() => {
-                setApp(prev => ({
-                  ...prev,
-                  settings: {
-                    ...prev.settings,
-                    hueGewichten: false,
-                    hueWeight: 0
-                  }
-                }));
-              }}
-              className={`p-5 rounded-3xl border-2 text-left transition-all flex items-start gap-3.5 cursor-pointer ${app.settings?.hueGewichten === false ? 'bg-amber-50/60 border-amber-400 shadow-md ring-2 ring-amber-200/50' : 'bg-stone-50 border-stone-100 hover:border-amber-200'}`}
+              onClick={() => updateHomeworkMeta({ hueMode: 'document' })}
+              className={`p-5 rounded-3xl border-2 text-left transition-all flex items-start gap-3.5 cursor-pointer ${homeworkSettings.mode === 'document' ? 'bg-amber-50/60 border-amber-400 shadow-md ring-2 ring-amber-200/50' : 'bg-stone-50 border-stone-100 hover:border-amber-200'}`}
             >
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${app.settings?.hueGewichten === false ? 'bg-amber-600 text-white shadow-xs' : 'bg-stone-200 text-stone-600'}`}>
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${homeworkSettings.mode === 'document' ? 'bg-amber-600 text-white shadow-xs' : 'bg-stone-200 text-stone-600'}`}>
                 <FileText size={18} />
               </div>
               <div className="space-y-1">
@@ -707,7 +732,7 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
           </div>
 
           {/* Configurable Deductions */}
-          {app.settings?.hueGewichten !== false && (
+          {homeworkSettings.mode !== 'document' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
               {/* Percentage Deduction */}
               <div className="p-6 bg-rose-50/30 border border-rose-100 rounded-3xl space-y-4">
@@ -716,7 +741,7 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
                     Prozentabzug pro vergessene HÜ
                   </span>
                   <span className="text-[0.6875rem] font-black text-rose-700 bg-white px-2.5 py-1 rounded-lg border border-rose-200 shadow-3xs">
-                    -{app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}%
+                    -{homeworkSettings.percentDeduction}%
                   </span>
                 </div>
                 <p className="text-[0.6875rem] text-slate-500 leading-relaxed">
@@ -729,16 +754,10 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
                     max="20"
                     step="1"
                     className="w-full accent-rose-600 h-2 bg-rose-100 rounded-lg cursor-pointer"
-                    value={app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}
+                    value={homeworkSettings.percentDeduction}
                     onChange={(e) => {
                       const val = parseInt(e.target.value) || 0;
-                      setApp(prev => ({
-                        ...prev,
-                        settings: {
-                          ...prev.settings,
-                          huePercentDeduction: val
-                        }
-                      }));
+                      updateHomeworkMeta({ hueDeduction: val });
                     }}
                   />
                   <input
@@ -746,16 +765,10 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
                     min="0"
                     max="50"
                     className="w-16 px-2 py-1 bg-white border border-rose-200 rounded-xl text-center font-black text-rose-800 text-[0.8125rem] shadow-3xs outline-none focus:ring-2 focus:ring-rose-500/20"
-                    value={app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}
+                    value={homeworkSettings.percentDeduction}
                     onChange={(e) => {
                       const val = Math.max(0, parseInt(e.target.value) || 0);
-                      setApp(prev => ({
-                        ...prev,
-                        settings: {
-                          ...prev.settings,
-                          huePercentDeduction: val
-                        }
-                      }));
+                      updateHomeworkMeta({ hueDeduction: val });
                     }}
                   />
                 </div>
@@ -768,7 +781,7 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
                     Mitarbeitsabzug (Striche)
                   </span>
                   <span className="text-[0.6875rem] font-black text-orange-700 bg-white px-2.5 py-1 rounded-lg border border-orange-200 shadow-3xs">
-                    {(app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1) === 0 ? 'Kein Abzug' : `-${app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1} Strich pro HÜ`}
+                    {(homeworkSettings.participationDeduction) === 0 ? 'Kein Abzug' : `-${homeworkSettings.participationDeduction} Strich pro HÜ`}
                   </span>
                 </div>
                 <p className="text-[0.6875rem] text-slate-500 leading-relaxed">
@@ -781,16 +794,10 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
                     max="5"
                     step="0.5"
                     className="w-full accent-orange-500 h-2 bg-orange-100 rounded-lg cursor-pointer"
-                    value={app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1}
+                    value={homeworkSettings.participationDeduction}
                     onChange={(e) => {
                       const val = parseFloat(e.target.value) || 0;
-                      setApp(prev => ({
-                        ...prev,
-                        settings: {
-                          ...prev.settings,
-                          hueWeight: val
-                        }
-                      }));
+                      updateHomeworkMeta({ hueMitarbeitWeight: val });
                     }}
                   />
                   <input
@@ -799,16 +806,10 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
                     max="10"
                     step="0.5"
                     className="w-16 px-2 py-1 bg-white border border-orange-200 rounded-xl text-center font-black text-orange-800 text-[0.8125rem] shadow-3xs outline-none focus:ring-2 focus:ring-orange-500/20"
-                    value={app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1}
+                    value={homeworkSettings.participationDeduction}
                     onChange={(e) => {
                       const val = Math.max(0, parseFloat(e.target.value) || 0);
-                      setApp(prev => ({
-                        ...prev,
-                        settings: {
-                          ...prev.settings,
-                          hueWeight: val
-                        }
-                      }));
+                      updateHomeworkMeta({ hueMitarbeitWeight: val });
                     }}
                   />
                 </div>
@@ -824,13 +825,13 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
                 <span>Transparente HÜ-Berechnungstabelle (Beispiel)</span>
               </span>
               <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest">
-                Formel: 100% − (Vergessen × {app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}%)
+                Formel: 100% − (Vergessen × {homeworkSettings.percentDeduction}%)
               </span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 pt-1">
               {[0, 1, 2, 3, 4, 5].map(misses => {
-                const ded = app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5;
+                const ded = homeworkSettings.percentDeduction;
                 const pct = Math.max(0, 100 - misses * ded);
                 let note = 1;
                 if (pct >= 87.5) note = 1;
@@ -845,9 +846,9 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
                       {misses === 0 ? '0 Fehlend' : `${misses}× Vergessen`}
                     </div>
                     <div className="text-[0.875rem] font-black text-slate-800">
-                      {app.settings?.hueGewichten === false ? 'Dokumentiert' : `${pct}%`}
+                      {homeworkSettings.mode === 'document' ? 'Dokumentiert' : `${pct}%`}
                     </div>
-                    {app.settings?.hueGewichten !== false && (
+                    {homeworkSettings.mode !== 'document' && (
                       <div className={`text-[0.5625rem] font-black uppercase px-1.5 py-0.5 rounded ${note === 1 ? 'bg-emerald-100 text-emerald-800' : note === 2 ? 'bg-blue-100 text-blue-800' : note === 3 ? 'bg-amber-100 text-amber-800' : note === 4 ? 'bg-orange-100 text-orange-800' : 'bg-rose-100 text-rose-800'}`}>
                         Note {note}
                       </div>
