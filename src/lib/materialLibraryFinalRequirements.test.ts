@@ -23,6 +23,7 @@ test('Materialbibliothek: Löschen räumt Wochenplan-Verknüpfungen konsistent a
 
 test('Materialbibliothek: Datei- und Linkdaten werden validiert und typgerecht bereinigt', () => {
   assert.match(material, /validateMaterialFile\(file\)/);
+  assert.match(material, /accept="image\/jpeg,image\/png,image\/webp,image\/gif,application\/pdf"/);
   assert.match(material, /normalizeMaterialExternalLink\(formData\.externerLink\)/);
   assert.match(material, /sanitizeMaterialForType\(/);
   assert.doesNotMatch(material, /win\.document\.write/);
