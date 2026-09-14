@@ -414,7 +414,7 @@ export default function YearlyPlan() {
   }, []);
 
   const activeKW = app.currentKW || actualKW;
-  const startKW = getSchulstartKW(app.schuljahr);
+  const startKW = getSchulstartKW(app.schuljahr, app.bundesland || 'VBG');
   
   // Generate sequence of KWs until end of July of the next year
   const endYear = startYear + 1;
