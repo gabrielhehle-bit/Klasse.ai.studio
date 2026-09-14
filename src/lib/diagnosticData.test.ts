@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getDiagnosticClassId, validateDiagnosticEntry } from './diagnosticData';
+import { getDiagnosticClassId, isDiagnosticDateInFuture, validateDiagnosticEntry } from './diagnosticData';
 
 test('diagnostic class id prefers the active class id', () => {
   assert.equal(
@@ -59,4 +59,17 @@ test('diagnostic validation warns when a record belongs to another class', () =>
 
   assert.equal(result.valid, true);
   assert.equal(result.warnings.some(warning => warning.includes('anderen Klasse')), true);
+});
+
+
+test('future-date checks use the local Austrian calendar day instead of UTC', () => {
+  const previousTz = process.env.TZ;
+  process.env.TZ = 'Europe/Vienna';
+  try {
+    const justAfterMidnightVienna = new Date('2026-09-13T22:30:00.000Z');
+    assert.equal(isDiagnosticDateInFuture('2026-09-14', justAfterMidnightVienna), false);
+    assert.equal(isDiagnosticDateInFuture('2026-09-15', justAfterMidnightVienna), true);
+  } finally {
+    process.env.TZ = previousTz;
+  }
 });
