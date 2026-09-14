@@ -104,8 +104,47 @@ export default function OrgaLists() {
     return () => clearTimeout(timer);
   }, [visiblePasswords]);
 
+  useEffect(() => {
+    // Kein offener Kassa-/Orga-Entwurf darf in die nächste Klasse mitwandern.
+    setActiveTab('offen');
+    setSelectedSammlungId(null);
+    setSelectedChecklisteId(null);
+    setSelectedCustomListId(null);
+    setStudentSearch('');
+    setPasswordSearch('');
+    setKasseSearch('');
+    setStudentFilter('all');
+    setIsMehrMenuOpen(false);
+    setIsNewModalOpen(false);
+    setNewItemType(null);
+    setSammlungTitle('');
+    setSammlungAmount('');
+    setSammlungDueDate('');
+    setSammlungNote('');
+    setChecklisteTitle('');
+    setChecklisteDate('');
+    setPwBezeichnung('');
+    setPwBenutzername('');
+    setPwPasswort('');
+    setPwUrl('');
+    setEditingPwItem(null);
+    setVisiblePasswords({});
+    setCustomListTitle('');
+    setCustomListDesc('');
+    setCustomListColumns([{ id: 'col_1', label: 'Notiz / Info', type: 'text' }]);
+    setTxType('plus');
+    setTxTitle('');
+    setTxAmount('');
+    setTxCategory('sonstiges');
+    setTxStudentId('');
+    setTxDate(getLocalOrgaDateKey());
+    setTxToDelete(null);
+    setEditingPartialStudentId(null);
+    setPartialAmountInput('');
+  }, [app.activeClassId]);
+
   // App state getters
-  const kasse = app.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] };
+  const kasse = normalizeKlassenkasse(app.klassenkasse);
   const passwords = app.zugangsdaten || [];
   const customLists = app.customLists || [];
   const checklisten = app.checklisten || [];
