@@ -18,6 +18,7 @@ import { FachColorPicker } from './FachColorPicker';
 import { getFachHexColor, STANDARD_COLOR_MAP } from '../lib/fachColorUtils';
 import { getActiveVaultKey } from '../lib/vaultStorage';
 import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
+import { parseLegacyTeacherName, resolveTeacherDisplayName } from '../lib/teacherProfile';
 
 export default function SetupWizard({ onComplete, isNewClass }: { onComplete: () => void, isNewClass?: boolean }) {
   const { app, setApp, restoreAppData } = useApp();
@@ -32,7 +33,19 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   
   const activeClassLocal = (!isNewClass && app.classes) ? (app.classes.find(c => c.id === app.activeClassId) || app.classes[0]) : null;
 
-  const [lehrerName, setLehrerName] = useState(app.lehrerName || '');
+  const legacyTeacherName = (app.lehrerName || app.lehrerProfil?.name || '').trim();
+  const legacyTeacherParts = parseLegacyTeacherName(legacyTeacherName);
+  const [lehrerName, setLehrerName] = useState(legacyTeacherName);
+  const [anrede, setAnrede] = useState(app.anrede || legacyTeacherParts.anrede);
+  const [vorname, setVorname] = useState(app.vorname || legacyTeacherParts.vorname);
+  const [nachname, setNachname] = useState(app.nachname || legacyTeacherParts.nachname);
+  const applyTeacherName = (value: string) => {
+    setLehrerName(value);
+    const parsed = parseLegacyTeacherName(value);
+    setAnrede(parsed.anrede);
+    setVorname(parsed.vorname);
+    setNachname(parsed.nachname);
+  };
   const [schulName, setSchulName] = useState(app.schulName || '');
   const [schulkennzahl, setSchulkennzahl] = useState(app.schulkennzahl || '');
   const [schulOrt, setSchulOrt] = useState(app.schulOrt || '');
@@ -252,8 +265,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
       if (result.students && result.students.length > 0) {
         const newKids = result.students.map((s: any) => ({
           id: crypto.randomUUID(), vorname: s.vorname || '', nachname: s.nachname || '', name: `${s.vorname||''} ${s.nachname||''}`.trim(),
-          geschlecht: s.geschlecht || 'w', niveau: 1, geburtstag: s.geburtstag || '', staatsbuergerschaft: 'Österreich',
-          religion: s.religion || '', gruppen: [], erstelltAm: new Date().toISOString()
+          geschlecht: s.geschlecht || '', niveau: 1, geburtstag: s.geburtstag || '', staatsbuergerschaft: s.staatsbuergerschaft || '',
+          religion: s.religion || '', erstsprache: s.erstsprache || '', gruppen: [], erstelltAm: new Date().toISOString()
         }));
         setCsvPreview(newKids);
         setCsvError(false);
@@ -298,7 +311,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     const newKid = {
       id: crypto.randomUUID(), vorname: currentStudent.vorname.trim(), nachname: currentStudent.nachname.trim(),
       name: `${currentStudent.vorname.trim()} ${currentStudent.nachname.trim()}`, geschlecht: '', niveau: 1,
-      geburtstag: '', staatsbuergerschaft: 'Österreich', religion: '', gruppen: [], erstelltAm: new Date().toISOString()
+      geburtstag: '', staatsbuergerschaft: '', religion: '', erstsprache: '', gruppen: [], erstelltAm: new Date().toISOString()
     };
     setStudentsList(prev => [...prev, newKid]);
     setStudentMessage(null);
@@ -476,7 +489,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
 
          return {
            ...prev,
-           lehrerName, schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
+           lehrerName: resolvedLehrerName,
+           anrede,
+           vorname,
+           nachname,
+           lehrerProfil: { ...(prev.lehrerProfil || {}), name: resolvedLehrerName, schule: schulName },
+           schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
            klassenbezeichnung, stufe, schueler: finalStudents,
            classes,
            currentPage: 'dashboard',
@@ -511,7 +529,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
          return {
            ...prev,
          ...(isFirstSetup ? {
-           lehrerName, schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
+           lehrerName: resolvedLehrerName,
+           anrede,
+           vorname,
+           nachname,
+           lehrerProfil: { ...(prev.lehrerProfil || {}), name: resolvedLehrerName, schule: schulName },
+           schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
            klassenbezeichnung, stufe, schuljahr: schuljahr, schueler: finalStudents,
            classes: [mainClass], activeClassId: classId, firstLogin: true, tourAbgeschlossen: false
          } : {
@@ -733,11 +756,26 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     const active = new Set<number>(tageplan[tag]?.stunden || []);
     return sum + Object.entries(stammplan[tag] || {}).filter(([hour, subject]) => active.has(Number(hour)) && Boolean(subject)).length;
   }, 0);
+  const resolvedLehrerName = resolveTeacherDisplayName(anrede, vorname, nachname, lehrerName);
+
+  const schoolYearOptions = React.useMemo(() => {
+    const current = getCurrentSchuljahr();
+    const startYear = Number(current.slice(0, 4));
+    const options = Number.isFinite(startYear)
+      ? Array.from({ length: 5 }, (_, index) => {
+          const year = startYear + index;
+          return `${year}/${String((year + 1) % 100).padStart(2, '0')}`;
+        })
+      : [current];
+    if (schuljahr && !options.includes(schuljahr)) options.unshift(schuljahr);
+    return options;
+  }, [schuljahr]);
+
   const setupWarnings = [
     studentsList.length === 0 ? 'Noch keine Schüler:innen angelegt – das kannst du später nachholen.' : null,
     assignedLessonSlots === 0 ? 'Noch kein Stammstundenplan ausgefüllt.' : null,
     assignedLessonSlots > availableLessonSlots ? 'Der Stundenplan enthält mehr Einträge als verfügbare Stunden.' : null,
-    !lehrerName.trim() ? 'Der Name der Lehrkraft ist noch leer.' : null,
+    !resolvedLehrerName ? 'Der Name der Lehrkraft ist noch leer.' : null,
     !schulName.trim() ? 'Der Schulname ist noch leer.' : null
   ].filter(Boolean) as string[];
 
@@ -773,7 +811,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
             setStudentsList(importedStudents);
             if (meta?.klasse) setKlassenbezeichnung(meta.klasse);
             if (meta?.schuljahr) setSchuljahr(meta.schuljahr);
-            if (meta?.lehrerName) setLehrerName(meta.lehrerName);
+            if (meta?.lehrerName) applyTeacherName(meta.lehrerName);
             if (meta?.schulName) setSchulName(meta.schulName);
             if (meta?.schulkennzahl) setSchulkennzahl(meta.schulkennzahl);
             setActiveInputMode('manual');
@@ -905,9 +943,24 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                 <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><User className="text-emerald-500" size={22}/> Profil & Schule</h3>
              </div>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-6 rounded-[24px] border border-slate-100">
+                <div className="space-y-1.5">
+                  <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Anrede</label>
+                  <select autoFocus value={anrede} onChange={e => setAnrede(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm">
+                    <option value="">Keine Angabe</option>
+                    <option value="Frau">Frau</option>
+                    <option value="Herr">Herr</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Vorname</label>
+                  <input type="text" value={vorname} onChange={e => setVorname(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm" />
+                </div>
                 <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Dein Name / Titel</label>
-                  <input autoFocus type="text" placeholder="z.B. Frau Prof. Müller" value={lehrerName} onChange={e => setLehrerName(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm" />
+                  <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Nachname</label>
+                  <input type="text" value={nachname} onChange={e => setNachname(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm" />
+                  {legacyTeacherName && !app.nachname && (
+                    <p className="text-[0.625rem] text-slate-500">Der bisherige Anzeigename wurde übernommen und in die neuen Profilfelder aufgeteilt.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schulname</label>
@@ -968,10 +1021,9 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                       onChange={e => setSchuljahr(e.target.value)} 
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm cursor-pointer"
                     >
-                      <option value="2026/27">2026/27</option>
-                      <option value="2027/28">2027/28</option>
-                      <option value="2028/29">2028/29</option>
-                      <option value="2029/30">2029/30</option>
+                      {schoolYearOptions.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
                     </select>
                  </div>
                  <div className="space-y-2 sm:col-span-2">
@@ -1821,7 +1873,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
             mergeStudents(importedStudents);
             if (meta?.klasse) setKlassenbezeichnung(meta.klasse);
             if (meta?.schuljahr) setSchuljahr(meta.schuljahr);
-            if (meta?.lehrerName) setLehrerName(meta.lehrerName);
+            if (meta?.lehrerName) applyTeacherName(meta.lehrerName);
             if (meta?.schulName) setSchulName(meta.schulName);
             if (meta?.schulkennzahl) setSchulkennzahl(meta.schulkennzahl);
             setActiveInputMode('manual');

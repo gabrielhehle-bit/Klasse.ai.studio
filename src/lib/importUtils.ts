@@ -48,9 +48,9 @@ export function parseSokratesCSV(csvText: string): SokratesImportResult {
     const vorname = colIdx.vorname !== -1 ? row[colIdx.vorname] : '';
     const nachname = colIdx.nachname !== -1 ? row[colIdx.nachname] : '';
     let geburtstag = colIdx.geburtstag !== -1 ? row[colIdx.geburtstag] : '';
-    let geschlecht = colIdx.geschlecht !== -1 ? row[colIdx.geschlecht].toLowerCase() : 'w';
+    let geschlecht = colIdx.geschlecht !== -1 ? row[colIdx.geschlecht].trim().toLowerCase() : '';
     const religion = colIdx.religion !== -1 ? row[colIdx.religion] : '';
-    const erstsprache = colIdx.erstsprache !== -1 ? row[colIdx.erstsprache] : 'Deutsch';
+    const erstsprache = colIdx.erstsprache !== -1 ? row[colIdx.erstsprache] : '';
 
     // Convert Austrian date DD.MM.YYYY to YYYY-MM-DD
     if (geburtstag && geburtstag.includes('.')) {
@@ -66,8 +66,9 @@ export function parseSokratesCSV(csvText: string): SokratesImportResult {
 
     // Map geschlecht
     if (geschlecht.startsWith('m')) geschlecht = 'm';
-    else if (geschlecht.startsWith('w')) geschlecht = 'w';
-    else geschlecht = 'w';
+    else if (geschlecht.startsWith('w') || geschlecht.startsWith('f')) geschlecht = 'w';
+    else if (geschlecht.startsWith('d') || geschlecht.startsWith('x')) geschlecht = 'd';
+    else geschlecht = '';
 
     if (vorname || nachname) {
       students.push({
