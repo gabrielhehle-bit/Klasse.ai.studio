@@ -1,4 +1,4 @@
-import { updateSubjectColumn } from '../lib/classroomEdits';
+import { removeSubjectColumn, updateSubjectColumn } from '../lib/classroomEdits';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -810,22 +810,24 @@ export default function Gradebook() {
   const confirmDelete = () => {
     if (!pendingDelete) return;
     const { typ } = pendingDelete;
-    
-    setApp(prev => {
-      const nm = { ...(prev.notenMeta || {}) };
-      const currentFachData = { ...(nm[activeFach] || {}) };
-      const counts = { ...(currentFachData.colCounts || { lzk: 4, wp: 4, obj: 4 }) };
-      
-      if (counts[typ] <= 0) return prev;
-      
-      const newCounts = { ...counts, [typ]: Math.max(0, counts[typ] - 1) };
-      const updatedMeta = {
-        ...nm,
-        [activeFach]: { ...currentFachData, colCounts: newCounts }
-      };
 
-      
-      return { ...prev, notenMeta: updatedMeta };
+    setApp(prev => {
+      const currentCount = prev.notenMeta?.[activeFach]?.colCounts?.[typ] ?? 4;
+      if (currentCount <= 0) return prev;
+
+      const result = removeSubjectColumn(
+        prev.noten || {},
+        prev.notenMeta || {},
+        activeFach,
+        typ,
+        currentCount - 1,
+      );
+
+      return {
+        ...prev,
+        noten: result.noten,
+        notenMeta: result.notenMeta,
+      };
     });
     setPendingDelete(null);
   };
