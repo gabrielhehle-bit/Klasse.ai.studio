@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getFachCfg, berechne, isAssessmentValueMissing, hasCalculatedAverage } from './GradeUtils';
+import { getFachCfg, berechne, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput } from './GradeUtils';
 
 function baseApp() {
   return {
@@ -60,4 +60,24 @@ test('zero percent is a calculated average', () => {
   assert.equal(hasCalculatedAverage(0), true);
   assert.equal(hasCalculatedAverage(null), false);
   assert.equal(hasCalculatedAverage(undefined), false);
+});
+
+
+test('invalid gradebook input is rejected instead of becoming an empty value', () => {
+  assert.deepEqual(parseAssessmentInput('abc', 'grades', 20), { valid: false, value: null });
+  assert.deepEqual(parseAssessmentInput('12foo', 'points', 20), { valid: false, value: null });
+});
+
+test('gradebook parser accepts zero, decimal commas, statuses and tendencies', () => {
+  assert.deepEqual(parseAssessmentInput('0', 'points', 20), { valid: true, value: 0 });
+  assert.deepEqual(parseAssessmentInput('0%', 'percent', 100), { valid: true, value: 0 });
+  assert.deepEqual(parseAssessmentInput('12,5', 'points', 20), { valid: true, value: 12.5 });
+  assert.deepEqual(parseAssessmentInput('2+', 'grades', 20), { valid: true, value: '2+' });
+  assert.deepEqual(parseAssessmentInput('e', 'grades', 20), { valid: true, value: 'e' });
+});
+
+test('gradebook parser clamps numeric values to the configured mode', () => {
+  assert.deepEqual(parseAssessmentInput('150', 'percent', 100), { valid: true, value: 100 });
+  assert.deepEqual(parseAssessmentInput('25', 'points', 20), { valid: true, value: 20 });
+  assert.deepEqual(parseAssessmentInput('7', 'grades', 20), { valid: true, value: 5 });
 });
