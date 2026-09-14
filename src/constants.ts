@@ -3,6 +3,9 @@ export const TAGE_NAMEN = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Frei
 
 export const VM_ZEITEN = ['08:00–08:50', '08:50–09:45', '10:00–10:50', '10:50–11:45', '11:45–12:30'];
 
+export const MAX_LESSON_SLOTS = 10;
+export const LESSON_SLOT_NUMBERS = Array.from({ length: MAX_LESSON_SLOTS }, (_, index) => index + 1);
+
 export const STUNDEN_INFO: Record<number, string> = {
   1: '08:00–08:50',
   2: '08:50–09:45',
