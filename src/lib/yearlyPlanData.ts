@@ -103,7 +103,7 @@ export function yearPlanEntriesToCell(
     ...base,
     thema: '',
     buch: '',
-    type: base.type || 'standard',
+    type: 'standard',
     subCategory: '',
     subCategories: [],
     items: usable.map(entry => ({
