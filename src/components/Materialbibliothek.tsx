@@ -14,19 +14,7 @@ import { FAECHER_ALLE } from '../constants';
 import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { MaterialItem } from '../types';
 import { generateTeachingMaterial } from '../services/aiService';
-
-// Helpers for material persistence and storage estimation.
-export const calculateStorageSize = (items: MaterialItem[]) => {
-  const json = JSON.stringify(items);
-  return new TextEncoder().encode(json).byteLength / (1024 * 1024);
-};
-
-export const upsertMaterial = (items: MaterialItem[], item: MaterialItem): MaterialItem[] => {
-  const exists = items.some(existing => existing.id === item.id);
-  return exists
-    ? items.map(existing => existing.id === item.id ? item : existing)
-    : [...items, item];
-};
+import { calculateMaterialStorageSize, upsertMaterial } from '../lib/materialLibraryUtils';
 
 const normalizeMaterialItem = (item: MaterialItem): MaterialItem => ({
   ...item,
@@ -59,7 +47,7 @@ export default function Materialbibliothek() {
   const [weekPlanMaterial, setWeekPlanMaterial] = useState<MaterialItem | null>(null);
 
   // Stats
-  const storageMB = useMemo(() => calculateStorageSize(app.materialien || []), [app.materialien]);
+  const storageMB = useMemo(() => calculateMaterialStorageSize(app.materialien || []), [app.materialien]);
   const favoritesCount = useMemo(() => (app.materialien || []).filter(m => m.favorit).length, [app.materialien]);
   const totalCount = (app.materialien || []).length;
 
@@ -674,7 +662,7 @@ export default function Materialbibliothek() {
             onClose={() => setIsAdding(false)} 
             onSave={(item) => {
               const nextMaterials = upsertMaterial(app.materialien || [], item);
-              const totalNewSize = calculateStorageSize(nextMaterials);
+              const totalNewSize = calculateMaterialStorageSize(nextMaterials);
               if (totalNewSize > 5) {
                 alert("Speicher voll. Bitte lösche alte Materialien oder reduziere die Dateigröße.");
                 return;
