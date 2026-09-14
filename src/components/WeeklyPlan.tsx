@@ -3852,7 +3852,7 @@ export default function WeeklyPlan() {
                       ))
                     ) : (
                       <div className="p-10 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-slate-400 font-bold italic">
-                        Keine Daten für {lpFach} (Stufe {app.stufe || 1}) hinterlegt. (TODO)
+                        Für {lpFach} (Stufe {app.stufe || 1}) sind derzeit keine Lehrplandaten hinterlegt.
                       </div>
                     )}
                   </div>
