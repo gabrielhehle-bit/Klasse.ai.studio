@@ -10,6 +10,7 @@ import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { callServerAI } from '../services/aiService';
 import JahresplanExcelModal from './JahresplanExcelModal';
 import { generateJahresplanTemplate, JahresplanImportRow } from '../lib/planerExcelService';
+import { applyYearPlanImportRows, yearPlanCellDisplayText, yearPlanCellEntries } from '../lib/yearlyPlanData';
 
 const COLOR_PALETTES: Record<string, { name: string, desc: string, colors: Record<string, string> }> = {
   pastell: {
@@ -181,7 +182,7 @@ export default function YearlyPlan() {
       return Object.values(week).some((cell: any) => {
         if (typeof cell === 'string') return Boolean(cell.trim());
         if (!cell || typeof cell !== 'object') return false;
-        return typeof cell.thema === 'string' && Boolean(cell.thema.trim());
+        return yearPlanCellEntries(cell).length > 0;
       });
     })
   ), [app.jahresplanung]);
@@ -277,40 +278,14 @@ export default function YearlyPlan() {
   }, [isFullscreen]);
 
   const handleJahresplanImport = (importedRows: JahresplanImportRow[], mode: 'merge' | 'overwrite') => {
-    setApp(prev => {
-      const existingJp = prev.jahresplanung || {};
-      // Preserve weeks/subjects omitted from the import. "Overwrite" replaces
-      // only cells explicitly supplied by the spreadsheet.
-      let newJahresplanung: Record<number, Record<string, any>> = JSON.parse(JSON.stringify(existingJp));
-
-      importedRows.forEach(row => {
-        const kw = row.kw;
-        if (!kw) return;
-        if (!newJahresplanung[kw]) {
-          newJahresplanung[kw] = {};
-        }
-
-        const subjId = row.subjectId || 'sonstiges';
-        const existingItem = newJahresplanung[kw][subjId];
-
-        if (mode === 'merge' && existingItem && existingItem.thema && !row.thema) {
-          return;
-        }
-
-        newJahresplanung[kw][subjId] = {
-          ...(existingItem || {}),
-          thema: row.thema,
-          buch: row.buch || existingItem?.buch || '',
-          type: row.type || existingItem?.type || 'standard',
-          completed: row.completed !== undefined ? row.completed : existingItem?.completed || false,
-        };
-      });
-
-      return {
-        ...prev,
-        jahresplanung: newJahresplanung,
-      };
-    });
+    setApp(prev => ({
+      ...prev,
+      jahresplanung: applyYearPlanImportRows(
+        prev.jahresplanung || {},
+        importedRows,
+        mode,
+      ),
+    }));
   };
 
   const activePaletteKey = app.settings?.yearlyColorPalette || 'pastell';
@@ -1070,7 +1045,7 @@ export default function YearlyPlan() {
         kw,
         ...subjects.map(s => {
           const item = plannedWeek[s.id];
-          return item ? `${item.thema}${item.buch ? ` (${item.buch})` : ''}`.replace(/,/g, ';') : '';
+          return item ? yearPlanCellDisplayText(item).replace(/,/g, ';') : '';
         })
       ];
     });
@@ -1655,7 +1630,7 @@ export default function YearlyPlan() {
                             key={s.id} 
                             role="button"
                             tabIndex={0}
-                            aria-label={`KW ${kw}, ${s.label}: ${data?.thema || 'leer'}`}
+                            aria-label={`KW ${kw}, ${s.label}: ${yearPlanCellDisplayText(data) || 'leer'}`}
                             className={`${cellPaddingClass} align-top border-r border-b border-stone-100 last:border-r-0 relative cursor-pointer transition-all ${dragOverCell?.kw === kw && dragOverCell?.subjectId === s.id ? 'ring-2 ring-emerald-400 bg-emerald-50' : colBg} hover:bg-white hover:z-20 hover:shadow-lg group/cell`}
                             onClick={() => handleCellClick(kw, s.id)}
                             onKeyDown={(e) => {
@@ -1857,17 +1832,17 @@ export default function YearlyPlan() {
                   const plannedWeek = app.jahresplanung[kw] || {};
                   subjects.forEach(s => {
                     const data = plannedWeek[s.id];
-                    if (data?.thema) {
+                    yearPlanCellEntries(data).forEach(entry => {
                       items.push({
-                        type: (data.type as any) || 'standard',
-                        label: data.thema,
-                        details: data.buch,
+                        type: (entry.type as any) || (data?.type as any) || 'standard',
+                        label: entry.thema,
+                        details: entry.buch,
                         subjectLabel: s.label,
                         colorClass: s.color,
                         kw,
                         sw
                       });
-                    }
+                    });
                   });
                 });
 
@@ -1964,7 +1939,7 @@ export default function YearlyPlan() {
                   <div className="text-[0.5625rem] font-black uppercase tracking-widest text-text-muted mb-1">
                     KW {editingCell.kw}
                     {(() => {
-                      const sw = getSW(kwToMonday(editingCell.kw, getStartYear(app?.schuljahr)), app?.schuljahr);
+                      const sw = getSW(kwToMonday(editingCell.kw, getStartYear(app?.schuljahr)), app?.schuljahr, app?.bundesland || 'VBG');
                       return sw ? ` (SW ${sw})` : '';
                     })()}
                     {` • ${subjects.find(s => s.id === editingCell.subjectId)?.label}`}
@@ -2392,7 +2367,7 @@ export default function YearlyPlan() {
                       {aiSuggestions.map((s, idx) => {
                         const subName = subjects.find(sub => sub.id === s.subjectId)?.label || s.subjectId;
                         const subColor = subjects.find(sub => sub.id === s.subjectId)?.color || 'bg-stone-100';
-                        const sw = getSW(kwToMonday(s.kw, getStartYear(app?.schuljahr)), app?.schuljahr);
+                        const sw = getSW(kwToMonday(s.kw, getStartYear(app?.schuljahr)), app?.schuljahr, app?.bundesland || 'VBG');
 
                         return (
                           <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-stone-50 border border-stone-200/50 rounded-xl hover:bg-stone-50/80 transition-all">
