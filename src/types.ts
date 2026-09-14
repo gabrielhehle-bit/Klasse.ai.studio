@@ -998,6 +998,8 @@ export interface ClassRoom {
   journal?: NoteEntry[];
   /** Class-local behavior status history. */
   statusLog?: StatusHistory[];
+  /** Class-local handover/coverage notes used by the Übergabemappe. */
+  vertretungHinweise?: string;
   stundenZeiten?: Record<number, string>;
   mittagspauseNachStunde?: number;
   sue_kontrolle: Record<string, Record<string, string>>;
