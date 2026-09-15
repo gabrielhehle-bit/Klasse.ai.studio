@@ -1,0 +1,47 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const root = process.cwd();
+
+function read(relativePath: string) {
+  return fs.readFileSync(path.join(root, relativePath), 'utf8');
+}
+
+test('Login verwendet das semantische Klassio-Designsystem statt hartcodierter Indigo-Oberfläche', () => {
+  const source = read('src/components/AccessGate.tsx');
+
+  assert.match(source, /from '\.\/ui'/);
+  assert.match(source, /<Input/);
+  assert.match(source, /<Button/);
+  assert.match(source, /var\(--surface-app/);
+  assert.match(source, /var\(--accent\)/);
+
+  assert.doesNotMatch(source, /bg-slate-950/);
+  assert.doesNotMatch(source, /bg-indigo-600/);
+  assert.doesNotMatch(source, /focus:ring-indigo-500/);
+});
+
+test('Themes tauschen nicht mehr still die globale UI-Schrift aus', () => {
+  const css = read('src/index.css');
+  const appFontDeclarations = [...css.matchAll(/--app-font:\s*([^;]+);/g)].map(match => match[1].trim());
+
+  assert.ok(appFontDeclarations.length >= 10, 'Theme-Schriftdeklarationen wurden nicht gefunden.');
+  assert.ok(
+    appFontDeclarations.every(value => value.startsWith('"DM Sans"')),
+    'Jedes Theme muss dieselbe Klassio-UI-Grundschrift verwenden.'
+  );
+});
+
+test('Große semantische Controls behalten einen einheitlichen Radius', () => {
+  const button = read('src/components/ui/Button.tsx');
+  const input = read('src/components/ui/Input.tsx');
+  const select = read('src/components/ui/Select.tsx');
+  const iconButton = read('src/components/ui/IconButton.tsx');
+
+  assert.match(button, /lg: 'min-h-\[52px\][^']*rounded-xl/);
+  assert.match(input, /lg: 'min-h-\[52px\][^']*rounded-xl/);
+  assert.match(select, /lg: 'min-h-\[52px\][^']*rounded-xl/);
+  assert.match(iconButton, /lg: 'w-13 h-13[^']*rounded-xl/);
+});
