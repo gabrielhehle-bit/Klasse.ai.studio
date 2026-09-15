@@ -39,7 +39,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(({
   const sizeClasses: Record<InputSize, string> = {
     sm: 'min-h-[36px] pl-2.5 pr-8 py-1.5 text-xs rounded-lg',
     md: 'min-h-[44px] pl-3.5 pr-9 py-2 text-sm rounded-xl',
-    lg: 'min-h-[52px] pl-4 pr-10 py-3 text-base rounded-2xl'
+    lg: 'min-h-[52px] pl-4 pr-10 py-3 text-base rounded-xl'
   };
 
   return (
