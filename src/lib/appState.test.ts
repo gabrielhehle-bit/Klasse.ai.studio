@@ -50,6 +50,11 @@ function fixture() {
       journal: [{ id: `note-${id}`, datum: '2026-09-14T10:00:00.000Z', kategorie: 'Journal', inhalt: `note-${id}` }],
       statusLog: [{ id: `status-${id}`, schuelerId: `student-${id}`, datum: '2026-09-14', iconId: id === 'a' ? '1' : '4', timestamp: id === 'a' ? 1 : 2 }],
       vertretungHinweise: `handover-${id}`,
+      elterngespraeche: [{ id: `meeting-${id}`, schuelerId: `student-${id}`, datum: '2026-09-14', thema: `meeting-${id}` }],
+      kelGespraeche: [{ id: `kel-${id}`, schuelerId: `student-${id}`, datum: '2026-09-14' }],
+      portfolioEntries: { [`student-${id}`]: [{ id: `portfolio-${id}`, datum: '2026-09-14', titel: `portfolio-${id}` }] },
+      kiPortfolioSummaries: { [`student-${id}`]: `summary-${id}` },
+      oberauData: { [`student-${id}`]: { remarks: `remarks-${id}`, evaluationData: { criterion: id === 'a' ? 2 : 4 } } },
       sitzplan_schueler: { [`student-${id}`]: { x: id === 'a' ? 100 : 300, y: id === 'a' ? 150 : 350 } },
       sitzplan_objekte: [{ id: `board-${id}`, type: 'blackboard', x: id === 'a' ? 20 : 500, y: 10, w: 200, h: 10 }],
       sitzplanRegeln: [{ id: `rule-${id}`, typ: 'feste_zone', schuelerIds: [`student-${id}`], zone: id === 'a' ? 'vorne' : 'hinten' }],
@@ -607,4 +612,70 @@ test('class switches isolate Übergabemappe notes', () => {
   const reloaded = normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(a))));
   assert.equal(reloaded.classes[0].vertretungHinweise, 'handover-a');
   assert.equal(reloaded.classes[1].vertretungHinweise, 'handover-b-edited');
+});
+
+
+test('class switches isolate parent meetings, KEL and profile artifacts', () => {
+  const state = fixture();
+
+  assert.equal(state.elterngespraeche?.[0]?.id, 'meeting-a');
+  assert.equal(state.kelGespraeche?.[0]?.id, 'kel-a');
+  assert.equal(state.portfolioEntries?.['student-a']?.[0]?.id, 'portfolio-a');
+  assert.equal(state.kiPortfolioSummaries?.['student-a'], 'summary-a');
+  assert.equal(state.oberauData?.['student-a']?.remarks, 'remarks-a');
+
+  let b = switchClassState(state, 'b');
+  assert.equal(b.elterngespraeche?.[0]?.id, 'meeting-b');
+  assert.equal(b.kelGespraeche?.[0]?.id, 'kel-b');
+  assert.equal(b.portfolioEntries?.['student-b']?.[0]?.id, 'portfolio-b');
+  assert.equal(b.kiPortfolioSummaries?.['student-b'], 'summary-b');
+  assert.equal(b.oberauData?.['student-b']?.remarks, 'remarks-b');
+  assert.equal(b.portfolioEntries?.['student-a'], undefined);
+
+  b = syncActiveClass({
+    ...b,
+    elterngespraeche: [{ id: 'meeting-b-edited', schuelerId: 'student-b', datum: '2026-09-15', thema: 'edited' }],
+    kelGespraeche: [{ id: 'kel-b-edited', schuelerId: 'student-b', datum: '2026-09-15' }],
+    portfolioEntries: { 'student-b': [{ id: 'portfolio-b-edited', datum: '2026-09-15', titel: 'edited' }] },
+    kiPortfolioSummaries: { 'student-b': 'summary-b-edited' },
+    oberauData: { 'student-b': { remarks: 'remarks-b-edited', evaluationData: { criterion: 5 } } },
+  } as any);
+
+  const a = switchClassState(b, 'a');
+  assert.equal(a.elterngespraeche?.[0]?.id, 'meeting-a');
+  assert.equal(a.kelGespraeche?.[0]?.id, 'kel-a');
+  assert.equal(a.portfolioEntries?.['student-a']?.[0]?.id, 'portfolio-a');
+  assert.equal(a.kiPortfolioSummaries?.['student-a'], 'summary-a');
+  assert.equal(a.oberauData?.['student-a']?.remarks, 'remarks-a');
+
+  const reloaded = normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(a))));
+  assert.equal(reloaded.classes[1].elterngespraeche?.[0]?.id, 'meeting-b-edited');
+  assert.equal(reloaded.classes[1].kelGespraeche?.[0]?.id, 'kel-b-edited');
+  assert.equal(reloaded.classes[1].portfolioEntries?.['student-b']?.[0]?.id, 'portfolio-b-edited');
+  assert.equal(reloaded.classes[1].kiPortfolioSummaries?.['student-b'], 'summary-b-edited');
+  assert.equal(reloaded.classes[1].oberauData?.['student-b']?.remarks, 'remarks-b-edited');
+});
+
+test('legacy root-only profile artifacts are assigned only to the active class', () => {
+  const loaded = normalizeAppState({
+    activeClassId: 'a',
+    elterngespraeche: [{ id: 'root-meeting', schuelerId: 'student-a', datum: '2026-09-14', thema: 'legacy' }],
+    kelGespraeche: [{ id: 'root-kel', schuelerId: 'student-a', datum: '2026-09-14' }],
+    portfolioEntries: { 'student-a': [{ id: 'root-portfolio', datum: '2026-09-14', titel: 'legacy' }] },
+    kiPortfolioSummaries: { 'student-a': 'root-summary' },
+    oberauData: { 'student-a': { remarks: 'root-remarks' } },
+    classes: [
+      { id: 'a', schueler: [{ id: 'student-a' }] },
+      { id: 'b', schueler: [{ id: 'student-b' }] },
+    ],
+  } as any);
+
+  assert.equal(loaded.classes[0].elterngespraeche?.[0]?.id, 'root-meeting');
+  assert.equal(loaded.classes[0].portfolioEntries?.['student-a']?.[0]?.id, 'root-portfolio');
+  assert.equal(loaded.classes[0].kiPortfolioSummaries?.['student-a'], 'root-summary');
+  assert.equal(loaded.classes[0].oberauData?.['student-a']?.remarks, 'root-remarks');
+  assert.deepEqual(loaded.classes[1].elterngespraeche, []);
+  assert.deepEqual(loaded.classes[1].portfolioEntries, {});
+  assert.deepEqual(loaded.classes[1].kiPortfolioSummaries, {});
+  assert.deepEqual(loaded.classes[1].oberauData, {});
 });

@@ -998,6 +998,12 @@ export interface ClassRoom {
   journal?: NoteEntry[];
   /** Class-local behavior status history. */
   statusLog?: StatusHistory[];
+  /** Class-local profile / parent-conversation data. */
+  elterngespraeche?: AppState['elterngespraeche'];
+  kelGespraeche?: AppState['kelGespraeche'];
+  portfolioEntries?: AppState['portfolioEntries'];
+  kiPortfolioSummaries?: AppState['kiPortfolioSummaries'];
+  oberauData?: AppState['oberauData'];
   /** Class-local handover/coverage notes used by the Übergabemappe. */
   vertretungHinweise?: string;
   stundenZeiten?: Record<number, string>;
@@ -1328,6 +1334,13 @@ export interface AppState {
   };
   elterngespraeche: ParentMeeting[];
   kelGespraeche?: KELGespraech[];
+  /** Class-local student profile artifacts, summaries and legacy Oberau assessment data. */
+  portfolioEntries?: Record<string, PortfolioEntry[]>;
+  kiPortfolioSummaries?: Record<string, string>;
+  oberauData?: Record<string, {
+    remarks?: string;
+    evaluationData?: Record<string, number | null>;
+  }>;
   diagnostikTests?: DiagnostikTest[];
   /** Legacy diagnostic result collection retained for migration/compatibility. */
   diagnostikErgebnisse?: any[];
