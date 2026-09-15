@@ -46,7 +46,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
 
   // Base layout, font, transitions, focus and touch target behavior
   const baseClasses = 
-    'inline-flex items-center justify-center font-medium select-none ' +
+    'inline-flex items-center justify-center font-medium select-none whitespace-nowrap ' +
     'transition-all duration-150 ease-in-out cursor-pointer ' +
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] ' +
     'focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-card,var(--surface))] ' +
@@ -57,15 +57,15 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   // lg: ~52px height
   // sm: ~34px height (compact, touch-manipulation safe)
   const sizeClasses: Record<ButtonSize, string> = {
-    sm: 'min-h-[34px] px-3 py-1.5 text-xs font-semibold rounded-lg gap-1.5 active:scale-[0.98]',
+    sm: 'min-h-[36px] px-3 py-1.5 text-xs font-semibold rounded-xl gap-1.5 active:scale-[0.98]',
     md: 'min-h-[44px] px-4 py-2 text-sm font-semibold rounded-xl gap-2 active:scale-[0.98]',
-    lg: 'min-h-[52px] px-6 py-3 text-base font-bold rounded-2xl gap-2.5 active:scale-[0.98]'
+    lg: 'min-h-[52px] px-5 py-3 text-base font-bold rounded-xl gap-2.5 active:scale-[0.98]'
   };
 
   // Variant specifications using pure semantic CSS tokens
   const variantClasses: Record<ButtonVariant, string> = {
     primary:
-      'bg-[var(--accent)] text-[var(--accent-text,var(--btn-text,#ffffff))] shadow-xs ' +
+      'bg-[var(--accent)] text-[var(--accent-text,var(--btn-text,#ffffff))] shadow-sm ' +
       'hover:bg-[var(--accent-hover)] active:bg-[var(--accent-active)] border border-transparent',
 
     secondary:
