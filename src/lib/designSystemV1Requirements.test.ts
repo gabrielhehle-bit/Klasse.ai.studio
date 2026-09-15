@@ -108,3 +108,24 @@ test('Setup Einstieg verwendet Klassio Branding und semantische Oberflächen', (
   assert.doesNotMatch(source, /Gabriel Intelligent Classroom/);
   assert.doesNotMatch(source, /bg-slate-50 flex items-start justify-center/);
 });
+
+
+test('Kinderliste nutzt im primären Arbeitsbereich semantische Klassio-Flächen', () => {
+  const source = read('src/components/StudentList.tsx');
+
+  assert.match(source, /bg-\[var\(--surface-card,var\(--surface\)\)\] rounded-2xl border border-\[var\(--border-subtle,var\(--border\)\)\]/);
+  assert.match(source, /bg-\[var\(--accent\)\].*Schüler hinzufügen/s);
+  assert.match(source, /focus:border-\[var\(--accent\)\]/);
+  assert.match(source, /hover:bg-\[var\(--accent-soft\)\]\/55/);
+});
+
+test('Notenmappe zeigt Fachwahl und Zusatzwerkzeuge nicht mehr in zwei aufeinanderfolgenden Steuerleisten', () => {
+  const source = read('src/components/Gradebook.tsx');
+
+  assert.doesNotMatch(source, /Aktives Schulfach wählen:/);
+  assert.match(source, /Streamlined Top Control Bar/);
+  assert.match(source, /setShowGradeCalculator\(true\)/);
+  assert.match(source, /setShowWeights\(true\)/);
+  assert.match(source, /bg-\[var\(--surface-card,var\(--surface\)\)\] rounded-2xl p-4/);
+  assert.match(source, /bg-\[var\(--accent\)\].*>Bewertung</s);
+});
