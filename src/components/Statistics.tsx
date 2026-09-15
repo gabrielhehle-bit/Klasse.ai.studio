@@ -1087,11 +1087,19 @@ h1{font-size:24px;margin:0 0 6px}.meta{background:#f8fafc;padding:16px;border-ra
       }
     },
     {
-      title: "10. Digitales Soziogramm & Interaktive Sitzplatz-Dynamik",
-      short: "Analyse sozialer Präferenzen für ein harmonisches und integratives Miteinander.",
-      details: "Durch ein kurzes, spielerisches Befragen ('Mit wem arbeitest du am liebsten und mit wem möchtest du noch mehr zusammenwachsen?') visualisiert das System ein anonymes Beziehungsgeflecht der Klasse. Ein intelligenter Algorithmus berechnet daraufhin optimierte Sitzplankombinationen, die schüchterne Kinder behutsam integrieren, das Sozialgefüge stärken und Konfliktherde reduzieren.",
+      title: "10. Sitzplatz-Präferenzen als Gesprächshilfe",
+      short: "Manuelle Auswahl von Wunschpartner:innen als Hinweis für die Sitzplanung.",
+      details: "Die Lehrkraft kann zwei gewünschte Nähebeziehungen notieren und daraus eine einfache Sitzplatz-Idee anzeigen lassen. Es findet keine automatische Sozialdiagnose, Konflikterkennung oder Optimierung statt.",
       icon: "🧩",
       render: () => {
+        if (activeStudents.length < 3) {
+          return (
+            <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 text-[0.6875rem] font-bold text-center">
+              Für zwei Wunschpartner:innen werden mindestens drei Schüler:innen in der aktiven Klasse benötigt.
+            </div>
+          );
+        }
+
         const student = activeStudents.find(s => s.id === t10FocusId) || activeStudents[0];
         const wish1 = activeStudents.find(s => s.id === t10Partner1Id) || activeStudents[1];
         const wish2 = activeStudents.find(s => s.id === t10Partner2Id) || activeStudents[2];
@@ -1106,7 +1114,7 @@ h1{font-size:24px;margin:0 0 6px}.meta{background:#f8fafc;padding:16px;border-ra
 
         return (
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
-            <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">🧩 Interaktives Soziogramm & Sitzordnung</h5>
+            <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">🧩 Sitzplatz-Präferenzen</h5>
             
             <div className="space-y-3.5">
                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 bg-slate-950/45 border border-slate-800 p-3 rounded-xl">
