@@ -1,6 +1,6 @@
 # KLASSIO – Feature Matrix
 
-Stand: 2026-09-14 · Integrationsbranch `reconcile/klassio-source-of-truth`
+Stand: 2026-09-15 · Integrationsbranch `reconcile/klassio-source-of-truth`
 
 Legende:
 
@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `3c970e709f1623507212c3ed8c346ef41f0c2209`: Pre-Deployment Audit #126 grün, 920/920 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. Zusätzlich prüft `Feature Validation` neue Feature-/Fix-/Chore-Branches bereits vor der Integration. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #126 erzeugte `klassio-world4you-3c970e709f1623507212c3ed8c346ef41f0c2209` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `cfe6e4c0954df8231aa347ccce512585c1b9830c`: Pre-Deployment Audit #140 grün, 995/995 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Feature Validation #499 auf PR #73 und #500 auf dem Reconciliation-Stand grün. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #140 erzeugte `klassio-world4you-cfe6e4c0954df8231aa347ccce512585c1b9830c` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 
@@ -47,8 +47,8 @@ Legende:
 | 18 | Jahresbericht | ✅ | PR #67 integriert; Audit #134 grün; 963/963 Tests; reale Browser-/Touch-/Druck-/Datenschutz-/KI-/Staging-Abnahme im Gesamt-Walkthrough |
 | 19 | Archiv | ✅ | PR #69 integriert; Audit #136 grün; 976/976 Tests; reale Browser-/Touch-/Datenschutz-/Legacy-/Staging-Abnahme im Gesamt-Walkthrough |
 | 20 | Druckzentrum | ✅ | PR #71 integriert; Audit #138 grün; 986/986 Tests; reale Browser-/Touch-/Drucker-/PDF-/Datenschutz-/Staging-Abnahme im Gesamt-Walkthrough |
-| 21 | Datenarchiv / Datensicherung | 🔴 | als Nächstes einzeln prüfen und abschließen |
-| 22 | Einstellungen | 🔴 | danach |
+| 21 | Datenarchiv / Datensicherung | ✅ | PR #73 integriert; Audit #140 grün; 995/995 Tests; reale Browser-/Restore-/OneDrive-/IndexedDB-/Staging-Abnahme im Gesamt-Walkthrough |
+| 22 | Einstellungen | 🔴 | als Nächstes einzeln prüfen und abschließen |
 
 Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **ersten roten Modul dieser Tabelle** fort. Ein Modul wird erst auf ✅ gesetzt, wenn seine Änderungen integriert und der vollständige Reconciliation-Audit grün ist. Die reale Browser-/Staging-Abnahme bleibt davon getrennt und wird am Abschlussstand durchgeführt.
 
@@ -133,14 +133,15 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 |---|---:|---|
 | AES-GCM-256 Datentresor | ✅ | Sicherheits- und Integritätstests grün. |
 | PBKDF2 / Recovery / Passwortwechsel | ✅ | 600.000 Iterationen; Recovery-/Rotation-/Passwortwechseltests grün. |
-| JSON-Backup verschlüsselt | ✅ | Export verweigert fehlenden Vault; Roundtrip und Restore getestet; neue Downloads heißen `Klassio_Sicherung_YYYY-MM-DD.json`, internes Backup-Format bleibt kompatibel. |
+| JSON-Backup verschlüsselt | ✅ | PR #73: Export verweigert fehlenden Vault, synchronisiert davor den aktiven Klassenstand und verwendet den lokalen Kalendertag für `Klassio_Sicherung_YYYY-MM-DD.json`; Roundtrip und Restore bleiben getestet, internes Backup-Format kompatibel. |
 | Legacy-JSON/JS-Wrapper Parser | ✅ | JSON, BOM und einfache historische Wrapper werden ohne JavaScript-Ausführung gelesen. |
 | Frischer Produktivzustand ohne Demo-Fakedaten | ✅ | Kein Musterlehrer, kein gebündeltes 25-Schüler-Archiv, keine erfundenen Lehrerstatistiken, Schnelllinks oder Beispiel-QR-Werte; die Beispielklasse wird nur nach ausdrücklicher Auswahl geladen. |
 | Echter historischer Benutzer-Backup-Import | 🟡 | Kein realer Altbackup-Datensatz als Abnahmedatensatz hinterlegt; synthetische Legacy-Tests grün. |
-| Pre-Import-Rücksicherung | ✅ | Restore legt verschlüsselten Vorzustand an; Fehler brechen Restore ab. |
+| Datenarchiv / Datensicherung | 🟡 | PR #73: 7-Tage-Backup-Erinnerung und 24h-Aufschub sind konsistent; lokale und OneDrive-Sicherungen zählen korrekt als Backup. Speicherbelegung nutzt die Browser-Quota statt eines fiktiven 5-MB-Limits. Tägliche verschlüsselte Notfallkopie und Dateinamen verwenden den lokalen Kalendertag; Einstellungen zeigen den echten `savedAt`-Zeitpunkt. Beide Werksreset-Pfade löschen Gerätevertrauen, App-/Browser-/Sitzungsdaten und erst zuletzt die Tresor-Metadaten; Löschfehler werden nicht verschluckt. Automatisierte Tests und Audit #140 grün; realer Browser-/Restore-/OneDrive-/IndexedDB-Test offen. |
+| Pre-Import-Rücksicherung | ✅ | Restore legt verschlüsselten Vorzustand an, verifiziert ihn vor dem Einspielen und rollt bei Schreib-/Verifikationsfehlern zurück. Legacy-JSON/JS-Wrapper, Backup-Passwort und Recovery-Code bleiben unterstützt. |
 | E-Mail-Einmalcode-Login | 🟡 | Server + UI + Rate-Limits + 30-Tage-Session fertig; reales SMTP-Staging noch testen. |
 | Administrativer Zugangscode | ✅ | Bleibt als Fallback; CI-Smoke prüft Cookie-Session. |
-| Vertrauenswürdiges Gerät für Tresor | 🟡 | PR #20: 30 Tage optional; Vault-Key nur verschlüsselt, Device-CryptoKey nicht exportierbar; Werksreset entfernt Trusted-Device-Daten und stale/fremde Einträge werden bereinigt. Realer Browser/IndexedDB-Test offen. |
+| Vertrauenswürdiges Gerät für Tresor | 🟡 | PR #20 + #73: 30 Tage optional; Vault-Key nur verschlüsselt, Device-CryptoKey nicht exportierbar. Beide vollständigen Werksreset-Pfade entfernen Trusted-Device-Daten sowie danach die separaten Vault-Metadaten; stale/fremde Einträge werden bereinigt und Persistenz-Löschfehler brechen den Reset ab. Realer Browser/IndexedDB-Test offen. |
 | Recovery-Code per E-Mail | 🔒 | Bewusst nicht umgesetzt: E-Mail-Kompromittierung darf den lokalen Tresor nicht entschlüsseln. |
 | KI-Bilddatenschutz | ✅ | Fotoanalyse ist client- und serverseitig ohne explizite Bestätigung blockiert; Base64-Bilddaten laufen nicht durch Text-Regexfilter; nur JPEG/PNG/WebP für `askAI`; Regressionstests vorhanden. |
 | Smartboard-Sync | 🟡 | PR #18: SessionKey nur aus URL-Fragment, Query-Key abgewiesen und Ablaufzeit serverseitig gemessen; Browser-/Geräteabnahme offen. |
@@ -154,7 +155,7 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 | PowerPoint KEL | 🟡 | PR #18 bestätigt echten `.pptx`-Export mit nativen editierbaren Diagrammen per Integrationsvertrag; Download/Öffnen in PowerPoint auf Staging offen. |
 | PDF-Handout KEL | 🟡 | Bestehender PDF-Export bleibt; Browserprüfung offen. |
 | OneDrive Backup-Dateikompatibilität | ✅ | PR #15 integriert: neue Cloud-Sicherung `Klassio_Backup.json`; historische `LehrerAPP_Backup.json`, `LehrerAPP_Backup.lehrerapp` und `Lehrermappe_Backup.json` bleiben lesbar. |
-| OneDrive | 🟡 | Konfigurierbar; OAuth-State/Cookiebindung und Popup-Origin/Source sind automatisiert abgesichert; Live-OAuth/Backup-Abnahme auf Staging offen. |
+| OneDrive | 🟡 | PR #73: Upload verschlüsselt den synchronisierten aktiven Klassenstand und zählt als erledigte Sicherung für die Wochen-Erinnerung. Der lokale Werksreset behauptet nicht mehr, Cloud-Backups zu löschen; TLS/MFA/Conditional-Access werden nur als deployment-/tenantabhängig beschrieben. OAuth-State/Cookiebindung und Popup-Origin/Source bleiben automatisiert abgesichert; Live-OAuth/Backup-Abnahme auf Staging offen. |
 
 ## Deployment
 
