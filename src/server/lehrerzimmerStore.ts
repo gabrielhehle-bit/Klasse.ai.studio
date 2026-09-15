@@ -172,6 +172,8 @@ export class LehrerzimmerStore {
   ): Promise<LehrerzimmerPost> {
     if (!isCategory(input.category)) throw new Error('INVALID_CATEGORY');
     if (!isKind(input.kind)) throw new Error('INVALID_KIND');
+    const category: LehrerzimmerCategory = input.category;
+    const kind: LehrerzimmerKind = input.kind;
     const title = cleanText(input.title, 140);
     const body = cleanText(input.body, 4000);
     if (!title || !body) throw new Error('INVALID_CONTENT');
@@ -201,8 +203,8 @@ export class LehrerzimmerStore {
 
       const post: LehrerzimmerPost = {
         id: crypto.randomUUID(),
-        category: input.category,
-        kind: input.kind,
+        category,
+        kind,
         title,
         body,
         authorId: identity.userId,
