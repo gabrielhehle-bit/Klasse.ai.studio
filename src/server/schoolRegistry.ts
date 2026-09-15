@@ -47,6 +47,10 @@ type RegistryData = {
   requests: SchoolVerificationRequest[];
 };
 
+const EDUCATION_PROVIDER_UMBRELLA_DOMAINS = new Set([
+  'vobs.at',
+]);
+
 const PUBLIC_EMAIL_DOMAINS = new Set([
   'gmail.com',
   'googlemail.com',
@@ -95,6 +99,10 @@ function cloneEmpty(): RegistryData {
 
 export function isPublicEmailDomain(domain: string): boolean {
   return PUBLIC_EMAIL_DOMAINS.has(normalizeDomain(domain));
+}
+
+export function isEducationProviderUmbrellaDomain(domain: string): boolean {
+  return EDUCATION_PROVIDER_UMBRELLA_DOMAINS.has(normalizeDomain(domain));
 }
 
 export class SchoolRegistryStore {
@@ -159,6 +167,7 @@ export class SchoolRegistryStore {
     await this.mutate(data => {
       const now = new Date().toISOString();
       for (const domain of normalized) {
+        if (isEducationProviderUmbrellaDomain(domain)) continue;
         if (data.schools.some(school => school.domains.includes(domain))) continue;
         data.schools.push({
           id: schoolIdFromDomain(domain),
@@ -209,6 +218,7 @@ export class SchoolRegistryStore {
     const schoolName = cleanText(input.schoolName, 160);
     if (!domain || !schoolName || !isFederalState(input.federalState)) throw new Error('INVALID_REQUEST');
     if (isPublicEmailDomain(domain)) throw new Error('PUBLIC_EMAIL_DOMAIN');
+    if (isEducationProviderUmbrellaDomain(domain)) throw new Error('PROVIDER_UMBRELLA_DOMAIN');
 
     const alreadyVerified = await this.findVerifiedSchoolByDomain(domain);
     if (alreadyVerified) throw new Error('ALREADY_VERIFIED');
