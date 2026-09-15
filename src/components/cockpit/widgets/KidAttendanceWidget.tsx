@@ -377,8 +377,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         <div className="flex items-center justify-between gap-1.5 border-b pb-2 mb-2 shrink-0 border-slate-200 dark:border-zinc-800">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-base shrink-0">🖐️</span>
-            <span className="font-black text-xs uppercase tracking-wider truncate text-slate-800 dark:text-zinc-100">
-              Check-In
+            <span className="font-bold text-xs truncate text-slate-800 dark:text-zinc-100">
+              Ich bin da!
             </span>
           </div>
           <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 tabular-nums">
@@ -456,7 +456,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           <button
             type="button"
             onClick={() => setIsCompactCheckInOpen(true)}
-            className="w-full h-11 min-h-[44px] rounded-xl font-black text-xs uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+            className="w-full h-11 min-h-[44px] rounded-xl font-bold text-xs bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,var(--btn-text,#ffffff))] flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-colors"
           >
             <Maximize2 size={14} />
             Check-In öffnen
@@ -891,10 +891,10 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     if (!activeMoodStudent) return null;
 
     return (
-      <div className="absolute inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs font-sans select-none animate-in fade-in-50">
+      <div className="absolute inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/45 backdrop-blur-xs font-sans select-none animate-in fade-in-50">
         <div
-          className={`w-full max-w-md sm:max-w-lg rounded-3xl border shadow-2xl p-5 sm:p-6 overflow-hidden flex flex-col items-center text-center ${
-            currentIsLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-900 border-zinc-700 text-zinc-100'
+          className={`w-full max-w-md sm:max-w-lg rounded-2xl border shadow-xl p-5 sm:p-6 overflow-hidden flex flex-col items-center text-center ${
+            currentIsLight ? 'bg-[var(--surface-card,var(--surface))] border-[var(--border-default,var(--border2))] text-[var(--text-primary,var(--text))]' : 'bg-zinc-900 border-zinc-700 text-zinc-100'
           }`}
         >
           {activeMoodStudent.step === 'thanks' ? (
@@ -911,7 +911,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
               <button
                 type="button"
                 onClick={handleChildDismissThanks}
-                className="mt-4 px-5 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 cursor-pointer"
+                className="mt-4 px-5 py-2 rounded-xl text-xs font-semibold bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted,var(--surface3))] dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[var(--text-secondary,var(--text2))] dark:text-zinc-200 cursor-pointer transition-colors"
               >
                 Weiter
               </button>
@@ -920,13 +920,13 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             <div className="w-full flex flex-col items-center">
               {/* Begrüßung / Frage */}
               <div className="mb-4 sm:mb-6">
-                <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                  Schüler-Check-In · {activeMoodStudent.displayName}
+                <span className="text-[11px] sm:text-xs font-semibold text-[var(--accent)] dark:text-emerald-400">
+                  {activeMoodStudent.displayName} · freiwilliger Check-in
                 </span>
-                <h2 className="text-xl sm:text-2xl md:text-3xl font-black mt-1 leading-tight">
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-[-0.025em] mt-1 leading-tight">
                   Wie geht es dir heute?
                 </h2>
-                <p className="text-xs sm:text-sm font-medium text-slate-500 dark:text-zinc-400 mt-1">
+                <p className="text-xs sm:text-sm font-medium text-[var(--text-muted,var(--text3))] dark:text-zinc-400 mt-1">
                   Tippe auf einen Smiley. Freiwillig – du musst nicht antworten.
                 </p>
               </div>
@@ -938,7 +938,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                     key={meta.value}
                     type="button"
                     onClick={() => handleChildSelectMood(meta.value)}
-                    className={`min-h-[56px] sm:min-h-[84px] md:min-h-[96px] min-w-[48px] p-1.5 sm:p-2.5 rounded-2xl border flex flex-col items-center justify-center gap-1 cursor-pointer transition-all active:scale-95 hover:scale-102 shadow-2xs ${
+                    className={`min-h-[56px] sm:min-h-[84px] md:min-h-[96px] min-w-[48px] p-1.5 sm:p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors shadow-2xs ${
                       currentIsLight
                         ? `${meta.badgeBg} ${meta.badgeBorder} hover:shadow-md`
                         : 'bg-zinc-800/80 hover:bg-zinc-700/80 border-zinc-700'
@@ -960,11 +960,11 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
               </div>
 
               {/* Überspringen Button */}
-              <div className="mt-4 sm:mt-5 pt-3 border-t border-slate-100 dark:border-zinc-800 w-full flex items-center justify-center">
+              <div className="mt-4 sm:mt-5 pt-3 border-t border-[var(--border-subtle,var(--border))] dark:border-zinc-800 w-full flex items-center justify-center">
                 <button
                   type="button"
                   onClick={handleChildSkipMood}
-                  className="h-11 min-h-[44px] px-6 rounded-xl text-xs sm:text-sm font-bold text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  className="h-11 min-h-[44px] px-6 rounded-xl text-xs sm:text-sm font-semibold text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))] dark:text-zinc-400 dark:hover:text-zinc-200 hover:bg-[var(--surface-subtle,var(--surface2))] dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                 >
                   Überspringen
                 </button>
