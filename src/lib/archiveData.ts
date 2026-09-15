@@ -1,5 +1,10 @@
 import type { AppState, Student } from '../types';
 
+export type ArchivedStudent = Omit<
+  Student,
+  'anschrift' | 'plz' | 'ort' | 'telefon_mutter' | 'telefon_vater' | 'email_eltern' | 'sv_nummer' | 'foto' | 'fotoFreigabe'
+>;
+
 export interface ArchivedClassSnapshot {
   id: string;
   sourceClassId: string;
@@ -7,7 +12,7 @@ export interface ArchivedClassSnapshot {
   stufe: number;
   schuljahr: string;
   archiviertAm: string;
-  schueler: Student[];
+  schueler: ArchivedStudent[];
   faecher?: string[];
   fachConfig?: AppState['fachConfig'];
   noten: AppState['noten'];
@@ -48,6 +53,22 @@ const clone = <T,>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T;
 };
 
+const sanitizeStudentForArchive = (student: Student): ArchivedStudent => {
+  const {
+    anschrift: _anschrift,
+    plz: _plz,
+    ort: _ort,
+    telefon_mutter: _telefonMutter,
+    telefon_vater: _telefonVater,
+    email_eltern: _emailEltern,
+    sv_nummer: _svNummer,
+    foto: _foto,
+    fotoFreigabe: _fotoFreigabe,
+    ...archived
+  } = student;
+  return clone(archived) as ArchivedStudent;
+};
+
 const archiveId = () => {
   try {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -72,7 +93,7 @@ export function createArchivedClassSnapshot(
     stufe: Number(app.stufe) || 1,
     schuljahr: app.schuljahr?.trim() || 'Schuljahr nicht angegeben',
     archiviertAm: options.archivedAt || new Date().toISOString(),
-    schueler: clone(app.schueler || []),
+    schueler: (app.schueler || []).map(sanitizeStudentForArchive),
     faecher: clone(app.faecher || []),
     fachConfig: clone(app.fachConfig || {}),
     noten: clone(app.noten || {}),
@@ -146,7 +167,7 @@ export function normalizeArchivedClasses(raw: unknown): ArchivedClassSnapshot[] 
       stufe: Number(candidate.stufe) || 1,
       schuljahr: String(candidate.schuljahr || 'Schuljahr nicht angegeben'),
       archiviertAm: String(candidate.archiviertAm || ''),
-      schueler: clone(Array.isArray(candidate.schueler) ? candidate.schueler : []),
+      schueler: clone(Array.isArray(candidate.schueler) ? candidate.schueler : []).map((student: any) => sanitizeStudentForArchive(student as Student)),
       faecher: clone(Array.isArray(candidate.faecher) ? candidate.faecher : []),
       fachConfig: clone(candidate.fachConfig || {}),
       noten: clone(candidate.noten || {}),
