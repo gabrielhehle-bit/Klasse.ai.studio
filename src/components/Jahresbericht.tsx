@@ -379,14 +379,27 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
   };
 
   const printAll = () => {
-    const studentIdsWithReports = Object.keys(berichte).filter(id => students.some(s => s.id === id));
-    printDocs(studentIdsWithReports);
+    const approvedIds = Object.keys(berichte).filter(
+      (id) => berichte[id]?.reviewStatus === 'freigegeben' && students.some((student) => student.id === id)
+    );
+    if (approvedIds.length === 0) {
+      alert('Es gibt noch keine freigegebenen Jahresberichte zum Sammeldruck.');
+      return;
+    }
+    printDocs(approvedIds);
   };
 
   const printDocs = (ids: string[]) => {
+    const escapeHtml = (value: unknown) => String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+
     const css = `
       @page { size: A4; margin: 25mm 20mm 25mm 20mm; }
-      body { font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #1e293b; line-height: 1.6; font-size: 11pt; }
+      body { font-family: Arial, Helvetica, sans-serif; color: #1e293b; line-height: 1.6; font-size: 11pt; }
       .letterhead { text-align: center; margin-bottom: 30px; border-bottom: 3px double #cbd5e1; padding-bottom: 15px; }
       .letterhead h2 { font-size: 14pt; margin: 0; text-transform: uppercase; tracking: 2px; color: #0f172a; font-weight: 800; }
       .letterhead p { font-size: 9pt; color: #64748b; margin: 5px 0 0 0; font-weight: 500; }
@@ -411,8 +424,8 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
         const b = berichte[id];
         if (!s || !b) return '';
         
-        // Convert markdown headings and lists to HTML for printing simplicity
-        let htmlContent = b.inhalt
+        // Erst escapen, dann nur das kleine unterstützte Markdown-Subset in Druck-HTML umwandeln.
+        let htmlContent = escapeHtml(b.inhalt)
           .replace(/^### (.*$)/gim, '<h3>$1</h3>')
           .replace(/^## (.*$)/gim, '<h2>$1</h2>')
           .replace(/^# (.*$)/gim, '<h1>$1</h1>')
@@ -427,19 +440,23 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
           htmlContent = htmlContent.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
         }
 
+        const statusText = b.reviewStatus === 'freigegeben'
+          ? 'Von der Lehrkraft freigegebener pädagogischer Bericht'
+          : 'Entwurf – vor Weitergabe fachlich und sprachlich prüfen';
+
         return `
           <div ${index > 0 ? 'class="page-break"' : ''}>
             <div class="letterhead">
-              <h2>Österreichische Volksschule</h2>
-              <p>Offizieller Übergabe- & Kompetenzbericht</p>
+              <h2>${escapeHtml(app.klassenbezeichnung?.trim() || 'Klassio')}</h2>
+              <p>${escapeHtml(statusText)}</p>
             </div>
-            
+
             <h1>Jahresbericht</h1>
             <div class="meta-grid">
-              <div class="meta-item">Schülerin/Schüler: <span>${s.vorname} ${s.nachname}</span></div>
-              <div class="meta-item">Schuljahr: <span>${b.schuljahr}</span></div>
-              <div class="meta-item">Klasse: <span>${app.klassenbezeichnung || 'Volksschulklasse'}</span></div>
-              <div class="meta-item">Ausgestellt am: <span>${new Date(b.generiert).toLocaleDateString('de-DE')}</span></div>
+              <div class="meta-item">Schülerin/Schüler: <span>${escapeHtml(`${s.vorname} ${s.nachname}`)}</span></div>
+              <div class="meta-item">Schuljahr: <span>${escapeHtml(b.schuljahr)}</span></div>
+              <div class="meta-item">Klasse: <span>${escapeHtml(app.klassenbezeichnung?.trim() || 'nicht angegeben')}</span></div>
+              <div class="meta-item">Stand: <span>${escapeHtml(new Date(b.generiert).toLocaleDateString('de-AT'))}</span></div>
             </div>
 
             <div class="content">
@@ -447,8 +464,8 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
             </div>
 
             <div class="signatures">
-              <div class="sig-line">Klassenlehrperson</div>
-              <div class="sig-line">Schulleitung / Direktion</div>
+              <div class="sig-line">Lehrperson</div>
+              <div class="sig-line">Datum / Unterschrift</div>
             </div>
           </div>
         `;
@@ -458,12 +475,12 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
       <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="utf-8" />
           <title>Jahresberichte</title>
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800;900&display=swap" rel="stylesheet">
           <style>${css}</style>
         </head>
         <body>
-          <div class="footer-stamp">Vertrauliches Dokument — Nur für den internen Schulgebrauch bestimmt</div>
+          <div class="footer-stamp">Vertraulicher pädagogischer Bericht · KI-Entwürfe müssen vor Weitergabe geprüft werden</div>
           ${docArr.join('')}
         </body>
       </html>
@@ -476,19 +493,13 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
     iframe.style.border = 'none';
     document.body.appendChild(iframe);
 
-    const doc = iframe.contentWindow?.document;
-    if (!doc) return;
-
-    doc.open();
-    doc.write(html);
-    doc.close();
-
-    setTimeout(() => {
+    iframe.onload = () => {
       iframe.contentWindow?.print();
       setTimeout(() => {
-        document.body.removeChild(iframe);
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
       }, 1000);
-    }, 500);
+    };
+    iframe.srcdoc = html;
   };
 
   // General statistics for progress panel
@@ -556,7 +567,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                onClick={printAll}
                className="px-4 py-3 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 rounded-xl text-xs font-black tracking-widest uppercase transition-all shadow-sm flex items-center gap-2 cursor-pointer"
              >
-               <Printer size={14} /> Alle drucken
+               <Printer size={14} /> Freigegebene drucken
              </button>
           </div>
         </div>
