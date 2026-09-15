@@ -166,7 +166,7 @@ function SuggestionsGrid() {
   if (activeStudents.length === 0) {
     return (
       <EmptyState
-        icon={Users}
+        icon="👥"
         title="Noch keine Schüler:innen vorhanden"
         description="Spezialwerkzeuge verwenden ausschließlich echte Klassiodaten. Lege zuerst Schüler:innen in der aktiven Klasse an."
       />
