@@ -38,10 +38,10 @@ export default function SettingsDashboard({
     {
       id: 'display' as SettingsCategory,
       title: 'Darstellung',
-      subtitle: 'Design, Schriftgröße & Whiteboard',
-      desc: 'Passe Farben, Schriftgröße für Laptops/Smartboards, Whiteboard-Muster (Karos/Linien) und Board-Sichtbarkeit an.',
+      subtitle: 'Design, Schriftgröße & Cockpit',
+      desc: 'Passe Farbschema, Schriftgröße und die Darstellung auf Laptop oder Smartboard an. Schreib- und Zeichenwerkzeuge werden direkt im Lehrercockpit bedient.',
       icon: Palette,
-      badge: 'Farben & Smartboard',
+      badge: 'Design & Anzeige',
       color: 'bg-amber-500/10 text-amber-600 border-amber-200'
     },
     {
