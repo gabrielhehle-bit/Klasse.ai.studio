@@ -151,6 +151,38 @@ test('normalization removes invalid duplicates and sanitizes legacy archived stu
   assert.equal((normalized[0].schueler[0] as any).email_eltern, undefined);
 });
 
+test('legacy full-class archivedClasses migrate to retiredClasses instead of the yearly archive', () => {
+  const liveClass = {
+    id: 'old-class',
+    name: '4a',
+    stufe: 4,
+    klassenvorstand: true,
+    schueler: [],
+    noten: {},
+    mitarbeit: {},
+    verhalten: {},
+    karten: {},
+    jahresplanung: {},
+    wochenplanung: {},
+    stammplan: {},
+    anwesenheit: {},
+    klassenglas_count: 0,
+    klassenglas_ziel: 20,
+    sue_kontrolle: {},
+    sitzplan_schueler: {},
+    sitzplan_objekte: [],
+  };
+
+  const restored = normalizeAppState({
+    ...makeApp(),
+    archivedClasses: [liveClass],
+  });
+
+  assert.equal(restored.archivedClasses?.length, 0);
+  assert.equal(restored.retiredClasses?.length, 1);
+  assert.equal(restored.retiredClasses?.[0].id, 'old-class');
+});
+
 test('app-state restore normalizes archived classes instead of trusting raw archive payloads', () => {
   const restored = normalizeAppState({
     ...makeApp(),
