@@ -47,7 +47,7 @@ import Markdown from 'react-markdown';
 import PrintHeader from './PrintHeader';
 import { exportSchuelerPDF } from '../lib/exportService';
 import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySubjects, getSchulstartKW, getSemester, getCurrentSchuljahr, formatLocalDateKey } from '../lib/utils';
-import { getFachCfg, berechne, getNotenLabel } from '../lib/GradeUtils';
+import { getFachCfg, berechne, getNotenLabel, getAssessmentMode } from '../lib/GradeUtils';
 import { DEFAULT_YEARLY_SUBJECTS, FAECHER_ALLE } from '../constants';
 
 const STANDARD_KEL_BEREICHE = [
@@ -943,50 +943,41 @@ export default function PrintCenter() {
 
   const kbAbsenteesList = useMemo(() => getAbsenteesForWeek(kbKW), [kbKW, app?.anwesenheit, app?.anwesenheitDetail, students, startYear]);
 
-  // E. Grades computation helper for single Student Dossier (KEL)
+  // E. Leistungsübersicht: immer mit der tatsächlich konfigurierten Beurteilungsart.
   const getStudentGradesSummary = (sId: string) => {
-    const list: { subject: string; grades: string[]; average: number | null }[] = [];
-    const subjects = ['Deutsch', 'Mathematik', 'Sachunterricht', 'Englisch'];
-    
-    if (!app?.noten || !app.noten[sId]) return list;
+    const subjectRecords = app?.noten?.[sId] || {};
+    const subjects = Array.from(new Set([
+      ...(app?.faecher || []),
+      ...Object.keys(subjectRecords),
+    ]));
 
-    // We search across 1. Sem and 2. Sem
-    subjects.forEach(sub => {
-      const gradesCollected: number[] = [];
-      const labelsCollected: string[] = [];
-
-      ['1', '2'].forEach(sem => {
-        const semData = app.noten[sId]?.[sub]?.[sem];
-        if (semData) {
-          // SA
-          if (Array.isArray(semData.sa)) {
-            semData.sa.forEach((g: any) => {
-              if (typeof g === 'number' && g >= 1 && g <= 5) gradesCollected.push(g);
-              else if (g && typeof g === 'object' && typeof g.note === 'number') gradesCollected.push(g.note);
-            });
-          }
-          // LZK
-          if (Array.isArray(semData.lzk)) {
-            semData.lzk.forEach((g: any) => {
-              if (typeof g === 'number' && g >= 1 && g <= 5) gradesCollected.push(g);
-              else if (g && typeof g === 'object' && typeof g.note === 'number') gradesCollected.push(g.note);
-            });
-          }
+    return subjects.map((subject) => {
+      const mode = getAssessmentMode(app, subject);
+      const semesterValues = (['1', '2'] as const).map((semester) => {
+        const semesterData: any = subjectRecords?.[subject]?.[semester];
+        const explicitEndnote = semesterData?.endnote;
+        if (explicitEndnote !== undefined && explicitEndnote !== null && String(explicitEndnote).trim() !== '') {
+          return { semester, text: `Endnote ${String(explicitEndnote).trim()}`, numeric: mode === 'grades' ? Number(explicitEndnote) : null };
         }
+
+        const calculated = berechne(app, sId, subject, semester);
+        if (calculated === null) return { semester, text: '—', numeric: null };
+        const text = mode === 'grades'
+          ? `Berechneter Stand ${Number(calculated).toFixed(1)}`
+          : `Berechneter Stand ${Math.round(Number(calculated))}%`;
+        return { semester, text, numeric: mode === 'grades' ? Number(calculated) : null };
       });
 
-      const avg = gradesCollected.length > 0 
-        ? parseFloat((gradesCollected.reduce((a, b) => a + b, 0) / gradesCollected.length).toFixed(1))
-        : null;
-
-      list.push({
-        subject: sub,
-        grades: gradesCollected.map(String),
-        average: avg
-      });
-    });
-
-    return list;
+      const latest = [...semesterValues].reverse().find((entry) => entry.text !== '—') || null;
+      return {
+        subject,
+        mode,
+        semester1: semesterValues[0].text,
+        semester2: semesterValues[1].text,
+        currentDisplay: latest?.text || '—',
+        average: latest?.numeric ?? null,
+      };
+    }).filter((row) => row.semester1 !== '—' || row.semester2 !== '—');
   };
 
   // Get active KEL data for a student
@@ -6844,43 +6835,6 @@ export default function PrintCenter() {
   function renderSingleStudentProfile(st: any) {
     // 1. Fetch Grades Summary
     const grades = getStudentGradesSummary(st.id);
-    const coreSubjects = ['Deutsch', 'Mathematik', 'Sachunterricht', 'Englisch'];
-    if (app?.noten?.[st.id]) {
-      Object.keys(app.noten[st.id]).forEach(sub => {
-        if (!coreSubjects.includes(sub)) {
-          const gradesCollected: number[] = [];
-          ['1', '2'].forEach(sem => {
-            const semData = app.noten[st.id]?.[sub]?.[sem];
-            if (semData) {
-              if (Array.isArray(semData.sa)) {
-                semData.sa.forEach((g: any) => {
-                  if (typeof g === 'number' && g >= 1 && g <= 5) gradesCollected.push(g);
-                  else if (g && typeof g === 'object' && typeof g.note === 'number') gradesCollected.push(g.note);
-                });
-              }
-              if (Array.isArray(semData.lzk)) {
-                semData.lzk.forEach((g: any) => {
-                  if (typeof g === 'number' && g >= 1 && g <= 5) gradesCollected.push(g);
-                  else if (g && typeof g === 'object' && typeof g.note === 'number') gradesCollected.push(g.note);
-                });
-              }
-            }
-          });
-          const avg = gradesCollected.length > 0 
-            ? parseFloat((gradesCollected.reduce((a, b) => a + b, 0) / gradesCollected.length).toFixed(1))
-            : null;
-          
-          // Only push if there are actually grades or if it doesn't already exist in the list
-          if (gradesCollected.length > 0 && !grades.some(g => g.subject === sub)) {
-            grades.push({
-              subject: sub,
-              grades: gradesCollected.map(String),
-              average: avg
-            });
-          }
-        }
-      });
-    }
 
     // 2. Fetch KEL & Reflexion
     const kelRow = getKelDataForStudent(st.id);
@@ -7125,9 +7079,9 @@ export default function PrintCenter() {
                   <thead>
                     <tr className="border-b border-slate-300 text-[0.59375rem] text-slate-500 uppercase tracking-widest font-black">
                       <th className="py-2.5">Pflichtgegenstand</th>
-                      <th className="py-2.5 text-center">Erfasste Leistungsnoten (SA / LZK)</th>
-                      <th className="py-2.5 text-center">Notenmittelwert</th>
-                      <th className="py-2.5 text-right">Pädagogische Zielerreichung</th>
+                      <th className="py-2.5 text-center">1. Semester</th>
+                      <th className="py-2.5 text-center">2. Semester</th>
+                      <th className="py-2.5 text-right">Beurteilungsart</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -7135,19 +7089,10 @@ export default function PrintCenter() {
                       grades.map((gr, idx) => (
                         <tr key={idx} className="border-b border-slate-100 last:border-b-0 font-semibold text-slate-700">
                           <td className="py-2.5 font-bold text-slate-900">{gr.subject}</td>
-                          <td className="py-2.5 text-center text-slate-500 font-mono">
-                            {gr.grades.length > 0 ? gr.grades.join(', ') : '—'}
-                          </td>
-                          <td className="py-2.5 text-center">
-                            <span className="bg-slate-100 border border-slate-250 text-slate-800 font-extrabold px-2.5 py-0.5 rounded text-[0.6875rem] font-mono shadow-3xs">
-                              {gr.average !== null ? gr.average.toFixed(1) : '—'}
-                            </span>
-                          </td>
+                          <td className="py-2.5 text-center text-slate-600 font-semibold">{gr.semester1}</td>
+                          <td className="py-2.5 text-center text-slate-600 font-semibold">{gr.semester2}</td>
                           <td className="py-2.5 text-right text-slate-500 font-black uppercase text-[0.59375rem]">
-                            {gr.average !== null && gr.average <= 1.5 ? 'Herausragend' 
-                              : gr.average !== null && gr.average <= 2.5 ? 'Erwarteter Standard voll erfüllt' 
-                              : gr.average !== null && gr.average <= 4.0 ? 'Erwarteter Standard erfüllt' 
-                              : gr.average !== null ? 'Entwicklungsbedarf' : 'Keine Leistungsdaten'}
+                            {gr.mode === 'grades' ? 'Noten' : gr.mode === 'percent' ? 'Prozent' : 'Punkte → Prozentstand'}
                           </td>
                         </tr>
                       ))
@@ -7583,8 +7528,8 @@ export default function PrintCenter() {
               <thead>
                 <tr className="border-b border-slate-300 text-[0.625rem] text-slate-500 uppercase tracking-widest leading-none">
                   <th className="py-2.5">Fachgebiet</th>
-                  <th className="py-2.5 text-center">Semester-Note</th>
-                  <th className="py-2.5 text-right font-medium">Klassen-Standard</th>
+                  <th className="py-2.5 text-center">Aktueller dokumentierter Stand</th>
+                  <th className="py-2.5 text-right font-medium">Beurteilungsart</th>
                 </tr>
               </thead>
               <tbody>
@@ -7594,10 +7539,12 @@ export default function PrintCenter() {
                       <td className="py-2.5 text-slate-800 font-extrabold">{gr.subject}</td>
                       <td className="py-2.5 text-center">
                         <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-black px-2.5 py-0.5 rounded text-[0.6875rem]">
-                          {gr.average !== null ? gr.average.toFixed(1) : '—'}
+                          {gr.currentDisplay}
                         </span>
                       </td>
-                      <td className="py-2.5 text-right text-slate-400 text-[0.625rem] uppercase font-bold">Erfüllt M-Standard</td>
+                      <td className="py-2.5 text-right text-slate-400 text-[0.625rem] uppercase font-bold">
+                        {gr.mode === 'grades' ? 'Noten' : gr.mode === 'percent' ? 'Prozent' : 'Punkte'}
+                      </td>
                     </tr>
                   ))
                 ) : (
@@ -7617,7 +7564,7 @@ export default function PrintCenter() {
             <div className="bg-white p-4 rounded-xl border border-slate-205 text-[0.75rem] leading-tight italic font-semibold text-slate-600 leading-relaxed relative">
               <span className="text-[1.875rem] leading-tight text-indigo-200 absolute right-3 bottom-0 leading-none select-none">“</span>
               <p className="z-10 relative">
-                {kelRow?.notiz || st.notiz || `${st.vorname} zeigt eine hervorragende soziale Integration in die Klassengemeinschaft, arbeitet sehr fleißig an Aufgaben und ist stets hilfsbereit.`}
+                {kelRow?.notiz || st.notiz || 'Keine pädagogische Stärkennotiz hinterlegt.'}
               </p>
             </div>
             
@@ -8235,37 +8182,28 @@ export default function PrintCenter() {
         {/* Grades summary matrix */}
         {kelShowGrades && gradings.length > 0 && (
           <div className="space-y-2.5 avoid-break pt-2">
-            <h3 className="text-[0.75rem] leading-tight font-black uppercase tracking-wide text-zinc-500">III. Leistungsüberblick (Aktuelle Semester-Mittelwerte)</h3>
+            <h3 className="text-[0.75rem] leading-tight font-black uppercase tracking-wide text-zinc-500">III. Leistungsüberblick (dokumentierte Semesterstände)</h3>
             <div className="border border-zinc-450 p-4 rounded-2xl bg-white">
               <table className="w-full">
                 <thead>
                   <tr className="text-left font-black text-[0.59375rem] text-zinc-400 uppercase border-b border-zinc-200 pb-1">
                     <th className="pb-1">Pflichtgegenstand / Fach</th>
-                    <th className="pb-1 text-center w-40">Mittelwert Ø</th>
-                    <th className="pb-1 text-right w-44">Kompetenz-Gauges (1-5)</th>
+                    <th className="pb-1 text-center w-56">Aktueller Stand</th>
+                    <th className="pb-1 text-right w-44">Beurteilungsart</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {gradings.map((gr, gx) => {
-                    const barPercent = gr.average ? Math.max(0, Math.min(100, (5 - gr.average) * 25)) : 0;
-                    return (
-                      <tr key={gx} className="border-b border-zinc-150 last:border-0 py-2.5">
-                        <td className="py-2.5 font-black text-black">{gr.subject}</td>
-                        <td className="py-2.5 text-center font-black text-zinc-800 text-[0.875rem] leading-snug">
-                          {gr.average ? gr.average : <span className="text-zinc-300 text-[0.75rem] leading-tight italic">Kein Ertrag</span>}
-                        </td>
-                        <td className="py-2.5 text-right">
-                          {gr.average ? (
-                            <div className="w-36 h-2 bg-zinc-100 rounded-full inline-block border border-zinc-300 ">
-                              <div className="h-full bg-zinc-700 rounded-full" style={{ width: `${barPercent}%` }}></div>
-                            </div>
-                          ) : (
-                            <span className="text-zinc-300 text-[0.75rem] leading-tight italic">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {gradings.map((gr, gx) => (
+                    <tr key={gx} className="border-b border-zinc-150 last:border-0 py-2.5">
+                      <td className="py-2.5 font-black text-black">{gr.subject}</td>
+                      <td className="py-2.5 text-center font-black text-zinc-800 text-[0.75rem] leading-snug">
+                        {gr.currentDisplay}
+                      </td>
+                      <td className="py-2.5 text-right text-zinc-500 text-[0.6875rem] font-bold uppercase">
+                        {gr.mode === 'grades' ? 'Noten' : gr.mode === 'percent' ? 'Prozent' : 'Punkte'}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
