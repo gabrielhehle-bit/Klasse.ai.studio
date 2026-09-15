@@ -41,8 +41,8 @@ Legende:
 | 12 | Wochenplanung | ✅ | PR #55 integriert; Audit #122 grün; reale Browser-/Touch-/Druck-/Excel-/Staging-Abnahme im Gesamt-Walkthrough |
 | 13 | Materialbibliothek | ✅ | PR #57 integriert; Audit #124 grün; reale Browser-/Touch-/Datei-/Link-/Staging-Abnahme im Gesamt-Walkthrough |
 | 14 | Übergabemappe | ✅ | PR #59 integriert; Audit #126 grün; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme im Gesamt-Walkthrough |
-| 15 | Statistik & Profile | 🔴 | als Nächstes einzeln prüfen und abschließen |
-| 16 | Diagnostik | 🔴 | danach |
+| 15 | Statistik & Profile | ✅ | PR #61 integriert; Audit #128 grün; 941/941 Tests; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme im Gesamt-Walkthrough |
+| 16 | Diagnostik | 🔴 | als Nächstes einzeln prüfen und abschließen |
 | 17 | Wir-Gefühl | 🔴 | danach |
 | 18 | Jahresbericht | 🔴 | danach |
 | 19 | Archiv | 🔴 | danach |
@@ -94,6 +94,7 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 | Bereich | Status | Nachweis / Rest |
 |---|---:|---|
 | Notenmappe | 🟡 | PR #47: Noten/Prozent/Punkte, Gewichtung, Schularbeiten, LZK/WOPL, sonstige Leistungen, Mitarbeit und HÜ bleiben erhalten. Ungültige Werte außerhalb von Noten 1–5, 0–100% bzw. 0–Max-Punkten werden abgewiesen statt still korrigiert. Endnoten erlauben 1–5 sowie SPF/ESPF. HÜ-Modus, Prozentabzug und Mitarbeitsabzug sind fachbezogen; Mitarbeit-Bewertungsmodus und Schwellenwerte sind klassenlokal und Legacy-Mehrklassenstände werden verlustfrei migriert. WOPL-Spiegelung Deutsch↔Mathematik verhindert numerische Rohwertübernahme bei unterschiedlichen Bewertungsarten und skaliert Punkte bei unterschiedlichen Maximalpunkten proportional. Automatisierte Tests und Audit #114 grün; reale Browser-/Touch-/Druck-Abnahme offen. |
+| Statistik & Profile | 🟡 | PR #61: Noten-/Prozent-/Punktestatistik ist skalenkorrekt, Klassen- und Schüler-Leistungsindex sind vereinheitlicht und Planungsstatistik nutzt reale Wochen-/Jahresplandaten. Elterngespräche, KEL, Portfolio, KI-Zusammenfassungen und Profil-Beobachtungen sind klassenlokal; Legacy-Browserdaten werden in den verschlüsselten App-State migriert. Demo-/Fake-Vergleiche, erfundene Profilwerte, pseudo-offizielle Urkunden sowie vorgetäuschte Risiko-/Förder-/Sitzplatzdiagnosen wurden entfernt oder transparent als manuelle Hilfen umgesetzt. Automatisierte Tests und Audit #128 grün; reale Browser-/Touch-/Druck-/Datenschutz-Abnahme offen. |
 | Fachbezogene Bewertungsabschnitte | ✅ | Metadaten eines Fachs verändern andere Fächer nicht; Regressionstest vorhanden. |
 | Mitarbeit | ✅ | Schnellerfassung inkl. Enter/↓ und Shift+Enter/↑; manuelle 1–5-Bewertung unterstützt. |
 | Hausübungen | ✅ | Schnellerfassung; 0 = vollständig; Detailoptionen hinter `HÜ-Einstellungen`. |
