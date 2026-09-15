@@ -421,3 +421,18 @@ test('KI-Helfer verwendet die Klassio Schale ohne die KI Werkzeuglogik zu ersetz
   assert.match(ai, /GEMINI_API_KEY/);
   assert.match(ai, /ki-stationenbetrieb/);
 });
+
+
+test('Schnellnotiz und Willkommens Tour folgen der Klassio Overlay Sprache', () => {
+  const quickNote = read('src/components/GlobalActions.tsx');
+  const tour = read('src/components/WelcomeTour.tsx');
+
+  assert.match(quickNote, /bg-\[var\(--surface-card,var\(--surface\)\)\] rounded-2xl shadow-2xl/);
+  assert.match(quickNote, /Schnellnotiz/);
+  assert.doesNotMatch(quickNote, /rounded-\[2rem\]/);
+
+  assert.match(tour, /bg-\[var\(--surface-card,var\(--surface\)\)\].*rounded-2xl/s);
+  assert.match(tour, /border-2 border-\[var\(--accent\)\]/);
+  assert.match(tour, /bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\]/);
+  assert.match(tour, /tourAbgeschlossen/);
+});
