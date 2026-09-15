@@ -7,6 +7,7 @@ import localforage from 'localforage';
 import { AppState, Student } from '../types';
 import { DEFAULT_TAGEPLAN, FAECHER_ALLE, STUNDEN_INFO, DEFAULT_YEARLY_SUBJECTS, DEFAULT_FACH_COLORS } from '../constants';
 import { getKW, getCurrentSchuljahr } from '../lib/utils';
+import { toLocalDateKey } from '../lib/localDate';
 import { notenSyncService } from '../lib/NotenSyncService';
 import {
   encryptSyncState,
@@ -174,7 +175,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         // 3. Einmal tägliche verschlüsselte Notfallkopie
         try {
-          const todayDate = new Date().toISOString().split('T')[0];
+          const todayDate = toLocalDateKey();
           const lastKopieDate = localStorage.getItem('hehle_v3_notfallkopie_date');
           if (lastKopieDate !== todayDate) {
             await saveEncryptedEmergencyBackup(app, vaultKey);
