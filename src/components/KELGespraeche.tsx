@@ -320,13 +320,13 @@ const KELGespraeche: React.FC = () => {
           <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/60 shadow-xs shrink-0 gap-1">
             <button 
               onClick={() => { setKelTab('protokolle'); setSelectedStudentId(null); }}
-              className="px-6 py-3 text-[0.75rem] leading-tight font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 text-slate-500 hover:text-slate-800"
+              className="px-5 py-2.5 text-[0.75rem] leading-tight font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-2 text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]"
             >
               <MessagesSquare size={14} className="text-rose-500" />
               Protokolle
             </button>
             <button 
-              className="px-6 py-3 text-[0.75rem] leading-tight font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 bg-white text-slate-950 shadow-md"
+              className="px-5 py-2.5 text-[0.75rem] leading-tight font-bold rounded-xl transition-colors cursor-pointer flex items-center gap-2 bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm"
             >
               <BarChart3 size={14} className="text-indigo-600" />
               Visuelle Analyse
@@ -1528,14 +1528,14 @@ const KELGespraeche: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8 pb-20 text-left">
-      <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
+    <div className="space-y-6 pb-20 text-left max-w-[1180px] w-full mx-auto px-3 sm:px-5 lg:px-6 text-[var(--text-primary,var(--text))]">
+      <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-5 bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 rounded-2xl shadow-sm border border-[var(--border-subtle,var(--border))]">
         <div>
-          <h1 className="text-[1.5rem] leading-normal sm:text-[1.875rem] leading-tight font-display font-black text-slate-900 tracking-tight">KEL-Gespräche</h1>
-          <p className="text-[0.875rem] leading-snug font-medium text-slate-500 mt-1">Vorbereitung und Dokumentation der Kind-Eltern-Lehrer-Gespräche</p>
+          <h1 className="text-[1.5rem] leading-normal sm:text-[1.875rem] leading-tight font-black text-[var(--text-primary,var(--text))] tracking-tight">KEL-Gespräche</h1>
+          <p className="text-[0.875rem] leading-snug font-medium text-[var(--text-secondary,var(--text2))] mt-1">Vorbereitung und Dokumentation der Kind-Eltern-Lehrer-Gespräche</p>
         </div>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full xl:w-auto">
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-205/60 shadow-xs shrink-0 gap-1 justify-center">
+          <div className="flex bg-[var(--surface-subtle,var(--surface2))] p-1 rounded-xl border border-[var(--border-subtle,var(--border))] shadow-sm shrink-0 gap-1 justify-center">
             <button 
               onClick={() => { setKelTab('protokolle'); setSelectedStudentId(null); }}
               className="px-6 py-3 text-[0.75rem] leading-tight font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer flex items-center gap-2 bg-white text-slate-950 shadow-md"
@@ -1553,7 +1553,7 @@ const KELGespraeche: React.FC = () => {
           </div>
           <button 
             onClick={handleCreateNew}
-            className="px-6 py-3.5 bg-rose-500 text-white rounded-[1.25rem] text-[0.6875rem] font-black uppercase tracking-widest hover:bg-rose-505 transition-all shadow-xl shadow-rose-500/20 flex items-center gap-2 justify-center cursor-pointer"
+            className="px-5 py-3 bg-[var(--accent)] text-[var(--accent-text,#fff)] rounded-xl text-[0.75rem] font-bold hover:bg-[var(--accent-hover)] transition-colors shadow-sm flex items-center gap-2 justify-center cursor-pointer"
           >
             <Plus size={16} />
             Neues Protokoll
@@ -1561,7 +1561,7 @@ const KELGespraeche: React.FC = () => {
         </div>
       </header>
 
-      <div className="flex items-center gap-3 bg-white p-3 rounded-3xl shadow-sm border border-slate-100 w-fit">
+      <div className="flex items-center gap-3 bg-[var(--surface-card,var(--surface))] p-3 rounded-xl shadow-sm border border-[var(--border-subtle,var(--border))] w-fit">
         <div className="px-3 py-1 text-[0.5625rem] font-black uppercase tracking-widest text-slate-400 border-r border-slate-100">Filter</div>
         <select 
           value={filterStudentId}
@@ -1588,7 +1588,7 @@ const KELGespraeche: React.FC = () => {
                 <motion.div 
                   key={m.id}
                   layout
-                  className="group bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 hover:border-rose-200 hover:shadow-xl hover:shadow-rose-500/5 transition-all"
+                  className="group bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl shadow-sm border border-[var(--border-subtle,var(--border))] hover:border-[var(--accent)]/30 transition-colors"
                 >
                   <div className="flex justify-between items-start mb-6">
                     <div className="w-14 h-14 bg-rose-50 rounded-3xl flex items-center justify-center text-rose-500 group-hover:scale-110 transition-transform">
@@ -1641,7 +1641,7 @@ const KELGespraeche: React.FC = () => {
 
                   <button 
                     onClick={() => setViewingMeeting(m)}
-                    className="w-full py-4 bg-slate-50 group-hover:bg-rose-500 text-slate-400 group-hover:text-white rounded-2xl text-[0.625rem] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-[var(--surface-subtle,var(--surface2))] group-hover:bg-[var(--accent-soft)] text-[var(--text-muted,var(--text3))] group-hover:text-[var(--accent)] rounded-xl text-[0.75rem] font-bold transition-colors flex items-center justify-center gap-2"
                   >
                     Details ansehen
                     <ChevronRight size={14} />
