@@ -35,7 +35,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(({
   const sizeClasses: Record<InputSize, string> = {
     sm: 'min-h-[36px] px-2.5 py-1.5 text-xs rounded-lg',
     md: 'min-h-[44px] px-3.5 py-2 text-sm rounded-xl',
-    lg: 'min-h-[52px] px-4 py-3 text-base rounded-2xl'
+    lg: 'min-h-[52px] px-4 py-3 text-base rounded-xl'
   };
 
   return (
