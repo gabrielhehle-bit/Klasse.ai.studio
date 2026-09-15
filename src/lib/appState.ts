@@ -305,9 +305,12 @@ export function normalizeAppState(raw: any): AppState {
     dienste: raw.dienste ?? [],
     backupEinstellungen: raw.backupEinstellungen ?? { letztesBackup: null, erinnerungAktiv: true },
     archivedClasses: normalizeArchivedClasses(archiveSnapshotEntries),
-    retiredClasses: Array.isArray(raw.retiredClasses)
-      ? JSON.parse(JSON.stringify(raw.retiredClasses))
-      : JSON.parse(JSON.stringify(legacyArchivedClassEntries)),
+    retiredClasses: JSON.parse(JSON.stringify([
+      ...(Array.isArray(raw.retiredClasses) ? raw.retiredClasses : []),
+      ...legacyArchivedClassEntries,
+    ].filter((item: any, index: number, items: any[]) =>
+      item?.id && items.findIndex((candidate: any) => candidate?.id === item.id) === index
+    ))),
   };
 
   // Migration: Multi-Class Support
