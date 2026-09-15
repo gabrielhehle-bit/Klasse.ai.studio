@@ -3817,6 +3817,19 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
             return <span className="bg-slate-50 text-slate-600 px-2.5 py-1 rounded-full text-[0.5625rem] font-black border border-slate-100 flex items-center gap-0.5 shadow-2xs">Nahe Klassen-Ø</span>;
           };
 
+          const studentSummaryValues = chartDataSummary
+            .map(row => row['Schüler'])
+            .filter((value): value is number => value !== null);
+          const classSummaryValues = chartDataSummary
+            .map(row => row['Klassenschnitt'])
+            .filter((value): value is number => value !== null);
+          const studentSummaryAverage = studentSummaryValues.length
+            ? studentSummaryValues.reduce((sum, value) => sum + value, 0) / studentSummaryValues.length
+            : null;
+          const classSummaryAverage = classSummaryValues.length
+            ? classSummaryValues.reduce((sum, value) => sum + value, 0) / classSummaryValues.length
+            : null;
+
           return (
             <ModalPortal>
               <motion.div 
@@ -3856,8 +3869,22 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                           <BarChart data={chartDataSummary}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: '#64748b' }} />
-                            <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                            <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 900 }} />
+                            <YAxis
+                              domain={assessmentMode === 'grades' ? [1, 5] : [0, 100]}
+                              ticks={assessmentMode === 'grades' ? [1, 2, 3, 4, 5] : [0, 20, 40, 60, 80, 100]}
+                              reversed={assessmentMode === 'grades'}
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{ fontSize: 10, fill: '#94a3b8' }}
+                              tickFormatter={(value) => assessmentMode === 'grades' ? String(value) : `${value}%`}
+                            />
+                            <Tooltip
+                              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 900 }}
+                              formatter={(value: any) => [
+                                typeof value === 'number' ? formatDetailValue(value) : '—',
+                                undefined
+                              ]}
+                            />
                             <Legend wrapperStyle={{ fontSize: 10, fontWeight: 900, paddingTop: 10 }} />
                             <Bar dataKey="Schüler" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={40} />
                             <Bar dataKey="Klassenschnitt" fill="#cbd5e1" radius={[6, 6, 0, 0]} barSize={40} />
@@ -3868,14 +3895,14 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs flex flex-col justify-center text-center">
-                        <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 block mb-1">Mein Schnitt</span>
-                        <span className="text-[1.875rem] leading-tight font-black text-slate-900">{(chartDataSummary.reduce((a, b) => a + b['Schüler'], 0) / (chartDataSummary.length || 1)).toFixed(2)}</span>
-                        <span className="text-[0.5625rem] font-bold text-indigo-500 mt-2">{detailFach} GPA</span>
+                        <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 block mb-1">Eigener Fachstand</span>
+                        <span className="text-[1.875rem] leading-tight font-black text-slate-900">{formatDetailValue(studentSummaryAverage)}</span>
+                        <span className="text-[0.5625rem] font-bold text-indigo-500 mt-2">{assessmentMode === 'grades' ? 'Notenskala 1–5' : 'Leistungsindex 0–100'}</span>
                       </div>
                       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs flex flex-col justify-center text-center">
-                        <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 block mb-1">Klassen Ø</span>
-                        <span className="text-[1.875rem] leading-tight font-black text-slate-400">{(chartDataSummary.reduce((a, b) => a + b['Klassenschnitt'], 0) / (chartDataSummary.length || 1)).toFixed(2)}</span>
-                        <span className="text-[0.5625rem] font-bold text-slate-400 mt-2">Gesamtschnitt</span>
+                        <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 block mb-1">Klassen-Ø</span>
+                        <span className="text-[1.875rem] leading-tight font-black text-slate-400">{formatDetailValue(classSummaryAverage)}</span>
+                        <span className="text-[0.5625rem] font-bold text-slate-400 mt-2">{assessmentMode === 'grades' ? 'Notenschnitt' : 'Leistungsindex'}</span>
                       </div>
                       <div className="col-span-2 bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100/50">
                          <span className="text-[0.625rem] font-black uppercase tracking-widest text-indigo-600 block mb-3">Erfolgs-Indikator</span>
@@ -3884,7 +3911,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                              <div key={i} className="flex items-center justify-between">
                                <span className="text-[0.75rem] leading-tight font-bold text-slate-700">{sa.name}</span>
                                <div className="flex items-center gap-3">
-                                 <span className={`text-[0.625rem] font-black px-2 py-0.5 rounded-md ${sa.studentGrade === 1 ? 'bg-emerald-500 text-white' : 'bg-white border border-slate-200 text-slate-900'}`}>{sa.studentGrade || '—'}</span>
+                                 <span className="text-[0.625rem] font-black px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-900">{formatDetailValue(sa.studentGrade)}</span>
                                  {getPerformanceBadge(sa.studentGrade, sa.classAvg)}
                                </div>
                              </div>
