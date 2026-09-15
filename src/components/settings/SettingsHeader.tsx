@@ -24,7 +24,7 @@ interface SettingsHeaderProps {
 
 export const CATEGORIES: { id: SettingsCategory; label: string; icon: any; shortDesc: string }[] = [
   { id: 'general', label: 'Allgemein', icon: Sliders, shortDesc: 'Schuljahr, Bundesland & Fächer' },
-  { id: 'display', label: 'Darstellung', icon: Palette, shortDesc: 'Design, Schrift & Whiteboard' },
+  { id: 'display', label: 'Darstellung', icon: Palette, shortDesc: 'Design, Schrift & Cockpit' },
   { id: 'modules', label: 'Module', icon: LayoutGrid, shortDesc: 'Bereiche ein- & ausblenden' },
   { id: 'sync', label: 'Synchronisierung', icon: Smartphone, shortDesc: 'Smartboard & Fernbedienung' },
   { id: 'backup', label: 'Daten & Backup', icon: Download, shortDesc: 'Sichern, Laden & App-Install' },
@@ -58,7 +58,7 @@ export default function SettingsHeader({
               <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight font-sans">
                 {activeCategory === 'overview' && 'Einstellungen'}
                 {activeCategory === 'general' && 'Allgemeine Einstellungen'}
-                {activeCategory === 'display' && 'Darstellung & Whiteboard'}
+                {activeCategory === 'display' && 'Darstellung & Cockpit'}
                 {activeCategory === 'modules' && 'Module & Bereiche'}
                 {activeCategory === 'sync' && 'Smartboard & Synchronisierung'}
                 {activeCategory === 'backup' && 'Daten & Datensicherung'}
