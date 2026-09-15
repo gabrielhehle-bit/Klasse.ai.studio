@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import type { TeacherIdentity } from './teacherIdentity';
 
 export type LehrerzimmerCategory = 'organisation' | 'unterricht' | 'info';
+export type LehrerzimmerKind = 'beitrag' | 'frage';
 
 export interface LehrerzimmerUser {
   userId: string;
@@ -27,6 +28,7 @@ export interface LehrerzimmerReply {
 export interface LehrerzimmerPost {
   id: string;
   category: LehrerzimmerCategory;
+  kind: LehrerzimmerKind;
   title: string;
   body: string;
   authorId: string;
@@ -57,6 +59,10 @@ function cleanText(value: unknown, maxLength: number): string {
 
 function isCategory(value: unknown): value is LehrerzimmerCategory {
   return value === 'organisation' || value === 'unterricht' || value === 'info';
+}
+
+function isKind(value: unknown): value is LehrerzimmerKind {
+  return value === 'beitrag' || value === 'frage';
 }
 
 function mentionHandles(text: string): string[] {
@@ -162,9 +168,10 @@ export class LehrerzimmerStore {
 
   async createPost(
     identity: TeacherIdentity,
-    input: { category: unknown; title: unknown; body: unknown }
+    input: { category: unknown; kind: unknown; title: unknown; body: unknown }
   ): Promise<LehrerzimmerPost> {
     if (!isCategory(input.category)) throw new Error('INVALID_CATEGORY');
+    if (!isKind(input.kind)) throw new Error('INVALID_KIND');
     const title = cleanText(input.title, 140);
     const body = cleanText(input.body, 4000);
     if (!title || !body) throw new Error('INVALID_CONTENT');
@@ -195,6 +202,7 @@ export class LehrerzimmerStore {
       const post: LehrerzimmerPost = {
         id: crypto.randomUUID(),
         category: input.category,
+        kind: input.kind,
         title,
         body,
         authorId: identity.userId,
