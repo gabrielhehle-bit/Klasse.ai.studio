@@ -521,10 +521,10 @@ export default function AIAssistant() {
   const activeTabData = tabs.find(t => t.id === activeTab) || tabs[0];
 
   return (
-    <div className={`ai-assistant-shell flex transition-all duration-300 overflow-hidden ${isFullScreen ? 'fixed inset-0 z-[200] bg-white h-screen w-full font-sans' : 'h-full w-full bg-white rounded-2xl border border-slate-200 shadow-sm'}`}>
+    <div className={`ai-assistant-shell flex transition-all duration-300 overflow-hidden text-[var(--text-primary,var(--text))] ${isFullScreen ? 'fixed inset-0 z-[200] bg-[var(--surface-app,var(--bg))] h-screen w-full font-sans' : 'h-full w-full bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm'}`}>
       
       {/* Sidebar Navigation - Unified and Categorized */}
-      <aside className={`hidden lg:flex flex-col bg-white border-r border-slate-100 shrink-0 no-print transition-all duration-300 ${
+      <aside className={`hidden lg:flex flex-col bg-[var(--surface-card,var(--surface))] border-r border-[var(--border-subtle,var(--border))] shrink-0 no-print transition-all duration-300 ${
         isSidebarCollapsed 
           ? 'w-[5.5rem] items-center py-6 px-3' 
           : isCompact 
@@ -535,15 +535,15 @@ export default function AIAssistant() {
       }`}>
         <div className={`mb-6 w-full ${isSidebarCollapsed ? 'flex justify-center' : ''}`}>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0">
+            <div className="w-10 h-10 bg-[var(--accent)] rounded-xl flex items-center justify-center text-[var(--accent-text,#fff)] shadow-sm shrink-0">
               <Bot size={22} />
             </div>
             {!isSidebarCollapsed && (
               <div className="">
-                <h2 className="text-[1.125rem] leading-normal font-black text-slate-900 tracking-tight whitespace-nowrap">ExpertISE-KI</h2>
+                <h2 className="text-[1.125rem] leading-normal font-black text-[var(--text-primary,var(--text))] tracking-tight whitespace-nowrap">ExpertISE-KI</h2>
                 <div className="flex items-center gap-1.5 opacity-50 whitespace-nowrap">
-                  <Sparkles size={10} className="text-indigo-500" />
-                  <span className="text-[0.5rem] font-black uppercase tracking-widest text-slate-400 leading-none">Vernetzte Intelligenz</span>
+                  <Sparkles size={10} className="text-[var(--accent)]" />
+                  <span className="text-[0.5rem] font-bold tracking-wide text-[var(--text-muted,var(--text3))] leading-none">Vernetzte Intelligenz</span>
                 </div>
               </div>
             )}
@@ -556,12 +556,12 @@ export default function AIAssistant() {
             {!isSidebarCollapsed && (
               <div className="flex items-center gap-2 mb-3 px-2">
                 <MessageSquare size={12} className="text-slate-300" />
-                <span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-300 whitespace-nowrap">Beratung & Coaching</span>
+                <span className="text-[0.5625rem] font-bold tracking-wide text-[var(--text-muted,var(--text3))] whitespace-nowrap">Beratung & Coaching</span>
               </div>
             )}
             {isSidebarCollapsed && (
               <div className="w-full flex justify-center mb-3">
-                 <div className="w-6 border-t border-slate-200"></div>
+                 <div className="w-6 border-t border-[var(--border-subtle,var(--border))]"></div>
               </div>
             )}
             <div className={`space-y-1 ${isSidebarCollapsed ? 'w-full flex flex-col items-center' : ''}`}>
@@ -573,7 +573,7 @@ export default function AIAssistant() {
                   className={`group flex items-center p-2.5 rounded-xl transition-all border ${isSidebarCollapsed ? 'w-12 h-12 justify-center' : 'w-full gap-3'} ${
                     activeTab === tab.id && !showGuidedTool
                       ? 'shadow-sm font-bold' 
-                      : 'bg-white border-transparent text-slate-600 hover:bg-slate-50 hover:border-slate-200'
+                      : 'bg-[var(--surface-card,var(--surface))] border-transparent text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))] hover:border-[var(--border-default,var(--border))]'
                   }`}
                   style={activeTab === tab.id && !showGuidedTool ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--btn-text, #ffffff)', borderColor: 'var(--accent, #10b981)' } : {}}
                 >
@@ -583,7 +583,7 @@ export default function AIAssistant() {
                   {!isSidebarCollapsed && (
                     <>
                       <div className="flex flex-col items-start min-w-0">
-                        <span className="text-[0.6875rem] font-bold tracking-tight" style={activeTab === tab.id && !showGuidedTool ? { color: 'var(--btn-text, #ffffff)' } : { color: '#334155' }}>
+                        <span className="text-[0.6875rem] font-bold tracking-tight" style={activeTab === tab.id && !showGuidedTool ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : { color: 'var(--text-primary, #334155)' }}>
                           {tab.label}
                         </span>
                       </div>
@@ -602,12 +602,12 @@ export default function AIAssistant() {
             {!isSidebarCollapsed && (
               <div className="flex items-center gap-2 mb-3 px-2">
                 <Wand2 size={12} className="text-slate-300" />
-                <span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-300 whitespace-nowrap">Spezial-Werkzeuge</span>
+                <span className="text-[0.5625rem] font-bold tracking-wide text-[var(--text-muted,var(--text3))] whitespace-nowrap">Spezial-Werkzeuge</span>
               </div>
             )}
             {isSidebarCollapsed && (
               <div className="w-full flex justify-center mb-3">
-                 <div className="w-6 border-t border-slate-200"></div>
+                 <div className="w-6 border-t border-[var(--border-subtle,var(--border))]"></div>
               </div>
             )}
             <div className={`space-y-1 ${isSidebarCollapsed ? 'w-full flex flex-col items-center' : ''}`}>
@@ -619,7 +619,7 @@ export default function AIAssistant() {
                   className={`group flex items-center p-3 rounded-xl transition-all border ${isSidebarCollapsed ? 'w-12 h-12 justify-center' : 'w-full gap-3'} ${
                     activeTab === tab.id && showGuidedTool
                       ? 'shadow-lg -translate-y-0.5 font-bold' 
-                      : 'bg-white border-transparent text-slate-500 hover:bg-slate-50 hover:border-slate-100'
+                      : 'bg-[var(--surface-card,var(--surface))] border-transparent text-[var(--text-muted,var(--text3))] hover:bg-[var(--surface-subtle,var(--surface2))] hover:border-[var(--border-subtle,var(--border))]'
                   }`}
                   style={activeTab === tab.id && showGuidedTool ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--btn-text, #ffffff)', borderColor: 'var(--accent, #10b981)' } : {}}
                 >
@@ -629,7 +629,7 @@ export default function AIAssistant() {
                   {!isSidebarCollapsed && (
                     <>
                       <div className="flex flex-col items-start min-w-0">
-                        <span className="text-[0.625rem] font-black uppercase tracking-tight" style={activeTab === tab.id && showGuidedTool ? { color: 'var(--btn-text, #ffffff)' } : { color: '#334155' }}>
+                        <span className="text-[0.625rem] font-black uppercase tracking-tight" style={activeTab === tab.id && showGuidedTool ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : { color: 'var(--text-primary, #334155)' }}>
                           {tab.label}
                         </span>
                       </div>
@@ -644,13 +644,13 @@ export default function AIAssistant() {
           </div>
         </nav>
 
-        <div className={`mt-8 pt-6 border-t border-slate-100 w-full ${isSidebarCollapsed ? 'flex justify-center' : 'space-y-4'}`}>
+        <div className={`mt-8 pt-6 border-t border-[var(--border-subtle,var(--border))] w-full ${isSidebarCollapsed ? 'flex justify-center' : 'space-y-4'}`}>
            <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center w-full' : 'justify-between px-2'}`}>
-             {!isSidebarCollapsed && <div className="text-[0.625rem] font-black uppercase tracking-widest text-slate-300">Layout</div>}
+             {!isSidebarCollapsed && <div className="text-[0.625rem] font-bold tracking-wide text-[var(--text-muted,var(--text3))]">Layout</div>}
              <button 
                 onClick={() => setIsFullScreen(!isFullScreen)}
                 title={isFullScreen ? "Vollbild beenden" : "Vollbild"}
-                className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-900 transition-all border border-slate-100 flex items-center justify-center shrink-0"
+                className="p-2 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--accent-soft)] rounded-xl text-[var(--text-muted,var(--text3))] hover:text-[var(--accent)] transition-colors border border-[var(--border-subtle,var(--border))] flex items-center justify-center shrink-0"
               >
                 {isFullScreen ? <X size={16} /> : <Layout size={16} />}
               </button>
@@ -662,15 +662,15 @@ export default function AIAssistant() {
       <main className="flex-1 flex flex-col min-w-0 relative">
         
         {/* Mobile Nav Top Bar - Clean and Minimal */}
-        <header className="lg:hidden flex items-center justify-between p-3 bg-white border-b border-slate-100 shrink-0 z-50">
+        <header className="lg:hidden flex items-center justify-between p-3 bg-[var(--surface-card,var(--surface))] border-b border-[var(--border-subtle,var(--border))] shrink-0 z-50">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
+            <div className="w-8 h-8 bg-[var(--accent)] rounded-lg flex items-center justify-center text-[var(--accent-text,#fff)]">
               <Bot size={16} />
             </div>
-            <span className="text-[0.625rem] font-black uppercase tracking-tight text-slate-900">KI-Helfer</span>
+            <span className="text-[0.625rem] font-bold tracking-wide text-[var(--text-primary,var(--text))]">KI-Helfer</span>
           </div>
           <div className="flex items-center gap-1">
-             <div className="flex items-center gap-1 h-8 bg-slate-50 p-1 rounded-lg">
+             <div className="flex items-center gap-1 h-8 bg-[var(--surface-subtle,var(--surface2))] p-1 rounded-lg border border-[var(--border-subtle,var(--border))]">
                 {tabs.map(t => (
                   <button 
                     key={t.id}
@@ -678,7 +678,7 @@ export default function AIAssistant() {
                     aria-label={`${t.label}: ${t.description}`}
                     aria-pressed={activeTab === t.id}
                     title={`${t.label} – ${t.description}`}
-                    className={`w-6 h-6 flex items-center justify-center rounded-md ${activeTab === t.id ? 'bg-white shadow-sm text-slate-900' : 'text-slate-300'}`}
+                    className={`w-6 h-6 flex items-center justify-center rounded-md ${activeTab === t.id ? 'bg-[var(--accent)] shadow-sm text-[var(--accent-text,#fff)]' : 'text-[var(--text-muted,var(--text3))]'}`}
                   >
                     {React.cloneElement(t.icon as React.ReactElement<any>, { size: 12 })}
                   </button>
@@ -688,7 +688,7 @@ export default function AIAssistant() {
                onClick={() => setIsFullScreen(!isFullScreen)}
                aria-label={isFullScreen ? "Vollbild beenden" : "Vollbild öffnen"}
                title={isFullScreen ? "Vollbild beenden" : "Vollbild öffnen"}
-               className="p-2 bg-slate-50 rounded-lg text-slate-400"
+               className="p-2 bg-[var(--surface-subtle,var(--surface2))] rounded-lg text-[var(--text-muted,var(--text3))]"
              >
                {isFullScreen ? <X size={14} /> : <Layout size={14} />}
              </button>
@@ -707,14 +707,14 @@ export default function AIAssistant() {
                 className="flex-1 flex flex-col min-h-0 relative h-full"
               >
                 {/* Header Information Area */}
-                <div className={`border-b border-slate-200 bg-white/95 backdrop-blur-xl sticky top-0 z-40 flex items-center justify-between ${
+                <div className={`border-b border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))] backdrop-blur-xl sticky top-0 z-40 flex items-center justify-between ${
                   isCompact ? 'px-4 lg:px-6 py-3' : isLarge ? 'px-6 lg:px-8 py-4' : 'px-6 lg:px-8 py-4'
                 }`}>
                    <div className="flex items-center gap-3">
                       <button
                         type="button"
                         onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                        className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-650 rounded-xl hidden lg:flex items-center gap-1.5 border border-slate-200 text-[0.625rem] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm animate-fade-in"
+                        className="p-2 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--accent-soft)] text-[var(--text-secondary,var(--text2))] hover:text-[var(--accent)] rounded-xl hidden lg:flex items-center gap-1.5 border border-[var(--border-default,var(--border))] text-[0.625rem] font-bold transition-colors cursor-pointer shadow-sm animate-fade-in"
                         title={isSidebarCollapsed ? "KI-Menü einblenden" : "KI-Menü ausblenden (Mehr Platz!)"}
                       >
                         <Layout size={13} className={isSidebarCollapsed ? "text-indigo-600 animate-pulse" : "text-slate-400"} />
@@ -722,20 +722,20 @@ export default function AIAssistant() {
                       </button>
                       <div>
                          <div className="flex items-center gap-2 mb-0.5">
-                            <h1 className="text-[0.875rem] leading-snug font-black uppercase tracking-tight text-slate-900">{activeTabData.label}</h1>
+                            <h1 className="text-[0.875rem] leading-snug font-black tracking-tight text-[var(--text-primary,var(--text))]">{activeTabData.label}</h1>
                             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                          </div>
-                         <p className="text-[0.6875rem] font-semibold text-slate-500">{activeTabData.description}</p>
+                         <p className="text-[0.6875rem] font-medium text-[var(--text-muted,var(--text3))]">{activeTabData.description}</p>
                       </div>
                    </div>
                    <div className="flex items-center gap-2">
-                     <label className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-[0.625rem] font-bold text-slate-600 cursor-pointer" title="Übermittelt nur Schulstufe, Bundesland, Klassengröße und aktuelle Wochenplanthemen. Schülernamen werden nicht automatisch in diesen Klassenkontext aufgenommen.">
+                     <label className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] text-[0.625rem] font-bold text-[var(--text-secondary,var(--text2))] cursor-pointer" title="Übermittelt nur Schulstufe, Bundesland, Klassengröße und aktuelle Wochenplanthemen. Schülernamen werden nicht automatisch in diesen Klassenkontext aufgenommen.">
                        <input type="checkbox" checked={useClassContext} onChange={(e) => setUseClassContext(e.target.checked)} className="rounded" />
                        Klassenkontext
                      </label>
                      <button 
                         onClick={() => { setActiveMessages([]); setActiveChatId(null); }}
-                        className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-[0.625rem] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2 transition-all active:scale-95"
+                        className="px-3.5 py-2 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--accent-soft)] border border-[var(--border-default,var(--border))] rounded-xl text-[0.625rem] font-bold text-[var(--text-secondary,var(--text2))] hover:text-[var(--accent)] flex items-center gap-2 transition-colors"
                       >
                         <RefreshCw size={10} className="text-indigo-400" />
                         Neuer Chat
@@ -1219,10 +1219,10 @@ export default function AIAssistant() {
                     )}
  
                      {/* Gorgeous focus-glow input dock */}
-                     <div className={`relative flex items-end bg-white border border-slate-300 rounded-2xl shadow-md focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all ${isCompact ? 'p-1.5' : 'p-2'}`}>
+                     <div className={`relative flex items-end bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-2xl shadow-sm focus-within:border-[var(--accent)] focus-within:ring-2 focus-within:ring-[var(--focus-ring,var(--accent))] transition-colors ${isCompact ? 'p-1.5' : 'p-2'}`}>
                         <textarea 
                           style={{ backgroundColor: 'transparent' }}
-                          className={`flex-1 bg-transparent outline-none text-[0.9375rem] leading-relaxed font-semibold text-slate-900 placeholder:text-slate-500 resize-none scrollbar-hide !border-none !bg-transparent focus:!ring-0 rounded-xl max-h-[150px] ${
+                          className={`flex-1 bg-transparent outline-none text-[0.9375rem] leading-relaxed font-semibold text-[var(--text-primary,var(--text))] placeholder:text-[var(--text-muted,var(--text3))] resize-none scrollbar-hide !border-none !bg-transparent focus:!ring-0 rounded-xl max-h-[150px] ${
                             isCompact ? 'p-2.5 min-h-[44px]' : 'p-4 min-h-[52px]'
                           }`}
                           placeholder={`${activeTabData.label}-Analyse oder Fragen eingeben...`}
@@ -1236,7 +1236,7 @@ export default function AIAssistant() {
                           className={`flex items-center justify-center text-white transition-all shadow-md hover:shadow-indigo-500/10 active:scale-95 shrink-0 ml-1 mb-1 cursor-pointer ${
                             isCompact ? 'w-10 h-10 rounded-xl' : 'w-12 h-12 rounded-2xl'
                           } disabled:bg-slate-50 disabled:text-slate-300`}
-                          style={{ backgroundColor: activeTabData.buttonColor }}
+                          style={{ backgroundColor: 'var(--accent)' }}
                         >
                           <Send size={18} />
                         </button>
@@ -1259,9 +1259,9 @@ export default function AIAssistant() {
                  initial={{ opacity: 0, scale: 0.98 }}
                  animate={{ opacity: 1, scale: 1 }}
                  exit={{ opacity: 0, scale: 0.98 }}
-                 className="flex-1 flex flex-col min-h-0 bg-white"
+                 className="flex-1 flex flex-col min-h-0 bg-[var(--surface-card,var(--surface))]"
               >
-                  <div className="p-6 lg:px-10 py-5 border-b border-slate-100 flex justify-between items-center shrink-0">
+                  <div className="p-5 lg:px-8 border-b border-[var(--border-subtle,var(--border))] flex justify-between items-center shrink-0 bg-[var(--surface-card,var(--surface))]">
                      <div className="flex items-center gap-3">
                         <button
                           type="button"
@@ -1276,13 +1276,13 @@ export default function AIAssistant() {
                            {React.cloneElement(activeTabData.icon as React.ReactElement<any>, { size: 14 })}
                         </div>
                         <div>
-                           <h3 className="text-[0.75rem] leading-tight font-black uppercase text-slate-900">{activeTabData.label}</h3>
-                           <p className="text-[0.625rem] font-bold text-slate-400 leading-none">Interaktiver Assistent</p>
+                           <h3 className="text-[0.75rem] leading-tight font-black text-[var(--text-primary,var(--text))]">{activeTabData.label}</h3>
+                           <p className="text-[0.625rem] font-medium text-[var(--text-muted,var(--text3))] leading-none">Interaktiver Assistent</p>
                         </div>
                      </div>
                      <button 
                        onClick={() => setShowGuidedTool(false)} 
-                       className="px-5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full text-[0.5625rem] font-black uppercase tracking-widest flex items-center gap-2 border border-slate-200 shadow-sm"
+                       className="px-4 py-2 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--accent-soft)] text-[var(--text-secondary,var(--text2))] hover:text-[var(--accent)] rounded-xl text-[0.625rem] font-bold flex items-center gap-2 border border-[var(--border-default,var(--border))] shadow-sm transition-colors"
                      >
                         <MessageSquare size={12} className="text-indigo-400" />
                         Chat-Beratung
