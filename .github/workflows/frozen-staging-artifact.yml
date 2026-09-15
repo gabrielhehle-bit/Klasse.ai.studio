@@ -1,0 +1,99 @@
+name: Frozen Staging Artifact
+
+on:
+  pull_request:
+    branches:
+      - reconcile/klassio-source-of-truth
+    paths:
+      - ".github/workflows/frozen-staging-artifact.yml"
+      - "KLASSIO_VSERVER_DEPLOYMENT.md"
+      - "KLASSIO_STAGING_CHECKLIST.md"
+      - "deploy/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-frozen-staging-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact frozen reconciliation commit
+        uses: actions/checkout@v4
+        with:
+          ref: 6ee20763a0b2624d9268118b33d2ae579aa2c9e5
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install exact dependencies
+        run: bun install --frozen-lockfile
+
+      - name: TypeScript
+        run: bun run lint
+
+      - name: Tests
+        run: bun test
+
+      - name: Production build
+        run: bun run build
+
+      - name: Verify build output
+        run: |
+          set -euo pipefail
+          test -f dist/index.html
+          test -f dist/server.cjs
+          test -f dist/manifest.webmanifest
+
+      - name: Production server health smoke
+        env:
+          NODE_ENV: production
+          PORT: "3100"
+          SESSION_SECRET: "ci-only-staging-artifact-secret-not-for-production"
+          LEHRERAPP_ACCESS_TEAM: "ci-only-team-code"
+          LEHRERAPP_ACCESS_EXTERNAL: "ci-only-external-code"
+          LEHRERAPP_ALLOWED_EMAIL_DOMAINS: "vsfoa.vobs.at"
+        run: |
+          set -euo pipefail
+          node dist/server.cjs > /tmp/klassio-artifact-server.log 2>&1 &
+          SERVER_PID=$!
+          cleanup() {
+            kill "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for i in {1..40}; do
+            if curl --fail --silent http://127.0.0.1:3100/api/health | grep -q '"status":"ok"'; then
+              exit 0
+            fi
+            sleep 0.5
+          done
+          cat /tmp/klassio-artifact-server.log
+          exit 1
+
+      - name: Assemble commit-pinned release
+        run: |
+          set -euo pipefail
+          RELEASE_DIR="$RUNNER_TEMP/klassio-release"
+          mkdir -p "$RELEASE_DIR"
+          cp -R dist "$RELEASE_DIR/dist"
+          cp package.json bun.lock "$RELEASE_DIR/"
+          printf '%s\n' '6ee20763a0b2624d9268118b33d2ae579aa2c9e5' > "$RELEASE_DIR/KLASSIO_DEPLOYMENT_COMMIT.txt"
+          test "$(tr -d '[:space:]' < "$RELEASE_DIR/KLASSIO_DEPLOYMENT_COMMIT.txt")" = '6ee20763a0b2624d9268118b33d2ae579aa2c9e5'
+          find "$RELEASE_DIR" -maxdepth 2 -type f | sort
+
+      - name: Upload frozen World4You artifact
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: klassio-world4you-6ee20763a0b2624d9268118b33d2ae579aa2c9e5
+          path: ${{ runner.temp }}/klassio-release/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 6
+
+      - name: Record artifact digest
+        run: |
+          echo "Commit: 6ee20763a0b2624d9268118b33d2ae579aa2c9e5" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifact: klassio-world4you-6ee20763a0b2624d9268118b33d2ae579aa2c9e5" >> "$GITHUB_STEP_SUMMARY"
+          echo "Digest: ${{ steps.upload.outputs.artifact-digest }}" >> "$GITHUB_STEP_SUMMARY"
