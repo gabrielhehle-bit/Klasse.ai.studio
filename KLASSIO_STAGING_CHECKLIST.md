@@ -6,7 +6,9 @@ Repository: `gabrielhehle-bit/Klasse.ai.studio`
 Branch: `reconcile/klassio-source-of-truth`  
 Commit: `6ee20763a0b2624d9268118b33d2ae579aa2c9e5`  
 Artefakt: `klassio-world4you-6ee20763a0b2624d9268118b33d2ae579aa2c9e5.zip`  
-SHA-256: `7acecff8ffd79a41af7a72722b17ad0ca66d04e8377a8c1aa575d729c1a8002e`
+SHA-256: `5aff6c5ec50906259e2927e3a3ade90cfcad483f21bcb67e1b47fb51a1cbf537`  
+Artifact-ID: `10403947886`  
+GitHub Actions: `Frozen Staging Artifact` Run #2
 
 Während dieses Walkthroughs darf kein anderer App-Commit auf den Server geschaltet werden.
 
