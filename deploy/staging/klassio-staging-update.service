@@ -1,0 +1,13 @@
+[Unit]
+Description=Update Klassio staging preview from GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=KLASSIO_STAGING_REPO_URL=https://github.com/gabrielhehle-bit/Klasse.ai.studio.git
+Environment=KLASSIO_STAGING_BRANCH=preview/klassio-staging
+ExecStart=/usr/local/sbin/klassio-staging-update
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
