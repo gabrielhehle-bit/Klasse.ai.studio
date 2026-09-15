@@ -217,6 +217,7 @@ export class SchoolRegistryStore {
     const domain = emailDomain(email);
     const schoolName = cleanText(input.schoolName, 160);
     if (!domain || !schoolName || !isFederalState(input.federalState)) throw new Error('INVALID_REQUEST');
+    const federalState: AustrianFederalState = input.federalState;
     if (isPublicEmailDomain(domain)) throw new Error('PUBLIC_EMAIL_DOMAIN');
     if (isEducationProviderUmbrellaDomain(domain)) throw new Error('PROVIDER_UMBRELLA_DOMAIN');
 
@@ -233,7 +234,7 @@ export class SchoolRegistryStore {
         requestedByEmail: email,
         emailDomain: domain,
         schoolName,
-        federalState: input.federalState,
+        federalState,
         status: 'pending',
         createdAt: now,
         updatedAt: now,
