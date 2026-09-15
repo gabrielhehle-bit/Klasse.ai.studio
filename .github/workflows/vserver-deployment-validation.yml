@@ -1,0 +1,47 @@
+name: vServer Deployment Validation
+
+on:
+  push:
+    branches:
+      - 'chore/vserver-deployment-prep'
+  pull_request:
+    branches:
+      - reconcile/klassio-source-of-truth
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deployment-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Bash syntax
+        run: |
+          set -euo pipefail
+          bash -n deploy/bootstrap-ubuntu.sh
+          bash -n deploy/deploy-release.sh
+          bash -n deploy/rollback.sh
+          bash -n deploy/verify-server.sh
+
+      - name: Verify production placeholders and pinned staging commit
+        run: |
+          set -euo pipefail
+          grep -q 'SESSION_SECRET=CHANGE_ME_' deploy/klassio.env.example
+          grep -q 'LEHRERAPP_ALLOWED_EMAIL_DOMAINS=vsfoa.vobs.at' deploy/klassio.env.example
+          grep -q 'c6d5d52cae1af082b1b8447decbb17678ec4d1b9' KLASSIO_STAGING_CHECKLIST.md
+          grep -q 'proxy_pass http://127.0.0.1:3100' deploy/nginx/klassio.conf
+          grep -q 'User=klassio' deploy/systemd/klassio.service
+
+      - name: Reject obvious committed secrets
+        run: |
+          set -euo pipefail
+          if grep -REn 'AIza[0-9A-Za-z_-]{20,}|SMTP_PASS=[^[:space:]]{8,}|SESSION_SECRET=[^C][^[:space:]]{20,}' deploy/klassio.env.example; then
+            echo 'Potential real secret detected in deployment example.'
+            exit 1
+          fi
