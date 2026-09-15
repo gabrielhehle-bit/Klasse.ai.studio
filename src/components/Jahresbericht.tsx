@@ -150,59 +150,50 @@ export default function Jahresbericht() {
     const s = students.find(x => x.id === studentId);
     if (!s) return;
     
-    // 1. Gather rich database-driven context
-    // Grades
-    const sGrades = app.noten?.[studentId] || {};
-    let gradesStr = '';
-    if (includeGrades && Object.keys(sGrades).length > 0) {
-      gradesStr = Object.entries(sGrades).map(([fach, data]: any) => {
-        const finalGrade = data.endnote || 'noch keine Endnote';
-        return `- ${fach}: Note ${finalGrade}`;
-      }).join(', ');
-    } else {
-      gradesStr = 'Keine Noten eingetragen';
-    }
+    // 1. Nur nachvollziehbare schulische Daten zusammenstellen.
+    const annualGradeLines = includeGrades ? getAnnualGradeLines(studentId) : [];
+    const gradesStr = annualGradeLines.length > 0
+      ? annualGradeLines.join('\n')
+      : includeGrades
+        ? 'Keine auswertbaren Leistungsdaten eingetragen'
+        : 'Nicht einbezogen';
 
-    // Badges / Achievements
     const sBadges = s.badges || [];
-    let badgesList = '';
-    if (includeBadges && sBadges.length > 0) {
-      badgesList = sBadges.map((b: any) => `${b.icon} ${b.name}`).join(', ');
-    } else {
-      badgesList = 'Keine Auszeichnungen gesammelt';
-    }
+    const badgesList = includeBadges && sBadges.length > 0
+      ? sBadges.map((badge: any) => `${badge.icon || ''} ${badge.name}`.trim()).join(', ')
+      : 'Nicht einbezogen';
 
-    // KEL Goals and Selbsteinschätzung
-    const kelForStudent = app.kelGespraeche?.filter(k => k.schuelerId === studentId) || [];
+    const latestKel = getLatestKelForStudent(studentId);
     let kelGoalsStr = '';
     let kelSelfStr = '';
-    if (kelForStudent.length > 0) {
-      const lastKel = kelForStudent[kelForStudent.length - 1];
-      if (lastKel.zieleKind && lastKel.zieleKind.length > 0) {
-        kelGoalsStr = lastKel.zieleKind.map((z: any) => `- ${z.ziel}`).join('\n');
+    if (latestKel) {
+      if (latestKel.zieleKind && latestKel.zieleKind.length > 0) {
+        kelGoalsStr = latestKel.zieleKind.map((goal: any) => `- ${goal.ziel}`).join('\n');
       }
-      if (lastKel.selbsteinschaetzungKind) {
-        kelSelfStr = Object.entries(lastKel.selbsteinschaetzungKind)
+      if (latestKel.selbsteinschaetzungKind) {
+        kelSelfStr = Object.entries(latestKel.selbsteinschaetzungKind)
           .map(([key, data]: any) => {
             const area = STANDARD_KEL_BEREICHE.find(a => a.id === key);
             return `${area?.label || key}: ${data.wert}/4 ${data.kommentar ? `("${data.kommentar}")` : ''}`;
           }).join(', ');
       }
     }
-    
-    // Förderprofil & Diagnosen
-    const fpStr = s.foerderprofil ? 'Förderplan aktiv' : 'Kein FP';
-    const fpDiagnosen = s.foerderprofil?.diagnosen || 'Keine Diagnosen';
-    const fpZiele = s.foerderprofil?.foerderziele?.map((z: any) => `- ${z.ziel} (Status: ${z.status})`).join('\n') || '';
 
-    // Observations / Journal entries
-    const studentObs = (app.notes || []).concat((app.journal as any) || []).filter(n => n.schuelerId === studentId);
-    let obsStr = '';
-    if (includeObservations && studentObs.length > 0) {
-      obsStr = studentObs.map((n: any) => `[${n.kategorie || 'Beobachtung'}]: ${n.inhalt || n.content}`).slice(0, 5).join('\n');
-    } else {
-      obsStr = 'Keine spezifischen Beobachtungen vorhanden';
-    }
+    // Förderziele sind pädagogische Arbeitsdaten. Diagnosefelder werden nicht automatisch an die KI übertragen.
+    const fpZiele = s.foerderprofil?.foerderziele
+      ?.filter((goal: any) => goal?.ziel)
+      .map((goal: any) => `- ${goal.ziel} (Status: ${goal.status || 'offen'})`)
+      .join('\n') || '';
+
+    const studentObs = getStudentObservationEntries(studentId);
+    const obsStr = includeObservations && studentObs.length > 0
+      ? studentObs
+          .slice(0, 5)
+          .map((entry: any) => `[${entry.kategorie || 'Beobachtung'}]: ${entry.inhalt || entry.content || ''}`)
+          .join('\n')
+      : includeObservations
+        ? 'Keine spezifischen Beobachtungen vorhanden'
+        : 'Nicht einbezogen';
 
     // 2. Map stylistic prompts
     let tonePrompt = '';
@@ -220,14 +211,14 @@ export default function Jahresbericht() {
     if (pronounForm === 'sie_er') {
       pronounPrompt = `Formuliere den Bericht in der 3. Person Singular (er bzw. sie), passend für ein Kind mit dem Geschlecht ${s.geschlecht === 'w' ? 'weiblich (sie/ihr)' : 'männlich (er/ihm)'}.`;
     } else if (pronounForm === 'du_direkt') {
-      pronounPrompt = `Formuliere den Bericht als direkte Ansprache in der Du-Form direkt an das Kind ${s.vorname} gerichtet.`;
+      pronounPrompt = 'Formuliere den Bericht als direkte Ansprache in der Du-Form. Verwende keinen Namen.';
     } else if (pronounForm === 'formal_eltern') {
-      pronounPrompt = `Richte den Bericht in einer höflichen Form an die Eltern von ${s.vorname} (unter Verwendung von wertschätzenden Formulierungen über ihr Kind).`;
+      pronounPrompt = 'Richte den Bericht in höflicher Form an die Eltern und sprich neutral von „Ihrem Kind“. Verwende keinen Namen.';
     }
 
     let structurePrompt = '';
     if (structure === 'lehrplan') {
-      structurePrompt = `Strukturiere den Bericht zwingend nach folgenden lehrplankonformen Überschriften:
+      structurePrompt = `Strukturiere den Bericht nach folgenden pädagogisch sinnvollen Überschriften:
 1. **Sozial- und Selbstkompetenz**: (Verhalten in der Gruppe, Selbstständigkeit, Motivation, Umgang mit Herausforderungen)
 2. **Fachliche Kompetenzen (Deutsch, Mathematik, Sachunterricht)**: (Sprache, Lesen, mathematische Fähigkeiten, logisches Denken)
 3. **Arbeits- und Lernverhalten**: (Ausdauer, Ordnung, Arbeitstempo)
@@ -235,7 +226,7 @@ export default function Jahresbericht() {
     } else if (structure === 'foerderorientiert') {
       structurePrompt = `Strukturiere den Bericht zwingend nach folgenden Abschnitten:
 1. **Entwicklungsschwerpunkte & Bisherige Fördermaßnahmen** (Fokus auf Lernfortschritte und aktive Maßnahmen)
-2. **Fachspezifische Beobachtungen & IKM Plus / Diagnosen** (Inklusive Stärken in Deutsch und Mathematik)
+2. **Fachspezifische Beobachtungen & dokumentierte Lernstände** (inklusive Stärken in Deutsch und Mathematik)
 3. **Pädagogische Empfehlungen & Nächste Förderziele** (Konkrete Ansätze für das kommende Schuljahr)`;
     } else {
       structurePrompt = `Strukturiere den Bericht in:
@@ -245,18 +236,19 @@ export default function Jahresbericht() {
     }
 
     const dataPrompt = `
-Vorname: ${s.vorname}
-Nachname: ${s.nachname}
-Klasse: ${app.klassenbezeichnung || 'Volksschulklasse'}
+Schulstufe: ${app.stufe || 'nicht angegeben'}
 Schuljahr: ${currentTerm}
-Noten: ${gradesStr}
-Auszeichnungen / Badges: ${badgesList}
-Förderstatus: ${fpStr} (Diagnosen: ${fpDiagnosen})
-Förderziele: ${fpZiele}
-KEL Selbsteinschätzung des Kindes: ${kelSelfStr || 'Keine Angabe'}
-KEL Vereinbarte Ziele: ${kelGoalsStr || 'Keine KEL-Ziele vereinbart'}
-Letzte Beobachtungen im Journal: ${obsStr}
-Zusätzlicher Lehrer-Wunsch: ${personalWish || 'Kein spezieller Wunsch'}
+Leistungsdaten:
+${gradesStr}
+Optionale positive Rückmeldungen / Badges: ${badgesList}
+Pädagogische Förderziele:
+${fpZiele || 'Keine aktiven Förderziele hinterlegt'}
+KEL-Selbsteinschätzung des Kindes: ${kelSelfStr || 'Keine Angabe'}
+KEL vereinbarte Ziele:
+${kelGoalsStr || 'Keine KEL-Ziele vereinbart'}
+Letzte dokumentierte Beobachtungen:
+${obsStr}
+Zusätzlicher Wunsch der Lehrkraft: ${personalWish || 'Kein spezieller Wunsch'}
 `;
 
     const fullPrompt = `Du bist ein erfahrener Volksschulpädagoge und fachdidaktischer Berater in Österreich.
@@ -274,13 +266,14 @@ ${structurePrompt}
 
 WICHTIGE ANWEISUNGEN:
 - Schreibe auf Deutsch.
-- Nutze die echten Noten, Badges und Beobachtungen, um den Bericht lebendig und authentisch zu gestalten.
+- Nutze ausschließlich die oben bereitgestellten Daten. Erfinde keine Leistungen, Diagnosen, Eigenschaften, Ereignisse oder Förderbedarfe. Wenn Daten fehlen, lasse den Punkt vorsichtig offen.
 - Länge: ca. 250 - 350 Wörter.
 - Antworte direkt im Markdown-Format. Verwende keine einleitenden oder abschließenden Floskeln außerhalb des Berichts.`;
 
     try {
       const response = await askAI('ki-helfer', fullPrompt);
-      const inhalt = response || 'Bericht konnte nicht generiert werden.';
+      if (!response?.trim()) throw new Error('Leere KI-Antwort');
+      const inhalt = response.trim();
       
       setApp(prev => ({
         ...prev,
@@ -289,11 +282,11 @@ WICHTIGE ANWEISUNGEN:
           [studentId]: {
             inhalt,
             generiert: new Date().toISOString(),
-            schuljahr: currentTerm
+            schuljahr: currentTerm,
+            reviewStatus: 'offen'
           }
         }
       }));
-      handleSetReview(studentId, 'offen');
     } catch (e) {
       console.error(e);
       alert('Fehler bei der KI-Generierung für ' + s.vorname);
