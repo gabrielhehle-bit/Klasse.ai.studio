@@ -606,26 +606,165 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     next();
   };
 
-  const requireTeacherIdentity: express.RequestHandler = (req, res, next) => {
+  type AccountRequest = express.Request & { klassioAccount?: EmailAccountIdentity };
+  type TeacherRequest = express.Request & { klassioTeacher?: TeacherIdentity };
+
+  const requireEmailAccount: express.RequestHandler = (req, res, next) => {
     const cookies = parseCookies(req);
     if (!verifyAccessToken(cookies.lehrerapp_access_token)) {
       res.status(401).json({ error: 'Bitte zuerst bei Klassio anmelden.' });
       return;
     }
-    const identity = verifyIdentityToken(cookies.klassio_email_identity);
-    if (!identity) {
+    const account = verifyAccountToken(cookies.klassio_email_account);
+    if (!account) {
       res.status(403).json({
-        error: 'Das Lehrerzimmer ist nur nach Anmeldung mit einer verifizierten Schul-E-Mail verfügbar.',
-        requiresSchoolEmail: true,
+        error: 'Bitte melde dich mit deiner E-Mail-Adresse an.',
+        requiresEmailLogin: true,
       });
       return;
     }
-    (req as express.Request & { klassioTeacher?: TeacherIdentity }).klassioTeacher = identity;
+    (req as AccountRequest).klassioAccount = account;
     next();
   };
 
+  const getEmailAccount = (req: express.Request): EmailAccountIdentity =>
+    (req as AccountRequest).klassioAccount as EmailAccountIdentity;
+
+  app.get('/api/schools/me', requireEmailAccount, async (req, res) => {
+    try {
+      const account = getEmailAccount(req);
+      const domain = account.email.split('@')[1] || '';
+      const school = await schoolRegistryStore.findVerifiedSchoolByEmail(account.email);
+      const requests = await schoolRegistryStore.listRequestsForDomain(domain);
+      const pending = requests.find(request => request.status === 'pending') || null;
+      res.json({
+        account: {
+          displayName: account.displayName,
+          email: account.email,
+          domain,
+        },
+        school,
+        verificationRequest: pending,
+      });
+    } catch (error) {
+      console.error('[Schulverifizierung] Status konnte nicht geladen werden:', error);
+      res.status(500).json({ error: 'Der Schulstatus konnte nicht geladen werden.' });
+    }
+  });
+
+  app.post('/api/schools/verification-requests', requireEmailAccount, async (req, res) => {
+    try {
+      const account = getEmailAccount(req);
+      const request = await schoolRegistryStore.requestVerification({
+        requestedByEmail: account.email,
+        schoolName: req.body?.schoolName,
+        federalState: req.body?.federalState as AustrianFederalState,
+      });
+      res.status(201).json({ request });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      if (code === 'PUBLIC_EMAIL_DOMAIN') {
+        return res.status(400).json({
+          error: 'Eine private E-Mail-Domain kann nicht als Schule verifiziert werden. Bitte verwende deine dienstliche Schul-E-Mail.',
+        });
+      }
+      if (code === 'ALREADY_VERIFIED') {
+        return res.status(409).json({ error: 'Diese Schul-Domain ist bereits verifiziert. Bitte lade die Seite neu.' });
+      }
+      if (code === 'INVALID_REQUEST') {
+        return res.status(400).json({ error: 'Bitte gib Schulname und Bundesland vollständig an.' });
+      }
+      console.error('[Schulverifizierung] Anfrage konnte nicht gespeichert werden:', error);
+      return res.status(500).json({ error: 'Die Schulverifizierung konnte nicht angefordert werden.' });
+    }
+  });
+
+  function isSchoolAdminAuthorized(req: express.Request): boolean {
+    if (!SCHOOL_ADMIN_TOKEN || SCHOOL_ADMIN_TOKEN.length < 32) return false;
+    const header = req.headers.authorization || '';
+    const submitted = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    if (!submitted || submitted.length !== SCHOOL_ADMIN_TOKEN.length) return false;
+    try {
+      return crypto.timingSafeEqual(Buffer.from(submitted, 'utf8'), Buffer.from(SCHOOL_ADMIN_TOKEN, 'utf8'));
+    } catch {
+      return false;
+    }
+  }
+
+  const requireSchoolAdmin: express.RequestHandler = (req, res, next) => {
+    if (!SCHOOL_ADMIN_TOKEN || SCHOOL_ADMIN_TOKEN.length < 32) {
+      res.status(503).json({ error: 'Schulverifizierungs-Administration ist auf diesem Server noch nicht konfiguriert.' });
+      return;
+    }
+    if (!isSchoolAdminAuthorized(req)) {
+      res.status(401).json({ error: 'Nicht autorisiert.' });
+      return;
+    }
+    next();
+  };
+
+  app.post('/api/admin/schools/verification-requests/:requestId/approve', requireSchoolAdmin, async (req, res) => {
+    try {
+      const result = await schoolRegistryStore.approveRequest(req.params.requestId);
+      res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'REQUEST_NOT_FOUND') {
+        return res.status(404).json({ error: 'Verifizierungsanfrage nicht gefunden.' });
+      }
+      console.error('[Schulverifizierung] Freigabe fehlgeschlagen:', error);
+      return res.status(500).json({ error: 'Die Schule konnte nicht freigegeben werden.' });
+    }
+  });
+
+  app.post('/api/admin/schools/verification-requests/:requestId/reject', requireSchoolAdmin, async (req, res) => {
+    try {
+      const request = await schoolRegistryStore.rejectRequest(req.params.requestId);
+      res.json({ request });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'REQUEST_NOT_FOUND') {
+        return res.status(404).json({ error: 'Verifizierungsanfrage nicht gefunden.' });
+      }
+      console.error('[Schulverifizierung] Ablehnung fehlgeschlagen:', error);
+      return res.status(500).json({ error: 'Die Anfrage konnte nicht abgelehnt werden.' });
+    }
+  });
+
+  const requireTeacherIdentity: express.RequestHandler = (req, res, next) => {
+    void (async () => {
+      const cookies = parseCookies(req);
+      if (!verifyAccessToken(cookies.lehrerapp_access_token)) {
+        res.status(401).json({ error: 'Bitte zuerst bei Klassio anmelden.' });
+        return;
+      }
+
+      let identity = verifyIdentityToken(cookies.klassio_email_identity);
+      if (!identity) {
+        const account = verifyAccountToken(cookies.klassio_email_account);
+        if (account) {
+          const school = await schoolRegistryStore.findVerifiedSchoolByEmail(account.email);
+          identity = school ? createTeacherIdentityForSchool(account.email, school) : null;
+          if (identity) {
+            setEmailIdentitySession(req, res, identity);
+            await lehrerzimmerStore.ensureUser(identity);
+          }
+        }
+      }
+
+      if (!identity) {
+        res.status(403).json({
+          error: 'Das Lehrerzimmer ist nur mit einer verifizierten Schulidentität verfügbar.',
+          requiresSchoolEmail: true,
+        });
+        return;
+      }
+
+      (req as TeacherRequest).klassioTeacher = identity;
+      next();
+    })().catch(next);
+  };
+
   const getTeacherIdentity = (req: express.Request): TeacherIdentity =>
-    (req as express.Request & { klassioTeacher: TeacherIdentity }).klassioTeacher;
+    (req as TeacherRequest).klassioTeacher as TeacherIdentity;
 
   const handleLehrerzimmerError = (res: express.Response, error: unknown) => {
     const code = error instanceof Error ? error.message : '';
@@ -648,6 +787,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
         school: {
           id: identity.schoolId,
           code: identity.schoolCode,
+          name: identity.schoolName,
+          federalState: identity.schoolFederalState,
           domain: identity.schoolDomain,
         },
       });
