@@ -275,3 +275,27 @@ test('Notizen, Statistik, Archiv und Backup verwenden die gemeinsame Klassio Arb
   assert.match(backup, /order-3 bg-\[var\(--surface-card,var\(--surface\)\)\]/);
   assert.match(backup, /border-\[var\(--border-subtle,var\(--border\)\)\]/);
 });
+
+
+test('Portfolio, Jahresbericht, KEL und Stundenentwürfe folgen der gemeinsamen Klassio Hierarchie', () => {
+  const portfolio = read('src/components/Portfolio.tsx');
+  const yearlyReport = read('src/components/Jahresbericht.tsx');
+  const kel = read('src/components/KELGespraeche.tsx');
+  const drafts = read('src/components/Drafts.tsx');
+
+  assert.match(portfolio, /max-w-\[1180px\]/);
+  assert.match(portfolio, /rounded-2xl border border-\[var\(--border-subtle,var\(--border\)\)\] bg-\[var\(--surface-card,var\(--surface\)\)\]/);
+  assert.match(portfolio, /activeTab === 'lernziele'[\s\S]*bg-\[var\(--accent\)\] text-\[var\(--accent-text,#fff\)\]/);
+
+  assert.match(yearlyReport, /year-report-shell[^\n]*max-w-\[1180px\]/);
+  assert.match(yearlyReport, /bg-\[var\(--surface-app,var\(--bg\)\)\]/);
+  assert.match(yearlyReport, /bg-\[var\(--accent\)\][^\n]*Fehlende Entwürfe erstellen/s);
+
+  assert.match(kel, /max-w-\[1180px\]/);
+  assert.match(kel, /KEL-Gespräche/);
+  assert.match(kel, /bg-\[var\(--accent\)\] text-\[var\(--accent-text,#fff\)\]/);
+
+  assert.match(drafts, /max-w-\[1180px\]/);
+  assert.match(drafts, /bg-\[var\(--surface-card,var\(--surface\)\)\] border border-\[var\(--border-subtle,var\(--border\)\)\] rounded-2xl/);
+  assert.match(drafts, /KI-Planer/);
+});
