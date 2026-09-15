@@ -43,8 +43,8 @@ Legende:
 | 14 | Übergabemappe | ✅ | PR #59 integriert; Audit #126 grün; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme im Gesamt-Walkthrough |
 | 15 | Statistik & Profile | ✅ | PR #61 integriert; Audit #128 grün; 941/941 Tests; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme im Gesamt-Walkthrough |
 | 16 | Diagnostik | ✅ | PR #63 integriert; Audit #130 grün; 948/948 Tests; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme im Gesamt-Walkthrough |
-| 17 | Wir-Gefühl | 🔴 | als Nächstes einzeln prüfen und abschließen |
-| 18 | Jahresbericht | 🔴 | danach |
+| 17 | Wir-Gefühl | ✅ | PR #65 integriert; Audit #132 grün; 956/956 Tests; reale Browser-/Touch-/Datenschutz-/Staging-Abnahme im Gesamt-Walkthrough |
+| 18 | Jahresbericht | 🔴 | als Nächstes einzeln prüfen und abschließen |
 | 19 | Archiv | 🔴 | danach |
 | 20 | Druckzentrum | 🔴 | danach |
 | 21 | Datenarchiv / Datensicherung | 🔴 | danach |
@@ -80,6 +80,7 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 |---|---:|---|
 | Anwesenheit | 🟡 | PR #45: Stunden- und Detaildaten bleiben klassenlokal; Undo und offene Dialoge werden beim Klassenwechsel zurückgesetzt. Lokale Kalendertage, Wochenenden/Feiertage und echte konfigurierte Unterrichtsstunden steuern die Erfassung; ohne Stunden werden keine sechs Stunden oder Anwesenheitswerte erfunden. Stundenstatus, Fehlstunden, Entschuldigung, Notiz und Verspätung werden konsistent gehalten; die Verspätungseingabe ist wieder direkt erreichbar. Fehltage, Semesterstatistik und Trends sind auf das aktive Schuljahr begrenzt, verwenden Bundesland-Semestergrenzen und ISO-KW. Abschluss füllt weiterhin nur leere Stunden. Automatisierte Tests und Audit #112 grün; reale Browser-/Touch-/Druck-Abnahme offen. |
 | Befinden | ✅ | Einheitliche 5-Stufen-Skala von sehr gut bis schlecht. |
+| Wir-Gefühl | 🟡 | PR #65: „Wie geht es uns?“ übernimmt ausschließlich die freiwillige 5-Smiley-Befindensabfrage aus „Ich bin da!“; Verhaltensnotizen und Statusänderungen werden aus „Notizen & Beobachtungen“ gespiegelt. Der 14-Tage-Verlauf verwendet reale Check-in-Daten. Doppelter Klassen-Stimmungsbarometer, Demo-Klassenrat/-Verträge/-Klimadaten, zweites Klima-Tagebuch und künstliche Energie-/XP-Formel wurden entfernt. Klassenvertrag und Klassenrat sind klassenlokal; Legacy-Klartextdaten werden einmalig in den verschlüsselten App-State migriert. Automatisierte Tests und Audit #132 grün; reale Browser-/Touch-/Datenschutz-Abnahme offen. |
 | Sokrates PDF-Import | ✅ | PR #16 integriert: PDF.js-Worker lokal gebundelt, `.mjs` im PWA-Precache, geometrische Tabellenerkennung und keine erfundenen Stammdaten; Regressionstests vorhanden. |
 | Schülerliste | 🟡 | PR #41: Suche, Filter, Liste/Karten/Karte, Import, Dossier, Notiz/Interaktion und Bearbeiten/Löschen bleiben erhalten. Alter und Alterssortierung sind kalendergenau; Suche umfasst auch SV-Nummer. Reimporte erkennen bestehende Kinder und aktualisieren nur Stammdaten, ohne pädagogische Daten zu überschreiben; Sokrates-Metadaten werden übernommen. Löschen bereinigt die zugehörigen personenbezogenen Klassendaten vollständig, während Kassenbuchungen entkoppelt erhalten bleiben. Klassenwechsel schließen alte Dossier-/Modalzustände. Kartenmarker sind lokal gebündelt; Photon erhält nur PLZ/Ort und der Hinweis ist sichtbar. Automatisierte Tests und Audit #108 grün; reale Browser-Abnahme offen. |
 | Schülerdossier Struktur | ✅ | Fünf feste Hauptbereiche: Übersicht; Lernen & Leistungen; Entwicklung & Diagnostik; Stammdaten & Organisation; Berichte & Materialien. Alte Einfach/Experte-/Ausblendlogik entfernt; Regressionstest vorhanden. |
