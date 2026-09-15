@@ -6,9 +6,6 @@ on:
       - reconcile/klassio-source-of-truth
     paths:
       - ".github/workflows/frozen-staging-artifact.yml"
-      - "KLASSIO_VSERVER_DEPLOYMENT.md"
-      - "KLASSIO_STAGING_CHECKLIST.md"
-      - "deploy/**"
   workflow_dispatch:
 
 permissions:
