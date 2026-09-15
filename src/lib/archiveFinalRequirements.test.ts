@@ -42,7 +42,7 @@ test('new archive snapshots exclude operational secrets and unnecessary contact 
 });
 
 test('archive snapshots are normalized during app restore and are typed separately from live classrooms', () => {
-  assert.match(appState, /normalizeArchivedClasses\(raw\.archivedClasses\)/);
+  assert.match(appState, /archivedClasses: normalizeArchivedClasses\(archiveSnapshotEntries\)/);
   assert.match(appState, /archivedClasses: normalizeArchivedClasses\(parsed\.archivedClasses\)/);
   assert.match(types, /archivedClasses\?: import\('\.\/lib\/archiveData'\)\.ArchivedClassSnapshot\[\]/);
 });
