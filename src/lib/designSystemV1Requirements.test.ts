@@ -249,3 +249,29 @@ test('Übergabemappe modernisiert nur die Bedienoberfläche und lässt Druckseit
   assert.match(source, /printable-page/);
   assert.match(source, /bg-white text-slate-800/);
 });
+
+
+test('Notizen, Statistik, Archiv und Backup verwenden die gemeinsame Klassio Arbeitsoberfläche', () => {
+  const behavior = read('src/components/Behavior.tsx');
+  const statistics = read('src/components/Statistics.tsx');
+  const archive = read('src/components/Archive.tsx');
+  const backup = read('src/components/Backup.tsx');
+
+  assert.match(behavior, /max-w-\[1180px\]/);
+  assert.match(behavior, /bg-\[var\(--surface-card,var\(--surface\)\)\].*Notizen & Beobachtungen/s);
+  assert.match(behavior, /activeTab === tab\.id \? 'bg-\[var\(--accent\)\]/);
+  assert.match(behavior, /chronikFilter === f\.id \? 'bg-\[var\(--accent\)\]/);
+
+  assert.match(statistics, /statistics-shell[^\n]*max-w-\[1180px\]/);
+  assert.match(statistics, /bg-\[var\(--surface-subtle,var\(--surface2\)\)\] p-1 rounded-xl/);
+  assert.match(statistics, /bg-\[var\(--surface-card,var\(--surface\)\)\] p-4 rounded-2xl/);
+
+  assert.match(archive, /archive-shell max-w-\[1180px\]/);
+  assert.match(archive, /sticky top-0 z-20 bg-\[var\(--surface-app/);
+  assert.match(archive, /bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\]/);
+
+  assert.match(backup, /max-w-\[1180px\]/);
+  assert.match(backup, /Datensicherung & Import/);
+  assert.match(backup, /order-3 bg-\[var\(--surface-card,var\(--surface\)\)\]/);
+  assert.match(backup, /border-\[var\(--border-subtle,var\(--border\)\)\]/);
+});
