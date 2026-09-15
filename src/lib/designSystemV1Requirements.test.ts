@@ -66,3 +66,19 @@ test('Sidebar verwendet eine ruhige aktive Navigation ohne Sonderbehandlung für
   assert.doesNotMatch(source, /item\.id === 'unterricht'/);
   assert.doesNotMatch(source, />Aktiv<\/div>/);
 });
+
+
+test('Haupt-Hubs verwenden dieselbe ruhige Karten- und Seitenhierarchie', () => {
+  for (const file of [
+    'src/components/KlasseHub.tsx',
+    'src/components/PlanungHub.tsx',
+    'src/components/LeistungenHub.tsx',
+    'src/components/UnterrichtHub.tsx',
+  ]) {
+    const source = read(file);
+    assert.match(source, /max-w-\[1180px\]/, file + ' muss die gemeinsame Seitenbreite verwenden.');
+    assert.match(source, /border-\[var\(--border-subtle,var\(--border\)\)\]/, file + ' muss semantische Border-Tokens verwenden.');
+    assert.doesNotMatch(source, /hover:-translate-y-0\.5/, file + ' soll Karten nicht mehr springen lassen.');
+    assert.doesNotMatch(source, /rounded-\[1\.75rem\]|rounded-\[2rem\]/, file + ' soll keine alten übergroßen Bubble-Radien mehr verwenden.');
+  }
+});
