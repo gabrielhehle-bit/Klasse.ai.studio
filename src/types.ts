@@ -981,6 +981,9 @@ export interface ClassRoom {
   klassenglas_belohnung?: string;
   klassenglas_missions?: any[];
   klassenglas_completed_missions?: any[];
+  /** Class-local Wir-Gefühl agreements and council inbox. */
+  classContracts?: AppState['classContracts'];
+  councilNotes?: AppState['councilNotes'];
   checklisten?: OrgCheckliste[];
   customLists?: CustomList[];
   /** Class-local portal/login credentials shown in Kassa & Orga. */
