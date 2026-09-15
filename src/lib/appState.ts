@@ -224,6 +224,11 @@ export function syncActiveClass(state: AppState): AppState {
     notes: state.notes ? JSON.parse(JSON.stringify(state.notes)) : [],
     journal: state.journal ? JSON.parse(JSON.stringify(state.journal)) : [],
     statusLog: state.statusLog ? JSON.parse(JSON.stringify(state.statusLog)) : [],
+    elterngespraeche: state.elterngespraeche ? JSON.parse(JSON.stringify(state.elterngespraeche)) : [],
+    kelGespraeche: state.kelGespraeche ? JSON.parse(JSON.stringify(state.kelGespraeche)) : [],
+    portfolioEntries: state.portfolioEntries ? JSON.parse(JSON.stringify(state.portfolioEntries)) : {},
+    kiPortfolioSummaries: state.kiPortfolioSummaries ? JSON.parse(JSON.stringify(state.kiPortfolioSummaries)) : {},
+    oberauData: state.oberauData ? JSON.parse(JSON.stringify(state.oberauData)) : {},
     vertretungHinweise: state.vertretungHinweise || '',
     stundenZeiten: state.stundenZeiten ? { ...state.stundenZeiten } : {},
     sue_kontrolle: state.sue_kontrolle ? JSON.parse(JSON.stringify(state.sue_kontrolle)) : {},
@@ -398,6 +403,28 @@ export function normalizeAppState(raw: any): AppState {
         klassenkasse: normalizeKlassenkasse(c.klassenkasse),
         behavior_status: c.behavior_status || {},
         behavior_notes: c.behavior_notes || {},
+        // Legacy statistics/profile records lived at root. Attach them only to
+        // the active class so they cannot leak into unrelated classes.
+        elterngespraeche:
+          c.elterngespraeche ??
+          (c.id === parsed.activeClassId ? parsed.elterngespraeche : undefined) ??
+          [],
+        kelGespraeche:
+          c.kelGespraeche ??
+          (c.id === parsed.activeClassId ? parsed.kelGespraeche : undefined) ??
+          [],
+        portfolioEntries:
+          c.portfolioEntries ??
+          (c.id === parsed.activeClassId ? parsed.portfolioEntries : undefined) ??
+          {},
+        kiPortfolioSummaries:
+          c.kiPortfolioSummaries ??
+          (c.id === parsed.activeClassId ? parsed.kiPortfolioSummaries : undefined) ??
+          {},
+        oberauData:
+          c.oberauData ??
+          (c.id === parsed.activeClassId ? parsed.oberauData : undefined) ??
+          {},
         sue_kontrolle: c.sue_kontrolle || {},
         sitzplan_schueler: c.sitzplan_schueler || {},
         sitzplan_objekte: c.sitzplan_objekte || [],
@@ -510,6 +537,11 @@ export function normalizeAppState(raw: any): AppState {
     parsed.klassenkasse = normalizeKlassenkasse(activeClass.klassenkasse);
     parsed.behavior_status = activeClass.behavior_status;
     parsed.behavior_notes = activeClass.behavior_notes;
+    parsed.elterngespraeche = activeClass.elterngespraeche || [];
+    parsed.kelGespraeche = activeClass.kelGespraeche || [];
+    parsed.portfolioEntries = activeClass.portfolioEntries || {};
+    parsed.kiPortfolioSummaries = activeClass.kiPortfolioSummaries || {};
+    parsed.oberauData = activeClass.oberauData || {};
     parsed.vertretungHinweise = activeClass.vertretungHinweise ?? parsed.vertretungHinweise ?? '';
     parsed.sue_kontrolle = activeClass.sue_kontrolle;
     parsed.sitzplan_schueler = activeClass.sitzplan_schueler;
@@ -753,6 +785,11 @@ export function switchClassState(prev: AppState, id: string): AppState {
     notes: targetClass.notes ? JSON.parse(JSON.stringify(targetClass.notes)) : [],
     journal: targetClass.journal ? JSON.parse(JSON.stringify(targetClass.journal)) : [],
     statusLog: targetClass.statusLog ? JSON.parse(JSON.stringify(targetClass.statusLog)) : [],
+    elterngespraeche: targetClass.elterngespraeche ? JSON.parse(JSON.stringify(targetClass.elterngespraeche)) : [],
+    kelGespraeche: targetClass.kelGespraeche ? JSON.parse(JSON.stringify(targetClass.kelGespraeche)) : [],
+    portfolioEntries: targetClass.portfolioEntries ? JSON.parse(JSON.stringify(targetClass.portfolioEntries)) : {},
+    kiPortfolioSummaries: targetClass.kiPortfolioSummaries ? JSON.parse(JSON.stringify(targetClass.kiPortfolioSummaries)) : {},
+    oberauData: targetClass.oberauData ? JSON.parse(JSON.stringify(targetClass.oberauData)) : {},
     vertretungHinweise: targetClass.vertretungHinweise || '',
     sue_kontrolle: targetClass.sue_kontrolle || {},
     sitzplan_schueler: targetClass.sitzplan_schueler || {},
