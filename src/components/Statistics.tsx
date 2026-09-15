@@ -1280,7 +1280,9 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     initialTab === 'lehrer' ? 'mehr' : initialTab
   );
   const [statsSubTab, setStatsSubTab] = useState<'leistung' | 'antolin'>('leistung');
-  const [mehrSubTab, setMehrSubTab] = useState<'charts' | 'tools' | 'antolin' | 'lehrer'>('charts');
+  const [mehrSubTab, setMehrSubTab] = useState<'charts' | 'tools' | 'antolin' | 'lehrer'>(
+    initialTab === 'lehrer' ? 'lehrer' : 'charts'
+  );
   const [profilesSubTab, setProfilesSubTab] = useState<'liste' | 'antolin'>('liste');
   const [activeFach, setActiveFach] = useState<string>('Gesamt');
   
@@ -1371,28 +1373,73 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   const [newMeetingTeilnehmer, setNewMeetingTeilnehmer] = useState('Mutter, Vater, Klassenlehrerin');
   const [newMeetingDatum, setNewMeetingDatum] = useState(() => formatLocalDateKey(new Date()));
 
-  // Local storage migration for custom portfolio entries (Datenschutz B6/B8: Verschlüsselter AppState statt ungeschütztem localStorage)
-  const [portfolioEntries, setPortfolioEntries] = useState<Record<string, { id: string; titel: string; fach: string; datum: string; bewertung: string; beschreibung: string }[]>>(() => {
+  const [portfolioEntries, setPortfolioEntries] = useState<Record<string, { id: string; titel: string; fach: string; datum: string; bewertung: string; beschreibung: string }[]>>(
+    () => (app.portfolioEntries || {}) as any
+  );
+
+  // One-time migration of historical unencrypted portfolio data into class-local app state.
+  React.useEffect(() => {
     try {
-      if ((app as any).portfolioEntries) {
-        return (app as any).portfolioEntries;
-      }
       const saved = localStorage.getItem('lm_portfolio_entries_v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as Record<string, any[]>;
+      if (!parsed || typeof parsed !== 'object') {
         localStorage.removeItem('lm_portfolio_entries_v2');
-        return parsed;
+        return;
       }
+
+      setApp(prev => {
+        const classes = (prev.classes || []).map(classroom => {
+          const studentIds = new Set((classroom.schueler || []).map(student => student.id));
+          const migrated = Object.fromEntries(
+            Object.entries(parsed).filter(([studentId]) => studentIds.has(studentId))
+          );
+          if (Object.keys(migrated).length === 0) return classroom;
+          return {
+            ...classroom,
+            portfolioEntries: {
+              ...(classroom.portfolioEntries || {}),
+              ...migrated,
+            },
+          };
+        });
+        const activeClass = classes.find(classroom => classroom.id === prev.activeClassId);
+        return {
+          ...prev,
+          classes,
+          portfolioEntries: {
+            ...(prev.portfolioEntries || {}),
+            ...(activeClass?.portfolioEntries || {}),
+          },
+        };
+      });
+      localStorage.removeItem('lm_portfolio_entries_v2');
     } catch {
-      return {};
+      // Corrupt historical local data is ignored rather than replacing encrypted state.
     }
-    return {};
-  });
+  }, [setApp]);
 
   // KI summary state
   const [summary, setSummary] = useState<string>('');
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    setSelectedStudentId(null);
+    setAntolinSelectedStudentId(null);
+    setSearch('');
+    setProfileSubTab('dossier');
+    setShowFoerderDetail(false);
+    setShowAddPortfolio(false);
+    setShowAddNote(false);
+    setShowAddMeeting(false);
+    setPresentationModeActive(false);
+    setKelDetailFach(null);
+    setExpandedItems({});
+    setSummary('');
+    setSummaryError(null);
+    setPortfolioEntries((app.portfolioEntries || {}) as any);
+  }, [app.activeClassId]);
 
   // Sync selectedStudentForPortfolio from other app sections
   React.useEffect(() => {
@@ -1403,27 +1450,75 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     }
   }, [app.selectedStudentForPortfolio, setApp]);
 
-  // Sync summary with encrypted app state
+  // Sync summary with encrypted app state and migrate historical browser-only data once.
   React.useEffect(() => {
-    if (selectedStudentId) {
-      const appCached = (app as any).kiPortfolioSummaries?.[selectedStudentId];
-      if (appCached) {
-        setSummary(appCached);
-      } else {
-        const cached = localStorage.getItem(`ki_portfolio_summary_${selectedStudentId}`);
+    if (!selectedStudentId) {
+      setSummary('');
+      setProfileSubTab('dossier');
+      return;
+    }
+
+    const appCached = app.kiPortfolioSummaries?.[selectedStudentId];
+    if (appCached) {
+      setSummary(appCached);
+    } else {
+      try {
+        const key = `ki_portfolio_summary_${selectedStudentId}`;
+        const cached = localStorage.getItem(key);
         if (cached) {
           setSummary(cached);
-          localStorage.removeItem(`ki_portfolio_summary_${selectedStudentId}`);
+          setApp(prev => ({
+            ...prev,
+            kiPortfolioSummaries: {
+              ...(prev.kiPortfolioSummaries || {}),
+              [selectedStudentId]: cached,
+            },
+          }));
+          localStorage.removeItem(key);
         } else {
           setSummary('');
         }
+      } catch {
+        setSummary('');
       }
-      setSummaryError(null);
-    } else {
-      setSummary('');
     }
+    setSummaryError(null);
     setProfileSubTab('dossier');
-  }, [selectedStudentId, (app as any).kiPortfolioSummaries]);
+  }, [selectedStudentId, app.kiPortfolioSummaries, setApp]);
+
+  // One-time migration of legacy Oberau remarks/evaluation data for the selected student.
+  React.useEffect(() => {
+    if (!selectedStudentId) return;
+    try {
+      const remarksKey = `oberau_remarks_${selectedStudentId}`;
+      const evalKey = `oberau_eval_${selectedStudentId}`;
+      const remarks = localStorage.getItem(remarksKey);
+      const evaluationRaw = localStorage.getItem(evalKey);
+      if (!remarks && !evaluationRaw) return;
+
+      let evaluationData: Record<string, number | null> | undefined;
+      if (evaluationRaw) {
+        try {
+          const parsed = JSON.parse(evaluationRaw);
+          if (parsed && typeof parsed === 'object') evaluationData = parsed;
+        } catch {}
+      }
+
+      setApp(prev => ({
+        ...prev,
+        oberauData: {
+          ...(prev.oberauData || {}),
+          [selectedStudentId]: {
+            ...(prev.oberauData?.[selectedStudentId] || {}),
+            ...(remarks ? { remarks } : {}),
+            ...(evaluationData ? { evaluationData } : {}),
+          },
+        },
+      }));
+      localStorage.removeItem(remarksKey);
+      localStorage.removeItem(evalKey);
+    } catch {}
+  }, [selectedStudentId, setApp]);
 
 
 
