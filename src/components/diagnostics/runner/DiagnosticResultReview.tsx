@@ -33,7 +33,7 @@ interface DiagnosticResultReviewProps {
   test: DiagnosticTestDefinition;
   level: DiagnosticLevelDefinition;
   evaluation: EvaluationResult;
-  onSave: (result: DiagnosticResult) => void;
+  onSave: (result: DiagnosticResult) => boolean;
   onBackToTasks: () => void;
   onCancel: () => void;
 }
@@ -96,7 +96,10 @@ export const DiagnosticResultReview: React.FC<DiagnosticResultReviewProps> = ({
       notes: generalNotes.trim() || undefined,
     };
 
-    onSave(newResult);
+    const saved = onSave(newResult);
+    if (!saved) {
+      setIsSaving(false);
+    }
   };
 
   return (
