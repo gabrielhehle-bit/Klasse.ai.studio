@@ -305,6 +305,7 @@ export default function PrintCenter() {
   const [profStudentMode, setProfStudentMode] = useState<'single' | 'all'>('single');
   const [profSelectedStudentId, setProfSelectedStudentId] = useState<string>(students[0]?.id || '');
   const [profShowStammdaten, setProfShowStammdaten] = useState(true);
+  const [profShowContacts, setProfShowContacts] = useState(false);
   const [profShowLeistungen, setProfShowLeistungen] = useState(true);
   const [profShowFoerderprofil, setProfShowFoerderprofil] = useState(true);
   const [profShowDiagnostik, setProfShowDiagnostik] = useState(true);
@@ -4057,15 +4058,16 @@ export default function PrintCenter() {
                 
                 <div className="space-y-2 select-none">
                   {[
-                    { id: 'stammdaten', label: 'I. Stammdaten', desc: 'Allgemeine Schülerdaten', checked: profShowStammdaten, setter: setProfShowStammdaten },
+                    { id: 'stammdaten', label: 'I. Stammdaten', desc: 'Grunddaten ohne SV-Nummer und Elternkontakte', checked: profShowStammdaten, setter: setProfShowStammdaten },
+                    { id: 'kontakte', label: 'Kontaktdaten', desc: 'Adresse & Elternkontakte bewusst zusätzlich', checked: profShowContacts, setter: setProfShowContacts },
                     { id: 'finanzen', label: 'II. Finanzen & Beiträge', desc: 'Klassenkasse & Geldsammlungen', checked: profShowFinanzen, setter: setProfShowFinanzen },
                     { id: 'leistungen', label: 'III. Fachleistungen & Noten', desc: 'Notengitter & Notenspiegel', checked: profShowLeistungen, setter: setProfShowLeistungen },
                     { id: 'mikaD', label: 'IV. MIKA-D Sprachstand', desc: 'AO / Ordentliche DaZ Einstufung', checked: profShowMikaD, setter: setProfShowMikaD },
                     { id: 'verhalten', label: 'V. Sozialverhalten & Präsenz', desc: 'Verhaltensampel & Fehlstunden', checked: profShowVerhalten, setter: setProfShowVerhalten },
                     { id: 'kel', label: 'VI. KEL Selbstreflexion', desc: 'Schülereinschätzung & Notizen', checked: profShowKELReflexion, setter: setProfShowKELReflexion },
-                    { id: 'diagnostik', label: 'VII. Standardisierte Tests', desc: 'Oberau-Skala & Live-Protokolle', checked: profShowDiagnostik, setter: setProfShowDiagnostik },
+                    { id: 'diagnostik', label: 'VII. Pädagogische Erhebungen', desc: 'Dokumentierte Tests & 1:1-Protokolle', checked: profShowDiagnostik, setter: setProfShowDiagnostik },
                     { id: 'foerderprofil', label: 'VIII. Pädagogischer Förderplan', desc: 'Stärken & konkrete Förderziele', checked: profShowFoerderprofil, setter: setProfShowFoerderprofil },
-                    { id: 'kiPortfolio', label: 'IX. KI Entwicklungsbericht', desc: 'Gemini-gestützte Synthese', checked: profShowKIPortfolio, setter: setProfShowKIPortfolio },
+                    { id: 'kiPortfolio', label: 'IX. KI-Zusammenfassung', desc: 'Gespeicherter KI-Entwurf · vor Weitergabe prüfen', checked: profShowKIPortfolio, setter: setProfShowKIPortfolio },
                   ].map((item) => (
                     <label key={item.id} className="flex items-start justify-between cursor-pointer p-2.5 rounded-xl border border-slate-150 hover:bg-slate-50 hover:border-slate-200 transition-all">
                       <div className="space-y-0.5 text-left">
@@ -4089,6 +4091,7 @@ export default function PrintCenter() {
                   type="button"
                   onClick={() => {
                     setProfShowStammdaten(true);
+                    setProfShowContacts(true);
                     setProfShowFinanzen(true);
                     setProfShowLeistungen(true);
                     setProfShowMikaD(true);
@@ -4106,6 +4109,7 @@ export default function PrintCenter() {
                   type="button"
                   onClick={() => {
                     setProfShowStammdaten(false);
+                    setProfShowContacts(false);
                     setProfShowFinanzen(false);
                     setProfShowLeistungen(false);
                     setProfShowMikaD(false);
@@ -4146,6 +4150,7 @@ export default function PrintCenter() {
                 onClick={() => {
                   const options = {
                     showStammdaten: profShowStammdaten,
+                    showContacts: profShowContacts,
                     showFinanzen: profShowFinanzen,
                     showLeistungen: profShowLeistungen,
                     showMikaD: profShowMikaD,
@@ -6964,7 +6969,7 @@ export default function PrintCenter() {
       .sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0));
 
     // 7. KI-Portfolio summary
-    const cachedKiSummary = localStorage.getItem(`ki_portfolio_summary_${st.id}`);
+    const cachedKiSummary = app.kiPortfolioSummaries?.[st.id] || '';
 
     // 8. Stars rendering helper
     const renderStars = (val?: number) => {
@@ -6988,8 +6993,8 @@ export default function PrintCenter() {
               </h2>
             </div>
             <div className="text-right text-[0.6875rem] font-bold text-slate-500 leading-tight">
-              <span>Stufe: {app?.stufe || st.besuchsjahr}.Klasse • SJ {app?.schuljahr || '2025/26'}</span>
-              <span className="block mt-1 font-semibold text-slate-450">Erstellt: {new Date().toLocaleDateString('de-DE')}</span>
+              <span>Stufe: {app?.stufe || st.besuchsjahr || '—'} • SJ {app?.schuljahr?.trim() || 'nicht angegeben'}</span>
+              <span className="block mt-1 font-semibold text-slate-450">Erstellt: {new Date().toLocaleDateString('de-AT')}</span>
             </div>
           </div>
 
@@ -7003,18 +7008,18 @@ export default function PrintCenter() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-y-3.5 gap-x-6 text-[0.75rem] leading-tight text-slate-700 leading-normal font-semibold">
                 <div><strong>Vorname:</strong> {st.vorname}</div>
                 <div><strong>Nachname:</strong> {st.nachname}</div>
-                <div><strong>Geburtstag:</strong> {st.geburtstag ? new Date(st.geburtstag).toLocaleDateString('de-DE') : '—'}</div>
-                <div><strong>SV-Nummer:</strong> {st.sv_nummer || '—'}</div>
-                <div><strong>Religion / Bekenntnis:</strong> {st.religion || 'ohne'}</div>
-                <div><strong>Staatsbürgerschaft:</strong> {st.staatsbuergerschaft || 'Österreich'}</div>
+                <div><strong>Geburtstag:</strong> {st.geburtstag ? new Date(st.geburtstag).toLocaleDateString('de-AT') : '—'}</div>
+                <div><strong>Religion / Bekenntnis:</strong> {st.religion || '—'}</div>
+                <div><strong>Staatsbürgerschaft:</strong> {st.staatsbuergerschaft || '—'}</div>
                 <div><strong>Besuchsjahr:</strong> {st.besuchsjahr ? `${st.besuchsjahr}. Schuljahr` : '—'}</div>
                 <div><strong>Schulstufe:</strong> {app?.stufe || st.besuchsjahr}. Schulstufe</div>
                 <div><strong>Klassencode:</strong> {app?.klassenbezeichnung || '—'}</div>
                 <div><strong>DaZ (Deutsch als Zweitsprache):</strong> {st.daz ? 'Ja' : 'Nein'}</div>
                 <div><strong>Sonderpäd. Förderbedarf (SPF):</strong> {st.spf ? 'Ja' : 'Nein'}</div>
-                <div><strong>Leistungsniveau:</strong> {st.niveau || 'Standard'}</div>
+                <div><strong>Leistungsniveau:</strong> {st.niveau || '—'}</div>
               </div>
 
+              {profShowContacts && (
               <div className="pt-3 border-t border-slate-100 space-y-3">
                 <span className="text-[0.625rem] font-black uppercase text-slate-400 tracking-wider block flex items-center gap-1.5">
                   <MapPin size={12} className="text-indigo-600" />
@@ -7032,6 +7037,7 @@ export default function PrintCenter() {
                   </div>
                 </div>
               </div>
+              )}
             </div>
           )}
 
@@ -7103,7 +7109,7 @@ export default function PrintCenter() {
                 </h2>
               </div>
               <div className="text-right text-[0.625rem] font-bold text-slate-400">
-                <span>SJ {app?.schuljahr || '2025/26'}</span>
+                <span>SJ {app?.schuljahr?.trim() || 'nicht angegeben'}</span>
               </div>
             </div>
 
@@ -7339,18 +7345,17 @@ export default function PrintCenter() {
                   VII. Standardisierte Erhebungen &amp; 1:1 Live-Protokolle
                 </span>
 
-                {/* Oberau Skala box */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[0.75rem] leading-tight font-semibold leading-normal">
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <p className="text-[0.5625rem] uppercase font-black text-slate-400 mb-1">Oberau-Skala (Selbststeuerungs-Index):</p>
+                    <p className="text-[0.5625rem] uppercase font-black text-slate-400 mb-1">Zusätzliche strukturierte Profildaten:</p>
                     <p className="text-slate-800 font-extrabold text-[0.875rem] leading-snug">
-                      Indexierungswert: {st.oberauIndex !== undefined ? `${st.oberauIndex} / 10` : '8.5 / 10'}
+                      {Object.values(app.oberauData?.[st.id]?.evaluationData || {}).filter((value) => value !== null && value !== undefined).length} dokumentierte Werte
                     </p>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <p className="text-[0.5625rem] uppercase font-black text-slate-400 mb-1">Matrix-Erläuterung &amp; Zusatzinfo:</p>
+                    <p className="text-[0.5625rem] uppercase font-black text-slate-400 mb-1">Pädagogische Zusatzbemerkung:</p>
                     <p className="text-slate-600 text-[0.6875rem] italic leading-tight">
-                      {st.foerderprofil?.zusatzinfo || localStorage.getItem(`oberau_remarks_${st.id}`) || 'Keine spezifischen qualitativen Matrix-Zusatzinformationen hinterlegt.'}
+                      {st.foerderprofil?.zusatzinfo || app.oberauData?.[st.id]?.remarks || 'Keine zusätzliche Bemerkung hinterlegt.'}
                     </p>
                   </div>
                 </div>
@@ -7483,7 +7488,7 @@ export default function PrintCenter() {
                 </h2>
               </div>
               <div className="text-right text-[0.625rem] font-bold text-slate-400">
-                <span>KI-Modell: Gemini 1.5 Pro</span>
+                <span>Gespeicherter KI-Entwurf · fachlich prüfen</span>
               </div>
             </div>
 
@@ -7529,7 +7534,7 @@ export default function PrintCenter() {
             </div>
           </div>
           <div className="pt-8 text-center text-[0.5rem] text-slate-300 font-bold uppercase tracking-widest">
-            Vertrauliches Dokument • Nur für den internen pädagogischen Dienstgebrauch • DSGVO-Konform
+            Vertraulich behandeln • Empfängerkreis und Inhalt vor Weitergabe prüfen
           </div>
         </div>
 
@@ -8001,7 +8006,7 @@ export default function PrintCenter() {
           </div>
 
           <div className="border-t border-slate-100 pt-4 text-center text-[0.5625rem] text-slate-400 font-bold select-none uppercase tracking-widest leading-relaxed">
-            Unterliegt der DSGVO Verschwiegenheitspflicht • Erstellt mit Schulplaner-Assistent
+            Vertraulich behandeln • Nur an berechtigte Empfänger:innen weitergeben
           </div>
         </div>
       );
