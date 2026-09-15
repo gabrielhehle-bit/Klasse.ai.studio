@@ -182,7 +182,7 @@ export default function PrintCenter() {
     { id: 'sitzplan', icon: Scale, label: 'Sitzplan', desc: 'Klassenzimmer-Tischordnung', cat: 'spezial', taskCat: 'klasse', badge: 'Raumplan', keywords: 'sitzplan raum tische tischordnung schüler' },
     { id: 'lob_druckkarte', icon: Award, label: 'Lob-Karten', desc: 'Urkunden & Motivation', cat: 'spezial', taskCat: 'schueler', badge: 'Motivation', keywords: 'lob karte urkunde auszeichnung karten belohnung' },
     { id: 'kassenuebersicht', icon: Banknote, label: 'Kassenübersicht', desc: 'Einnahmen, Ausgaben & Saldo', cat: 'spezial', taskCat: 'orga', badge: 'Kassa', keywords: 'kasse kassenbuch einnahmen ausgaben saldo geld finanzen buchungen klassenkasse orga beiträge sammlung' },
-    { id: 'pdf_export', icon: FileText, label: 'PDF-Export', desc: 'Bescheide & Formulare als PDF', cat: 'spezial', taskCat: 'orga', badge: 'PDF', keywords: 'pdf export raster layout print' },
+    { id: 'pdf_export', icon: FileText, label: 'PDF-Export', desc: 'Pädagogische Übersichten als PDF', cat: 'spezial', taskCat: 'orga', badge: 'PDF', keywords: 'pdf export förderübersicht raster layout print' },
     { id: 'smart_tools', icon: Sparkles, label: 'Geldsammlung & Orga', desc: 'Tischschilder, Kasse & Joker', cat: 'spezial', taskCat: 'orga', badge: 'Orga & Kasse', keywords: 'spezial tools powerup helfer zufall gruppen geld sammlung' },
   ], []);
 
@@ -309,10 +309,10 @@ export default function PrintCenter() {
   const [profShowFoerderprofil, setProfShowFoerderprofil] = useState(true);
   const [profShowDiagnostik, setProfShowDiagnostik] = useState(true);
   const [profShowKELReflexion, setProfShowKELReflexion] = useState(true);
-  const [profShowFinanzen, setProfShowFinanzen] = useState(true);
+  const [profShowFinanzen, setProfShowFinanzen] = useState(false);
   const [profShowMikaD, setProfShowMikaD] = useState(true);
   const [profShowVerhalten, setProfShowVerhalten] = useState(true);
-  const [profShowKIPortfolio, setProfShowKIPortfolio] = useState(true);
+  const [profShowKIPortfolio, setProfShowKIPortfolio] = useState(false);
   const [dossierPreviewOpen, setDossierPreviewOpen] = useState(false);
   const [dossierZoom, setDossierZoom] = useState(0.65);
 
@@ -346,8 +346,8 @@ export default function PrintCenter() {
   const [umVertretungsZeitraum, setUmVertretungsZeitraum] = useState('');
   const [umKrankheitNotes, setUmKrankheitNotes] = useState('');
 
-  // Z. Offizieller PDF Export
-  const [pdfFormType, setPdfFormType] = useState<'foerder_bescheid'>('foerder_bescheid');
+  // Z. Pädagogischer PDF Export – ausdrücklich kein amtlicher Bescheid
+  const [pdfFormType, setPdfFormType] = useState<'foerder_uebersicht'>('foerder_uebersicht');
   const [pdfStudentId, setPdfStudentId] = useState<string>(students[0]?.id || '');
 
   // M. Lob-Druckkarte Options
@@ -973,7 +973,9 @@ export default function PrintCenter() {
 
   // Get active KEL data for a student
   const getKelDataForStudent = (sId: string) => {
-    return (app?.kelGespraeche || []).find((k: any) => k.schuelerId === sId);
+    return [...(app?.kelGespraeche || [])]
+      .filter((entry: any) => entry.schuelerId === sId)
+      .sort((a: any, b: any) => String(b.datum || '').localeCompare(String(a.datum || '')))[0];
   };
 
   // Theme styling definitions for high fidelity print/screen consistency
@@ -1363,7 +1365,7 @@ export default function PrintCenter() {
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg font-black text-slate-800 tracking-tight">DRUCKZENTRUM</h1>
                   <span className="bg-slate-100 text-slate-700 text-[0.6875rem] font-bold px-2.5 py-0.5 rounded-full border border-slate-200">
-                    Klasse {(app as any).activeKlasse || (app as any).selectedKlasse || '1a'}
+                    Klasse {app?.klassenbezeichnung?.trim() || 'nicht angegeben'}
                   </span>
                 </div>
                 <p className="text-[0.6875rem] text-slate-400 font-semibold mt-0.5">
@@ -1795,8 +1797,8 @@ export default function PrintCenter() {
               {/* Toggle Main Metadata Header */}
               <div className="flex items-center justify-between py-1 bg-slate-50 px-3 rounded-xl border border-slate-100">
                 <div className="space-y-0.5">
-                  <span className="text-[0.75rem] leading-tight font-black text-slate-700 block">Offiziellen Briefkopf drucken</span>
-                  <span className="text-[0.5625rem] font-semibold text-slate-400 leading-none">Inkludiert Schuldaten, § 17, Stand-Uhrzeit</span>
+                  <span className="text-[0.75rem] leading-tight font-black text-slate-700 block">Dokumentkopf drucken</span>
+                  <span className="text-[0.5625rem] font-semibold text-slate-400 leading-none">Zeigt vorhandene Schuldaten, Klasse und Stand – ohne amtliche Gültigkeitsbehauptung</span>
                 </div>
                 <input 
                   type="checkbox"
@@ -3112,13 +3114,13 @@ export default function PrintCenter() {
               {activeTemplate === 'pdf_export' && (
                 <div className="space-y-4 text-left">
                   <div className="space-y-1.5">
-                    <span className="text-[0.625rem] font-black uppercase text-slate-400 tracking-wider block">Formular / Bescheid:</span>
+                    <span className="text-[0.625rem] font-black uppercase text-slate-400 tracking-wider block">PDF-Dokument:</span>
                     <select 
                       value={pdfFormType} 
                       onChange={(e) => setPdfFormType(e.target.value as any)}
                       className="w-full bg-slate-100 text-slate-700 text-[0.875rem] leading-snug font-bold border-none rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
                     >
-                      <option value="foerder_bescheid">Bescheid: Sonderpäd. Förderbedarf (SPF)</option>
+                      <option value="foerder_uebersicht">Pädagogische Förderübersicht</option>
                     </select>
                   </div>
 
@@ -3137,7 +3139,7 @@ export default function PrintCenter() {
 
                   <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100 mt-4">
                      <p className="text-[0.625rem] text-indigo-800 font-bold leading-relaxed">
-                        Die PDF-Funktion erzeugt Formulare und Übersichten zum Herunterladen. Prüfen Sie das Ergebnis vor der Weitergabe.
+                        Diese PDF ist eine pädagogische Arbeitsübersicht und kein amtlicher Bescheid. Prüfen Sie Inhalt und Empfängerkreis vor der Weitergabe.
                      </p>
                   </div>
                 </div>
@@ -3404,11 +3406,11 @@ export default function PrintCenter() {
                       className="w-full bg-slate-100 text-slate-700 text-[0.875rem] leading-snug font-bold border-none rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer font-black text-indigo-950"
                     >
                       <option value="tischschilder">🪪 1. Klassen-Tischschilder</option>
-                      <option value="urkunden">🏆 2. Schul-Urkunden & Diplome</option>
+                      <option value="urkunden">🏆 2. Motivations-Urkunden</option>
                       <option value="joker">🎟️ 3. Hausübungs- & Joker-Gutscheine</option>
                       <option value="pocket">🎒 4. Taschen-Notfall-Klassenliste</option>
                       <option value="labels">🏷️ 5. Klassenzimmer-Beschriftungen</option>
-                      <option value="ids">💳 6. Schülerausweise (Miniformat)</option>
+                      <option value="ids">💳 6. Namenskarten (Miniformat)</option>
                       <option value="birthday">📅 7. Klassen-Geburtstagskalender</option>
                       <option value="jobs">🧹 8. Klassendienste-Plakat</option>
                       <option value="meeting">💬 9. Sprechtag-Terminkärtchen</option>
@@ -3645,7 +3647,7 @@ export default function PrintCenter() {
                   {activeSmartTool === 'ids' && (
                     <div className="space-y-3 p-3.5 bg-slate-50 border border-slate-150 rounded-2xl">
                       <div className="space-y-1">
-                        <span className="text-[0.5625rem] font-black text-slate-400 uppercase">Schulname für Schülerausweise</span>
+                        <span className="text-[0.5625rem] font-black text-slate-400 uppercase">Schulname für Namenskarten</span>
                         <input
                           type="text"
                           value={stSchoolName}
@@ -3654,7 +3656,7 @@ export default function PrintCenter() {
                         />
                       </div>
                       <p className="text-[0.5625rem] text-slate-400 italic font-bold">
-                        Generiert pocket-große (85x54mm) Scheckkarten-Ausweise für alle Schüler mit offiziellem Design, Schulstempel-Vorschau und Foto-Platzhalter.
+                        Generiert Namenskarten im Format 85 × 54 mm. Sie sind ausdrücklich keine amtlichen Schülerausweise und enthalten keinen Gültigkeitsnachweis.
                       </p>
                     </div>
                   )}
@@ -6216,7 +6218,7 @@ export default function PrintCenter() {
             {list.map(st => (
               <div key={st.id} className="avoid-break bg-white border border-slate-200 rounded-3xl p-6 shadow-sm max-w-2xl mx-auto">
                 <span className="text-[0.5625rem] font-bold text-slate-400 uppercase block mb-4 select-none">
-                  🖨️ A4 Hochformat · Offizielles Schul-Diplom
+                  🖨️ A4 Hochformat · Motivations-Urkunde
                 </span>
 
                 {/* Diploma Content Frame */}
@@ -6393,7 +6395,7 @@ export default function PrintCenter() {
         return (
           <div className="space-y-6 p-2 text-left">
             <span className="text-[0.5625rem] font-bold text-slate-400 uppercase block select-none">
-              🖨️ A4 Hochformat · Mini-Schülerausweise (Scheckkarten-Format)
+              🖨️ A4 Hochformat · Namenskarten (85 × 54 mm)
             </span>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -6408,7 +6410,7 @@ export default function PrintCenter() {
                       <h4 className="text-[0.5625rem] font-black tracking-wider uppercase text-indigo-400 truncate max-w-[150px]">
                         {stSchoolName}
                       </h4>
-                      <span className="text-[0.5rem] font-bold text-slate-400 block mt-0.5 leading-none">OFFIZIELLER SCHÜLERAUSWEIS</span>
+                      <span className="text-[0.5rem] font-bold text-slate-400 block mt-0.5 leading-none">NAMENSKARTE · KEIN AMTLICHER AUSWEIS</span>
                     </div>
                     <span className="text-[0.5625rem] bg-indigo-600 text-white font-black px-1.5 py-0.5 rounded tracking-wide font-mono">
                       {app?.schuljahr}
