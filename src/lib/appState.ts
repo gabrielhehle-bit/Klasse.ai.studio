@@ -4,6 +4,7 @@ import { getCurrentSchuljahr, getKW } from './utils';
 import { DEFAULT_MORNING_WIDGETS } from '../data/morningWidgets';
 import { sanitizeSeatingRules } from './seatingPlanRules';
 import { normalizeKlassenkasse } from './orgaData';
+import { normalizeArchivedClasses } from './archiveData';
 
 export const initialAppState: AppState = {
   ipsativeGewichtung: 70,
@@ -96,6 +97,7 @@ export const initialAppState: AppState = {
   },
   unterrichtsmodus_sidebar_open: false,
   historicalStudents: [],
+  archivedClasses: [],
   klassenkasse: {
     kontostand: 0,
     sammlungen: [],
@@ -289,6 +291,7 @@ export function normalizeAppState(raw: any): AppState {
     klassenglas_completed_missions: raw.klassenglas_completed_missions ?? [],
     dienste: raw.dienste ?? [],
     backupEinstellungen: raw.backupEinstellungen ?? { letztesBackup: null, erinnerungAktiv: true },
+    archivedClasses: normalizeArchivedClasses(raw.archivedClasses),
   };
 
   // Migration: Multi-Class Support
@@ -715,6 +718,7 @@ export function normalizeAppState(raw: any): AppState {
     bundesland: parsed.bundesland || 'VBG',
     tourAbgeschlossen: computedTourAbgeschlossen,
     historicalStudents: parsed.historicalStudents || [],
+    archivedClasses: normalizeArchivedClasses(parsed.archivedClasses),
     notes: parsed.notes || [],
     settings: { ...initialAppState.settings, ...(parsed.settings || {}) },
     boardSettings: {
