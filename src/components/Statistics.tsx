@@ -1404,6 +1404,9 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     setSelectedStudentId(null);
     setAntolinSelectedStudentId(null);
     setSearch('');
+    setActiveFach('Gesamt');
+    setStatsSubTab('leistung');
+    setProfilesSubTab('liste');
     setProfileSubTab('dossier');
     setShowFoerderDetail(false);
     setShowAddPortfolio(false);
@@ -1615,10 +1618,9 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   };
 
   const activeFaecher = useMemo(() => {
-    // If user has specific subjects selected in app settings, use them. Otherwise show all standard ones.
     const subjects = (app.faecher && app.faecher.length > 0) ? app.faecher : FAECHER_ALLE;
-    return subjects;
-  }, [app.faecher]);
+    return subjects.filter(fach => app.fachConfig?.[fach]?.unterrichtet !== false);
+  }, [app.faecher, app.fachConfig]);
 
   // Save portfolio entry to localStorage
   const handleAddPortfolioEntry = (e: React.FormEvent) => {
