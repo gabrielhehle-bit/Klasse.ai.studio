@@ -264,7 +264,6 @@ const StudentCard = React.memo(({
         cursor: "grabbing",
         boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)"
       }}
-      whileHover={{ scale: 1.02 }}
       onDrag={onDrag}
       onDragEnd={onDragEnd}
       initial={false}
@@ -287,7 +286,7 @@ const StudentCard = React.memo(({
       tabIndex={!editMode ? 0 : -1}
       aria-pressed={!editMode ? Boolean(isPinned) : undefined}
       aria-label={`${s.vorname} ${s.nachname || ''}${isAbsent ? ', heute abwesend' : ''}. ${editMode ? 'Sitzplatz verschieben' : (isPinned ? 'Details geöffnet' : 'Details öffnen')}`}
-      className={`absolute w-[112px] h-[72px] rounded-2xl border flex flex-col justify-between p-1.5 shrink-0 group student-card transform-gpu contrast-container transition-[background-color,border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-indigo-400/70 focus-visible:ring-offset-2 ${editMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer hover:shadow-md'} ${isAbsent ? 'opacity-55 grayscale' : ''} ${isDimmed ? 'opacity-15 pointer-events-none scale-95 saturate-50' : ''}`}
+      className={`absolute w-[112px] h-[72px] rounded-2xl border flex flex-col justify-between p-1.5 shrink-0 group student-card transform-gpu contrast-container transition-[background-color,border-color,box-shadow] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] focus-visible:ring-offset-2 ${editMode ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer hover:shadow-md'} ${isAbsent ? 'opacity-55 grayscale' : ''} ${isDimmed ? 'opacity-15 pointer-events-none scale-95 saturate-50' : ''}`}
       style={{ 
         backgroundColor: bgColor,
         borderColor: isHighlighted
@@ -2468,9 +2467,9 @@ export default function SeatingPlan() {
       {/* Preview Banner */}
       <AnimatePresence>
         {previewState.active && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-amber-100 border-b border-amber-200 overflow-hidden shrink-0 no-print rounded-t-2xl">
-            <div className="p-3 max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3 text-amber-900">
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="bg-[var(--warning-soft)] border border-[var(--warning)]/20 overflow-hidden shrink-0 no-print rounded-2xl">
+            <div className="p-3 max-w-[1180px] mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3 text-[var(--warning-text)]">
                 <Sparkles />
                 <div>
                   <p className="font-bold text-sm">Vorschau – noch nicht gespeichert</p>
@@ -2481,7 +2480,7 @@ export default function SeatingPlan() {
                   )}
                 </div>
               </div>
-              <div className="flex bg-white rounded-lg p-1 shadow-sm shrink-0 border border-amber-200 items-center justify-center space-x-1">
+              <div className="flex bg-[var(--surface-card,var(--surface))] rounded-xl p-1 shadow-sm shrink-0 border border-[var(--warning)]/20 items-center justify-center space-x-1">
                  
                  {previewState.history.length > 1 && (
                    <div className="flex items-center space-x-1 mr-2 bg-amber-50 rounded-md p-1 border border-amber-200/50">
@@ -2645,13 +2644,13 @@ export default function SeatingPlan() {
 
       {/* Toolbar */}
       {!presentationMode && (
-        <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 bg-white/95 backdrop-blur-xl p-3 rounded-2xl border border-slate-200 shadow-sm no-print print:hidden relative z-[150]">
+        <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3 bg-[var(--surface-card,var(--surface))]/95 backdrop-blur-xl p-3 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm no-print print:hidden relative z-[150]">
           <div className="flex items-center gap-3 overflow-x-auto pb-1 max-w-full custom-scrollbar flex-1">
-             <span className="text-[0.625rem] font-black uppercase text-slate-400 tracking-wider shrink-0">
+             <span className="text-[0.6875rem] font-semibold text-[var(--text-muted,var(--text3))] shrink-0">
                {isPlanEmpty ? 'Sitzplan-Status:' : 'Noch nicht platziert:'}
              </span>
              {isPlanEmpty ? (
-               <span className="px-3 py-1.5 rounded-xl border border-indigo-100 bg-indigo-50 text-[0.75rem] font-extrabold text-indigo-700 whitespace-nowrap">
+               <span className="px-3 py-1.5 rounded-xl border border-[var(--accent)]/15 bg-[var(--accent-soft)] text-[0.75rem] font-semibold text-[var(--accent)] whitespace-nowrap">
                  Noch nicht eingerichtet · {students.length} {students.length === 1 ? 'Kind' : 'Kinder'}
                </span>
              ) : (
@@ -2672,7 +2671,7 @@ export default function SeatingPlan() {
                     }
                     updatePosition(s.id, nextX, nextY);
                   }}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-[0.75rem] font-bold hover:border-accent hover:text-accent transition-all shadow-sm whitespace-nowrap flex items-center gap-1.5 active:scale-95"
+                  className="px-3 py-1.5 rounded-xl border border-[var(--border-default,var(--border2))] bg-[var(--surface-card,var(--surface))] text-[0.75rem] font-semibold text-[var(--text-secondary,var(--text2))] hover:border-[var(--accent)]/35 hover:text-[var(--accent)] transition-colors whitespace-nowrap flex items-center gap-1.5"
                 >
                   <UserPlus size={12} />
                   {s.vorname}
@@ -2680,7 +2679,7 @@ export default function SeatingPlan() {
                ))}
              </div>
              )}
-             {unplacedStudents.length === 0 && <span className="text-[0.6875rem] text-slate-300 italic">Alle platziert</span>}
+             {unplacedStudents.length === 0 && <span className="text-[0.6875rem] text-[var(--text-muted,var(--text3))] italic">Alle platziert</span>}
              {outOfBoundsStudents.length > 0 && (
                <button
                  onClick={handleBringOutOfBoundsToRoom}
@@ -2695,11 +2694,11 @@ export default function SeatingPlan() {
 
           <div className="flex items-center gap-2 flex-wrap justify-center lg:justify-end flex-1 lg:flex-none min-w-0 max-w-full">
             {/* Mode Switcher */}
-            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200" aria-label="Sitzplan-Modus">
+            <div className="flex bg-[var(--surface-subtle,var(--surface2))] p-1 rounded-xl border border-[var(--border-subtle,var(--border))]" aria-label="Sitzplan-Modus">
               <button 
                 onClick={() => { setEditMode(false); setPresentationMode(false); setSelectedObjId(null); }}
                 aria-pressed={!editMode}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[0.6875rem] font-bold uppercase tracking-wider transition-all ${(!editMode) ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[0.6875rem] font-bold uppercase tracking-wider transition-all ${(!editMode) ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-sm' : 'text-[var(--text-secondary,var(--text2))] hover:text-[var(--text-primary,var(--text))]'}`}
                 title="Alltägliche Ansicht des Sitzplans"
               >
                 <Eye size={14} /> Alltag
@@ -2707,7 +2706,7 @@ export default function SeatingPlan() {
               <button 
                 onClick={() => { setEditMode(true); setPresentationMode(false); }}
                 aria-pressed={editMode}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[0.6875rem] font-bold uppercase tracking-wider transition-all ${(editMode) ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[0.6875rem] font-bold uppercase tracking-wider transition-all ${(editMode) ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-sm' : 'text-[var(--text-secondary,var(--text2))] hover:text-[var(--text-primary,var(--text))]'}`}
                 title="Sitzplan bearbeiten, Möbel verschieben, Schüler neu platzieren"
               >
                 <Move size={14} /> Planen
@@ -2716,8 +2715,8 @@ export default function SeatingPlan() {
 
           {/* Grid Snap Control */}
           {editMode && !isPlanEmpty && (
-          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200" title="Raster-Magnetismus">
-            <span className="flex items-center gap-1 px-2 text-[0.5625rem] font-black uppercase text-slate-400 tracking-wider">
+          <div className="flex bg-[var(--surface-subtle,var(--surface2))] p-1 rounded-xl border border-[var(--border-subtle,var(--border))]" title="Raster-Magnetismus">
+            <span className="flex items-center gap-1 px-2 text-[0.625rem] font-semibold text-[var(--text-muted,var(--text3))]">
               <Grid size={11} className="text-slate-400" /> Magnet:
             </span>
             {[
@@ -2733,7 +2732,7 @@ export default function SeatingPlan() {
                   onClick={() => setGridSnapType(density.id as any)}
                   aria-label={`Raster-Magnetismus: ${density.label}`}
                   aria-pressed={active}
-                  className={`px-2 py-1 rounded-lg text-[0.625rem] font-black uppercase transition-all ${active ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`px-2 py-1 rounded-lg text-[0.625rem] font-black uppercase transition-all ${active ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-xs' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
                 >
                   {density.label}
                 </button>
