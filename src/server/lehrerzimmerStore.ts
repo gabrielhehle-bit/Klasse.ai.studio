@@ -222,6 +222,64 @@ export class LehrerzimmerStore {
     });
   }
 
+  async updatePost(
+    identity: TeacherIdentity,
+    postId: string,
+    input: { category: unknown; kind: unknown; title: unknown; body: unknown }
+  ): Promise<LehrerzimmerPost> {
+    if (!isCategory(input.category)) throw new Error('INVALID_CATEGORY');
+    if (!isKind(input.kind)) throw new Error('INVALID_KIND');
+    const category: LehrerzimmerCategory = input.category;
+    const kind: LehrerzimmerKind = input.kind;
+    const title = cleanText(input.title, 140);
+    const body = cleanText(input.body, 4000);
+    if (!title || !body) throw new Error('INVALID_CONTENT');
+
+    return this.mutate(data => {
+      const posts = data.posts[identity.schoolId] || [];
+      const post = posts.find(item => item.id === postId);
+      if (!post) throw new Error('POST_NOT_FOUND');
+      if (post.authorId !== identity.userId) throw new Error('FORBIDDEN');
+
+      const users = data.users[identity.schoolId] || [];
+      const mentionedHandles = mentionHandles(title + '\n' + body);
+      const mentionIds = users
+        .filter(item => mentionedHandles.includes(item.handle.toLowerCase()))
+        .map(item => item.userId);
+
+      post.category = category;
+      post.kind = kind;
+      post.title = title;
+      post.body = body;
+      post.mentions = mentionIds;
+      post.updatedAt = new Date().toISOString();
+      return post;
+    });
+  }
+
+  async deletePost(identity: TeacherIdentity, postId: string): Promise<void> {
+    return this.mutate(data => {
+      const posts = data.posts[identity.schoolId] || [];
+      const index = posts.findIndex(item => item.id === postId);
+      if (index < 0) throw new Error('POST_NOT_FOUND');
+      if (posts[index].authorId !== identity.userId) throw new Error('FORBIDDEN');
+      posts.splice(index, 1);
+    });
+  }
+
+  async deleteReply(identity: TeacherIdentity, postId: string, replyId: string): Promise<void> {
+    return this.mutate(data => {
+      const post = (data.posts[identity.schoolId] || []).find(item => item.id === postId);
+      if (!post) throw new Error('POST_NOT_FOUND');
+      const replyIndex = post.replies.findIndex(reply => reply.id === replyId);
+      if (replyIndex < 0) throw new Error('REPLY_NOT_FOUND');
+      if (post.replies[replyIndex].authorId !== identity.userId) throw new Error('FORBIDDEN');
+
+      post.replies.splice(replyIndex, 1);
+      post.updatedAt = new Date().toISOString();
+    });
+  }
+
   async addReply(identity: TeacherIdentity, postId: string, rawBody: unknown): Promise<LehrerzimmerReply> {
     const body = cleanText(rawBody, 2500);
     if (!body) throw new Error('INVALID_CONTENT');
