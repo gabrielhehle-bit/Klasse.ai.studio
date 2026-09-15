@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { DiagnosticHome } from './DiagnosticHome';
 import { DiagnosticIndividual } from './DiagnosticIndividual';
@@ -6,6 +6,7 @@ import { DiagnosticClass } from './DiagnosticClass';
 import { DiagnosticResults } from './DiagnosticResults';
 import DiagnostikLegacy from '../DiagnostikLegacy';
 import { DiagnosticResult } from '../../types/diagnosticCore';
+import { validateDiagnosticResult } from '../../lib/diagnosticCoreUtils';
 
 export type DiagnosticViewMode = 'home' | 'individual' | 'class' | 'results' | 'legacy';
 
@@ -23,20 +24,62 @@ export const DiagnosticContainer: React.FC = () => {
 
   const students = app.schueler || [];
   const diagnosticResults = app.diagnosticResults || [];
+  const activeClassId = app.activeClassId || undefined;
   const activeClassName = app.klassenbezeichnung?.trim() || app.klasse?.trim() || undefined;
 
-  const handleSaveResult = (newResult: DiagnosticResult) => {
-    const currentList = app.diagnosticResults || [];
-    updateApp({
-      diagnosticResults: [newResult, ...currentList],
-    });
+  const previousClassIdRef = useRef(app.activeClassId);
+
+  useEffect(() => {
+    if (previousClassIdRef.current === app.activeClassId) return;
+    previousClassIdRef.current = app.activeClassId;
+    setView('home');
+    setSelectedStudentIdForTest(undefined);
+    setSelectedCompetencyIdForTest(undefined);
+    setSelectedGradeLevelForTest(undefined);
+  }, [app.activeClassId]);
+
+  const validateResultForActiveClass = (result: DiagnosticResult): string[] => {
+    const validation = validateDiagnosticResult(result);
+    const errors = [...validation.errors];
+
+    if (!activeClassId) errors.push('Keine aktive Klasse ausgewählt.');
+    if (activeClassId && result.classId !== activeClassId) {
+      errors.push('Das Diagnostikergebnis gehört nicht zur aktiven Klasse.');
+    }
+    if (!students.some(student => student.id === result.studentId)) {
+      errors.push('Das Kind gehört nicht zur aktiven Klasse.');
+    }
+
+    return errors;
   };
 
-  const handleSaveMultipleResults = (newResults: DiagnosticResult[]) => {
+  const handleSaveResult = (newResult: DiagnosticResult): boolean => {
+    const errors = validateResultForActiveClass(newResult);
+    if (errors.length > 0) {
+      window.alert(`Ergebnis kann nicht gespeichert werden:\n${errors.join('\n')}`);
+      return false;
+    }
+
     const currentList = app.diagnosticResults || [];
     updateApp({
-      diagnosticResults: [...newResults, ...currentList],
+      diagnosticResults: [newResult, ...currentList.filter(result => result.id !== newResult.id)],
     });
+    return true;
+  };
+
+  const handleSaveMultipleResults = (newResults: DiagnosticResult[]): boolean => {
+    const errors = newResults.flatMap(result => validateResultForActiveClass(result));
+    if (errors.length > 0) {
+      window.alert(`Screening kann nicht gespeichert werden:\n${Array.from(new Set(errors)).join('\n')}`);
+      return false;
+    }
+
+    const incomingIds = new Set(newResults.map(result => result.id));
+    const currentList = app.diagnosticResults || [];
+    updateApp({
+      diagnosticResults: [...newResults, ...currentList.filter(result => !incomingIds.has(result.id))],
+    });
+    return true;
   };
 
   const handleStartIndividual = (studentId: string, competencyId?: string, gradeLevel?: number) => {
@@ -78,6 +121,7 @@ export const DiagnosticContainer: React.FC = () => {
     return (
       <DiagnosticClass
         students={students}
+        activeClassId={activeClassId}
         activeClassName={activeClassName}
         onBackToHome={() => setView('home')}
         onSaveDiagnosticResults={handleSaveMultipleResults}

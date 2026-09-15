@@ -774,7 +774,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
     }
 
     if (notes.length === 0) {
-      notes.push('Alle bisherigen Erhebungen befinden sich im unauffälligen Erwartungsbereich.');
+      notes.push('Bisher liegen keine Werte außerhalb der hinterlegten Prüfbereiche; die Einordnung bleibt eine pädagogische Aufgabe.');
     }
 
     return notes.slice(0, 5);
@@ -1603,7 +1603,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
         title: "Basis-Check (Klasse)",
         tag: "Schnell-Überblick",
         description: "Ein systematisches Raster, um die gesamte Klasse auf grundlegende Fertigkeiten zu prüfen. So geht kein Kind im Trubel unter.",
-        tipp: "Füllen Sie das Raster nach einer Beobachtungsphase aus. Rot markierte Felder zeigen sofortigen Handlungsbedarf."
+        tipp: "Füllen Sie das Raster nach einer Beobachtungsphase aus. Markierte Felder sind Hinweise für eine pädagogische Prüfung und weitere Beobachtung."
       };
       case 'gabicquest': return {
         title: "Klassio Quest 🎮",
@@ -1672,9 +1672,11 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
                 <h2 className="text-xl font-black text-slate-900 cursor-pointer" onClick={() => setActiveTab('uebersicht')}>
                   Diagnostik
                 </h2>
-                <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-black">
-                  Klasse {(app as any).schulklasse || app.stufe || '2a'}
-                </span>
+                {(app.klassenbezeichnung?.trim() || app.klasse?.trim()) && (
+                  <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-black">
+                    Klasse {app.klassenbezeichnung?.trim() || app.klasse?.trim()}
+                  </span>
+                )}
               </div>
               <p className="text-xs font-semibold text-slate-400 mt-0.5">
                 Gezielte Beobachtungen, 1:1 Live-Tests & Lernstandsanalysen
@@ -1877,7 +1879,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
                           <AlertTriangle size={22} />
                         </div>
                         <div>
-                          <span className="text-[0.625rem] font-extrabold uppercase tracking-wider text-slate-400 block">1. Auffälligkeiten</span>
+                          <span className="text-[0.625rem] font-extrabold uppercase tracking-wider text-slate-400 block">1. Prüfhinweise</span>
                           <div className="text-xl font-black text-slate-900 mt-0.5">{criticalStudentsCount} Kinder</div>
                           <span className="text-[0.6875rem] font-bold text-rose-600">Beobachten</span>
                         </div>
@@ -1925,7 +1927,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
                             <Activity size={20} className="text-indigo-600" /> Diagnostik-Werkzeuge &amp; Test-Center
                           </h3>
                           <p className="text-xs font-semibold text-slate-400 mt-0.5">
-                            Wähle ein standardisiertes oder informelles Diagnose-Werkzeug für Einzelbeobachtungen oder Klassenscreenings.
+                            Wähle ein dokumentiertes Verfahren oder eine informelle Lernstandsbeobachtung. Normwerte dürfen nur aus der jeweiligen Originalauswertung übernommen werden.
                           </p>
                         </div>
                         <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-black self-start sm:self-center">
@@ -2037,7 +2039,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
                               Klassio Quest 🎮
                             </h4>
                             <p className="text-[0.6875rem] text-slate-500 font-semibold line-clamp-2 mt-0.5">
-                              Gamifizierte Diagnose-Reise für Kinder mit animierten Aufgaben und Belohnungen.
+                              Gamifizierte Lernstands-Reise für Kinder mit animierten Aufgaben und Belohnungen.
                             </p>
                           </div>
                           <div className="text-[0.6875rem] font-black text-amber-700 flex items-center gap-1 pt-1">
@@ -2065,7 +2067,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
                               Exekutive Funktionen
                             </h4>
                             <p className="text-[0.6875rem] text-slate-500 font-semibold line-clamp-2 mt-0.5">
-                              Zahlenspanne, Mengenblitzen &amp; Go/No-Go Test zur Konzentrationsdiagnostik.
+                              Zahlenspanne, Mengenblitzen &amp; Go/No-Go als kurze schulische Lernstands- und Aufmerksamkeitsbeobachtungen.
                             </p>
                           </div>
                           <div className="text-[0.6875rem] font-black text-purple-700 flex items-center gap-1 pt-1">
@@ -2093,7 +2095,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
                               iKM-PLUS Auswertung
                             </h4>
                             <p className="text-[0.6875rem] text-slate-500 font-semibold line-clamp-2 mt-0.5">
-                              Offizielle Rückmelde-Daten importieren, analysieren und Förderhinweise ableiten.
+                              Offizielle Rückmelde-Daten importieren, darstellen und pädagogisch einordnen.
                             </p>
                           </div>
                           <div className="text-[0.6875rem] font-black text-blue-700 flex items-center gap-1 pt-1">
@@ -2804,7 +2806,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
                 <div className="bg-white border border-slate-100 rounded-3xl p-5 space-y-4 flex flex-col justify-between">
                   <div className="space-y-2">
                     <h5 className="text-[0.875rem] leading-snug font-black text-slate-800">1. Antolin PDF Hochladen</h5>
-                    <p className="text-slate-500 text-[0.75rem]">Wähle den offiziellen PDF Klassenbericht aus. Unsere KI liest alle Tabelleneinträge fehlerfrei aus.</p>
+                    <p className="text-slate-500 text-[0.75rem]">Wähle den PDF-Klassenbericht aus. Die KI erstellt einen Auslesevorschlag, den du vor dem Speichern vollständig prüfen musst.</p>
                   </div>
                   
                   {!isAnalyzingAntolin && !antolinAnalysisPreview && (
