@@ -282,9 +282,17 @@ export function normalizeAppState(raw: any): AppState {
     ? raw.archivedClasses.filter((item: any) => !legacyArchivedClassEntries.includes(item))
     : [];
 
+  // Historical multi-class builds already referenced `raw.klassen` as a legacy
+  // source but never projected it to the current `classes` field. Preserve those
+  // real class snapshots before defaults can collapse them into one generated class.
+  const legacyClasses = !Array.isArray(raw.classes) && Array.isArray(raw.klassen)
+    ? raw.klassen
+    : undefined;
+
   const parsed = {
     ...initialAppState,
     ...raw,
+    ...(legacyClasses ? { classes: legacyClasses } : {}),
     ipsativeGewichtung: raw.ipsativeGewichtung ?? 70,
     tourAbgeschlossen: raw.tourAbgeschlossen ?? (raw.schueler?.length > 0 || raw.klassen?.length > 0 || raw.classes?.length > 0 ? true : false),
     stimmNotizen: raw.stimmNotizen ?? [],
