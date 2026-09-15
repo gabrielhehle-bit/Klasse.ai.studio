@@ -63,18 +63,20 @@ PR #61 schloss anschließend die Einzelabnahme von Statistik & Profile ab: Mitge
 
 PR #63 schloss danach die Einzelabnahme der Diagnostik ab: Die neue 1:1- und Klassenscreening-Diagnostik ist strikt an die stabile aktive Klassen-ID gebunden; offene Schüler-/Kompetenzauswahl wird beim Klassenwechsel verworfen und Speichern meldet nur nach tatsächlicher Validierung Erfolg. Doppelte Ergebnis-IDs werden dedupliziert. Erfundenen Klassen-Fallbacks wie `2a` oder `klasse-default` wurden entfernt, Datumswerte verwenden lokale Kalendertage. Automatisch erzeugte Texte bleiben ausdrücklich pädagogische Momentaufnahmen statt Diagnosen oder klinischer Befunde; überzogene Aussagen wie „altersgemäß voll ausgeprägt“, „unauffällig“ oder „dringend“ wurden neutralisiert. Auch der Archiv-/Legacy-Bereich wurde von Fake-Klassen- und KI-„fehlerfrei“-Wording bereinigt; Normwerte dürfen nur aus der jeweiligen Originalauswertung übernommen werden. Regressionstests sichern Klassenisolation, Datumslogik, Speichersicherheit und ehrliche Ergebnisformulierungen.
 
+PR #65 schloss anschließend die Einzelabnahme von Wir-Gefühl ab: Das Modul verwendet für „Wie geht es uns heute?“ ausschließlich die freiwillige 5-Smiley-Befindensabfrage aus dem „Ich bin da!“-Widget im Lehrercockpit; der parallele manuelle Klassen-Stimmungsbarometer mit „motiviert/müde/unruhig/…“ wurde entfernt. Verhaltensnotizen und Statusänderungen werden aus dem zentralen Bereich „Notizen & Beobachtungen“ gespiegelt statt in einem zweiten Tagebuch geführt. Der 14-Tage-Verlauf basiert auf realen Check-in-Daten statt auf erfundenem Klima-Score. Demo-Klassenverträge, Demo-Klassenratseinträge, Demo-Klimadaten und die künstliche Klassen-Energie-/XP-Formel wurden entfernt. Klassenvertrag und Klassenrat sind klassenlokal im verschlüsselten App-State; alte Klartext-Browserdaten werden einmalig migriert und danach entfernt. Verhalten und Wir-Gefühl verwenden denselben lokalen Kalendertag. Klassenrat, Klassenvertrag, Klassenglas/Missionen und Gemeinschaftsaktivitäten bleiben erhalten. Regressionstests sichern die Check-in-Verknüpfung, Verhaltensspiegelung, Klassenisolation und das Entfernen der obsoleten Parallelstrukturen.
+
 Die historischen divergierenden Branches `audit/production-demo-data`, `audit/visible-legacy-branding`, `audit/visible-legacy-branding-final`, `fix/klassio-visible-branding`, `fix/json-backups-and-critical-data-flows` und `feature/final-app-polish` wurden anschließend gezielt gegen den aktuellen Reconciliation-Stand geprüft. Ihre noch eigenen Commits enthalten entweder nur temporäre Audit-/CI-Workflows oder ältere Varianten von Funktionen, die im aktuellen Stand bereits gleichwertig oder neuer umgesetzt sind. Sie werden deshalb **nicht** in den Produktstand gemergt.
 
 Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist keine Arbeitsgrundlage. Seine relevanten funktionalen Lücken wurden selektiv auf frischen Branches vom jeweils aktuellen Reconciliation-HEAD neu umgesetzt. Verbleibende Unterschiede in Cockpit/BoardInk/Vorlagen stammen aus älteren UI-Varianten und werden nicht über den neueren, bereits getesteten Cockpit-Stand aus PR #6 gelegt.
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Reconciliation-Stand liegt nach PR #63 auf Commit `c86dbc0ff2f231c28779f025f3b35f685bdff928` und wurde vollständig geprüft:
+Der letzte codehaltige Reconciliation-Stand liegt nach PR #65 auf Commit `3aa2b7b05849637d8a267744d6a6b1bb66b95bc4` und wurde vollständig geprüft:
 
-- Pre-Deployment Audit #130: erfolgreich
-- Feature Validation #401 und PR-Validation #402: erfolgreich
+- Pre-Deployment Audit #132: erfolgreich
+- Feature Validation #416 und PR-Validation #417: erfolgreich
 - TypeScript: erfolgreich
-- Tests: 948/948 erfolgreich
+- Tests: 956/956 erfolgreich
 - Production Build: erfolgreich
 - PWA-/Build-Ausgabe: erfolgreich
 - Production-Server- und `/api/health`-Smoke: erfolgreich
@@ -251,7 +253,8 @@ Aktueller Fortschritt:
 - Übergabemappe: technisch abgeschlossen; PR #59 integriert, Audit #126 grün; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Statistik & Profile: technisch abgeschlossen; PR #61 integriert, Audit #128 grün; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Diagnostik: technisch abgeschlossen; PR #63 integriert, Audit #130 grün; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
-- Nächster Bereich: Wir-Gefühl.
+- Wir-Gefühl: technisch abgeschlossen; PR #65 integriert, Audit #132 grün; reale Browser-/Touch-/Datenschutz-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
+- Nächster Bereich: Jahresbericht.
 
 ## Pflicht für jeden neuen Chat
 
