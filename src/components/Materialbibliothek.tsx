@@ -219,9 +219,9 @@ export default function Materialbibliothek() {
   const isLarge = zoomLevel === 'large';
 
   return (
-    <div className={`material-library-shell ${isCompact ? "space-y-4" : isLarge ? "space-y-8" : "space-y-5"}`}>
+    <div className={`material-library-shell max-w-[1180px] w-full mx-auto px-3 sm:px-5 lg:px-6 text-[var(--text-primary,var(--text))] ${isCompact ? "space-y-4" : isLarge ? "space-y-8" : "space-y-5"}`}>
       {/* Header & Stats Widget */}
-      <div className={`flex flex-col md:flex-row md:items-start justify-between border-b border-slate-100 ${
+      <div className={`flex flex-col md:flex-row md:items-start justify-between border-b border-[var(--border-subtle,var(--border))] ${
         isCompact ? 'pb-4 gap-4' : isLarge ? 'pb-10 gap-8' : 'pb-6 gap-5'
       }`}>
         <div className={`flex-1 ${isCompact ? 'space-y-2' : isLarge ? 'space-y-6' : 'space-y-4'}`}>
@@ -232,7 +232,7 @@ export default function Materialbibliothek() {
            </div>
            
            <div className={`grid grid-cols-2 md:grid-cols-4 ${isCompact ? 'gap-2.5' : isLarge ? 'gap-6' : 'gap-4'}`}>
-              <div className={`bg-slate-50 border border-slate-100 flex flex-col ${
+              <div className={`bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] flex flex-col ${
                 isCompact ? 'p-2.5 rounded-xl gap-0.5' : isLarge ? 'p-5 rounded-[2rem] gap-1.5' : 'p-4 rounded-2xl gap-1'
               }`}>
                  <div className="flex items-center gap-2 text-slate-500 mb-0.5">
@@ -270,9 +270,9 @@ export default function Materialbibliothek() {
 
               <div className={`border transition-all flex flex-col ${
                 isCompact ? 'p-2.5 rounded-xl gap-1' : isLarge ? 'p-5 rounded-[2rem] gap-2' : 'p-4 rounded-2xl gap-1.5'
-              } ${storageMB > 4 ? 'bg-rose-50 border-rose-100 animate-pulse' : 'bg-indigo-50 border-indigo-100'}`}>
+              } ${storageMB > 4 ? 'bg-rose-50 border-rose-100' : 'bg-[var(--accent-soft)] border-[var(--accent)]/20'}`}>
                  <div className="flex items-center justify-between">
-                   <div className={`flex items-center gap-2 ${storageMB > 4 ? 'text-rose-500 font-bold' : 'text-indigo-500'}`}>
+                   <div className={`flex items-center gap-2 ${storageMB > 4 ? 'text-rose-600 font-bold' : 'text-[var(--accent)]'}`}>
                      <Database size={isCompact ? 14 : isLarge ? 20 : 16} />
                      <span className={`${isCompact ? 'text-[0.5625rem]' : isLarge ? 'text-[0.75rem]' : 'text-[0.625rem]'} font-black uppercase tracking-wider`}>Speicher</span>
                    </div>
@@ -300,7 +300,7 @@ export default function Materialbibliothek() {
                  <div className={`flex flex-col mt-0.5 ${isCompact ? 'gap-0.5' : isLarge ? 'gap-2' : 'gap-1'}`}>
                    <span className={`leading-none font-black ${
                      isCompact ? 'text-[1rem]' : isLarge ? 'text-[1.625rem]' : 'text-[1.25rem]'
-                   } ${storageMB > 4 ? 'text-rose-700' : 'text-indigo-800'}`}>
+                   } ${storageMB > 4 ? 'text-rose-700' : 'text-[var(--text-primary,var(--text))]'}`}>
                       {storageMB.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       <span className={`${isCompact ? 'text-[0.625rem]' : isLarge ? 'text-[0.875rem]' : 'text-[0.75rem]'} font-bold text-slate-400`}> MB von {MATERIAL_LIBRARY_MAX_MB} MB</span>
                    </span>
@@ -308,7 +308,7 @@ export default function Materialbibliothek() {
                    <div className={`w-full bg-slate-200/70 rounded-full overflow-hidden ${isCompact ? 'h-1 mt-0.5' : isLarge ? 'h-2 mt-2' : 'h-1.5 mt-1'}`}>
                      <div 
                        className={`h-full rounded-full transition-all duration-500 ${
-                         storageMB > 4 ? 'bg-rose-600' : storageMB > 2.5 ? 'bg-amber-500' : 'bg-indigo-600'
+                         storageMB > 4 ? 'bg-rose-600' : storageMB > 2.5 ? 'bg-amber-500' : 'bg-[var(--accent)]'
                        }`}
                        style={{ width: `${Math.min(100, (storageMB / MATERIAL_LIBRARY_MAX_MB) * 100)}%` }}
                      />
@@ -332,7 +332,7 @@ export default function Materialbibliothek() {
               setSelectedMaterial(null);
               setIsAdding(true);
             }}
-            className={`btn btn-primary flex shrink-0 items-center gap-2 shadow-xl hover:scale-[1.02] transition-transform ${isCompact ? 'h-11 px-5 rounded-xl text-xs' : isLarge ? 'h-16 px-10 rounded-[1.5rem] text-lg' : 'h-14 px-8'}`}
+            className={`flex shrink-0 items-center gap-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] border border-transparent shadow-sm transition-colors ${isCompact ? 'h-11 px-5 rounded-xl text-xs font-bold' : isLarge ? 'h-16 px-9 rounded-xl text-lg font-bold' : 'h-14 px-7 rounded-xl text-sm font-bold'}`}
           >
             <Plus size={isCompact ? 18 : isLarge ? 28 : 24} />
             <span>Neues Material</span>
@@ -349,7 +349,7 @@ export default function Materialbibliothek() {
         </div>
       )}
 
-      <div className={`bg-white border border-slate-100 shadow-sm ${
+      <div className={`bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] shadow-sm ${
         isCompact ? 'p-2.5 rounded-2xl' : isLarge ? 'p-5 rounded-[3rem]' : 'p-3 rounded-2xl'
       }`}>
         <p className={`font-bold text-slate-400 flex items-center gap-2 px-4 ${
@@ -362,7 +362,7 @@ export default function Materialbibliothek() {
 
       {/* Sticky Filter Header */}
       {totalCount > 0 && (
-      <div className={`sticky top-0 z-[150] bg-slate-50/95 backdrop-blur-md shadow-sm border-b border-slate-100 ${
+      <div className={`sticky top-0 z-[150] bg-[var(--surface-app,var(--bg))] backdrop-blur-md shadow-sm border-b border-[var(--border-subtle,var(--border))] ${
         isCompact ? 'pt-2 pb-3 -mx-2 px-2 space-y-2' : isLarge ? 'pt-4 pb-6 -mx-6 px-6 space-y-6' : 'pt-3 pb-4 -mx-4 px-4 space-y-3'
       }`}>
         {/* Tabs */}
@@ -374,7 +374,7 @@ export default function Materialbibliothek() {
               aria-pressed={activeTab === tab}
               className={`leading-tight font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                 isCompact ? 'px-4 py-2 rounded-xl text-[0.625rem]' : isLarge ? 'px-8 py-4 rounded-[1.25rem] text-[0.875rem]' : 'px-4 py-2 rounded-xl text-[0.6875rem]'
-              } ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'bg-white text-slate-500 hover:text-slate-800 border border-slate-100'}`}
+              } ${activeTab === tab ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' : 'bg-[var(--surface-card,var(--surface))] text-[var(--text-secondary,var(--text2))] hover:text-[var(--text-primary,var(--text))] border border-[var(--border-subtle,var(--border))]'}`}
             >
               {tab}
             </button>
@@ -382,7 +382,7 @@ export default function Materialbibliothek() {
         </div>
 
         {/* Search & Filter */}
-        <div className={`bg-white border border-slate-100 shadow-sm ${
+        <div className={`bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] shadow-sm ${
           isCompact ? 'p-3 rounded-2xl space-y-2.5' : isLarge ? 'p-8 rounded-[2.5rem]' : 'p-4 rounded-2xl'
         } ${isCompact ? 'space-y-2.5' : isLarge ? 'space-y-6' : 'space-y-4'}`}>
           <div className={`flex flex-col md:flex-row ${isCompact ? 'gap-2.5' : isLarge ? 'gap-6' : 'gap-4'}`}>
@@ -395,13 +395,13 @@ export default function Materialbibliothek() {
                 placeholder="Suchen nach Titel, Beschreibung, Tags..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 transition-all outline-none font-medium ${
+                className={`w-full bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))] transition-all outline-none font-medium text-[var(--text-primary,var(--text))] ${
                   isCompact ? 'pl-9 pr-3 py-2 rounded-xl text-[0.75rem]' : isLarge ? 'pl-14 pr-6 py-4 rounded-[1.75rem] text-[1rem]' : 'pl-12 pr-4 py-3 rounded-2xl text-[0.875rem]'
                 }`}
               />
             </div>
             <div className={`flex flex-wrap items-center ${isCompact ? 'gap-2' : isLarge ? 'gap-4' : 'gap-3'}`}>
-              <div className={`flex items-center bg-slate-50 border border-slate-100 ${
+              <div className={`flex items-center bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))] ${
                 isCompact ? 'px-2 py-1.5 rounded-lg gap-1.5' : isLarge ? 'px-4 py-3 rounded-[1.25rem] gap-3' : 'px-3 py-2 rounded-xl gap-2'
               }`}>
                 <Filter size={isCompact ? 12 : isLarge ? 18 : 14} className="text-slate-400" />
@@ -417,7 +417,7 @@ export default function Materialbibliothek() {
                   {FAECHER_ALLE.map(f => <option key={f} value={f}>{f}</option>)}
                 </select>
               </div>
-              <div className={`flex items-center bg-slate-50 border border-slate-100 ${
+              <div className={`flex items-center bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))] ${
                 isCompact ? 'px-2 py-1.5 rounded-lg gap-1.5' : isLarge ? 'px-4 py-3 rounded-[1.25rem] gap-3' : 'px-3 py-2 rounded-xl gap-2'
               }`}>
                 <BookOpen size={isCompact ? 12 : isLarge ? 18 : 14} className="text-slate-400" />
@@ -886,7 +886,7 @@ function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSele
       </div>
 
       {item.typ === 'datei' && item.dateiTyp?.startsWith('image/') && item.dateiInhalt && (
-        <div className={`aspect-video w-full rounded-2xl bg-slate-50 border border-slate-100`}>
+        <div className={`aspect-video w-full rounded-2xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))]`}>
           <img src={item.dateiInhalt} alt={item.titel} className="w-full h-full object-cover" />
         </div>
       )}
@@ -1762,7 +1762,7 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
             </label>
           </div>
 
-          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
+          <div className="rounded-2xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))] p-4">
             <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Zielstunde</div>
             <div className="mt-1 text-sm font-black text-slate-800">{existing.fach || (app.stammplan as any)?.[day]?.[hour] || 'Noch kein Fach eingetragen'}</div>
             <div className="mt-1 text-xs text-slate-500">{existing.thema || 'Noch kein Thema eingetragen'}</div>
