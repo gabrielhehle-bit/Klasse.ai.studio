@@ -322,7 +322,7 @@ export default function Lehrerzimmer() {
   if (requiresSchoolEmail) {
     return (
       <div className="w-full max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
-        <div className="rounded-3xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-7 sm:p-9 shadow-sm text-center space-y-5">
+        <div className="rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-7 sm:p-9 shadow-sm text-center space-y-5">
           <div className="w-14 h-14 rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)] flex items-center justify-center mx-auto">
             <LockKeyhole size={26} />
           </div>
@@ -345,8 +345,8 @@ export default function Lehrerzimmer() {
   }
 
   return (
-    <div className="w-full max-w-[1280px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-      <section className="rounded-3xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 shadow-sm">
+    <div className="w-full max-w-[1180px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+      <section className="rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[var(--accent)] text-[var(--accent-text,#fff)] flex items-center justify-center shrink-0">
@@ -354,7 +354,7 @@ export default function Lehrerzimmer() {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-black tracking-tight">Lehrerzimmer</h1>
+                <h1 className="text-2xl font-black tracking-[-0.025em]">Lehrerzimmer</h1>
                 {mentionMeCount > 0 && <Badge variant="accent">{mentionMeCount} × erwähnt</Badge>}
               </div>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
@@ -383,10 +383,10 @@ export default function Lehrerzimmer() {
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] gap-6 items-start">
         <main className="space-y-6 min-w-0">
-          <form onSubmit={submitPost} className="rounded-3xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 shadow-sm space-y-4">
+          <form onSubmit={submitPost} className="rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="font-black text-lg">Ins Kollegium schreiben</h2>
+                <h2 className="font-bold text-lg tracking-[-0.01em]">Ins Kollegium schreiben</h2>
                 <p className="text-xs text-[var(--text-muted)] mt-1">Beiträge und Fragen bleiben innerhalb deiner Schule.</p>
               </div>
               <Badge variant={kind === 'frage' ? 'warning' : 'neutral'} icon={kind === 'frage' ? <HelpCircle size={13} /> : <MessageCircle size={13} />}>
@@ -470,7 +470,7 @@ export default function Lehrerzimmer() {
             </div>
 
             {!posts.length ? (
-              <div className="rounded-3xl border border-dashed border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] py-16 px-6 text-center">
+              <div className="rounded-2xl border border-dashed border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] py-16 px-6 text-center">
                 <MessageCircle size={30} className="mx-auto text-[var(--text-muted)] mb-3" />
                 <h3 className="font-bold">Noch keine Beiträge</h3>
                 <p className="text-sm text-[var(--text-muted)] mt-1">Schreib den ersten Beitrag für dein Kollegium.</p>
@@ -486,7 +486,7 @@ export default function Lehrerzimmer() {
                 const isEditing = editingPostId === post.id;
 
                 return (
-                  <article key={post.id} className="rounded-3xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] shadow-sm overflow-hidden">
+                  <article key={post.id} className="rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] shadow-sm overflow-hidden">
                     <div className="p-5 sm:p-6 space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2">
@@ -581,7 +581,7 @@ export default function Lehrerzimmer() {
                       ) : (
                         <>
                           <div>
-                            <h2 className="text-lg sm:text-xl font-black tracking-tight">{post.title}</h2>
+                            <h2 className="text-lg sm:text-xl font-bold tracking-[-0.01em]">{post.title}</h2>
                             <div className="mt-1 text-xs text-[var(--text-muted)]">
                               <span className="font-bold text-[var(--text-secondary)]">{post.authorName}</span>
                               {' '}@{post.authorHandle} · {formatDate(post.createdAt)}
@@ -660,7 +660,7 @@ export default function Lehrerzimmer() {
         </main>
 
         <aside className="space-y-4 xl:sticky xl:top-4">
-          <div className="rounded-3xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 shadow-sm">
+          <div className="rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
               <Users size={17} className="text-[var(--accent)]" />
               <h2 className="font-black">Kollegium</h2>
