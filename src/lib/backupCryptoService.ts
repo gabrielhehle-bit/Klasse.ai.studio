@@ -90,10 +90,11 @@ export function isLegacyPlaintextBackup(value: unknown): boolean {
   return (
     'schueler' in c ||
     'classes' in c ||
+    'klassen' in c ||
     'klassenbezeichnung' in c ||
     'stammplan' in c ||
     'noten' in c ||
-    ('version' in c && typeof c.version === 'number' && ('schueler' in c || 'classes' in c))
+    ('version' in c && typeof c.version === 'number' && ('schueler' in c || 'classes' in c || 'klassen' in c))
   );
 }
 
