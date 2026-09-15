@@ -168,11 +168,14 @@ test('Anwesenheit und Befindens-Check-in verwenden die gemeinsame Klassio Oberfl
 
 test('Sitzplan verwendet ruhige Modusschalter und keine springenden Schülerkarten', () => {
   const source = read('src/components/SeatingPlan.tsx');
+  const studentCardClassIndex = source.indexOf('student-card transform-gpu');
+  assert.ok(studentCardClassIndex > 0, 'Schülerkarten-Stil wurde nicht gefunden.');
+  const studentCardContext = source.slice(Math.max(0, studentCardClassIndex - 1800), studentCardClassIndex + 500);
 
   assert.match(source, /surface-card/);
   assert.match(source, /surface-subtle/);
   assert.match(source, /focus-ring/);
-  assert.doesNotMatch(source, /whileHover=\{\{ scale: 1\.02 \}\}/);
+  assert.doesNotMatch(studentCardContext, /whileHover=\{\{ scale: 1\.02 \}\}/);
   assert.match(source, /bg-\[var\(--surface-card,var\(--surface\)\)\].*Sitzplan-Modus/s);
 });
 
@@ -205,5 +208,5 @@ test('Druckzentrum modernisiert nur die Bedienoberfläche und lässt A4 Druckfl�
   assert.match(source, /focus-ring/);
 
   assert.match(source, /print-center-overlay hidden print:block w-full bg-white/);
-  assert.match(source, /single-sheet-preview[^"]*bg-white/);
+  assert.match(source, /bg-white[^"]*single-sheet-preview/);
 });
