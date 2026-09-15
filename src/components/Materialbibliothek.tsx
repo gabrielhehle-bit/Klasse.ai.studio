@@ -605,7 +605,7 @@ export default function Materialbibliothek() {
           <div key={groupName} className="space-y-4">
             {groupBy !== 'none' && (
                <div className="flex items-center gap-3 border-b border-slate-100 pb-2">
-                 <h2 className="text-[1.25rem] leading-normal font-black text-slate-800">{groupName}</h2>
+                 <h2 className="text-[1.25rem] leading-normal font-black text-[var(--text-primary,var(--text))]">{groupName}</h2>
                  <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md text-[0.75rem] leading-tight font-bold">{items.length}</span>
                </div>
             )}
@@ -766,13 +766,13 @@ function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSele
        <motion.div 
          layoutId={item.id}
          onClick={onClick}
-         className={`border shadow-sm transition-all duration-300 cursor-pointer flex items-center group relative bg-white border-slate-100 hover:shadow-md hover:border-indigo-100 ${
+         className={`border shadow-sm transition-colors cursor-pointer flex items-center group relative bg-[var(--surface-card,var(--surface))] border-[var(--border-subtle,var(--border))] hover:border-[var(--accent)]/30 ${
            isCompact ? 'rounded-xl p-2.5 gap-2.5' : isLarge ? 'rounded-3xl p-6 gap-6' : 'rounded-2xl p-4 gap-4'
-         } ${isSelected ? 'ring-2 ring-indigo-500 bg-indigo-50/10' : ''}`}
+         } ${isSelected ? 'ring-2 ring-[var(--accent)] bg-[var(--accent-soft)]' : ''}`}
        >
          <button 
            onClick={(e) => { e.stopPropagation(); onToggleSelection?.(); }}
-           className={`shrink-0 p-1 rounded-lg transition-colors ${isSelected ? 'text-indigo-600' : 'text-slate-300 hover:text-indigo-400'}`}
+           className={`shrink-0 p-1 rounded-lg transition-colors ${isSelected ? 'text-[var(--accent)]' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--accent)]'}`}
          >
            {isSelected ? <CheckSquare size={isCompact ? 16 : isLarge ? 24 : 20} /> : <Square size={isCompact ? 16 : isLarge ? 24 : 20} />}
          </button>
@@ -785,12 +785,12 @@ function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSele
 
          <div className={`flex-1 min-w-0 flex items-center justify-between ${isCompact ? 'gap-2.5' : isLarge ? 'gap-6' : 'gap-4'}`}>
             <div className="space-y-0.5 min-w-0">
-               <h3 className={`leading-snug font-black text-slate-800 line-clamp-1 group-hover:text-indigo-600 transition-colors ${
+               <h3 className={`leading-snug font-black text-[var(--text-primary,var(--text))] line-clamp-1 group-hover:text-[var(--accent)] transition-colors ${
                  isCompact ? 'text-[0.8125rem]' : isLarge ? 'text-[1.0625rem]' : 'text-[0.875rem]'
                }`}>
                  {item.titel}
                </h3>
-               <p className={`font-medium text-slate-400 line-clamp-1 ${
+               <p className={`font-medium text-[var(--text-muted,var(--text3))] line-clamp-1 ${
                  isCompact ? 'text-[0.625rem]' : isLarge ? 'text-[0.75rem]' : 'text-[0.6875rem]'
                }`}>{item.beschreibung}</p>
             </div>
@@ -832,14 +832,14 @@ function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSele
       layoutId={item.id}
       onClick={onClick}
       className={`border shadow-sm transition-all duration-300 cursor-pointer flex flex-col group h-full relative ${
-        isCompact ? 'rounded-2xl p-3 gap-2.5' : isLarge ? 'rounded-[2.5rem] p-7 gap-6' : 'rounded-[2rem] p-5 gap-4'
-      } ${isSelected ? 'ring-2 ring-indigo-500 bg-indigo-50/10' : ''} ${isDarkHover ? 'bg-white border-slate-100 hover:bg-zinc-800/95 hover:text-white hover:border-zinc-700 hover:shadow-2xl' : 'bg-white border-slate-100 hover:shadow-xl hover:border-indigo-100'}`}
+        isCompact ? 'rounded-xl p-3 gap-2.5' : isLarge ? 'rounded-2xl p-6 gap-5' : 'rounded-2xl p-5 gap-4'
+      } ${isSelected ? 'ring-2 ring-[var(--accent)] bg-[var(--accent-soft)]' : ''} ${isDarkHover ? 'bg-[var(--surface-card,var(--surface))] border-[var(--border-subtle,var(--border))] hover:border-[var(--accent)]/35' : 'bg-[var(--surface-card,var(--surface))] border-[var(--border-subtle,var(--border))] hover:border-[var(--accent)]/25'}`}
     >
       <div className="flex justify-between items-start">
         <div className={`flex items-center ${isCompact ? 'gap-1.5' : isLarge ? 'gap-3' : 'gap-2'}`}>
            <button 
              onClick={(e) => { e.stopPropagation(); onToggleSelection?.(); }}
-             className={`shrink-0 p-1 rounded-lg transition-colors ${isSelected ? 'text-indigo-600' : 'text-slate-300 hover:text-indigo-400'}`}
+             className={`shrink-0 p-1 rounded-lg transition-colors ${isSelected ? 'text-[var(--accent)]' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--accent)]'}`}
            >
              {isSelected ? <CheckSquare size={isCompact ? 16 : isLarge ? 24 : 20} /> : <Square size={isCompact ? 16 : isLarge ? 24 : 20} />}
            </button>
@@ -869,7 +869,7 @@ function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSele
       <div className="space-y-1">
         <h3 className={`leading-normal font-black transition-colors leading-tight line-clamp-2 ${
           isCompact ? 'text-[0.875rem]' : isLarge ? 'text-[1.1875rem]' : 'text-[1rem]'
-        } ${isDarkHover ? 'text-slate-800 group-hover:text-white' : 'text-slate-800 group-hover:text-indigo-650'}`}>
+        } text-[var(--text-primary,var(--text))] group-hover:text-[var(--accent)]`}>
           {item.titel}
         </h3>
         {item.quelleModul === 'uebergabemappe' && (
@@ -882,7 +882,7 @@ function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSele
         )}
         <p className={`font-medium line-clamp-2 transition-colors ${
           isCompact ? 'text-[0.625rem]' : isLarge ? 'text-[0.8125rem]' : 'text-[0.6875rem]'
-        } ${isDarkHover ? 'text-slate-400 group-hover:text-zinc-350' : 'text-slate-400'}`}>{item.beschreibung}</p>
+        } text-[var(--text-muted,var(--text3))]`}>{item.beschreibung}</p>
       </div>
 
       {item.typ === 'datei' && item.dateiTyp?.startsWith('image/') && item.dateiInhalt && (
@@ -891,16 +891,16 @@ function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSele
         </div>
       )}
 
-      <div className={`mt-auto pt-3 border-t transition-colors ${isDarkHover ? 'border-slate-50 group-hover:border-zinc-700' : 'border-slate-50'} space-y-3`}>
+      <div className="mt-auto pt-3 border-t border-[var(--border-subtle,var(--border))] space-y-3">
         <div className="flex flex-wrap gap-1.5">
           {item.faecher.slice(0, 2).map(f => (
             <span key={f} className={`font-black uppercase tracking-wider transition-colors ${
               isCompact ? 'px-1.5 py-0.5 text-[0.5rem]' : isLarge ? 'px-3 py-1 text-[0.6875rem]' : 'px-2 py-0.5 text-[0.5625rem]'
-            } ${isDarkHover ? 'bg-slate-50 text-slate-500 group-hover:bg-zinc-700 group-hover:text-zinc-200' : 'bg-slate-50 text-slate-500'}`}>{f}</span>
+            } bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))]`}>{f}</span>
           ))}
           {item.faecher.length > 2 && <span className={`font-bold transition-colors ${
             isCompact ? 'text-[0.5rem]' : isLarge ? 'text-[0.6875rem]' : 'text-[0.5625rem]'
-          } ${isDarkHover ? 'text-slate-400 group-hover:text-zinc-400' : 'text-slate-400'}`}>+{item.faecher.length - 2}</span>}
+          } text-[var(--text-muted,var(--text3))]`}>+{item.faecher.length - 2}</span>}
         </div>
         <div className="flex items-center justify-between">
            <div className={`flex ${isCompact ? 'gap-0.5' : isLarge ? 'gap-1.5' : 'gap-1'}`}>
@@ -1061,16 +1061,16 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
         role="dialog"
         aria-modal="true"
         aria-labelledby="material-dialog-title"
-        className="bg-white rounded-[3rem] shadow-2xl w-full max-w-2xl  flex flex-col max-h-[90vh]"
+        className="bg-[var(--surface-card,var(--surface))] text-[var(--text-primary,var(--text))] rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] border border-[var(--border-default,var(--border))]"
       >
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+        <div className="p-5 sm:p-6 border-b border-[var(--border-subtle,var(--border))] flex items-center justify-between">
           <h3 id="material-dialog-title" className="text-[1.25rem] leading-normal font-black text-slate-800">
             {initialData ? 'Material bearbeiten' : step === 'type' ? 'Neues Material erstellen' : 'Details eingeben'}
           </h3>
-          <button type="button" onClick={onClose} aria-label="Materialdialog schließen" title="Schließen" className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24} /></button>
+          <button type="button" onClick={onClose} aria-label="Materialdialog schließen" title="Schließen" className="p-2 hover:bg-[var(--surface-subtle,var(--surface2))] rounded-xl text-[var(--text-muted,var(--text3))] transition-colors"><X size={24} /></button>
         </div>
 
-        <div className="p-8 overflow-y-auto space-y-6 flex-1">
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
           {step === 'type' ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <TypeSelectionCard 
@@ -1128,7 +1128,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
                     <select 
                       value={aiFach}
                       onChange={e => setAiFach(e.target.value)}
-                      className="w-full p-4 bg-slate-50 border-none rounded-2xl text-[0.875rem] leading-snug font-bold focus:ring-2 focus:ring-fuchsia-500 outline-none cursor-pointer"
+                      className="w-full p-3.5 bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] rounded-xl text-[0.875rem] leading-snug font-bold text-[var(--text-primary,var(--text))] focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))] outline-none cursor-pointer"
                     >
                       <option value="">Auswählen...</option>
                       {FAECHER_ALLE.map(f => <option key={f} value={f}>{f}</option>)}
@@ -1139,7 +1139,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
                     <select 
                       value={aiStufe}
                       onChange={e => setAiStufe(Number(e.target.value))}
-                      className="w-full p-4 bg-slate-50 border-none rounded-2xl text-[0.875rem] leading-snug font-bold focus:ring-2 focus:ring-fuchsia-500 outline-none cursor-pointer"
+                      className="w-full p-3.5 bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] rounded-xl text-[0.875rem] leading-snug font-bold text-[var(--text-primary,var(--text))] focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))] outline-none cursor-pointer"
                     >
                       {[1,2,3,4].map(s => <option key={s} value={s}>{s}. Stufe</option>)}
                     </select>
@@ -1153,7 +1153,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
                     value={aiThema}
                     onChange={e => setAiThema(e.target.value)}
                     placeholder="Bruchrechnen, Waldtiere, Magnetismus..."
-                    className="w-full p-4 bg-slate-50 border-none rounded-2xl text-[0.875rem] leading-snug font-bold focus:ring-2 focus:ring-fuchsia-500 outline-none"
+                    className="w-full p-3.5 bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] rounded-xl text-[0.875rem] leading-snug font-bold text-[var(--text-primary,var(--text))] focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))] outline-none"
                   />
                 </div>
 
@@ -1162,7 +1162,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
                   <select 
                     value={aiArt}
                     onChange={e => setAiArt(e.target.value)}
-                    className="w-full p-4 bg-slate-50 border-none rounded-2xl text-[0.875rem] leading-snug font-bold focus:ring-2 focus:ring-fuchsia-500 outline-none cursor-pointer"
+                    className="w-full p-3.5 bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] rounded-xl text-[0.875rem] leading-snug font-bold text-[var(--text-primary,var(--text))] focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))] outline-none cursor-pointer"
                   >
                     <option value="Lesetext">Lesetext</option>
                     <option value="Lückentext">Lückentext</option>
@@ -1191,7 +1191,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
                 <button
                   onClick={handleGenerateAI}
                   disabled={isGenerating || !aiThema || !aiFach}
-                  className="w-full h-14 mt-4 bg-fuchsia-600 hover:bg-fuchsia-700 disabled:opacity-50 text-white rounded-2xl font-black shadow-lg shadow-fuchsia-200 transition-all flex items-center justify-center gap-2"
+                  className="w-full h-14 mt-4 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-50 text-[var(--accent-text,#fff)] rounded-xl font-bold shadow-sm transition-colors flex items-center justify-center gap-2"
                 >
                   {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
                   {isGenerating ? 'Generiere Material...' : 'Material jetzt generieren'}
@@ -1428,12 +1428,12 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
           )}
         </div>
 
-        <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
-          <button onClick={onClose} className="flex-1 px-4 py-4 bg-white border border-slate-200 rounded-2xl text-slate-600 font-bold">Abbrechen</button>
+        <div className="p-5 sm:p-6 bg-[var(--surface-subtle,var(--surface2))] border-t border-[var(--border-subtle,var(--border))] flex gap-3">
+          <button onClick={onClose} className="flex-1 px-4 py-3 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-xl text-[var(--text-secondary,var(--text2))] font-bold hover:bg-[var(--surface-subtle,var(--surface2))] transition-colors">Abbrechen</button>
           {step === 'details' && (
             <button 
               onClick={handleSave} 
-              className="flex-1 px-4 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-indigo-100 hover:scale-[1.02] transition-transform"
+              className="flex-1 px-4 py-3 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] rounded-xl font-bold shadow-sm transition-colors"
             >
               Speichern
             </button>
@@ -1448,14 +1448,14 @@ function TypeSelectionCard({ icon, label, desc, color, onClick }: any) {
   return (
     <button 
       onClick={onClick}
-      className={`p-6 rounded-[2rem] border border-slate-100 bg-white hover:border-indigo-200 transition-all text-center space-y-3 group shadow-sm hover:shadow-xl`}
+      className="p-5 rounded-2xl border border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))] hover:border-[var(--accent)]/30 transition-colors text-center space-y-3 group shadow-sm"
     >
-      <div className={`w-14 h-14 mx-auto rounded-2xl flex items-center justify-center transition-all group-hover:scale-110 ${color}`}>
+      <div className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center transition-colors ${color}`}>
         {icon}
       </div>
       <div>
-        <div className="text-[0.875rem] leading-snug font-black text-slate-800">{label}</div>
-        <div className="text-[0.6875rem] text-slate-400">{desc}</div>
+        <div className="text-[0.875rem] leading-snug font-black text-[var(--text-primary,var(--text))]">{label}</div>
+        <div className="text-[0.6875rem] text-[var(--text-muted,var(--text3))]">{desc}</div>
       </div>
     </button>
   );
@@ -1501,15 +1501,15 @@ function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkU
          initial={{ opacity: 0, scale: 0.9, y: 30 }}
          animate={{ opacity: 1, scale: 1, y: 0 }}
          exit={{ opacity: 0, scale: 0.9, y: 30 }}
-         className="bg-white rounded-[3rem] shadow-2xl w-full max-w-4xl  flex flex-col max-h-[95vh]"
+         className="bg-[var(--surface-card,var(--surface))] text-[var(--text-primary,var(--text))] rounded-2xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[95vh] border border-[var(--border-default,var(--border))]"
        >
-         <div className="p-8 pb-4 flex justify-between items-start">
+         <div className="p-5 sm:p-6 pb-4 flex justify-between items-start border-b border-[var(--border-subtle,var(--border))]">
             <div className="space-y-1">
                <div className="flex items-center gap-3">
                  <span className="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[0.625rem] font-black uppercase tracking-wider">{item.typ}</span>
                  {item.kiGeneriert && <span className="flex items-center gap-1 text-[0.625rem] font-black text-emerald-500 uppercase"><Sparkles size={12} /> KI Generiert</span>}
                </div>
-               <h2 className="text-[1.875rem] leading-tight font-black text-slate-800 tracking-tight leading-none pt-2">{item.titel}</h2>
+               <h2 className="text-[1.75rem] leading-tight font-black text-[var(--text-primary,var(--text))] tracking-tight pt-2">{item.titel}</h2>
             </div>
             <div className="flex items-center gap-2">
                <button onClick={onToggleFavorit} className={`p-3 rounded-full transition-all ${item.favorit ? 'text-rose-500 bg-rose-50' : 'text-slate-200 hover:text-rose-300 bg-slate-50'}`}><Heart size={24} fill={item.favorit ? "currentColor" : "none"} /></button>
@@ -1517,8 +1517,8 @@ function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkU
             </div>
          </div>
 
-         <div className="p-8 pt-4 overflow-y-auto space-y-8 flex-1">
-            <div className="flex flex-wrap gap-6 text-[0.6875rem] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-6">
+         <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
+            <div className="flex flex-wrap gap-5 text-[0.6875rem] font-bold text-[var(--text-muted,var(--text3))] tracking-wide border-b border-[var(--border-subtle,var(--border))] pb-5">
                <div className="flex flex-col gap-1">
                   <span>Schulstufen</span>
                   <div className="flex gap-1">
@@ -1582,8 +1582,8 @@ function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkU
             )}
 
             {item.typ === 'link' && item.externerLink && (
-              <div className="p-10 bg-emerald-50 rounded-[3rem] text-center space-y-6">
-                <div className="w-20 h-20 bg-white rounded-[2rem] flex items-center justify-center mx-auto text-emerald-500 shadow-sm">
+              <div className="p-6 bg-[var(--surface-subtle,var(--surface2))] rounded-2xl text-center space-y-5 border border-[var(--border-subtle,var(--border))]">
+                <div className="w-14 h-14 bg-[var(--surface-card,var(--surface))] rounded-xl flex items-center justify-center mx-auto text-[var(--accent)] shadow-sm border border-[var(--border-subtle,var(--border))]">
                   <LinkIcon size={40} />
                 </div>
                 <div className="space-y-2">
@@ -1594,7 +1594,7 @@ function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkU
                   href={getSafeLink(item.externerLink)} 
                   target="_blank" 
                   rel="noreferrer" 
-                  className="btn bg-emerald-600 text-white px-10 h-14 inline-flex items-center gap-2 shadow-xl shadow-emerald-100"
+                  className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] px-6 h-12 rounded-xl inline-flex items-center gap-2 shadow-sm font-bold transition-colors"
                 >
                   <ExternalLink size={20} />
                   Link in neuem Tab öffnen
@@ -1604,7 +1604,7 @@ function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkU
 
             {item.inhaltText && (
               <div className="space-y-6">
-                 <div className="bg-slate-50 p-10 rounded-[3rem] border border-slate-100 whitespace-pre-wrap text-[1.125rem] leading-normal font-medium text-slate-800 leading-relaxed printable-content overflow-x-hidden markdown-body">
+                 <div className="bg-[var(--surface-subtle,var(--surface2))] p-5 sm:p-6 rounded-2xl border border-[var(--border-subtle,var(--border))] whitespace-pre-wrap text-[1rem] leading-relaxed font-medium text-[var(--text-primary,var(--text))] printable-content overflow-x-hidden markdown-body">
                     <ReactMarkdown>{item.inhaltText}</ReactMarkdown>
                  </div>
                  <div className="flex flex-wrap gap-4 no-print">
@@ -1723,12 +1723,12 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
         initial={{ opacity: 0, scale: 0.96, y: 18 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 18 }}
-        className="w-full max-w-lg rounded-[2rem] bg-white shadow-2xl border border-slate-100 overflow-hidden"
+        className="w-full max-w-lg rounded-2xl bg-[var(--surface-card,var(--surface))] text-[var(--text-primary,var(--text))] shadow-2xl border border-[var(--border-default,var(--border))] overflow-hidden"
       >
-        <div className="p-6 border-b border-slate-100 flex items-start justify-between gap-4">
+        <div className="p-5 border-b border-[var(--border-subtle,var(--border))] flex items-start justify-between gap-4">
           <div>
-            <div className="text-[0.625rem] font-black uppercase tracking-widest text-indigo-500">Material → Wochenplan</div>
-            <h3 className="mt-1 text-xl font-black text-slate-900">{item.titel}</h3>
+            <div className="text-[0.625rem] font-bold tracking-wide text-[var(--accent)]">Material → Wochenplan</div>
+            <h3 className="mt-1 text-xl font-black text-[var(--text-primary,var(--text))]">{item.titel}</h3>
           </div>
           <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500" aria-label="Schließen">
             <X size={20} />
@@ -1745,18 +1745,18 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
                 max={53}
                 value={kw}
                 onChange={event => setKw(Math.min(53, Math.max(1, Number(event.target.value) || 1)))}
-                className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-800"
+                className="w-full h-11 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] px-3 text-sm font-bold text-[var(--text-primary,var(--text))] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))]"
               />
             </label>
             <label className="space-y-1.5">
               <span className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Tag</span>
-              <select value={day} onChange={event => setDay(event.target.value)} className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-800 bg-white">
+              <select value={day} onChange={event => setDay(event.target.value)} className="w-full h-11 rounded-xl border border-[var(--border-default,var(--border))] px-3 text-sm font-bold text-[var(--text-primary,var(--text))] bg-[var(--surface-card,var(--surface))] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))]">
                 {days.map(value => <option key={value} value={value}>{value}</option>)}
               </select>
             </label>
             <label className="space-y-1.5">
               <span className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Stunde</span>
-              <select value={hour} onChange={event => setHour(Number(event.target.value))} className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-800 bg-white">
+              <select value={hour} onChange={event => setHour(Number(event.target.value))} className="w-full h-11 rounded-xl border border-[var(--border-default,var(--border))] px-3 text-sm font-bold text-[var(--text-primary,var(--text))] bg-[var(--surface-card,var(--surface))] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))]">
                 {availableHours.map(value => <option key={value} value={value}>{value}.</option>)}
               </select>
             </label>
@@ -1775,14 +1775,14 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
 
           <fieldset className="space-y-2">
             <legend className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400 mb-2">Übernahme</legend>
-            <label className="flex gap-3 p-3.5 rounded-2xl border border-slate-200 cursor-pointer">
+            <label className="flex gap-3 p-3.5 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] cursor-pointer hover:bg-[var(--surface-subtle,var(--surface2))] transition-colors">
               <input type="radio" name="materialTransferMode" checked={mode === 'append'} onChange={() => setMode('append')} />
               <span>
                 <strong className="block text-sm text-slate-900">Ergänzen</strong>
                 <span className="block text-xs text-slate-500 mt-0.5">Vorhandene Materialien bleiben; dieses Material kommt einmalig dazu.</span>
               </span>
             </label>
-            <label className="flex gap-3 p-3.5 rounded-2xl border border-slate-200 cursor-pointer">
+            <label className="flex gap-3 p-3.5 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] cursor-pointer hover:bg-[var(--surface-subtle,var(--surface2))] transition-colors">
               <input type="radio" name="materialTransferMode" checked={mode === 'replace'} onChange={() => setMode('replace')} />
               <span>
                 <strong className="block text-sm text-slate-900">Ersetzen</strong>
@@ -1793,8 +1793,8 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
         </div>
 
         <div className="p-6 pt-0 flex gap-3">
-          <button type="button" onClick={onClose} className="h-12 px-5 rounded-xl border border-slate-200 text-slate-600 font-bold">Abbrechen</button>
-          <button type="button" onClick={save} className="h-12 flex-1 rounded-xl bg-indigo-600 text-white font-black flex items-center justify-center gap-2">
+          <button type="button" onClick={onClose} className="h-12 px-5 rounded-xl border border-[var(--border-default,var(--border))] text-[var(--text-secondary,var(--text2))] font-bold hover:bg-[var(--surface-subtle,var(--surface2))] transition-colors">Abbrechen</button>
+          <button type="button" onClick={save} className="h-12 flex-1 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] font-bold flex items-center justify-center gap-2 transition-colors shadow-sm">
             <ClipboardList size={17} /> In Wochenplan übernehmen
           </button>
         </div>
