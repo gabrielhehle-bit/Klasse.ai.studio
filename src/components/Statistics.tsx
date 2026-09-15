@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { EmptyState } from './EmptyState';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useApp } from '../context/AppContext';
-import { berechne } from '../lib/GradeUtils';
+import { berechne, calculateItemPercent, getAssessmentMode, getMaxPoints } from '../lib/GradeUtils';
 import { formatLocalDateKey } from '../lib/utils';
 import { FAECHER_ALLE } from '../constants';
 import { KEL_GRADES_INFO, FlowerChart } from './FlowerChart';
@@ -3731,62 +3731,90 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
         {kelDetailFach && (() => {
           const detailFach = kelDetailFach;
           
-          // 1. Schularbeiten calculations
-          const classmatesSa = app.schueler.map((s: any) => app.noten?.[s.id]?.[detailFach]?.[sem]?.sa || []);
-          const maxSaCount = classmatesSa.length > 0 ? Math.max(0, ...classmatesSa.map((arr: any) => arr.length)) : 0;
-          const saDetails = Array.from({ length: maxSaCount }).map((_, idx) => {
-            const studentGrade = app.noten?.[student.id]?.[detailFach]?.[sem]?.sa?.[idx];
-            const classmatesGrades = app.schueler.map((s: any) => app.noten?.[s.id]?.[detailFach]?.[sem]?.sa?.[idx])
-              .filter((g: any): g is number => typeof g === 'number' && !isNaN(g) && g >= 1 && g <= 5);
-            const classAvg = classmatesGrades.length > 0 ? parseFloat((classmatesGrades.reduce((a, b) => a + b, 0) / classmatesGrades.length).toFixed(2)) : null;
-            return {
-              name: `SA ${idx + 1}`,
-              studentGrade: typeof studentGrade === 'number' ? studentGrade : null,
-              classAvg,
-            };
-          });
-          
-          const studentSaList = saDetails.map(d => d.studentGrade).filter((g): g is number => g !== null);
-          const studentSaAvgValue = studentSaList.length > 0 ? parseFloat((studentSaList.reduce((a, b) => a + b, 0) / studentSaList.length).toFixed(2)) : null;
-          const classSaList = saDetails.map(d => d.classAvg).filter((g): g is number => g !== null);
-          const classSaAvgValue = classSaList.length > 0 ? parseFloat((classSaList.reduce((a, b) => a + b, 0) / classSaList.length).toFixed(2)) : null;
+          const assessmentMode = getAssessmentMode(app, detailFach);
 
-          // 2. Wochenplan calculations
-          const classmatesWp = app.schueler.map((s: any) => app.noten?.[s.id]?.[detailFach]?.[sem]?.wp || []);
-          const maxWpCount = classmatesWp.length > 0 ? Math.max(0, ...classmatesWp.map((arr: any) => arr.length)) : 0;
-          const wpDetails = Array.from({ length: maxWpCount }).map((_, idx) => {
-            const studentGrade = app.noten?.[student.id]?.[detailFach]?.[sem]?.wp?.[idx];
-            const classmatesGrades = app.schueler.map((s: any) => app.noten?.[s.id]?.[detailFach]?.[sem]?.wp?.[idx])
-              .filter((g: any): g is number => typeof g === 'number' && !isNaN(g) && g >= 1 && g <= 5);
-            const classAvg = classmatesGrades.length > 0 ? parseFloat((classmatesGrades.reduce((a, b) => a + b, 0) / classmatesGrades.length).toFixed(2)) : null;
-            return { name: `WP ${idx + 1}`, studentGrade: typeof studentGrade === 'number' ? studentGrade : null, classAvg };
-          });
-          const studentWpList = wpDetails.map(d => d.studentGrade).filter((g): g is number => g !== null);
-          const studentWpAvgValue = studentWpList.length > 0 ? parseFloat((studentWpList.reduce((a, b) => a + b, 0) / studentWpList.length).toFixed(2)) : null;
-          const classWpList = wpDetails.map(d => d.classAvg).filter((g): g is number => g !== null);
-          const classWpAvgValue = classWpList.length > 0 ? parseFloat((classWpList.reduce((a, b) => a + b, 0) / classWpList.length).toFixed(2)) : null;
+          const toComparableValue = (
+            value: number | string | null | undefined,
+            type: 'sa' | 'wp' | 'lzk',
+            index: number,
+          ): number | null => {
+            if (assessmentMode === 'grades') {
+              const numeric = typeof value === 'number'
+                ? value
+                : typeof value === 'string'
+                  ? Number.parseFloat(value.replace(',', '.'))
+                  : Number.NaN;
+              return Number.isFinite(numeric) && numeric >= 1 && numeric <= 5 ? numeric : null;
+            }
+            return calculateItemPercent(
+              value,
+              assessmentMode,
+              getMaxPoints(app, detailFach, type, index),
+            );
+          };
 
-          // 3. Lernkontrollen
-          const studentLzkList = (app.noten?.[student.id]?.[detailFach]?.[sem]?.lzk || [])
-            .filter((g: any): g is number => typeof g === 'number' && !isNaN(g) && g >= 1 && g <= 5);
-          const studentLzkAvgValue = studentLzkList.length > 0 ? parseFloat((studentLzkList.reduce((a, b) => a + b, 0) / studentLzkList.length).toFixed(2)) : null;
-          const classLzkList = app.schueler.flatMap((s: any) => app.noten?.[s.id]?.[detailFach]?.[sem]?.lzk || [])
-            .filter((g: any): g is number => typeof g === 'number' && !isNaN(g) && g >= 1 && g <= 5);
-          const classLzkAvgValue = classLzkList.length > 0 ? parseFloat((classLzkList.reduce((a, b) => a + b, 0) / classLzkList.length).toFixed(2)) : null;
+          const buildAssessmentDetails = (type: 'sa' | 'wp' | 'lzk', label: string) => {
+            const rows = app.schueler.map((classmate: any) =>
+              app.noten?.[classmate.id]?.[detailFach]?.[sem]?.[type] || []
+            );
+            const maxCount = rows.length > 0 ? Math.max(0, ...rows.map((values: any[]) => values.length)) : 0;
+            return Array.from({ length: maxCount }).map((_, index) => {
+              const studentValue = toComparableValue(
+                app.noten?.[student.id]?.[detailFach]?.[sem]?.[type]?.[index],
+                type,
+                index,
+              );
+              const classValues = app.schueler
+                .map((classmate: any) =>
+                  toComparableValue(
+                    app.noten?.[classmate.id]?.[detailFach]?.[sem]?.[type]?.[index],
+                    type,
+                    index,
+                  )
+                )
+                .filter((value: number | null): value is number => value !== null);
+              const classAvg = classValues.length
+                ? classValues.reduce((sum, value) => sum + value, 0) / classValues.length
+                : null;
+              return {
+                name: `${label} ${index + 1}`,
+                studentGrade: studentValue,
+                classAvg,
+              };
+            });
+          };
 
-          // Chart data
+          const saDetails = buildAssessmentDetails('sa', 'SA');
+          const wpDetails = buildAssessmentDetails('wp', 'WP');
+          const lzkDetails = buildAssessmentDetails('lzk', 'LZK');
+
+          const averageDetailValues = (details: Array<{ studentGrade: number | null; classAvg: number | null }>, key: 'studentGrade' | 'classAvg') => {
+            const values = details.map(detail => detail[key]).filter((value): value is number => value !== null);
+            return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+          };
+
           const chartDataSummary = [
-            { name: 'Schularbeiten (SA)', 'Schüler': studentSaAvgValue || 0, 'Klassenschnitt': classSaAvgValue || 0 },
-            { name: 'Wochenplan (WOPL)', 'Schüler': studentWpAvgValue || 0, 'Klassenschnitt': classWpAvgValue || 0 },
-            { name: 'Lernkontrollen (LZK)', 'Schüler': studentLzkAvgValue || 0, 'Klassenschnitt': classLzkAvgValue || 0 },
-          ].filter(item => item['Schüler'] > 0 || item['Klassenschnitt'] > 0);
+            { name: 'Schularbeiten (SA)', 'Schüler': averageDetailValues(saDetails, 'studentGrade'), 'Klassenschnitt': averageDetailValues(saDetails, 'classAvg') },
+            { name: 'Wochenplan (WOPL)', 'Schüler': averageDetailValues(wpDetails, 'studentGrade'), 'Klassenschnitt': averageDetailValues(wpDetails, 'classAvg') },
+            { name: 'Lernkontrollen (LZK)', 'Schüler': averageDetailValues(lzkDetails, 'studentGrade'), 'Klassenschnitt': averageDetailValues(lzkDetails, 'classAvg') },
+          ].filter(item => item['Schüler'] !== null || item['Klassenschnitt'] !== null);
 
-          const getPerformanceBadge = (grade: number | null, avg: number | null) => {
-            if (grade === null || avg === null) return <span className="text-slate-400 font-semibold">—</span>;
-            const diff = grade - avg;
-            if (diff <= -0.5) return <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-[0.5625rem] font-black border border-emerald-100 flex items-center gap-0.5 shadow-2xs">Über Durchschnitt 🚀</span>;
-            if (diff >= 0.5) return <span className="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-[0.5625rem] font-black border border-amber-100 flex items-center gap-0.5 shadow-2xs">Ausbaufähig 🎯</span>;
-            return <span className="bg-slate-50 text-slate-600 px-2.5 py-1 rounded-full text-[0.5625rem] font-black border border-slate-100 flex items-center gap-0.5 shadow-2xs">Im Schnitt 🤝</span>;
+          const formatDetailValue = (value: number | null) =>
+            value === null
+              ? '—'
+              : assessmentMode === 'grades'
+                ? value.toFixed(2)
+                : `${value.toFixed(1)} %`;
+
+          const getPerformanceBadge = (value: number | null, avg: number | null) => {
+            if (value === null || avg === null) return <span className="text-slate-400 font-semibold">—</span>;
+            const difference = value - avg;
+            const threshold = assessmentMode === 'grades' ? 0.5 : 10;
+            const isBetter = assessmentMode === 'grades' ? difference <= -threshold : difference >= threshold;
+            const isLower = assessmentMode === 'grades' ? difference >= threshold : difference <= -threshold;
+            if (isBetter) return <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-[0.5625rem] font-black border border-emerald-100 flex items-center gap-0.5 shadow-2xs">Über Klassen-Ø</span>;
+            if (isLower) return <span className="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-[0.5625rem] font-black border border-amber-100 flex items-center gap-0.5 shadow-2xs">Unter Klassen-Ø</span>;
+            return <span className="bg-slate-50 text-slate-600 px-2.5 py-1 rounded-full text-[0.5625rem] font-black border border-slate-100 flex items-center gap-0.5 shadow-2xs">Nahe Klassen-Ø</span>;
           };
 
           return (
