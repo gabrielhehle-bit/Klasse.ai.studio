@@ -605,7 +605,7 @@ export default function Backup() {
             <div className="bg-white p-4 rounded-2xl border border-sky-150 text-[0.75rem] space-y-2.5 text-slate-700 shadow-sm">
               <p className="font-bold text-slate-800 flex items-center gap-1.5">
                 <span>🔑</span>
-                <span>Infrastruktur-Aktivierung in AI Studio (Umgebungsvariablen):</span>
+                <span>Infrastruktur-Aktivierung am Klassio-Server (Umgebungsvariablen):</span>
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
                 <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
