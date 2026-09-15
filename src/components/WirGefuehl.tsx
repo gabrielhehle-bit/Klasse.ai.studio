@@ -389,6 +389,7 @@ export default function WirGefuehl() {
   const klassenglasCount = app.klassenglas_count || 0;
   const klassenglasGoal = app.klassenglas_ziel || 100;
   const unreadNotesCount = councilNotes.filter(n => n.status === 'neu').length;
+  const activeMissions = app.klassenglas_missions || [];
 
   // Ruhige Empfehlung aus dem freiwilligen Check-in; keine Diagnose.
   const recommendedActivity = useMemo(() => {
