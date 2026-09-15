@@ -13,6 +13,7 @@ import { generateBackupFilename } from './backupCryptoService';
 import { toLocalDateKey } from './localDate';
 
 const backupComponent = readFileSync('src/components/Backup.tsx', 'utf8');
+const settingsComponent = readFileSync('src/components/Settings.tsx', 'utf8');
 const appContext = readFileSync('src/context/AppContext.tsx', 'utf8');
 const secureStorage = readFileSync('src/lib/secureStorageService.ts', 'utf8');
 const vaultStorage = readFileSync('src/lib/vaultStorage.ts', 'utf8');
@@ -88,6 +89,13 @@ test('Datensicherung: Werksreset löscht App-State, Gerätevertrauen und separat
     'Tresor-Metadaten müssen erst nach dem App-Speicher gelöscht werden'
   );
   assert.match(vaultStorage, /throw new CryptoError[\s\S]*Tresor-Metadaten konnten nicht vollständig/);
+  assert.match(settingsComponent, /await deleteVaultRecord\(\)/);
+  assert.match(settingsComponent, /clearActiveVaultSession\(\)/);
+  assert.ok(
+    settingsComponent.indexOf('await localforage.clear()') <
+      settingsComponent.indexOf('await deleteVaultRecord()'),
+    'Auch der Einstellungs-Reset muss den Tresor zuletzt löschen'
+  );
 });
 
 test('Datensicherung: Speicheranzeige verwendet Browser-Schätzung statt erfundenem 5-MB-Limit', () => {
@@ -114,4 +122,10 @@ test('Datensicherung: Datenschutztexte behaupten weder TLS-Version noch Cloud-L�
 test('Datensicherung: tägliche Notfallkopie verwendet den lokalen Kalendertag', () => {
   assert.match(appContext, /const todayDate = toLocalDateKey\(\)/);
   assert.match(secureStorage, /NOTFALLKOPIE_DATE, toLocalDateKey\(\)/);
+});
+
+test('Datensicherung: Einstellungen lesen den echten savedAt-Zeitpunkt der Notfallkopie', () => {
+  assert.match(settingsComponent, /typeof parsed\?\.savedAt === 'number'/);
+  assert.doesNotMatch(settingsComponent, /parsed\.lastBackupDate/);
+  assert.match(settingsComponent, /hehle_v3_notfallkopie_time/);
 });
