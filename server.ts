@@ -9,6 +9,8 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { KI_SYSTEM_PROMPTS, GLOBAL_KI_RULES } from "./src/kiSystemPrompts.ts";
 import { validateAiServerImageRequest } from "./src/lib/aiPrivacy.ts";
 import { getServerSyncTimestamps, isSyncSessionExpired } from "./src/lib/syncServerPolicy.ts";
+import { createTeacherIdentity, type TeacherIdentity } from "./src/server/teacherIdentity.ts";
+import { createLehrerzimmerStore, type LehrerzimmerCategory } from "./src/server/lehrerzimmerStore.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
 // that do `typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url))`
@@ -179,6 +181,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       })
     : null;
 
+  const KLASSIO_DATA_DIR = (process.env.KLASSIO_DATA_DIR || path.join(process.cwd(), 'data')).trim();
+  const lehrerzimmerStore = createLehrerzimmerStore(KLASSIO_DATA_DIR);
+
   type EmailAccessChallenge = {
     codeHash: string;
     expiresAt: number;
@@ -255,16 +260,77 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     }
   }
 
-  function setAccessSession(req: express.Request, res: express.Response): string {
-    const token = createAccessToken();
+  type IdentitySessionPayload = TeacherIdentity & { v: 1; exp: number };
+
+  function createIdentityToken(identity: TeacherIdentity): string {
+    const payload: IdentitySessionPayload = {
+      ...identity,
+      v: 1,
+      exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
+    };
+    const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+    const signature = crypto.createHmac('sha256', SESSION_SECRET).update('klassio-identity:' + encoded).digest('hex');
+    return encoded + '.' + signature;
+  }
+
+  function verifyIdentityToken(token: string | undefined): TeacherIdentity | null {
+    if (!token) return null;
+    const [encoded, signature, ...rest] = token.split('.');
+    if (!encoded || !signature || rest.length) return null;
+
+    const expected = crypto.createHmac('sha256', SESSION_SECRET).update('klassio-identity:' + encoded).digest('hex');
+    try {
+      if (!crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'))) return null;
+    } catch {
+      return null;
+    }
+
+    try {
+      const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as IdentitySessionPayload;
+      if (payload.v !== 1 || !payload.exp || payload.exp < Date.now()) return null;
+      if (!payload.userId || !payload.email || !payload.schoolId || !payload.schoolDomain || !payload.schoolCode) return null;
+      return {
+        userId: payload.userId,
+        email: payload.email,
+        schoolId: payload.schoolId,
+        schoolCode: payload.schoolCode,
+        schoolDomain: payload.schoolDomain,
+        displayName: payload.displayName || 'Lehrperson',
+        handle: payload.handle || 'lehrperson',
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  function secureCookieSuffix(req: express.Request): string {
     const isProd = process.env.NODE_ENV === 'production';
     const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-    const secureFlag = (isProd || isSecure) ? '; Secure' : '';
+    return (isProd || isSecure) ? '; Secure' : '';
+  }
+
+  function setAccessSession(req: express.Request, res: express.Response): string {
+    const token = createAccessToken();
     res.setHeader(
       'Set-Cookie',
-      'lehrerapp_access_token=' + token + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureFlag
+      'lehrerapp_access_token=' + token + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
     );
     return token;
+  }
+
+  function setEmailIdentitySession(req: express.Request, res: express.Response, identity: TeacherIdentity): void {
+    const token = createIdentityToken(identity);
+    res.append(
+      'Set-Cookie',
+      'klassio_email_identity=' + token + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
+    );
+  }
+
+  function clearEmailIdentitySession(req: express.Request, res: express.Response): void {
+    res.append(
+      'Set-Cookie',
+      'klassio_email_identity=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
+    );
   }
 
   const failedLoginAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -300,7 +366,19 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const cookies = parseCookies(req);
     const token = cookies.lehrerapp_access_token || (req.headers.authorization ? req.headers.authorization.replace('Bearer ', '') : undefined);
     const isValid = verifyAccessToken(token);
-    res.json({ authenticated: isValid, emailLoginEnabled });
+    const identity = isValid ? verifyIdentityToken(cookies.klassio_email_identity) : null;
+    res.json({
+      authenticated: isValid,
+      emailLoginEnabled,
+      identity: identity
+        ? {
+            displayName: identity.displayName,
+            handle: identity.handle,
+            schoolCode: identity.schoolCode,
+            schoolDomain: identity.schoolDomain,
+          }
+        : null,
+    });
   });
 
   app.post("/api/access/email/request", async (req, res) => {
@@ -350,7 +428,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     }
   });
 
-  app.post("/api/access/email/verify", (req, res) => {
+  app.post("/api/access/email/verify", async (req, res) => {
     if (!emailLoginEnabled) {
       return res.status(503).json({ success: false, error: 'E-Mail-Anmeldung ist auf diesem Server noch nicht konfiguriert.' });
     }
@@ -389,10 +467,27 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       return res.status(401).json({ success: false, error: 'Der Anmeldecode ist nicht gültig.' });
     }
 
+    const identity = createTeacherIdentity(email, ALLOWED_EMAIL_DOMAINS);
+    if (!identity) {
+      recordFailedAttempt(ip);
+      return res.status(400).json({ success: false, error: 'Für diese Schul-E-Mail konnte keine Schulgruppe ermittelt werden.' });
+    }
+
     emailAccessChallenges.delete(email);
     resetFailedAttempts(ip);
     setAccessSession(req, res);
-    return res.json({ success: true });
+    setEmailIdentitySession(req, res, identity);
+
+    try {
+      await lehrerzimmerStore.ensureUser(identity);
+    } catch (error) {
+      console.error('[Lehrerzimmer] Benutzerprofil konnte beim Login nicht gespeichert werden:', error);
+    }
+
+    return res.json({
+      success: true,
+      school: { code: identity.schoolCode, domain: identity.schoolDomain },
+    });
   });
 
   app.post("/api/access/verify", (req, res) => {
@@ -418,6 +513,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     if (isTeam || isExternal) {
       resetFailedAttempts(ip);
       setAccessSession(req, res);
+      clearEmailIdentitySession(req, res);
       return res.json({ success: true });
     } else {
       recordFailedAttempt(ip);
@@ -426,10 +522,11 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   });
 
   app.post("/api/access/logout", (req, res) => {
-    const isProd = process.env.NODE_ENV === 'production';
-    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-    const secureFlag = (isProd || isSecure) ? '; Secure' : '';
-    res.setHeader('Set-Cookie', `lehrerapp_access_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`);
+    const secureFlag = secureCookieSuffix(req);
+    res.setHeader('Set-Cookie', [
+      `lehrerapp_access_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`,
+      `klassio_email_identity=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`,
+    ]);
     res.json({ success: true });
   });
 
@@ -441,6 +538,103 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     }
     next();
   };
+
+  const requireTeacherIdentity: express.RequestHandler = (req, res, next) => {
+    const cookies = parseCookies(req);
+    if (!verifyAccessToken(cookies.lehrerapp_access_token)) {
+      res.status(401).json({ error: 'Bitte zuerst bei Klassio anmelden.' });
+      return;
+    }
+    const identity = verifyIdentityToken(cookies.klassio_email_identity);
+    if (!identity) {
+      res.status(403).json({
+        error: 'Das Lehrerzimmer ist nur nach Anmeldung mit einer verifizierten Schul-E-Mail verfügbar.',
+        requiresSchoolEmail: true,
+      });
+      return;
+    }
+    (req as express.Request & { klassioTeacher?: TeacherIdentity }).klassioTeacher = identity;
+    next();
+  };
+
+  const getTeacherIdentity = (req: express.Request): TeacherIdentity =>
+    (req as express.Request & { klassioTeacher: TeacherIdentity }).klassioTeacher;
+
+  const handleLehrerzimmerError = (res: express.Response, error: unknown) => {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'INVALID_CATEGORY') return res.status(400).json({ error: 'Ungültige Kategorie.' });
+    if (code === 'INVALID_CONTENT') return res.status(400).json({ error: 'Titel und Inhalt dürfen nicht leer sein.' });
+    if (code === 'POST_NOT_FOUND') return res.status(404).json({ error: 'Dieser Beitrag wurde nicht gefunden.' });
+    console.error('[Lehrerzimmer] Serverfehler:', error);
+    return res.status(500).json({ error: 'Das Lehrerzimmer konnte nicht geladen werden.' });
+  };
+
+  app.get('/api/lehrerzimmer/me', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const user = await lehrerzimmerStore.ensureUser(identity);
+      res.json({
+        user,
+        school: {
+          id: identity.schoolId,
+          code: identity.schoolCode,
+          domain: identity.schoolDomain,
+        },
+      });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.get('/api/lehrerzimmer/colleagues', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const users = await lehrerzimmerStore.listUsers(identity);
+      res.json({ users });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.get('/api/lehrerzimmer/posts', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const rawCategory = typeof req.query.category === 'string' ? req.query.category : '';
+      const category: LehrerzimmerCategory | undefined =
+        rawCategory === 'organisation' || rawCategory === 'unterricht' || rawCategory === 'info'
+          ? rawCategory
+          : undefined;
+      const posts = await lehrerzimmerStore.listPosts(identity, category);
+      res.json({ posts });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.post('/api/lehrerzimmer/posts', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const post = await lehrerzimmerStore.createPost(identity, {
+        category: req.body?.category,
+        title: req.body?.title,
+        body: req.body?.body,
+      });
+      res.status(201).json({ post });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.post('/api/lehrerzimmer/posts/:postId/replies', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const reply = await lehrerzimmerStore.addReply(identity, req.params.postId, req.body?.body);
+      res.status(201).json({ reply });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
   app.use('/api/ai', requireAccess);
   app.use('/api/onedrive', (req, res, next) => {
     // OAuth returns through a separate, short-lived state cookie.
