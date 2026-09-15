@@ -1466,7 +1466,7 @@ export function evaluateScreeningForStudent(params: {
     } else {
       computedStatus = 'needsObservation';
       qualitativeNote = 'Im Screening deutlicher Unterstützungsbedarf oder verharren in zählenden Strategien erkennbar.';
-      nextStep = 'Gezielter 1:1-Check dringend empfohlen zur differenzierten Förderplanung.';
+      nextStep = 'Gezielter 1:1-Check empfohlen, um Lösungswege und passende nächste Lernschritte genauer zu verstehen.';
     }
   }
 
