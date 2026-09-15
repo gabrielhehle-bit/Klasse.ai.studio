@@ -8057,7 +8057,7 @@ ${content}
                               onClick={() =>
                                 setIsAddWidgetMenuOpen(!isAddWidgetMenuOpen)
                               }
-                              className="min-h-11 px-4 rounded-xl font-semibold text-sm flex items-center gap-1.5 transition-all shadow-sm cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white"
+                              className="min-h-11 px-4 rounded-xl font-semibold text-sm flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)]"
                               title="Unterrichtshilfe auf die gemeinsame Fläche legen"
                             >
                               <Plus size={13} strokeWidth={2.5} />
@@ -9300,7 +9300,7 @@ ${content}
 
                           <button type="button" aria-pressed={isBoardWriting}
                             onClick={() => { setIsBoardWriting(value => !value); setIsLayoutLocked(true); }}
-                            className={`min-h-11 px-4 rounded-xl text-sm font-semibold border ${isBoardWriting ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'}`}>
+                            className={`min-h-11 px-4 rounded-xl text-sm font-semibold border transition-colors ${isBoardWriting ? 'bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-text,#fff)]' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'}`}>
                             {isBoardWriting ? 'Widgets bedienen' : 'Schreiben & Zeichnen'}
                           </button>
 
@@ -9311,7 +9311,7 @@ ${content}
                               onClick={() => setIsMoreOptionsMenuOpen((prev) => !prev)}
                               className={`h-8 px-2.5 rounded-lg border text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                                 isMoreOptionsMenuOpen
-                                  ? "bg-indigo-600 border-indigo-600 text-white"
+                                  ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-text,#fff)]"
                                   : currentIsLight
                                     ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
                                     : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white/80"

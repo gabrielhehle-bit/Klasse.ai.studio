@@ -1361,23 +1361,23 @@ export default function PrintCenter() {
       ` }} />
 
       {/* Screen View Cockpit Framework */}
-      <div className="print-center-overlay-parent max-w-7xl mx-auto space-y-4 pb-24 px-4 md:px-6 print:p-0" data-zoom-container={zoomLevel}>
+      <div className="print-center-overlay-parent max-w-[1180px] mx-auto space-y-5 pb-24 px-4 md:px-6 print:p-0" data-zoom-container={zoomLevel}>
         
         {/* Simplified Header */}
-        <div className="bg-white rounded-2xl p-4 md:p-5 border border-slate-200/90 shadow-2xs relative no-print">
+        <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-4 md:p-5 border border-[var(--border-subtle,var(--border))] shadow-sm relative no-print">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shrink-0 shadow-3xs">
+              <div className="w-10 h-10 bg-[var(--accent)] text-[var(--accent-text,var(--btn-text,#ffffff))] rounded-xl flex items-center justify-center shrink-0 shadow-sm">
                 <Printer size={20} strokeWidth={2.5} />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-black text-slate-800 tracking-tight">DRUCKZENTRUM</h1>
-                  <span className="bg-slate-100 text-slate-700 text-[0.6875rem] font-bold px-2.5 py-0.5 rounded-full border border-slate-200">
+                  <h1 className="text-lg font-black text-[var(--text-primary,var(--text))] tracking-[-0.02em]">Druckzentrum</h1>
+                  <span className="bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))] text-[0.6875rem] font-semibold px-2.5 py-0.5 rounded-full border border-[var(--border-subtle,var(--border))]">
                     Klasse {app?.klassenbezeichnung?.trim() || 'nicht angegeben'}
                   </span>
                 </div>
-                <p className="text-[0.6875rem] text-slate-400 font-semibold mt-0.5">
+                <p className="text-[0.6875rem] text-[var(--text-muted,var(--text3))] font-medium mt-0.5">
                   Dokumente auswählen, anpassen, als PDF speichern oder direkt ausdrucken
                 </p>
               </div>
@@ -1386,13 +1386,13 @@ export default function PrintCenter() {
             {/* Header Right Actions: Search & More */}
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <div className="relative flex-1 sm:w-64">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted,var(--text3))]" />
                 <input
                   type="text"
                   placeholder="Dokument oder Begriff suchen..."
                   value={templateSearch}
                   onChange={(e) => setTemplateSearch(e.target.value)}
-                  className="w-full pl-8 pr-7 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[0.75rem] font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all"
+                  className="w-full pl-8 pr-7 py-2 bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border2))] rounded-xl text-[0.75rem] font-semibold text-[var(--text-primary,var(--text))] placeholder:text-[var(--text-muted,var(--text3))] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))]/20 focus:border-[var(--accent)] focus:bg-[var(--surface-card,var(--surface))] transition-colors"
                 />
                 {templateSearch && (
                   <button
@@ -1411,8 +1411,8 @@ export default function PrintCenter() {
                 onClick={() => setShowMoreMenu(prev => !prev)}
                 className={`px-3 py-2 rounded-xl text-[0.75rem] font-black border transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                   showMoreMenu
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-3xs'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                    ? 'bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)]/20'
+                    : 'bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary,var(--text2))] border-[var(--border-default,var(--border2))]'
                 }`}
               >
                 <span>⋯ Mehr</span>
@@ -1422,36 +1422,36 @@ export default function PrintCenter() {
 
           {/* "⋯ Mehr" Popover Drawer / Panel */}
           {showMoreMenu && (
-            <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/70 p-4 rounded-xl border border-slate-200/60">
+            <div className="mt-4 pt-4 border-t border-[var(--border-subtle,var(--border))] grid grid-cols-1 md:grid-cols-3 gap-4 bg-[var(--surface-subtle,var(--surface2))]/65 p-4 rounded-xl border border-[var(--border-subtle,var(--border))]">
               {/* Box 1: Printer & Page Setup */}
               <div className="space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 uppercase tracking-wider">
-                  <Sliders size={14} className="text-emerald-600" />
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary,var(--text2))]">
+                  <Sliders size={14} className="text-[var(--accent)]" />
                   <span>Druck- & Seiteneinstellungen</span>
                 </div>
                 <div className="space-y-2 text-[0.75rem]">
-                  <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200">
-                    <span className="font-semibold text-slate-600">Ausrichtung</span>
+                  <div className="flex items-center justify-between bg-[var(--surface-card,var(--surface))] p-2 rounded-xl border border-[var(--border-default,var(--border2))]">
+                    <span className="font-semibold text-[var(--text-secondary,var(--text2))]">Ausrichtung</span>
                     <div className="flex gap-1">
                       <button
                         type="button"
                         onClick={() => setPrintOrientation('portrait')}
-                        className={`px-2 py-1 rounded text-[0.625rem] font-black ${printOrientation === 'portrait' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+                        className={`px-2 py-1 rounded text-[0.625rem] font-black ${printOrientation === 'portrait' ? 'bg-[var(--accent)] text-[var(--accent-text,var(--btn-text,#ffffff))]' : 'bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))]'}`}
                       >
                         Hoch
                       </button>
                       <button
                         type="button"
                         onClick={() => setPrintOrientation('landscape')}
-                        className={`px-2 py-1 rounded text-[0.625rem] font-black ${printOrientation === 'landscape' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'}`}
+                        className={`px-2 py-1 rounded text-[0.625rem] font-black ${printOrientation === 'landscape' ? 'bg-[var(--accent)] text-[var(--accent-text,var(--btn-text,#ffffff))]' : 'bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))]'}`}
                       >
                         Quer
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200">
-                    <span className="font-semibold text-slate-600">Briefkopf drucken</span>
+                  <div className="flex items-center justify-between bg-[var(--surface-card,var(--surface))] p-2 rounded-xl border border-[var(--border-default,var(--border2))]">
+                    <span className="font-semibold text-[var(--text-secondary,var(--text2))]">Briefkopf drucken</span>
                     <input
                       type="checkbox"
                       checked={showMainHeader}
@@ -1464,7 +1464,7 @@ export default function PrintCenter() {
 
               {/* Box 2: Quick Presets */}
               <div className="space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary,var(--text2))]">
                   <Sparkles size={14} className="text-amber-500" />
                   <span>Schnell-Presets</span>
                 </div>
@@ -1502,7 +1502,7 @@ export default function PrintCenter() {
 
               {/* Box 3: Printer Tips & Standard info */}
               <div className="space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--text-secondary,var(--text2))]">
                   <Info size={14} className="text-indigo-600" />
                   <span>Drucktipp & Datenschutz</span>
                 </div>
@@ -1665,25 +1665,25 @@ export default function PrintCenter() {
         </div>
 
         {/* Step Indicator Bar */}
-        <div className="bg-slate-900 text-white p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 no-print shadow-sm">
+        <div className="bg-[var(--surface-card,var(--surface))] p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 no-print shadow-sm border border-[var(--border-subtle,var(--border))]">
           <div className="flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-black">
+            <span className="w-6 h-6 rounded-full bg-[var(--accent)] text-[var(--accent-text,var(--btn-text,#ffffff))] flex items-center justify-center text-xs font-bold">
               ✓
             </span>
             <div className="text-xs font-bold">
-              <span className="text-slate-400 uppercase tracking-wider text-[0.625rem] block font-black">Gewähltes Dokument:</span>
-              <span className="text-white font-black text-sm">
+              <span className="text-[var(--text-muted,var(--text3))] text-[0.625rem] block font-semibold">Gewähltes Dokument:</span>
+              <span className="text-[var(--text-primary,var(--text))] font-bold text-sm">
                 {ALL_TEMPLATES.find(t => t.id === activeTemplate)?.label || 'Dokument'}
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2 text-[0.6875rem]">
-            <span className="px-2.5 py-1 bg-slate-800 rounded-lg text-slate-300 font-bold">SCHRITT 1: Dokument wählen</span>
-            <span className="text-slate-600">→</span>
-            <span className="px-2.5 py-1 bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 rounded-lg font-bold">SCHRITT 2: Filter &amp; Angaben</span>
-            <span className="text-slate-600">→</span>
-            <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg font-bold">SCHRITT 3: Vorschau &amp; Druck</span>
+            <span className="px-2.5 py-1 bg-[var(--surface-subtle,var(--surface2))] rounded-lg text-[var(--text-secondary,var(--text2))] font-semibold">1. Dokument</span>
+            <span className="text-[var(--text-muted,var(--text3))]">→</span>
+            <span className="px-2.5 py-1 bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent)]/20 rounded-lg font-bold">2. Anpassen</span>
+            <span className="text-[var(--text-muted,var(--text3))]">→</span>
+            <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg font-bold">3. Vorschau &amp; Druck</span>
           </div>
         </div>
 
@@ -1694,22 +1694,22 @@ export default function PrintCenter() {
           <div className="lg:col-span-5 space-y-6 no-print">
             
             {/* General Styling Card */}
-            <div className="bg-white rounded-3xl border border-slate-200/80 p-5 md:p-6 space-y-5 shadow-inner">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] p-5 md:p-6 space-y-5 shadow-sm">
+              <div className="flex items-center gap-2 border-b border-[var(--border-subtle,var(--border))] pb-3">
                 <Sliders size={16} className="text-slate-400" />
-                <h3 className="text-[0.875rem] leading-snug font-black text-slate-800">1. Globale Formatierung</h3>
+                <h3 className="text-[0.875rem] leading-snug font-bold text-[var(--text-primary,var(--text))]">1. Globale Formatierung</h3>
               </div>
 
               {/* Theme & Orientation controls */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider block">Papier-Ausrichtung</label>
-                  <div className="flex bg-slate-100 rounded-xl p-0.5 border border-slate-200">
+                  <div className="flex bg-[var(--surface-subtle,var(--surface2))] rounded-xl p-0.5 border border-[var(--border-subtle,var(--border))]">
                     <button 
                       type="button"
                       aria-pressed={printOrientation === 'portrait'}
                       onClick={() => setPrintOrientation('portrait')}
-                      className={`flex-1 py-2 rounded-lg text-[0.75rem] leading-tight font-black transition-all ${printOrientation === 'portrait' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`flex-1 py-2 rounded-lg text-[0.75rem] leading-tight font-black transition-all ${printOrientation === 'portrait' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-3xs' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
                     >
                       Hochformat
                     </button>
@@ -1717,7 +1717,7 @@ export default function PrintCenter() {
                       type="button"
                       aria-pressed={printOrientation === 'landscape'}
                       onClick={() => setPrintOrientation('landscape')}
-                      className={`flex-1 py-2 rounded-lg text-[0.75rem] leading-tight font-black transition-all ${printOrientation === 'landscape' ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500 hover:text-slate-800'}`}
+                      className={`flex-1 py-2 rounded-lg text-[0.75rem] leading-tight font-black transition-all ${printOrientation === 'landscape' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-3xs' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
                     >
                       Querformat
                     </button>
@@ -1726,7 +1726,7 @@ export default function PrintCenter() {
 
                 <div className="space-y-1.5">
                   <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider block">Schriftgröße</label>
-                  <div className="grid grid-cols-4 bg-slate-100 rounded-xl p-0.5 border border-slate-200">
+                  <div className="grid grid-cols-4 bg-[var(--surface-subtle,var(--surface2))] rounded-xl p-0.5 border border-[var(--border-subtle,var(--border))]">
                     {[
                       { id: 'sm', label: 'S' },
                       { id: 'base', label: 'M' },
@@ -1739,7 +1739,7 @@ export default function PrintCenter() {
                         aria-label={`Schriftgröße ${sz.label}`}
                         aria-pressed={printFontSize === sz.id}
                         onClick={() => setPrintFontSize(sz.id as any)}
-                        className={`py-2 rounded-lg text-[0.75rem] leading-tight font-black transition-all ${printFontSize === sz.id ? 'bg-white text-slate-900 shadow-3xs' : 'text-slate-500 hover:text-slate-800'}`}
+                        className={`py-2 rounded-lg text-[0.75rem] leading-tight font-black transition-all ${printFontSize === sz.id ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-3xs' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
                       >
                         {sz.label}
                       </button>
@@ -1819,10 +1819,10 @@ export default function PrintCenter() {
             </div>
 
             {/* Template-Specific Settings Block */}
-            <div className="bg-white rounded-3xl border border-slate-200/80 p-5 md:p-6 space-y-5 shadow-inner">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] p-5 md:p-6 space-y-5 shadow-sm">
+              <div className="flex items-center gap-2 border-b border-[var(--border-subtle,var(--border))] pb-3">
                 <Sliders size={16} className="text-slate-400" />
-                <h3 className="text-[0.875rem] leading-snug font-black text-slate-800">2. Vorlagendetails</h3>
+                <h3 className="text-[0.875rem] leading-snug font-bold text-[var(--text-primary,var(--text))]">2. Vorlagendetails</h3>
               </div>
 
               {/* A. SCHUELERLISTE CONTROLS */}
@@ -3790,10 +3790,10 @@ export default function PrintCenter() {
           {/* Right Panel: Interactive Live PDF Simulator (A4 Aspect Ratio Sheet inside editor Frame) */}
           <div className="lg:col-span-7 space-y-3">
             {/* Primary Action Bar above Preview */}
-            <div className="bg-slate-900 text-white p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 no-print shadow-md">
+            <div className="bg-[var(--surface-card,var(--surface))] p-3 rounded-2xl flex flex-wrap items-center justify-between gap-3 no-print shadow-sm border border-[var(--border-subtle,var(--border))]">
               <div className="flex items-center gap-2">
-                <FileText size={16} className="text-emerald-400" />
-                <span className="text-xs font-black uppercase tracking-wider text-slate-200">SCHRITT 3: Vorschau &amp; Druck</span>
+                <FileText size={16} className="text-[var(--accent)]" />
+                <span className="text-xs font-semibold text-[var(--text-secondary,var(--text2))]">3. Vorschau &amp; Druck</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -3801,7 +3801,7 @@ export default function PrintCenter() {
                   type="button"
                   onClick={handleTriggerPrint}
                   disabled={students.length === 0}
-                  className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-3xs active:scale-95 disabled:opacity-50"
+                  className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,var(--btn-text,#ffffff))] font-bold text-xs rounded-xl flex items-center gap-2 transition-colors cursor-pointer shadow-sm disabled:opacity-50"
                 >
                   <Printer size={15} strokeWidth={2.5} />
                   <span>🖨️ Drucken (A4)</span>
@@ -3811,7 +3811,7 @@ export default function PrintCenter() {
                   type="button"
                   onClick={handleTriggerPrint}
                   disabled={students.length === 0}
-                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 border border-slate-700"
+                  className="px-3.5 py-2 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary,var(--text2))] font-semibold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer border border-[var(--border-default,var(--border2))]"
                 >
                   <Download size={14} />
                   <span>📄 als PDF speichern</span>
@@ -3821,7 +3821,7 @@ export default function PrintCenter() {
 
             <div className="flex justify-between items-center no-print pt-1">
               <div className="flex items-center gap-2 text-slate-500">
-                <span className="text-[0.625rem] font-black uppercase tracking-wider">Simuliertes A4 Blatt</span>
+                <span className="text-[0.625rem] font-semibold">A4-Vorschau</span>
               </div>
               
               <div className="flex items-center gap-2">
@@ -3885,7 +3885,7 @@ export default function PrintCenter() {
             </div>
 
             {/* Simulated Frame with dynamic scaling */}
-            <div className="bg-slate-100 rounded-3xl p-4 md:p-8 flex flex-col items-center justify-start overflow-auto shadow-inner border border-slate-200/60 no-print flex-1 w-full scrollbar-thin" style={{ minHeight: '440px', maxHeight: '85vh' }}>
+            <div className="bg-[var(--surface-subtle,var(--surface2))] rounded-2xl p-4 md:p-8 flex flex-col items-center justify-start overflow-auto border border-[var(--border-subtle,var(--border))] no-print flex-1 w-full scrollbar-thin" style={{ minHeight: '440px', maxHeight: '85vh' }}>
               {isMultiPageTemplate ? (
                 /* Multi-page template rendering as a column of beautiful A4 sheets */
                 <div 
@@ -7567,7 +7567,7 @@ export default function PrintCenter() {
             <h4 className="text-[0.625rem] font-black uppercase text-amber-600 tracking-wider border-b border-slate-200 pb-1 flex items-center gap-1 leading-none select-none">
               ⭐ Stärkenprofil &amp; Leitstern
             </h4>
-            <div className="bg-white p-4 rounded-xl border border-slate-205 text-[0.75rem] leading-tight italic font-semibold text-slate-600 leading-relaxed relative">
+            <div className="bg-white p-4 rounded-xl border border-slate-205 text-[0.75rem] leading-tight italic font-semibold text-[var(--text-secondary,var(--text2))] leading-relaxed relative">
               <span className="text-[1.875rem] leading-tight text-indigo-200 absolute right-3 bottom-0 leading-none select-none">“</span>
               <p className="z-10 relative">
                 {kelRow?.notiz || st.notiz || 'Keine pädagogische Stärkennotiz hinterlegt.'}
@@ -8034,7 +8034,7 @@ export default function PrintCenter() {
                   <td className="border border-slate-200 p-2 text-center font-bold text-slate-400">{i + 1}</td>
                   <td className="border border-slate-200 p-2 font-black text-slate-800">{st.nachname} {st.vorname}</td>
                   <td className="border border-slate-200 p-2 text-center font-semibold text-slate-500 uppercase">{st.geschlecht}</td>
-                  <td className="border border-slate-200 p-2 text-[0.6875rem] font-semibold text-slate-600 leading-normal">
+                  <td className="border border-slate-200 p-2 text-[0.6875rem] font-semibold text-[var(--text-secondary,var(--text2))] leading-normal">
                     {st.notiz || (st.zweitsprache ? `Fremdsprache: ${st.zweitsprache}` : 'Keine gesundheitlichen oder päd. Einschränkungen gemeldet.')}
                   </td>
                 </tr>

@@ -267,7 +267,7 @@ export default function Settings() {
   const hasActiveSync = !!app.boardSettings?.activeSyncCode;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 pb-24">
+    <div className="max-w-[1180px] w-full mx-auto px-3 sm:px-5 lg:px-6 py-5 sm:py-6 space-y-6 pb-24 text-[var(--text-primary,var(--text))]">
       {/* Top Header & Pill Navigation */}
       <SettingsHeader
         activeCategory={activeCategory}
@@ -386,7 +386,7 @@ export default function Settings() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white rounded-[2.5rem] border border-stone-200 shadow-2xl p-8 max-w-md w-full relative z-10 space-y-6"
+              className="bg-[var(--surface-card,var(--surface))] text-[var(--text-primary,var(--text))] rounded-2xl border border-[var(--border-default,var(--border))] shadow-2xl p-7 max-w-md w-full relative z-10 space-y-6"
             >
               <div className="flex items-center gap-4 text-rose-600">
                 <div className="w-12 h-12 bg-rose-50 rounded-2xl flex items-center justify-center shadow-inner">

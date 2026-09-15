@@ -25,16 +25,16 @@ export default function StimmNotizen() {
   };
 
   return (
-    <div className="h-full flex flex-col p-4 lg:p-8 space-y-6">
+    <div className="h-full flex flex-col max-w-[1180px] w-full mx-auto px-3 sm:px-5 lg:px-6 py-5 space-y-5 text-[var(--text-primary,var(--text))]">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-[1.5rem] leading-normal lg:text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
+          <h1 className="text-[1.5rem] leading-normal lg:text-[1.875rem] leading-tight font-black text-[var(--text-primary,var(--text))] tracking-tight flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[var(--accent)] text-[var(--accent-text,#fff)] flex items-center justify-center shadow-sm">
               <Mic size={20} />
             </div>
             Stimm-Notizen
           </h1>
-          <p className="text-[0.875rem] leading-snug font-bold text-slate-500 mt-2">Ihre gesprochenen Unterrichts- und Schüler-Notizen</p>
+          <p className="text-[0.875rem] leading-snug font-medium text-[var(--text-secondary,var(--text2))] mt-2">Ihre gesprochenen Unterrichts- und Schüler-Notizen</p>
         </div>
         
         <div className="flex gap-2 w-full sm:w-auto">
@@ -45,14 +45,14 @@ export default function StimmNotizen() {
               placeholder="Suchen..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-[0.875rem] leading-snug focus:outline-none focus:border-slate-300 transition-all font-medium"
+              className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-xl text-[0.875rem] text-[var(--text-primary,var(--text))] leading-snug focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))] transition-colors font-medium"
             />
           </div>
           <div className="relative shrink-0">
             <select
               value={filter}
               onChange={e => setFilter(e.target.value)}
-              className="appearance-none pl-10 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-[0.875rem] leading-snug font-bold text-slate-700 cursor-pointer outline-none focus:border-slate-300 transition-all"
+              className="appearance-none pl-10 pr-8 py-2.5 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-xl text-[0.875rem] leading-snug font-bold text-[var(--text-secondary,var(--text2))] cursor-pointer outline-none focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))] transition-colors"
             >
               <option value="Alle">Alle Kategorien</option>
               <option value="Unterricht">Unterricht</option>
@@ -67,7 +67,7 @@ export default function StimmNotizen() {
 
       <div className="flex-1 overflow-y-auto no-scrollbar">
         {filtered.length === 0 ? (
-           <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center h-64 flex flex-col items-center justify-center">
+           <div className="bg-[var(--surface-card,var(--surface))] border-2 border-dashed border-[var(--border-default,var(--border))] rounded-2xl p-10 text-center h-64 flex flex-col items-center justify-center">
              <Mic className="text-slate-300 w-12 h-12 mb-4" />
              <h3 className="text-[1.125rem] leading-normal font-black text-slate-800">Keine Notizen gefunden</h3>
              <p className="text-[0.875rem] leading-snug font-medium text-slate-500 max-w-sm mx-auto mt-2">
@@ -84,7 +84,7 @@ export default function StimmNotizen() {
                    key={note.id}
                    initial={{ opacity: 0, y: 10 }}
                    animate={{ opacity: 1, y: 0 }}
-                   className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col group relative"
+                   className="bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col group relative"
                  >
                    <button 
                      onClick={() => deleteNote(note.id)}

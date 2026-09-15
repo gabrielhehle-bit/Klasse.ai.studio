@@ -1080,17 +1080,17 @@ export default function Uebergabemappe() {
   };
 
   return (
-    <div className="handover-folder-shell space-y-4 py-2">
+    <div className="handover-folder-shell max-w-[1180px] w-full mx-auto px-3 sm:px-5 lg:px-6 space-y-4 py-2 text-[var(--text-primary,var(--text))]">
       <div className="hidden">
       </div>
 
       {/* Tab Switcher */}
       <div className="flex justify-center print:hidden mb-1">
-        <div className="bg-slate-100 p-1 rounded-2xl flex flex-wrap justify-center gap-1 border border-slate-200">
+        <div className="bg-[var(--surface-subtle,var(--surface2))] p-1 rounded-xl flex flex-wrap justify-center gap-1 border border-[var(--border-subtle,var(--border))]">
           <button 
             onClick={() => setActiveTab('config')}
             aria-pressed={activeTab === 'config'}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[0.75rem] leading-snug font-bold transition-all ${activeTab === 'config' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[0.75rem] leading-snug font-bold transition-all ${activeTab === 'config' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-sm' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
           >
             <ClipboardList size={18} />
             Übergabe konfigurieren
@@ -1098,7 +1098,7 @@ export default function Uebergabemappe() {
           <button 
             onClick={() => setActiveTab('manage')}
             aria-pressed={activeTab === 'manage'}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[0.75rem] leading-snug font-bold transition-all ${activeTab === 'manage' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[0.75rem] leading-snug font-bold transition-all ${activeTab === 'manage' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-sm' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
           >
             <BookOpen size={18} />
             Stundenbilder verwalten
@@ -1106,7 +1106,7 @@ export default function Uebergabemappe() {
           <button 
             onClick={() => setActiveTab('transfer')}
             aria-pressed={activeTab === 'transfer'}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[0.75rem] leading-snug font-bold transition-all ${activeTab === 'transfer' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[0.75rem] leading-snug font-bold transition-all ${activeTab === 'transfer' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-sm' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
           >
             <History size={18} />
             Schulwechsel-Paket
@@ -1117,27 +1117,27 @@ export default function Uebergabemappe() {
       {/* Main View */}
       {activeTab === 'config' ? (
         <div className="print:hidden">
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col items-center text-center max-w-5xl mx-auto print-hidden no-print">
-            <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4 ring-1 ring-indigo-100">
+          <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-6 border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col items-center text-center max-w-5xl mx-auto print-hidden no-print">
+            <div className="w-14 h-14 bg-[var(--accent-soft)] text-[var(--accent)] rounded-2xl flex items-center justify-center mb-4 border border-[var(--accent)]/15">
               <ClipboardList size={28} />
             </div>
-            <h1 className="text-[1.375rem] leading-tight font-black text-slate-900 tracking-tight mb-2">Vertretungs- &amp; Notfallmappe</h1>
-            <p className="text-slate-500 text-[0.875rem] leading-relaxed mb-5 max-w-3xl">
+            <h1 className="text-[1.375rem] leading-tight font-black text-[var(--text-primary,var(--text))] tracking-tight mb-2">Vertretungs- &amp; Notfallmappe</h1>
+            <p className="text-[var(--text-secondary,var(--text2))] text-[0.875rem] leading-relaxed mb-5 max-w-3xl">
               Bereite für einen kurzfristigen Ausfall eine vollständige <strong>Notfallmappe</strong> für deine Vertretung vor – mit Tagesablauf, ausgewählten Klasseninformationen, Sitzplan und wichtigen Kontakten.
             </p>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full mb-5">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center gap-2">
+                <div className="p-3 rounded-xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))] flex items-center justify-center gap-2">
                     <Layout size={20} className="text-indigo-500" />
-                    <span className="text-[0.75rem] leading-tight font-bold text-slate-700 uppercase tracking-wider">Stundenplan &amp; Zeiten</span>
+                    <span className="text-[0.75rem] leading-tight font-bold text-[var(--text-secondary,var(--text2))]">Stundenplan &amp; Zeiten</span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center gap-2">
+                <div className="p-3 rounded-xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))] flex items-center justify-center gap-2">
                     <Users size={20} className="text-emerald-500" />
-                    <span className="text-[0.75rem] leading-tight font-bold text-slate-700 uppercase tracking-wider">Besonderheiten-Liste</span>
+                    <span className="text-[0.75rem] leading-tight font-bold text-[var(--text-secondary,var(--text2))]">Besonderheiten-Liste</span>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center gap-2">
+                <div className="p-3 rounded-xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))] flex items-center justify-center gap-2">
                     <Book size={20} className="text-amber-500" />
-                    <span className="text-[0.75rem] leading-tight font-bold text-slate-700 uppercase tracking-wider">Sitzplan-Skizze</span>
+                    <span className="text-[0.75rem] leading-tight font-bold text-[var(--text-secondary,var(--text2))]">Sitzplan-Skizze</span>
                 </div>
             </div>
 
@@ -1151,12 +1151,12 @@ export default function Uebergabemappe() {
             </div>
 
             {/* Emergency Checklist Widget */}
-            <div className="w-full max-w-3xl bg-slate-50 border border-slate-200 p-4 rounded-2xl text-left mb-5 space-y-3">
+            <div className="w-full max-w-3xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))] p-4 rounded-2xl text-left mb-5 space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-[0.875rem] leading-snug font-black uppercase tracking-wider flex items-center gap-2 text-indigo-950">
+                <h4 className="text-[0.875rem] leading-snug font-black flex items-center gap-2 text-[var(--text-primary,var(--text))]">
                   ⚠️ Notfall-Checkliste für Vertretung:
                 </h4>
-                <span className="text-[0.625rem] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full uppercase tracking-widest">
+                <span className="text-[0.625rem] font-bold text-[var(--accent)] bg-[var(--accent-soft)] px-2.5 py-1 rounded-full tracking-wide border border-[var(--accent)]/15">
                   {emergencyChecklist.filter(c => c.checked).length} von {emergencyChecklist.length} erledigt
                 </span>
               </div>
@@ -1172,14 +1172,14 @@ export default function Uebergabemappe() {
                 aria-valuenow={emergencyChecklist.filter(c => c.checked).length}
               >
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${emergencyChecklist.every(c => c.checked) ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                  className={`h-full rounded-full transition-all duration-500 ${emergencyChecklist.every(c => c.checked) ? 'bg-emerald-500' : 'bg-[var(--accent)]'}`}
                   style={{ width: `${emergencyChecklist.length ? (emergencyChecklist.filter(c => c.checked).length / emergencyChecklist.length) * 100 : 0}%` }}
                 />
               </div>
 
               <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                 {emergencyChecklist.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between gap-3 p-3 bg-white rounded-2xl border border-slate-100 hover:border-indigo-100 transition-all">
+                  <div key={item.id} className="flex items-center justify-between gap-3 p-3 bg-[var(--surface-card,var(--surface))] rounded-xl border border-[var(--border-subtle,var(--border))] hover:border-[var(--accent)]/25 transition-colors">
                     <label className="flex items-center gap-3 cursor-pointer flex-1 select-none">
                       <input 
                         type="checkbox"
@@ -1219,7 +1219,7 @@ export default function Uebergabemappe() {
                       }
                     }
                   }}
-                  className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-[0.8125rem] font-medium outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  className="flex-1 px-4 py-2 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-xl text-[0.8125rem] font-medium outline-none focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))] text-[var(--text-primary,var(--text))]"
                 />
                 <button 
                   onClick={() => {
@@ -1228,7 +1228,7 @@ export default function Uebergabemappe() {
                       setNewChecklistItem('');
                     }
                   }}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[0.8125rem] font-bold shadow-md hover:bg-indigo-700 transition-colors"
+                  className="px-4 py-2 bg-[var(--accent)] text-[var(--accent-text,#fff)] rounded-xl text-[0.8125rem] font-bold shadow-sm hover:bg-[var(--accent-hover)] transition-colors"
                 >
                   Hinzufügen
                 </button>
@@ -1263,7 +1263,7 @@ export default function Uebergabemappe() {
         </div>
       ) : activeTab === 'transfer' ? (
         <div className="print:hidden max-w-4xl mx-auto">
-          <div className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-xl shadow-slate-900/5 text-center space-y-8">
+          <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-6 sm:p-8 border border-[var(--border-subtle,var(--border))] shadow-sm text-center space-y-7">
             <div className="w-20 h-20 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner ring-1 ring-amber-100">
               <History size={40} />
             </div>
@@ -1276,8 +1276,8 @@ export default function Uebergabemappe() {
             </div>
 
             {/* GDPR privacy switch */}
-            <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 px-4 py-2.5 rounded-2xl w-fit mx-auto select-none cursor-pointer" onClick={() => setPrivacyMode(!privacyMode)}>
-              <div className={`w-9 h-5 rounded-full transition-colors flex items-center p-0.5 relative ${privacyMode ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+            <div className="flex items-center gap-3 bg-[var(--accent-soft)] border border-[var(--accent)]/20 px-4 py-2.5 rounded-xl w-fit mx-auto select-none cursor-pointer" onClick={() => setPrivacyMode(!privacyMode)}>
+              <div className={`w-9 h-5 rounded-full transition-colors flex items-center p-0.5 relative ${privacyMode ? 'bg-[var(--accent)]' : 'bg-[var(--border-default,var(--border))]'}`}>
                 <motion.div layout className="w-4 h-4 bg-white rounded-full shadow-md" />
               </div>
               <span className="text-[0.75rem] font-bold text-indigo-950 flex items-center gap-1.5">
@@ -1286,13 +1286,13 @@ export default function Uebergabemappe() {
               </span>
             </div>
 
-            <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-6 text-left max-w-xl mx-auto shadow-sm">
+            <div className="bg-[var(--surface-subtle,var(--surface2))] p-5 rounded-2xl border border-[var(--border-subtle,var(--border))] space-y-6 text-left max-w-xl mx-auto">
               <div className="space-y-2">
                 <label className="text-[0.625rem] font-black uppercase text-slate-400 tracking-[0.2em] block ml-1">Schüler:in auswählen</label>
                 <select 
                   value={transferStudentId || ''} 
                   onChange={(e) => setTransferStudentId(e.target.value)}
-                  className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-[0.875rem] leading-snug font-bold focus:ring-2 focus:ring-amber-500/20 transition-all outline-none"
+                  className="w-full p-4 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-xl text-[0.875rem] leading-snug font-bold focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))] transition-all outline-none text-[var(--text-primary,var(--text))]"
                 >
                   <option value="">Bitte wählen...</option>
                   {[...app.schueler].sort((a, b) => a.nachname.localeCompare(b.nachname)).map(s => (
@@ -1305,7 +1305,7 @@ export default function Uebergabemappe() {
                 <motion.div 
                   initial={{ opacity: 0, y: 15 }} 
                   animate={{ opacity: 1, y: 0 }} 
-                  className="bg-white border border-slate-100 p-5 rounded-2xl space-y-4 shadow-sm"
+                  className="bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] p-5 rounded-2xl space-y-4 shadow-sm"
                 >
                   {/* Student Header */}
                   <div className="flex items-center gap-4">
@@ -1405,7 +1405,7 @@ export default function Uebergabemappe() {
         </div>
       ) : (
         <div className="print:hidden max-w-6xl mx-auto space-y-6">
-           <div className="bg-white rounded-[2rem] p-6 shadow-xl border border-slate-100">
+           <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-5 sm:p-6 shadow-sm border border-[var(--border-subtle,var(--border))]">
              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div className="flex-1 max-w-md relative">
                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -1414,7 +1414,7 @@ export default function Uebergabemappe() {
                      placeholder="Titel oder Tags suchen..." 
                      value={searchQuery}
                      onChange={(e) => setSearchQuery(e.target.value)}
-                     className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all outline-none text-[0.875rem] leading-snug font-medium"
+                     className="w-full pl-12 pr-4 py-3 bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] rounded-xl focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))] transition-all outline-none text-[0.875rem] leading-snug font-medium text-[var(--text-primary,var(--text))]"
                    />
                 </div>
                 <div className="flex items-center gap-2">
@@ -1430,7 +1430,7 @@ export default function Uebergabemappe() {
                        });
                        setIsEditing(true);
                      }}
-                     className="btn btn-primary flex items-center gap-2 h-12 px-6 shadow-lg shadow-indigo-100"
+                     className="flex items-center gap-2 h-12 px-6 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] font-bold shadow-sm transition-colors"
                    >
                      <Plus size={20} />
                      <span className="text-[0.875rem] leading-snug font-bold">Neues Stundenbild</span>
@@ -1439,7 +1439,7 @@ export default function Uebergabemappe() {
              </div>
 
              <div className="flex flex-wrap gap-3 items-center pb-6 border-b border-slate-100">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--surface-subtle,var(--surface2))] rounded-xl border border-[var(--border-subtle,var(--border))]">
                   <Filter size={14} className="text-slate-400" />
                   <select 
                     value={filterFach}
@@ -1450,7 +1450,7 @@ export default function Uebergabemappe() {
                     {FAECHER_ALLE.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--surface-subtle,var(--surface2))] rounded-xl border border-[var(--border-subtle,var(--border))]">
                   <BookOpen size={14} className="text-slate-400" />
                   <select 
                     value={filterStufe}
@@ -1461,7 +1461,7 @@ export default function Uebergabemappe() {
                     {[1, 2, 3, 4].map(s => <option key={s} value={s}>{s}. Stufe</option>)}
                   </select>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--surface-subtle,var(--surface2))] rounded-xl border border-[var(--border-subtle,var(--border))]">
                   <Clock size={14} className="text-slate-400" />
                   <select 
                     value={filterDauer}
@@ -1472,7 +1472,7 @@ export default function Uebergabemappe() {
                     {[10, 20, 30, 45, 60, 90].map(d => <option key={d} value={d}>{d} Min.</option>)}
                   </select>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--surface-subtle,var(--surface2))] rounded-xl border border-[var(--border-subtle,var(--border))]">
                   <Zap size={14} className="text-slate-400" />
                   <select 
                     value={filterSchwierigkeit}
@@ -1485,12 +1485,12 @@ export default function Uebergabemappe() {
                     <option value="anspruchsvoll">Anspruchsvoll</option>
                   </select>
                 </div>
-                <div className="flex items-center gap-2 ml-auto px-3 py-1.5 bg-indigo-50 rounded-xl border border-indigo-100">
+                <div className="flex items-center gap-2 ml-auto px-3 py-1.5 bg-[var(--accent-soft)] rounded-xl border border-[var(--accent)]/20">
                   <ArrowUpDown size={14} className="text-indigo-500" />
                   <select 
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as 'used' | 'date' | 'title')}
-                    className="bg-transparent text-[0.75rem] leading-tight font-bold text-indigo-700 outline-none cursor-pointer"
+                    className="bg-transparent text-[0.75rem] leading-tight font-bold text-[var(--accent)] outline-none cursor-pointer"
                   >
                     <option value="used">Zuletzt verwendet</option>
                     <option value="date">Neueste zuerst</option>

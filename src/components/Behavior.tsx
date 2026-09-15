@@ -353,11 +353,11 @@ export default function Behavior() {
   };
 
   return (
-    <div className="py-4 space-y-8 max-w-7xl mx-auto w-full min-h-screen pb-20">
+    <div className="py-4 space-y-6 max-w-[1180px] mx-auto w-full min-h-screen pb-20 px-3 sm:px-5 lg:px-6 text-[var(--text-primary,var(--text))]">
       
       {/* Master Navigation */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/80 backdrop-blur-xl p-4 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-900/5 relative  print:hidden">
-        <div className="flex flex-wrap gap-2 p-1.5 bg-slate-50 rounded-[2rem] border border-slate-100 relative z-10 w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[var(--surface-card,var(--surface))] p-4 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm relative print:hidden">
+        <div className="flex flex-wrap gap-1 p-1 bg-[var(--surface-subtle,var(--surface2))] rounded-xl border border-[var(--border-subtle,var(--border))] relative z-10 w-full sm:w-auto">
           {[
             { id: 'verhalten', label: 'Status', icon: <ShieldAlert size={14} /> },
             { id: 'chronik', label: 'Chronik', icon: <BookOpen size={14} /> },
@@ -366,7 +366,7 @@ export default function Behavior() {
             <button 
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 sm:flex-none px-6 py-3 rounded-full text-[0.6875rem] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer ${activeTab === tab.id ? 'bg-slate-900 text-white shadow-lg shadow-black/20 translate-y-[-2px]' : 'text-slate-400 hover:bg-white hover:text-slate-900'}`}
+              className={`flex-1 sm:flex-none px-5 py-2.5 rounded-xl text-[0.75rem] font-bold transition-colors flex items-center justify-center gap-2 cursor-pointer ${activeTab === tab.id ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' : 'text-[var(--text-muted,var(--text3))] hover:bg-[var(--surface-card,var(--surface))] hover:text-[var(--text-primary,var(--text))]'}`}
             >
               {tab.icon} {tab.label}
             </button>
@@ -375,10 +375,10 @@ export default function Behavior() {
 
         <div className="flex items-center gap-3 pr-4 relative z-10">
           <div className="text-right hidden md:block">
-            <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Modul</p>
-            <p className="text-[0.875rem] leading-snug font-black text-slate-900">Notizen & Beobachtungen</p>
+            <p className="text-[0.625rem] font-bold text-[var(--text-muted,var(--text3))] tracking-wide leading-none mb-1">Modul</p>
+            <p className="text-[0.875rem] leading-snug font-black text-[var(--text-primary,var(--text))]">Notizen & Beobachtungen</p>
           </div>
-          <div className="w-10 h-10 bg-accent/10 rounded-2xl flex items-center justify-center text-accent shadow-inner">
+          <div className="w-10 h-10 bg-[var(--accent-soft)] rounded-xl flex items-center justify-center text-[var(--accent)] border border-[var(--accent)]/15">
              <Notebook size={20} />
           </div>
         </div>
@@ -393,15 +393,15 @@ export default function Behavior() {
             exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
-            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm ">
-               <div className="px-10 py-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center flex-wrap gap-4">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm">
+               <div className="px-5 sm:px-6 py-5 border-b border-[var(--border-subtle,var(--border))] bg-[var(--surface-subtle,var(--surface2))] flex justify-between items-center flex-wrap gap-4">
                   <div className="flex items-center gap-5">
-                    <div className="w-14 h-14 rounded-2xl bg-accent text-white flex items-center justify-center shadow-lg shadow-accent/20">
+                    <div className="w-12 h-12 rounded-xl bg-[var(--accent)] text-[var(--accent-text,#fff)] flex items-center justify-center shadow-sm">
                       <ShieldAlert size={28} />
                     </div>
                     <div>
-                      <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">Beobachtungsstatus</h3>
-                      <p className="text-[0.875rem] text-slate-400 font-bold uppercase tracking-widest mt-1">Aktueller Status der Kinder</p>
+                      <h3 className="text-[1.25rem] leading-normal font-black text-[var(--text-primary,var(--text))] tracking-tight">Beobachtungsstatus</h3>
+                      <p className="text-[0.8125rem] text-[var(--text-muted,var(--text3))] font-medium mt-1">Aktueller Status der Kinder</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2.5">
@@ -423,7 +423,7 @@ export default function Behavior() {
                     </button>
                     <button 
                       onClick={resetAllStatuses}
-                      className="px-5 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-[0.6875rem] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm cursor-pointer"
+                      className="px-4 py-2.5 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] text-[var(--text-secondary,var(--text2))] rounded-xl text-[0.75rem] font-bold flex items-center gap-2 hover:bg-[var(--surface-subtle,var(--surface2))] transition-colors shadow-sm cursor-pointer"
                     >
                       <XCircle size={14} /> Tages-Reset
                     </button>
@@ -471,7 +471,7 @@ export default function Behavior() {
                               <td className="px-6 py-6">
                                 <div className="flex items-center gap-3">
                                   <DebouncedInput 
-                                    className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-[0.875rem] font-medium text-slate-900 outline-none focus:border-accent/40 transition-all placeholder:text-slate-300"
+                                    className="flex-1 bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] rounded-xl px-4 py-2.5 text-[0.875rem] font-medium text-[var(--text-primary,var(--text))] outline-none focus:border-[var(--accent)] transition-colors placeholder:text-[var(--text-muted,var(--text3))]"
                                     placeholder="Kurze Anmerkung..."
                                     value={app.behavior_notes?.[s.id] || ''}
                                     onChange={(val) => updateBehaviorNote(s.id, val)}
@@ -570,7 +570,7 @@ export default function Behavior() {
 
             {/* Filter & Chronicle List - Schritt 3.3 / 3.4 */}
             <div className="space-y-6">
-               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm print:hidden">
+               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-5 bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm print:hidden">
                   <div className="flex flex-wrap gap-2">
                      {[
                        { id: 'all', label: 'Alles', icon: <History size={14} /> },
@@ -580,7 +580,7 @@ export default function Behavior() {
                        <button
                          key={f.id}
                          onClick={() => setChronikFilter(f.id as any)}
-                         className={`px-6 py-3 rounded-2xl text-[0.6875rem] font-black uppercase tracking-widest transition-all flex items-center gap-3 cursor-pointer ${chronikFilter === f.id ? 'bg-slate-900 text-white shadow-xl' : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-900'}`}
+                         className={`px-4 py-2.5 rounded-xl text-[0.75rem] font-bold transition-colors flex items-center gap-2 cursor-pointer ${chronikFilter === f.id ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' : 'bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
                        >
                           {f.icon} {f.label}
                        </button>
@@ -590,7 +590,7 @@ export default function Behavior() {
                   <div className="relative w-full lg:w-96 group">
                      <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-accent transition-colors" size={18} />
                      <input 
-                        className="w-full bg-slate-50 border border-slate-100 rounded-[1.5rem] pl-12 pr-6 py-4 text-[0.875rem] font-bold outline-none focus:border-accent/40 shadow-inner transition-all placeholder:text-slate-300"
+                        className="w-full bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] rounded-xl pl-12 pr-5 py-3 text-[0.875rem] font-medium text-[var(--text-primary,var(--text))] outline-none focus:border-[var(--accent)] transition-colors placeholder:text-[var(--text-muted,var(--text3))]"
                         placeholder="Durchsuche die Chronik..."
                         value={chronikSearch}
                         onChange={e => setChronikSearch(e.target.value)}
@@ -617,7 +617,7 @@ export default function Behavior() {
                                animate={{ opacity: 1, scale: 1 }}
                                exit={{ opacity: 0, scale: 0.95 }}
                                key={entry.id}
-                               className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-900/5 transition-all group flex flex-col gap-5 relative  print:shadow-none print:border-slate-300 print:rounded-none print:p-4"
+                               className="bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm transition-colors group flex flex-col gap-4 relative print:bg-white print:shadow-none print:border-slate-300 print:rounded-none print:p-4"
                            >
                               <div className="flex items-center justify-between relative z-10">
                                  <div className="flex items-center gap-3">

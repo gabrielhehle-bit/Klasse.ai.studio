@@ -80,7 +80,7 @@ export default function GradeOverview() {
   };
 
   return (
-    <div className="space-y-8 py-4 max-w-7xl mx-auto flex-1 flex flex-col w-full">
+    <div className="space-y-5 py-4 max-w-[1180px] mx-auto px-3 sm:px-5 lg:px-6 flex-1 flex flex-col w-full text-[var(--text-primary,var(--text))]">
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4 no-print shrink-0">
         <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 shrink-0">
           <Sparkles size={20} />
@@ -95,20 +95,20 @@ export default function GradeOverview() {
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 no-print">
         <div className="space-y-1">
-          <h2 className="text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Gesamtübersicht Noten</h2>
-          <p className="text-slate-500 font-medium tracking-tight">Alle Noten der Klasse {app.klassenbezeichnung} im Überblick.</p>
+          <h2 className="text-[1.75rem] leading-tight font-black text-[var(--text-primary,var(--text))] tracking-tight">Gesamtübersicht Noten</h2>
+          <p className="text-[var(--text-secondary,var(--text2))] font-medium tracking-tight">Alle Noten der Klasse {app.klassenbezeichnung} im Überblick.</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
           {/* Semester Selector */}
-          <div className="bg-slate-100 p-1 rounded-xl flex items-center border border-slate-200/60 shadow-xs">
+          <div className="bg-[var(--surface-subtle,var(--surface2))] p-1 rounded-xl flex items-center border border-[var(--border-subtle,var(--border))] shadow-sm">
             <button
               type="button"
               onClick={() => selectSemester('combined')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 selectedSemester === 'combined'
-                  ? 'bg-white text-slate-800 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm'
+                  : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'
               }`}
             >
               Gesamt (Kombiniert)
@@ -118,8 +118,8 @@ export default function GradeOverview() {
               onClick={() => selectSemester('1')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 selectedSemester === '1'
-                  ? 'bg-white text-slate-800 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm'
+                  : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'
               }`}
             >
               1. Semester
@@ -129,8 +129,8 @@ export default function GradeOverview() {
               onClick={() => selectSemester('2')}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 selectedSemester === '2'
-                  ? 'bg-white text-slate-800 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
+                  ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm'
+                  : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'
               }`}
             >
               2. Semester
@@ -144,7 +144,7 @@ export default function GradeOverview() {
             className={`btn btn-sm cursor-pointer flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
               isEditMode
                 ? 'bg-amber-600 hover:bg-amber-700 border-amber-600 text-white shadow-md'
-                : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
+                : 'bg-[var(--surface-card,var(--surface))] hover:bg-[var(--surface-subtle,var(--surface2))] border-[var(--border-default,var(--border))] text-[var(--text-secondary,var(--text2))]'
             }`}
           >
             {isEditMode ? '✏️ Bearbeitungs-Modus aktiv' : '✏️ Noten eintragen / überschreiben'}
@@ -175,7 +175,7 @@ export default function GradeOverview() {
         </div>
       )}
 
-      <div className="card !p-0 md:p-0 overflow-y-auto shadow-md flex-1 custom-scrollbar">
+      <div className="bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] rounded-2xl !p-0 md:p-0 overflow-y-auto shadow-sm flex-1 custom-scrollbar">
         <div className="w-full overflow-x-auto no-scrollbar">
           <table className="w-full border-collapse">
             <thead>
@@ -205,7 +205,7 @@ export default function GradeOverview() {
                 
                 return (
                   <tr key={s.id} className="border-b border-border/50 hover:bg-surface2/20 transition-colors">
-                    <td className="px-4 py-3 text-[0.75rem] font-medium text-text-primary sticky left-0 bg-white group-hover:bg-surface2/20 border-r border-border/30 z-10">
+                    <td className="px-4 py-3 text-[0.75rem] font-medium text-[var(--text-primary,var(--text))] sticky left-0 bg-[var(--surface-card,var(--surface))] border-r border-[var(--border-subtle,var(--border))] z-10">
                       {s.nachname} <span className="text-text-secondary font-normal">{s.vorname}</span>
                     </td>
                     {activeFaecher.map(f => {

@@ -509,22 +509,22 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
   const progressPercent = totalStudentsCount > 0 ? Math.round((reportsGeneratedCount / totalStudentsCount) * 100) : 0;
 
   return (
-    <div className="year-report-shell h-full flex flex-col p-4 lg:p-6 space-y-4 bg-[#f4f7f3]">
+    <div className="year-report-shell h-full flex flex-col max-w-[1180px] w-full mx-auto px-3 sm:px-5 lg:px-6 py-4 space-y-4 bg-[var(--surface-app,var(--bg))] text-[var(--text-primary,var(--text))]">
       
       {/* Header Panel */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-md">
+          <div className="w-12 h-12 rounded-xl bg-[var(--accent)] text-[var(--accent-text,#fff)] flex items-center justify-center shrink-0 shadow-sm">
             <FileText size={24} />
           </div>
           <div>
-            <h1 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-xl lg:text-2xl font-black text-[var(--text-primary,var(--text))] tracking-tight flex items-center gap-2 flex-wrap">
               Abschluss- & Jahresberichte
               <span className="text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
                 Berichts-Assistent
               </span>
             </h1>
-            <p className="text-sm font-semibold text-slate-500 mt-1">
+            <p className="text-sm font-medium text-[var(--text-secondary,var(--text2))] mt-1">
               Erstellen Sie individuelle Berichtsentwürfe auf Basis der ausgewählten schulischen Daten.
             </p>
           </div>
@@ -557,7 +557,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                type="button"
                onClick={triggerAllGenerations}
                disabled={!!generatingAllStatus}
-               className="px-4 py-3 bg-slate-900 border border-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black tracking-widest uppercase transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+               className="px-4 py-3 bg-[var(--accent)] border border-transparent hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center gap-2 disabled:opacity-50 cursor-pointer"
              >
                {generatingAllStatus ? <Loader2 className="animate-spin" size={14} /> : <Wand2 size={14} />} 
                {generatingAllStatus ? `Erstelle (${generatingAllStatus.current}/${generatingAllStatus.total})` : 'Fehlende Entwürfe erstellen'}
@@ -565,7 +565,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
              <button 
                type="button"
                onClick={printAll}
-               className="px-4 py-3 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 rounded-xl text-xs font-black tracking-widest uppercase transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+               className="px-4 py-3 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))] rounded-xl text-xs font-bold transition-colors shadow-sm flex items-center gap-2 cursor-pointer"
              >
                <Printer size={14} /> Freigegebene drucken
              </button>
@@ -586,7 +586,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
          <div className="w-full lg:w-80 shrink-0 flex flex-col gap-6">
             
             {/* Global Generator Settings */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm p-5 flex flex-col gap-4">
               <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
                 <Sliders size={14} />
                 Generator-Konfiguration
@@ -677,7 +677,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
             </div>
 
             {/* Student List */}
-            <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex-1 min-h-[300px] flex flex-col bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm overflow-hidden">
                <div className="p-4 border-b border-slate-100 font-black uppercase text-[0.75rem] leading-tight tracking-widest text-slate-400 bg-slate-50">
                   Schülerinnen & Schüler
                </div>
@@ -699,8 +699,8 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                          }}
                          className={`w-full text-left p-3 rounded-2xl transition-all flex items-center justify-between ${
                            isSelected 
-                             ? 'bg-slate-950 text-white shadow-md' 
-                             : 'hover:bg-slate-50 text-slate-700'
+                             ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' 
+                             : 'hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))]'
                          }`}
                        >
                          <div className="flex flex-col min-w-0">
@@ -733,7 +733,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
          </div>
 
          {/* Right Side: Report View & Visualizers */}
-         <div className="flex-1 bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col p-6 lg:p-8 relative min-w-0">
+         <div className="flex-1 bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col p-5 lg:p-6 relative min-w-0">
             {selectedStudent ? (() => {
                const s = students.find(x => x.id === selectedStudent)!;
                const b = berichte[selectedStudent];

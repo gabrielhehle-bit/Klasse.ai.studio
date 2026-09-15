@@ -124,12 +124,13 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
 
   if (isAuthenticated === null) {
     return (
-      <div className="min-h-screen w-full bg-slate-950 flex flex-col items-center justify-center gap-4">
+      <div className="min-h-screen w-full bg-[var(--surface-app,var(--bg))] text-[var(--text-primary,var(--text))] flex flex-col items-center justify-center gap-4">
         <div className="relative">
-          <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          <div className="absolute inset-0 rounded-full bg-[var(--accent-soft)] blur-xl scale-150" />
+          <div className="relative w-10 h-10 border-[3px] border-[var(--border-default,var(--border))] border-t-[var(--accent)] rounded-full animate-spin" />
         </div>
-        <div className="text-slate-400 font-mono text-[10px] uppercase tracking-widest font-bold">
-          Prüfe Zugang...
+        <div className="text-[var(--text-muted,var(--text3))] text-xs font-bold tracking-wide">
+          Klassio wird vorbereitet …
         </div>
       </div>
     );
@@ -695,7 +696,7 @@ function AppContent() {
       data-style={app?.theme || 'classic_light'}
     >
       {isPending && (
-        <div className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-amber-500 to-emerald-500 animate-pulse z-[9999]" />
+        <div className="fixed top-0 left-0 right-0 h-1 bg-[var(--accent)] animate-pulse z-[9999]" />
       )}
       <GlobalActions />
       <Spotlight />

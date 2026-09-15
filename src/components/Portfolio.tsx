@@ -130,8 +130,8 @@ export default function Portfolio() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[96rem] space-y-5 px-4 py-5 sm:px-6">
-      <header className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm sm:p-7">
+    <div className="mx-auto w-full max-w-[1180px] space-y-5 px-3 py-5 sm:px-5 lg:px-6 text-[var(--text-primary,var(--text))]">
+      <header className="rounded-2xl border border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 shadow-sm sm:p-6">
         <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--accent)]">Leistungen</p>
         <div className="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -152,7 +152,7 @@ export default function Portfolio() {
       </header>
 
       <div className="grid gap-5 xl:grid-cols-[17rem_minmax(0,1fr)]">
-        <aside className="self-start rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm xl:sticky xl:top-4">
+        <aside className="self-start rounded-2xl border border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))] p-4 shadow-sm xl:sticky xl:top-4">
           <label className="relative block">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text3)]" />
             <input
@@ -206,14 +206,14 @@ export default function Portfolio() {
         </aside>
 
         <main className="min-w-0 space-y-4">
-          <div className="flex flex-col gap-3 rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface)] p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-2xl border border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))] p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div className="grid grid-cols-2 gap-1 rounded-xl bg-[var(--surface2)] p-1">
               <button
                 type="button"
                 onClick={() => setActiveTab('lernziele')}
                 className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-black transition ${
                   activeTab === 'lernziele'
-                    ? 'bg-[var(--surface)] text-[var(--accent)] shadow-sm'
+                    ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm'
                     : 'text-[var(--text2)] hover:text-[var(--text)]'
                 }`}
               >
@@ -224,7 +224,7 @@ export default function Portfolio() {
                 onClick={() => setActiveTab('portfolio')}
                 className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-black transition ${
                   activeTab === 'portfolio'
-                    ? 'bg-[var(--surface)] text-[var(--accent)] shadow-sm'
+                    ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm'
                     : 'text-[var(--text2)] hover:text-[var(--text)]'
                 }`}
               >

@@ -140,15 +140,15 @@ export default function Archive() {
   } : null;
 
   return (
-    <div className="archive-shell max-w-6xl mx-auto space-y-5 py-4 px-4">
-      <div className="bg-white rounded-3xl border border-stone-200 shadow-sm p-5 sm:p-6 flex flex-col xl:flex-row xl:items-center justify-between gap-5">
+    <div className="archive-shell max-w-[1180px] w-full mx-auto space-y-5 py-4 px-3 sm:px-5 lg:px-6 text-[var(--text-primary,var(--text))]">
+      <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm p-5 sm:p-6 flex flex-col xl:flex-row xl:items-center justify-between gap-5">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 bg-[var(--accent-soft)] text-[var(--accent)] rounded-xl flex items-center justify-center shrink-0 border border-[var(--accent)]/15">
             <ArchiveIcon size={23} />
           </div>
           <div>
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">Archivierte Klassenstände</h2>
-            <p className="text-sm text-slate-500 font-medium mt-1 max-w-2xl">
+            <h2 className="text-xl font-black text-[var(--text-primary,var(--text))] tracking-tight">Archivierte Klassenstände</h2>
+            <p className="text-sm text-[var(--text-secondary,var(--text2))] font-medium mt-1 max-w-2xl">
               Bewahren Sie abgeschlossene Schuljahre als schreibgeschützte, pädagogisch relevante Momentaufnahme auf.
               Die aktive Klasse wird beim Archivieren nicht verändert oder gelöscht.
             </p>
@@ -159,7 +159,7 @@ export default function Archive() {
           type="button"
           onClick={handleArchiveCurrentClass}
           disabled={!app.activeClassId || !app.schueler?.length}
-          className="px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          className="px-4 py-3 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shrink-0 shadow-sm transition-colors"
         >
           {existingCurrentSnapshot ? <RefreshCw size={15} /> : <ArchiveIcon size={15} />}
           {existingCurrentSnapshot ? 'Archivstand aktualisieren' : 'Aktuelle Klasse archivieren'}
@@ -175,7 +175,7 @@ export default function Archive() {
         </p>
       </div>
 
-      <div className="sticky top-0 z-20 bg-[#f4f7f3]/95 backdrop-blur-md py-3 border-b border-stone-200 flex flex-col sm:flex-row gap-3">
+      <div className="sticky top-0 z-20 bg-[var(--surface-app,var(--bg))] backdrop-blur-md py-3 border-b border-[var(--border-subtle,var(--border))] flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -184,7 +184,7 @@ export default function Archive() {
             placeholder="Klasse oder Schüler:in suchen …"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            className="w-full h-12 pl-11 pr-4 bg-white border border-stone-200 rounded-2xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+            className="w-full h-12 pl-11 pr-4 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-xl text-sm font-semibold text-[var(--text-primary,var(--text))] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))]"
           />
         </div>
 
@@ -194,7 +194,7 @@ export default function Archive() {
             aria-label="Archiv nach Schuljahr filtern"
             value={selectedYear}
             onChange={(event) => setSelectedYear(event.target.value)}
-            className="w-full h-12 pt-3 pl-3.5 pr-8 bg-white border border-stone-200 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500/30 appearance-none"
+            className="w-full h-12 pt-3 pl-3.5 pr-8 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-xl text-xs font-bold text-[var(--text-secondary,var(--text2))] outline-none focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))] appearance-none"
           >
             {years.map((year) => (
               <option key={year} value={year}>{year === 'Alle' ? 'Alle Schuljahre' : year}</option>
@@ -205,7 +205,7 @@ export default function Archive() {
       </div>
 
       {filteredArchives.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-stone-200 p-10 text-center shadow-sm">
+        <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] p-10 text-center shadow-sm">
           <div className="w-14 h-14 mx-auto rounded-full bg-stone-50 flex items-center justify-center text-stone-300">
             <ArchiveIcon size={26} />
           </div>
@@ -224,7 +224,7 @@ export default function Archive() {
             const isCurrentVersion =
               snapshot.sourceClassId === app.activeClassId && snapshot.schuljahr === app.schuljahr;
             return (
-              <div key={snapshot.id} className="bg-white rounded-3xl border border-stone-200 shadow-sm p-5 flex flex-col gap-4">
+              <div key={snapshot.id} className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm p-5 flex flex-col gap-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -248,15 +248,15 @@ export default function Archive() {
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                  <div className="p-3 rounded-xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))]">
                     <div className="text-xl font-black text-slate-900">{snapshot.schueler?.length || 0}</div>
                     <div className="text-[10px] font-bold text-slate-500">Schüler:innen</div>
                   </div>
-                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                  <div className="p-3 rounded-xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))]">
                     <div className="text-xl font-black text-slate-900">{Object.keys(snapshot.jahresberichte || {}).length}</div>
                     <div className="text-[10px] font-bold text-slate-500">Jahresberichte</div>
                   </div>
-                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                  <div className="p-3 rounded-xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))]">
                     <div className="text-xl font-black text-slate-900">
                       {(snapshot.diagnostikErhebungen?.length || 0) + (snapshot.diagnosticResults?.length || 0)}
                     </div>
@@ -268,7 +268,7 @@ export default function Archive() {
                   <button
                     type="button"
                     onClick={() => setSelectedArchiveId(snapshot.id)}
-                    className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black flex items-center gap-2"
+                    className="px-4 py-2.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] text-xs font-bold flex items-center gap-2 transition-colors"
                   >
                     <Eye size={14} />
                     Archiv ansehen

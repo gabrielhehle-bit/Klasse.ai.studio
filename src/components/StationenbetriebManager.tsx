@@ -435,16 +435,16 @@ export function StationenbetriebManager() {
   });
 
   return (
-    <div className="h-full bg-slate-50 flex flex-col relative">
+    <div className="h-full bg-[var(--surface-app,var(--bg))] flex flex-col relative text-[var(--text-primary,var(--text))]">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0 sticky top-0 z-[110] w-full">
+      <div className="bg-[var(--surface-card,var(--surface))] border-b border-[var(--border-subtle,var(--border))] px-3 sm:px-5 lg:px-6 py-4 flex items-center justify-between shrink-0 sticky top-0 z-[110] w-full">
         <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500 shadow-sm shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-[var(--accent-soft)] border border-[var(--accent)]/15 flex items-center justify-center text-[var(--accent)] shadow-sm shrink-0">
             <LayoutGrid size={20} />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight leading-tight whitespace-nowrap">Lernwerkstatt &amp; Stationen</h1>
-            <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Übersicht und Fortschritts-Tracking</p>
+            <h1 className="text-xl font-black text-[var(--text-primary,var(--text))] tracking-tight leading-tight whitespace-nowrap">Lernwerkstatt &amp; Stationen</h1>
+            <p className="text-xs font-medium text-[var(--text-muted,var(--text3))]">Übersicht und Fortschritts-Tracking</p>
           </div>
         </div>
 
@@ -464,11 +464,11 @@ export function StationenbetriebManager() {
         </div>
       </div>
 
-      <div className="p-6 flex-1 overflow-y-auto no-scrollbar">
+      <div className="px-3 sm:px-5 lg:px-6 py-5 flex-1 overflow-y-auto no-scrollbar">
         {!activePlanId ? (
-          <div className="max-w-5xl mx-auto space-y-8">
+          <div className="max-w-[1180px] mx-auto space-y-6">
             {betriebe.length === 0 ? (
-              <div className="text-center py-20 bg-white rounded-3xl border border-slate-200 shadow-sm border-dashed">
+              <div className="text-center py-16 bg-[var(--surface-card,var(--surface))] rounded-2xl border-2 border-dashed border-[var(--border-default,var(--border))] shadow-sm">
                 <LayoutGrid size={48} className="mx-auto text-indigo-200 mb-4" />
                 <h3 className="text-lg font-bold text-slate-700 mb-2">Keine Stationenbetriebe vorhanden</h3>
                 <p className="text-sm text-slate-500 mb-6">Erstelle deinen ersten Stationenbetrieb, um den Fortschritt deiner Klasse zu tracken.</p>
@@ -489,7 +489,7 @@ export function StationenbetriebManager() {
                       key={plan.id}
                       onClick={() => setActivePlanId(plan.id)}
                       whileHover={{ y: -3, scale: 1.01 }}
-                      className={`bg-white rounded-2xl border border-slate-150 p-6 cursor-pointer hover:shadow-lg hover:border-indigo-300 transition-all group flex flex-col justify-between relative overflow-hidden`}
+                      className={`bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] p-5 cursor-pointer hover:border-[var(--accent)]/30 transition-colors group flex flex-col justify-between relative overflow-hidden shadow-sm`}
                     >
                       {/* Subject Color Splash Ribbon */}
                       <div className={`absolute top-0 inset-x-0 h-1 ${colors.progress}`} />
@@ -543,10 +543,10 @@ export function StationenbetriebManager() {
             )}
           </div>
         ) : activePlan ? (
-          <div className="max-w-7xl mx-auto space-y-6">
+          <div className="max-w-[1180px] mx-auto space-y-5">
             
             {/* Active Plan Header Bar with Custom Tab Switcher */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm">
               <div className="flex items-center gap-3">
                 <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border ${getFachColors(activePlan.fach).badge} ${getFachColors(activePlan.fach).border}`}>
                   {activePlan.fach}
@@ -560,13 +560,13 @@ export function StationenbetriebManager() {
               </div>
 
               {/* View Switcher Tabs */}
-              <div className="flex bg-slate-100 p-1 rounded-xl self-start sm:self-auto shadow-inner">
+              <div className="flex bg-[var(--surface-subtle,var(--surface2))] p-1 rounded-xl self-start sm:self-auto border border-[var(--border-subtle,var(--border))]">
                 <button
                   onClick={() => setActiveViewMode('matrix')}
                   className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                     activeViewMode === 'matrix' 
-                      ? 'bg-white text-indigo-600 shadow-sm' 
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' 
+                      : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'
                   }`}
                 >
                   <Table size={13} /> Tracker &amp; Analyse
@@ -575,8 +575,8 @@ export function StationenbetriebManager() {
                   onClick={() => setActiveViewMode('config')}
                   className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                     activeViewMode === 'config' 
-                      ? 'bg-white text-indigo-600 shadow-sm' 
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' 
+                      : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'
                   }`}
                 >
                   <Settings size={13} /> Stationen &amp; Settings
@@ -589,7 +589,7 @@ export function StationenbetriebManager() {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 {/* Left Column: Workshop Settings */}
-                <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4 flex flex-col justify-between">
+                <div className="lg:col-span-2 bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] p-5 shadow-sm space-y-4 flex flex-col justify-between">
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
                       <CheckSquare size={16} className="text-indigo-500" /> Grundeinstellungen
@@ -637,7 +637,7 @@ export function StationenbetriebManager() {
                 </div>
 
                 {/* Right Column: Manage Stations */}
-                <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between">
+                <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] p-5 shadow-sm flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-2">
                       <h3 className="text-sm font-black uppercase tracking-wider text-slate-400 flex items-center gap-2">

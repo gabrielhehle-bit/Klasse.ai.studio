@@ -99,95 +99,105 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
         className={`fixed inset-0 bg-black/40 z-[149] transition-opacity lg:hidden print:hidden ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`} 
         onClick={() => setIsOpen(false)} 
       />
-      <aside className={`fixed lg:sticky top-0 h-dvh z-[150] bg-surface border-r border-border transition-all duration-300 ease-in-out print:hidden ${isOpen ? 'w-[240px] translate-x-0 shadow-2xl lg:shadow-none' : isCollapsed ? 'w-[240px] lg:w-[70px] -translate-x-full lg:translate-x-0' : 'w-[240px] lg:w-[240px] -translate-x-full lg:translate-x-0'}`}>
+      <aside className={`fixed lg:sticky top-0 h-dvh z-[150] bg-[var(--surface-card,var(--surface))] border-r border-[var(--border-subtle,var(--border))] transition-all duration-300 ease-in-out print:hidden ${isOpen ? 'w-[252px] translate-x-0 shadow-2xl lg:shadow-none' : isCollapsed ? 'w-[252px] lg:w-[72px] -translate-x-full lg:translate-x-0' : 'w-[252px] lg:w-[252px] -translate-x-full lg:translate-x-0'}`}>
         <div className="h-full flex flex-col"> 
-          <div className="p-5 pb-4 border-b border-border relative">
-            {/* Elegant Top Ambient Accent bar */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent/40 via-accent to-accent/40 opacity-80" />
+          <div className="px-4 py-4 border-b border-[var(--border-subtle,var(--border))] relative">
             {!isCollapsed ? (
               <>
-                <div className="text-[0.625rem] text-text-muted font-black uppercase tracking-[0.25em] mb-1 leading-none">{app.schuljahr || getCurrentSchuljahr()}</div>
-                <h1 className="font-sans text-[1.125rem] font-black text-text-primary leading-tight">
-                  {app.nachname ? `${app.anrede} ${app.nachname}` : 'Name fehlt'}<br />
-                  <span className="text-[0.75rem] text-accent font-bold uppercase tracking-widest leading-none mt-1 inline-block">Volksschule</span>
-                </h1>
-                
-                <div className="mt-2 flex items-center justify-between gap-1 w-full">
-                  <span className="text-xs text-text-muted">Klassio</span>
+                <div className="flex items-center gap-3 pr-9">
+                  <div className="w-10 h-10 rounded-xl bg-[var(--accent)] text-[var(--accent-text,var(--btn-text,#ffffff))] flex items-center justify-center font-black text-sm shadow-sm shrink-0">
+                    K
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <h1 className="text-[1rem] font-black tracking-[-0.02em] text-[var(--text-primary)] truncate">Klassio</h1>
+                      <span className="text-[0.625rem] font-semibold px-2 py-0.5 rounded-full bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted)] border border-[var(--border-subtle,var(--border))] shrink-0">
+                        {app.schuljahr || getCurrentSchuljahr()}
+                      </span>
+                    </div>
+                    <div className="mt-0.5 text-[0.75rem] font-semibold text-[var(--text-secondary)] truncate">
+                      {app.nachname ? `${app.anrede || ''} ${app.nachname}`.trim() : (app.vorname || 'Lehrkraft')}
+                    </div>
+                    <div className="text-[0.6875rem] text-[var(--text-muted)] truncate">
+                      {app.schulName || app.schulOrt || 'Schule nicht hinterlegt'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative mt-4 flex items-stretch gap-2">
                   <button
                     type="button"
-                    onClick={() => setShowCustomizeModal(true)}
-                    className="p-1 px-2 hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg transition-all active:scale-95 cursor-pointer flex items-center gap-1 text-[0.625rem] font-bold uppercase tracking-wider border border-[var(--border-default,var(--border))] shrink-0 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]"
-                    title="Seitenleiste anpassen"
-                    aria-label="Seitenleiste anpassen"
-                  >
-                    <SettingsIcon size={11} className="text-[var(--text-muted)] group-hover:rotate-45 transition-transform" />
-                    <span>Anpassen</span>
-                  </button>
-                </div>
-                
-                <div className="relative mt-4">
-                  <div 
-                    className={`inline-flex items-center gap-2 text-[0.6875rem] font-bold px-3.5 py-2.5 rounded-xl cursor-pointer transition-all border group whitespace-nowrap w-full justify-between focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] ${
-                      showClassMenu 
-                        ? 'bg-[var(--accent-soft)] border-[var(--accent)] text-[var(--accent)] ring-2 ring-[var(--accent)]/20' 
-                        : 'bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--accent-soft)] text-[var(--text-secondary)] hover:text-[var(--accent)] border-[var(--border-default,var(--border))] hover:border-[var(--accent)]/30'
+                    className={`flex-1 min-w-0 inline-flex items-center justify-between gap-2 text-left text-[0.75rem] font-bold px-3 py-2.5 rounded-xl transition-all border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] ${
+                      showClassMenu
+                        ? 'bg-[var(--accent-soft)] border-[var(--accent)]/35 text-[var(--accent)]'
+                        : 'bg-[var(--surface-subtle,var(--surface2))] border-[var(--border-subtle,var(--border))] text-[var(--text-primary)] hover:border-[var(--border-default,var(--border2))]'
                     }`}
                     onClick={() => setShowClassMenu(!showClassMenu)}
+                    aria-expanded={showClassMenu}
+                    title="Aktive Klasse wechseln"
                   >
-                    <div className="flex items-center gap-2 text-wrap leading-tight break-words">
-                       <span className="text-wrap leading-tight break-words">{app.stufe || '?'}. Klasse {app.klassenbezeichnung || 'Ohne Namen'}</span>
-                       {!app.klassenvorstand && <span className="bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary)] text-[0.5rem] px-1.5 py-0.5 rounded-full">Fachlehrer</span>}
-                    </div>
-                    <ChevronDown size={11} className={`shrink-0 transition-transform ${showClassMenu ? 'rotate-180' : ''}`} /> 
-                  </div>
- 
-                   {showClassMenu && (
+                    <span className="truncate">
+                      {app.stufe || '?'}. Klasse {app.klassenbezeichnung || 'Ohne Namen'}
+                    </span>
+                    <ChevronDown size={14} className={`shrink-0 transition-transform ${showClassMenu ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  <IconButton
+                    variant="secondary"
+                    size="sm"
+                    aria-label="Navigation anpassen"
+                    title="Navigation anpassen"
+                    onClick={() => setShowCustomizeModal(true)}
+                  >
+                    <SettingsIcon size={15} />
+                  </IconButton>
+
+                  {showClassMenu && (
                     <>
                       <div className="fixed inset-0 z-[160]" onClick={() => setShowClassMenu(false)} />
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--surface-card,var(--surface))]/98 backdrop-blur-xl rounded-2xl shadow-2xl border border-[var(--border-default,var(--border))] py-2 z-[161] min-w-[200px] max-h-[300px] overflow-y-auto elegant-scrollbar">
-                        <div className="px-4 py-2 text-[0.625rem] font-black text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border-default,var(--border))]/60 mb-1">Meine Klassen</div>
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--surface-card,var(--surface))] rounded-xl shadow-xl border border-[var(--border-default,var(--border))] py-2 z-[161] min-w-[210px] max-h-[300px] overflow-y-auto elegant-scrollbar">
+                        <div className="px-3 py-2 text-[0.6875rem] font-semibold text-[var(--text-muted)]">Meine Klassen</div>
                         {(app.classes || []).map(c => (
-                          <div 
-                            key={c.id} 
+                          <div
+                            key={c.id}
                             onClick={() => { switchClass(c.id); setShowClassMenu(false); }}
-                            className={`px-4 py-3 hover:bg-[var(--surface-subtle,var(--surface2))] cursor-pointer flex items-center justify-between group transition-colors ${app.activeClassId === c.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-bold' : 'text-[var(--text-secondary)]'}`}
+                            className={`px-3 py-2.5 hover:bg-[var(--surface-subtle,var(--surface2))] cursor-pointer flex items-center justify-between gap-2 transition-colors ${
+                              app.activeClassId === c.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-bold' : 'text-[var(--text-secondary)]'
+                            }`}
                           >
-                            <div className="flex flex-col">
-                              <span className="text-[0.75rem]">{c.stufe}. Klasse {c.name}</span>
-                              {!c.klassenvorstand && <span className="text-[0.5625rem] opacity-70">Fachunterricht</span>}
+                            <div className="min-w-0 flex flex-col">
+                              <span className="text-[0.75rem] truncate">{c.stufe}. Klasse {c.name}</span>
+                              {!c.klassenvorstand && <span className="text-[0.625rem] opacity-70">Fachunterricht</span>}
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 shrink-0">
                               {app.activeClassId === c.id && <Check size={14} className="text-[var(--accent)]" />}
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (app.activeClassId !== c.id) {
-                                    switchClass(c.id);
-                                  }
+                                  if (app.activeClassId !== c.id) switchClass(c.id);
                                   setPage('setup');
                                   setShowClassMenu(false);
                                 }}
-                                title="Klassen-Setup konfigurieren"
+                                title="Klassen-Setup"
                                 aria-label={`Setup für ${c.name} konfigurieren`}
-                                className="p-1 hover:bg-[var(--surface-muted,var(--surface3))] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-md transition-all cursor-pointer"
+                                className="p-1.5 hover:bg-[var(--surface-muted,var(--surface3))] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg transition-colors"
                               >
-                                <SettingsIcon size={12} />
+                                <SettingsIcon size={13} />
                               </button>
                             </div>
                           </div>
                         ))}
-                        <div className="p-2 border-t border-[var(--border-default,var(--border))]/60 mt-1">
-                          <button 
+                        <div className="p-2 border-t border-[var(--border-subtle,var(--border))] mt-1">
+                          <button
                             type="button"
                             onClick={() => {
                               setPage('setup_new');
                               setShowClassMenu(false);
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[0.6875rem] font-black text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-all text-center justify-center bg-[var(--accent-soft)] border border-[var(--accent)]/20 cursor-pointer"
+                            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-[0.75rem] font-bold text-[var(--accent)] hover:bg-[var(--accent-soft)] transition-colors justify-center"
                           >
-                            <Edit3 size={12} /> Klasse hinzufügen
+                            <Edit3 size={14} /> Klasse hinzufügen
                           </button>
                         </div>
                       </div>
@@ -196,42 +206,31 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                 </div>
               </>
             ) : (
-              <div className="flex flex-col items-center gap-6">
-                <div className="w-10 h-10 bg-[var(--accent)] rounded-xl flex items-center justify-center text-[var(--accent-text,var(--btn-text,#ffffff))] font-black text-[0.75rem] leading-tight shadow-md shadow-[var(--accent)]/20">
-                  {app.nachname ? app.nachname.charAt(0) : 'L'}
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-10 h-10 bg-[var(--accent)] rounded-xl flex items-center justify-center text-[var(--accent-text,var(--btn-text,#ffffff))] font-black text-sm shadow-sm">
+                  K
                 </div>
-                <IconButton 
-                  onClick={toggleCollapse}
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Seitenleiste ausklappen"
-                  title="Seitenleiste ausklappen"
-                >
-                  <ChevronRight size={18} />
-                </IconButton>
               </div>
             )}
-            
-            {!isCollapsed && (
-              <div className="absolute right-3 top-6 hidden lg:block">
-                <IconButton 
-                  onClick={toggleCollapse}
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Seitenleiste einklappen"
-                  title="Seitenleiste einklappen"
-                >
-                  <ChevronLeft size={18} />
-                </IconButton>
-              </div>
-            )}
+
+            <div className={`absolute right-2 top-4 hidden lg:block ${isCollapsed ? 'static mt-3' : ''}`}>
+              <IconButton
+                onClick={toggleCollapse}
+                variant="ghost"
+                size="sm"
+                aria-label={isCollapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'}
+                title={isCollapsed ? 'Seitenleiste ausklappen' : 'Seitenleiste einklappen'}
+              >
+                {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+              </IconButton>
+            </div>
           </div>
-        
-          <nav className="flex-1 py-3 overflow-y-auto no-scrollbar space-y-3">
+
+          <nav className="flex-1 py-3 overflow-y-auto no-scrollbar space-y-4">
             {navItems.map((sec, idx) => (
               <div key={idx} className="px-2">
                 {!isCollapsed && (
-                  <div className="px-3.5 py-1.5 text-[0.625rem] font-bold uppercase tracking-[0.16em] text-[var(--text-muted)] mb-1">
+                  <div className="px-3.5 py-1 text-[0.6875rem] font-semibold text-[var(--text-muted)] mb-1">
                     {sec.section}
                   </div>
                 )}
@@ -245,12 +244,10 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                       aria-current={currentPage === item.id ? 'page' : undefined}
                       title={isCollapsed ? item.label : ''}
                       className={`w-full text-left flex items-center gap-3 px-3.5 py-3 min-h-12 cursor-pointer rounded-xl transition-all duration-200 text-sm relative overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]
-                        ${currentPage === item.id 
-                          ? 'shadow-xs font-bold'
-                          : 'text-[var(--text-secondary)] hover:bg-[var(--surface-subtle,var(--surface2))] hover:text-[var(--text-primary)] group'}
-                        ${item.id === 'unterricht' && currentPage !== item.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-extrabold border border-[var(--accent)]/25' : ''}
+                        ${currentPage === item.id
+                          ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-bold border border-[var(--accent)]/20'
+                          : 'text-[var(--text-secondary)] hover:bg-[var(--surface-subtle,var(--surface2))] hover:text-[var(--text-primary)] border border-transparent group'}
                         ${isCollapsed ? 'justify-center px-0' : ''}`}
-                      style={currentPage === item.id ? { backgroundColor: 'var(--accent)', color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}
                       onClick={() => {
                         setPage(item.id);
                         if (window.innerWidth < 1024) setIsOpen(false);
@@ -260,12 +257,12 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                       {currentPage === item.id && (
                         <motion.div 
                           layoutId="activeSideIndicator"
-                          className="absolute left-0 top-2.5 bottom-2.5 w-0.5 rounded-r-full bg-white opacity-90 z-20"
+                          className="absolute left-0 top-2.5 bottom-2.5 w-0.5 rounded-r-full bg-[var(--accent)] z-20"
                           transition={{ type: "spring", stiffness: 380, damping: 30 }}
                         />
                       )}
-                      <span className={`${currentPage === item.id ? '' : item.id === 'unterricht' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-colors'}`} style={currentPage === item.id ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}>{item.icon}</span>
-                      {!isCollapsed && <span className="text-wrap leading-tight break-words tracking-tight" style={currentPage === item.id ? { color: 'var(--accent-text, var(--btn-text, #ffffff))' } : {}}>{item.label}</span>}
+                      <span className={`${currentPage === item.id ? 'text-[var(--accent)]' : 'text-[var(--text-muted)] group-hover:text-[var(--accent)]'} transition-colors`}>{item.icon}</span>
+                      {!isCollapsed && <span className="text-wrap leading-tight break-words tracking-tight">{item.label}</span>}
                     </button>
                   ))}
                 </div>
@@ -281,25 +278,12 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             </div>}
           </nav>
 
-          <div className="p-2 border-t border-border space-y-1">
+          <div className="p-2 border-t border-[var(--border-subtle,var(--border))] space-y-1">
             {grouped.utilities.map(item => <button key={item.id} type="button" aria-current={currentPage === item.id ? 'page' : undefined}
               title={item.label} onClick={() => { setPage(item.id); if (window.innerWidth < 1024) setIsOpen(false); }}
-              className={`w-full min-h-11 px-3.5 flex items-center gap-3 rounded-xl text-sm ${currentPage === item.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-semibold' : 'text-text-secondary hover:bg-[var(--surface2)]'}`}>
+              className={`w-full min-h-11 px-3.5 flex items-center gap-3 rounded-xl border transition-colors text-sm ${currentPage === item.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)]/20 font-semibold' : 'text-[var(--text-secondary)] border-transparent hover:bg-[var(--surface-subtle,var(--surface2))]'}`}>
               {item.icon}{!isCollapsed && <span>{item.label}</span>}
             </button>)}
-          </div>
-          <div className={`p-5 border-t border-[var(--border-default,var(--border))] ${isCollapsed ? 'flex justify-center' : ''}`}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] flex items-center justify-center text-[1.25rem] shadow-xs shrink-0 leading-none">
-                {app.anrede === 'Frau' ? '👩‍🏫' : '👨‍🏫'}
-              </div>
-              {!isCollapsed && (
-                <div className="">
-                  <div className="text-[0.6875rem] font-black text-[var(--text-muted)] uppercase tracking-widest leading-none mb-1">Aktiv</div>
-                  <div className="text-[0.8125rem] font-bold text-[var(--text-primary)] text-wrap leading-tight break-words">{app.vorname || 'Lehrkraft'}</div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </aside>

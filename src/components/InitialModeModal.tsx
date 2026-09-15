@@ -16,14 +16,14 @@ export default function InitialModeModal() {
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -20, scale: 0.95 }}
-        className="bg-[var(--surface-card,var(--surface))] text-[var(--text-primary)] border border-[var(--border-default,var(--border))] rounded-[2.5rem] p-8 md:p-10 max-w-2xl w-full shadow-2xl relative"
+        className="bg-[var(--surface-card,var(--surface))] text-[var(--text-primary)] border border-[var(--border-default,var(--border))] rounded-2xl p-6 md:p-8 max-w-2xl w-full shadow-2xl relative"
       >
         <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent-soft)] rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 opacity-40 pointer-events-none"></div>
         
         <div className="relative z-10 space-y-8 text-center sm:text-left">
           
           <div className="space-y-3">
-            <div className="w-16 h-16 bg-[var(--accent-soft)] text-[var(--accent)] rounded-[2rem] flex items-center justify-center mx-auto sm:mx-0 shadow-inner">
+            <div className="w-14 h-14 bg-[var(--accent-soft)] text-[var(--accent)] rounded-xl flex items-center justify-center mx-auto sm:mx-0 border border-[var(--accent)]/15">
               <Sparkles size={32} />
             </div>
             <h2 className="text-[1.875rem] leading-tight font-black text-[var(--text-primary)] tracking-tight">Willkommen im Klassenbuch!</h2>
@@ -46,7 +46,7 @@ export default function InitialModeModal() {
                 }));
                 showToast("Fokus-Modus aktiviert! Alles ist schön übersichtlich.", "success");
               }}
-              className="group relative flex flex-col items-center sm:items-start text-left p-6 rounded-[2rem] border-2 border-[var(--success-border)] bg-[var(--success-soft)] hover:border-[var(--success)] transition-all cursor-pointer active:scale-95"
+              className="group relative flex flex-col items-center sm:items-start text-left p-5 rounded-2xl border border-[var(--success-border)] bg-[var(--success-soft)] hover:border-[var(--success)] transition-colors cursor-pointer"
             >
               <div className="text-4xl mb-4 group-hover:scale-110 transition-transform origin-bottom-left">🌱</div>
               <h3 className="text-[1.125rem] leading-normal font-black text-[var(--success-text)] mb-1">Fokus-Modus</h3>
@@ -65,7 +65,7 @@ export default function InitialModeModal() {
                 }));
                 showToast("Experten-Modus aktiviert! Du hast alle Werkzeuge.", "success");
               }}
-              className="group relative flex flex-col items-center sm:items-start text-left p-6 rounded-[2rem] border-2 border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] hover:border-[var(--accent)] transition-all cursor-pointer active:scale-95 shadow-sm"
+              className="group relative flex flex-col items-center sm:items-start text-left p-5 rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] hover:border-[var(--accent)] transition-colors cursor-pointer shadow-sm"
             >
               <div className="text-4xl mb-4 group-hover:scale-110 transition-transform origin-bottom-left">👑</div>
               <h3 className="text-[1.125rem] leading-normal font-black text-[var(--text-primary)] mb-1">Experte (Voll)</h3>

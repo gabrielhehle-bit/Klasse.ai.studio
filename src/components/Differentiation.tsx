@@ -184,31 +184,31 @@ WICHTIGSTE REGELN FÜR DIE AUSGABE:
   };
 
   return (
-    <div className="h-full overflow-y-auto custom-scrollbar w-full flex flex-col">
-      <div className="px-3 md:px-6 py-6 border-b border-slate-100 flex gap-4 overflow-x-auto no-scrollbar shrink-0">
+    <div className="h-full overflow-y-auto custom-scrollbar w-full flex flex-col text-[var(--text-primary,var(--text))]">
+      <div className="max-w-[1180px] w-full mx-auto px-3 sm:px-5 lg:px-6 py-4 border-b border-[var(--border-subtle,var(--border))] flex gap-2 overflow-x-auto no-scrollbar shrink-0">
         <button 
           onClick={() => setActiveMainTab('ki')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[0.75rem] font-black uppercase tracking-widest transition-all ${activeMainTab === 'ki' ? 'bg-sky-600 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[0.75rem] font-black uppercase tracking-widest transition-all ${activeMainTab === 'ki' ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' : 'bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
         >
           <Sparkles size={16} /> KI-Differenzierung
         </button>
         <button 
           onClick={() => setActiveMainTab('gruppen')}
-          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[0.75rem] font-black uppercase tracking-widest transition-all ${activeMainTab === 'gruppen' ? 'bg-indigo-600 text-white shadow-md' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+          className={`flex items-center gap-2 px-5 py-3 rounded-2xl text-[0.75rem] font-black uppercase tracking-widest transition-all ${activeMainTab === 'gruppen' ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' : 'bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
         >
           <Users size={16} /> Feste Gruppen
         </button>
       </div>
 
-      <div className="flex-1 px-3 md:px-6 py-6 md:py-8 max-w-full xl:max-w-7xl mx-auto w-full">
+      <div className="flex-1 px-3 sm:px-5 lg:px-6 py-5 md:py-6 max-w-[1180px] mx-auto w-full">
         {activeMainTab === 'ki' ? (
           <div className="space-y-6 md:space-y-8">
             <div className="space-y-1">
               <div className="flex items-center gap-3">
                 <Layers className="text-sky-600 shrink-0" size={28} />
-                <h2 className="text-[1.5rem] leading-normal md:text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Differenzierung KI</h2>
+                <h2 className="text-[1.5rem] leading-normal md:text-[1.875rem] leading-tight font-black text-[var(--text-primary,var(--text))] tracking-tight">Differenzierung KI</h2>
               </div>
-              <p className="text-slate-500 font-medium tracking-tight text-[0.8125rem] md:text-[0.9375rem]">
+              <p className="text-[var(--text-secondary,var(--text2))] font-medium tracking-tight text-[0.8125rem] md:text-[0.9375rem]">
                 Erstelle blitzschnell passende Aufgabenstellungen und adaptiere Materialien (DaZ, Förderbedarf).
               </p>
             </div>
@@ -216,7 +216,7 @@ WICHTIGSTE REGELN FÜR DIE AUSGABE:
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-[400px_1fr] gap-6 md:gap-8 items-start">
               {/* Existing Form */}
               <div className="space-y-6">
-          <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-xl shadow-slate-900/5 space-y-8">
+          <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-5 sm:p-6 border border-[var(--border-subtle,var(--border))] shadow-sm space-y-6">
             <div className="space-y-3">
               <label className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Grobthema / Kontext</label>
               <textarea 
@@ -239,7 +239,7 @@ WICHTIGSTE REGELN FÜR DIE AUSGABE:
                   <button 
                     key={l.id}
                     onClick={() => setTargetGroup(l.id)}
-                    className={`p-4 rounded-2xl flex flex-col items-start transition-all border text-left ${targetGroup === l.id ? 'bg-sky-600 border-sky-600 text-white shadow-lg' : 'bg-slate-50 border-slate-100 text-slate-600 hover:border-sky-200'}`}
+                    className={`p-4 rounded-2xl flex flex-col items-start transition-all border text-left ${targetGroup === l.id ? 'bg-[var(--accent)] border-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' : 'bg-[var(--surface-subtle,var(--surface2))] border-[var(--border-subtle,var(--border))] text-[var(--text-secondary,var(--text2))] hover:border-[var(--accent)]/30'}`}
                   >
                     <span className="text-[0.75rem] font-black uppercase">{l.label}</span>
                     <span className={`text-[0.625rem] font-bold ${targetGroup === l.id ? 'text-sky-100' : 'text-slate-400'}`}>{l.desc}</span>
@@ -251,7 +251,7 @@ WICHTIGSTE REGELN FÜR DIE AUSGABE:
             <button 
               onClick={generate}
               disabled={loading || !topic}
-              className="btn w-full h-16 text-[0.8125rem] shadow-xl shadow-sky-500/20 bg-sky-600 hover:bg-sky-700 text-white font-black rounded-2xl"
+              className="w-full h-14 text-[0.8125rem] shadow-sm bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] font-bold rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -269,8 +269,8 @@ WICHTIGSTE REGELN FÜR DIE AUSGABE:
         </div>
 
         <div className={`transition-all duration-500 ${result ? 'opacity-100 scale-100' : 'opacity-40 scale-[0.98] pointer-events-none'}`}>
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-900/5 flex flex-col min-h-[400px] lg:min-h-[600px]">
-             <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/20">
+          <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col min-h-[400px] lg:min-h-[600px]">
+             <div className="p-5 border-b border-[var(--border-subtle,var(--border))] flex justify-between items-center bg-[var(--surface-subtle,var(--surface2))]">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-sky-100 text-sky-600 rounded-lg flex items-center justify-center"><PenTool size={16} /></div>
                   <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400">Differenzierte Aufgabenstellungen</span>

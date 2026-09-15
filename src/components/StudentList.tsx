@@ -257,28 +257,28 @@ export default function StudentList() {
       ) : (
         <>
           <div className={`${isCompact ? "space-y-4" : isLarge ? "space-y-8" : "space-y-6"} print:hidden`}>
-          <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm print:hidden ${
+          <div className={`bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm print:hidden ${
             isCompact ? 'p-2.5' : isLarge ? 'p-5' : 'p-4'
           }`}>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {/* Klasse */}
-              <div className={`flex items-center gap-3 bg-slate-50 rounded-xl border border-slate-200 ${isCompact ? 'p-2' : 'p-3'}`}>
-                <div className={`bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black shadow-sm shrink-0 ${
+              <div className={`flex items-center gap-3 bg-[var(--surface-subtle,var(--surface2))] rounded-xl border border-[var(--border-subtle,var(--border))] ${isCompact ? 'p-2' : 'p-3'}`}>
+                <div className={`bg-[var(--accent)] rounded-xl flex items-center justify-center text-[var(--accent-text,var(--btn-text,#ffffff))] font-black shadow-sm shrink-0 ${
                   isCompact ? 'w-8 h-8 text-[0.875rem]' : 'w-10 h-10 text-[1.125rem]'
                 }`}>
                   {schueler.length}
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Klasse</span>
-                  <span className="text-[0.75rem] leading-tight font-black text-slate-900 truncate">Personen</span>
+                  <span className="text-[0.625rem] font-semibold text-[var(--text-muted,var(--text3))] leading-none mb-0.5">Klasse</span>
+                  <span className="text-[0.75rem] leading-tight font-bold text-[var(--text-primary,var(--text))] truncate">Personen</span>
                 </div>
               </div>
               
               {/* Personen (M/W) */}
-              <div className={`flex flex-col justify-between bg-slate-50 rounded-xl border border-slate-200 ${isCompact ? 'p-2' : 'p-3'}`}>
+              <div className={`flex flex-col justify-between bg-[var(--surface-subtle,var(--surface2))] rounded-xl border border-[var(--border-subtle,var(--border))] ${isCompact ? 'p-2' : 'p-3'}`}>
                 <div className="flex justify-between items-center w-full mb-1 gap-2">
-                  <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none">Geschlecht</span>
-                  <span className="text-[0.5625rem] font-black text-slate-600 text-right">
+                  <span className="text-[0.625rem] font-semibold text-[var(--text-muted,var(--text3))] leading-none">Geschlecht</span>
+                  <span className="text-[0.625rem] font-semibold text-[var(--text-secondary,var(--text2))] text-right">
                     {maleCount} M · {femaleCount} W{diverseCount > 0 ? ` · ${diverseCount} D` : ''}{unknownGenderCount > 0 ? ` · ${unknownGenderCount} offen` : ''}
                   </span>
                 </div>
@@ -290,8 +290,8 @@ export default function StudentList() {
               </div>
 
               {/* Förderung (DAZ/ESPF/SPF) */}
-              <div className={`flex flex-col justify-center bg-slate-50/70 rounded-xl border border-slate-150/40 ${isCompact ? 'p-2' : 'p-3'}`}>
-                 <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Förderung</span>
+              <div className={`flex flex-col justify-center bg-[var(--surface-subtle,var(--surface2))] rounded-xl border border-[var(--border-subtle,var(--border))] ${isCompact ? 'p-2' : 'p-3'}`}>
+                 <span className="text-[0.625rem] font-semibold text-[var(--text-muted,var(--text3))] leading-none mb-1.5">Förderung</span>
                  <div className="flex items-center gap-1 flex-wrap">
                   {dazCount > 0 && (
                     <div className="px-1.5 py-0.5 bg-amber-50 rounded select-none border border-amber-200 flex items-center shrink-0">
@@ -315,9 +315,9 @@ export default function StudentList() {
               </div>
 
               {/* Alter */}
-              <div className={`flex items-center justify-between gap-2 bg-slate-50 rounded-xl border border-slate-200 ${isCompact ? 'p-2' : 'p-3'}`}>
+              <div className={`flex items-center justify-between gap-2 bg-[var(--surface-subtle,var(--surface2))] rounded-xl border border-[var(--border-subtle,var(--border))] ${isCompact ? 'p-2' : 'p-3'}`}>
                 <div className="flex flex-col">
-                  <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Ø Alter</span>
+                  <span className="text-[0.625rem] font-semibold text-[var(--text-muted,var(--text3))] leading-none mb-1">Ø Alter</span>
                   <div className="flex items-baseline gap-0.5">
                     <span className="text-[1.125rem] font-black text-slate-900 leading-none">{avgAge}</span>
                     <span className="text-[0.5rem] font-bold text-slate-400 uppercase">J.</span>
@@ -334,12 +334,12 @@ export default function StudentList() {
               </div>
 
               {/* Religionen - compact display */}
-              <div className={`flex flex-col bg-slate-50 rounded-xl border border-slate-200 col-span-2 md:col-span-1 ${isCompact ? 'p-2' : 'p-3'}`}>
-                <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Religionen</span>
+              <div className={`flex flex-col bg-[var(--surface-subtle,var(--surface2))] rounded-xl border border-[var(--border-subtle,var(--border))] col-span-2 md:col-span-1 ${isCompact ? 'p-2' : 'p-3'}`}>
+                <span className="text-[0.625rem] font-semibold text-[var(--text-muted,var(--text3))] leading-none mb-1">Religionen</span>
                 <div className="flex flex-wrap gap-1 max-h-[38px] overflow-y-auto no-scrollbar">
                   {Object.entries(religionCounts).length > 0 ? (
                     Object.entries(religionCounts).sort((a,b) => b[1] - a[1]).map(([rel, count]) => (
-                      <div key={rel} className="flex items-center gap-1 bg-white border border-slate-200 px-1 py-0.5 rounded-md shrink-0 shadow-3xs">
+                      <div key={rel} className="flex items-center gap-1 bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] px-1 py-0.5 rounded-md shrink-0">
                         <span className="text-[0.5rem] font-bold text-slate-600 text-wrap leading-tight break-words max-w-[45px]">{rel}</span>
                         <span className="text-[0.5rem] font-black text-slate-900">{count}</span>
                       </div>
@@ -353,20 +353,20 @@ export default function StudentList() {
           </div>
         </div>
 
-        <div className={`flex flex-col gap-3 bg-white border border-slate-200 shadow-sm print:hidden ${
+        <div className={`flex flex-col gap-3 bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] shadow-sm print:hidden ${
           isCompact ? 'p-2 sm:p-3 rounded-xl' : isLarge ? 'p-4 sm:p-6 rounded-2xl' : 'p-3 sm:p-4 rounded-2xl'
         }`}>
           {/* Top row: Title and Add button */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 sm:gap-3 w-full">
             <div className="flex items-center gap-2.5 sm:gap-3">
-              <div className={`bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 border border-slate-100 shrink-0 ${
+              <div className={`bg-[var(--accent-soft)] rounded-xl flex items-center justify-center text-[var(--accent)] border border-[var(--accent)]/15 shrink-0 ${
                 isCompact ? 'w-7 h-7' : isLarge ? 'w-10 h-10' : 'w-8 h-8 sm:w-9 sm:h-9'
               }`}>
                 <GraduationCap size={isCompact ? 13 : isLarge ? 18 : 15} />
               </div>
               <div>
-                <h3 className={`${isCompact ? 'text-[0.55rem]' : isLarge ? 'text-[0.7rem]' : 'text-[0.55rem] sm:text-[0.65rem]'} font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-slate-400 leading-none`}>Klassenliste</h3>
-                <p className={`${isCompact ? 'text-[0.7rem]' : isLarge ? 'text-[0.95rem]' : 'text-[0.7rem] sm:text-[0.8rem]'} text-slate-900 font-black mt-0.5 sm:mt-1`}>
+                <h3 className={`${isCompact ? 'text-[0.55rem]' : isLarge ? 'text-[0.7rem]' : 'text-[0.55rem] sm:text-[0.65rem]'} font-semibold text-[var(--text-muted,var(--text3))] leading-none`}>Klassenliste</h3>
+                <p className={`${isCompact ? 'text-[0.7rem]' : isLarge ? 'text-[0.95rem]' : 'text-[0.7rem] sm:text-[0.8rem]'} text-[var(--text-primary,var(--text))] font-bold mt-0.5 sm:mt-1`}>
                   {filteredStudents.length} {activeFilter !== 'all' ? `von ${app?.schueler?.length || 0}` : ''} Schüler/innen
                 </p>
               </div>
@@ -375,7 +375,7 @@ export default function StudentList() {
               <button 
                 onClick={() => setIsKlassenlistImportOpen(true)}
                 title="Klassenliste importieren"
-                className={`flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg transition-all shadow-sm active:scale-95 shrink-0 cursor-pointer ${
+                className={`flex items-center justify-center bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary,var(--text2))] border border-[var(--border-default,var(--border2))] rounded-xl transition-colors shrink-0 cursor-pointer ${
                   isCompact ? 'w-7 h-7' : isLarge ? 'w-11 h-11 rounded-xl' : 'w-8 h-8 sm:w-10 sm:h-10'
                 }`}
               >
@@ -386,7 +386,7 @@ export default function StudentList() {
                   setEditingStudent({ plz: '', ort: '', niveau: 3 });
                   setIsModalOpen(true);
                 }}
-                className={`flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-black uppercase tracking-wider flex justify-center items-center transition-all shadow-md active:scale-95 cursor-pointer ${
+                className={`flex-1 sm:flex-none bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,var(--btn-text,#ffffff))] rounded-xl font-bold flex justify-center items-center transition-colors shadow-sm cursor-pointer ${
                   isCompact ? 'px-2 py-1 text-[0.55rem] gap-1' : isLarge ? 'px-5 py-3 text-[0.75rem] gap-2 rounded-xl' : 'px-3.5 py-2.5 text-[0.6875rem] gap-1.5'
                 }`}
               >
@@ -400,9 +400,9 @@ export default function StudentList() {
           <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
             <div className="flex flex-1 gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 animate-pulse" size={14} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted,var(--text3))]" size={14} />
                 <DebouncedInput 
-                  className={`w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[0.8125rem] leading-tight font-medium focus:outline-none focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all placeholder:text-slate-500 ${
+                  className={`w-full pl-9 pr-8 py-2 bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border2))] rounded-xl text-[0.8125rem] leading-tight font-medium text-[var(--text-primary,var(--text))] focus:outline-none focus:border-[var(--accent)] focus:bg-[var(--surface-card,var(--surface))] focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))]/20 transition-colors placeholder:text-[var(--text-muted,var(--text3))] ${
                     isCompact ? 'text-[0.7rem] py-1 pl-7 pr-7' : isLarge ? 'text-[0.825rem] py-2 pl-9 pr-9' : ''
                   }`}
                   placeholder="Name oder Schülernummer suchen..."
@@ -423,7 +423,7 @@ export default function StudentList() {
               </div>
               <select 
                 aria-label="Schülerliste sortieren nach"
-                className={`bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[0.6875rem] font-medium outline-none focus:border-indigo-600 transition-all cursor-pointer ${
+                className={`bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border2))] rounded-xl px-2 py-1.5 text-[0.6875rem] font-medium text-[var(--text-primary,var(--text))] outline-none focus:border-[var(--accent)] transition-colors cursor-pointer ${
                   isCompact ? 'w-24 text-[0.625rem] py-1' : isLarge ? 'w-36 text-[0.75rem] py-2' : 'w-28 sm:w-32'
                 }`}
                 value={sortBy}
@@ -435,7 +435,7 @@ export default function StudentList() {
               </select>
               <button 
                 onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                className={`px-2 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-all font-black uppercase flex items-center justify-center shrink-0 ${
+                className={`px-2 bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border2))] rounded-xl hover:bg-[var(--surface-muted,var(--surface3))] transition-colors font-bold flex items-center justify-center shrink-0 ${
                   isCompact ? 'text-[0.55rem] h-7' : isLarge ? 'text-[0.75rem] h-10 w-10' : 'text-[0.625rem]'
                 }`}
               >
@@ -443,7 +443,7 @@ export default function StudentList() {
               </button>
             </div>
 
-            <div className={`flex flex-wrap items-center bg-slate-50 rounded-lg border border-slate-200 w-full lg:w-auto ${
+            <div className={`flex flex-wrap items-center bg-[var(--surface-subtle,var(--surface2))] rounded-xl border border-[var(--border-subtle,var(--border))] w-full lg:w-auto ${
               isCompact ? 'p-0.5 gap-0.5' : isLarge ? 'p-1.5 gap-1.5' : 'p-1 gap-1'
             }`}>
               {[
@@ -463,8 +463,8 @@ export default function StudentList() {
                         : 'px-3 py-1.5 text-[0.5625rem] gap-1'
                   } ${
                     activeFilter === chip.id 
-                      ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/50 font-black' 
-                      : 'text-slate-500 hover:text-slate-850 hover:bg-white/50'
+                      ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-sm border border-[var(--accent)]/20 font-bold' 
+                      : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))] hover:bg-[var(--surface-card,var(--surface))]/60'
                   }`}
                 >
                   <span>{chip.label}</span>
@@ -475,7 +475,7 @@ export default function StudentList() {
                         ? 'px-1.5 py-0.5 text-[0.575rem]' 
                         : 'px-1 py-0.2 text-[0.5rem]'
                   } ${
-                    activeFilter === chip.id ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-200/60 text-slate-500'
+                    activeFilter === chip.id ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'bg-slate-200/60 text-slate-500'
                   }`}>{chip.count}</span>
                 </button>
               ))}
@@ -483,7 +483,7 @@ export default function StudentList() {
           </div>
 
           {/* Bottom row: View modes */}
-          <div className={`flex bg-slate-50 border border-slate-200 overflow-x-auto no-scrollbar width-full auto-cols-auto ${
+          <div className={`flex bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))] overflow-x-auto no-scrollbar width-full auto-cols-auto ${
           isCompact ? 'p-0.5 rounded-md' : isLarge ? 'p-1.5 rounded-xl' : 'p-1 rounded-xl'
           }`}>
             <button 
@@ -494,7 +494,7 @@ export default function StudentList() {
                     : isLarge 
                       ? 'px-4 py-2.5 text-[0.6875rem] gap-2 rounded-lg' 
                       : 'px-3 py-1.5 text-[0.5625rem] gap-1.5 rounded-md'
-                } ${viewMode === 'list' ? 'bg-white text-slate-900 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                } ${viewMode === 'list' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--text-primary,var(--text))] shadow-sm border border-[var(--border-default,var(--border2))]' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
             >
                 <div className="flex gap-0.5"><div className="w-1.5 h-1.5 bg-current rounded-sm" /><div className="w-1.5 h-1.5 bg-current rounded-sm" /></div>
                 <span className="hidden sm:inline">Liste</span>
@@ -507,7 +507,7 @@ export default function StudentList() {
                     : isLarge 
                       ? 'px-4 py-2.5 text-[0.6875rem] gap-2 rounded-lg' 
                       : 'px-3 py-1.5 text-[0.5625rem] gap-1.5 rounded-md'
-                } ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                } ${viewMode === 'grid' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--text-primary,var(--text))] shadow-sm border border-[var(--border-default,var(--border2))]' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
             >
                 <div className="grid grid-cols-2 gap-0.5"><div className="w-1 h-1 bg-current rounded-sm" /><div className="w-1 h-1 bg-current rounded-sm" /><div className="w-1 h-1 bg-current rounded-sm" /><div className="w-1 h-1 bg-current rounded-sm" /></div>
                 <span className="hidden sm:inline">Kacheln</span>
@@ -520,7 +520,7 @@ export default function StudentList() {
                     : isLarge 
                       ? 'px-4 py-2.5 text-[0.6875rem] gap-2 rounded-lg' 
                       : 'px-3 py-1.5 text-[0.5625rem] gap-1.5 rounded-md'
-                } ${viewMode === 'map' ? 'bg-white text-slate-900 shadow-sm border border-slate-100' : 'text-slate-500 hover:text-slate-700'}`}
+                } ${viewMode === 'map' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--text-primary,var(--text))] shadow-sm border border-[var(--border-default,var(--border2))]' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
             >
                 <Map size={isCompact ? 9 : isLarge ? 14 : 11} />
                 <span className="hidden sm:inline">Karte</span>
@@ -529,7 +529,7 @@ export default function StudentList() {
         </div>
 
   {filteredStudents.length === 0 ? (
-        <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center print:hidden">
+        <div className="bg-[var(--surface-card,var(--surface))] border border-dashed border-[var(--border-default,var(--border2))] rounded-2xl p-10 text-center print:hidden">
           <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300 mb-4">
             <Search size={20} />
           </div>
@@ -544,12 +544,12 @@ export default function StudentList() {
           </button>
         </div>
       ) : viewMode === 'list' ? (
-        <div className={`bg-white border border-slate-200 shadow-sm overflow-x-auto flex flex-col ${
+        <div className={`bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] shadow-sm overflow-x-auto flex flex-col ${
           isCompact ? 'rounded-xl' : isLarge ? 'rounded-3xl' : 'rounded-2xl'
         }`}>
           <div className="lg:min-w-[1024px]">
             {/* Header row */}
-            <div className={`hidden lg:grid grid-cols-12 gap-4 bg-slate-50/50 border-b border-slate-100 font-black uppercase tracking-[0.2em] text-slate-400 ${
+            <div className={`hidden lg:grid grid-cols-12 gap-4 bg-[var(--surface-subtle,var(--surface2))]/70 border-b border-[var(--border-subtle,var(--border))] font-semibold text-[var(--text-muted,var(--text3))] ${
               isCompact ? 'p-2.5 text-[0.65rem]' : isLarge ? 'p-5 text-[0.8rem]' : 'p-4 text-[0.75rem]'
             }`}>
                <div className="col-span-1 pl-2">#</div>
@@ -564,7 +564,7 @@ export default function StudentList() {
                }}
                initial="initial"
                animate="animate"
-               className="flex flex-col divide-y divide-slate-100"
+               className="flex flex-col divide-y divide-[var(--border-subtle,var(--border))]"
             >
                {filteredStudents.map((s, i) => {
                  const bday = isBirthdayToday(s.geburtstag);
@@ -576,7 +576,7 @@ export default function StudentList() {
                         animate: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 25 } }
                       }}
                       onClick={() => setSelectedFolderStudent(s.id)}
-                      className={`grid grid-cols-1 lg:grid-cols-12 gap-y-3 lg:gap-4 items-center hover:bg-indigo-50/30 transition-all cursor-pointer group ${
+                      className={`grid grid-cols-1 lg:grid-cols-12 gap-y-3 lg:gap-4 items-center hover:bg-[var(--accent-soft)]/55 transition-colors cursor-pointer group ${
                         isCompact ? 'p-2.5' : isLarge ? 'p-5' : 'p-4'
                       } ${
                         bday 

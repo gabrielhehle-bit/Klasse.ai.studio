@@ -503,7 +503,7 @@ Das Arbeitsblatt MUSS exakt 1 A4-Seite einnehmen. Der Lösungsbogen MUSS exakt 1
   };
 
   return (
-    <div className="worksheet-generator-container flex-1 flex flex-col min-h-0 bg-slate-50/30 print:bg-white pb-10">
+    <div className="worksheet-generator-container flex-1 flex flex-col min-h-0 bg-[var(--surface-app,var(--bg))] text-[var(--text-primary,var(--text))] print:bg-white pb-10">
       
       {/* Print-general styles to ensure perfect responsiveness on screen and flawless flow on paper */}
       <style>{`
@@ -657,20 +657,20 @@ Das Arbeitsblatt MUSS exakt 1 A4-Seite einnehmen. Der Lösungsbogen MUSS exakt 1
       `}</style>
 
       {/* Main Content Dashboard Layout */}
-      <div className={`flex-1 flex min-h-0 container mx-auto px-4 py-4 print:p-0 animate-fade-in flex-col gap-6`}>
+      <div className={`flex-1 flex min-h-0 max-w-[1180px] w-full mx-auto px-3 sm:px-5 lg:px-6 py-4 print:max-w-none print:px-0 print:py-0 animate-fade-in flex-col gap-5`}>
         
         {/* TOP PANEL: Controls deck structured horizontally or side-aligned based on paneLayout */}
         <div className={`flex flex-col gap-4 no-print w-full`}>
           
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-5 flex flex-col gap-5">
+          <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm p-5 flex flex-col gap-5">
             {/* Header / Module Control Deck */}
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between border-b border-[var(--border-subtle,var(--border))] pb-3">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-inner">
+                <div className="w-10 h-10 rounded-xl bg-[var(--accent-soft)] flex items-center justify-center text-[var(--accent)] border border-[var(--accent)]/15">
                   <Compass size={20} className="animate-spin-slow" />
                 </div>
                 <div>
-                  <h2 className="text-[0.875rem] leading-snug font-black text-slate-800 tracking-tight flex items-center gap-1.5">
+                  <h2 className="text-[0.875rem] leading-snug font-black text-[var(--text-primary,var(--text))] tracking-tight flex items-center gap-1.5">
                     Didaktischer Arbeitsblatt-Generator 
                     <span className="text-[0.5625rem] font-black uppercase tracking-wider bg-indigo-100 px-2 py-0.5 rounded-full text-indigo-700">{worksheetGrade}. Schulstufe</span>
                   </h2>
@@ -704,18 +704,18 @@ Das Arbeitsblatt MUSS exakt 1 A4-Seite einnehmen. Der Lösungsbogen MUSS exakt 1
             </div>
 
             {/* NEW: MODE AND LAYOUT SELECTOR BAR (Simple vs Expert, Split vs Stack workspace layout) */}
-            <div className="flex flex-wrap items-center justify-between gap-4 p-3.5 bg-slate-50 border border-slate-150/40 rounded-2xl">
+            <div className="flex flex-wrap items-center justify-between gap-4 p-3.5 bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))] rounded-xl">
               {/* Simple vs Expert mode */}
               <div className="flex items-center gap-2.5">
                 <span className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Arbeitsblatt-Optionen:</span>
-                <div className="flex bg-white border border-slate-200/80 rounded-xl p-0.5 shadow-sm">
+                <div className="flex bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-xl p-0.5 shadow-sm">
                   <button
                     type="button"
                     onClick={() => setGeneratorMode('simple')}
                     className={`px-3 py-1.5 rounded-lg text-[0.75rem] leading-tight font-bold leading-none flex items-center gap-1.5 transition-all cursor-pointer ${
                       generatorMode === 'simple'
-                        ? 'bg-indigo-600 text-white shadow-sm font-black'
-                        : 'text-slate-655 hover:bg-slate-50'
+                        ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm font-bold'
+                        : 'text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))]'
                     }`}
                   >
                     <span>⚡ Einfacher Modus</span>
@@ -725,8 +725,8 @@ Das Arbeitsblatt MUSS exakt 1 A4-Seite einnehmen. Der Lösungsbogen MUSS exakt 1
                     onClick={() => setGeneratorMode('expert')}
                     className={`px-3 py-1.5 rounded-lg text-[0.75rem] leading-tight font-bold leading-none flex items-center gap-1.5 transition-all cursor-pointer ${
                       generatorMode === 'expert'
-                        ? 'bg-indigo-600 text-white shadow-sm font-black'
-                        : 'text-slate-655 hover:bg-slate-50'
+                        ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm font-bold'
+                        : 'text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))]'
                     }`}
                   >
                     <span>🛠️ Experten-Modus</span>
@@ -972,7 +972,7 @@ Das Arbeitsblatt MUSS exakt 1 A4-Seite einnehmen. Der Lösungsbogen MUSS exakt 1
                     type="button"
                     disabled={isGenerating}
                     onClick={handleGenerate}
-                    className="w-full py-2.5 bg-gradient-to-tr from-indigo-600 via-indigo-700 to-indigo-800 hover:from-indigo-700 hover:to-indigo-900 disabled:from-indigo-300 disabled:to-indigo-400 text-white font-black text-[0.625rem] uppercase tracking-wider rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-md active:scale-[0.98] transition-all disabled:pointer-events-none"
+                    className="w-full py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] disabled:opacity-40 text-[var(--accent-text,#fff)] font-bold text-[0.6875rem] rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-sm transition-colors disabled:pointer-events-none"
                   >
                     {isGenerating ? (
                       <>
@@ -1278,7 +1278,7 @@ Das Arbeitsblatt MUSS exakt 1 A4-Seite einnehmen. Der Lösungsbogen MUSS exakt 1
           
           {/* Header toolbar with actions mapping (no-print) */}
           {generatedContent && (
-            <div className="bg-white rounded-3xl p-4 border border-slate-150 shadow-sm flex flex-wrap items-center justify-between gap-3 mb-4 no-print relative z-10 animate-slide-up">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-4 border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-wrap items-center justify-between gap-3 mb-4 no-print relative z-10 animate-slide-up">
               <div className="flex items-center gap-2">
                 <FileCheck size={16} className="text-emerald-500 shrink-0" />
                 <input 

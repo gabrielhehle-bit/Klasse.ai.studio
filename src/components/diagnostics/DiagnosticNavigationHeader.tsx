@@ -24,36 +24,36 @@ export const DiagnosticNavigationHeader: React.FC<DiagnosticNavigationHeaderProp
   actionSlot,
 }) => {
   return (
-    <div className="mb-6">
+    <div className="mb-6 rounded-2xl border border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))] p-4 sm:p-5 shadow-sm">
       {/* Breadcrumb Navigation & Back Button */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex flex-wrap items-center gap-2">
           <button
             id="btn-diagnostic-back"
             onClick={onBack}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-[var(--text-secondary,var(--text2))] bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border2))] rounded-xl hover:bg-[var(--surface-muted,var(--surface3))] hover:text-[var(--text-primary,var(--text))] transition-colors"
             title="Zurück zum vorherigen Schritt"
           >
-            <ArrowLeft className="w-4 h-4 text-slate-500" />
+            <ArrowLeft className="w-4 h-4 text-[var(--text-muted,var(--text3))]" />
             <span>{backLabel}</span>
           </button>
 
           {breadcrumbs.length > 0 && (
-            <nav className="flex items-center gap-1.5 text-sm text-slate-500 ml-2" aria-label="Breadcrumb">
+            <nav className="flex items-center gap-1.5 text-xs text-[var(--text-muted,var(--text3))] ml-2" aria-label="Breadcrumb">
               {breadcrumbs.map((crumb, idx) => {
                 const isLast = idx === breadcrumbs.length - 1;
                 return (
                   <React.Fragment key={idx}>
-                    {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+                    {idx > 0 && <ChevronRight className="w-3.5 h-3.5 text-[var(--text-muted,var(--text3))] shrink-0" />}
                     {crumb.onClick && !isLast ? (
                       <button
                         onClick={crumb.onClick}
-                        className="hover:text-indigo-600 font-medium transition-colors cursor-pointer text-left"
+                        className="hover:text-[var(--accent)] font-medium transition-colors cursor-pointer text-left"
                       >
                         {crumb.label}
                       </button>
                     ) : (
-                      <span className={isLast ? 'font-semibold text-slate-800' : ''}>
+                      <span className={isLast ? 'font-semibold text-[var(--text-primary,var(--text))]' : ''}>
                         {crumb.label}
                       </span>
                     )}
@@ -69,8 +69,8 @@ export const DiagnosticNavigationHeader: React.FC<DiagnosticNavigationHeaderProp
 
       {/* Main Title & Subtitle */}
       <div>
-        <h2 className="text-xl font-bold text-slate-900 tracking-tight">{title}</h2>
-        {subtitle && <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>}
+        <h2 className="text-xl font-bold text-[var(--text-primary,var(--text))] tracking-[-0.015em]">{title}</h2>
+        {subtitle && <p className="text-sm text-[var(--text-secondary,var(--text2))] mt-0.5">{subtitle}</p>}
       </div>
     </div>
   );

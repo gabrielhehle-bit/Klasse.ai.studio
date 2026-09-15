@@ -184,7 +184,7 @@ ${selectedDraft.material}
 
   return (
     <>
-    <div className="flex flex-1 gap-6  print:block print:h-auto print-only-parent">
+    <div className="flex flex-1 gap-5 max-w-[1180px] w-full mx-auto px-3 sm:px-5 lg:px-6 py-4 text-[var(--text-primary,var(--text))] print:block print:h-auto print-only-parent">
       {/* Sidebar List */}
       <div className="w-80 flex flex-col gap-4 print:hidden">
         <div className="relative">
@@ -223,7 +223,7 @@ ${selectedDraft.material}
               <div 
                 key={d.id}
                 onClick={() => setSelectedDraftId(d.id)}
-                className={`p-5 rounded-[1.5rem] border transition-all cursor-pointer group ${active ? 'bg-emerald-50/50 border-emerald-600 shadow-sm' : 'bg-white border-border/50 hover:bg-slate-50'}`}
+                className={`p-4 rounded-2xl border transition-colors cursor-pointer group ${active ? 'bg-[var(--accent-soft)] border-[var(--accent)] shadow-sm' : 'bg-[var(--surface-card,var(--surface))] border-[var(--border-subtle,var(--border))] hover:bg-[var(--surface-subtle,var(--surface2))]'}`}
               >
                 <div className="flex justify-between items-start mb-2">
                    <div className="text-[0.625rem] font-black uppercase tracking-widest text-emerald-600">{d.fach}</div>
@@ -247,7 +247,7 @@ ${selectedDraft.material}
 
         <button 
           onClick={addDraft}
-          className="btn w-full !rounded-[1.5rem]"
+          className="w-full min-h-11 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-primary,var(--text))] font-bold flex items-center justify-center gap-2 transition-colors"
         >
           <Plus size={18} /> Neuer Entwurf
         </button>
@@ -257,14 +257,14 @@ ${selectedDraft.material}
             addDraft();
             setShowAI(true);
           }}
-          className="btn btn-accent w-full !rounded-[1.5rem]"
+          className="w-full min-h-11 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] font-bold flex items-center justify-center gap-2 transition-colors shadow-sm"
         >
           <Sparkles size={18} /> KI-Planer
         </button>
       </div>
 
       {/* Main content */}
-      <div className="flex-1 bg-white border border-border rounded-[32px]  flex flex-col shadow-sm print:border-none print:shadow-none print:rounded-none print:overflow-visible print-only-parent">
+      <div className="flex-1 bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] rounded-2xl flex flex-col shadow-sm print:bg-white print:border-none print:shadow-none print:rounded-none print:overflow-visible print-only-parent">
         <AnimatePresence mode="wait">
           {!selectedDraft ? (
             <motion.div 
@@ -285,11 +285,11 @@ ${selectedDraft.material}
               animate={{ opacity: 1, x: 0 }}
               className="flex-1 flex flex-col  print:overflow-visible print-only-parent"
             >
-              <div className="p-8 border-b border-border bg-slate-50/50 flex justify-between items-end print:hidden">
+              <div className="p-5 sm:p-6 border-b border-[var(--border-subtle,var(--border))] bg-[var(--surface-subtle,var(--surface2))] flex justify-between items-end print:hidden">
                  <div className="flex-1">
                    <div className="flex items-center gap-3 mb-3">
                       <select 
-                          className="bg-emerald-600 text-white text-[0.625rem] px-3 py-1 rounded-full font-black uppercase tracking-widest border-none cursor-pointer shadow-lg shadow-emerald-600/20"
+                          className="bg-[var(--accent)] text-[var(--accent-text,#fff)] text-[0.6875rem] px-3 py-1.5 rounded-lg font-bold border-none cursor-pointer shadow-sm"
                           value={selectedDraft.fach}
                           onChange={e => updateDraft('fach', e.target.value)}
                       >
@@ -299,7 +299,7 @@ ${selectedDraft.material}
                       <span className="text-[0.625rem] font-black text-slate-400 uppercase tracking-[0.2em]">Stundenentwurf</span>
                    </div>
                    <input 
-                      className="text-4xl font-black bg-transparent border-none outline-none w-full text-slate-900 placeholder:text-slate-200 tracking-tight"
+                      className="text-3xl sm:text-4xl font-black bg-transparent border-none outline-none w-full text-[var(--text-primary,var(--text))] placeholder:text-[var(--text-muted,var(--text3))] tracking-tight"
                       value={selectedDraft.thema}
                       onChange={e => updateDraft('thema', e.target.value)}
                       placeholder="Thema der Stunde..."

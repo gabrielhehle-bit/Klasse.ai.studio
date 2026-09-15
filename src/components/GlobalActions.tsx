@@ -71,17 +71,17 @@ export default function GlobalActions() {
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.95, y: 16 }}
             transition={{ duration: 0.15 }}
-            className="bg-[var(--surface-card,var(--surface))] rounded-[2rem] shadow-2xl w-full max-w-lg border border-[var(--border-default,var(--border))] overflow-hidden text-[var(--text-primary)]"
+            className="bg-[var(--surface-card,var(--surface))] rounded-2xl shadow-2xl w-full max-w-lg border border-[var(--border-default,var(--border))] overflow-hidden text-[var(--text-primary,var(--text))]"
             onClick={e => e.stopPropagation()}
           >
-            <div className="p-6 bg-[var(--surface-subtle,var(--surface2))] border-b border-[var(--border-default,var(--border))] text-[var(--text-primary)] relative flex items-center justify-between">
+            <div className="p-5 sm:p-6 bg-[var(--surface-subtle,var(--surface2))] border-b border-[var(--border-subtle,var(--border))] text-[var(--text-primary,var(--text))] relative flex items-center justify-between">
                <div className="flex items-center gap-3.5">
-                  <div className="w-11 h-11 bg-[var(--accent-soft)] text-[var(--accent)] rounded-2xl flex items-center justify-center border border-[var(--accent)]/20 shadow-xs">
+                  <div className="w-10 h-10 bg-[var(--accent-soft)] text-[var(--accent)] rounded-xl flex items-center justify-center border border-[var(--accent)]/20">
                      <StickyNote size={22} />
                   </div>
                   <div>
                      <h3 className="text-[1.125rem] leading-normal font-black tracking-tight">Schnellnotiz</h3>
-                     <p className="text-[0.625rem] font-bold uppercase tracking-widest text-[var(--text-muted)]">Spontane Beobachtung festhalten</p>
+                     <p className="text-[0.625rem] font-bold tracking-wide text-[var(--text-muted,var(--text3))]">Spontane Beobachtung festhalten</p>
                   </div>
                </div>
                <IconButton

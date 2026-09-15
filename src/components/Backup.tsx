@@ -565,12 +565,12 @@ export default function Backup() {
   };
 
   return (
-    <div className="py-4 max-w-4xl mx-auto flex flex-col gap-6">
+    <div className="py-4 max-w-[1180px] w-full mx-auto px-3 sm:px-5 lg:px-6 flex flex-col gap-5 text-[var(--text-primary,var(--text))]">
       {/* Title & Core Status Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border border-stone-200/60 shadow-sm shrink-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm shrink-0">
         <div>
-          <h2 className="text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Datensicherung & Import</h2>
-          <p className="text-slate-500 font-medium tracking-tight">Lokale Sandbox-Daten verwalten, herunterladen oder rückspielen.</p>
+          <h2 className="text-[1.75rem] leading-tight font-black text-[var(--text-primary,var(--text))] tracking-tight">Datensicherung & Import</h2>
+          <p className="text-[var(--text-secondary,var(--text2))] font-medium tracking-tight">Lokale Sandbox-Daten verwalten, herunterladen oder rückspielen.</p>
         </div>
         
         {/* Dynamic Timestamp Panel - Typografisch überlegen abgesetzt */}
@@ -584,15 +584,15 @@ export default function Backup() {
       </div>
 
       {/* --- OneDrive Synchronisations-Panel --- */}
-      <div className="order-3 bg-white p-6 rounded-3xl border border-stone-200/60 shadow-sm space-y-5 flex flex-col relative group">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-stone-100 pb-6">
+      <div className="order-3 bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm space-y-5 flex flex-col relative group">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[var(--border-subtle,var(--border))] pb-5">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center shadow-inner">
               <Cloud size={28} />
             </div>
             <div>
-              <h3 className="text-[1.25rem] leading-normal font-black text-slate-900">OneDrive Cloud-Synchronisation</h3>
-              <p className="text-[0.8125rem] text-slate-500 font-medium">Speichern oder laden Sie eine Sicherungsdatei über ein verbundenes Microsoft-OneDrive-Konto.</p>
+              <h3 className="text-[1.25rem] leading-normal font-black text-[var(--text-primary,var(--text))]">OneDrive Cloud-Synchronisation</h3>
+              <p className="text-[0.8125rem] text-[var(--text-secondary,var(--text2))] font-medium">Speichern oder laden Sie eine Sicherungsdatei über ein verbundenes Microsoft-OneDrive-Konto.</p>
             </div>
           </div>
           {isOneDriveConnected && (
@@ -624,7 +624,7 @@ export default function Backup() {
             </div>
             
             {/* Quick Env Variable Setup Banner */}
-            <div className="bg-white p-4 rounded-2xl border border-sky-150 text-[0.75rem] space-y-2.5 text-slate-700 shadow-sm">
+            <div className="bg-[var(--surface-card,var(--surface))] p-4 rounded-xl border border-[var(--border-subtle,var(--border))] text-[0.75rem] space-y-2.5 text-[var(--text-secondary,var(--text2))] shadow-sm">
               <p className="font-bold text-slate-800 flex items-center gap-1.5">
                 <span>🔑</span>
                 <span>Infrastruktur-Aktivierung am Klassio-Server (Umgebungsvariablen):</span>
@@ -642,7 +642,7 @@ export default function Backup() {
             </div>
 
             {/* IT Admin & Intune Deployment Documentation Box */}
-            <div className="border border-sky-200/90 rounded-2xl bg-white overflow-hidden shadow-sm transition-all">
+            <div className="border border-[var(--border-subtle,var(--border))] rounded-2xl bg-[var(--surface-card,var(--surface))] overflow-hidden shadow-sm transition-colors">
               <button
                 type="button"
                 aria-expanded={showOneDriveFaq}

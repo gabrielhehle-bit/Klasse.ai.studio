@@ -492,24 +492,24 @@ export default function OrgaLists() {
   };
 
   return (
-    <div className="flex-1 flex flex-col font-sans px-3 sm:px-6 lg:px-8 pt-4 pb-12 space-y-5" data-zoom-container={zoomLevel}>
+    <div className="flex-1 flex flex-col font-sans max-w-[1180px] w-full mx-auto px-3 sm:px-5 lg:px-6 pt-4 pb-12 space-y-5 text-[var(--text-primary,var(--text))]" data-zoom-container={zoomLevel}>
       
       {/* ========================================== */}
       {/* VEREINFACHTER KOPFBEREICH                  */}
       {/* ========================================== */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-bold shadow-3xs">
+          <div className="w-10 h-10 rounded-xl bg-[var(--accent-soft)] border border-[var(--accent)]/20 flex items-center justify-center text-[var(--accent)] font-bold">
             <Coins size={22} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-[1.125rem] font-black text-slate-900 tracking-tight leading-tight">Kasse & Orga</h1>
-              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[0.6875rem] font-bold">
+              <h1 className="text-[1.125rem] font-black text-[var(--text-primary,var(--text))] tracking-tight leading-tight">Kasse & Orga</h1>
+              <span className="px-2 py-0.5 rounded-full bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))] border border-[var(--border-subtle,var(--border))] text-[0.6875rem] font-bold">
                 {app.klassenbezeichnung || app.klasse ? `Klasse ${app.klassenbezeichnung || app.klasse}` : 'Kassa & Orga'}
               </span>
             </div>
-            <p className="text-[0.75rem] font-medium text-slate-500">
+            <p className="text-[0.75rem] font-medium text-[var(--text-muted,var(--text3))]">
               Geldsammlungen, Ausflüge und organisatorische Aufgaben im Überblick
             </p>
           </div>
@@ -524,7 +524,7 @@ export default function OrgaLists() {
                 setActiveTab('offen');
                 setSelectedSammlungId(null);
               }}
-              className="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 text-[0.75rem] font-bold flex items-center gap-1.5 transition-all"
+              className="px-3 py-2 rounded-xl bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))] hover:bg-[var(--accent-soft)] hover:text-[var(--accent)] border border-[var(--border-subtle,var(--border))] text-[0.75rem] font-bold flex items-center gap-1.5 transition-colors"
             >
               <ArrowLeft size={15} />
               <span>Übersicht</span>
@@ -534,7 +534,7 @@ export default function OrgaLists() {
           {/* + NEU BUTTON */}
           <button
             onClick={() => setIsNewModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[0.8125rem] shadow-sm flex items-center gap-2 transition-all"
+            className="px-4 py-2 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] font-bold text-[0.8125rem] shadow-sm flex items-center gap-2 transition-colors"
           >
             <Plus size={16} />
             <span>Neu</span>
@@ -544,7 +544,7 @@ export default function OrgaLists() {
           <div className="relative">
             <button
               onClick={() => setIsMehrMenuOpen(!isMehrMenuOpen)}
-              className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-[0.8125rem] flex items-center gap-1.5 transition-all"
+              className="px-3 py-2 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))] font-bold text-[0.8125rem] flex items-center gap-1.5 transition-colors"
             >
               <MoreHorizontal size={18} />
               <span className="hidden sm:inline">Mehr</span>
@@ -559,7 +559,7 @@ export default function OrgaLists() {
                     initial={{ opacity: 0, scale: 0.95, y: -10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                    className="absolute right-0 top-12 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 p-2 z-40 space-y-1"
+                    className="absolute right-0 top-12 w-64 bg-[var(--surface-card,var(--surface))] rounded-2xl shadow-xl border border-[var(--border-default,var(--border))] p-2 z-40 space-y-1"
                   >
                     <div className="px-3 py-1.5 text-[0.625rem] font-black uppercase tracking-wider text-slate-400">
                       Organisationsbereiche
@@ -567,7 +567,7 @@ export default function OrgaLists() {
                     
                     <button
                       onClick={() => { setActiveTab('offen'); setSelectedSammlungId(null); setIsMehrMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-[0.75rem] font-bold flex items-center gap-2.5 transition-all ${activeTab === 'offen' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-[0.75rem] font-bold flex items-center gap-2.5 transition-all ${activeTab === 'offen' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))]'}`}
                     >
                       <Coins size={16} className="text-indigo-500" />
                       <span>Was ist offen? (Dashboard)</span>
@@ -575,7 +575,7 @@ export default function OrgaLists() {
 
                     <button
                       onClick={() => { setActiveTab('kassenbuch'); setIsMehrMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-[0.75rem] font-bold flex items-center gap-2.5 transition-all ${activeTab === 'kassenbuch' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-[0.75rem] font-bold flex items-center gap-2.5 transition-all ${activeTab === 'kassenbuch' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))]'}`}
                     >
                       <Wallet size={16} className="text-emerald-500" />
                       <span>Kassenbuch & Journal ({formatEuro(kasse.kontostand)})</span>
@@ -583,7 +583,7 @@ export default function OrgaLists() {
 
                     <button
                       onClick={() => { setActiveTab('passwords'); setIsMehrMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-[0.75rem] font-bold flex items-center gap-2.5 transition-all ${activeTab === 'passwords' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-[0.75rem] font-bold flex items-center gap-2.5 transition-all ${activeTab === 'passwords' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))]'}`}
                     >
                       <Key size={16} className="text-amber-500" />
                       <span>Passwörter & Zugänge ({passwords.length})</span>
@@ -591,7 +591,7 @@ export default function OrgaLists() {
 
                     <button
                       onClick={() => { setActiveTab('checklisten'); setIsMehrMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-[0.75rem] font-bold flex items-center gap-2.5 transition-all ${activeTab === 'checklisten' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-[0.75rem] font-bold flex items-center gap-2.5 transition-all ${activeTab === 'checklisten' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))]'}`}
                     >
                       <Backpack size={16} className="text-sky-500" />
                       <span>Ausflüge & Checklisten ({checklisten.length})</span>
@@ -599,7 +599,7 @@ export default function OrgaLists() {
 
                     <button
                       onClick={() => { setActiveTab('custom-lists'); setIsMehrMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-[0.75rem] font-bold flex items-center gap-2.5 transition-all ${activeTab === 'custom-lists' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-[0.75rem] font-bold flex items-center gap-2.5 transition-all ${activeTab === 'custom-lists' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))]'}`}
                     >
                       <Ruler size={16} className="text-purple-500" />
                       <span>Flexible Listen ({customLists.length})</span>
@@ -609,7 +609,7 @@ export default function OrgaLists() {
 
                     <button
                       onClick={() => { setActiveTab('archiv'); setIsMehrMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-[0.75rem] font-bold flex items-center gap-2.5 transition-all ${activeTab === 'archiv' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-[0.75rem] font-bold flex items-center gap-2.5 transition-all ${activeTab === 'archiv' ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))]'}`}
                     >
                       <Archive size={16} className="text-slate-500" />
                       <span>Archiv ({archivedSammlungen.length})</span>
@@ -640,7 +640,7 @@ export default function OrgaLists() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             
             {/* 1. OFFENE SAMMLUNGEN */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-3xs space-y-1">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-4 border border-[var(--border-subtle,var(--border))] shadow-sm space-y-1">
               <div className="flex items-center justify-between text-slate-400">
                 <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-500">Offene Sammlungen</span>
                 <Coins size={16} className="text-indigo-500" />
@@ -654,7 +654,7 @@ export default function OrgaLists() {
             </div>
 
             {/* 2. SCHÜLER MIT OFFENEN ZAHLUNGEN */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-3xs space-y-1">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-4 border border-[var(--border-subtle,var(--border))] shadow-sm space-y-1">
               <div className="flex items-center justify-between text-slate-400">
                 <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-500">Noch nicht bezahlt</span>
                 <Clock size={16} className="text-amber-500" />
@@ -668,7 +668,7 @@ export default function OrgaLists() {
             </div>
 
             {/* 3. DIESE WOCHE WICHTIG */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-3xs space-y-1">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-4 border border-[var(--border-subtle,var(--border))] shadow-sm space-y-1">
               <div className="flex items-center justify-between text-slate-400">
                 <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-500">Diese Woche</span>
                 <AlertCircle size={16} className="text-sky-500" />
@@ -682,7 +682,7 @@ export default function OrgaLists() {
             </div>
 
             {/* 4. GUTHABEN STAND */}
-            <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-3xs space-y-1">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-4 border border-[var(--border-subtle,var(--border))] shadow-sm space-y-1">
               <div className="flex items-center justify-between text-slate-400">
                 <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-500">Kassenstand</span>
                 <Wallet size={16} className="text-emerald-500" />
@@ -692,7 +692,7 @@ export default function OrgaLists() {
               </div>
               <button 
                 onClick={() => setActiveTab('kassenbuch')} 
-                className="text-[0.6875rem] font-bold text-indigo-600 hover:underline inline-flex items-center gap-1"
+                className="text-[0.6875rem] font-bold text-[var(--accent)] hover:underline inline-flex items-center gap-1"
               >
                 Kassenbuch öffnen →
               </button>

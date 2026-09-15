@@ -281,7 +281,7 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
   }
 
   return (
-    <div className="max-w-5xl mx-auto py-3 px-2 sm:px-4 space-y-4">
+    <div className="max-w-[1180px] mx-auto py-4 px-3 sm:px-6 lg:px-8 space-y-5">
       {screeningErrorMessage && (
         <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
           <span className="text-xs font-bold text-rose-800">{screeningErrorMessage}</span>
@@ -297,9 +297,9 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
 
       {/* Success Notification Banner if saved */}
       {savedSuccessMessage && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
+        <div className="p-4 bg-[var(--accent-soft)] border border-[var(--accent)]/20 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-2.5">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <CheckCircle2 className="w-5 h-5 text-[var(--accent)] shrink-0" />
             <span className="text-xs font-bold text-emerald-900">
               {savedSuccessMessage}
             </span>
@@ -309,7 +309,7 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
               <button
                 type="button"
                 onClick={onNavigateToResults}
-                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 underline px-2 py-1 cursor-pointer"
+                className="text-xs font-bold text-[var(--accent)] hover:text-emerald-800 underline px-2 py-1 cursor-pointer"
               >
                 Zur Auswertung
               </button>
@@ -317,7 +317,7 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
             <button
               type="button"
               onClick={() => setSavedSuccessMessage(null)}
-              className="text-xs font-semibold text-slate-500 hover:text-slate-700 px-2 py-1 cursor-pointer"
+              className="text-xs font-semibold text-[var(--text-muted,var(--text3))] hover:text-slate-700 px-2 py-1 cursor-pointer"
             >
               Schließen
             </button>
@@ -342,7 +342,7 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
         backLabel={selectedDomain ? "Zurück" : "Zur Übersicht"}
         actionSlot={
           activeClassName && (
-            <span className="text-xs font-semibold px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
+            <span className="text-xs font-semibold px-2.5 py-1 bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent)]/20 rounded-full">
               Klasse {activeClassName}
             </span>
           )
@@ -367,21 +367,21 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
                   key={domain.id}
                   id={`btn-class-domain-${domain.id}`}
                   onClick={() => setSelectedDomainId(domain.id)}
-                  className="group flex flex-col justify-between p-6 bg-white border border-slate-200/90 rounded-2xl hover:border-emerald-400 hover:shadow-md transition-all text-left cursor-pointer"
+                  className="group flex flex-col justify-between p-6 bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] rounded-2xl hover:border-[var(--accent)]/35 hover:shadow-md transition-all text-left cursor-pointer"
                 >
                   <div>
-                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700 mb-4 group-hover:bg-emerald-50 group-hover:text-emerald-600 group-hover:border-emerald-100 transition-all">
+                    <div className="w-12 h-12 rounded-xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))] flex items-center justify-center text-slate-700 mb-4 group-hover:bg-[var(--accent-soft)] group-hover:text-[var(--accent)] group-hover:border-emerald-100 transition-all">
                       {renderDomainIcon(domain.icon)}
                     </div>
-                    <h4 className="text-lg font-bold text-slate-900 group-hover:text-emerald-600 transition-colors mb-1.5">
+                    <h4 className="text-lg font-bold text-[var(--text-primary,var(--text))] group-hover:text-[var(--accent)] transition-colors mb-1.5">
                       {domain.name}
                     </h4>
-                    <p className="text-xs text-slate-500 leading-relaxed">
+                    <p className="text-xs text-[var(--text-muted,var(--text3))] leading-relaxed">
                       {domain.description}
                     </p>
                   </div>
 
-                  <div className="mt-6 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-500 group-hover:text-emerald-600">
+                  <div className="mt-6 pt-3 border-t border-[var(--border-subtle,var(--border))] flex items-center justify-between text-xs font-semibold text-[var(--text-muted,var(--text3))] group-hover:text-[var(--accent)]">
                     <span>Kompetenzbereiche öffnen</span>
                     <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </div>
@@ -403,10 +403,10 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
             transition={{ duration: 0.15 }}
           >
             <div className="mb-6">
-              <h3 className="text-lg font-bold text-slate-900">
+              <h3 className="text-lg font-bold text-[var(--text-primary,var(--text))]">
                 {selectedDomain.name} – Kompetenzbereich wählen
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[var(--text-muted,var(--text3))] mt-0.5">
                 Wähle den Schwerpunkt für das gemeinsame Klassenscreening
               </p>
             </div>
@@ -419,23 +419,23 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
                     key={area.id}
                     id={`btn-class-area-${area.id}`}
                     onClick={() => setSelectedAreaId(area.id)}
-                    className="group flex flex-col justify-between p-5 bg-white border border-slate-200/90 rounded-xl hover:border-emerald-400 hover:shadow-sm transition-all text-left cursor-pointer"
+                    className="group flex flex-col justify-between p-5 bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] rounded-xl hover:border-[var(--accent)]/35 hover:shadow-sm transition-all text-left cursor-pointer"
                   >
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-base font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
+                        <h4 className="text-base font-bold text-[var(--text-primary,var(--text))] group-hover:text-[var(--accent)] transition-colors">
                           {area.name}
                         </h4>
                         <span className="text-[11px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
                           {count} {count === 1 ? 'Kompetenz' : 'Kompetenzen'}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 leading-relaxed">
+                      <p className="text-xs text-[var(--text-muted,var(--text3))] leading-relaxed">
                         {area.description}
                       </p>
                     </div>
 
-                    <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-500 group-hover:text-emerald-600">
+                    <div className="mt-5 pt-3 border-t border-[var(--border-subtle,var(--border))] flex items-center justify-between text-xs font-semibold text-[var(--text-muted,var(--text3))] group-hover:text-[var(--accent)]">
                       <span>Kompetenzen anzeigen</span>
                       <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                     </div>
@@ -458,10 +458,10 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
             transition={{ duration: 0.15 }}
           >
             <div className="mb-5">
-              <h3 className="text-lg font-bold text-slate-900">
+              <h3 className="text-lg font-bold text-[var(--text-primary,var(--text))]">
                 {selectedArea.name} – Kompetenz auswählen
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[var(--text-muted,var(--text3))] mt-0.5">
                 Wähle die Zielkompetenz für das Screening
               </p>
             </div>
@@ -475,33 +475,33 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
                     key={comp.id}
                     id={`btn-class-competency-${comp.id}`}
                     onClick={() => setSelectedCompetencyId(comp.id)}
-                    className="w-full group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white border border-slate-200/90 rounded-xl hover:border-emerald-400 hover:shadow-xs transition-all text-left cursor-pointer"
+                    className="w-full group flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] rounded-xl hover:border-[var(--accent)]/35 hover:shadow-xs transition-all text-left cursor-pointer"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <h4 className="text-sm font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
+                        <h4 className="text-sm font-bold text-[var(--text-primary,var(--text))] group-hover:text-[var(--accent)] transition-colors">
                           {comp.name}
                         </h4>
                         {comp.recommendedGrade && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-[var(--text-secondary,var(--text2))]">
                             <GraduationCap className="w-3 h-3" />
                             Stufe {comp.recommendedGrade.join(', ')}
                           </span>
                         )}
                         {hasScreening && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent)]/20">
                             <Sparkles className="w-3 h-3" />
                             Screening bereit
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-500 line-clamp-2">
+                      <p className="text-xs text-[var(--text-muted,var(--text3))] line-clamp-2">
                         {comp.description}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                      <span className="text-xs font-semibold text-emerald-600 group-hover:text-emerald-700">
+                      <span className="text-xs font-semibold text-[var(--accent)] group-hover:text-[var(--accent)]">
                         {hasScreening ? 'Screening starten' : 'Screening vorbereiten'}
                       </span>
                       <ChevronRight className="w-4 h-4 text-emerald-500 group-hover:translate-x-0.5 transition-transform" />
@@ -538,42 +538,42 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
             ) : (
               <div className="space-y-6">
                 {/* Pfad-Zusammenfassung */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-                  <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
+                <div className="bg-white rounded-2xl border border-[var(--border-default,var(--border2))] p-6 shadow-xs">
+                  <div className="flex items-start justify-between gap-4 border-b border-[var(--border-subtle,var(--border))] pb-4 mb-4">
                     <div>
-                      <span className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">
+                      <span className="text-[11px] font-bold text-[var(--accent)] uppercase tracking-wider">
                         Ausgewählter Screening-Bereich
                       </span>
-                      <h3 className="text-lg font-bold text-slate-900 mt-1">
+                      <h3 className="text-lg font-bold text-[var(--text-primary,var(--text))] mt-1">
                         {selectedCompetency.name}
                       </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-[var(--text-muted,var(--text3))] mt-0.5">
                         {selectedDomain.name} • {selectedArea.name}
                       </p>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--accent-soft)] text-[var(--accent)] rounded-full text-xs font-bold">
                         <Users className="w-3.5 h-3.5" />
                         Klassenscreening
                       </span>
                     </div>
                   </div>
 
-                  <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100">
+                  <p className="text-sm text-[var(--text-secondary,var(--text2))] leading-relaxed bg-[var(--surface-subtle,var(--surface2))] p-4 rounded-xl border border-[var(--border-subtle,var(--border))]">
                     {selectedCompetency.description}
                   </p>
                 </div>
 
                 {/* Neutraler Fallback */}
                 <div className="bg-gradient-to-br from-slate-50 to-emerald-50/30 rounded-2xl border border-dashed border-slate-300 p-8 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 text-emerald-600 flex items-center justify-center mx-auto mb-3 shadow-xs">
+                  <div className="w-12 h-12 rounded-xl bg-white border border-[var(--border-default,var(--border2))] text-[var(--accent)] flex items-center justify-center mx-auto mb-3 shadow-xs">
                     <Sparkles className="w-6 h-6" />
                   </div>
-                  <h4 className="text-base font-bold text-slate-800 mb-1">
+                  <h4 className="text-base font-bold text-[var(--text-primary,var(--text))] mb-1">
                     Für diese Kompetenz ist noch kein Klassenscreening hinterlegt.
                   </h4>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  <p className="text-xs text-[var(--text-muted,var(--text3))] max-w-md mx-auto leading-relaxed">
                     Pilot-Screenings sind aktuell für <strong>Mengenverständnis</strong>, <strong>Zehnerübergang</strong> und <strong>Leseverständnis</strong> verfügbar.
                   </p>
 
@@ -581,7 +581,7 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
                     <button
                       id="btn-class-choose-other-competency"
                       onClick={() => setSelectedCompetencyId(null)}
-                      className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer shadow-xs"
+                      className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-[var(--border-default,var(--border2))] rounded-lg hover:bg-[var(--surface-subtle,var(--surface2))] transition-colors cursor-pointer shadow-xs"
                     >
                       Andere Kompetenz wählen
                     </button>
@@ -592,7 +592,7 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
                         setSelectedAreaId(null);
                         setSelectedCompetencyId(null);
                       }}
-                      className="px-4 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
+                      className="px-4 py-2 text-xs font-semibold text-[var(--accent)] bg-[var(--accent-soft)] border border-emerald-100 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
                     >
                       Anderen Fachbereich wählen
                     </button>

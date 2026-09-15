@@ -851,36 +851,36 @@ export default function Attendance() {
   const validationErrors = getValidationErrors();
 
   return (
-    <div className="space-y-4 max-w-6xl mx-auto pb-12">
+    <div className="space-y-5 max-w-[1180px] mx-auto pb-12">
       {/* ========================================================= */}
       {/* 3. SIMPLIFIED HEADER SECTION                             */}
       {/* ========================================================= */}
-      <header className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200/80 print:hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <header className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-4 sm:p-5 shadow-sm border border-[var(--border-subtle,var(--border))] print:hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         {/* Title, Date & Class */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => navDate(-1)}
             aria-label="Vorheriger Schultag"
             title="Vorheriger Schultag"
-            className="p-2.5 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200/70 transition-all active:scale-95 cursor-pointer shrink-0"
+            className="p-2.5 hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))] rounded-xl border border-[var(--border-default,var(--border2))] transition-colors cursor-pointer shrink-0"
           >
             <ChevronLeft size={20} />
           </button>
 
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-[1.125rem] font-black text-slate-900 tracking-tight leading-none uppercase">
+              <h1 className="text-[1.125rem] font-black text-[var(--text-primary,var(--text))] tracking-[-0.02em] leading-none">
                 Anwesenheit
               </h1>
               {classLabel && (
-                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[0.6875rem] font-extrabold border border-slate-200/60">
+                <span className="px-2 py-0.5 rounded-full bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))] text-[0.6875rem] font-semibold border border-[var(--border-subtle,var(--border))]">
                   Klasse {classLabel}
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <label className="text-[0.875rem] font-bold text-slate-600 hover:text-emerald-700 transition-colors cursor-pointer flex items-center gap-1.5">
-                <Calendar size={14} className="text-emerald-600" />
+              <label className="text-[0.875rem] font-semibold text-[var(--text-secondary,var(--text2))] hover:text-[var(--accent)] transition-colors cursor-pointer flex items-center gap-1.5">
+                <Calendar size={14} className="text-[var(--accent)]" />
                 <span>{formattedDate}</span>
                 <input
                   type="date"
@@ -901,7 +901,7 @@ export default function Attendance() {
             onClick={() => navDate(1)}
             aria-label="Nächster Schultag"
             title="Nächster Schultag"
-            className="p-2.5 hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200/70 transition-all active:scale-95 cursor-pointer shrink-0"
+            className="p-2.5 hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))] rounded-xl border border-[var(--border-default,var(--border2))] transition-colors cursor-pointer shrink-0"
           >
             <ChevronRight size={20} />
           </button>
@@ -915,12 +915,12 @@ export default function Attendance() {
             disabled={isFree || sortedStudents.length === 0 || activeHours.length === 0}
             className={`px-3.5 py-2.5 rounded-xl text-[0.75rem] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer border ${
               isFree || sortedStudents.length === 0
-                ? "opacity-40 grayscale cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
-                : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border-emerald-200/80 active:scale-95 shadow-xs"
+                ? "opacity-45 cursor-not-allowed bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted,var(--text3))] border-[var(--border-subtle,var(--border))]"
+                : "bg-[var(--success-soft)] text-[var(--success-text)] hover:brightness-[0.98] border-[var(--success)]/20 shadow-xs"
             }`}
             title="Alle Schüler für heute anwesend markieren"
           >
-            <UserCheck size={16} className="text-emerald-600" />
+            <UserCheck size={16} className="text-[var(--success)]" />
             <span>Alle anwesend</span>
           </button>
 
@@ -930,8 +930,8 @@ export default function Attendance() {
             disabled={isFree || sortedStudents.length === 0 || activeHours.length === 0}
             className={`px-4 py-2.5 rounded-xl text-[0.75rem] font-black flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-sm ${
               isChecked
-                ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/10"
-                : "bg-slate-900 text-white hover:bg-slate-800 shadow-slate-900/10"
+                ? "bg-[var(--success)] text-white hover:brightness-95"
+                : "bg-[var(--accent)] text-[var(--accent-text,var(--btn-text,#ffffff))] hover:bg-[var(--accent-hover)]"
             }`}
           >
             <CheckCircle2 size={16} />
@@ -942,7 +942,7 @@ export default function Attendance() {
           <div className="relative" ref={mehrMenuRef}>
             <button
               onClick={() => setShowMehrMenu(!showMehrMenu)}
-              className="px-3 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-[0.75rem] font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-slate-200/60"
+              className="px-3 py-2.5 rounded-xl bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary,var(--text2))] text-[0.75rem] font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-[var(--border-default,var(--border2))]"
             >
               <MoreHorizontal size={18} />
               <span className="hidden sm:inline">Mehr</span>
@@ -957,9 +957,9 @@ export default function Attendance() {
                   initial={{ opacity: 0, y: 8, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                  className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 text-[0.8125rem]"
+                  className="absolute right-0 mt-2 w-64 bg-[var(--surface-card,var(--surface))] rounded-xl shadow-xl border border-[var(--border-default,var(--border2))] py-2 z-50 text-[0.8125rem]"
                 >
-                  <div className="px-3 py-1.5 text-[0.625rem] font-black text-slate-400 uppercase tracking-wider">
+                  <div className="px-3 py-1.5 text-[0.6875rem] font-semibold text-[var(--text-muted,var(--text3))]">
                     Anzeige & Ansicht
                   </div>
 
@@ -968,7 +968,7 @@ export default function Attendance() {
                       setViewMode(viewMode === "compact" ? "hourly" : "compact");
                       setShowMehrMenu(false);
                     }}
-                    className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center justify-between font-medium cursor-pointer"
+                    className="w-full px-4 py-2 text-left text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))] flex items-center justify-between font-medium cursor-pointer"
                   >
                     <span className="flex items-center gap-2">
                       <SlidersHorizontal size={15} className="text-slate-500" />
@@ -981,7 +981,7 @@ export default function Attendance() {
 
                   <div className="my-1 border-t border-slate-100" />
 
-                  <div className="px-3 py-1.5 text-[0.625rem] font-black text-slate-400 uppercase tracking-wider">
+                  <div className="px-3 py-1.5 text-[0.6875rem] font-semibold text-[var(--text-muted,var(--text3))]">
                     Statistiken & Berichte
                   </div>
 
@@ -990,7 +990,7 @@ export default function Attendance() {
                       setShowStats(!showStats);
                       setShowMehrMenu(false);
                     }}
-                    className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
+                    className="w-full px-4 py-2 text-left text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))] flex items-center gap-2 font-medium cursor-pointer"
                   >
                     <BarChart3 size={15} className="text-indigo-600" />
                     <span>Statistik & Monatsübersicht</span>
@@ -1016,7 +1016,7 @@ export default function Attendance() {
 
                   <div className="my-1 border-t border-slate-100" />
 
-                  <div className="px-3 py-1.5 text-[0.625rem] font-black text-slate-400 uppercase tracking-wider">
+                  <div className="px-3 py-1.5 text-[0.6875rem] font-semibold text-[var(--text-muted,var(--text3))]">
                     Aktionen
                   </div>
 
@@ -1026,7 +1026,7 @@ export default function Attendance() {
                         handleUndo();
                         setShowMehrMenu(false);
                       }}
-                      className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
+                      className="w-full px-4 py-2 text-left text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))] flex items-center gap-2 font-medium cursor-pointer"
                     >
                       <Undo size={15} className="text-slate-500" />
                       <span>Rückgängig ({recentChanges[0].studentName})</span>
@@ -1038,7 +1038,7 @@ export default function Attendance() {
                       window.print();
                       setShowMehrMenu(false);
                     }}
-                    className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
+                    className="w-full px-4 py-2 text-left text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))] flex items-center gap-2 font-medium cursor-pointer"
                   >
                     <Printer size={15} className="text-slate-500" />
                     <span>Drucken / PDF Export</span>
@@ -1054,8 +1054,8 @@ export default function Attendance() {
       {/* 4. COMPACT DAY STATUS BANNER                              */}
       {/* ========================================================= */}
       {!isFree && hasConfiguredHours && (
-        <div className="bg-slate-50/80 rounded-xl px-4 py-2.5 border border-slate-200/60 flex flex-wrap items-center justify-between gap-3 text-[0.8125rem] print:hidden">
-          <div className="flex items-center gap-3 font-semibold text-slate-700">
+        <div className="bg-[var(--surface-subtle,var(--surface2))]/70 rounded-xl px-4 py-2.5 border border-[var(--border-subtle,var(--border))] flex flex-wrap items-center justify-between gap-3 text-[0.8125rem] print:hidden">
+          <div className="flex items-center gap-3 font-semibold text-[var(--text-secondary,var(--text2))]">
             <span className="inline-flex items-center gap-1 text-emerald-700 font-bold bg-emerald-100/60 px-2.5 py-0.5 rounded-full">
               <Check size={14} className="stroke-[3]" />
               {dayStats.present} anwesend
@@ -1160,12 +1160,12 @@ export default function Attendance() {
       {/* FREE / HOLIDAY STATE                                      */}
       {/* ========================================================= */}
       {isFree ? (
-        <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50/50 to-white px-6 py-10 text-center shadow-xs print:hidden">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-rose-200 bg-white text-rose-600 shadow-xs">
+        <div className="rounded-2xl border border-[var(--border-default,var(--border2))] bg-[var(--surface-card,var(--surface))] px-6 py-10 text-center shadow-xs print:hidden">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--border-default,var(--border2))] bg-[var(--surface-subtle,var(--surface2))] text-[var(--accent)]">
             <Calendar size={24} />
           </div>
-          <h3 className="mt-3 text-lg font-black text-slate-900">Keine Anwesenheit erforderlich</h3>
-          <p className="mx-auto mt-1 max-w-xl text-xs font-semibold text-slate-500">
+          <h3 className="mt-3 text-lg font-bold tracking-[-0.01em] text-[var(--text-primary,var(--text))]">Keine Anwesenheit erforderlich</h3>
+          <p className="mx-auto mt-1 max-w-xl text-xs font-medium text-[var(--text-muted,var(--text3))]">
             {holiday || "Dieser Tag ist schulfrei"}. Für schulfreie Tage wird keine Anwesenheitsliste geführt.
           </p>
           <div className="mt-4 flex items-center justify-center gap-2">
@@ -1186,10 +1186,10 @@ export default function Attendance() {
           </div>
         </div>
       ) : !hasConfiguredHours ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 px-6 py-8 text-center shadow-xs print:hidden">
+        <div className="rounded-2xl border border-[var(--warning)]/20 bg-[var(--warning-soft)] px-6 py-8 text-center shadow-xs print:hidden">
           <Clock3 size={26} className="mx-auto text-amber-600" />
-          <h3 className="mt-3 text-base font-black text-slate-900">Keine Unterrichtsstunden konfiguriert</h3>
-          <p className="mx-auto mt-1 max-w-xl text-xs font-semibold text-slate-600">
+          <h3 className="mt-3 text-base font-bold text-[var(--text-primary,var(--text))]">Keine Unterrichtsstunden konfiguriert</h3>
+          <p className="mx-auto mt-1 max-w-xl text-xs font-medium text-[var(--text-secondary,var(--text2))]">
             Für {dayName || "diesen Tag"} sind im Tagesplan keine Stunden hinterlegt. Klassio erfindet deshalb keine Anwesenheitsstunden.
           </p>
         </div>
@@ -1197,10 +1197,10 @@ export default function Attendance() {
         /* ========================================================= */
         /* 5. SIMPLIFIED MAIN STUDENT LIST (COMPACT & HOURLY)        */
         /* ========================================================= */
-        <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 print:hidden overflow-hidden">
+        <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl shadow-xs border border-[var(--border-subtle,var(--border))] print:hidden overflow-hidden">
           {viewMode === "compact" ? (
             /* COMPACT SINGLE-SCREEN VIEW (DEFAULT) */
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-[var(--border-subtle,var(--border))]">
               {sortedStudents.length === 0 && (
                 <div className="p-8 text-center text-sm font-bold text-slate-400">
                   {classLabel
@@ -1244,7 +1244,7 @@ export default function Attendance() {
                         ? isUnexcused
                           ? "bg-rose-50/25 hover:bg-rose-50/40"
                           : "bg-amber-50/20 hover:bg-amber-50/35"
-                        : "hover:bg-slate-50/70"
+                        : "hover:bg-[var(--surface-subtle,var(--surface2))]/70"
                     }`}
                   >
                     {/* Left: Student Name & Info */}
@@ -1523,7 +1523,7 @@ export default function Attendance() {
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[var(--border-subtle,var(--border))]">
                   {sortedStudents.map((s, idx) => {
                     const statusData = app.anwesenheit[s.id]?.[selectedDate] || {};
                     return (
@@ -1632,7 +1632,7 @@ export default function Attendance() {
                   <th className="p-2 text-center text-rose-600 bg-slate-50">Unentsch.</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[var(--border-subtle,var(--border))]">
                 {sortedStudents.map((s) => {
                   const stats = getStats(s.id);
                   return (

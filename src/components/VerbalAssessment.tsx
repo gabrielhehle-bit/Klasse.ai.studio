@@ -177,14 +177,14 @@ Bitte erstelle eine wertschätzende verbale Beurteilung.
   };
 
   return (
-    <div className="h-full overflow-y-auto custom-scrollbar w-full">
-      <div className="px-3 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 max-w-full xl:max-w-7xl mx-auto">
+    <div className="h-full overflow-y-auto custom-scrollbar w-full text-[var(--text-primary,var(--text))]">
+      <div className="px-3 sm:px-5 lg:px-6 py-5 md:py-6 space-y-6 max-w-[1180px] w-full mx-auto">
       <div className="space-y-1">
         <div className="flex items-center gap-3">
           <BookOpen className="text-emerald-600 shrink-0" size={28} />
-          <h2 className="text-[1.5rem] leading-normal md:text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Verbale Beurteilung KI</h2>
+          <h2 className="text-[1.5rem] leading-normal md:text-[1.875rem] leading-tight font-black text-[var(--text-primary,var(--text))] tracking-tight">Verbale Beurteilung KI</h2>
         </div>
-        <p className="text-slate-500 font-medium tracking-tight whitespace-pre-line text-[0.8125rem] md:text-[0.9375rem]">
+        <p className="text-[var(--text-secondary,var(--text2))] font-medium tracking-tight whitespace-pre-line text-[0.8125rem] md:text-[0.9375rem]">
           Erstelle wertschätzende und differenzierte Zeugnistexte auf Basis deiner Schülerdaten.
         </p>
       </div>
@@ -192,7 +192,7 @@ Bitte erstelle eine wertschätzende verbale Beurteilung.
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8 items-start">
         {/* Settings Panel */}
         <div className="space-y-6">
-          <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-xl shadow-slate-900/5 space-y-6">
+          <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-5 sm:p-6 border border-[var(--border-subtle,var(--border))] shadow-sm space-y-5">
             <div className="space-y-2">
               <label className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Schüler/in auswählen</label>
               <select 
@@ -231,7 +231,7 @@ Bitte erstelle eine wertschätzende verbale Beurteilung.
             <button 
               onClick={generate}
               disabled={loading || !selectedStudentId}
-              className="btn btn-primary w-full h-16 text-[0.8125rem] shadow-xl shadow-emerald-500/20 bg-emerald-600 hover:bg-emerald-700"
+              className="w-full h-14 text-[0.8125rem] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-colors disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -257,8 +257,8 @@ Bitte erstelle eine wertschätzende verbale Beurteilung.
 
         {/* Result Area */}
         <div className={`transition-all duration-500 ${result ? 'opacity-100 scale-100' : 'opacity-40 scale-[0.98] pointer-events-none'}`}>
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-900/5 flex flex-col min-h-[400px] lg:min-h-[500px]">
-            <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/20">
+          <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col min-h-[400px] lg:min-h-[500px]">
+            <div className="p-5 border-b border-[var(--border-subtle,var(--border))] flex justify-between items-center bg-[var(--surface-subtle,var(--surface2))]">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center"><FileText size={16} /></div>
                 <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400">Vorschlagtext</span>

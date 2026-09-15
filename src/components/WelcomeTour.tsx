@@ -151,7 +151,7 @@ export default function WelcomeTour() {
             width: highlightCoords.width + 12,
             height: highlightCoords.height + 12,
           }}
-          className="border-[3px] border-emerald-500 rounded-2xl bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.3)] pointer-events-none z-[151] transition-all duration-300 animate-[pulse_1.5s_infinite_ease-in-out]"
+          className="border-2 border-[var(--accent)] rounded-xl bg-[var(--accent-soft)] pointer-events-none z-[151] transition-all duration-300"
         />
       )}
 
@@ -164,23 +164,23 @@ export default function WelcomeTour() {
         }
         className="z-[152] w-[320px] max-w-[calc(100vw-32px)] pointer-events-auto transition-all duration-300"
       >
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-2xl relative p-6 space-y-4">
+        <div className="bg-[var(--surface-card,var(--surface))] text-[var(--text-primary,var(--text))] rounded-2xl border border-[var(--border-default,var(--border))] shadow-2xl relative p-5 space-y-4">
           
           {/* Triangular pointer arrow (desktop only) */}
           {!coords.isMobile && (
-            <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-r-8 border-r-white drop-shadow-[-2px_0_1px_rgba(0,0,0,0.02)]" />
+            <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-0 h-0 border-t-8 border-t-transparent border-b-8 border-b-transparent border-r-8 border-r-[var(--surface-card,var(--surface))]" />
           )}
 
           {/* Tour Panel Content Header */}
           <div className="flex justify-between items-start">
-            <div className="p-2.5 bg-emerald-50 rounded-xl">
+            <div className="p-2.5 bg-[var(--accent-soft)] text-[var(--accent)] rounded-xl border border-[var(--accent)]/15">
               {activeStep.icon}
             </div>
             
             <button
               onClick={handleComplete}
               title="Tour überspringen"
-              className="text-slate-400 hover:text-slate-600 font-medium text-[0.75rem] leading-tight flex items-center gap-1 py-1 focus:outline-none cursor-pointer"
+              className="text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))] font-medium text-[0.75rem] leading-tight flex items-center gap-1 py-1 focus:outline-none cursor-pointer"
             >
               <span>Überspringen</span>
               <X size={14} />
@@ -189,10 +189,10 @@ export default function WelcomeTour() {
 
           {/* Text and Title */}
           <div className="space-y-1">
-            <h3 className="font-extrabold text-[0.9375rem] text-slate-800 leading-tight">
+            <h3 className="font-extrabold text-[0.9375rem] text-[var(--text-primary,var(--text))] leading-tight">
               {activeStep.title}
             </h3>
-            <p className="text-[0.75rem] leading-tight text-slate-500 font-medium leading-relaxed">
+            <p className="text-[0.75rem] leading-relaxed text-[var(--text-secondary,var(--text2))] font-medium">
               {activeStep.text}
             </p>
           </div>
@@ -205,7 +205,7 @@ export default function WelcomeTour() {
               {steps.map((_, sIdx) => (
                 <div 
                   key={sIdx} 
-                  className={`h-1.5 rounded-full transition-all duration-300 ${sIdx === currentStep ? 'w-4 bg-emerald-500' : 'w-1.5 bg-slate-200'}`} 
+                  className={`h-1.5 rounded-full transition-all duration-300 ${sIdx === currentStep ? 'w-4 bg-[var(--accent)]' : 'w-1.5 bg-[var(--border-default,var(--border))]'}`} 
                 />
               ))}
             </div>
@@ -215,7 +215,7 @@ export default function WelcomeTour() {
               {currentStep > 0 && (
                 <button
                   onClick={handleBack}
-                  className="p-1 px-3 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-500 font-bold text-[0.6875rem] uppercase tracking-wide flex items-center gap-0.5 transition-all cursor-pointer"
+                  className="p-1.5 px-3 border border-[var(--border-default,var(--border))] hover:bg-[var(--surface-subtle,var(--surface2))] rounded-xl text-[var(--text-secondary,var(--text2))] font-bold text-[0.6875rem] flex items-center gap-0.5 transition-colors cursor-pointer"
                 >
                   <ChevronLeft size={12} />
                   <span>Zurück</span>
@@ -224,7 +224,7 @@ export default function WelcomeTour() {
 
               <button
                 onClick={handleNext}
-                className="p-1 px-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-[0.6875rem] uppercase tracking-wide flex items-center gap-0.5 shadow-sm transition-all cursor-pointer"
+                className="p-1.5 px-3 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] rounded-xl font-bold text-[0.6875rem] flex items-center gap-0.5 shadow-sm transition-colors cursor-pointer"
               >
                 <span>{currentStep === steps.length - 1 ? 'Beenden' : 'Weiter'}</span>
                 <ChevronRight size={12} />

@@ -1738,7 +1738,7 @@ export default function WeeklyPlan() {
 
   const planContent = (
     <div 
-      className={`weekly-plan-shell flex flex-col bg-[#f4f7f3] ${
+      className={`weekly-plan-shell flex flex-col bg-[var(--surface-app,var(--bg))] ${
         isFullscreen 
           ? "fixed inset-0 z-[450] w-screen h-[100dvh] overflow-hidden p-2 sm:p-4" 
           : ""
@@ -1773,25 +1773,25 @@ export default function WeeklyPlan() {
       </svg>
       
       {/* 1. FIXED TOP HEADER CONTROL */}
-      <div ref={headerRef} className="bg-[#f4f7f3] border-b border-slate-200 flex flex-col pt-3 shrink-0" data-zoom={app?.settings?.zoomLevel}>
+      <div ref={headerRef} className="bg-[var(--surface-app,var(--bg))] border-b border-[var(--border-subtle,var(--border))] flex flex-col pt-3 shrink-0" data-zoom={app?.settings?.zoomLevel}>
         <div className="py-2 sm:py-3">
-          <div className="flex flex-col bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 gap-3 w-full shadow-sm">
+          <div className="flex flex-col bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] rounded-2xl p-3 sm:p-4 gap-3 w-full shadow-sm">
             
             {/* Row 1: Title, Date Info, Navigation & Primary Actions */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[var(--border-subtle,var(--border))] pb-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">WOCHENPLANUNG</h1>
-                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[0.625rem] font-extrabold rounded-full">
+                  <h1 className="text-lg sm:text-xl font-black text-[var(--text-primary,var(--text))] tracking-[-0.02em]">Wochenplanung</h1>
+                  <span className="px-2 py-0.5 bg-[var(--accent-soft)] text-[var(--accent)] text-[0.625rem] font-bold rounded-full">
                     KW {activeKW}
                   </span>
                   {sw && (
-                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[0.625rem] font-bold rounded-full">
+                    <span className="px-2 py-0.5 bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))] text-[0.625rem] font-semibold rounded-full">
                       SW {sw}
                     </span>
                   )}
                 </div>
-                <p className="text-xs font-semibold text-slate-500 mt-0.5">
+                <p className="text-xs font-medium text-[var(--text-muted,var(--text3))] mt-0.5">
                   {monday.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' })} – {friday.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                   {app.klassenbezeichnung || app.stufe ? ` · Klasse ${app.klassenbezeichnung || `${app.stufe}. Stufe`}` : ''}
                 </p>
@@ -1800,7 +1800,7 @@ export default function WeeklyPlan() {
               {/* Navigation & Actions */}
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Week Navigation */}
-                <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <div className="flex items-center bg-[var(--surface-subtle,var(--surface2))] p-1 rounded-xl border border-[var(--border-subtle,var(--border))]">
                   <button 
                     onClick={() => {
                       const d = new Date(monday);
@@ -1809,20 +1809,20 @@ export default function WeeklyPlan() {
                     }} 
                     aria-label="Vorherige Woche"
                     title="Vorherige Woche"
-                    className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-all active:scale-95 cursor-pointer"
+                    className="p-1.5 hover:bg-[var(--surface-card,var(--surface))] rounded-lg text-[var(--text-secondary,var(--text2))] transition-colors cursor-pointer"
                   >
                     <ChevronLeft size={16} />
                   </button>
                   <button 
                     onClick={() => setApp(p => ({ ...p, currentKW: actualKW }))}
-                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${activeKW === actualKW ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${activeKW === actualKW ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-sm' : 'text-[var(--text-secondary,var(--text2))] hover:text-[var(--text-primary,var(--text))]'}`}
                     title="Zur aktuellen Woche springen"
                   >
                     Diese Woche
                   </button>
                   <button 
                     onClick={() => setShowWeekPicker(true)}
-                    className="px-2 py-1 text-xs font-bold text-slate-600 hover:bg-white rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                    className="px-2 py-1 text-xs font-semibold text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-card,var(--surface))] rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
                     title="Woche wählen"
                   >
                     <span>KW {activeKW}</span>
@@ -1836,7 +1836,7 @@ export default function WeeklyPlan() {
                     }} 
                     aria-label="Nächste Woche"
                     title="Nächste Woche"
-                    className="p-1.5 hover:bg-white rounded-lg text-slate-600 transition-all active:scale-95 cursor-pointer"
+                    className="p-1.5 hover:bg-[var(--surface-card,var(--surface))] rounded-lg text-[var(--text-secondary,var(--text2))] transition-colors cursor-pointer"
                   >
                     <ChevronRight size={16} />
                   </button>
@@ -1845,7 +1845,7 @@ export default function WeeklyPlan() {
                 {/* Primary Action Button: + Planen */}
                 <button
                   onClick={() => setShowQuickPlanModal(true)}
-                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,var(--btn-text,#ffffff))] font-bold text-xs rounded-xl shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
                   title="Schnell neue Stunde oder Termin planen"
                 >
                   <Plus size={16} strokeWidth={2.5} />
@@ -1855,7 +1855,7 @@ export default function WeeklyPlan() {
                 {/* Primary Action Button: Wochenplan für Kinder erstellen */}
                 <button
                   onClick={() => setShowSchuelerWochenplanModal(true)}
-                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-3.5 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,var(--btn-text,#ffffff))] font-bold text-xs rounded-xl shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
                   title="Erstellt aus dem aktuellen Wochenplan einen kindgerechten Arbeits-/Aufgabenplan für die Kinder"
                 >
                   <CheckSquare size={16} strokeWidth={2.5} />
@@ -1866,7 +1866,7 @@ export default function WeeklyPlan() {
                 <div className="relative z-[210]">
                   <button
                     onClick={() => setShowExcelMenu(!showExcelMenu)}
-                    className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-emerald-200 shadow-xs"
+                    className="px-3 py-2 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary,var(--text2))] font-semibold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer border border-[var(--border-default,var(--border2))]"
                     title="Excel Vorlage herunterladen oder Plan importieren"
                   >
                     <FileSpreadsheet size={16} />
@@ -1876,7 +1876,7 @@ export default function WeeklyPlan() {
                   {showExcelMenu && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowExcelMenu(false)} />
-                      <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left">
+                      <div className="absolute right-0 top-full mt-2 w-60 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border2))] rounded-xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left">
                         <button
                           onClick={() => {
                             setShowExcelMenu(false);
@@ -1908,8 +1908,8 @@ export default function WeeklyPlan() {
                   onClick={() => setIsFullscreen(!isFullscreen)}
                   className={`px-3 py-2 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs ${
                     isFullscreen
-                      ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                      ? 'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,var(--btn-text,#ffffff))] border-[var(--accent)]'
+                      : 'bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary,var(--text2))] border-[var(--border-default,var(--border2))]'
                   }`}
                   title={isFullscreen ? 'Vollbildmodus beenden (Esc)' : 'Vollbildmodus aktivieren (Esc zum Beenden)'}
                 >
@@ -1931,7 +1931,7 @@ export default function WeeklyPlan() {
                 <div className="relative z-[210]">
                   <button 
                     onClick={() => setShowWeekMenu(!showWeekMenu)}
-                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200"
+                    className="px-3 py-2 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary,var(--text2))] font-semibold text-xs rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer border border-[var(--border-default,var(--border2))]"
                   >
                     <MoreHorizontal size={16} />
                     <span>Mehr</span>
@@ -1940,13 +1940,7 @@ export default function WeeklyPlan() {
                   {showWeekMenu && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowWeekMenu(false)} />
-                      <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left">
-                        <button onClick={() => { setShowWeekMenu(false); setShowSchuelerWochenplanModal(true); }} className="btn !bg-white !text-indigo-700 hover:!bg-indigo-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3 font-bold">
-                          <CheckSquare size={14} /> Wochenplan für Kinder erstellen
-                        </button>
-                        <button onClick={() => { setShowWeekMenu(false); setIsFullscreen(!isFullscreen); }} className="btn !bg-white !text-slate-700 hover:!bg-slate-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
-                          {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />} {isFullscreen ? 'Vollbild beenden' : 'Vollbildmodus'}
-                        </button>
+                      <div className="absolute right-0 top-full mt-2 w-64 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border2))] rounded-xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left">
                         <button onClick={() => { setShowWeekMenu(false); setApp(prev => ({ ...prev, currentPage: 'drucken', activePrintTemplate: 'wochenplan' })); }} className="btn !bg-white !text-indigo-700 hover:!bg-indigo-50 !justify-start !text-left text-[0.75rem] leading-tight gap-3">
                           <Printer size={14} /> Druckzentrum öffnen
                         </button>
@@ -1995,11 +1989,11 @@ export default function WeeklyPlan() {
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
               {/* View Mode & Density */}
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                <div className="flex bg-[var(--surface-subtle,var(--surface2))] p-0.5 rounded-xl border border-[var(--border-subtle,var(--border))]">
                   <button
                     type="button"
                     onClick={() => setViewMode('grid')}
-                    className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1 transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1 transition-all cursor-pointer ${viewMode === 'grid' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--text-primary,var(--text))] shadow-sm' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
                   >
                     <Layout size={12} />
                     <span>Wochenplan</span>
@@ -2007,7 +2001,7 @@ export default function WeeklyPlan() {
                   <button
                     type="button"
                     onClick={() => setViewMode('klassenbuch')}
-                    className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1 transition-all cursor-pointer ${viewMode === 'klassenbuch' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1 transition-all cursor-pointer ${viewMode === 'klassenbuch' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--text-primary,var(--text))] shadow-sm' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
                   >
                     <BookOpen size={12} />
                     <span>Klassenbuch</span>
@@ -2015,7 +2009,7 @@ export default function WeeklyPlan() {
                 </div>
 
                 {/* Density Switcher */}
-                <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+                <div className="flex bg-[var(--surface-subtle,var(--surface2))] p-0.5 rounded-xl border border-[var(--border-subtle,var(--border))]">
                   {(['kompakt', 'normal', 'detail'] as const).map(mode => (
                     <button
                       key={mode}
@@ -2024,7 +2018,7 @@ export default function WeeklyPlan() {
                         setDensityMode(mode);
                         setApp(p => ({ ...p, weeklyDensityMode: mode }));
                       }}
-                      className={`px-2 py-1 rounded-lg font-extrabold text-[0.625rem] uppercase tracking-wider transition-all cursor-pointer ${densityMode === mode ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+                      className={`px-2 py-1 rounded-lg font-extrabold text-[0.625rem] uppercase tracking-wider transition-all cursor-pointer ${densityMode === mode ? 'bg-white text-emerald-800 shadow-sm' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
                     >
                       {mode === 'kompakt' ? 'Kompakt' : mode === 'normal' ? 'Normal' : 'Detail'}
                     </button>

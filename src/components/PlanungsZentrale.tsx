@@ -786,7 +786,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
 
   return (
     <ErrorBoundaryLogger componentName="PlanungsZentrale">
-      <div className="w-full h-full flex flex-col bg-slate-100 text-slate-800 font-sans selection:bg-indigo-100 selection:text-indigo-900">
+      <div className="w-full h-full flex flex-col bg-[var(--surface-app,var(--bg))] text-[var(--text-primary,var(--text))] font-sans selection:bg-[var(--accent-soft)] selection:text-[var(--text-primary,var(--text))]">
         
         {/* Print Styles */}
         <style dangerouslySetInnerHTML={{ __html: `
@@ -814,20 +814,20 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
         </AnimatePresence>
 
         {/* 1. ULTRA-CLEAN & INTUITIVE HEADER */}
-        <header className="planning-center-header print:hidden bg-white border-b border-slate-200 px-6 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-xs">
+        <header className="planning-center-header print:hidden bg-[var(--surface-card,var(--surface))] border-b border-[var(--border-subtle,var(--border))] px-3 sm:px-5 lg:px-6 py-3 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-30 shadow-sm">
           {/* Left Title & Context info */}
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-indigo-200">
+            <div className="w-11 h-11 rounded-xl bg-[var(--accent)] text-[var(--accent-text,#fff)] flex items-center justify-center shrink-0 shadow-sm">
               <BrainCircuit size={22} />
             </div>
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-lg font-black text-slate-900 tracking-tight">Planungs-Zentrale</h1>
+                <h1 className="text-lg font-black text-[var(--text-primary,var(--text))] tracking-tight">Planungs-Zentrale</h1>
                 <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider">
                   {app.klasse || 'Klasse 3a'}
                 </span>
               </div>
-              <p className="text-xs font-semibold text-slate-500 mt-0.5">
+              <p className="text-xs font-medium text-[var(--text-secondary,var(--text2))] mt-0.5">
                 KW {nextKW} · Schulwoche {sw || '1'} · {formattedDateToday}
               </p>
             </div>
@@ -842,7 +842,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                 setQuickPlanType('lesson');
                 setQuickPlanOpen(true);
               }}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-md shadow-indigo-200 hover:shadow-indigo-300 transition active:scale-95 cursor-pointer"
+              className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
             >
               <Plus size={16} className="stroke-[3]" />
               <span>+ Planen</span>
@@ -863,7 +863,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
             </button>
 
             {/* KW Switcher */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <div className="flex items-center bg-[var(--surface-subtle,var(--surface2))] p-1 rounded-xl border border-[var(--border-subtle,var(--border))]">
               <button 
                 onClick={() => {
                   const d = new Date(monday);
@@ -906,7 +906,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
             <div className="relative">
               <button
                 onClick={() => setShowMehrMenu(!showMehrMenu)}
-                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-extrabold text-xs flex items-center gap-1.5 border border-slate-200 transition cursor-pointer"
+                className="px-3 py-2 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--accent-soft)] text-[var(--text-secondary,var(--text2))] hover:text-[var(--accent)] rounded-xl font-bold text-xs flex items-center gap-1.5 border border-[var(--border-subtle,var(--border))] transition-colors cursor-pointer"
               >
                 <MoreHorizontal size={16} />
                 <span>Mehr</span>
@@ -916,7 +916,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
               {/* Dropdown Content */}
               {showMehrMenu && (
                 <div 
-                  className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150"
+                  className="absolute right-0 mt-2 w-64 bg-[var(--surface-card,var(--surface))] rounded-2xl shadow-xl border border-[var(--border-default,var(--border))] p-2 z-50 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150"
                   onClick={() => setShowMehrMenu(false)}
                 >
                   <button
@@ -1004,7 +1004,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
         )}
 
         {/* MAIN BODY WORKSPACE */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 max-w-7xl mx-auto w-full">
+        <main className="flex-1 overflow-y-auto px-3 sm:px-5 lg:px-6 py-5 space-y-5 max-w-[1180px] mx-auto w-full">
 
           {/* ========================================================= */}
           {/* EBENE 1: EINFACHMODUS (STRICTLY TIME-HORIZON ORIENTED VIEW) */}
@@ -1016,7 +1016,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
                 {/* HEUTE (8 COLS) */}
-                <section className="lg:col-span-8 bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                <section className="lg:col-span-8 bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl shadow-sm border border-[var(--border-subtle,var(--border))] space-y-4">
                   
                   {/* Section Title */}
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -1166,7 +1166,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                 </section>
 
                 {/* NOCH OFFEN & UNVORBEREITET WIDGET (4 COLS) */}
-                <section className="lg:col-span-4 bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4 flex flex-col justify-between">
+                <section className="lg:col-span-4 bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl shadow-sm border border-[var(--border-subtle,var(--border))] space-y-4 flex flex-col justify-between">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                       <div className="flex items-center gap-2">
@@ -1219,7 +1219,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                   <div className="pt-3 border-t border-slate-100">
                     <button
                       onClick={handleCarryOverUnfinished}
-                      className="w-full py-2.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
+                      className="w-full py-2.5 px-3 bg-[var(--accent-soft)] hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--accent)] rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 border border-[var(--accent)]/15"
                     >
                       <RotateCcw size={14} /> Offenes aus Vorwoche herüberziehen
                     </button>
@@ -1232,7 +1232,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
               <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
 
                 {/* MORGEN SUMMARY CARD (4 COLS) */}
-                <div className="md:col-span-4 bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3 flex flex-col justify-between">
+                <div className="md:col-span-4 bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl shadow-sm border border-[var(--border-subtle,var(--border))] space-y-3 flex flex-col justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                       <span className="text-xs font-black uppercase tracking-wider text-slate-500">
@@ -1257,14 +1257,14 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                       setSelectedDayIdx(tomorrowDayIdx);
                       openSlotForQuickPlan(tomorrowDayIdx, 0);
                     }}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
+                    className="w-full py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
                   >
                     <Calendar size={14} /> Morgen öffnen & planen
                   </button>
                 </div>
 
                 {/* DIESE WOCHE 5-TAGE ÜBERSICHT (8 COLS) */}
-                <div className="md:col-span-8 bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
+                <div className="md:col-span-8 bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl shadow-sm border border-[var(--border-subtle,var(--border))] space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <div>
                       <h3 className="text-sm font-black text-slate-900">3. Was ist diese Woche geplant? (KW {nextKW})</h3>
@@ -1322,7 +1322,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
               </div>
 
               {/* THIRD ROW: TERMINE, AUSFLÜGE & BESONDERE EREIGNISSE */}
-              <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+              <section className="bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl shadow-sm border border-[var(--border-subtle,var(--border))] space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 rounded-xl bg-purple-50 border border-purple-100 text-purple-700 flex items-center justify-center font-black">
@@ -1375,31 +1375,31 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
             <div className="space-y-6">
 
               {/* Sub Navigation Bar for Extended Mode */}
-              <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-xs overflow-x-auto">
+              <div className="flex items-center gap-1 bg-[var(--surface-subtle,var(--surface2))] p-1 rounded-xl border border-[var(--border-subtle,var(--border))] shadow-sm overflow-x-auto">
                 <button 
                   onClick={() => { setPlanningFocus('week'); setActiveTab('wochenplan'); }}
-                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${planningFocus === 'week' && activeTab === 'wochenplan' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`}
+                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${planningFocus === 'week' && activeTab === 'wochenplan' ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' : 'text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-card,var(--surface))]'}`}
                 >
                   <LayoutGrid size={15} /> Wochenplan-Gitter (5×10)
                 </button>
 
                 <button 
                   onClick={() => setPlanningFocus('year')}
-                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${planningFocus === 'year' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`}
+                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${planningFocus === 'year' ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' : 'text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-card,var(--surface))]'}`}
                 >
                   <CalendarRange size={15} /> Jahresplanung & Syllabus
                 </button>
 
                 <button 
                   onClick={() => setActiveTab('wochenplan-einblick')}
-                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${activeTab === 'wochenplan-einblick' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`}
+                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${activeTab === 'wochenplan-einblick' ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' : 'text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-card,var(--surface))]'}`}
                 >
                   <Sparkles size={15} className="text-amber-500 fill-amber-500" /> KI-Einblick
                 </button>
 
                 <button 
                   onClick={() => setActiveTab('verlauf')}
-                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${activeTab === 'verlauf' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`}
+                  className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${activeTab === 'verlauf' ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' : 'text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-card,var(--surface))]'}`}
                 >
                   <History size={15} /> Historie & Parkgarage ({app.parkgarage?.length || 0})
                 </button>
@@ -1409,7 +1409,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
               {planningFocus === 'year' ? (
                 /* JAHRESÜBERSICHT / SYLLABUS GRID */
                 <div className="space-y-6">
-                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 rounded-2xl shadow-sm border border-[var(--border-subtle,var(--border))] flex flex-col md:flex-row items-center justify-between gap-4">
                     <div>
                       <h2 className="text-base font-black text-slate-800 tracking-tight">Langfristige Jahresplanung & Syllabus ({app.schuljahr || 'Aktuelles Schuljahr'})</h2>
                       <p className="text-xs text-slate-400 mt-0.5">Definiere globale Themen und Schwerpunkte für jede Schulwoche</p>
@@ -1420,7 +1420,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                     {weeksByMonth.monthOrder.map(monthName => {
                       const weeks = weeksByMonth.groups[monthName];
                       return (
-                        <div key={monthName} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                        <div key={monthName} className="bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl shadow-sm border border-[var(--border-subtle,var(--border))] space-y-4">
                           <div className="border-b border-slate-100 pb-2 flex items-center justify-between">
                             <h3 className="font-extrabold text-slate-800 text-xs tracking-tight uppercase">{monthName}</h3>
                             <span className="text-[10px] text-slate-400 font-bold uppercase">{weeks.length} Wochen</span>
@@ -1485,7 +1485,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                 </div>
               ) : activeTab === 'wochenplan-einblick' ? (
                 /* KI WOCHEN-EINBLICK */
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-5">
+                <div className="bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 rounded-2xl shadow-sm border border-[var(--border-subtle,var(--border))] space-y-5">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                     <div className="flex items-center gap-2">
                       <span className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
@@ -1528,7 +1528,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                 </div>
               ) : (
                 /* CLASSIC 5x10 TIMETABLE MATRIX GRID */
-                <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
+                <div className="bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl shadow-sm border border-[var(--border-subtle,var(--border))] space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <h3 className="font-extrabold text-slate-800 text-sm">Wochenstunden-Gitter (KW {nextKW})</h3>
                     <span className="text-xs text-slate-400 font-bold">Klicke eine Stunde zum Bearbeiten</span>

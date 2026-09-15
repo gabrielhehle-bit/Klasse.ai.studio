@@ -1572,134 +1572,51 @@ export default function Gradebook() {
         }
       `}} />
 
-      {/* Page Content Header (Buttons only, title is already in Topbar) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5 pt-1 print:hidden">
-        {activeView === 'verhalten' ? (
-          <div>
-            <h2 className="text-[0.8125rem] leading-snug font-black uppercase tracking-widest text-emerald-600 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
-              <span>🌟 Gesamt-Verhalten & Chronik</span>
-            </h2>
-            <p className="text-[0.6875rem] leading-tight text-slate-450 font-semibold mt-1 uppercase tracking-wider">
-              Klassenweites, fächerunabhängiges Verhalten · Kontinuierliches Feedback
-            </p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2.5">
-            <span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-400">Aktives Schulfach wählen:</span>
-            <select
-              value={activeFach}
-              onChange={(event) => {
-                setActiveFach(event.target.value);
-                setShowWeights(false);
-              }}
-              aria-label="Aktives Schulfach auswählen"
-              className="lg:hidden w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {availableSubjects.map(subject => (
-                <option key={subject} value={subject}>{subject}</option>
-              ))}
-            </select>
-            <div className="hidden lg:flex flex-wrap gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
-              {(() => {
-                return availableSubjects.map(f => {
-                  const isFActive = !app.faecher || app.faecher.includes(f) || f === 'Unterricht';
-                  const isSelected = activeFach === f;
-                  const fHex = getFachHexColor(app?.fachConfig?.[f]?.color || f);
-                  
-                  // Map some emojis to subjects to enrich without cluttering
-                  const subjectEmoji = f === 'Deutsch' ? '📚' : f === 'Mathematik' ? '📐' : f === 'Sachunterricht' ? '🌍' : f === 'Englisch' ? '🇬🇧' : f === 'Musik' ? '🎵' : f === 'Turnen' ? '🏃' : f === 'Unterricht' ? '🏫' : '📝';
-                  
-                  return (
-                    <button 
-                      key={f}
-                      className={`px-3 py-2 rounded-lg text-[0.6875rem] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-2 ${
-                        isSelected 
-                          ? isFActive 
-                            ? 'bg-emerald-700 text-white shadow-sm' 
-                            : 'bg-amber-700 text-white shadow-sm' 
-                          : isFActive 
-                            ? 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/80 shadow-3xs' 
-                            : 'bg-zinc-50/50 text-slate-450 hover:bg-zinc-100 hover:text-slate-600 border border-slate-200/40 opacity-75'
-                      }`}
-                      onClick={() => {
-                        setActiveFach(f);
-                        setShowWeights(false);
-                        const isHueAllowed = ['deutsch', 'mathematik', 'sachunterricht', 'mathe'].some(s => f?.toLowerCase().includes(s));
-                        if (activeView === 'hue' && !isHueAllowed) {
-                          setActiveView('noten');
-                        }
-                      }}
-                    >
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/40 shadow-xs" style={{ backgroundColor: fHex }} />
-                      <span>{subjectEmoji} {f}</span>
-                      {!isFActive && (
-                        <span className={`text-[0.4375rem] leading-none uppercase font-black px-1.5 py-0.5 rounded border tracking-wider shrink-0 ${
-                          isSelected 
-                            ? 'bg-amber-500/30 border-amber-400/30 text-amber-100' 
-                            : 'bg-zinc-100 border-zinc-200/50 text-slate-400'
-                        }`}>
-                          einfach
-                        </span>
-                      )}
-                    </button>
-                  );
-                });
-              })()}
-            </div>
-          </div>
-        )}
-        {activeView !== 'verhalten' && (
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-stretch md:self-auto">
-            <button 
-              onClick={() => { setShowGradeCalculator(!showGradeCalculator); setShowWeights(false); }}
-              className={`px-4 py-2.5 border rounded-xl text-[0.6875rem] font-bold uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 shadow-sm ${showGradeCalculator ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-emerald-300'}`}
-            >
-              <Calculator size={14} className={showGradeCalculator ? 'text-white' : 'text-emerald-600'} />
-              <span>Notenrechner</span>
-            </button>
-            <button 
-              onClick={() => { setShowWeights(!showWeights); setShowGradeCalculator(false); }}
-              className={`px-4 py-2.5 border rounded-xl text-[0.6875rem] font-bold uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 shadow-sm ${showWeights ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-emerald-300'}`}
-            >
-              <Settings size={14} className={showWeights ? 'text-white' : 'text-slate-500'} />
-              <span>Gewichtung</span>
-            </button>
-          </div>
-        )}
-      </div>
+      {/* Im normalen Bewertungsmodus liegt die Steuerung gesammelt in der kompakten Leiste darunter.
+          Nur die fachunabhängige Verhaltensansicht erhält hier einen eigenen Kontextkopf. */}
+      {activeView === 'verhalten' && (
+        <div className="rounded-2xl border border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))] p-4 print:hidden">
+          <h2 className="text-sm font-bold tracking-[-0.01em] text-[var(--text-primary,var(--text))] flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--accent)] inline-block" />
+            <span>Gesamt-Verhalten & Chronik</span>
+          </h2>
+          <p className="text-xs text-[var(--text-muted,var(--text3))] font-medium mt-1">
+            Klassenweites, fächerunabhängiges Verhalten · Kontinuierliches Feedback
+          </p>
+        </div>
+      )}
 
       {activeView !== 'verhalten' && app.schueler.length > 0 && (
-        <section className="rounded-2xl border border-emerald-100 bg-emerald-50/35 p-4 print:hidden" aria-labelledby="gradebook-status-heading">
+        <section className="rounded-2xl border border-[var(--border-subtle,var(--border))] bg-[var(--surface-subtle,var(--surface2))]/55 p-4 print:hidden" aria-labelledby="gradebook-status-heading">
           <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
             <div>
-              <h2 id="gradebook-status-heading" className="text-sm font-black text-slate-900">
+              <h2 id="gradebook-status-heading" className="text-sm font-bold text-[var(--text-primary,var(--text))]">
                 {activeFach} · Schuljahr
               </h2>
-              <p className="text-xs font-bold text-slate-500 mt-1">
+              <p className="text-xs font-medium text-[var(--text-muted,var(--text3))] mt-1">
                 Eingaben werden automatisch in Statistik, Schülerdossier und KEL-Präsentation übernommen.
               </p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 xl:min-w-[570px]">
-              <div className="rounded-xl bg-white border border-white px-3 py-2 shadow-xs">
-                <div className="text-lg font-black text-emerald-700 tabular-nums">{gradebookDataStatus.assessmentEntries}</div>
-                <div className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-500">Einträge</div>
+              <div className="rounded-xl bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] px-3 py-2">
+                <div className="text-lg font-black text-[var(--accent)] tabular-nums">{gradebookDataStatus.assessmentEntries}</div>
+                <div className="text-[0.625rem] font-semibold text-[var(--text-muted,var(--text3))]">Einträge</div>
               </div>
-              <div className="rounded-xl bg-white border border-white px-3 py-2 shadow-xs">
-                <div className="text-lg font-black text-indigo-700 tabular-nums">
+              <div className="rounded-xl bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] px-3 py-2">
+                <div className="text-lg font-black text-[var(--info)] tabular-nums">
                   {gradebookDataStatus.studentsWithEntries}<span className="text-xs text-slate-400">/{gradebookDataStatus.totalStudents}</span>
                 </div>
-                <div className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-500">Kinder mit Daten</div>
+                <div className="text-[0.625rem] font-semibold text-[var(--text-muted,var(--text3))]">Kinder mit Daten</div>
               </div>
-              <div className="rounded-xl bg-white border border-white px-3 py-2 shadow-xs">
-                <div className="text-lg font-black text-amber-700 tabular-nums">
+              <div className="rounded-xl bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] px-3 py-2">
+                <div className="text-lg font-black text-[var(--warning)] tabular-nums">
                   {gradebookDataStatus.calculatedStudents}<span className="text-xs text-slate-400">/{gradebookDataStatus.totalStudents}</span>
                 </div>
-                <div className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-500">Schnitt berechenbar</div>
+                <div className="text-[0.625rem] font-semibold text-[var(--text-muted,var(--text3))]">Schnitt berechenbar</div>
               </div>
-              <div className="rounded-xl bg-white border border-white px-3 py-2 shadow-xs">
-                <div className="text-lg font-black text-violet-700 tabular-nums">{hasAnyAssessment ? missingCount : '–'}</div>
-                <div className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-500">
+              <div className="rounded-xl bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] px-3 py-2">
+                <div className="text-lg font-black text-[var(--text-secondary,var(--text2))] tabular-nums">{hasAnyAssessment ? missingCount : '–'}</div>
+                <div className="text-[0.625rem] font-semibold text-[var(--text-muted,var(--text3))]">
                   {hasAnyAssessment ? 'Unvollständig' : 'Noch nicht begonnen'}
                 </div>
               </div>
@@ -1721,14 +1638,14 @@ export default function Gradebook() {
       ) : (
         <div className="contents">
           {/* Streamlined Top Control Bar */}
-          <div className="flex flex-col gap-3 bg-white rounded-2xl p-4 shadow-sm border border-slate-200 no-print mb-4">
+          <div className="flex flex-col gap-3 bg-[var(--surface-card,var(--surface))] rounded-2xl p-4 shadow-sm border border-[var(--border-subtle,var(--border))] no-print mb-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               {/* Left: Subject Selection */}
               <div className="flex items-center gap-2 flex-wrap">
                 <select
                   value={activeFach}
                   onChange={(e) => setActiveFach(e.target.value)}
-                  className="bg-slate-100 border border-slate-200 hover:border-emerald-500 font-black text-slate-800 text-[0.875rem] rounded-xl px-3.5 py-2 outline-none cursor-pointer transition-all shadow-3xs"
+                  className="bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border2))] hover:border-[var(--accent)] font-bold text-[var(--text-primary,var(--text))] text-[0.875rem] rounded-xl px-3.5 py-2 outline-none cursor-pointer transition-colors"
                 >
                   {availableSubjects.map((f) => (
                     <option key={f} value={f}>
@@ -1741,8 +1658,8 @@ export default function Gradebook() {
                   onClick={() => setSimpleDashboardMode(!simpleDashboardMode)}
                   className={`px-3 py-2 rounded-xl text-[0.75rem] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border ${
                     simpleDashboardMode
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-3xs'
-                      : 'bg-slate-50 text-slate-500 border-slate-200'
+                      ? 'bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)]/20'
+                      : 'bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted,var(--text3))] border-[var(--border-subtle,var(--border))]'
                   }`}
                   title="Einfachmodus reduziert die sichtbare Komplexität für den Schulalltag"
                 >
@@ -1754,7 +1671,7 @@ export default function Gradebook() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowAddAssessmentModal(true)}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-[0.8125rem] rounded-xl transition-all shadow-sm flex items-center gap-2 cursor-pointer"
+                  className="px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,var(--btn-text,#ffffff))] font-bold text-[0.8125rem] rounded-xl transition-colors shadow-sm flex items-center gap-2 cursor-pointer"
                 >
                   <Plus size={16} strokeWidth={3} />
                   <span>Bewertung</span>
@@ -1763,7 +1680,7 @@ export default function Gradebook() {
                 <div className="relative">
                   <button
                     onClick={() => setShowMoreMenu(!showMoreMenu)}
-                    className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[0.8125rem] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-slate-200/60"
+                    className="px-3.5 py-2 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary,var(--text2))] font-semibold text-[0.8125rem] rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer border border-[var(--border-default,var(--border2))]"
                   >
                     <span>Mehr</span>
                     <ChevronDown size={14} className={`transition-transform ${showMoreMenu ? 'rotate-180' : ''}`} />
@@ -1780,14 +1697,14 @@ export default function Gradebook() {
                           initial={{ opacity: 0, scale: 0.95, y: -5 }}
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                          className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 flex flex-col gap-1 text-[0.8125rem]"
+                          className="absolute right-0 top-full mt-2 w-56 bg-[var(--surface-card,var(--surface))] rounded-xl shadow-xl border border-[var(--border-default,var(--border2))] p-2 z-50 flex flex-col gap-1 text-[0.8125rem]"
                         >
                           <button
                             onClick={() => {
                               setShowGradeCalculator(true);
                               setShowMoreMenu(false);
                             }}
-                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle,var(--surface2))] font-semibold text-[var(--text-secondary,var(--text2))] flex items-center gap-2.5 transition-colors cursor-pointer"
                           >
                             <span>🧮</span>
                             <span>Notenrechner</span>
@@ -1798,7 +1715,7 @@ export default function Gradebook() {
                               setShowWeights(true);
                               setShowMoreMenu(false);
                             }}
-                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle,var(--surface2))] font-semibold text-[var(--text-secondary,var(--text2))] flex items-center gap-2.5 transition-colors cursor-pointer"
                           >
                             <span>⚖️</span>
                             <span>Gewichtung</span>
@@ -1809,7 +1726,7 @@ export default function Gradebook() {
                               setShowStats(!showStats);
                               setShowMoreMenu(false);
                             }}
-                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle,var(--surface2))] font-semibold text-[var(--text-secondary,var(--text2))] flex items-center gap-2.5 transition-colors cursor-pointer"
                           >
                             <span>📊</span>
                             <span>{showStats ? 'Statistik ausblenden' : 'Statistik & Notenspiegel'}</span>
@@ -1820,7 +1737,7 @@ export default function Gradebook() {
                               setHeatmapMode(!heatmapMode);
                               setShowMoreMenu(false);
                             }}
-                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle,var(--surface2))] font-semibold text-[var(--text-secondary,var(--text2))] flex items-center gap-2.5 transition-colors cursor-pointer"
                           >
                             <span>🌡️</span>
                             <span>Heatmap: {heatmapMode ? 'AN' : 'AUS'}</span>
@@ -1831,7 +1748,7 @@ export default function Gradebook() {
                               handleExport();
                               setShowMoreMenu(false);
                             }}
-                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-[var(--surface-subtle,var(--surface2))] font-semibold text-[var(--text-secondary,var(--text2))] flex items-center gap-2.5 transition-colors cursor-pointer"
                           >
                             <span>🖨️</span>
                             <span>Export / Drucken</span>
@@ -1842,13 +1759,13 @@ export default function Gradebook() {
                           <div className="px-3 py-1 text-[0.625rem] font-black uppercase text-slate-400 tracking-wider">
                             Darstellung
                           </div>
-                          <div className="flex bg-slate-100 p-1 rounded-xl items-center">
+                          <div className="flex bg-[var(--surface-subtle,var(--surface2))] p-1 rounded-xl items-center">
                             {(['compact', 'standard', 'large'] as const).map((lvl) => (
                               <button
                                 key={lvl}
                                 onClick={() => changeZoomLevel(lvl)}
                                 className={`flex-1 py-1 text-[0.625rem] font-bold rounded-lg transition-all ${
-                                  zoomLevel === lvl ? 'bg-white shadow-xs text-slate-900' : 'text-slate-500'
+                                  zoomLevel === lvl ? 'bg-[var(--surface-card,var(--surface))] shadow-xs text-[var(--text-primary,var(--text))]' : 'text-[var(--text-muted,var(--text3))]'
                                 }`}
                               >
                                 {lvl === 'compact' ? 'Klein' : lvl === 'large' ? 'Groß' : 'Normal'}
@@ -1864,7 +1781,7 @@ export default function Gradebook() {
             </div>
 
             {/* Main View Tabs */}
-            <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200/50 relative z-10 w-full overflow-x-auto">
+            <div className="flex bg-[var(--surface-subtle,var(--surface2))] p-1.5 rounded-xl border border-[var(--border-subtle,var(--border))] relative z-10 w-full overflow-x-auto">
               {(isFachActive
                 ? [
                     { id: 'noten', label: 'Leistungen' },
@@ -1884,13 +1801,13 @@ export default function Gradebook() {
                     key={tab.id}
                     onClick={() => setActiveView(tab.id as any)}
                     className={`relative px-4 py-2 rounded-lg text-[0.8125rem] font-bold tracking-tight transition-all flex items-center justify-center gap-2 flex-1 cursor-pointer select-none leading-none z-10 ${
-                      isSel ? 'text-slate-950 font-extrabold' : 'text-slate-600 hover:text-slate-900'
+                      isSel ? 'text-[var(--accent)] font-bold' : 'text-[var(--text-secondary,var(--text2))] hover:text-[var(--text-primary,var(--text))]'
                     }`}
                   >
                     {isSel && (
                       <motion.div
                         layoutId="activeViewPill"
-                        className="absolute inset-0 bg-white rounded-lg shadow-xs border border-slate-200/40 z-[-1]"
+                        className="absolute inset-0 bg-[var(--surface-card,var(--surface))] rounded-lg shadow-xs border border-[var(--accent)]/15 z-[-1]"
                         transition={{ type: 'spring', stiffness: 350, damping: 30 }}
                       />
                     )}
