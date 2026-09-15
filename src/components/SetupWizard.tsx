@@ -780,23 +780,23 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   ].filter(Boolean) as string[];
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-50 flex items-start justify-center p-0 md:p-8">
+    <div className="fixed inset-0 z-[100] overflow-y-auto bg-[var(--surface-app,var(--bg))] text-[var(--text-primary,var(--text))] flex items-start justify-center p-0 md:p-6">
       <input type="file" accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain" ref={fileInputRef} onChange={handleBackupImport} className="hidden" />
       <input type="file" accept=".csv" ref={csvInputRef} onChange={handleCSVImport} className="hidden" />
       <input type="file" accept=".pdf,.csv,.txt" ref={sokratesFileInputRef} onChange={handleSokratesFileUpload} className="hidden" />
 
       {isAnalyzingSokrates && (
-        <div className="fixed inset-0 z-[10000] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-slate-200 text-center space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
+        <div className="fixed inset-0 z-[10000] bg-black/45 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-8 max-w-md w-full shadow-2xl border border-[var(--border-default,var(--border2))] text-center space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 bg-[var(--accent-soft)] text-[var(--accent)] rounded-xl flex items-center justify-center mx-auto animate-pulse">
               <Sparkles className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-black text-slate-800">Sokrates-PDF wird analysiert...</h3>
-            <p className="text-xs text-slate-500 leading-relaxed">
+            <h3 className="text-lg font-bold text-[var(--text-primary,var(--text))]">Sokrates-PDF wird analysiert …</h3>
+            <p className="text-xs text-[var(--text-muted,var(--text3))] leading-relaxed">
               Wir extrahieren Namen, Adressen, SVNR, Besuchsjahre (BJ) und Elternkontakte strukturiert aus dem Dokument.
             </p>
-            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-              <div className="bg-emerald-500 h-full w-2/3 rounded-full animate-pulse"></div>
+            <div className="w-full bg-[var(--surface-subtle,var(--surface2))] h-2 rounded-full overflow-hidden">
+              <div className="bg-[var(--accent)] h-full w-2/3 rounded-full animate-pulse"></div>
             </div>
           </div>
         </div>
@@ -821,13 +821,13 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
         />
       )}
 
-      <div className="bg-white md:rounded-[32px] border border-slate-200 shadow-2xl w-full max-w-6xl relative min-h-screen md:min-h-[85vh] my-0 flex flex-col ">
+      <div className="bg-[var(--surface-card,var(--surface))] md:rounded-2xl border border-[var(--border-default,var(--border2))] shadow-xl w-full max-w-6xl relative min-h-screen md:min-h-[85vh] my-0 flex flex-col overflow-hidden">
         
         {/* HEADER */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 border-b border-slate-100 bg-white sticky top-0 z-50 shrink-0 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-5 py-4 sm:px-6 border-b border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))]/96 backdrop-blur-xl sticky top-0 z-50 shrink-0 gap-4">
           <div>
-            <h2 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">Klassen-Einstellungen</h2>
-            <p className="text-[0.75rem] leading-tight font-medium text-slate-500 mt-1 uppercase tracking-wider">
+            <h2 className="text-[1.25rem] leading-normal font-black text-[var(--text-primary,var(--text))] tracking-[-0.02em]">Klasse einrichten</h2>
+            <p className="text-[0.75rem] leading-tight font-medium text-[var(--text-muted,var(--text3))] mt-1">
               Schritt {currStep + 1} von {STEPS.length}: {STEPS[currStep].title}
             </p>
           </div>
@@ -844,12 +844,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                     type="button"
                     onClick={() => handleStepClick(idx)}
                     title={`Gehe zu Schritt: ${step.title}`}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-[0.625rem] font-bold shadow-sm transition-all cursor-pointer hover:scale-115 active:scale-90 ${isActive ? 'bg-emerald-500 text-white scale-110 shadow-emerald-500/20 ring-2 ring-emerald-400 ring-offset-2' : isPast ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-[0.625rem] font-bold transition-colors cursor-pointer ${isActive ? 'bg-[var(--accent)] text-[var(--accent-text,var(--btn-text,#ffffff))] ring-2 ring-[var(--accent)]/20 ring-offset-2 ring-offset-[var(--surface-card,var(--surface))]' : isPast ? 'bg-[var(--accent-soft)] text-[var(--accent)]' : 'bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted,var(--text3))]'}`}
                   >
                     <Icon size={14} />
                   </button>
                   {idx < STEPS.length - 1 && (
-                    <div className={`w-6 h-1 mx-1 rounded-full ${isPast ? 'bg-emerald-200' : 'bg-slate-100'}`} />
+                    <div className={`w-6 h-1 mx-1 rounded-full ${isPast ? 'bg-[var(--accent)]/25' : 'bg-[var(--surface-subtle,var(--surface2))]'}`} />
                   )}
                 </div>
               );
@@ -858,16 +858,16 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
              {(isEditing || isNewClass) && (
-               <button onClick={handleCancel} className="flex-1 sm:flex-none px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl transition-all">
+               <button onClick={handleCancel} className="flex-1 sm:flex-none px-4 py-2 border border-[var(--border-default,var(--border2))] hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))] font-semibold text-[0.75rem] leading-tight rounded-xl transition-colors">
                  Abbrechen
                </button>
              )}
              {currStep === STEPS.length - 1 ? (
-                <button onClick={() => handleSaveAndComplete()} className="flex-1 sm:flex-none px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl shadow-md shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 transform hover:-translate-y-0.5">
+                <button onClick={() => handleSaveAndComplete()} className="flex-1 sm:flex-none px-6 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,var(--btn-text,#ffffff))] font-bold text-[0.75rem] leading-tight rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2">
                   <Check size={16} /> Speichern
                 </button>
              ) : (
-                <button onClick={nextStep} className="flex-1 sm:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl shadow-md shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                <button onClick={nextStep} className="flex-1 sm:flex-none px-6 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,var(--btn-text,#ffffff))] font-bold text-[0.75rem] leading-tight rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 cursor-pointer">
                   {currStep === 0 ? 'Einrichtung starten' : 'Weiter'}
                 </button>
              )}
@@ -878,38 +878,38 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
         <div className="flex-1 overflow-y-auto w-full p-4 md:p-8 pb-32 soft-scrollbar relative" onClick={() => setActiveColorPicker(null)}>
            
            {STEPS[currStep].title === 'Start' && (
-              <div className="max-w-2xl mx-auto text-center space-y-8 py-8 md:py-16 bg-emerald-50/50 rounded-[32px] border border-emerald-100/50 mb-12 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
-                 <div className="w-24 h-24 bg-emerald-100 text-emerald-600 rounded-[2rem] flex items-center justify-center mx-auto shadow-sm">
+              <div className="max-w-2xl mx-auto text-center space-y-7 py-8 md:py-14 bg-[var(--surface-subtle,var(--surface2))]/60 rounded-2xl border border-[var(--border-subtle,var(--border))] mb-10 animate-in fade-in slide-in-from-bottom-2 duration-500 ease-out">
+                 <div className="w-20 h-20 bg-[var(--accent-soft)] text-[var(--accent)] rounded-2xl flex items-center justify-center mx-auto">
                    <Sparkles size={41} />
                  </div>
                  <div className="px-6">
-                   <h1 className="text-[1.875rem] leading-tight md:text-4xl font-black text-slate-900 tracking-tight mb-3">Willkommen bei Klassio!</h1>
-                   <p className="text-[0.875rem] font-black text-emerald-600 tracking-widest uppercase mb-4">Gabriel Intelligent Classroom</p>
-                   <p className="text-slate-500 font-medium max-w-lg mx-auto">Klicke auf Weiter, um deine Klasse einzurichten. Alternativ kannst du hier ein Backup hochladen, um dort weiterzumachen, wo du aufgehört hast.</p>
+                   <h1 className="text-[1.875rem] leading-tight md:text-[2.25rem] font-black text-[var(--text-primary,var(--text))] tracking-[-0.03em] mb-2">Willkommen bei Klassio</h1>
+                   <p className="text-[0.875rem] font-semibold text-[var(--accent)] mb-3">Dein digitaler Lehrerarbeitsplatz</p>
+                   <p className="text-[var(--text-secondary,var(--text2))] font-medium leading-6 max-w-lg mx-auto">Richte deine Klasse Schritt für Schritt ein. Wenn du schon eine Klassio-Sicherung hast, kannst du sie direkt wiederherstellen.</p>
                  </div>
 
                  <div className="mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3 px-6 max-w-xl">
                    <button
                      type="button"
                      onClick={() => setSetupMode('quick')}
-                     className={`p-4 rounded-2xl border-2 text-left transition-all ${setupMode === 'quick' ? 'border-emerald-500 bg-white shadow-md' : 'border-slate-200 bg-white/50 hover:border-slate-300'}`}
+                     className={`p-4 rounded-xl border text-left transition-colors ${setupMode === 'quick' ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-[var(--border-default,var(--border2))] bg-[var(--surface-card,var(--surface))] hover:bg-[var(--surface-subtle,var(--surface2))]'}`}
                    >
-                     <div className="flex items-center gap-2 font-black text-slate-800"><Sparkles size={17} className="text-emerald-500" /> Schnell einrichten</div>
-                     <p className="mt-1 text-[0.75rem] text-slate-500">In wenigen Minuten starten. Fächer und Stundenplan später ergänzen.</p>
+                     <div className="flex items-center gap-2 font-bold text-[var(--text-primary,var(--text))]"><Sparkles size={17} className="text-[var(--accent)]" /> Schnell einrichten</div>
+                     <p className="mt-1 text-[0.75rem] leading-5 text-[var(--text-muted,var(--text3))]">In wenigen Minuten starten. Fächer und Stundenplan später ergänzen.</p>
                    </button>
                    <button
                      type="button"
                      onClick={() => setSetupMode('expert')}
-                     className={`p-4 rounded-2xl border-2 text-left transition-all ${setupMode === 'expert' ? 'border-indigo-500 bg-white shadow-md' : 'border-slate-200 bg-white/50 hover:border-slate-300'}`}
+                     className={`p-4 rounded-xl border text-left transition-colors ${setupMode === 'expert' ? 'border-[var(--accent)] bg-[var(--accent-soft)]' : 'border-[var(--border-default,var(--border2))] bg-[var(--surface-card,var(--surface))] hover:bg-[var(--surface-subtle,var(--surface2))]'}`}
                    >
-                     <div className="flex items-center gap-2 font-black text-slate-800"><Settings2 size={17} className="text-indigo-500" /> Vollständig einrichten</div>
-                     <p className="mt-1 text-[0.75rem] text-slate-500">Fächer, Farben und Stammstundenplan direkt konfigurieren.</p>
+                     <div className="flex items-center gap-2 font-bold text-[var(--text-primary,var(--text))]"><Settings2 size={17} className="text-[var(--accent)]" /> Vollständig einrichten</div>
+                     <p className="mt-1 text-[0.75rem] leading-5 text-[var(--text-muted,var(--text3))]">Fächer, Farben und Stammstundenplan direkt konfigurieren.</p>
                    </button>
                  </div>
                  
                  <div className="flex flex-col sm:flex-row justify-center mt-8 pb-4 px-6 relative z-10 gap-4">
-                    <button onClick={triggerBackupSelect} className="px-6 py-4 border-2 border-slate-200 hover:border-emerald-500 hover:bg-white bg-white/50 rounded-2xl flex items-center gap-3 transition-all text-slate-700 font-bold w-full sm:w-auto shadow-sm hover:shadow-md pointer-events-auto cursor-pointer relative z-50">
-                       <Upload size={20} className="text-emerald-500" />
+                    <button onClick={triggerBackupSelect} className="px-6 py-4 border border-[var(--border-default,var(--border2))] hover:border-[var(--accent)]/35 hover:bg-[var(--surface-subtle,var(--surface2))] bg-[var(--surface-card,var(--surface))] rounded-xl flex items-center gap-3 transition-colors text-[var(--text-secondary,var(--text2))] font-semibold w-full sm:w-auto pointer-events-auto cursor-pointer relative z-50">
+                       <Upload size={20} className="text-[var(--accent)]" />
                        <div className="text-left">
                          <div className="text-[0.875rem] leading-snug font-black whitespace-nowrap">Backup wiederherstellen</div>
                          <div className="text-[0.625rem] text-slate-500 font-medium uppercase tracking-wider">Aus einer Sicherungsdatei (.json)</div>
@@ -925,7 +925,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                          }));
                          onComplete();
                        }} 
-                       className="px-6 py-4 border-2 border-slate-200 hover:border-emerald-500 hover:bg-white bg-white/50 text-slate-700 rounded-2xl flex items-center gap-3 transition-all font-bold w-full sm:w-auto shadow-sm hover:shadow-md pointer-events-auto cursor-pointer relative z-50"
+                       className="px-6 py-4 border border-[var(--border-default,var(--border2))] hover:border-[var(--accent)]/35 hover:bg-[var(--surface-subtle,var(--surface2))] bg-[var(--surface-card,var(--surface))] text-[var(--text-secondary,var(--text2))] rounded-xl flex items-center gap-3 transition-colors font-semibold w-full sm:w-auto pointer-events-auto cursor-pointer relative z-50"
                     >
                        <Sparkles size={20} />
                        <div className="text-left">
