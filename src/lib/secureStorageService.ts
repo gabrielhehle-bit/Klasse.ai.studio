@@ -32,6 +32,7 @@ import {
   loadVaultRecord,
 } from './vaultStorage.js';
 import type { AppState } from '../types.js';
+import { toLocalDateKey } from './localDate.js';
 
 // ==========================================
 // 1. KONSTANTEN & IDENTIFIKATOREN
@@ -362,7 +363,7 @@ export async function saveEncryptedEmergencyBackup(
     const serialized = JSON.stringify(record);
     const ls = getLocalStorage();
     ls.setItem(STORAGE_KEYS.NOTFALLKOPIE, serialized);
-    ls.setItem(STORAGE_KEYS.NOTFALLKOPIE_DATE, new Date().toISOString().split('T')[0]);
+    ls.setItem(STORAGE_KEYS.NOTFALLKOPIE_DATE, toLocalDateKey());
     ls.setItem(STORAGE_KEYS.NOTFALLKOPIE_TIME, new Date().toLocaleString('de-DE'));
   } catch (e) {
     console.warn('[Datenschutz] Notfallkopie konnte nicht verschlüsselt gesichert werden.', e);

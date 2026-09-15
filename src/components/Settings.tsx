@@ -6,6 +6,7 @@ import { AlertTriangle, Trash2 } from 'lucide-react';
 import localforage from 'localforage';
 import { getSpeicherStatus } from '../lib/utils';
 import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
+import { clearActiveVaultSession, deleteVaultRecord } from '../lib/vaultStorage';
 
 // Subcomponents
 import SettingsHeader, { SettingsCategory } from './settings/SettingsHeader';
@@ -194,21 +195,20 @@ export default function Settings() {
     }
   };
 
-  // Notfall datum
+  // Zeitpunkt der verschlüsselten automatischen Notfallkopie.
   const notfallDate = useMemo(() => {
     try {
       const raw = localStorage.getItem('hehle_v3_notfallkopie');
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.lastBackupDate) {
-        return new Date(parsed.lastBackupDate).toLocaleDateString('de-AT', {
-          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
-      }
-    } catch (e) {
+      const savedAt = typeof parsed?.savedAt === 'number' ? parsed.savedAt : null;
+      if (!savedAt) return localStorage.getItem('hehle_v3_notfallkopie_time');
+      return new Date(savedAt).toLocaleString('de-AT', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+    } catch {
       return null;
     }
-    return null;
   }, []);
 
   const openDeleteModal = (type: 'all' | 'history') => {
@@ -223,14 +223,47 @@ export default function Settings() {
     if (resetType === 'all') {
       try {
         await clearTrustedDeviceUnlock();
-        localStorage.clear();
-        sessionStorage.clear();
-        await localforage.clear();
-        window.location.reload();
-      } catch (e) {
-        console.error('Reset error:', e);
-        window.location.reload();
+      } catch (error) {
+        console.error('Gerätevertrauen konnte beim Werksreset nicht gelöscht werden', error);
+        showToast('Werksreset abgebrochen: Gerätevertrauen konnte nicht gelöscht werden.', 'error');
+        return;
       }
+
+      try {
+        localStorage.clear();
+      } catch (error) {
+        console.error('Browser-Fallback konnte beim Werksreset nicht gelöscht werden', error);
+        showToast('Werksreset abgebrochen: Browser-Fallback konnte nicht gelöscht werden.', 'error');
+        return;
+      }
+
+      try {
+        sessionStorage.clear();
+      } catch (error) {
+        console.error('Sitzungsspeicher konnte beim Werksreset nicht gelöscht werden', error);
+        showToast('Werksreset abgebrochen: Sitzungsspeicher konnte nicht gelöscht werden.', 'error');
+        return;
+      }
+
+      try {
+        await localforage.clear();
+      } catch (error) {
+        console.error('Lokaler App-Speicher konnte beim Werksreset nicht gelöscht werden', error);
+        showToast('Werksreset abgebrochen: Lokaler App-Speicher konnte nicht gelöscht werden.', 'error');
+        return;
+      }
+
+      // Separate Tresor-Metadaten erst löschen, nachdem die verschlüsselten App-Daten entfernt sind.
+      try {
+        await deleteVaultRecord();
+      } catch (error) {
+        console.error('Tresor-Metadaten konnten beim Werksreset nicht gelöscht werden', error);
+        showToast('Werksreset abgebrochen: Tresor-Metadaten konnten nicht gelöscht werden.', 'error');
+        return;
+      }
+
+      clearActiveVaultSession();
+      window.location.reload();
     } else {
       setApp(prev => ({
         ...prev,

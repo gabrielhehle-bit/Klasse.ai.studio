@@ -3,13 +3,25 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Download, Upload, Shield, Database, AlertCircle, CheckCircle2, Monitor, Loader2, Trash2, Clock, FileJson, AlertTriangle, Archive, RotateCcw, Cloud, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { triggerBackupDownload } from '../utils/backupUtils';
+import { LAST_BACKUP_TIMESTAMP_KEY, markBackupCompleted, triggerBackupDownload } from '../utils/backupUtils';
 import { createEncryptedBackup } from '../lib/backupCryptoService';
-import { getActiveVaultKey, getActiveVaultRecord, loadVaultRecord } from '../lib/vaultStorage';
+import { clearActiveVaultSession, deleteVaultRecord, getActiveVaultKey, getActiveVaultRecord, loadVaultRecord } from '../lib/vaultStorage';
 import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
 import { ONEDRIVE_BACKUP_PRIMARY_NAME } from '../lib/cloudBackupNames';
 import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
 import { syncActiveClass, switchClassState } from '../lib/appState';
+
+function formatBackupMoment(timestamp: number, label = 'Zuletzt gesichert'): string {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return 'Noch keine Sicherung erfasst';
+  return `${label}: ${date.toLocaleString('de-AT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+}
 
 export default function Backup() {
   const { app, setApp, restoreAppData } = useApp();
@@ -86,6 +98,7 @@ export default function Backup() {
 
   const [isDragging, setIsDragging] = useState(false);
   const [usedMB, setUsedMB] = useState(0);
+  const [quotaMB, setQuotaMB] = useState<number | null>(null);
   const [percentage, setPercentage] = useState(0);
   
   // Custom states for interactive feedback
@@ -95,25 +108,47 @@ export default function Backup() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [lastBackupStr, setLastBackupStr] = useState('Noch keine lokale Sicherung erfasst');
 
-  // Load from offline persistent storage if exists
+  // Browser storage estimate includes IndexedDB, Cache Storage and localStorage where supported.
   useEffect(() => {
-    try {
-      const totalStr = JSON.stringify(localStorage);
-      const bytes = totalStr.length;
-      const mb = bytes / (1024 * 1024);
-      setUsedMB(parseFloat(mb.toFixed(2)));
-      setPercentage(Math.min(100, (bytes / (5 * 1024 * 1024)) * 100));
-    } catch {
-      setUsedMB(0);
-      setPercentage(0);
-    }
+    let cancelled = false;
+    const updateStorageEstimate = async () => {
+      try {
+        if (!navigator.storage?.estimate) {
+          if (!cancelled) {
+            setUsedMB(0);
+            setQuotaMB(null);
+            setPercentage(0);
+          }
+          return;
+        }
+        const estimate = await navigator.storage.estimate();
+        if (cancelled) return;
+        const usage = estimate.usage ?? 0;
+        const quota = estimate.quota ?? 0;
+        setUsedMB(Number((usage / (1024 * 1024)).toFixed(2)));
+        setQuotaMB(quota > 0 ? Number((quota / (1024 * 1024)).toFixed(0)) : null);
+        setPercentage(quota > 0 ? Math.min(100, (usage / quota) * 100) : 0);
+      } catch {
+        if (!cancelled) {
+          setUsedMB(0);
+          setQuotaMB(null);
+          setPercentage(0);
+        }
+      }
+    };
+    void updateStorageEstimate();
+    return () => { cancelled = true; };
   }, [app]);
 
   useEffect(() => {
-    const savedTime = localStorage.getItem('lehrkraft_last_backup_time');
-    if (savedTime) {
-      setLastBackupStr(savedTime);
+    const savedTimestamp = Number(localStorage.getItem(LAST_BACKUP_TIMESTAMP_KEY));
+    if (Number.isFinite(savedTimestamp) && savedTimestamp > 0) {
+      setLastBackupStr(formatBackupMoment(savedTimestamp));
+      return;
     }
+    // Read-only migration hint for older builds; a new backup replaces this with a real timestamp.
+    const legacyLabel = localStorage.getItem('lehrkraft_last_backup_time');
+    if (legacyLabel) setLastBackupStr(legacyLabel);
   }, []);
 
   // Animated backup trigger with client-side encryption
@@ -124,10 +159,8 @@ export default function Backup() {
     try {
       await triggerBackupDownload(app);
       
-      // Update backup timestamp
-      const timeStr = "Zuletzt gesichert vor wenigen Sekunden (Heute um " + new Date().toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) + ")";
-      localStorage.setItem('lehrkraft_last_backup_time', timeStr);
-      setLastBackupStr(timeStr);
+      const completedAt = Number(localStorage.getItem(LAST_BACKUP_TIMESTAMP_KEY)) || Date.now();
+      setLastBackupStr(formatBackupMoment(completedAt));
       
       setBackupStatus('success');
       setTimeout(() => setBackupStatus('idle'), 3000);
@@ -199,24 +232,54 @@ export default function Backup() {
     if (file) processFile(file);
   };
 
-  // Safe reset routine
+  // Safe reset routine: remove data stores before deleting the vault metadata.
+  // This avoids leaving encrypted app data behind after its recovery metadata has already been removed.
   const executeAbsoluteReset = async () => {
     if (deleteConfirmText !== 'LÖSCHEN') return;
     setDeleteModalOpen(false);
-    
+
     try {
       await clearTrustedDeviceUnlock();
-      await localforage.clear();
-    } catch (e) {
-      console.error('Lokale Tresor-/IndexedDB-Löschung fehlgeschlagen', e);
+    } catch (error) {
+      console.error('Gerätevertrauen konnte beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Gerätevertrauen konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
     }
-    
-    localStorage.clear();
-    sessionStorage.clear();
-    setLastBackupStr('Noch nie gesichert');
-    localStorage.setItem('lehrkraft_last_backup_time', 'Noch nie gesichert');
-    
-    // Hard refresh back to initial setup
+
+    try {
+      await localforage.clear();
+    } catch (error) {
+      console.error('Lokaler App-Speicher konnte beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Der lokale App-Speicher konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
+    }
+
+    try {
+      localStorage.clear();
+    } catch (error) {
+      console.error('Browser-Fallback konnte beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Der Browser-Fallback konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
+    }
+
+    try {
+      sessionStorage.clear();
+    } catch (error) {
+      console.error('Sitzungsspeicher konnte beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Der Sitzungsspeicher konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
+    }
+
+    // Delete vault metadata last. If this step fails, no encrypted pupil/app state is left behind.
+    try {
+      await deleteVaultRecord();
+    } catch (error) {
+      console.error('Tresor-Metadaten konnten beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Die Tresor-Metadaten konnten nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
+    }
+
+    clearActiveVaultSession();
     window.location.reload();
   };
 
@@ -410,7 +473,7 @@ export default function Backup() {
       }
 
       // Zero-Knowledge Verschlüsselung vor Verlassen des Browsers
-      const encryptedBackup = await createEncryptedBackup(app, vaultKey, vaultRecord);
+      const encryptedBackup = await createEncryptedBackup(syncActiveClass(app), vaultKey, vaultRecord);
 
       const res = await fetch('/api/onedrive/upload', {
         method: 'PUT',
@@ -429,9 +492,9 @@ export default function Backup() {
       setSyncStatus('success');
       await fetchMetadata();
       
-      const timeStr = "OneDrive-Sicherung geladen (Heute um " + new Date().toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) + ")";
-      localStorage.setItem('lehrkraft_last_backup_time', timeStr);
-      setLastBackupStr(timeStr);
+      const completedAt = Date.now();
+      markBackupCompleted(completedAt);
+      setLastBackupStr(formatBackupMoment(completedAt, 'Zuletzt in OneDrive gesichert'));
 
       setTimeout(() => setSyncStatus('idle'), 3000);
     } catch (err: any) {
@@ -488,9 +551,7 @@ export default function Backup() {
 
       setSyncStatus('success');
       
-      const timeStr = "OneDrive-Sicherung eingespielt (Heute um " + new Date().toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) + ")";
-      localStorage.setItem('lehrkraft_last_backup_time', timeStr);
-      setLastBackupStr(timeStr);
+      setLastBackupStr(formatBackupMoment(Date.now(), 'Zuletzt aus OneDrive wiederhergestellt'));
 
       setTimeout(() => setSyncStatus('idle'), 1500);
 
@@ -566,7 +627,7 @@ export default function Backup() {
             <div className="bg-white p-4 rounded-2xl border border-sky-150 text-[0.75rem] space-y-2.5 text-slate-700 shadow-sm">
               <p className="font-bold text-slate-800 flex items-center gap-1.5">
                 <span>🔑</span>
-                <span>Infrastruktur-Aktivierung in AI Studio (Umgebungsvariablen):</span>
+                <span>Infrastruktur-Aktivierung am Klassio-Server (Umgebungsvariablen):</span>
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
                 <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
@@ -773,28 +834,28 @@ export default function Backup() {
                         <div className="flex gap-2 items-start">
                           <span className="text-emerald-600 font-bold shrink-0">✓</span>
                           <div>
-                            <strong className="text-slate-800">Keine Datenspeicherung auf Fremdservern:</strong> Die Sicherungsdatei <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-emerald-700">Klassio_Backup.json</code> wird direkt und verschlüsselt vom App-Dienst in den persönlichen OneDrive-Speicher der angemeldeten Lehrkraft übertragen. Es findet keine dauerhafte zentrale Zwischenspeicherung auf fremden Servern statt.
+                            <strong className="text-slate-800">Clientseitige Inhaltsverschlüsselung:</strong> Klassio verschlüsselt den App-Datenbestand bereits im Browser. Der Upload enthält damit nur den verschlüsselten Backup-Inhalt. Die konkrete Microsoft-365- und Hosting-Konfiguration muss die Schule separat prüfen.
                           </div>
                         </div>
 
                         <div className="flex gap-2 items-start">
                           <span className="text-emerald-600 font-bold shrink-0">✓</span>
                           <div>
-                            <strong className="text-slate-800">Transport- & Speicherverschlüsselung:</strong> Die Übertragung erfolgt zwingend über HTTPS/TLS 1.3. Die Ablage im M365 OneDrive der Schule unterliegt den Microsoft Education DSGVO-Auftragsverarbeitungsverträgen (AVV) inklusive AES-256 Verschlüsselung auf Disk-Ebene.
+                            <strong className="text-slate-800">Transport & OneDrive:</strong> Der Produktivbetrieb muss per HTTPS erfolgen. TLS-Version, OneDrive-Speicherschutz und vertragliche Datenschutzbedingungen werden durch Hosting und den jeweiligen Microsoft-365-Tenant bestimmt und sind durch die Schule bzw. den Datenschutzbeauftragten zu verifizieren.
                           </div>
                         </div>
 
                         <div className="flex gap-2 items-start">
                           <span className="text-emerald-600 font-bold shrink-0">✓</span>
                           <div>
-                            <strong className="text-slate-800">Zugriffskontrolle & Multi-Faktor-Authentifizierung (MFA):</strong> Der Zugriff auf die Cloud-Sicherung ist durch die M365-Anmeldung der Lehrkraft und Ihre schulischen Entra ID Conditional Access Richtlinien (z. B. MFA-Pflicht) geschützt.
+                            <strong className="text-slate-800">Zugriffskontrolle:</strong> Der Zugriff erfolgt über das verbundene Microsoft-Konto. MFA und Conditional Access gelten nur, wenn sie im schulischen Entra-ID-Tenant tatsächlich konfiguriert und durchgesetzt werden.
                           </div>
                         </div>
 
                         <div className="flex gap-2 items-start">
                           <span className="text-emerald-600 font-bold shrink-0">✓</span>
                           <div>
-                            <strong className="text-slate-800">Löschkonzept:</strong> Das Backup verbleibt im OneDrive der Lehrkraft und kann jederzeit direkt in OneDrive oder lokal in der Anwendung über den Punkt <em>„Vollständiger Werksreset“</em> gelöscht werden.
+                            <strong className="text-slate-800">Löschkonzept:</strong> Der Klassio-Werksreset löscht ausschließlich die lokalen App-Daten dieses Browsers. Eine vorhandene Cloud-Sicherung muss separat im verbundenen OneDrive gelöscht werden.
                           </div>
                         </div>
                       </div>
@@ -930,7 +991,9 @@ export default function Backup() {
             <Database size={16} className={`${percentage > 80 ? 'text-rose-550 animate-bounce' : 'text-blue-500'}`} />
             <span className="text-[0.75rem] leading-tight font-black text-slate-705 uppercase tracking-widest leading-none">Lokale Speicherbelegung (grobe Schätzung)</span>
           </div>
-          <span className="text-[0.75rem] leading-tight font-black text-slate-800 tracking-tight">{usedMB} MB von 5.0 MB ({percentage.toFixed(1)}%)</span>
+          <span className="text-[0.75rem] leading-tight font-black text-slate-800 tracking-tight">
+            {quotaMB !== null ? `${usedMB} MB von ca. ${quotaMB} MB (${percentage.toFixed(1)}%)` : 'Speicherquote nicht verfügbar'}
+          </span>
         </div>
         <div className="w-full bg-slate-100 rounded-full h-2 ">
           <div 
@@ -941,7 +1004,7 @@ export default function Backup() {
         {percentage > 85 && (
           <div className="flex items-start gap-2 text-[0.65625rem] font-bold text-rose-600 tracking-tight leading-normal">
             <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-            <span>Die geschätzte lokale Belegung nähert sich dem verwendeten Referenzwert. Laden Sie vorsorglich eine Sicherung herunter und prüfen Sie nicht mehr benötigte Entwürfe.</span>
+            <span>Die vom Browser gemeldete Speicherquote ist fast erreicht. Laden Sie vorsorglich eine Sicherung herunter und prüfen Sie nicht mehr benötigte lokale Inhalte.</span>
           </div>
         )}
       </div>

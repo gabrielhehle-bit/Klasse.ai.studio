@@ -28,6 +28,7 @@ import {
   unlockVault,
   type VaultRecordV1,
 } from './vaultService.js';
+import { toLocalDateKey } from './localDate.js';
 
 // ==========================================
 // 1. DATENSTRUKTUREN & FORMATE
@@ -258,11 +259,10 @@ export async function unlockAndDecryptBackup<T = any>(
 /**
  * Erzeugt einen standardisierten, sicheren Dateinamen für den Backup-Export.
  * Enthält ein Datum, aber KEINERLEI personenbezogene Daten (keine Namen, Klassen, Schulen).
- * Format: Klassio_Sicherung_YYYY-MM-DD.lehrerapp
+ * Format: Klassio_Sicherung_YYYY-MM-DD.json
  */
 export function generateBackupFilename(date: Date = new Date()): string {
-  const dateStr = date.toISOString().split('T')[0];
-  return `Klassio_Sicherung_${dateStr}${BACKUP_FILE_EXTENSION}`;
+  return `Klassio_Sicherung_${toLocalDateKey(date)}${BACKUP_FILE_EXTENSION}`;
 }
 
 /**
