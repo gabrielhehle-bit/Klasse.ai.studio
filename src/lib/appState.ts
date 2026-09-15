@@ -285,7 +285,10 @@ export function normalizeAppState(raw: any): AppState {
   // Historical multi-class builds already referenced `raw.klassen` as a legacy
   // source but never projected it to the current `classes` field. Preserve those
   // real class snapshots before defaults can collapse them into one generated class.
-  const legacyClasses = !Array.isArray(raw.classes) && Array.isArray(raw.klassen)
+  const currentClasses = Array.isArray(raw.classes) ? raw.classes : undefined;
+  const legacyClasses = (!currentClasses || currentClasses.length === 0)
+    && Array.isArray(raw.klassen)
+    && raw.klassen.length > 0
     ? raw.klassen
     : undefined;
 
