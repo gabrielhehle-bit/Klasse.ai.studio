@@ -16,6 +16,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { getFerien, Bundesland, BUNDESLAND_NAMEN } from '../../lib/ferienOesterreich';
+import { getCurrentSchuljahr } from '../../lib/utils';
 import { COLOR_OPTIONS, FAECHER_ALLE } from '../../constants';
 import { FachColorPicker } from '../FachColorPicker';
 import { getFachHexColor, isHexColor, COLOR_PRESET_OPTIONS } from '../../lib/fachColorUtils';
@@ -36,6 +37,12 @@ export default function GeneralSettings({
   onOpenDeleteClassModal
 }: GeneralSettingsProps) {
   const [showSubjectColors, setShowSubjectColors] = useState(false);
+  const currentSchoolYear = getCurrentSchuljahr();
+  const currentStartYear = Number(currentSchoolYear.slice(0, 4));
+  const schoolYearOptions = [-1, 0, 1, 2].map(offset => {
+    const start = currentStartYear + offset;
+    return `${start}/${String(start + 1).slice(-2)}`;
+  });
 
   const toggleHoliday = (holidayId: string) => {
     setApp((prev: any) => {
@@ -74,13 +81,15 @@ export default function GeneralSettings({
           <div className="space-y-1.5">
             <label className="text-xs font-black uppercase tracking-wider text-slate-700">Aktuelles Schuljahr</label>
             <select
-              value={app.schuljahr || '2025/26'}
+              value={app.schuljahr || currentSchoolYear}
               onChange={(e) => setApp((prev: any) => ({ ...prev, schuljahr: e.target.value }))}
               className="w-full h-11 px-4 bg-slate-50 border border-stone-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
             >
-              <option value="2024/25">2024/25</option>
-              <option value="2025/26">2025/26 (Aktuell)</option>
-              <option value="2026/27">2026/27</option>
+              {schoolYearOptions.map(year => (
+                <option key={year} value={year}>
+                  {year}{year === currentSchoolYear ? ' (Aktuell)' : ''}
+                </option>
+              ))}
             </select>
           </div>
 
