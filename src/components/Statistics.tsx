@@ -1779,7 +1779,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
 
   const dataCoverage = useMemo(() => {
     const studentsWithGrades = students.filter(student =>
-      getStudentGradeSummary(app, student.id, activeFaecher, '1').hasData
+      getStudentPerformanceSummary(app, student.id, activeFaecher, '1').hasData
     ).length;
     const studentsWithAttendance = students.filter(student =>
       getStudentAttendanceSummary(app, student.id).hasData
@@ -1789,8 +1789,15 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       totalStudents: students.length,
       studentsWithGrades,
       studentsWithAttendance,
-      studentsWithBehavior: new Set((app.statusLog || []).map((entry: any) => entry.schuelerId)).size,
-      studentsWithDiagnostics: new Set((app.diagnostikErhebungen || []).map((entry: any) => entry.schuelerId)).size
+      studentsWithBehavior: new Set(
+        (app.statusLog || [])
+          .map((entry: any) => entry.schuelerId)
+          .filter((id: string) => students.some(student => student.id === id))
+      ).size,
+      studentsWithDiagnostics: new Set([
+        ...(app.diagnostikErhebungen || []).map((entry: any) => entry.schuelerId),
+        ...(app.diagnosticResults || []).map((entry: any) => entry.studentId),
+      ].filter((id: string) => students.some(student => student.id === id))).size
     };
   }, [app, students, activeFaecher]);
 
@@ -1864,53 +1871,53 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   }, [app.antolinRecords, students]);
 
   const classOverviewMetrics = useMemo(() => {
-    let positiveTrendCount = 0;
-    let negativeTrendCount = 0;
+    let strongPerformanceCount = 0;
+    let attentionPerformanceCount = 0;
     const blindSpotStudents: { id: string; name: string; reason: string }[] = [];
     let openAlertCount = 0;
 
     const twentyEightDaysAgo = Date.now() - 28 * 24 * 60 * 60 * 1000;
 
-    students.forEach(s => {
-      let totalSum = 0;
-      let count = 0;
-      activeFaecher.forEach(f => {
-        const avg = berechne(app, s.id, f, '1');
-        if (avg !== null) {
-          totalSum += avg;
-          count++;
-        }
-      });
-      const gpa = count > 0 ? totalSum / count : null;
-
-      if (gpa !== null) {
-        if (gpa <= 2.2) positiveTrendCount++;
-        else if (gpa >= 3.8) negativeTrendCount++;
+    students.forEach(student => {
+      const performance = getStudentPerformanceSummary(app, student.id, activeFaecher, '1');
+      if (performance.normalizedAverage !== null) {
+        if (performance.normalizedAverage >= 80) strongPerformanceCount++;
+        else if (performance.normalizedAverage < 40) attentionPerformanceCount++;
       }
 
-      const att = getStudentAttendanceSummary(app, s.id);
-      if (att.unexcused > 0) {
-        openAlertCount++;
-      }
+      const attendance = getStudentAttendanceSummary(app, student.id);
+      if (attendance.unexcused > 0) openAlertCount++;
 
-      const notes = (app.notizen || []).filter((n: any) => n.schuelerId === s.id);
+      const notes = getStudentNotes(app, student.id);
       if (notes.length === 0) {
-        blindSpotStudents.push({ id: s.id, name: `${s.vorname} ${s.nachname}`, reason: 'Bisher keine Beobachtungen erfasst' });
+        blindSpotStudents.push({
+          id: student.id,
+          name: `${student.vorname} ${student.nachname}`,
+          reason: 'Bisher keine Beobachtungen erfasst',
+        });
       } else {
-        const latest = Math.max(...notes.map((n: any) => n.timestamp || 0));
+        const latest = Math.max(...notes.map((note: any) =>
+          new Date(note.datum || note.timestamp || 0).getTime()
+        ));
         if (latest < twentyEightDaysAgo) {
-          blindSpotStudents.push({ id: s.id, name: `${s.vorname} ${s.nachname}`, reason: 'Keine neue Notiz seit über 4 Wochen' });
+          blindSpotStudents.push({
+            id: student.id,
+            name: `${student.vorname} ${student.nachname}`,
+            reason: 'Keine neue Notiz seit über 4 Wochen',
+          });
         }
       }
     });
 
-    const openDiag = (app.diagnostikErhebungen || []).filter((d: any) => d.status === 'Offen' || d.status === 'In Bearbeitung').length;
+    const openDiag = (app.diagnostikErhebungen || [])
+      .filter((entry: any) => entry.status === 'Offen' || entry.status === 'In Bearbeitung')
+      .length;
 
     return {
-      positiveTrendCount,
-      negativeTrendCount,
+      strongPerformanceCount,
+      attentionPerformanceCount,
       blindSpotStudents,
-      openAlertCount: openAlertCount + openDiag
+      openAlertCount: openAlertCount + openDiag,
     };
   }, [students, app, activeFaecher]);
 
@@ -1920,30 +1927,30 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     if (stats.totalCount > 0) {
       list.push({
         id: 'gpa',
-        badge: 'Klassenschnitt',
+        badge: stats.averageDescriptor,
         badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-100',
-        title: 'Arithmetisches Mittel der Klasse',
-        text: `Der Gesamtdurchschnitt liegt bei Ø ${stats.average} über ${stats.totalCount} erfasste Noteneinträge.`
+        title: 'Aktueller Leistungsstand der Klasse',
+        text: `${stats.averageDescriptor}: ${stats.averageLabel} über ${stats.totalCount} auswertbare Fachstände.`
       });
     }
 
-    if (classOverviewMetrics.positiveTrendCount > 0) {
+    if (classOverviewMetrics.strongPerformanceCount > 0) {
       list.push({
         id: 'positive',
         badge: 'Positive Entwicklung',
         badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-100',
         title: 'Leistungsstarke Schüler:innen',
-        text: `${classOverviewMetrics.positiveTrendCount} Schüler:innen zeigen sehr gute bis gute Gesamtleistungen (Schnitt ≤ 2,2).`
+        text: `${classOverviewMetrics.strongPerformanceCount} Schüler:innen liegen im normalisierten Leistungsindex bei mindestens 80 %.`
       });
     }
 
-    if (classOverviewMetrics.negativeTrendCount > 0) {
+    if (classOverviewMetrics.attentionPerformanceCount > 0) {
       list.push({
         id: 'attention',
         badge: 'Beobachten',
         badgeColor: 'bg-amber-50 text-amber-700 border-amber-100',
         title: 'Unterstützungsbedarf',
-        text: `${classOverviewMetrics.negativeTrendCount} Schüler:innen weisen derzeit einen Notenschnitt ab 3,8 auf.`
+        text: `${classOverviewMetrics.attentionPerformanceCount} Schüler:innen liegen im normalisierten Leistungsindex derzeit unter 40 %.`
       });
     }
 
@@ -1970,79 +1977,49 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     return list;
   }, [stats, classOverviewMetrics, classAttendance]);
 
-  const getStudentGrades = (sid: string | null) => {
+  const getStudentPerformance = (sid: string | null) => {
     if (!sid) return [];
-    const flat: { fach: string; wert: number }[] = [];
-    activeFaecher.forEach(fach => {
-      const avg = berechne(app, sid, fach, '1');
-      if (avg !== null) {
-        flat.push({ fach, wert: parseFloat(avg.toFixed(2)) });
-      }
-    });
-    return flat;
+    return getStudentPerformanceSummary(app, sid, activeFaecher, '1').entries;
   };
 
   const student = students.find(s => s.id === selectedStudentId);
-  const studentGrades = getStudentGrades(selectedStudentId);
-  const meetings = (app.elterngespraeche || []).filter(m => m.schuelerId === selectedStudentId);
-  const studentNotes = (app.notizen || []).filter(n => n.schuelerId === selectedStudentId);
-  
-  const studentAvg = studentGrades.length > 0
-    ? studentGrades.reduce((a, b) => a + b.wert, 0) / studentGrades.length
-    : 0;
+  const studentPerformance = getStudentPerformance(selectedStudentId);
+  const meetings = (app.elterngespraeche || []).filter(meeting => meeting.schuelerId === selectedStudentId);
+  const studentNotes = selectedStudentId ? getStudentNotes(app, selectedStudentId) : [];
 
-  // Single pupil grade vs class comparison dataset
+  const studentPerformanceIndex = studentPerformance.length > 0
+    ? studentPerformance.reduce((sum, entry) => sum + entry.normalizedPercent, 0) / studentPerformance.length
+    : null;
+
+  // Single pupil vs class comparison on the common 0–100 performance index.
   const compareChartData = useMemo(() => {
     if (!selectedStudentId) return [];
-    return activeFaecher.map(fach => {
-      const sAvg = berechne(app, selectedStudentId, fach, '1');
-      
-      let classSum = 0;
-      let classCount = 0;
-      students.forEach(st => {
-        const g = berechne(app, st.id, fach, '1');
-        if (g !== null) {
-          classSum += g;
-          classCount++;
-        }
-      });
-      const cAvg = classCount > 0 ? classSum / classCount : null;
-      
-      if (sAvg === null && cAvg === null) return null;
-      return {
-        subject: fach.length > 15 ? `${fach.substring(0, 15)}...` : fach,
-        'Schüler': (sAvg !== null && sAvg !== undefined && sAvg !== 0) ? parseFloat(sAvg.toFixed(2)) : null,
-        'Klassen-Ø': (cAvg !== null && cAvg !== undefined && cAvg !== 0) ? parseFloat(cAvg.toFixed(2)) : null,
-      };
-    }).filter(Boolean) as { subject: string; Schüler: number; 'Klassen-Ø': number }[];
+    const subjectRows = getSubjectPerformanceAverages(app, students, activeFaecher, '1');
+    const studentRows = getStudentPerformanceSummary(app, selectedStudentId, activeFaecher, '1').entries;
+    return activeFaecher.flatMap(subject => {
+      const studentEntry = studentRows.find(entry => entry.subject === subject);
+      const classEntry = subjectRows.find(entry => entry.subject === subject);
+      if (!studentEntry && !classEntry) return [];
+      return [{
+        subject: subject.length > 15 ? `${subject.substring(0, 15)}...` : subject,
+        'Schüler': studentEntry?.normalizedPercent ?? null,
+        'Klassen-Ø': classEntry?.normalizedAverage ?? null,
+      }];
+    });
   }, [app, selectedStudentId, students, activeFaecher, notenUpdateTrigger]);
 
   // SVG Sparkline Trend Generator
   const renderSparkline = (sid: string) => {
-    const grades = getStudentGrades(sid);
-    const mLogs = (app.mitarbeitLogs || []).filter(l => l.sid === sid);
-    
-    let series = [3, 3, 3, 3, 3];
-    if (grades.length > 0) {
-      series = grades.map(g => 6 - g.wert); // map 1..5 to high..low
-    } else if (mLogs.length > 0) {
-      let sum = 3;
-      series = mLogs.map(p => {
-        sum += (p.points || 0);
-        return Math.max(1, Math.min(5, sum));
-      });
-    }
+    const performance = getStudentPerformance(sid);
+    const series = performance.map(entry => entry.normalizedPercent);
+    if (series.length < 2) return null;
 
-    while (series.length < 5) {
-      series.unshift(3);
-    }
-    
     const width = 100;
     const height = 30;
     const padding = 3;
-    const maxVal = Math.max(...series, 5);
-    const minVal = Math.min(...series, 1);
-    const valRange = maxVal - minVal || 1;
+    const maxVal = 100;
+    const minVal = 0;
+    const valRange = 100;
     
     const pointsString = series.map((val, idx) => {
       const x = (idx / (series.length - 1)) * (width - padding * 2) + padding;
