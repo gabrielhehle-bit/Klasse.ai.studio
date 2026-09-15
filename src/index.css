@@ -105,7 +105,7 @@
     --purple-light: #f5f3ff;
     --app-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
 
-    /* F-DS2 Semantische Surface-Tokens (Defaults) */
+    /* Klassio Design System 1.0: Theme-Farben dürfen die UI-Schrift nicht mehr austauschen.\n       Explizite Schriftwahl in den Einstellungen bleibt über die vorhandenen font-* Klassen erhalten. */\n\n    /* F-DS2 Semantische Surface-Tokens (Defaults) */
     --surface-app: var(--bg);
     --surface-card: var(--surface);
     --surface-subtle: var(--surface2);
@@ -171,7 +171,7 @@
     --bg-pattern: none;
     --bg-size: 24px 24px;
     --glow: none;
-    --app-font: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --app-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   }
 
   [data-style="deep_dark"],
@@ -191,7 +191,7 @@
     --bg-pattern: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
     --bg-size: 24px 24px;
     --glow: none;
-    --app-font: "Outfit", ui-sans-serif, system-ui, sans-serif;
+    --app-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
 
     /* F-DS2 Semantische Surface-Tokens (Dark Mode) */
     --surface-app: #09090b;
@@ -254,7 +254,7 @@
     --bg-pattern: none;
     --bg-size: 24px 24px;
     --glow: none;
-    --app-font: "Quicksand", ui-sans-serif, system-ui, sans-serif;
+    --app-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   }
 
   [data-style="ocean_breeze"] {
@@ -272,7 +272,7 @@
     --bg-pattern: none;
     --bg-size: 24px 24px;
     --glow: none;
-    --app-font: "Lexend", ui-sans-serif, system-ui, sans-serif;
+    --app-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   }
 
   [data-style="warm_sand"] {
@@ -290,7 +290,7 @@
     --bg-pattern: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.03'/%3E%3C/svg%3E");
     --bg-size: 200px 200px;
     --glow: none;
-    --app-font: "Source Serif 4", ui-serif, Georgia, serif;
+    --app-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   }
 
   [data-style="custom_theme"] {
@@ -344,7 +344,7 @@
     --bg-pattern: none;
     --bg-size: 24px 24px;
     --glow: none;
-    --app-font: "Fredoka", ui-sans-serif, system-ui, sans-serif;
+    --app-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   }
 
   [data-style="cozy_mint"] {
@@ -362,7 +362,7 @@
     --bg-pattern: none;
     --bg-size: 24px 24px;
     --glow: none;
-    --app-font: "Lexend", ui-sans-serif, system-ui, sans-serif;
+    --app-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   }
 
   [data-style="sakura_dream"] {
@@ -380,7 +380,7 @@
     --bg-pattern: radial-gradient(rgba(225, 29, 72, 0.05) 1px, transparent 1px);
     --bg-size: 24px 24px;
     --glow: none;
-    --app-font: "Outfit", ui-sans-serif, system-ui, sans-serif;
+    --app-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   }
 
   [data-style="candy"] {
@@ -398,7 +398,7 @@
     --bg-pattern: repeating-conic-gradient(from 0deg, #ff9a9e 0deg 30deg, #fecfef 30deg 60deg, #a18cd1 60deg 90deg, #fbc2eb 90deg 120deg, #8fd3f4 120deg 150deg, #84fab0 150deg 180deg, #fccb90 180deg 210deg, #d57eeb 210deg 240deg, #fddb92 240deg 270deg, #d1fdff 270deg 300deg, #f68084 300deg 330deg, #fcf4ba 330deg 360deg);
     --bg-size: 100% 100%;
     --glow: none;
-    --app-font: "Fredoka", ui-sans-serif, system-ui, sans-serif;
+    --app-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   }
   
   /* Universal Overrides to force standard utility classes to adapt correctly on non-cockpit pages */
@@ -862,7 +862,7 @@
   *:focus-visible {
     outline: 3px solid var(--accent, #10b981) !important;
     outline-offset: 3px !important;
-    box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.4) !important;
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--focus-ring, var(--accent)) 24%, transparent) !important;
   }
 }
 
