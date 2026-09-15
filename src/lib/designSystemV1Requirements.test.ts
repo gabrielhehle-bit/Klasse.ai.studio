@@ -352,3 +352,19 @@ test('Stationenbetrieb, Stimm-Notizen, Elternbrief und Notenübersicht folgen de
   assert.match(grades, /Gesamtübersicht Noten/);
   assert.match(grades, /bg-\[var\(--surface-card,var\(--surface\)\)\] border border-\[var\(--border-subtle,var\(--border\)\)\] rounded-2xl/);
 });
+
+
+test('Wir-Gefühl und Planungs-Zentrale verwenden die gemeinsame Klassio Arbeitsoberfläche', () => {
+  const community = read('src/components/WirGefuehl.tsx');
+  const planning = read('src/components/PlanungsZentrale.tsx');
+
+  assert.match(community, /wir-gefuehl-shell[^\n]*bg-\[var\(--surface-app,var\(--bg\)\)\]/);
+  assert.match(community, /max-w-\[1180px\]/);
+  assert.match(community, /bg-\[var\(--surface-card,var\(--surface\)\)\].*border-\[var\(--border-subtle,var\(--border\)\)\]/s);
+  assert.match(community, /Zum „Ich bin da!”-Check-in|Zum „Ich bin da!“-Check-in/);
+
+  assert.match(planning, /bg-\[var\(--surface-app,var\(--bg\)\)\]/);
+  assert.match(planning, /planning-center-header[^\n]*bg-\[var\(--surface-card,var\(--surface\)\)\]/);
+  assert.match(planning, /max-w-\[1180px\]/);
+  assert.match(planning, /bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\]/);
+});
