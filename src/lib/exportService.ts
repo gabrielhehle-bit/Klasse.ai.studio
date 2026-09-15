@@ -72,50 +72,53 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
   };
 
   // ==================== 1. STAMMDATEN ====================
+  const contactsHtml = effectiveOptions.showContacts ? `
+      <div class="card mt-20">
+        <h2>Anschrift & Kontakte der Erziehungsberechtigten</h2>
+        <div class="grid grid-2">
+          <div>
+            <div class="field"><strong>Anschrift:</strong> ${escapeHtml(student.anschrift || '—')}</div>
+            <div class="field"><strong>PLZ / Ort:</strong> ${escapeHtml(student.plz ? `${student.plz} ${student.ort || ''}` : '—')}</div>
+          </div>
+          <div>
+            <div class="field"><strong>Telefon Mutter:</strong> ${escapeHtml(student.telefon_mutter || '—')}</div>
+            <div class="field"><strong>Telefon Vater:</strong> ${escapeHtml(student.telefon_vater || '—')}</div>
+            <div class="field"><strong>E-Mail Eltern:</strong> ${escapeHtml(student.email_eltern || '—')}</div>
+          </div>
+        </div>
+      </div>
+  ` : '';
+
   const stammdatenHtml = `
     <div class="page">
       <div class="header">
         <div>
-          <span class="badge">I. STAMMDATEN & KONTAKT</span>
-          <h1>Dossier: ${student.vorname} ${student.nachname}</h1>
+          <span class="badge">I. STAMMDATEN</span>
+          <h1>Dossier: ${escapeHtml(student.vorname)} ${escapeHtml(student.nachname)}</h1>
         </div>
         <div class="meta">
-          <strong>Stufe:</strong> ${appState.stufe || student.besuchsjahr || '—'}. Klasse<br>
-          <strong>SJ:</strong> ${currentTerm}<br>
-          <strong>Erstellt:</strong> ${new Date().toLocaleDateString('de-DE')}
+          <strong>Stufe:</strong> ${escapeHtml(appState.stufe || student.besuchsjahr || '—')}<br>
+          <strong>SJ:</strong> ${escapeHtml(currentTerm)}<br>
+          <strong>Erstellt:</strong> ${new Date().toLocaleDateString('de-AT')}
         </div>
       </div>
 
       <div class="card">
         <h2>Allgemeine Stammdaten</h2>
         <div class="grid grid-3">
-          <div class="field"><strong>Vorname:</strong> ${student.vorname}</div>
-          <div class="field"><strong>Nachname:</strong> ${student.nachname}</div>
-          <div class="field"><strong>Geburtstag:</strong> ${formatDate(student.geburtstag)}</div>
-          <div class="field"><strong>SV-Nummer:</strong> ${student.sv_nummer || '—'}</div>
-          <div class="field"><strong>Religion:</strong> ${student.religion || 'ohne'}</div>
-          <div class="field"><strong>Staatsbürgerschaft:</strong> ${student.staatsbuergerschaft || 'Österreich'}</div>
-          <div class="field"><strong>Besuchsjahr:</strong> ${student.besuchsjahr ? `${student.besuchsjahr}. Schuljahr` : '—'}</div>
+          <div class="field"><strong>Vorname:</strong> ${escapeHtml(student.vorname)}</div>
+          <div class="field"><strong>Nachname:</strong> ${escapeHtml(student.nachname)}</div>
+          <div class="field"><strong>Geburtstag:</strong> ${formatDate(student.geburtstag || student.geburtsdatum)}</div>
+          <div class="field"><strong>Religion:</strong> ${escapeHtml(student.religion || '—')}</div>
+          <div class="field"><strong>Staatsbürgerschaft:</strong> ${escapeHtml(student.staatsbuergerschaft || '—')}</div>
+          <div class="field"><strong>Besuchsjahr:</strong> ${student.besuchsjahr ? `${escapeHtml(student.besuchsjahr)}. Schuljahr` : '—'}</div>
           <div class="field"><strong>DaZ:</strong> ${student.daz ? 'Ja' : 'Nein'}</div>
           <div class="field"><strong>SPF:</strong> ${student.spf ? 'Ja' : 'Nein'}</div>
-          <div class="field"><strong>Leistungsniveau:</strong> ${student.niveau || 'Standard'}</div>
+          <div class="field"><strong>Leistungsniveau:</strong> ${escapeHtml(student.niveau || '—')}</div>
         </div>
       </div>
 
-      <div class="card mt-20">
-        <h2>Anschrift & Kontakte der Eltern</h2>
-        <div class="grid grid-2">
-          <div>
-            <div class="field"><strong>Anschrift:</strong> ${student.anschrift || '—'}</div>
-            <div class="field"><strong>PLZ / Ort:</strong> ${student.plz ? `${student.plz} ${student.ort || ''}` : '—'}</div>
-          </div>
-          <div>
-            <div class="field"><strong>Telefon Mutter:</strong> ${student.telefon_mutter || '—'}</div>
-            <div class="field"><strong>Telefon Vater:</strong> ${student.telefon_vater || '—'}</div>
-            <div class="field"><strong>E-Mail Eltern:</strong> ${student.email_eltern || '—'}</div>
-          </div>
-        </div>
-      </div>
+      ${contactsHtml}
     </div>
   `;
 
@@ -192,91 +195,67 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
     </div>
   `;
 
-  // ==================== 3. LEISTUNGEN & NOTEN ====================
-  // Calculate grades summary consistent with PrintCenter
-  const subjects = ['Deutsch', 'Mathematik', 'Sachunterricht', 'Englisch'];
-  const allSubjects = new Set(subjects);
-  if (appState.noten && appState.noten[schuelerId]) {
-    Object.keys(appState.noten[schuelerId]).forEach(sub => allSubjects.add(sub));
-  }
+  // ==================== 3. LEISTUNGEN ====================
+  const subjectRecords = appState.noten?.[schuelerId] || {};
+  const subjects = Array.from(new Set([
+    ...(appState.faecher || []),
+    ...Object.keys(subjectRecords),
+  ]));
 
-  const gradesList: { subject: string; grades: string[]; average: number | null }[] = [];
-  Array.from(allSubjects).forEach(sub => {
-    const gradesCollected: number[] = [];
-    ['1', '2'].forEach(sem => {
-      const semData = appState.noten?.[schuelerId]?.[sub]?.[sem];
-      if (semData) {
-        if (Array.isArray(semData.sa)) {
-          semData.sa.forEach((g: any) => {
-            if (typeof g === 'number' && g >= 1 && g <= 5) gradesCollected.push(g);
-            else if (g && typeof g === 'object' && typeof g.note === 'number') gradesCollected.push(g.note);
-          });
-        }
-        if (Array.isArray(semData.lzk)) {
-          semData.lzk.forEach((g: any) => {
-            if (typeof g === 'number' && g >= 1 && g <= 5) gradesCollected.push(g);
-            else if (g && typeof g === 'object' && typeof g.note === 'number') gradesCollected.push(g.note);
-          });
-        }
+  const performanceRows = subjects.map((subject) => {
+    const mode = getAssessmentMode(appState, subject);
+    const semesterTexts = ['1', '2'].map((semester) => {
+      const semesterData: any = subjectRecords?.[subject]?.[semester];
+      const explicitEndnote = semesterData?.endnote;
+      if (explicitEndnote !== undefined && explicitEndnote !== null && String(explicitEndnote).trim() !== '') {
+        return `Endnote ${escapeHtml(String(explicitEndnote).trim())}`;
       }
+
+      const calculated = berechne(appState, schuelerId, subject, semester);
+      if (calculated === null) return '—';
+      if (mode === 'grades') return `Berechneter Stand ${Number(calculated).toFixed(1)}`;
+      return `Berechneter Stand ${Math.round(Number(calculated))}%`;
     });
 
-    const avg = gradesCollected.length > 0 
-      ? parseFloat((gradesCollected.reduce((a, b) => a + b, 0) / gradesCollected.length).toFixed(1))
-      : null;
-
-    if (gradesCollected.length > 0 || subjects.includes(sub)) {
-      gradesList.push({
-        subject: sub,
-        grades: gradesCollected.map(String),
-        average: avg
-      });
-    }
-  });
+    return { subject, semester1: semesterTexts[0], semester2: semesterTexts[1], mode };
+  }).filter((row) => row.semester1 !== '—' || row.semester2 !== '—');
 
   const leistungenHtml = `
     <div class="page page-break">
       <div class="header">
         <div>
-          <span class="badge">III. LEISTUNGSVERLAUF</span>
-          <h1>Notengitter & Leistungsbilanz</h1>
+          <span class="badge">III. LEISTUNGSDATEN</span>
+          <h1>Dokumentierte Semesterstände</h1>
         </div>
         <div class="meta">
-          <strong>Schüler:</strong> ${student.vorname} ${student.nachname}<br>
-          <strong>Semester:</strong> 1. & 2. Semester
+          <strong>Schüler:in:</strong> ${escapeHtml(`${student.vorname} ${student.nachname}`)}<br>
+          <strong>Semester:</strong> 1. & 2.
         </div>
       </div>
 
       <div class="card">
-        <h2>Noten & Notenmittelwert nach Pflichtgegenstand</h2>
+        <h2>Gespeicherte Endnoten bzw. berechnete Stände</h2>
+        <p style="font-size: 9pt; color: #64748b; margin-bottom: 12px;">
+          Berechnete Stände sind keine automatisch festgesetzten Endnoten. Klassio übernimmt die im jeweiligen Fach konfigurierte Beurteilungsart.
+        </p>
         <table class="data-table">
           <thead>
             <tr>
-              <th>Gegenstand / Fach</th>
-              <th style="text-align: center;">Erfasste Leistungsnoten (SA/LZK)</th>
-              <th style="text-align: center;">Notenschnitt</th>
-              <th style="text-align: right;">Beurteilungstendenz</th>
+              <th>Fach</th>
+              <th style="text-align: center;">1. Semester</th>
+              <th style="text-align: center;">2. Semester</th>
             </tr>
           </thead>
           <tbody>
-            ${gradesList.map(gr => {
-              const rating = gr.average !== null && gr.average <= 1.5 ? 'Herausragend' 
-                : gr.average !== null && gr.average <= 2.5 ? 'Standard voll erfüllt' 
-                : gr.average !== null && gr.average <= 4.0 ? 'Standard erfüllt' 
-                : gr.average !== null ? 'Entwicklungsbedarf' : 'Keine Leistungsdaten';
-              return `
-                <tr>
-                  <td><strong>${gr.subject}</strong></td>
-                  <td style="text-align: center;" class="mono">${gr.grades.length > 0 ? gr.grades.join(', ') : '—'}</td>
-                  <td style="text-align: center;">
-                    <span class="avg-badge ${gr.average !== null ? 'has-avg' : ''}">
-                      ${gr.average !== null ? gr.average.toFixed(1) : '—'}
-                    </span>
-                  </td>
-                  <td style="text-align: right; font-size: 10pt; color: #475569; font-weight: 600;">${rating}</td>
-                </tr>
-              `;
-            }).join('')}
+            ${performanceRows.length > 0 ? performanceRows.map((row) => `
+              <tr>
+                <td><strong>${escapeHtml(row.subject)}</strong></td>
+                <td style="text-align: center;">${row.semester1}</td>
+                <td style="text-align: center;">${row.semester2}</td>
+              </tr>
+            `).join('') : `
+              <tr><td colspan="3" class="empty-state">Keine auswertbaren Leistungsdaten vorhanden.</td></tr>
+            `}
           </tbody>
         </table>
       </div>
