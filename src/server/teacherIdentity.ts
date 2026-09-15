@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import type { SchoolRecord } from './schoolRegistry';
 
 export interface TeacherIdentity {
   userId: string;
@@ -6,6 +7,8 @@ export interface TeacherIdentity {
   schoolId: string;
   schoolCode: string;
   schoolDomain: string;
+  schoolName?: string;
+  schoolFederalState?: string;
   displayName: string;
   handle: string;
 }
@@ -66,6 +69,31 @@ export function createTeacherIdentity(email: string, allowedDomains: string[]): 
     schoolId: schoolDomain,
     schoolCode,
     schoolDomain,
+    displayName: displayNameFromEmail(normalizedEmail),
+    handle: handleFromEmail(normalizedEmail),
+  };
+}
+
+
+export function createTeacherIdentityForSchool(email: string, school: SchoolRecord): TeacherIdentity | null {
+  const normalizedEmail = email.trim().toLowerCase();
+  const domain = normalizedEmail.split('@')[1] || '';
+  if (!domain || !school.domains.includes(domain)) return null;
+
+  const userId = crypto
+    .createHash('sha256')
+    .update('klassio-teacher:' + normalizedEmail)
+    .digest('hex')
+    .slice(0, 24);
+
+  return {
+    userId,
+    email: normalizedEmail,
+    schoolId: school.id,
+    schoolCode: school.code,
+    schoolDomain: domain,
+    schoolName: school.name,
+    schoolFederalState: school.federalState,
     displayName: displayNameFromEmail(normalizedEmail),
     handle: handleFromEmail(normalizedEmail),
   };
