@@ -73,23 +73,25 @@ PR #71 schloss danach die Einzelabnahme des Druckzentrums ab: Druckkopf und Vorl
 
 PR #73 schloss danach die Einzelabnahme von Datenarchiv / Datensicherung ab: Lokale und OneDrive-Sicherungen synchronisieren vor der Verschlüsselung den aktiven Klassenstand; neue Dateinamen und tägliche Notfallkopien verwenden den lokalen Kalendertag. Die Backup-Erinnerung entspricht nun der sichtbaren 7-Tage-Regel, eine erfolgreiche OneDrive-Sicherung zählt als erledigtes Backup und die Speicheranzeige verwendet die tatsächliche Browser-Speicherschätzung statt eines fiktiven 5-MB-Limits. Beide vollständigen Werksreset-Pfade löschen Gerätevertrauen, App-Daten, Browser-/Sitzungsspeicher und erst zuletzt die separaten Tresor-Metadaten; Fehler brechen den Reset ab statt einen falschen Erfolgs-Reload auszulösen. Die Einstellungen lesen den echten `savedAt`-Zeitpunkt der verschlüsselten Notfallkopie. OneDrive-/Datenschutztexte behaupten keine ungeprüfte TLS-Version, MFA-Konfiguration oder Löschung einer Cloud-Sicherung durch den lokalen Werksreset. Die bestehende verschlüsselte Pre-Import-Rücksicherung sowie Legacy-JSON/JS-Wrapper-, Passwort- und Recovery-Kompatibilität bleiben erhalten.
 
+PR #75 schloss danach die Einzelabnahme der Einstellungen ab: Das aktuelle Schuljahr wird dynamisch bestimmt und historische Schuljahre aus importierten Klassen bleiben auswählbar; der Ferienbereich kennzeichnet schulautonome bzw. kurzfristige freie Tage ausdrücklich als separat zu ergänzen. Die Modulverwaltung verwendet einen gemeinsamen Katalog und deckt alle tatsächlich ausblendbaren Sidebar-Bereiche ab. Drei alte, wirkungslose Whiteboard-/Laser-/Verhaltens-Schalter wurden entfernt; die Darstellung verweist stattdessen auf die reale weiße Schreib-/Zeichen-/Widgetfläche im Lehrercockpit. Speicherdiagnose und Anzeige verwenden die Browser-Quote statt fiktiver 4/5-MB-Grenzen. Offline- und Werksreset-Texte wurden präzisiert; Cloud-Sicherungen werden vom lokalen Werksreset ausdrücklich nicht als gelöscht dargestellt. Der Einfachmodus zeigt seinen tatsächlichen Zustand.
+
 Die historischen divergierenden Branches `audit/production-demo-data`, `audit/visible-legacy-branding`, `audit/visible-legacy-branding-final`, `fix/klassio-visible-branding`, `fix/json-backups-and-critical-data-flows` und `feature/final-app-polish` wurden anschließend gezielt gegen den aktuellen Reconciliation-Stand geprüft. Ihre noch eigenen Commits enthalten entweder nur temporäre Audit-/CI-Workflows oder ältere Varianten von Funktionen, die im aktuellen Stand bereits gleichwertig oder neuer umgesetzt sind. Sie werden deshalb **nicht** in den Produktstand gemergt.
 
 Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist keine Arbeitsgrundlage. Seine relevanten funktionalen Lücken wurden selektiv auf frischen Branches vom jeweils aktuellen Reconciliation-HEAD neu umgesetzt. Verbleibende Unterschiede in Cockpit/BoardInk/Vorlagen stammen aus älteren UI-Varianten und werden nicht über den neueren, bereits getesteten Cockpit-Stand aus PR #6 gelegt.
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Reconciliation-Stand liegt nach PR #73 auf Commit `cfe6e4c0954df8231aa347ccce512585c1b9830c` und wurde vollständig geprüft:
+Der letzte codehaltige Reconciliation-Stand liegt nach PR #75 auf Commit `6ff2f2130a614c74465cff08cdd767d5b78a9c3e` und wurde vollständig geprüft:
 
-- Pre-Deployment Audit #140: erfolgreich
-- Feature Validation #499 auf PR #73 sowie #500 auf dem Reconciliation-Stand: erfolgreich
+- Pre-Deployment Audit #142: erfolgreich
+- Feature Validation #518 und #519: erfolgreich
 - TypeScript: erfolgreich
-- Tests: 995/995 erfolgreich
+- Tests: 1004/1004 erfolgreich
 - Production Build: erfolgreich
 - PWA-/Build-Ausgabe: erfolgreich
 - Production-Server- und `/api/health`-Smoke: erfolgreich
 - Zugangscode-/Session-/E-Mail-Fallback-Smoke: erfolgreich
-- World4You-Artefakt: `klassio-world4you-cfe6e4c0954df8231aa347ccce512585c1b9830c`
+- World4You-Artefakt: `klassio-world4you-6ff2f2130a614c74465cff08cdd767d5b78a9c3e`
 
 PR #63 wurde nach grüner Feature-/PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `c86dbc0ff2f231c28779f025f3b35f685bdff928`.
 
@@ -266,7 +268,8 @@ Aktueller Fortschritt:
 - Archiv: technisch abgeschlossen; PR #69 integriert, Audit #136 grün; reale Browser-/Touch-/Datenschutz-/Legacy-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Druckzentrum: technisch abgeschlossen; PR #71 integriert, Audit #138 grün; reale Browser-/Touch-/Drucker-/PDF-/Datenschutz-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Datenarchiv / Datensicherung: technisch abgeschlossen; PR #73 integriert, Audit #140 grün; 995/995 Tests; reale Browser-/Restore-/OneDrive-/IndexedDB-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
-- Nächster Bereich: Einstellungen.
+- Einstellungen: technisch abgeschlossen; PR #75 integriert, Audit #142 grün; 1004/1004 Tests; reale Browser-/Touch-/PWA-/Sync-/Staging-Abnahme bleibt Teil der Gesamtfreigabe.
+- Alle 22 Einzelmodule sind technisch abgeschlossen. Nächster Schritt: exakt diesen Reconciliation-Stand auf World4You/klassio.at als Staging bereitstellen und den finalen Browser-Walkthrough durchführen. Erst danach PR #5 nach `main` mergen.
 
 ## Pflicht für jeden neuen Chat
 

@@ -18,8 +18,8 @@ Legende:
 | Historische divergierende Arbeitsbranches | ✅ | Audit-/Branding-/JSON-/Polish-Branches wurden gegen den aktuellen Stand geprüft; verbleibende eigene Commits sind temporäre CI/Audit-Dateien oder ältere, bereits überholte Varianten und werden nicht gemergt. |
 | Reconciliation vollständig zusammengeführt | ✅ | `fix/reconciliation-finalization` ist im Reconciliation-Branch enthalten; finaler PR #5 nach `main` angelegt. |
 | Reconciliierter Stand auf `main` | 🔴 | Erst nach World4You-Staging + Browser-Walkthrough PR #5 mergen. |
-| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `cfe6e4c0954df8231aa347ccce512585c1b9830c`: Pre-Deployment Audit #140 grün, 995/995 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Feature Validation #499 auf PR #73 und #500 auf dem Reconciliation-Stand grün. Der aktuelle Branch-HEAD wird vor jeder Arbeit live aus GitHub gelesen. |
-| Commitgebundenes World4You-Artefakt | ✅ | Audit #140 erzeugte `klassio-world4you-cfe6e4c0954df8231aa347ccce512585c1b9830c` mit `dist`, Branch-/Commitmarker und Startkommando. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
+| CI / TypeScript / Tests / Build / PWA | ✅ | Letzter codehaltiger Reconciliation-Commit `6ff2f2130a614c74465cff08cdd767d5b78a9c3e`: Pre-Deployment Audit #142 grün, 1004/1004 Tests, TypeScript, Production-Build, PWA-Ausgabe sowie Server-/Session-Smoke erfolgreich. Feature Validation #518 und #519 grün. |
+| Commitgebundenes World4You-Artefakt | ✅ | Audit #142 erzeugte `klassio-world4you-6ff2f2130a614c74465cff08cdd767d5b78a9c3e`. Für Staging ist immer das Artefakt des tatsächlich aktuellen, grünen Reconciliation-HEADs zu verwenden. |
 | Browser-Walkthrough des Abschlussstands | 🔴 | Muss auf exakt demselben Staging-Commit erfolgen. |
 
 
@@ -48,9 +48,9 @@ Legende:
 | 19 | Archiv | ✅ | PR #69 integriert; Audit #136 grün; 976/976 Tests; reale Browser-/Touch-/Datenschutz-/Legacy-/Staging-Abnahme im Gesamt-Walkthrough |
 | 20 | Druckzentrum | ✅ | PR #71 integriert; Audit #138 grün; 986/986 Tests; reale Browser-/Touch-/Drucker-/PDF-/Datenschutz-/Staging-Abnahme im Gesamt-Walkthrough |
 | 21 | Datenarchiv / Datensicherung | ✅ | PR #73 integriert; Audit #140 grün; 995/995 Tests; reale Browser-/Restore-/OneDrive-/IndexedDB-/Staging-Abnahme im Gesamt-Walkthrough |
-| 22 | Einstellungen | 🔴 | als Nächstes einzeln prüfen und abschließen |
+| 22 | Einstellungen | ✅ | PR #75 integriert; Audit #142 grün; 1004/1004 Tests; reale Browser-/Touch-/PWA-/Sync-/Staging-Abnahme im Gesamt-Walkthrough |
 
-Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **ersten roten Modul dieser Tabelle** fort. Ein Modul wird erst auf ✅ gesetzt, wenn seine Änderungen integriert und der vollständige Reconciliation-Audit grün ist. Die reale Browser-/Staging-Abnahme bleibt davon getrennt und wird am Abschlussstand durchgeführt.
+Alle 22 Einzelmodule sind technisch abgeschlossen. Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **Staging-/Browser-Walkthrough des aktuellen Reconciliation-HEADs** fort. Die reale Browser-/Staging-Abnahme bleibt bewusst von der technischen Modulabnahme getrennt; erst nach erfolgreicher Abnahme wird PR #5 nach `main` gemergt.
 
 ## Oberfläche und Navigation
 
