@@ -401,18 +401,18 @@ export default function WirGefuehl() {
   }, [moodSummary.stats.average]);
 
   return (
-    <div className="wir-gefuehl-shell flex-1 bg-[#f8faf7] flex flex-col items-center p-4 lg:p-6 overflow-y-auto w-full min-h-0">
-      <div className="w-full max-w-[1100px] flex flex-col gap-6">
+    <div className="wir-gefuehl-shell flex-1 bg-[var(--surface-app,var(--bg))] flex flex-col items-center px-3 sm:px-5 lg:px-6 py-5 overflow-y-auto w-full min-h-0 text-[var(--text-primary,var(--text))]">
+      <div className="w-full max-w-[1180px] flex flex-col gap-5">
         
         {/* HEADER & BRANDING */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200/80 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm">
           <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-[var(--accent)] text-[var(--accent-text,#fff)] flex items-center justify-center shadow-sm shrink-0">
               <Heart size={24} className="fill-white/20" />
             </div>
             <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-none">WIR-GEFÜHL</h1>
-              <p className="text-xs text-slate-500 font-semibold mt-1">„Wie geht es unserer Klasse heute und was tun wir gemeinsam?“</p>
+              <h1 className="text-2xl font-black text-[var(--text-primary,var(--text))] tracking-tight leading-none">WIR-GEFÜHL</h1>
+              <p className="text-xs text-[var(--text-secondary,var(--text2))] font-medium mt-1">„Wie geht es unserer Klasse heute und was tun wir gemeinsam?“</p>
             </div>
           </div>
 
@@ -439,14 +439,14 @@ export default function WirGefuehl() {
         </div>
 
         {/* RADICAL NAVIGATION: 4 CLEAR MAIN TABS */}
-        <div className="grid grid-cols-4 bg-slate-200/70 p-1.5 rounded-2xl gap-1.5 shadow-inner">
+        <div className="grid grid-cols-4 bg-[var(--surface-subtle,var(--surface2))] p-1 rounded-xl gap-1 border border-[var(--border-subtle,var(--border))]">
           <button
             type="button"
             onClick={() => setActiveTab('heute')}
             className={`py-3 px-2 rounded-xl font-black text-xs sm:text-sm tracking-wide transition-all flex items-center justify-center gap-2 ${
               activeTab === 'heute'
-                ? 'bg-white text-emerald-800 shadow-md scale-[1.02]'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm'
+                : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))] hover:bg-[var(--surface-card,var(--surface))]'
             }`}
           >
             <Zap size={16} className={activeTab === 'heute' ? 'text-emerald-600' : 'text-slate-400'} />
@@ -458,8 +458,8 @@ export default function WirGefuehl() {
             onClick={() => setActiveTab('gemeinsam')}
             className={`py-3 px-2 rounded-xl font-black text-xs sm:text-sm tracking-wide transition-all flex items-center justify-center gap-2 ${
               activeTab === 'gemeinsam'
-                ? 'bg-white text-emerald-800 shadow-md scale-[1.02]'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm'
+                : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))] hover:bg-[var(--surface-card,var(--surface))]'
             }`}
           >
             <Users size={16} className={activeTab === 'gemeinsam' ? 'text-emerald-600' : 'text-slate-400'} />
@@ -471,8 +471,8 @@ export default function WirGefuehl() {
             onClick={() => setActiveTab('klassenrat')}
             className={`py-3 px-2 rounded-xl font-black text-xs sm:text-sm tracking-wide transition-all flex items-center justify-center gap-2 relative ${
               activeTab === 'klassenrat'
-                ? 'bg-white text-emerald-800 shadow-md scale-[1.02]'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm'
+                : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))] hover:bg-[var(--surface-card,var(--surface))]'
             }`}
           >
             <MessageSquare size={16} className={activeTab === 'klassenrat' ? 'text-emerald-600' : 'text-slate-400'} />
@@ -489,8 +489,8 @@ export default function WirGefuehl() {
             onClick={() => setActiveTab('mehr')}
             className={`py-3 px-2 rounded-xl font-black text-xs sm:text-sm tracking-wide transition-all flex items-center justify-center gap-2 ${
               activeTab === 'mehr'
-                ? 'bg-white text-emerald-800 shadow-md scale-[1.02]'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm'
+                : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))] hover:bg-[var(--surface-card,var(--surface))]'
             }`}
           >
             <Settings size={16} className={activeTab === 'mehr' ? 'text-emerald-600' : 'text-slate-400'} />
@@ -506,7 +506,7 @@ export default function WirGefuehl() {
           <div className="flex flex-col gap-6 animate-fade-in w-full">
             
             {/* BEFINDEN AUS DEM "ICH BIN DA!"-CHECK-IN */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-5">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-5 sm:p-6 border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col gap-5">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
@@ -520,7 +520,7 @@ export default function WirGefuehl() {
                 <button
                   type="button"
                   onClick={() => setPage('cockpit')}
-                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition-all shrink-0"
+                  className="px-4 py-2.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] text-xs font-bold transition-colors shrink-0 shadow-sm"
                 >
                   Zum „Ich bin da!“-Check-in
                 </button>
@@ -608,7 +608,7 @@ export default function WirGefuehl() {
             </div>
 
             {/* VERBINDUNG ZU VERHALTEN & BEOBACHTUNGEN */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-4">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-5 sm:p-6 border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
@@ -873,7 +873,7 @@ export default function WirGefuehl() {
           <div className="flex flex-col gap-6 animate-fade-in w-full">
             
             {/* KLASSENVERTRAG */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-5">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-5 sm:p-6 border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col gap-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
@@ -975,7 +975,7 @@ export default function WirGefuehl() {
             </div>
 
             {/* KLASSENMISSIONEN */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-5">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-5 sm:p-6 border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col gap-5">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
@@ -1049,7 +1049,7 @@ export default function WirGefuehl() {
             </div>
 
             {/* TEAMSPIELE / TEAM-BOOSTER */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-5">
+            <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-5 sm:p-6 border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col gap-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
@@ -1414,7 +1414,7 @@ export default function WirGefuehl() {
             </div>
 
             {mehrSubTab === 'verlauf' && (
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-5">
+              <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-5 sm:p-6 border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col gap-5">
                 <div>
                   <h3 className="text-lg font-black text-slate-800">Befinden aus „Ich bin da!“ – letzte 14 Tage</h3>
                   <p className="text-xs font-semibold text-slate-500 mt-1">
@@ -1436,7 +1436,7 @@ export default function WirGefuehl() {
             )}
 
             {mehrSubTab === 'beobachtungen' && (
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-5">
+              <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-5 sm:p-6 border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col gap-5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-black text-slate-800">Verhaltensbeobachtungen</h3>
@@ -1444,7 +1444,7 @@ export default function WirGefuehl() {
                       Diese Einträge kommen direkt aus „Notizen & Beobachtungen“. Wir-Gefühl führt kein zweites Tagebuch.
                     </p>
                   </div>
-                  <button type="button" onClick={() => setPage('verhalten')} className="px-4 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black">
+                  <button type="button" onClick={() => setPage('verhalten')} className="px-4 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] rounded-xl text-xs font-bold transition-colors">
                     Zu Notizen & Beobachtungen
                   </button>
                 </div>
@@ -1484,7 +1484,7 @@ export default function WirGefuehl() {
                       setSelectedGameId(game.id);
                       setActiveTab('gemeinsam');
                     }}
-                    className="text-left bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:border-emerald-300 transition-all"
+                    className="text-left bg-[var(--surface-card,var(--surface))] rounded-2xl p-5 border border-[var(--border-subtle,var(--border))] shadow-sm hover:border-[var(--accent)]/30 transition-colors"
                   >
                     <div className="text-sm font-black text-slate-900">{game.title}</div>
                     <div className="text-[11px] font-bold text-emerald-700 mt-1">{game.goal} · {game.duration}</div>
