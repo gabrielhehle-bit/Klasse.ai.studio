@@ -95,3 +95,16 @@ test('Standard Heute Ansicht verwendet semantische Klassio Tokens statt fixer Sl
   assert.doesNotMatch(source, /bg-white/);
   assert.doesNotMatch(source, /text-indigo-600|bg-indigo-50|outline-indigo-600/);
 });
+
+
+test('Setup Einstieg verwendet Klassio Branding und semantische Oberflächen', () => {
+  const source = read('src/components/SetupWizard.tsx');
+
+  assert.match(source, /Willkommen bei Klassio/);
+  assert.match(source, /Dein digitaler Lehrerarbeitsplatz/);
+  assert.match(source, /surface-app/);
+  assert.match(source, /surface-card/);
+  assert.match(source, /accent-hover/);
+  assert.doesNotMatch(source, /Gabriel Intelligent Classroom/);
+  assert.doesNotMatch(source, /bg-slate-50 flex items-start justify-center/);
+});
