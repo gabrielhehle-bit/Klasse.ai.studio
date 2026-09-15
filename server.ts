@@ -563,6 +563,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const handleLehrerzimmerError = (res: express.Response, error: unknown) => {
     const code = error instanceof Error ? error.message : '';
     if (code === 'INVALID_CATEGORY') return res.status(400).json({ error: 'Ungültige Kategorie.' });
+    if (code === 'INVALID_KIND') return res.status(400).json({ error: 'Ungültige Beitragsart.' });
     if (code === 'INVALID_CONTENT') return res.status(400).json({ error: 'Titel und Inhalt dürfen nicht leer sein.' });
     if (code === 'POST_NOT_FOUND') return res.status(404).json({ error: 'Dieser Beitrag wurde nicht gefunden.' });
     console.error('[Lehrerzimmer] Serverfehler:', error);
@@ -616,6 +617,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       const identity = getTeacherIdentity(req);
       const post = await lehrerzimmerStore.createPost(identity, {
         category: req.body?.category,
+        kind: req.body?.kind,
         title: req.body?.title,
         body: req.body?.body,
       });
