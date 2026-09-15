@@ -404,3 +404,20 @@ test('Vertretung, Sprachnotiz und Startmodus nutzen Klassio Oberflächen ohne di
   assert.match(initialMode, /bg-\[var\(--surface-subtle,var\(--surface2\)\)\]/);
   assert.doesNotMatch(initialMode, /rounded-\[2\.5rem\]/);
 });
+
+
+test('KI-Helfer verwendet die Klassio Schale ohne die KI Werkzeuglogik zu ersetzen', () => {
+  const ai = read('src/components/AIAssistant.tsx');
+
+  assert.match(ai, /ai-assistant-shell[\s\S]*bg-\[var\(--surface-card,var\(--surface\)\)\]/);
+  assert.match(ai, /hidden lg:flex flex-col bg-\[var\(--surface-card,var\(--surface\)\)\] border-r border-\[var\(--border-subtle,var\(--border\)\)\]/);
+  assert.match(ai, /planning|Pädagogik|Schulrecht/);
+  assert.match(ai, /Klassenkontext/);
+  assert.match(ai, /Neuer Chat/);
+  assert.match(ai, /focus-within:ring-2 focus-within:ring-\[var\(--focus-ring,var\(--accent\)\)\]/);
+  assert.match(ai, /style=\{\{ backgroundColor: 'var\(--accent\)' \}\}/);
+
+  assert.match(ai, /handleSend/);
+  assert.match(ai, /GEMINI_API_KEY/);
+  assert.match(ai, /ki-stationenbetrieb/);
+});
