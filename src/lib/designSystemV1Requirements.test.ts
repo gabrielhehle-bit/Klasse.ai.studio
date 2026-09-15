@@ -129,3 +129,23 @@ test('Notenmappe zeigt Fachwahl und Zusatzwerkzeuge nicht mehr in zwei aufeinand
   assert.match(source, /bg-\[var\(--surface-card,var\(--surface\)\)\] rounded-2xl p-4/);
   assert.match(source, /bg-\[var\(--accent\)\].*>Bewertung</s);
 });
+
+
+test('Wochenplanung bündelt Primäraktionen ohne doppelte Einträge im Mehr-Menü', () => {
+  const source = read('src/components/WeeklyPlan.tsx');
+
+  assert.match(source, />Wochenplanung</);
+  assert.match(source, /weekly-plan-shell flex flex-col bg-\[var\(--surface-app,var\(--bg\)\)\]/);
+  assert.equal((source.match(/Wochenplan für Kinder erstellen/g) || []).length, 2, 'Beschriftung darf nur im Primärbutton und im zugehörigen Titel vorkommen.');
+  assert.equal((source.match(/setShowSchuelerWochenplanModal\(true\)/g) || []).length, 1, 'Kinder-Wochenplan darf nur eine sichtbare Aktion haben.');
+  assert.equal((source.match(/setIsFullscreen\(!isFullscreen\)/g) || []).length, 1, 'Vollbild darf nur eine sichtbare Umschaltaktion haben.');
+});
+
+test('Jahresplanung verwendet semantische Klassio-Flächen im Arbeitsrahmen', () => {
+  const source = read('src/components/YearlyPlan.tsx');
+
+  assert.match(source, /yearly-plan-shell flex flex-col space-y-4 bg-\[var\(--surface-app,var\(--bg\)\)\]/);
+  assert.match(source, /bg-\[var\(--surface-card,var\(--surface\)\)\].*border-\[var\(--border-subtle,var\(--border\)\)\]/s);
+  assert.match(source, /bg-\[var\(--accent\)\].*Heute/s);
+  assert.doesNotMatch(source, /yearly-plan-shell flex flex-col space-y-4 bg-\[#f4f7f3\]/);
+});
