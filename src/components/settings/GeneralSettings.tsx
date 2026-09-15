@@ -39,10 +39,14 @@ export default function GeneralSettings({
   const [showSubjectColors, setShowSubjectColors] = useState(false);
   const currentSchoolYear = getCurrentSchuljahr();
   const currentStartYear = Number(currentSchoolYear.slice(0, 4));
-  const schoolYearOptions = [-1, 0, 1, 2].map(offset => {
+  const generatedSchoolYears = [-1, 0, 1, 2].map(offset => {
     const start = currentStartYear + offset;
     return `${start}/${String(start + 1).slice(-2)}`;
   });
+  const schoolYearOptions = Array.from(new Set([
+    app.schuljahr,
+    ...generatedSchoolYears
+  ].filter(Boolean) as string[])).sort((a, b) => a.localeCompare(b));
 
   const toggleHoliday = (holidayId: string) => {
     setApp((prev: any) => {
@@ -152,7 +156,7 @@ export default function GeneralSettings({
         {/* Ferien Toggles */}
         <div className="space-y-3">
           <p className="text-xs text-slate-500 font-medium">
-            Klicke auf Ferientage, um sie für deine Schule zu aktivieren oder zu deaktivieren (z.B. schulautonome Tage):
+            Die hinterlegten Ferien und gesetzlichen Feiertage können hier ein- oder ausgeblendet werden. Schulautonome oder kurzfristig geänderte freie Tage müssen zusätzlich in der Planung ergänzt werden.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
