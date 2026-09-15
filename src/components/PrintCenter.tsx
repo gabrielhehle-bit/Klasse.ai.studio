@@ -7868,7 +7868,7 @@ export default function PrintCenter() {
         </div>
         <h2 className="text-[1.25rem] leading-normal font-black text-slate-800 mb-2 mt-2">PDF erstellen und prüfen</h2>
         <p className="text-[0.875rem] leading-snug font-bold text-slate-500 mb-6 text-center max-w-sm">
-          Diese Ansicht wird nicht im HTML-Browser gerendert, sondern direkt über die PDF-Engine erzeugt.
+          Die Datei wird lokal im Browser erzeugt. Sie ist eine pädagogische Arbeitsübersicht und kein amtliches Dokument.
         </p>
         
         <button
@@ -7877,14 +7877,14 @@ export default function PrintCenter() {
              
              // Dynamic import to split chunk
              const pdfEngine = await import('../lib/pdfEngine');
-             if (pdfFormType === 'foerder_bescheid') {
-               pdfEngine.generateFoerderBescheid(targetSt, erhebungen);
+             if (pdfFormType === 'foerder_uebersicht') {
+               await pdfEngine.generateFoerderUebersicht(targetSt, erhebungen);
              }
           }}
           className="flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all text-white px-8 py-4 rounded-2xl font-black shadow-lg"
         >
           <FileText size={20} />
-          {pdfFormType === 'foerder_bescheid' ? 'Förder-Bescheid PDF' : 'PDF Exportieren'}
+          {pdfFormType === 'foerder_uebersicht' ? 'Förderübersicht als PDF' : 'PDF exportieren'}
         </button>
       </div>
     );
