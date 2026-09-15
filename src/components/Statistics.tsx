@@ -4836,14 +4836,12 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                   </div>
                 )}
                 {filteredStudents.map(s => {
-                  const studentGradesLocal = getStudentGrades(s.id);
-                  const localAvg = studentGradesLocal.length > 0
-                    ? studentGradesLocal.reduce((a, b) => a + b.wert, 0) / studentGradesLocal.length
-                    : null;
+                  const studentPerformanceLocal = getStudentPerformanceSummary(app, s.id, activeFaecher, '1');
+                  const localPerformanceIndex = studentPerformanceLocal.normalizedAverage;
 
                   const attStats = getAttendanceStats(s.id);
                   const meetingsCount = (app.elterngespraeche || []).filter(m => m.schuelerId === s.id).length;
-                  const notesCount = (app.notizen || []).filter(n => n.schuelerId === s.id).length;
+                  const notesCount = getStudentNotes(app, s.id).length;
 
                   return (
                     <button
@@ -4898,14 +4896,14 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
 
                         {/* Interactive Sparkline graph at top-right */}
                         <div className="pt-1.5 shrink-0 select-none text-right">
-                          {studentGradesLocal.length > 0 ? (
+                          {studentPerformanceLocal.entries.length > 1 ? (
                             <>
                               {renderSparkline(s.id)}
-                              <div className="text-[0.5rem] text-right font-black uppercase text-slate-350 tracking-wider mt-1">Notenverlauf · 30 Tage</div>
+                              <div className="text-[0.5rem] text-right font-black uppercase text-slate-350 tracking-wider mt-1">Leistungsprofil nach Fach</div>
                             </>
                           ) : (
                             <div className="max-w-24 rounded-lg bg-slate-50 px-2 py-1.5 text-[0.5625rem] font-black leading-tight text-slate-400">
-                              Noch keine Notendaten
+                              Noch zu wenig Leistungsdaten
                             </div>
                           )}
                         </div>
@@ -4918,9 +4916,9 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                             <GraduationCap size={14} />
                           </div>
                           <div>
-                            <div className="text-[0.5625rem] font-black uppercase text-slate-400 tracking-wider">Notenschnitt</div>
+                            <div className="text-[0.5625rem] font-black uppercase text-slate-400 tracking-wider">Leistungsindex</div>
                             <div className="text-[0.9375rem] font-black text-slate-800 leading-none mt-0.5">
-                              {localAvg !== null ? localAvg.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '–'}
+                              {localPerformanceIndex !== null ? `${localPerformanceIndex.toFixed(1)} %` : '–'}
                             </div>
                           </div>
                         </div>
@@ -4942,9 +4940,9 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                       {/* Footer count row */}
                       <div className="flex items-center justify-between pt-4">
                         <div className="flex gap-2.5">
-                          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg shadow-3xs" title="Noteneinträge">
+                          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg shadow-3xs" title="Fächer mit Leistungsdaten">
                             <Award size={12} className="text-emerald-500" />
-                            <span className="text-[0.6875rem] font-extrabold text-slate-650">{studentGradesLocal.length}</span>
+                            <span className="text-[0.6875rem] font-extrabold text-slate-650">{studentPerformanceLocal.entries.length}</span>
                           </div>
                           <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg shadow-3xs" title="Elterngespräche">
                             <MessageSquare size={12} className="text-indigo-500" />
