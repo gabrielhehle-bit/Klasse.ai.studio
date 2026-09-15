@@ -102,7 +102,7 @@ test('historisches klassen-Mehrklassenbackup bleibt vollständig erhalten', () =
   assert.deepEqual((normalized.noten as any).Deutsch, legacy.klassen[0].noten.Deutsch);
   assert.deepEqual(normalized.notenMeta.Deutsch, legacy.klassen[0].notenMeta.Deutsch);
   assert.deepEqual(normalized.notenGewichtung.Deutsch, legacy.klassen[0].notenGewichtung.Deutsch);
-  assert.deepEqual(normalized.jahresplanung.Deutsch, legacy.klassen[0].jahresplanung.Deutsch);
+  assert.deepEqual((normalized.jahresplanung as any).Deutsch, legacy.klassen[0].jahresplanung.Deutsch);
   assert.deepEqual(normalized.wochenplanung['38'], legacy.klassen[0].wochenplanung['38']);
   assert.deepEqual(normalized.anwesenheit['2025-09-15'], legacy.klassen[0].anwesenheit['2025-09-15']);
   assert.deepEqual(normalized.sitzplan_schueler, legacy.klassen[0].sitzplan_schueler);
@@ -115,7 +115,7 @@ test('historisches klassen-Mehrklassenbackup bleibt vollständig erhalten', () =
   assert.deepEqual((second.noten as any).Mathematik, legacy.klassen[1].noten.Mathematik);
   assert.deepEqual(second.notenMeta.Mathematik, legacy.klassen[1].notenMeta.Mathematik);
   assert.deepEqual(second.notenGewichtung.Mathematik, legacy.klassen[1].notenGewichtung.Mathematik);
-  assert.deepEqual(second.jahresplanung.Mathematik, legacy.klassen[1].jahresplanung.Mathematik);
+  assert.deepEqual((second.jahresplanung as any).Mathematik, legacy.klassen[1].jahresplanung.Mathematik);
   assert.deepEqual(second.wochenplanung['39'], legacy.klassen[1].wochenplanung['39']);
   assert.deepEqual(second.anwesenheit['2025-09-16'], legacy.klassen[1].anwesenheit['2025-09-16']);
   assert.deepEqual(second.sitzplan_schueler, legacy.klassen[1].sitzplan_schueler);
