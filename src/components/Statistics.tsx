@@ -37,6 +37,15 @@ const ModalPortal = ({ children }: { children: React.ReactNode }) => {
   return createPortal(children, document.body);
 };
 
+function escapeHtmlForPrint(value: unknown): string {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 function SuggestionsGrid() {
   const { app, setApp } = useApp();
   const [openIdx, setOpenIdx] = useState<number | null>(null);
@@ -534,28 +543,24 @@ function SuggestionsGrid() {
       }
     },
     {
-      title: "5. Dyskalkulie & Legasthenie Screening-Assistant",
-      short: "Früherkennungs-Filter basierend auf Fehlermustern in schriftlichen Beiträgen.",
-      details: "Ein KI-gestütztes Assistenzmodul sucht nach typischen, wiederkehrenden Fehlermustern in Schülerinhalten, um Hinweise auf eventuelle Teilleistungsstörungen (LRS, Dyskalkulie) frühzeitig an die Lehrkraft zu melden.",
+      title: "5. Pädagogische Beobachtungs-Checkliste",
+      short: "Manuelle Merkhilfe für wiederkehrende Beobachtungen – ausdrücklich keine Diagnose.",
+      details: "Die Checkliste dient nur als Gesprächs- und Dokumentationshilfe. Sie berechnet kein Störungsrisiko und ersetzt weder die strukturierte Klassio-Diagnostik noch eine fachliche Abklärung.",
       icon: "🧠",
       render: () => {
         const student = activeStudents.find(s => s.id === t5StudentId) || activeStudents[0];
         
-        // Count active indicators checked
         const score = Object.values(t5Checklist).filter(Boolean).length;
-        let riskLabel = "🌱 Geringes Risiko";
-        let riskColor = "text-emerald-400 bg-emerald-950/50 border-emerald-900";
-        if (score >= 4) {
-          riskLabel = "🚨 Deutlich erhöhtes Risiko";
-          riskColor = "text-rose-450 bg-rose-950/50 border-rose-900";
-        } else if (score >= 2) {
-          riskLabel = "⚠️ Erhöhtes Risiko / Verdacht";
-          riskColor = "text-amber-450 bg-amber-950/50 border-amber-900";
-        }
+        const observationLabel = score === 0
+          ? 'Keine Beobachtung markiert'
+          : `${score} Beobachtung${score === 1 ? '' : 'en'} markiert`;
+        const observationColor = score === 0
+          ? "text-slate-300 bg-slate-950/50 border-slate-800"
+          : "text-amber-300 bg-amber-950/40 border-amber-900/70";
 
         return (
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
-            <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">🧠 Diagnostischer Screening-Assistent</h5>
+            <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">🧠 Pädagogische Beobachtungs-Checkliste</h5>
             <div className="space-y-3">
               <div className="flex gap-2 items-center">
                 <label htmlFor="t5-student-select" className="text-[0.6875rem] font-bold text-slate-450">Fokus-Kind:</label>
@@ -576,7 +581,7 @@ function SuggestionsGrid() {
 
               {/* Checklist items */}
               <div className="space-y-2 pt-2">
-                <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-500 block">Symptomatische Beobachtungs-Checkliste:</span>
+                <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-500 block">Beobachtungen für den nächsten pädagogischen Blick:</span>
                 {[
                   { key: 'laute', label: 'Vertauscht ähnlich klingende Laute beim lauten Vorlesen / Schreiben' },
                   { key: 'ziffern', label: 'Häufige Spiegelschrift bei Zahlen oder verwechselt die Stellen (z.B. 12 vs 21)' },
@@ -597,19 +602,13 @@ function SuggestionsGrid() {
               </div>
 
               {/* Result Indicator */}
-              <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[0.7rem] font-bold ${riskColor}`}>
+              <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[0.7rem] font-bold ${observationColor}`}>
                 <div className="space-y-1">
-                  <span className="block text-[0.5625rem] font-black uppercase text-slate-400">Auswertung für {student.vorname}:</span>
-                  <span className="text-[0.8125rem] font-black">{riskLabel}</span>
+                  <span className="block text-[0.5625rem] font-black uppercase text-slate-400">Manuelle Auswahl für {student.vorname}:</span>
+                  <span className="text-[0.8125rem] font-black">{observationLabel}</span>
                 </div>
                 <div className="text-[0.65rem] max-w-sm leading-relaxed text-slate-300 font-medium">
-                  {score >= 4 ? (
-                    "💡 Empfohlenes Handeln: Vereinbare kurzfristig ein Gespräch mit Schulpsychologen / Eltern bezüglich gezielter Diagnostik-Sitzungen (LRS/Diskalkulie)."
-                  ) : score >= 2 ? (
-                    "💡 Empfohlenes Handeln: Biete verstärkte Üben-Hausaufgaben mit Bildkarten / Rechenschieber an, behalte die Hausaufgaben genau im Auge."
-                  ) : (
-                    "🌱 Aktuell sind keine akuten, auffälligen Interventionen aus pädagogischer Sicht erforderlich."
-                  )}
+                  Diese Markierungen erzeugen bewusst keine automatische Risikoeinstufung. Für standardisierte Beobachtungen und 1:1-Checks nutze das Diagnostikmodul.
                 </div>
               </div>
             </div>
@@ -861,74 +860,51 @@ function SuggestionsGrid() {
       }
     },
     {
-      title: "8. One-Click Pädagogischer Förderplan (Automatisches PDF)",
-      short: "Vollständig ausgefüllte, offizielle Vorlagen für schulische Förderpläne per Mausklick.",
-      details: "Basierend auf den gesammelten Noten, Verhaltensdaten und Diagnostiken generiert die Plattform per Klick einen behördlich anerkannten Förderplanentwurf inklusive pädagogischer Zielsetzungen für Eltern und Schulleitung.",
+      title: "8. Pädagogischer Förderplan – Druckentwurf",
+      short: "Manuell ausgefüllter Gesprächs- und Förderplan als lokale Druckansicht.",
+      details: "Erstellt aus den von der Lehrkraft eingegebenen Zielen und Maßnahmen einen druckbaren Entwurf. Der Ausdruck ist keine behördliche Vorlage und wird nicht automatisch als PDF gespeichert.",
       icon: "📋",
       render: () => {
         const student = activeStudents.find(s => s.id === t8StudentId) || activeStudents[0];
         
         const handlePrintSimulation = () => {
-          setT8IsPrinted(true);
-          setTimeout(() => setT8IsPrinted(false), 3000);
-          
-          // True print action for just the generated plan
-          const printWindow = window.open('', '_blank');
+          const performance = getStudentPerformanceSummary(app, student.id, toolSubjects);
+          const schoolName = app.schulName || app.lehrerProfil?.schule || 'Schule';
+          const className = app.klassenbezeichnung || '—';
+          const html = `<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Förderplan-Entwurf</title>
+<style>
+body{font-family:Arial,sans-serif;padding:40px;color:#1e293b} .header{border-bottom:3px solid #4338ca;padding-bottom:16px;margin-bottom:24px}
+h1{font-size:24px;margin:0 0 6px}.meta{background:#f8fafc;padding:16px;border-radius:12px;margin-bottom:20px}.box{border:1px solid #e2e8f0;padding:18px;border-radius:12px;margin-bottom:16px}
+.label{font-size:11px;font-weight:700;text-transform:uppercase;color:#4f46e5}.note{font-size:11px;color:#64748b;margin-top:24px}
+</style>
+</head>
+<body>
+<div class="header"><h1>Pädagogischer Förderplan – Entwurf</h1><div>${escapeHtmlForPrint(schoolName)} · Klasse ${escapeHtmlForPrint(className)}</div></div>
+<div class="meta"><strong>Schüler:in:</strong> ${escapeHtmlForPrint(`${student.vorname} ${student.nachname}`)}<br>
+<strong>Schulstufe:</strong> ${escapeHtmlForPrint(app.stufe)}<br>
+<strong>Leistungsindex:</strong> ${performance.normalizedAverage === null ? '—' : escapeHtmlForPrint(`${performance.normalizedAverage.toFixed(1)} %`)}<br>
+<strong>Erstellt:</strong> ${escapeHtmlForPrint(new Date().toLocaleDateString('de-AT'))}</div>
+<div class="box"><div class="label">Pädagogische Ziele</div><p>${escapeHtmlForPrint(t8Goals) || '—'}</p></div>
+<div class="box"><div class="label">Schulische Maßnahmen</div><p>${escapeHtmlForPrint(t8Measures) || '—'}</p></div>
+<div class="box"><div class="label">Kooperation Elternhaus</div><p>${escapeHtmlForPrint(t8ParentSupport) || '—'}</p></div>
+<p class="note">Klassio-Druckentwurf. Keine behördliche oder amtlich anerkannte Vorlage.</p>
+<script>window.addEventListener('load',()=>window.print())<\/script>
+</body></html>`;
+          const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+          const printWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer');
           if (printWindow) {
-            printWindow.document.write(`
-              <html>
-                <head>
-                  <title>Pädagogischer Förderplan: ${student.vorname} ${student.nachname}</title>
-                  <style>
-                    body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 40px; color: #1e293b; background: white; }
-                    .header { text-align: center; border-b: 4px solid #4338ca; padding-bottom: 20px; margin-bottom: 30px; }
-                    h1 { font-size: 24px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; margin-bottom: 5px; }
-                    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; background: #f8fafc; padding: 15px; border-radius: 12px; font-size: 14px; }
-                    .box { border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
-                    .box-title { font-weight: bold; font-size: 12px; color: #4f46e5; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 5px; }
-                    p { line-height: 1.6; font-size: 14px; margin-top: 5px; }
-                    .footer { margin-top: 50px; display: flex; justify-content: space-between; font-size: 12px; color: #64748b; }
-                    .sig { border-top: 1px solid #cbd5e1; width: 200px; text-align: center; padding-top: 5px; margin-top: 40px; }
-                  </style>
-                </head>
-                <body>
-                  <div class="header">
-                    <h1>Individueller Entwicklungs- & Förderplan</h1>
-                    <p style="margin: 0; color: #6366f1; font-weight: bold;">Grundschule Oberau • Schuljahr 2026/27</p>
-                  </div>
-                  <div class="meta border">
-                    <div><strong>Schüler/in:</strong> ${student.vorname} ${student.nachname}</div>
-                    <div><strong>Klasse:</strong> 4A</div>
-                    <div><strong>Notendurchschnitt:</strong> ${(student as any).note || 'None'}</div>
-                    <div><strong>Erstellungsdatum:</strong> ${new Date().toLocaleDateString('de-DE')}</div>
-                  </div>
-                  <div class="box">
-                    <div class="box-title">1. Pädagogische Entwicklungsziele:</div>
-                    <p>${t8Goals}</p>
-                  </div>
-                  <div class="box">
-                    <div class="box-title">2. Konkrete schulische Fördermaßnahmen:</div>
-                    <p>${t8Measures}</p>
-                  </div>
-                  <div class="box">
-                    <div class="box-title">3. Vereinbarte Maßnahmen für das Elternhaus:</div>
-                    <p>${t8ParentSupport}</p>
-                  </div>
-                  <div class="footer">
-                    <div>
-                      <br/>
-                      <div class="sig">Klassenlehrkraft</div>
-                    </div>
-                    <div>
-                      <br/>
-                      <div class="sig">Eltern / Erziehungsberechtigte</div>
-                    </div>
-                  </div>
-                  <script>window.print();</script>
-                </body>
-              </html>
-            `);
-            printWindow.document.close();
+            setT8IsPrinted(true);
+            setTimeout(() => {
+              setT8IsPrinted(false);
+              URL.revokeObjectURL(blobUrl);
+            }, 3000);
+          } else {
+            URL.revokeObjectURL(blobUrl);
+            alert('Die Druckansicht konnte nicht geöffnet werden. Bitte Pop-ups für Klassio erlauben.');
           }
         };
 
@@ -936,7 +912,7 @@ function SuggestionsGrid() {
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
             <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest flex justify-between items-center">
               <span>📋 Förderplan-Vorlage erzeugen</span>
-              <span className="text-[0.5625rem] font-bold text-slate-550 italic">Klassenstufe 4</span>
+              <span className="text-[0.5625rem] font-bold text-slate-550 italic">{app.stufe}. Schulstufe</span>
             </h5>
 
             <div className="space-y-3.5">
@@ -993,9 +969,9 @@ function SuggestionsGrid() {
                 className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-2.5 text-[0.725rem] font-black transition-colors flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 {t8IsPrinted ? (
-                  <>🎉 Förderplan wurde exportiert (PDF-Kopie)</>
+                  <>✓ Druckansicht geöffnet</>
                 ) : (
-                  <>🖨️ Förderplan-PDF generieren & drucken</>
+                  <>🖨️ Druckentwurf öffnen</>
                 )}
               </button>
             </div>
@@ -1125,7 +1101,7 @@ function SuggestionsGrid() {
             setT10OptimizationResult("⚠️ Fehler: Bitte wähle zwei unterschiedliche Wunschpartner aus!");
             return;
           }
-          setT10OptimizationResult(`✅ Optimierung erfolgreich! \nDer Sitzordnungs-Algorithmus schlägt vor, ${student.vorname} an einen gemeinsamen Gruppentisch mit ${wish1.vorname} zu setzen. Da ${wish2.vorname} bereits einen anderen dichten Partnerwunsch hat, wird ${wish2.vorname} am direkt angrenzenden Tisch platziert, was eine hervorragende Balance aus Wunschkopplung und Integrationsförderung gewährt.`);
+          setT10OptimizationResult(`💡 Manuelle Sitzplatz-Idee auf Basis deiner Auswahl:\n${student.vorname} könnte in der Nähe von ${wish1.vorname} sitzen; ${wish2.vorname} kann als zweite gewünschte Nähe berücksichtigt werden. Prüfe den Vorschlag mit den tatsächlichen Sitzplanregeln und deiner pädagogischen Einschätzung.`);
         };
 
         return (
@@ -1179,7 +1155,7 @@ function SuggestionsGrid() {
                 onClick={runOptimizer}
                 className="w-full bg-indigo-650 hover:bg-indigo-600 text-white rounded-xl py-2 text-[0.7rem] font-black transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                🔮 Sitzordnung berechnen & balancieren
+                💡 Sitzplatz-Idee aus Auswahl anzeigen
               </button>
 
               {t10OptimizationResult && (
