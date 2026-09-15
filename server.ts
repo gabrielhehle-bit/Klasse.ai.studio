@@ -185,8 +185,10 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const KLASSIO_DATA_DIR = (process.env.KLASSIO_DATA_DIR || path.join(process.cwd(), 'data')).trim();
   const lehrerzimmerStore = createLehrerzimmerStore(KLASSIO_DATA_DIR);
   const schoolRegistryStore = createSchoolRegistryStore(KLASSIO_DATA_DIR);
-  await schoolRegistryStore.ensureSeedSchools(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS);
-  await schoolRegistryStore.ensureLegacyDomains(ALLOWED_EMAIL_DOMAINS);
+  if (!options.isTest) {
+    await schoolRegistryStore.ensureSeedSchools(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS);
+    await schoolRegistryStore.ensureLegacyDomains(ALLOWED_EMAIL_DOMAINS);
+  }
   const SCHOOL_ADMIN_TOKEN = (process.env.KLASSIO_SCHOOL_ADMIN_TOKEN || '').trim();
 
   type EmailAccessChallenge = {
