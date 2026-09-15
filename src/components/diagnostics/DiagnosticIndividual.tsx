@@ -44,7 +44,7 @@ interface DiagnosticIndividualProps {
   initialCompetencyId?: string;
   initialGradeLevel?: number;
   onBackToHome: () => void;
-  onSaveDiagnosticResult?: (result: DiagnosticResult) => void;
+  onSaveDiagnosticResult?: (result: DiagnosticResult) => boolean;
   onNavigateToResults?: () => void;
 }
 
@@ -541,11 +541,11 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                 test={registeredTest}
                 initialGradeLevel={(selectedStudent as any).niveau || (selectedStudent as any).stufe || 1}
                 onSaveResult={(savedResult) => {
-                  if (onSaveDiagnosticResult) {
-                    onSaveDiagnosticResult(savedResult);
-                  }
+                  const saved = onSaveDiagnosticResult ? onSaveDiagnosticResult(savedResult) : false;
+                  if (!saved) return false;
                   setJustSavedResult(savedResult);
                   setIsRunningTest(false);
+                  return true;
                 }}
                 onCancel={() => setIsRunningTest(false)}
               />
