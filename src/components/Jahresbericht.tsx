@@ -491,74 +491,10 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
     }, 500);
   };
 
-  // Helper to calculate dynamic competence scores for the selected student
-  const competences = selectedStudent ? (() => {
-    const studentId = selectedStudent;
-    const s = students.find(x => x.id === studentId);
-    if (!s) return null;
-
-    let de: number | null = null;
-    let ma: number | null = null;
-    let so: number | null = null;
-    let sf: number | null = null;
-    let kr: number | null = null;
-
-    // Grades
-    const sGrades = app.noten?.[studentId] || {};
-    
-    const getSubjectEndnote = (subjectRecord: any): number | null => {
-      if (!subjectRecord) return null;
-      if (typeof subjectRecord === 'object') {
-        if (subjectRecord.endnote) {
-          const parsed = parseInt(subjectRecord.endnote);
-          return isNaN(parsed) ? null : parsed;
-        }
-        for (const key of Object.keys(subjectRecord)) {
-          const val = subjectRecord[key];
-          if (val && typeof val === 'object' && val.endnote) {
-            const parsed = parseInt(val.endnote);
-            if (!isNaN(parsed)) return parsed;
-          }
-        }
-      }
-      return null;
-    };
-
-    if (sGrades) {
-      if (sGrades['Deutsch'] || sGrades['D']) {
-        const dNote = getSubjectEndnote(sGrades['Deutsch'] || sGrades['D']);
-        if (dNote !== null && dNote >= 1 && dNote <= 5) de = 100 - (dNote - 1) * 15;
-      }
-      if (sGrades['Mathematik'] || sGrades['M']) {
-        const mNote = getSubjectEndnote(sGrades['Mathematik'] || sGrades['M']);
-        if (mNote !== null && mNote >= 1 && mNote <= 5) ma = 100 - (mNote - 1) * 15;
-      }
-    }
-
-    // KEL self-assessments
-    const kelForStudent = app.kelGespraeche?.filter(k => k.schuelerId === studentId) || [];
-    if (kelForStudent.length > 0) {
-      const lastKel = kelForStudent[kelForStudent.length - 1];
-      if (lastKel.selbsteinschaetzungKind) {
-        Object.entries(lastKel.selbsteinschaetzungKind).forEach(([key, val]: any) => {
-          const score = (val.wert || 3) * 23; 
-          if (['lesen', 'zuzuhoeren', 'sprechen'].includes(key)) de = de === null ? score : Math.round((de + score) / 2);
-          if (['rechnen'].includes(key)) ma = ma === null ? score : Math.round((ma + score) / 2);
-          if (['hilfsbereitschaft', 'regeln', 'konflikte', 'mitarbeit_gruppe'].includes(key)) so = so === null ? score : Math.round((so + score) / 2);
-          if (['konzentration', 'ordnung', 'selbststaendigkeit', 'tempo'].includes(key)) sf = sf === null ? score : Math.round((sf + score) / 2);
-          if (['neues', 'kreativitaet', 'bewegung'].includes(key)) kr = kr === null ? score : Math.round((kr + score) / 2);
-        });
-      }
-    }
-
-    const clamp = (value: number | null) => value === null ? null : Math.min(100, Math.max(0, value));
-    return { de: clamp(de), ma: clamp(ma), so: clamp(so), sf: clamp(sf), kr: clamp(kr) };
-  })() : null;
-
   // General statistics for progress panel
   const totalStudentsCount = students.length;
   const reportsGeneratedCount = Object.keys(berichte).filter(id => students.some(s => s.id === id)).length;
-  const reportsApprovedCount = Object.keys(reviewStatus).filter(id => reviewStatus[id] === 'freigegeben' && students.some(s => s.id === id)).length;
+  const reportsApprovedCount = Object.entries(berichte).filter(([id, report]) => report.reviewStatus === 'freigegeben' && students.some(s => s.id === id)).length;
   const progressPercent = totalStudentsCount > 0 ? Math.round((reportsGeneratedCount / totalStudentsCount) * 100) : 0;
 
   return (
@@ -713,7 +649,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                       onChange={e => setIncludeBadges(e.target.checked)} 
                       className="rounded border-slate-300 text-slate-900 focus:ring-slate-500"
                     />
-                    Gesammelte Badges & Lob
+                    Optionale positive Rückmeldungen / Badges
                   </label>
 
                   <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer hover:text-slate-900 transition-colors">
@@ -738,7 +674,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                   {students.map(s => {
                      const hasReport = !!berichte[s.id];
                      const isSelected = selectedStudent === s.id;
-                     const status = reviewStatus[s.id] || 'offen';
+                     const status = getReviewStatus(s.id);
                      
                      return (
                        <button 
@@ -790,6 +726,9 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
             {selectedStudent ? (() => {
                const s = students.find(x => x.id === selectedStudent)!;
                const b = berichte[selectedStudent];
+               const selectedGradeLines = getAnnualGradeLines(selectedStudent);
+               const selectedKel = getLatestKelForStudent(selectedStudent);
+               const selectedObservations = getStudentObservationEntries(selectedStudent).slice(0, 5);
 
                if (isGenerating) {
                   return (
@@ -923,17 +862,17 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                       >
                         📄 Berichts-Entwurf
                       </button>
-                      <button 
+                      <button
                         type="button"
-                        aria-pressed={activeTab === 'radar'}
-                        onClick={() => setActiveTab('radar')}
+                        aria-pressed={activeTab === 'datenbasis'}
+                        onClick={() => setActiveTab('datenbasis')}
                         className={`py-2 px-4 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
-                          activeTab === 'radar' 
-                            ? 'border-slate-900 text-slate-900' 
+                          activeTab === 'datenbasis'
+                            ? 'border-slate-900 text-slate-900'
                             : 'border-transparent text-slate-400 hover:text-slate-600'
                         }`}
                       >
-                        📊 Kompetenz-Scorecard
+                        🔎 Datenbasis
                       </button>
                     </div>
 
@@ -1028,10 +967,10 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                           <div className="flex gap-1.5">
                             <button
                               type="button"
-                              aria-pressed={(reviewStatus[selectedStudent] || 'offen') === 'freigegeben'}
+                              aria-pressed={getReviewStatus(selectedStudent) === 'freigegeben'}
                               onClick={() => handleSetReview(selectedStudent, 'freigegeben')}
                               className={`p-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                (reviewStatus[selectedStudent] || 'offen') === 'freigegeben'
+                                getReviewStatus(selectedStudent) === 'freigegeben'
                                   ? 'bg-emerald-500 text-white shadow-sm'
                                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                               }`}
@@ -1040,10 +979,10 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                             </button>
                             <button
                               type="button"
-                              aria-pressed={(reviewStatus[selectedStudent] || 'offen') === 'nacharbeiten'}
+                              aria-pressed={getReviewStatus(selectedStudent) === 'nacharbeiten'}
                               onClick={() => handleSetReview(selectedStudent, 'nacharbeiten')}
                               className={`p-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                (reviewStatus[selectedStudent] || 'offen') === 'nacharbeiten'
+                                getReviewStatus(selectedStudent) === 'nacharbeiten'
                                   ? 'bg-amber-500 text-white shadow-sm'
                                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                               }`}
@@ -1056,120 +995,88 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                       </div>
                     )}
 
-                    {/* Tab 2: Competence Scorecard Visualizer */}
-                    {activeTab === 'radar' && competences && (
-                      <div className="flex-1 overflow-y-auto pr-2 space-y-6 animate-fade-in">
-                        
+                    {/* Tab 2: Transparente Datenbasis statt künstlicher Kompetenz-Scores */}
+                    {activeTab === 'datenbasis' && (
+                      <div className="flex-1 overflow-y-auto pr-2 space-y-5 animate-fade-in">
                         <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100">
                           <h4 className="text-sm font-black text-slate-800 flex items-center gap-2 mb-1">
-                            <TrendingUp size={16} className="text-indigo-500" />
-                            Kompetenzprofil für {s.vorname}
+                            <Info size={16} className="text-indigo-500" />
+                            Datenbasis für {s.vorname}
                           </h4>
-                          <p className="text-xs font-bold text-slate-400 leading-normal">
-                            Dieses Orientierungsprofil wird aus den ausgewählten Einträgen, Noten, Badges und KEL-Zielen abgeleitet. Es ist keine standardisierte Kompetenzmessung und muss pädagogisch eingeordnet werden.
+                          <p className="text-xs font-bold text-slate-500 leading-normal">
+                            Tatsächliche Quellen des Berichtsentwurfs. Noten und Selbsteinschätzungen werden nicht in künstliche Kompetenz-Prozentwerte umgerechnet.
                           </p>
                         </div>
 
-                        {/* Visual score matrix */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          
-                          {/* Linguistisch */}
-                          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs font-black uppercase text-slate-400">Sprachen & Lesen</span>
-                              <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg">{competences.de === null ? '—' : `${competences.de}%`}</span>
-                            </div>
-                            <span className="text-sm font-black text-slate-800">Linguistische Kompetenz</span>
-                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1">
-                              <div className="bg-indigo-500 h-full rounded-full transition-all duration-500" style={{ width: `${competences.de ?? 0}%` }} />
-                            </div>
-                            <p className="text-[0.6875rem] text-slate-500 leading-normal mt-1 italic">
-                              Deutsch, Lesen und Artikulation basierend auf Noten und KEL-Einschätzungen.
-                            </p>
-                          </div>
-
-                          {/* Mathematisch */}
-                          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs font-black uppercase text-slate-400">Logik & Zahlen</span>
-                              <span className="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">{competences.ma === null ? '—' : `${competences.ma}%`}</span>
-                            </div>
-                            <span className="text-sm font-black text-slate-800">Mathematische Kompetenz</span>
-                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1">
-                              <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${competences.ma ?? 0}%` }} />
-                            </div>
-                            <p className="text-[0.6875rem] text-slate-500 leading-normal mt-1 italic">
-                              Rechnen, Zehnerübergang und mathematische Logik basierend auf Leistungstests.
-                            </p>
-                          </div>
-
-                          {/* Sozialkompetenz */}
-                          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs font-black uppercase text-slate-400">Teamwork & Empathie</span>
-                              <span className="text-xs font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded-lg">{competences.so === null ? '—' : `${competences.so}%`}</span>
-                            </div>
-                            <span className="text-sm font-black text-slate-800">Sozialkompetenz</span>
-                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1">
-                              <div className="bg-rose-500 h-full rounded-full transition-all duration-500" style={{ width: `${competences.so ?? 0}%` }} />
-                            </div>
-                            <p className="text-[0.6875rem] text-slate-500 leading-normal mt-1 italic">
-                              Hilfsbereitschaft, Regelverhalten und Zusammenarbeit aus dokumentierten KEL-Einschätzungen.
-                            </p>
-                          </div>
-
-                          {/* Selbstorganisation / Fokus */}
-                          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs font-black uppercase text-slate-400">Ausdauer & Ordnung</span>
-                              <span className="text-xs font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg">{competences.sf === null ? '—' : `${competences.sf}%`}</span>
-                            </div>
-                            <span className="text-sm font-black text-slate-800">Selbstkompetenz & Fokus</span>
-                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1">
-                              <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: `${competences.sf ?? 0}%` }} />
-                            </div>
-                            <p className="text-[0.6875rem] text-slate-500 leading-normal mt-1 italic">
-                              Arbeitstempo, Organisation des Arbeitsplatzes und Konzentrationsleistung.
-                            </p>
-                          </div>
-
-                          {/* Kreativität & Neugier */}
-                          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-2 md:col-span-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-xs font-black uppercase text-slate-400">Gestalten & Neugier</span>
-                              <span className="text-xs font-black text-fuchsia-600 bg-fuchsia-50 px-2 py-0.5 rounded-lg">{competences.kr === null ? '—' : `${competences.kr}%`}</span>
-                            </div>
-                            <span className="text-sm font-black text-slate-800">Kreativität & Eigeninitiative</span>
-                            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mt-1">
-                              <div className="bg-fuchsia-500 h-full rounded-full transition-all duration-500" style={{ width: `${competences.kr ?? 0}%` }} />
-                            </div>
-                            <p className="text-[0.6875rem] text-slate-500 leading-normal mt-1 italic">
-                              Eigene kreative Lösungswege, Neugier, musisch-kreatives Engagement.
-                            </p>
-                          </div>
-
-                        </div>
-
-                        {/* Badges / Auszeichnungen list */}
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                          <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5">
-                            <Award size={14} className="text-amber-500" />
-                            Auszeichnungen & Badges von {s.vorname}
-                          </h4>
-                          {s.badges && s.badges.length > 0 ? (
-                            <div className="flex flex-wrap gap-2.5">
-                              {s.badges.map((b: any) => (
-                                <div key={b.id} className="flex items-center gap-1.5 bg-slate-50 border border-slate-150 p-1.5 px-3 rounded-xl hover:scale-103 transition-transform" title={`Verliehen am ${new Date(b.date).toLocaleDateString('de-DE')}`}>
-                                  <span className="text-lg">{b.icon}</span>
-                                  <span className="text-xs font-bold text-slate-700">{b.name}</span>
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                          <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Leistungsdaten</h4>
+                          {selectedGradeLines.length > 0 ? (
+                            <div className="space-y-2">
+                              {selectedGradeLines.map((line) => (
+                                <div key={line} className="text-xs font-semibold text-slate-700 p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                  {line.replace(/^-s*/, '')}
                                 </div>
                               ))}
                             </div>
                           ) : (
-                            <p className="text-xs italic text-slate-400">Noch keine Auszeichnungen in dieser Akte hinterlegt.</p>
+                            <p className="text-xs italic text-slate-400">Keine auswertbaren Leistungsdaten vorhanden.</p>
                           )}
                         </div>
 
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                          <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Letzte KEL-Selbsteinschätzung</h4>
+                          {selectedKel?.selbsteinschaetzungKind ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {Object.entries(selectedKel.selbsteinschaetzungKind).map(([key, value]: any) => {
+                                const area = STANDARD_KEL_BEREICHE.find((item) => item.id === key);
+                                return (
+                                  <div key={key} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                    <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">{area?.label || key}</div>
+                                    <div className="text-sm font-black text-slate-800 mt-1">{value.wert}/4</div>
+                                    {value.kommentar && <div className="text-xs text-slate-600 mt-1">{value.kommentar}</div>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-xs italic text-slate-400">Keine KEL-Selbsteinschätzung hinterlegt.</p>
+                          )}
+                        </div>
+
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                          <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Dokumentierte Beobachtungen</h4>
+                          {selectedObservations.length > 0 ? (
+                            <div className="space-y-2">
+                              {selectedObservations.map((entry: any) => (
+                                <div key={entry.id || `${entry.datum}-${entry.inhalt || entry.content}`} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                  <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                    {entry.kategorie || 'Beobachtung'} · {String(entry.datum || '').slice(0, 10) || 'ohne Datum'}
+                                  </div>
+                                  <div className="text-xs font-semibold text-slate-700 mt-1">{entry.inhalt || entry.content}</div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs italic text-slate-400">Keine personenbezogenen Beobachtungen hinterlegt.</p>
+                          )}
+                        </div>
+
+                        {includeBadges && (
+                          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Optionale positive Rückmeldungen / Badges</h4>
+                            {s.badges && s.badges.length > 0 ? (
+                              <div className="flex flex-wrap gap-2">
+                                {s.badges.map((badge: any) => (
+                                  <span key={badge.id} className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700">
+                                    {badge.icon} {badge.name}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs italic text-slate-400">Keine Einträge vorhanden.</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
 
