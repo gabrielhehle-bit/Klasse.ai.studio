@@ -2534,32 +2534,13 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
     });
     const isFinanceBalanced = financePaid >= financeRequired;
 
-    const customPortfolio = portfolioEntries[student.id] || [];
-    const defaultPortfolio = [
-      {
-        id: `def-1-${student.id}`,
-        titel: 'Forschungstagebuch: Waldökologie',
-        fach: 'Sachunterricht',
-        datum: formatLocalDateKey(new Date()),
-        bewertung: 'Sehr Gut',
-        beschreibung: 'Detaillierte Analyse lokaler Ökosysteme und eigenständiges Herbarium. Großer Fokus auf den Schutz einheimischer Bäume.'
-      },
-      {
-        id: `def-2-${student.id}`,
-        titel: 'Portfolio-Mappe: Geometrisches Zeichnen',
-        fach: 'Mathematik',
-        datum: formatLocalDateKey(new Date()),
-        bewertung: 'Gut',
-        beschreibung: 'Präzise Rekonstruktionen geometrischer Grundformen und kreative Symmetriebilder.'
-      }
-    ];
-    const portfolioToDisplay = customPortfolio.length > 0 ? customPortfolio : defaultPortfolio;
+    const portfolioToDisplay = portfolioEntries[student.id] || [];
 
     const latestMeeting = meetings.length > 0 ? meetings[0] : null;
 
     const profil = student.foerderprofil || {};
-    const strengths = profil.staerken || ['Besonders hilfsbereit in Gruppenarbeiten', 'Starkes logisch-mathematisches Verständnis'];
-    const supportAreas = profil.foerderbedarfBereiche || ['Arbeitsorganisation', 'Schriftlicher Ausdruck'];
+    const strengths = profil.staerken || [];
+    const supportAreas = profil.foerderbedarfBereiche || [];
     const supportGoals = profil.foerderziele || [];
     const supportMeasures = profil.massnahmen || [];
 
