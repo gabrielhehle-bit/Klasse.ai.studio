@@ -523,7 +523,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     }
 
     const account = createEmailAccountIdentity(email);
-    const identity = createTeacherIdentity(email, ALLOWED_EMAIL_DOMAINS);
+    const verifiedSchool = await schoolRegistryStore.findVerifiedSchoolByEmail(email);
+    const identity = verifiedSchool ? createTeacherIdentityForSchool(email, verifiedSchool) : null;
 
     emailAccessChallenges.delete(email);
     resetFailedAttempts(ip);
@@ -545,7 +546,13 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     return res.json({
       success: true,
       account: { displayName: account.displayName, email: account.email },
-      school: identity ? { code: identity.schoolCode, domain: identity.schoolDomain } : null,
+      school: identity ? {
+        id: identity.schoolId,
+        code: identity.schoolCode,
+        name: identity.schoolName,
+        federalState: identity.schoolFederalState,
+        domain: identity.schoolDomain,
+      } : null,
     });
   });
 
