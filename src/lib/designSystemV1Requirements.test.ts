@@ -289,7 +289,8 @@ test('Portfolio, Jahresbericht, KEL und Stundenentwürfe folgen der gemeinsamen 
 
   assert.match(yearlyReport, /year-report-shell[^\n]*max-w-\[1180px\]/);
   assert.match(yearlyReport, /bg-\[var\(--surface-app,var\(--bg\)\)\]/);
-  assert.match(yearlyReport, /bg-\[var\(--accent\)\][^\n]*Fehlende Entwürfe erstellen/s);
+  assert.match(yearlyReport, /bg-\[var\(--accent\)\] border border-transparent hover:bg-\[var\(--accent-hover\)\]/);
+  assert.match(yearlyReport, /Fehlende Entwürfe erstellen/);
 
   assert.match(kel, /max-w-\[1180px\]/);
   assert.match(kel, /KEL-Gespräche/);
