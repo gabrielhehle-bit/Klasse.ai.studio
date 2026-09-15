@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { formatLocalDateKey } from '../../../lib/utils';
 import { useApp } from '../../../context/AppContext';
-import { getDiagnosticClassId } from '../../../lib/diagnosticData';
 import { 
   CheckCircle2, 
   RotateCcw, 
@@ -56,6 +55,11 @@ export const DiagnosticResultReview: React.FC<DiagnosticResultReviewProps> = ({
   const statusCfg = getCompetencyStatusConfig(evaluation.status);
 
   const handleSaveResult = () => {
+    if (!app.activeClassId) {
+      window.alert('Ergebnis kann nicht gespeichert werden: Es ist keine aktive Klasse ausgewählt.');
+      return;
+    }
+
     setIsSaving(true);
 
     const now = new Date();
@@ -77,7 +81,7 @@ export const DiagnosticResultReview: React.FC<DiagnosticResultReviewProps> = ({
       id: `diag-res-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       schemaVersion: 1,
       studentId: student.id,
-      classId: getDiagnosticClassId(app),
+      classId: app.activeClassId,
       testId: test.id,
       date: isoDate,
       mode: (test.mode as any) || 'oneToOne',
