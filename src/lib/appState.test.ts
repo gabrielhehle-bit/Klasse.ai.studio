@@ -49,6 +49,8 @@ function fixture() {
       notes: [{ id: `note-${id}`, datum: '2026-09-14T10:00:00.000Z', kategorie: 'Journal', inhalt: `note-${id}` }],
       journal: [{ id: `note-${id}`, datum: '2026-09-14T10:00:00.000Z', kategorie: 'Journal', inhalt: `note-${id}` }],
       statusLog: [{ id: `status-${id}`, schuelerId: `student-${id}`, datum: '2026-09-14', iconId: id === 'a' ? '1' : '4', timestamp: id === 'a' ? 1 : 2 }],
+      classContracts: [{ id: `contract-${id}`, rule: `rule-${id}` }],
+      councilNotes: [{ id: `council-${id}`, content: `note-${id}`, status: 'neu' }],
       vertretungHinweise: `handover-${id}`,
       elterngespraeche: [{ id: `meeting-${id}`, schuelerId: `student-${id}`, datum: '2026-09-14', thema: `meeting-${id}` }],
       kelGespraeche: [{ id: `kel-${id}`, schuelerId: `student-${id}`, datum: '2026-09-14' }],
@@ -231,6 +233,22 @@ test('class switches isolate diagnostic, iKM, Antolin and student-development re
   assert.equal(a.observations?.[0]?.id, 'observation-a');
   assert.equal(a.metaKognitionsProtokolle?.[0]?.id, 'meta-a');
   assert.equal(a.interaktionsLog?.eintraege?.[0]?.id, 'interaction-a');
+});
+
+test('class switches isolate Wir-Gefuehl contracts and council notes', () => {
+  const state = fixture();
+  assert.equal(state.classContracts?.[0]?.id, 'contract-a');
+  assert.equal(state.councilNotes?.[0]?.id, 'council-a');
+
+  const b = switchClassState(syncActiveClass(state), 'b');
+  assert.equal(b.classContracts?.[0]?.id, 'contract-b');
+  assert.equal(b.councilNotes?.[0]?.id, 'council-b');
+  assert.equal(b.classContracts?.some((entry: any) => entry.id === 'contract-a'), false);
+  assert.equal(b.councilNotes?.some((entry: any) => entry.id === 'council-a'), false);
+
+  const a = switchClassState(syncActiveClass(b), 'a');
+  assert.equal(a.classContracts?.[0]?.id, 'contract-a');
+  assert.equal(a.councilNotes?.[0]?.id, 'council-a');
 });
 
 test('legacy root-only diagnostic data is assigned only to the active class', () => {

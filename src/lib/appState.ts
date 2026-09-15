@@ -48,6 +48,8 @@ export const initialAppState: AppState = {
   antolinRecords: [],
   schuelerGoals: [],
   klassenglas_completed_missions: [],
+  classContracts: [],
+  councilNotes: [],
   dienste: [],
   backupEinstellungen: { letztesBackup: null, erinnerungAktiv: true },
   pseudonymisierungAktiv: true,
@@ -215,6 +217,8 @@ export function syncActiveClass(state: AppState): AppState {
     klassenglas_belohnung: state.klassenglas_belohnung,
     klassenglas_missions: state.klassenglas_missions,
     klassenglas_completed_missions: state.klassenglas_completed_missions,
+    classContracts: state.classContracts ? JSON.parse(JSON.stringify(state.classContracts)) : [],
+    councilNotes: state.councilNotes ? JSON.parse(JSON.stringify(state.councilNotes)) : [],
     klassenkasse: normalizeKlassenkasse(state.klassenkasse),
     checklisten: state.checklisten ? JSON.parse(JSON.stringify(state.checklisten)) : [],
     customLists: state.customLists ? JSON.parse(JSON.stringify(state.customLists)) : [],
@@ -400,6 +404,8 @@ export function normalizeAppState(raw: any): AppState {
         klassenglas_count: c.klassenglas_count !== undefined ? Number(c.klassenglas_count) : 0,
         klassenglas_ziel: c.klassenglas_ziel !== undefined ? Number(c.klassenglas_ziel) : 20,
         klassenglas_belohnung: c.klassenglas_belohnung || 'Gemeinsame Spielzeit',
+        classContracts: c.classContracts ?? (c.id === parsed.activeClassId ? parsed.classContracts : undefined) ?? [],
+        councilNotes: c.councilNotes ?? (c.id === parsed.activeClassId ? parsed.councilNotes : undefined) ?? [],
         klassenkasse: normalizeKlassenkasse(c.klassenkasse),
         behavior_status: c.behavior_status || {},
         behavior_notes: c.behavior_notes || {},
@@ -534,6 +540,8 @@ export function normalizeAppState(raw: any): AppState {
     parsed.klassenglas_count = activeClass.klassenglas_count;
     parsed.klassenglas_ziel = activeClass.klassenglas_ziel;
     parsed.klassenglas_belohnung = activeClass.klassenglas_belohnung;
+    parsed.classContracts = activeClass.classContracts || [];
+    parsed.councilNotes = activeClass.councilNotes || [];
     parsed.klassenkasse = normalizeKlassenkasse(activeClass.klassenkasse);
     parsed.behavior_status = activeClass.behavior_status;
     parsed.behavior_notes = activeClass.behavior_notes;
@@ -779,6 +787,8 @@ export function switchClassState(prev: AppState, id: string): AppState {
     klassenglas_count: targetClass.klassenglas_count,
     klassenglas_ziel: targetClass.klassenglas_ziel,
     klassenglas_belohnung: targetClass.klassenglas_belohnung || 'Gemeinsame Spielzeit',
+    classContracts: targetClass.classContracts ? JSON.parse(JSON.stringify(targetClass.classContracts)) : [],
+    councilNotes: targetClass.councilNotes ? JSON.parse(JSON.stringify(targetClass.councilNotes)) : [],
     klassenkasse: normalizeKlassenkasse(targetClass.klassenkasse),
     behavior_status: targetClass.behavior_status || {},
     behavior_notes: targetClass.behavior_notes || {},

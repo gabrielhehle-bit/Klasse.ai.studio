@@ -14,11 +14,10 @@ import { COMMUNITY_MISSIONS_POOL } from '../types';
 import { 
   KID_MOOD_SCALE, 
   formatMoodAverage, 
-  computeAggregatedMoodStats,
-  getCalmMoodSummary,
   getMoodMeta,
 } from '../lib/moodTypes';
 import { computeKidAttendanceMoodSummary } from '../lib/kidAttendanceAlgorithm';
+import { formatLocalDateKey } from '../lib/utils';
 
 const TEAM_GAMES = [
   {
@@ -99,33 +98,17 @@ const TEAM_GAMES = [
 ];
 
 export default function WirGefuehl() {
-  const { app, setApp } = useApp();
+  const { app, setApp, setPage } = useApp();
   
   // MAIN TAB NAVIGATION: [ Heute ] | [ Gemeinsam ] | [ Klassenrat ] | [ ⋯ Mehr ]
   const [activeTab, setActiveTab] = useState<'heute' | 'gemeinsam' | 'klassenrat' | 'mehr'>('heute');
-  const [mehrSubTab, setMehrSubTab] = useState<'verlauf' | 'tagebuch' | 'spiele' | 'energie'>('verlauf');
+  const [mehrSubTab, setMehrSubTab] = useState<'verlauf' | 'beobachtungen' | 'spiele'>('verlauf');
   const [showTeacherMoodDetails, setShowTeacherMoodDetails] = useState(false);
 
   // Klassen-Vertrag (Class Contract) States
-  const [contracts, setContracts] = useState<any[]>(() => {
-    if (app.classContracts && Array.isArray(app.classContracts)) {
-      return app.classContracts;
-    }
-    const saved = localStorage.getItem('class_contracts_v1');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        localStorage.removeItem('class_contracts_v1');
-        return parsed;
-      } catch (e) {}
-    }
-    return [
-      { id: 'c1', rule: 'Einander zuhören', icon: '👂', description: 'Wir lassen andere ausreden und hören aufmerksam zu.', stars: 5, status: 'aktiv' },
-      { id: 'c2', rule: 'Freundlicher Umgang', icon: '🤝', description: 'Wir schlichten Streit friedlich und sprechen nett miteinander.', stars: 5, status: 'aktiv' },
-      { id: 'c3', rule: 'Ordnung halten', icon: '🧹', description: 'Wir hinterlassen unseren Platz und die Klasse sauber.', stars: 4, status: 'aktiv' },
-      { id: 'c4', rule: 'Leise Arbeitsphasen', icon: '🤫', description: 'In Stillarbeitsphasen konzentrieren wir uns ganz auf unsere Aufgabe.', stars: 4, status: 'aktiv' },
-    ];
-  });
+  const [contracts, setContracts] = useState<any[]>(() =>
+    Array.isArray(app.classContracts) ? app.classContracts : []
+  );
   const [newRuleTitle, setNewRuleTitle] = useState('');
   const [newRuleDesc, setNewRuleDesc] = useState('');
   const [newRuleIcon, setNewRuleIcon] = useState('💡');
@@ -133,23 +116,9 @@ export default function WirGefuehl() {
   const [tempRatings, setTempRatings] = useState<Record<string, number>>({});
 
   // Klassenrat States (Geschützt im verschlüsselten AppState)
-  const [councilNotes, setCouncilNotes] = useState<any[]>(() => {
-    if (app.councilNotes && Array.isArray(app.councilNotes)) {
-      return app.councilNotes;
-    }
-    const saved = localStorage.getItem('council_notes_v1');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        localStorage.removeItem('council_notes_v1');
-        return parsed;
-      } catch (e) {}
-    }
-    return [
-      { id: 'n1', type: 'lob', content: 'Mia hat mir heute beim Aufräumen geholfen. Danke!', from: 'Leo', to: 'Mia', date: new Date().toISOString(), status: 'neu' },
-      { id: 'n2', type: 'idee', content: 'Können wir im Schulhof eine Fußball-Pause vereinbaren, damit sich die Klassen abwechseln?', from: 'Klassenrat-Team', to: 'Alle', date: new Date().toISOString(), status: 'neu' }
-    ];
-  });
+  const [councilNotes, setCouncilNotes] = useState<any[]>(() =>
+    Array.isArray(app.councilNotes) ? app.councilNotes : []
+  );
   const [noteType, setNoteType] = useState<'lob' | 'sorge' | 'idee' | 'wunsch'>('lob');
   const [noteContent, setNoteContent] = useState('');
   const [noteFrom, setNoteFrom] = useState('');
@@ -159,14 +128,35 @@ export default function WirGefuehl() {
   const updateContracts = (updated: any[]) => {
     setContracts(updated);
     setApp((prev: any) => ({ ...prev, classContracts: updated }));
-    try { localStorage.removeItem('class_contracts_v1'); } catch {}
   };
 
   const updateCouncilNotes = (updated: any[]) => {
     setCouncilNotes(updated);
     setApp((prev: any) => ({ ...prev, councilNotes: updated }));
-    try { localStorage.removeItem('council_notes_v1'); } catch {}
   };
+
+  useEffect(() => {
+    const migrateLegacyArray = (key: string, current: any[] | undefined, apply: (items: any[]) => void) => {
+      if (Array.isArray(current) && current.length > 0) {
+        try { localStorage.removeItem(key); } catch {}
+        return;
+      }
+      try {
+        const saved = localStorage.getItem(key);
+        if (!saved) return;
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) apply(parsed);
+        localStorage.removeItem(key);
+      } catch {
+        try { localStorage.removeItem(key); } catch {}
+      }
+    };
+
+    migrateLegacyArray('class_contracts_v1', app.classContracts, updateContracts);
+    migrateLegacyArray('council_notes_v1', app.councilNotes, updateCouncilNotes);
+    // Nur einmalige Migration alter Klartext-Browserdaten; neue Daten bleiben im verschlüsselten App-State.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (app.councilNotes && Array.isArray(app.councilNotes)) {
@@ -180,69 +170,46 @@ export default function WirGefuehl() {
     }
   }, [app.classContracts]);
 
-  // Mood / Stimmungscheck State
-  const [currentMood, setCurrentMood] = useState<'motiviert' | 'muede' | 'unruhig' | 'kooperativ' | 'frustriert' | null>(() => {
-    const savedHist = localStorage.getItem('barometer_history_v1');
-    if (savedHist) {
-      try {
-        const parsed = JSON.parse(savedHist);
-        const todayStr = new Date().toISOString().split('T')[0];
-        const todayEntry = parsed.find((e: any) => e.date && e.date.startsWith(todayStr));
-        if (todayEntry) return todayEntry.mood;
-      } catch (e) {}
-    }
-    return null;
-  });
-  const [moodSavedToast, setMoodSavedToast] = useState<string | null>(null);
+  const todayKey = formatLocalDateKey(new Date());
+  const moodSummary = useMemo(
+    () => computeKidAttendanceMoodSummary(app.schueler || [], app, todayKey),
+    [app.schueler, app.anwesenheit, app.anwesenheitDetail, app.schuelerStimmung, todayKey]
+  );
+  const moodAverageInfo = formatMoodAverage(moodSummary.stats.average);
 
-  const MOODS_META = {
-    motiviert: { label: 'Motiviert', emoji: '🚀', color: 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100' },
-    muede: { label: 'Müde', emoji: '🥱', color: 'bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100' },
-    unruhig: { label: 'Unruhig', emoji: '🐝', color: 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100' },
-    kooperativ: { label: 'Kooperativ', emoji: '🤝', color: 'bg-purple-50 text-purple-700 border-purple-300 hover:bg-purple-100' },
-    frustriert: { label: 'Frustriert', emoji: '😟', color: 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100' }
-  };
+  const activeStudentIds = useMemo(
+    () => new Set((app.schueler || []).map((student) => student.id)),
+    [app.schueler]
+  );
 
-  const [barometerHistory, setBarometerHistory] = useState<any[]>(() => {
-    const saved = localStorage.getItem('barometer_history_v1');
-    return saved ? JSON.parse(saved) : [
-      { id: 'b1', date: new Date(Date.now() - 86400000 * 2).toISOString(), mood: 'kooperativ', note: 'Klasse hat hervorragend in Gruppen gearbeitet.' },
-      { id: 'b2', date: new Date(Date.now() - 86400000).toISOString(), mood: 'unruhig', note: 'Nach der Pause etwas wuselig. Gong half sehr.' }
-    ];
-  });
+  const todayBehaviorNotes = useMemo(
+    () => (app.journal || [])
+      .filter((entry: any) =>
+        entry?.kategorie === 'Verhalten' &&
+        (!entry.schuelerId || activeStudentIds.has(entry.schuelerId)) &&
+        String(entry.datum || '').slice(0, 10) === todayKey
+      )
+      .sort((a: any, b: any) => String(b.datum || '').localeCompare(String(a.datum || ''))),
+    [app.journal, activeStudentIds, todayKey]
+  );
 
-  const handleSelectMood = (moodKey: 'motiviert' | 'muede' | 'unruhig' | 'kooperativ' | 'frustriert') => {
-    setCurrentMood(moodKey);
-    const newLog = {
-      id: 'baro-' + Date.now(),
-      date: new Date().toISOString(),
-      mood: moodKey,
-      note: 'Stimmungscheck auf der Startseite'
-    };
-    const updated = [newLog, ...barometerHistory];
-    setBarometerHistory(updated);
-    localStorage.setItem('barometer_history_v1', JSON.stringify(updated));
+  const todayStatusChanges = useMemo(
+    () => (app.statusLog || []).filter((entry: any) =>
+      activeStudentIds.has(entry.schuelerId) && entry.datum === todayKey
+    ),
+    [app.statusLog, activeStudentIds, todayKey]
+  );
 
-    setMoodSavedToast(`Stimmung „${MOODS_META[moodKey].label}“ erfasst!`);
-    setTimeout(() => setMoodSavedToast(null), 3000);
-
-    // Audio chime feedback
-    try {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContext) {
-        const ctx = new AudioContext();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.setValueAtTime(320 + Math.random() * 150, ctx.currentTime);
-        gain.gain.setValueAtTime(0.08, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.12);
-      }
-    } catch (e) {}
-  };
+  const recentBehaviorNotes = useMemo(
+    () => (app.journal || [])
+      .filter((entry: any) =>
+        entry?.kategorie === 'Verhalten' &&
+        (!entry.schuelerId || activeStudentIds.has(entry.schuelerId))
+      )
+      .sort((a: any, b: any) => String(b.datum || '').localeCompare(String(a.datum || '')))
+      .slice(0, 20),
+    [app.journal, activeStudentIds]
+  );
 
   // States for Tägliches Ritual (Daily Ritual Flow)
   const [ritualStep, setRitualStep] = useState<number>(1);
@@ -262,17 +229,11 @@ export default function WirGefuehl() {
   const [isChimePlaying, setIsChimePlaying] = useState<boolean>(false);
   const [chimeProgress, setChimeProgress] = useState<number>(0);
 
-  const [checkedSteps, setCheckedSteps] = useState<{[key: string]: boolean}>(() => {
-    const saved = localStorage.getItem('game_checked_steps_v1');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [checkedSteps, setCheckedSteps] = useState<{[key: string]: boolean}>({});
 
   const toggleStep = (gameId: string, idx: number) => {
     const key = `${gameId}_${idx}`;
-    const nextChecked = !checkedSteps[key];
-    const updated = { ...checkedSteps, [key]: nextChecked };
-    setCheckedSteps(updated);
-    localStorage.setItem('game_checked_steps_v1', JSON.stringify(updated));
+    setCheckedSteps((previous) => ({ ...previous, [key]: !previous[key] }));
   };
 
   const activeGame = useMemo(() => {
@@ -408,152 +369,36 @@ export default function WirGefuehl() {
     setAppreciationPrompt(nextPrompt);
   };
 
-  // Climate Journal Data
-  const [climateLog, setClimateLog] = useState<any[]>(() => {
-    const saved = localStorage.getItem('klassengemeinschaft_year_klima_v1');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
+  const moodTrendData = useMemo(() => {
+    const rows: Array<{ key: string; name: string; average: number | null; answered: number }> = [];
+    for (let offset = 13; offset >= 0; offset -= 1) {
+      const date = new Date();
+      date.setDate(date.getDate() - offset);
+      const key = formatLocalDateKey(date);
+      const summary = computeKidAttendanceMoodSummary(app.schueler || [], app, key);
+      rows.push({
+        key,
+        name: date.toLocaleDateString('de-AT', { weekday: 'short', day: '2-digit' }),
+        average: summary.stats.average,
+        answered: summary.answeredCount,
+      });
     }
-    return [
-      { id: 1, date: new Date(Date.now() - 3*86400000).toISOString(), type: 'positive', text: 'Toller Zusammenhalt bei der Gruppenarbeit!', val: 5 },
-      { id: 2, date: new Date(Date.now() - 2*86400000).toISOString(), type: 'challenge', text: 'Starke Unruhe nach der Pause', val: -2 },
-      { id: 3, date: new Date().toISOString(), type: 'positive', text: 'Klassendienste wurden selbstständig erledigt.', val: 3 },
-    ];
-  });
-
-  const saveClimate = (newLogs: any[]) => {
-    setClimateLog(newLogs);
-    localStorage.setItem('klassengemeinschaft_year_klima_v1', JSON.stringify(newLogs));
-  };
-
-  const [newLogType, setNewLogType] = useState<'positive' | 'challenge'>('positive');
-  const [newLogText, setNewLogText] = useState('');
-
-  const addLog = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newLogText.trim()) return;
-    const val = newLogType === 'positive' ? 5 : -2;
-    const newEntry = {
-      id: Date.now(),
-      date: new Date().toISOString(),
-      type: newLogType,
-      text: newLogText,
-      val
-    };
-    saveClimate([newEntry, ...climateLog]);
-    setNewLogText('');
-    
-    if (newLogType === 'positive') {
-      setApp(p => ({
-        ...p,
-        klassenglas_count: Math.min((p.klassenglas_ziel || 100), (p.klassenglas_count || 0) + 1)
-      }));
-      confetti({ particleCount: 40, spread: 50, origin: { y: 0.8 }, colors: ['#fbbf24', '#10b981'] });
-    }
-  };
-
-  // Recharts AreaChart Data
-  const chartData = useMemo(() => {
-    const dataByDate: Record<string, { positive: number, challenge: number, score: number }> = {};
-    for (let i = 13; i >= 0; i--) {
-      const d = new Date(Date.now() - i*86400000);
-      const ds = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit' });
-      dataByDate[ds] = { positive: 0, challenge: 0, score: 50 };
-    }
-    
-    climateLog.forEach(log => {
-      const d = new Date(log.date);
-      const ds = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit' });
-      if (dataByDate[ds]) {
-        if (log.type === 'positive') {
-          dataByDate[ds].positive += log.val;
-          dataByDate[ds].score += log.val;
-        } else {
-          dataByDate[ds].challenge += Math.abs(log.val);
-          dataByDate[ds].score += log.val;
-        }
-      }
-    });
-    
-    return Object.keys(dataByDate).map(key => ({
-      name: key,
-      score: Math.max(0, Math.min(100, dataByDate[key].score)),
-      positive: dataByDate[key].positive,
-      challenge: dataByDate[key].challenge
-    }));
-  }, [climateLog]);
-
-  const microIntervention = useMemo(() => {
-    const recent = climateLog.slice(0, 5);
-    const positiveCount = recent.filter(l => l.type === 'positive').length;
-    
-    if (recent.length === 0) {
-      return {
-        title: "Beobachtung starten",
-        desc: "Fange an, kleine positive Interaktionen im Alltag zu notieren, um ein Gefühl für das Klassenklima zu bekommen.",
-        study: "Regelmäßiges, konkretes Feedback unterstützt Lernprozesse und macht nächste Schritte sichtbar."
-      };
-    }
-    
-    if (recent.length > 0 && positiveCount <= recent.length / 2) {
-      return {
-        title: "Positive Beobachtungen bewusst stärken",
-        desc: "Der Fokus lag zuletzt oft auf herausfordernden Situationen. Halten Sie bewusst auch konkrete positive Interaktionen und Fortschritte fest.",
-        study: "Ein ausgewogener Blick auf Stärken unterstützt eine wertschätzende pädagogische Reflexion."
-      };
-    }
-    
-    return {
-      title: "Autonomie stärken",
-      desc: "Das Klima wirkt aktuell positiv und stabil. Nutzen Sie diese Phase, um der Klasse schrittweise mehr Verantwortung zu übertragen.",
-      study: "Erlebte Autonomie fördert Motivation, wenn Aufgaben und Unterstützung zum Entwicklungsstand passen."
-    };
-  }, [climateLog]);
-
-  const activeMissions = app?.klassenglas_missions || [];
-  const completedMissions = app?.klassenglas_completed_missions || [];
-
-  // Config States for Energy Weights
-  const [wirGefuehlConfig, setWirGefuehlConfig] = useState<any>(() => {
-    const saved = localStorage.getItem('hehle_v3_wir_gefuehl_config');
-    if (saved) {
-      try { return JSON.parse(saved); } catch (e) {}
-    }
-    return {
-      timeframe: 'gesamt',
-      includeKlassenglas: true,
-      klassenglasWeight: 5,
-      includeMitarbeit: true,
-      mitarbeitWeight: 1,
-      includeBadges: true,
-      badgesWeight: 10,
-      includePositiveInteractions: true,
-      positiveInteractionsWeight: 3
-    };
-  });
-
-  const saveConfig = (newConfig: any) => {
-    setWirGefuehlConfig(newConfig);
-    localStorage.setItem('hehle_v3_wir_gefuehl_config', JSON.stringify(newConfig));
-  };
+    return rows;
+  }, [app.schueler, app.anwesenheit, app.anwesenheitDetail, app.schuelerStimmung]);
 
   const klassenglasCount = app.klassenglas_count || 0;
   const klassenglasGoal = app.klassenglas_ziel || 100;
   const unreadNotesCount = councilNotes.filter(n => n.status === 'neu').length;
+  const activeMissions = app.klassenglas_missions || [];
 
-  // Single Activity Recommendation based on Mood
+  // Ruhige Empfehlung aus dem freiwilligen Check-in; keine Diagnose.
   const recommendedActivity = useMemo(() => {
-    if (currentMood === 'muede') {
-      return TEAM_GAMES.find(g => g.id === 'game-5') || TEAM_GAMES[0]; // Gemeinsames Summen
-    } else if (currentMood === 'unruhig') {
-      return TEAM_GAMES.find(g => g.id === 'game-1') || TEAM_GAMES[0]; // Flüsterpost mit Klatschen
-    } else if (currentMood === 'kooperativ') {
-      return TEAM_GAMES.find(g => g.id === 'game-2') || TEAM_GAMES[1]; // Wertschätzender Kreis
-    } else if (currentMood === 'frustriert') {
-      return TEAM_GAMES.find(g => g.id === 'game-4') || TEAM_GAMES[3]; // Roboter Steuerung
-    }
-    return TEAM_GAMES.find(g => g.id === 'game-3') || TEAM_GAMES[2]; // Lautloser Turmbau
-  }, [currentMood]);
+    const average = moodSummary.stats.average;
+    if (average === null) return TEAM_GAMES.find(g => g.id === 'game-3') || TEAM_GAMES[0];
+    if (average >= 3.5) return TEAM_GAMES.find(g => g.id === 'game-5') || TEAM_GAMES[0];
+    if (average <= 2) return TEAM_GAMES.find(g => g.id === 'game-2') || TEAM_GAMES[0];
+    return TEAM_GAMES.find(g => g.id === 'game-3') || TEAM_GAMES[0];
+  }, [moodSummary.stats.average]);
 
   return (
     <div className="wir-gefuehl-shell flex-1 bg-[#f8faf7] flex flex-col items-center p-4 lg:p-6 overflow-y-auto w-full min-h-0">
@@ -660,227 +505,155 @@ export default function WirGefuehl() {
         {activeTab === 'heute' && (
           <div className="flex flex-col gap-6 animate-fade-in w-full">
             
-            {/* STIMMUNGSCHECK (KLASSENSTIMMUNG) */}
+            {/* BEFINDEN AUS DEM "ICH BIN DA!"-CHECK-IN */}
             <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-5">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
                     <Smile className="text-emerald-600" size={22} />
-                    Wie ist die Stimmung unserer Klasse heute?
+                    Wie geht es uns heute?
                   </h2>
-                  <p className="text-xs font-semibold text-slate-500 mt-1">
-                    Wähle in Sekunden das kollektive Energiebild für den Tag.
+                  <p className="text-xs font-semibold text-slate-500 mt-1 max-w-2xl">
+                    Das Wir-Gefühl übernimmt das freiwillige Befinden direkt aus dem „Ich bin da!“-Widget im Lehrercockpit. Hier wird keine zweite Stimmung erfasst.
                   </p>
                 </div>
-                {currentMood && (
-                  <span className="hidden sm:inline-flex px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-black">
-                    Erfasst: {MOODS_META[currentMood].label} {MOODS_META[currentMood].emoji}
-                  </span>
+                <button
+                  type="button"
+                  onClick={() => setPage('cockpit')}
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black transition-all shrink-0"
+                >
+                  Zum „Ich bin da!“-Check-in
+                </button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                <div>
+                  <div className="text-sm font-black text-slate-800">
+                    {moodSummary.presentCount > 0
+                      ? `${moodSummary.answeredCount} von ${moodSummary.presentCount} anwesenden Kindern haben ihr Befinden angegeben`
+                      : `${moodSummary.answeredCount} von ${moodSummary.totalStudents} Kindern haben ihr Befinden angegeben`}
+                  </div>
+                  <div className="text-[11px] font-semibold text-slate-500 mt-0.5">
+                    5 Smileys · freiwillig · Anwesenheit und Befinden bleiben getrennt gespeichert
+                  </div>
+                </div>
+                {moodSummary.stats.average !== null && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl">
+                    <span className="text-xl">{moodAverageInfo.emoji}</span>
+                    <div>
+                      <div className="text-xs font-black text-slate-800">Ø {moodSummary.stats.average.toFixed(1)}</div>
+                      <div className={`text-[10px] font-bold ${moodAverageInfo.colorClass}`}>{moodAverageInfo.label}</div>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {/* 5 CLEAN MOOD BUTTONS */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-1">
-                {(Object.keys(MOODS_META) as Array<keyof typeof MOODS_META>).map((moodKey) => {
-                  const meta = MOODS_META[moodKey];
-                  const isSelected = currentMood === moodKey;
-                  return (
-                    <button
-                      key={moodKey}
-                      type="button"
-                      aria-pressed={isSelected}
-                      onClick={() => handleSelectMood(moodKey)}
-                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center justify-center text-center gap-2 relative cursor-pointer active:scale-95 ${
-                        isSelected 
-                          ? `${meta.color} ring-4 ring-emerald-500/15 scale-102 shadow-md` 
-                          : 'border-slate-100 bg-slate-50/60 hover:bg-white text-slate-700 hover:border-slate-300'
-                      }`}
-                    >
-                      <span className="text-3xl filter drop-shadow-sm">{meta.emoji}</span>
-                      <span className="text-xs font-black tracking-wide">{meta.label}</span>
-                      {isSelected && (
-                        <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Toast Confirmation */}
-              {moodSavedToast && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold animate-fade-in flex items-center gap-2">
-                  <Check size={16} className="text-emerald-600" />
-                  {moodSavedToast}
-                </div>
-              )}
-
-              {/* Pedagogical Hint for Selected Mood */}
-              {currentMood && (
-                <div className="p-4 bg-slate-50/80 border border-slate-200/80 rounded-2xl flex gap-3 items-start animate-fade-in">
-                  <Lightbulb size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 block mb-0.5">
-                      Empfehlung für "{MOODS_META[currentMood].label}"
-                    </span>
-                    <p className="text-xs font-semibold text-slate-700 leading-relaxed">
-                      {currentMood === 'motiviert' && "Hervorragend! Ideal für fordernde Partnerprojekte oder knifflige Wochen-Missionen."}
-                      {currentMood === 'muede' && "Sanfter Einstieg ratsam. Macht das 3-minütige Klassen-Konzert oder eine kleine Dehnübung."}
-                      {currentMood === 'unruhig' && "Empfohlen: Nutzt die 1-minütige Atempause mit der Klangschale, um den Raum zu erden."}
-                      {currentMood === 'kooperativ' && "Beste Voraussetzung für Gruppenarbeiten. Verteilt heute gegenseitig Lobe!"}
-                      {currentMood === 'frustriert' && "Kurzes Blitzlicht: Besprecht in 2 Minuten kurz: 'Was blockiert uns gerade?'"}
-                    </p>
+              {moodSummary.stats.totalCount > 0 ? (
+                <>
+                  <div className="grid grid-cols-5 gap-2">
+                    {KID_MOOD_SCALE.map((meta) => {
+                      const count = moodSummary.stats.distribution[meta.value] || 0;
+                      const pct = moodSummary.stats.distributionPct[meta.value] || 0;
+                      return (
+                        <div key={meta.value} className={`p-2 rounded-xl border text-center ${meta.badgeBg} ${meta.badgeBorder}`}>
+                          <div className="text-xl">{meta.emoji}</div>
+                          <div className="text-xs font-black text-slate-800">{count}×</div>
+                          <div className="text-[9px] font-semibold text-slate-500">{pct}%</div>
+                        </div>
+                      );
+                    })}
                   </div>
+                  <div className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700">
+                    {moodSummary.calmSummary}
+                  </div>
+                </>
+              ) : (
+                <div className="p-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 text-xs text-slate-500">
+                  Heute liegt noch keine freiwillige Befindensangabe vor. Der Check-in kann im Lehrercockpit erfolgen.
                 </div>
               )}
 
-              {/* LIVE AGGREGATED STUDENT CHECK-IN SUMMARY (F9.1) */}
-              {(() => {
-                const todayStr = new Date().toISOString().split('T')[0];
-                const allStudents = app.schueler || [];
-                const moodSummary = computeKidAttendanceMoodSummary(allStudents, app, todayStr);
-                const { stats, calmSummary } = moodSummary;
-                const avgInfo = formatMoodAverage(stats.average);
+              {moodSummary.details.length > 0 && (
+                <div className="pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowTeacherMoodDetails((value) => !value)}
+                    className="text-[11px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-slate-100"
+                  >
+                    <ShieldCheck size={13} />
+                    {showTeacherMoodDetails ? 'Vertrauliche Einzelansicht ausblenden' : 'Vertrauliche Einzelansicht für die Lehrkraft'}
+                  </button>
 
-                // Formulierung wie gewünscht: z.B. "18 von 20 anwesenden Kindern haben ihr Befinden angegeben"
-                const participationText = moodSummary.presentCount > 0
-                  ? `${moodSummary.answeredCount} von ${moodSummary.presentCount} anwesenden Kindern haben ihr Befinden angegeben`
-                  : `${moodSummary.answeredCount} von ${moodSummary.totalStudents} Kindern haben ihr Befinden angegeben`;
-
-                return (
-                  <div className="mt-2 pt-4 border-t border-slate-100 flex flex-col gap-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-base">🖐️</span>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-black text-slate-800">
-                              Befinden heute (Check-In)
-                            </span>
-                            <span className="text-[11px] font-bold text-slate-500">
-                              · {participationText}
-                            </span>
-                          </div>
-                          <p className="text-[10px] font-semibold text-slate-400">
-                            Freiwillige 5-Smiley-Skala aus dem Anwesenheits-Check-In
-                          </p>
-                        </div>
+                  {showTeacherMoodDetails && (
+                    <div className="mt-2 p-3 rounded-2xl bg-amber-50/50 border border-amber-200 text-xs">
+                      <div className="flex items-center gap-2 text-amber-900 font-bold mb-2">
+                        <ShieldAlert size={14} />
+                        Nur für pädagogische Fürsorge – nicht öffentlich anzeigen oder bewerten.
                       </div>
-
-                      {stats.average !== null && (
-                        <div className="flex items-center gap-2 self-start sm:self-auto px-3 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black">
-                          <span>{avgInfo.emoji}</span>
-                          <span>Ø {stats.average.toFixed(1)}</span>
-                          <span className="text-slate-400 font-semibold">•</span>
-                          <span className={avgInfo.colorClass}>{avgInfo.label}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Ruhige, regelbasierte Gesamteinschätzung (keine KI) */}
-                    {calmSummary && stats.totalCount > 0 && (
-                      <div className="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200/80 text-xs font-medium text-slate-700 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">💬</span>
-                          <span>{calmSummary}</span>
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
-                          Wirgefühl
-                        </span>
-                      </div>
-                    )}
-
-                    {stats.totalCount > 0 ? (
-                      <div className="grid grid-cols-5 gap-2 pt-1">
-                        {KID_MOOD_SCALE.map((meta) => {
-                          const count = stats.distribution[meta.value] || 0;
-                          const pct = stats.distributionPct[meta.value] || 0;
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5">
+                        {moodSummary.details.map((detail) => {
+                          const meta = detail.moodValue ? getMoodMeta(detail.moodValue) : undefined;
                           return (
-                            <div
-                              key={meta.value}
-                              className={`p-2 rounded-xl border text-center flex flex-col items-center gap-0.5 ${meta.badgeBg} ${meta.badgeBorder}`}
-                            >
-                              <span className="text-xl">{meta.emoji}</span>
-                              <div className="text-xs font-black text-slate-800">
-                                {count}×
-                              </div>
-                              <div className="text-[9px] font-semibold text-slate-500">
-                                {pct}%
-                              </div>
-                              <div className="text-[9px] font-bold text-slate-400 truncate max-w-full">
-                                {meta.shortLabel}
-                              </div>
+                            <div key={detail.studentId} className="px-2.5 py-1.5 rounded-lg border bg-white border-slate-200 flex items-center justify-between gap-2">
+                              <span className="truncate font-medium text-slate-700">{detail.displayName}</span>
+                              <span className="shrink-0">{meta ? `${meta.emoji} ${meta.shortLabel}` : 'Keine Angabe'}</span>
                             </div>
                           );
                         })}
                       </div>
-                    ) : (
-                      <p className="text-xs text-slate-400 italic bg-slate-50 p-2.5 rounded-xl border border-dashed border-slate-200 text-center">
-                        Heute wurden noch keine individuellen Stimmungs-Smileys im Anwesenheits-Widget abgegeben.
-                      </p>
-                    )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-                    {/* Lehrkraft-Vertraulichkeitsbereich (optional aufklappbar für pädagogische Fürsorge) */}
-                    {moodSummary.details.length > 0 && (
-                      <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setShowTeacherMoodDetails((v) => !v)}
-                          className="self-start text-[11px] font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1.5 cursor-pointer py-1 px-2 rounded-lg hover:bg-slate-100"
-                        >
-                          <ShieldCheck size={13} className="text-slate-400" />
-                          <span>
-                            {showTeacherMoodDetails
-                              ? 'Vertrauliche Lehrkraft-Ansicht ausblenden'
-                              : 'Vertrauliche Lehrkraft-Ansicht (nur zur pädagogischen Unterstützung)'}
-                          </span>
-                        </button>
+            {/* VERBINDUNG ZU VERHALTEN & BEOBACHTUNGEN */}
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <ShieldAlert size={19} className="text-amber-600" />
+                    Verhalten & Beobachtungen heute
+                  </h3>
+                  <p className="text-xs font-semibold text-slate-500 mt-1">
+                    Wir-Gefühl zeigt vorhandene Beobachtungen an. Neue Verhaltensnotizen werden zentral unter „Notizen & Beobachtungen“ erfasst.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPage('verhalten')}
+                  className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black shrink-0"
+                >
+                  Beobachtung erfassen
+                </button>
+              </div>
 
-                        {showTeacherMoodDetails && (
-                          <div className="p-3 rounded-2xl bg-amber-50/50 border border-amber-200/80 text-xs flex flex-col gap-2.5 animate-in fade-in-50">
-                            <div className="flex items-center gap-2 text-amber-900 font-bold">
-                              <ShieldAlert size={14} className="text-amber-700 shrink-0" />
-                              <span>
-                                Vertrauliche Übersicht: Nur zur stillen pädagogischen Fürsorge der Lehrkraft, niemals zur öffentlichen Bewertung.
-                              </span>
-                            </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-100">
+                  <div className="text-2xl font-black text-amber-900">{todayBehaviorNotes.length}</div>
+                  <div className="text-[11px] font-bold text-amber-700">Verhaltensnotizen heute</div>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                  <div className="text-2xl font-black text-slate-900">{todayStatusChanges.length}</div>
+                  <div className="text-[11px] font-bold text-slate-600">Statusänderungen heute</div>
+                </div>
+              </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-1.5 pt-1">
-                              {moodSummary.details.map((d) => {
-                                const meta = d.moodValue ? getMoodMeta(d.moodValue) : undefined;
-                                const isDistressed = d.moodValue && d.moodValue >= 4;
-                                return (
-                                  <div
-                                    key={d.studentId}
-                                    className={`px-2.5 py-1.5 rounded-lg border flex items-center justify-between gap-1.5 ${
-                                      isDistressed
-                                        ? 'bg-rose-50/80 border-rose-200 text-rose-950 font-bold'
-                                        : 'bg-white border-slate-200 text-slate-700'
-                                    }`}
-                                  >
-                                    <span className="truncate font-medium">
-                                      {d.displayName}
-                                    </span>
-                                    {meta ? (
-                                      <span className="flex items-center gap-1 shrink-0">
-                                        <span>{meta.emoji}</span>
-                                        <span className="text-[10px] font-bold">{meta.shortLabel}</span>
-                                      </span>
-                                    ) : (
-                                      <span className="text-[10px] text-slate-400 italic">
-                                        Keine Angabe
-                                      </span>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
+              {todayBehaviorNotes.length > 0 && (
+                <div className="space-y-2">
+                  {todayBehaviorNotes.slice(0, 5).map((entry: any) => {
+                    const student = entry.schuelerId ? (app.schueler || []).find((item) => item.id === entry.schuelerId) : undefined;
+                    return (
+                      <div key={entry.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                        <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          {student ? `${student.vorname} ${student.nachname}` : 'Klasse'}
+                        </div>
+                        <div className="text-xs font-semibold text-slate-700 mt-1">{entry.inhalt}</div>
                       </div>
-                    )}
-                  </div>
-                );
-              })()}
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* PASSENDE TAGESAKTION (1 PROMINENT RECOMMENDATION) */}
@@ -936,7 +709,7 @@ export default function WirGefuehl() {
                     Tägliches Ritual (3 einfache Schritte)
                   </h3>
                   <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                    Stimmung checken → Atempause / Impuls → Murmel sichern
+                    Check-in ansehen → Atempause / Impuls → gemeinsames Ritual abschließen
                   </p>
                 </div>
                 <span className="text-xs font-black text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
@@ -947,9 +720,9 @@ export default function WirGefuehl() {
               {/* Steps Progress Indicator */}
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { step: 1, title: '1. Stimmung' },
+                  { step: 1, title: '1. Check-in' },
                   { step: 2, title: '2. Atempause' },
-                  { step: 3, title: '3. Murmel' }
+                  { step: 3, title: '3. Abschluss' }
                 ].map(s => (
                   <button
                     key={s.step}
@@ -971,9 +744,11 @@ export default function WirGefuehl() {
               {ritualStep === 1 && (
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div>
-                    <h4 className="font-bold text-slate-800 text-sm">Schritt 1: Stimmung erfassen</h4>
+                    <h4 className="font-bold text-slate-800 text-sm">Schritt 1: Check-in ansehen</h4>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">
-                      {currentMood ? `Aktuell erfasst: ${MOODS_META[currentMood].label}` : 'Wähle oben dein Stimmungsbild für heute.'}
+                      {moodSummary.answeredCount > 0
+                        ? `${moodSummary.answeredCount} Befindensangaben aus „Ich bin da!“ liegen vor.`
+                        : 'Noch keine freiwillige Befindensangabe aus „Ich bin da!“ vorhanden.'}
                     </p>
                   </div>
                   <button
@@ -1065,7 +840,7 @@ export default function WirGefuehl() {
                 <div>
                   <span className="text-[0.625rem] font-black uppercase text-slate-400 tracking-wider block">Klassenstimmung</span>
                   <span className="text-sm font-black text-slate-800">
-                    {currentMood ? MOODS_META[currentMood].label : 'Noch offen'}
+                    {moodSummary.stats.average !== null ? moodAverageInfo.label : 'Noch keine Angabe'}
                   </span>
                 </div>
               </div>
@@ -1614,24 +1389,22 @@ export default function WirGefuehl() {
 
 
         {/* ==========================================
-            4. TAB: MEHR (VERLAUF, TAGEBUCH, ENERGIE)
+            4. TAB: MEHR (ECHTER VERLAUF & BEOBACHTUNGEN)
            ========================================== */}
         {activeTab === 'mehr' && (
           <div className="flex flex-col gap-6 animate-fade-in w-full">
-            
-            {/* SUB-TAB NAV INSIDE MEHR */}
             <div className="flex gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
               {[
-                { id: 'verlauf', label: '📊 Klima-Verlauf & Trends' },
-                { id: 'tagebuch', label: '📖 Pädagogisches Tagebuch' },
-                { id: 'energie', label: '⚙️ Klassen-Energie Formel' }
-              ].map(sub => (
+                { id: 'verlauf', label: '📊 Befinden-Verlauf' },
+                { id: 'beobachtungen', label: '📝 Verhaltensbeobachtungen' },
+                { id: 'spiele', label: '🎲 Gemeinschaftsaktivitäten' }
+              ].map((sub) => (
                 <button
                   key={sub.id}
                   onClick={() => setMehrSubTab(sub.id as any)}
                   className={`px-4 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all border ${
-                    mehrSubTab === sub.id 
-                      ? 'bg-slate-800 text-white border-slate-800 shadow-sm' 
+                    mehrSubTab === sub.id
+                      ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
@@ -1640,109 +1413,86 @@ export default function WirGefuehl() {
               ))}
             </div>
 
-            {/* SUB 1: VERLAUF & TRENDS */}
             {mehrSubTab === 'verlauf' && (
-              <div className="flex flex-col gap-6">
-                <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-5">
-                  <h3 className="text-lg font-black text-slate-800">Klima-Trend (14 Tage)</h3>
-                  <div className="h-[260px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData}>
-                        <defs>
-                          <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                        <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                        <Tooltip />
-                        <Area type="monotone" dataKey="score" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
+              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-5">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800">Befinden aus „Ich bin da!“ – letzte 14 Tage</h3>
+                  <p className="text-xs font-semibold text-slate-500 mt-1">
+                    Nur freiwillige Angaben anwesender Kinder. 1 = sehr gut, 5 = schlecht. Tage ohne Angaben bleiben leer.
+                  </p>
                 </div>
-
-                <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-4">
-                  <h3 className="text-sm font-black uppercase tracking-wider text-slate-400">Micro-Intervention</h3>
-                  <h4 className="font-bold text-slate-800 text-base">{microIntervention.title}</h4>
-                  <p className="text-xs text-slate-600 font-medium leading-relaxed">{microIntervention.desc}</p>
+                <div className="h-[260px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={moodTrendData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                      <YAxis domain={[1, 5]} reversed ticks={[1, 2, 3, 4, 5]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                      <Tooltip formatter={(value: any) => [value == null ? 'Keine Angabe' : Number(value).toFixed(1), 'Ø Befinden']} />
+                      <Area connectNulls={false} type="monotone" dataKey="average" stroke="#10b981" strokeWidth={3} fillOpacity={0.12} fill="#10b981" />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             )}
 
-            {/* SUB 2: PÄDAGOGISCHES TAGEBUCH */}
-            {mehrSubTab === 'tagebuch' && (
+            {mehrSubTab === 'beobachtungen' && (
               <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-5">
-                <h3 className="text-lg font-black text-slate-800">Pädagogisches Tagebuch</h3>
-                
-                <form onSubmit={addLog} className="flex flex-col sm:flex-row gap-3">
-                  <select
-                    value={newLogType}
-                    onChange={(e) => setNewLogType(e.target.value as any)}
-                    className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 focus:outline-none"
-                  >
-                    <option value="positive"> Positiv</option>
-                    <option value="challenge">⚠️ Herausforderung</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={newLogText}
-                    onChange={(e) => setNewLogText(e.target.value)}
-                    placeholder="Beobachtung eintragen..."
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-medium text-slate-800 focus:outline-none"
-                  />
-                  <button type="submit" className="px-5 py-2 bg-slate-800 text-white font-bold text-xs rounded-xl hover:bg-slate-700 cursor-pointer">
-                    Notieren
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-800">Verhaltensbeobachtungen</h3>
+                    <p className="text-xs font-semibold text-slate-500 mt-1">
+                      Diese Einträge kommen direkt aus „Notizen & Beobachtungen“. Wir-Gefühl führt kein zweites Tagebuch.
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => setPage('verhalten')} className="px-4 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black">
+                    Zu Notizen & Beobachtungen
                   </button>
-                </form>
-
-                <div className="space-y-3 mt-2">
-                  {climateLog.map(log => (
-                    <div key={log.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex justify-between items-center gap-3">
-                      <div>
-                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase mb-1 ${log.type === 'positive' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
-                          {log.type === 'positive' ? 'Positiv' : 'Herausforderung'}
-                        </span>
-                        <p className="text-xs font-bold text-slate-800">{log.text}</p>
-                      </div>
-                      <button onClick={() => saveClimate(climateLog.filter(l => l.id !== log.id))} className="text-xs text-rose-500 font-bold hover:underline">
-                        Löschen
-                      </button>
-                    </div>
-                  ))}
                 </div>
+
+                {recentBehaviorNotes.length > 0 ? (
+                  <div className="space-y-2">
+                    {recentBehaviorNotes.map((entry: any) => {
+                      const student = entry.schuelerId ? (app.schueler || []).find((item) => item.id === entry.schuelerId) : undefined;
+                      return (
+                        <div key={entry.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                              {student ? `${student.vorname} ${student.nachname}` : 'Klasse'}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400">{String(entry.datum || '').slice(0, 10)}</span>
+                          </div>
+                          <p className="text-xs font-semibold text-slate-700 mt-1">{entry.inhalt}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-5 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-xs text-slate-500">
+                    Noch keine Verhaltensbeobachtungen vorhanden.
+                  </div>
+                )}
               </div>
             )}
 
-            {/* SUB 3: ENERGIE GEWICHTUNGEN */}
-            {mehrSubTab === 'energie' && (
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm flex flex-col gap-5">
-                <h3 className="text-lg font-black text-slate-800">Klassen-Energie Gewichtungen</h3>
-                <p className="text-xs text-slate-500 font-medium">Bestimme, wie Punkte für die Klassen-Energie gewertet werden.</p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-700">💎 Klassenglas Murmeln</span>
-                    <span className="text-xs font-black text-emerald-700">{wirGefuehlConfig.klassenglasWeight} XP</span>
-                  </div>
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-700">➕ Mitarbeitspunkte</span>
-                    <span className="text-xs font-black text-emerald-700">{wirGefuehlConfig.mitarbeitWeight} XP</span>
-                  </div>
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-700">🏅 Badges</span>
-                    <span className="text-xs font-black text-emerald-700">{wirGefuehlConfig.badgesWeight} XP</span>
-                  </div>
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-700">❤️ Positive Interaktionen</span>
-                    <span className="text-xs font-black text-emerald-700">{wirGefuehlConfig.positiveInteractionsWeight} XP</span>
-                  </div>
-                </div>
+            {mehrSubTab === 'spiele' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {TEAM_GAMES.map((game) => (
+                  <button
+                    key={game.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedGameId(game.id);
+                      setActiveTab('gemeinsam');
+                    }}
+                    className="text-left bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:border-emerald-300 transition-all"
+                  >
+                    <div className="text-sm font-black text-slate-900">{game.title}</div>
+                    <div className="text-[11px] font-bold text-emerald-700 mt-1">{game.goal} · {game.duration}</div>
+                    <div className="text-xs text-slate-600 mt-3">{game.description}</div>
+                  </button>
+                ))}
               </div>
             )}
-
           </div>
         )}
 
