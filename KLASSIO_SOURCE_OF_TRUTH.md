@@ -270,7 +270,11 @@ Aktueller Fortschritt:
 - Datenarchiv / Datensicherung: technisch abgeschlossen; PR #73 integriert, Audit #140 grün; 995/995 Tests; reale Browser-/Restore-/OneDrive-/IndexedDB-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Einstellungen: technisch abgeschlossen; PR #75 integriert, Audit #142 grün; 1004/1004 Tests; reale Browser-/Touch-/PWA-/Sync-/Staging-Abnahme bleibt Teil der Gesamtfreigabe.
 - Legacy-Backup-Kompatibilität: PR #81 integriert; Audit #144 grün; historische `klassen`-Mehrklassenstände werden verlustfrei nach `classes` migriert, aktuelle `classes`-Daten behalten Vorrang, beschädigte historische Klassenlisten werden vor dem Restore abgewiesen.
-- Alle 22 Einzelmodule sind technisch abgeschlossen. Nächster Schritt: exakt den jeweils aktuellen, grün auditierten Reconciliation-HEAD auf dem neuen World4You-vServer unter klassio.at als Staging bereitstellen und den finalen realen Browser-/Touch-/Druck-/Restore-Walkthrough durchführen. Erst danach PR #5 nach `main` mergen.
+- Alle 22 Einzelmodule sind technisch abgeschlossen. Der eingefrorene Reconciliation-Stand ist auf dem World4You-vServer unter `klassio.at` erreichbar; zusätzlich existiert `staging.klassio.at` als getrennte automatische GitHub-Preview-Umgebung.
+- UX-Reconciliation läuft anschließend bewusst in separaten Draft-Branches: PR #84 stellt die kompakte Vor-Reconciliation-Navigation wieder her, ohne neue Funktionen aus dem Code zu entfernen.
+- PR #85 trennt das persönliche Klassio-E-Mail-Konto von einer verifizierten Schulidentität. Private E-Mail-Adressen dürfen Klassio verwenden; schulinterne Funktionen bleiben an eine bestätigte Schule gebunden.
+- PR #86 führt ein österreichweites serverseitiges Schulregister ein: stabile Schul-ID, Schulname, exakte Schul-Domain und Bundesland. `vobs.at` ist nur Bildungsanbieter und niemals automatisch eine gemeinsame Schule; `vsfoa.vobs.at` ist der erste verifizierte Seed. Neue Schulen aus allen Bundesländern können eine Verifizierungsanfrage stellen und werden erst nach administrativer Freigabe für das Lehrerzimmer aktiviert.
+- Diese drei PRs bleiben Draft, bis der jeweilige Preview-Commit die vollständigen Tests/Builds und die reale Staging-Browserabnahme bestanden hat. Erst danach wird die Reconciliation-Kette konsolidiert und PR #5 nach `main` gemergt.
 
 ## Pflicht für jeden neuen Chat
 
