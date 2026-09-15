@@ -16,7 +16,7 @@ import type { DashboardTodayOverviewProps } from './DashboardTodayOverview';
 
 export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) {
   const [showAllTasks, setShowAllTasks] = useState(false);
-  const button = 'min-h-11 px-4 py-2 rounded-xl text-sm font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]';
+  const button = 'min-h-11 px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--border-default,var(--border2))] bg-[var(--surface-card,var(--surface))] text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))] hover:text-[var(--text-primary,var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]';
   const tasks = showAllTasks ? p.actionItems : p.actionItems.slice(0, 3);
 
   const primaryTarget =
@@ -47,14 +47,14 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             : 'Noch nicht geprüft';
 
   return (
-    <section aria-label="Heute" className="space-y-5 text-slate-900">
-      <header className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7">
+    <section aria-label="Heute" className="space-y-6 text-[var(--text-primary,var(--text))]">
+      <header className="rounded-2xl border border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-slate-600">{p.klasseLabel || 'Deine Klasse'}</p>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{p.greeting}</h1>
-            <p className="mt-1 text-sm font-medium text-slate-500">{p.dateLabel}</p>
-            <p className="mt-2 max-w-2xl text-sm text-slate-600">
+            <p className="text-sm font-semibold text-[var(--accent)]">{p.klasseLabel || 'Deine Klasse'}</p>
+            <h1 className="mt-1 text-2xl font-black tracking-[-0.025em] sm:text-[1.75rem]">{p.greeting}</h1>
+            <p className="mt-1 text-sm font-medium text-[var(--text-muted,var(--text3))]">{p.dateLabel}</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary,var(--text2))]">
               Das Wichtigste für deinen Schultag – ohne unnötige Zusatzinformationen.
             </p>
           </div>
@@ -71,11 +71,11 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
         </div>
 
         <div className="mt-6">
-          <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-slate-500">Jetzt</p>
+          <p className="mb-2 text-xs font-semibold text-[var(--text-muted,var(--text3))]">Jetzt</p>
           <button
             type="button"
             onClick={() => p.onNavigate(primaryTarget)}
-            className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[var(--accent)] px-6 py-4 text-base font-semibold text-white transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:w-auto"
+            className="flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-[var(--accent)] px-6 py-4 text-base font-bold text-[var(--accent-text,var(--btn-text,#ffffff))] transition-colors hover:bg-[var(--accent-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))] focus-visible:ring-offset-2 sm:w-auto"
           >
             {primaryTarget === 'cockpit' ? <Play size={20} /> : <Users size={20} />}
             {primaryLabel}
@@ -87,17 +87,17 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-5">
         <section
           aria-label="Heutiger Unterricht"
-          className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-3"
+          className="space-y-4 rounded-2xl border border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 shadow-sm lg:col-span-3"
         >
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--accent)]">Heute</p>
-              <h2 className="mt-1 flex items-center gap-2 text-lg font-semibold">
-                <CalendarDays size={20} className="text-indigo-600" />
+              <p className="text-xs font-semibold text-[var(--accent)]">Heute</p>
+              <h2 className="mt-1 flex items-center gap-2 text-lg font-bold tracking-[-0.01em]">
+                <CalendarDays size={20} className="text-[var(--accent)]" />
                 Dein Unterricht
               </h2>
             </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+            <span className="rounded-full bg-[var(--surface-subtle,var(--surface2))] px-3 py-1 text-xs font-semibold text-[var(--text-secondary,var(--text2))]">
               {p.todayLessonsList.length} {p.todayLessonsList.length === 1 ? 'Stunde' : 'Stunden'}
             </span>
           </div>
@@ -112,25 +112,25 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
                     className={`w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
                       lesson.isCurrent
                         ? 'border-[var(--accent)]/30 bg-[var(--accent-soft)]'
-                        : 'border-slate-100 bg-slate-50 hover:border-slate-200 hover:bg-white'
+                        : 'border-[var(--border-subtle,var(--border))] bg-[var(--surface-subtle,var(--surface2))] hover:border-[var(--border-default,var(--border2))] hover:bg-[var(--surface-card,var(--surface))]'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-xs font-medium text-slate-500">
+                        <p className="text-xs font-medium text-[var(--text-muted,var(--text3))]">
                           {lesson.zeit || `${lesson.hourNum ?? index + 1}. Stunde`}
                         </p>
-                        <p className="mt-1 truncate text-sm font-semibold text-slate-900">
+                        <p className="mt-1 truncate text-sm font-semibold text-[var(--text-primary,var(--text))]">
                           {lesson.fach || 'Unterricht'}
                         </p>
                         {lesson.thema && (
-                          <p className="mt-1 break-words text-sm text-slate-600">
+                          <p className="mt-1 break-words text-sm text-[var(--text-secondary,var(--text2))]">
                             {p.privacyMode ? 'Thema verborgen' : lesson.thema}
                           </p>
                         )}
                       </div>
                       {lesson.isCurrent && (
-                        <span className="shrink-0 rounded-full bg-[var(--accent)] px-2.5 py-1 text-xs font-bold text-white">
+                        <span className="shrink-0 rounded-full bg-[var(--accent)] px-2.5 py-1 text-xs font-bold text-[var(--accent-text,var(--btn-text,#ffffff))]">
                           Jetzt
                         </span>
                       )}
@@ -140,9 +140,9 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
               ))}
             </ol>
           ) : (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5">
-              <p className="text-sm font-medium text-slate-700">Für diesen Tag ist noch kein Unterricht eingetragen.</p>
-              <p className="mt-1 text-sm text-slate-500">Du kannst den Tag direkt im Wochenplan ergänzen.</p>
+            <div className="rounded-xl border border-dashed border-[var(--border-default,var(--border2))] bg-[var(--surface-subtle,var(--surface2))] p-5">
+              <p className="text-sm font-medium text-[var(--text-secondary,var(--text2))]">Für diesen Tag ist noch kein Unterricht eingetragen.</p>
+              <p className="mt-1 text-sm text-[var(--text-muted,var(--text3))]">Du kannst den Tag direkt im Wochenplan ergänzen.</p>
             </div>
           )}
 
@@ -157,12 +157,12 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
 
         <section
           aria-label="Wichtig und offen"
-          className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2"
+          className="space-y-4 rounded-2xl border border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 shadow-sm lg:col-span-2"
         >
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">Wichtig</p>
-            <h2 className="mt-1 flex items-center gap-2 text-lg font-semibold">
-              <ClipboardList size={20} className="text-amber-600" />
+            <p className="text-xs font-semibold text-[var(--warning-text)]">Wichtig</p>
+            <h2 className="mt-1 flex items-center gap-2 text-lg font-bold tracking-[-0.01em]">
+              <ClipboardList size={20} className="text-[var(--warning)]" />
               Offen & im Blick
             </h2>
           </div>
@@ -172,24 +172,24 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             onClick={() => p.onNavigate(p.totalStudents ? 'anwesenheit' : 'schueler')}
             className={`w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
               p.attendanceRequired && !p.attendanceRecorded && p.totalStudents > 0
-                ? 'border-amber-200 bg-amber-50'
-                : 'border-slate-200 bg-slate-50 hover:bg-white'
+                ? 'border-[var(--warning)]/25 bg-[var(--warning-soft)]'
+                : 'border-[var(--border-default,var(--border2))] bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-card,var(--surface))]'
             }`}
           >
-            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+            <span className="flex items-center gap-2 text-xs font-semibold text-[var(--text-muted,var(--text3))]">
               <Users size={15} />
               Anwesenheit
             </span>
-            <strong className="mt-1.5 block text-sm text-slate-900">{attendanceValue}</strong>
+            <strong className="mt-1.5 block text-sm text-[var(--text-primary,var(--text))]">{attendanceValue}</strong>
             {!p.privacyMode && p.attendanceRecorded && p.absentCount > 0 && (
-              <span className="mt-1 block text-xs text-slate-600">{p.absentCount} abwesend</span>
+              <span className="mt-1 block text-xs text-[var(--text-secondary,var(--text2))]">{p.absentCount} abwesend</span>
             )}
           </button>
 
           <div>
             <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-slate-800">Hinweise</p>
-              <span className="text-xs font-medium text-slate-500">
+              <p className="text-sm font-semibold text-[var(--text-primary,var(--text))]">Hinweise</p>
+              <span className="text-xs font-medium text-[var(--text-muted,var(--text3))]">
                 {p.openTasksCount} Aufgaben · {p.openCollectionsCount} Sammlungen
               </span>
             </div>
@@ -200,11 +200,11 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
                   <li key={item.id}>
                     <button
                       type="button"
-                      className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left text-sm leading-relaxed transition hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                      className="min-h-12 w-full rounded-xl border border-[var(--border-default,var(--border2))] bg-[var(--surface-subtle,var(--surface2))] p-3 text-left text-sm leading-relaxed transition-colors hover:border-[var(--accent)]/25 hover:bg-[var(--accent-soft)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]"
                       onClick={() => p.onNavigate(item.linkPage || 'orga')}
                     >
                       {item.urgent && (
-                        <span className="mb-1 block text-xs font-semibold text-amber-800">Heute beachten</span>
+                        <span className="mb-1 block text-xs font-semibold text-[var(--warning-text)]">Heute beachten</span>
                       )}
                       {p.privacyMode ? 'Privater Eintrag – zum Öffnen auswählen' : item.text}
                     </button>
@@ -212,7 +212,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
                 ))}
               </ul>
             ) : (
-              <div className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-sm font-medium text-emerald-800">
+              <div className="flex items-center gap-2 rounded-xl bg-[var(--success-soft)] p-3 text-sm font-medium text-[var(--success-text)]">
                 <CheckCircle2 size={18} className="shrink-0" />
                 Keine zusätzlichen Hinweise für heute.
               </div>
@@ -232,17 +232,17 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
         </section>
       </div>
 
-      <section aria-label="Schnellzugriff" className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section aria-label="Schnellzugriff" className="rounded-2xl border border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 shadow-sm">
         <div className="mb-3">
-          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Schnell</p>
-          <h2 className="mt-1 text-lg font-semibold">Was brauchst du als Nächstes?</h2>
+          <p className="text-xs font-semibold text-[var(--text-muted,var(--text3))]">Schnell</p>
+          <h2 className="mt-1 text-lg font-bold tracking-[-0.01em]">Was brauchst du als Nächstes?</h2>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <button
             type="button"
             onClick={() => p.onNavigate('wochenplanung')}
-            className="flex min-h-14 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold transition hover:border-[var(--accent)]/35 hover:bg-white"
+            className="flex min-h-14 items-center gap-3 rounded-xl border border-[var(--border-default,var(--border2))] bg-[var(--surface-subtle,var(--surface2))] px-4 py-3 text-left text-sm font-semibold transition-colors hover:border-[var(--accent)]/30 hover:bg-[var(--accent-soft)]"
           >
             <CalendarDays size={19} className="text-[var(--accent)]" />
             Wochenplan
@@ -250,7 +250,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
           <button
             type="button"
             onClick={() => p.onNavigate('verhalten')}
-            className="flex min-h-14 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold transition hover:border-[var(--accent)]/35 hover:bg-white"
+            className="flex min-h-14 items-center gap-3 rounded-xl border border-[var(--border-default,var(--border2))] bg-[var(--surface-subtle,var(--surface2))] px-4 py-3 text-left text-sm font-semibold transition-colors hover:border-[var(--accent)]/30 hover:bg-[var(--accent-soft)]"
           >
             <StickyNote size={19} className="text-[var(--accent)]" />
             Notizen
@@ -258,7 +258,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
           <button
             type="button"
             onClick={() => p.onNavigate('orga')}
-            className="flex min-h-14 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-semibold transition hover:border-[var(--accent)]/35 hover:bg-white"
+            className="flex min-h-14 items-center gap-3 rounded-xl border border-[var(--border-default,var(--border2))] bg-[var(--surface-subtle,var(--surface2))] px-4 py-3 text-left text-sm font-semibold transition-colors hover:border-[var(--accent)]/30 hover:bg-[var(--accent-soft)]"
           >
             <Wallet size={19} className="text-[var(--accent)]" />
             Organisation
