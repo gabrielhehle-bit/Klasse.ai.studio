@@ -25,6 +25,14 @@ export function getKW(d: Date): number {
   return Math.ceil((((dt.getTime() - y.getTime()) / 86400000) + 1) / 7);
 }
 
+export function formatLocalDateKey(date: Date): string {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function sortYearlySubjects(subjects: any[]) {
   return [...subjects].map((s, index) => ({...s, _originalIndex: index})).sort((a, b) => {
     const getPriority = (label: string) => {

@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { StickyNote, X, User, Save, Sparkles, MessageSquare } from 'lucide-react';
+import { StickyNote, X, User, Save, MessageSquare } from 'lucide-react';
+import { Button, IconButton, Select, Textarea } from './ui';
 
 export default function GlobalActions() {
   const { app, setApp, setPage } = useApp();
@@ -31,7 +32,7 @@ export default function GlobalActions() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [setPage]);
 
   const handleSaveNote = () => {
     if (!noteContent.trim()) return;
@@ -39,7 +40,7 @@ export default function GlobalActions() {
     setApp(prev => ({
       ...prev,
       notizen: [
-        ...prev.notizen,
+        ...(prev.notizen || []),
         {
           id: Date.now().toString(),
           titel: 'Schnellnotiz',
@@ -62,90 +63,96 @@ export default function GlobalActions() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+          className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
           onClick={() => setShowQuickNote(false)}
         >
           <motion.div 
-            initial={{ scale: 0.9, y: 20 }}
+            initial={{ scale: 0.95, y: 16 }}
             animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.9, y: 20 }}
-            className="bg-white rounded-[2.5rem] shadow-3xl w-full max-w-lg  border border-slate-100"
+            exit={{ scale: 0.95, y: 16 }}
+            transition={{ duration: 0.15 }}
+            className="bg-[var(--surface-card,var(--surface))] rounded-[2rem] shadow-2xl w-full max-w-lg border border-[var(--border-default,var(--border))] overflow-hidden text-[var(--text-primary)]"
             onClick={e => e.stopPropagation()}
           >
-            <div className="p-8 bg-emerald-500 text-white relative">
-               <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-                     <StickyNote size={24} />
+            <div className="p-6 bg-[var(--surface-subtle,var(--surface2))] border-b border-[var(--border-default,var(--border))] text-[var(--text-primary)] relative flex items-center justify-between">
+               <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 bg-[var(--accent-soft)] text-[var(--accent)] rounded-2xl flex items-center justify-center border border-[var(--accent)]/20 shadow-xs">
+                     <StickyNote size={22} />
                   </div>
                   <div>
-                     <h3 className="text-[1.25rem] leading-normal font-black tracking-tight">Schnellnotiz</h3>
-                     <p className="text-[0.625rem] font-black uppercase tracking-widest text-white/60">Spontane Beobachtung festhalten</p>
+                     <h3 className="text-[1.125rem] leading-normal font-black tracking-tight">Schnellnotiz</h3>
+                     <p className="text-[0.625rem] font-bold uppercase tracking-widest text-[var(--text-muted)]">Spontane Beobachtung festhalten</p>
                   </div>
                </div>
-               <button 
+               <IconButton
+                 variant="ghost"
+                 size="sm"
+                 aria-label="Schließen"
                  onClick={() => setShowQuickNote(false)}
-                 className="absolute top-8 right-8 text-white/40 hover:text-white transition-colors"
                >
-                 <X size={24} />
-               </button>
+                 <X size={20} />
+               </IconButton>
             </div>
 
-            <div className="p-8 space-y-6">
-              <div className="space-y-2">
-                 <label className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 px-1 flex items-center gap-2">
-                    <User size={12} />
+            <div className="p-6 space-y-5">
+              <div className="space-y-1.5">
+                 <label htmlFor="quicknote-student-select" className="text-[0.6875rem] font-bold uppercase tracking-wider text-[var(--text-muted)] px-0.5 flex items-center gap-1.5">
+                    <User size={13} />
                     Schüler:in zuordnen (Optional)
                  </label>
-                 <select 
-                   className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-4 text-[0.875rem] font-bold outline-none focus:border-emerald-500 transition-all appearance-none cursor-pointer"
+                 <Select
+                   id="quicknote-student-select"
                    value={selectedStudentId}
                    onChange={e => setSelectedStudentId(e.target.value)}
                  >
                    <option value="">Keine Zuordnung</option>
-                   {app.schueler.map(s => (
+                   {(app.schueler || []).map(s => (
                      <option key={s.id} value={s.id}>{s.vorname} {s.nachname}</option>
                    ))}
-                 </select>
+                 </Select>
               </div>
 
-              <div className="space-y-2">
-                 <label className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 px-1 flex items-center gap-2">
-                    <MessageSquare size={12} />
+              <div className="space-y-1.5">
+                 <label htmlFor="quicknote-content-input" className="text-[0.6875rem] font-bold uppercase tracking-wider text-[var(--text-muted)] px-0.5 flex items-center gap-1.5">
+                    <MessageSquare size={13} />
                     Inhalt
                  </label>
-                 <textarea 
+                 <Textarea
+                   id="quicknote-content-input"
                    autoFocus
+                   rows={4}
                    placeholder="Was ist passiert?"
-                   className="w-full h-40 bg-slate-50 border border-slate-100 rounded-[2rem] p-6 text-[0.9375rem] font-medium outline-none focus:border-emerald-500 focus:bg-white transition-all resize-none placeholder:text-slate-300"
                    value={noteContent}
                    onChange={e => setNoteContent(e.target.value)}
                  />
               </div>
 
-              <div className="flex gap-4 pt-2">
-                 <button 
+              <div className="flex gap-3 pt-2">
+                 <Button
+                   variant="secondary"
+                   className="flex-1"
                    onClick={() => setShowQuickNote(false)}
-                   className="flex-1 h-14 bg-slate-50 text-slate-400 font-black uppercase tracking-widest text-[0.6875rem] rounded-2xl hover:bg-slate-100 transition-all"
                  >
                     Abbrechen
-                 </button>
-                 <button 
+                 </Button>
+                 <Button
+                   variant="primary"
+                   className="flex-2"
+                   leftIcon={<Save size={16} />}
                    onClick={handleSaveNote}
                    disabled={!noteContent.trim()}
-                   className="flex-3 h-14 bg-emerald-500 text-white font-black uppercase tracking-widest text-[0.6875rem] rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
                  >
-                    <Save size={18} />
-                    <span>Notiz speichern</span>
-                 </button>
+                    Notiz speichern
+                 </Button>
               </div>
             </div>
 
-            <div className="bg-slate-50 p-4 border-t border-slate-100 flex items-center justify-center gap-6">
-                <div className="flex items-center gap-2 text-[0.5625rem] font-black uppercase text-slate-300 tracking-widest">
-                   <div className="px-1.5 py-0.5 bg-white border border-slate-200 rounded">ALT</div>
+            <div className="bg-[var(--surface-subtle,var(--surface2))] p-3 border-t border-[var(--border-default,var(--border))] flex items-center justify-center gap-6">
+                <div className="flex items-center gap-2 text-[0.625rem] font-bold uppercase text-[var(--text-muted)] tracking-widest">
+                   <div className="px-2 py-0.5 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-md shadow-xs text-[var(--text-secondary)]">ALT</div>
                    <span>+</span>
-                   <div className="px-1.5 py-0.5 bg-white border border-slate-200 rounded">N</div>
-                   <span className="ml-2 opacity-60">Shortcut</span>
+                   <div className="px-2 py-0.5 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-md shadow-xs text-[var(--text-secondary)]">N</div>
+                   <span className="ml-2 opacity-70">Shortcut</span>
                 </div>
             </div>
           </motion.div>

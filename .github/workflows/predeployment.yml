@@ -1,0 +1,117 @@
+name: Pre-Deployment Audit
+
+on:
+  push:
+    branches:
+      - fix/pre-deployment-blockers
+      - reconcile/klassio-source-of-truth
+      - fix/reconciliation-finalization
+      - chore/world4you-staging-artifact
+      - fix/world4you-hidden-env
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: TypeScript
+        run: bun run lint
+
+      - name: Tests
+        run: bun run test
+
+      - name: Production build
+        run: bun run build
+
+      - name: Verify build output
+        run: |
+          test -f dist/index.html
+          test -f dist/server.cjs
+          test -f dist/manifest.webmanifest
+          test -f dist/sw.js
+          echo "Build and PWA output present."
+
+      - name: Production server smoke test
+        env:
+          NODE_ENV: production
+          PORT: 3100
+          SESSION_SECRET: ci-production-session-secret-2026-at-least-32-characters
+          LEHRERAPP_ACCESS_TEAM: ci-team-access-code-2026
+          LEHRERAPP_ACCESS_EXTERNAL: ci-external-access-code-2026
+        run: |
+          node dist/server.cjs > /tmp/klassio-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          for i in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3100/api/health > /tmp/health.json; then
+              break
+            fi
+            sleep 1
+          done
+          cat /tmp/health.json
+          grep -q '"status":"ok"' /tmp/health.json
+          curl --fail --silent http://127.0.0.1:3100/ > /tmp/index.html
+          grep -qi '<!doctype html' /tmp/index.html
+
+          curl --fail --silent http://127.0.0.1:3100/api/access/status > /tmp/access-before.json
+          grep -q '"authenticated":false' /tmp/access-before.json
+          grep -q '"emailLoginEnabled":false' /tmp/access-before.json
+
+          curl --fail --silent \
+            -c /tmp/klassio-cookies.txt \
+            -H 'Content-Type: application/json' \
+            -d '{"code":"ci-team-access-code-2026"}' \
+            http://127.0.0.1:3100/api/access/verify > /tmp/access-login.json
+          grep -q '"success":true' /tmp/access-login.json
+
+          curl --fail --silent \
+            -b /tmp/klassio-cookies.txt \
+            http://127.0.0.1:3100/api/access/status > /tmp/access-after.json
+          grep -q '"authenticated":true' /tmp/access-after.json
+
+          EMAIL_STATUS=$(curl --silent \
+            -o /tmp/email-disabled.json \
+            -w '%{http_code}' \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"teacher@example.at"}' \
+            http://127.0.0.1:3100/api/access/email/request)
+          test "$EMAIL_STATUS" = "503"
+          grep -q '"success":false' /tmp/email-disabled.json
+
+          echo "Production server, access session and email-login fallback smoke tests passed."
+
+      - name: Prepare World4You staging bundle
+        run: |
+          rm -rf world4you-release
+          mkdir -p world4you-release
+          cp -R dist world4you-release/dist
+          cp package.json bun.lock README.md .env.example world4you-release/
+          printf '%s\n' "$GITHUB_SHA" > world4you-release/KLASSIO_DEPLOYMENT_COMMIT.txt
+          printf '%s\n' "$GITHUB_REF_NAME" > world4you-release/KLASSIO_DEPLOYMENT_BRANCH.txt
+          printf '%s\n' "node dist/server.cjs" > world4you-release/START_COMMAND.txt
+          test -f world4you-release/.env.example
+          echo "World4You bundle contains required hidden environment template."
+
+      - name: Upload World4You staging artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: klassio-world4you-${{ github.sha }}
+          path: world4you-release/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14

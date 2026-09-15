@@ -498,7 +498,7 @@ export function evaluateOneToOneTest(
     if (structuredObservations.length === 0) {
       structuredObservations.push({
         type: status === 'secure' ? 'strength' : 'observation',
-        text: status === 'secure' ? 'Phonologische Bewusstheit ist altersgemäß voll ausgeprägt.' : 'Phonologische Fertigkeiten in Entwicklung.',
+        text: status === 'secure' ? 'Die bearbeiteten Aufgaben zur phonologischen Bewusstheit wurden in diesem Check sicher gelöst.' : 'Phonologische Fertigkeiten in Entwicklung.',
       });
     }
 
@@ -518,7 +518,7 @@ export function evaluateOneToOneTest(
         suggestedNextStep = 'Lautgebärden und Lauttreppen zur Unterstützung der Lautanalyse einsetzen.';
         break;
       case 'needsObservation':
-        summaryText = `Auf Niveau ${level.level} noch deutlicher Förderbedarf in der phonologischen Bewusstheit (${rawScore}/${maxScore} Punkte).`;
+        summaryText = `Auf Niveau ${level.level} zeigen die bearbeiteten Aufgaben noch deutlichen Übungs- und Beobachtungsbedarf in der phonologischen Bewusstheit (${rawScore}/${maxScore} Punkte).`;
         suggestedNextStep = level.level > 1
           ? `Zunächst Vorstufen (Reime, Silben, Anlaute) auf Niveau ${level.level - 1} intensiv mit Bildkarten festigen.`
           : 'Rhythmisch-musikalische Reime und Silbenspiele intensivieren.';
@@ -612,7 +612,7 @@ export function evaluateOneToOneTest(
     if (structuredObservations.length === 0) {
       structuredObservations.push({
         type: status === 'secure' ? 'strength' : 'observation',
-        text: status === 'secure' ? 'Lesen verläuft ruhig, akkurat und altersgemäß flüssig.' : 'Lesekompetenz befindet sich in kontinuierlicher Entwicklung.',
+        text: status === 'secure' ? 'Der verwendete Lesetext wurde in diesem Check ruhig, genau und flüssig gelesen.' : 'Lesekompetenz befindet sich in kontinuierlicher Entwicklung.',
       });
     }
 
@@ -786,7 +786,7 @@ export function evaluateOneToOneTest(
     if (structuredObservations.length === 0) {
       structuredObservations.push({
         type: status === 'secure' ? 'strength' : 'observation',
-        text: status === 'secure' ? 'Kopfrechenfertigkeiten sind altersgemäß automatisiert.' : 'Automatisierung in Entwicklung.',
+        text: status === 'secure' ? 'Die bearbeiteten Kopfrechenaufgaben wurden in diesem Check sicher und zügig gelöst.' : 'Automatisierung in Entwicklung.',
       });
     }
 
@@ -884,7 +884,7 @@ export function evaluateOneToOneTest(
     if (structuredObservations.length === 0) {
       structuredObservations.push({
         type: status === 'secure' ? 'strength' : 'observation',
-        text: status === 'secure' ? 'Aufmerksamkeitssteuerung im Check unauffällig und sicher.' : 'Aufmerksamkeitsfokus im Unterricht weiter beobachten.',
+        text: status === 'secure' ? 'Die vereinbarten Aufmerksamkeitsaufgaben wurden in diesem Check sicher bearbeitet.' : 'Aufmerksamkeitsfokus im Unterricht weiter beobachten.',
       });
     }
 
@@ -1063,7 +1063,7 @@ export function evaluateOneToOneTest(
     if (structuredObservations.length === 0) {
       structuredObservations.push({
         type: status === 'secure' ? 'strength' : 'observation',
-        text: status === 'secure' ? 'Visuelle Differenzierung altersgemäß gesichert.' : 'Optische Differenzierung bei Buchstaben und Formen weiter beobachten.',
+        text: status === 'secure' ? 'Die bearbeiteten Aufgaben zur visuellen Differenzierung wurden in diesem Check sicher gelöst.' : 'Optische Differenzierung bei Buchstaben und Formen weiter beobachten.',
       });
     }
 
@@ -1320,14 +1320,14 @@ export function evaluateOneToOneTest(
     if (structuredObservations.length === 0) {
       structuredObservations.push({
         type: status === 'secure' ? 'strength' : 'observation',
-        text: status === 'secure' ? 'Graphomotorische Fähigkeiten altersgemäß gesichert.' : 'Schreibhaltung und Stiftführung im Unterricht weiter beobachten.',
+        text: status === 'secure' ? 'Die beobachteten graphomotorischen Aufgaben wurden in dieser Situation sicher ausgeführt.' : 'Schreibhaltung und Stiftführung im Unterricht weiter beobachten.',
       });
     }
 
     switch (status) {
       case 'secure':
         summaryText = `Entspannte Stifthaltung, angemessener Schreibdruck und flüssiger Bewegungsablauf (${rawScore}/${maxScore} Punkte).`;
-        suggestedNextStep = 'Schreibmotorische Entwicklung altersgemäß gefestigt; keine gesonderten Entlastungen nötig.';
+        suggestedNextStep = 'Im beobachteten Setting waren keine zusätzlichen Hilfen nötig; im Unterricht weiter beobachten.';
         break;
       case 'mostlySecure':
         summaryText = `Überwiegend sichere Graphomotorik (${rawScore}/${maxScore} Punkte). Flüssiges Schriftbild; bei längeren Schreibphasen auf Lockerung achten.`;

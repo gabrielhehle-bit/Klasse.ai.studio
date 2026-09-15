@@ -4,9 +4,9 @@ import { askAI } from '../services/aiService';
 import Markdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  getSW, getStartYear, getKW, kwYear, kwToMonday, getCurrentSchuljahr, getSchulstartKW 
+  getSW, getStartYear, getKW, kwYear, kwToMonday, getCurrentSchuljahr, getSchulstartKW, formatLocalDateKey 
 } from '../lib/utils';
-import { TAGE_NAMEN } from '../constants';
+import { LESSON_SLOT_NUMBERS, MAX_LESSON_SLOTS, TAGE_NAMEN } from '../constants';
 import { ErrorBoundaryLogger } from './ErrorBoundaryLogger';
 import { 
   BrainCircuit, CalendarRange, ArrowRight, Activity, AlertCircle, Sparkles, 
@@ -25,22 +25,11 @@ export default function PlanungsZentrale() {
   
   const currDate = new Date();
   const actualKW = getKW(currDate);
-  const isWeekend = currDate.getDay() === 0 || currDate.getDay() === 6;
 
-  const [hasBumped, setHasBumped] = useState(false);
-
-  // Auto-advance calendar week during weekend
-  useEffect(() => {
-    if (isWeekend && app.currentKW === actualKW && !hasBumped) {
-       const bumpedKw = actualKW === 52 ? 1 : actualKW + 1;
-       setApp(prev => ({ ...prev, currentKW: bumpedKw }));
-       setHasBumped(true);
-    }
-  }, [isWeekend, actualKW, app.currentKW, hasBumped, setApp]);
-
+  // Opening the overview must never silently change the globally selected week.
   const nextKW = app.currentKW || actualKW;
   const startYear = getStartYear(app.schuljahr);
-  const year = kwYear(nextKW, startYear);
+  const year = kwYear(nextKW, startYear, app.bundesland || 'VBG');
   const monday = kwToMonday(nextKW, year);
   const kw = app.wochenplanung?.[nextKW] || {};
   const sw = getSW(new Date(monday), app?.schuljahr || getCurrentSchuljahr(), app?.bundesland || 'VBG');
@@ -49,7 +38,7 @@ export default function PlanungsZentrale() {
   const [isEinfachModus, setIsEinfachModus] = useState<boolean>(true);
   const [showMehrMenu, setShowMehrMenu] = useState<boolean>(false);
   const [quickPlanOpen, setQuickPlanOpen] = useState<boolean>(false);
-  const [quickPlanType, setQuickPlanType] = useState<'lesson' | 'event' | 'task'>('lesson');
+  const [quickPlanType, setQuickPlanType] = useState<'lesson' | 'event'>('lesson');
 
   // Planning Center Focus states
   const [planningFocus, setPlanningFocus] = useState<'day' | 'week' | 'year'>('week');
@@ -82,18 +71,18 @@ export default function PlanungsZentrale() {
   const [templateName, setTemplateName] = useState<string>('');
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [aiSuggestionError, setAiSuggestionError] = useState<string>('');
+  const [weeklyInsightError, setWeeklyInsightError] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [editingJahresplan, setEditingJahresplan] = useState<boolean>(false);
   const [jahresplanInput, setJahresplanInput] = useState<string>('');
 
   const DAYS_DE = useMemo(() => ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'], []);
 
-  const availableSubjects = useMemo(() => {
-    return app.faecher && app.faecher.length > 0 ? app.faecher : [
-      'Mathematik', 'Deutsch', 'Sachunterricht', 'Religion', 'Englisch', 
-      'Musikerziehung', 'Bildnerische Erziehung', 'Werken (TEC)', 'Werken (TEX)', 'Bewegung und Sport'
-    ];
-  }, [app.faecher]);
+  const availableSubjects = useMemo(
+    () => (Array.isArray(app.faecher) ? app.faecher.filter(Boolean) : []),
+    [app.faecher],
+  );
 
   const todayDayIdx = useMemo(() => {
     const day = currDate.getDay(); // 0: Sun, 1: Mon ... 5: Fri
@@ -231,7 +220,7 @@ export default function PlanungsZentrale() {
       setCustomMaterialText(lesson.customMaterial || '');
     } else {
       const defaultFach = app.stammplan?.[dayName]?.[hourIdx + 1] || '';
-      setActiveSubject(defaultFach || availableSubjects[0] || 'Mathematik');
+      setActiveSubject(defaultFach || availableSubjects[0] || '');
       setLessonTopic('');
       setLessonHomework('');
       setDidacticType('Einführung');
@@ -250,6 +239,12 @@ export default function PlanungsZentrale() {
 
   // Save current lesson slot
   const handleSaveLesson = () => {
+    if (!activeSubject.trim()) {
+      setSuccessMessage('Bitte zuerst ein Fach auswählen oder in den Einstellungen anlegen.');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      return;
+    }
+
     const dayName = DAYS_DE[selectedDayIdx];
     const materialSummary = [
       ...selectedMaterials,
@@ -437,10 +432,12 @@ export default function PlanungsZentrale() {
     if (!activeSubject) return;
     setIsAiLoading(true);
     setAiSuggestions([]);
+    setAiSuggestionError('');
 
+    const gradeContext = app.stufe ? `Schulstufe ${app.stufe}` : 'Schulstufe nicht angegeben';
     const prompt = `Du bist ein erfahrener österreichischer Volksschul-Didaktiker.
-Gib mir 3 konkrete, kindgerechte, praxisnahe Unterrichts-Themenvorschläge für das Fach "${activeSubject}" (Schulstufe ${app.stufe || 3}).
-Globales Wochenthema: "${getJahresplanTheme(nextKW) || 'Allgemeines Thema'}".
+Gib mir 3 konkrete, kindgerechte, praxisnahe Unterrichts-Themenvorschläge für das Fach "${activeSubject}" (${gradeContext}).
+Globales Wochenthema: "${getJahresplanTheme(nextKW) || 'Kein Wochenthema eingetragen'}".
 Antworte NUR mit den 3 Themen, jeweils in einer neuen Zeile, ohne Aufzählungszeichen oder Zahlen.`;
 
     try {
@@ -449,11 +446,8 @@ Antworte NUR mit den 3 Themen, jeweils in einer neuen Zeile, ohne Aufzählungsze
       setAiSuggestions(suggestions);
     } catch (e) {
       console.error(e);
-      setAiSuggestions([
-        `Einführung: Vertiefung zu ${activeSubject}`,
-        `Stationenbetrieb & Forscherauftrag`,
-        `Differenzierte Übungseinheit mit Anschaulichkeit`
-      ]);
+      setAiSuggestions([]);
+      setAiSuggestionError('KI-Vorschläge konnten nicht geladen werden. Bitte später erneut versuchen.');
     } finally {
       setIsAiLoading(false);
     }
@@ -462,6 +456,7 @@ Antworte NUR mit den 3 Themen, jeweils in einer neuen Zeile, ohne Aufzählungsze
   // AI Weekly Curriculum Insight Analysis
   const handleGenerateWeeklyInsight = async () => {
     setIsAnalyzingWeek(true);
+    setWeeklyInsightError('');
 
     const weekPlan = app.wochenplanung?.[nextKW] || {};
     const plannedLessonsSummary: string[] = [];
@@ -478,7 +473,8 @@ Antworte NUR mit den 3 Themen, jeweils in einer neuen Zeile, ohne Aufzählungsze
       });
     });
 
-    const prompt = `Analysiere didaktisch den folgenden Wochenplan einer österreichischen Volksschulklasse (${app.klasse || 'Volksschulklasse 3'}, KW ${nextKW}, Schulwoche ${sw || 'N/A'}).
+    const gradeContext = app.stufe ? `Schulstufe ${app.stufe}` : 'Schulstufe nicht angegeben';
+    const prompt = `Analysiere didaktisch den folgenden Wochenplan einer österreichischen Volksschulklasse (${gradeContext}, KW ${nextKW}, Schulwoche ${sw || 'nicht ermittelt'}).
 
 Globales Wochenthema aus Jahresplan: "${getJahresplanTheme(nextKW) || 'Kein Wochenthema eingetragen'}"
 
@@ -503,6 +499,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
       }));
     } catch (e) {
       console.error(e);
+      setWeeklyInsightError('Der KI-Wocheneinblick konnte nicht geladen werden. Deine Planung wurde nicht verändert.');
     } finally {
       setIsAnalyzingWeek(false);
     }
@@ -561,7 +558,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
     if (!quickEventTitle.trim()) return;
     const eventDate = new Date(monday);
     eventDate.setDate(monday.getDate() + selectedDayIdx);
-    const dateStr = eventDate.toISOString().split('T')[0];
+    const dateStr = formatLocalDateKey(eventDate);
 
     const newTermin = {
       id: `event-${Date.now()}`,
@@ -630,7 +627,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
       const dayKey = useIdx ? dIdx : dayName;
       const dayPlan = wp[dayKey] || {};
 
-      for (let hIdx = 0; hIdx < 6; hIdx++) {
+      for (let hIdx = 0; hIdx < MAX_LESSON_SLOTS; hIdx++) {
         const lesson = dayPlan[hIdx];
         const defaultFach = app.stammplan?.[dayName]?.[hIdx + 1] || '';
 
@@ -719,28 +716,26 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
   }, [app.wochenplanung, nextKW, DAYS_DE]);
 
   // Year weeks for Syllabus
-  const startKW = app.schuljahr ? getSchulstartKW(app.schuljahr, app.bundesland || 'VBG') : 36;
+  const startKW = getSchulstartKW(app.schuljahr || getCurrentSchuljahr(), app.bundesland || 'VBG');
   const yearWeeks = useMemo(() => {
     const list: { kwNum: number; swNum: number; mondayDate: Date }[] = [];
+    const endYear = startYear + 1;
+    const currentMonday = kwToMonday(startKW, startYear);
     let currentSW = 1;
-    let runKw = startKW;
-    let runYear = startYear;
 
-    for (let i = 0; i < 42; i++) {
-      const mon = kwToMonday(runKw, runYear);
+    while (
+      currentMonday.getFullYear() < endYear ||
+      (currentMonday.getFullYear() === endYear && currentMonday.getMonth() < 7)
+    ) {
       list.push({
-        kwNum: runKw,
+        kwNum: getKW(currentMonday),
         swNum: currentSW,
-        mondayDate: mon
+        mondayDate: new Date(currentMonday)
       });
-
       currentSW++;
-      runKw++;
-      if (runKw > 52) {
-        runKw = 1;
-        runYear++;
-      }
+      currentMonday.setDate(currentMonday.getDate() + 7);
     }
+
     return list;
   }, [startKW, startYear]);
 
@@ -861,10 +856,10 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' 
                   : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
               }`}
-              title="Zwischen einfachem Modus und erweiterter Ansicht umschalten"
+              title="Zwischen Übersicht und Planungswerkzeugen wechseln"
             >
               <Sliders size={14} className={isEinfachModus ? 'text-emerald-600' : 'text-slate-500'} />
-              <span>{isEinfachModus ? 'Einfachmodus AN' : 'Erweiterter Modus'}</span>
+              <span>{isEinfachModus ? 'Übersicht' : 'Planungswerkzeuge'}</span>
             </button>
 
             {/* KW Switcher */}
@@ -1049,7 +1044,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
 
                   {/* List of Today's Scheduled Lessons */}
                   <div className="space-y-2.5">
-                    {[0, 1, 2, 3, 4, 5].map(hourIdx => {
+                    {LESSON_SLOT_NUMBERS.map(slot => {
+                      const hourIdx = slot - 1;
                       const dayName = DAYS_DE[todayDayIdx];
                       const wp = app.wochenplanung?.[nextKW] || {};
                       const useIdx = wp[todayDayIdx] !== undefined;
@@ -1384,7 +1380,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                   onClick={() => { setPlanningFocus('week'); setActiveTab('wochenplan'); }}
                   className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer whitespace-nowrap ${planningFocus === 'week' && activeTab === 'wochenplan' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'}`}
                 >
-                  <LayoutGrid size={15} /> Wochenplan-Gitter (5x6)
+                  <LayoutGrid size={15} /> Wochenplan-Gitter (5×10)
                 </button>
 
                 <button 
@@ -1510,6 +1506,12 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                     </button>
                   </div>
 
+                  {weeklyInsightError && (
+                    <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-800">
+                      {weeklyInsightError}
+                    </div>
+                  )}
+
                   {app.scheduleAnalysis?.[nextKW] ? (
                     <div className="prose prose-slate max-w-none text-xs leading-relaxed space-y-3">
                       <Markdown>{app.scheduleAnalysis[nextKW]}</Markdown>
@@ -1525,7 +1527,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                   )}
                 </div>
               ) : (
-                /* CLASSIC 5x6 TIMETABLE MATRIX GRID */
+                /* CLASSIC 5x10 TIMETABLE MATRIX GRID */
                 <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <h3 className="font-extrabold text-slate-800 text-sm">Wochenstunden-Gitter (KW {nextKW})</h3>
@@ -1545,8 +1547,9 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                             <span>{dayName}</span>
                           </div>
 
-                          <div className="grid grid-cols-6 gap-2">
-                            {[0, 1, 2, 3, 4, 5].map(hourIdx => {
+                          <div className="grid grid-cols-2 sm:grid-cols-5 xl:grid-cols-10 gap-2">
+                            {LESSON_SLOT_NUMBERS.map(slot => {
+                      const hourIdx = slot - 1;
                               const lesson = dayPlan[hourIdx];
                               const defaultFach = app.stammplan?.[dayName]?.[hourIdx + 1] || '';
 
@@ -1636,7 +1639,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                 </div>
 
                 {/* Type Selection Tabs */}
-                <div className="grid grid-cols-3 bg-slate-100 p-1 rounded-2xl gap-1 text-xs font-extrabold text-center">
+                <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-2xl gap-1 text-xs font-extrabold text-center">
                   <button
                     onClick={() => setQuickPlanType('lesson')}
                     className={`py-2 rounded-xl transition cursor-pointer ${quickPlanType === 'lesson' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-600'}`}
@@ -1677,8 +1680,8 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                           onChange={(e) => setSelectedHour(parseInt(e.target.value))}
                           className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
                         >
-                          {[0, 1, 2, 3, 4, 5].map(h => (
-                            <option key={h} value={h}>{h + 1}. Stunde</option>
+                          {LESSON_SLOT_NUMBERS.map(slot => (
+                            <option key={slot} value={slot - 1}>{slot}. Stunde</option>
                           ))}
                         </select>
                       </div>
@@ -1705,6 +1708,23 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                           );
                         })}
                       </div>
+                      {availableSubjects.length === 0 && !activeSubject && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+                          <span className="text-[11px] font-semibold text-amber-900">
+                            Für diese Klasse sind noch keine Fächer eingerichtet.
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setQuickPlanOpen(false);
+                              setPage('settings');
+                            }}
+                            className="text-[11px] font-black text-amber-900 underline underline-offset-2"
+                          >
+                            Einstellungen öffnen
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Topic Field */}
@@ -1727,6 +1747,34 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                         placeholder="Was ist für diese Stunde geplant?"
                         className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-2xl h-20 font-medium focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
                       />
+
+                      {aiSuggestionError && (
+                        <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800">
+                          {aiSuggestionError}
+                        </p>
+                      )}
+
+                      {aiSuggestions.length > 0 && (
+                        <div className="space-y-1.5 rounded-xl border border-indigo-100 bg-indigo-50/60 p-2.5">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-indigo-700">
+                            KI-Vorschläge
+                          </p>
+                          {aiSuggestions.slice(0, 3).map((suggestion, index) => (
+                            <button
+                              key={`${suggestion}-${index}`}
+                              type="button"
+                              onClick={() => {
+                                setLessonTopic(suggestion);
+                                setAiSuggestions([]);
+                                setAiSuggestionError('');
+                              }}
+                              className="block w-full rounded-lg border border-indigo-100 bg-white px-2.5 py-2 text-left text-[11px] font-semibold text-slate-800 transition hover:border-indigo-300 hover:bg-indigo-50"
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Homework / Note */}

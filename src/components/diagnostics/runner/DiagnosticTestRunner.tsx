@@ -32,7 +32,7 @@ interface DiagnosticTestRunnerProps {
   student: Student;
   test: DiagnosticTestDefinition;
   initialGradeLevel?: number;
-  onSaveResult: (result: DiagnosticResult) => void;
+  onSaveResult: (result: DiagnosticResult) => boolean;
   onCancel: () => void;
 }
 

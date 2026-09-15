@@ -1,13 +1,14 @@
+import { assertRestorableAppState } from '../lib/backupRestore';
+import { initialAppState, syncActiveClass, normalizeAppState, switchClassState } from '../lib/appState';
+import { removeStudentFromAppState } from '../lib/studentState';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
-import LZString from 'lz-string';
 import localforage from 'localforage';
 import { AppState, Student } from '../types';
 import { DEFAULT_TAGEPLAN, FAECHER_ALLE, STUNDEN_INFO, DEFAULT_YEARLY_SUBJECTS, DEFAULT_FACH_COLORS } from '../constants';
 import { getKW, getCurrentSchuljahr } from '../lib/utils';
-import { DEFAULT_HISTORICAL_STUDENTS } from '../data/historicalStudents';
+import { toLocalDateKey } from '../lib/localDate';
 import { notenSyncService } from '../lib/NotenSyncService';
-import { DEFAULT_MORNING_WIDGETS } from '../data/morningWidgets';
 import {
   encryptSyncState,
   decryptSyncState,
@@ -20,6 +21,7 @@ import {
 } from '../lib/syncService';
 import {
   saveEncryptedAppState,
+  restoreEncryptedAppState,
   loadEncryptedAppState,
   saveEncryptedEmergencyBackup,
   saveEncryptedSessionBackup,
@@ -44,6 +46,7 @@ interface AppContextType {
   setApp: React.Dispatch<React.SetStateAction<AppState>>;
   updateApp: (changes: Partial<AppState>) => void;
   saveApp: () => void;
+  restoreAppData: (data: unknown) => Promise<void>;
   updateStudent: (student: Student) => void;
   deleteStudent: (id: string) => void;
   setPage: (page: string) => void;
@@ -63,485 +66,17 @@ interface AppContextType {
 
 const STORAGE_KEY = 'hehle_v3';
 
-const initialAppState: AppState = {
-  ipsativeGewichtung: 70,
-  bundesland: 'VBG',
-  schuljahr: getCurrentSchuljahr(),
-  activeClassId: '',
-  classes: [],
-  stufe: 4,
-  lehrplanText: '',
-  tageplan: DEFAULT_TAGEPLAN,
-  letzteKW: null,
-  vorname: '',
-  nachname: '',
-  anrede: '',
-  klassenbezeichnung: '',
-  klassenvorstand: true,
-  motto: 'Lernen mit Freude ✨',
-  theme: 'classic_light',
-  faecher: FAECHER_ALLE,
-  morningWidgets: DEFAULT_MORNING_WIDGETS,
-  stammplan: {},
-  sitzplan_schueler: {},
-  sitzplan_objekte: [],
-  orga_listen: [],
-  customLists: [],
-  checklisten: [],
-  sue_kontrolle: {},
-  gruppen: [],
-  schueler: [],
-  noten: {},
-  mitarbeit: {},
-  karten: {},
-  stimmungsArchiv: [],
-  stimmNotizen: [],
-  jahresberichte: {},
-  wochenrueckblick: null,
-  lernzielTracker: {},
-  ikmRecords: [],
-  diagnosticResults: [],
-  klassenglas_completed_missions: [],
-  dienste: [],
-  backupEinstellungen: { letztesBackup: null, erinnerungAktiv: true },
-  pseudonymisierungAktiv: true,
-  stundenZeiten: STUNDEN_INFO,
-  jahresplanung: {},
-  jahresplan_faecher: DEFAULT_YEARLY_SUBJECTS,
-  fachConfig: DEFAULT_FACH_COLORS,
-  wochenplanung: {},
-  firstLogin: true,
-  tourAbgeschlossen: false,
-  currentPage: 'cockpit',
-  previousPage: 'wochenplanung',
-  currentKW: getKW(new Date()),
-  notenMeta: {},
-  notenGewichtung: {},
-  stundenentwuerfe: [],
-  interaktionsLog: { eintraege: [], wochenEmpfehlung: null },
-  elterngespraeche: [],
-  notizen: [],
-  observations: [],
-  journal: [],
-  anwesenheit: {},
-  anwesenheitDetail: {},
-  schuelerStimmung: {},
-  hueBuch: {},
-  awGruende: {},
-  verbal: {},
-  saAssessments: {},
-  klassenglas_count: 0,
-  klassenglas_ziel: 20,
-  klassenglas_belohnung: 'Gemeinsame Spielzeit',
-  ampel_status: 'gruen',
-  lehrerProfil: {
-    schulstundenJaehrlich: 120,
-    schularbeitenManuell: 4,
-    testsManuell: 8,
-    ausfluegeManuell: 3,
-    name: "Maximilian Musterlehrer",
-    schule: "Volksschule Musterstadt",
-    motto: "Pädagogik mit Herz ❤️",
-    gegruendetYear: "2018"
-  },
-  unterrichtsmodus_sidebar_open: false,
-  historicalStudents: DEFAULT_HISTORICAL_STUDENTS,
-  klassenkasse: {
-    kontostand: 0,
-    sammlungen: [],
-    transaktionen: []
-  },
-  statusLog: [],
-  settings: { 
-    theme: 'light',
-    fontFamily: 'standard',
-    verhaltenSymbol: 'diamond',
-    showVerhaltenOnBoard: true,
-    uiScale: 1
-  },
-  verhalten: {},
-  behavior_stages: [
-    { id: '1', label: 'Super', color: 'bg-emerald-500', icon: '🌟' },
-    { id: '2', label: 'Gut', color: 'bg-blue-500', icon: '❤️' },
-    { id: '3', label: 'OK', color: 'bg-slate-400', icon: '😐' },
-    { id: '4', label: 'Achtung', color: 'bg-amber-500', icon: '⚠️' },
-    { id: '5', label: 'Stopp', color: 'bg-rose-500', icon: '🚫' }
-  ],
-  behavior_default_stage_id: '3',
-  behavior_status: {},
-  behavior_notes: {},
-  behavior_class_note: '',
-  behavior_rules: '',
-  quickLinks: [
-    { id: '1', label: 'YouTube', url: 'https://youtube.com', icon: 'youtube', color: 'rose' },
-    { id: '2', label: 'Kahoot', url: 'https://kahoot.it', icon: 'gamepad', color: 'emerald' },
-    { id: '3', label: 'Gemini', url: 'https://gemini.google.com', icon: 'zap', color: 'indigo' },
-    { id: '4', label: 'Antolin', url: 'https://antolin.westermann.de/', icon: 'link', color: 'sky' },
-    { id: '5', label: 'Anton.app', url: 'https://anton.app/', icon: 'link', color: 'indigo' }
-  ],
-  schuelerNotizen: {},
-  morgenAufgaben: [],
-  tempQrValue: 'https://google.at',
-  cockpitTheme: 'dark',
-  sidebarState: 'full',
-  ampelLabels: { red: 'Stopp', yellow: 'Vorbereiten', green: 'Arbeiten' },
-  notenLabels: {
-    sa: 'Schularbeiten',
-    lzk: 'Lernzielkontrollen',
-    wp: 'Wochenplan',
-    obj: 'Aufgaben/Objekte',
-    mi: 'Mitarbeit'
-  },
-  lessonFocus: '',
-  lessonMaterials: [],
-  boardSettings: {
-    showAmpel: true,
-    showKlassenglas: true,
-    showTimer: true,
-    showLottowinner: true,
-    showArbeitsauftrag: true,
-    timerRunning: false,
-    timerEnd: 0,
-    boardFontFamily: 'sans',
-    boardFontSize: 64,
-    boardTextAlign: 'left',
-    boardTextColor: 'text-white/90',
-    timerType: 'digital',
-    studentNameStyle: 'vorname_nachname',
-    showStudentEmojiInList: true,
-    isTafelOpen: false
-  },
-  tafelVorlagen: [],
-  metaKognitionsProtokolle: [],
-  sitzplanRegeln: [],
-  lernwoerter: { aktuelleListe: [], kw: 0, archiv: [] },
-  schuelerWochenplaene: {}
-};
-
 const AppContext = createContext<AppContextType | undefined>(undefined);
-
-function syncActiveClass(state: AppState): AppState {
-  if (!state.activeClassId || !state.classes || !Array.isArray(state.classes)) {
-    return state;
-  }
-  const activeIdx = state.classes.findIndex(c => c.id === state.activeClassId);
-  if (activeIdx === -1) {
-    return state;
-  }
-  
-  const currentClass = state.classes[activeIdx];
-  
-  const updatedClass = {
-    ...currentClass,
-    name: state.klassenbezeichnung,
-    stufe: state.stufe,
-    klassenvorstand: state.klassenvorstand,
-    schuljahr: state.schuljahr,
-    schueler: state.schueler ? JSON.parse(JSON.stringify(state.schueler)) : [],
-    noten: state.noten ? JSON.parse(JSON.stringify(state.noten)) : {},
-    mitarbeit: state.mitarbeit ? JSON.parse(JSON.stringify(state.mitarbeit)) : {},
-    verhalten: state.verhalten ? { ...state.verhalten } : {},
-    karten: state.karten ? JSON.parse(JSON.stringify(state.karten)) : {},
-    jahresplanung: state.jahresplanung ? JSON.parse(JSON.stringify(state.jahresplanung)) : {},
-    jahresplan_faecher: state.jahresplan_faecher ? [...state.jahresplan_faecher] : undefined,
-    wochenplanung: state.wochenplanung ? JSON.parse(JSON.stringify(state.wochenplanung)) : {},
-    scheduleAnalysis: state.scheduleAnalysis ? JSON.parse(JSON.stringify(state.scheduleAnalysis)) : undefined,
-    stammplan: state.stammplan ? JSON.parse(JSON.stringify(state.stammplan)) : {},
-    anwesenheit: state.anwesenheit ? JSON.parse(JSON.stringify(state.anwesenheit)) : {},
-    anwesenheitDetail: state.anwesenheitDetail ? JSON.parse(JSON.stringify(state.anwesenheitDetail)) : undefined,
-    schuelerStimmung: state.schuelerStimmung ? JSON.parse(JSON.stringify(state.schuelerStimmung)) : {},
-    dienste: state.dienste ? JSON.parse(JSON.stringify(state.dienste)) : undefined,
-    saAssessments: state.saAssessments ? JSON.parse(JSON.stringify(state.saAssessments)) : {},
-    klassenglas_count: state.klassenglas_count,
-    klassenglas_ziel: state.klassenglas_ziel,
-    klassenglas_belohnung: state.klassenglas_belohnung,
-    klassenglas_missions: state.klassenglas_missions,
-    klassenglas_completed_missions: state.klassenglas_completed_missions,
-    klassenkasse: state.klassenkasse ? JSON.parse(JSON.stringify(state.klassenkasse)) : undefined,
-    checklisten: state.checklisten ? JSON.parse(JSON.stringify(state.checklisten)) : [],
-    customLists: state.customLists ? JSON.parse(JSON.stringify(state.customLists)) : [],
-    behavior_status: state.behavior_status ? { ...state.behavior_status } : {},
-    behavior_notes: state.behavior_notes ? { ...state.behavior_notes } : {},
-    stundenZeiten: state.stundenZeiten ? { ...state.stundenZeiten } : {},
-    sue_kontrolle: state.sue_kontrolle ? JSON.parse(JSON.stringify(state.sue_kontrolle)) : {},
-    lastGroups: state.lastGroups,
-    sitzplan_schueler: state.sitzplan_schueler ? JSON.parse(JSON.stringify(state.sitzplan_schueler)) : {},
-    sitzplan_objekte: state.sitzplan_objekte ? JSON.parse(JSON.stringify(state.sitzplan_objekte)) : [],
-    tageplan: state.tageplan ? JSON.parse(JSON.stringify(state.tageplan)) : undefined,
-    faecher: state.faecher ? [...state.faecher] : undefined,
-    fachConfig: state.fachConfig ? JSON.parse(JSON.stringify(state.fachConfig)) : undefined,
-    theme: state.theme,
-    customBgColor: state.customBgColor,
-    customAccentColor: state.customAccentColor,
-    customTextColor: state.customTextColor,
-    customText2Color: state.customText2Color,
-    settings: state.settings ? JSON.parse(JSON.stringify(state.settings)) : undefined
-  };
-
-  const classes = [...state.classes];
-  classes[activeIdx] = updatedClass;
-  
-  return {
-    ...state,
-    classes
-  };
-}
-
-// Normalisiert und migriert beliebige eingelesene Zustände auf das aktuelle AppState-Schema
-function normalizeAppState(raw: any): AppState {
-  if (!raw || typeof raw !== 'object') {
-    return initialAppState;
-  }
-
-  const parsed = {
-    ...initialAppState,
-    ...raw,
-    interaktionsLog: raw.interaktionsLog ?? { eintraege: [], wochenEmpfehlung: null },
-    ipsativeGewichtung: raw.ipsativeGewichtung ?? 70,
-    tourAbgeschlossen: raw.tourAbgeschlossen ?? (raw.schueler?.length > 0 || raw.klassen?.length > 0 || raw.classes?.length > 0 ? true : false),
-    stimmNotizen: raw.stimmNotizen ?? [],
-    jahresberichte: raw.jahresberichte ?? {},
-    wochenrueckblick: raw.wochenrueckblick ?? null,
-    lernzielTracker: raw.lernzielTracker ?? {},
-    differenzierungsGruppen: raw.differenzierungsGruppen ?? [],
-    ikmRecords: raw.ikmRecords ?? [],
-    klassenglas_completed_missions: raw.klassenglas_completed_missions ?? [],
-    dienste: raw.dienste ?? [],
-    backupEinstellungen: raw.backupEinstellungen ?? { letztesBackup: null, erinnerungAktiv: true },
-  };
-
-  // Migration: Multi-Class Support
-  if (!parsed.classes || !Array.isArray(parsed.classes) || parsed.classes.length === 0) {
-    const defaultClassId = 'default-' + Math.random().toString(36).substring(2, 9);
-    const defaultClass: any = {
-      id: defaultClassId,
-      name: parsed.klassenbezeichnung || 'Meine Klasse',
-      stufe: parsed.stufe !== undefined ? Number(parsed.stufe) : 4,
-      klassenvorstand: parsed.klassenvorstand !== undefined ? parsed.klassenvorstand : true,
-      schueler: parsed.schueler || [],
-      noten: parsed.noten || {},
-      mitarbeit: parsed.mitarbeit || {},
-      verhalten: parsed.verhalten || {},
-      karten: parsed.karten || {},
-      jahresplanung: parsed.jahresplanung || {},
-      jahresplan_faecher: parsed.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
-      wochenplanung: parsed.wochenplanung || {},
-      stammplan: parsed.stammplan || {},
-      anwesenheit: parsed.anwesenheit || {},
-      anwesenheitDetail: parsed.anwesenheitDetail || {},
-      schuelerStimmung: parsed.schuelerStimmung || {},
-      dienste: parsed.dienste || [],
-      saAssessments: parsed.saAssessments || {},
-      klassenglas_count: parsed.klassenglas_count || 0,
-      klassenglas_ziel: parsed.klassenglas_ziel || 20,
-      klassenglas_belohnung: parsed.klassenglas_belohnung || 'Gemeinsame Spielzeit',
-      klassenkasse: parsed.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
-      behavior_status: parsed.behavior_status || {},
-      behavior_notes: parsed.behavior_notes || {},
-      sue_kontrolle: parsed.sue_kontrolle || {},
-      sitzplan_schueler: parsed.sitzplan_schueler || {},
-      sitzplan_objekte: parsed.sitzplan_objekte || [],
-      tageplan: parsed.tageplan || DEFAULT_TAGEPLAN,
-      faecher: parsed.faecher || FAECHER_ALLE,
-      fachConfig: parsed.fachConfig || DEFAULT_FACH_COLORS
-    };
-    parsed.classes = [defaultClass];
-    parsed.activeClassId = defaultClassId;
-  }
-
-  // Klassen-Sanitization
-  if (parsed.classes && Array.isArray(parsed.classes)) {
-    parsed.classes = parsed.classes.map((c: any) => {
-      if (!c || typeof c !== 'object') return null;
-      return {
-        id: c.id || 'class-' + Math.random().toString(36).substring(2, 9),
-        name: c.name || 'Meine Klasse',
-        stufe: c.stufe !== undefined ? Number(c.stufe) : 4,
-        klassenvorstand: c.klassenvorstand !== undefined ? c.klassenvorstand : true,
-        schueler: c.schueler || [],
-        noten: c.noten || {},
-        mitarbeit: c.mitarbeit || {},
-        verhalten: c.verhalten || {},
-        karten: c.karten || {},
-        jahresplanung: c.jahresplanung || {},
-        jahresplan_faecher: c.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
-        wochenplanung: c.wochenplanung || {},
-        stammplan: c.stammplan || {},
-        anwesenheit: c.anwesenheit || {},
-        anwesenheitDetail: c.anwesenheitDetail || {},
-        schuelerStimmung: c.schuelerStimmung || {},
-        dienste: c.dienste || [],
-        checklisten: c.checklisten || [],
-        customLists: c.customLists || [],
-        saAssessments: c.saAssessments || {},
-        klassenglas_count: c.klassenglas_count !== undefined ? Number(c.klassenglas_count) : 0,
-        klassenglas_ziel: c.klassenglas_ziel !== undefined ? Number(c.klassenglas_ziel) : 20,
-        klassenglas_belohnung: c.klassenglas_belohnung || 'Gemeinsame Spielzeit',
-        klassenkasse: c.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
-        behavior_status: c.behavior_status || {},
-        behavior_notes: c.behavior_notes || {},
-        sue_kontrolle: c.sue_kontrolle || {},
-        sitzplan_schueler: c.sitzplan_schueler || {},
-        sitzplan_objekte: c.sitzplan_objekte || [],
-        tageplan: c.tageplan || DEFAULT_TAGEPLAN,
-        faecher: c.faecher || FAECHER_ALLE,
-        fachConfig: c.fachConfig || DEFAULT_FACH_COLORS,
-        theme: c.theme || 'classic_light',
-        schuljahr: c.schuljahr || parsed.schuljahr || getCurrentSchuljahr(),
-        settings: c.settings || {}
-      };
-    }).filter(Boolean);
-  }
-
-  // Active Class Sync
-  let activeClass = parsed.classes?.find((c: any) => c.id === parsed.activeClassId);
-  if (!activeClass && parsed.classes && parsed.classes.length > 0) {
-    activeClass = parsed.classes[0];
-    parsed.activeClassId = activeClass.id;
-  }
-
-  if (activeClass) {
-    parsed.klassenbezeichnung = activeClass.name;
-    parsed.stufe = activeClass.stufe;
-    parsed.klassenvorstand = activeClass.klassenvorstand;
-    parsed.schueler = activeClass.schueler;
-    parsed.noten = activeClass.noten;
-    parsed.mitarbeit = activeClass.mitarbeit;
-    parsed.verhalten = activeClass.verhalten;
-    parsed.karten = activeClass.karten;
-    parsed.jahresplanung = activeClass.jahresplanung;
-    parsed.jahresplan_faecher = activeClass.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS;
-    parsed.wochenplanung = activeClass.wochenplanung;
-    parsed.stammplan = activeClass.stammplan;
-    parsed.anwesenheit = activeClass.anwesenheit;
-    parsed.anwesenheitDetail = activeClass.anwesenheitDetail;
-    parsed.schuelerStimmung = activeClass.schuelerStimmung || {};
-    parsed.dienste = activeClass.dienste;
-    parsed.checklisten = activeClass.checklisten || [];
-    parsed.customLists = activeClass.customLists || [];
-    parsed.saAssessments = activeClass.saAssessments;
-    parsed.klassenglas_count = activeClass.klassenglas_count;
-    parsed.klassenglas_ziel = activeClass.klassenglas_ziel;
-    parsed.klassenglas_belohnung = activeClass.klassenglas_belohnung;
-    parsed.klassenkasse = activeClass.klassenkasse;
-    parsed.behavior_status = activeClass.behavior_status;
-    parsed.behavior_notes = activeClass.behavior_notes;
-    parsed.sue_kontrolle = activeClass.sue_kontrolle;
-    parsed.sitzplan_schueler = activeClass.sitzplan_schueler;
-    parsed.sitzplan_objekte = activeClass.sitzplan_objekte;
-    parsed.tageplan = activeClass.tageplan;
-    parsed.faecher = activeClass.faecher;
-    parsed.fachConfig = activeClass.fachConfig;
-    parsed.theme = activeClass.theme;
-    parsed.schuljahr = activeClass.schuljahr || parsed.schuljahr || getCurrentSchuljahr();
-  }
-
-  parsed.schuelerWochenplaene = parsed.schuelerWochenplaene || {};
-  parsed.morningWidgets = parsed.morningWidgets || DEFAULT_MORNING_WIDGETS;
-  parsed.lehrerProfil = parsed.lehrerProfil || {
-    schulstundenJaehrlich: 120,
-    schularbeitenManuell: 4,
-    testsManuell: 8,
-    ausfluegeManuell: 3,
-    name: parsed.anrede && parsed.nachname ? `${parsed.anrede} ${parsed.nachname}` : "Maximilian Musterlehrer",
-    schule: parsed.schulName || "Volksschule Musterstadt",
-    motto: parsed.motto || "Pädagogik mit Herz ❤️",
-    gegruendetYear: "2018"
-  };
-
-  const iconMap: Record<string, string> = {
-    'star': '🌟',
-    'heart': '❤️',
-    'love': '❤️',
-    'smile': '😊',
-    'minus': '😐',
-    'alert-triangle': '⚠️',
-    'x-circle': '🚫'
-  };
-
-  if (parsed.behavior_stages && Array.isArray(parsed.behavior_stages)) {
-    parsed.behavior_stages = parsed.behavior_stages.map((stage: any) => ({
-      ...stage,
-      icon: (stage.icon && iconMap[stage.icon.toLowerCase()]) ? iconMap[stage.icon.toLowerCase()] : stage.icon
-    }));
-  }
-
-  if (!parsed.notes) {
-    const migratedNotes: any[] = [];
-    if (parsed.notizen && Array.isArray(parsed.notizen)) {
-      parsed.notizen.forEach((n: any) => {
-        migratedNotes.push({
-          id: n.id,
-          datum: new Date(n.timestamp || Date.now()).toISOString(),
-          kategorie: n.schuelerId ? 'Verhalten' : 'Journal',
-          inhalt: n.inhalt || '',
-          schuelerId: n.schuelerId,
-          icon: n.icon || '📝'
-        });
-      });
-    }
-    if (parsed.observations && Array.isArray(parsed.observations)) {
-      parsed.observations.forEach((o: any) => {
-        const catMap: Record<string, string> = {
-          'behavior': 'Verhalten',
-          'academic': 'allgemein',
-          'social': 'allgemein',
-          'incident': 'Verhalten',
-          'praise': 'Erfolg',
-          'reflexion': 'reflexion'
-        };
-        migratedNotes.push({
-          id: o.id,
-          datum: o.date || new Date().toISOString(),
-          kategorie: catMap[o.category] || 'Journal',
-          inhalt: o.text || '',
-          schuelerId: o.studentId,
-          quelle: o.source
-        });
-      });
-    }
-    if (parsed.journal && Array.isArray(parsed.journal)) {
-      parsed.journal.forEach((j: any) => {
-        if (!migratedNotes.find(m => m.id === j.id)) {
-          migratedNotes.push(j);
-        }
-      });
-    }
-    parsed.notes = migratedNotes.sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime());
-  }
-
-  const schuelerExist = parsed.schueler && parsed.schueler.length > 0;
-  const computedTourAbgeschlossen = schuelerExist ? true : (parsed.tourAbgeschlossen ?? false);
-
-  return {
-    ...initialAppState,
-    ...parsed,
-    bundesland: parsed.bundesland || 'VBG',
-    tourAbgeschlossen: computedTourAbgeschlossen,
-    historicalStudents: parsed.historicalStudents || DEFAULT_HISTORICAL_STUDENTS,
-    notes: parsed.notes || [],
-    settings: { ...initialAppState.settings, ...(parsed.settings || {}) },
-    boardSettings: {
-      ...initialAppState.boardSettings,
-      ...(parsed.boardSettings || {}),
-      isTafelOpen: false // Digitale Tafel darf niemals automatisch beim App-Start oder Laden geöffnet sein
-    },
-    klassenkasse: { ...initialAppState.klassenkasse, ...(parsed.klassenkasse || {}) },
-    ampelLabels: { ...initialAppState.ampelLabels, ...(parsed.ampelLabels || {}) },
-    jahresplan_faecher: parsed.jahresplan_faecher || initialAppState.jahresplan_faecher,
-    sitzplanRegeln: parsed.sitzplanRegeln || [],
-    metaKognitionsProtokolle: parsed.metaKognitionsProtokolle || [],
-    diagnosticResults: parsed.diagnosticResults || [],
-    lernwoerter: parsed.lernwoerter || { aktuelleListe: [], kw: 0, archiv: [] }
-  };
-}
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [app, setAppInternal] = useState<AppState>(initialAppState);
   const currentAppRef = useRef<AppState>(app);
   currentAppRef.current = app;
+  const restoringRef = useRef(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   const setApp = React.useCallback((val: React.SetStateAction<AppState>) => {
+    if (restoringRef.current) return;
     setAppInternal(prev => {
       const nextRaw = typeof val === 'function' ? (val as any)(prev) : val;
       const synced = syncActiveClass(nextRaw);
@@ -586,6 +121,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
             }
           } catch (decErr) {
             console.error('[Datenschutz] Entschlüsselung beim App-Start fehlgeschlagen:', decErr);
+            clearActiveVaultSession();
+            if (isMounted) { setIsVaultUnlocked(false); setIsLoaded(true); }
+            return;
           }
           // Falls noch keine verschlüsselten Daten vorliegen, aber Schlüssel im RAM aktiv ist
           if (isMounted) {
@@ -619,6 +157,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!isLoaded || !isVaultUnlocked) return;
 
     const timeout = setTimeout(async () => {
+      if (restoringRef.current || currentAppRef.current !== app) return;
       try {
         const vaultKey = getActiveVaultKey();
         if (!vaultKey) {
@@ -629,13 +168,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         // 1. Verschlüsselt im Primär- und Fallback-Speicher sichern
         await saveEncryptedAppState(app, vaultKey);
+        if (restoringRef.current || currentAppRef.current !== app) return;
 
         // 2. Verschlüsseltes Session-Backup
         await saveEncryptedSessionBackup(app, vaultKey);
 
         // 3. Einmal tägliche verschlüsselte Notfallkopie
         try {
-          const todayDate = new Date().toISOString().split('T')[0];
+          const todayDate = toLocalDateKey();
           const lastKopieDate = localStorage.getItem('hehle_v3_notfallkopie_date');
           if (lastKopieDate !== todayDate) {
             await saveEncryptedEmergencyBackup(app, vaultKey);
@@ -654,7 +194,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Tab Close & Refresh Intercept: Ensure synced / pending changes are secured
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isPendingPushRef.current) {
+      if (isPendingPushRef.current || restoringRef.current) {
         const message = 'Deine Daten werden gerade im Hintergrund mit der Cloud synchronisiert. Bitte warte einen Moment, um keinen Arbeitsfortschritt zu verlieren!';
         e.returnValue = message;
         return message;
@@ -956,6 +496,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setApp(prev => ({ ...prev, ...changes }));
   }, []);
 
+  const restoreAppData = React.useCallback(async (data: unknown) => {
+    if (restoringRef.current) throw new Error('Eine Wiederherstellung läuft bereits.');
+    const key = getActiveVaultKey();
+    if (!key) throw new Error('Bitte zuerst den lokalen Tresor entsperren.');
+    if (currentAppRef.current.boardSettings?.activeSyncCode) {
+      throw new Error('Bitte zuerst die aktive Geräteverbindung beenden und das Backup danach erneut einlesen.');
+    }
+    assertRestorableAppState(data);
+    const next = syncActiveClass(normalizeAppState({
+      ...data, tourAbgeschlossen: true,
+      boardSettings: { ...data.boardSettings, activeSyncCode: undefined, isTafelOpen: false },
+    }));
+    restoringRef.current = true;
+    setIsRestoring(true);
+    try {
+      await restoreEncryptedAppState(currentAppRef.current, next, key);
+      // A lock/logout during the write must not expose the restored data in RAM/UI.
+      if (getActiveVaultKey() === key) {
+        currentAppRef.current = next;
+        setAppInternal(next);
+      }
+    } finally {
+      restoringRef.current = false;
+      setIsRestoring(false);
+    }
+  }, []);
+
   const unlockAppVault = React.useCallback(async (key: CryptoKey): Promise<boolean> => {
     try {
       const decrypted = await loadEncryptedAppState(key);
@@ -978,7 +545,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const lockAppVault = React.useCallback(() => {
     clearActiveVaultSession();
-    setApp(initialAppState);
+    currentAppRef.current = initialAppState;
+    setAppInternal(initialAppState);
     setIsVaultUnlocked(false);
   }, [setApp]);
 
@@ -1037,6 +605,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [isVaultUnlocked, app.settings?.vaultAutoLockMinutes, lockAppVault]);
 
   const saveApp = React.useCallback(async () => {
+    if (restoringRef.current) return;
     const vaultKey = getActiveVaultKey();
     if (!vaultKey) {
       console.warn('[Datenschutz] Speichern abgebrochen: Kein aktiver VaultKey im RAM.');
@@ -1061,14 +630,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteStudent = React.useCallback((id: string) => {
-    setApp(prev => ({
-      ...prev,
-      schueler: prev.schueler.filter(s => s.id !== id),
-      noten: { ...prev.noten, [id]: undefined } as any,
-      mitarbeit: { ...prev.mitarbeit, [id]: undefined } as any,
-      karten: { ...prev.karten, [id]: undefined } as any,
-    }));
-  }, []);
+    setApp(prev => removeStudentFromAppState(prev, id));
+  }, [setApp]);
 
   const setPage = React.useCallback((page: string) => {
     setApp(prev => {
@@ -1085,108 +648,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const switchClass = React.useCallback((id: string) => {
-    setApp(prev => {
-      // 1. Snapshot current active class back into classes array
-      const classes = [...(prev.classes || [])];
-      const activeIdx = classes.findIndex(c => c.id === prev.activeClassId);
-      
-      if (activeIdx !== -1) {
-        classes[activeIdx] = {
-          ...classes[activeIdx],
-          name: prev.klassenbezeichnung,
-          stufe: prev.stufe,
-          klassenvorstand: prev.klassenvorstand,
-          schueler: prev.schueler ? JSON.parse(JSON.stringify(prev.schueler)) : [],
-          noten: prev.noten ? JSON.parse(JSON.stringify(prev.noten)) : {},
-          mitarbeit: prev.mitarbeit ? JSON.parse(JSON.stringify(prev.mitarbeit)) : {},
-          verhalten: prev.verhalten ? JSON.parse(JSON.stringify(prev.verhalten)) : {},
-          karten: prev.karten ? JSON.parse(JSON.stringify(prev.karten)) : {},
-          jahresplanung: prev.jahresplanung ? JSON.parse(JSON.stringify(prev.jahresplanung)) : {},
-          jahresplan_faecher: prev.jahresplan_faecher,
-          wochenplanung: prev.wochenplanung ? JSON.parse(JSON.stringify(prev.wochenplanung)) : {},
-          stammplan: prev.stammplan ? JSON.parse(JSON.stringify(prev.stammplan)) : {},
-          anwesenheit: prev.anwesenheit,
-          anwesenheitDetail: prev.anwesenheitDetail,
-          schuelerStimmung: prev.schuelerStimmung,
-          dienste: prev.dienste,
-          klassenglas_count: prev.klassenglas_count,
-          klassenglas_ziel: prev.klassenglas_ziel,
-          klassenglas_belohnung: prev.klassenglas_belohnung,
-          klassenkasse: prev.klassenkasse,
-          behavior_status: prev.behavior_status,
-          behavior_notes: prev.behavior_notes,
-          sue_kontrolle: prev.sue_kontrolle,
-          sitzplan_schueler: prev.sitzplan_schueler,
-          sitzplan_objekte: prev.sitzplan_objekte,
-          lastGroups: prev.lastGroups,
-          stundenZeiten: prev.stundenZeiten,
-          tageplan: prev.tageplan ? JSON.parse(JSON.stringify(prev.tageplan)) : undefined,
-          faecher: prev.faecher ? [...prev.faecher] : undefined,
-          fachConfig: prev.fachConfig ? JSON.parse(JSON.stringify(prev.fachConfig)) : undefined,
-          theme: prev.theme,
-          customBgColor: prev.customBgColor,
-          customAccentColor: prev.customAccentColor,
-          customTextColor: prev.customTextColor,
-          customText2Color: prev.customText2Color,
-          settings: prev.settings ? JSON.parse(JSON.stringify(prev.settings)) : undefined,
-          schuljahr: prev.schuljahr
-        };
-      }
-
-      // 2. Find target class
-      const targetClass = classes.find(c => c.id === id);
-      if (!targetClass) return prev;
-
-      // 3. Set target class data to root level
-      const currentLoc = prev.currentPage || 'cockpit';
-      const forceCockpit = !targetClass.klassenvorstand && ['orga', 'uebergabemappe', 'diagnostik', 'kel'].includes(currentLoc);
-
-      return {
-        ...prev,
-        currentPage: forceCockpit ? 'cockpit' : currentLoc,
-        activeClassId: id,
-        classes,
-        klassenbezeichnung: targetClass.name,
-        stufe: targetClass.stufe,
-        klassenvorstand: targetClass.klassenvorstand,
-        schuljahr: targetClass.schuljahr || prev.schuljahr || '2024/25',
-        schueler: targetClass.schueler ? JSON.parse(JSON.stringify(targetClass.schueler)) : [],
-        noten: targetClass.noten,
-        mitarbeit: targetClass.mitarbeit,
-        verhalten: targetClass.verhalten,
-        karten: targetClass.karten,
-        jahresplanung: targetClass.jahresplanung,
-        jahresplan_faecher: targetClass.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS,
-        wochenplanung: targetClass.wochenplanung ? JSON.parse(JSON.stringify(targetClass.wochenplanung)) : {},
-        stammplan: targetClass.stammplan ? JSON.parse(JSON.stringify(targetClass.stammplan)) : {},
-        anwesenheit: targetClass.anwesenheit,
-        anwesenheitDetail: targetClass.anwesenheitDetail,
-        schuelerStimmung: targetClass.schuelerStimmung || {},
-        dienste: targetClass.dienste || [],
-        checklisten: targetClass.checklisten || [],
-        customLists: targetClass.customLists || [],
-        klassenglas_count: targetClass.klassenglas_count,
-        klassenglas_ziel: targetClass.klassenglas_ziel,
-        klassenglas_belohnung: targetClass.klassenglas_belohnung || 'Gemeinsame Spielzeit',
-        klassenkasse: targetClass.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
-        behavior_status: targetClass.behavior_status || {},
-        behavior_notes: targetClass.behavior_notes || {},
-        sue_kontrolle: targetClass.sue_kontrolle || {},
-        sitzplan_schueler: targetClass.sitzplan_schueler || {},
-        sitzplan_objekte: targetClass.sitzplan_objekte || [],
-        lastGroups: targetClass.lastGroups,
-        stundenZeiten: targetClass.stundenZeiten || STUNDEN_INFO,
-        tageplan: targetClass.tageplan || prev.tageplan || DEFAULT_TAGEPLAN,
-        faecher: targetClass.faecher || prev.faecher || FAECHER_ALLE,
-        fachConfig: targetClass.fachConfig || prev.fachConfig || DEFAULT_FACH_COLORS,
-        theme: targetClass.theme || prev.theme,
-        customBgColor: targetClass.customBgColor || prev.customBgColor,
-        customAccentColor: targetClass.customAccentColor || prev.customAccentColor,
-        customTextColor: targetClass.customTextColor || prev.customTextColor,
-        customText2Color: targetClass.customText2Color || prev.customText2Color,
-        settings: targetClass.settings ? JSON.parse(JSON.stringify(targetClass.settings)) : (prev.settings ? JSON.parse(JSON.stringify(prev.settings)) : {})
-      };
-    });
+    setApp(prev => switchClassState(prev, id));
   }, []);
 
   const addClass = React.useCallback((name: string, stufe: number, isKV: boolean) => {
@@ -1199,27 +661,52 @@ export function AppProvider({ children }: { children: ReactNode }) {
         klassenvorstand: isKV,
         schueler: [],
         noten: {},
+        notenMeta: {},
+        notenGewichtung: {},
+        lernzielTracker: {},
+        studentLernzielBewertungen: {},
+        studentLernzielSemesterBewertungen: {},
+        diagnostikErgebnisse: [],
+        diagnostikErhebungen: [],
+        diagnosticResults: [],
+        ikmRecords: [],
+        antolinRecords: [],
+        schuelerGoals: [],
+        observations: [],
+        metaKognitionsProtokolle: [],
+        interaktionsLog: { eintraege: [], wochenEmpfehlung: null },
         mitarbeit: {},
+        mitarbeit_settings: { thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 }, mode: 'absolute' },
         verhalten: {},
         karten: {},
         jahresplanung: {},
         jahresplan_faecher: DEFAULT_YEARLY_SUBJECTS,
         wochenplanung: {},
+        parkgarage: [],
+        savedWeekTemplates: {},
         stammplan: {},
         anwesenheit: {},
         anwesenheitDetail: {},
         dienste: [],
         checklisten: [],
         customLists: [],
+        zugangsdaten: [],
         klassenglas_count: 0,
         klassenglas_ziel: 20,
         klassenglas_belohnung: 'Gemeinsame Spielzeit',
+        classContracts: [],
+        councilNotes: [],
         klassenkasse: { kontostand: 0, sammlungen: [], transaktionen: [] },
         behavior_status: {},
         behavior_notes: {},
+        notes: [],
+        journal: [],
+        statusLog: [],
+        jahresberichte: {},
         sue_kontrolle: {},
         sitzplan_schueler: {},
         sitzplan_objekte: [],
+        sitzplanRegeln: [],
         tageplan: DEFAULT_TAGEPLAN,
         faecher: FAECHER_ALLE,
         fachConfig: DEFAULT_FACH_COLORS,
@@ -1228,54 +715,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         schuljahr: prev.schuljahr || '2024/25'
       };
 
-      // 1. Snapshot current active class back into classes array
-      const classes = [...(prev.classes || [])];
-      const activeIdx = classes.findIndex(c => c.id === prev.activeClassId);
-      
-      if (activeIdx !== -1) {
-        classes[activeIdx] = {
-          ...classes[activeIdx],
-          name: prev.klassenbezeichnung,
-          stufe: prev.stufe,
-          klassenvorstand: prev.klassenvorstand,
-          schueler: prev.schueler ? JSON.parse(JSON.stringify(prev.schueler)) : [],
-          noten: prev.noten ? JSON.parse(JSON.stringify(prev.noten)) : {},
-          mitarbeit: prev.mitarbeit ? JSON.parse(JSON.stringify(prev.mitarbeit)) : {},
-          verhalten: prev.verhalten ? JSON.parse(JSON.stringify(prev.verhalten)) : {},
-          karten: prev.karten ? JSON.parse(JSON.stringify(prev.karten)) : {},
-          jahresplanung: prev.jahresplanung ? JSON.parse(JSON.stringify(prev.jahresplanung)) : {},
-          jahresplan_faecher: prev.jahresplan_faecher,
-          wochenplanung: prev.wochenplanung ? JSON.parse(JSON.stringify(prev.wochenplanung)) : {},
-          stammplan: prev.stammplan ? JSON.parse(JSON.stringify(prev.stammplan)) : {},
-          anwesenheit: prev.anwesenheit,
-          anwesenheitDetail: prev.anwesenheitDetail,
-          schuelerStimmung: prev.schuelerStimmung,
-          dienste: prev.dienste,
-          checklisten: prev.checklisten ? JSON.parse(JSON.stringify(prev.checklisten)) : [],
-          customLists: prev.customLists ? JSON.parse(JSON.stringify(prev.customLists)) : [],
-          klassenglas_count: prev.klassenglas_count,
-          klassenglas_ziel: prev.klassenglas_ziel,
-          klassenglas_belohnung: prev.klassenglas_belohnung,
-          klassenkasse: prev.klassenkasse,
-          behavior_status: prev.behavior_status,
-          behavior_notes: prev.behavior_notes,
-          sue_kontrolle: prev.sue_kontrolle,
-          sitzplan_schueler: prev.sitzplan_schueler,
-          sitzplan_objekte: prev.sitzplan_objekte,
-          lastGroups: prev.lastGroups,
-          stundenZeiten: prev.stundenZeiten,
-          tageplan: prev.tageplan ? JSON.parse(JSON.stringify(prev.tageplan)) : undefined,
-          faecher: prev.faecher ? [...prev.faecher] : undefined,
-          fachConfig: prev.fachConfig ? JSON.parse(JSON.stringify(prev.fachConfig)) : undefined,
-          theme: prev.theme,
-          customBgColor: prev.customBgColor,
-          customAccentColor: prev.customAccentColor,
-          customTextColor: prev.customTextColor,
-          customText2Color: prev.customText2Color,
-          settings: prev.settings ? JSON.parse(JSON.stringify(prev.settings)) : undefined,
-          schuljahr: prev.schuljahr
-        };
-      }
+      const { classes } = syncActiveClass(prev);
 
       // 2. Add new class and switch immediately to it with currentPage: 'setup'
       return {
@@ -1287,13 +727,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
         stufe: newClass.stufe,
         klassenvorstand: newClass.klassenvorstand,
         schueler: newClass.schueler ? JSON.parse(JSON.stringify(newClass.schueler)) : [],
+        saAssessments: newClass.saAssessments || {},
+        scheduleAnalysis: newClass.scheduleAnalysis,
         noten: newClass.noten,
+        notenMeta: newClass.notenMeta || {},
+        notenGewichtung: newClass.notenGewichtung || {},
+        lernzielTracker: {},
+        studentLernzielBewertungen: {},
+        studentLernzielSemesterBewertungen: {},
+        diagnostikErgebnisse: [],
+        diagnostikErhebungen: [],
+        diagnosticResults: [],
+        ikmRecords: [],
+        antolinRecords: [],
+        schuelerGoals: [],
+        observations: [],
+        metaKognitionsProtokolle: [],
+        interaktionsLog: { eintraege: [], wochenEmpfehlung: null },
         mitarbeit: newClass.mitarbeit,
+        mitarbeit_settings: newClass.mitarbeit_settings,
         verhalten: newClass.verhalten,
         karten: newClass.karten,
         jahresplanung: newClass.jahresplanung,
         jahresplan_faecher: newClass.jahresplan_faecher,
         wochenplanung: newClass.wochenplanung ? JSON.parse(JSON.stringify(newClass.wochenplanung)) : {},
+        parkgarage: [],
+        savedWeekTemplates: {},
         stammplan: newClass.stammplan ? JSON.parse(JSON.stringify(newClass.stammplan)) : {},
         anwesenheit: newClass.anwesenheit,
         anwesenheitDetail: newClass.anwesenheitDetail,
@@ -1301,15 +760,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
         dienste: newClass.dienste,
         checklisten: [],
         customLists: [],
+        zugangsdaten: newClass.zugangsdaten || [],
+        klassenglas_missions: [],
+        klassenglas_completed_missions: [],
         klassenglas_count: newClass.klassenglas_count,
         klassenglas_ziel: newClass.klassenglas_ziel,
         klassenglas_belohnung: newClass.klassenglas_belohnung || 'Gemeinsame Spielzeit',
+        classContracts: [],
+        councilNotes: [],
         klassenkasse: newClass.klassenkasse,
         behavior_status: newClass.behavior_status,
         behavior_notes: newClass.behavior_notes,
+        notes: [],
+        journal: [],
+        statusLog: [],
+        jahresberichte: {},
         sue_kontrolle: newClass.sue_kontrolle,
         sitzplan_schueler: newClass.sitzplan_schueler,
         sitzplan_objekte: newClass.sitzplan_objekte,
+        sitzplanRegeln: newClass.sitzplanRegeln || [],
         lastGroups: undefined,
         stundenZeiten: STUNDEN_INFO,
         tageplan: DEFAULT_TAGEPLAN,
@@ -1326,6 +795,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [initialAppState.settings]);
 
   const deleteClass = React.useCallback((targetId?: string) => {
+    if (restoringRef.current) return;
     setAppInternal(prev => {
       const idToDelete = targetId || prev.activeClassId;
       if (!idToDelete) return prev;
@@ -1355,7 +825,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const remainingClasses = classes.filter(c => c.id !== idToDelete);
 
       // Clean up orphaned data related to deleted students
-      const cleanNotes = (prev.notes || []).filter(n => !n.id || (!deletedStudentIds.has(n.id) && !deletedStudentIds.has(n.schuelerId)));
       const cleanDiffGruppen = (prev.differenzierungsGruppen || []).filter(g => {
         if (!g.schuelerIds) return true;
         const validIds = g.schuelerIds.filter(sid => !deletedStudentIds.has(sid));
@@ -1383,7 +852,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return res;
       };
 
-      const cleanLernzielTracker = filterStudentMap(prev.lernzielTracker);
+      const cleanLernzielBewertungen = filterStudentMap(prev.studentLernzielBewertungen);
       const cleanLernzielSemesterBewertungen = filterStudentMap(prev.studentLernzielSemesterBewertungen);
 
       // If other classes are remaining:
@@ -1392,7 +861,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return {
             ...prev,
             classes: remainingClasses,
-            notes: cleanNotes,
+            notes: prev.notes,
+            journal: prev.journal,
+            statusLog: prev.statusLog,
             differenzierungsGruppen: cleanDiffGruppen,
             diagnostikErgebnisse: cleanDiagnostikErgebnisse,
             diagnostikErhebungen: cleanDiagnostikErhebungen,
@@ -1400,7 +871,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ikmRecords: cleanIkmRecords,
             stimmNotizen: cleanStimmNotizen,
             interaktionsLog: cleanInteraktionsLog,
-            lernzielTracker: cleanLernzielTracker,
+            studentLernzielBewertungen: cleanLernzielBewertungen,
             studentLernzielSemesterBewertungen: cleanLernzielSemesterBewertungen
           };
         }
@@ -1420,8 +891,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
           klassenvorstand: nextClass.klassenvorstand,
           schuljahr: nextClass.schuljahr || prev.schuljahr || getCurrentSchuljahr(),
           schueler: nextClass.schueler ? JSON.parse(JSON.stringify(nextClass.schueler)) : [],
+          saAssessments: nextClass.saAssessments || {},
+          scheduleAnalysis: nextClass.scheduleAnalysis,
           noten: nextClass.noten || {},
+          notenMeta: nextClass.notenMeta || {},
+          notenGewichtung: nextClass.notenGewichtung || {},
+          lernzielTracker: nextClass.lernzielTracker ? JSON.parse(JSON.stringify(nextClass.lernzielTracker)) : {},
+          studentLernzielBewertungen: nextClass.studentLernzielBewertungen ? JSON.parse(JSON.stringify(nextClass.studentLernzielBewertungen)) : {},
+          studentLernzielSemesterBewertungen: nextClass.studentLernzielSemesterBewertungen ? JSON.parse(JSON.stringify(nextClass.studentLernzielSemesterBewertungen)) : {},
+          diagnostikErgebnisse: nextClass.diagnostikErgebnisse ? JSON.parse(JSON.stringify(nextClass.diagnostikErgebnisse)) : [],
+          diagnostikErhebungen: nextClass.diagnostikErhebungen ? JSON.parse(JSON.stringify(nextClass.diagnostikErhebungen)) : [],
+          diagnosticResults: nextClass.diagnosticResults ? JSON.parse(JSON.stringify(nextClass.diagnosticResults)) : [],
+          ikmRecords: nextClass.ikmRecords ? JSON.parse(JSON.stringify(nextClass.ikmRecords)) : [],
+          antolinRecords: nextClass.antolinRecords ? JSON.parse(JSON.stringify(nextClass.antolinRecords)) : [],
+          schuelerGoals: nextClass.schuelerGoals ? JSON.parse(JSON.stringify(nextClass.schuelerGoals)) : [],
+          observations: nextClass.observations ? JSON.parse(JSON.stringify(nextClass.observations)) : [],
+          metaKognitionsProtokolle: nextClass.metaKognitionsProtokolle ? JSON.parse(JSON.stringify(nextClass.metaKognitionsProtokolle)) : [],
+          interaktionsLog: nextClass.interaktionsLog ? JSON.parse(JSON.stringify(nextClass.interaktionsLog)) : { eintraege: [], wochenEmpfehlung: null },
           mitarbeit: nextClass.mitarbeit || {},
+          mitarbeit_settings: nextClass.mitarbeit_settings ? JSON.parse(JSON.stringify(nextClass.mitarbeit_settings)) : { thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 }, mode: 'absolute' },
           verhalten: nextClass.verhalten || {},
           karten: nextClass.karten || {},
           jahresplanung: nextClass.jahresplanung || {},
@@ -1434,17 +922,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
           dienste: nextClass.dienste || [],
           checklisten: nextClass.checklisten || [],
           customLists: nextClass.customLists || [],
+          zugangsdaten: nextClass.zugangsdaten ? JSON.parse(JSON.stringify(nextClass.zugangsdaten)) : [],
           klassenglas_count: nextClass.klassenglas_count || 0,
           klassenglas_ziel: nextClass.klassenglas_ziel || 20,
           klassenglas_belohnung: nextClass.klassenglas_belohnung || 'Gemeinsame Spielzeit',
           klassenglas_missions: nextClass.klassenglas_missions || [],
           klassenglas_completed_missions: nextClass.klassenglas_completed_missions || [],
+          classContracts: nextClass.classContracts ? JSON.parse(JSON.stringify(nextClass.classContracts)) : [],
+          councilNotes: nextClass.councilNotes ? JSON.parse(JSON.stringify(nextClass.councilNotes)) : [],
           klassenkasse: nextClass.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] },
           behavior_status: nextClass.behavior_status || {},
           behavior_notes: nextClass.behavior_notes || {},
+          notes: nextClass.notes ? JSON.parse(JSON.stringify(nextClass.notes)) : [],
+          journal: nextClass.journal ? JSON.parse(JSON.stringify(nextClass.journal)) : [],
+          statusLog: nextClass.statusLog ? JSON.parse(JSON.stringify(nextClass.statusLog)) : [],
+          jahresberichte: nextClass.jahresberichte ? JSON.parse(JSON.stringify(nextClass.jahresberichte)) : {},
           sue_kontrolle: nextClass.sue_kontrolle || {},
           sitzplan_schueler: nextClass.sitzplan_schueler || {},
           sitzplan_objekte: nextClass.sitzplan_objekte || [],
+          sitzplanRegeln: nextClass.sitzplanRegeln || [],
           lastGroups: nextClass.lastGroups,
           stundenZeiten: nextClass.stundenZeiten || STUNDEN_INFO,
           tageplan: nextClass.tageplan || prev.tageplan || DEFAULT_TAGEPLAN,
@@ -1456,16 +952,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           customTextColor: nextClass.customTextColor || prev.customTextColor,
           customText2Color: nextClass.customText2Color || prev.customText2Color,
           settings: nextClass.settings ? JSON.parse(JSON.stringify(nextClass.settings)) : (prev.settings ? JSON.parse(JSON.stringify(prev.settings)) : {}),
-          notes: cleanNotes,
           differenzierungsGruppen: cleanDiffGruppen,
-          diagnostikErgebnisse: cleanDiagnostikErgebnisse,
-          diagnostikErhebungen: cleanDiagnostikErhebungen,
-          diagnosticResults: cleanDiagnosticResults,
-          ikmRecords: cleanIkmRecords,
-          stimmNotizen: cleanStimmNotizen,
-          interaktionsLog: cleanInteraktionsLog,
-          lernzielTracker: cleanLernzielTracker,
-          studentLernzielSemesterBewertungen: cleanLernzielSemesterBewertungen
+          stimmNotizen: cleanStimmNotizen
         };
       } else {
         // NO classes remaining -> reset cleanly and navigate to setup
@@ -1479,7 +967,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
           klassenvorstand: true,
           schueler: [],
           noten: {},
+          notenMeta: {},
+          notenGewichtung: {},
+          lernzielTracker: {},
+          studentLernzielBewertungen: {},
+          studentLernzielSemesterBewertungen: {},
+          diagnostikErgebnisse: [],
+          diagnostikErhebungen: [],
+          diagnosticResults: [],
+          ikmRecords: [],
+          antolinRecords: [],
+          schuelerGoals: [],
+          observations: [],
+          metaKognitionsProtokolle: [],
+          interaktionsLog: { eintraege: [], wochenEmpfehlung: null },
           mitarbeit: {},
+          mitarbeit_settings: { thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 }, mode: 'absolute' },
           verhalten: {},
           karten: {},
           jahresplanung: {},
@@ -1489,6 +992,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           anwesenheit: {},
           anwesenheitDetail: {},
           dienste: [],
+          checklisten: [],
+          customLists: [],
+          zugangsdaten: [],
           saAssessments: {},
           klassenglas_count: 0,
           klassenglas_ziel: 20,
@@ -1498,22 +1004,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
           klassenkasse: { kontostand: 0, sammlungen: [], transaktionen: [] },
           behavior_status: {},
           behavior_notes: {},
+          notes: [],
+          journal: [],
+          statusLog: [],
           sue_kontrolle: {},
           sitzplan_schueler: {},
           sitzplan_objekte: [],
+          sitzplanRegeln: [],
           lastGroups: undefined,
           stundenZeiten: STUNDEN_INFO,
           tageplan: DEFAULT_TAGEPLAN,
-          notes: cleanNotes,
           differenzierungsGruppen: cleanDiffGruppen,
-          diagnostikErgebnisse: cleanDiagnostikErgebnisse,
-          diagnostikErhebungen: cleanDiagnostikErhebungen,
-          diagnosticResults: cleanDiagnosticResults,
-          ikmRecords: cleanIkmRecords,
           stimmNotizen: cleanStimmNotizen,
-          interaktionsLog: cleanInteraktionsLog,
-          lernzielTracker: cleanLernzielTracker,
-          studentLernzielSemesterBewertungen: cleanLernzielSemesterBewertungen,
           tourAbgeschlossen: false
         };
       }
@@ -1534,7 +1036,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     app, 
     setApp, 
     updateApp,
-    saveApp, 
+    saveApp,
+    restoreAppData,
     updateStudent, 
     deleteStudent, 
     setPage, 
@@ -1550,7 +1053,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isVaultUnlocked,
     lockAppVault,
     unlockAppVault
-  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, isVaultUnlocked, lockAppVault, unlockAppVault]);
+  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, lockAppVault, unlockAppVault]);
 
   if (!isLoaded) {
     return (
@@ -1564,6 +1067,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return (
     <AppContext.Provider value={contextValue}>
       {children}
+      {isRestoring && <div role="status" aria-live="polite" className="fixed inset-0 z-[99999] bg-slate-950/80 flex items-center justify-center text-white">
+        <p>Backup wird geprüft und verschlüsselt gespeichert …</p>
+      </div>}
     </AppContext.Provider>
   );
 }

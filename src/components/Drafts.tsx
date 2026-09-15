@@ -6,10 +6,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import LessonPlannerAI from './LessonPlannerAI';
 import { DetailedLessonPlan } from '../services/aiService';
 import { TAGE_NAMEN } from '../constants';
-import { getSW, kwToMonday, getStartYear } from '../lib/utils';
+import { formatLocalDateKey, getKW, getSW, kwToMonday, getStartYear } from '../lib/utils';
 
 export default function Drafts() {
-  const { app, setApp } = useApp();
+  const { app, setApp, setPage } = useApp();
   const [search, setSearch] = useState('');
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
@@ -21,7 +21,7 @@ export default function Drafts() {
 
   const drafts = [...(app.stundenentwuerfe || [])].sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime());
   const filteredDrafts = drafts.filter(d => {
-    const matchesSearch = d.thema.toLowerCase().includes(search.toLowerCase()) || d.fach.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = (d.thema || '').toLowerCase().includes(search.toLowerCase()) || (d.fach || '').toLowerCase().includes(search.toLowerCase());
     const matchesSubject = !selectedSubject || d.fach === selectedSubject;
     return matchesSearch && matchesSubject;
   });
@@ -60,7 +60,7 @@ ${selectedDraft.material}
   const addDraft = () => {
     const newDraft = {
       id: Date.now().toString(),
-      datum: new Date().toISOString().slice(0, 10),
+      datum: formatLocalDateKey(new Date()),
       fach: 'Deutsch',
       thema: 'Neue Unterrichtsstunde',
       einleitung: '',
@@ -146,33 +146,39 @@ ${selectedDraft.material}
   const insertIntoWeeklyPlan = (tag: string, idx: number) => {
     if (!selectedDraft) return;
     
-    const activeKW = app.currentKW || 15;
+    const activeKW = app.currentKW || getKW(new Date());
 
-    setApp(prev => ({
-      ...prev,
-      wochenplanung: {
-        ...prev.wochenplanung,
-        [activeKW]: {
-          ...(prev.wochenplanung[activeKW] || {}),
-          [tag]: {
-            ...(prev.wochenplanung[activeKW]?.[tag] || {}),
-            [idx]: { 
-              fach: selectedDraft.fach, 
-              thema: selectedDraft.thema,
-              type: 'standard',
-              material: selectedDraft.material,
-              method: `Lernziele:\n${selectedDraft.lernziele}\n\nEinstieg:\n${selectedDraft.einleitung}\n\nHauptteil:\n${selectedDraft.hauptteil}\n\nSchluss:\n${selectedDraft.schluss}`,
-              social: 'single',
-              reflexion: ''
+    setApp(prev => {
+      const currentWeek = prev.wochenplanung?.[activeKW] || {};
+      const currentDay = currentWeek[tag] || {};
+      const currentSlot = currentDay[idx] || {};
+
+      return {
+        ...prev,
+        wochenplanung: {
+          ...(prev.wochenplanung || {}),
+          [activeKW]: {
+            ...currentWeek,
+            [tag]: {
+              ...currentDay,
+              [idx]: {
+                ...currentSlot,
+                fach: selectedDraft.fach,
+                thema: selectedDraft.thema,
+                type: currentSlot.type || 'standard',
+                material: selectedDraft.material || currentSlot.material || '',
+                method: `Lernziele:\n${selectedDraft.lernziele}\n\nEinstieg:\n${selectedDraft.einleitung}\n\nHauptteil:\n${selectedDraft.hauptteil}\n\nSchluss:\n${selectedDraft.schluss}`,
+                social: currentSlot.social || 'single',
+                reflexion: currentSlot.reflexion || ''
+              }
             }
           }
         }
-      }
-    }));
+      };
+    });
     setShowWeeklyPlanInsert(false);
-    // Suggest the user to navigate to weekly plan
-    if(confirm('Erfolgreich eingefügt! Möchtest du zum Wochenplan wechseln?')) {
-        setApp(p => ({ ...p, activeTab: 'weekly' }));
+    if (confirm('Erfolgreich eingefügt! Möchtest du zum Wochenplan wechseln?')) {
+      setPage('wochenplanung');
     }
   };
 

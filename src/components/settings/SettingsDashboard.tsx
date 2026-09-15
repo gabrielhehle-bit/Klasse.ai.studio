@@ -38,10 +38,10 @@ export default function SettingsDashboard({
     {
       id: 'display' as SettingsCategory,
       title: 'Darstellung',
-      subtitle: 'Design, Schriftgröße & Whiteboard',
-      desc: 'Passe Farben, Schriftgröße für Laptops/Smartboards, Whiteboard-Muster (Karos/Linien) und Board-Sichtbarkeit an.',
+      subtitle: 'Design, Schriftgröße & Cockpit',
+      desc: 'Passe Farbschema, Schriftgröße und die Darstellung auf Laptop oder Smartboard an. Schreib- und Zeichenwerkzeuge werden direkt im Lehrercockpit bedient.',
       icon: Palette,
-      badge: 'Farben & Smartboard',
+      badge: 'Design & Anzeige',
       color: 'bg-amber-500/10 text-amber-600 border-amber-200'
     },
     {
@@ -58,7 +58,7 @@ export default function SettingsDashboard({
       id: 'sync' as SettingsCategory,
       title: 'Synchronisierung',
       subtitle: 'Smartboard & Smartphone-Kopplung',
-      desc: 'Steuere deine LehrerAPP drahtlos vom Smartphone aus oder erstelle eine Live-Verbindung zum Smartboard.',
+      desc: 'Steuere deine Klassio drahtlos vom Smartphone aus oder erstelle eine Live-Verbindung zum Smartboard.',
       icon: Smartphone,
       badge: hasActiveSync ? 'Kopplung aktiv' : 'Live-Sync',
       badgeColor: hasActiveSync ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600',
@@ -95,10 +95,10 @@ export default function SettingsDashboard({
             Übersichtliche Verwaltung
           </div>
           <h2 className="text-xl md:text-2xl font-black tracking-tight font-sans">
-            Möchtest du Anpassungen an deiner LehrerAPP vornehmen?
+            Möchtest du Anpassungen an deiner Klassio vornehmen?
           </h2>
           <p className="text-sm text-emerald-100 font-medium leading-relaxed">
-            Wähle unten einen der 6 Hauptbereiche aus. Alle Einstellungen greifen sofort. Deine Daten und eingegebenen Schülereinträge bleiben stets sicher geschützt.
+            Wähle unten einen der 6 Hauptbereiche aus. Änderungen werden im lokalen App-Datenstand gespeichert. Löschfunktionen sind getrennt im Gefahrenbereich abgesichert.
           </p>
         </div>
 

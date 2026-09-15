@@ -3,6 +3,9 @@ export const TAGE_NAMEN = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Frei
 
 export const VM_ZEITEN = ['08:00–08:50', '08:50–09:45', '10:00–10:50', '10:50–11:45', '11:45–12:30'];
 
+export const MAX_LESSON_SLOTS = 10;
+export const LESSON_SLOT_NUMBERS = Array.from({ length: MAX_LESSON_SLOTS }, (_, index) => index + 1);
+
 export const STUNDEN_INFO: Record<number, string> = {
   1: '08:00–08:50',
   2: '08:50–09:45',
@@ -157,14 +160,15 @@ export const STUNDENTAFEL: Record<number, Record<string, string | number>> = {
 };
 
 export const AESTHETIC_THEMES = [
-  { id: 'classic_light', label: 'Classic Light', color: 'bg-neutral-50 border border-neutral-200 shadow-sm' },
-  { id: 'soft_sage', label: 'Soft Sage', color: 'bg-stone-100 border border-emerald-100 shadow-sm' },
-  { id: 'ocean_breeze', label: 'Ocean Breeze', color: 'bg-slate-50 border border-blue-100 shadow-sm' },
-  { id: 'warm_sand', label: 'Warm Sand', color: 'bg-orange-50/20 border border-orange-100 shadow-sm' },
-  { id: 'lavender_field', label: 'Lavender Field', color: 'bg-violet-50/60 border border-violet-150 shadow-sm' },
-  { id: 'peach_blossom', label: 'Peach Blossom', color: 'bg-amber-50/30 border border-amber-200 shadow-sm' },
-  { id: 'cozy_mint', label: 'Cozy Mint', color: 'bg-emerald-50/40 border border-emerald-200 shadow-sm' },
-  { id: 'sakura_dream', label: 'Sakura Dream', color: 'bg-rose-50/55 border border-rose-200 shadow-sm' },
+  { id: 'classic_light', label: 'Klassio', color: 'bg-[#f6f8f7] border border-[#dce5e2] shadow-sm' },
+  { id: 'deep_dark', label: 'Klassio Dunkel', color: 'bg-slate-900 border border-slate-700 shadow-sm' },
+  { id: 'soft_sage', label: 'Salbei', color: 'bg-stone-100 border border-emerald-100 shadow-sm' },
+  { id: 'ocean_breeze', label: 'Ozean', color: 'bg-slate-50 border border-blue-100 shadow-sm' },
+  { id: 'warm_sand', label: 'Sand', color: 'bg-orange-50/20 border border-orange-100 shadow-sm' },
+  { id: 'lavender_field', label: 'Lavendel', color: 'bg-violet-50/60 border border-violet-150 shadow-sm' },
+  { id: 'peach_blossom', label: 'Pfirsich', color: 'bg-amber-50/30 border border-amber-200 shadow-sm' },
+  { id: 'cozy_mint', label: 'Mint', color: 'bg-emerald-50/40 border border-emerald-200 shadow-sm' },
+  { id: 'sakura_dream', label: 'Kirschblüte', color: 'bg-rose-50/55 border border-rose-200 shadow-sm' },
 ] as const;
 
 export const DEFAULT_GEWICHTUNG: Record<string, any> = {

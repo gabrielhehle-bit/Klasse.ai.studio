@@ -40,6 +40,25 @@ export const DiagnosticHome: React.FC<DiagnosticHomeProps> = ({
         </div>
       </div>
 
+      {/* Pädagogischer Ablauf */}
+      <div className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-2" aria-label="Diagnostischer Ablauf">
+        {[
+          ['1', 'Erkennen', 'Beobachten oder gezielt prüfen'],
+          ['2', 'Verstehen', 'Ergebnisse im Verlauf einordnen'],
+          ['3', 'Fördern', 'Nächste pädagogische Schritte ableiten'],
+        ].map(([step, title, description]) => (
+          <div key={step} className="flex items-start gap-3 rounded-xl border border-slate-200/80 bg-slate-50/70 px-3.5 py-3">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white border border-slate-200 text-[11px] font-black text-slate-700">
+              {step}
+            </span>
+            <div>
+              <div className="text-xs font-bold text-slate-900">{title}</div>
+              <div className="mt-0.5 text-[11px] leading-relaxed text-slate-500">{description}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Die 3 Hauptbereiche */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         {/* 1. Einzelkind */}
@@ -129,7 +148,7 @@ export const DiagnosticHome: React.FC<DiagnosticHomeProps> = ({
             </div>
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-xl font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
-                Ergebnisse & Entwicklung
+                Verstehen & Fördern
               </h2>
               {resultsCount > 0 && (
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
@@ -138,12 +157,12 @@ export const DiagnosticHome: React.FC<DiagnosticHomeProps> = ({
               )}
             </div>
             <p className="text-sm text-slate-600 leading-relaxed">
-              Beobachtungen, Lernstände und Verläufe ansehen.
+              Ergebnisse einordnen, Lernverläufe verstehen und nächste Schritte ableiten.
             </p>
           </div>
 
           <div className="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between text-sm font-semibold text-amber-600 group-hover:text-amber-700">
-            <span>Lernstände ansehen</span>
+            <span>Ergebnisse einordnen</span>
             <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
           </div>
         </motion.div>
@@ -153,17 +172,17 @@ export const DiagnosticHome: React.FC<DiagnosticHomeProps> = ({
       <div className="mt-16 pt-6 border-t border-slate-200/60 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-500 text-xs">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-slate-400" />
-          <span>Neues Diagnostiksystem • Schritt 2</span>
+          <span>Bisherige Verfahren bleiben für ältere Einträge erreichbar.</span>
         </div>
 
         <button
           id="btn-open-legacy-diagnostik"
           onClick={onOpenLegacy}
           className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 font-medium transition-colors cursor-pointer border border-transparent hover:border-slate-200"
-          title="Zur alten Diagnostik-Toolsammlung wechseln"
+          title="Historische Diagnostik und bisherige Verfahren öffnen"
         >
           <SlidersHorizontal className="w-3.5 h-3.5" />
-          <span>Bisherige Diagnostik öffnen</span>
+          <span>Archiv & bisherige Diagnostik</span>
         </button>
       </div>
     </div>

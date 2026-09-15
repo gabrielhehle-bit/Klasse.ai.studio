@@ -1,6 +1,7 @@
 // Client-side AI Service calling the server proxy
 import { pseudonymisiere, depseudonymisiere, PseudonymMap } from '../lib/pseudonymisierung';
 import { AppState } from '../types';
+import { validateAiImagePrivacy } from '../lib/aiPrivacy';
 
 export interface LessonSuggestion {
   thema: string;
@@ -64,23 +65,30 @@ export async function callServerAI(action: string, params: any): Promise<string>
       }
     }
     
+    const { imageBase64, imagePrivacyConfirmed, ...restParams } = params || {};
+    const imagePrivacyError = validateAiImagePrivacy(imageBase64, imagePrivacyConfirmed === true);
+    if (imagePrivacyError) throw new Error(imagePrivacyError);
+
     if (appState && ((appState.schueler && appState.schueler.length > 0) || (appState.classes && appState.classes.length > 0))) {
-      // Vor der Pseudonymisierung: Geburtsdaten aus params maskieren
-      const { imageBase64, ...restParams } = params;
+      // Text-/JSON-Daten werden weiter pseudonymisiert. Bilddaten dürfen nur nach expliziter
+      // Bestätigung gesendet werden, weil Bildinhalte technisch nicht zuverlässig pseudonymisiert werden können.
       let paramsStr = JSON.stringify(restParams);
       paramsStr = paramsStr.replace(/\b\d{1,2}\.\d{1,2}\.\d{2,4}\b/g, "[Datum entfernt]");
 
       const result = pseudonymisiere(paramsStr, appState as AppState);
-      params = { ...JSON.parse(result.text), ...(imageBase64 ? { imageBase64 } : {}) };
+      params = { ...JSON.parse(result.text), ...(imageBase64 ? { imageBase64, imagePrivacyConfirmed: true } : {}) };
       map = result.map;
     } else {
+      params = { ...restParams, ...(imageBase64 ? { imageBase64, imagePrivacyConfirmed: true } : {}) };
       if (!pseudonymizationWarningShown && (!appState || (!appState.schueler?.length && !appState.classes?.length))) {
         // Keine Schülerdaten im aktuellen RAM vorhanden (z. B. leeres System)
         pseudonymizationWarningShown = true;
       }
     }
   } catch (e) {
-    console.warn("Pseudonymization step failed", e);
+    clearTimeout(timeoutId);
+    console.error("Pseudonymization step failed; request blocked", e);
+    throw new Error("KI-Anfrage aus Datenschutzgründen abgebrochen. Bitte entferne personenbezogene Daten bzw. Bildanhänge und versuche es erneut.");
   }
 
   try {
@@ -99,7 +107,7 @@ export async function callServerAI(action: string, params: any): Promise<string>
         throw new Error("Rate Limit überschritten: Die KI braucht eine kurze Pause. Bitte versuche es in 10-20 Sekunden erneut.");
       }
       if (response.status === 401 || response.status === 403) {
-        throw new Error("KI-Authentifizierungsfehler: Dein API-Schlüssel ist abgelaufen oder ungültig. Bitte erneuere ihn in den App-Einstellungen.");
+        throw new Error("KI-Authentifizierungsfehler: Der serverseitige Gemini-Zugang ist nicht gültig oder nicht eingerichtet.");
       }
       throw new Error(errorData.error || "KI momentan nicht erreichbar");
     }
@@ -654,11 +662,11 @@ Antworte NUR mit einem gültigen JSON-Array von Strings, das die IDs der passend
   }
 }
 
-export async function askAI(modusId: string, userMessage: string, history: { role: 'user' | 'ai', content: string }[] = [], imageBase64?: { data: string, mimeType: string }): Promise<string | null> {
+export async function askAI(modusId: string, userMessage: string, history: { role: 'user' | 'ai', content: string }[] = [], imageBase64?: { data: string, mimeType: string }, imagePrivacyConfirmed: boolean = false): Promise<string | null> {
   if (userMessage.trim().length < 2) return "Bitte gib eine längere Nachricht ein.";
 
   try {
-    return await callServerAI("askAI", { modusId, userMessage, history, imageBase64 });
+    return await callServerAI("askAI", { modusId, userMessage, history, imageBase64, imagePrivacyConfirmed });
   } catch (error: any) {
     return error.message;
   }

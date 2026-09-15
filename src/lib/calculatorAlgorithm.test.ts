@@ -274,29 +274,19 @@ test('29. estimationjar im Mathe-Fachmodul zugeordnet', () => {
   assert.strictEqual(isMathFachmodulTool('estimationjar'), true);
 });
 
-// 30. divrobot nicht mehr im Picker
-test('30. divrobot als Altlast deklariert und aus Picker entfernt', () => {
-  assert.strictEqual(isRetiredMathWidget('divrobot'), true);
-  assert.strictEqual(isMathFachmodulTool('divrobot'), false);
-});
-
-// 31. mathduel nicht mehr im Picker
-test('31. mathduel als Altlast deklariert und aus Picker entfernt', () => {
-  assert.strictEqual(isRetiredMathWidget('mathduel'), true);
-  assert.strictEqual(isMathFachmodulTool('mathduel'), false);
-});
-
-// 32. shapepuzzle nicht mehr im Picker
-test('32. shapepuzzle als Altlast deklariert und aus Picker entfernt', () => {
-  assert.strictEqual(isRetiredMathWidget('shapepuzzle'), true);
-  assert.strictEqual(isMathFachmodulTool('shapepuzzle'), false);
-});
-
-// 33. sorting nicht mehr im Picker
-test('33. sorting als Altlast deklariert und aus Picker entfernt', () => {
-  assert.strictEqual(isRetiredMathWidget('sorting'), true);
-  assert.strictEqual(isMathFachmodulTool('sorting'), false);
-});
+// 30–33. Historische Mathematik-Widgets bleiben als Unterrichtshilfen erhalten.
+// Sie sind bewusst keine Einträge des konsolidierten Mathematik-Fachmoduls.
+for (const [nr, type] of [
+  [30, 'divrobot'],
+  [31, 'mathduel'],
+  [32, 'shapepuzzle'],
+  [33, 'sorting'],
+] as const) {
+  test(`${nr}. ${type} bleibt erhalten und ist keine entfernte Altlast`, () => {
+    assert.strictEqual(isRetiredMathWidget(type), false);
+    assert.strictEqual(isMathFachmodulTool(type), false);
+  });
+}
 
 // 34. Legacy-Boards crashen nicht
 test('34. Legacy-Boards crashen nicht: Fallback-Nachrichten vorhanden', () => {

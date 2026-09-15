@@ -1,145 +1,104 @@
+import localforage from 'localforage';
 import React, { useRef, useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Download, Upload, Shield, Database, AlertCircle, CheckCircle2, Monitor, Loader2, Trash2, Clock, FileJson, AlertTriangle, Archive, RotateCcw, Cloud, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { triggerBackupDownload } from '../utils/backupUtils';
-import { 
-  isEncryptedBackupV1, 
-  isLegacyPlaintextBackup, 
-  decryptBackup, 
-  recoverBackup,
-  unlockAndDecryptBackup,
-  createEncryptedBackup
-} from '../lib/backupCryptoService';
-import { 
-  getActiveVaultKey, 
-  getActiveVaultRecord, 
-  loadVaultRecord, 
-  setActiveVaultSession 
-} from '../lib/vaultStorage';
-import LZString from 'lz-string';
-import localforage from 'localforage';
+import { LAST_BACKUP_TIMESTAMP_KEY, markBackupCompleted, triggerBackupDownload } from '../utils/backupUtils';
+import { createEncryptedBackup } from '../lib/backupCryptoService';
+import { clearActiveVaultSession, deleteVaultRecord, getActiveVaultKey, getActiveVaultRecord, loadVaultRecord } from '../lib/vaultStorage';
+import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
+import { ONEDRIVE_BACKUP_PRIMARY_NAME } from '../lib/cloudBackupNames';
+import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
+import { syncActiveClass, switchClassState } from '../lib/appState';
+
+function formatBackupMoment(timestamp: number, label = 'Zuletzt gesichert'): string {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return 'Noch keine Sicherung erfasst';
+  return `${label}: ${date.toLocaleString('de-AT', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`;
+}
 
 export default function Backup() {
-  const { app, setApp } = useApp();
+  const { app, setApp, restoreAppData } = useApp();
 
-  const handleArchiveActiveClass = () => {
-    if (confirm("Möchten Sie die aktive Klasse wirklich in das Archiv verschieben?")) {
-      setApp(prev => {
-        const classes = prev.classes || [];
-        const activeIdx = classes.findIndex(c => c.id === prev.activeClassId);
-        if (activeIdx === -1) return prev;
-
-        const currentClassSnapshot = {
-          ...classes[activeIdx],
-          name: prev.klassenbezeichnung,
-          stufe: prev.stufe,
-          klassenvorstand: prev.klassenvorstand,
-          schueler: prev.schueler ? JSON.parse(JSON.stringify(prev.schueler)) : [],
-          noten: prev.noten ? JSON.parse(JSON.stringify(prev.noten)) : {},
-          mitarbeit: prev.mitarbeit ? JSON.parse(JSON.stringify(prev.mitarbeit)) : {},
-          verhalten: prev.verhalten ? JSON.parse(JSON.stringify(prev.verhalten)) : {},
-          karten: prev.karten ? JSON.parse(JSON.stringify(prev.karten)) : {},
-          jahresplanung: prev.jahresplanung ? JSON.parse(JSON.stringify(prev.jahresplanung)) : {},
-          jahresplan_faecher: prev.jahresplan_faecher ? JSON.parse(JSON.stringify(prev.jahresplan_faecher)) : undefined,
-          wochenplanung: prev.wochenplanung ? JSON.parse(JSON.stringify(prev.wochenplanung)) : {},
-          wochenplanSyncSet: prev.wochenplanSyncSet ? JSON.parse(JSON.stringify(prev.wochenplanSyncSet)) : undefined,
-          stammplan: prev.stammplan ? JSON.parse(JSON.stringify(prev.stammplan)) : {},
-          anwesenheit: prev.anwesenheit ? JSON.parse(JSON.stringify(prev.anwesenheit)) : {},
-sue_kontrolle: prev.sue_kontrolle ? JSON.parse(JSON.stringify(prev.sue_kontrolle)) : {},
-sitzplan_schueler: prev.sitzplan_schueler ? JSON.parse(JSON.stringify(prev.sitzplan_schueler)) : {},
-sitzplan_objekte: prev.sitzplan_objekte ? JSON.parse(JSON.stringify(prev.sitzplan_objekte)) : [],
-          anwesenheitDetail: prev.anwesenheitDetail ? JSON.parse(JSON.stringify(prev.anwesenheitDetail)) : undefined,
-          dienste: prev.dienste ? JSON.parse(JSON.stringify(prev.dienste)) : undefined,
-          klassenglas_count: prev.klassenglas_count ?? 0,
-          klassenglas_ziel: prev.klassenglas_ziel ?? 20,
-          klassenglas_belohnung: prev.klassenglas_belohnung,
-          klassenglas_missions: prev.klassenglas_missions ? JSON.parse(JSON.stringify(prev.klassenglas_missions)) : undefined,
-        };
-
-        const newArchivedClasses = [...(prev.archivedClasses || []), currentClassSnapshot];
-        let newClasses = classes.filter(c => c.id !== prev.activeClassId);
-        
-        if (newClasses.length === 0) {
-          newClasses = [{
-            id: 'class-' + Math.random().toString(36).substring(2, 9),
-            name: 'Neue Klasse',
-            stufe: 4,
-            klassenvorstand: true,
-            schueler: [],
-            noten: {},
-            mitarbeit: {},
-            verhalten: {},
-            karten: {},
-            jahresplanung: {},
-            wochenplanung: {},
-            stammplan: {},
-            anwesenheit: {},
-            klassenglas_count: 0,
-            klassenglas_ziel: 20, sue_kontrolle: {}, sitzplan_schueler: {}, sitzplan_objekte: []
-          }];
-        }
-
-        const nextClass = newClasses[0];
-
-        return {
-          ...prev,
-          archivedClasses: newArchivedClasses,
-          classes: newClasses,
-          activeClassId: nextClass.id,
-          klassenbezeichnung: nextClass.name,
-          stufe: nextClass.stufe,
-          klassenvorstand: nextClass.klassenvorstand,
-          schueler: nextClass.schueler ? JSON.parse(JSON.stringify(nextClass.schueler)) : [],
-          noten: nextClass.noten,
-          mitarbeit: nextClass.mitarbeit,
-          verhalten: nextClass.verhalten,
-          karten: nextClass.karten,
-          jahresplanung: nextClass.jahresplanung,
-          jahresplan_faecher: nextClass.jahresplan_faecher,
-          wochenplanung: nextClass.wochenplanung,
-          wochenplanSyncSet: nextClass.wochenplanSyncSet,
-          stammplan: nextClass.stammplan,
-          anwesenheit: nextClass.anwesenheit,
-sue_kontrolle: nextClass.sue_kontrolle,
-sitzplan_schueler: nextClass.sitzplan_schueler,
-sitzplan_objekte: nextClass.sitzplan_objekte,
-          anwesenheitDetail: nextClass.anwesenheitDetail,
-          dienste: nextClass.dienste,
-          klassenglas_count: nextClass.klassenglas_count,
-          klassenglas_ziel: nextClass.klassenglas_ziel,
-          klassenglas_belohnung: nextClass.klassenglas_belohnung,
-          klassenglas_missions: nextClass.klassenglas_missions,
-        };
-      });
+  const handleRetireActiveClass = () => {
+    const activeClasses = app.classes || [];
+    if (activeClasses.length <= 1) {
+      alert('Lege bitte zuerst eine neue aktive Klasse an. Mindestens eine Klasse muss aktiv bleiben.');
+      return;
     }
-  };
 
-  const handleRestoreArchivedClass = (classId: string) => {
-    setApp(prev => {
-      const archivedClasses = prev.archivedClasses || [];
-      const idx = archivedClasses.findIndex(c => c.id === classId);
-      if (idx === -1) return prev;
-      const restoredClass = archivedClasses[idx];
-      const newArchivedClasses = archivedClasses.filter(c => c.id !== classId);
-      const newClasses = [...(prev.classes || []), restoredClass];
-      return { ...prev, archivedClasses: newArchivedClasses, classes: newClasses };
+    if (!confirm(
+      'Aktive Klasse aus der Klassenliste stilllegen? Sie bleibt vollständig erhalten und kann hier später wiederhergestellt werden. Dies erstellt keinen Jahresarchivstand.'
+    )) return;
+
+    setApp((prev) => {
+      const synced = syncActiveClass(prev);
+      const classes = synced.classes || [];
+      const activeClass = classes.find((item) => item.id === synced.activeClassId);
+      if (!activeClass || classes.length <= 1) return prev;
+
+      const remainingClasses = classes.filter((item) => item.id !== synced.activeClassId);
+      const retiredClasses = [
+        ...(synced.retiredClasses || []).filter((item) => item.id !== activeClass.id),
+        JSON.parse(JSON.stringify(activeClass)),
+      ];
+
+      const switched = switchClassState(
+        {
+          ...synced,
+          classes: remainingClasses,
+          retiredClasses,
+        },
+        remainingClasses[0].id
+      );
+
+      return {
+        ...switched,
+        retiredClasses,
+      };
     });
   };
 
-  const handleDeleteArchivedClass = (classId: string) => {
-    if (confirm("Möchten Sie diese archivierte Klasse wirklich unwiderruflich löschen? Erstellen Sie vorher bei Bedarf eine Datensicherung.")) {
-      setApp(prev => ({
+  const handleRestoreRetiredClass = (classId: string) => {
+    setApp((prev) => {
+      const retiredClasses = prev.retiredClasses || [];
+      const retiredClass = retiredClasses.find((item) => item.id === classId);
+      if (!retiredClass) return prev;
+      if ((prev.classes || []).some((item) => item.id === classId)) {
+        alert('Eine aktive Klasse mit derselben ID ist bereits vorhanden.');
+        return prev;
+      }
+
+      return {
         ...prev,
-        archivedClasses: (prev.archivedClasses || []).filter(c => c.id !== classId)
-      }));
-    }
+        retiredClasses: retiredClasses.filter((item) => item.id !== classId),
+        classes: [...(prev.classes || []), JSON.parse(JSON.stringify(retiredClass))],
+      };
+    });
+  };
+
+  const handleDeleteRetiredClass = (classId: string) => {
+    if (!confirm(
+      'Diese stillgelegte Klasse wirklich unwiderruflich aus dem aktuellen Datenbestand löschen? Erstellen Sie vorher bei Bedarf eine Datensicherung.'
+    )) return;
+
+    setApp((prev) => ({
+      ...prev,
+      retiredClasses: (prev.retiredClasses || []).filter((item) => item.id !== classId),
+    }));
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const [usedMB, setUsedMB] = useState(0);
+  const [quotaMB, setQuotaMB] = useState<number | null>(null);
   const [percentage, setPercentage] = useState(0);
   
   // Custom states for interactive feedback
@@ -149,25 +108,47 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [lastBackupStr, setLastBackupStr] = useState('Noch keine lokale Sicherung erfasst');
 
-  // Load from offline persistent storage if exists
+  // Browser storage estimate includes IndexedDB, Cache Storage and localStorage where supported.
   useEffect(() => {
-    try {
-      const totalStr = JSON.stringify(localStorage);
-      const bytes = totalStr.length;
-      const mb = bytes / (1024 * 1024);
-      setUsedMB(parseFloat(mb.toFixed(2)));
-      setPercentage(Math.min(100, (bytes / (5 * 1024 * 1024)) * 100));
-    } catch {
-      setUsedMB(0);
-      setPercentage(0);
-    }
+    let cancelled = false;
+    const updateStorageEstimate = async () => {
+      try {
+        if (!navigator.storage?.estimate) {
+          if (!cancelled) {
+            setUsedMB(0);
+            setQuotaMB(null);
+            setPercentage(0);
+          }
+          return;
+        }
+        const estimate = await navigator.storage.estimate();
+        if (cancelled) return;
+        const usage = estimate.usage ?? 0;
+        const quota = estimate.quota ?? 0;
+        setUsedMB(Number((usage / (1024 * 1024)).toFixed(2)));
+        setQuotaMB(quota > 0 ? Number((quota / (1024 * 1024)).toFixed(0)) : null);
+        setPercentage(quota > 0 ? Math.min(100, (usage / quota) * 100) : 0);
+      } catch {
+        if (!cancelled) {
+          setUsedMB(0);
+          setQuotaMB(null);
+          setPercentage(0);
+        }
+      }
+    };
+    void updateStorageEstimate();
+    return () => { cancelled = true; };
   }, [app]);
 
   useEffect(() => {
-    const savedTime = localStorage.getItem('lehrkraft_last_backup_time');
-    if (savedTime) {
-      setLastBackupStr(savedTime);
+    const savedTimestamp = Number(localStorage.getItem(LAST_BACKUP_TIMESTAMP_KEY));
+    if (Number.isFinite(savedTimestamp) && savedTimestamp > 0) {
+      setLastBackupStr(formatBackupMoment(savedTimestamp));
+      return;
     }
+    // Read-only migration hint for older builds; a new backup replaces this with a real timestamp.
+    const legacyLabel = localStorage.getItem('lehrkraft_last_backup_time');
+    if (legacyLabel) setLastBackupStr(legacyLabel);
   }, []);
 
   // Animated backup trigger with client-side encryption
@@ -178,10 +159,8 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
     try {
       await triggerBackupDownload(app);
       
-      // Update backup timestamp
-      const timeStr = "Zuletzt gesichert vor wenigen Sekunden (Heute um " + new Date().toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) + ")";
-      localStorage.setItem('lehrkraft_last_backup_time', timeStr);
-      setLastBackupStr(timeStr);
+      const completedAt = Number(localStorage.getItem(LAST_BACKUP_TIMESTAMP_KEY)) || Date.now();
+      setLastBackupStr(formatBackupMoment(completedAt));
       
       setBackupStatus('success');
       setTimeout(() => setBackupStatus('idle'), 3000);
@@ -198,60 +177,13 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const content = e.target?.result as string;
-        const importedData = JSON.parse(content);
-        
-        if (typeof importedData !== 'object' || importedData === null) {
-          throw new Error('Ungültiges Format');
-        }
-        
-        let targetData: any = null;
-
-        // Fall 1: Verschlüsseltes Backup (.lehrerapp)
-        if (isEncryptedBackupV1(importedData)) {
-          let decrypted: any = null;
-          const activeKey = getActiveVaultKey();
-          if (activeKey) {
-            try {
-              decrypted = await decryptBackup(importedData, activeKey);
-            } catch {
-              decrypted = null;
-            }
-          }
-
-          if (!decrypted) {
-            const userInput = prompt(
-              'Dieses Backup ist clientseitig verschlüsselt.\n\nBitte gib dein Tresor-Passwort oder deinen 128-Bit Recovery-Code ein:'
-            );
-            if (!userInput) {
-              setImportStatus('idle');
-              alert('Import abgebrochen: Kein Schlüssel eingegeben.');
-              return;
-            }
-
-            try {
-              if (userInput.replace(/[-\s]/g, '').length === 32) {
-                const res = await recoverBackup(importedData, userInput);
-                decrypted = res.appState;
-                setActiveVaultSession(res.vaultKey, res.vaultRecord);
-              } else {
-                const res = await unlockAndDecryptBackup(importedData, userInput);
-                decrypted = res.appState;
-                setActiveVaultSession(res.vaultKey, res.vaultRecord);
-              }
-            } catch {
-              setImportStatus('idle');
-              alert('Entschlüsselung fehlgeschlagen: Falscher Recovery-Code oder ungültiges Passwort.');
-              return;
-            }
-          }
-          targetData = decrypted;
-        } else if (isLegacyPlaintextBackup(importedData)) {
-          // Fall 2: Unverschlüsseltes Alt-Backup (Legacy)
-          targetData = importedData;
-        } else {
-          throw new Error('Diese Datei ist kein gültiges LehrerAPP-Backup.');
-        }
+        const importedData = parseBackupText(String(e.target?.result || ''));
+        const key = getActiveVaultKey();
+        if (!key) throw new Error('Bitte zuerst den lokalen Tresor entsperren.');
+        const targetData = await prepareBackupRestore(importedData, key, () => prompt(
+          'Bitte gib das Tresor-Passwort oder den Recovery-Code dieses Backups ein. Dein lokales Tresor-Passwort bleibt unverändert.'
+        ));
+        if (!targetData) { setImportStatus('idle'); return; }
 
         const shouldReplace = confirm(
           'Diese Sicherung ersetzt den aktuellen lokalen Datenbestand vollständig. Nicht gesicherte Änderungen gehen verloren. Möchten Sie den Import wirklich fortsetzen?'
@@ -261,26 +193,10 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
           return;
         }
 
-        const dataToImport = JSON.stringify({
-          ...targetData,
-          tourAbgeschlossen: true
-        });
-
-        await localforage.setItem('hehle_v3', dataToImport);
-
-        try {
-          localStorage.setItem('hehle_v3_fallback', dataToImport);
-          localStorage.setItem('hehle_v3_backup', LZString.compressToUTF16(dataToImport));
-        } catch (err) {
-          console.warn('Fallback-Schreiben fehlgeschlagen (Quota)', err);
-        }
-        
-        sessionStorage.removeItem('hehle_v3_temp');
+        await restoreAppData(targetData);
 
         setImportStatus('success');
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        setTimeout(() => setImportStatus('idle'), 1500);
 
       } catch (err: any) {
         console.error('Import error:', err);
@@ -306,10 +222,8 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file && (file.type === "application/json" || file.name.endsWith('.json'))) {
+    if (file) {
       processFile(file);
-    } else {
-      alert('Bitte lade eine gültige .json Backup-Datei hoch.');
     }
   };
 
@@ -318,23 +232,54 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
     if (file) processFile(file);
   };
 
-  // Safe reset routine
+  // Safe reset routine: remove data stores before deleting the vault metadata.
+  // This avoids leaving encrypted app data behind after its recovery metadata has already been removed.
   const executeAbsoluteReset = async () => {
     if (deleteConfirmText !== 'LÖSCHEN') return;
     setDeleteModalOpen(false);
-    
+
+    try {
+      await clearTrustedDeviceUnlock();
+    } catch (error) {
+      console.error('Gerätevertrauen konnte beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Gerätevertrauen konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
+    }
+
     try {
       await localforage.clear();
-    } catch (e) {
-      console.error('IndexedDB-Löschung fehlgeschlagen', e);
+    } catch (error) {
+      console.error('Lokaler App-Speicher konnte beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Der lokale App-Speicher konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
     }
-    
-    localStorage.clear();
-    sessionStorage.clear();
-    setLastBackupStr('Noch nie gesichert');
-    localStorage.setItem('lehrkraft_last_backup_time', 'Noch nie gesichert');
-    
-    // Hard refresh back to initial setup
+
+    try {
+      localStorage.clear();
+    } catch (error) {
+      console.error('Browser-Fallback konnte beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Der Browser-Fallback konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
+    }
+
+    try {
+      sessionStorage.clear();
+    } catch (error) {
+      console.error('Sitzungsspeicher konnte beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Der Sitzungsspeicher konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
+    }
+
+    // Delete vault metadata last. If this step fails, no encrypted pupil/app state is left behind.
+    try {
+      await deleteVaultRecord();
+    } catch (error) {
+      console.error('Tresor-Metadaten konnten beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Die Tresor-Metadaten konnten nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
+    }
+
+    clearActiveVaultSession();
     window.location.reload();
   };
 
@@ -466,6 +411,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
 
       // Listener für PostMessage vom Callback-Endpunkt
       const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin || !popup || event.source !== popup) return;
         if (event.data?.type === 'ONEDRIVE_AUTH_SUCCESS') {
           const tokenData = event.data.tokenData;
           sessionStorage.setItem('onedrive_token', JSON.stringify(tokenData));
@@ -527,7 +473,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
       }
 
       // Zero-Knowledge Verschlüsselung vor Verlassen des Browsers
-      const encryptedBackup = await createEncryptedBackup(app, vaultKey, vaultRecord);
+      const encryptedBackup = await createEncryptedBackup(syncActiveClass(app), vaultKey, vaultRecord);
 
       const res = await fetch('/api/onedrive/upload', {
         method: 'PUT',
@@ -546,9 +492,9 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
       setSyncStatus('success');
       await fetchMetadata();
       
-      const timeStr = "OneDrive-Sicherung geladen (Heute um " + new Date().toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) + ")";
-      localStorage.setItem('lehrkraft_last_backup_time', timeStr);
-      setLastBackupStr(timeStr);
+      const completedAt = Date.now();
+      markBackupCompleted(completedAt);
+      setLastBackupStr(formatBackupMoment(completedAt, 'Zuletzt in OneDrive gesichert'));
 
       setTimeout(() => setSyncStatus('idle'), 3000);
     } catch (err: any) {
@@ -595,73 +541,19 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
         throw new Error('Ungültiges Datenformat von OneDrive empfangen.');
       }
 
-      let targetData: any = null;
-
-      // Fall 1: Verschlüsseltes Backup von OneDrive empfangen
-      if (isEncryptedBackupV1(importedData)) {
-        let decrypted: any = null;
-        const activeKey = getActiveVaultKey();
-        if (activeKey) {
-          try {
-            decrypted = await decryptBackup(importedData, activeKey);
-          } catch {
-            decrypted = null;
-          }
-        }
-
-        if (!decrypted) {
-          const userInput = prompt(
-            'Das OneDrive-Backup ist clientseitig verschlüsselt.\n\nBitte gib dein Tresor-Passwort oder deinen 128-Bit Recovery-Code ein:'
-          );
-          if (!userInput) {
-            setIsSyncing(false);
-            setSyncStatus('idle');
-            return;
-          }
-
-          if (userInput.replace(/[-\s]/g, '').length === 32) {
-            const r = await recoverBackup(importedData, userInput);
-            decrypted = r.appState;
-            setActiveVaultSession(r.vaultKey, r.vaultRecord);
-          } else {
-            const r = await unlockAndDecryptBackup(importedData, userInput);
-            decrypted = r.appState;
-            setActiveVaultSession(r.vaultKey, r.vaultRecord);
-          }
-        }
-        targetData = decrypted;
-      } else if (isLegacyPlaintextBackup(importedData)) {
-        // Fall 2: Altes unverschlüsseltes Cloud-Backup
-        targetData = importedData;
-      } else {
-        throw new Error('Die von OneDrive heruntergeladene Datei ist kein gültiges LehrerAPP-Backup.');
-      }
-
-      const dataToImport = JSON.stringify({
-        ...targetData,
-        tourAbgeschlossen: true
-      });
-
-      await localforage.setItem('hehle_v3', dataToImport);
-
-      try {
-        localStorage.setItem('hehle_v3_fallback', dataToImport);
-        localStorage.setItem('hehle_v3_backup', LZString.compressToUTF16(dataToImport));
-      } catch (e) {
-        console.warn('Fallback-Schreiben fehlgeschlagen (Quota)', e);
-      }
-
-      sessionStorage.removeItem('hehle_v3_temp');
+      const key = getActiveVaultKey();
+      if (!key) throw new Error('Bitte zuerst den lokalen Tresor entsperren.');
+      const targetData = await prepareBackupRestore(importedData, key, () => prompt(
+        'Bitte gib das Tresor-Passwort oder den Recovery-Code dieses Backups ein. Dein lokales Tresor-Passwort bleibt unverändert.'
+      ));
+      if (!targetData) { setSyncStatus('idle'); return; }
+      await restoreAppData(targetData);
 
       setSyncStatus('success');
       
-      const timeStr = "OneDrive-Sicherung eingespielt (Heute um " + new Date().toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) + ")";
-      localStorage.setItem('lehrkraft_last_backup_time', timeStr);
-      setLastBackupStr(timeStr);
+      setLastBackupStr(formatBackupMoment(Date.now(), 'Zuletzt aus OneDrive wiederhergestellt'));
 
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      setTimeout(() => setSyncStatus('idle'), 1500);
 
     } catch (err: any) {
       console.error('OneDrive Download-Fehler:', err);
@@ -735,7 +627,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
             <div className="bg-white p-4 rounded-2xl border border-sky-150 text-[0.75rem] space-y-2.5 text-slate-700 shadow-sm">
               <p className="font-bold text-slate-800 flex items-center gap-1.5">
                 <span>🔑</span>
-                <span>Infrastruktur-Aktivierung in AI Studio (Umgebungsvariablen):</span>
+                <span>Infrastruktur-Aktivierung am Klassio-Server (Umgebungsvariablen):</span>
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
                 <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
@@ -828,7 +720,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
                           Navigieren Sie zu <strong>Identität → Anwendungen → App-Registrierungen</strong> und wählen Sie <strong>Neue Registrierung</strong>.
                         </li>
                         <li>
-                          Geben Sie einen Anzeigenamen ein (z. B. <em>„Schul-Lehrermappe Sync“</em>).
+                          Geben Sie einen Anzeigenamen ein (z. B. <em>„Klassio OneDrive Sync“</em>).
                         </li>
                         <li>
                           Wählen Sie den Kontotyp:
@@ -867,7 +759,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
                           Erstellen Sie unter <strong>Zertifikate & Geheimnisse</strong> einen <strong>Neuen geheimen Clientschlüssel</strong> (Client Secret). Kopieren Sie den <em>Wert</em> (Value).
                         </li>
                         <li>
-                          Tragen Sie die <strong>Anwendungs-ID (Client ID)</strong> als <code className="bg-slate-100 px-1 py-0.5 rounded text-violet-700 font-bold">MICROSOFT_CLIENT_ID</code> und das Secret als <code className="bg-slate-100 px-1 py-0.5 rounded text-violet-700 font-bold">MICROSOFT_CLIENT_SECRET</code> in den Umgebungsvariablen / AI Studio Secrets ein.
+                          Tragen Sie die <strong>Anwendungs-ID (Client ID)</strong> als <code className="bg-slate-100 px-1 py-0.5 rounded text-violet-700 font-bold">MICROSOFT_CLIENT_ID</code> und das Secret als <code className="bg-slate-100 px-1 py-0.5 rounded text-violet-700 font-bold">MICROSOFT_CLIENT_SECRET</code> in den Server-Umgebungsvariablen ein.
                         </li>
                       </ol>
                     </div>
@@ -882,7 +774,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
                           <span>Verteilung & Steuerung über Microsoft Intune (MDM / MAM)</span>
                         </h5>
                         <p className="text-slate-600 font-medium text-[11px]">
-                          Verteilen Sie die digitale Lehrermappe auf schulische iPads, MacBooks und Windows-Dienstgeräte Ihrer Lehrkräfte mit integrierter M365-Anmeldung.
+                          Verteilen Sie die Klassio auf schulische iPads, MacBooks und Windows-Dienstgeräte Ihrer Lehrkräfte mit integrierter M365-Anmeldung.
                         </p>
                       </div>
 
@@ -942,28 +834,28 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
                         <div className="flex gap-2 items-start">
                           <span className="text-emerald-600 font-bold shrink-0">✓</span>
                           <div>
-                            <strong className="text-slate-800">Keine Datenspeicherung auf Fremdservern:</strong> Die Sicherungsdatei <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-emerald-700">Lehrermappe_Backup.json</code> wird direkt und verschlüsselt vom App-Dienst in den persönlichen OneDrive-Speicher der angemeldeten Lehrkraft übertragen. Es findet keine dauerhafte zentrale Zwischenspeicherung auf fremden Servern statt.
+                            <strong className="text-slate-800">Clientseitige Inhaltsverschlüsselung:</strong> Klassio verschlüsselt den App-Datenbestand bereits im Browser. Der Upload enthält damit nur den verschlüsselten Backup-Inhalt. Die konkrete Microsoft-365- und Hosting-Konfiguration muss die Schule separat prüfen.
                           </div>
                         </div>
 
                         <div className="flex gap-2 items-start">
                           <span className="text-emerald-600 font-bold shrink-0">✓</span>
                           <div>
-                            <strong className="text-slate-800">Transport- & Speicherverschlüsselung:</strong> Die Übertragung erfolgt zwingend über HTTPS/TLS 1.3. Die Ablage im M365 OneDrive der Schule unterliegt den Microsoft Education DSGVO-Auftragsverarbeitungsverträgen (AVV) inklusive AES-256 Verschlüsselung auf Disk-Ebene.
+                            <strong className="text-slate-800">Transport & OneDrive:</strong> Der Produktivbetrieb muss per HTTPS erfolgen. TLS-Version, OneDrive-Speicherschutz und vertragliche Datenschutzbedingungen werden durch Hosting und den jeweiligen Microsoft-365-Tenant bestimmt und sind durch die Schule bzw. den Datenschutzbeauftragten zu verifizieren.
                           </div>
                         </div>
 
                         <div className="flex gap-2 items-start">
                           <span className="text-emerald-600 font-bold shrink-0">✓</span>
                           <div>
-                            <strong className="text-slate-800">Zugriffskontrolle & Multi-Faktor-Authentifizierung (MFA):</strong> Der Zugriff auf die Cloud-Sicherung ist durch die M365-Anmeldung der Lehrkraft und Ihre schulischen Entra ID Conditional Access Richtlinien (z. B. MFA-Pflicht) geschützt.
+                            <strong className="text-slate-800">Zugriffskontrolle:</strong> Der Zugriff erfolgt über das verbundene Microsoft-Konto. MFA und Conditional Access gelten nur, wenn sie im schulischen Entra-ID-Tenant tatsächlich konfiguriert und durchgesetzt werden.
                           </div>
                         </div>
 
                         <div className="flex gap-2 items-start">
                           <span className="text-emerald-600 font-bold shrink-0">✓</span>
                           <div>
-                            <strong className="text-slate-800">Löschkonzept:</strong> Das Backup verbleibt im OneDrive der Lehrkraft und kann jederzeit direkt in OneDrive oder lokal in der Anwendung über den Punkt <em>„Vollständiger Werksreset“</em> gelöscht werden.
+                            <strong className="text-slate-800">Löschkonzept:</strong> Der Klassio-Werksreset löscht ausschließlich die lokalen App-Daten dieses Browsers. Eine vorhandene Cloud-Sicherung muss separat im verbundenen OneDrive gelöscht werden.
                           </div>
                         </div>
                       </div>
@@ -1016,7 +908,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
                     </div>
                   ) : cloudBackupMetadata.exists ? (
                     <p className="text-[0.75rem] font-bold text-slate-800 mt-1">
-                      Vorhanden ({new Date(cloudBackupMetadata.lastModifiedDateTime).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })})
+                      {cloudBackupMetadata.fileName || ONEDRIVE_BACKUP_PRIMARY_NAME} · {new Date(cloudBackupMetadata.lastModifiedDateTime).toLocaleString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                     </p>
                   ) : (
                     <p className="text-[0.75rem] font-bold text-rose-600 mt-1">Keine Cloud-Sicherung vorhanden</p>
@@ -1099,7 +991,9 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
             <Database size={16} className={`${percentage > 80 ? 'text-rose-550 animate-bounce' : 'text-blue-500'}`} />
             <span className="text-[0.75rem] leading-tight font-black text-slate-705 uppercase tracking-widest leading-none">Lokale Speicherbelegung (grobe Schätzung)</span>
           </div>
-          <span className="text-[0.75rem] leading-tight font-black text-slate-800 tracking-tight">{usedMB} MB von 5.0 MB ({percentage.toFixed(1)}%)</span>
+          <span className="text-[0.75rem] leading-tight font-black text-slate-800 tracking-tight">
+            {quotaMB !== null ? `${usedMB} MB von ca. ${quotaMB} MB (${percentage.toFixed(1)}%)` : 'Speicherquote nicht verfügbar'}
+          </span>
         </div>
         <div className="w-full bg-slate-100 rounded-full h-2 ">
           <div 
@@ -1110,7 +1004,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
         {percentage > 85 && (
           <div className="flex items-start gap-2 text-[0.65625rem] font-bold text-rose-600 tracking-tight leading-normal">
             <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-            <span>Die geschätzte lokale Belegung nähert sich dem verwendeten Referenzwert. Laden Sie vorsorglich eine Sicherung herunter und prüfen Sie nicht mehr benötigte Entwürfe.</span>
+            <span>Die vom Browser gemeldete Speicherquote ist fast erreicht. Laden Sie vorsorglich eine Sicherung herunter und prüfen Sie nicht mehr benötigte lokale Inhalte.</span>
           </div>
         )}
       </div>
@@ -1201,10 +1095,10 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
           <div className="pt-6">
             <input 
               type="file" 
-              aria-label="LehrerAPP-Sicherungsdatei auswählen (.lehrerapp / .json)"
+              aria-label="Klassio-Sicherungsdatei auswählen (.json / Legacy .lehrerapp)"
               ref={fileInputRef} 
               onChange={importData} 
-              accept=".lehrerapp,.lehrerapp-backup,.json,application/json" 
+              accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain"
               className="hidden" 
             />
             <button 
@@ -1247,7 +1141,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
         </div>
       </div>
 
-      {/* Archive & Safety Actions */}
+      {/* Class retirement & Safety Actions */}
       <h3 className="order-4 text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-2 mt-4">Schuljahres-Wechsel & Reset</h3>
       
       <div className="order-5 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1257,18 +1151,18 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
           <div className="space-y-1">
             <h4 className="text-[0.875rem] font-black text-indigo-950 flex items-center gap-1.5">
               <Archive size={16} className="text-indigo-600 shrink-0" />
-              Ins Archiv verschieben
+              Klasse stilllegen
             </h4>
             <p className="text-[0.75rem] text-indigo-800 font-medium leading-relaxed">
-              Verschiebt die aktuelle Klasse aus der aktiven Liste ins interne Archiv. Ideal zum Jahresende.
+              Entfernt die aktuelle Klasse aus der aktiven Klassenliste, bewahrt sie aber vollständig zur späteren Wiederherstellung. Jahresarchivstände werden separat im Bereich „Archiv“ erstellt.
             </p>
           </div>
           <button 
-            onClick={handleArchiveActiveClass}
+            onClick={handleRetireActiveClass}
             className="px-6 h-12 bg-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white border border-indigo-200 hover:border-indigo-600 transition-all duration-200 rounded-2xl font-black text-[0.625rem] uppercase tracking-widest flex items-center gap-2 group cursor-pointer hover:shadow-lg hover:shadow-indigo-500/15 active:scale-95"
           >
             <Archive size={16} className="group-hover:-translate-y-1 transition-transform" />
-            Aktive Klasse archivieren
+            Aktive Klasse stilllegen
           </button>
         </div>
 
@@ -1297,22 +1191,22 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
       </div>
 
 
-      {/* App-Internes Archiv */}
-      {app.archivedClasses && app.archivedClasses.length > 0 && (
+      {/* Stillgelegte, wiederherstellbare Klassen */}
+      {app.retiredClasses && app.retiredClasses.length > 0 && (
         <div className="order-6 mt-4 mb-4">
-          <h3 className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-2 mb-4">Archivierte Klassen</h3>
+          <h3 className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-2 mb-4">Stillgelegte Klassen</h3>
           <div className="space-y-3">
-            {app.archivedClasses.map((ac: any) => (
+            {app.retiredClasses.map((ac: any) => (
               <div key={ac.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200/50 flex items-center justify-between">
                 <div>
                   <h4 className="text-[0.875rem] font-black text-slate-900">{ac.name}</h4>
                   <p className="text-[0.75rem] font-medium text-slate-500">{(ac.schueler || []).length} Schüler • Stufe {ac.stufe}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" aria-label={`${ac.name} wiederherstellen`} onClick={() => handleRestoreArchivedClass(ac.id)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg text-[0.6875rem] font-black uppercase tracking-wider transition-all">
+                  <button type="button" aria-label={`${ac.name} wiederherstellen`} onClick={() => handleRestoreRetiredClass(ac.id)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg text-[0.6875rem] font-black uppercase tracking-wider transition-all">
                     Wiederherstellen
                   </button>
-                  <button type="button" aria-label={`${ac.name} unwiderruflich löschen`} onClick={() => handleDeleteArchivedClass(ac.id)} className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[0.6875rem] font-black uppercase tracking-wider transition-all">
+                  <button type="button" aria-label={`${ac.name} unwiderruflich löschen`} onClick={() => handleDeleteRetiredClass(ac.id)} className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[0.6875rem] font-black uppercase tracking-wider transition-all">
                     Löschen
                   </button>
                 </div>

@@ -1,3 +1,5 @@
+import { BoardInk } from './cockpit/BoardInk';
+import { shouldApplyTafelCommand } from '../lib/tafelCommands';
 import React, {
   useEffect,
   useState,
@@ -158,7 +160,8 @@ const SeatingPlan = React.lazy(() => import("./SeatingPlan"));
 const Gradebook = React.lazy(() => import("./Gradebook"));
 
 import { UEBUNGEN, STANDARD_DIENSTE } from "./Rituale";
-import { FONTS } from "../constants";
+import { FONTS, MAX_LESSON_SLOTS, STUNDEN_INFO } from "../constants";
+import { buildLessonTimeSlots, findCurrentLessonBreak, findCurrentLessonSlot } from "../lib/lessonTimeSlots";
 import MorningCircleWidget from "./MorningCircleWidget";
 import MorningRiddleWidget from "./MorningRiddleWidget";
 import QuizWidget from "./QuizWidget";
@@ -287,22 +290,7 @@ import { KopfrechenStudioContent } from "./cockpit/KopfrechenStudioContent";
 import { FractionVisualizerContent } from "./cockpit/FractionVisualizerContent";
 import { TimerWidgetContent } from "./cockpit/TimerWidgetContent";
 import { InstructionWidget } from "./cockpit/widgets/InstructionWidget";
-import { RetiredMathWidgetFallback } from "./cockpit/widgets/RetiredMathWidgetFallback";
 import { CockpitWidgetConfig } from "../types";
-
-const QUICK_WIDGET_META: Record<string, { label: string; icon: string }> = {
-  timer: { label: "Timer", icon: "⏳" },
-  stopwatch: { label: "Stoppuhr", icon: "⏱️" },
-  randomname: { label: "Zufall", icon: "🎯" },
-  groups: { label: "Gruppen", icon: "👥" },
-  trafficlight: { label: "Ampel", icon: "🚦" },
-  noisemeter: { label: "Lautstärke", icon: "🔊" },
-  wheel: { label: "Glücksrad", icon: "🎡" },
-  todo: { label: "Aufgaben", icon: "✅" },
-  clock: { label: "Uhr", icon: "🕒" },
-};
-
-const DEFAULT_QUICK_WIDGETS = ["timer", "randomname", "groups", "trafficlight"];
 
 // Web Audio API Sound Generation
 const playSound = (
@@ -2583,78 +2571,7 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
   },
 ];
 
-const DEFAULT_WORKSPACE_PROFILES = [
-  {
-    id: "profile_morgen",
-    name: "Morgenkreis",
-    layout: DEFAULT_COCKPIT_LAYOUT.map((w) => ({
-      ...w,
-      visible: [
-        "clock",
-        "weather",
-        "kidweather",
-        "dailyquotes",
-        "todo",
-        "timeline",
-      ].includes(w.type)
-        ? true
-        : false,
-      x: ["clock", "weather", "kidweather"].includes(w.type) ? 5 : w.x,
-      y: ["clock", "weather", "kidweather"].includes(w.type) ? 5 : w.y,
-    })),
-  },
-  {
-    id: "profile_still",
-    name: "Stillarbeit",
-    layout: DEFAULT_COCKPIT_LAYOUT.map((w) => ({
-      ...w,
-      visible: [
-        "timer",
-        "trafficlight",
-        "noisemeter",
-        "instruction",
-        "timeline",
-      ].includes(w.type)
-        ? true
-        : false,
-    })),
-  },
-  {
-    id: "profile_mathe",
-    name: "Mathe",
-    layout: DEFAULT_COCKPIT_LAYOUT.map((w) => ({
-      ...w,
-      visible: [
-        "calculator",
-        "mathbalancer",
-        "kopfrechnen",
-        "numberline",
-        "timer",
-        "timeline",
-      ].includes(w.type)
-        ? true
-        : false,
-    })),
-  },
-  {
-    id: "profile_deutsch",
-    name: "Deutsch",
-    layout: DEFAULT_COCKPIT_LAYOUT.map((w) => ({
-      ...w,
-      visible: [
-        "vocabulary",
-        "wordchain",
-        "wordgrid",
-        "wortsatzwerkstatt",
-        "wordbuilder",
-        "timer",
-        "timeline",
-      ].includes(w.type)
-        ? true
-        : false,
-    })),
-  },
-];
+const DEFAULT_WORKSPACE_PROFILES: any[] = [];
 
 const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
   const knownTypes = [
@@ -2865,6 +2782,12 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const { app, setApp, setPage } = useApp();
   const { showToast } = useToast();
   const [time, setTime] = useState(new Date());
+  const cockpitClassLabel = (app.klassenbezeichnung || "").trim();
+  const classPetEnabled = app.classPet ? app.classPet.enabled !== false : false;
+  const lessonTimeSlots = useMemo(
+    () => buildLessonTimeSlots(app.stundenZeiten, STUNDEN_INFO, MAX_LESSON_SLOTS),
+    [app.stundenZeiten],
+  );
 
   const checkIsAutoBirthday = (geburtstagStr: string | undefined | null) => {
     if (!geburtstagStr) return false;
@@ -2978,7 +2901,9 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       return loadAndSanitizeLayout(app.cockpitLayout);
     },
   );
-  const [isLayoutLocked, setIsLayoutLocked] = useState(false);
+  const [isBoardWriting, setIsBoardWriting] = useState(false);
+  useEffect(() => { setIsBoardWriting(false); }, [app.activeClassId]);
+  const [isLayoutLocked, setIsLayoutLocked] = useState(true);
   const isLayoutEditing = !isLayoutLocked;
   const [isMoreOptionsMenuOpen, setIsMoreOptionsMenuOpen] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
@@ -3062,9 +2987,9 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [slotNames, setSlotNames] = useState<{ [key: string]: string }>(() => {
     try {
       const saved = localStorage.getItem("cockpit_slot_names_v2");
-      return saved ? JSON.parse(saved) : { A: "Morgenkreis 🌅", B: "Gruppenarbeit 👥", C: "Mathestunde 📐" };
+      return saved ? JSON.parse(saved) : { A: "Layout A", B: "Layout B", C: "Layout C" };
     } catch (e) {
-      return { A: "Morgenkreis 🌅", B: "Gruppenarbeit 👥", C: "Mathestunde 📐" };
+      return { A: "Layout A", B: "Layout B", C: "Layout C" };
     }
   });
 
@@ -3122,17 +3047,11 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isLuckyDrawing, setIsLuckyDrawing] = useState(false);
 
   const startLuckyDraw = () => {
-    const students = app?.schueler && app.schueler.length > 0 ? app.schueler : [
-      { id: 'mock-1', name: 'Max Müller', vorname: 'Max', nachname: 'Müller', emoji: '👦' },
-      { id: 'mock-2', name: 'Anna Schmid', vorname: 'Anna', nachname: 'Schmid', emoji: '👧' },
-      { id: 'mock-3', name: 'Lukas Bauer', vorname: 'Lukas', nachname: 'Bauer', emoji: '👦' },
-      { id: 'mock-4', name: 'Emma Fischer', vorname: 'Emma', nachname: 'Fischer', emoji: '👧' },
-      { id: 'mock-5', name: 'Ben Weber', vorname: 'Ben', nachname: 'Weber', emoji: '👦' },
-      { id: 'mock-6', name: 'Mia Lehner', vorname: 'Mia', nachname: 'Lehner', emoji: '👧' },
-      { id: 'mock-7', name: 'Jonas Kraus', vorname: 'Jonas', nachname: 'Kraus', emoji: '👦' },
-      { id: 'mock-8', name: 'Laura Hofer', vorname: 'Laura', nachname: 'Hofer', emoji: '👧' }
-    ];
-    if (!students || students.length === 0) return;
+    const students = app?.schueler || [];
+    if (students.length === 0) {
+      showToast("Keine Kinder in der aktuellen Klasse vorhanden.", "info");
+      return;
+    }
     setIsLuckyDrawing(true);
     setLuckyStudent(null);
     playSound("laser");
@@ -3653,6 +3572,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const handleOpenWidgetInCockpitLayout = (
     type: CockpitWidgetConfig["type"],
   ) => {
+    setIsBoardWriting(false);
     setRecentWidgetTypes((previous) => {
       const updatedRecent = [String(type), ...previous.filter((entry) => entry !== type)].slice(0, 5);
       localStorage.setItem("cockpit_recent_widget_types", JSON.stringify(updatedRecent));
@@ -3774,7 +3694,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const handleClearAllWidgets = () => {
     const visibleCount = cockpitWidgets.filter((w) => w.visible).length;
     if (visibleCount === 0) {
-      showToast("Die Tafel ist bereits leer.", "info");
+      showToast("Es sind keine Unterrichtshilfen geöffnet.", "info");
       return;
     }
     const cleared = cockpitWidgets.map((w) => ({ ...w, visible: false }));
@@ -3783,7 +3703,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       ...p,
       cockpitLayout: cleared,
     }));
-    showToast("Tafel geleert: Alle Widgets geschlossen.", "info");
+    showToast("Alle Unterrichtshilfen wurden geschlossen.", "info");
   };
 
   const handleCloseWidget = (id: string, type: string) => {
@@ -3849,7 +3769,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         ),
       };
     });
-    showToast("Vorlage mit aktuellem Board-Layout aktualisiert!", "success");
+    showToast("Vorlage mit aktueller Unterrichtsfläche aktualisiert!", "success");
   };
 
   const handleLoadProfile = (profileId: string) => {
@@ -3886,28 +3806,19 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   };
 
   const handleSaveLayoutSlot = (slot: "A" | "B" | "C") => {
-    if (slot === "C") {
-      localStorage.setItem("cockpitLayoutC", JSON.stringify(cockpitWidgets));
-    } else {
-      const field = slot === "A" ? "cockpitLayoutA" : "cockpitLayoutB";
-      setApp((prev) => ({
-        ...prev,
-        [field]: cockpitWidgets,
-      }));
-    }
+    const field = slot === "A" ? "cockpitLayoutA" : slot === "B" ? "cockpitLayoutB" : "cockpitLayoutC";
+    setApp((prev) => ({
+      ...prev,
+      [field]: JSON.parse(JSON.stringify(cockpitWidgets)),
+    }));
+    // Remove legacy plaintext slot if it exists.
+    if (slot === "C") localStorage.removeItem("cockpitLayoutC");
     showToast(`Layout "${slotNames[slot] || slot}" erfolgreich gespeichert!`, "success");
   };
 
   const handleLoadLayoutSlot = (slot: "A" | "B" | "C") => {
-    let saved = null;
-    if (slot === "C") {
-      try {
-        saved = JSON.parse(localStorage.getItem("cockpitLayoutC") || "null");
-      } catch (e) {}
-    } else {
-      const field = slot === "A" ? "cockpitLayoutA" : "cockpitLayoutB";
-      saved = app[field];
-    }
+    const field = slot === "A" ? "cockpitLayoutA" : slot === "B" ? "cockpitLayoutB" : "cockpitLayoutC";
+    const saved = app[field];
     if (saved && Array.isArray(saved) && saved.length > 0) {
       const loaded = loadAndSanitizeLayout(saved);
       setCockpitWidgets(loaded);
@@ -3936,64 +3847,48 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const cockpitAutoSaveStorageKey =
+    `cockpit_last_auto_save_date_${app.activeClassId || "unassigned"}`;
   const [hasAutoSavedToday, setHasAutoSavedToday] = useState<string | null>(
-    () =>
-      localStorage.getItem(
-        `cockpit_last_auto_save_date_${(app as any)?.id || "default"}`,
-      ),
-  ); // ISO date of last auto-save
+    () => localStorage.getItem(cockpitAutoSaveStorageKey),
+  ); // ISO date of last successful daily save for the active class
+
+  useEffect(() => {
+    setHasAutoSavedToday(localStorage.getItem(cockpitAutoSaveStorageKey));
+  }, [cockpitAutoSaveStorageKey]);
 
   const updateHasAutoSavedToday = (dateStr: string) => {
     setHasAutoSavedToday(dateStr);
-    localStorage.setItem(
-      `cockpit_last_auto_save_date_${(app as any)?.id || "default"}`,
-      dateStr,
-    );
+    localStorage.setItem(cockpitAutoSaveStorageKey, dateStr);
   };
   const [showSyncInfo, setShowSyncInfo] = useState(false);
   const [syncModalTab, setSyncModalTab] = useState<'remote' | 'wifi'>('remote');
-  const [isTafelOpen, setIsTafelOpen] = useState(false);
-  const isInitialMountRef = useRef(true);
-  const prevActiveClassIdRef = useRef(app.activeClassId);
+  const [isTafelOpen, setTafelOpenLocal] = useState(false);
+  const setIsTafelOpen = useCallback((open: boolean) => {
+    setTafelOpenLocal(open);
+    setApp(prev => prev.boardSettings?.isTafelOpen === open ? prev : {
+      ...prev, boardSettings: { ...prev.boardSettings, isTafelOpen: open },
+    });
+  }, [setApp]);
+  useEffect(() => { setIsTafelOpen(false); }, [app.activeClassId, setIsTafelOpen]);
+  const tafelSession = useRef({
+    classId: app.activeClassId, enteredAt: Date.now(), lastId: app.boardSettings?.tafelCommand?.id,
+  });
 
-  // Klasse gewechselt -> Tafel stets geschlossen halten
   useEffect(() => {
-    if (prevActiveClassIdRef.current !== app.activeClassId) {
-      prevActiveClassIdRef.current = app.activeClassId;
+    const session = tafelSession.current;
+    if (session.classId !== app.activeClassId) {
+      tafelSession.current = { classId: app.activeClassId, enteredAt: Date.now(), lastId: app.boardSettings?.tafelCommand?.id };
       setIsTafelOpen(false);
-      if (app.boardSettings?.isTafelOpen) {
-        setApp((prev: any) => ({
-          ...prev,
-          boardSettings: {
-            ...prev.boardSettings,
-            isTafelOpen: false,
-          },
-        }));
-      }
-    }
-  }, [app.activeClassId, app.boardSettings?.isTafelOpen, setApp]);
-
-  // Synchronisation mit Remote-Fernbedienung: Nur bei Live-Aktionen NACH dem Initial-Mount
-  useEffect(() => {
-    if (isInitialMountRef.current) {
-      isInitialMountRef.current = false;
-      // Beim Betreten des Lehrercockpits / Reload bleibt die Digitale Tafel stets geschlossen
-      if (app.boardSettings?.isTafelOpen) {
-        setApp((prev: any) => ({
-          ...prev,
-          boardSettings: {
-            ...prev.boardSettings,
-            isTafelOpen: false,
-          },
-        }));
-      }
       return;
     }
-    // Nach dem Laden nur explizite Live-Events der Remote-Steuerung berücksichtigen
-    if (app.boardSettings?.isTafelOpen !== undefined) {
-      setIsTafelOpen(!!app.boardSettings.isTafelOpen);
+    const command = app.boardSettings?.tafelCommand;
+    if (shouldApplyTafelCommand(command, app.activeClassId, session.enteredAt, session.lastId)) {
+      session.lastId = command!.id;
+      setIsTafelOpen(command!.open);
     }
-  }, [app.boardSettings?.isTafelOpen, setApp]);
+  }, [app.activeClassId, app.boardSettings?.tafelCommand]);
+
   const isSmartboardOnly = !!(
     app.boardSettings?.splitSmartboardMode &&
     !app.boardSettings?.isRemoteController
@@ -4189,14 +4084,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [petIsWaving, setPetIsWaving] = useState<boolean>(false);
   const [petIsWakingUp, setPetIsWakingUp] = useState<boolean>(false);
   const [isDeactivatingPet, setIsDeactivatingPet] = useState<boolean>(false);
-  const [actualShowPet, setActualShowPet] = useState<boolean>(() => {
-    const isEnabled = app.classPet?.enabled ?? true;
-    return isEnabled;
-  });
+  const [actualShowPet, setActualShowPet] = useState<boolean>(() => classPetEnabled);
 
   useEffect(() => {
-    const isEnabled = app.classPet?.enabled ?? true;
-    const shouldBeActive = isEnabled;
+    const shouldBeActive = classPetEnabled;
 
     if (shouldBeActive && !actualShowPet) {
       // Re-activating: skip animation or reset it
@@ -4206,7 +4097,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       // Trigger deactivation animation
       setIsDeactivatingPet(true);
     }
-  }, [app.classPet?.enabled, actualShowPet, isDeactivatingPet]);
+  }, [classPetEnabled, actualShowPet, isDeactivatingPet]);
 
   const petLastHoverTimeRef = useRef<number>(0);
 
@@ -5128,7 +5019,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
   const handleExportTafelbild = () => {
     const content = app.vertretungHinweise || "";
-    const title = `Tafelbild_${app.klassenbezeichnung || "4c"}_${new Date().toLocaleDateString("de-DE")}`;
+    const safeClassPart = cockpitClassLabel
+      ? "_" + cockpitClassLabel.replace(/[^\p{L}\p{N}._-]+/gu, "_")
+      : "";
+    const title = `Tafelbild${safeClassPart}_${new Date().toLocaleDateString("de-DE")}`;
     const fontToLoadStr =
       activeFont === "font-druckschrift"
         ? "Druckschrift"
@@ -5210,7 +5104,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 <body>
   <div class="container">
     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-      <h1>Tafelbild • Klasse ${app.klassenbezeichnung || "4c"}</h1>
+      <h1>Tafelbild${cockpitClassLabel ? ` • Klasse ${cockpitClassLabel}` : ""}</h1>
       <span class="meta-badge">Schrift: ${fontToLoadStr}</span>
     </div>
     <div class="date">Erstellt am ${new Date().toLocaleDateString("de-DE")} • Unterrichtsassistent</div>
@@ -5456,21 +5350,10 @@ ${content}
   }, [isFocusMode]);
 
   const getCurrentHour = () => {
-    const zeiten = [
-      { start: 480, end: 530 }, // 1. 08:00 - 08:50
-      { start: 530, end: 585 }, // 2. 08:50 - 09:45
-      { start: 600, end: 650 }, // 3. 10:00 - 10:50
-      { start: 650, end: 705 }, // 4. 10:50 - 11:45
-      { start: 705, end: 750 }, // 5. 11:45 - 12:30
-      { start: 810, end: 860 }, // 6. 13:30 - 14:20
-      { start: 860, end: 910 }, // 7. 14:20 - 15:10
-      { start: 910, end: 960 }, // 8. 15:10 - 16:00
-    ];
-
     const now = time.getHours() * 60 + time.getMinutes();
-    const unitIdx = zeiten.findIndex((z) => now >= z.start && now < z.end);
-    if (unitIdx === -1) return null;
-    const current = zeiten[unitIdx];
+    const current = findCurrentLessonSlot(lessonTimeSlots, now);
+    if (!current) return null;
+    const unitIdx = current.slot - 1;
     const progress = Math.max(
       0,
       Math.min(
@@ -5565,20 +5448,9 @@ ${content}
     const now = new Date();
     const minutes = now.getHours() * 60 + now.getMinutes();
 
-    // Logic matching getCurrentHour
-    const zeiten = [
-      { start: 480, end: 530 },
-      { start: 530, end: 585 },
-      { start: 600, end: 650 },
-      { start: 650, end: 705 },
-      { start: 705, end: 750 },
-      { start: 810, end: 860 },
-      { start: 860, end: 910 },
-      { start: 910, end: 960 },
-    ];
-    const unitIdx = zeiten.findIndex(
-      (z) => minutes >= z.start && minutes < z.end,
-    );
+    // Logic matching getCurrentHour and the configured 1–10 lesson slots.
+    const currentSlot = findCurrentLessonSlot(lessonTimeSlots, minutes);
+    const unitIdx = currentSlot ? currentSlot.slot - 1 : -1;
 
     if (unitIdx !== -1) {
       const lessonNum = unitIdx + 1;
@@ -6265,22 +6137,21 @@ ${content}
       }
     }
 
-    // 3. Break Active Notifications (Automatic check based on minutes)
-    // Morning Break: 09:45 (585) to 10:00 (600)
-    // Lunch Break: 12:30 (750) to 13:30 (810)
-    const isMorningBreak = totalMinutes >= 585 && totalMinutes < 600;
-    const isLunchBreak = totalMinutes >= 750 && totalMinutes < 810;
+    // 3. Pausen folgen den in Klassio eingestellten Stundenzeiten.
+    const currentBreak = findCurrentLessonBreak(lessonTimeSlots, totalMinutes);
+    const isLunchBreak =
+      currentBreak?.afterSlot === (app.mittagspauseNachStunde || 5);
 
-    if (isMorningBreak || isLunchBreak) {
-      const breakTypeKey = isMorningBreak ? 585 : 750;
+    if (currentBreak) {
+      const breakTypeKey = currentBreak.start;
       if (lastClassroomAlertRef.current.lastNotifiedBreakMin !== breakTypeKey) {
         lastClassroomAlertRef.current.lastNotifiedBreakMin = breakTypeKey;
 
-        const breakGreetings = isMorningBreak
+        const breakGreetings = !isLunchBreak
           ? [
-              `☀️ Juhu, Hofpause! Packt das Pausenbrot aus und holt euch frische Luft! 🏃‍♂️🍎`,
+              `☀️ Juhu, Pause! Packt das Pausenbrot aus und holt euch frische Luft! 🏃‍♂️🍎`,
               `🎒 Pause! Macht euch locker, spielt draußen eine Runde und atmet tief durch! 🌿✨`,
-              `🎈 Hofpause! Ich halte hier fleißig die Stellung, während ihr draußen tobt! 👣`,
+              `🎈 Pause! Ich halte hier fleißig die Stellung, während ihr draußen tobt! 👣`,
             ]
           : [
               `🍕 Mmh, Mittagszeit! Zeit für ein leckeres Mittagessen und Entspannung! Guten Appetit! 😋🥗`,
@@ -6300,7 +6171,7 @@ ${content}
         lastClassroomAlertRef.current.lastNotifiedBreakMin = null;
       }
     }
-  }, [time, petBehaviorState, app.classPet?.name]);
+  }, [time, petBehaviorState, app.classPet?.name, app.classPet?.behaviorMode, app.mittagspauseNachStunde, lessonTimeSlots]);
 
   // Global Timer Sync - only active when ZenFocus overlay is open to avoid 1-second global re-renders in standard cockpit mode
   useEffect(() => {
@@ -6494,7 +6365,7 @@ ${content}
     const sp = app.stammplan?.[todayTag] || {};
 
     let lastActiveHourIdx = -1;
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < MAX_LESSON_SLOTS; i++) {
       const wpItem = wp[i];
       const spItem = sp[i + 1];
       let hasSubject = false;
@@ -6516,17 +6387,6 @@ ${content}
       }
     }
 
-    const zeiten = [
-      { start: 480, end: 530 }, // 1. 08:00 - 08:50
-      { start: 530, end: 585 }, // 2. 08:50 - 09:45
-      { start: 600, end: 650 }, // 3. 10:00 - 10:50
-      { start: 650, end: 705 }, // 4. 10:50 - 11:45
-      { start: 705, end: 750 }, // 5. 11:45 - 12:30
-      { start: 810, end: 860 }, // 6. 13:30 - 14:20
-      { start: 860, end: 910 }, // 7. 14:20 - 15:10
-      { start: 910, end: 960 }, // 8. 15:10 - 16:00
-    ];
-
     if (lastActiveHourIdx === -1) {
       return {
         allowed: true,
@@ -6536,9 +6396,19 @@ ${content}
       };
     }
 
-    const currentMinuteOfDay = time.getHours() * 60 + time.getMinutes();
-    const lastHour = zeiten[lastActiveHourIdx];
+    const lastHour = lessonTimeSlots.find(
+      (slot) => slot.slot === lastActiveHourIdx + 1,
+    );
+    if (!lastHour) {
+      return {
+        allowed: true,
+        reason: "",
+        lastHourIdx: lastActiveHourIdx,
+        allowedFromTime: "",
+      };
+    }
 
+    const currentMinuteOfDay = time.getHours() * 60 + time.getMinutes();
     const startOfAllowedPeriod = lastHour.end - 10;
     const allowed = currentMinuteOfDay >= startOfAllowedPeriod;
 
@@ -6552,7 +6422,7 @@ ${content}
       lastHourIdx: lastActiveHourIdx,
       allowedFromTime,
     };
-  }, [time, app.wochenplanung, app.stammplan]);
+  }, [time, app.wochenplanung, app.stammplan, lessonTimeSlots]);
 
   // Commit current teacher cockpit student behaviors to the persistent chronicle history (At End of Lesson)
   const commitBehaviorToHistory = useCallback((skipConfetti = false) => {
@@ -6662,38 +6532,31 @@ ${content}
 
     // We only auto-save if the last active lesson is truly over
     if (commitAllowance.allowed && commitAllowance.lastHourIdx !== -1) {
-      const zeiten = [
-        { start: 480, end: 530 },
-        { start: 530, end: 585 },
-        { start: 600, end: 650 },
-        { start: 650, end: 705 },
-        { start: 705, end: 750 },
-        { start: 810, end: 860 },
-        { start: 860, end: 910 },
-        { start: 910, end: 960 },
-      ];
+      const lastHour = lessonTimeSlots.find(
+        (slot) => slot.slot === commitAllowance.lastHourIdx + 1,
+      );
+      if (!lastHour) return;
 
       const currentMinuteOfDay = time.getHours() * 60 + time.getMinutes();
-      const lastHourEnd = zeiten[commitAllowance.lastHourIdx].end;
+      const lastHourEnd = lastHour.end;
 
       // Auto-save happens exactly at the end of the last hour or afterwards
       if (currentMinuteOfDay >= lastHourEnd) {
         console.log("Auto-saving behavior & mitarbeit at end of school day...");
         commitBehaviorToHistory(true);
-        updateHasAutoSavedToday(todayStr);
       }
     }
-  }, [time, commitAllowance, commitBehaviorToHistory, hasAutoSavedToday]);
+  }, [time, commitAllowance, commitBehaviorToHistory, hasAutoSavedToday, lessonTimeSlots]);
 
   const handleCloseCockpit = () => {
-    // Attempt auto-saving if we have not auto-saved today yet
+    // Nur dann beim Schließen sichern, wenn der Tagesabschluss bereits freigegeben ist.
+    // Ein zu frühes Schließen darf den Tag niemals fälschlich als gespeichert markieren.
     const todayStr = new Date().toISOString().split("T")[0];
-    if (hasAutoSavedToday !== todayStr) {
+    if (hasAutoSavedToday !== todayStr && commitAllowance.allowed) {
       console.log(
         "Auto-saving behavior & mitarbeit on closing classroom cockpit...",
       );
       commitBehaviorToHistory(true);
-      updateHasAutoSavedToday(todayStr);
     }
     onClose();
   };
@@ -7383,7 +7246,7 @@ ${content}
     isLight: currentIsLight,
   };
 
-  // Theme-compliant styling for the class badge ("4c") pill and other indicators
+  // Theme-compliant styling for the current class badge and other indicators
   const getThemeClassBadgeClasses = () => {
     switch (activePultTheme) {
       case "deep_dark":
@@ -7622,8 +7485,8 @@ ${content}
           <button
             onClick={handleCloseCockpit}
             className={`p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer border shadow-md hover:scale-105 active:scale-95 ${currentIsLight ? "bg-black/5 border-black/10 text-slate-700 hover:bg-black/10 hover:text-black" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/15 hover:text-white"}`}
-            title="Zurück"
-            aria-label="Zurück zum Hauptmenü"
+            title="Zurück zu Unterricht"
+            aria-label="Zurück zu Unterricht"
           >
             <ArrowLeft size={16} strokeWidth={2.5} />
           </button>
@@ -7633,12 +7496,14 @@ ${content}
               className={`text-xs sm:text-sm font-black tracking-tight flex items-center gap-1 sm:gap-1.5 ${currentIsLight ? "text-slate-950" : "text-white"}`}
             >
               LEHRERCOCKPIT
-              <span
-                className={`px-1 sm:px-1.5 py-0.5 border rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-300 ${getThemeClassBadgeClasses()}`}
-                style={getThemeClassBadgeStyle()}
-              >
-                {app.klassenbezeichnung || "4c"}
-              </span>
+              {cockpitClassLabel && (
+                <span
+                  className={`px-1 sm:px-1.5 py-0.5 border rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow-sm transition-all duration-300 ${getThemeClassBadgeClasses()}`}
+                  style={getThemeClassBadgeStyle()}
+                >
+                  {cockpitClassLabel}
+                </span>
+              )}
             </div>
             {/* 1. Auto-Save & Manual-Commit status indicator */}
             <div className="flex items-center gap-1 mt-0.5 select-none">
@@ -7653,7 +7518,7 @@ ${content}
                 )}
               </span>
               <span className={`text-[7.5px] font-black uppercase tracking-wider ${hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "text-emerald-500" : "text-amber-500"}`}>
-                {hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "Heute gesichert" : "Echtzeit-Tracker"}
+                {hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "Heute gesichert" : "Speichert beim Beenden"}
               </span>
             </div>
           </div>
@@ -7701,12 +7566,13 @@ ${content}
                   </div>
                   {/* Day Hours Indicator */}
                   <div className="flex gap-1 justify-center mt-1.5 w-full select-none">
-                    {[0, 1, 2, 3, 4, 5, 6, 7].map((hIdx) => {
+                    {lessonTimeSlots.map(({ slot }) => {
+                      const hIdx = slot - 1;
                       const isPast = hIdx < currentHour.idx;
                       const isCurrent = hIdx === currentHour.idx;
                       return (
                         <div
-                          key={hIdx}
+                          key={slot}
                           className={`h-1 rounded-full transition-all duration-300 ${
                             isCurrent
                               ? `w-4 ${subjectColors.bg}`
@@ -7714,7 +7580,7 @@ ${content}
                                 ? 'w-2 bg-emerald-500/60'
                                 : 'w-1 bg-black/10 dark:bg-white/10'
                           }`}
-                          title={`${hIdx + 1}. Stunde`}
+                          title={`${slot}. Stunde`}
                         />
                       );
                     })}
@@ -7780,7 +7646,7 @@ ${content}
                       </div>
                     )}
                     <span className="hidden xl:inline">
-                      {alreadySavedToday ? "Gespeichert" : "Abschließen"}
+                      {alreadySavedToday ? "Gespeichert" : "Tag sichern"}
                     </span>
                     {pendingCount > 0 && !alreadySavedToday && (
                       <span className="bg-black/20 px-1 py-0.5 rounded-lg text-[8px] font-black">
@@ -7794,14 +7660,14 @@ ${content}
                       className={`flex flex-col items-start leading-none shrink-0 ${currentIsLight ? "text-slate-500" : "text-white/30"}`}
                     >
                       <span className="text-[7px] font-black uppercase tracking-tighter mb-0.5 opacity-50">
-                        Sperre
+                        Verfügbar
                       </span>
                       <span
                         className={`text-[9px] font-black tabular-nums ${currentIsLight ? "text-slate-800" : "text-white/60"}`}
                       >
                         {alreadySavedToday
-                          ? "Bis Morgen"
-                          : commitAllowance.allowedFromTime}
+                          ? "Morgen wieder"
+                          : `ab ${commitAllowance.allowedFromTime}`}
                       </span>
                     </div>
                   )}
@@ -7871,108 +7737,7 @@ ${content}
 
             {/* Quick Palette Indicator Selector */}
             <div className="flex items-center gap-1 sm:gap-2 justify-end flex-nowrap">
-              {/* Functional Controls Buttons Cluster */}
-              <div className="flex items-center gap-1 sm:gap-1.5 py-1 justify-end flex-nowrap">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (sidebarMode === "hidden") {
-                      changeSidebarMode(prevSidebarMode || "expanded");
-                    } else {
-                      changeSidebarMode("hidden");
-                    }
-                  }}
-                  className={`p-1 px-1.5 sm:p-1.5 sm:px-2 rounded-lg h-8 sm:h-8.5 transition-all border shadow-sm cursor-pointer flex items-center gap-1 font-bold text-[9px] sm:text-xs uppercase tracking-wider ${
-                    sidebarMode !== "hidden"
-                      ? "bg-amber-500 border-amber-500 text-amber-950"
-                      : currentIsLight
-                        ? "bg-black/5 border-black/10 text-slate-700 hover:text-slate-900 hover:bg-black/10"
-                        : "bg-[#18181b]/40 border-white/10 text-white/90 hover:text-white hover:bg-white/10"
-                  }`}
-                  title={
-                    sidebarMode !== "hidden"
-                      ? "Schülerliste ausblenden"
-                      : "Schülerliste einblenden"
-                  }
-                >
-                  <Users size={12} strokeWidth={2.5} />
-                  <span className="hidden xl:inline">SCHÜLERLISTE</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setApp((prev: any) => ({
-                      ...prev,
-                      classPet: {
-                        ...(prev.classPet || {
-                          enabled: true,
-                          animalType: "dino",
-                          name: "Spike",
-                          energy: 50,
-                          accessories: [],
-                          history: [],
-                          memories: [],
-                        }),
-                        enabled: !(prev.classPet?.enabled ?? true),
-                      },
-                    }));
-                  }}
-                  className={`p-1 px-1.5 sm:p-1.5 sm:px-2 rounded-lg h-8 sm:h-8.5 transition-all border shadow-sm cursor-pointer flex items-center gap-1 font-bold text-[9px] sm:text-xs uppercase tracking-wider ${
-                    (app.classPet?.enabled ?? true)
-                      ? "bg-indigo-600 border-indigo-600 text-white"
-                      : currentIsLight
-                        ? "bg-black/5 border-black/10 text-slate-700 hover:text-slate-900 hover:bg-black/10"
-                        : "bg-[#18181b]/40 border-white/10 text-white/90 hover:text-white hover:bg-white/10"
-                  }`}
-                  title={
-                    (app.classPet?.enabled ?? true)
-                      ? "Klassentier ausblenden"
-                      : "Klassentier einblenden"
-                  }
-                >
-                  <span>
-                    🐾 <span className="hidden xl:inline">KLASSENTIER</span>
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsThemePickerOpen((prev) => !prev)}
-                  className={`flex items-center gap-1 p-1 px-1.5 sm:p-1.5 sm:px-2 text-[9px] sm:text-xs font-black uppercase tracking-wider rounded-lg h-8 sm:h-8.5 transition-all border shadow-sm cursor-pointer ${isThemePickerOpen ? "bg-emerald-500 border-emerald-500 text-white" : currentIsLight ? "bg-black/5 border-black/10 text-slate-700 hover:text-slate-900 hover:bg-black/10" : "bg-[#18181b]/40 border-white/10 text-white/90 hover:text-white hover:bg-white/10"}`}
-                  title="Design & Themes anpassen"
-                >
-                  <Palette size={12} />
-                  <span className="hidden xl:inline">DESIGN</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setIsFocusModeLightOff((prev) => !prev)}
-                  className={`p-1 sm:p-1.5 flex items-center justify-center rounded-lg h-8 sm:h-8.5 transition-all border shadow-lg backdrop-blur-lg cursor-pointer ${isFocusModeLightOff ? "bg-amber-500 border-amber-400 text-amber-950 shadow-[0_0_12px_rgba(245,158,11,0.55)]" : currentIsLight ? "bg-black/5 border-black/10 text-slate-500 hover:text-slate-900 hover:bg-black/10" : "bg-[#18181b]/40 border-white/10 text-white/60 hover:text-white hover:bg-white/10"}`}
-                  title="Fokus-Modus: Licht aus"
-                >
-                  <Lightbulb
-                    size={12}
-                    className={
-                      isFocusModeLightOff ? "fill-amber-950 text-amber-950" : ""
-                    }
-                  />
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleFullscreen}
-                  className={`p-1 sm:p-1.5 flex items-center justify-center rounded-lg h-8 sm:h-8.5 transition-all border shadow-lg backdrop-blur-lg cursor-pointer ${currentIsLight ? "bg-black/5 border-black/10 text-slate-500 hover:text-slate-900 hover:bg-black/10" : "bg-[#18181b]/40 border-white/10 text-white/60 hover:text-white hover:bg-white/10"}`}
-                  title={isFullscreen ? "Vollbild beenden" : "Vollbildmodus"}
-                >
-                  {isFullscreen ? (
-                    <Minimize size={13} />
-                  ) : (
-                    <Maximize size={13} />
-                  )}
-                </button>
-              </div>
-            </div>
+                          </div>
           </div>
         </div>
       </header>
@@ -8274,7 +8039,7 @@ ${content}
                         <div className="flex items-center gap-2">
                           <span className={`w-2 h-2 rounded-full ${isLayoutLocked ? "bg-amber-500" : "bg-emerald-500"} animate-pulse`} />
                           <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-neutral-300">
-                            Tafel & Widgets
+                            Unterrichtsfläche
                           </h3>
                           {isLayoutLocked && (
                             <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
@@ -8284,7 +8049,7 @@ ${content}
                         </div>
 
                         {/* Top Toolbar Action Buttons (aligned on the right) */}
-                        <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
+                        <div className="flex items-center gap-2 flex-wrap">
                           {/* Add Widget Button */}
                           <div className="relative">
                             <button
@@ -8292,16 +8057,16 @@ ${content}
                               onClick={() =>
                                 setIsAddWidgetMenuOpen(!isAddWidgetMenuOpen)
                               }
-                              className="h-8 px-3 rounded-lg font-black text-[9.5px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white"
-                              title="Neues Widget zur Tafel hinzufügen"
+                              className="min-h-11 px-4 rounded-xl font-semibold text-sm flex items-center gap-1.5 transition-all shadow-sm cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white"
+                              title="Unterrichtshilfe auf die gemeinsame Fläche legen"
                             >
                               <Plus size={13} strokeWidth={2.5} />
-                              <span>Widget hinzufügen</span>
+                              <span>Unterrichtshilfe hinzufügen</span>
                             </button>
 
                             {isAddWidgetMenuOpen && (
                               <div
-                                className={`fixed left-4 top-[8.5rem] w-[640px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-9.5rem)] overflow-y-auto overscroll-contain rounded-2xl border p-3.5 shadow-2xl flex flex-col gap-3 z-[1000] ${
+                                className={`fixed left-4 top-[8.5rem] w-[880px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-9.5rem)] overflow-y-auto overscroll-contain rounded-2xl border p-3.5 shadow-2xl flex flex-col gap-3 z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-100 animate-in fade-in slide-in-from-top-3 duration-200"
                                     : "bg-zinc-900 border-white/10 animate-in fade-in slide-in-from-top-3 duration-200"
@@ -8310,19 +8075,19 @@ ${content}
                                 <div className="flex flex-col sm:flex-row gap-2 justify-between items-center px-1">
                                   <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5 self-start sm:self-auto">
                                     <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                                    Cockpit-Widgets nach Gruppen
+                                    Unterrichtshilfe auswählen
                                   </div>
                                   {/* Responsive search bar to quickly find widgets */}
-                                  <div className="relative w-full sm:w-44 shrink-0">
+                                  <div className="relative w-full sm:w-80 shrink-0">
                                     <input
                                       type="text"
-                                      placeholder="Widget suchen..."
+                                      aria-label="Unterrichtshilfe suchen" placeholder="Was brauchst du? Zum Beispiel Timer …"
                                       value={widgetSearch}
                                       onChange={(e) =>
                                         setWidgetSearch(e.target.value)
                                       }
                                       autoFocus
-                                      className={`w-full px-2.5 py-1 pr-6 text-[9.5px] rounded-lg border outline-none font-bold transition-all placeholder:text-slate-400 ${
+                                      className={`w-full px-3 py-3 pr-8 text-sm rounded-lg border outline-none font-bold transition-all placeholder:text-slate-400 ${
                                         currentIsLight
                                           ? "bg-slate-50 border-slate-200 text-slate-800 focus:border-indigo-400"
                                           : "bg-white/5 border-white/10 text-white focus:border-indigo-500"
@@ -8344,23 +8109,24 @@ ${content}
                                   </div>
                                 </div>
 
+                                <button type="button" onClick={() => setIsAddWidgetMenuOpen(false)} className="self-end min-h-11 px-4 rounded-lg border text-sm font-semibold">Auswahl schließen</button>
                                 {/* Category Switcher Tab Bar */}
-                                <div className="flex flex-wrap gap-1 p-1 bg-[#0c0037] rounded-xl">
+                                <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
                                   {[
-                                    { id: "all", label: "🌐 Alle" },
+                                    { id: "all", label: "Alle Hilfen" },
                                     { id: "favorites", label: "★ Favoriten" },
-                                    { id: "struct", label: "📂 Struktur" },
+                                    { id: "struct", label: "🗂️ Ablauf & Organisation" },
                                     {
                                       id: "interactivity",
-                                      label: "👥 Interaktion",
+                                      label: "👥 Klasse & Interaktion",
                                     },
                                     { id: "mathe", label: "🔢 Mathematik" },
                                     { id: "deutsch", label: "📖 Deutsch" },
                                     {
                                       id: "sachunterricht",
-                                      label: "🌍 Sachkunde",
+                                      label: "🌍 Sachunterricht",
                                     },
-                                    { id: "tools", label: "🛠️ Tools" },
+                                    { id: "tools", label: "🛠️ Werkzeuge" },
                                     {
                                       id: "mindfulness",
                                       label: "🍃 Spiele & Fokus",
@@ -8592,13 +8358,48 @@ ${content}
                                         type: "piano",
                                         category: "mindfulness",
                                       },
+                                      { type: "studentlist", category: "interactivity" },
+                                      { type: "scrambler", category: "deutsch" },
+                                      { type: "fractions", category: "mathe" },
+                                      { type: "sorting", category: "mathe" },
+                                      { type: "piggybank", category: "mathe" },
+                                      { type: "spellingdetective", category: "deutsch" },
+                                      { type: "numberline", category: "mathe" },
+                                      { type: "mathchain", category: "mathe" },
+                                      { type: "thermometer", category: "struct" },
+                                      { type: "compoundsplit", category: "deutsch" },
+                                      { type: "mathduel", category: "mathe" },
+                                      { type: "shapepuzzle", category: "mathe" },
+                                      { type: "secretagent", category: "mindfulness" },
+                                      { type: "fractioncake", category: "mathe" },
+                                      { type: "sentencebuilding", category: "deutsch" },
+                                      { type: "patternmaker", category: "tools" },
+                                      { type: "wordexplorer", category: "deutsch" },
+                                      { type: "weightscale", category: "mathe" },
+                                      { type: "geographyquiz", category: "sachunterricht" },
+                                      { type: "reflexgame", category: "mindfulness" },
+                                      { type: "wastebin", category: "sachunterricht" },
+                                      { type: "tonetrainer", category: "tools" },
+                                      { type: "rhymemachine", category: "deutsch" },
+                                      { type: "alphabetsoup", category: "deutsch" },
+                                      { type: "divrobot", category: "mathe" },
+                                      { type: "classtarget", category: "interactivity" },
+                                      { type: "morsecode", category: "tools" },
+                                      { type: "punctuationzoo", category: "deutsch" },
+                                      { type: "fractiongrid", category: "mathe" },
+                                      { type: "wordbuilder", category: "deutsch" },
+                                      { type: "soundmachine", category: "tools" },
+                                      { type: "multitrainer", category: "mathe" },
+                                      { type: "abcorder", category: "deutsch" },
+                                      { type: "tischcheck", category: "interactivity" },
+                                      { type: "faircall", category: "interactivity" },
+                                      { type: "hangman", category: "deutsch" },
+                                      { type: "anschauung", category: "mathe" },
                                     ];
 
                                     let count = 0;
                                     if (cat.id === "all") {
-                                      count = allAvailableWidgets.filter(
-                                        (item) => item.category !== "mathe",
-                                      ).length;
+                                      count = allAvailableWidgets.length;
                                     } else if (cat.id === "favorites") {
                                       count = (
                                         favoritesBySubject[
@@ -8617,7 +8418,7 @@ ${content}
                                         onClick={() =>
                                           setActiveWidgetCategory(cat.id)
                                         }
-                                        className={`px-2 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
+                                        className={`min-h-11 px-3 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer flex items-center gap-1 ${
                                           activeWidgetCategory === cat.id
                                             ? "bg-indigo-500 text-white shadow"
                                             : currentIsLight
@@ -8636,7 +8437,7 @@ ${content}
                                   })}
                                 </div>
 
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-[50vh] overflow-y-auto scrollbar-thin pr-1 pb-1">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto scrollbar-thin pr-1 pb-1">
                                   {(() => {
                                     const allAvailableWidgets = [
                                       {
@@ -9002,7 +8803,7 @@ ${content}
                                       },
                                       {
                                         type: "drawing",
-                                        label: "🖍️ Zeichentafel Canvas",
+                                        label: "🖍️ Zeichenfeld",
                                         desc: "Skizzen & Handschrift auf Tafel",
                                         category: "tools",
                                       },
@@ -9164,6 +8965,28 @@ ${content}
                                         desc: "Spiele Töne und lerne Melodien nach Gehör",
                                         category: "mindfulness",
                                       },
+                                      { type: "studentlist", label: "⭐ Schülerliste", desc: "Schülerinnen und Schüler direkt auf der Unterrichtsfläche anzeigen", category: "interactivity" },
+                                      { type: "scrambler", label: "✍️ Wort- & Satzwerkstatt", desc: "Wörter und Sätze spielerisch ordnen und untersuchen", category: "deutsch" },
+                                      { type: "fractions", label: "◐ Bruch-Visualisierer", desc: "Brüche anschaulich darstellen", category: "mathe" },
+                                      { type: "sorting", label: "🔢 Zahlensortierer", desc: "Zahlen vergleichen und sortieren", category: "mathe" },
+                                      { type: "piggybank", label: "🐷 Klassen-Sparschwein", desc: "Geldbeträge spielerisch darstellen", category: "mathe" },
+                                      { type: "spellingdetective", label: "🔤 Rechtschreib-Detektiv", desc: "Wörter untersuchen und Rechtschreibung trainieren", category: "deutsch" },
+                                      { type: "numberline", label: "🔢 Zahlenstrahl", desc: "Zahlen auf dem Zahlenstrahl verorten", category: "mathe" },
+                                      { type: "mathchain", label: "🧠 Rechenkette", desc: "Rechenketten gemeinsam bearbeiten", category: "mathe" },
+                                      { type: "thermometer", label: "🌡️ Ziel-Thermometer", desc: "Fortschritt und Ziele sichtbar machen", category: "struct" },
+                                      { type: "compoundsplit", label: "✍️ Zusammengesetzte Wörter", desc: "Wortbausteine erkennen und zusammensetzen", category: "deutsch" },
+                                      { type: "mathduel", label: "⚔️ Mathe-Duell", desc: "Kurze Rechenduelle für die Klasse", category: "mathe" },
+                                      { type: "shapepuzzle", label: "📐 Formen-Entdecker", desc: "Geometrische Formen entdecken und zuordnen", category: "mathe" },
+                                      { type: "fractioncake", label: "🍰 Bruch-Kuchen", desc: "Bruchteile mit anschaulichen Flächen darstellen", category: "mathe" },
+                                      { type: "sentencebuilding", label: "✍️ Satzbau", desc: "Sätze aufbauen und Satzteile ordnen", category: "deutsch" },
+                                      { type: "divrobot", label: "🤖 Teilbarkeits-Roboter", desc: "Teilbarkeit spielerisch untersuchen", category: "mathe" },
+                                      { type: "classtarget", label: "🎯 Klassen-Ziel", desc: "Gemeinsame Ziele sichtbar verfolgen", category: "interactivity" },
+                                      { type: "fractiongrid", label: "◐ Bruch-Raster", desc: "Brüche im Raster visualisieren", category: "mathe" },
+                                      { type: "wordbuilder", label: "🔤 Wort-Baukasten", desc: "Wörter aus Bausteinen zusammensetzen", category: "deutsch" },
+                                      { type: "soundmachine", label: "🎵 Klang-Maschine", desc: "Klänge und Signale im Unterricht einsetzen", category: "tools" },
+                                      { type: "multitrainer", label: "🧠 Multi-Trainer", desc: "Verschiedene Rechenarten trainieren", category: "mathe" },
+                                      { type: "abcorder", label: "🔤 ABC-Sortierer", desc: "Wörter alphabetisch ordnen", category: "deutsch" },
+                                      { type: "anschauung", label: "🔢 Zahlenraum-Studio", desc: "Zahlenräume anschaulich darstellen", category: "mathe" },
                                     ];
 
                                     const resolvedActiveFach =
@@ -9225,7 +9048,7 @@ ${content}
                                         let matchesCategory = false;
                                         if (activeWidgetCategory === "all") {
                                           matchesCategory =
-                                            item.category !== "mathe";
+                                            true;
                                         } else if (
                                           activeWidgetCategory === "favorites"
                                         ) {
@@ -9401,7 +9224,7 @@ ${content}
                                           return (
                                             <div
                                               key={item.type}
-                                              className={`w-full p-2.5 rounded-xl text-left flex flex-col justify-between items-start transition-all border group relative min-h-[58px] ${
+                                              className={`w-full p-2.5 rounded-xl text-left flex flex-col justify-between items-start transition-all border group relative min-h-[104px] ${
                                                 isActive
                                                   ? "opacity-60 bg-slate-100 dark:bg-zinc-800/50 border-transparent"
                                                   : currentIsLight
@@ -9449,7 +9272,7 @@ ${content}
                                                 }}
                                                 className="w-full h-full text-left flex flex-col justify-between items-start cursor-pointer disabled:cursor-not-allowed"
                                               >
-                                                <div className="w-full flex items-center justify-between font-bold text-[10px]">
+                                                <div className="w-full flex items-center justify-between font-semibold text-sm">
                                                   <span className="truncate pr-7 group-hover:text-indigo-500 transition-colors">
                                                     {item.label}
                                                   </span>
@@ -9460,7 +9283,7 @@ ${content}
                                                     />
                                                   )}
                                                 </div>
-                                                <p className="text-[7.5px] mt-0.5 opacity-60 font-medium line-clamp-1 pr-7">
+                                                <p className="text-xs mt-2 opacity-80 font-medium leading-relaxed pr-7">
                                                   {item.desc}
                                                 </p>
                                               </button>
@@ -9475,39 +9298,10 @@ ${content}
                             )}
                           </div>
 
-                          {/* Primary Action 2: Whiteboard & Text */}
-                          <button
-                            type="button"
-                            onClick={() => toggleTool("drawing")}
-                            className={`h-8 px-2.5 rounded-lg border font-bold text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all duration-200 shadow-sm cursor-pointer ${
-                              isToolActive("drawing")
-                                ? "bg-rose-500 border-rose-450 text-white shadow-[0_0_12px_rgba(244,63,94,0.4)]"
-                                : currentIsLight
-                                  ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-800"
-                                  : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white"
-                            }`}
-                            title="Freie Zeichentafel (Whiteboard-Widget) im Cockpit ein-/ausblenden"
-                          >
-                            <PenTool size={11} />
-                            <span>Whiteboard</span>
-                          </button>
-
-                          {/* Primary Action 3: Digitale Tafel (Große Vollbild-Tafel) */}
-                          <button
-                            type="button"
-                            id="btn-open-digitale-tafel"
-                            onClick={() => setIsTafelOpen(true)}
-                            className={`h-8 px-2.5 rounded-lg border font-bold text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all duration-200 shadow-sm cursor-pointer ${
-                              isTafelOpen
-                                ? "bg-emerald-600 border-emerald-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.4)]"
-                                : currentIsLight
-                                  ? "bg-white border-slate-200 hover:bg-slate-50 text-slate-800 hover:text-emerald-700"
-                                  : "bg-zinc-900 border-white/10 hover:bg-zinc-800 text-white hover:text-emerald-400"
-                            }`}
-                            title="Digitale Tafel im großen Vollbild-Arbeitsmodus öffnen"
-                          >
-                            <Presentation size={11} className="text-emerald-500" />
-                            <span>Digitale Tafel</span>
+                          <button type="button" aria-pressed={isBoardWriting}
+                            onClick={() => { setIsBoardWriting(value => !value); setIsLayoutLocked(true); }}
+                            className={`min-h-11 px-4 rounded-xl text-sm font-semibold border ${isBoardWriting ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'}`}>
+                            {isBoardWriting ? 'Widgets bedienen' : 'Schreiben & Zeichnen'}
                           </button>
 
                           {/* Secondary Actions: Dropdown Menu (••• Optionen) */}
@@ -9537,23 +9331,8 @@ ${content}
                                 }`}
                               >
                                 <div className="px-2 py-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-white/5">
-                                  Tafel-Optionen
+                                  Weitere Funktionen
                                 </div>
-
-                                <button
-                                  type="button"
-                                  id="btn-menu-open-digitale-tafel"
-                                  onClick={() => {
-                                    setIsTafelOpen(true);
-                                    setIsMoreOptionsMenuOpen(false);
-                                  }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
-                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
-                                  }`}
-                                >
-                                  <Presentation size={12} className="text-emerald-500 shrink-0" />
-                                  <span>Digitale Tafel öffnen</span>
-                                </button>
 
                                 <button
                                   type="button"
@@ -9605,6 +9384,7 @@ ${content}
                                 <button
                                   type="button"
                                   onClick={() => {
+                                    setIsBoardWriting(false);
                                     setIsLayoutLocked((prev) => !prev);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
@@ -9615,14 +9395,113 @@ ${content}
                                   {isLayoutLocked ? (
                                     <>
                                       <Unlock size={12} className="text-emerald-500 shrink-0" />
-                                      <span>Layout entsperren</span>
+                                      <span>Anordnung ändern</span>
                                     </>
                                   ) : (
                                     <>
                                       <Lock size={12} className="text-amber-500 shrink-0" />
-                                      <span>Layout fixieren</span>
+                                      <span>Anordnung fertig</span>
                                     </>
                                   )}
+                                </button>
+
+                                <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
+                                <div className="px-2 pt-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
+                                  Ansicht
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (sidebarMode === "hidden") {
+                                      changeSidebarMode(prevSidebarMode || "expanded");
+                                    } else {
+                                      changeSidebarMode("hidden");
+                                    }
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Users size={12} className="text-amber-500 shrink-0" />
+                                  <span>{sidebarMode !== "hidden" ? "Schülerliste ausblenden" : "Schülerliste einblenden"}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setApp((prev: any) => {
+                                      const existing = prev.classPet;
+                                      const currentlyEnabled = existing
+                                        ? existing.enabled !== false
+                                        : false;
+                                      return {
+                                        ...prev,
+                                        classPet: {
+                                          ...(existing || {
+                                            enabled: false,
+                                            animalType: "dino",
+                                            name: "Spike",
+                                            energy: 50,
+                                            accessories: [],
+                                            history: [],
+                                            memories: [],
+                                          }),
+                                          enabled: !currentlyEnabled,
+                                        },
+                                      };
+                                    });
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <span className="w-3 text-center shrink-0">🐾</span>
+                                  <span>{classPetEnabled ? "Klassentier ausblenden" : "Klassentier einblenden"}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsThemePickerOpen(true);
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Palette size={12} className="text-emerald-500 shrink-0" />
+                                  <span>Design & Darstellung</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsFocusModeLightOff((prev) => !prev);
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Lightbulb size={12} className="text-amber-500 shrink-0" />
+                                  <span>Fokusmodus{isFocusModeLightOff ? " beenden" : ""}</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    toggleFullscreen();
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  {isFullscreen ? <Minimize size={12} className="text-slate-400 shrink-0" /> : <Maximize size={12} className="text-slate-400 shrink-0" />}
+                                  <span>{isFullscreen ? "Vollbild beenden" : "Vollbildmodus"}</span>
                                 </button>
 
                                 <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
@@ -9636,7 +9515,25 @@ ${content}
                                   className="w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold text-rose-500 hover:bg-rose-500/10 flex items-center gap-2 text-left transition-colors cursor-pointer"
                                 >
                                   <Trash2 size={12} className="shrink-0" />
-                                  <span>Tafel leeren (Alle schließen)</span>
+                                  <span>Alle Unterrichtshilfen schließen</span>
+                                </button>
+                                <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
+                                <div className="px-2 pt-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
+                                  Archiv
+                                </div>
+                                <button
+                                  type="button"
+                                  id="btn-menu-open-digitale-tafel"
+                                  onClick={() => {
+                                    setIsTafelOpen(true);
+                                    setIsMoreOptionsMenuOpen(false);
+                                  }}
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                  }`}
+                                >
+                                  <Presentation size={12} className="text-slate-400 shrink-0" />
+                                  <span>Alte Tafelinhalte öffnen</span>
                                 </button>
                               </div>
                             )}
@@ -9748,12 +9645,11 @@ ${content}
                                     Schnell-Slots
                                   </div>
                                   {["A", "B", "C"].map((slot) => {
-                                    let isSaved = false;
-                                    if (slot === "C") {
-                                      isSaved = !!localStorage.getItem("cockpitLayoutC");
-                                    } else {
-                                      isSaved = slot === "A" ? !!app.cockpitLayoutA : !!app.cockpitLayoutB;
-                                    }
+                                    const isSaved = slot === "A"
+                                      ? !!app.cockpitLayoutA
+                                      : slot === "B"
+                                        ? !!app.cockpitLayoutB
+                                        : !!app.cockpitLayoutC;
                                     return (
                                       <div
                                         key={slot}
@@ -9805,14 +9701,14 @@ ${content}
                                       cockpitLayout: DEFAULT_COCKPIT_LAYOUT,
                                     }));
                                     showToast(
-                                      "Layout auf Standard zurückgesetzt.",
+                                      "Leere Ausgangsfläche geladen.",
                                       "info",
                                     );
                                     setIsSlotMenuOpen(false);
                                   }}
                                   className="w-full px-2 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider text-rose-500 text-center hover:bg-rose-500/10 transition-all cursor-pointer"
                                 >
-                                  Standard laden
+                                  Leere Ausgangsfläche laden
                                 </button>
                               </div>
                             )}
@@ -9826,10 +9722,19 @@ ${content}
                         className={`flex-1 relative group rounded-2xl border overflow-hidden pointer-events-auto h-full w-full min-h-[460px] select-none ${
                           currentIsLight
                             ? "bg-white border-slate-200 shadow-sm"
-                            : "bg-zinc-950/40 border-white/5 shadow-inner"
+                            : "bg-white border-slate-200 shadow-inner"
                         }`}
                         id="widget-board-stage"
                       >
+                        <BoardInk key={app.activeClassId} active={isBoardWriting}
+                          items={app.boardSettings?.cockpitInkByClass?.[app.activeClassId] || []}
+                          onDone={() => setIsBoardWriting(false)}
+                          onChange={items => {
+                            const classId = app.activeClassId;
+                            setApp(prev => ({ ...prev, boardSettings: { ...prev.boardSettings,
+                              cockpitInkByClass: { ...prev.boardSettings?.cockpitInkByClass, [classId]: items },
+                            } }));
+                          }} />
                         {/* Centered Confirm Dialog inside stage instead of native popup */}
                         {timerToCloseId && (
                           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[99999] no-print">
@@ -9882,54 +9787,6 @@ ${content}
                                 >
                                   Abbrechen
                                 </button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Empty Board Subtle Guidance */}
-                        {cockpitWidgets.filter((w) => w.visible).length === 0 && (
-                          <div
-                            id="cockpit-empty-state-hint"
-                            className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center select-none pointer-events-none"
-                          >
-                            <div className="flex flex-col items-center max-w-sm gap-2.5 pointer-events-auto">
-                              <div
-                                className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${
-                                  currentIsLight
-                                    ? "bg-slate-100/90 border-slate-200/80 text-slate-400"
-                                    : "bg-white/[0.04] border-white/10 text-neutral-500"
-                                }`}
-                              >
-                                <Plus size={24} strokeWidth={2} className="opacity-70" />
-                              </div>
-                              <div className="space-y-1">
-                                <h3
-                                  className={`text-xs font-black uppercase tracking-wider ${
-                                    currentIsLight ? "text-slate-600" : "text-neutral-300"
-                                  }`}
-                                >
-                                  Noch keine Widgets geöffnet
-                                </h3>
-                                <p
-                                  className={`text-[11px] font-semibold ${
-                                    currentIsLight ? "text-slate-400" : "text-neutral-500"
-                                  }`}
-                                >
-                                  Über{" "}
-                                  <button
-                                    type="button"
-                                    onClick={() => setIsAddWidgetMenuOpen(true)}
-                                    className={`font-black underline underline-offset-2 transition-colors cursor-pointer ${
-                                      currentIsLight
-                                        ? "text-indigo-600 hover:text-indigo-700"
-                                        : "text-indigo-400 hover:text-indigo-300"
-                                    }`}
-                                  >
-                                    + Widget
-                                  </button>{" "}
-                                  kannst du Tools und Hilfen zur Tafel hinzufügen.
-                                </p>
                               </div>
                             </div>
                           </div>
@@ -10070,18 +9927,9 @@ ${content}
 
                                     case "sorting":
                                       return (
-                                        <RetiredMathWidgetFallback
+                                        <SortingWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
-                                          onRemove={() =>
-                                            handleCloseWidget(
-                                              widget.id,
-                                              widget.type,
-                                            )
-                                          }
-                                          onOpenZahlenraum={() =>
-                                            toggleWidget("zahlenraum")
-                                          }
                                         />
                                       );
 
@@ -10296,20 +10144,18 @@ ${content}
                                       );
 
                                     case "mathduel":
-                                    case "shapepuzzle":
                                       return (
-                                        <RetiredMathWidgetFallback
+                                        <MathduelWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
-                                          onRemove={() =>
-                                            handleCloseWidget(
-                                              widget.id,
-                                              widget.type,
-                                            )
-                                          }
-                                          onOpenZahlenraum={() =>
-                                            toggleWidget("zahlenraum")
-                                          }
+                                        />
+                                      );
+
+                                    case "shapepuzzle":
+                                      return (
+                                        <ShapepuzzleWidgetContent
+                                          widget={widget}
+                                          currentIsLight={currentIsLight}
                                         />
                                       );
 
@@ -10458,18 +10304,9 @@ ${content}
 
                                     case "divrobot":
                                       return (
-                                        <RetiredMathWidgetFallback
+                                        <DivrobotWidgetContent
                                           widget={widget}
                                           currentIsLight={currentIsLight}
-                                          onRemove={() =>
-                                            handleCloseWidget(
-                                              widget.id,
-                                              widget.type,
-                                            )
-                                          }
-                                          onOpenZahlenraum={() =>
-                                            toggleWidget("zahlenraum")
-                                          }
                                         />
                                       );
 
@@ -14463,7 +14300,7 @@ ${content}
                                 const wp = tagName ? (app.wochenplanung?.[kw]?.[tagName] || {}) : {};
                                 const sp = app.stammplan?.[tagName];
                                 const result = [];
-                                for (let i = 0; i < 8; i++) {
+                                for (let i = 0; i < MAX_LESSON_SLOTS; i++) {
                                   if (wp && wp[i] && wp[i].fach)
                                     result.push({ idx: i, ...wp[i] });
                                   else if (sp && sp[i + 1]) {
@@ -14986,8 +14823,13 @@ ${content}
                       const nowMins =
                         today.getHours() * 60 + today.getMinutes();
 
-                      const isMorningBreak = nowMins >= 585 && nowMins < 600;
-                      const isLunchBreak = nowMins >= 750 && nowMins < 810;
+                      const currentBreak = findCurrentLessonBreak(
+                        lessonTimeSlots,
+                        nowMins,
+                      );
+                      const isLunchBreak =
+                        currentBreak?.afterSlot ===
+                        (app.mittagspauseNachStunde || 5);
 
                       let greetings: string[] = [];
                       if (petBehaviorState === "learning") {
@@ -15003,7 +14845,7 @@ ${content}
                             ? `Mit deinem Abzeichen '${badgeMention}' bist du ein echtes Vorbild, ${randomStudent}! 🏅`
                             : `Leise knistert das Papier... so gutes Lernen! 📄`,
                         ];
-                      } else if (isMorningBreak || isLunchBreak) {
+                      } else if (currentBreak) {
                         greetings = [
                           `Hey ${randomStudent}! Schnapp dir ein Pausenbrot! Wir haben gerade Pause! 🥪⚽`,
                           `Huhu! Genieß die freie Zeit der Pause, ${randomStudent}! 🥳✨`,
@@ -18484,7 +18326,7 @@ ${content}
             ...p,
             cockpitLayout: DEFAULT_COCKPIT_LAYOUT,
           }));
-          showToast("Layout auf Werksstandard zurückgesetzt.", "info");
+          showToast("Unterrichtsfläche geleert.", "info");
         }}
         currentIsLight={currentIsLight}
         slotNames={slotNames}

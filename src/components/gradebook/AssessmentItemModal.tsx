@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { formatLocalDateKey } from '../../lib/utils';
 import { 
   X, 
   Calendar, 
@@ -100,8 +101,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
     }
     const d = new Date();
     d.setDate(d.getDate() + offsetDays);
-    const iso = d.toISOString().split('T')[0];
-    setDate(iso);
+    setDate(formatLocalDateKey(d));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -295,7 +295,7 @@ export const AssessmentItemModal: React.FC<AssessmentItemModalProps> = ({
                   </div>
 
                   <p className="text-xs text-amber-900/90 leading-relaxed font-medium">
-                    <span className="font-bold">Funktionsweise:</span> Bei den Kindern gibst du die erreichte Punktzahl ein (z. B. 17). Die LehrerAPP ermittelt automatisch den Prozentwert und bezieht ihn in die Gesamtauswertung ein.
+                    <span className="font-bold">Funktionsweise:</span> Bei den Kindern gibst du die erreichte Punktzahl ein (z. B. 17). Klassio ermittelt automatisch den Prozentwert und bezieht ihn in die Gesamtauswertung ein.
                   </p>
                 </div>
               )}

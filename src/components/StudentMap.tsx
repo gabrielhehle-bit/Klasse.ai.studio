@@ -3,15 +3,18 @@ import { Student } from '../types';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
 // fix leaflet default icon issue in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
 });
 
 // Prevent Leaflet unmount crash in React 18
@@ -170,7 +173,7 @@ export default function StudentMap({ students }: StudentMapProps) {
     return () => {
       isMounted = false;
     };
-  }, [students]);
+  }, [students, app.schulPlz, app.schulOrt]);
 
   const mapCenter: [number, number] = useMemo(() => {
     const validCoords = geocodedStudents.filter(s => s.lat && s.lon);
@@ -190,6 +193,9 @@ export default function StudentMap({ students }: StudentMapProps) {
                 <h2 className="text-[1.25rem] leading-normal sm:text-[1.5rem] leading-normal font-black text-slate-900 tracking-tighter">Schüler-Karte</h2>
                 <p className="text-[0.75rem] leading-tight font-bold uppercase tracking-widest text-slate-400 mt-1">
                     Wohnortverteilung der Klasse
+                </p>
+                <p className="text-[0.6875rem] leading-relaxed font-medium text-slate-400 mt-2 max-w-2xl">
+                    Datenschutz: Für die Platzierung werden nur PLZ und Ort an Photon übertragen – keine Namen, Straßen oder Hausnummern. Kartenkacheln werden von OpenStreetMap geladen.
                 </p>
             </div>
             {isGeocoding && (

@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import LZString from 'lz-string';
-import localforage from 'localforage';
 import { getCurrentSchuljahr } from '../lib/utils';
 import { createBeispielklasse } from '../data/beispielklasse';
-import { FAECHER_ALLE, DEFAULT_TAGEPLAN, DEFAULT_FACH_COLORS, STUNDEN_INFO, TAGE_NAMEN, STUNDENTAFEL, AESTHETIC_THEMES, FONTS, DEUTSCH_UNTERFAECHER } from '../constants';
+import { FAECHER_ALLE, DEFAULT_TAGEPLAN, DEFAULT_FACH_COLORS, STUNDEN_INFO, TAGE_NAMEN, STUNDENTAFEL, AESTHETIC_THEMES, FONTS, DEUTSCH_UNTERFAECHER, LESSON_SLOT_NUMBERS } from '../constants';
 import { 
   GraduationCap, Users, Clock, Calendar, 
   Sparkles, User, Palette, Check, Trash2, Upload, AlertCircle, Play, Edit3, FileUp,
@@ -17,11 +16,12 @@ import { SokratesImportModal } from './SokratesImportModal';
 import { Bundesland, BUNDESLAND_NAMEN } from '../lib/ferienOesterreich';
 import { FachColorPicker } from './FachColorPicker';
 import { getFachHexColor, STANDARD_COLOR_MAP } from '../lib/fachColorUtils';
-import { saveEncryptedAppState } from '../lib/secureStorageService';
 import { getActiveVaultKey } from '../lib/vaultStorage';
+import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
+import { parseLegacyTeacherName, resolveTeacherDisplayName } from '../lib/teacherProfile';
 
 export default function SetupWizard({ onComplete, isNewClass }: { onComplete: () => void, isNewClass?: boolean }) {
-  const { app, setApp } = useApp();
+  const { app, setApp, restoreAppData } = useApp();
   
   const setupAbgeschlossen = 
     (app?.klassenbezeichnung && app.klassenbezeichnung.trim().length > 0) ||
@@ -33,7 +33,19 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   
   const activeClassLocal = (!isNewClass && app.classes) ? (app.classes.find(c => c.id === app.activeClassId) || app.classes[0]) : null;
 
-  const [lehrerName, setLehrerName] = useState(app.lehrerName || '');
+  const legacyTeacherName = (app.lehrerName || app.lehrerProfil?.name || '').trim();
+  const legacyTeacherParts = parseLegacyTeacherName(legacyTeacherName);
+  const [lehrerName, setLehrerName] = useState(legacyTeacherName);
+  const [anrede, setAnrede] = useState(app.anrede || legacyTeacherParts.anrede);
+  const [vorname, setVorname] = useState(app.vorname || legacyTeacherParts.vorname);
+  const [nachname, setNachname] = useState(app.nachname || legacyTeacherParts.nachname);
+  const applyTeacherName = (value: string) => {
+    setLehrerName(value);
+    const parsed = parseLegacyTeacherName(value);
+    setAnrede(parsed.anrede);
+    setVorname(parsed.vorname);
+    setNachname(parsed.nachname);
+  };
   const [schulName, setSchulName] = useState(app.schulName || '');
   const [schulkennzahl, setSchulkennzahl] = useState(app.schulkennzahl || '');
   const [schulOrt, setSchulOrt] = useState(app.schulOrt || '');
@@ -73,7 +85,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const [setupMode, setSetupMode] = useState<'quick' | 'expert'>(() => {
     if (isEditing || isNewClass) return 'expert';
     try {
-      return JSON.parse(localStorage.getItem('gabic_setup_wizard_progress') || '{}').setupMode === 'expert' ? 'expert' : 'quick';
+      return JSON.parse(localStorage.getItem('klassio_setup_wizard_ui_v1') || '{}').setupMode === 'expert' ? 'expert' : 'quick';
     } catch {
       return 'quick';
     }
@@ -96,7 +108,9 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const csvInputRef = useRef<HTMLInputElement>(null);
   const sokratesFileInputRef = useRef<HTMLInputElement>(null);
 
-  const WIZARD_PROGRESS_KEY = 'gabic_setup_wizard_progress';
+  // Only non-sensitive wizard UI state may be persisted in plaintext.
+  const WIZARD_PROGRESS_KEY = 'klassio_setup_wizard_ui_v1';
+  const LEGACY_WIZARD_PROGRESS_KEY = 'gabic_setup_wizard_progress';
 
   const magicAutofillStammplan = () => {
     if (!window.confirm("Bist du sicher? Dein aktueller Stammplan wird überschrieben.")) return;
@@ -157,63 +171,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     setStammplan(newStammplan);
   };
 
-  // Restore progress if available
+  // Datenschutz: alte Klartext-Setupstände können Schüler-/Schuldaten enthalten.
+  // Sie werden beim Öffnen des Wizards entfernt und nicht mehr wiederhergestellt.
   useEffect(() => {
-    if (isFirstSetup) {
-      const saved = sessionStorage.getItem(WIZARD_PROGRESS_KEY) || localStorage.getItem(WIZARD_PROGRESS_KEY);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (window.confirm('Es wurde ein unvollständiges Klassen-Setup gefunden.\nMöchtest du dieses wiederherstellen und dort weitermachen?')) {
-            if (parsed.lehrerName !== undefined) setLehrerName(parsed.lehrerName);
-            if (parsed.schulName !== undefined) setSchulName(parsed.schulName);
-            if (parsed.schulkennzahl !== undefined) setSchulkennzahl(parsed.schulkennzahl);
-            if (parsed.schulOrt !== undefined) setSchulOrt(parsed.schulOrt);
-            if (parsed.schulPlz !== undefined) setSchulPlz(parsed.schulPlz);
-            if (parsed.bundesland !== undefined) setBundesland(parsed.bundesland);
-            if (parsed.klassenbezeichnung !== undefined) setKlassenbezeichnung(parsed.klassenbezeichnung);
-            if (parsed.schuljahr !== undefined) setSchuljahr(parsed.schuljahr);
-            if (parsed.stufe !== undefined) setStufe(parsed.stufe);
-            if (parsed.theme !== undefined) setTheme(parsed.theme);
-            if (parsed.fontFamily !== undefined) setFontFamily(parsed.fontFamily);
-            if (parsed.faecher !== undefined) setFaecher(parsed.faecher);
-            if (parsed.fachConfig !== undefined) setFachConfig(parsed.fachConfig);
-            if (parsed.stundenZeiten !== undefined) setStundenZeiten(parsed.stundenZeiten);
-            if (parsed.mittagspauseNachStunde !== undefined) setMittagspauseNachStunde(parsed.mittagspauseNachStunde);
-            if (parsed.tageplan !== undefined) setTageplan(parsed.tageplan);
-            if (parsed.stammplan !== undefined) setStammplan(parsed.stammplan);
-            if (parsed.studentsList !== undefined) setStudentsList(parsed.studentsList);
-            if (parsed.uiScale !== undefined) setUiScale(parsed.uiScale);
-          } else {
-            sessionStorage.removeItem(WIZARD_PROGRESS_KEY);
-            localStorage.removeItem(WIZARD_PROGRESS_KEY);
-          }
-        } catch (e) {
-          console.error("Could not restore setup progress", e);
-        }
-      }
-    }
-  }, [isFirstSetup]); // Empty dependency array, but isFirstSetup is constant on mount usually
-
-  // Auto-save logic (sichert temporär in sessionStorage - kein unverschlüsselter localStorage)
-  useEffect(() => {
-    if (isFirstSetup) {
-      const saveTimeout = setTimeout(() => {
-        let existingProgress: any = {};
-        try { existingProgress = JSON.parse(sessionStorage.getItem(WIZARD_PROGRESS_KEY) || '{}'); } catch {}
-        const progress = {
-          ...existingProgress,
-          lehrerName, schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
-          klassenbezeichnung, stufe, theme, fontFamily,
-          faecher, fachConfig, stundenZeiten, mittagspauseNachStunde, tageplan, stammplan, studentsList, uiScale, schuljahr
-        };
-        sessionStorage.setItem(WIZARD_PROGRESS_KEY, JSON.stringify(progress));
-        // Säubere eventuelle Altbestände aus unverschlüsseltem localStorage
-        localStorage.removeItem(WIZARD_PROGRESS_KEY);
-      }, 500);
-      return () => clearTimeout(saveTimeout);
-    }
-  }, [isFirstSetup, lehrerName, schulName, schulkennzahl, schulOrt, schulPlz, bundesland, klassenbezeichnung, stufe, theme, fontFamily, faecher, fachConfig, stundenZeiten, mittagspauseNachStunde, tageplan, stammplan, studentsList, uiScale, schuljahr]);
+    sessionStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
+    localStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -256,15 +219,13 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
-        const importedData = JSON.parse(event.target?.result as string);
-        
-        if (typeof importedData !== 'object' || importedData === null) {
-          throw new Error('Ungültiges Format');
-        }
-        
-        if (!importedData.schueler && !importedData.classes && !importedData.klassenbezeichnung) {
-          throw new Error('Diese Datei ist kein gültiges Lehrermappe-Backup');
-        }
+        const key = getActiveVaultKey();
+        if (!key) throw new Error('Bitte zuerst den lokalen Tresor entsperren.');
+        const importedData = await prepareBackupRestore(
+          parseBackupText(String(event.target?.result || '')), key,
+          () => prompt('Bitte gib das Tresor-Passwort oder den Recovery-Code dieses Backups ein. Dein lokales Tresor-Passwort bleibt unverändert.')
+        );
+        if (!importedData) return;
 
         const classCount = Array.isArray(importedData.classes) ? importedData.classes.length : (importedData.klassenbezeichnung ? 1 : 0);
         const studentCount = Array.isArray(importedData.schueler)
@@ -279,29 +240,16 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
           return;
         }
 
-        const dataToImport = {
-          ...importedData,
-          tourAbgeschlossen: true
-        };
-
-        const vaultKey = getActiveVaultKey();
-        if (vaultKey) {
-          const currentData = await localforage.getItem<any>('hehle_v3');
-          if (currentData) {
-            await localforage.setItem('hehle_v3_pre_import_backup', currentData);
-            sessionStorage.setItem('hehle_v3_pre_import_backup_created_at', new Date().toISOString());
-          }
-          await saveEncryptedAppState(dataToImport, vaultKey);
-        }
-        setApp(dataToImport);
-        
-        sessionStorage.removeItem('hehle_v3_temp');
+        await restoreAppData(importedData);
         sessionStorage.removeItem(WIZARD_PROGRESS_KEY);
         localStorage.removeItem(WIZARD_PROGRESS_KEY);
-
+        sessionStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
+        localStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
         onComplete();
-      } catch (err) {
-        alert('Fehler beim Importieren: ' + (err instanceof Error ? err.message : 'Die Datei ist ungültig oder beschädigt.'));
+      } catch (err: any) {
+        alert(err?.message || 'Fehler beim Wiederherstellen des Backups.');
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
     reader.readAsText(file);
@@ -317,8 +265,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
       if (result.students && result.students.length > 0) {
         const newKids = result.students.map((s: any) => ({
           id: crypto.randomUUID(), vorname: s.vorname || '', nachname: s.nachname || '', name: `${s.vorname||''} ${s.nachname||''}`.trim(),
-          geschlecht: s.geschlecht || 'w', niveau: 1, geburtstag: s.geburtstag || '', staatsbuergerschaft: 'Österreich',
-          religion: s.religion || '', gruppen: [], erstelltAm: new Date().toISOString()
+          geschlecht: s.geschlecht || '', niveau: 1, geburtstag: s.geburtstag || '', staatsbuergerschaft: s.staatsbuergerschaft || '',
+          religion: s.religion || '', erstsprache: s.erstsprache || '', gruppen: [], erstelltAm: new Date().toISOString()
         }));
         setCsvPreview(newKids);
         setCsvError(false);
@@ -363,7 +311,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     const newKid = {
       id: crypto.randomUUID(), vorname: currentStudent.vorname.trim(), nachname: currentStudent.nachname.trim(),
       name: `${currentStudent.vorname.trim()} ${currentStudent.nachname.trim()}`, geschlecht: '', niveau: 1,
-      geburtstag: '', staatsbuergerschaft: 'Österreich', religion: '', gruppen: [], erstelltAm: new Date().toISOString()
+      geburtstag: '', staatsbuergerschaft: '', religion: '', erstsprache: '', gruppen: [], erstelltAm: new Date().toISOString()
     };
     setStudentsList(prev => [...prev, newKid]);
     setStudentMessage(null);
@@ -541,7 +489,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
 
          return {
            ...prev,
-           lehrerName, schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
+           lehrerName: resolvedLehrerName,
+           anrede,
+           vorname,
+           nachname,
+           lehrerProfil: { ...(prev.lehrerProfil || {}), name: resolvedLehrerName, schule: schulName },
+           schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
            klassenbezeichnung, stufe, schueler: finalStudents,
            classes,
            currentPage: 'dashboard',
@@ -576,7 +529,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
          return {
            ...prev,
          ...(isFirstSetup ? {
-           lehrerName, schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
+           lehrerName: resolvedLehrerName,
+           anrede,
+           vorname,
+           nachname,
+           lehrerProfil: { ...(prev.lehrerProfil || {}), name: resolvedLehrerName, schule: schulName },
+           schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
            klassenbezeichnung, stufe, schuljahr: schuljahr, schueler: finalStudents,
            classes: [mainClass], activeClassId: classId, firstLogin: true, tourAbgeschlossen: false
          } : {
@@ -602,6 +560,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     
     if (isFirstSetup) {
       localStorage.removeItem(WIZARD_PROGRESS_KEY);
+      sessionStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
+      localStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
     }
     onComplete();
   };
@@ -796,17 +756,32 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     const active = new Set<number>(tageplan[tag]?.stunden || []);
     return sum + Object.entries(stammplan[tag] || {}).filter(([hour, subject]) => active.has(Number(hour)) && Boolean(subject)).length;
   }, 0);
+  const resolvedLehrerName = resolveTeacherDisplayName(anrede, vorname, nachname, lehrerName);
+
+  const schoolYearOptions = React.useMemo(() => {
+    const current = getCurrentSchuljahr();
+    const startYear = Number(current.slice(0, 4));
+    const options = Number.isFinite(startYear)
+      ? Array.from({ length: 5 }, (_, index) => {
+          const year = startYear + index;
+          return `${year}/${String((year + 1) % 100).padStart(2, '0')}`;
+        })
+      : [current];
+    if (schuljahr && !options.includes(schuljahr)) options.unshift(schuljahr);
+    return options;
+  }, [schuljahr]);
+
   const setupWarnings = [
     studentsList.length === 0 ? 'Noch keine Schüler:innen angelegt – das kannst du später nachholen.' : null,
     assignedLessonSlots === 0 ? 'Noch kein Stammstundenplan ausgefüllt.' : null,
     assignedLessonSlots > availableLessonSlots ? 'Der Stundenplan enthält mehr Einträge als verfügbare Stunden.' : null,
-    !lehrerName.trim() ? 'Der Name der Lehrkraft ist noch leer.' : null,
+    !resolvedLehrerName ? 'Der Name der Lehrkraft ist noch leer.' : null,
     !schulName.trim() ? 'Der Schulname ist noch leer.' : null
   ].filter(Boolean) as string[];
 
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-50 flex items-start justify-center p-0 md:p-8">
-      <input type="file" accept=".json" ref={fileInputRef} onChange={handleBackupImport} className="hidden" />
+      <input type="file" accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain" ref={fileInputRef} onChange={handleBackupImport} className="hidden" />
       <input type="file" accept=".csv" ref={csvInputRef} onChange={handleCSVImport} className="hidden" />
       <input type="file" accept=".pdf,.csv,.txt" ref={sokratesFileInputRef} onChange={handleSokratesFileUpload} className="hidden" />
 
@@ -836,7 +811,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
             setStudentsList(importedStudents);
             if (meta?.klasse) setKlassenbezeichnung(meta.klasse);
             if (meta?.schuljahr) setSchuljahr(meta.schuljahr);
-            if (meta?.lehrerName) setLehrerName(meta.lehrerName);
+            if (meta?.lehrerName) applyTeacherName(meta.lehrerName);
             if (meta?.schulName) setSchulName(meta.schulName);
             if (meta?.schulkennzahl) setSchulkennzahl(meta.schulkennzahl);
             setActiveInputMode('manual');
@@ -908,7 +883,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                    <Sparkles size={41} />
                  </div>
                  <div className="px-6">
-                   <h1 className="text-[1.875rem] leading-tight md:text-4xl font-black text-slate-900 tracking-tight mb-3">Willkommen bei GABIC!</h1>
+                   <h1 className="text-[1.875rem] leading-tight md:text-4xl font-black text-slate-900 tracking-tight mb-3">Willkommen bei Klassio!</h1>
                    <p className="text-[0.875rem] font-black text-emerald-600 tracking-widest uppercase mb-4">Gabriel Intelligent Classroom</p>
                    <p className="text-slate-500 font-medium max-w-lg mx-auto">Klicke auf Weiter, um deine Klasse einzurichten. Alternativ kannst du hier ein Backup hochladen, um dort weiterzumachen, wo du aufgehört hast.</p>
                  </div>
@@ -937,7 +912,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                        <Upload size={20} className="text-emerald-500" />
                        <div className="text-left">
                          <div className="text-[0.875rem] leading-snug font-black whitespace-nowrap">Backup wiederherstellen</div>
-                         <div className="text-[0.625rem] text-slate-500 font-medium uppercase tracking-wider">Aus einer .json Datei</div>
+                         <div className="text-[0.625rem] text-slate-500 font-medium uppercase tracking-wider">Aus einer Sicherungsdatei (.json)</div>
                        </div>
                     </button>
 
@@ -968,9 +943,24 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                 <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><User className="text-emerald-500" size={22}/> Profil & Schule</h3>
              </div>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-6 rounded-[24px] border border-slate-100">
+                <div className="space-y-1.5">
+                  <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Anrede</label>
+                  <select autoFocus value={anrede} onChange={e => setAnrede(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm">
+                    <option value="">Keine Angabe</option>
+                    <option value="Frau">Frau</option>
+                    <option value="Herr">Herr</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Vorname</label>
+                  <input type="text" value={vorname} onChange={e => setVorname(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm" />
+                </div>
                 <div className="space-y-1.5 md:col-span-2">
-                  <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Dein Name / Titel</label>
-                  <input autoFocus type="text" placeholder="z.B. Frau Prof. Müller" value={lehrerName} onChange={e => setLehrerName(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm" />
+                  <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Nachname</label>
+                  <input type="text" value={nachname} onChange={e => setNachname(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm" />
+                  {legacyTeacherName && !app.nachname && (
+                    <p className="text-[0.625rem] text-slate-500">Der bisherige Anzeigename wurde übernommen und in die neuen Profilfelder aufgeteilt.</p>
+                  )}
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
                   <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schulname</label>
@@ -1031,10 +1021,9 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                       onChange={e => setSchuljahr(e.target.value)} 
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all shadow-sm cursor-pointer"
                     >
-                      <option value="2026/27">2026/27</option>
-                      <option value="2027/28">2027/28</option>
-                      <option value="2028/29">2028/29</option>
-                      <option value="2029/30">2029/30</option>
+                      {schoolYearOptions.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
                     </select>
                  </div>
                  <div className="space-y-2 sm:col-span-2">
@@ -1232,7 +1221,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                     <p className="text-[0.625rem] text-slate-500 font-medium leading-tight mb-4">Trage hier durch Klicken in die Felder die korrekten Beginn- und Endzeiten ein.</p>
                   </div>
                  <div className="grid grid-cols-2 gap-3">
-                   {[1,2,3,4,5,6,7,8].map(h => (
+                   {LESSON_SLOT_NUMBERS.map(h => (
                        <div key={h} className="relative group">
                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.625rem] font-black text-slate-400 group-hover:text-emerald-500 transition-colors">{h}.</span>
                          <input type="text" value={stundenZeiten[h] || ''} onChange={e => setStundenZeiten((prev: any) => ({ ...prev, [h]: e.target.value }))} className="w-full pl-8 pr-8 py-2.5 text-[0.6875rem] bg-white border border-slate-200 focus:border-emerald-500 hover:border-emerald-300 focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-slate-800 font-bold outline-none transition-all shadow-sm group-hover:shadow-md cursor-text" placeholder={`Zeit definieren`} />
@@ -1269,7 +1258,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                           <div key={tag} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 shadow-sm">
                             <span className="text-[0.75rem] leading-tight font-bold text-slate-700">{tag}</span>
                             <div className="flex items-center gap-1">
-                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(h => {
+                              {LESSON_SLOT_NUMBERS.map(h => {
                                 const isActive = stundenArr.includes(h);
                                 return (
                                   <button 
@@ -1325,7 +1314,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                       </div>
                       
                       <div className="space-y-2">
-                        {Array.from({ length: 8 }, (_, i) => i + 1).map(h => {
+                        {LESSON_SLOT_NUMBERS.map(h => {
                             if (h === mittagspauseNachStunde + 1) {
                               return (
                                 <div key={`pause-${h}`} className="flex items-center justify-center gap-4 my-3">
@@ -1389,7 +1378,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                          <div key={tag} className="text-[0.625rem] font-black text-slate-700 uppercase tracking-widest text-center">{tag.slice(0,2)}</div>
                        ))}
                      </div>
-                     {Array.from({ length: 8 }, (_, i) => i + 1).map(h => (
+                     {LESSON_SLOT_NUMBERS.map(h => (
                        <React.Fragment key={h}>
                          {h === mittagspauseNachStunde + 1 && (
                            <div className="grid grid-cols-6 gap-2 my-2 items-center">
@@ -1884,7 +1873,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
             mergeStudents(importedStudents);
             if (meta?.klasse) setKlassenbezeichnung(meta.klasse);
             if (meta?.schuljahr) setSchuljahr(meta.schuljahr);
-            if (meta?.lehrerName) setLehrerName(meta.lehrerName);
+            if (meta?.lehrerName) applyTeacherName(meta.lehrerName);
             if (meta?.schulName) setSchulName(meta.schulName);
             if (meta?.schulkennzahl) setSchulkennzahl(meta.schulkennzahl);
             setActiveInputMode('manual');

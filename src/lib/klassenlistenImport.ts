@@ -1,3 +1,5 @@
+import { toDateInputValue } from './studentListData';
+
 export interface ParsedStudent {
   vorname: string;
   nachname: string;
@@ -12,28 +14,7 @@ export interface ImportResult {
 
 // Robust date conversion to YYYY-MM-DD
 function normalizeDate(str: string): string {
-  if (!str) return '';
-  const clean = str.trim();
-  
-  // Format: YYYY-MM-DD
-  if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
-    return clean;
-  }
-  
-  // Format: DD.MM.YYYY or DD.MM.YY
-  const dotParts = clean.split('.');
-  if (dotParts.length === 3) {
-    const day = dotParts[0].padStart(2, '0');
-    const month = dotParts[1].padStart(2, '0');
-    let year = dotParts[2].trim();
-    if (year.length === 2) {
-      year = '20' + year; // assume 21st century
-    }
-    if (year.length === 4) {
-      return `${year}-${month}-${day}`;
-    }
-  }
-  return clean;
+  return toDateInputValue(str);
 }
 
 // Splits combined fields like "Maier, Anna" -> { vorname: "Anna", nachname: "Maier" }
@@ -239,7 +220,7 @@ export function parseKlassenliste(rohtext: string): ImportResult {
     let vorname = '';
     let nachname = '';
     let geburtstag = '';
-    let geschlecht = 'w';
+    let geschlecht = '';
     
     if (isAllUnmapped) {
       // Just try splitting the whole line by the separator if multiple columns exist, or by name splitting heuristic

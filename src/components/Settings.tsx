@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import localforage from 'localforage';
 import { getSpeicherStatus } from '../lib/utils';
+import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
+import { clearActiveVaultSession, deleteVaultRecord } from '../lib/vaultStorage';
 
 // Subcomponents
 import SettingsHeader, { SettingsCategory } from './settings/SettingsHeader';
@@ -16,24 +18,9 @@ import SyncSettings from './settings/SyncSettings';
 import BackupSettings from './settings/BackupSettings';
 import AdvancedSettings from './settings/AdvancedSettings';
 import DeleteClassModal from './settings/DeleteClassModal';
+import { AVAILABLE_MODULES } from '../lib/settingsModuleCatalog';
 
-export const AVAILABLE_MODULES = [
-  { id: 'cockpit', label: 'LEHRERCOCKPIT', desc: 'Sperren, Timer, Lärmampel, Klassenglas & Tafel', category: 'Unterricht' },
-  { id: 'ki-helfer', label: 'KI Helfer & Assistenten', desc: 'Kreative KI-Tools, Differenzierung, Elternbrief-Generator', category: 'Unterricht' },
-  { id: 'schueler', label: 'Schülerdaten & Profile', desc: 'Schülerliste, Portfolios, Notizen und Stammdaten', category: 'Werkzeuge' },
-  { id: 'sitzplan', label: 'Sitzplan und Gruppen', desc: 'Zufallsgenerator, Gruppenarbeiten & Raumordnung', category: 'Werkzeuge' },
-  { id: 'anwesenheit', label: 'Anwesenheitskontrolle', desc: 'Tägliche Präsenzliste, Fehltage & Verspätungen', category: 'Werkzeuge' },
-  { id: 'noten', label: 'Notenmappe & Mitarbeit', desc: 'Prüfungen, Hausübungen & Mitarbeitspunkte-System', category: 'Werkzeuge' },
-  { id: 'orga', label: 'Klassenkasse & Geldsammlungen', desc: 'Kassenbuch, Belege, Einnahmen/Ausgaben pro Kind', category: 'Werkzeuge', condition: (app: any) => app.klassenvorstand },
-  { id: 'jahresplanung', label: 'Jahres- & Stoffplanung', desc: 'Langzeit-Planer nach Themen & Kalenderwochen', category: 'Planung' },
-  { id: 'wochenplanung', label: 'Wochenplaner & HÜs', desc: 'HÜ-Abgaben, wöchentliche Meilensteine & Pläne', category: 'Planung' },
-  { id: 'materialien', label: 'Materialbibliothek & Entwürfe', desc: 'Unterrichtsmaterialien & fertige Stundenbilder', category: 'Planung' },
-  { id: 'uebergabemappe', label: 'Übergabemappe', desc: 'Klassenübergabe & Schülerbeurteilungen', category: 'Planung', condition: (app: any) => app.klassenvorstand },
-  { id: 'statistik', label: 'Statistik & Profile', desc: 'Analysen und Klassenschnitt-Grafiken', category: 'Extras' },
-  { id: 'diagnostik', label: 'Diagnostik & Förderung', desc: 'Lese- & Rechentests, standardisierte Porträtbögen', category: 'Extras', condition: (app: any) => app.klassenvorstand },
-  { id: 'archiv', label: 'Daten-Archiv', desc: 'Abgeschlossene Schuljahre & Verläufe', category: 'Extras' },
-  { id: 'datensicherung', label: 'Datensicherung (Backup)', desc: 'Daten exportieren, wiederherstellen & löschen', category: 'Extras' }
-];
+
 
 export default function Settings() {
   const { app, setApp, deleteClass } = useApp();
@@ -193,21 +180,20 @@ export default function Settings() {
     }
   };
 
-  // Notfall datum
+  // Zeitpunkt der verschlüsselten automatischen Notfallkopie.
   const notfallDate = useMemo(() => {
     try {
       const raw = localStorage.getItem('hehle_v3_notfallkopie');
       if (!raw) return null;
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.lastBackupDate) {
-        return new Date(parsed.lastBackupDate).toLocaleDateString('de-AT', {
-          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
-      }
-    } catch (e) {
+      const savedAt = typeof parsed?.savedAt === 'number' ? parsed.savedAt : null;
+      if (!savedAt) return localStorage.getItem('hehle_v3_notfallkopie_time');
+      return new Date(savedAt).toLocaleString('de-AT', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+    } catch {
       return null;
     }
-    return null;
   }, []);
 
   const openDeleteModal = (type: 'all' | 'history') => {
@@ -221,13 +207,48 @@ export default function Settings() {
 
     if (resetType === 'all') {
       try {
-        localStorage.clear();
-        await localforage.clear();
-        window.location.reload();
-      } catch (e) {
-        console.error('Reset error:', e);
-        window.location.reload();
+        await clearTrustedDeviceUnlock();
+      } catch (error) {
+        console.error('Gerätevertrauen konnte beim Werksreset nicht gelöscht werden', error);
+        showToast('Werksreset abgebrochen: Gerätevertrauen konnte nicht gelöscht werden.', 'error');
+        return;
       }
+
+      try {
+        localStorage.clear();
+      } catch (error) {
+        console.error('Browser-Fallback konnte beim Werksreset nicht gelöscht werden', error);
+        showToast('Werksreset abgebrochen: Browser-Fallback konnte nicht gelöscht werden.', 'error');
+        return;
+      }
+
+      try {
+        sessionStorage.clear();
+      } catch (error) {
+        console.error('Sitzungsspeicher konnte beim Werksreset nicht gelöscht werden', error);
+        showToast('Werksreset abgebrochen: Sitzungsspeicher konnte nicht gelöscht werden.', 'error');
+        return;
+      }
+
+      try {
+        await localforage.clear();
+      } catch (error) {
+        console.error('Lokaler App-Speicher konnte beim Werksreset nicht gelöscht werden', error);
+        showToast('Werksreset abgebrochen: Lokaler App-Speicher konnte nicht gelöscht werden.', 'error');
+        return;
+      }
+
+      // Separate Tresor-Metadaten erst löschen, nachdem die verschlüsselten App-Daten entfernt sind.
+      try {
+        await deleteVaultRecord();
+      } catch (error) {
+        console.error('Tresor-Metadaten konnten beim Werksreset nicht gelöscht werden', error);
+        showToast('Werksreset abgebrochen: Tresor-Metadaten konnten nicht gelöscht werden.', 'error');
+        return;
+      }
+
+      clearActiveVaultSession();
+      window.location.reload();
     } else {
       setApp(prev => ({
         ...prev,
@@ -240,7 +261,9 @@ export default function Settings() {
     }
   };
 
-  const disabledModulesCount = app.settings?.disabledModules?.length || 0;
+  const disabledModulesCount = (app.settings?.disabledModules || []).filter((id: string) =>
+    AVAILABLE_MODULES.some(module => module.id === id)
+  ).length;
   const hasActiveSync = !!app.boardSettings?.activeSyncCode;
 
   return (
@@ -425,7 +448,7 @@ export default function Settings() {
 
       <div className="pt-4 text-center">
         <p className="text-[0.625rem] font-bold text-slate-300 uppercase tracking-[0.4em]">
-          Lehrkraft Manager v4.2.0 • Lokale Web-App
+          Klassio • Lokale, verschlüsselte Web-App
         </p>
       </div>
     </div>

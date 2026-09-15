@@ -5,6 +5,7 @@ import {
   createVault,
   unlockVault,
   unlockVaultWithRecoveryCode,
+  MIN_PASSWORD_LENGTH,
   type VaultRecordV1,
 } from '../lib/vaultService';
 import {
@@ -12,8 +13,11 @@ import {
   loadVaultRecord,
   setActiveVaultSession,
   getActiveVaultKey,
-  hasVault,
 } from '../lib/vaultStorage';
+import {
+  rememberTrustedDevice,
+  tryUnlockTrustedDevice,
+} from '../lib/trustedDeviceVault';
 import {
   hasLegacyPlaintextData,
   migrateLegacyStorageToEncrypted,
@@ -67,6 +71,7 @@ export default function VaultGate({ children }: VaultGateProps) {
   const [showUnlockPassword, setShowUnlockPassword] = useState(false);
   const [useRecoveryMode, setUseRecoveryMode] = useState(false);
   const [recoveryCodeInput, setRecoveryCodeInput] = useState('');
+  const [trustThisDevice, setTrustThisDevice] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
@@ -85,19 +90,33 @@ export default function VaultGate({ children }: VaultGateProps) {
           return;
         }
 
-        const vaultExists = await hasVault();
+        const record = await loadVaultRecord();
         const legacyExists = await hasLegacyPlaintextData();
 
         if (!isMounted) return;
         setHasLegacyData(legacyExists);
 
-        if (!vaultExists) {
+        if (!record) {
           setGateState('needs_setup');
-        } else if (isVaultUnlocked) {
-          setGateState('unlocked');
-        } else {
-          setGateState('locked');
+          return;
         }
+
+        if (isVaultUnlocked) {
+          setGateState('unlocked');
+          return;
+        }
+
+        const trustedKey = await tryUnlockTrustedDevice(record);
+        if (trustedKey) {
+          setActiveVaultSession(trustedKey, record);
+          const success = await unlockAppVault(trustedKey);
+          if (success) {
+            if (isMounted) setGateState('unlocked');
+            return;
+          }
+        }
+
+        if (isMounted) setGateState('locked');
       } catch (err) {
         console.error('Fehler bei Vault-Status-Prüfung:', err);
         if (isMounted) setGateState('locked');
@@ -120,8 +139,8 @@ export default function VaultGate({ children }: VaultGateProps) {
     e.preventDefault();
     setErrorMessage(null);
 
-    if (password.length < 8) {
-      setErrorMessage('Das Passwort muss mindestens 8 Zeichen lang sein.');
+    if (password.trim().length < MIN_PASSWORD_LENGTH) {
+      setErrorMessage(`Das Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen lang sein.`);
       triggerShake();
       return;
     }
@@ -135,7 +154,7 @@ export default function VaultGate({ children }: VaultGateProps) {
     setIsProcessing(true);
     try {
       // Erzeugt den VaultRecord, den VaultKey (CryptoKey) und den 128-Bit Recovery-Code
-      const result = await createVault(password);
+      const result = await createVault(password, trustThisDevice);
       setTempVaultRecord(result.vaultRecord);
       setTempVaultKey(result.vaultKey);
       setGeneratedRecoveryCode(result.recoveryCode);
@@ -163,8 +182,19 @@ export default function VaultGate({ children }: VaultGateProps) {
       // 1. VaultRecord persistent in IndexedDB speichern
       await saveVaultRecord(tempVaultRecord);
 
-      // 2. Aktive Session im flüchtigen RAM setzen
-      setActiveVaultSession(tempVaultKey, tempVaultRecord);
+      // 2. Optional: VaultKey auf diesem persönlichen Gerät verschlüsselt merken.
+      // Der aktive Sitzungsschlüssel wird danach wieder nicht exportierbar gehalten.
+      let activeVaultKey = tempVaultKey;
+      if (trustThisDevice) {
+        try {
+          activeVaultKey = await rememberTrustedDevice(tempVaultRecord, tempVaultKey);
+        } catch (error) {
+          console.warn('[Datenschutz] Gerätevertrauen konnte nicht gespeichert werden:', error);
+          activeVaultKey = await unlockVault(tempVaultRecord, password, false);
+          showToast('Tresor eingerichtet, aber dieses Gerät konnte nicht als vertrauenswürdig gespeichert werden.', 'info');
+        }
+      }
+      setActiveVaultSession(activeVaultKey, tempVaultRecord);
 
       // 3. Wenn Altdaten vorhanden sind: Atomare Migration durchführen
       if (hasLegacyData) {
@@ -176,7 +206,7 @@ export default function VaultGate({ children }: VaultGateProps) {
       }
 
       // 4. AppState im React-Kontext entsperren und laden
-      await unlockAppVault(tempVaultKey);
+      await unlockAppVault(activeVaultKey);
       setGateState('unlocked');
       showToast('Datentresor erfolgreich eingerichtet! 🔐', 'success');
     } catch (err: any) {
@@ -207,7 +237,16 @@ export default function VaultGate({ children }: VaultGateProps) {
       }
 
       // Entsperren & Schlüssel ableiten (PBKDF2-SHA-256)
-      const vaultKey = await unlockVault(record, unlockPassword);
+      let vaultKey = await unlockVault(record, unlockPassword, trustThisDevice);
+      if (trustThisDevice) {
+        try {
+          vaultKey = await rememberTrustedDevice(record, vaultKey);
+        } catch (error) {
+          console.warn('[Datenschutz] Gerätevertrauen konnte nicht gespeichert werden:', error);
+          vaultKey = await unlockVault(record, unlockPassword, false);
+          showToast('Entsperrt, aber dieses Gerät konnte nicht dauerhaft als vertrauenswürdig gespeichert werden.', 'info');
+        }
+      }
 
       // Session im flüchtigen RAM aktivieren
       setActiveVaultSession(vaultKey, record);
@@ -251,7 +290,16 @@ export default function VaultGate({ children }: VaultGateProps) {
         throw new Error('Kein gespeicherter Datentresor gefunden.');
       }
 
-      const vaultKey = await unlockVaultWithRecoveryCode(record, recoveryCodeInput.trim());
+      let vaultKey = await unlockVaultWithRecoveryCode(record, recoveryCodeInput.trim(), trustThisDevice);
+      if (trustThisDevice) {
+        try {
+          vaultKey = await rememberTrustedDevice(record, vaultKey);
+        } catch (error) {
+          console.warn('[Datenschutz] Gerätevertrauen konnte nicht gespeichert werden:', error);
+          vaultKey = await unlockVaultWithRecoveryCode(record, recoveryCodeInput.trim(), false);
+          showToast('Wiederhergestellt, aber dieses Gerät konnte nicht dauerhaft als vertrauenswürdig gespeichert werden.', 'info');
+        }
+      }
       setActiveVaultSession(vaultKey, record);
 
       const success = await unlockAppVault(vaultKey);
@@ -290,9 +338,9 @@ export default function VaultGate({ children }: VaultGateProps) {
   // Ladezustand
   if (gateState === 'checking') {
     return (
-      <div className="min-h-screen w-full bg-slate-950 flex flex-col items-center justify-center gap-4 text-white">
-        <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-        <div className="text-slate-400 font-mono text-xs uppercase tracking-widest font-semibold">
+      <div className="min-h-screen w-full bg-[var(--surface-bg,var(--surface))] flex flex-col items-center justify-center gap-4 text-[var(--text-primary)]">
+        <div className="w-10 h-10 border-4 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+        <div className="text-[var(--text-secondary)] font-mono text-xs uppercase tracking-widest font-semibold">
           Prüfe Datentresor...
         </div>
       </div>
@@ -300,33 +348,33 @@ export default function VaultGate({ children }: VaultGateProps) {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950/80 flex items-center justify-center p-4">
+    <div className="min-h-screen w-full bg-[var(--surface-bg,var(--surface))] flex items-center justify-center p-4">
       <motion.div
         animate={shake ? { x: [-10, 10, -8, 8, -4, 4, 0] } : {}}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-md bg-slate-900/90 border border-slate-800 backdrop-blur-xl rounded-2xl shadow-2xl p-6 md:p-8 text-slate-100"
+        className="w-full max-w-md bg-[var(--surface-card,var(--surface))] border border-[var(--border,var(--border-subtle))] backdrop-blur-xl rounded-2xl shadow-2xl p-6 md:p-8 text-[var(--text-primary)]"
       >
         {/* Header-Bereich */}
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 mb-4 shadow-inner">
+          <div className="w-14 h-14 rounded-2xl bg-[var(--accent-soft)] border border-[var(--accent)]/30 flex items-center justify-center text-[var(--accent)] mb-4 shadow-inner">
             {gateState === 'needs_setup' ? (
-              <ShieldCheck className="w-7 h-7 text-indigo-400" />
+              <ShieldCheck className="w-7 h-7 text-[var(--accent)]" />
             ) : (
-              <Lock className="w-7 h-7 text-indigo-400" />
+              <Lock className="w-7 h-7 text-[var(--accent)]" />
             )}
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-white">
+          <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
             {gateState === 'needs_setup' ? 'Lokalen Datentresor einrichten' : 'Lokaler Datentresor gesperrt'}
           </h1>
-          <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
+          <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-xs leading-relaxed">
             Lokale Schülerdaten werden verschlüsselt gespeichert.
           </p>
         </div>
 
         {/* Fehlermeldung */}
         {errorMessage && (
-          <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-start gap-3 text-rose-300 text-xs">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-400" />
+          <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-start gap-3 text-rose-500 dark:text-rose-300 text-xs">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-rose-500" />
             <div className="flex-1 leading-snug">{errorMessage}</div>
           </div>
         )}
@@ -337,8 +385,8 @@ export default function VaultGate({ children }: VaultGateProps) {
         {gateState === 'needs_setup' && setupStep === 'password' && (
           <form onSubmit={handleGenerateVault} className="space-y-4">
             {hasLegacyData && (
-              <div className="p-3 bg-indigo-500/10 border border-indigo-500/25 rounded-xl flex items-start gap-2.5 text-indigo-200 text-xs">
-                <FileCheck2 className="w-4 h-4 flex-shrink-0 mt-0.5 text-indigo-400" />
+              <div className="p-3 bg-[var(--accent-soft)] border border-[var(--accent)]/25 rounded-xl flex items-start gap-2.5 text-[var(--text-primary)] text-xs">
+                <FileCheck2 className="w-4 h-4 flex-shrink-0 mt-0.5 text-[var(--accent)]" />
                 <p className="leading-snug">
                   Bestehende lokale Daten gefunden. Sie werden nach der Tresor-Erstellung atomar verschlüsselt.
                 </p>
@@ -346,7 +394,7 @@ export default function VaultGate({ children }: VaultGateProps) {
             )}
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Tresor-Passwort vergeben
               </label>
               <div className="relative">
@@ -354,14 +402,14 @@ export default function VaultGate({ children }: VaultGateProps) {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mindestens 8 Zeichen"
+                  placeholder={`Mindestens ${MIN_PASSWORD_LENGTH} Zeichen`}
                   required
-                  className="w-full bg-slate-950/60 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-[var(--surface-subtle,var(--surface))] border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -369,7 +417,7 @@ export default function VaultGate({ children }: VaultGateProps) {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Passwort bestätigen
               </label>
               <input
@@ -378,14 +426,27 @@ export default function VaultGate({ children }: VaultGateProps) {
                 onChange={(e) => setPasswordConfirm(e.target.value)}
                 placeholder="Passwort wiederholen"
                 required
-                className="w-full bg-slate-950/60 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full bg-[var(--surface-subtle,var(--surface))] border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
               />
             </div>
+
+            <label className="flex items-start gap-2.5 p-3 rounded-xl bg-[var(--surface-subtle,var(--surface))] border border-[var(--border)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={trustThisDevice}
+                onChange={(e) => setTrustThisDevice(e.target.checked)}
+                className="mt-0.5 rounded border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+              />
+              <span className="text-xs leading-snug text-[var(--text-secondary)]">
+                <strong className="text-[var(--text-primary)]">Diesem persönlichen Gerät 30 Tage vertrauen.</strong>
+                {' '}Dann wird der Tresor nach einem Neuladen automatisch entsperrt. Nur auf einem geschützten eigenen Dienstgerät verwenden.
+              </span>
+            </label>
 
             <button
               type="submit"
               disabled={isProcessing}
-              className="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-600/20 disabled:opacity-50"
+              className="w-full mt-2 bg-[var(--accent)] hover:brightness-110 text-white font-medium py-2.5 px-4 rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[var(--accent)]/20 disabled:opacity-50"
             >
               {isProcessing ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -402,37 +463,37 @@ export default function VaultGate({ children }: VaultGateProps) {
         {/* SETUP: Schritt 2 - Recovery Code anzeigen & bestätigen */}
         {gateState === 'needs_setup' && setupStep === 'recovery_code' && (
           <div className="space-y-4">
-            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5 text-amber-200 text-xs">
-              <KeyRound className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-400" />
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5 text-amber-600 dark:text-amber-200 text-xs">
+              <KeyRound className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />
               <p className="leading-snug">
                 Notiere diesen 128-Bit Wiederherstellungscode sorgfältig. Solltest du dein Passwort vergessen, ist dieser Code der einzige Weg, deinen Tresor wiederherzustellen.
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Dein einmaliger Wiederherstellungscode
               </label>
-              <div className="bg-slate-950/80 border border-slate-700 rounded-xl p-3 font-mono text-center text-sm font-semibold tracking-wider text-emerald-400 select-all break-all">
+              <div className="bg-[var(--surface-subtle,var(--surface))] border border-[var(--border)] rounded-xl p-3 font-mono text-center text-sm font-semibold tracking-wider text-emerald-600 dark:text-emerald-400 select-all break-all">
                 {generatedRecoveryCode}
               </div>
               <button
                 type="button"
                 onClick={copyRecoveryCode}
-                className="mt-2 w-full py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                className="mt-2 w-full py-1.5 px-3 bg-[var(--surface-muted)] hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border)] rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
-                {codeCopied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                {codeCopied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
                 <span>{codeCopied ? 'Code kopiert!' : 'In Zwischenablage kopieren'}</span>
               </button>
             </div>
 
             <div className="pt-2">
-              <label className="flex items-start gap-2.5 cursor-pointer text-xs text-slate-300 select-none">
+              <label className="flex items-start gap-2.5 cursor-pointer text-xs text-[var(--text-secondary)] select-none">
                 <input
                   type="checkbox"
                   checked={codeConfirmed}
                   onChange={(e) => setCodeConfirmed(e.target.checked)}
-                  className="mt-0.5 rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  className="mt-0.5 rounded border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
                 />
                 <span className="leading-snug">
                   Ich habe den Wiederherstellungscode sicher notiert oder an einem sicheren Ort gespeichert.
@@ -444,7 +505,7 @@ export default function VaultGate({ children }: VaultGateProps) {
               <button
                 type="button"
                 onClick={() => setSetupStep('password')}
-                className="w-1/3 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-medium transition-colors cursor-pointer"
+                className="w-1/3 py-2.5 px-3 bg-[var(--surface-muted)] hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl text-xs font-medium transition-colors cursor-pointer"
               >
                 Zurück
               </button>
@@ -473,7 +534,7 @@ export default function VaultGate({ children }: VaultGateProps) {
         {gateState === 'locked' && !useRecoveryMode && (
           <form onSubmit={handleUnlockWithPassword} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Tresor-Passwort
               </label>
               <div className="relative">
@@ -484,22 +545,35 @@ export default function VaultGate({ children }: VaultGateProps) {
                   placeholder="Passwort eingeben"
                   autoFocus
                   required
-                  className="w-full bg-slate-950/60 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                  className="w-full bg-[var(--surface-subtle,var(--surface))] border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
                 />
                 <button
                   type="button"
                   onClick={() => setShowUnlockPassword(!showUnlockPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 >
                   {showUnlockPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
 
+            <label className="flex items-start gap-2.5 p-3 rounded-xl bg-[var(--surface-subtle,var(--surface))] border border-[var(--border)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={trustThisDevice}
+                onChange={(e) => setTrustThisDevice(e.target.checked)}
+                className="mt-0.5 rounded border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+              />
+              <span className="text-xs leading-snug text-[var(--text-secondary)]">
+                <strong className="text-[var(--text-primary)]">Auf diesem persönlichen Gerät 30 Tage entsperrt bleiben.</strong>
+                {' '}Der Vault-Key wird nur verschlüsselt und mit einem nicht exportierbaren Geräteschlüssel im Browser gespeichert.
+              </span>
+            </label>
+
             <button
               type="submit"
               disabled={isProcessing}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-600/20 disabled:opacity-50"
+              className="w-full bg-[var(--accent)] hover:brightness-110 text-white font-medium py-2.5 px-4 rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-[var(--accent)]/20 disabled:opacity-50"
             >
               {isProcessing ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -518,7 +592,7 @@ export default function VaultGate({ children }: VaultGateProps) {
                   setUseRecoveryMode(true);
                   setErrorMessage(null);
                 }}
-                className="text-xs text-indigo-400 hover:text-indigo-300 underline underline-offset-4 cursor-pointer"
+                className="text-xs text-[var(--accent)] hover:underline underline-offset-4 cursor-pointer"
               >
                 Passwort vergessen? Mit Wiederherstellungscode entsperren
               </button>
@@ -530,7 +604,7 @@ export default function VaultGate({ children }: VaultGateProps) {
         {gateState === 'locked' && useRecoveryMode && (
           <form onSubmit={handleUnlockWithRecoveryCode} className="space-y-4">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Wiederherstellungscode
               </label>
               <input
@@ -540,9 +614,21 @@ export default function VaultGate({ children }: VaultGateProps) {
                 placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"
                 autoFocus
                 required
-                className="w-full bg-slate-950/60 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                className="w-full bg-[var(--surface-subtle,var(--surface))] border border-[var(--border)] rounded-xl px-3.5 py-2.5 text-sm font-mono text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
               />
             </div>
+
+            <label className="flex items-start gap-2.5 p-3 rounded-xl bg-[var(--surface-subtle,var(--surface))] border border-[var(--border)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={trustThisDevice}
+                onChange={(e) => setTrustThisDevice(e.target.checked)}
+                className="mt-0.5 rounded border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
+              />
+              <span className="text-xs leading-snug text-[var(--text-secondary)]">
+                Diesem persönlichen Gerät nach der Wiederherstellung 30 Tage vertrauen.
+              </span>
+            </label>
 
             <div className="flex gap-2">
               <button
@@ -551,7 +637,7 @@ export default function VaultGate({ children }: VaultGateProps) {
                   setUseRecoveryMode(false);
                   setErrorMessage(null);
                 }}
-                className="w-1/3 py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-medium transition-colors cursor-pointer"
+                className="w-1/3 py-2.5 px-3 bg-[var(--surface-muted)] hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border)] rounded-xl text-xs font-medium transition-colors cursor-pointer"
               >
                 Zurück
               </button>
@@ -574,10 +660,10 @@ export default function VaultGate({ children }: VaultGateProps) {
         )}
 
         {/* Footer-Info */}
-        <div className="mt-6 pt-4 border-t border-slate-800 text-center">
-          <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500 font-mono">
-            <Shield size={12} className="text-slate-400" />
-            AES-GCM-256 Verschlüsselung auf diesem Gerät
+        <div className="mt-6 pt-4 border-t border-[var(--border)] text-center">
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] font-mono">
+            <Shield size={12} className="text-[var(--text-muted)]" />
+            AES-GCM-256 · optionales Gerätevertrauen speichert keinen Klartext-Schlüssel
           </span>
         </div>
       </motion.div>

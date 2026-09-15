@@ -22,7 +22,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useApp } from "../context/AppContext";
 import { logActivity } from "../lib/utils";
-import { getAssessmentMode, getMaxPoints } from "../lib/GradeUtils";
+import { getAssessmentMode, getAssessmentStorageValue, getMaxPoints } from "../lib/GradeUtils";
 import SchularbeitClassStats from "./SchularbeitClassStats";
 import SchularbeitClassTable from "./SchularbeitClassTable";
 
@@ -656,6 +656,43 @@ function getDefaultPreset(subject: string, saIndex: number) {
   return PRESETS.erlebniserzaehlung;
 }
 
+function getFactoryAssessmentConfig(subject: string, saIndex: number) {
+  const preset = getDefaultPreset(subject, saIndex);
+  const base = preset.config || {
+    weightText: 3,
+    weightSpelling: 1,
+    grade1Points: 16,
+    grade2Points: 13,
+    grade3Points: 10,
+    grade4Points: 7,
+    spelling1Q: 10,
+    spelling2Q: 29,
+    spelling3Q: 59,
+    spelling4Q: 90,
+    spellingFactor: 1000,
+  };
+
+  return {
+    spellingFactor: 1000,
+    enableGrammar: false,
+    weightArbeit: 1,
+    weightGrammar: 1,
+    grammar1Points: 18,
+    grammar2Points: 15,
+    grammar3Points: 11,
+    grammar4Points: 7,
+    maxGrammarPoints: 20,
+    ...base,
+  };
+}
+
+function resetAssessmentAspectPoints(aspects: Aspect[]): Aspect[] {
+  return aspects.map((aspect) => ({
+    ...aspect,
+    criteria: aspect.criteria.map((crit) => ({ ...crit, points: 0 })),
+  }));
+}
+
 export default function SchularbeitAssessment({
   studentId,
   studentName,
@@ -694,73 +731,42 @@ export default function SchularbeitAssessment({
 
   const [showConfig, setShowConfig] = useState(false);
   const [config, setConfig] = useState(() => {
-    const defaultPreset = getDefaultPreset(subject, saIndex);
-    const defaultConf = defaultPreset.config || {
-      weightText: 3,
-      weightSpelling: 1,
-      grade1Points: 16,
-      grade2Points: 13,
-      grade3Points: 10,
-      grade4Points: 7,
-      spelling1Q: 10,
-      spelling2Q: 29,
-      spelling3Q: 59,
-      spelling4Q: 90,
-      spellingFactor: 1000,
-    };
-
-    // Check if there is a class-wide default config saved for this Schularbeit
-    let loadedDefaultConf = defaultConf;
-    try {
-      const savedDefaultConf = localStorage.getItem(
-        `sa_default_config_${subject}_${semester}_${saIndex}`,
-      );
-      if (savedDefaultConf) {
-        loadedDefaultConf = JSON.parse(savedDefaultConf);
+    const stateDefault = (app.notenMeta as any)?.[subject]?.saDefaults?.[semester]?.[saIndex]?.config;
+    let legacyDefault: any = undefined;
+    if (!stateDefault) {
+      try {
+        const savedDefaultConf = localStorage.getItem(
+          `sa_default_config_${subject}_${semester}_${saIndex}`,
+        );
+        legacyDefault = savedDefaultConf ? JSON.parse(savedDefaultConf) : undefined;
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
     }
-
-    const raw = existingData?.config || loadedDefaultConf;
     return {
-      spellingFactor: 1000,
-      enableGrammar: false,
-      weightArbeit: 1,
-      weightGrammar: 1,
-      grammar1Points: 18,
-      grammar2Points: 15,
-      grammar3Points: 11,
-      grammar4Points: 7,
-      maxGrammarPoints: 20,
-      ...raw,
+      ...getFactoryAssessmentConfig(subject, saIndex),
+      ...(existingData?.config || stateDefault || legacyDefault || {}),
     };
   });
 
   const [activeAspects, setActiveAspects] = useState<Aspect[]>(() => {
     if (existingData?.aspects) return existingData.aspects;
-    let baseAspects: Aspect[];
-    try {
-      const savedDefaults = localStorage.getItem(
-        `sa_default_aspects_${subject}_${semester}_${saIndex}`,
-      );
-      if (savedDefaults) {
-        baseAspects = JSON.parse(savedDefaults);
-      } else {
-        baseAspects = getDefaultPreset(subject, saIndex).aspects;
+
+    const stateDefault = (app.notenMeta as any)?.[subject]?.saDefaults?.[semester]?.[saIndex]?.aspects;
+    let baseAspects: Aspect[] | undefined = Array.isArray(stateDefault) ? stateDefault : undefined;
+
+    if (!baseAspects) {
+      try {
+        const savedDefaults = localStorage.getItem(
+          `sa_default_aspects_${subject}_${semester}_${saIndex}`,
+        );
+        if (savedDefaults) baseAspects = JSON.parse(savedDefaults);
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error(e);
-      baseAspects = getDefaultPreset(subject, saIndex).aspects;
     }
-    // Reset points to 0 to prevent carrying over points from default template saves
-    return baseAspects.map((aspect) => ({
-      ...aspect,
-      criteria: aspect.criteria.map((crit) => ({
-        ...crit,
-        points: 0,
-      })),
-    }));
+
+    return resetAssessmentAspectPoints(baseAspects || getDefaultPreset(subject, saIndex).aspects);
   });
 
   const [isFullscreen, setIsFullscreen] = useState(true);
@@ -841,6 +847,8 @@ export default function SchularbeitAssessment({
   const [isTableFullScreen, setIsTableFullScreen] = useState(false);
   const [newPresetTitle, setNewPresetTitle] = useState("");
   const [customPresets, setCustomPresets] = useState<any[]>(() => {
+    const statePresets = (app.notenMeta as any)?.__customSaPresets;
+    if (Array.isArray(statePresets)) return statePresets;
     try {
       const saved = localStorage.getItem("hehle_custom_sa_presets");
       return saved ? JSON.parse(saved) : [];
@@ -848,6 +856,111 @@ export default function SchularbeitAssessment({
       return [];
     }
   });
+
+  const persistCustomPresets = (updated: any[]) => {
+    setCustomPresets(updated);
+    setApp((prev) => ({
+      ...prev,
+      notenMeta: {
+        ...(prev.notenMeta || {}),
+        __customSaPresets: updated,
+      },
+    }));
+  };
+
+  const persistSchularbeitDefault = (showConfirmation = true) => {
+    const cleanAspects = resetAssessmentAspectPoints(activeAspects);
+    setApp((prev) => {
+      const meta = { ...(prev.notenMeta || {}) } as any;
+      const subjectMeta = { ...(meta[subject] || {}) };
+      const saDefaults = { ...(subjectMeta.saDefaults || {}) };
+      const semesterDefaults = { ...(saDefaults[semester] || {}) };
+
+      semesterDefaults[saIndex] = {
+        aspects: cleanAspects,
+        config: { ...config },
+      };
+      saDefaults[semester] = semesterDefaults;
+      meta[subject] = { ...subjectMeta, saDefaults };
+
+      return { ...prev, notenMeta: meta };
+    });
+
+    if (showConfirmation) {
+      alert(
+        "Dieses Raster & die maximalen Kriterienpunkte wurden als Standard für diese Schularbeit gespeichert. Die Vorlage ist Teil des verschlüsselten Klassio-Datenbestands und damit in Backups enthalten.",
+      );
+    }
+  };
+
+  // One-time migration of legacy browser-only Schularbeitsvorlagen into the encrypted app state.
+  React.useEffect(() => {
+    const existingDefault = (app.notenMeta as any)?.[subject]?.saDefaults?.[semester]?.[saIndex];
+    const existingCustomPresets = (app.notenMeta as any)?.__customSaPresets;
+
+    let legacyConfig: any = undefined;
+    let legacyAspects: any = undefined;
+    let legacyCustomPresets: any = undefined;
+
+    try {
+      if (!existingDefault) {
+        const rawConfig = localStorage.getItem(`sa_default_config_${subject}_${semester}_${saIndex}`);
+        const rawAspects = localStorage.getItem(`sa_default_aspects_${subject}_${semester}_${saIndex}`);
+        legacyConfig = rawConfig ? JSON.parse(rawConfig) : undefined;
+        legacyAspects = rawAspects ? JSON.parse(rawAspects) : undefined;
+      }
+      if (!Array.isArray(existingCustomPresets)) {
+        const rawCustom = localStorage.getItem("hehle_custom_sa_presets");
+        legacyCustomPresets = rawCustom ? JSON.parse(rawCustom) : undefined;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    if (!legacyConfig && !legacyAspects && !Array.isArray(legacyCustomPresets)) return;
+
+    setApp((prev) => {
+      const meta = { ...(prev.notenMeta || {}) } as any;
+
+      if ((legacyConfig || legacyAspects) && !meta?.[subject]?.saDefaults?.[semester]?.[saIndex]) {
+        const subjectMeta = { ...(meta[subject] || {}) };
+        const saDefaults = { ...(subjectMeta.saDefaults || {}) };
+        const semesterDefaults = { ...(saDefaults[semester] || {}) };
+        semesterDefaults[saIndex] = {
+          config: legacyConfig || getFactoryAssessmentConfig(subject, saIndex),
+          aspects: resetAssessmentAspectPoints(
+            Array.isArray(legacyAspects) ? legacyAspects : getDefaultPreset(subject, saIndex).aspects,
+          ),
+        };
+        saDefaults[semester] = semesterDefaults;
+        meta[subject] = { ...subjectMeta, saDefaults };
+      }
+
+      if (Array.isArray(legacyCustomPresets) && !Array.isArray(meta.__customSaPresets)) {
+        meta.__customSaPresets = legacyCustomPresets;
+      }
+
+      return { ...prev, notenMeta: meta };
+    });
+
+    if (Array.isArray(legacyCustomPresets)) setCustomPresets(legacyCustomPresets);
+  }, [subject, semester, saIndex]);
+
+  // Remove legacy plaintext copies only after the encrypted app state contains the migrated values.
+  React.useEffect(() => {
+    try {
+      const migratedDefault = (app.notenMeta as any)?.[subject]?.saDefaults?.[semester]?.[saIndex];
+      if (migratedDefault) {
+        localStorage.removeItem(`sa_default_config_${subject}_${semester}_${saIndex}`);
+        localStorage.removeItem(`sa_default_aspects_${subject}_${semester}_${saIndex}`);
+      }
+      if (Array.isArray((app.notenMeta as any)?.__customSaPresets)) {
+        localStorage.removeItem("hehle_custom_sa_presets");
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [app.notenMeta, subject, semester, saIndex]);
 
   const saveCustomPreset = (title: string) => {
     if (!title.trim()) {
@@ -869,8 +982,7 @@ export default function SchularbeitAssessment({
       config,
     };
     const updated = [...customPresets, newPreset];
-    setCustomPresets(updated);
-    localStorage.setItem("hehle_custom_sa_presets", JSON.stringify(updated));
+    persistCustomPresets(updated);
     setNewPresetTitle("");
     alert(
       `Vorlage "${title}" wurde erfolgreich als eigenes Raster gespeichert! Sie kann nun bei jedem Schüler oder jeder Schularbeit als Basis geladen werden.`,
@@ -880,36 +992,12 @@ export default function SchularbeitAssessment({
   const deleteCustomPreset = (id: string, name: string) => {
     if (confirm(`Möchtest du die Vorlage "${name}" wirklich löschen?`)) {
       const updated = customPresets.filter((p) => p.id !== id);
-      setCustomPresets(updated);
-      localStorage.setItem("hehle_custom_sa_presets", JSON.stringify(updated));
+      persistCustomPresets(updated);
     }
   };
 
   const saveAsSchularbeitDefault = () => {
-    try {
-      // Clean points to 0 before saving as default template!
-      const cleanAspects = activeAspects.map((aspect) => ({
-        ...aspect,
-        criteria: aspect.criteria.map((crit) => ({
-          ...crit,
-          points: 0,
-        })),
-      }));
-      localStorage.setItem(
-        `sa_default_aspects_${subject}_${semester}_${saIndex}`,
-        JSON.stringify(cleanAspects),
-      );
-      localStorage.setItem(
-        `sa_default_config_${subject}_${semester}_${saIndex}`,
-        JSON.stringify(config),
-      );
-      alert(
-        "Dieses Raster & die maximalen Kriterienpunkte wurden erfolgreich als Standard für diese Schularbeit gespeichert! Alle Schüler ohne gespeicherte Noten laden zukünftig automatisch dieses leere Raster zum individuellen Ausfüllen.",
-      );
-    } catch (e) {
-      console.error(e);
-      alert("Fehler beim Speichern der Standards.");
-    }
+    persistSchularbeitDefault(true);
   };
 
   const resetToFactoryDefault = () => {
@@ -918,14 +1006,30 @@ export default function SchularbeitAssessment({
         "Möchtest du dieses Raster wirklich auf den ursprünglichen Standard-Entwurf zurücksetzen? Alle individuellen Anpassungen dieses Rasters für diese Schularbeit gehen verloren.",
       )
     ) {
-      localStorage.removeItem(
-        `sa_default_aspects_${subject}_${semester}_${saIndex}`,
-      );
-      localStorage.removeItem(
-        `sa_default_config_${subject}_${semester}_${saIndex}`,
-      );
-      setActiveAspects(getDefaultPreset(subject, saIndex).aspects);
-      alert("Erfolgreich zurückgesetzt!");
+      setApp((prev) => {
+        const meta = { ...(prev.notenMeta || {}) } as any;
+        const subjectMeta = { ...(meta[subject] || {}) };
+        const saDefaults = { ...(subjectMeta.saDefaults || {}) };
+        const semesterDefaults = { ...(saDefaults[semester] || {}) };
+        delete semesterDefaults[saIndex];
+
+        if (Object.keys(semesterDefaults).length > 0) saDefaults[semester] = semesterDefaults;
+        else delete saDefaults[semester];
+
+        meta[subject] = { ...subjectMeta, saDefaults };
+        return { ...prev, notenMeta: meta };
+      });
+
+      try {
+        localStorage.removeItem(`sa_default_aspects_${subject}_${semester}_${saIndex}`);
+        localStorage.removeItem(`sa_default_config_${subject}_${semester}_${saIndex}`);
+      } catch (e) {
+        console.error(e);
+      }
+
+      setConfig(getFactoryAssessmentConfig(subject, saIndex));
+      setActiveAspects(resetAssessmentAspectPoints(getDefaultPreset(subject, saIndex).aspects));
+      alert("Werkseinstellung wiederhergestellt.");
     }
   };
 
@@ -934,12 +1038,11 @@ export default function SchularbeitAssessment({
       return;
     }
     
-    // 1. Zuerst auch als Standard speichern für künftige Schüler
-    saveAsSchularbeitDefault();
-
-    // 2. Jetzt für alle bereits existierenden Noten derselben SA anwenden
+    // Bestehende Schüler aktualisieren; den Standard speichern wir danach in den Klassen-Zustand.
     const newAssessments = { ...(app.saAssessments || {}) };
     const notenState = { ...(app.noten || {}) };
+    const assessmentMode = getAssessmentMode(app, subject);
+    const configuredMaxPoints = getMaxPoints(app, subject, 'sa', saIndex) || 40;
     let changedCount = 0;
 
     Object.keys(newAssessments).forEach((sid) => {
@@ -992,22 +1095,17 @@ export default function SchularbeitAssessment({
         else if (sQuotient <= config.spelling3Q) sNote = 3;
         else if (sQuotient <= config.spelling4Q) sNote = 4;
 
-        let arbeitsNote = 0;
-        let rechtschreibNote = sNote;
-        
-        let gNoteInner = 0;
         let grammatikNote = 0;
-
+        let parsedGrammarPoints = 0;
         const hasGrammar = config.enableGrammar && subject !== "Mathematik" && subject !== "Mathe" && !existing.exemptFromGrammar;
 
-        if (hasGrammar) {
-          let parsedGrammarPoints = 0;
-          if (typeof existing.grammarAchievedPoints === 'string') {
-            parsedGrammarPoints = parseFloat(existing.grammarAchievedPoints.replace(',', '.')) || 0;
-          } else if (typeof existing.grammarAchievedPoints === 'number') {
-            parsedGrammarPoints = existing.grammarAchievedPoints;
-          }
+        if (typeof existing.grammarAchievedPoints === 'string') {
+          parsedGrammarPoints = parseFloat(existing.grammarAchievedPoints.replace(',', '.')) || 0;
+        } else if (typeof existing.grammarAchievedPoints === 'number') {
+          parsedGrammarPoints = existing.grammarAchievedPoints;
+        }
 
+        if (hasGrammar) {
           if (parsedGrammarPoints >= config.grammar1Points) grammatikNote = 1;
           else if (parsedGrammarPoints >= config.grammar2Points) grammatikNote = 2;
           else if (parsedGrammarPoints >= config.grammar3Points) grammatikNote = 3;
@@ -1015,19 +1113,30 @@ export default function SchularbeitAssessment({
           else grammatikNote = 5;
         }
 
-        // To keep logic fully consistent across components:
-        // Text-Arbeitsnote combines points (aNote) + spelling (sNote)
-        arbeitsNote = Math.round((aNote * 3 + sNote) / 4);
+        // Use the same weighting semantics as the single-student calculation.
+        const textWeight = Number(config.weightText) > 0 ? Number(config.weightText) : 1;
+        let totalGradeWeight = textWeight;
+        let weightedGradeSum = aNote * textWeight;
+
+        if (config.enableSpelling !== false) {
+          const spellingWeight = Number(config.weightSpelling) >= 0 ? Number(config.weightSpelling) : 1;
+          totalGradeWeight += spellingWeight;
+          weightedGradeSum += sNote * spellingWeight;
+        }
 
         if (hasGrammar) {
-          const wArbeit = config.weightArbeit || 1;
-          const wGrammatik = config.weightGrammar || 1;
-          const totalWeight = wArbeit + wGrammatik;
-          const weightedSum = arbeitsNote * wArbeit + grammatikNote * wGrammatik;
-          gNoteInner = Math.round(weightedSum / totalWeight);
-        } else {
-          gNoteInner = arbeitsNote;
+          const grammarWeight = Number(config.weightGrammar) > 0 ? Number(config.weightGrammar) : 1;
+          totalGradeWeight += grammarWeight;
+          weightedGradeSum += grammatikNote * grammarWeight;
         }
+
+        const gNoteInner = Math.round(weightedGradeSum / Math.max(1, totalGradeWeight));
+        const arbeitsNote = aNote;
+        const rechtschreibNote = sNote;
+        const totalAchievedPoints = totalArbeitsPoints + (hasGrammar ? parsedGrammarPoints : 0);
+        const calculatedPct = configuredMaxPoints > 0
+          ? Math.round((totalAchievedPoints / configuredMaxPoints) * 1000) / 10
+          : 0;
 
         // Update the assessment
         newAssessments[sid][subject][semester][saIndex] = {
@@ -1037,6 +1146,9 @@ export default function SchularbeitAssessment({
           arbeitsNote,
           rechtschreibNote,
           grammatikNote: hasGrammar ? grammatikNote : undefined,
+          totalPoints: totalAchievedPoints,
+          maxPoints: configuredMaxPoints,
+          percent: calculatedPct,
           gesamtnote: gNoteInner,
           config: { ...config }
         };
@@ -1047,7 +1159,12 @@ export default function SchularbeitAssessment({
         if (!notenState[sid][subject][semester]) notenState[sid][subject][semester] = { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
         
         const saArray = [...(notenState[sid][subject][semester].sa || [])];
-        saArray[saIndex] = gNoteInner;
+        saArray[saIndex] = getAssessmentStorageValue(
+          assessmentMode,
+          totalAchievedPoints,
+          configuredMaxPoints,
+          gNoteInner,
+        );
         notenState[sid][subject][semester].sa = saArray;
 
         changedCount++;
@@ -1056,85 +1173,77 @@ export default function SchularbeitAssessment({
 
     if (changedCount > 0) {
       setApp({ ...app, saAssessments: newAssessments, noten: notenState });
-      alert(`Die Konfiguration wurde erfolgreich auf alle ${changedCount} bisher angelegten Schularbeiten dieser Klasse übertragen.`);
+    }
+    persistSchularbeitDefault(false);
+
+    if (changedCount > 0) {
+      alert(`Die Konfiguration wurde erfolgreich auf alle ${changedCount} bisher angelegten Schularbeiten dieser Klasse übertragen und als Standard gespeichert.`);
     } else {
-      alert(`Die Konfiguration wurde als Standard gesichert. Es wurden keine bestehenden Daten gefunden, die aktualisiert werden mussten.`);
+      alert("Die Konfiguration wurde als Standard gesichert. Es wurden keine bestehenden Daten gefunden, die aktualisiert werden mussten.");
     }
   };
 
   const generatePedagogicalFeedback = () => {
     const student = app.schueler?.find((s) => s.id === studentId);
-    const firstName = student ? student.vorname : studentName;
-    const traits = student?.charakter || [];
+    const firstName = student?.vorname || studentName || 'Kind';
 
-    let intro = "";
-    if (traits.includes("kreativ")) {
-      intro = `Liebe/r ${firstName}, deine kreative Vorstellungskraft glänzt in dieser Schularbeit förmlich auf! `;
-    } else if (traits.includes("lebhaft")) {
-      intro = `Liebe/r ${firstName}, mit deiner lebendigen und dynamischen Art hast du eine wirklich schwungvolle Geschichte verfasst. `;
-    } else if (
-      traits.includes("konzentriert") ||
-      traits.includes("aufmerksam")
+    const scoredCriteria = activeAspects
+      .flatMap((aspect) =>
+        aspect.criteria.map((criterion) => ({
+          aspect: aspect.title,
+          label: criterion.label,
+          points: Number(criterion.points) || 0,
+          maxPoints: Number(criterion.maxPoints) || 0,
+        })),
+      )
+      .filter((criterion) => criterion.maxPoints > 0);
+
+    const totalPoints = scoredCriteria.reduce((sum, criterion) => sum + criterion.points, 0);
+    const totalMax = scoredCriteria.reduce((sum, criterion) => sum + criterion.maxPoints, 0);
+
+    const ranked = [...scoredCriteria].sort((a, b) => {
+      const ratioA = a.maxPoints > 0 ? a.points / a.maxPoints : 0;
+      const ratioB = b.maxPoints > 0 ? b.points / b.maxPoints : 0;
+      return ratioB - ratioA;
+    });
+
+    const strongest = ranked[0];
+    const nextStep = ranked.length > 1 ? ranked[ranked.length - 1] : undefined;
+    const parts: string[] = [];
+
+    if (totalMax > 0) {
+      parts.push(`${firstName}: Im Kriterienraster wurden ${totalPoints} von ${totalMax} Punkten erreicht.`);
+    }
+
+    if (strongest && strongest.points > 0) {
+      parts.push(
+        `Besonders viele Punkte wurden beim Kriterium „${strongest.label}“ erreicht (${strongest.points}/${strongest.maxPoints}).`,
+      );
+    }
+
+    if (
+      nextStep &&
+      (!strongest || nextStep.label !== strongest.label) &&
+      nextStep.points < nextStep.maxPoints
     ) {
-      intro = `Liebe/r ${firstName}, deine konzentrierte Arbeitsweise spiegelt sich wunderbar in der Struktur deines Textes wider. `;
-    } else if (traits.includes("ruhig") || traits.includes("interessiert")) {
-      intro = `Liebe/r ${firstName}, deine besonnene und interessierte Herangehensweise ist beim Lesen der Zeilen deutlich spürbar. `;
-    } else {
-      intro = `Liebe/r ${firstName}, du hast dir bei dieser Schularbeit viel Mühe gegeben! `;
+      parts.push(
+        `Als nächster Übungsschwerpunkt bietet sich „${nextStep.label}“ an (${nextStep.points}/${nextStep.maxPoints}).`,
+      );
     }
 
-    let textFeeback = "";
-    if (arbeitsNote === 1) {
-      textFeeback =
-        "Inhaltlich und sprachlich ist dir ein meisterhafter Bogen gelungen. Deine Satzstrukturen sind abwechslungsreich und der rote Faden zieht sich schlüssig durch.";
-    } else if (arbeitsNote === 2) {
-      textFeeback =
-        "Du hast die Geschichte gut aufgebaut, einen passenden Wortschatz gewählt und dich sehr präzise ausgedrückt. Ein paar kleine Formulierungen könnten noch runder sein.";
-    } else if (arbeitsNote === 3) {
-      textFeeback =
-        "Die grundlegenden Elemente deiner Erzählung sind vorhanden und gut verständlich. Achte nächstes Mal noch bewusster auf die abwechslungsreiche Satzgestaltung und die Zeitenfolge.";
-    } else if (arbeitsNote === 4) {
-      textFeeback =
-        "Deine Erzählung ist im Kern verständlich und du hast das Thema umgesetzt. Es wäre jedoch hilfreich, den Wortschatz weiter auszubauen und Erzählschritte genauer auszuführen.";
-    } else {
-      textFeeback =
-        "Um deinen Schreibstil und den Textaufbau zu festigen, werden wir in den nächsten Wochen gemeinsam noch ein paar gezielte Schreib- und Strukturierungsübungen machen.";
+    if (wordCount > 0) {
+      parts.push(
+        `Für den Text sind ${wordCount} Wörter und ${errorCount} erfasste Rechtschreibfehler dokumentiert.`,
+      );
+    } else if (errorCount > 0) {
+      parts.push(`Es sind ${errorCount} Rechtschreibfehler erfasst.`);
     }
 
-    let spellingFeedback = "";
-    if (rechtschreibNote === 1) {
-      spellingFeedback =
-        "Besonders erfreulich ist deine hervorragende Rechtschreibung. Deine Fokussierung beim Schreiben zahlt sich voll aus!";
-    } else if (rechtschreibNote === 2) {
-      spellingFeedback =
-        "Auch deine Rechtschreibkompetenz ist gut ausgeprägt, nur wenige Flüchtigkeitsfehler haben sich eingeschlichen.";
-    } else if (rechtschreibNote === 3) {
-      spellingFeedback =
-        "Rechtschreiblich gibt es noch ein paar Unsicherheiten, z.B. bei der Wortschreibung oder den Satzanfängen, die wir gemeinsam festigen können.";
-    } else if (rechtschreibNote === 4) {
-      spellingFeedback =
-        "Bezüglich der Rechtschreibung ist es ratsam, künftig noch sorgfältiger Korrektur zu lesen und bekannte Regeln (wie Groß- und Kleinschreibung) intensiv anzuwenden.";
-    } else {
-      spellingFeedback =
-        "In der Rechtschreibung zeigen sich größere Lücken. Mit gezieltem Wörter-Training und Silbenlesen werden wir hier Schritt für Schritt Sicherheit gewinnen.";
+    if (parts.length === 0) {
+      return 'Noch keine ausreichenden Kriterienwerte für einen datenbasierten Rückmeldungsvorschlag vorhanden.';
     }
 
-    let closing = "";
-    if (gesamtnote <= 2) {
-      closing =
-        " Mach weiter so, ich bin sehr stolz auf deine hervorragende Leistung!";
-    } else if (gesamtnote === 3) {
-      closing =
-        " Ein schöner Erfolg! Mit etwas mehr Schreibübung kletterst du bald noch weiter nach oben.";
-    } else if (gesamtnote === 4) {
-      closing =
-        " Ein solider Schritt nach vorn! Lass den Kopf nicht hängen – wir üben weiter und das nächste Mal klappt es noch besser.";
-    } else {
-      closing =
-        " Lass uns diesen Bogen als Motivation nehmen. Ich unterstütze dich voll und ganz dabei, beim nächsten Mal wieder durchzustarten!";
-    }
-
-    return `${intro}${textFeeback} ${spellingFeedback}${closing}`;
+    return parts.join(' ');
   };
 
   const pointsToGrade = (points: number) => {
@@ -1377,13 +1486,12 @@ export default function SchularbeitAssessment({
       };
       const saArray = [...(mainSemData.sa || [])];
       
-      if (mode === 'points') {
-        saArray[saIndex] = totalAchievedPoints;
-      } else if (mode === 'percent') {
-        saArray[saIndex] = calculatedPct;
-      } else {
-        saArray[saIndex] = tendency ? `${gesamtnote}${tendency}` : gesamtnote;
-      }
+      saArray[saIndex] = getAssessmentStorageValue(
+        mode,
+        totalAchievedPoints,
+        configuredMaxPoints,
+        tendency ? `${gesamtnote}${tendency}` : gesamtnote,
+      );
 
       return {
         ...prev,
@@ -2860,20 +2968,20 @@ export default function SchularbeitAssessment({
                       setFeedback(generated);
                     }}
                     className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[0.5625rem] font-black uppercase tracking-wider flex items-center gap-1 transition-all shadow-sm cursor-pointer"
-                    title="Generiert einen feinfühligen und personalisierten Feedbacktext basierend auf den berechneten Noten und den Merkmalen des Schülers."
+                    title="Erstellt einen neutralen Rückmeldungsvorschlag ausschließlich aus tatsächlich erfassten Kriterienpunkten sowie Wort- und Fehlerzahl."
                   >
                     <Sparkles
                       size={11}
                       className="text-indigo-600 animate-pulse"
                     />{" "}
-                    KI-Vorschlag
+                    Vorschlag aus Kriterien
                   </button>
                 </div>
 
                 <textarea
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
-                  placeholder="Beschreibe kurz die Stärken und nächsten Lernschritte oder generiere eine feinfühlige, personalisierte Verbalbeurteilung per 'KI-Vorschlag'..."
+                  placeholder="Beschreibe kurz beobachtbare Stärken und nächste Lernschritte oder erstelle einen neutralen Vorschlag aus den tatsächlich erfassten Kriterien..."
                   className="w-full h-24 xl:h-32 p-3 text-[0.75rem] leading-tight font-semibold text-zinc-700 bg-zinc-50 border border-zinc-200/60 rounded-xl outline-none focus:border-indigo-500 focus:bg-white resize-none shadow-inner leading-relaxed transition-all"
                 />
 

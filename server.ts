@@ -1,9 +1,14 @@
+import { escapeHtml, scriptJson, createOAuthState, verifyOAuthState } from './src/lib/oauthSecurity';
+import { ONEDRIVE_BACKUP_PRIMARY_NAME, getOneDriveBackupCandidateNames } from './src/lib/cloudBackupNames';
 import express from "express";
 import path from "path";
 import crypto from "crypto";
+import nodemailer from "nodemailer";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { KI_SYSTEM_PROMPTS, GLOBAL_KI_RULES } from "./src/kiSystemPrompts.ts";
+import { validateAiServerImageRequest } from "./src/lib/aiPrivacy.ts";
+import { getServerSyncTimestamps, isSyncSessionExpired } from "./src/lib/syncServerPolicy.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
 // that do `typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url))`
@@ -18,8 +23,13 @@ function validateProductionEnvironment() {
 
   const sessionSecret = process.env.SESSION_SECRET;
   const insecureSecrets = ["lehrerapp_secure_session_secret_2026", "secret", "changeme", "123456", "admin", "password"];
-  if (!sessionSecret || insecureSecrets.includes(sessionSecret.trim().toLowerCase())) {
-    console.warn("[SICHERHEITSWARNUNG] SESSION_SECRET ist nicht gesetzt oder nutzt einen unsicheren Standardwert. In Produktion muss ein starkes Zufalls-Secret gesetzt werden.");
+  if (!sessionSecret || sessionSecret.trim().length < 32 || insecureSecrets.includes(sessionSecret.trim().toLowerCase())) {
+    throw new Error("[SICHERHEITSWARNUNG] SESSION_SECRET ist nicht gesetzt oder nutzt einen unsicheren Standardwert. In Produktion muss ein starkes Zufalls-Secret gesetzt werden.");
+  }
+
+  const codes = [process.env.LEHRERAPP_ACCESS_TEAM, process.env.LEHRERAPP_ACCESS_EXTERNAL].map(code => code?.trim()).filter(Boolean);
+  if (!codes.length || codes.some(code => ['team2026', 'gast2026'].includes(code!))) {
+    throw new Error('In Produktion mindestens einen eigenen LEHRERAPP_ACCESS_TEAM/EXTERNAL Zugangscode konfigurieren; Standardcodes sind nicht erlaubt.');
   }
 
   const appUrl = process.env.APP_URL;
@@ -40,6 +50,17 @@ function validateProductionEnvironment() {
 
   if (!process.env.MICROSOFT_CLIENT_ID || !process.env.MICROSOFT_CLIENT_SECRET) {
     console.warn("[KONFIGURATIONSHINWEIS] Microsoft OneDrive Secrets sind nicht vollständig konfiguriert. Cloud-Backups sind im Client deaktiviert.");
+  }
+
+  const wantsEmailLogin = Boolean(process.env.SMTP_HOST || process.env.SMTP_FROM || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS);
+  if (wantsEmailLogin) {
+    const domains = (process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean);
+    if (!process.env.SMTP_HOST || !process.env.SMTP_FROM || domains.length === 0) {
+      console.warn("[KONFIGURATIONSHINWEIS] E-Mail-Login ist nur aktiv, wenn SMTP_HOST, SMTP_FROM und LEHRERAPP_ALLOWED_EMAIL_DOMAINS gesetzt sind.");
+    }
   }
 }
 
@@ -134,9 +155,66 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   app.use(express.json({ limit: '1mb' }));
 
   // Access Control Setup
-  const SESSION_SECRET = process.env.SESSION_SECRET || process.env.GEMINI_API_KEY || "lehrerapp_secure_session_secret_2026";
-  const ACCESS_TEAM_CODE = (process.env.LEHRERAPP_ACCESS_TEAM || "team2026").trim();
-  const ACCESS_EXTERNAL_CODE = (process.env.LEHRERAPP_ACCESS_EXTERNAL || "gast2026").trim();
+  const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+  const ACCESS_TEAM_CODE = (process.env.LEHRERAPP_ACCESS_TEAM || (process.env.NODE_ENV === "production" ? "" : "team2026")).trim();
+  const ACCESS_EXTERNAL_CODE = (process.env.LEHRERAPP_ACCESS_EXTERNAL || (process.env.NODE_ENV === "production" ? "" : "gast2026")).trim();
+
+  const SMTP_HOST = (process.env.SMTP_HOST || '').trim();
+  const SMTP_PORT = Math.max(1, Number(process.env.SMTP_PORT || 587) || 587);
+  const SMTP_SECURE = (process.env.SMTP_SECURE || '').trim().toLowerCase() === 'true' || SMTP_PORT === 465;
+  const SMTP_USER = (process.env.SMTP_USER || '').trim();
+  const SMTP_PASS = process.env.SMTP_PASS || '';
+  const SMTP_FROM = (process.env.SMTP_FROM || '').trim();
+  const ALLOWED_EMAIL_DOMAINS = (process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
+    .split(',')
+    .map(value => value.trim().toLowerCase().replace(/^@/, ''))
+    .filter(Boolean);
+  const emailLoginEnabled = Boolean(SMTP_HOST && SMTP_FROM && ALLOWED_EMAIL_DOMAINS.length > 0);
+  const mailTransporter = emailLoginEnabled
+    ? nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_SECURE,
+        ...(SMTP_USER && SMTP_PASS ? { auth: { user: SMTP_USER, pass: SMTP_PASS } } : {})
+      })
+    : null;
+
+  type EmailAccessChallenge = {
+    codeHash: string;
+    expiresAt: number;
+    attempts: number;
+    lastSentAt: number;
+  };
+  const emailAccessChallenges = new Map<string, EmailAccessChallenge>();
+  const emailRequestThrottle = new Map<string, number>();
+
+  function normalizeEmail(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const normalized = value.trim().toLowerCase();
+    if (normalized.length < 5 || normalized.length > 254) return null;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
+    return normalized;
+  }
+
+  function isAllowedEmail(email: string): boolean {
+    const domain = email.split('@')[1] || '';
+    return ALLOWED_EMAIL_DOMAINS.some(allowed => domain === allowed || domain.endsWith('.' + allowed));
+  }
+
+  function hashEmailCode(email: string, code: string): string {
+    return crypto
+      .createHmac('sha256', SESSION_SECRET)
+      .update('klassio-email-access:' + email + ':' + code)
+      .digest('hex');
+  }
+
+  function maskEmail(email: string): string {
+    const parts = email.split('@');
+    const local = parts[0] || '';
+    const domain = parts[1] || '';
+    const visible = local.length <= 2 ? local.slice(0, 1) : local.slice(0, 2);
+    return visible + '*'.repeat(Math.max(2, Math.min(8, local.length - visible.length))) + '@' + domain;
+  }
 
   function parseCookies(req: express.Request): Record<string, string> {
     const list: Record<string, string> = {};
@@ -145,8 +223,10 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       rc.split(';').forEach(cookie => {
         const parts = cookie.split('=');
         const key = parts.shift()?.trim();
-        const value = decodeURIComponent(parts.join('='));
-        if (key) list[key] = value;
+        try {
+          const value = decodeURIComponent(parts.join('='));
+          if (key) list[key] = value;
+        } catch { /* Ignore malformed cookies instead of crashing authentication. */ }
       });
     }
     return list;
@@ -173,6 +253,18 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     } catch (e) {
       return false;
     }
+  }
+
+  function setAccessSession(req: express.Request, res: express.Response): string {
+    const token = createAccessToken();
+    const isProd = process.env.NODE_ENV === 'production';
+    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+    const secureFlag = (isProd || isSecure) ? '; Secure' : '';
+    res.setHeader(
+      'Set-Cookie',
+      'lehrerapp_access_token=' + token + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureFlag
+    );
+    return token;
   }
 
   const failedLoginAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -208,7 +300,99 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const cookies = parseCookies(req);
     const token = cookies.lehrerapp_access_token || (req.headers.authorization ? req.headers.authorization.replace('Bearer ', '') : undefined);
     const isValid = verifyAccessToken(token);
-    res.json({ authenticated: isValid });
+    res.json({ authenticated: isValid, emailLoginEnabled });
+  });
+
+  app.post("/api/access/email/request", async (req, res) => {
+    if (!emailLoginEnabled || !mailTransporter) {
+      return res.status(503).json({ success: false, error: 'E-Mail-Anmeldung ist auf diesem Server noch nicht konfiguriert.' });
+    }
+
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const email = normalizeEmail(req.body?.email);
+    if (!email || !isAllowedEmail(email)) {
+      return res.status(400).json({ success: false, error: 'Diese E-Mail-Adresse ist für Klassio nicht freigeschaltet.' });
+    }
+
+    const throttleKey = ip + ':' + email;
+    const now = Date.now();
+    const lastRequest = emailRequestThrottle.get(throttleKey) || 0;
+    const retryAfterMs = 60_000 - (now - lastRequest);
+    if (retryAfterMs > 0) {
+      return res.status(429).json({
+        success: false,
+        error: 'Bitte warte noch ' + Math.ceil(retryAfterMs / 1000) + ' Sekunden, bevor du einen neuen Code anforderst.'
+      });
+    }
+
+    const code = crypto.randomInt(100000, 1000000).toString();
+    emailAccessChallenges.set(email, {
+      codeHash: hashEmailCode(email, code),
+      expiresAt: now + 10 * 60 * 1000,
+      attempts: 0,
+      lastSentAt: now
+    });
+    emailRequestThrottle.set(throttleKey, now);
+
+    try {
+      await mailTransporter.sendMail({
+        from: SMTP_FROM,
+        to: email,
+        subject: 'Dein Klassio-Anmeldecode',
+        text: 'Dein Klassio-Anmeldecode lautet: ' + code + '\n\nDer Code ist 10 Minuten gültig. Wenn du diese Anmeldung nicht angefordert hast, kannst du diese Nachricht ignorieren.',
+        html: '<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#0f172a"><h2>Klassio</h2><p>Dein Anmeldecode:</p><div style="font-size:34px;font-weight:800;letter-spacing:8px;padding:18px 20px;background:#f1f5f9;border-radius:14px;text-align:center">' + code + '</div><p style="color:#64748b">Der Code ist 10 Minuten gültig. Wenn du diese Anmeldung nicht angefordert hast, kannst du diese Nachricht ignorieren.</p></div>'
+      });
+      return res.json({ success: true, maskedEmail: maskEmail(email), expiresInSeconds: 600 });
+    } catch (error) {
+      emailAccessChallenges.delete(email);
+      console.error('[Access] E-Mail-Code konnte nicht versendet werden:', error);
+      return res.status(502).json({ success: false, error: 'Der Anmeldecode konnte nicht versendet werden. Bitte später erneut versuchen.' });
+    }
+  });
+
+  app.post("/api/access/email/verify", (req, res) => {
+    if (!emailLoginEnabled) {
+      return res.status(503).json({ success: false, error: 'E-Mail-Anmeldung ist auf diesem Server noch nicht konfiguriert.' });
+    }
+
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const rateLimit = checkRateLimit(ip);
+    if (!rateLimit.allowed) {
+      return res.status(429).json({ success: false, error: 'Zu viele Versuche. Bitte warte ' + rateLimit.waitSeconds + ' Sekunden.' });
+    }
+
+    const email = normalizeEmail(req.body?.email);
+    const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+    if (!email || !/^\d{6}$/.test(code) || !isAllowedEmail(email)) {
+      recordFailedAttempt(ip);
+      return res.status(400).json({ success: false, error: 'E-Mail-Adresse oder Anmeldecode ist ungültig.' });
+    }
+
+    const challenge = emailAccessChallenges.get(email);
+    if (!challenge || challenge.expiresAt < Date.now()) {
+      emailAccessChallenges.delete(email);
+      recordFailedAttempt(ip);
+      return res.status(400).json({ success: false, error: 'Der Anmeldecode ist abgelaufen. Bitte fordere einen neuen Code an.' });
+    }
+    if (challenge.attempts >= 5) {
+      emailAccessChallenges.delete(email);
+      recordFailedAttempt(ip);
+      return res.status(429).json({ success: false, error: 'Zu viele Fehlversuche. Bitte fordere einen neuen Code an.' });
+    }
+
+    challenge.attempts += 1;
+    const expected = Buffer.from(challenge.codeHash, 'hex');
+    const received = Buffer.from(hashEmailCode(email, code), 'hex');
+    const matches = expected.length === received.length && crypto.timingSafeEqual(expected, received);
+    if (!matches) {
+      recordFailedAttempt(ip);
+      return res.status(401).json({ success: false, error: 'Der Anmeldecode ist nicht gültig.' });
+    }
+
+    emailAccessChallenges.delete(email);
+    resetFailedAttempts(ip);
+    setAccessSession(req, res);
+    return res.json({ success: true });
   });
 
   app.post("/api/access/verify", (req, res) => {
@@ -233,12 +417,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
     if (isTeam || isExternal) {
       resetFailedAttempts(ip);
-      const token = createAccessToken();
-      const isProd = process.env.NODE_ENV === 'production';
-      const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-      const secureFlag = (isProd || isSecure) ? '; Secure' : '';
-      res.setHeader('Set-Cookie', `lehrerapp_access_token=${token}; Max-Age=${30 * 24 * 60 * 60}; Path=/; HttpOnly; SameSite=Lax${secureFlag}`);
-      return res.json({ success: true, token });
+      setAccessSession(req, res);
+      return res.json({ success: true });
     } else {
       recordFailedAttempt(ip);
       return res.json({ success: false, error: "Der Zugangscode ist nicht gültig." });
@@ -252,6 +432,360 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     res.setHeader('Set-Cookie', `lehrerapp_access_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`);
     res.json({ success: true });
   });
+
+  const requireAccess: express.RequestHandler = (req, res, next) => {
+    const token = parseCookies(req).lehrerapp_access_token;
+    if (!verifyAccessToken(token)) {
+      res.status(401).json({ error: 'Bitte zuerst bei Klassio anmelden.' });
+      return;
+    }
+    next();
+  };
+  app.use('/api/ai', requireAccess);
+  app.use('/api/onedrive', (req, res, next) => {
+    // OAuth returns through a separate, short-lived state cookie.
+    if (req.path === '/callback') return next();
+    requireAccess(req, res, next);
+  });
+  app.post('/api/sync/create', requireAccess);
+  // Existing paired devices still use their encrypted sync protocol for GET/PUT.
+  app.delete('/api/sync/:code', requireAccess);
+
+  // --- Canva Connect integration -------------------------------------------------
+  // OAuth tokens never leave the server. The browser receives only a random
+  // HttpOnly session identifier; the token payload itself is AES-256-GCM encrypted.
+  type CanvaTokenPayload = {
+    access_token: string;
+    refresh_token?: string;
+    expires_at: number;
+    scope?: string;
+    token_type?: string;
+  };
+
+  const CANVA_CLIENT_ID = (process.env.CANVA_CLIENT_ID || '').trim();
+  const CANVA_CLIENT_SECRET = (process.env.CANVA_CLIENT_SECRET || '').trim();
+  const canvaConfigured = Boolean(CANVA_CLIENT_ID && CANVA_CLIENT_SECRET);
+  const CANVA_SCOPES = ['design:meta:read', 'design:content:read', 'design:content:write'].join(' ');
+
+  const canvaOauthFlows = new Map<string, { state: string; verifier: string; createdAt: number }>();
+  const canvaSessions = new Map<string, { iv: string; tag: string; ciphertext: string; updatedAt: number }>();
+
+  const canvaTokenKey = crypto
+    .createHash('sha256')
+    .update(process.env.CANVA_TOKEN_ENCRYPTION_KEY || SESSION_SECRET)
+    .digest();
+
+  function encryptCanvaTokens(payload: CanvaTokenPayload) {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', canvaTokenKey, iv);
+    const ciphertext = Buffer.concat([
+      cipher.update(JSON.stringify(payload), 'utf8'),
+      cipher.final()
+    ]);
+    return {
+      iv: iv.toString('base64url'),
+      tag: cipher.getAuthTag().toString('base64url'),
+      ciphertext: ciphertext.toString('base64url'),
+      updatedAt: Date.now()
+    };
+  }
+
+  function decryptCanvaTokens(record: { iv: string; tag: string; ciphertext: string }): CanvaTokenPayload {
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      canvaTokenKey,
+      Buffer.from(record.iv, 'base64url')
+    );
+    decipher.setAuthTag(Buffer.from(record.tag, 'base64url'));
+    const plain = Buffer.concat([
+      decipher.update(Buffer.from(record.ciphertext, 'base64url')),
+      decipher.final()
+    ]).toString('utf8');
+    return JSON.parse(plain) as CanvaTokenPayload;
+  }
+
+  function canvaBasicAuth() {
+    return 'Basic ' + Buffer.from(`${CANVA_CLIENT_ID}:${CANVA_CLIENT_SECRET}`).toString('base64');
+  }
+
+  function getCanvaSessionId(req: express.Request) {
+    return parseCookies(req).klassio_canva_session;
+  }
+
+  function setCanvaSessionCookie(req: express.Request, res: express.Response, sessionId: string) {
+    res.cookie('klassio_canva_session', sessionId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+  }
+
+  async function exchangeCanvaToken(body: URLSearchParams): Promise<CanvaTokenPayload> {
+    if (!canvaConfigured) throw new Error('Canva ist serverseitig nicht konfiguriert.');
+    const response = await fetch('https://api.canva.com/rest/v1/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': canvaBasicAuth(),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body.toString(),
+    });
+    const data: any = await response.json().catch(() => ({}));
+    if (!response.ok || !data.access_token) {
+      throw new Error(data?.message || data?.error_description || data?.error || `Canva OAuth Fehler (${response.status})`);
+    }
+    return {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: Date.now() + Math.max(60, Number(data.expires_in || 14400)) * 1000,
+      scope: data.scope,
+      token_type: data.token_type,
+    };
+  }
+
+  async function getCanvaAccessToken(req: express.Request): Promise<string> {
+    const sessionId = getCanvaSessionId(req);
+    if (!sessionId) throw Object.assign(new Error('Canva ist nicht verbunden.'), { status: 401 });
+    const encrypted = canvaSessions.get(sessionId);
+    if (!encrypted) throw Object.assign(new Error('Canva-Sitzung ist abgelaufen. Bitte neu verbinden.'), { status: 401 });
+
+    let tokenData: CanvaTokenPayload;
+    try {
+      tokenData = decryptCanvaTokens(encrypted);
+    } catch {
+      canvaSessions.delete(sessionId);
+      throw Object.assign(new Error('Canva-Sitzung konnte nicht sicher gelesen werden. Bitte neu verbinden.'), { status: 401 });
+    }
+
+    if (tokenData.expires_at > Date.now() + 90_000) {
+      return tokenData.access_token;
+    }
+    if (!tokenData.refresh_token) {
+      canvaSessions.delete(sessionId);
+      throw Object.assign(new Error('Canva-Sitzung ist abgelaufen. Bitte neu verbinden.'), { status: 401 });
+    }
+
+    // Canva refresh tokens are rotated. Always replace the stored refresh token
+    // with the one returned by the latest refresh response.
+    const refreshed = await exchangeCanvaToken(new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: tokenData.refresh_token,
+    }));
+    canvaSessions.set(sessionId, encryptCanvaTokens(refreshed));
+    return refreshed.access_token;
+  }
+
+  async function canvaApi(req: express.Request, url: string, init: RequestInit = {}) {
+    const accessToken = await getCanvaAccessToken(req);
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(init.headers || {}),
+      },
+    });
+    const data: any = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error: any = new Error(data?.message || data?.error?.message || data?.error || `Canva API Fehler (${response.status})`);
+      error.status = response.status;
+      throw error;
+    }
+    return data;
+  }
+
+  app.use('/api/canva', (req, res, next) => {
+    if (req.path === '/callback') return next();
+    requireAccess(req, res, next);
+  });
+
+  app.get('/api/canva/status', (req, res) => {
+    const sessionId = getCanvaSessionId(req);
+    const connected = Boolean(sessionId && canvaSessions.has(sessionId));
+    res.json({
+      configured: canvaConfigured,
+      connected: canvaConfigured && connected,
+      reason: canvaConfigured ? undefined : 'CANVA_CLIENT_ID/CANVA_CLIENT_SECRET fehlen',
+    });
+  });
+
+  app.get('/api/canva/auth-url', (req, res) => {
+    if (!canvaConfigured) return res.json({ configured: false });
+
+    const flowId = crypto.randomBytes(32).toString('base64url');
+    const verifier = crypto.randomBytes(96).toString('base64url');
+    const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+    const state = crypto.randomBytes(48).toString('base64url');
+    canvaOauthFlows.set(flowId, { state, verifier, createdAt: Date.now() });
+
+    res.cookie('klassio_canva_flow', flowId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/api/canva/callback',
+      maxAge: 10 * 60 * 1000,
+    });
+
+    const appUrl = (process.env.APP_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
+    const redirectUri = `${appUrl}/api/canva/callback`;
+    const params = new URLSearchParams({
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+      scope: CANVA_SCOPES,
+      response_type: 'code',
+      client_id: CANVA_CLIENT_ID,
+      state,
+      redirect_uri: redirectUri,
+    });
+    res.json({
+      configured: true,
+      url: `https://www.canva.com/api/oauth/authorize?${params.toString()}`,
+    });
+  });
+
+  app.get('/api/canva/callback', async (req, res) => {
+    const callbackOrigin = new URL(process.env.APP_URL || 'http://127.0.0.1:3000').origin;
+    const flowId = parseCookies(req).klassio_canva_flow;
+    const flow = flowId ? canvaOauthFlows.get(flowId) : undefined;
+    const code = typeof req.query.code === 'string' ? req.query.code : '';
+    const state = typeof req.query.state === 'string' ? req.query.state : '';
+    const oauthError = typeof req.query.error === 'string' ? req.query.error : '';
+
+    res.clearCookie('klassio_canva_flow', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/api/canva/callback',
+    });
+    if (flowId) canvaOauthFlows.delete(flowId);
+
+    const fail = (message: string) => res.status(400).type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva-Verbindung fehlgeschlagen</h2><p>${escapeHtml(message)}</p><script>if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_ERROR',error:${scriptJson(message)}},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),1500);</script></body></html>`);
+
+    if (oauthError) return fail('Canva-Anmeldung wurde abgebrochen oder abgelehnt.');
+    if (!flow || Date.now() - flow.createdAt > 10 * 60 * 1000 || !state || state !== flow.state || !code) {
+      return fail('Canva-Anmeldung ist abgelaufen oder ungültig. Bitte erneut verbinden.');
+    }
+
+    try {
+      const appUrl = (process.env.APP_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
+      const tokenData = await exchangeCanvaToken(new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        code_verifier: flow.verifier,
+        redirect_uri: `${appUrl}/api/canva/callback`,
+      }));
+      const sessionId = crypto.randomBytes(32).toString('base64url');
+      canvaSessions.set(sessionId, encryptCanvaTokens(tokenData));
+      setCanvaSessionCookie(req, res, sessionId);
+      return res.type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva verbunden</h2><p>Du kannst zu Klassio zurückkehren.</p><script>if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_SUCCESS'},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),700);</script></body></html>`);
+    } catch (error: any) {
+      return fail(error?.message || 'Canva-Token konnte nicht erzeugt werden.');
+    }
+  });
+
+  app.post('/api/canva/disconnect', async (req, res) => {
+    const sessionId = getCanvaSessionId(req);
+    const record = sessionId ? canvaSessions.get(sessionId) : undefined;
+    if (record && canvaConfigured) {
+      try {
+        const tokenData = decryptCanvaTokens(record);
+        const token = tokenData.refresh_token || tokenData.access_token;
+        await fetch('https://api.canva.com/rest/v1/oauth/revoke', {
+          method: 'POST',
+          headers: {
+            'Authorization': canvaBasicAuth(),
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({ token }).toString(),
+        });
+      } catch (error) {
+        console.warn('[Canva] Token-Revoke fehlgeschlagen; lokale Sitzung wird trotzdem entfernt.');
+      }
+    }
+    if (sessionId) canvaSessions.delete(sessionId);
+    res.clearCookie('klassio_canva_session', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/',
+    });
+    res.json({ success: true });
+  });
+
+  app.get('/api/canva/designs', async (req, res, next) => {
+    try {
+      const params = new URLSearchParams();
+      for (const key of ['query', 'continuation', 'ownership', 'sort_by', 'limit']) {
+        const value = req.query[key];
+        if (typeof value === 'string' && value.trim()) params.set(key, value.trim());
+      }
+      const data = await canvaApi(req, `https://api.canva.com/rest/v1/designs?${params.toString()}`);
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  app.post('/api/canva/designs', async (req, res, next) => {
+    try {
+      const kind = String(req.body?.kind || '');
+      const title = typeof req.body?.title === 'string' ? req.body.title.slice(0, 255) : 'Klassio Design';
+      const presets: Record<string, any> = {
+        presentation: { type: 'preset', name: 'presentation' },
+        whiteboard: { type: 'preset', name: 'whiteboard' },
+        doc: { type: 'preset', name: 'doc' },
+        // A4 portrait at 300 dpi. Well within Canva's custom-design size limits.
+        a4: { type: 'custom', width: 2480, height: 3508 },
+      };
+      const designType = presets[kind];
+      if (!designType) return res.status(400).json({ error: 'Unbekannter Canva-Designtyp.' });
+
+      const data = await canvaApi(req, 'https://api.canva.com/rest/v1/designs', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'type_and_asset',
+          design_type: designType,
+          title,
+        }),
+      });
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  app.post('/api/canva/exports', async (req, res, next) => {
+    try {
+      const designId = typeof req.body?.design_id === 'string' ? req.body.design_id.trim() : '';
+      const format = String(req.body?.format || '').toLowerCase();
+      if (!designId || !['pdf', 'png', 'jpg', 'pptx'].includes(format)) {
+        return res.status(400).json({ error: 'Ungültiger Canva-Export.' });
+      }
+      const data = await canvaApi(req, 'https://api.canva.com/rest/v1/exports', {
+        method: 'POST',
+        body: JSON.stringify({
+          design_id: designId,
+          format: { type: format },
+        }),
+      });
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  app.get('/api/canva/exports/:id', async (req, res, next) => {
+    try {
+      const jobId = encodeURIComponent(String(req.params.id || ''));
+      if (!jobId) return res.status(400).json({ error: 'Export-ID fehlt.' });
+      const data = await canvaApi(req, `https://api.canva.com/rest/v1/exports/${jobId}`);
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  const canvaCleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [id, flow] of canvaOauthFlows.entries()) {
+      if (now - flow.createdAt > 15 * 60 * 1000) canvaOauthFlows.delete(id);
+    }
+  }, 10 * 60 * 1000);
+  canvaCleanupTimer.unref();
 
   // Startup diagnostic logging
   const apiKey = process.env.GEMINI_API_KEY;
@@ -522,11 +1056,27 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       return res.status(400).json({ error: "Unbekannte oder unzulässige KI-Aktion." });
     }
 
-    let params = req.body.params;
+    let params = req.body.params || {};
 
-    // B1.5 Server-Schutznetz: Eingehende Parameter vor Weitergabe an Gemini prüfen & maskieren
+    // Bilddaten dürfen nicht durch Textfilter laufen: Regex-Ersetzungen würden Base64 beschädigen.
+    // Deshalb wird die explizite Datenschutzbestätigung serverseitig erneut geprüft und das Bild
+    // erst nach der Text-/JSON-Sanitization unverändert wieder angehängt.
+    const imageBase64 = params?.imageBase64;
+    const imagePrivacyConfirmed = params?.imagePrivacyConfirmed === true;
+    const imageRequestError = validateAiServerImageRequest(action, imageBase64, imagePrivacyConfirmed);
+    if (imageRequestError) {
+      return res.status(400).json({ error: imageRequestError });
+    }
+
+    const { imageBase64: _image, imagePrivacyConfirmed: _confirmation, ...textParams } = params;
+
+    // B1.5 Server-Schutznetz: Nur Text-/JSON-Parameter prüfen & maskieren.
     const privacyViolations: string[] = [];
-    params = sanitizeAIPayloadRecursively(params, privacyViolations);
+    const sanitizedTextParams = sanitizeAIPayloadRecursively(textParams, privacyViolations);
+    params = {
+      ...sanitizedTextParams,
+      ...(imageBase64 ? { imageBase64 } : {})
+    };
     if (privacyViolations.length > 0) {
       console.warn("[DATENSCHUTZ-WARNUNG] Sensibles Muster in KI-Request entfernt.");
     }
@@ -1080,69 +1630,14 @@ Antworte exakt im vorgegebenen JSON-Format.`;
     }
   });
 
-  // Weather Fallback Helper
-  function getFallbackWeatherData(lat: any, lon: any) {
-    return {
-      latitude: Number(lat || 47.2333),
-      longitude: Number(lon || 9.6),
-      timezone: "Europe/Vienna",
-      current: {
-        time: new Date().toISOString().substring(0, 16),
-        temperature_2m: 21.5,
-        precipitation: 0.0,
-        wind_speed_10m: 7.5,
-        weather_code: 0
-      },
-      current_weather: {
-        temperature: 21.5,
-        windspeed: 7.5,
-        winddirection: 120,
-        weathercode: 0,
-        time: new Date().toISOString().substring(0, 16)
-      },
-      hourly: {
-        time: Array.from({ length: 6 }, (_, i) => {
-          const d = new Date();
-          d.setHours(d.getHours() + i);
-          return d.toISOString();
-        }),
-        temperature_2m: [19, 20, 21, 22, 21, 19],
-        precipitation: [0, 0, 0, 0, 0, 0],
-        weather_code: [0, 0, 0, 0, 0, 0]
-      },
-      daily: {
-        time: Array.from({ length: 7 }, (_, i) => {
-          const d = new Date();
-          d.setDate(d.getDate() + i);
-          return d.toISOString().substring(0, 10);
-        }),
-        weathercode: [0, 1, 3, 0, 1, 2, 0],
-        temperature_2m_max: [22.5, 23.1, 21.4, 22.0, 24.5, 25.0, 23.8],
-        temperature_2m_min: [11.2, 12.0, 11.5, 10.8, 12.5, 13.0, 12.2]
-      }
-    };
-  }
-
-  // Geocoding Fallback Helper
-  function getFallbackGeocodingData(name: string) {
-    return {
-      results: [
-        {
-          id: 2780775,
-          name: name || "Feldkirch",
-          latitude: 47.2333,
-          longitude: 9.6,
-          country: "Österreich"
-        }
-      ]
-    };
-  }
-
   // Weather Proxy Route
   app.get("/api/weather", async (req, res) => {
     const { lat, lon, latitude, longitude, current_weather, daily, current, hourly, timezone, forecast_days } = req.query;
-    const finalLat = lat || latitude || "47.2333";
-    const finalLon = lon || longitude || "9.6";
+    const finalLat = lat || latitude;
+    const finalLon = lon || longitude;
+    if (typeof finalLat !== 'string' || typeof finalLon !== 'string' || !finalLat || !finalLon) {
+      return res.status(400).json({ error: "Für Wetterdaten werden latitude/longitude benötigt." });
+    }
 
     try {
       const baseUrl = "https://api.open-meteo.com/v1/forecast";
@@ -1173,13 +1668,17 @@ Antworte exakt im vorgegebenen JSON-Format.`;
       const data = await response.json();
       res.json(data);
     } catch (error: any) {
-      res.json(getFallbackWeatherData(finalLat, finalLon));
+      console.warn("[Weather Proxy] Wetterdienst nicht erreichbar:", error?.message || error);
+      res.status(502).json({ error: "Wetterdaten sind derzeit nicht verfügbar." });
     }
   });
 
   // Geocoding Proxy Route
   app.get("/api/geocoding", async (req, res) => {
     const { name } = req.query;
+    if (typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: "Für die Ortssuche wird ein Name benötigt." });
+    }
     try {
       const baseUrl = "https://geocoding-api.open-meteo.com/v1/search";
       const params = new URLSearchParams();
@@ -1197,7 +1696,8 @@ Antworte exakt im vorgegebenen JSON-Format.`;
       const data = await response.json();
       res.json(data);
     } catch (error: any) {
-      res.json(getFallbackGeocodingData((name as string) || "Feldkirch"));
+      console.warn("[Geocoding Proxy] Dienst nicht erreichbar:", error?.message || error);
+      res.status(502).json({ error: "Ortssuche ist derzeit nicht verfügbar." });
     }
   });
 
@@ -1587,6 +2087,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
   interface ServerSyncSession {
     encryptedPayload: any;
     lastUpdated: number;
+    lastActivityAt: number;
     protocolVersion: 1;
   }
   const syncSessions: Record<string, ServerSyncSession> = {};
@@ -1629,14 +2130,18 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       const data = await response.json();
       res.json(data);
     } catch (e: any) {
-      res.json(getFallbackGeocodingData(req.query.city as string || "Feldkirch"));
+      console.warn("[Weather Geocode] Dienst nicht erreichbar:", e?.message || e);
+      res.status(502).json({ error: "Wetter-Ortssuche ist derzeit nicht verfügbar." });
     }
   });
 
   // API Route for Forecast (Weather)
   app.get("/api/weather/forecast", async (req, res) => {
-    const lat = req.query.lat as string || "47.2333";
-    const lon = req.query.lon as string || "9.6";
+    const lat = req.query.lat as string;
+    const lon = req.query.lon as string;
+    if (!lat || !lon) {
+      return res.status(400).json({ error: "Für die Wetterprognose werden lat/lon benötigt." });
+    }
     try {
       const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current=temperature_2m,precipitation,wind_speed_10m,weather_code&hourly=temperature_2m,precipitation,weather_code&timezone=Europe/Vienna&forecast_days=1`;
       const response = await fetch(weatherUrl, { signal: AbortSignal.timeout(6000) });
@@ -1644,7 +2149,8 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       const data = await response.json();
       res.json(data);
     } catch (e: any) {
-      res.json(getFallbackWeatherData(lat, lon));
+      console.warn("[Weather Forecast] Dienst nicht erreichbar:", e?.message || e);
+      res.status(502).json({ error: "Wetterprognose ist derzeit nicht verfügbar." });
     }
   });
 
@@ -1683,10 +2189,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       code += characters.charAt(crypto.randomInt(0, characters.length));
     }
 
-    const lastUpdated = typeof encryptedPayload.updatedAt === 'number' ? encryptedPayload.updatedAt : Date.now();
+    const timing = getServerSyncTimestamps(encryptedPayload.updatedAt);
     syncSessions[code] = {
       encryptedPayload,
-      lastUpdated,
+      lastUpdated: timing.lastUpdated,
+      lastActivityAt: timing.lastActivityAt,
       protocolVersion: 1
     };
 
@@ -1722,12 +2229,13 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(413).json({ error: "Sync-Payload überschreitet das Limit von 15 MB." });
     }
 
-    const lastUpdated = typeof encryptedPayload.updatedAt === 'number' ? encryptedPayload.updatedAt : Date.now();
+    const timing = getServerSyncTimestamps(encryptedPayload.updatedAt);
     syncSessions[code].encryptedPayload = encryptedPayload;
-    syncSessions[code].lastUpdated = lastUpdated;
+    syncSessions[code].lastUpdated = timing.lastUpdated;
+    syncSessions[code].lastActivityAt = timing.lastActivityAt;
     syncSessions[code].protocolVersion = 1;
 
-    res.json({ success: true, lastUpdated });
+    res.json({ success: true, lastUpdated: timing.lastUpdated });
   });
 
   // Get encrypted state of a sync session
@@ -1745,6 +2253,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(400).json({ error: "unsupported legacy sync session" });
     }
 
+    session.lastActivityAt = Date.now();
     res.json({
       encryptedPayload: session.encryptedPayload,
       lastUpdated: session.lastUpdated,
@@ -1771,20 +2280,33 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
     const appUrl = process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : 'http://localhost:3000';
     const redirectUri = `${appUrl}/api/onedrive/callback`;
+    const oauthState = createOAuthState(SESSION_SECRET);
+    res.cookie('lehrerapp_onedrive_state', oauthState, {
+      httpOnly: true, sameSite: 'lax', secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/api/onedrive/callback', maxAge: 10 * 60 * 1000,
+    });
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: "code",
       redirect_uri: redirectUri,
       response_mode: "query",
       scope: "Files.ReadWrite offline_access",
-      state: "onedrive_sync"
+      state: oauthState
     });
     const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
     res.json({ configured: true, url: authUrl });
   });
 
   app.get("/api/onedrive/callback", async (req, res) => {
-    const { code, error, error_description } = req.query;
+    const { code, error, error_description, state } = req.query;
+    if (!verifyOAuthState(state, parseCookies(req).lehrerapp_onedrive_state, SESSION_SECRET)) {
+      return res.status(400).type('text/plain').send('OneDrive-Anmeldung abgelaufen oder ungültig. Bitte erneut verbinden.');
+    }
+    res.clearCookie('lehrerapp_onedrive_state', {
+      httpOnly: true, sameSite: 'lax', secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/api/onedrive/callback',
+    });
+    const callbackOrigin = new URL(process.env.APP_URL || 'http://localhost:3000').origin;
     
     if (error || !code) {
       const errMsg = (error_description as string) || (error as string) || "Unbekannter Fehler bei Microsoft OAuth.";
@@ -1819,11 +2341,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
         <body>
           <div class="error-icon">❌</div>
           <h2>Verbindung fehlgeschlagen</h2>
-          <p>${errMsg}</p>
+          <p>${escapeHtml(errMsg)}</p>
           <button onclick="window.close()">Fenster schließen</button>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${JSON.stringify(errMsg)} }, '*');
+              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${scriptJson(errMsg)} }, ${scriptJson(callbackOrigin)});
             }
           </script>
         </body>
@@ -1899,11 +2421,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
               window.opener.postMessage({ 
                 type: 'ONEDRIVE_AUTH_SUCCESS', 
                 tokenData: {
-                  access_token: ${JSON.stringify(tokenData.access_token)},
-                  refresh_token: ${JSON.stringify(tokenData.refresh_token)},
+                  access_token: ${scriptJson(tokenData.access_token)},
+                  refresh_token: ${scriptJson(tokenData.refresh_token ?? null)},
                   expires_at: ${Date.now() + (tokenData.expires_in || 3600) * 1000}
                 } 
-              }, '*');
+              }, ${scriptJson(callbackOrigin)});
               setTimeout(() => window.close(), 1000);
             } else {
               window.location.href = '/';
@@ -1945,11 +2467,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
         <body>
           <div class="error-icon">❌</div>
           <h2>Token-Austausch fehlgeschlagen</h2>
-          <p>${errMsg}</p>
+          <p>${escapeHtml(errMsg)}</p>
           <button onclick="window.close()">Fenster schließen</button>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${JSON.stringify(errMsg)} }, '*');
+              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${scriptJson(errMsg)} }, ${scriptJson(callbackOrigin)});
             }
           </script>
         </body>
@@ -2024,15 +2546,15 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       }
     }
 
-    // Striktes Durchsetzen des verschlüsselten LehrerAPP-Backup-Formats
+    // Intern bleibt das historische verschlüsselte Format aus Kompatibilitätsgründen erhalten.
     if (!isValidEncryptedBackup(body)) {
-      return res.status(400).json({ 
-        error: "Ungültiges Backup-Format. Server akzeptiert ausschließlich verschlüsselte LehrerAPP-Backups (V1)." 
+      return res.status(400).json({
+        error: "Ungültiges Backup-Format. Server akzeptiert ausschließlich verschlüsselte Klassio-Sicherungen (V1)."
       });
     }
 
     try {
-      const response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp:/content", {
+      const response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${ONEDRIVE_BACKUP_PRIMARY_NAME}:/content`, {
         method: "PUT",
         headers: {
           "Authorization": authHeader,
@@ -2057,23 +2579,17 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(401).json({ error: "Authorization Header fehlt" });
     }
     try {
-      // 1. Primär nach neuem verschlüsseltem .lehrerapp suchen
-      let response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp:/content", {
-        headers: {
-          "Authorization": authHeader
-        }
-      });
-
-      // 2. Abwärtskompatibler Fallback auf altes .json, falls noch keine neue Sicherung existiert
-      if (response.status === 404) {
-        response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/Lehrermappe_Backup.json:/content", {
+      let response: Response | null = null;
+      for (const fileName of getOneDriveBackupCandidateNames()) {
+        response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`, {
           headers: {
             "Authorization": authHeader
           }
         });
+        if (response.status !== 404) break;
       }
 
-      if (response.status === 404) {
+      if (!response || response.status === 404) {
         return res.status(404).json({ error: "Keine Sicherungsdatei auf OneDrive gefunden." });
       }
       if (!response.ok) {
@@ -2093,23 +2609,21 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(401).json({ error: "Authorization Header fehlt" });
     }
     try {
-      // 1. Zuerst neues .lehrerapp prüfen
-      let response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp", {
-        headers: {
-          "Authorization": authHeader
-        }
-      });
-
-      // 2. Fallback auf altes .json zur Bestandsanzeige
-      if (response.status === 404) {
-        response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/Lehrermappe_Backup.json", {
+      let response: Response | null = null;
+      let resolvedFileName: string | null = null;
+      for (const fileName of getOneDriveBackupCandidateNames()) {
+        response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}`, {
           headers: {
             "Authorization": authHeader
           }
         });
+        if (response.status !== 404) {
+          resolvedFileName = fileName;
+          break;
+        }
       }
 
-      if (response.status === 404) {
+      if (!response || response.status === 404) {
         return res.json({ exists: false });
       }
       if (!response.ok) {
@@ -2117,7 +2631,12 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
         return res.status(response.status).json({ error: `OneDrive API Fehler: ${errText}` });
       }
       const data = await response.json();
-      res.json({ exists: true, lastModifiedDateTime: data.lastModifiedDateTime, size: data.size });
+      res.json({
+        exists: true,
+        fileName: resolvedFileName,
+        lastModifiedDateTime: data.lastModifiedDateTime,
+        size: data.size
+      });
     } catch (err: any) {
       res.status(500).json({ error: err.message || "Metadaten-Abruf fehlgeschlagen" });
     }
@@ -2128,7 +2647,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     const now = Date.now();
     const MAX_INACTIVITY_MS = 2 * 60 * 60 * 1000; // 2 Stunden Inaktivität (Modul B4)
     Object.keys(syncSessions).forEach(code => {
-      if (now - syncSessions[code].lastUpdated > MAX_INACTIVITY_MS) {
+      if (isSyncSessionExpired(syncSessions[code].lastActivityAt, now, MAX_INACTIVITY_MS)) {
         delete syncSessions[code];
         // E3.18 Logging ohne Offenlegung des Sitzungscodes
         console.log("[Sync Server] Inaktive Sitzung bereinigt.");
@@ -2188,7 +2707,8 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
 
 export async function startServer() {
   const app = await createApp();
-  const PORT = 3000;
+  const configuredPort = Number.parseInt(process.env.PORT || '3000', 10);
+  const PORT = Number.isFinite(configuredPort) && configuredPort > 0 ? configuredPort : 3000;
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });

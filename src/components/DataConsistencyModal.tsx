@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  X, AlertTriangle, CheckCircle, ShieldAlert, Sparkles, 
-  Trash2, RefreshCw, ArrowRight, Check, UserPlus, Info, FileText
+  X, CheckCircle, ShieldAlert, Sparkles,
+  Trash2, RefreshCw, Check, UserPlus, Info, FileText
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
@@ -13,6 +13,7 @@ import {
   ConsistencyIssue 
 } from '../lib/DataConsistencyService';
 import { generateDataConsistencyReport } from '../lib/pdfEngine';
+import { Button, IconButton, Badge, Select } from './ui';
 
 interface DataConsistencyModalProps {
   isOpen: boolean;
@@ -35,7 +36,7 @@ export default function DataConsistencyModal({ isOpen, onClose }: DataConsistenc
       setApp(updatedApp);
       showToast(`Bereinigung abgeschlossen: ${issue.title}`, 'success');
       setSelectedFixIssueId(null);
-    } catch (err) {
+    } catch {
       showToast('Konnte Daten nicht löschen.', 'error');
     }
   };
@@ -53,7 +54,7 @@ export default function DataConsistencyModal({ isOpen, onClose }: DataConsistenc
       showToast(`Daten erfolgreich zu ${targetName} zusammengeführt.`, 'success');
       setSelectedFixIssueId(null);
       setMigrationTargetId('');
-    } catch (err) {
+    } catch {
       showToast('Fehler bei der Migration.', 'error');
     }
   };
@@ -65,7 +66,7 @@ export default function DataConsistencyModal({ isOpen, onClose }: DataConsistenc
       setApp(updatedApp);
       showToast(`Namens-Formatierung erfolgreich korrigiert!`, 'success');
       setSelectedFixIssueId(null);
-    } catch (err) {
+    } catch {
       showToast('Konnte Namen nicht korrigieren.', 'error');
     }
   };
@@ -83,7 +84,7 @@ export default function DataConsistencyModal({ isOpen, onClose }: DataConsistenc
       setApp(updatedApp);
       showToast(`Tippfehler-Profil erfolgreich mit ${targetName} zusammengeführt.`, 'success');
       setSelectedFixIssueId(null);
-    } catch (err) {
+    } catch {
       showToast('Konnte Datensätze nicht zusammenführen.', 'error');
     }
   };
@@ -95,7 +96,7 @@ export default function DataConsistencyModal({ isOpen, onClose }: DataConsistenc
         setApp(cleanedApp);
         showToast('Globale System-Reparatur erfolgreich durchgeführt!', 'success');
         onClose();
-      } catch (err) {
+      } catch {
         showToast('Fehler bei der globalen automatischen Bereinigung.', 'error');
       }
     }
@@ -111,139 +112,139 @@ export default function DataConsistencyModal({ isOpen, onClose }: DataConsistenc
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm cursor-pointer"
+        className="absolute inset-0 bg-black/60 backdrop-blur-xs cursor-pointer"
       />
 
       {/* Modal Card */}
       <motion.div 
-        initial={{ scale: 0.95, opacity: 0, y: 15 }}
+        initial={{ scale: 0.96, opacity: 0, y: 15 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.95, opacity: 0, y: 15 }}
+        exit={{ scale: 0.96, opacity: 0, y: 15 }}
         transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-        className="bg-white rounded-[2.5rem] w-full max-w-2xl overflow-hidden relative shadow-2xl border border-slate-100 flex flex-col z-10 max-h-[85vh] text-left"
+        className="bg-[var(--surface-card,var(--surface))] rounded-[2rem] w-full max-w-2xl overflow-hidden relative shadow-2xl border border-[var(--border-default,var(--border))] flex flex-col z-10 max-h-[85vh] text-left text-[var(--text-primary)]"
       >
         {/* Header */}
-        <div className="p-6 sm:p-8 bg-slate-900 text-white shrink-0 relative">
-          <button 
-            type="button"
-            onClick={onClose}
-            className="absolute top-6 right-6 p-2 rounded-full hover:bg-white/10 text-slate-350 hover:text-white transition-colors cursor-pointer border-0 outline-none"
-            title="Schließen"
-          >
-            <X size={20} />
-          </button>
-          
-          <div className="flex items-center gap-4">
-            <div className={`p-3.5 rounded-2xl ${issues.length > 0 ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'} text-white`}>
-              <ShieldAlert size={28} />
+        <div className="p-6 bg-[var(--surface-subtle,var(--surface2))] border-b border-[var(--border-default,var(--border))] shrink-0 relative flex items-center justify-between">
+          <div className="flex items-center gap-3.5">
+            <div className={`p-3 rounded-2xl ${issues.length > 0 ? 'bg-[var(--warning-soft)] text-[var(--warning-text)] border border-[var(--warning-border)]' : 'bg-[var(--success-soft)] text-[var(--success-text)] border border-[var(--success-border)]'}`}>
+              <ShieldAlert size={24} />
             </div>
             <div>
-              <h3 className="text-xl sm:text-2xl font-black tracking-tight leading-none">Daten-Konsistenz-Center</h3>
-              <p className="text-stone-300 text-[0.75rem] font-bold uppercase tracking-wider mt-1.5 flex items-center gap-2">
+              <h3 className="text-[1.125rem] font-black tracking-tight leading-none">Daten-Konsistenz-Center</h3>
+              <p className="text-[0.6875rem] font-bold uppercase tracking-wider mt-1.5 flex items-center gap-2">
                 {issues.length === 0 ? (
-                  <span className="text-emerald-400">✓ Alle Module sind absolut synchron</span>
+                  <span className="text-[var(--success-text)]">✓ Alle Module sind synchron</span>
                 ) : (
-                  <span className="text-amber-400">⚠️ {issues.length} Konsistenz-Abweichungen erkannt</span>
+                  <span className="text-[var(--warning-text)]">⚠️ {issues.length} Konsistenz-Abweichungen erkannt</span>
                 )}
               </p>
             </div>
           </div>
+
+          <IconButton
+            variant="ghost"
+            size="sm"
+            aria-label="Schließen"
+            onClick={onClose}
+          >
+            <X size={20} />
+          </IconButton>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
+        <div className="flex-1 overflow-y-auto p-6 space-y-5">
           {issues.length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
-              <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center text-emerald-500 text-4xl shadow-sm border border-emerald-100">
-                <CheckCircle size={36} />
+            <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+              <div className="w-16 h-16 bg-[var(--success-soft)] rounded-full flex items-center justify-center text-[var(--success-text)] shadow-xs border border-[var(--success-border)]">
+                <CheckCircle size={32} />
               </div>
               <div className="space-y-1 max-w-md mx-auto">
-                <h4 className="font-black text-slate-900 text-lg">System läuft einwandfrei!</h4>
-                <p className="text-xs leading-relaxed text-slate-500 font-bold">
+                <h4 className="font-black text-[1.125rem]">System läuft einwandfrei!</h4>
+                <p className="text-xs leading-relaxed text-[var(--text-muted)] font-medium">
                   Sämtliche Notenmappen-Aufzeichnungen, Diagnose-Erhebungen, Verhaltensampeln, Dienste, Kassenbucheinträge und Checklisten sind perfekt mit deinen Schülerprofilen synchronisiert. Keine verwaisten Schlüssel oder Namensdiskrepanzen gefunden.
                 </p>
               </div>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-3 leading-relaxed">
-                <Info size={18} className="text-amber-600 shrink-0 mt-0.5" />
-                <div className="text-[0.75rem] leading-snug font-bold text-amber-900/80">
-                  <span className="font-extrabold text-amber-950 block mb-0.5">Automatisches Diagnosetool</span>
+              <div className="p-4 bg-[var(--warning-soft)] border border-[var(--warning-border)] rounded-2xl flex items-start gap-3 leading-relaxed">
+                <Info size={18} className="text-[var(--warning-text)] shrink-0 mt-0.5" />
+                <div className="text-[0.75rem] leading-snug font-medium text-[var(--warning-text)]">
+                  <span className="font-bold block mb-0.5">Automatisches Diagnosetool</span>
                   Wenn du Schüler löschst oder umbenennst, können im Hintergrund ungenutzte Fragmente verwaister ID-Einträge verbleiben. Wähle unten das gewünschte Element, um die Daten nahtlos zu reparieren oder zusammenzuführen.
                 </div>
               </div>
 
               {/* Bulk Action Flag */}
-              <div className="flex items-center justify-between bg-slate-50 border border-slate-150 p-4 rounded-2xl">
+              <div className="flex items-center justify-between bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] p-4 rounded-2xl gap-3">
                 <div className="space-y-0.5">
-                  <span className="text-xs font-black text-slate-800">Systemweite automatische Reparatur</span>
-                  <span className="text-[10px] font-semibold text-slate-500 block">Entfernt alle nicht mehr zuordenbaren Datensätze auf einmal</span>
+                  <span className="text-xs font-black">Systemweite automatische Reparatur</span>
+                  <span className="text-[11px] text-[var(--text-muted)] block">Entfernt alle nicht mehr zuordenbaren Datensätze auf einmal</span>
                 </div>
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Sparkles size={13} />}
                   onClick={handleAutoCleanAll}
-                  className="px-4 py-2 bg-slate-900 text-white hover:bg-slate-800 rounded-xl text-[0.625rem] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer border-0"
                 >
-                  <Sparkles size={12} className="text-amber-400" />
                   Alles Bereinigen
-                </button>
+                </Button>
               </div>
 
               {/* List of Issues */}
               <div className="space-y-3">
                 {issues.map(issue => {
                   const isFixing = selectedFixIssueId === issue.id;
-                  let badgeColor = 'bg-amber-50 border-amber-100 text-amber-600';
-                  if (issue.severity === 'error') badgeColor = 'bg-rose-50 border-rose-100 text-rose-600';
-                  else if (issue.severity === 'info') badgeColor = 'bg-sky-50 border-sky-100 text-sky-600';
+                  let badgeVariant: 'danger' | 'warning' | 'info' = 'warning';
+                  if (issue.severity === 'error') badgeVariant = 'danger';
+                  else if (issue.severity === 'info') badgeVariant = 'info';
 
                   return (
                     <div 
                       key={issue.id}
-                      className={`border-2 rounded-2xl transition-all ${isFixing ? 'border-indigo-600 bg-indigo-50/10' : 'border-slate-100 hover:border-slate-250 bg-white'}`}
+                      className={`border rounded-2xl transition-all overflow-hidden ${isFixing ? 'border-[var(--accent)] ring-1 ring-[var(--accent)] bg-[var(--accent-soft)]/20' : 'border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))]'}`}
                     >
                       <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="space-y-1.5 flex-1 text-left min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`px-2 py-0.5 border text-[9px] font-black uppercase tracking-wider rounded-lg ${badgeColor}`}>
+                            <Badge variant={badgeVariant} size="sm">
                               {issue.title}
-                            </span>
-                            <span className="text-[9px] uppercase tracking-wider font-extrabold text-slate-400">
+                            </Badge>
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-[var(--text-muted)]">
                               Modul: {issue.module}
                             </span>
                           </div>
                           
-                          <h4 className="text-[0.875rem] font-bold text-slate-800 leading-snug break-words">
+                          <h4 className="text-[0.875rem] font-bold text-[var(--text-primary)] leading-snug break-words">
                             {issue.description}
                           </h4>
                           
                           {issue.details && (
-                            <code className="block bg-slate-50 p-2 rounded-lg text-[9px] font-mono text-slate-500 mt-1 truncate">
+                            <code className="block bg-[var(--surface-subtle,var(--surface2))] p-2 rounded-lg text-[10px] font-mono text-[var(--text-muted)] mt-1 truncate border border-[var(--border-default,var(--border))]/50">
                               {issue.details}
                             </code>
                           )}
                         </div>
 
                         {issue.fixable && (
-                          <div className="flex md:flex-col items-center gap-2 self-start md:self-center">
+                          <div className="flex md:flex-col items-center gap-2 self-start md:self-center shrink-0">
                             {!isFixing ? (
-                              <button
-                                type="button"
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                leftIcon={<RefreshCw size={12} />}
                                 onClick={() => setSelectedFixIssueId(issue.id)}
-                                className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700/90 text-[0.625rem] font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1 cursor-pointer border-0"
                               >
-                                <RefreshCw size={12} />
                                 Reparieren
-                              </button>
+                              </Button>
                             ) : (
-                              <button
-                                type="button"
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => setSelectedFixIssueId(null)}
-                                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase rounded-xl transition-all cursor-pointer border-0"
                               >
                                 Abbrechen
-                              </button>
+                              </Button>
                             )}
                           </div>
                         )}
@@ -256,82 +257,83 @@ export default function DataConsistencyModal({ isOpen, onClose }: DataConsistenc
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            className="bg-slate-50/60 border-t border-slate-100 p-4 space-y-4"
+                            className="bg-[var(--surface-subtle,var(--surface2))] border-t border-[var(--border-default,var(--border))] p-4 space-y-4"
                           >
                             {issue.type === 'format_name_discrepancy' ? (
-                              <div className="bg-white p-4 border border-indigo-150 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                              <div className="bg-[var(--surface-card,var(--surface))] p-4 border border-[var(--border-default,var(--border))] rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
                                 <div className="space-y-1 text-left">
-                                  <span className="text-[11px] font-extrabold text-indigo-600 uppercase tracking-wider block">Option: Formatierung korrigieren</span>
-                                  <span className="text-xs font-bold text-slate-800">
+                                  <span className="text-[11px] font-bold text-[var(--accent)] uppercase tracking-wider block">Option: Formatierung korrigieren</span>
+                                  <span className="text-xs font-bold text-[var(--text-primary)]">
                                     Vorschlag: {issue.suggestedAction?.suggestedValue}
                                   </span>
-                                  <span className="text-[10px] font-semibold text-slate-500 leading-normal block">
+                                  <span className="text-[11px] text-[var(--text-muted)] leading-normal block">
                                     Korrigiert nicht-standardisierte Groß-/Kleinschreibung, doppelte Leerzeichen und Trims im Schülerdossier u. Notenmappe.
                                   </span>
                                 </div>
-                                <button
-                                  type="button"
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  leftIcon={<Check size={12} />}
                                   onClick={() => handleFixRename(issue)}
-                                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95 shrink-0 cursor-pointer border-0"
                                 >
-                                  <Check size={12} />
                                   Formatierung anwenden
-                                </button>
+                                </Button>
                               </div>
                             ) : issue.type === 'typo_name_discrepancy' ? (
-                              <div className="bg-white p-4 border border-amber-150 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
+                              <div className="bg-[var(--surface-card,var(--surface))] p-4 border border-[var(--border-default,var(--border))] rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">
                                 <div className="space-y-1 text-left flex-1">
-                                  <span className="text-[11px] font-extrabold text-amber-600 uppercase tracking-wider block">Option: Profile zusammenführen</span>
-                                  <span className="text-xs font-bold text-slate-800">
+                                  <span className="text-[11px] font-bold text-[var(--warning-text)] uppercase tracking-wider block">Option: Profile zusammenführen</span>
+                                  <span className="text-xs font-bold text-[var(--text-primary)]">
                                     Unterkunft in das Hauptprofil transferieren
                                   </span>
-                                  <span className="text-[10px] font-semibold text-slate-500 leading-normal block">
+                                  <span className="text-[11px] text-[var(--text-muted)] leading-normal block">
                                     Konsolidiert dieses Doppeleintrag-Profil. Notenmappe, Mitarbeit und Diagnostik werden komplett mit dem ProfilID {issue.suggestedAction?.targetId} gemergt. Der fehlerhafte Zweit-Eintrag wird danach gelöscht.
                                   </span>
                                 </div>
-                                <button
-                                  type="button"
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  leftIcon={<Sparkles size={12} />}
                                   onClick={() => handleFixMerge(issue)}
-                                  className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95 shrink-0 cursor-pointer border-0"
                                 >
-                                  <Sparkles size={12} className="text-amber-200" />
                                   Auto-Fix Zusammenführen
-                                </button>
+                                </Button>
                               </div>
                             ) : (
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* Option A: Delete Orphans */}
-                                <div className="bg-white p-4 border border-slate-150 rounded-xl flex flex-col justify-between space-y-3">
+                                <div className="bg-[var(--surface-card,var(--surface))] p-4 border border-[var(--border-default,var(--border))] rounded-xl flex flex-col justify-between space-y-3">
                                   <div className="space-y-0.5">
-                                    <span className="text-[11px] font-extrabold text-rose-600 uppercase tracking-wider block">Option A: Komplett löschen</span>
-                                    <span className="text-[10px] font-semibold text-slate-500 leading-normal block">
+                                    <span className="text-[11px] font-bold text-[var(--danger-text)] uppercase tracking-wider block">Option A: Komplett löschen</span>
+                                    <span className="text-[11px] text-[var(--text-muted)] leading-normal block">
                                       Löscht alle nicht zuzuordnenden Reste dieses Eintrags endgültig aus der Datenbank.
                                     </span>
                                   </div>
-                                  <button
-                                    type="button"
+                                  <Button
+                                    variant="danger"
+                                    size="sm"
+                                    className="w-full"
+                                    leftIcon={<Trash2 size={12} />}
                                     onClick={() => handleFixDelete(issue)}
-                                    className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 active:scale-95 cursor-pointer"
                                   >
-                                    <Trash2 size={12} />
                                     Daten Löschen
-                                  </button>
+                                  </Button>
                                 </div>
 
                                 {/* Option B: Remap/Migrate to Active Student */}
-                                <div className="bg-white p-4 border border-slate-150 rounded-xl flex flex-col justify-between space-y-3">
+                                <div className="bg-[var(--surface-card,var(--surface))] p-4 border border-[var(--border-default,var(--border))] rounded-xl flex flex-col justify-between space-y-3">
                                   <div className="space-y-0.5">
-                                    <span className="text-[11px] font-extrabold text-indigo-600 uppercase tracking-wider block">Option B: Zu Schüler zuweisen (Merge)</span>
-                                    <span className="text-[10px] font-semibold text-slate-500 leading-normal block">
+                                    <span className="text-[11px] font-bold text-[var(--accent)] uppercase tracking-wider block">Option B: Zu Schüler zuweisen (Merge)</span>
+                                    <span className="text-[11px] text-[var(--text-muted)] leading-normal block">
                                       Verschiebt und migriert alle Fragmente nahtlos an den ausgewählten Schüler.
                                     </span>
                                   </div>
 
                                   <div className="space-y-2">
-                                    <select
+                                    <Select
                                       value={migrationTargetId}
                                       onChange={(e) => setMigrationTargetId(e.target.value)}
-                                      className="w-full text-xs font-bold p-2 bg-slate-50 border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                      className="w-full"
                                     >
                                       <option value="">-- Aktiven Schüler wählen --</option>
                                       {activeStudents.map(s => (
@@ -339,16 +341,17 @@ export default function DataConsistencyModal({ isOpen, onClose }: DataConsistenc
                                           {s.vorname} {s.nachname} ({s.id})
                                         </option>
                                       ))}
-                                    </select>
-                                    <button
-                                      type="button"
+                                    </Select>
+                                    <Button
+                                      variant="primary"
+                                      size="sm"
+                                      className="w-full"
+                                      leftIcon={<UserPlus size={12} />}
                                       onClick={() => handleFixMigrate(issue)}
-                                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed border-0"
                                       disabled={!migrationTargetId}
                                     >
-                                      <UserPlus size={12} />
                                       Daten Transferieren
-                                    </button>
+                                    </Button>
                                   </div>
                                 </div>
                               </div>
@@ -365,30 +368,30 @@ export default function DataConsistencyModal({ isOpen, onClose }: DataConsistenc
         </div>
 
         {/* Footer */}
-        <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between shrink-0">
-          <button
-            type="button"
+        <div className="p-4 sm:p-6 bg-[var(--surface-subtle,var(--surface2))] border-t border-[var(--border-default,var(--border))] flex items-center justify-between shrink-0">
+          <Button
+            variant="secondary"
+            size="md"
+            leftIcon={<FileText size={15} className="text-rose-500" />}
             onClick={async () => {
               try {
                 await generateDataConsistencyReport(app, issues);
                 showToast('Konsistenzbericht-PDF erfolgreich heruntergeladen!', 'success');
-              } catch (err) {
+              } catch {
                 showToast('Fehler beim Generieren des PDF-Berichts.', 'error');
               }
             }}
-            className="px-4 h-11 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200/80 rounded-xl text-[0.6875rem] font-black uppercase tracking-wider active:scale-95 transition-all cursor-pointer flex items-center gap-2"
           >
-            <FileText size={14} className="text-rose-500" />
             PDF Export
-          </button>
+          </Button>
 
-          <button
-            type="button"
+          <Button
+            variant="primary"
+            size="md"
             onClick={onClose}
-            className="px-6 h-11 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[0.6875rem] font-black uppercase tracking-wider active:scale-95 transition-all cursor-pointer border-0"
           >
             Fertig
-          </button>
+          </Button>
         </div>
       </motion.div>
     </div>

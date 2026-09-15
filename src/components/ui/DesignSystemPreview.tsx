@@ -25,7 +25,7 @@ import { UNTERRICHTSMODUS_THEMES } from '../../lib/unterrichtsmodusThemes';
 import { UnterrichtsmodusThemeId } from '../../types';
 
 /**
- * Interne Development-Vorschau für das LehrerAPP Designsystem (F-DS2).
+ * Interne Development-Vorschau für das Klassio Designsystem (F-DS2).
  * Ermöglicht das Testen aller semantischen Komponenten über jedes aktive Theme.
  * Nicht im regulären Produktiv-Menü verlinkt.
  */
@@ -50,7 +50,7 @@ export function DesignSystemPreview() {
           <div>
             <h1 className="text-2xl font-black flex items-center gap-2">
               <Sliders className="w-6 h-6 text-[var(--accent)]" />
-              LehrerAPP Designsystem (F-DS2)
+              Klassio Designsystem (F-DS2)
             </h1>
             <p className="text-sm text-[var(--text-secondary,var(--text2))]">
               Semantische Komponenten & Design-Tokens Vorschau

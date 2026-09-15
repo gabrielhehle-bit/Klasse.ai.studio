@@ -271,33 +271,33 @@ export function createSyncUrl(code: string, encodedKey: string, baseUrl?: string
 }
 
 /**
- * Liest Session-Code und SessionKey aus dem URL-Hash (oder Fallback-Suchparametern).
- * Gibt null zurück, wenn kein gültiger Sync-Parameter vorliegt.
+ * Liest Session-Code und SessionKey ausschließlich aus dem URL-Hash.
+ * Query-Parameter werden absichtlich nie akzeptiert, weil sie an den Server übertragen
+ * und dort in Logs/Proxies sichtbar werden könnten.
+ * Gibt null zurück, wenn kein gültiger Sync-Fragmentparameter vorliegt.
  */
 export function parseSyncHash(hashInput?: string): ParsedSyncFragment | null {
   let raw = hashInput;
   if (raw === undefined && typeof window !== 'undefined') {
-    raw = window.location.hash || window.location.search || '';
+    raw = window.location.hash || '';
   }
 
   if (!raw || typeof raw !== 'string') {
     return null;
   }
 
-  // Falls ein voller URL-String übergeben wurde, zuerst nach '#' suchen
-  let searchPart = raw;
-  const hashIdx = searchPart.indexOf('#');
+  let searchPart = '';
+  const hashIdx = raw.indexOf('#');
   if (hashIdx !== -1) {
-    searchPart = searchPart.slice(hashIdx + 1);
+    searchPart = raw.slice(hashIdx + 1);
+  } else if (raw.startsWith('#')) {
+    searchPart = raw.slice(1);
   } else {
-    const queryIdx = searchPart.indexOf('?');
-    if (queryIdx !== -1) {
-      searchPart = searchPart.slice(queryIdx + 1);
-    }
+    // Never accept ?sync=...&key=... because query strings are transmitted to the server.
+    return null;
   }
 
-  // Führende '#' oder '?' abstreifen
-  searchPart = searchPart.replace(/^[#?]/, '');
+  searchPart = searchPart.replace(/^#/, '');
   if (!searchPart) {
     return null;
   }

@@ -270,7 +270,7 @@ export default function WochenplanExcelModal({
                         onChange={() => setImportMode('overwrite')}
                         className="text-emerald-600"
                       />
-                      <span>Überschreiben</span>
+                      <span>Importierte Stunden überschreiben</span>
                     </label>
                   </div>
                 </div>

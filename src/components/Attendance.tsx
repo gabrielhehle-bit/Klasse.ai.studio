@@ -1,7 +1,18 @@
+import { completeMissingAttendance } from '../lib/classroomEdits';
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useApp } from "../context/AppContext";
-import { getTodayName, getSemester, isHoliday } from "../lib/utils";
-import { VM_ZEITEN, STUNDEN_INFO } from "../constants";
+import { getTodayName, isHoliday } from "../lib/utils";
+import { STUNDEN_INFO } from "../constants";
+import {
+  findAdjacentSchoolDate,
+  getAttendanceDayStats,
+  getLocalAttendanceDateKey,
+  getStudentAbsenceDates,
+  getStudentAttendanceStats,
+  markAttendanceExcused,
+  markAttendancePresent,
+  mergeFehlstundenIntoDay,
+} from "../lib/attendanceData";
 import {
   ChevronLeft,
   ChevronRight,
@@ -64,7 +75,6 @@ export default function Attendance() {
   const [showMehrMenu, setShowMehrMenu] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
-  const [completedDays, setCompletedDays] = useState<Record<string, boolean>>({});
 
   // Active student modals & popovers
   const [activeNoteSid, setActiveNoteSid] = useState<string | null>(null);
@@ -90,6 +100,21 @@ export default function Attendance() {
 
   const mehrMenuRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    // Anwesenheitsbezogene UI-Zustände dürfen niemals in die nächste Klasse mitwandern.
+    setRecentChanges([]);
+    setActiveNoteSid(null);
+    setActiveDelaySid(null);
+    setActiveFehlstundenSid(null);
+    setActiveReasonSid(null);
+    setAbsencesModalSid(null);
+    setCurrentNote("");
+    setCurrentDelay(0);
+    setCurrentFehlstunden(0);
+    setShowMehrMenu(false);
+    setShowValidation(false);
+  }, [app.activeClassId]);
+
   // Close "Mehr" dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -106,7 +131,7 @@ export default function Attendance() {
   const dateObj = new Date(y, m - 1, d);
 
   const getDayStatus = (date: Date) => {
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = getLocalAttendanceDateKey(date);
     const override = app.calendarOverrides?.[dateStr];
     if (override)
       return {
@@ -117,6 +142,14 @@ export default function Attendance() {
           app.bundesland || "VBG"
         ),
       };
+
+    if (date.getDay() === 0 || date.getDay() === 6) {
+      return {
+        status: "free" as const,
+        holidayName: "Wochenende",
+      };
+    }
+
     const holiday = isHoliday(
       date,
       app.calendarSettings?.disabledHolidays,
@@ -133,9 +166,10 @@ export default function Attendance() {
   const dayName = getTodayName(dateObj);
   const tageInfo = dayName ? app.tageplan?.[dayName] || {} : {};
   const activeHours: number[] = tageInfo.stunden || [];
+  const hasConfiguredHours = activeHours.length > 0;
 
-  // Active class name
-  const classLabel = app.klassenbezeichnung || app.klasse || "2a";
+  // Active class name – keine erfundene Fallback-Klasse anzeigen.
+  const classLabel = app.klassenbezeichnung || app.klasse || "";
 
   // Formatted German Date string
   const formattedDate = useMemo(() => {
@@ -145,40 +179,6 @@ export default function Attendance() {
       month: "long",
     });
   }, [dateObj]);
-
-  // Auto-default to "Alle anwesend" if no attendance data is present for the selected day yet
-  useEffect(() => {
-    if (isFree) return;
-    if (!app.schueler || app.schueler.length === 0) return;
-
-    const [yr, mo, dy] = selectedDate.split("-").map(Number);
-    const dObj = new Date(yr, mo - 1, dy);
-    const dName = getTodayName(dObj);
-    const tInfo = dName ? app.tageplan?.[dName] || {} : {};
-    const hours: number[] = tInfo.stunden || [];
-    if (hours.length === 0) return;
-
-    const hasAnyData = app.schueler.some((s: any) => {
-      const statusData = app.anwesenheit?.[s.id]?.[selectedDate];
-      return statusData && Object.keys(statusData).length > 0;
-    });
-
-    if (!hasAnyData) {
-      setApp((prev: any) => {
-        const newAnwesenheit = { ...(prev.anwesenheit || {}) };
-        prev.schueler.forEach((s: any) => {
-          const studentAttendance = { ...(newAnwesenheit[s.id] || {}) };
-          const newDayAttendance: Record<string, string> = {};
-          hours.forEach((hourNum) => {
-            newDayAttendance[hourNum] = "a";
-          });
-          studentAttendance[selectedDate] = newDayAttendance;
-          newAnwesenheit[s.id] = studentAttendance;
-        });
-        return { ...prev, anwesenheit: newAnwesenheit };
-      });
-    }
-  }, [selectedDate, isFree, app.schueler, app.tageplan, setApp]);
 
   // Undo registration helper
   const registerUndo = (sid: string, studentName: string) => {
@@ -233,70 +233,26 @@ export default function Attendance() {
   };
 
   // Day Stats Calculation
-  const dayStats = useMemo(() => {
-    let presentCount = 0;
-    let absentCount = 0;
-    let excusedCount = 0;
-    let unexcusedCount = 0;
-    let delayCount = 0;
-    let untrackedCount = 0;
-    let totalFehlstunden = 0;
-
-    app.schueler.forEach((s) => {
-      const statusData = app.anwesenheit[s.id]?.[selectedDate] || {};
-      const details = app.anwesenheitDetail?.[s.id]?.[selectedDate];
-
-      const states = Object.values(statusData);
-      const hasE = states.some((st) => st === "e");
-      const hasU = states.some((st) => st === "u");
-      const isDelayed = !!(details?.verspaetung && details.verspaetung > 0);
-      const absentHoursCount = states.filter((st) => st === "e" || st === "u").length;
-      const studentFehlstunden =
-        details?.fehlstunden !== undefined
-          ? details.fehlstunden
-          : absentHoursCount > 0
-          ? absentHoursCount
-          : 0;
-
-      totalFehlstunden += studentFehlstunden;
-
-      if (activeHours.length > 0 && states.length === 0) {
-        untrackedCount++;
-      } else {
-        if (hasU || hasE || studentFehlstunden > 0) {
-          absentCount++;
-          if (hasU) unexcusedCount++;
-          if (hasE || (!hasU && studentFehlstunden > 0)) excusedCount++;
-        } else {
-          presentCount++;
-        }
-      }
-
-      if (isDelayed) delayCount++;
-    });
-
-    return {
-      present: presentCount,
-      absent: absentCount,
-      excused: excusedCount,
-      unexcused: unexcusedCount,
-      delayed: delayCount,
-      untracked: untrackedCount,
-      totalFehlstunden,
-      total: app.schueler.length,
-    };
-  }, [app.schueler, app.anwesenheit, app.anwesenheitDetail, selectedDate, activeHours]);
+  const dayStats = useMemo(
+    () => getAttendanceDayStats(
+      app.schueler,
+      app.anwesenheit,
+      app.anwesenheitDetail,
+      selectedDate,
+      activeHours
+    ),
+    [app.schueler, app.anwesenheit, app.anwesenheitDetail, selectedDate, activeHours]
+  );
 
   // Current teaching hour matching system time
   const currentHourHighlight = useMemo(() => {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getLocalAttendanceDateKey();
     if (selectedDate !== todayStr) return null;
 
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-    for (const hStr of Object.keys(STUNDEN_INFO)) {
-      const hNum = Number(hStr);
+    for (const hNum of activeHours) {
       const timeRange = app.stundenZeiten?.[hNum] || STUNDEN_INFO[hNum];
       if (timeRange) {
         const [startStr, endStr] = timeRange.split("–");
@@ -312,7 +268,7 @@ export default function Attendance() {
       }
     }
     return null;
-  }, [selectedDate, app.stundenZeiten]);
+  }, [selectedDate, app.stundenZeiten, activeHours]);
 
   const sortedStudents = [...app.schueler].sort((a, b) =>
     a.nachname.localeCompare(b.nachname, "de")
@@ -359,10 +315,11 @@ export default function Attendance() {
       const statusData = app.anwesenheit[s.id]?.[selectedDate] || {};
       const details = app.anwesenheitDetail?.[s.id]?.[selectedDate];
       const dismissedAlerts = details?.dismissedAlerts || [];
+      const activeStates = activeHours.map(hour => statusData[hour]).filter(Boolean);
 
-      const hasAbsence = Object.values(statusData).some((st) => st === "e" || st === "u");
+      const hasAbsence = activeStates.some((st) => st === "e" || st === "u");
       const hasDelay = !!(details?.verspaetung && details.verspaetung > 0);
-      const isUnexcused = Object.values(statusData).some((st) => st === "u");
+      const isUnexcused = activeStates.some((st) => st === "u");
       const hasNote = !!(details?.notiz && details.notiz.trim().length > 0);
 
       // 1. Contradiction
@@ -402,19 +359,27 @@ export default function Attendance() {
               action: () => {
                 setApp((prev) => {
                   const studentAttendance = prev.anwesenheit[s.id] || {};
-                  const dateAttendance = { ...(studentAttendance[selectedDate] || {}) };
-                  Object.keys(dateAttendance).forEach((h) => {
-                    if (dateAttendance[h] === "e" || dateAttendance[h] === "u") {
-                      dateAttendance[h] = "a";
-                    }
-                  });
+                  const details = prev.anwesenheitDetail || {};
+                  const studentDetails = details[s.id] || {};
+                  const updated = markAttendancePresent(
+                    studentAttendance[selectedDate] || {},
+                    studentDetails[selectedDate] || {},
+                    activeHours
+                  );
                   return {
                     ...prev,
                     anwesenheit: {
                       ...prev.anwesenheit,
                       [s.id]: {
                         ...studentAttendance,
-                        [selectedDate]: dateAttendance,
+                        [selectedDate]: updated.day,
+                      },
+                    },
+                    anwesenheitDetail: {
+                      ...details,
+                      [s.id]: {
+                        ...studentDetails,
+                        [selectedDate]: updated.detail,
                       },
                     },
                   };
@@ -467,19 +432,26 @@ export default function Attendance() {
               action: () => {
                 setApp((prev) => {
                   const studentAttendance = prev.anwesenheit[s.id] || {};
-                  const dateAttendance = { ...(studentAttendance[selectedDate] || {}) };
-                  Object.keys(dateAttendance).forEach((h) => {
-                    if (dateAttendance[h] === "u") {
-                      dateAttendance[h] = "e";
-                    }
-                  });
+                  const details = prev.anwesenheitDetail || {};
+                  const studentDetails = details[s.id] || {};
+                  const updated = markAttendanceExcused(
+                    studentAttendance[selectedDate] || {},
+                    studentDetails[selectedDate] || {}
+                  );
                   return {
                     ...prev,
                     anwesenheit: {
                       ...prev.anwesenheit,
                       [s.id]: {
                         ...studentAttendance,
-                        [selectedDate]: dateAttendance,
+                        [selectedDate]: updated.day,
+                      },
+                    },
+                    anwesenheitDetail: {
+                      ...details,
+                      [s.id]: {
+                        ...studentDetails,
+                        [selectedDate]: updated.detail,
                       },
                     },
                   };
@@ -500,18 +472,16 @@ export default function Attendance() {
 
   // Date Navigation
   const navDate = (days: number) => {
-    const d = new Date(dateObj);
-    d.setDate(d.getDate() + days);
-
-    // Skip weekends
-    while (d.getDay() === 0 || d.getDay() === 6) {
-      d.setDate(d.getDate() + (days > 0 ? 1 : -1));
-    }
-
-    const yNum = d.getFullYear();
-    const mNum = String(d.getMonth() + 1).padStart(2, "0");
-    const dayNum = String(d.getDate()).padStart(2, "0");
-    setSelectedDate(`${yNum}-${mNum}-${dayNum}`);
+    const direction: -1 | 1 = days < 0 ? -1 : 1;
+    const nextDate = findAdjacentSchoolDate(
+      selectedDate,
+      direction,
+      (candidate) => {
+        if (candidate.getDay() === 0 || candidate.getDay() === 6) return false;
+        return getDayStatus(candidate).status === "school";
+      }
+    );
+    setSelectedDate(nextDate);
   };
 
   // Status Handlers
@@ -526,6 +496,25 @@ export default function Attendance() {
 
       const currentStatus = dateAttendance[hourNum] || "a";
       const nextStatus = currentStatus === statusVal ? "a" : statusVal;
+      const nextDayAttendance = {
+        ...dateAttendance,
+        [hourNum]: nextStatus,
+      };
+
+      const details = prev.anwesenheitDetail || {};
+      const studentDetails = details[sid] || {};
+      const nextDayDetail = { ...(studentDetails[selectedDate] || {}) };
+      const missedHours = activeHours.filter(hour =>
+        nextDayAttendance[hour] === "e" || nextDayAttendance[hour] === "u"
+      ).length;
+
+      if (missedHours > 0) nextDayDetail.fehlstunden = missedHours;
+      else delete nextDayDetail.fehlstunden;
+
+      const hasUnexcused = activeHours.some(hour => nextDayAttendance[hour] === "u");
+      if (!hasUnexcused && nextDayDetail.notiz === "Unentschuldigt") {
+        delete nextDayDetail.notiz;
+      }
 
       return {
         ...prev,
@@ -533,10 +522,14 @@ export default function Attendance() {
           ...prev.anwesenheit,
           [sid]: {
             ...studentAttendance,
-            [selectedDate]: {
-              ...dateAttendance,
-              [hourNum]: nextStatus,
-            },
+            [selectedDate]: nextDayAttendance,
+          },
+        },
+        anwesenheitDetail: {
+          ...details,
+          [sid]: {
+            ...studentDetails,
+            [selectedDate]: nextDayDetail,
           },
         },
       };
@@ -544,28 +537,54 @@ export default function Attendance() {
   };
 
   const setWholeDay = (sid: string, statusVal: string) => {
+    if (!hasConfiguredHours) return;
     const s = app.schueler.find((student) => student.id === sid);
     const sName = s ? `${s.vorname} ${s.nachname}` : "Schüler";
     registerUndo(sid, sName);
 
     setApp((prev) => {
       const studentAttendance = prev.anwesenheit[sid] || {};
-      const newDayAttendance: Record<string, string> = {};
+      const details = prev.anwesenheitDetail || {};
+      const studentDetails = details[sid] || {};
+      const dayDetail = studentDetails[selectedDate] || {};
+      const effectiveHours = activeHours;
 
-      const effectiveHours = activeHours.length > 0 ? activeHours : [1, 2, 3, 4, 5, 6];
+      if (statusVal === "a") {
+        const updated = markAttendancePresent(
+          studentAttendance[selectedDate] || {},
+          dayDetail,
+          effectiveHours
+        );
+        return {
+          ...prev,
+          anwesenheit: {
+            ...prev.anwesenheit,
+            [sid]: {
+              ...studentAttendance,
+              [selectedDate]: updated.day,
+            },
+          },
+          anwesenheitDetail: {
+            ...details,
+            [sid]: {
+              ...studentDetails,
+              [selectedDate]: updated.detail,
+            },
+          },
+        };
+      }
+
+      const newDayAttendance: Record<string, string> = {};
       effectiveHours.forEach((hourNum) => {
         newDayAttendance[hourNum] = statusVal;
       });
 
-      const details = prev.anwesenheitDetail || {};
-      const studentDetails = details[sid] || {};
-      const dayDetail = studentDetails[selectedDate] || {};
-
-      const updatedDayDetail = { ...dayDetail };
-      if (statusVal === "a") {
-        delete updatedDayDetail.fehlstunden;
-      } else {
-        updatedDayDetail.fehlstunden = effectiveHours.length;
+      const updatedDayDetail = {
+        ...dayDetail,
+        fehlstunden: effectiveHours.length,
+      };
+      if (statusVal === "e" && updatedDayDetail.notiz === "Unentschuldigt") {
+        delete updatedDayDetail.notiz;
       }
 
       return {
@@ -589,7 +608,7 @@ export default function Attendance() {
   };
 
   // 1-Click "Alle anwesend"
-  const setAllStudents = (statusVal: string = "a") => {
+  const setAllStudents = (statusVal: string = "a", onlyMissing = false) => {
     setRecentChanges((prev) => [
       {
         studentId: "__BULK__",
@@ -602,37 +621,67 @@ export default function Attendance() {
     ]);
 
     setApp((prev) => {
-      const newAnwesenheit = { ...prev.anwesenheit };
-      app.schueler.forEach((s) => {
-        const studentAttendance = newAnwesenheit[s.id] || {};
-        const newDayAttendance: Record<string, string> = {};
+      if (onlyMissing) {
+        return {
+          ...prev,
+          anwesenheit: completeMissingAttendance(
+            prev.anwesenheit,
+            prev.schueler.map(s => s.id),
+            selectedDate,
+            activeHours
+          )
+        };
+      }
 
+      const newAnwesenheit = { ...prev.anwesenheit };
+      const newDetails = { ...(prev.anwesenheitDetail || {}) };
+
+      prev.schueler.forEach((s) => {
+        const studentAttendance = newAnwesenheit[s.id] || {};
+        const studentDetails = newDetails[s.id] || {};
+
+        if (statusVal === "a") {
+          const updated = markAttendancePresent(
+            studentAttendance[selectedDate] || {},
+            studentDetails[selectedDate] || {},
+            activeHours
+          );
+          newAnwesenheit[s.id] = {
+            ...studentAttendance,
+            [selectedDate]: updated.day,
+          };
+          newDetails[s.id] = {
+            ...studentDetails,
+            [selectedDate]: updated.detail,
+          };
+          return;
+        }
+
+        const newDayAttendance: Record<string, string> = {};
         activeHours.forEach((hourNum) => {
           newDayAttendance[hourNum] = statusVal;
         });
-
         newAnwesenheit[s.id] = {
           ...studentAttendance,
           [selectedDate]: newDayAttendance,
         };
       });
-      return { ...prev, anwesenheit: newAnwesenheit };
+
+      return {
+        ...prev,
+        anwesenheit: newAnwesenheit,
+        anwesenheitDetail: newDetails,
+      };
     });
   };
 
   // Completion Handler ("Abschließen")
   const handleCompleteCheck = () => {
-    // If any student is untracked, default them to 'a'
-    if (dayStats.untracked > 0) {
-      setAllStudents("a");
-    }
-    setCompletedDays((prev) => ({
-      ...prev,
-      [selectedDate]: true,
-    }));
+    // Explicit confirmation fills empty hours, never overwrites an existing status.
+    setAllStudents("a", true);
   };
 
-  const isChecked = completedDays[selectedDate] || (dayStats.untracked === 0 && dayStats.total > 0);
+  const isChecked = activeHours.length > 0 && dayStats.untracked === 0 && dayStats.total > 0;
 
   // Note & Delay Save handlers
   const saveNote = (sid: string) => {
@@ -657,18 +706,33 @@ export default function Attendance() {
   };
 
   const saveDelay = (sid: string) => {
+    const s = app.schueler.find((student) => student.id === sid);
+    const sName = s ? `${s.vorname} ${s.nachname}` : "Schüler";
+    registerUndo(sid, sName);
+
     setApp((prev) => {
       const details = prev.anwesenheitDetail || {};
       const studentDetails = details[sid] || {};
+      const studentAttendance = prev.anwesenheit[sid] || {};
+      const currentDay = studentAttendance[selectedDate] || {};
+      const hasAbsence = activeHours.some(hour =>
+        currentDay[hour] === "e" || currentDay[hour] === "u"
+      );
+
+      const nextAttendance = hasAbsence
+        ? prev.anwesenheit
+        : completeMissingAttendance(prev.anwesenheit, [sid], selectedDate, activeHours);
+
       return {
         ...prev,
+        anwesenheit: nextAttendance,
         anwesenheitDetail: {
           ...details,
           [sid]: {
             ...studentDetails,
             [selectedDate]: {
               ...(studentDetails[selectedDate] || {}),
-              verspaetung: currentDelay,
+              verspaetung: Math.max(0, Number(currentDelay) || 0),
             },
           },
         },
@@ -682,7 +746,11 @@ export default function Attendance() {
     const sName = s ? `${s.vorname} ${s.nachname}` : "Schüler";
     registerUndo(sid, sName);
 
-    const effectiveHours = activeHours.length > 0 ? activeHours : [1, 2, 3, 4, 5, 6];
+    const effectiveHours = activeHours;
+    if (effectiveHours.length === 0) {
+      setActiveFehlstundenSid(null);
+      return;
+    }
     const maxH = effectiveHours.length;
     const numHours = Math.max(0, Math.min(maxH, Number(currentFehlstunden) || 0));
 
@@ -709,21 +777,12 @@ export default function Attendance() {
         Object.values(currentDayAtt).some((st) => st === "u") || dayDetail.notiz === "Unentschuldigt";
       const absenceCode = isPreviouslyUnexcused ? "u" : "e";
 
-      const newDayAttendance: Record<string, string> = { ...currentDayAtt };
-
-      if (numHours === 0) {
-        effectiveHours.forEach((h) => {
-          newDayAttendance[h] = "a";
-        });
-      } else {
-        effectiveHours.forEach((h, idx) => {
-          if (idx < numHours) {
-            newDayAttendance[h] = newDayAttendance[h] === "u" ? "u" : absenceCode;
-          } else {
-            newDayAttendance[h] = "a";
-          }
-        });
-      }
+      const newDayAttendance = mergeFehlstundenIntoDay(
+        currentDayAtt,
+        effectiveHours,
+        numHours,
+        absenceCode
+      );
 
       return {
         ...prev,
@@ -770,60 +829,13 @@ export default function Attendance() {
     setActiveReasonSid(null);
   };
 
-  // Stats calculation
-  const getStats = (sid: string) => {
-    const data = app.anwesenheit[sid] || {};
-    const details = app.anwesenheitDetail?.[sid] || {};
-    const res = {
-      s1: { e: 0, u: 0, total: 0 },
-      s2: { e: 0, u: 0, total: 0 },
-      total: { e: 0, u: 0, total: 0 },
-    };
-
-    const allDates = new Set([...Object.keys(data), ...Object.keys(details)]);
-
-    allDates.forEach((date) => {
-      const sem = getSemester(date);
-      const dayData = data[date] || {};
-      const dayDetail = details[date];
-
-      let dayExcused = 0;
-      let dayUnexcused = 0;
-
-      Object.values(dayData).forEach((statusVal) => {
-        if (statusVal === "e") {
-          dayExcused++;
-        } else if (statusVal === "u") {
-          dayUnexcused++;
-        }
-      });
-
-      if (dayDetail?.fehlstunden !== undefined) {
-        const totalCalculated = dayExcused + dayUnexcused;
-        if (totalCalculated === 0 && dayDetail.fehlstunden > 0) {
-          const isUnex = dayDetail.notiz === "Unentschuldigt";
-          if (isUnex) dayUnexcused = dayDetail.fehlstunden;
-          else dayExcused = dayDetail.fehlstunden;
-        }
-      }
-
-      res.total.e += dayExcused;
-      res.total.u += dayUnexcused;
-      res.total.total += dayExcused + dayUnexcused;
-
-      if (sem === 1) {
-        res.s1.e += dayExcused;
-        res.s1.u += dayUnexcused;
-        res.s1.total += dayExcused + dayUnexcused;
-      } else {
-        res.s2.e += dayExcused;
-        res.s2.u += dayUnexcused;
-        res.s2.total += dayExcused + dayUnexcused;
-      }
-    });
-
-    return res;
-  };
+  // Stats calculation – nur das aktive Schuljahr und der Bundesland-Semesterkalender.
+  const getStats = (sid: string) => getStudentAttendanceStats(
+    app.anwesenheit[sid] || {},
+    app.anwesenheitDetail?.[sid] || {},
+    app.schuljahr,
+    app.bundesland || "VBG"
+  );
 
   const chartData = useMemo(() => {
     return sortedStudents.map((s) => {
@@ -834,7 +846,7 @@ export default function Attendance() {
         Unentschuldigt: stats.total.u,
       };
     });
-  }, [sortedStudents, app.anwesenheit]);
+  }, [sortedStudents, app.anwesenheit, app.anwesenheitDetail, app.schuljahr, app.bundesland]);
 
   const validationErrors = getValidationErrors();
 
@@ -860,9 +872,11 @@ export default function Attendance() {
               <h1 className="text-[1.125rem] font-black text-slate-900 tracking-tight leading-none uppercase">
                 Anwesenheit
               </h1>
-              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[0.6875rem] font-extrabold border border-slate-200/60">
-                Klasse {classLabel}
-              </span>
+              {classLabel && (
+                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[0.6875rem] font-extrabold border border-slate-200/60">
+                  Klasse {classLabel}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 mt-1">
               <label className="text-[0.875rem] font-bold text-slate-600 hover:text-emerald-700 transition-colors cursor-pointer flex items-center gap-1.5">
@@ -898,7 +912,7 @@ export default function Attendance() {
           {/* Quick "Alle anwesend" Action */}
           <button
             onClick={() => setAllStudents("a")}
-            disabled={isFree || sortedStudents.length === 0}
+            disabled={isFree || sortedStudents.length === 0 || activeHours.length === 0}
             className={`px-3.5 py-2.5 rounded-xl text-[0.75rem] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer border ${
               isFree || sortedStudents.length === 0
                 ? "opacity-40 grayscale cursor-not-allowed bg-slate-50 text-slate-400 border-slate-200"
@@ -913,7 +927,7 @@ export default function Attendance() {
           {/* Primary Action "Abschließen" */}
           <button
             onClick={handleCompleteCheck}
-            disabled={isFree || sortedStudents.length === 0}
+            disabled={isFree || sortedStudents.length === 0 || activeHours.length === 0}
             className={`px-4 py-2.5 rounded-xl text-[0.75rem] font-black flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-sm ${
               isChecked
                 ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-600/10"
@@ -921,7 +935,7 @@ export default function Attendance() {
             }`}
           >
             <CheckCircle2 size={16} />
-            <span>{isChecked ? "Geprüft ✓" : "Abschließen"}</span>
+            <span>{isChecked ? "Vollständig erfasst" : "Offene Einträge als anwesend bestätigen"}</span>
           </button>
 
           {/* "Mehr" Dropdown Menu */}
@@ -961,7 +975,7 @@ export default function Attendance() {
                       {viewMode === "compact" ? "Stunden-Detailansicht" : "Kompaktansicht"}
                     </span>
                     <span className="text-[0.625rem] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
-                      {viewMode === "compact" ? "1.-6. Std" : "Einfach"}
+                      {viewMode === "compact" ? `${activeHours.length} Std.` : "Einfach"}
                     </span>
                   </button>
 
@@ -1039,7 +1053,7 @@ export default function Attendance() {
       {/* ========================================================= */}
       {/* 4. COMPACT DAY STATUS BANNER                              */}
       {/* ========================================================= */}
-      {!isFree && (
+      {!isFree && hasConfiguredHours && (
         <div className="bg-slate-50/80 rounded-xl px-4 py-2.5 border border-slate-200/60 flex flex-wrap items-center justify-between gap-3 text-[0.8125rem] print:hidden">
           <div className="flex items-center gap-3 font-semibold text-slate-700">
             <span className="inline-flex items-center gap-1 text-emerald-700 font-bold bg-emerald-100/60 px-2.5 py-0.5 rounded-full">
@@ -1171,6 +1185,14 @@ export default function Attendance() {
             </button>
           </div>
         </div>
+      ) : !hasConfiguredHours ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 px-6 py-8 text-center shadow-xs print:hidden">
+          <Clock3 size={26} className="mx-auto text-amber-600" />
+          <h3 className="mt-3 text-base font-black text-slate-900">Keine Unterrichtsstunden konfiguriert</h3>
+          <p className="mx-auto mt-1 max-w-xl text-xs font-semibold text-slate-600">
+            Für {dayName || "diesen Tag"} sind im Tagesplan keine Stunden hinterlegt. Klassio erfindet deshalb keine Anwesenheitsstunden.
+          </p>
+        </div>
       ) : (
         /* ========================================================= */
         /* 5. SIMPLIFIED MAIN STUDENT LIST (COMPACT & HOURLY)        */
@@ -1181,7 +1203,9 @@ export default function Attendance() {
             <div className="divide-y divide-slate-100">
               {sortedStudents.length === 0 && (
                 <div className="p-8 text-center text-sm font-bold text-slate-400">
-                  Noch keine Schüler:innen in Klasse {classLabel} angelegt.
+                  {classLabel
+                    ? `Noch keine Schüler:innen in Klasse ${classLabel} angelegt.`
+                    : "Noch keine Schüler:innen angelegt."}
                 </div>
               )}
 
@@ -1189,7 +1213,7 @@ export default function Attendance() {
                 const statusData = app.anwesenheit[s.id]?.[selectedDate] || {};
                 const details = app.anwesenheitDetail?.[s.id]?.[selectedDate];
 
-                const states = Object.values(statusData);
+                const states = activeHours.map(hour => statusData[hour]).filter(Boolean);
                 const absentHoursCount = states.filter((st) => st === "e" || st === "u").length;
                 const studentFehlstunden =
                   details?.fehlstunden !== undefined
@@ -1201,10 +1225,15 @@ export default function Attendance() {
                 const isAbsent = states.some((st) => st === "e" || st === "u") || studentFehlstunden > 0;
                 const isUnexcused = states.some((st) => st === "u") || details?.notiz === "Unentschuldigt";
                 const isExcused = (states.some((st) => st === "e") || studentFehlstunden > 0) && !isUnexcused;
-                const isPresent = !isAbsent && states.length > 0;
+                const isPresent =
+                  !isAbsent &&
+                  activeHours.length > 0 &&
+                  activeHours.every(hour => statusData[hour] === "a");
 
-                const missedDays = Object.values(app.anwesenheit[s.id] || {}).filter((dayData) =>
-                  Object.values(dayData).some((st) => st === "e" || st === "u")
+                const missedDays = getStudentAbsenceDates(
+                  app.anwesenheit[s.id] || {},
+                  app.anwesenheitDetail?.[s.id] || {},
+                  app.schuljahr
                 ).length;
 
                 return (
@@ -1445,6 +1474,22 @@ export default function Attendance() {
                       <button
                         type="button"
                         onClick={() => {
+                          setCurrentDelay(details?.verspaetung || 0);
+                          setActiveDelaySid(s.id);
+                        }}
+                        className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                          details?.verspaetung
+                            ? "bg-orange-100 text-orange-700"
+                            : "text-slate-400 hover:bg-slate-100"
+                        }`}
+                        title="Verspätung eintragen"
+                      >
+                        <Clock size={15} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
                           setActiveNoteSid(s.id);
                           setCurrentNote(details?.notiz || "");
                         }}
@@ -1510,7 +1555,7 @@ export default function Attendance() {
                           </div>
                         </td>
                         {activeHours.map((hourNum) => {
-                          const st = statusData[hourNum] || "a";
+                          const st = statusData[hourNum] || "";
                           return (
                             <td key={hourNum} className="p-2 text-center border-l border-slate-100">
                               <button
@@ -1522,10 +1567,10 @@ export default function Attendance() {
                                     ? "bg-emerald-100 text-emerald-800"
                                     : st === "e"
                                     ? "bg-amber-100 text-amber-800"
-                                    : "bg-rose-100 text-rose-800"
+                                    : st === "u" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-500"
                                 }`}
                               >
-                                {st.toUpperCase()}
+                                {st ? st.toUpperCase() : "–"}
                               </button>
                             </td>
                           );
@@ -1676,11 +1721,12 @@ export default function Attendance() {
               <div className="space-y-3">
                 {(() => {
                   const studentAttendance = app.anwesenheit[absencesModalSid] || {};
-                  const absenceDates = Object.keys(studentAttendance)
-                    .filter((dateStrVal) =>
-                      Object.values(studentAttendance[dateStrVal]).some((st) => st === "e" || st === "u")
-                    )
-                    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+                  const studentDetails = app.anwesenheitDetail?.[absencesModalSid] || {};
+                  const absenceDates = getStudentAbsenceDates(
+                    studentAttendance,
+                    studentDetails,
+                    app.schuljahr
+                  );
 
                   if (absenceDates.length === 0) {
                     return (
@@ -1701,7 +1747,8 @@ export default function Attendance() {
                       dayDetail?.fehlstunden !== undefined
                         ? dayDetail.fehlstunden
                         : excusedCount + unexcusedCount;
-                    const dVal = new Date(dateStrVal);
+                    const [dateYear, dateMonth, dateDay] = dateStrVal.split("-").map(Number);
+                    const dVal = new Date(dateYear, dateMonth - 1, dateDay);
                     const isUnex = unexcusedCount > 0;
 
                     return (
@@ -1840,7 +1887,7 @@ export default function Attendance() {
               {/* Day info subtext */}
               <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
                 <span>{formattedDate}</span>
-                <span>Unterrichtstag: {activeHours.length > 0 ? activeHours.length : 6} Std.</span>
+                <span>Unterrichtstag: {activeHours.length} Std.</span>
               </div>
 
               {/* Main Stepper & Numeric Input */}
@@ -1864,12 +1911,12 @@ export default function Attendance() {
                     <input
                       type="number"
                       min={0}
-                      max={activeHours.length > 0 ? activeHours.length : 6}
+                      max={activeHours.length}
                       value={currentFehlstunden}
                       autoFocus
                       onChange={(e) => {
                         const val = parseInt(e.target.value, 10);
-                        const maxH = activeHours.length > 0 ? activeHours.length : 6;
+                        const maxH = activeHours.length;
                         setCurrentFehlstunden(isNaN(val) ? 0 : Math.max(0, Math.min(maxH, val)));
                       }}
                       onKeyDown={(e) => {
@@ -1886,10 +1933,10 @@ export default function Attendance() {
                   <button
                     type="button"
                     onClick={() => {
-                      const maxH = activeHours.length > 0 ? activeHours.length : 6;
+                      const maxH = activeHours.length;
                       setCurrentFehlstunden((prev) => Math.min(maxH, prev + 1));
                     }}
-                    disabled={currentFehlstunden >= (activeHours.length > 0 ? activeHours.length : 6)}
+                    disabled={currentFehlstunden >= (activeHours.length)}
                     className="w-11 h-11 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-slate-700 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-all active:scale-95 text-lg font-black"
                     title="1 Stunde mehr"
                   >
@@ -1900,11 +1947,11 @@ export default function Attendance() {
                 <div className="text-[11px] font-bold text-center">
                   {currentFehlstunden === 0 ? (
                     <span className="text-emerald-600">Kind ist voll anwesend (0 Fehlstunden)</span>
-                  ) : currentFehlstunden >= (activeHours.length > 0 ? activeHours.length : 6) ? (
+                  ) : currentFehlstunden >= (activeHours.length) ? (
                     <span className="text-rose-600">Ganzer Schultag abwesend ({currentFehlstunden} Std.)</span>
                   ) : (
                     <span className="text-indigo-600">
-                      {currentFehlstunden} von {activeHours.length > 0 ? activeHours.length : 6} Std. versäumt
+                      {currentFehlstunden} von {activeHours.length} Std. versäumt
                     </span>
                   )}
                 </div>
@@ -1924,8 +1971,8 @@ export default function Attendance() {
                     { label: "4 Std", val: 4 },
                     ...(activeHours.length > 4 ? [{ label: "5 Std", val: 5 }] : []),
                     {
-                      label: `Ganztag (${activeHours.length > 0 ? activeHours.length : 6})`,
-                      val: activeHours.length > 0 ? activeHours.length : 6,
+                      label: `Ganztag (${activeHours.length})`,
+                      val: activeHours.length,
                     },
                   ]
                     .filter((item, idx, arr) => arr.findIndex((x) => x.val === item.val) === idx)
@@ -2056,7 +2103,7 @@ export default function Attendance() {
                     {s.nachname} {s.vorname}
                   </td>
                   <td className="p-2 text-center border-r border-black font-bold">
-                    {isAbsent ? (isUnex ? "Abwesend (u)" : "Abwesend (e)") : "Anwesend"}
+                    {isAbsent ? (isUnex ? "Abwesend (u)" : "Abwesend (e)") : activeHours.length === 0 || activeHours.some(hour => !statusData[hour]) ? "Noch nicht vollständig erfasst" : "Anwesend"}
                   </td>
                   <td className="p-2 italic">{details?.notiz || "–"}</td>
                 </tr>

@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -383,7 +384,7 @@ export default function Tafel({
   const [zeichnet, setZeichnet] = useState(false);
   const [undoStack, setUndoStack] = useState<ImageData[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [werkzeugeEingeklappt, setWerkzeugeEingeklappt] = useState(false);
+  const [werkzeugeEingeklappt, setWerkzeugeEingeklappt] = useState(() => window.matchMedia("(max-width: 640px)").matches);
   const [fontSize, setFontSize] = useState<number>(32);
   const [fontWeight, setFontWeight] = useState<"normal" | "bold">("bold");
   const [fontStyle, setFontStyle] = useState<"normal" | "italic">("normal");
@@ -2271,7 +2272,7 @@ export default function Tafel({
 
   const boardContent = (
     <div
-      className={`w-full h-full relative flex flex-row text-white font-sans overflow-hidden select-none ${
+      className={`w-full h-full min-w-0 min-h-0 relative flex flex-row text-white font-sans overflow-hidden select-none ${
         !isInline ? "rounded-2xl md:rounded-3xl border border-slate-700/60 shadow-2xl" : "rounded-2xl"
       }`}
       style={{ backgroundColor: hintergrundfarbe }}
@@ -4515,14 +4516,17 @@ export default function Tafel({
     return boardContent;
   }
 
-  return (
+  return createPortal(
     <div
       id="digitale-tafel-modal-overlay"
+      role="dialog"
+      aria-label="Digitale Tafel"
       className="fixed inset-0 z-[1000] flex items-center justify-center p-1.5 sm:p-2.5 md:p-3 bg-slate-950/85 backdrop-blur-md overflow-hidden select-none"
     >
       <div className="w-full h-full max-w-[100vw] max-h-[100dvh] flex flex-row overflow-hidden relative">
         {boardContent}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

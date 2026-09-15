@@ -19,22 +19,13 @@ import confetti from 'canvas-confetti';
 import StudentTimeline from './StudentTimeline';
 import { exportSchuelerPDF } from '../lib/exportService';
 import { InteractionModal } from './InteractionModal';
+import { calculateStudentAge, getStudentComparableName, mergeImportedStudents, parseStudentBirthday, sortStudentsForList, toDateInputValue } from '../lib/studentListData';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
-  if (!geburtstagStr) return false;
-  try {
-    const today = new Date();
-    let bday: Date;
-    const parts = geburtstagStr.split(".");
-    if (parts.length === 3) {
-      bday = new Date(today.getFullYear(), parseInt(parts[1]) - 1, parseInt(parts[0]));
-    } else {
-      bday = new Date(geburtstagStr);
-    }
-    return bday.getDate() === today.getDate() && bday.getMonth() === today.getMonth();
-  } catch (e) {
-    return false;
-  }
+  const bday = parseStudentBirthday(geburtstagStr);
+  if (!bday) return false;
+  const today = new Date();
+  return bday.getDate() === today.getDate() && bday.getMonth() === today.getMonth();
 };
 
 const playBirthdayJingle = () => {
@@ -117,6 +108,21 @@ export default function StudentList() {
   }, [searchTerm, activeFilter, sortBy, sortOrder]);
 
   useEffect(() => {
+    // A class change must never keep an old child, editor or interaction open.
+    setSelectedFolderStudent(null);
+    setInteractionModalStudent(null);
+    setEditingStudent(null);
+    setTimelineStudent(null);
+    setIsModalOpen(false);
+    setIsKlassenlistImportOpen(false);
+    setInlineEditingNiveau(null);
+    setFolderQuickNote('');
+    setSearchTerm('');
+    setActiveFilter('all');
+    setViewMode('list');
+  }, [app.activeClassId]);
+
+  useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
     const observer = new IntersectionObserver((entries) => {
@@ -133,13 +139,15 @@ export default function StudentList() {
   const isDuplicateName = useMemo(() => {
     if (!editingStudent?.vorname || !editingStudent?.nachname) return false;
     const currentFullName = `${editingStudent.vorname.trim()} ${editingStudent.nachname.trim()}`.toLowerCase();
-    return schueler.some(s => s.id !== editingStudent.id && s.name.toLowerCase() === currentFullName);
+    return schueler.some(s => s.id !== editingStudent.id && getStudentComparableName(s) === currentFullName);
   }, [editingStudent?.vorname, editingStudent?.nachname, schueler, editingStudent?.id]);
 
-  const { maleCount, femaleCount, dazCount, spfCount, espfCount } = useMemo(() => {
+  const { maleCount, femaleCount, diverseCount, unknownGenderCount, dazCount, spfCount, espfCount } = useMemo(() => {
     return {
       maleCount: schueler.filter(s => s.geschlecht === 'männlich').length,
       femaleCount: schueler.filter(s => s.geschlecht === 'weiblich').length,
+      diverseCount: schueler.filter(s => s.geschlecht === 'divers').length,
+      unknownGenderCount: schueler.filter(s => !s.geschlecht).length,
       dazCount: schueler.filter(s => s.daz).length,
       spfCount: schueler.filter(s => s.spf).length,
       espfCount: schueler.filter(s => s.espf).length,
@@ -155,20 +163,9 @@ export default function StudentList() {
   }, [schueler]);
 
   const { avgAge, minAge, maxAge } = useMemo(() => {
-    const agesList = schueler.map(s => {
-      if (!s.geburtstag) return null;
-      let bday: Date;
-      const parts = s.geburtstag.split(".");
-      if (parts.length === 3) {
-        bday = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-      } else {
-        bday = new Date(s.geburtstag);
-      }
-      if (isNaN(bday.getTime())) return null;
-      const ageDifMs = Date.now() - bday.getTime();
-      const ageDate = new Date(ageDifMs);
-      return Math.abs(ageDate.getUTCFullYear() - 1970);
-    }).filter((a): a is number => a !== null);
+    const agesList = schueler
+      .map(s => calculateStudentAge(s.geburtstag))
+      .filter((age): age is number => age !== null);
 
     return {
       avgAge: agesList.length > 0 ? (agesList.reduce((a, b) => a + b, 0) / agesList.length).toFixed(1) : '–',
@@ -178,54 +175,56 @@ export default function StudentList() {
   }, [schueler]);
 
   const filteredStudents = useMemo(() => {
-    return schueler
-      .filter(s => {
-        const normalizedSearch = searchTerm.trim().toLowerCase();
-        const matchesSearch = [
-          s.vorname,
-          s.nachname,
-          `${s.vorname || ''} ${s.nachname || ''}`,
-          `${s.nachname || ''} ${s.vorname || ''}`,
-          s.ikmNummer,
-        ].some((value) => String(value || '').toLowerCase().includes(normalizedSearch));
-        
-        if (!matchesSearch) return false;
+    const filtered = schueler.filter(s => {
+      const normalizedSearch = searchTerm.trim().toLowerCase();
+      const matchesSearch = [
+        s.vorname,
+        s.nachname,
+        `${s.vorname || ''} ${s.nachname || ''}`,
+        `${s.nachname || ''} ${s.vorname || ''}`,
+        s.ikmNummer,
+        s.sv_nummer,
+      ].some((value) => String(value || '').toLowerCase().includes(normalizedSearch));
 
-        if (activeFilter === 'daz') return s.daz;
-        if (activeFilter === 'spf') return s.spf;
-        if (activeFilter === 'espf') return s.espf;
-        
-        return true;
-      })
-      .sort((a, b) => {
-        let comparison = 0;
-        if (sortBy === 'nachname') {
-          comparison = (a.nachname || '').localeCompare(b.nachname || '', 'de');
-        } else if (sortBy === 'vorname') {
-          comparison = (a.vorname || '').localeCompare(b.vorname || '', 'de');
-        } else if (sortBy === 'alter') {
-          const dateA = a.geburtstag ? new Date(a.geburtstag).getTime() : 0;
-          const dateB = b.geburtstag ? new Date(b.geburtstag).getTime() : 0;
-          comparison = dateA - dateB;
-        }
-        return sortOrder === 'asc' ? comparison : -comparison;
-      });
+      if (!matchesSearch) return false;
+      if (activeFilter === 'daz') return s.daz;
+      if (activeFilter === 'spf') return s.spf;
+      if (activeFilter === 'espf') return s.espf;
+      return true;
+    });
+
+    return sortStudentsForList(filtered, sortBy, sortOrder);
   }, [schueler, searchTerm, activeFilter, sortBy, sortOrder]);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingStudent && editingStudent.nachname) {
-      const student = {
-        ...editingStudent,
-        id: editingStudent.id || Date.now().toString(),
-        name: `${editingStudent.vorname} ${editingStudent.nachname}`.trim(),
-        niveau: editingStudent.niveau || 3,
-        vorname: editingStudent.vorname || '',
-      } as Student;
-      updateStudent(student);
-      setIsModalOpen(false);
-      setEditingStudent(null);
-    }
+    const vorname = editingStudent?.vorname?.trim() || '';
+    const nachname = editingStudent?.nachname?.trim() || '';
+    if (!editingStudent || !vorname || !nachname) return;
+
+    const student = {
+      ...editingStudent,
+      id: editingStudent.id || crypto.randomUUID(),
+      name: `${vorname} ${nachname}`,
+      niveau: editingStudent.niveau || 3,
+      vorname,
+      nachname,
+    } as Student;
+    updateStudent(student);
+    setIsModalOpen(false);
+    setEditingStudent(null);
+  };
+
+  const handleDeleteStudent = (student: Student) => {
+    const fullName = `${student.vorname} ${student.nachname}`.trim();
+    const confirmed = confirm(
+      `${fullName} wirklich aus dieser Klasse löschen?\n\nDabei werden auch die zu diesem Kind gespeicherten Notizen, Anwesenheiten, Bewertungen, Diagnostik-, Sitzplan- und Interaktionsdaten aus dieser Klasse entfernt. Finanztransaktionen bleiben für die Kassenbilanz erhalten, werden aber vom Kind entkoppelt.`
+    );
+    if (!confirmed) return;
+
+    if (selectedFolderStudent === student.id) setSelectedFolderStudent(null);
+    if (interactionModalStudent === student.id) setInteractionModalStudent(null);
+    deleteStudent(student.id);
   };
 
   if (selectedFolderStudent) {
@@ -277,13 +276,16 @@ export default function StudentList() {
               
               {/* Personen (M/W) */}
               <div className={`flex flex-col justify-between bg-slate-50 rounded-xl border border-slate-200 ${isCompact ? 'p-2' : 'p-3'}`}>
-                <div className="flex justify-between items-center w-full mb-1">
+                <div className="flex justify-between items-center w-full mb-1 gap-2">
                   <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none">Geschlecht</span>
-                  <span className="text-[0.625rem] font-black text-slate-600">{maleCount}M / {femaleCount}W</span>
+                  <span className="text-[0.5625rem] font-black text-slate-600 text-right">
+                    {maleCount} M · {femaleCount} W{diverseCount > 0 ? ` · ${diverseCount} D` : ''}{unknownGenderCount > 0 ? ` · ${unknownGenderCount} offen` : ''}
+                  </span>
                 </div>
                 <div className="w-full bg-slate-200/60 rounded-full h-1.5 flex overflow-hidden">
-                  <div className="bg-blue-500 transition-all duration-500" style={{ width: `${schueler.length ? (maleCount / schueler.length) * 100 : 50}%` }} />
-                  <div className="bg-rose-500 transition-all duration-500" style={{ width: `${schueler.length ? (femaleCount / schueler.length) * 100 : 50}%` }} />
+                  <div className="bg-blue-500 transition-all duration-500" style={{ width: `${schueler.length ? (maleCount / schueler.length) * 100 : 0}%` }} />
+                  <div className="bg-rose-500 transition-all duration-500" style={{ width: `${schueler.length ? (femaleCount / schueler.length) * 100 : 0}%` }} />
+                  <div className="bg-violet-500 transition-all duration-500" style={{ width: `${schueler.length ? (diverseCount / schueler.length) * 100 : 0}%` }} />
                 </div>
               </div>
 
@@ -526,7 +528,22 @@ export default function StudentList() {
           </div>
         </div>
 
-  {schueler.length > 0 && viewMode === 'list' ? (
+  {filteredStudents.length === 0 ? (
+        <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center print:hidden">
+          <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-300 mb-4">
+            <Search size={20} />
+          </div>
+          <h4 className="font-black text-slate-900">Keine passenden Schüler:innen</h4>
+          <p className="text-sm text-slate-500 mt-1">Passe die Suche oder den Filter an.</p>
+          <button
+            type="button"
+            onClick={() => { setSearchTerm(''); setActiveFilter('all'); }}
+            className="mt-4 px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-wider hover:bg-slate-800 transition-colors"
+          >
+            Suche & Filter zurücksetzen
+          </button>
+        </div>
+      ) : viewMode === 'list' ? (
         <div className={`bg-white border border-slate-200 shadow-sm overflow-x-auto flex flex-col ${
           isCompact ? 'rounded-xl' : isLarge ? 'rounded-3xl' : 'rounded-2xl'
         }`}>
@@ -681,7 +698,7 @@ export default function StudentList() {
                        <button onClick={e => { e.stopPropagation(); setSelectedFolderStudent(s.id); }} aria-label={`Dossier von ${s.vorname} ${s.nachname} öffnen`} className={`text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Dossier öffnen"><GraduationCap size={isCompact ? 14 : isLarge ? 18 : 16} strokeWidth={2.5} /></button>
                        <button onClick={e => { e.stopPropagation(); setInteractionModalStudent(s.id); }} aria-label={`Notiz oder Interaktion für ${s.vorname} ${s.nachname}`} className={`text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Notiz oder Interaktion"><MessageSquare size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
                        <button onClick={e => { e.stopPropagation(); setEditingStudent(s); setIsModalOpen(true); }} aria-label={`${s.vorname} ${s.nachname} bearbeiten`} className={`text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Bearbeiten"><Edit2 size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
-                       <button onClick={e => { e.stopPropagation(); if(confirm('Sicher löschen?')) deleteStudent(s.id); }} aria-label={`${s.vorname} ${s.nachname} löschen`} className={`text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Löschen"><Trash2 size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
+                       <button onClick={e => { e.stopPropagation(); handleDeleteStudent(s); }} aria-label={`${s.vorname} ${s.nachname} löschen`} className={`text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Löschen"><Trash2 size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
                     </div>
                  </motion.div>
                  );
@@ -1347,9 +1364,18 @@ export default function StudentList() {
       {isKlassenlistImportOpen && (
         <KlassenlistenImport
           onClose={() => setIsKlassenlistImportOpen(false)}
-          onImport={(kids) => {
-            kids.forEach(student => {
-              updateStudent(student);
+          onImport={(kids, meta) => {
+            setApp(prev => {
+              const merged = mergeImportedStudents(prev.schueler || [], kids);
+              return {
+                ...prev,
+                schueler: merged.students,
+                ...(meta?.klasse ? { klassenbezeichnung: meta.klasse } : {}),
+                ...(meta?.schuljahr ? { schuljahr: meta.schuljahr } : {}),
+                ...(meta?.lehrerName ? { lehrerName: meta.lehrerName } : {}),
+                ...(meta?.schulName ? { schulName: meta.schulName } : {}),
+                ...(meta?.schulkennzahl ? { schulkennzahl: meta.schulkennzahl } : {}),
+              };
             });
             setIsKlassenlistImportOpen(false);
           }}
@@ -1441,6 +1467,7 @@ export default function StudentList() {
                         <option value="">–</option>
                         <option value="weiblich">weiblich</option>
                         <option value="männlich">männlich</option>
+                        <option value="divers">divers</option>
                       </select>
                     </div>
                     <div className="space-y-0.5">
@@ -1474,7 +1501,7 @@ export default function StudentList() {
                          type="date"
                          aria-label="Geburtsdatum"
                          className="input-field py-2 sm:py-3"
-                         value={editingStudent?.geburtstag || ''}
+                         value={toDateInputValue(editingStudent?.geburtstag)}
                          onChange={e => setEditingStudent({...editingStudent, geburtstag: e.target.value})}
                        />
                      </div>
@@ -2158,7 +2185,8 @@ export default function StudentList() {
               <button 
                 type="submit"
                 form="student-form"
-                className="btn btn-accent flex-1 py-3 sm:py-4 shadow-xl shadow-accent/20 order-1 sm:order-2"
+                disabled={!editingStudent?.vorname?.trim() || !editingStudent?.nachname?.trim()}
+                className="btn btn-accent flex-1 py-3 sm:py-4 shadow-xl shadow-accent/20 order-1 sm:order-2 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {editingStudent?.id ? 'Speichern' : 'Anlegen'}
               </button>
@@ -2230,7 +2258,7 @@ export default function StudentList() {
 
         <div className="mt-8 pt-4 border-t border-slate-200 grid grid-cols-2 gap-4 sm:p-8 text-[0.625rem] text-slate-400 font-bold uppercase tracking-wider print:break-inside-avoid">
           <div>Zusammenfassung: Gesucht/Gefiltert: {filteredStudents.length} von {schueler.length} Schüler/innen</div>
-          <div className="text-right">Klassenliste • Gedruckt mit SchoolBase Pro</div>
+          <div className="text-right">Klassenliste • Gedruckt mit Klassio</div>
         </div>
       </div>
 

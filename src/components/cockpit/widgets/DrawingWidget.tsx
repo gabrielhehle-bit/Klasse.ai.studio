@@ -1,3 +1,4 @@
+import { createTafelCommand } from '../../../lib/tafelCommands';
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   Pen,
@@ -339,6 +340,7 @@ export const DrawingWidget: React.FC<DrawingWidgetProps> = ({
             timestamp: Date.now(),
           },
           isTafelOpen: true,
+          tafelCommand: createTafelCommand(prev.activeClassId, true),
         },
       }));
     }

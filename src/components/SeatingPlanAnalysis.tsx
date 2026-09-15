@@ -13,6 +13,7 @@ import {
   Award,
   BookOpen
 } from 'lucide-react';
+import { areSeatingNeighbors, findSeatingRuleViolations, getSeatZone, sameSeat } from '../lib/seatingPlanRules';
 
 interface Student {
   id: string;
@@ -56,14 +57,6 @@ export default function SeatingPlanAnalysis({
     return students.filter(s => !seatPlan[s.id]);
   }, [students, seatPlan]);
 
-  // 2. Identify neighbors helper
-  const areNeighbors = (p1: { x: number, y: number }, p2: { x: number, y: number }) => {
-    const dx = Math.abs(p1.x - p2.x);
-    const dy = Math.abs(p1.y - p2.y);
-    // Standard double desk or adjacent seating threshold
-    return (dx < 160 && dy < 60) || (dx < 60 && dy < 160);
-  };
-
   // 3. Compute Metrics
   const analysis = useMemo(() => {
     let totalPlaced = placedStudents.length;
@@ -92,8 +85,9 @@ export default function SeatingPlanAnalysis({
     let dazSpfFrontCount = 0;
     const dazSpfInFront: string[] = [];
 
-    // Blackboard or Teacher desk position
-    const mainBoard = objects.find(o => o.type === 'blackboard') || { x: 500, y: 15 };
+    const allPlacedPositions = placedStudents
+      .map(student => seatPlan[student.id])
+      .filter(Boolean);
 
     // Process relationships and seating matches
     for (let i = 0; i < placedStudents.length; i++) {
@@ -104,8 +98,9 @@ export default function SeatingPlanAnalysis({
       // Check DaZ/SPF distance to front (blackboard at y=15)
       if (s1.daz || s1.spf || s1.espf) {
         dazSpfCount++;
-        // Considered "front" if y-coordinate is in the top 45% of the active room space (typically y < 380)
-        if (pos1.y < 380) {
+        // "Vorne" follows the actual blackboard position, even if the board
+        // is placed at the bottom or side of the room.
+        if (getSeatZone(pos1, allPlacedPositions, objects) === 'vorne') {
           dazSpfFrontCount++;
           dazSpfInFront.push(s1.id);
         }
@@ -117,7 +112,7 @@ export default function SeatingPlanAnalysis({
         const pos2 = seatPlan[s2.id];
         if (!pos2) continue;
 
-        if (areNeighbors(pos1, pos2)) {
+        if (areSeatingNeighbors(pos1, pos2)) {
           doubleChairsCount++;
 
           // A. Gender balance
@@ -155,7 +150,7 @@ export default function SeatingPlanAnalysis({
         if (friend) {
           totalWishes++;
           const friendPos = seatPlan[friend.id];
-          if (friendPos && areNeighbors(pos1, friendPos)) {
+          if (friendPos && areSeatingNeighbors(pos1, friendPos)) {
             fulfilledWishes++;
             fulfilledWishesStudents.push(s1.id, friend.id);
           } else {
@@ -171,7 +166,7 @@ export default function SeatingPlanAnalysis({
         if (rival) {
           totalConflicts++;
           const rivalPos = seatPlan[rival.id];
-          if (rivalPos && areNeighbors(pos1, rivalPos)) {
+          if (rivalPos && areSeatingNeighbors(pos1, rivalPos)) {
             violatedConflicts++;
             if (!violatedConflictsPairs.some(pair => (pair[0].id === s1.id && pair[1].id === rival.id) || (pair[0].id === rival.id && pair[1].id === s1.id))) {
               violatedConflictsPairs.push([s1, rival]);
@@ -180,6 +175,13 @@ export default function SeatingPlanAnalysis({
         }
       });
     }
+
+    const explicitRuleViolations = findSeatingRuleViolations(
+      seatPlan,
+      app.sitzplanRegeln || [],
+      students,
+      objects
+    );
 
     // Double counts adjust (wishes & conflicts are checked from both sides)
     const wishRate = totalWishes > 0 ? Math.round((fulfilledWishes / totalWishes) * 100) : 100;
@@ -202,6 +204,7 @@ export default function SeatingPlanAnalysis({
       dazSpfCount,
       dazSpfFrontCount,
       dazSpfRate: dazSpfCount > 0 ? Math.round((dazSpfFrontCount / dazSpfCount) * 100) : 100,
+      explicitRuleViolations,
       
       // Student group IDs for interactive highlighting
       highlightIds: {
@@ -213,7 +216,7 @@ export default function SeatingPlanAnalysis({
         violatedWishes: Array.from(new Set(violatedWishesStudents))
       }
     };
-  }, [placedStudents, students, seatPlan, objects]);
+  }, [placedStudents, students, seatPlan, objects, app.sitzplanRegeln]);
 
   // Smart localized improvement algorithm
   const runSmartOptimization = () => {
@@ -225,6 +228,22 @@ export default function SeatingPlanAnalysis({
 
     // Simple hill-climbing optimization local search
     let bestArrangement = [...currentStudents];
+    const fixedSeatIndices = new Set<number>();
+
+    for (const rule of app.sitzplanRegeln || []) {
+      if (rule.typ !== 'fester_platz' || !rule.schuelerIds?.[0]) continue;
+      const studentIndex = bestArrangement.findIndex(student => student.id === rule.schuelerIds[0]);
+      const targetIndex = rule.position
+        ? currentCoords.findIndex(position => sameSeat(position, rule.position))
+        : studentIndex;
+
+      if (studentIndex >= 0 && targetIndex >= 0 && studentIndex !== targetIndex) {
+        const temp = bestArrangement[targetIndex];
+        bestArrangement[targetIndex] = bestArrangement[studentIndex];
+        bestArrangement[studentIndex] = temp;
+      }
+      if (targetIndex >= 0) fixedSeatIndices.add(targetIndex);
+    }
     
     const evaluate = (arr: Student[]) => {
       let score = 0;
@@ -239,7 +258,7 @@ export default function SeatingPlanAnalysis({
           const p2 = currentCoords[j];
           if (!s2 || !p2) continue;
 
-          if (areNeighbors(p1, p2)) {
+          if (areSeatingNeighbors(p1, p2)) {
             // Wunschpartner
             if ((s1.wunschpartner || []).includes(s2.id)) score += 120;
             if ((s2.wunschpartner || []).includes(s1.id)) score += 120;
@@ -264,6 +283,19 @@ export default function SeatingPlanAnalysis({
           }
         }
       }
+
+      const assignment = Object.fromEntries(
+        arr.map((student, index) => [student.id, currentCoords[index]])
+      );
+      const explicitViolations = findSeatingRuleViolations(
+        assignment,
+        app.sitzplanRegeln || [],
+        students,
+        objects,
+        seatPlan
+      );
+      score -= explicitViolations.length * 5000;
+
       return score;
     };
 
@@ -273,7 +305,7 @@ export default function SeatingPlanAnalysis({
     for (let iteration = 0; iteration < 400; iteration++) {
       const idx1 = Math.floor(Math.random() * bestArrangement.length);
       const idx2 = Math.floor(Math.random() * bestArrangement.length);
-      if (idx1 === idx2) continue;
+      if (idx1 === idx2 || fixedSeatIndices.has(idx1) || fixedSeatIndices.has(idx2)) continue;
 
       // Swap
       const testArr = [...bestArrangement];
@@ -378,6 +410,31 @@ export default function SeatingPlanAnalysis({
               </div>
             </div>
           )}
+
+          {analysis.explicitRuleViolations.length > 0 ? (
+            <div className="bg-rose-50/60 border border-rose-200/70 p-3 rounded-xl space-y-1.5">
+              <span className="font-black text-rose-800 uppercase tracking-wider text-[0.625rem] block">
+                ⚠️ Sitzplan-Regeln verletzt ({analysis.explicitRuleViolations.length})
+              </span>
+              {analysis.explicitRuleViolations.slice(0, 5).map((violation: any) => (
+                <button
+                  key={violation.ruleId}
+                  type="button"
+                  onMouseEnter={() => onHighlightStudents(violation.studentIds)}
+                  onMouseLeave={() => onHighlightStudents(null)}
+                  className="block w-full text-left text-[0.625rem] text-rose-700 bg-white/80 border border-rose-100 rounded-lg px-2 py-1 hover:bg-white transition-colors"
+                >
+                  {violation.message}
+                </button>
+              ))}
+            </div>
+          ) : (app.sitzplanRegeln || []).length > 0 ? (
+            <div className="bg-emerald-50/60 border border-emerald-200/70 p-3 rounded-xl">
+              <span className="font-black text-emerald-800 uppercase tracking-wider text-[0.625rem]">
+                ✓ Alle Sitzplan-Regeln erfüllt
+              </span>
+            </div>
+          ) : null}
 
           {/* Social / Relations */}
           <div>

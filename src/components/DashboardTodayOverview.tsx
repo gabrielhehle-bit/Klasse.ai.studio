@@ -1,3 +1,4 @@
+import DashboardSimpleOverview from './DashboardSimpleOverview';
 import React, { useState } from "react";
 import { useApp } from "../context/AppContext";
 import {
@@ -84,6 +85,7 @@ export interface DashboardTodayOverviewProps {
   absentCount: number;
   presentCount: number;
   attendanceRecorded: boolean;
+  attendanceRequired: boolean;
 
   // Mein Tag Card
   todayLessonCount: number;
@@ -110,7 +112,8 @@ export interface DashboardTodayOverviewProps {
   monthEvents: Array<{ title: string; subtitle?: string; dateLabel?: string; type: string }>;
 }
 
-export default function DashboardTodayOverview({
+export default function DashboardTodayOverview(props: DashboardTodayOverviewProps) {
+  const {
   greeting,
   dateLabel,
   klasseLabel,
@@ -131,6 +134,7 @@ export default function DashboardTodayOverview({
   absentCount,
   presentCount,
   attendanceRecorded,
+  attendanceRequired,
 
   todayLessonCount,
   currentLesson,
@@ -150,12 +154,14 @@ export default function DashboardTodayOverview({
   tomorrowEvents,
   weekEvents,
   monthEvents,
-}: DashboardTodayOverviewProps) {
+} = props;
   const { app, setApp } = useApp();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [upcomingTab, setUpcomingTab] = useState<"morgen" | "woche" | "monat">("morgen");
 
   const primaryLesson = currentLesson || nextLesson;
+
+  if (simpleMode) return <DashboardSimpleOverview {...props} />;
 
   return (
     <div className="space-y-6 w-full">
@@ -244,35 +250,51 @@ export default function DashboardTodayOverview({
                 <span>Anwesenheit</span>
               </span>
               <span className={`px-2 py-0.5 rounded-full text-[0.5625rem] font-black uppercase tracking-wider ${
-                attendanceRecorded
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
-                  : "bg-amber-50 text-amber-700 border border-amber-200/60"
+                !attendanceRequired
+                  ? "bg-slate-50 text-slate-600 border border-slate-200/60"
+                  : attendanceRecorded
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
+                    : "bg-amber-50 text-amber-700 border border-amber-200/60"
               }`}>
-                {attendanceRecorded ? "Geprüft" : "Offen"}
+                {!attendanceRequired ? "Nicht nötig" : attendanceRecorded ? "Geprüft" : "Offen"}
               </span>
             </div>
 
             <div>
               <div className="text-2xl font-black text-slate-900 tracking-tight">
-                {privacyMode ? "••" : `${presentCount} / ${totalStudents}`}
+                {privacyMode
+                  ? "••"
+                  : totalStudents === 0
+                    ? "0"
+                    : !attendanceRequired
+                      ? "—"
+                      : attendanceRecorded
+                        ? `${presentCount} / ${totalStudents}`
+                        : "Offen"}
               </div>
               <p className="text-xs font-bold text-slate-500 mt-0.5">
                 {privacyMode
-                  ? "Verborgen"
-                  : absentCount === 0
-                  ? "Alle anwesend"
-                  : `${absentCount} abwesend`}
+                  ? attendanceRecorded ? "Geprüft" : !attendanceRequired ? "Nicht erforderlich" : "Noch nicht geprüft"
+                  : totalStudents === 0
+                    ? "Noch keine Kinder angelegt"
+                    : !attendanceRequired
+                      ? "Für diesen Tag keine Prüfung geplant"
+                      : !attendanceRecorded
+                        ? "Noch nicht geprüft"
+                        : absentCount === 0
+                          ? "Alle anwesend"
+                          : `${absentCount} abwesend`}
               </p>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={() => onNavigate("anwesenheit")}
+            onClick={() => onNavigate(totalStudents > 0 ? "anwesenheit" : "schueler")}
             className="mt-4 w-full py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
           >
             <UserCheck size={14} />
-            <span>Prüfen</span>
+            <span>{totalStudents > 0 ? "Anwesenheit öffnen" : "Kinder hinzufügen"}</span>
           </button>
         </div>
 
@@ -349,7 +371,7 @@ export default function DashboardTodayOverview({
 
           <button
             type="button"
-            onClick={() => onNavigate(openCollectionsCount > 0 ? "geldsammlung" : "orga")}
+            onClick={() => onNavigate("orga")}
             className="mt-4 w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer"
           >
             <ListTodo size={14} />
@@ -603,10 +625,10 @@ export default function DashboardTodayOverview({
 
           <button
             type="button"
-            onClick={() => onNavigate("kalender")}
+            onClick={() => onNavigate("planung")}
             className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-0.5 cursor-pointer"
           >
-            <span>Kalender</span>
+            <span>Planung</span>
             <ChevronRight size={14} />
           </button>
         </div>
@@ -670,10 +692,10 @@ export default function DashboardTodayOverview({
                     </div>
                     <button
                       type="button"
-                      onClick={() => onNavigate("kalender")}
+                      onClick={() => onNavigate("planung")}
                       className="text-xs font-bold text-indigo-600 hover:underline"
                     >
-                      Öffnen
+                      Planung öffnen
                     </button>
                   </div>
                 ))
@@ -694,7 +716,7 @@ export default function DashboardTodayOverview({
           className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
         >
           <Grid size={14} className="text-indigo-600" />
-          <span>{simpleMode ? "Alle Widgets" : "Einfachmodus"}</span>
+          <span>{simpleMode ? "Alle Widgets" : "Zur kompakten Startseite"}</span>
         </button>
       </div>
     </div>

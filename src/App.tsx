@@ -32,6 +32,10 @@ function lazyRetry<T extends React.ComponentType<any>>(
 }
 
 const Dashboard = lazyRetry(() => import('./components/Dashboard'));
+const KlasseHub = lazyRetry(() => import('./components/KlasseHub'));
+const PlanungHub = lazyRetry(() => import('./components/PlanungHub'));
+const LeistungenHub = lazyRetry(() => import('./components/LeistungenHub'));
+const UnterrichtHub = lazyRetry(() => import('./components/UnterrichtHub'));
 const StudentList = lazyRetry(() => import('./components/StudentList'));
 const Gradebook = lazyRetry(() => import('./components/Gradebook'));
 const AIAssistant = lazyRetry(() => import('./components/AIAssistant'));
@@ -43,6 +47,7 @@ const WeeklyPlan = lazyRetry(() => import('./components/WeeklyPlan'));
 const SeatingPlan = lazyRetry(() => import('./components/SeatingPlan'));
 const Uebergabemappe = lazyRetry(() => import('./components/Uebergabemappe'));
 const Materialbibliothek = lazyRetry(() => import('./components/Materialbibliothek'));
+const CanvaIntegration = lazyRetry(() => import('./components/CanvaIntegration'));
 const Drafts = lazyRetry(() => import('./components/Drafts'));
 const MeetingLogs = lazyRetry(() => import('./components/MeetingLogs'));
 const GradeOverview = lazyRetry(() => import('./components/GradeOverview'));
@@ -139,12 +144,12 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
 
 const MobileRemoteController = lazyRetry(() => import('./components/MobileRemoteController').then(m => ({ default: m.MobileRemoteController })));
 
-const FULL_HEIGHT_PAGES = ['ki-helfer', 'sitzplan', 'elternbrief', 'differenzierung', 'verbal', 'materialien', 'jahresplanung', 'diagnostik', 'stunden', 'eltern', 'orga', 'notenTabelle', 'arbeitsblatt', 'stationenbetrieb', 'planungszentrale'];
+const FULL_HEIGHT_PAGES = ['klasse', 'planung', 'leistungen', 'unterricht', 'canva', 'ki-helfer', 'sitzplan', 'elternbrief', 'differenzierung', 'verbal', 'materialien', 'jahresplanung', 'diagnostik', 'stunden', 'eltern', 'orga', 'notenTabelle', 'arbeitsblatt', 'stationenbetrieb', 'planungszentrale'];
 
 function AppContent() {
   const { app, setApp, setPage } = useApp();
   const { showToast } = useToast();
-  const currentPage = app.currentPage || 'cockpit';
+  const currentPage = app.currentPage || 'dashboard';
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showDiagnostikAnleitung, setShowDiagnostikAnleitung] = useState(false);
@@ -502,7 +507,7 @@ function AppContent() {
         <React.Suspense fallback={
           <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 gap-4">
             <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
-            <div className="text-stone-400 font-mono text-[9px] uppercase tracking-wider font-bold">Lade GabicQuest...</div>
+            <div className="text-stone-400 font-mono text-[9px] uppercase tracking-wider font-bold">Lade Klassio Quest...</div>
           </div>
         }>
           <div className="w-full min-h-full max-w-7xl relative bg-white rounded-[2.5rem] shadow-2xl flex flex-col">
@@ -568,6 +573,10 @@ function AppContent() {
     switch (currentPage) {
       case 'cockpit': return null;
       case 'dashboard': return <Dashboard />;
+      case 'klasse': return <KlasseHub />;
+      case 'planung': return <PlanungHub />;
+      case 'leistungen': return <LeistungenHub />;
+      case 'unterricht': return <UnterrichtHub />;
       case 'schueler': return <StudentList />;
       case 'noten': return <Gradebook />;
       case 'ki-helfer': 
@@ -589,6 +598,7 @@ function AppContent() {
       case 'sitzplan': return <SeatingPlan />;
       case 'uebergabemappe': return <Uebergabemappe />;
       case 'materialien': return <Materialbibliothek />;
+      case 'canva': return <CanvaIntegration />;
       case 'stunden': return <Drafts />;
       case 'eltern': return <MeetingLogs />;
       case 'klassengemeinschaft': return <Klassengemeinschaft />;
@@ -631,7 +641,11 @@ function AppContent() {
 
   const getPageTitle = () => {
     switch (currentPage) {
-      case 'dashboard': return 'Dashboard';
+      case 'dashboard': return 'Heute';
+      case 'klasse': return 'Klasse';
+      case 'planung': return 'Planung';
+      case 'leistungen': return 'Leistungen';
+      case 'unterricht': return 'Unterricht';
       case 'schueler': return 'Schüler';
       case 'noten': return 'Notenmappe';
       case 'ki-helfer':
@@ -640,7 +654,7 @@ function AppContent() {
       case 'ki-recht':
       case 'ki-stationenbetrieb':
         return 'KI Helfer';
-      case 'cockpit': return 'LEHRERCOCKPIT';
+      case 'cockpit': return 'Lehrercockpit';
       case 'sitzplan': return 'Sitzplan';
       case 'anwesenheit': return 'Anwesenheit';
       case 'verhalten': return 'Verhalten & Notizen';
@@ -648,6 +662,7 @@ function AppContent() {
       case 'wochenplanung': return 'Wochenplanung';
       case 'uebergabemappe': return 'Übergabemappe';
       case 'materialien': return 'Materialbibliothek';
+      case 'canva': return 'Canva';
       case 'stunden': return 'Stundenentwürfe';
       case 'eltern': return 'Erläuterungen';
       case 'klassengemeinschaft': return 'Wir-Gefühl & Klasse';
@@ -663,6 +678,7 @@ function AppContent() {
       case 'vertretung': return 'Vertretungsplan';
       case 'jahresbericht': return 'Jahresbericht';
       case 'stimmnotizen': return 'Stimm-Notizen';
+      case 'stationenbetrieb': return 'Stationenbetrieb';
       case 'archiv': return 'Archiv';
       case 'datensicherung': return 'Datensicherung';
       case 'settings': return 'Einstellungen';
@@ -755,7 +771,7 @@ function AppContent() {
                 <Sparkles size={20} className="text-white" />
               </div>
               <p className="text-[0.875rem] font-bold leading-tight">
-                Du erkundest GABIC gerade mit einer Beispielklasse. Möchtest du eine eigene Klasse anlegen oder die Beispieldaten als Basis behalten?
+                Du erkundest Klassio gerade mit einer Beispielklasse. Möchtest du eine eigene Klasse anlegen oder die Beispieldaten als Basis behalten?
               </p>
             </div>
             <div className="flex items-center gap-3 w-full md:w-auto">
@@ -865,7 +881,7 @@ function AppContent() {
               </div>
             }>
               <Unterrichtsmodus onClose={() => {
-                setPage('dashboard');
+                setPage('unterricht');
               }} />
             </React.Suspense>
           </motion.div>
