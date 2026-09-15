@@ -42,6 +42,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} />, section: 'Unterricht' },
     { id: 'cockpit', label: 'LEHRERCOCKPIT', icon: <Play size={14} />, section: 'Unterricht' },
     { id: 'ki-helfer', label: 'KI Helfer', icon: <Bot size={14} />, section: 'Unterricht' },
+    { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={14} />, section: 'Unterricht' },
     { id: 'schueler', label: 'Schüler', icon: <Users size={14} />, section: 'Werkzeuge' },
     { id: 'sitzplan', label: 'Sitzplan', icon: <MapIcon size={14} />, section: 'Werkzeuge' },
     { id: 'anwesenheit', label: 'Anwesenheit', icon: <Pin size={14} />, section: 'Werkzeuge' },
@@ -64,6 +65,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
       { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
       { id: 'cockpit', label: 'LEHRERCOCKPIT', icon: <Play size={18} />, highlight: true },
       { id: 'ki-helfer', label: 'KI Helfer', icon: <Bot size={18} />, highlight: true },
+      { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={18} /> },
     ]},
     { section: 'Werkzeuge', items: [
       { id: 'schueler', label: 'Schüler', icon: <Users size={18} /> },
