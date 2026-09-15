@@ -3736,7 +3736,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
   };
 
   return (
-    <div className="statistics-shell h-full flex flex-col py-1 space-y-4 max-w-7xl mx-auto w-full text-slate-900">
+    <div className="statistics-shell h-full flex flex-col py-1 space-y-4 max-w-[1180px] mx-auto w-full px-3 sm:px-5 lg:px-6 text-[var(--text-primary,var(--text))]">
       <AnimatePresence>
         {kelDetailFach && (() => {
           const detailFach = kelDetailFach;
@@ -3939,7 +3939,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
       
       {/* Real-time Sub Filter Controls: 3 Hauptbereiche */}
       <div className="flex justify-center w-full pb-2">
-        <div className="flex flex-wrap bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full md:w-auto gap-1">
+        <div className="flex flex-wrap bg-[var(--surface-subtle,var(--surface2))] p-1 rounded-xl border border-[var(--border-subtle,var(--border))] w-full md:w-auto gap-1">
           <button
             type="button"
             aria-pressed={selectedStudentId === null && activeTab === 'stats'}
@@ -3949,8 +3949,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
             }}
             className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[0.75rem] leading-tight font-black uppercase tracking-wider transition-all cursor-pointer ${
               selectedStudentId === null && activeTab === 'stats'
-                ? 'bg-white text-indigo-650 shadow-md border border-slate-200/50 scale-[1.01]'
-                : 'text-slate-500 hover:text-slate-950 hover:bg-slate-50/60'
+                ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm border border-transparent'
+                : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))] hover:bg-[var(--surface-card,var(--surface))]'
             }`}
           >
             <BarChart3 size={15} className={selectedStudentId === null && activeTab === 'stats' ? "text-indigo-600" : "text-slate-400"} />
@@ -3964,8 +3964,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
             }}
             className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[0.75rem] leading-tight font-black uppercase tracking-wider transition-all cursor-pointer ${
               selectedStudentId !== null || activeTab === 'profiles'
-                ? 'bg-white text-indigo-650 shadow-md border border-slate-200/50 scale-[1.01]'
-                : 'text-slate-500 hover:text-slate-950 hover:bg-slate-50/60'
+                ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm border border-transparent'
+                : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))] hover:bg-[var(--surface-card,var(--surface))]'
             }`}
           >
             <User size={15} className={selectedStudentId !== null || activeTab === 'profiles' ? "text-indigo-600" : "text-slate-400"} />
@@ -3980,8 +3980,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
             }}
             className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[0.75rem] leading-tight font-black uppercase tracking-wider transition-all cursor-pointer ${
               selectedStudentId === null && (activeTab === 'mehr' || activeTab === 'lehrer')
-                ? 'bg-white text-indigo-650 shadow-md border border-slate-200/50 scale-[1.01]'
-                : 'text-slate-500 hover:text-slate-950 hover:bg-slate-50/60'
+                ? 'bg-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm border border-transparent'
+                : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))] hover:bg-[var(--surface-card,var(--surface))]'
             }`}
           >
             <MoreHorizontal size={15} className={selectedStudentId === null && (activeTab === 'mehr' || activeTab === 'lehrer') ? "text-indigo-600" : "text-slate-400"} />
@@ -4017,10 +4017,10 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
             {activeTab === 'stats' && (
               <div className="space-y-6 animate-fade-in">
                 {/* Header Banner */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight">Klassenübersicht & Pädagogische Impulse</h3>
-                    <p className="text-xs font-bold text-slate-400 mt-1">
+                    <h3 className="text-xl font-black text-[var(--text-primary,var(--text))] tracking-tight">Klassenübersicht & Pädagogische Impulse</h3>
+                    <p className="text-xs font-medium text-[var(--text-muted,var(--text3))] mt-1">
                       Auf einen Blick: Wo steht die Klasse und welche Bereiche verdienen besondere Aufmerksamkeit?
                     </p>
                   </div>
@@ -4030,7 +4030,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                       setActiveTab('mehr');
                       setMehrSubTab('charts');
                     }}
-                    className="flex items-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-black text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer border border-indigo-150 shrink-0"
+                    className="flex items-center gap-2 bg-[var(--accent-soft)] hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--accent)] font-bold text-xs px-4 py-2.5 rounded-xl transition-colors cursor-pointer border border-[var(--accent)]/20 shrink-0"
                   >
                     <BarChart3 size={15} />
                     Alle Statistiken & Detaildiagramme
@@ -4039,37 +4039,37 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
 
                 {/* 6 Compact KPI Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                  <div className="bg-[var(--surface-card,var(--surface))] p-4 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col justify-between">
                     <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Leistung</div>
                     <div className="text-2xl font-black text-slate-900 my-1 tabular-nums">{stats.averageLabel}</div>
                     <div className="text-[0.625rem] text-slate-450 font-bold">{stats.averageDescriptor}</div>
                   </div>
 
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                  <div className="bg-[var(--surface-card,var(--surface))] p-4 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col justify-between">
                     <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Anwesenheit</div>
                     <div className="text-2xl font-black text-rose-600 my-1 tabular-nums">{classAttendance.unexcusedTotal} h</div>
                     <div className="text-[0.625rem] text-slate-450 font-bold">Unentschuldigt</div>
                   </div>
 
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                  <div className="bg-[var(--surface-card,var(--surface))] p-4 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col justify-between">
                     <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Entwicklung</div>
                     <div className="text-2xl font-black text-amber-600 my-1 tabular-nums">{classOverviewMetrics.attentionPerformanceCount} ↘</div>
                     <div className="text-[0.625rem] text-slate-450 font-bold">Leistungsindex &lt; 40 %</div>
                   </div>
 
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                  <div className="bg-[var(--surface-card,var(--surface))] p-4 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col justify-between">
                     <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Positiv</div>
                     <div className="text-2xl font-black text-emerald-600 my-1 tabular-nums">{classOverviewMetrics.strongPerformanceCount} ↗</div>
                     <div className="text-[0.625rem] text-slate-450 font-bold">Leistungsindex ≥ 80 %</div>
                   </div>
 
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                  <div className="bg-[var(--surface-card,var(--surface))] p-4 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col justify-between">
                     <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Blinde Flecken</div>
                     <div className="text-2xl font-black text-slate-700 my-1 tabular-nums">{classOverviewMetrics.blindSpotStudents.length} ❓</div>
                     <div className="text-[0.625rem] text-slate-450 font-bold">Keine Notiz seit &gt;4W</div>
                   </div>
 
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+                  <div className="bg-[var(--surface-card,var(--surface))] p-4 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col justify-between">
                     <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Offene Hinweise</div>
                     <div className="text-2xl font-black text-indigo-600 my-1 tabular-nums">{classOverviewMetrics.openAlertCount} ⚠️</div>
                     <div className="text-[0.625rem] text-slate-450 font-bold">Fehlzeiten & Diagnostik</div>
@@ -4077,7 +4077,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                 </div>
 
                 {/* Section: Was fällt auf? */}
-                <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4">
+                <div className="bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black">
                       💡
@@ -4090,7 +4090,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
                     {classNoticeInsights.map((insight) => (
-                      <div key={insight.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-150 space-y-2">
+                      <div key={insight.id} className="p-4 rounded-2xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))] space-y-2">
                         <div className="flex items-center justify-between">
                           <span className={`text-[0.625rem] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg border ${insight.badgeColor}`}>
                             {insight.badge}
