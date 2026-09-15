@@ -42,7 +42,7 @@ interface DiagnosticClassProps {
   onBackToHome: () => void;
   activeClassId?: string;
   activeClassName?: string;
-  onSaveDiagnosticResults?: (results: DiagnosticResult[]) => void;
+  onSaveDiagnosticResults?: (results: DiagnosticResult[]) => boolean;
   onStartIndividualTest?: (studentId: string, competencyId?: string, gradeLevel?: number) => void;
   onNavigateToResults?: () => void;
 }
@@ -225,10 +225,13 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
 
   // Save All Evaluated Results
   const handleSaveAllResults = (results: DiagnosticResult[]) => {
-    if (onSaveDiagnosticResults) {
-      onSaveDiagnosticResults(results);
+    const saved = onSaveDiagnosticResults ? onSaveDiagnosticResults(results) : false;
+    if (!saved) {
+      setScreeningErrorMessage('Die Screening-Ergebnisse wurden nicht gespeichert. Bitte Zuordnung und aktive Klasse prüfen.');
+      return;
     }
     setSavedSuccessMessage(`${results.length} Screening-Ergebnisse wurden erfolgreich gespeichert.`);
+    setScreeningErrorMessage(null);
     setEvaluatedResults(null);
     setIsRunningScreening(false);
     setSelectedCompetencyId(null);
