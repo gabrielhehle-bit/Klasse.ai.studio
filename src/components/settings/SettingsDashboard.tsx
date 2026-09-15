@@ -88,22 +88,22 @@ export default function SettingsDashboard({
   return (
     <div className="space-y-6">
       {/* Intro Banner */}
-      <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white rounded-[2rem] p-6 md:p-8 shadow-xl shadow-emerald-900/10 relative overflow-hidden">
+      <div className="bg-[var(--surface-card,var(--surface))] text-[var(--text-primary,var(--text))] rounded-2xl p-6 md:p-7 border border-[var(--border-subtle,var(--border))] shadow-sm relative overflow-hidden">
         <div className="relative z-10 max-w-2xl space-y-2">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/15 backdrop-blur-md rounded-full text-xs font-black uppercase tracking-wider text-emerald-100">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[var(--accent-soft)] rounded-full text-xs font-bold tracking-wide text-[var(--accent)] border border-[var(--accent)]/15">
             <Info size={14} />
             Übersichtliche Verwaltung
           </div>
           <h2 className="text-xl md:text-2xl font-black tracking-tight font-sans">
             Möchtest du Anpassungen an deiner Klassio vornehmen?
           </h2>
-          <p className="text-sm text-emerald-100 font-medium leading-relaxed">
+          <p className="text-sm text-[var(--text-secondary,var(--text2))] font-medium leading-relaxed">
             Wähle unten einen der 6 Hauptbereiche aus. Änderungen werden im lokalen App-Datenstand gespeichert. Löschfunktionen sind getrennt im Gefahrenbereich abgesichert.
           </p>
         </div>
 
         {/* Decorative circle */}
-        <div className="absolute -right-12 -bottom-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none blur-2xl" />
+        <div className="absolute -right-12 -bottom-12 w-64 h-64 rounded-full bg-[var(--accent-soft)] pointer-events-none blur-2xl opacity-70" />
       </div>
 
       {/* 6 Tiles Grid */}
@@ -117,7 +117,7 @@ export default function SettingsDashboard({
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.05 }}
-              className="bg-white hover:bg-slate-50/80 rounded-[2rem] border border-stone-200/80 p-6 text-left transition-all cursor-pointer group flex flex-col justify-between gap-6 shadow-sm hover:shadow-md hover:border-emerald-300 relative overflow-hidden"
+              className="bg-[var(--surface-card,var(--surface))] hover:bg-[var(--surface-subtle,var(--surface2))] rounded-2xl border border-[var(--border-subtle,var(--border))] p-5 text-left transition-colors cursor-pointer group flex flex-col justify-between gap-5 shadow-sm hover:border-[var(--accent)]/35 relative overflow-hidden"
             >
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-3">
@@ -130,21 +130,21 @@ export default function SettingsDashboard({
                 </div>
 
                 <div className="space-y-1">
-                  <h3 className="text-base font-black text-slate-900 group-hover:text-emerald-700 transition-colors">
+                  <h3 className="text-base font-black text-[var(--text-primary,var(--text))] group-hover:text-[var(--accent)] transition-colors">
                     {tile.title}
                   </h3>
-                  <p className="text-xs font-bold text-slate-500">
+                  <p className="text-xs font-bold text-[var(--text-secondary,var(--text2))]">
                     {tile.subtitle}
                   </p>
-                  <p className="text-xs text-slate-400 font-medium leading-relaxed pt-1">
+                  <p className="text-xs text-[var(--text-muted,var(--text3))] font-medium leading-relaxed pt-1">
                     {tile.desc}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-stone-100 text-xs font-black uppercase tracking-wider text-slate-600 group-hover:text-emerald-600">
+              <div className="flex items-center justify-between pt-3 border-t border-[var(--border-subtle,var(--border))] text-xs font-bold text-[var(--text-secondary,var(--text2))] group-hover:text-[var(--accent)]">
                 <span>Bereich öffnen</span>
-                <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                <ChevronRight size={16} className="transition-transform" />
               </div>
             </motion.button>
           );
