@@ -22,7 +22,7 @@ export interface SchoolRecord {
   code: string;
   name: string;
   country: 'AT';
-  federalState: AustrianFederalState;
+  federalState: AustrianFederalState | 'Unbekannt';
   domains: string[];
   status: 'verified';
   createdAt: string;
@@ -165,7 +165,7 @@ export class SchoolRegistryStore {
           code: schoolCodeFromDomain(domain),
           name: domain,
           country: 'AT',
-          federalState: domain.endsWith('.vobs.at') || domain === 'vobs.at' ? 'Vorarlberg' : 'Wien',
+          federalState: domain.endsWith('.vobs.at') || domain === 'vobs.at' ? 'Vorarlberg' : 'Unbekannt',
           domains: [domain],
           status: 'verified',
           createdAt: now,
