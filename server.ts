@@ -9,8 +9,10 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { KI_SYSTEM_PROMPTS, GLOBAL_KI_RULES } from "./src/kiSystemPrompts.ts";
 import { validateAiServerImageRequest } from "./src/lib/aiPrivacy.ts";
 import { getServerSyncTimestamps, isSyncSessionExpired } from "./src/lib/syncServerPolicy.ts";
-import { createTeacherIdentity, displayNameFromEmail, handleFromEmail, type TeacherIdentity } from "./src/server/teacherIdentity.ts";
+import { createTeacherIdentityForSchool, displayNameFromEmail, handleFromEmail, type TeacherIdentity } from "./src/server/teacherIdentity.ts";
 import { createLehrerzimmerStore, type LehrerzimmerCategory } from "./src/server/lehrerzimmerStore.ts";
+import { createSchoolRegistryStore, type AustrianFederalState } from "./src/server/schoolRegistry.ts";
+import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from "./src/data/austrianSchoolRegistry.seed.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
 // that do `typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url))`
@@ -182,6 +184,10 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
   const KLASSIO_DATA_DIR = (process.env.KLASSIO_DATA_DIR || path.join(process.cwd(), 'data')).trim();
   const lehrerzimmerStore = createLehrerzimmerStore(KLASSIO_DATA_DIR);
+  const schoolRegistryStore = createSchoolRegistryStore(KLASSIO_DATA_DIR);
+  await schoolRegistryStore.ensureSeedSchools(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS);
+  await schoolRegistryStore.ensureLegacyDomains(ALLOWED_EMAIL_DOMAINS);
+  const SCHOOL_ADMIN_TOKEN = (process.env.KLASSIO_SCHOOL_ADMIN_TOKEN || '').trim();
 
   type EmailAccessChallenge = {
     codeHash: string;
@@ -331,6 +337,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       schoolId: payload.schoolId,
       schoolCode: payload.schoolCode,
       schoolDomain: payload.schoolDomain,
+      schoolName: payload.schoolName,
+      schoolFederalState: payload.schoolFederalState,
       displayName: payload.displayName || 'Lehrperson',
       handle: payload.handle || 'lehrperson',
     };
