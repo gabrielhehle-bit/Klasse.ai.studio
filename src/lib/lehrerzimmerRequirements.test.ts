@@ -27,6 +27,14 @@ test('Schul-E-Mail wird deterministisch genau einer Schulgruppe zugeordnet', () 
     null,
     'Fremde Domains dürfen keine Schulidentität erhalten.'
   );
+
+  const broadAllowed = createTeacherIdentity('gabriel.hehle@vsfoa.vobs.at', ['vobs.at']);
+  assert.ok(broadAllowed);
+  assert.equal(
+    broadAllowed.schoolId,
+    'vsfoa.vobs.at',
+    'Eine breite Freigabe darf verschiedene Schul-Domains nicht zu einer gemeinsamen Gruppe zusammenfassen.'
+  );
 });
 
 test('Lehrerzimmer trennt Beiträge strikt nach verifizierter Schulgruppe', async () => {
