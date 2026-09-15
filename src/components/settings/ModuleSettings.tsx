@@ -3,16 +3,10 @@ import {
   LayoutGrid, 
   Search, 
   Check, 
-  EyeOff, 
-  Info, 
-  School, 
-  Calendar, 
-  BookOpen, 
-  Backpack, 
-  Sliders 
+  Info
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { AVAILABLE_MODULES } from '../Settings';
+import { AVAILABLE_MODULES } from '../../lib/settingsModuleCatalog';
 
 interface ModuleSettingsProps {
   app: any;
@@ -27,29 +21,7 @@ export default function ModuleSettings({
 
   const disabledModules: string[] = app.settings?.disabledModules || [];
 
-  // Group modules into 4 logical primary school categories
-  const GROUPS = [
-    {
-      title: 'Unterricht & Digitales Board',
-      icon: School,
-      ids: ['cockpit', 'ki-helfer', 'sitzplan']
-    },
-    {
-      title: 'Planung & Stundenbilder',
-      icon: Calendar,
-      ids: ['wochenplanung', 'jahresplanung', 'materialien', 'uebergabemappe']
-    },
-    {
-      title: 'Leistung & Schülerförderung',
-      icon: BookOpen,
-      ids: ['schueler', 'noten', 'diagnostik', 'statistik']
-    },
-    {
-      title: 'Organisation & Klassengemeinschaft',
-      icon: Backpack,
-      ids: ['anwesenheit', 'orga', 'archiv', 'datensicherung']
-    }
-  ];
+  const categories = Array.from(new Set(AVAILABLE_MODULES.map(module => module.category)));
 
   return (
     <div className="space-y-6">
@@ -68,7 +40,7 @@ export default function ModuleSettings({
         <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-100 text-emerald-800 text-xs font-semibold leading-relaxed flex items-start gap-2.5">
           <Info size={16} className="text-emerald-600 shrink-0 mt-0.5" />
           <span>
-            <strong>Deine Daten bleiben 100% sicher erhalten:</strong> Wenn du ein Modul ausblendest, werden nur die Menüeinträge unsichtbar gemacht. Es werden niemals Notizen, Noten oder Einträge gelöscht.
+            <strong>Ausblenden löscht keine Inhalte:</strong> Diese Einstellung verändert nur die Navigation. Vorhandene Notizen, Noten und Einträge des Moduls bleiben im App-Datenbestand erhalten.
           </span>
         </div>
 
@@ -87,30 +59,25 @@ export default function ModuleSettings({
 
       {/* Module Groups */}
       <div className="space-y-6">
-        {GROUPS.map(group => {
-          const GroupIcon = group.icon;
-
-          // Find modules belonging to this group
+        {categories.map(category => {
           const modulesInGroup = AVAILABLE_MODULES.filter(m => {
-            if (group.ids.includes(m.id)) {
-              if (m.condition && !m.condition(app)) return false;
-              if (searchTerm.trim()) {
-                const term = searchTerm.toLowerCase();
-                return m.label.toLowerCase().includes(term) || m.desc.toLowerCase().includes(term);
-              }
-              return true;
+            if (m.category !== category) return false;
+            if (m.condition && !m.condition(app)) return false;
+            if (searchTerm.trim()) {
+              const term = searchTerm.toLowerCase();
+              return m.label.toLowerCase().includes(term) || m.desc.toLowerCase().includes(term);
             }
-            return false;
+            return true;
           });
 
           if (modulesInGroup.length === 0) return null;
 
           return (
-            <div key={group.title} className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 space-y-4 shadow-sm">
+            <div key={category} className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 space-y-4 shadow-sm">
               <div className="flex items-center gap-2.5 border-b border-stone-150 pb-3">
-                <GroupIcon size={18} className="text-indigo-600" />
+                <LayoutGrid size={18} className="text-indigo-600" />
                 <h3 className="text-xs font-black uppercase tracking-wider text-slate-800">
-                  {group.title}
+                  {category}
                 </h3>
                 <span className="px-2 py-0.5 bg-slate-100 rounded-full text-[0.625rem] font-bold text-slate-500">
                   {modulesInGroup.length} Module

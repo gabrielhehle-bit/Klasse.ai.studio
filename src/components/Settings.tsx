@@ -18,24 +18,9 @@ import SyncSettings from './settings/SyncSettings';
 import BackupSettings from './settings/BackupSettings';
 import AdvancedSettings from './settings/AdvancedSettings';
 import DeleteClassModal from './settings/DeleteClassModal';
+import { AVAILABLE_MODULES } from '../lib/settingsModuleCatalog';
 
-export const AVAILABLE_MODULES = [
-  { id: 'cockpit', label: 'LEHRERCOCKPIT', desc: 'Sperren, Timer, Lärmampel, Klassenglas & Tafel', category: 'Unterricht' },
-  { id: 'ki-helfer', label: 'KI Helfer & Assistenten', desc: 'Kreative KI-Tools, Differenzierung, Elternbrief-Generator', category: 'Unterricht' },
-  { id: 'schueler', label: 'Schülerdaten & Profile', desc: 'Schülerliste, Portfolios, Notizen und Stammdaten', category: 'Werkzeuge' },
-  { id: 'sitzplan', label: 'Sitzplan und Gruppen', desc: 'Zufallsgenerator, Gruppenarbeiten & Raumordnung', category: 'Werkzeuge' },
-  { id: 'anwesenheit', label: 'Anwesenheitskontrolle', desc: 'Tägliche Präsenzliste, Fehltage & Verspätungen', category: 'Werkzeuge' },
-  { id: 'noten', label: 'Notenmappe & Mitarbeit', desc: 'Prüfungen, Hausübungen & Mitarbeitspunkte-System', category: 'Werkzeuge' },
-  { id: 'orga', label: 'Klassenkasse & Geldsammlungen', desc: 'Kassenbuch, Belege, Einnahmen/Ausgaben pro Kind', category: 'Werkzeuge', condition: (app: any) => app.klassenvorstand },
-  { id: 'jahresplanung', label: 'Jahres- & Stoffplanung', desc: 'Langzeit-Planer nach Themen & Kalenderwochen', category: 'Planung' },
-  { id: 'wochenplanung', label: 'Wochenplaner & HÜs', desc: 'HÜ-Abgaben, wöchentliche Meilensteine & Pläne', category: 'Planung' },
-  { id: 'materialien', label: 'Materialbibliothek & Entwürfe', desc: 'Unterrichtsmaterialien & fertige Stundenbilder', category: 'Planung' },
-  { id: 'uebergabemappe', label: 'Übergabemappe', desc: 'Klassenübergabe & Schülerbeurteilungen', category: 'Planung', condition: (app: any) => app.klassenvorstand },
-  { id: 'statistik', label: 'Statistik & Profile', desc: 'Analysen und Klassenschnitt-Grafiken', category: 'Extras' },
-  { id: 'diagnostik', label: 'Diagnostik & Förderung', desc: 'Lese- & Rechentests, standardisierte Porträtbögen', category: 'Extras', condition: (app: any) => app.klassenvorstand },
-  { id: 'archiv', label: 'Daten-Archiv', desc: 'Abgeschlossene Schuljahre & Verläufe', category: 'Extras' },
-  { id: 'datensicherung', label: 'Datensicherung (Backup)', desc: 'Daten exportieren, wiederherstellen & löschen', category: 'Extras' }
-];
+
 
 export default function Settings() {
   const { app, setApp, deleteClass } = useApp();
@@ -276,7 +261,9 @@ export default function Settings() {
     }
   };
 
-  const disabledModulesCount = app.settings?.disabledModules?.length || 0;
+  const disabledModulesCount = (app.settings?.disabledModules || []).filter((id: string) =>
+    AVAILABLE_MODULES.some(module => module.id === id)
+  ).length;
   const hasActiveSync = !!app.boardSettings?.activeSyncCode;
 
   return (
