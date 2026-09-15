@@ -106,20 +106,9 @@ export default function WirGefuehl() {
   const [showTeacherMoodDetails, setShowTeacherMoodDetails] = useState(false);
 
   // Klassen-Vertrag (Class Contract) States
-  const [contracts, setContracts] = useState<any[]>(() => {
-    if (app.classContracts && Array.isArray(app.classContracts)) {
-      return app.classContracts;
-    }
-    const saved = localStorage.getItem('class_contracts_v1');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        localStorage.removeItem('class_contracts_v1');
-        return parsed;
-      } catch (e) {}
-    }
-    return [];
-  });
+  const [contracts, setContracts] = useState<any[]>(() =>
+    Array.isArray(app.classContracts) ? app.classContracts : []
+  );
   const [newRuleTitle, setNewRuleTitle] = useState('');
   const [newRuleDesc, setNewRuleDesc] = useState('');
   const [newRuleIcon, setNewRuleIcon] = useState('💡');
@@ -127,20 +116,9 @@ export default function WirGefuehl() {
   const [tempRatings, setTempRatings] = useState<Record<string, number>>({});
 
   // Klassenrat States (Geschützt im verschlüsselten AppState)
-  const [councilNotes, setCouncilNotes] = useState<any[]>(() => {
-    if (app.councilNotes && Array.isArray(app.councilNotes)) {
-      return app.councilNotes;
-    }
-    const saved = localStorage.getItem('council_notes_v1');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        localStorage.removeItem('council_notes_v1');
-        return parsed;
-      } catch (e) {}
-    }
-    return [];
-  });
+  const [councilNotes, setCouncilNotes] = useState<any[]>(() =>
+    Array.isArray(app.councilNotes) ? app.councilNotes : []
+  );
   const [noteType, setNoteType] = useState<'lob' | 'sorge' | 'idee' | 'wunsch'>('lob');
   const [noteContent, setNoteContent] = useState('');
   const [noteFrom, setNoteFrom] = useState('');
@@ -150,14 +128,35 @@ export default function WirGefuehl() {
   const updateContracts = (updated: any[]) => {
     setContracts(updated);
     setApp((prev: any) => ({ ...prev, classContracts: updated }));
-    try { localStorage.removeItem('class_contracts_v1'); } catch {}
   };
 
   const updateCouncilNotes = (updated: any[]) => {
     setCouncilNotes(updated);
     setApp((prev: any) => ({ ...prev, councilNotes: updated }));
-    try { localStorage.removeItem('council_notes_v1'); } catch {}
   };
+
+  useEffect(() => {
+    const migrateLegacyArray = (key: string, current: any[] | undefined, apply: (items: any[]) => void) => {
+      if (Array.isArray(current) && current.length > 0) {
+        try { localStorage.removeItem(key); } catch {}
+        return;
+      }
+      try {
+        const saved = localStorage.getItem(key);
+        if (!saved) return;
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) apply(parsed);
+        localStorage.removeItem(key);
+      } catch {
+        try { localStorage.removeItem(key); } catch {}
+      }
+    };
+
+    migrateLegacyArray('class_contracts_v1', app.classContracts, updateContracts);
+    migrateLegacyArray('council_notes_v1', app.councilNotes, updateCouncilNotes);
+    // Nur einmalige Migration alter Klartext-Browserdaten; neue Daten bleiben im verschlüsselten App-State.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (app.councilNotes && Array.isArray(app.councilNotes)) {
@@ -230,17 +229,11 @@ export default function WirGefuehl() {
   const [isChimePlaying, setIsChimePlaying] = useState<boolean>(false);
   const [chimeProgress, setChimeProgress] = useState<number>(0);
 
-  const [checkedSteps, setCheckedSteps] = useState<{[key: string]: boolean}>(() => {
-    const saved = localStorage.getItem('game_checked_steps_v1');
-    return saved ? JSON.parse(saved) : {};
-  });
+  const [checkedSteps, setCheckedSteps] = useState<{[key: string]: boolean}>({});
 
   const toggleStep = (gameId: string, idx: number) => {
     const key = `${gameId}_${idx}`;
-    const nextChecked = !checkedSteps[key];
-    const updated = { ...checkedSteps, [key]: nextChecked };
-    setCheckedSteps(updated);
-    localStorage.setItem('game_checked_steps_v1', JSON.stringify(updated));
+    setCheckedSteps((previous) => ({ ...previous, [key]: !previous[key] }));
   };
 
   const activeGame = useMemo(() => {
