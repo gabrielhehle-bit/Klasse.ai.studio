@@ -430,6 +430,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
             displayName: identity.displayName,
             handle: identity.handle,
             schoolCode: identity.schoolCode,
+            schoolName: identity.schoolName,
+            schoolFederalState: identity.schoolFederalState,
             schoolDomain: identity.schoolDomain,
           }
         : null,
@@ -666,6 +668,11 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       if (code === 'PUBLIC_EMAIL_DOMAIN') {
         return res.status(400).json({
           error: 'Eine private E-Mail-Domain kann nicht als Schule verifiziert werden. Bitte verwende deine dienstliche Schul-E-Mail.',
+        });
+      }
+      if (code === 'PROVIDER_UMBRELLA_DOMAIN') {
+        return res.status(400).json({
+          error: 'Diese Domain gehört zu einem Bildungsanbieter und ist nicht eindeutig einer einzelnen Schule zugeordnet. Bitte verwende die konkrete Schul-E-Mail-Domain.',
         });
       }
       if (code === 'ALREADY_VERIFIED') {
