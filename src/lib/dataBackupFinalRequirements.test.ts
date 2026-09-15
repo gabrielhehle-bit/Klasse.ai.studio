@@ -82,6 +82,11 @@ test('Datensicherung: Werksreset löscht App-State, Gerätevertrauen und separat
   assert.match(backupComponent, /localStorage\.clear\(\)/);
   assert.match(backupComponent, /sessionStorage\.clear\(\)/);
   assert.match(backupComponent, /clearActiveVaultSession\(\)/);
+  assert.ok(
+    backupComponent.indexOf("resetStep('Lokaler App-Speicher'") <
+      backupComponent.indexOf("resetStep('Tresor-Metadaten'"),
+    'Tresor-Metadaten müssen erst nach dem App-Speicher gelöscht werden'
+  );
   assert.match(vaultStorage, /throw new CryptoError[\s\S]*Tresor-Metadaten konnten nicht vollständig/);
 });
 
