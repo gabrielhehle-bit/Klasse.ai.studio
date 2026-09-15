@@ -39,9 +39,16 @@ export function assertRestorableAppState(state: unknown): asserts state is Recor
   if (data.schueler !== undefined && !Array.isArray(data.schueler)) {
     throw new Error('Die Schülerliste im Backup ist beschädigt.');
   }
-  if (data.classes !== undefined && (!Array.isArray(data.classes) || data.classes.some((c: any) =>
-    !c || typeof c !== 'object' || Array.isArray(c) || (c.schueler !== undefined && !Array.isArray(c.schueler))))) {
+  const validateClassList = (value: unknown) =>
+    Array.isArray(value) && !value.some((c: any) =>
+      !c || typeof c !== 'object' || Array.isArray(c) || (c.schueler !== undefined && !Array.isArray(c.schueler))
+    );
+
+  if (data.classes !== undefined && !validateClassList(data.classes)) {
     throw new Error('Die Klassenliste im Backup ist beschädigt.');
+  }
+  if (data.klassen !== undefined && !validateClassList(data.klassen)) {
+    throw new Error('Die historische Klassenliste im Backup ist beschädigt.');
   }
 }
 
