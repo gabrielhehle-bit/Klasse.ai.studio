@@ -6,7 +6,7 @@ import {
   Info
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { AVAILABLE_MODULES } from '../Settings';
+import { AVAILABLE_MODULES } from '../../lib/settingsModuleCatalog';
 
 interface ModuleSettingsProps {
   app: any;
