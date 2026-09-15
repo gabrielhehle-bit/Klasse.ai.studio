@@ -171,11 +171,15 @@ function SuggestionsGrid() {
       icon: "🧮",
       render: () => {
         const student = activeStudents.find(s => s.id === t1StudentId) || activeStudents[0];
-        const baseGrade = ((student as any)?.note as number) || 2.5;
-        // Calculation: new grade weighted in average
+        const performance = getStudentPerformanceSummary(app, student.id, toolSubjects);
+        const baseGrade = performance.gradeAverage;
         const forecastWeightDecimal = t1NewWeight / 100;
-        const newAverage = Number(((baseGrade * (1 - forecastWeightDecimal)) + (t1NewGrade * forecastWeightDecimal)).toFixed(2));
-        const delta = Number((newAverage - baseGrade).toFixed(2));
+        const newAverage = baseGrade === null
+          ? null
+          : Number(((baseGrade * (1 - forecastWeightDecimal)) + (t1NewGrade * forecastWeightDecimal)).toFixed(2));
+        const delta = baseGrade === null || newAverage === null
+          ? null
+          : Number((newAverage - baseGrade).toFixed(2));
         
         return (
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
@@ -189,9 +193,14 @@ function SuggestionsGrid() {
                   onChange={(e) => setT1StudentId(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-[0.75rem] font-bold text-slate-100 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 focus:outline-none"
                 >
-                  {activeStudents.map(s => (
-                    <option key={s.id} value={s.id}>{s.vorname} {s.nachname} (Schnitt: {s.note || 'None'})</option>
-                  ))}
+                  {activeStudents.map(s => {
+                    const avg = getStudentPerformanceSummary(app, s.id, toolSubjects).gradeAverage;
+                    return (
+                      <option key={s.id} value={s.id}>
+                        {s.vorname} {s.nachname}{avg !== null ? ` (Notenschnitt: ${avg.toFixed(2)})` : ' (keine Notenskala-Daten)'}
+                      </option>
+                    );
+                  })}
                 </select>
 
                 <div className="space-y-1.5">
@@ -228,11 +237,11 @@ function SuggestionsGrid() {
                   <span className="text-[0.5625rem] font-black uppercase text-slate-500 block">Echtzeit-Berechnung</span>
                   <div className="flex justify-between items-baseline border-b border-slate-800/60 pb-2">
                     <span className="text-[0.75rem] text-slate-300 font-bold">Aktueller Schnitt:</span>
-                    <span className="text-md font-extrabold text-slate-200">{baseGrade}</span>
+                    <span className="text-md font-extrabold text-slate-200">{baseGrade !== null ? baseGrade.toFixed(2) : '–'}</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-[0.75rem] text-indigo-300 font-bold">Prognostizierter Schnitt:</span>
-                    <span className="text-xl font-black text-indigo-400">{newAverage}</span>
+                    <span className="text-xl font-black text-indigo-400">{newAverage !== null ? newAverage.toFixed(2) : '–'}</span>
                   </div>
                 </div>
 
@@ -243,12 +252,14 @@ function SuggestionsGrid() {
                     ? 'bg-emerald-950/30 border-emerald-900/40 text-emerald-300' 
                     : 'bg-rose-950/30 border-rose-900/40 text-rose-300'
                 }`}>
-                  {delta === 0 ? (
-                    'Keine Änderung im arithmetischen Mittel.'
+                  {delta === null ? (
+                    'Für diese Simulation werden echte Beurteilungen auf der Notenskala 1–5 benötigt. Prozent- und Punktedaten werden hier bewusst nicht als Noten umgedeutet.'
+                  ) : delta === 0 ? (
+                    'Keine Änderung im simulierten arithmetischen Mittel.'
                   ) : delta < 0 ? (
-                    `📈 Verbesserung um ${Math.abs(delta)} Punkte auf der Notenskala!`
+                    `📈 Simulierte Verbesserung um ${Math.abs(delta)} Punkte auf der Notenskala.`
                   ) : (
-                    `📉 Verschiebung um +${delta} Punkte (Schnitt wird schwächer).`
+                    `📉 Simulierte Verschiebung um +${delta} Punkte auf der Notenskala.`
                   )}
                 </div>
               </div>
@@ -264,8 +275,8 @@ function SuggestionsGrid() {
       icon: "📈",
       render: () => {
         const student = activeStudents.find(s => s.id === t2StudentId) || activeStudents[0];
-        const currentGrade = ((student as any)?.note as number) || 2.5;
-        const diff = Number((t2PrevAvg - currentGrade).toFixed(2));
+        const currentGrade = getStudentPerformanceSummary(app, student.id, toolSubjects).gradeAverage;
+        const diff = currentGrade === null ? null : Number((t2PrevAvg - currentGrade).toFixed(2));
         
         return (
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
@@ -310,7 +321,7 @@ function SuggestionsGrid() {
                     <span className="text-xl">➡️</span>
                     <div className="text-center bg-slate-900 px-3 py-1.5 rounded-lg border border-indigo-950">
                       <span className="block text-[0.5625rem] font-black text-indigo-400">JETZT</span>
-                      <span className="text-sm font-black text-indigo-300">{currentGrade}</span>
+                      <span className="text-sm font-black text-indigo-300">{currentGrade !== null ? currentGrade.toFixed(2) : '–'}</span>
                     </div>
                   </div>
                 </div>
@@ -322,12 +333,14 @@ function SuggestionsGrid() {
                     ? 'bg-rose-950/30 border-rose-955 text-rose-300' 
                     : 'bg-slate-900 border-slate-800 text-slate-400'
                 }`}>
-                  {diff > 0 ? (
-                    `🎉 Hervorragender Eigenfortschritt! Eine Steigerung von +${diff} im Vergleich zur vorherigen Periode.`
+                  {diff === null ? (
+                    'Keine Beurteilungen auf der Notenskala 1–5 vorhanden. Der manuelle Referenzvergleich wird deshalb nicht berechnet.'
+                  ) : diff > 0 ? (
+                    `📈 Simulierte Verbesserung um ${diff} gegenüber dem manuell gesetzten Referenzwert.`
                   ) : diff < 0 ? (
-                    `⚠️ Unterstützung empfohlen. Aktueller Stand liegt um -${Math.abs(diff)} hinter dem persönlichen Bestwert.`
+                    `📉 Aktueller Notenschnitt liegt um ${Math.abs(diff)} über dem manuell gesetzten Referenzwert.`
                   ) : (
-                    `🌱 Konsistent: Exakt stabil im Vergleich zum persönlichen Referenzwert.`
+                    'Der aktuelle Notenschnitt entspricht dem manuell gesetzten Referenzwert.'
                   )}
                 </div>
               </div>
@@ -380,7 +393,10 @@ function SuggestionsGrid() {
 
         return (
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
-            <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">🎯 Kompetenz-Radar & Spidermap</h5>
+            <div className="space-y-1">
+              <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">🎯 Kompetenz-Radar & Spidermap</h5>
+              <p className="text-[0.625rem] text-slate-400 font-bold">Manuelle Gesprächs-/Planungssimulation. Die Regler werden nicht als Diagnostikdaten gespeichert.</p>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
               
               <div className="sm:col-span-4 flex justify-center">
@@ -434,18 +450,7 @@ function SuggestionsGrid() {
                   <select 
                     id="t3-student-select"
                     value={t3StudentId} 
-                    onChange={(e) => {
-                      setT3StudentId(e.target.value);
-                      // Generate simulated skill numbers based on student name to feel real!
-                      const seed = e.target.value.charCodeAt(0) || 3;
-                      setT3Skills({
-                        lese: (seed % 4) + 2,
-                        rechtschreiben: ((seed + 1) % 4) + 2,
-                        text: ((seed + 2) % 4) + 2,
-                        grammatik: ((seed + 3) % 4) + 2,
-                        praesentation: ((seed + 4) % 3) + 3
-                      });
-                    }}
+                    onChange={(e) => setT3StudentId(e.target.value)}
                     className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-[0.7rem] font-bold text-slate-200 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 focus:outline-none"
                   >
                     {activeStudents.map(s => (
@@ -493,42 +498,34 @@ function SuggestionsGrid() {
 
             <div className="space-y-3">
               <span className="text-[0.625rem] text-slate-400 font-bold block leading-relaxed">
-                Diese Auswertung zeigt den direkten Zusammenhang zwischen Fehlzeiten (Fehlstunden) und dem allgemeinen Notendurchschnitt der Schüler in Hauptfächern.
+                Diese Übersicht stellt erfasste Fehlstunden und den skalenübergreifend normalisierten Leistungsindex nebeneinander. Sie behauptet keine Kausalität oder Diagnose.
               </span>
 
               {/* Vertical Chart bar list representing the correlation */}
               <div className="space-y-2.5">
-                {t4ScatterData.map((data, ix) => {
-                  const status = data.fehlstunden > 25 ? '⚠️ Sehr hohe Fehlzeit' : data.fehlstunden > 15 ? '⚠️ Erhöhte Fehlzeit' : '🌱 Unauffällig';
-                  const percentageWidth = Math.min(100, (data.fehlstunden / 40) * 100);
+                {t4ScatterData.length > 0 ? t4ScatterData.map((data, ix) => {
+                  const percentageWidth = Math.min(100, data.fehlstunden > 0 ? (data.fehlstunden / Math.max(...t4ScatterData.map(item => item.fehlstunden), 1)) * 100 : 0);
                   return (
                     <div key={ix} className="p-3 bg-slate-950/45 rounded-xl border border-slate-800/80 space-y-1.5">
                       <div className="flex justify-between items-center text-[0.7rem]">
                         <span className="font-extrabold text-slate-200">{data.name}</span>
-                        <div className="flex gap-2 items-center text-[0.625rem] font-bold">
-                          <span className="text-slate-450">{data.fehlstunden} Fehlstunden</span>
-                          <span className={`px-1.5 py-0.5 rounded text-[0.5625rem] font-black uppercase ${
-                            data.fehlstunden > 25 ? 'bg-rose-950/80 text-rose-300' : data.fehlstunden > 15 ? 'bg-amber-950/80 text-amber-300' : 'bg-emerald-950/80 text-emerald-300'
-                          }`}>{status}</span>
-                        </div>
+                        <span className="text-[0.625rem] font-bold text-slate-450">{data.fehlstunden} Fehlstunden</span>
                       </div>
-                      
                       <div className="flex gap-3 items-center">
                         <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                          <div 
-                            style={{ width: `${percentageWidth}%` }} 
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              data.fehlstunden > 25 ? 'bg-rose-500' : data.fehlstunden > 15 ? 'bg-amber-500' : 'bg-indigo-500'
-                            }`}
-                          />
+                          <div style={{ width: `${percentageWidth}%` }} className="h-full rounded-full bg-indigo-500 transition-all duration-500" />
                         </div>
-                        <span className="font-black text-[0.725rem] text-slate-300 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-md min-w-[2.5rem] text-center">
-                          Ø {data.gpa}
+                        <span className="font-black text-[0.725rem] text-slate-300 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-md min-w-[4.5rem] text-center">
+                          {data.leistung !== null ? `${data.leistung.toFixed(1)} %` : 'keine Leistung'}
                         </span>
                       </div>
                     </div>
                   );
-                })}
+                }) : (
+                  <div className="p-4 rounded-xl border border-dashed border-slate-700 text-[0.6875rem] font-bold text-slate-400 text-center">
+                    Noch keine Anwesenheits- oder Leistungsdaten vorhanden.
+                  </div>
+                )}
               </div>
             </div>
           </div>
