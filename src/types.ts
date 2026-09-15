@@ -1001,6 +1001,8 @@ export interface ClassRoom {
   journal?: NoteEntry[];
   /** Class-local behavior status history. */
   statusLog?: StatusHistory[];
+  /** Class-local annual report drafts. */
+  jahresberichte?: AppState['jahresberichte'];
   /** Class-local profile / parent-conversation data. */
   elterngespraeche?: AppState['elterngespraeche'];
   kelGespraeche?: AppState['kelGespraeche'];
@@ -1239,6 +1241,7 @@ export interface AppState {
       inhalt: string;
       generiert: string;
       schuljahr: string;
+      reviewStatus?: 'freigegeben' | 'nacharbeiten' | 'offen';
     }
   };
   wochenrueckblick?: {
