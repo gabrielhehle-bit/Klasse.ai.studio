@@ -774,7 +774,7 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
     }
 
     if (notes.length === 0) {
-      notes.push('Alle bisherigen Erhebungen befinden sich im unauffälligen Erwartungsbereich.');
+      notes.push('Bisher liegen keine Werte außerhalb der hinterlegten Prüfbereiche; die Einordnung bleibt eine pädagogische Aufgabe.');
     }
 
     return notes.slice(0, 5);
@@ -1672,9 +1672,11 @@ const Diagnostik: React.FC<{ onBackToNew?: () => void }> = ({ onBackToNew }) => 
                 <h2 className="text-xl font-black text-slate-900 cursor-pointer" onClick={() => setActiveTab('uebersicht')}>
                   Diagnostik
                 </h2>
-                <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-black">
-                  Klasse {(app as any).schulklasse || app.stufe || '2a'}
-                </span>
+                {(app.klassenbezeichnung?.trim() || app.klasse?.trim()) && (
+                  <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-black">
+                    Klasse {app.klassenbezeichnung?.trim() || app.klasse?.trim()}
+                  </span>
+                )}
               </div>
               <p className="text-xs font-semibold text-slate-400 mt-0.5">
                 Gezielte Beobachtungen, 1:1 Live-Tests & Lernstandsanalysen
