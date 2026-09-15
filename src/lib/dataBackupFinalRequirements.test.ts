@@ -103,6 +103,8 @@ test('Datensicherung: erfolgreicher OneDrive-Upload zählt als Backup für die W
 });
 
 test('Datensicherung: Datenschutztexte behaupten weder TLS-Version noch Cloud-Löschung durch Werksreset', () => {
+  assert.doesNotMatch(backupComponent, /AI Studio/);
+  assert.match(backupComponent, /Klassio-Server \(Umgebungsvariablen\)/);
   assert.doesNotMatch(backupComponent, /TLS 1\.3/);
   assert.doesNotMatch(backupComponent, /über den Punkt <em>„Vollständiger Werksreset“<\/em> gelöscht werden/);
   assert.match(backupComponent, /Cloud-Sicherung muss separat im verbundenen OneDrive gelöscht werden/);
