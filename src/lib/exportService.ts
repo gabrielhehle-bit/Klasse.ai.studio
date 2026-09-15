@@ -1,8 +1,10 @@
 import { AppState } from '../types';
 import { isDiagnosticAlert } from './diagnosticData';
+import { berechne, getAssessmentMode } from './GradeUtils';
 
 export interface DossierExportOptions {
   showStammdaten?: boolean;
+  showContacts?: boolean;
   showFinanzen?: boolean;
   showLeistungen?: boolean;
   showMikaD?: boolean;
@@ -17,16 +19,34 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
   const student = appState.schueler?.find(s => s.id === schuelerId);
   if (!student) return;
 
-  const currentTerm = appState.schuljahr || '2025';
+  const currentTerm = appState.schuljahr?.trim() || 'nicht angegeben';
+
+  const effectiveOptions: Required<DossierExportOptions> = {
+    showStammdaten: true,
+    showContacts: false,
+    showFinanzen: false,
+    showLeistungen: true,
+    showMikaD: true,
+    showVerhalten: true,
+    showKELReflexion: true,
+    showDiagnostik: true,
+    showFoerderprofil: true,
+    showKIPortfolio: false,
+    ...options,
+  };
+
+  const escapeHtml = (value: unknown): string => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
   
   // Format dates helper
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '—';
-    try {
-      return new Date(dateStr).toLocaleDateString('de-DE');
-    } catch {
-      return dateStr;
-    }
+    const date = new Date(dateStr);
+    return Number.isNaN(date.getTime()) ? escapeHtml(dateStr) : date.toLocaleDateString('de-AT');
   };
 
   // Helper for stars
@@ -40,7 +60,7 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
   // Markdown to HTML converter helper
   const parseMarkdownToHtml = (markdown: string): string => {
     if (!markdown) return '';
-    return markdown
+    return escapeHtml(markdown)
       .replace(/### (.*?)\n/g, '<h3>$1</h3>')
       .replace(/## (.*?)\n/g, '<h2>$1</h2>')
       .replace(/# (.*?)\n/g, '<h1>$1</h1>')
@@ -52,50 +72,53 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
   };
 
   // ==================== 1. STAMMDATEN ====================
+  const contactsHtml = effectiveOptions.showContacts ? `
+      <div class="card mt-20">
+        <h2>Anschrift & Kontakte der Erziehungsberechtigten</h2>
+        <div class="grid grid-2">
+          <div>
+            <div class="field"><strong>Anschrift:</strong> ${escapeHtml(student.anschrift || '—')}</div>
+            <div class="field"><strong>PLZ / Ort:</strong> ${escapeHtml(student.plz ? `${student.plz} ${student.ort || ''}` : '—')}</div>
+          </div>
+          <div>
+            <div class="field"><strong>Telefon Mutter:</strong> ${escapeHtml(student.telefon_mutter || '—')}</div>
+            <div class="field"><strong>Telefon Vater:</strong> ${escapeHtml(student.telefon_vater || '—')}</div>
+            <div class="field"><strong>E-Mail Eltern:</strong> ${escapeHtml(student.email_eltern || '—')}</div>
+          </div>
+        </div>
+      </div>
+  ` : '';
+
   const stammdatenHtml = `
     <div class="page">
       <div class="header">
         <div>
-          <span class="badge">I. STAMMDATEN & KONTAKT</span>
-          <h1>Dossier: ${student.vorname} ${student.nachname}</h1>
+          <span class="badge">I. STAMMDATEN</span>
+          <h1>Dossier: ${escapeHtml(student.vorname)} ${escapeHtml(student.nachname)}</h1>
         </div>
         <div class="meta">
-          <strong>Stufe:</strong> ${appState.stufe || student.besuchsjahr || '—'}. Klasse<br>
-          <strong>SJ:</strong> ${currentTerm}<br>
-          <strong>Erstellt:</strong> ${new Date().toLocaleDateString('de-DE')}
+          <strong>Stufe:</strong> ${escapeHtml(appState.stufe || student.besuchsjahr || '—')}<br>
+          <strong>SJ:</strong> ${escapeHtml(currentTerm)}<br>
+          <strong>Erstellt:</strong> ${new Date().toLocaleDateString('de-AT')}
         </div>
       </div>
 
       <div class="card">
         <h2>Allgemeine Stammdaten</h2>
         <div class="grid grid-3">
-          <div class="field"><strong>Vorname:</strong> ${student.vorname}</div>
-          <div class="field"><strong>Nachname:</strong> ${student.nachname}</div>
-          <div class="field"><strong>Geburtstag:</strong> ${formatDate(student.geburtstag)}</div>
-          <div class="field"><strong>SV-Nummer:</strong> ${student.sv_nummer || '—'}</div>
-          <div class="field"><strong>Religion:</strong> ${student.religion || 'ohne'}</div>
-          <div class="field"><strong>Staatsbürgerschaft:</strong> ${student.staatsbuergerschaft || 'Österreich'}</div>
-          <div class="field"><strong>Besuchsjahr:</strong> ${student.besuchsjahr ? `${student.besuchsjahr}. Schuljahr` : '—'}</div>
+          <div class="field"><strong>Vorname:</strong> ${escapeHtml(student.vorname)}</div>
+          <div class="field"><strong>Nachname:</strong> ${escapeHtml(student.nachname)}</div>
+          <div class="field"><strong>Geburtstag:</strong> ${formatDate(student.geburtstag || student.geburtsdatum)}</div>
+          <div class="field"><strong>Religion:</strong> ${escapeHtml(student.religion || '—')}</div>
+          <div class="field"><strong>Staatsbürgerschaft:</strong> ${escapeHtml(student.staatsbuergerschaft || '—')}</div>
+          <div class="field"><strong>Besuchsjahr:</strong> ${student.besuchsjahr ? `${escapeHtml(student.besuchsjahr)}. Schuljahr` : '—'}</div>
           <div class="field"><strong>DaZ:</strong> ${student.daz ? 'Ja' : 'Nein'}</div>
           <div class="field"><strong>SPF:</strong> ${student.spf ? 'Ja' : 'Nein'}</div>
-          <div class="field"><strong>Leistungsniveau:</strong> ${student.niveau || 'Standard'}</div>
+          <div class="field"><strong>Leistungsniveau:</strong> ${escapeHtml(student.niveau || '—')}</div>
         </div>
       </div>
 
-      <div class="card mt-20">
-        <h2>Anschrift & Kontakte der Eltern</h2>
-        <div class="grid grid-2">
-          <div>
-            <div class="field"><strong>Anschrift:</strong> ${student.anschrift || '—'}</div>
-            <div class="field"><strong>PLZ / Ort:</strong> ${student.plz ? `${student.plz} ${student.ort || ''}` : '—'}</div>
-          </div>
-          <div>
-            <div class="field"><strong>Telefon Mutter:</strong> ${student.telefon_mutter || '—'}</div>
-            <div class="field"><strong>Telefon Vater:</strong> ${student.telefon_vater || '—'}</div>
-            <div class="field"><strong>E-Mail Eltern:</strong> ${student.email_eltern || '—'}</div>
-          </div>
-        </div>
-      </div>
+      ${contactsHtml}
     </div>
   `;
 
@@ -172,91 +195,67 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
     </div>
   `;
 
-  // ==================== 3. LEISTUNGEN & NOTEN ====================
-  // Calculate grades summary consistent with PrintCenter
-  const subjects = ['Deutsch', 'Mathematik', 'Sachunterricht', 'Englisch'];
-  const allSubjects = new Set(subjects);
-  if (appState.noten && appState.noten[schuelerId]) {
-    Object.keys(appState.noten[schuelerId]).forEach(sub => allSubjects.add(sub));
-  }
+  // ==================== 3. LEISTUNGEN ====================
+  const subjectRecords = appState.noten?.[schuelerId] || {};
+  const subjects = Array.from(new Set([
+    ...(appState.faecher || []),
+    ...Object.keys(subjectRecords),
+  ]));
 
-  const gradesList: { subject: string; grades: string[]; average: number | null }[] = [];
-  Array.from(allSubjects).forEach(sub => {
-    const gradesCollected: number[] = [];
-    ['1', '2'].forEach(sem => {
-      const semData = appState.noten?.[schuelerId]?.[sub]?.[sem];
-      if (semData) {
-        if (Array.isArray(semData.sa)) {
-          semData.sa.forEach((g: any) => {
-            if (typeof g === 'number' && g >= 1 && g <= 5) gradesCollected.push(g);
-            else if (g && typeof g === 'object' && typeof g.note === 'number') gradesCollected.push(g.note);
-          });
-        }
-        if (Array.isArray(semData.lzk)) {
-          semData.lzk.forEach((g: any) => {
-            if (typeof g === 'number' && g >= 1 && g <= 5) gradesCollected.push(g);
-            else if (g && typeof g === 'object' && typeof g.note === 'number') gradesCollected.push(g.note);
-          });
-        }
+  const performanceRows = subjects.map((subject) => {
+    const mode = getAssessmentMode(appState, subject);
+    const semesterTexts = ['1', '2'].map((semester) => {
+      const semesterData: any = subjectRecords?.[subject]?.[semester];
+      const explicitEndnote = semesterData?.endnote;
+      if (explicitEndnote !== undefined && explicitEndnote !== null && String(explicitEndnote).trim() !== '') {
+        return `Endnote ${escapeHtml(String(explicitEndnote).trim())}`;
       }
+
+      const calculated = berechne(appState, schuelerId, subject, semester);
+      if (calculated === null) return '—';
+      if (mode === 'grades') return `Berechneter Stand ${Number(calculated).toFixed(1)}`;
+      return `Berechneter Stand ${Math.round(Number(calculated))}%`;
     });
 
-    const avg = gradesCollected.length > 0 
-      ? parseFloat((gradesCollected.reduce((a, b) => a + b, 0) / gradesCollected.length).toFixed(1))
-      : null;
-
-    if (gradesCollected.length > 0 || subjects.includes(sub)) {
-      gradesList.push({
-        subject: sub,
-        grades: gradesCollected.map(String),
-        average: avg
-      });
-    }
-  });
+    return { subject, semester1: semesterTexts[0], semester2: semesterTexts[1], mode };
+  }).filter((row) => row.semester1 !== '—' || row.semester2 !== '—');
 
   const leistungenHtml = `
     <div class="page page-break">
       <div class="header">
         <div>
-          <span class="badge">III. LEISTUNGSVERLAUF</span>
-          <h1>Notengitter & Leistungsbilanz</h1>
+          <span class="badge">III. LEISTUNGSDATEN</span>
+          <h1>Dokumentierte Semesterstände</h1>
         </div>
         <div class="meta">
-          <strong>Schüler:</strong> ${student.vorname} ${student.nachname}<br>
-          <strong>Semester:</strong> 1. & 2. Semester
+          <strong>Schüler:in:</strong> ${escapeHtml(`${student.vorname} ${student.nachname}`)}<br>
+          <strong>Semester:</strong> 1. & 2.
         </div>
       </div>
 
       <div class="card">
-        <h2>Noten & Notenmittelwert nach Pflichtgegenstand</h2>
+        <h2>Gespeicherte Endnoten bzw. berechnete Stände</h2>
+        <p style="font-size: 9pt; color: #64748b; margin-bottom: 12px;">
+          Berechnete Stände sind keine automatisch festgesetzten Endnoten. Klassio übernimmt die im jeweiligen Fach konfigurierte Beurteilungsart.
+        </p>
         <table class="data-table">
           <thead>
             <tr>
-              <th>Gegenstand / Fach</th>
-              <th style="text-align: center;">Erfasste Leistungsnoten (SA/LZK)</th>
-              <th style="text-align: center;">Notenschnitt</th>
-              <th style="text-align: right;">Beurteilungstendenz</th>
+              <th>Fach</th>
+              <th style="text-align: center;">1. Semester</th>
+              <th style="text-align: center;">2. Semester</th>
             </tr>
           </thead>
           <tbody>
-            ${gradesList.map(gr => {
-              const rating = gr.average !== null && gr.average <= 1.5 ? 'Herausragend' 
-                : gr.average !== null && gr.average <= 2.5 ? 'Standard voll erfüllt' 
-                : gr.average !== null && gr.average <= 4.0 ? 'Standard erfüllt' 
-                : gr.average !== null ? 'Entwicklungsbedarf' : 'Keine Leistungsdaten';
-              return `
-                <tr>
-                  <td><strong>${gr.subject}</strong></td>
-                  <td style="text-align: center;" class="mono">${gr.grades.length > 0 ? gr.grades.join(', ') : '—'}</td>
-                  <td style="text-align: center;">
-                    <span class="avg-badge ${gr.average !== null ? 'has-avg' : ''}">
-                      ${gr.average !== null ? gr.average.toFixed(1) : '—'}
-                    </span>
-                  </td>
-                  <td style="text-align: right; font-size: 10pt; color: #475569; font-weight: 600;">${rating}</td>
-                </tr>
-              `;
-            }).join('')}
+            ${performanceRows.length > 0 ? performanceRows.map((row) => `
+              <tr>
+                <td><strong>${escapeHtml(row.subject)}</strong></td>
+                <td style="text-align: center;">${row.semester1}</td>
+                <td style="text-align: center;">${row.semester2}</td>
+              </tr>
+            `).join('') : `
+              <tr><td colspan="3" class="empty-state">Keine auswertbaren Leistungsdaten vorhanden.</td></tr>
+            `}
           </tbody>
         </table>
       </div>
@@ -486,24 +485,24 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
           <h1>Standardisierte Testverfahren & Protokolle</h1>
         </div>
         <div class="meta">
-          <strong>Oberau-Index:</strong> ${(student as any).oberauIndex !== undefined ? `${(student as any).oberauIndex} / 10` : '8.5 / 10'}
+          <strong>Quelle:</strong> dokumentierte Klassio-Erhebungen
         </div>
       </div>
 
       <div class="grid grid-2">
         <div class="card bg-light">
-          <h2>Oberau-Skala (Selbststeuerung)</h2>
+          <h2>Zusätzliche strukturierte Profildaten</h2>
           <p style="font-size: 13pt; font-weight: 800; color: #0f172a; margin: 0 0 5px 0;">
-            Wertung: ${(student as any).oberauIndex !== undefined ? `${(student as any).oberauIndex} / 10` : '8.5 / 10'}
+            ${Object.values(appState.oberauData?.[schuelerId]?.evaluationData || {}).filter((value) => value !== null && value !== undefined).length} dokumentierte Werte
           </p>
           <p style="font-size: 9.5pt; color: #475569; line-height: 1.5; margin: 0;">
-            Die Oberau-Skala indiziert die Fähigkeit des Kindes zur kognitiven Selbststeuerung, Konzentration und exekutiven Arbeitskontrolle im Volksschulunterricht.
+            Es wird kein künstlicher Gesamtindex aus Einzelwerten berechnet.
           </p>
         </div>
         <div class="card bg-light">
-          <h2>Qualitative Zusatzbemerkungen</h2>
+          <h2>Pädagogische Zusatzbemerkung</h2>
           <p style="font-size: 9.5pt; color: #475569; line-height: 1.5; margin: 0; font-style: italic;">
-            ${student.foerderprofil?.zusatzinfo || 'Keine spezifischen qualitativen Diagnostik-Matrix-Erläuterungen eingetragen.'}
+            ${escapeHtml(student.foerderprofil?.zusatzinfo || appState.oberauData?.[schuelerId]?.remarks || 'Keine zusätzliche Bemerkung hinterlegt.')}
           </p>
         </div>
       </div>
@@ -623,17 +622,17 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
   `;
 
   // ==================== 9. KI PORTFOLIO ====================
-  const cachedKiSummary = localStorage.getItem(`ki_portfolio_summary_${schuelerId}`) || '';
+  const cachedKiSummary = appState.kiPortfolioSummaries?.[schuelerId] || '';
 
   const kiHtml = `
     <div class="page page-break">
       <div class="header">
         <div>
-          <span class="badge">IX. KI-ENTWICKLUNGSBERICHT</span>
-          <h1>Ganzheitlicher Entwicklungsbericht (KI-gestützt)</h1>
+          <span class="badge">IX. KI-ZUSAMMENFASSUNG</span>
+          <h1>Gespeicherter KI-Entwurf</h1>
         </div>
         <div class="meta">
-          <strong>Modell:</strong> Gemini 1.5 Pro
+          <strong>Status:</strong> vor Weitergabe fachlich prüfen
         </div>
       </div>
 
@@ -645,9 +644,9 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
         ` : `
           <div style="text-align: center; padding: 30px 10px; color: #64748b;">
             <div style="font-size: 24pt; margin-bottom: 10px;">🤖</div>
-            <strong style="display: block; margin-bottom: 5px;">Ganzheitlicher Bericht noch ausständig</strong>
+            <strong style="display: block; margin-bottom: 5px;">Keine gespeicherte KI-Zusammenfassung vorhanden</strong>
             <p style="font-size: 9pt; max-w: 480px; margin: 0 auto; color: #94a3b8; line-height: 1.5;">
-              Hinweis: Der automatische Entwicklungsbericht wurde im System noch nicht generiert. Um diesen zu aktivieren, öffnen Sie das Schülerdossier, gehen Sie zu "Portfolio-Einträge" &gt; "KI-Portfolio Bericht" und klicken Sie auf "Bericht generieren". Sobald dies erledigt ist, wird dieser vollautomatisch in diesen PDF-Gesamtexport eingebunden.
+              Nur bereits im verschlüsselten Klassio-Datenstand gespeicherte Zusammenfassungen werden hier angezeigt. Klassio erzeugt beim Drucken keine neuen Aussagen über das Kind.
             </p>
           </div>
         `}
@@ -666,7 +665,7 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
           </div>
         </div>
         <div class="confidential">
-          Vertrauliches Schuldossier • DSGVO-Konform geschützt • Nur für den internen pädagogischen Dienstgebrauch bestimmt
+          Vertraulich behandeln • Inhalt und Empfängerkreis vor Weitergabe prüfen
         </div>
       </div>
     </div>
@@ -964,15 +963,15 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
         <style>${css}</style>
       </head>
       <body>
-        ${(!options || options.showStammdaten) ? stammdatenHtml : ''}
-        ${(!options || options.showFinanzen) ? finanzenHtml : ''}
-        ${(!options || options.showLeistungen) ? leistungenHtml : ''}
-        ${(!options || options.showMikaD) ? mikaDHtml : ''}
-        ${(!options || options.showVerhalten) ? verhaltenHtml : ''}
-        ${(!options || options.showKELReflexion) ? kelHtml : ''}
-        ${(!options || options.showDiagnostik) ? diagnostikHtml : ''}
-        ${(!options || options.showFoerderprofil) ? foerderHtml : ''}
-        ${(!options || options.showKIPortfolio) ? kiHtml : ''}
+        ${effectiveOptions.showStammdaten ? stammdatenHtml : ''}
+        ${effectiveOptions.showFinanzen ? finanzenHtml : ''}
+        ${effectiveOptions.showLeistungen ? leistungenHtml : ''}
+        ${effectiveOptions.showMikaD ? mikaDHtml : ''}
+        ${effectiveOptions.showVerhalten ? verhaltenHtml : ''}
+        ${effectiveOptions.showKELReflexion ? kelHtml : ''}
+        ${effectiveOptions.showDiagnostik ? diagnostikHtml : ''}
+        ${effectiveOptions.showFoerderprofil ? foerderHtml : ''}
+        ${effectiveOptions.showKIPortfolio ? kiHtml : ''}
       </body>
     </html>
   `;
@@ -982,19 +981,13 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
   iframe.style.width = '0';
   iframe.style.height = '0';
   iframe.style.border = 'none';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow?.document;
-  if (!doc) return;
-
-  doc.open();
-  doc.write(html);
-  doc.close();
-
-  setTimeout(() => {
+  iframe.setAttribute('sandbox', 'allow-modals');
+  iframe.onload = () => {
     iframe.contentWindow?.print();
     setTimeout(() => {
-      document.body.removeChild(iframe);
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
     }, 1000);
-  }, 600);
+  };
+  document.body.appendChild(iframe);
+  iframe.srcdoc = html;
 }
