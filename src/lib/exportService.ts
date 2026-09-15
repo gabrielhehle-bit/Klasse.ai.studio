@@ -485,24 +485,24 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
           <h1>Standardisierte Testverfahren & Protokolle</h1>
         </div>
         <div class="meta">
-          <strong>Oberau-Index:</strong> ${(student as any).oberauIndex !== undefined ? `${(student as any).oberauIndex} / 10` : '8.5 / 10'}
+          <strong>Quelle:</strong> dokumentierte Klassio-Erhebungen
         </div>
       </div>
 
       <div class="grid grid-2">
         <div class="card bg-light">
-          <h2>Oberau-Skala (Selbststeuerung)</h2>
+          <h2>Zusätzliche strukturierte Profildaten</h2>
           <p style="font-size: 13pt; font-weight: 800; color: #0f172a; margin: 0 0 5px 0;">
-            Wertung: ${(student as any).oberauIndex !== undefined ? `${(student as any).oberauIndex} / 10` : '8.5 / 10'}
+            ${Object.values(appState.oberauData?.[schuelerId]?.evaluationData || {}).filter((value) => value !== null && value !== undefined).length} dokumentierte Werte
           </p>
           <p style="font-size: 9.5pt; color: #475569; line-height: 1.5; margin: 0;">
-            Die Oberau-Skala indiziert die Fähigkeit des Kindes zur kognitiven Selbststeuerung, Konzentration und exekutiven Arbeitskontrolle im Volksschulunterricht.
+            Es wird kein künstlicher Gesamtindex aus Einzelwerten berechnet.
           </p>
         </div>
         <div class="card bg-light">
-          <h2>Qualitative Zusatzbemerkungen</h2>
+          <h2>Pädagogische Zusatzbemerkung</h2>
           <p style="font-size: 9.5pt; color: #475569; line-height: 1.5; margin: 0; font-style: italic;">
-            ${student.foerderprofil?.zusatzinfo || 'Keine spezifischen qualitativen Diagnostik-Matrix-Erläuterungen eingetragen.'}
+            ${escapeHtml(student.foerderprofil?.zusatzinfo || appState.oberauData?.[schuelerId]?.remarks || 'Keine zusätzliche Bemerkung hinterlegt.')}
           </p>
         </div>
       </div>
@@ -622,17 +622,17 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
   `;
 
   // ==================== 9. KI PORTFOLIO ====================
-  const cachedKiSummary = localStorage.getItem(`ki_portfolio_summary_${schuelerId}`) || '';
+  const cachedKiSummary = appState.kiPortfolioSummaries?.[schuelerId] || '';
 
   const kiHtml = `
     <div class="page page-break">
       <div class="header">
         <div>
-          <span class="badge">IX. KI-ENTWICKLUNGSBERICHT</span>
-          <h1>Ganzheitlicher Entwicklungsbericht (KI-gestützt)</h1>
+          <span class="badge">IX. KI-ZUSAMMENFASSUNG</span>
+          <h1>Gespeicherter KI-Entwurf</h1>
         </div>
         <div class="meta">
-          <strong>Modell:</strong> Gemini 1.5 Pro
+          <strong>Status:</strong> vor Weitergabe fachlich prüfen
         </div>
       </div>
 
@@ -644,9 +644,9 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
         ` : `
           <div style="text-align: center; padding: 30px 10px; color: #64748b;">
             <div style="font-size: 24pt; margin-bottom: 10px;">🤖</div>
-            <strong style="display: block; margin-bottom: 5px;">Ganzheitlicher Bericht noch ausständig</strong>
+            <strong style="display: block; margin-bottom: 5px;">Keine gespeicherte KI-Zusammenfassung vorhanden</strong>
             <p style="font-size: 9pt; max-w: 480px; margin: 0 auto; color: #94a3b8; line-height: 1.5;">
-              Hinweis: Der automatische Entwicklungsbericht wurde im System noch nicht generiert. Um diesen zu aktivieren, öffnen Sie das Schülerdossier, gehen Sie zu "Portfolio-Einträge" &gt; "KI-Portfolio Bericht" und klicken Sie auf "Bericht generieren". Sobald dies erledigt ist, wird dieser vollautomatisch in diesen PDF-Gesamtexport eingebunden.
+              Nur bereits im verschlüsselten Klassio-Datenstand gespeicherte Zusammenfassungen werden hier angezeigt. Klassio erzeugt beim Drucken keine neuen Aussagen über das Kind.
             </p>
           </div>
         `}
@@ -665,7 +665,7 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
           </div>
         </div>
         <div class="confidential">
-          Vertrauliches Schuldossier • DSGVO-Konform geschützt • Nur für den internen pädagogischen Dienstgebrauch bestimmt
+          Vertraulich behandeln • Inhalt und Empfängerkreis vor Weitergabe prüfen
         </div>
       </div>
     </div>
@@ -963,15 +963,15 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
         <style>${css}</style>
       </head>
       <body>
-        ${(!options || options.showStammdaten) ? stammdatenHtml : ''}
-        ${(!options || options.showFinanzen) ? finanzenHtml : ''}
-        ${(!options || options.showLeistungen) ? leistungenHtml : ''}
-        ${(!options || options.showMikaD) ? mikaDHtml : ''}
-        ${(!options || options.showVerhalten) ? verhaltenHtml : ''}
-        ${(!options || options.showKELReflexion) ? kelHtml : ''}
-        ${(!options || options.showDiagnostik) ? diagnostikHtml : ''}
-        ${(!options || options.showFoerderprofil) ? foerderHtml : ''}
-        ${(!options || options.showKIPortfolio) ? kiHtml : ''}
+        ${effectiveOptions.showStammdaten ? stammdatenHtml : ''}
+        ${effectiveOptions.showFinanzen ? finanzenHtml : ''}
+        ${effectiveOptions.showLeistungen ? leistungenHtml : ''}
+        ${effectiveOptions.showMikaD ? mikaDHtml : ''}
+        ${effectiveOptions.showVerhalten ? verhaltenHtml : ''}
+        ${effectiveOptions.showKELReflexion ? kelHtml : ''}
+        ${effectiveOptions.showDiagnostik ? diagnostikHtml : ''}
+        ${effectiveOptions.showFoerderprofil ? foerderHtml : ''}
+        ${effectiveOptions.showKIPortfolio ? kiHtml : ''}
       </body>
     </html>
   `;
@@ -981,19 +981,13 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
   iframe.style.width = '0';
   iframe.style.height = '0';
   iframe.style.border = 'none';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow?.document;
-  if (!doc) return;
-
-  doc.open();
-  doc.write(html);
-  doc.close();
-
-  setTimeout(() => {
+  iframe.setAttribute('sandbox', 'allow-modals');
+  iframe.onload = () => {
     iframe.contentWindow?.print();
     setTimeout(() => {
-      document.body.removeChild(iframe);
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
     }, 1000);
-  }, 600);
+  };
+  document.body.appendChild(iframe);
+  iframe.srcdoc = html;
 }
