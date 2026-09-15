@@ -311,9 +311,9 @@ WICHTIGE ANWEISUNGEN:
   const handleRefine = async (studentId: string, customPrompt?: string) => {
     const promptToUse = customPrompt || refinePrompt;
     if (!promptToUse.trim()) return;
-    setIsRefining(true);
     const b = berichte[studentId];
     if (!b) return;
+    setIsRefining(true);
 
     try {
       const response = await askAI(
@@ -338,7 +338,8 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
             [studentId]: {
               ...prev.jahresberichte[studentId],
               inhalt: response,
-              generiert: new Date().toISOString()
+              generiert: new Date().toISOString(),
+              reviewStatus: 'offen'
             }
           }
         }));
@@ -365,7 +366,8 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
         ...(prev.jahresberichte || {}),
         [editMode]: {
           ...(prev.jahresberichte?.[editMode] || { generiert: new Date().toISOString(), schuljahr: currentTerm }),
-          inhalt: editContent
+          inhalt: editContent,
+          reviewStatus: 'offen'
         }
       }
     }));
@@ -1004,7 +1006,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                                 aria-label="Eigene Anweisung für die Überarbeitung"
                                 value={refinePrompt}
                                 onChange={e => setRefinePrompt(e.target.value)}
-                                placeholder="Eigene Anweisung, z.B. 'Hebe hervor, dass Samy große Fortschritte beim Lesen gemacht hat...'"
+                                placeholder="Eigene Anweisung, z.B. 'Hebe die dokumentierten Fortschritte beim Lesen deutlicher hervor.'"
                                 className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-500/10 text-slate-800"
                                 disabled={isRefining}
                               />
