@@ -63,7 +63,7 @@ export const DiagnosticResults: React.FC<DiagnosticResultsProps> = ({
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-3 px-2 sm:px-4 space-y-5">
+    <div className="max-w-[1180px] mx-auto py-4 px-3 sm:px-6 lg:px-8 space-y-5">
       {/* 1. Navigation Header */}
       <DiagnosticNavigationHeader
         title="Ergebnisse & Entwicklung"
@@ -77,15 +77,15 @@ export const DiagnosticResults: React.FC<DiagnosticResultsProps> = ({
       />
 
       {/* 2. Perspective Toggle: Kind (Standard) vs. Klasse */}
-      <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
-        <div className="inline-flex p-1 bg-slate-100/90 rounded-2xl border border-slate-200/60 shadow-2xs">
+      <div className="flex items-center justify-between border-b border-[var(--border-subtle,var(--border))] pb-3">
+        <div className="inline-flex p-1 bg-[var(--surface-subtle,var(--surface2))] rounded-xl border border-[var(--border-subtle,var(--border))]">
           <button
             id="tab-perspective-kind"
             onClick={() => setPerspective('kind')}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               perspective === 'kind'
-                ? 'bg-white text-slate-900 shadow-xs ring-1 ring-slate-900/5'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-xs ring-1 ring-[var(--accent)]/10'
+                : 'text-[var(--text-secondary,var(--text2))] hover:text-[var(--text-primary,var(--text))] hover:bg-[var(--surface-card,var(--surface))]/60'
             }`}
           >
             <User className="w-3.5 h-3.5" />
@@ -97,8 +97,8 @@ export const DiagnosticResults: React.FC<DiagnosticResultsProps> = ({
             onClick={() => setPerspective('klasse')}
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               perspective === 'klasse'
-                ? 'bg-white text-slate-900 shadow-xs ring-1 ring-slate-900/5'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-xs ring-1 ring-[var(--accent)]/10'
+                : 'text-[var(--text-secondary,var(--text2))] hover:text-[var(--text-primary,var(--text))] hover:bg-[var(--surface-card,var(--surface))]/60'
             }`}
           >
             <Users className="w-3.5 h-3.5" />
@@ -106,7 +106,7 @@ export const DiagnosticResults: React.FC<DiagnosticResultsProps> = ({
           </button>
         </div>
 
-        <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500">
+        <div className="hidden sm:flex items-center gap-2 text-xs text-[var(--text-muted,var(--text3))]">
           <span className="w-2 h-2 rounded-full bg-emerald-500" />
           <span>{results.length} Diagnostikergebnisse</span>
         </div>
@@ -148,7 +148,7 @@ export const DiagnosticResults: React.FC<DiagnosticResultsProps> = ({
                 )}
               </>
             ) : (
-              <div className="p-8 bg-white rounded-3xl border border-slate-200 text-center text-slate-500 text-xs">
+              <div className="p-8 bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] text-center text-[var(--text-muted,var(--text3))] text-xs">
                 Keine Schüler in der aktuellen Klasse angelegt.
               </div>
             )}
