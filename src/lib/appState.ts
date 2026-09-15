@@ -48,6 +48,8 @@ export const initialAppState: AppState = {
   antolinRecords: [],
   schuelerGoals: [],
   klassenglas_completed_missions: [],
+  classContracts: [],
+  councilNotes: [],
   dienste: [],
   backupEinstellungen: { letztesBackup: null, erinnerungAktiv: true },
   pseudonymisierungAktiv: true,
