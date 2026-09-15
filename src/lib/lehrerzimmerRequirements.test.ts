@@ -1,0 +1,231 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import fsp from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { createTeacherIdentity } from '../server/teacherIdentity';
+import { createLehrerzimmerStore } from '../server/lehrerzimmerStore';
+
+const root = process.cwd();
+
+function read(relativePath: string) {
+  return fs.readFileSync(path.join(root, relativePath), 'utf8');
+}
+
+test('Schul-E-Mail wird deterministisch genau einer Schulgruppe zugeordnet', () => {
+  const identity = createTeacherIdentity('gabriel.hehle@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+  assert.ok(identity);
+  assert.equal(identity.schoolId, 'vsfoa.vobs.at');
+  assert.equal(identity.schoolCode, 'vsfoa');
+  assert.equal(identity.schoolDomain, 'vsfoa.vobs.at');
+  assert.equal(identity.handle, 'gabriel.hehle');
+  assert.equal(identity.displayName, 'Gabriel Hehle');
+
+  assert.equal(
+    createTeacherIdentity('gabriel@example.com', ['vsfoa.vobs.at']),
+    null,
+    'Fremde Domains dürfen keine Schulidentität erhalten.'
+  );
+
+  const broadAllowed = createTeacherIdentity('gabriel.hehle@vsfoa.vobs.at', ['vobs.at']);
+  assert.ok(broadAllowed);
+  assert.equal(
+    broadAllowed.schoolId,
+    'vsfoa.vobs.at',
+    'Eine breite Freigabe darf verschiedene Schul-Domains nicht zu einer gemeinsamen Gruppe zusammenfassen.'
+  );
+});
+
+test('Lehrerzimmer trennt Beiträge strikt nach verifizierter Schulgruppe', async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-lehrerzimmer-'));
+  try {
+    const store = createLehrerzimmerStore(dir);
+    const oberau = createTeacherIdentity('anna.test@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    const andere = createTeacherIdentity('max.test@vstest.vobs.at', ['vstest.vobs.at']);
+    assert.ok(oberau && andere);
+
+    await store.createPost(oberau, {
+      category: 'organisation',
+      kind: 'beitrag',
+      title: 'Konferenz',
+      body: 'Bitte Termin beachten.',
+    });
+
+    await store.createPost(andere, {
+      category: 'info',
+      kind: 'beitrag',
+      title: 'Andere Schule',
+      body: 'Darf in Oberau nicht auftauchen.',
+    });
+
+    const oberauPosts = await store.listPosts(oberau);
+    const anderePosts = await store.listPosts(andere);
+
+    assert.equal(oberauPosts.length, 1);
+    assert.equal(oberauPosts[0].title, 'Konferenz');
+    assert.equal(anderePosts.length, 1);
+    assert.equal(anderePosts[0].title, 'Andere Schule');
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('@Erwähnungen werden auf Kollegiumsbenutzer derselben Schule aufgelöst', async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-lehrerzimmer-mention-'));
+  try {
+    const store = createLehrerzimmerStore(dir);
+    const anna = createTeacherIdentity('anna.test@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    const bob = createTeacherIdentity('bob.test@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    assert.ok(anna && bob);
+
+    await store.ensureUser(anna);
+    await store.ensureUser(bob);
+
+    const post = await store.createPost(anna, {
+      category: 'unterricht',
+      kind: 'frage',
+      title: 'Material',
+      body: '@bob.test hast du das Arbeitsblatt?',
+    });
+
+    assert.deepEqual(post.mentions, [bob.userId]);
+
+    const reply = await store.addReply(bob, post.id, '@anna.test ja, ich schicke es dir.');
+    assert.deepEqual(reply.mentions, [anna.userId]);
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('Lehrerzimmer ist direkter Hauptbereich und im App-Routing vorhanden', () => {
+  const sidebar = read('src/components/Sidebar.tsx');
+  const nav = read('src/lib/sidebarNavigation.ts');
+  const app = read('src/App.tsx');
+  const catalog = read('src/lib/settingsModuleCatalog.ts');
+
+  assert.match(sidebar, /id: 'lehrerzimmer'.*label: 'Lehrerzimmer'/s);
+  assert.match(nav, /DAILY_PAGES = \[[^\]]*'lehrerzimmer'/s);
+  assert.match(app, /case 'lehrerzimmer': return <Lehrerzimmer \/>/);
+  assert.match(app, /case 'lehrerzimmer': return 'Lehrerzimmer'/);
+  assert.match(catalog, /id: 'lehrerzimmer'.*@Erwähnungen/s);
+});
+
+test('Lehrerzimmer benötigt verifizierte Schul-E-Mail-Identität', () => {
+  const server = read('server.ts');
+
+  assert.match(server, /klassio_email_identity/);
+  assert.match(server, /requireTeacherIdentity/);
+  assert.match(server, /nur nach Anmeldung mit einer verifizierten Schul-E-Mail/);
+  assert.match(server, /clearEmailIdentitySession\(req, res\)/);
+});
+
+test('Lehrerzimmer UI greift nicht auf lokale Klassen- oder Schülerdaten zu', () => {
+  const component = read('src/components/Lehrerzimmer.tsx');
+
+  assert.doesNotMatch(component, /useApp\(/);
+  assert.doesNotMatch(component, /AppContext/);
+  assert.doesNotMatch(component, /schueler|noten|diagnostik/i);
+  assert.match(component, /\/api\/lehrerzimmer\//);
+});
+
+
+test('Nur der Autor darf einen Lehrerzimmer-Beitrag ändern oder löschen', async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-lehrerzimmer-rights-'));
+  try {
+    const store = createLehrerzimmerStore(dir);
+    const anna = createTeacherIdentity('anna.test@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    const bob = createTeacherIdentity('bob.test@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    assert.ok(anna && bob);
+
+    await store.ensureUser(anna);
+    await store.ensureUser(bob);
+
+    const post = await store.createPost(anna, {
+      category: 'organisation',
+      kind: 'beitrag',
+      title: 'Alt',
+      body: 'Alter Text',
+    });
+
+    const updated = await store.updatePost(anna, post.id, {
+      category: 'info',
+      kind: 'frage',
+      title: 'Neu',
+      body: '@bob.test neue Frage',
+    });
+
+    assert.equal(updated.title, 'Neu');
+    assert.equal(updated.category, 'info');
+    assert.equal(updated.kind, 'frage');
+    assert.deepEqual(updated.mentions, [bob.userId]);
+
+    await assert.rejects(
+      () => store.updatePost(bob, post.id, {
+        category: 'info',
+        kind: 'beitrag',
+        title: 'Fremd',
+        body: 'Darf nicht funktionieren',
+      }),
+      /FORBIDDEN/
+    );
+
+    await assert.rejects(
+      () => store.deletePost(bob, post.id),
+      /FORBIDDEN/
+    );
+
+    await store.deletePost(anna, post.id);
+    assert.equal((await store.listPosts(anna)).length, 0);
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('Nur der Autor einer Antwort darf diese Antwort löschen', async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-lehrerzimmer-reply-rights-'));
+  try {
+    const store = createLehrerzimmerStore(dir);
+    const anna = createTeacherIdentity('anna.test@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    const bob = createTeacherIdentity('bob.test@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    assert.ok(anna && bob);
+
+    const post = await store.createPost(anna, {
+      category: 'unterricht',
+      kind: 'frage',
+      title: 'Frage',
+      body: 'Wer weiß Bescheid?',
+    });
+    const reply = await store.addReply(bob, post.id, 'Ich.');
+
+    await assert.rejects(
+      () => store.deleteReply(anna, post.id, reply.id),
+      /FORBIDDEN/
+    );
+
+    await store.deleteReply(bob, post.id, reply.id);
+    const [remaining] = await store.listPosts(anna);
+    assert.equal(remaining.replies.length, 0);
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('Bearbeiten- und Löschen-APIs sind durch Schulidentität geschützt', () => {
+  const server = read('server.ts');
+
+  assert.match(server, /app\.put\('\/api\/lehrerzimmer\/posts\/:postId', requireTeacherIdentity/);
+  assert.match(server, /app\.delete\('\/api\/lehrerzimmer\/posts\/:postId', requireTeacherIdentity/);
+  assert.match(server, /app\.delete\('\/api\/lehrerzimmer\/posts\/:postId\/replies\/:replyId', requireTeacherIdentity/);
+  assert.match(server, /code === 'FORBIDDEN'.*status\(403\)/s);
+});
+
+test('Lehrerzimmer zeigt Bearbeiten und Löschen nur für eigene Inhalte', () => {
+  const component = read('src/components/Lehrerzimmer.tsx');
+
+  assert.match(component, /const isOwnPost = me\?\.user\.userId === post\.authorId/);
+  assert.match(component, /const isOwnReply = me\?\.user\.userId === reply\.authorId/);
+  assert.match(component, /startEditingPost\(post\)/);
+  assert.match(component, /deleteOwnPost\(post\.id\)/);
+  assert.match(component, /deleteOwnReply\(post\.id, reply\.id\)/);
+});
