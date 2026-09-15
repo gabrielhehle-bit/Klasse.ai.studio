@@ -128,3 +128,104 @@ test('Lehrerzimmer UI greift nicht auf lokale Klassen- oder Schülerdaten zu', (
   assert.doesNotMatch(component, /schueler|noten|diagnostik/i);
   assert.match(component, /\/api\/lehrerzimmer\//);
 });
+
+
+test('Nur der Autor darf einen Lehrerzimmer-Beitrag ändern oder löschen', async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-lehrerzimmer-rights-'));
+  try {
+    const store = createLehrerzimmerStore(dir);
+    const anna = createTeacherIdentity('anna.test@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    const bob = createTeacherIdentity('bob.test@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    assert.ok(anna && bob);
+
+    await store.ensureUser(anna);
+    await store.ensureUser(bob);
+
+    const post = await store.createPost(anna, {
+      category: 'organisation',
+      kind: 'beitrag',
+      title: 'Alt',
+      body: 'Alter Text',
+    });
+
+    const updated = await store.updatePost(anna, post.id, {
+      category: 'info',
+      kind: 'frage',
+      title: 'Neu',
+      body: '@bob.test neue Frage',
+    });
+
+    assert.equal(updated.title, 'Neu');
+    assert.equal(updated.category, 'info');
+    assert.equal(updated.kind, 'frage');
+    assert.deepEqual(updated.mentions, [bob.userId]);
+
+    await assert.rejects(
+      () => store.updatePost(bob, post.id, {
+        category: 'info',
+        kind: 'beitrag',
+        title: 'Fremd',
+        body: 'Darf nicht funktionieren',
+      }),
+      /FORBIDDEN/
+    );
+
+    await assert.rejects(
+      () => store.deletePost(bob, post.id),
+      /FORBIDDEN/
+    );
+
+    await store.deletePost(anna, post.id);
+    assert.equal((await store.listPosts(anna)).length, 0);
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('Nur der Autor einer Antwort darf diese Antwort löschen', async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-lehrerzimmer-reply-rights-'));
+  try {
+    const store = createLehrerzimmerStore(dir);
+    const anna = createTeacherIdentity('anna.test@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    const bob = createTeacherIdentity('bob.test@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    assert.ok(anna && bob);
+
+    const post = await store.createPost(anna, {
+      category: 'unterricht',
+      kind: 'frage',
+      title: 'Frage',
+      body: 'Wer weiß Bescheid?',
+    });
+    const reply = await store.addReply(bob, post.id, 'Ich.');
+
+    await assert.rejects(
+      () => store.deleteReply(anna, post.id, reply.id),
+      /FORBIDDEN/
+    );
+
+    await store.deleteReply(bob, post.id, reply.id);
+    const [remaining] = await store.listPosts(anna);
+    assert.equal(remaining.replies.length, 0);
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('Bearbeiten- und Löschen-APIs sind durch Schulidentität geschützt', () => {
+  const server = read('server.ts');
+
+  assert.match(server, /app\.put\('\/api\/lehrerzimmer\/posts\/:postId', requireTeacherIdentity/);
+  assert.match(server, /app\.delete\('\/api\/lehrerzimmer\/posts\/:postId', requireTeacherIdentity/);
+  assert.match(server, /app\.delete\('\/api\/lehrerzimmer\/posts\/:postId\/replies\/:replyId', requireTeacherIdentity/);
+  assert.match(server, /code === 'FORBIDDEN'.*status\(403\)/s);
+});
+
+test('Lehrerzimmer zeigt Bearbeiten und Löschen nur für eigene Inhalte', () => {
+  const component = read('src/components/Lehrerzimmer.tsx');
+
+  assert.match(component, /const isOwnPost = me\?\.user\.userId === post\.authorId/);
+  assert.match(component, /const isOwnReply = me\?\.user\.userId === reply\.authorId/);
+  assert.match(component, /startEditingPost\(post\)/);
+  assert.match(component, /deleteOwnPost\(post\.id\)/);
+  assert.match(component, /deleteOwnReply\(post\.id, reply\.id\)/);
+});
