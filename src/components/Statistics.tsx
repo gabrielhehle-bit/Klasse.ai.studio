@@ -1004,89 +1004,107 @@ function SuggestionsGrid() {
     },
     {
       title: "9. Paralleler Kohortenvergleich (Inter-Klassen-Vergleich)",
-      short: "Anonymisierte Vergleiche zwischen Jahrgangsstufen (z.B. 4A vs 4B).",
-      details: "Ermöglicht Schulleitungen und Jahrgangsteams den anonymisierten, datenschutzkonformen Abgleich von Leistungsständen über alle Parallelklassen hinweg zur Überwachung eines einheitlichen Lehr- und Prüfungsniveaus.",
+      short: "Aggregierter Vergleich mit tatsächlich vorhandenen weiteren Klassen.",
+      details: "Vergleicht ausschließlich gespeicherte Klassiodaten. Die Darstellung zeigt normalisierte Leistungsindizes und keine erfundenen Parallelklassen oder Jahrgangswerte.",
       icon: "👥",
       render: () => {
-        // Render comparison dynamic bar charts
-        const subjects = [
-          { name: "Deutsch", active: 2.1, ref: t9RefClass === '4B' ? 2.4 : t9RefClass === '4C' ? 2.0 : 2.2 },
-          { name: "Mathematik", active: 2.5, ref: t9RefClass === '4B' ? 2.3 : t9RefClass === '4C' ? 2.8 : 2.5 },
-          { name: "Englisch", active: 1.8, ref: t9RefClass === '4B' ? 1.9 : t9RefClass === '4C' ? 1.7 : 1.8 },
-          { name: "Sachkunde", active: 2.2, ref: t9RefClass === '4B' ? 2.5 : t9RefClass === '4C' ? 2.3 : 2.3 }
-        ];
+        const refClass = comparisonClasses.find(classroom => classroom.id === t9RefClass);
+        if (!refClass) {
+          return (
+            <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100">
+              <p className="text-[0.6875rem] font-bold text-slate-400 text-center">
+                Für einen Klassenvergleich muss mindestens eine weitere Klasse mit echten Schüler- und Leistungsdaten vorhanden sein.
+              </p>
+            </div>
+          );
+        }
+
+        const referenceApp = {
+          ...app,
+          activeClassId: refClass.id,
+          schueler: refClass.schueler || [],
+          noten: refClass.noten || {},
+          notenMeta: refClass.notenMeta || {},
+          notenGewichtung: refClass.notenGewichtung || {},
+          mitarbeit: refClass.mitarbeit || {},
+          mitarbeit_settings: refClass.mitarbeit_settings || app.mitarbeit_settings,
+          faecher: refClass.faecher || app.faecher,
+          fachConfig: refClass.fachConfig || app.fachConfig,
+        } as any;
+        const referenceSubjects = (refClass.faecher && refClass.faecher.length > 0) ? refClass.faecher : toolSubjects;
+        const sharedSubjects = toolSubjects.filter(subject => referenceSubjects.includes(subject));
+        const currentRows = getSubjectPerformanceAverages(app, activeStudents, sharedSubjects);
+        const refRows = getSubjectPerformanceAverages(referenceApp, refClass.schueler || [], sharedSubjects);
+        const subjects = sharedSubjects.flatMap(subject => {
+          const active = currentRows.find(row => row.subject === subject);
+          const ref = refRows.find(row => row.subject === subject);
+          if (!active || !ref) return [];
+          return [{
+            name: subject,
+            active: active.normalizedAverage,
+            ref: ref.normalizedAverage,
+          }];
+        });
 
         return (
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
             <div className="flex justify-between items-center flex-wrap gap-2">
-              <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">👥 Kohortenvergleich Jahrgang 4</h5>
-              
+              <div>
+                <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">👥 Klassenvergleich</h5>
+                <p className="text-[0.5625rem] text-slate-500 font-bold mt-1">Leistungsindex 0–100 · skalenübergreifend normalisiert</p>
+              </div>
               <div className="flex items-center gap-1.5">
-                <label htmlFor="t9-ref-class" className="text-[0.5625rem] font-black uppercase text-slate-450">Referenzgruppe:</label>
-                <select 
+                <label htmlFor="t9-ref-class" className="text-[0.5625rem] font-black uppercase text-slate-450">Referenzklasse:</label>
+                <select
                   id="t9-ref-class"
-                  value={t9RefClass} 
-                  onChange={(e) => setT9RefClass(e.target.value as any)}
+                  value={t9RefClass}
+                  onChange={(e) => setT9RefClass(e.target.value)}
                   className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-0.5 text-[0.675rem] font-bold text-slate-200 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 focus:outline-none"
                 >
-                  <option value="4B">Klasse 4B</option>
-                  <option value="4C">Klasse 4C</option>
-                  <option value="Schnitt">Jahrgangsschnitt</option>
+                  {comparisonClasses.map(classroom => (
+                    <option key={classroom.id} value={classroom.id}>{classroom.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
 
-            <div className="space-y-4 pt-2">
-              <div className="flex justify-end gap-4 text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded bg-indigo-500 block" /> Deine Klasse (4A)
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded bg-slate-500 block" /> Referenz ({t9RefClass})
-                </div>
-              </div>
-
+            {subjects.length > 0 ? (
               <div className="space-y-3.5">
-                {subjects.map((sub, ix) => {
-                  // Percentage calculation (note 1-5, note 1 is best, so let's inverse width)
-                  const pActive = ((6 - sub.active) / 5) * 100;
-                  const pRef = ((6 - sub.ref) / 5) * 100;
-
-                  return (
-                    <div key={ix} className="space-y-1 bg-slate-950/40 border border-slate-800/60 p-3 rounded-xl">
-                      <div className="flex justify-between text-[0.7rem] font-bold">
-                        <span className="text-slate-150">{sub.name}</span>
-                        <div className="flex gap-3 text-slate-400 text-[0.65rem]">
-                          <span>Klasse 4A: <strong className="text-indigo-400">{sub.active}</strong></span>
-                          <span>{t9RefClass}: <strong>{sub.ref}</strong></span>
+                {subjects.map(sub => (
+                  <div key={sub.name} className="space-y-1 bg-slate-950/40 border border-slate-800/60 p-3 rounded-xl">
+                    <div className="flex justify-between text-[0.7rem] font-bold gap-3">
+                      <span className="text-slate-150">{sub.name}</span>
+                      <div className="flex gap-3 text-slate-400 text-[0.65rem]">
+                        <span>{app.klassenbezeichnung || 'Aktive Klasse'}: <strong className="text-indigo-400">{sub.active.toFixed(1)} %</strong></span>
+                        <span>{refClass.name}: <strong>{sub.ref.toFixed(1)} %</strong></span>
+                      </div>
+                    </div>
+                    <div className="space-y-1 pt-1">
+                      <div className="flex gap-2 items-center">
+                        <span className="text-[0.45rem] font-black uppercase text-indigo-400 min-w-[3rem]">Aktiv</span>
+                        <div className="w-full bg-slate-900/80 h-1.5 rounded-full overflow-hidden">
+                          <div style={{ width: `${sub.active}%` }} className="h-full bg-indigo-500 rounded-full" />
                         </div>
                       </div>
-                      
-                      <div className="space-y-1 pt-1">
-                        {/* 4A Bar */}
-                        <div className="flex gap-2 items-center">
-                          <span className="text-[0.45rem] font-black uppercase text-indigo-400 min-w-[2rem]">4A</span>
-                          <div className="w-full bg-slate-900/80 h-1.5 rounded-full overflow-hidden">
-                            <div style={{ width: `${pActive}%` }} className="h-full bg-indigo-500 rounded-full" />
-                          </div>
-                        </div>
-                        {/* Ref class Bar */}
-                        <div className="flex gap-2 items-center">
-                          <span className="text-[0.45rem] font-black uppercase text-slate-500 min-w-[2rem]">{t9RefClass}</span>
-                          <div className="w-full bg-slate-900/80 h-1.5 rounded-full overflow-hidden">
-                            <div style={{ width: `${pRef}%` }} className="h-full bg-slate-500 rounded-full" />
-                          </div>
+                      <div className="flex gap-2 items-center">
+                        <span className="text-[0.45rem] font-black uppercase text-slate-500 min-w-[3rem]">Referenz</span>
+                        <div className="w-full bg-slate-900/80 h-1.5 rounded-full overflow-hidden">
+                          <div style={{ width: `${sub.ref}%` }} className="h-full bg-slate-500 rounded-full" />
                         </div>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
-
-              <p className="text-[0.6rem] text-slate-500 font-medium italic leading-relaxed">
-                🛡️ Datenschutz-Hinweis: Die Daten der Parallelklassen 4B und 4C sind vollständig anonymisiert und aggregieren nur die Klassendurchschnitte gemäß Schulordnung.
+            ) : (
+              <p className="text-[0.6875rem] font-bold text-slate-400 text-center py-4">
+                Für die beiden Klassen liegen noch keine gemeinsam vergleichbaren Leistungsdaten vor.
               </p>
-            </div>
+            )}
+
+            <p className="text-[0.6rem] text-slate-500 font-medium italic leading-relaxed">
+              Es werden ausschließlich aggregierte Werte aus den im lokalen Klassio-Datenbestand vorhandenen Klassen berechnet.
+            </p>
           </div>
         );
       }
