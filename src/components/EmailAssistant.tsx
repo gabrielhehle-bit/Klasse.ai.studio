@@ -162,15 +162,15 @@ Der Text sollte dabei helfen, Eltern optimal zu informieren oder das Kind zuhaus
   };
 
   return (
-    <div className="h-full overflow-y-auto custom-scrollbar w-full">
-      <div className="px-3 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 max-w-full xl:max-w-7xl mx-auto">
+    <div className="h-full overflow-y-auto custom-scrollbar w-full text-[var(--text-primary,var(--text))]">
+      <div className="px-3 sm:px-5 lg:px-6 py-5 md:py-6 space-y-6 max-w-[1180px] w-full mx-auto">
       <div className="hidden">
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8 items-start">
         {/* Left Side: Inputs */}
         <div className="space-y-6">
-          <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-xl shadow-slate-900/5 space-y-6">
+          <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl p-5 sm:p-6 border border-[var(--border-subtle,var(--border))] shadow-sm space-y-5">
             <div className="space-y-2">
               <label className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Betreff / Thema</label>
               <input 
@@ -202,7 +202,7 @@ Der Text sollte dabei helfen, Eltern optimal zu informieren oder das Kind zuhaus
                   <button 
                     key={t}
                     onClick={() => setTonality(t)}
-                    className={`px-5 py-2.5 rounded-full text-[0.75rem] font-black uppercase tracking-[0.1em] transition-all ${tonality === t ? 'bg-indigo-600 border border-indigo-600 text-white shadow-lg' : 'bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100 hover:border-slate-300'}`}
+                    className={`px-5 py-2.5 rounded-full text-[0.75rem] font-black uppercase tracking-[0.1em] transition-all ${tonality === t ? 'bg-[var(--accent)] border border-[var(--accent)] text-[var(--accent-text,#fff)] shadow-sm' : 'bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
                   >
                     {t}
                   </button>
@@ -213,7 +213,7 @@ Der Text sollte dabei helfen, Eltern optimal zu informieren oder das Kind zuhaus
             <button 
               onClick={generate}
               disabled={loading || !topic || !points}
-              className="btn w-full h-16 text-[0.8125rem] shadow-xl shadow-indigo-500/20 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-2xl"
+              className="w-full h-14 text-[0.8125rem] bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm transition-colors disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -229,7 +229,7 @@ Der Text sollte dabei helfen, Eltern optimal zu informieren oder das Kind zuhaus
             </button>
           </div>
 
-          <div className="p-6 bg-blue-50/50 rounded-[2rem] border border-blue-100/50 flex gap-4">
+          <div className="p-5 bg-[var(--accent-soft)] rounded-2xl border border-[var(--accent)]/15 flex gap-4">
              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600 shrink-0"><Check size={20} /></div>
              <p className="text-[0.75rem] text-blue-800/70 font-medium leading-relaxed italic">Unser AI-Modell berücksichtigt deine Tonalität und bereitet den Brief so vor, dass du ihn direkt in eine E-Mail oder ein PDF kopieren kannst.</p>
           </div>
@@ -237,8 +237,8 @@ Der Text sollte dabei helfen, Eltern optimal zu informieren oder das Kind zuhaus
 
         {/* Right Side: Result */}
         <div className={`transition-all duration-500 ${result ? 'opacity-100 scale-100' : 'opacity-40 scale-[0.98] pointer-events-none'}`}>
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-900/5 flex flex-col min-h-[400px] lg:min-h-[600px]">
-            <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/20">
+          <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm flex flex-col min-h-[400px] lg:min-h-[600px]">
+            <div className="p-5 border-b border-[var(--border-subtle,var(--border))] flex justify-between items-center bg-[var(--surface-subtle,var(--surface2))]">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center"><FileText size={16} /></div>
                 <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400">Generierter Entwurf</span>
