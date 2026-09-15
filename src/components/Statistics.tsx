@@ -4,6 +4,7 @@ import { EmptyState } from './EmptyState';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useApp } from '../context/AppContext';
 import { berechne } from '../lib/GradeUtils';
+import { formatLocalDateKey } from '../lib/utils';
 import { FAECHER_ALLE } from '../constants';
 import { KEL_GRADES_INFO, FlowerChart } from './FlowerChart';
 import { 
@@ -1368,7 +1369,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   const [newMeetingNotizen, setNewMeetingNotizen] = useState('');
   const [newMeetingVereinbarungen, setNewMeetingVereinbarungen] = useState('');
   const [newMeetingTeilnehmer, setNewMeetingTeilnehmer] = useState('Mutter, Vater, Klassenlehrerin');
-  const [newMeetingDatum, setNewMeetingDatum] = useState(() => new Date().toISOString().split('T')[0]);
+  const [newMeetingDatum, setNewMeetingDatum] = useState(() => formatLocalDateKey(new Date()));
 
   // Local storage migration for custom portfolio entries (Datenschutz B6/B8: Verschlüsselter AppState statt ungeschütztem localStorage)
   const [portfolioEntries, setPortfolioEntries] = useState<Record<string, { id: string; titel: string; fach: string; datum: string; bewertung: string; beschreibung: string }[]>>(() => {
@@ -1459,7 +1460,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
         updatedMeeting = {
           id: `kel-${Date.now()}`,
           schuelerId: studentId,
-          datum: new Date().toISOString().split('T')[0],
+          datum: formatLocalDateKey(new Date()),
           schuljahr: prev.schuljahr || '2023/24',
           selbsteinschaetzungKind: {
             [bereichId]: { wert: type === 'kind' ? value : 2, kommentar: '' }
@@ -1514,7 +1515,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
         updatedMeeting = {
           id: `kel-${Date.now()}`,
           schuelerId: studentId,
-          datum: new Date().toISOString().split('T')[0],
+          datum: formatLocalDateKey(new Date()),
           schuljahr: prev.schuljahr || '2023/24',
           selbsteinschaetzungKind: {
             [bereichId]: { wert: 2, kommentar: type === 'kind' ? comment : '' }
@@ -1557,7 +1558,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       id: `port-${Date.now()}`,
       titel: portfolioTitle.trim(),
       fach: portfolioSubject,
-      datum: new Date().toISOString().split('T')[0],
+      datum: formatLocalDateKey(new Date()),
       bewertung: portfolioRating,
       beschreibung: portfolioDesc.trim()
     };
@@ -1605,18 +1606,18 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     if (!selectedStudentId || !newNoteInhalt.trim()) return;
 
     const newNote = {
-      id: `note-${Date.now()}`,
-      titel: newNoteTitel || 'Beobachtung',
+      id: `profile-note-${globalThis.crypto?.randomUUID?.() || Date.now()}`,
+      datum: new Date().toISOString(),
+      kategorie: 'Notiz' as const,
       inhalt: newNoteInhalt.trim(),
-      icon: '📝',
-      timestamp: Date.now(),
       schuelerId: selectedStudentId,
-      kategorie: newNoteKategorie
+      quelle: `Statistik & Profile · ${newNoteKategorie || newNoteTitel || 'Beobachtung'}`,
     };
 
-    setApp((prev: any) => ({
+    setApp(prev => ({
       ...prev,
-      notizen: [newNote, ...(prev.notizen || [])]
+      notes: [newNote, ...(prev.notes || [])],
+      journal: [newNote, ...(prev.journal || [])],
     }));
 
     setNewNoteInhalt('');
@@ -1629,7 +1630,9 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     if (!confirm('Eintrag wirklich löschen?')) return;
     setApp((prev: any) => ({
       ...prev,
-      notizen: (prev.notizen || []).filter((n: any) => n.id !== id)
+      notes: (prev.notes || []).filter((note: any) => note.id !== id),
+      journal: (prev.journal || []).filter((note: any) => note.id !== id),
+      notizen: (prev.notizen || []).filter((note: any) => note.id !== id),
     }));
   };
 
@@ -1640,7 +1643,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     const newMeeting = {
       id: `meet-${Date.now()}`,
       schuelerId: selectedStudentId,
-      datum: newMeetingDatum || new Date().toISOString().split('T')[0],
+      datum: newMeetingDatum || formatLocalDateKey(new Date()),
       thema: newMeetingThema.trim(),
       notizen: newMeetingNotizen.trim(),
       vereinbarungen: newMeetingVereinbarungen.trim(),
@@ -1656,7 +1659,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     setNewMeetingNotizen('');
     setNewMeetingVereinbarungen('');
     setNewMeetingTeilnehmer('Mutter, Vater, Klassenlehrerin');
-    setNewMeetingDatum(new Date().toISOString().split('T')[0]);
+    setNewMeetingDatum(formatLocalDateKey(new Date()));
     setShowAddMeeting(false);
   };
 
@@ -2451,7 +2454,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
         id: `def-1-${student.id}`,
         titel: 'Forschungstagebuch: Waldökologie',
         fach: 'Sachunterricht',
-        datum: new Date().toISOString().split('T')[0],
+        datum: formatLocalDateKey(new Date()),
         bewertung: 'Sehr Gut',
         beschreibung: 'Detaillierte Analyse lokaler Ökosysteme und eigenständiges Herbarium. Großer Fokus auf den Schutz einheimischer Bäume.'
       },
@@ -2459,7 +2462,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
         id: `def-2-${student.id}`,
         titel: 'Portfolio-Mappe: Geometrisches Zeichnen',
         fach: 'Mathematik',
-        datum: new Date().toISOString().split('T')[0],
+        datum: formatLocalDateKey(new Date()),
         bewertung: 'Gut',
         beschreibung: 'Präzise Rekonstruktionen geometrischer Grundformen und kreative Symmetriebilder.'
       }
