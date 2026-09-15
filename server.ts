@@ -566,6 +566,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     if (code === 'INVALID_KIND') return res.status(400).json({ error: 'Ungültige Beitragsart.' });
     if (code === 'INVALID_CONTENT') return res.status(400).json({ error: 'Titel und Inhalt dürfen nicht leer sein.' });
     if (code === 'POST_NOT_FOUND') return res.status(404).json({ error: 'Dieser Beitrag wurde nicht gefunden.' });
+    if (code === 'REPLY_NOT_FOUND') return res.status(404).json({ error: 'Diese Antwort wurde nicht gefunden.' });
+    if (code === 'FORBIDDEN') return res.status(403).json({ error: 'Du kannst nur eigene Lehrerzimmer-Beiträge und eigene Antworten ändern oder löschen.' });
     console.error('[Lehrerzimmer] Serverfehler:', error);
     return res.status(500).json({ error: 'Das Lehrerzimmer konnte nicht geladen werden.' });
   };
@@ -627,11 +629,46 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     }
   });
 
+  app.put('/api/lehrerzimmer/posts/:postId', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const post = await lehrerzimmerStore.updatePost(identity, req.params.postId, {
+        category: req.body?.category,
+        kind: req.body?.kind,
+        title: req.body?.title,
+        body: req.body?.body,
+      });
+      res.json({ post });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.delete('/api/lehrerzimmer/posts/:postId', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      await lehrerzimmerStore.deletePost(identity, req.params.postId);
+      res.json({ success: true });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
   app.post('/api/lehrerzimmer/posts/:postId/replies', requireTeacherIdentity, async (req, res) => {
     try {
       const identity = getTeacherIdentity(req);
       const reply = await lehrerzimmerStore.addReply(identity, req.params.postId, req.body?.body);
       res.status(201).json({ reply });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.delete('/api/lehrerzimmer/posts/:postId/replies/:replyId', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      await lehrerzimmerStore.deleteReply(identity, req.params.postId, req.params.replyId);
+      res.json({ success: true });
     } catch (error) {
       handleLehrerzimmerError(res, error);
     }
