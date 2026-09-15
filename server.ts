@@ -62,8 +62,8 @@ function validateProductionEnvironment() {
     console.warn("[KONFIGURATIONSHINWEIS] E-Mail-Login ist nur aktiv, wenn SMTP_HOST und SMTP_FROM gesetzt sind.");
   }
 
-  if (process.env.SMTP_HOST && process.env.SMTP_FROM && !configuredSchoolDomains) {
-    console.warn("[KONFIGURATIONSHINWEIS] E-Mail-Login ist aktiv, aber es sind keine verifizierten Schul-Domains konfiguriert. Private Konten funktionieren; Lehrerzimmer bleibt ohne Schulverifizierung gesperrt.");
+  if (!process.env.KLASSIO_SCHOOL_ADMIN_TOKEN) {
+    console.warn("[KONFIGURATIONSHINWEIS] KLASSIO_SCHOOL_ADMIN_TOKEN ist nicht gesetzt. Neue Schul-Verifizierungsanfragen können gespeichert, aber nicht über die Admin-API freigegeben werden.");
   }
 }
 
