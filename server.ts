@@ -9,7 +9,7 @@ import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { KI_SYSTEM_PROMPTS, GLOBAL_KI_RULES } from "./src/kiSystemPrompts.ts";
 import { validateAiServerImageRequest } from "./src/lib/aiPrivacy.ts";
 import { getServerSyncTimestamps, isSyncSessionExpired } from "./src/lib/syncServerPolicy.ts";
-import { createTeacherIdentity, type TeacherIdentity } from "./src/server/teacherIdentity.ts";
+import { createTeacherIdentity, displayNameFromEmail, handleFromEmail, type TeacherIdentity } from "./src/server/teacherIdentity.ts";
 import { createLehrerzimmerStore, type LehrerzimmerCategory } from "./src/server/lehrerzimmerStore.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
@@ -54,15 +54,14 @@ function validateProductionEnvironment() {
     console.warn("[KONFIGURATIONSHINWEIS] Microsoft OneDrive Secrets sind nicht vollständig konfiguriert. Cloud-Backups sind im Client deaktiviert.");
   }
 
-  const wantsEmailLogin = Boolean(process.env.SMTP_HOST || process.env.SMTP_FROM || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS);
-  if (wantsEmailLogin) {
-    const domains = (process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
-      .split(',')
-      .map(value => value.trim())
-      .filter(Boolean);
-    if (!process.env.SMTP_HOST || !process.env.SMTP_FROM || domains.length === 0) {
-      console.warn("[KONFIGURATIONSHINWEIS] E-Mail-Login ist nur aktiv, wenn SMTP_HOST, SMTP_FROM und LEHRERAPP_ALLOWED_EMAIL_DOMAINS gesetzt sind.");
-    }
+  const configuredSchoolDomains = process.env.KLASSIO_VERIFIED_SCHOOL_DOMAINS || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS;
+  const wantsEmailLogin = Boolean(process.env.SMTP_HOST || process.env.SMTP_FROM || configuredSchoolDomains);
+  if (wantsEmailLogin && (!process.env.SMTP_HOST || !process.env.SMTP_FROM)) {
+    console.warn("[KONFIGURATIONSHINWEIS] E-Mail-Login ist nur aktiv, wenn SMTP_HOST und SMTP_FROM gesetzt sind.");
+  }
+
+  if (process.env.SMTP_HOST && process.env.SMTP_FROM && !configuredSchoolDomains) {
+    console.warn("[KONFIGURATIONSHINWEIS] E-Mail-Login ist aktiv, aber es sind keine verifizierten Schul-Domains konfiguriert. Private Konten funktionieren; Lehrerzimmer bleibt ohne Schulverifizierung gesperrt.");
   }
 }
 
@@ -167,11 +166,11 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const SMTP_USER = (process.env.SMTP_USER || '').trim();
   const SMTP_PASS = process.env.SMTP_PASS || '';
   const SMTP_FROM = (process.env.SMTP_FROM || '').trim();
-  const ALLOWED_EMAIL_DOMAINS = (process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
+  const ALLOWED_EMAIL_DOMAINS = (process.env.KLASSIO_VERIFIED_SCHOOL_DOMAINS || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
     .split(',')
     .map(value => value.trim().toLowerCase().replace(/^@/, ''))
     .filter(Boolean);
-  const emailLoginEnabled = Boolean(SMTP_HOST && SMTP_FROM && ALLOWED_EMAIL_DOMAINS.length > 0);
+  const emailLoginEnabled = Boolean(SMTP_HOST && SMTP_FROM);
   const mailTransporter = emailLoginEnabled
     ? nodemailer.createTransport({
         host: SMTP_HOST,
@@ -199,11 +198,6 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     if (normalized.length < 5 || normalized.length > 254) return null;
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
     return normalized;
-  }
-
-  function isAllowedEmail(email: string): boolean {
-    const domain = email.split('@')[1] || '';
-    return ALLOWED_EMAIL_DOMAINS.some(allowed => domain === allowed || domain.endsWith('.' + allowed));
   }
 
   function hashEmailCode(email: string, code: string): string {
@@ -260,47 +254,86 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     }
   }
 
+  type EmailAccountIdentity = {
+    userId: string;
+    email: string;
+    displayName: string;
+    handle: string;
+  };
+
+  type AccountSessionPayload = EmailAccountIdentity & { v: 1; exp: number };
   type IdentitySessionPayload = TeacherIdentity & { v: 1; exp: number };
 
-  function createIdentityToken(identity: TeacherIdentity): string {
-    const payload: IdentitySessionPayload = {
-      ...identity,
-      v: 1,
-      exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
+  function createEmailAccountIdentity(email: string): EmailAccountIdentity {
+    const normalizedEmail = email.trim().toLowerCase();
+    return {
+      userId: crypto.createHash('sha256').update('klassio-account:' + normalizedEmail).digest('hex').slice(0, 24),
+      email: normalizedEmail,
+      displayName: displayNameFromEmail(normalizedEmail),
+      handle: handleFromEmail(normalizedEmail),
     };
+  }
+
+  function createSignedIdentityToken<T extends object>(prefix: string, payload: T): string {
     const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
-    const signature = crypto.createHmac('sha256', SESSION_SECRET).update('klassio-identity:' + encoded).digest('hex');
+    const signature = crypto.createHmac('sha256', SESSION_SECRET).update(prefix + encoded).digest('hex');
     return encoded + '.' + signature;
   }
 
-  function verifyIdentityToken(token: string | undefined): TeacherIdentity | null {
+  function verifySignedIdentityToken<T>(prefix: string, token: string | undefined): T | null {
     if (!token) return null;
     const [encoded, signature, ...rest] = token.split('.');
     if (!encoded || !signature || rest.length) return null;
-
-    const expected = crypto.createHmac('sha256', SESSION_SECRET).update('klassio-identity:' + encoded).digest('hex');
+    const expected = crypto.createHmac('sha256', SESSION_SECRET).update(prefix + encoded).digest('hex');
     try {
       if (!crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'))) return null;
+      return JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as T;
     } catch {
       return null;
     }
+  }
 
-    try {
-      const payload = JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as IdentitySessionPayload;
-      if (payload.v !== 1 || !payload.exp || payload.exp < Date.now()) return null;
-      if (!payload.userId || !payload.email || !payload.schoolId || !payload.schoolDomain || !payload.schoolCode) return null;
-      return {
-        userId: payload.userId,
-        email: payload.email,
-        schoolId: payload.schoolId,
-        schoolCode: payload.schoolCode,
-        schoolDomain: payload.schoolDomain,
-        displayName: payload.displayName || 'Lehrperson',
-        handle: payload.handle || 'lehrperson',
-      };
-    } catch {
-      return null;
-    }
+  function createAccountToken(identity: EmailAccountIdentity): string {
+    return createSignedIdentityToken('klassio-account:', {
+      ...identity,
+      v: 1,
+      exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
+    } satisfies AccountSessionPayload);
+  }
+
+  function verifyAccountToken(token: string | undefined): EmailAccountIdentity | null {
+    const payload = verifySignedIdentityToken<AccountSessionPayload>('klassio-account:', token);
+    if (!payload || payload.v !== 1 || !payload.exp || payload.exp < Date.now()) return null;
+    if (!payload.userId || !payload.email) return null;
+    return {
+      userId: payload.userId,
+      email: payload.email,
+      displayName: payload.displayName || 'Klassio-Nutzer:in',
+      handle: payload.handle || 'klassio',
+    };
+  }
+
+  function createIdentityToken(identity: TeacherIdentity): string {
+    return createSignedIdentityToken('klassio-identity:', {
+      ...identity,
+      v: 1,
+      exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
+    } satisfies IdentitySessionPayload);
+  }
+
+  function verifyIdentityToken(token: string | undefined): TeacherIdentity | null {
+    const payload = verifySignedIdentityToken<IdentitySessionPayload>('klassio-identity:', token);
+    if (!payload || payload.v !== 1 || !payload.exp || payload.exp < Date.now()) return null;
+    if (!payload.userId || !payload.email || !payload.schoolId || !payload.schoolDomain || !payload.schoolCode) return null;
+    return {
+      userId: payload.userId,
+      email: payload.email,
+      schoolId: payload.schoolId,
+      schoolCode: payload.schoolCode,
+      schoolDomain: payload.schoolDomain,
+      displayName: payload.displayName || 'Lehrperson',
+      handle: payload.handle || 'lehrperson',
+    };
   }
 
   function secureCookieSuffix(req: express.Request): string {
@@ -318,6 +351,13 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     return token;
   }
 
+  function setEmailAccountSession(req: express.Request, res: express.Response, identity: EmailAccountIdentity): void {
+    res.append(
+      'Set-Cookie',
+      'klassio_email_account=' + createAccountToken(identity) + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
+    );
+  }
+
   function setEmailIdentitySession(req: express.Request, res: express.Response, identity: TeacherIdentity): void {
     const token = createIdentityToken(identity);
     res.append(
@@ -326,11 +366,10 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     );
   }
 
-  function clearEmailIdentitySession(req: express.Request, res: express.Response): void {
-    res.append(
-      'Set-Cookie',
-      'klassio_email_identity=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
-    );
+  function clearEmailSessions(req: express.Request, res: express.Response): void {
+    const suffix = secureCookieSuffix(req);
+    res.append('Set-Cookie', 'klassio_email_account=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + suffix);
+    res.append('Set-Cookie', 'klassio_email_identity=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + suffix);
   }
 
   const failedLoginAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -366,10 +405,18 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const cookies = parseCookies(req);
     const token = cookies.lehrerapp_access_token || (req.headers.authorization ? req.headers.authorization.replace('Bearer ', '') : undefined);
     const isValid = verifyAccessToken(token);
+    const account = isValid ? verifyAccountToken(cookies.klassio_email_account) : null;
     const identity = isValid ? verifyIdentityToken(cookies.klassio_email_identity) : null;
     res.json({
       authenticated: isValid,
       emailLoginEnabled,
+      account: account
+        ? {
+            displayName: account.displayName,
+            handle: account.handle,
+            email: account.email,
+          }
+        : null,
       identity: identity
         ? {
             displayName: identity.displayName,
@@ -388,8 +435,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
     const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
     const email = normalizeEmail(req.body?.email);
-    if (!email || !isAllowedEmail(email)) {
-      return res.status(400).json({ success: false, error: 'Diese E-Mail-Adresse ist für Klassio nicht freigeschaltet.' });
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Bitte gib eine gültige E-Mail-Adresse ein.' });
     }
 
     const throttleKey = ip + ':' + email;
@@ -441,7 +488,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
     const email = normalizeEmail(req.body?.email);
     const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
-    if (!email || !/^\d{6}$/.test(code) || !isAllowedEmail(email)) {
+    if (!email || !/^\d{6}$/.test(code)) {
       recordFailedAttempt(ip);
       return res.status(400).json({ success: false, error: 'E-Mail-Adresse oder Anmeldecode ist ungültig.' });
     }
@@ -467,26 +514,30 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       return res.status(401).json({ success: false, error: 'Der Anmeldecode ist nicht gültig.' });
     }
 
+    const account = createEmailAccountIdentity(email);
     const identity = createTeacherIdentity(email, ALLOWED_EMAIL_DOMAINS);
-    if (!identity) {
-      recordFailedAttempt(ip);
-      return res.status(400).json({ success: false, error: 'Für diese Schul-E-Mail konnte keine Schulgruppe ermittelt werden.' });
-    }
 
     emailAccessChallenges.delete(email);
     resetFailedAttempts(ip);
     setAccessSession(req, res);
-    setEmailIdentitySession(req, res, identity);
+    setEmailAccountSession(req, res, account);
 
-    try {
-      await lehrerzimmerStore.ensureUser(identity);
-    } catch (error) {
-      console.error('[Lehrerzimmer] Benutzerprofil konnte beim Login nicht gespeichert werden:', error);
+    if (identity) {
+      setEmailIdentitySession(req, res, identity);
+      try {
+        await lehrerzimmerStore.ensureUser(identity);
+      } catch (error) {
+        console.error('[Lehrerzimmer] Benutzerprofil konnte beim Login nicht gespeichert werden:', error);
+      }
+    } else {
+      const suffix = secureCookieSuffix(req);
+      res.append('Set-Cookie', 'klassio_email_identity=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + suffix);
     }
 
     return res.json({
       success: true,
-      school: { code: identity.schoolCode, domain: identity.schoolDomain },
+      account: { displayName: account.displayName, email: account.email },
+      school: identity ? { code: identity.schoolCode, domain: identity.schoolDomain } : null,
     });
   });
 
@@ -513,7 +564,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     if (isTeam || isExternal) {
       resetFailedAttempts(ip);
       setAccessSession(req, res);
-      clearEmailIdentitySession(req, res);
+      clearEmailSessions(req, res);
       return res.json({ success: true });
     } else {
       recordFailedAttempt(ip);
@@ -525,6 +576,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const secureFlag = secureCookieSuffix(req);
     res.setHeader('Set-Cookie', [
       `lehrerapp_access_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`,
+      `klassio_email_account=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`,
       `klassio_email_identity=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`,
     ]);
     res.json({ success: true });

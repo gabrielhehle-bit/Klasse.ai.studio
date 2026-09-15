@@ -193,7 +193,7 @@ export default function AccessGate({ onSuccess }: AccessGateProps) {
               ? 'Anmeldemöglichkeiten werden geprüft …'
               : mode === 'email'
                 ? emailStep === 'email'
-                  ? 'Mit deiner Schul-E-Mail-Adresse anmelden.'
+                  ? 'Mit deiner E-Mail-Adresse anmelden.'
                   : 'Gib den Code aus deiner E-Mail ein.'
                 : 'Mit dem administrativen Zugangscode anmelden.'}
           </p>
@@ -211,7 +211,7 @@ export default function AccessGate({ onSuccess }: AccessGateProps) {
                 <form onSubmit={requestEmailCode} className="space-y-5">
                   <div className="space-y-2">
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
-                      Schul-E-Mail
+                      E-Mail
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
@@ -224,7 +224,7 @@ export default function AccessGate({ onSuccess }: AccessGateProps) {
                           setEmail(event.target.value);
                           clearFeedback();
                         }}
-                        placeholder="vorname.nachname@schule.at"
+                        placeholder="name@beispiel.at"
                         autoComplete="email"
                         autoFocus
                         required
@@ -232,7 +232,7 @@ export default function AccessGate({ onSuccess }: AccessGateProps) {
                       />
                     </div>
                     <p className="text-[0.7rem] leading-relaxed text-slate-400 font-medium">
-                      Es funktionieren nur die auf diesem Klassio-Server freigegebenen Schul-Domains.
+                      Private E-Mail-Adressen funktionieren für dein persönliches Klassio-Konto. Mit einer freigegebenen Schul-E-Mail wird zusätzlich deine Schule verifiziert und das Lehrerzimmer freigeschaltet.
                     </p>
                   </div>
 
@@ -372,7 +372,7 @@ export default function AccessGate({ onSuccess }: AccessGateProps) {
                   onClick={() => switchMode(mode === 'email' ? 'access-code' : 'email')}
                   className="text-[0.72rem] font-bold text-indigo-600 hover:text-indigo-800"
                 >
-                  {mode === 'email' ? 'Stattdessen Zugangscode verwenden' : 'Mit Schul-E-Mail anmelden'}
+                  {mode === 'email' ? 'Stattdessen Zugangscode verwenden' : 'Mit E-Mail anmelden'}
                 </button>
               )}
               <p className="text-[0.7rem] leading-relaxed font-medium text-slate-400">
