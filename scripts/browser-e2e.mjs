@@ -118,20 +118,29 @@ async function waitFor(client, description, expression, timeoutMs = 15000) {
 async function setInputByLabel(client, labelText, value, occurrence = 0) {
   const expression =
     '(() => {' +
-    'const norm=v=>String(v||"").replace(/\\s+/g," ").trim();' +
-    'const labels=Array.from(document.querySelectorAll("label")).filter(label=>norm(label.textContent).includes(' + q(labelText) + '));' +
-    'const label=labels[' + occurrence + ']; if(!label)return false;' +
-    'let input=label.querySelector("input,textarea,select");' +
-    'if(!input&&label.htmlFor)input=document.getElementById(label.htmlFor);' +
-    'if(!input&&label.parentElement)input=label.parentElement.querySelector("input,textarea,select");' +
+    'const norm=v=>String(v||"").replace(/\\s+/g," ").trim().toLowerCase();' +
+    'const expected=norm(' + q(labelText) + ');' +
+    'const labels=Array.from(document.querySelectorAll("label")).filter(label=>norm(label.textContent).includes(expected));' +
+    'const label=labels[' + occurrence + '];' +
+    'let input=null;' +
+    'if(label){' +
+      'input=label.querySelector("input,textarea,select");' +
+      'if(!input&&label.htmlFor)input=document.getElementById(label.htmlFor);' +
+      'if(!input&&label.parentElement)input=label.parentElement.querySelector("input,textarea,select");' +
+      'if(!input&&label.nextElementSibling)input=label.nextElementSibling.matches?.("input,textarea,select")?label.nextElementSibling:label.nextElementSibling.querySelector?.("input,textarea,select");' +
+    '}' +
+    'if(!input){' +
+      'const fields=Array.from(document.querySelectorAll("input,textarea,select"));' +
+      'input=fields.find(field=>norm(field.getAttribute("aria-label")).includes(expected)||norm(field.getAttribute("placeholder")).includes(expected));' +
+    '}' +
     'if(!input)return false;' +
     'const proto=input instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:input instanceof HTMLSelectElement?HTMLSelectElement.prototype:HTMLInputElement.prototype;' +
-    'const setter=Object.getOwnPropertyDescriptor(proto,"value")?.set; setter?.call(input,' + q(value) + ');' +
-    'input.dispatchEvent(new Event("input",{bubbles:true})); input.dispatchEvent(new Event("change",{bubbles:true})); return true;' +
+    'const setter=Object.getOwnPropertyDescriptor(proto,"value")?.set;' +
+    'if(setter)setter.call(input,' + q(value) + '); else input.value=' + q(value) + ';' +
+    'input.focus(); input.dispatchEvent(new Event("input",{bubbles:true})); input.dispatchEvent(new Event("change",{bubbles:true})); return true;' +
     '})()';
   if (!await evaluate(client, expression)) throw new Error('Could not fill field labelled "' + labelText + '".');
 }
-
 async function clickByText(client, text, exact = false) {
   const matchExpression = exact ? 'current===expected' : 'current.includes(expected)';
   const expression =
