@@ -2478,32 +2478,20 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
       };
     })();
 
-    const activeFaecherList = FAECHER_ALLE;
-    const gradeData = activeFaecherList.map(fach => {
-      const sAvg = berechne(app, student.id, fach, '1');
-      let classSum = 0;
-      let classCount = 0;
-      app.schueler.forEach(st => {
-        const g = berechne(app, st.id, fach, '1');
-        if (g !== null) {
-          classSum += g;
-          classCount++;
-        }
-      });
-      const cAvg = classCount > 0 ? classSum / classCount : null;
-      if (sAvg === null && cAvg === null) return null;
-      
-      // Transform grades: Better grade (low number) = Taller bar (high number)
-      // 1 -> 5, 2 -> 4, 3 -> 3, 4 -> 2, 5 -> 1
-      return {
+    const activeFaecherList = activeFaecher;
+    const studentPerformanceRows = getStudentPerformanceSummary(app, student.id, activeFaecherList, sem).entries;
+    const classPerformanceRows = getSubjectPerformanceAverages(app, students, activeFaecherList, sem);
+    const gradeData = activeFaecherList.flatMap(fach => {
+      const studentEntry = studentPerformanceRows.find(entry => entry.subject === fach);
+      const classEntry = classPerformanceRows.find(entry => entry.subject === fach);
+      if (!studentEntry && !classEntry) return [];
+      return [{
         subject: fach.length > 15 ? `${fach.substring(0, 15)}...` : fach,
         fullSubjectName: fach,
-        'Schüler': sAvg !== null ? Number((6 - sAvg).toFixed(2)) : null,
-        'Klassen-Ø': cAvg !== null ? Number((6 - cAvg).toFixed(2)) : null,
-        originalStudentAvg: sAvg,
-        originalClassAvg: cAvg
-      };
-    }).filter(Boolean);
+        'Schüler': studentEntry?.normalizedPercent ?? null,
+        'Klassen-Ø': classEntry?.normalizedAverage ?? null,
+      }];
+    });
 
     const studentAbs = getAttendanceStats(student.id);
     const absenceData = [
@@ -2617,12 +2605,12 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-8 border-t border-slate-200">
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 backdrop-blur-xs text-center md:text-left">
-              <span className="text-[0.5625rem] font-black uppercase text-slate-500 tracking-wider block">Leistungs-Durchschnitt</span>
+              <span className="text-[0.5625rem] font-black uppercase text-slate-500 tracking-wider block">Leistungsindex</span>
               <span className="text-[1.5rem] leading-normal font-black text-slate-900 block mt-1">
-                {studentAvg > 0 ? studentAvg.toFixed(2) : '—'}
+                {studentPerformanceIndex !== null ? `${studentPerformanceIndex.toFixed(1)} %` : '—'}
               </span>
               <span className="text-[0.625rem] font-extrabold text-amber-500 mt-1 block">
-                {studentAvg > 0 ? formatGradeLabel(studentAvg) : 'Keine Noten'}
+                {studentPerformanceIndex !== null ? 'Bewertungsskalen normalisiert' : 'Keine Leistungsdaten'}
               </span>
             </div>
 
@@ -2688,8 +2676,9 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                 className="pt-4 border-t border-slate-100"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {FAECHER_ALLE.map(fach => {
-                    const avg = berechne(app, student.id, fach, sem);
+                  {activeFaecher.map(fach => {
+                    const performanceEntry = studentPerformanceRows.find(entry => entry.subject === fach);
+                    const avg = performanceEntry?.rawValue ?? null;
                     const miPoints = app.mitarbeit?.[student.id]?.[fach]?.[sem] || 0;
                     const hueCount = app.noten?.[student.id]?.[fach]?.[sem]?.hue || 0;
 
@@ -2712,11 +2701,11 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                             {avg !== null ? (
                               <div className="text-right">
                                 <span className="text-[0.75rem] leading-tight font-black px-2.5 py-1 rounded-full bg-slate-900 text-accent shadow-xs">
-                                  {avg.toFixed(1)}
+                                  {performanceEntry?.mode === 'grades' ? avg.toFixed(1) : `${performanceEntry?.normalizedPercent.toFixed(1)} %`}
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-[0.625rem] font-black uppercase text-slate-350 tracking-wider">Keine Note</span>
+                              <span className="text-[0.625rem] font-black uppercase text-slate-350 tracking-wider">Keine Leistung</span>
                             )}
                           </div>
 
@@ -2752,7 +2741,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                           <span className="text-indigo-600 font-extrabold group-hover:text-indigo-800 transition-colors flex items-center gap-1">
                             Details →
                           </span>
-                          <span>{avg !== null ? formatGradeLabel(avg) : '—'}</span>
+                          <span>{avg !== null ? (performanceEntry?.mode === 'grades' ? formatGradeLabel(avg) : 'Leistungsindex') : '—'}</span>
                         </div>
                       </div>
                     );
@@ -2776,7 +2765,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
               </div>
               <div>
                 <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">Leistungsvergleich (Klassen-Ø)</h3>
-                <p className="text-slate-450 font-bold text-[0.75rem] leading-tight mt-0.5">Visueller Vergleich der Fachnoten.</p>
+                <p className="text-slate-450 font-bold text-[0.75rem] leading-tight mt-0.5">Visueller Vergleich auf einem gemeinsamen Leistungsindex von 0–100.</p>
               </div>
             </div>
             <div className="p-2 rounded-full border border-slate-100 text-slate-400 hover:bg-slate-50 transition-colors">
@@ -2803,20 +2792,20 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                         <BarChart data={gradeData}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="subject" tickLine={false} axisLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#64748b' }} />
-                          <YAxis 
-                            domain={[1, 5]} 
-                            ticks={[1, 2, 3, 4, 5]} 
-                            tickLine={false} 
-                            axisLine={false} 
-                            tick={{ fontSize: 11, fill: '#94a3b8' }} 
-                            tickFormatter={(val) => (6 - val).toString()} 
+                          <YAxis
+                            domain={[0, 100]}
+                            ticks={[0, 20, 40, 60, 80, 100]}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fontSize: 11, fill: '#94a3b8' }}
+                            tickFormatter={(val) => `${val}%`}
                           />
-                          <Tooltip 
+                          <Tooltip
                             contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontWeight: 900, fontSize: 11 }}
-                            formatter={(value: any, name: any, props: any) => {
-                              const original = name === 'Schüler' ? props.payload.originalStudentAvg : props.payload.originalClassAvg;
-                              return [original ? original.toFixed(2) : '—', name === 'Schüler' ? student.vorname : 'Klassen-Ø'];
-                            }}
+                            formatter={(value: any, name: any) => [
+                              typeof value === 'number' ? `${value.toFixed(1)} %` : '—',
+                              name === 'Schüler' ? student.vorname : 'Klassen-Ø'
+                            ]}
                           />
                           <Legend wrapperStyle={{ fontSize: 10, fontWeight: 900, paddingTop: 12 }} />
                           <Bar dataKey="Schüler" fill="#4f46e5" radius={[6, 6, 0, 0]} name={`${student?.vorname} (Schnitt)`} barSize={35} />
