@@ -234,3 +234,17 @@ test('Materialbibliothek, Kasse & Orga und Einstellungen verwenden semantische K
   assert.match(settingsDashboard, /hover:bg-\[var\(--surface-subtle,var\(--surface2\)\)\]/);
   assert.doesNotMatch(settingsDashboard, /hover:shadow-md hover:border-emerald-300/);
 });
+
+
+test('Übergabemappe modernisiert nur die Bedienoberfläche und lässt Druckseiten unverändert weiß', () => {
+  const source = read('src/components/Uebergabemappe.tsx');
+
+  assert.match(source, /handover-folder-shell max-w-\[1180px\]/);
+  assert.match(source, /activeTab === 'config' \? 'bg-\[var\(--surface-card/);
+  assert.match(source, /bg-\[var\(--accent\)\].*Notfallmappe konfigurieren/s);
+  assert.match(source, /bg-\[var\(--surface-card,var\(--surface\)\)\] rounded-2xl p-6 sm:p-8/);
+  assert.match(source, /focus:ring-2 focus:ring-\[var\(--focus-ring,var\(--accent\)\)\]/);
+
+  assert.match(source, /printable-page/);
+  assert.match(source, /bg-white text-slate-800/);
+});
