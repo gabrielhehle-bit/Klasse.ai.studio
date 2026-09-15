@@ -165,7 +165,7 @@ export default function PrintCenter() {
   const ALL_TEMPLATES = useMemo(() => [
     { id: 'schuelerliste', icon: Users, label: 'Klassenliste', desc: 'Namens- & Stammdatenliste', cat: 'listen', taskCat: 'klasse', badge: 'Klasse', keywords: 'schüler name klasse stammdaten telefon adresse' },
     { id: 'checkliste', icon: CheckSquare, label: 'Notenübersicht', desc: 'Punkteraster & Notenschnitt', cat: 'listen', taskCat: 'leistung', badge: 'Noten', keywords: 'noten punkte checkliste hausübung test kontrolle' },
-    { id: 'zeugnis_noten', icon: GraduationCap, label: 'Zeugnis-Noten', desc: '1. & 2. Semester Übersicht', cat: 'listen', taskCat: 'leistung', badge: 'Zeugnis', keywords: 'zeugnis noten semester ganzjahr halbjahr fächer' },
+    { id: 'zeugnis_noten', icon: GraduationCap, label: 'Semester-Notenspiegel', desc: '1. & 2. Semester Übersicht', cat: 'listen', taskCat: 'leistung', badge: 'Semester', keywords: 'noten semester übersicht ganzjahr halbjahr fächer' },
     { id: 'fehlstunden', icon: Clock, label: 'Anwesenheitsliste', desc: 'Entschuldigt / Unentschuldigt', cat: 'listen', taskCat: 'klasse', badge: 'Absenzen', keywords: 'fehlstunden krankenstand absenzen entschuldigt' },
 
     { id: 'wochenplan', icon: Calendar, label: 'Wochenplan', desc: 'Unterrichts- & Wochenplan', cat: 'planung', taskCat: 'planung', badge: 'Unterricht', keywords: 'wochenplan kalender unterricht aufgaben stunden' },
@@ -2092,7 +2092,7 @@ export default function PrintCenter() {
               {activeTemplate === 'zeugnis_noten' && (
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider block">Zeugnis-Typ</label>
+                    <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider block">Semester</label>
                     <div className="grid grid-cols-2 gap-2 bg-slate-50 p-1 rounded-2xl border border-slate-100">
                       <button
                         type="button"
@@ -2103,7 +2103,7 @@ export default function PrintCenter() {
                             : 'text-slate-500 hover:bg-white hover:text-slate-700'
                         }`}
                       >
-                        Halbjahreszeugnis (1. Sem)
+                        1. Semester
                       </button>
                       <button
                         type="button"
@@ -2114,7 +2114,7 @@ export default function PrintCenter() {
                             : 'text-slate-500 hover:bg-white hover:text-slate-700'
                         }`}
                       >
-                        Ganzjahreszeugnis (2. Sem)
+                        2. Semester
                       </button>
                     </div>
                   </div>
@@ -2162,7 +2162,7 @@ export default function PrintCenter() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (confirm("Möchten Sie wirklich alle manuell eingetragenen Zeugnisnoten für das ausgewählte Semester zurücksetzen? Dies stellt die live berechneten Werte wieder her.")) {
+                        if (confirm("Möchten Sie wirklich alle manuell eingetragenen Endnoten für das ausgewählte Semester zurücksetzen? Dies stellt die live berechneten Werte wieder her.")) {
                           setApp(prev => {
                             const updatedNoten = { ...(prev.noten || {}) };
                             students.forEach(st => {
@@ -4891,9 +4891,9 @@ export default function PrintCenter() {
 
       // B2. ZEUGNIS NOTENLISTE
       case 'zeugnis_noten': {
-        const titleText = znSemester === '1' 
-          ? 'Notenspiegel / Halbjahreszeugnis-Noten' 
-          : 'Notenspiegel / Ganzjahreszeugnis-Noten';
+        const titleText = znSemester === '1'
+          ? 'Semester-Notenspiegel · 1. Semester'
+          : 'Semester-Notenspiegel · 2. Semester';
         
         return (
           <div className="space-y-4 print:space-y-2.5">
@@ -4955,72 +4955,78 @@ export default function PrintCenter() {
                       {znSelectedSubjects.map(f => {
                         const isFachActive = !app.faecher || app.faecher.includes(f);
                         const nd: any = app.noten?.[st.id]?.[f]?.[znSemester] || {};
+                        const mode = getAssessmentMode(app, f);
                         const manualGrade = nd.endnote || '';
-                        
-                        // Calculated grade via live sync
                         const calculatedNum = isFachActive ? berechne(app, st.id, f, znSemester) : null;
-                        const calculatedStr = calculatedNum !== null ? String(calculatedNum) : '';
-                        
-                        const hasManual = !!nd.endnote;
-                        const displayValue = hasManual ? manualGrade : calculatedStr;
+                        const hasManual = mode === 'grades' && !!nd.endnote;
+                        const displayValue = mode === 'grades'
+                          ? (hasManual ? String(manualGrade) : calculatedNum !== null ? Number(calculatedNum).toFixed(1) : '')
+                          : calculatedNum !== null
+                            ? `${Math.round(Number(calculatedNum))}%`
+                            : '';
 
                         return (
-                          <td 
-                            key={f} 
+                          <td
+                            key={f}
                             className="border-r border-zinc-200 py-1 px-1 text-center last:border-r-0 text-[0.625rem]"
                           >
                             <div className="flex items-center justify-center">
-                              {/* Screen-only interactive Select dropdown */}
-                              <select
-                                value={displayValue}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setApp(prev => {
-                                    const currentNoten = prev.noten || {};
-                                    const sidData = currentNoten[st.id] || {};
-                                    const fachData = sidData[f] || {};
-                                    const semData = fachData[znSemester] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
-                                    
-                                    return {
-                                      ...prev,
-                                      noten: {
-                                        ...currentNoten,
-                                        [st.id]: {
-                                          ...sidData,
-                                          [f]: {
-                                            ...fachData,
-                                            [znSemester]: {
-                                              ...semData,
-                                              endnote: val
+                              {mode === 'grades' ? (
+                                <>
+                                  <select
+                                    value={hasManual ? String(manualGrade) : ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setApp(prev => {
+                                        const currentNoten = prev.noten || {};
+                                        const sidData = currentNoten[st.id] || {};
+                                        const fachData = sidData[f] || {};
+                                        const semData = fachData[znSemester] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
+
+                                        return {
+                                          ...prev,
+                                          noten: {
+                                            ...currentNoten,
+                                            [st.id]: {
+                                              ...sidData,
+                                              [f]: {
+                                                ...fachData,
+                                                [znSemester]: {
+                                                  ...semData,
+                                                  endnote: val
+                                                }
+                                              }
                                             }
                                           }
-                                        }
-                                      }
-                                    };
-                                  });
-                                }}
-                                className={`no-print w-full max-w-[50px] bg-white border rounded-lg py-0.5 px-0.5 text-center font-bold text-[0.6875rem] outline-none transition-all cursor-pointer ${
-                                  hasManual 
-                                    ? 'border-amber-400 text-amber-700 bg-amber-50/20 focus:ring-1 focus:ring-amber-400' 
-                                    : calculatedNum !== null 
-                                      ? 'border-emerald-300 text-emerald-700 bg-emerald-50/15 focus:ring-1 focus:ring-emerald-400' 
-                                      : 'border-slate-200 text-slate-400 hover:border-slate-300 focus:ring-1 focus:ring-slate-300'
-                                }`}
-                              >
-                                <option value="">–</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                                <option value="SPF">SPF</option>
-                                <option value="ESPF">ESPF</option>
-                              </select>
-
-                              {/* Print-only beautifully formatted clean display grade */}
-                              <span className="hidden print:inline font-bold text-zinc-900 text-[0.7125rem]">
-                                {displayValue || '—'}
-                              </span>
+                                        };
+                                      });
+                                    }}
+                                    className={`no-print w-full max-w-[50px] bg-white border rounded-lg py-0.5 px-0.5 text-center font-bold text-[0.6875rem] outline-none transition-all cursor-pointer ${
+                                      hasManual
+                                        ? 'border-amber-400 text-amber-700 bg-amber-50/20 focus:ring-1 focus:ring-amber-400'
+                                        : calculatedNum !== null
+                                          ? 'border-emerald-300 text-emerald-700 bg-emerald-50/15 focus:ring-1 focus:ring-emerald-400'
+                                          : 'border-slate-200 text-slate-400 hover:border-slate-300 focus:ring-1 focus:ring-slate-300'
+                                    }`}
+                                  >
+                                    <option value="">–</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="SPF">SPF</option>
+                                    <option value="ESPF">ESPF</option>
+                                  </select>
+                                  <span className="hidden print:inline font-bold text-zinc-900 text-[0.7125rem]">
+                                    {displayValue || '—'}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="font-bold text-zinc-700 text-[0.6875rem]">
+                                  {displayValue || '—'}
+                                </span>
+                              )}
                             </div>
                           </td>
                         );
@@ -5033,7 +5039,7 @@ export default function PrintCenter() {
 
             <div className="pt-2 border-t border-dashed border-zinc-200 flex justify-between items-center text-[0.5625rem] text-zinc-400 font-bold uppercase tracking-wider">
               <span>* SPF/ESPF = Sonderpädagogischer Förderbedarf / Erhöhter sonderpädagogischer Förderbedarf</span>
-              <span>Druckdatum: {new Date().toLocaleDateString('de-DE')} • Erstellt mit Klassio</span>
+              <span>Druckdatum: {new Date().toLocaleDateString('de-AT')} • Erstellt mit Klassio</span>
             </div>
           </div>
         );
