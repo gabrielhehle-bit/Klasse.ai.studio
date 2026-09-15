@@ -1276,7 +1276,7 @@ export interface AppState {
   klasse?: string;
   termine?: any[];
   activeClassId?: string;
-  archivedClasses?: ClassRoom[];
+  archivedClasses?: import('./lib/archiveData').ArchivedClassSnapshot[];
   activePrintTemplate?: string;
   activePrintStudentId?: string;
   openPrintModalOnLoad?: boolean;
