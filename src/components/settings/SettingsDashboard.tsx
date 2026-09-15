@@ -98,7 +98,7 @@ export default function SettingsDashboard({
             Möchtest du Anpassungen an deiner Klassio vornehmen?
           </h2>
           <p className="text-sm text-emerald-100 font-medium leading-relaxed">
-            Wähle unten einen der 6 Hauptbereiche aus. Alle Einstellungen greifen sofort. Deine Daten und eingegebenen Schülereinträge bleiben stets sicher geschützt.
+            Wähle unten einen der 6 Hauptbereiche aus. Änderungen werden im lokalen App-Datenstand gespeichert. Löschfunktionen sind getrennt im Gefahrenbereich abgesichert.
           </p>
         </div>
 
