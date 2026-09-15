@@ -54,14 +54,14 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(({
   // lg: 52x52 px
   // sm: 36x36 px (mit 44px touch margin / target)
   const sizeClasses: Record<IconButtonSize, string> = {
-    sm: 'w-9 h-9 min-w-[36px] min-h-[36px] p-2 rounded-lg text-xs active:scale-[0.96]',
+    sm: 'w-9 h-9 min-w-[36px] min-h-[36px] p-2 rounded-xl text-xs active:scale-[0.96]',
     md: 'w-11 h-11 min-w-[44px] min-h-[44px] p-2.5 rounded-xl text-sm active:scale-[0.96]',
-    lg: 'w-13 h-13 min-w-[52px] min-h-[52px] p-3 rounded-2xl text-base active:scale-[0.96]'
+    lg: 'w-13 h-13 min-w-[52px] min-h-[52px] p-3 rounded-xl text-base active:scale-[0.96]'
   };
 
   const variantClasses: Record<IconButtonVariant, string> = {
     primary:
-      'bg-[var(--accent)] text-[var(--accent-text,var(--btn-text,#ffffff))] shadow-xs ' +
+      'bg-[var(--accent)] text-[var(--accent-text,var(--btn-text,#ffffff))] shadow-sm ' +
       'hover:bg-[var(--accent-hover)] active:bg-[var(--accent-active)] border border-transparent',
 
     secondary:
