@@ -47,6 +47,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'planung', label: 'Planung', icon: <CalendarDays size={14} />, section: 'Hauptbereiche' },
     { id: 'leistungen', label: 'Leistungen', icon: <BarChart3 size={14} />, section: 'Hauptbereiche' },
     { id: 'unterricht', label: 'Unterricht', icon: <Play size={14} />, section: 'Hauptbereiche' },
+    { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={14} />, section: 'Hauptbereiche' },
     { id: 'cockpit', label: 'Lehrercockpit', icon: <Play size={14} />, section: 'Unterricht & Helfer' },
     { id: 'ki-helfer', label: 'KI-Helfer', icon: <Bot size={14} />, section: 'Unterricht & Helfer' },
     { id: 'arbeitsblatt', label: 'Arbeitsblatt-Generator', icon: <FileEdit size={14} />, section: 'Unterricht & Helfer' },
