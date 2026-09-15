@@ -51,6 +51,14 @@ function fixture() {
       statusLog: [{ id: `status-${id}`, schuelerId: `student-${id}`, datum: '2026-09-14', iconId: id === 'a' ? '1' : '4', timestamp: id === 'a' ? 1 : 2 }],
       classContracts: [{ id: `contract-${id}`, rule: `rule-${id}` }],
       councilNotes: [{ id: `council-${id}`, content: `note-${id}`, status: 'neu' }],
+      jahresberichte: {
+        [`student-${id}`]: {
+          inhalt: `report-${id}`,
+          generiert: '2026-09-15T08:00:00.000Z',
+          schuljahr: '2026/27',
+          reviewStatus: id === 'a' ? 'freigegeben' : 'nacharbeiten',
+        },
+      },
       vertretungHinweise: `handover-${id}`,
       elterngespraeche: [{ id: `meeting-${id}`, schuelerId: `student-${id}`, datum: '2026-09-14', thema: `meeting-${id}` }],
       kelGespraeche: [{ id: `kel-${id}`, schuelerId: `student-${id}`, datum: '2026-09-14' }],
@@ -249,6 +257,21 @@ test('class switches isolate Wir-Gefuehl contracts and council notes', () => {
   const a = switchClassState(syncActiveClass(b), 'a');
   assert.equal(a.classContracts?.[0]?.id, 'contract-a');
   assert.equal(a.councilNotes?.[0]?.id, 'council-a');
+});
+
+test('class switches isolate annual report drafts and review status', () => {
+  const state = fixture();
+  assert.equal(state.jahresberichte?.['student-a']?.inhalt, 'report-a');
+  assert.equal(state.jahresberichte?.['student-a']?.reviewStatus, 'freigegeben');
+
+  const b = switchClassState(syncActiveClass(state), 'b');
+  assert.equal(b.jahresberichte?.['student-b']?.inhalt, 'report-b');
+  assert.equal(b.jahresberichte?.['student-b']?.reviewStatus, 'nacharbeiten');
+  assert.equal(b.jahresberichte?.['student-a'], undefined);
+
+  const a = switchClassState(syncActiveClass(b), 'a');
+  assert.equal(a.jahresberichte?.['student-a']?.inhalt, 'report-a');
+  assert.equal(a.jahresberichte?.['student-b'], undefined);
 });
 
 test('legacy root-only diagnostic data is assigned only to the active class', () => {

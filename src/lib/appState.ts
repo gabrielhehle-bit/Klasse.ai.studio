@@ -228,6 +228,7 @@ export function syncActiveClass(state: AppState): AppState {
     notes: state.notes ? JSON.parse(JSON.stringify(state.notes)) : [],
     journal: state.journal ? JSON.parse(JSON.stringify(state.journal)) : [],
     statusLog: state.statusLog ? JSON.parse(JSON.stringify(state.statusLog)) : [],
+    jahresberichte: state.jahresberichte ? JSON.parse(JSON.stringify(state.jahresberichte)) : {},
     elterngespraeche: state.elterngespraeche ? JSON.parse(JSON.stringify(state.elterngespraeche)) : [],
     kelGespraeche: state.kelGespraeche ? JSON.parse(JSON.stringify(state.kelGespraeche)) : [],
     portfolioEntries: state.portfolioEntries ? JSON.parse(JSON.stringify(state.portfolioEntries)) : {},
@@ -409,6 +410,10 @@ export function normalizeAppState(raw: any): AppState {
         klassenkasse: normalizeKlassenkasse(c.klassenkasse),
         behavior_status: c.behavior_status || {},
         behavior_notes: c.behavior_notes || {},
+        jahresberichte:
+          c.jahresberichte ??
+          (c.id === parsed.activeClassId ? parsed.jahresberichte : undefined) ??
+          {},
         // Legacy statistics/profile records lived at root. Attach them only to
         // the active class so they cannot leak into unrelated classes.
         elterngespraeche:
@@ -545,6 +550,7 @@ export function normalizeAppState(raw: any): AppState {
     parsed.klassenkasse = normalizeKlassenkasse(activeClass.klassenkasse);
     parsed.behavior_status = activeClass.behavior_status;
     parsed.behavior_notes = activeClass.behavior_notes;
+    parsed.jahresberichte = activeClass.jahresberichte || {};
     parsed.elterngespraeche = activeClass.elterngespraeche || [];
     parsed.kelGespraeche = activeClass.kelGespraeche || [];
     parsed.portfolioEntries = activeClass.portfolioEntries || {};
@@ -795,6 +801,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     notes: targetClass.notes ? JSON.parse(JSON.stringify(targetClass.notes)) : [],
     journal: targetClass.journal ? JSON.parse(JSON.stringify(targetClass.journal)) : [],
     statusLog: targetClass.statusLog ? JSON.parse(JSON.stringify(targetClass.statusLog)) : [],
+    jahresberichte: targetClass.jahresberichte ? JSON.parse(JSON.stringify(targetClass.jahresberichte)) : {},
     elterngespraeche: targetClass.elterngespraeche ? JSON.parse(JSON.stringify(targetClass.elterngespraeche)) : [],
     kelGespraeche: targetClass.kelGespraeche ? JSON.parse(JSON.stringify(targetClass.kelGespraeche)) : [],
     portfolioEntries: targetClass.portfolioEntries ? JSON.parse(JSON.stringify(targetClass.portfolioEntries)) : {},
