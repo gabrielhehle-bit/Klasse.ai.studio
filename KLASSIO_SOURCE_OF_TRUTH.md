@@ -81,19 +81,19 @@ Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist kei
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Reconciliation-Stand liegt nach PR #75 auf Commit `6ff2f2130a614c74465cff08cdd767d5b78a9c3e` und wurde vollständig geprüft:
+Der aktuelle codehaltige Reconciliation-Stand liegt nach PR #81 auf Commit `c3785ab2bbcbc0c6e42bf46e6eb5d806f2001a67` und wurde vollständig geprüft:
 
-- Pre-Deployment Audit #142: erfolgreich
-- Feature Validation #518 und #519: erfolgreich
+- Pre-Deployment Audit #144: erfolgreich
+- Feature Validation #659: erfolgreich
 - TypeScript: erfolgreich
-- Tests: 1004/1004 erfolgreich
+- Tests: 1010/1010 erfolgreich
 - Production Build: erfolgreich
 - PWA-/Build-Ausgabe: erfolgreich
 - Production-Server- und `/api/health`-Smoke: erfolgreich
 - Zugangscode-/Session-/E-Mail-Fallback-Smoke: erfolgreich
-- World4You-Artefakt: `klassio-world4you-6ff2f2130a614c74465cff08cdd767d5b78a9c3e`
+- World4You-Artefakt: `klassio-world4you-c3785ab2bbcbc0c6e42bf46e6eb5d806f2001a67`
 
-PR #63 wurde nach grüner Feature-/PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `c86dbc0ff2f231c28779f025f3b35f685bdff928`.
+PR #81 schloss eine historisch belegte Backup-Migrationslücke: ältere Mehrklassenstände, die ihre Klassen unter `klassen` statt `classes` gespeichert haben, werden jetzt verlustfrei ins aktuelle Mehrklassenmodell übernommen. Ein nichtleeres aktuelles `classes`-Array hat weiterhin Vorrang; ein leeres `classes` verdrängt echte historische `klassen` nicht mehr. JSON, BOM, einfache historische JS-Wrapper, verschlüsselte Backups sowie Passwort-/Recovery-Restore bleiben unterstützt. Synthetische Roundtrip-Tests sichern zwei getrennte Klassen inklusive Schüler:innen, Noten, Bewertungsmetadaten/Gewichtungen, Jahres-/Wochenplanung, Anwesenheit, Sitzplan und Diagnostik über Migration, Verschlüsselung und erneuten Restore. Ein echter persönlicher Altbestand bleibt zusätzlich Teil der späteren Staging-Abnahme.
 
 Der aktuelle Branch-HEAD kann danach reine Dokumentationscommits enthalten. Deshalb wird der verbindliche Reconciliation-HEAD **nicht dauerhaft in dieser Datei festgeschrieben**, sondern vor jeder Arbeit live aus GitHub gelesen und mit seinem neuesten erfolgreichen `Pre-Deployment Audit` abgeglichen.
 
@@ -269,7 +269,8 @@ Aktueller Fortschritt:
 - Druckzentrum: technisch abgeschlossen; PR #71 integriert, Audit #138 grün; reale Browser-/Touch-/Drucker-/PDF-/Datenschutz-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Datenarchiv / Datensicherung: technisch abgeschlossen; PR #73 integriert, Audit #140 grün; 995/995 Tests; reale Browser-/Restore-/OneDrive-/IndexedDB-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Einstellungen: technisch abgeschlossen; PR #75 integriert, Audit #142 grün; 1004/1004 Tests; reale Browser-/Touch-/PWA-/Sync-/Staging-Abnahme bleibt Teil der Gesamtfreigabe.
-- Alle 22 Einzelmodule sind technisch abgeschlossen. Nächster Schritt: exakt diesen Reconciliation-Stand auf World4You/klassio.at als Staging bereitstellen und den finalen Browser-Walkthrough durchführen. Erst danach PR #5 nach `main` mergen.
+- Legacy-Backup-Kompatibilität: PR #81 integriert; Audit #144 grün; historische `klassen`-Mehrklassenstände werden verlustfrei nach `classes` migriert, aktuelle `classes`-Daten behalten Vorrang, beschädigte historische Klassenlisten werden vor dem Restore abgewiesen.
+- Alle 22 Einzelmodule sind technisch abgeschlossen. Nächster Schritt: exakt den jeweils aktuellen, grün auditierten Reconciliation-HEAD auf dem neuen World4You-vServer unter klassio.at als Staging bereitstellen und den finalen realen Browser-/Touch-/Druck-/Restore-Walkthrough durchführen. Erst danach PR #5 nach `main` mergen.
 
 ## Pflicht für jeden neuen Chat
 
