@@ -129,7 +129,7 @@ export const DiagnosticScreeningSetup: React.FC<DiagnosticScreeningSetupProps> =
           <div className="flex items-center gap-2 shrink-0">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-100">
               <Users className="w-3.5 h-3.5" />
-              Klasse {activeClassName || '2a'}
+              Klasse {activeClassName || 'Aktuelle Klasse'}
             </span>
           </div>
         </div>
