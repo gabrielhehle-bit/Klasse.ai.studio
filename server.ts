@@ -54,12 +54,13 @@ function validateProductionEnvironment() {
     console.warn("[KONFIGURATIONSHINWEIS] Microsoft OneDrive Secrets sind nicht vollständig konfiguriert. Cloud-Backups sind im Client deaktiviert.");
   }
 
-  const wantsEmailLogin = Boolean(process.env.SMTP_HOST || process.env.SMTP_FROM || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS);
+  const configuredSchoolDomains = process.env.KLASSIO_VERIFIED_SCHOOL_DOMAINS || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS;
+  const wantsEmailLogin = Boolean(process.env.SMTP_HOST || process.env.SMTP_FROM || configuredSchoolDomains);
   if (wantsEmailLogin && (!process.env.SMTP_HOST || !process.env.SMTP_FROM)) {
     console.warn("[KONFIGURATIONSHINWEIS] E-Mail-Login ist nur aktiv, wenn SMTP_HOST und SMTP_FROM gesetzt sind.");
   }
 
-  if (process.env.SMTP_HOST && process.env.SMTP_FROM && !process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS) {
+  if (process.env.SMTP_HOST && process.env.SMTP_FROM && !configuredSchoolDomains) {
     console.warn("[KONFIGURATIONSHINWEIS] E-Mail-Login ist aktiv, aber es sind keine verifizierten Schul-Domains konfiguriert. Private Konten funktionieren; Lehrerzimmer bleibt ohne Schulverifizierung gesperrt.");
   }
 }
@@ -165,7 +166,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const SMTP_USER = (process.env.SMTP_USER || '').trim();
   const SMTP_PASS = process.env.SMTP_PASS || '';
   const SMTP_FROM = (process.env.SMTP_FROM || '').trim();
-  const ALLOWED_EMAIL_DOMAINS = (process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
+  const ALLOWED_EMAIL_DOMAINS = (process.env.KLASSIO_VERIFIED_SCHOOL_DOMAINS || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
     .split(',')
     .map(value => value.trim().toLowerCase().replace(/^@/, ''))
     .filter(Boolean);
