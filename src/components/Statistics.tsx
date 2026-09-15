@@ -1745,51 +1745,11 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
 
   // --- Calculations for Klassenstatistik ---
   const stats = useMemo(() => {
-    const distribution = [1, 2, 3, 4, 5].map(n => ({
-      name: n.toString(),
-      count: 0
-    }));
-
-    let totalSum = 0;
-    let totalCount = 0;
-    const grades: number[] = [];
-
-    const faecherToEval = activeFach === 'Gesamt' ? activeFaecher : [activeFach];
-
-    faecherToEval.forEach(f => {
-      students.forEach(s => {
-        const g = berechne(app, s.id, f, '1');
-        if (g !== null) {
-          const val = Math.round(g);
-          const idx = val - 1;
-          if (distribution[idx]) distribution[idx].count++;
-          totalSum += g;
-          totalCount++;
-          grades.push(g);
-        }
-      });
-    });
-
-    const average = totalCount > 0 ? (totalSum / totalCount) : 0;
-    
-    let variance = 0;
-    if (totalCount > 1) {
-      const sumOfSquaredDiffs = grades.reduce((acc, val) => acc + Math.pow(val - average, 2), 0);
-      variance = sumOfSquaredDiffs / totalCount;
-    }
-    const stdDev = Math.sqrt(variance);
-
-    return {
-      distribution,
-      average: totalCount > 0 ? average.toFixed(2) : '–',
-      totalCount,
-      variance: variance.toFixed(2),
-      stdDev: stdDev.toFixed(2),
-      risks: totalCount > 0 ? distribution[4].count : 0
-    };
+    const subjects = activeFach === 'Gesamt' ? activeFaecher : [activeFach];
+    return getClassPerformanceStats(app, students, subjects, '1');
   }, [app, students, activeFach, activeFaecher, notenUpdateTrigger]);
 
-  // Class subject averages
+  // Fächervergleich nutzt immer einen einheitlichen 0–100-Leistungsindex.
   const subjectAverages = useMemo(() => {
     const getShortSubjectName = (fullName: string) => {
       const lower = fullName.toLowerCase();
@@ -1805,29 +1765,16 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       return fullName.substring(0, Math.min(3, fullName.length)).toUpperCase();
     };
 
-    return activeFaecher.map(fach => {
-      let sum = 0;
-      let count = 0;
-      students.forEach(s => {
-        const grade = berechne(app, s.id, fach, '1');
-        if (grade !== null) {
-          sum += grade;
-          count++;
-        }
-      });
-      return {
-        subject: fach,
-        subjectShort: getShortSubjectName(fach),
-        average: count > 0 ? parseFloat((sum / count).toFixed(2)) : null
-      };
-    }).filter(item => item.average !== null) as { subject: string; subjectShort: string; average: number }[];
+    return getSubjectPerformanceAverages(app, students, activeFaecher, '1').map(row => ({
+      ...row,
+      subjectShort: getShortSubjectName(row.subject),
+    }));
   }, [app, students, activeFaecher, notenUpdateTrigger]);
 
-  // Best performing subject
+  // Bestes Fach = höchster normalisierter Leistungsindex.
   const bestSubject = useMemo(() => {
     if (!subjectAverages.length) return null;
-    const sorted = [...subjectAverages].sort((a, b) => a.average - b.average);
-    return sorted[0];
+    return [...subjectAverages].sort((a, b) => b.normalizedAverage - a.normalizedAverage)[0];
   }, [subjectAverages]);
 
   const dataCoverage = useMemo(() => {
