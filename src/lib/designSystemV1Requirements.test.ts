@@ -328,3 +328,27 @@ test('Elterngespräche, Differenzierung, verbale Beurteilung und Arbeitsblatt-Ge
   assert.match(worksheet, /\.print-sheet-area/);
   assert.match(worksheet, /print:bg-white/);
 });
+
+
+test('Stationenbetrieb, Stimm-Notizen, Elternbrief und Notenübersicht folgen der Klassio Oberfläche', () => {
+  const stations = read('src/components/StationenbetriebManager.tsx');
+  const voice = read('src/components/StimmNotizen.tsx');
+  const email = read('src/components/EmailAssistant.tsx');
+  const grades = read('src/components/GradeOverview.tsx');
+
+  assert.match(stations, /bg-\[var\(--surface-app,var\(--bg\)\)\]/);
+  assert.match(stations, /max-w-\[1180px\]/);
+  assert.match(stations, /bg-\[var\(--surface-card,var\(--surface\)\)\].*border-\[var\(--border-subtle,var\(--border\)\)\]/s);
+
+  assert.match(voice, /max-w-\[1180px\]/);
+  assert.match(voice, /Stimm-Notizen/);
+  assert.match(voice, /bg-\[var\(--accent\)\] text-\[var\(--accent-text,#fff\)\]/);
+
+  assert.match(email, /max-w-\[1180px\]/);
+  assert.match(email, /bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\]/);
+  assert.match(email, /Generierter Entwurf/);
+
+  assert.match(grades, /max-w-\[1180px\]/);
+  assert.match(grades, /Gesamtübersicht Noten/);
+  assert.match(grades, /bg-\[var\(--surface-card,var\(--surface\)\)\] border border-\[var\(--border-subtle,var\(--border\)\)\] rounded-2xl/);
+});
