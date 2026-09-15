@@ -300,3 +300,31 @@ test('Portfolio, Jahresbericht, KEL und Stundenentwürfe folgen der gemeinsamen 
   assert.match(drafts, /bg-\[var\(--surface-card,var\(--surface\)\)\] border border-\[var\(--border-subtle,var\(--border\)\)\] rounded-2xl/);
   assert.match(drafts, /KI-Planer/);
 });
+
+
+test('Elterngespräche, Differenzierung, verbale Beurteilung und Arbeitsblatt-Generator verwenden Klassio Oberflächen', () => {
+  const meetings = read('src/components/MeetingLogs.tsx');
+  const differentiation = read('src/components/Differentiation.tsx');
+  const verbal = read('src/components/VerbalAssessment.tsx');
+  const worksheet = read('src/components/WorksheetGenerator.tsx');
+
+  assert.match(meetings, /max-w-\[1180px\]/);
+  assert.match(meetings, /bg-\[var\(--surface-card,var\(--surface\)\)\].*border-\[var\(--border-subtle,var\(--border\)\)\]/s);
+  assert.match(meetings, /bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\]/);
+
+  assert.match(differentiation, /max-w-\[1180px\]/);
+  assert.match(differentiation, /activeMainTab === 'ki'[\s\S]*bg-\[var\(--accent\)\]/);
+  assert.match(differentiation, /bg-\[var\(--surface-card,var\(--surface\)\)\] rounded-2xl/);
+
+  assert.match(verbal, /max-w-\[1180px\]/);
+  assert.match(verbal, /Verbale Beurteilung KI/);
+  assert.match(verbal, /bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\]/);
+
+  assert.match(worksheet, /worksheet-generator-container[^\n]*bg-\[var\(--surface-app,var\(--bg\)\)\]/);
+  assert.match(worksheet, /max-w-\[1180px\]/);
+  assert.match(worksheet, /Arbeitsblatt generieren/);
+  assert.match(worksheet, /bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\]/);
+
+  assert.match(worksheet, /\.print-sheet-area/);
+  assert.match(worksheet, /print:bg-white/);
+});
