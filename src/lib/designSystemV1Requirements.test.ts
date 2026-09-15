@@ -368,3 +368,18 @@ test('Wir-Gefühl und Planungs-Zentrale verwenden die gemeinsame Klassio Arbeits
   assert.match(planning, /max-w-\[1180px\]/);
   assert.match(planning, /bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\]/);
 });
+
+
+test('Materialbibliothek vereinheitlicht Karten und Dialoge ohne die Materiallogik umzubauen', () => {
+  const material = read('src/components/Materialbibliothek.tsx');
+
+  assert.match(material, /material-library-shell max-w-\[1180px\]/);
+  assert.match(material, /bg-\[var\(--surface-card,var\(--surface\)\)\].*hover:border-\[var\(--accent\)\]\/3[05]/s);
+  assert.match(material, /aria-labelledby="material-dialog-title"[\s\S]*rounded-2xl shadow-2xl/);
+  assert.match(material, /Material → Wochenplan[\s\S]*bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\]/);
+  assert.match(material, /printable-content/);
+  assert.match(material, /materialIds/);
+
+  assert.doesNotMatch(material, /hover:bg-zinc-800\/95/);
+  assert.doesNotMatch(material, /rounded-\[(?:3|2\.5)rem\]/);
+});
