@@ -43,7 +43,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DebouncedInput } from './DebouncedInput';
 import { polishText } from '../services/aiService';
-import { logObservation, logActivity } from '../lib/utils';
+import { formatLocalDateKey, logObservation, logActivity } from '../lib/utils';
 import { filterChronicleEntries } from '../lib/behaviorChronicle';
 import { NoteEntry } from '../types';
 
@@ -210,7 +210,7 @@ export default function Behavior() {
     if (confirm('Möchtest du alle Schüler auf die Standard-Stufe zurücksetzen?')) {
       pushToHistory();
       const newStatusMap: Record<string, string> = {};
-      const now = new Date().toISOString().split('T')[0];
+      const now = formatLocalDateKey(new Date());
       const timestamp = Date.now();
       
       const newHistoryEntries = app.schueler.map((s: any) => ({
@@ -240,7 +240,7 @@ export default function Behavior() {
       const newEntry = {
         id: Math.random().toString(36).substr(2, 9),
         schuelerId: sid,
-        datum: new Date().toISOString().split('T')[0],
+        datum: formatLocalDateKey(new Date()),
         iconId: stageId,
         timestamp: Date.now()
       };
@@ -910,7 +910,7 @@ export default function Behavior() {
                     {Array.from({ length: 7 }).map((_, i) => {
                       const d = new Date();
                       d.setDate(d.getDate() - (6 - i));
-                      const dateStr = d.toISOString().split('T')[0];
+                      const dateStr = formatLocalDateKey(d);
                       const dayLogs = (app.statusLog || []).filter(l => l.schuelerId === selectedStatStudentId && l.datum === dateStr);
                       const lastLog = dayLogs.length > 0 ? dayLogs.sort((a,b) => b.timestamp - a.timestamp)[0] : null;
                       const stage = lastLog ? stages.find(s => s.id === lastLog.iconId) : null;
