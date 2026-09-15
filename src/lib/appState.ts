@@ -98,6 +98,7 @@ export const initialAppState: AppState = {
   unterrichtsmodus_sidebar_open: false,
   historicalStudents: [],
   archivedClasses: [],
+  retiredClasses: [],
   klassenkasse: {
     kontostand: 0,
     sammlungen: [],
@@ -269,6 +270,18 @@ export function normalizeAppState(raw: any): AppState {
     return initialAppState;
   }
 
+  const legacyArchivedClassEntries = Array.isArray(raw.archivedClasses)
+    ? raw.archivedClasses.filter((item: any) =>
+        item &&
+        typeof item === 'object' &&
+        !item.sourceClassId &&
+        (item.klassenvorstand !== undefined || item.jahresplanung !== undefined || item.wochenplanung !== undefined)
+      )
+    : [];
+  const archiveSnapshotEntries = Array.isArray(raw.archivedClasses)
+    ? raw.archivedClasses.filter((item: any) => !legacyArchivedClassEntries.includes(item))
+    : [];
+
   const parsed = {
     ...initialAppState,
     ...raw,
@@ -291,7 +304,10 @@ export function normalizeAppState(raw: any): AppState {
     klassenglas_completed_missions: raw.klassenglas_completed_missions ?? [],
     dienste: raw.dienste ?? [],
     backupEinstellungen: raw.backupEinstellungen ?? { letztesBackup: null, erinnerungAktiv: true },
-    archivedClasses: normalizeArchivedClasses(raw.archivedClasses),
+    archivedClasses: normalizeArchivedClasses(archiveSnapshotEntries),
+    retiredClasses: Array.isArray(raw.retiredClasses)
+      ? JSON.parse(JSON.stringify(raw.retiredClasses))
+      : JSON.parse(JSON.stringify(legacyArchivedClassEntries)),
   };
 
   // Migration: Multi-Class Support
@@ -719,6 +735,7 @@ export function normalizeAppState(raw: any): AppState {
     tourAbgeschlossen: computedTourAbgeschlossen,
     historicalStudents: parsed.historicalStudents || [],
     archivedClasses: normalizeArchivedClasses(parsed.archivedClasses),
+    retiredClasses: Array.isArray(parsed.retiredClasses) ? parsed.retiredClasses : [],
     notes: parsed.notes || [],
     settings: { ...initialAppState.settings, ...(parsed.settings || {}) },
     boardSettings: {
