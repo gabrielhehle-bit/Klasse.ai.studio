@@ -1,0 +1,33 @@
+[Unit]
+Description=Klassio Node.js application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=klassio
+Group=klassio
+WorkingDirectory=/srv/klassio/current
+EnvironmentFile=/etc/klassio/klassio.env
+Environment=NODE_ENV=production
+Environment=PORT=3100
+ExecStart=/usr/bin/node /srv/klassio/current/dist/server.cjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+KillSignal=SIGTERM
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/klassio
+
+[Install]
+WantedBy=multi-user.target
