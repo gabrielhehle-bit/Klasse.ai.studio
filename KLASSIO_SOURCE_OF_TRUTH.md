@@ -67,18 +67,20 @@ PR #65 schloss anschließend die Einzelabnahme von Wir-Gefühl ab: Das Modul ver
 
 PR #67 schloss danach die Einzelabnahme des Jahresberichts ab: Entwürfe und Freigabestatus sind klassenlokal im verschlüsselten App-State; Klassenwechsel verwerfen offene Auswahl-/Bearbeitungszustände. Leistungsdaten werden semesterbezogen aus der echten Notenmappe gelesen, KEL-Daten nach Datum gewählt und Journal-/Notes-Spiegelungen dedupliziert. Diagnosefelder aus Förderprofilen werden nicht automatisch an die KI übertragen; der Prompt enthält keine Klarnamen des Kindes und verbietet erfundene Leistungen, Diagnosen, Ereignisse oder Förderbedarfe. Badges sind nur optional und standardmäßig aus. Leere KI-Antworten werden nicht gespeichert; Neu-Generierung, KI-Feinschliff und manuelle Bearbeitung setzen den Freigabestatus wieder auf offen. Die künstliche Kompetenz-Scorecard mit willkürlichen Prozentwerten wurde durch eine transparente Datenbasis aus realen Leistungs-, KEL- und Beobachtungsdaten ersetzt. Der Druck behauptet keine Amtlichkeit, lädt keine externen Google Fonts, escaped Berichtsinhalte und verwendet `srcdoc` statt `document.write`; Sammeldruck umfasst nur freigegebene Berichte.
 
+PR #69 schloss danach die Einzelabnahme des Archivs ab: Das frühere flache Schüler-Statistikarchiv wurde durch schreibgeschützte Klassen-Jahresstände ersetzt. Archivieren kopiert die aktive Klasse, verändert oder löscht sie aber nicht. Neue Archivstände enthalten pädagogisch relevante Schüler-, Leistungs-, Lernziel-, Diagnostik-, Beobachtungs-, Anwesenheits-, KEL- und Jahresberichtsdaten; unnötige Identitäts-/Kontaktdaten wie SV-Nummer, Adresse, Elternkontakte und Foto sowie operative Daten wie Zugangsdaten, Klassenkassa, Sitzplan und laufende Jahres-/Wochenplanung werden bewusst nicht übernommen. Die Detailansicht zeigt nur tatsächlich gespeicherte Endnoten und berechnet keine nachträglichen Durchschnittswerte. Alte `historicalStudents` bleiben klar als Legacy-Zusammenfassung getrennt. Zusätzlich wurde die frühere Doppelbelegung von `archivedClasses` in Backup aufgehoben: `retiredClasses` enthält nun stillgelegte, vollständig wiederherstellbare Live-Klassen; alte Vollklassen aus `archivedClasses` werden beim Laden verlustfrei dorthin migriert. Mindestens eine aktive Klasse muss beim Stilllegen erhalten bleiben.
+
 Die historischen divergierenden Branches `audit/production-demo-data`, `audit/visible-legacy-branding`, `audit/visible-legacy-branding-final`, `fix/klassio-visible-branding`, `fix/json-backups-and-critical-data-flows` und `feature/final-app-polish` wurden anschließend gezielt gegen den aktuellen Reconciliation-Stand geprüft. Ihre noch eigenen Commits enthalten entweder nur temporäre Audit-/CI-Workflows oder ältere Varianten von Funktionen, die im aktuellen Stand bereits gleichwertig oder neuer umgesetzt sind. Sie werden deshalb **nicht** in den Produktstand gemergt.
 
 Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist keine Arbeitsgrundlage. Seine relevanten funktionalen Lücken wurden selektiv auf frischen Branches vom jeweils aktuellen Reconciliation-HEAD neu umgesetzt. Verbleibende Unterschiede in Cockpit/BoardInk/Vorlagen stammen aus älteren UI-Varianten und werden nicht über den neueren, bereits getesteten Cockpit-Stand aus PR #6 gelegt.
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Reconciliation-Stand liegt nach PR #67 auf Commit `4ceb867e550f72a95c90ab0bbf8b597b5eef55ce` und wurde vollständig geprüft:
+Der letzte codehaltige Reconciliation-Stand liegt nach PR #69 auf Commit `7423a40cad6d0802bc3efb4369612780561a74eb` und wurde vollständig geprüft:
 
-- Pre-Deployment Audit #134: erfolgreich
-- Feature Validation #432 und PR-Validation #433: erfolgreich
+- Pre-Deployment Audit #136: erfolgreich
+- Feature Validation #451 und PR-Validation #452: erfolgreich
 - TypeScript: erfolgreich
-- Tests: 963/963 erfolgreich
+- Tests: 976/976 erfolgreich
 - Production Build: erfolgreich
 - PWA-/Build-Ausgabe: erfolgreich
 - Production-Server- und `/api/health`-Smoke: erfolgreich
@@ -257,7 +259,8 @@ Aktueller Fortschritt:
 - Diagnostik: technisch abgeschlossen; PR #63 integriert, Audit #130 grün; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Wir-Gefühl: technisch abgeschlossen; PR #65 integriert, Audit #132 grün; reale Browser-/Touch-/Datenschutz-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Jahresbericht: technisch abgeschlossen; PR #67 integriert, Audit #134 grün; reale Browser-/Touch-/Druck-/Datenschutz-/KI-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
-- Nächster Bereich: Archiv.
+- Archiv: technisch abgeschlossen; PR #69 integriert, Audit #136 grün; reale Browser-/Touch-/Datenschutz-/Legacy-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
+- Nächster Bereich: Druckzentrum.
 
 ## Pflicht für jeden neuen Chat
 
