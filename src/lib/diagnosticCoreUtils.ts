@@ -26,6 +26,7 @@ import {
   getDiagnosticScreeningById,
   getDiagnosticScreeningByCompetencyId,
 } from '../data/diagnosticScreenings';
+import { formatLocalDateKey } from './utils';
 
 export { 
   DIAGNOSTIC_TESTS, 
@@ -108,8 +109,9 @@ export function createDiagnosticResult(
     conductedBy?: string;
   }
 ): DiagnosticResult {
-  const nowIso = new Date().toISOString();
-  const dateStr = params.date || nowIso.split('T')[0];
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const dateStr = params.date || formatLocalDateKey(now);
   const uniqueId = `diag_res_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
   return {
@@ -1480,13 +1482,13 @@ export function evaluateScreeningForStudent(params: {
   });
 
   const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
+  const dateStr = formatLocalDateKey(now);
 
   return {
     id: `diag-scr-${student.id}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     schemaVersion: 1,
     studentId: student.id,
-    classId: classId || (student as any).klasse || 'klasse-default',
+    classId,
     testId: testDefinition.id,
     date: dateStr,
     mode: 'screening',
