@@ -238,24 +238,46 @@ export default function Backup() {
     if (deleteConfirmText !== 'LÖSCHEN') return;
     setDeleteModalOpen(false);
 
-    const resetStep = async (label: string, action: () => void | Promise<void>): Promise<boolean> => {
-      try {
-        await action();
-        return true;
-      } catch (error) {
-        console.error(`${label} konnte beim Werksreset nicht gelöscht werden`, error);
-        alert(`Der Werksreset wurde abgebrochen: ${label} konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.`);
-        return false;
-      }
-    };
+    try {
+      await clearTrustedDeviceUnlock();
+    } catch (error) {
+      console.error('Gerätevertrauen konnte beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Gerätevertrauen konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
+    }
 
-    if (!await resetStep('Gerätevertrauen', () => clearTrustedDeviceUnlock())) return;
-    if (!await resetStep('Lokaler App-Speicher', () => localforage.clear())) return;
-    if (!await resetStep('Browser-Fallback', () => localStorage.clear())) return;
-    if (!await resetStep('Sitzungsspeicher', () => sessionStorage.clear())) return;
+    try {
+      await localforage.clear();
+    } catch (error) {
+      console.error('Lokaler App-Speicher konnte beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Der lokale App-Speicher konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
+    }
+
+    try {
+      localStorage.clear();
+    } catch (error) {
+      console.error('Browser-Fallback konnte beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Der Browser-Fallback konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
+    }
+
+    try {
+      sessionStorage.clear();
+    } catch (error) {
+      console.error('Sitzungsspeicher konnte beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Der Sitzungsspeicher konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
+    }
 
     // Delete vault metadata last. If this step fails, no encrypted pupil/app state is left behind.
-    if (!await resetStep('Tresor-Metadaten', () => deleteVaultRecord())) return;
+    try {
+      await deleteVaultRecord();
+    } catch (error) {
+      console.error('Tresor-Metadaten konnten beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Die Tresor-Metadaten konnten nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      return;
+    }
 
     clearActiveVaultSession();
     window.location.reload();
