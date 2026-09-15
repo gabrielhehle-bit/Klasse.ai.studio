@@ -74,16 +74,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   const [showDesignMenu, setShowDesignMenu] = useState(false);
   const [showWeatherDetails, setShowWeatherDetails] = useState(false);
   const [showSchoolYearDetails, setShowSchoolYearDetails] = useState(false);
-  
-  // Einfachmodus Toggle (saved in localStorage)
-  const [simpleHeaderMode, setSimpleHeaderMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('header_simple_mode');
-    return saved !== null ? saved === 'true' : false;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('header_simple_mode', simpleHeaderMode.toString());
-  }, [simpleHeaderMode]);
 
   // State for Modals & Systems
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -338,8 +328,8 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   return (
     <header className={`flex flex-col sticky top-0 z-[100] topbar no-print print:hidden ${className || ''}`}>
       {/* Haupt-Header Zeile */}
-      <div className="bg-[var(--surface-card,var(--surface))]/95 backdrop-blur-xl border-b border-[var(--border-default,var(--border))] py-2.5 px-3 sm:px-6 shadow-xs">
-        <div className="max-w-[1600px] mx-auto flex items-center justify-between gap-2 sm:gap-4 w-full">
+      <div className="bg-[var(--surface-card,var(--surface))]/96 backdrop-blur-xl border-b border-[var(--border-subtle,var(--border))] px-3 sm:px-5 shadow-[0_1px_0_rgba(15,23,42,0.02)]">
+        <div className="max-w-[1600px] mx-auto min-h-[60px] flex items-center justify-between gap-2 sm:gap-4 w-full">
           
           {/* Linker Bereich: Navigation, Rückweg und Seitentitel */}
           <div className="flex items-center gap-2 min-w-0">
@@ -366,13 +356,13 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
               </button>
             )}
 
-            <div className="hidden md:flex min-w-0 flex-col leading-tight">
+            <div className="flex min-w-0 flex-col leading-tight">
               {navigationParent && (
-                <span className="text-[0.625rem] font-bold uppercase tracking-[0.14em] text-[var(--text-muted)] truncate">
+                <span className="hidden sm:block text-[0.6875rem] font-semibold text-[var(--text-muted)] truncate">
                   {navigationParent.label}
                 </span>
               )}
-              <span className="max-w-[220px] xl:max-w-[320px] truncate text-sm font-black text-[var(--text-primary)]">
+              <span className="max-w-[150px] sm:max-w-[220px] xl:max-w-[360px] truncate text-[0.9375rem] font-bold tracking-[-0.01em] text-[var(--text-primary)]">
                 {title}
               </span>
             </div>
@@ -381,31 +371,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
           {/* Rechter Bereich: Wetter & Schuljahr-Zeitdiagramm & PayPal & Fehler melden & Mehr */}
           <div className="flex items-center gap-2 sm:gap-2.5">
             
-            {/* Fehler melden Google Sheet Link */}
-            <a
-              href="https://docs.google.com/spreadsheets/d/15bWUTQyXcJnVKkR9VlIR-h2CMJ3a8ua5GO68JT7vmDc/edit?gid=1159556393#gid=1159556393"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Fehler oder Feedback direkt in Google Sheet eintragen"
-              aria-label="Fehler in Google Sheet melden"
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-2xl text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
-            >
-              <Bug size={15} className="text-amber-500 shrink-0" />
-              <span className="hidden sm:inline">Fehler melden</span>
-            </a>
-
-            {/* PayPal Unterstützen Link */}
-            <a
-              href="https://paypal.me/gabrielhehle"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Klassio freiwillig unterstützen"
-              aria-label="Klassio freiwillig unterstützen"
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-2xl text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
-            >
-              <Heart size={15} className="text-rose-500 fill-rose-500/20 shrink-0" />
-              <span className="hidden xs:inline">Unterstützen</span>
-            </a>
+            {/* Feedback und Unterstützung liegen bewusst gesammelt unter „Mehr“. */}
 
             {/* Speichern Button */}
             <Button
@@ -429,7 +395,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                   setShowMehrMenu(false);
                   setShowClassDropdown(false);
                 }}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-2xl font-bold text-xs shrink-0 shadow-2xs transition-all cursor-pointer active:scale-95 ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-xl font-bold text-xs shrink-0 shadow-2xs transition-all cursor-pointer active:scale-95 ${
                   showWeatherDetails 
                     ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-xs'
                     : 'bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-card,var(--surface))] border-[var(--border-default,var(--border))] text-[var(--text-primary)]'
@@ -456,7 +422,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                     </div>
 
                     {/* Aktueller Status */}
-                    <div className="bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] p-3 rounded-2xl flex items-center justify-between">
+                    <div className="bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] p-3 rounded-xl flex items-center justify-between">
                       <div>
                         <div className="text-2xl font-black text-[var(--text-primary)]">
                           {weather ? `${Math.round(weather.temperature)}°C` : '—'}
@@ -518,7 +484,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                   setShowMehrMenu(false);
                   setShowClassDropdown(false);
                 }}
-                className={`flex items-center gap-2 px-3 py-1.5 border rounded-2xl font-bold text-xs shrink-0 shadow-2xs transition-all cursor-pointer active:scale-95 ${
+                className={`flex items-center gap-2 px-3 py-1.5 border rounded-xl font-bold text-xs shrink-0 shadow-2xs transition-all cursor-pointer active:scale-95 ${
                   showSchoolYearDetails
                     ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-xs'
                     : 'bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-card,var(--surface))] border-[var(--border-default,var(--border))] text-[var(--text-primary)]'
@@ -558,7 +524,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                     </div>
 
                     {/* Großer Fortschrittsbalken */}
-                    <div className="bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] p-3 rounded-2xl space-y-2">
+                    <div className="bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] p-3 rounded-xl space-y-2">
                       <div className="flex justify-between items-center text-xs font-bold text-[var(--text-primary)]">
                         <span>{app?.schuljahr || getCurrentSchuljahr()}</span>
                         <span className="text-[var(--accent)]">{schoolDaysRemaining} Schultage verbleibend</span>
@@ -577,21 +543,21 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
 
                     {/* Kennzahlen Grid */}
                     <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="bg-[var(--surface-subtle,var(--surface2))] p-2.5 rounded-2xl border border-[var(--border-default,var(--border))]">
+                      <div className="bg-[var(--surface-subtle,var(--surface2))] p-2.5 rounded-xl border border-[var(--border-default,var(--border))]">
                         <div className="text-[0.5625rem] font-bold text-[var(--text-muted)] uppercase">Verbleibende Schultage</div>
                         <div className="text-lg font-black text-[var(--accent)]">{schoolDaysRemaining} Tage</div>
                       </div>
-                      <div className="bg-[var(--surface-subtle,var(--surface2))] p-2.5 rounded-2xl border border-[var(--border-default,var(--border))]">
+                      <div className="bg-[var(--surface-subtle,var(--surface2))] p-2.5 rounded-xl border border-[var(--border-default,var(--border))]">
                         <div className="text-[0.5625rem] font-bold text-[var(--text-muted)] uppercase">Schultage gesamt</div>
                         <div className="text-lg font-black text-[var(--text-primary)]">{schoolDaysTotal} Tage</div>
                       </div>
-                      <div className="bg-[var(--surface-subtle,var(--surface2))] p-2.5 rounded-2xl border border-[var(--border-default,var(--border))]">
+                      <div className="bg-[var(--surface-subtle,var(--surface2))] p-2.5 rounded-xl border border-[var(--border-default,var(--border))]">
                         <div className="text-[0.5625rem] font-bold text-[var(--text-muted)] uppercase">Schulstart</div>
                         <div className="text-xs font-bold text-[var(--text-primary)]">
                           {schoolYearStart.toLocaleDateString("de-DE", { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </div>
                       </div>
-                      <div className="bg-[var(--surface-subtle,var(--surface2))] p-2.5 rounded-2xl border border-[var(--border-default,var(--border))]">
+                      <div className="bg-[var(--surface-subtle,var(--surface2))] p-2.5 rounded-xl border border-[var(--border-default,var(--border))]">
                         <div className="text-[0.5625rem] font-bold text-[var(--text-muted)] uppercase">Sommerferien-Start</div>
                         <div className="text-xs font-bold text-[var(--text-primary)]">
                           {summerStart.toLocaleDateString("de-DE", { day: '2-digit', month: '2-digit', year: 'numeric' })}
@@ -636,7 +602,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                           setShowMehrMenu(false);
                           handleGlobalSearch();
                         }}
-                        className="w-full flex items-center justify-center gap-2 p-2.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-2xl text-xs font-bold text-[var(--text-primary)] transition-colors cursor-pointer shadow-3xs"
+                        className="w-full flex items-center justify-center gap-2 p-2.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-xl text-xs font-bold text-[var(--text-primary)] transition-colors cursor-pointer shadow-3xs"
                       >
                         <Search size={15} className="text-[var(--accent)] shrink-0" />
                         <span>Globale Suche</span>
@@ -667,31 +633,13 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                       </button>
                     </div>
 
-                    {/* Header Modus Umschalter (Einfachmodus Toggle) */}
-                    <div className="bg-[var(--surface-subtle,var(--surface2))] p-2.5 rounded-2xl border border-[var(--border-default,var(--border))] flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Eye size={15} className="text-[var(--accent)]" />
-                        <div>
-                          <div className="text-xs font-bold text-[var(--text-primary)]">Einfachmodus</div>
-                          <div className="text-[0.625rem] font-medium text-[var(--text-muted)]">Header auf 4 Elemente beschränken</div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setSimpleHeaderMode(!simpleHeaderMode)}
-                        className={`p-1 rounded-xl transition-colors cursor-pointer ${simpleHeaderMode ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
-                        title={simpleHeaderMode ? "Einfachmodus deaktivieren" : "Einfachmodus aktivieren"}
-                      >
-                        {simpleHeaderMode ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
-                      </button>
-                    </div>
-
                     {/* Seiten-Spezifische Aktionen (Falls von der Seite übergeben, z.B. Anpassen / Hilfe) */}
                     {actions && (
                       <div className="space-y-1.5">
                         <div className="text-[0.5625rem] font-bold uppercase tracking-widest text-[var(--text-muted)] px-1">
                           Seiten-Aktionen
                         </div>
-                        <div className="bg-[var(--surface-subtle,var(--surface2))] p-2 rounded-2xl border border-[var(--border-subtle,var(--border))] flex flex-wrap gap-2">
+                        <div className="bg-[var(--surface-subtle,var(--surface2))] p-2 rounded-xl border border-[var(--border-subtle,var(--border))] flex flex-wrap gap-2">
                           {actions}
                         </div>
                       </div>
@@ -718,7 +666,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
 
                         {/* Inline Design Menu Details */}
                         {showDesignMenu && (
-                          <div className="bg-[var(--surface-card,var(--surface))] p-3 rounded-2xl border border-[var(--border-default,var(--border))] space-y-3.5 mt-1 animate-in fade-in duration-150 shadow-sm">
+                          <div className="bg-[var(--surface-card,var(--surface))] p-3 rounded-xl border border-[var(--border-default,var(--border))] space-y-3.5 mt-1 animate-in fade-in duration-150 shadow-sm">
                             {/* 1. Farb-Theme */}
                             <div className="space-y-1">
                               <span className="text-[0.5625rem] font-bold uppercase text-[var(--text-muted)]">Farb-Theme</span>
@@ -855,14 +803,14 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                       <div className="grid grid-cols-2 gap-1.5">
                         <button
                           onClick={() => openHandyKopplungModal('remote')}
-                          className="flex flex-col items-center justify-center p-2.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-2xl text-xs font-bold text-[var(--text-primary)] transition-all cursor-pointer gap-1 text-center"
+                          className="flex flex-col items-center justify-center p-2.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-xl text-xs font-bold text-[var(--text-primary)] transition-all cursor-pointer gap-1 text-center"
                         >
                           <Smartphone size={16} className="text-emerald-500" />
                           <span className="text-[0.6875rem]">Handy-Remote</span>
                         </button>
                         <button
                           onClick={() => openHandyKopplungModal('wifi')}
-                          className="flex flex-col items-center justify-center p-2.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-2xl text-xs font-bold text-[var(--text-primary)] transition-all cursor-pointer gap-1 text-center"
+                          className="flex flex-col items-center justify-center p-2.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-xl text-xs font-bold text-[var(--text-primary)] transition-all cursor-pointer gap-1 text-center"
                         >
                           <Wifi size={16} className="text-blue-500" />
                           <span className="text-[0.6875rem]">WLAN QR-Code</span>
@@ -947,7 +895,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                     </div>
 
                     {/* 4. Wetter & 3-Tages-Vorschau & Schuljahr-Zeitstrahl */}
-                    <div className="bg-[var(--surface-subtle,var(--surface2))] p-3 rounded-2xl border border-[var(--border-default,var(--border))] space-y-3">
+                    <div className="bg-[var(--surface-subtle,var(--surface2))] p-3 rounded-xl border border-[var(--border-default,var(--border))] space-y-3">
                       
                       {/* Wetter & 3-Tages-Vorschau */}
                       <div className="space-y-1.5">
@@ -1047,7 +995,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                       <button
                         onClick={() => {
                           setShowMehrMenu(false);
-                          setPage('einstellungen');
+                          setPage('settings');
                         }}
                         className="w-full flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--surface-subtle,var(--surface2))] transition-colors cursor-pointer"
                       >
@@ -1091,7 +1039,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
               <X size={20} />
             </button>
 
-            <div className="flex bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] rounded-2xl p-1 gap-1 w-full max-w-sm">
+            <div className="flex bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] rounded-xl p-1 gap-1 w-full max-w-sm">
               <button
                 onClick={() => { setQrModalTab('remote'); setIsWifiFullscreen(false); ensureSyncCode(); }}
                 className={`flex-1 py-2 rounded-xl text-[0.6875rem] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
