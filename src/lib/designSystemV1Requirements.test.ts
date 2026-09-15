@@ -436,3 +436,20 @@ test('Schnellnotiz und Willkommens Tour folgen der Klassio Overlay Sprache', () 
   assert.match(tour, /bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\]/);
   assert.match(tour, /tourAbgeschlossen/);
 });
+
+
+test('Lehrercockpit behält Schreiben Zeichnen und Widgets und nutzt Klassio Akzent für die Hauptaktionen', () => {
+  const cockpit = read('src/components/Unterrichtsmodus.tsx');
+
+  assert.match(cockpit, /Unterrichtshilfe hinzufügen/);
+  assert.match(cockpit, /Schreiben & Zeichnen/);
+  assert.match(cockpit, /Widgets bedienen/);
+  assert.match(cockpit, /setIsBoardWriting/);
+  assert.match(cockpit, /handleOpenWidgetInCockpitLayout/);
+  assert.match(cockpit, /cockpitWidgets/);
+
+  assert.match(cockpit, /bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\] text-\[var\(--accent-text,#fff\)\]/);
+  assert.match(cockpit, /isBoardWriting \? 'bg-\[var\(--accent\)\] border-\[var\(--accent\)\]/);
+
+  assert.match(cockpit, /currentIsLight \? "bg-white\/90 border-slate-200" : "bg-black\/60 border-white\/10"/);
+});
