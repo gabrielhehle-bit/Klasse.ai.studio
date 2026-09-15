@@ -549,20 +549,37 @@ export default function PrintCenter() {
   useEffect(() => {
     if (app?.activePrintTemplate) {
       setActiveTemplate(app.activePrintTemplate as any);
-      
-      // Clean up template selection parameter
+
       setApp(prev => ({ ...prev, activePrintTemplate: undefined }));
     }
-    if (app?.activePrintStudentId) {
-      setKelSelectedStudentId(app.activePrintStudentId);
-      setProfSelectedStudentId(app.activePrintStudentId);
-      setKpSelectedStudentId(app.activePrintStudentId);
-      setLobSelectedStudentId(app.activePrintStudentId);
 
-      // Clean up student parameter
+    if (app?.activePrintStudentId) {
+      const belongsToActiveClass = students.some((student) => student.id === app.activePrintStudentId);
+      if (belongsToActiveClass) {
+        setKelSelectedStudentId(app.activePrintStudentId);
+        setProfSelectedStudentId(app.activePrintStudentId);
+        setDiagSelectedStudentId(app.activePrintStudentId);
+        setKpSelectedStudentId(app.activePrintStudentId);
+        setPdfStudentId(app.activePrintStudentId);
+        setLobSelectedStudentId(app.activePrintStudentId);
+      }
+
       setApp(prev => ({ ...prev, activePrintStudentId: undefined }));
     }
-  }, [app?.activePrintTemplate, app?.activePrintStudentId]);
+  }, [app?.activePrintTemplate, app?.activePrintStudentId, students, setApp]);
+
+  useEffect(() => {
+    const firstStudentId = students[0]?.id || '';
+    setKelSelectedStudentId(firstStudentId);
+    setProfSelectedStudentId(firstStudentId);
+    setDiagSelectedStudentId(firstStudentId);
+    setKpSelectedStudentId(firstStudentId);
+    setPdfStudentId(firstStudentId);
+    setLobSelectedStudentId(firstStudentId);
+    setStTischStudentId('all');
+    setStUrkundeStudentId('all');
+    setDossierPreviewOpen(false);
+  }, [app?.activeClassId]);
 
   const applyPreset = (preset: 'klassisch' | 'raster' | 'ausflug' | 'kel') => {
     setBypassOrientationAutoSet(true);
