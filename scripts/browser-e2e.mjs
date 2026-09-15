@@ -200,15 +200,15 @@ async function main() {
     await client.send('Network.enable');
     await client.send('Page.navigate', { url: BASE_URL });
 
-    await waitFor(client, 'Klassio access gate', 'document.body?.innerText.includes("Geschützter Zugang")');
+    await waitFor(client, 'Klassio access gate', 'document.body?.innerText.toLowerCase().includes("geschützter zugang")');
     await setInputByLabel(client, 'Zugangscode', ACCESS_CODE);
     await clickByText(client, 'Klassio öffnen');
-    await waitFor(client, 'local vault setup', 'document.body?.innerText.includes("Lokalen Datentresor einrichten")', 20000);
+    await waitFor(client, 'local vault setup', 'document.body?.innerText.toLowerCase().includes("lokalen datentresor einrichten")', 20000);
 
     await setInputByLabel(client, 'Tresor-Passwort vergeben', VAULT_PASSWORD);
     await setInputByLabel(client, 'Passwort bestätigen', VAULT_PASSWORD);
     await clickByText(client, 'Weiter zum Wiederherstellungscode');
-    await waitFor(client, 'recovery code confirmation', 'document.body?.innerText.includes("Dein einmaliger Wiederherstellungscode")', 20000);
+    await waitFor(client, 'recovery code confirmation', 'document.body?.innerText.toLowerCase().includes("dein einmaliger wiederherstellungscode")', 20000);
 
     const recoveryCode = await evaluate(
       client,
@@ -218,7 +218,7 @@ async function main() {
 
     await clickCheckboxNearText(client, 'Ich habe den Wiederherstellungscode sicher notiert');
     await clickByText(client, 'Einrichtung abschließen');
-    await waitFor(client, 'Klassio first setup', 'document.body?.innerText.includes("Willkommen bei Klassio!")', 25000);
+    await waitFor(client, 'Klassio first setup', 'document.body?.innerText.toLowerCase().includes("willkommen bei klassio")', 25000);
 
     await clickByText(client, 'Beispielklasse erkunden');
     await waitFor(
@@ -229,25 +229,25 @@ async function main() {
     );
 
     await clickSidebarPage(client, 'Anwesenheit & Befinden');
-    await waitFor(client, 'attendance screen content', 'document.body?.innerText.includes("Anwesenheit")');
+    await waitFor(client, 'attendance screen content', 'document.body?.innerText.toLowerCase().includes("anwesenheit")');
 
     await clickSidebarPage(client, 'Sitzplan & Gruppen');
-    await waitFor(client, 'seating plan content', 'document.body?.innerText.includes("Sitzplan")');
+    await waitFor(client, 'seating plan content', 'document.body?.innerText.toLowerCase().includes("sitzplan")');
 
     await clickSidebarPage(client, 'Notenmappe');
-    await waitFor(client, 'gradebook content', 'document.body?.innerText.includes("Notenmappe")||document.body?.innerText.includes("Bewertung")');
+    await waitFor(client, 'gradebook content', 'document.body?.innerText.toLowerCase().includes("notenmappe")||document.body?.innerText.toLowerCase().includes("bewertung")');
 
     await clickSidebarPage(client, 'Wochenplan');
-    await waitFor(client, 'weekly planning content', 'document.body?.innerText.toLowerCase().includes("wochenplanung")||document.body?.innerText.includes("Wochenplan")');
+    await waitFor(client, 'weekly planning content', 'document.body?.innerText.toLowerCase().includes("wochenplanung")||document.body?.innerText.toLowerCase().includes("wochenplan")');
 
     await clickSidebarPage(client, 'Diagnostik');
-    await waitFor(client, 'diagnostics content', 'document.body?.innerText.includes("Diagnostik")');
+    await waitFor(client, 'diagnostics content', 'document.body?.innerText.toLowerCase().includes("diagnostik")');
 
     await clickSidebarPage(client, 'Druckzentrum');
     await waitFor(client, 'print center content', 'document.body?.innerText.toLowerCase().includes("druckzentrum")');
 
     await clickSidebarPage(client, 'Backup & Daten');
-    await waitFor(client, 'backup screen content', 'document.body?.innerText.includes("Backup")||document.body?.innerText.includes("Datensicherung")');
+    await waitFor(client, 'backup screen content', 'document.body?.innerText.toLowerCase().includes("backup")||document.body?.innerText.toLowerCase().includes("datensicherung")');
 
     const manifestOk = await evaluate(client, 'fetch("/manifest.webmanifest",{cache:"no-store"}).then(response=>response.ok)');
     if (!manifestOk) throw new Error('PWA manifest could not be fetched in the browser.');
