@@ -110,10 +110,19 @@ export default function DossierDiagnostik({
   }, [allDiagnosticResults, student.id]);
 
   // Save result handler for test runner
-  const handleSaveRunnerResult = (result: DiagnosticResult) => {
-    const updated = [result, ...(app.diagnosticResults || [])];
+  const handleSaveRunnerResult = (result: DiagnosticResult): boolean => {
+    if (!app.activeClassId || result.classId !== app.activeClassId || result.studentId !== student.id) {
+      window.alert('Ergebnis kann nicht gespeichert werden: Klassen- oder Schülerzuordnung hat sich geändert.');
+      return false;
+    }
+
+    const updated = [
+      result,
+      ...(app.diagnosticResults || []).filter(existing => existing.id !== result.id),
+    ];
     updateApp({ diagnosticResults: updated });
     setActiveTestForRunner(null);
+    return true;
   };
 
   // Start 1:1 check helper
