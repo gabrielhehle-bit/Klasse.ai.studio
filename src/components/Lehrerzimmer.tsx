@@ -8,10 +8,13 @@ import {
   Loader2,
   LockKeyhole,
   MessageCircle,
+  Pencil,
   RefreshCw,
   Send,
   ShieldCheck,
+  Trash2,
   Users,
+  X,
 } from 'lucide-react';
 import { Badge, Button, Input, Select, Textarea } from './ui';
 
@@ -125,6 +128,12 @@ export default function Lehrerzimmer() {
   const [posting, setPosting] = useState(false);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
   const [replyingPostId, setReplyingPostId] = useState<string | null>(null);
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+  const [editCategory, setEditCategory] = useState<Category>('organisation');
+  const [editKind, setEditKind] = useState<Kind>('beitrag');
+  const [editTitle, setEditTitle] = useState('');
+  const [editBody, setEditBody] = useState('');
+  const [mutatingId, setMutatingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -215,6 +224,79 @@ export default function Lehrerzimmer() {
       setError(cause instanceof Error ? cause.message : 'Die Antwort konnte nicht gespeichert werden.');
     } finally {
       setReplyingPostId(null);
+    }
+  };
+
+  const startEditingPost = (post: LehrerzimmerPost) => {
+    setEditingPostId(post.id);
+    setEditCategory(post.category);
+    setEditKind(post.kind);
+    setEditTitle(post.title);
+    setEditBody(post.body);
+    setError(null);
+  };
+
+  const cancelEditingPost = () => {
+    setEditingPostId(null);
+    setEditTitle('');
+    setEditBody('');
+  };
+
+  const saveEditedPost = async (postId: string) => {
+    if (!editTitle.trim() || !editBody.trim() || mutatingId) return;
+    setMutatingId('post:' + postId);
+    setError(null);
+    try {
+      await fetch('/api/lehrerzimmer/posts/' + encodeURIComponent(postId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: editCategory,
+          kind: editKind,
+          title: editTitle.trim(),
+          body: editBody.trim(),
+        }),
+      }).then(readJson);
+      cancelEditingPost();
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Der Beitrag konnte nicht geändert werden.');
+    } finally {
+      setMutatingId(null);
+    }
+  };
+
+  const deleteOwnPost = async (postId: string) => {
+    if (mutatingId || !window.confirm('Diesen Lehrerzimmer-Beitrag wirklich löschen? Antworten auf diesen Beitrag werden ebenfalls gelöscht.')) return;
+    setMutatingId('post:' + postId);
+    setError(null);
+    try {
+      await fetch('/api/lehrerzimmer/posts/' + encodeURIComponent(postId), {
+        method: 'DELETE',
+      }).then(readJson);
+      if (editingPostId === postId) cancelEditingPost();
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Der Beitrag konnte nicht gelöscht werden.');
+    } finally {
+      setMutatingId(null);
+    }
+  };
+
+  const deleteOwnReply = async (postId: string, replyId: string) => {
+    if (mutatingId || !window.confirm('Diese Antwort wirklich löschen?')) return;
+    setMutatingId('reply:' + replyId);
+    setError(null);
+    try {
+      await fetch(
+        '/api/lehrerzimmer/posts/' + encodeURIComponent(postId) + '/replies/' + encodeURIComponent(replyId),
+        { method: 'DELETE' },
+      ).then(readJson);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Die Antwort konnte nicht gelöscht werden.');
+    } finally {
+      setMutatingId(null);
     }
   };
 
@@ -400,45 +482,151 @@ export default function Lehrerzimmer() {
                   post.replies.some(reply => reply.mentions.includes(me.user.userId))
                 ));
                 const meta = CATEGORY_META[post.category];
+                const isOwnPost = me?.user.userId === post.authorId;
+                const isEditing = editingPostId === post.id;
 
                 return (
                   <article key={post.id} className="rounded-3xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] shadow-sm overflow-hidden">
                     <div className="p-5 sm:p-6 space-y-4">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant={meta.badge} icon={meta.icon}>{meta.label}</Badge>
-                        <Badge variant={post.kind === 'frage' ? 'warning' : 'neutral'} icon={post.kind === 'frage' ? <HelpCircle size={12} /> : <MessageCircle size={12} />}>
-                          {post.kind === 'frage' ? 'Frage' : 'Beitrag'}
-                        </Badge>
-                        {mentionedMe && <Badge variant="accent" icon={<AtSign size={12} />}>Erwähnt dich</Badge>}
-                      </div>
-
-                      <div>
-                        <h2 className="text-lg sm:text-xl font-black tracking-tight">{post.title}</h2>
-                        <div className="mt-1 text-xs text-[var(--text-muted)]">
-                          <span className="font-bold text-[var(--text-secondary)]">{post.authorName}</span>
-                          {' '}@{post.authorHandle} · {formatDate(post.createdAt)}
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant={meta.badge} icon={meta.icon}>{meta.label}</Badge>
+                          <Badge variant={post.kind === 'frage' ? 'warning' : 'neutral'} icon={post.kind === 'frage' ? <HelpCircle size={12} /> : <MessageCircle size={12} />}>
+                            {post.kind === 'frage' ? 'Frage' : 'Beitrag'}
+                          </Badge>
+                          {mentionedMe && <Badge variant="accent" icon={<AtSign size={12} />}>Erwähnt dich</Badge>}
                         </div>
+
+                        {isOwnPost && !isEditing && (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startEditingPost(post)}
+                              leftIcon={<Pencil size={13} />}
+                            >
+                              Bearbeiten
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => void deleteOwnPost(post.id)}
+                              disabled={mutatingId === 'post:' + post.id}
+                              leftIcon={<Trash2 size={13} />}
+                              className="text-[var(--danger)] hover:bg-[var(--danger-soft)]"
+                            >
+                              Löschen
+                            </Button>
+                          </div>
+                        )}
                       </div>
 
-                      <p className="text-sm sm:text-[15px] leading-7 whitespace-pre-wrap text-[var(--text-primary)]">
-                        <MentionText text={post.body} />
-                      </p>
+                      {isEditing ? (
+                        <div className="space-y-4 rounded-2xl border border-[var(--accent)]/20 bg-[var(--accent-soft)] p-4">
+                          <div className="grid sm:grid-cols-2 gap-3">
+                            <Select
+                              label="Kategorie"
+                              value={editCategory}
+                              onChange={event => setEditCategory(event.target.value as Category)}
+                              options={[
+                                { value: 'organisation', label: 'Organisation' },
+                                { value: 'unterricht', label: 'Unterricht' },
+                                { value: 'info', label: 'Info' },
+                              ]}
+                            />
+                            <Select
+                              label="Art"
+                              value={editKind}
+                              onChange={event => setEditKind(event.target.value as Kind)}
+                              options={[
+                                { value: 'beitrag', label: 'Beitrag / Information' },
+                                { value: 'frage', label: 'Frage ans Kollegium' },
+                              ]}
+                            />
+                          </div>
+                          <Input
+                            label="Titel"
+                            value={editTitle}
+                            onChange={event => setEditTitle(event.target.value)}
+                            maxLength={140}
+                          />
+                          <Textarea
+                            label="Text"
+                            rows={5}
+                            value={editBody}
+                            onChange={event => setEditBody(event.target.value)}
+                            maxLength={4000}
+                            helperText="@Erwähnungen werden beim Speichern neu ausgewertet."
+                          />
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={cancelEditingPost}
+                              leftIcon={<X size={13} />}
+                            >
+                              Abbrechen
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => void saveEditedPost(post.id)}
+                              disabled={!editTitle.trim() || !editBody.trim() || mutatingId === 'post:' + post.id}
+                              isLoading={mutatingId === 'post:' + post.id}
+                            >
+                              Änderungen speichern
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div>
+                            <h2 className="text-lg sm:text-xl font-black tracking-tight">{post.title}</h2>
+                            <div className="mt-1 text-xs text-[var(--text-muted)]">
+                              <span className="font-bold text-[var(--text-secondary)]">{post.authorName}</span>
+                              {' '}@{post.authorHandle} · {formatDate(post.createdAt)}
+                              {post.updatedAt !== post.createdAt && <span> · bearbeitet</span>}
+                            </div>
+                          </div>
+
+                          <p className="text-sm sm:text-[15px] leading-7 whitespace-pre-wrap text-[var(--text-primary)]">
+                            <MentionText text={post.body} />
+                          </p>
+                        </>
+                      )}
                     </div>
 
                     <div className="border-t border-[var(--border-subtle,var(--border))] bg-[var(--surface-subtle,var(--surface2))]/60 p-4 sm:p-5 space-y-4">
                       {post.replies.length > 0 && (
                         <div className="space-y-3">
-                          {post.replies.map(reply => (
-                            <div key={reply.id} className="rounded-2xl bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] px-4 py-3">
-                              <div className="text-xs text-[var(--text-muted)] mb-1.5">
-                                <span className="font-bold text-[var(--text-secondary)]">{reply.authorName}</span>
-                                {' '}@{reply.authorHandle} · {formatDate(reply.createdAt)}
+                          {post.replies.map(reply => {
+                            const isOwnReply = me?.user.userId === reply.authorId;
+                            return (
+                              <div key={reply.id} className="rounded-2xl bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] px-4 py-3">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="text-xs text-[var(--text-muted)] mb-1.5">
+                                    <span className="font-bold text-[var(--text-secondary)]">{reply.authorName}</span>
+                                    {' '}@{reply.authorHandle} · {formatDate(reply.createdAt)}
+                                  </div>
+                                  {isOwnReply && (
+                                    <button
+                                      type="button"
+                                      onClick={() => void deleteOwnReply(post.id, reply.id)}
+                                      disabled={mutatingId === 'reply:' + reply.id}
+                                      className="shrink-0 rounded-lg p-1.5 text-[var(--text-muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] disabled:opacity-50"
+                                      aria-label="Eigene Antwort löschen"
+                                      title="Antwort löschen"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                                <p className="text-sm leading-6 whitespace-pre-wrap">
+                                  <MentionText text={reply.body} />
+                                </p>
                               </div>
-                              <p className="text-sm leading-6 whitespace-pre-wrap">
-                                <MentionText text={reply.body} />
-                              </p>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 
