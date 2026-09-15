@@ -208,3 +208,24 @@ test('aktuelles classes-Feld hat Vorrang vor historischem klassen-Alias', () => 
   assert.equal(normalized.klassenbezeichnung, 'Aktuell');
   assert.equal(normalized.schueler[0].vorname, 'Current');
 });
+
+
+test('leeres aktuelles classes-Feld darf echte historische klassen nicht verdrängen', () => {
+  const normalized = normalizeAppState({
+    activeClassId: 'legacy-real',
+    classes: [],
+    klassen: [{
+      id: 'legacy-real',
+      name: 'Historisch',
+      stufe: 3,
+      schueler: [{ id: 'h1', vorname: 'Historisch' }],
+      noten: { Deutsch: { h1: [{ id: 'hn1', wert: 1 }] } },
+    }],
+  } as any);
+
+  assert.equal(normalized.classes.length, 1);
+  assert.equal(normalized.classes[0].id, 'legacy-real');
+  assert.equal(normalized.klassenbezeichnung, 'Historisch');
+  assert.equal(normalized.schueler[0].vorname, 'Historisch');
+  assert.deepEqual((normalized.noten as any).Deutsch, { h1: [{ id: 'hn1', wert: 1 }] });
+});
