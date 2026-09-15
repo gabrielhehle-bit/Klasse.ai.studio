@@ -12,6 +12,7 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
   { id: 'planung', label: 'Planung', desc: 'Zentrale Übersicht für Jahres-, Wochen- und Stundenplanung', category: 'Hauptbereiche' },
   { id: 'leistungen', label: 'Leistungen', desc: 'Zentrale Übersicht für Noten, Diagnostik und Lernentwicklung', category: 'Hauptbereiche' },
   { id: 'unterricht', label: 'Unterricht', desc: 'Schneller Einstieg in Cockpit und Unterrichtswerkzeuge', category: 'Hauptbereiche' },
+  { id: 'lehrerzimmer', label: 'Lehrerzimmer', desc: 'Schulweiter Austausch mit Beiträgen, Fragen, @Erwähnungen und Antworten', category: 'Hauptbereiche' },
 
   { id: 'cockpit', label: 'Lehrercockpit', desc: 'Weiße Arbeitsfläche, Schreiben, Zeichnen und Widgets', category: 'Unterricht & Helfer' },
   { id: 'ki-helfer', label: 'KI-Helfer', desc: 'KI-Werkzeuge für Planung, Differenzierung und Texte', category: 'Unterricht & Helfer' },
