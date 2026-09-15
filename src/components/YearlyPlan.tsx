@@ -1173,32 +1173,32 @@ export default function YearlyPlan() {
   const activeTab = app.settings?.planTab || 'jahresplan';
 
   return (
-    <div className={`yearly-plan-shell flex flex-col space-y-4 bg-[#f4f7f3] ${isFullscreen ? 'fixed inset-0 z-[450] w-screen h-screen overflow-y-auto p-3 sm:p-5' : 'h-full px-4 lg:px-6'}`}>
+    <div className={`yearly-plan-shell flex flex-col space-y-4 bg-[var(--surface-app,var(--bg))] ${isFullscreen ? 'fixed inset-0 z-[450] w-screen h-screen overflow-y-auto p-3 sm:p-5' : 'h-full px-4 lg:px-6'}`}>
       {/* Header toolbar */}
-      <div className="flex flex-col gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm shrink-0">
+      <div className="flex flex-col gap-3 bg-[var(--surface-card,var(--surface))] p-3 sm:p-4 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm shrink-0">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full justify-start min-w-0">
           <div className="flex items-center gap-2 mr-auto min-w-[190px]">
-            <span className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+            <span className="w-9 h-9 rounded-xl bg-[var(--accent-soft)] border border-[var(--accent)]/15 text-[var(--accent)] flex items-center justify-center shrink-0">
               <LayoutGrid size={17} />
             </span>
             <div>
-              <h2 className="text-sm font-black text-slate-900 leading-tight">Jahresübersicht</h2>
-              <p className="text-[10px] font-semibold text-slate-500 mt-0.5">Themen und Lernziele nach Schulwochen planen</p>
+              <h2 className="text-sm font-bold tracking-[-0.01em] text-[var(--text-primary,var(--text))] leading-tight">Jahresübersicht</h2>
+              <p className="text-[0.6875rem] font-medium text-[var(--text-muted,var(--text3))] mt-0.5">Themen und Lernziele nach Schulwochen planen</p>
             </div>
           </div>
           
-          <div className="flex bg-stone-100 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl border border-stone-200 shrink-0 shadow-inner">
+          <div className="flex bg-[var(--surface-subtle,var(--surface2))] p-0.5 sm:p-1 rounded-xl border border-[var(--border-subtle,var(--border))] shrink-0">
             <button 
               onClick={() => setApp(prev => ({ ...prev, settings: { ...prev.settings, planTab: 'jahresplan' } }))}
               aria-pressed={activeTab === 'jahresplan'}
-              className={`px-2.5 sm:px-4 py-1 sm:py-2 rounded-lg sm:rounded-xl text-[0.625rem] sm:text-[0.75rem] font-black uppercase tracking-wider transition-all duration-200 ${activeTab === 'jahresplan' ? 'bg-white text-slate-800 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
+              className={`px-2.5 sm:px-4 py-1 sm:py-2 rounded-lg sm:rounded-xl text-[0.625rem] sm:text-[0.75rem] font-semibold transition-colors duration-150 ${activeTab === 'jahresplan' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-sm' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
             >
               Themen & Stoff
             </button>
             <button 
               onClick={() => setApp(prev => ({ ...prev, settings: { ...prev.settings, planTab: 'lernziele' } }))}
               aria-pressed={activeTab === 'lernziele'}
-              className={`px-2.5 sm:px-4 py-1 sm:py-2 rounded-lg sm:rounded-xl text-[0.625rem] sm:text-[0.75rem] font-black uppercase tracking-wider transition-all duration-200 ${activeTab === 'lernziele' ? 'bg-white text-slate-800 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
+              className={`px-2.5 sm:px-4 py-1 sm:py-2 rounded-lg sm:rounded-xl text-[0.625rem] sm:text-[0.75rem] font-semibold transition-colors duration-150 ${activeTab === 'lernziele' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-sm' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
             >
               Lernziele-Tracker
             </button>
@@ -1206,32 +1206,32 @@ export default function YearlyPlan() {
 
           {activeTab === 'jahresplan' && (
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex bg-stone-100 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl border border-stone-200 shrink-0 shadow-inner">
+              <div className="flex bg-[var(--surface-subtle,var(--surface2))] p-0.5 sm:p-1 rounded-xl border border-[var(--border-subtle,var(--border))] shrink-0">
                 <button 
                   onClick={() => setViewMode('table')}
                   aria-pressed={viewMode === 'table'}
-                  className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-black uppercase tracking-wider transition-all duration-200 ${viewMode === 'table' ? 'bg-white text-emerald-700 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-semibold transition-colors duration-150 ${viewMode === 'table' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-sm' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
                 >
                   Tabelle
                 </button>
                 <button 
                   onClick={() => setViewMode('months')}
                   aria-pressed={viewMode === 'months'}
-                  className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-black uppercase tracking-wider transition-all duration-200 ${viewMode === 'months' ? 'bg-white text-emerald-700 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
+                  className={`px-2.5 sm:px-4 py-1 sm:py-1.5 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-semibold transition-colors duration-150 ${viewMode === 'months' ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-sm' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
                 >
                   Monatsübersicht
                 </button>
               </div>
 
               {viewMode === 'table' && (
-                <div className="flex bg-stone-100 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl border border-stone-200 shrink-0 shadow-inner items-center">
-                  <span className="text-[0.5625rem] font-black text-stone-400 uppercase tracking-wider px-2 hidden sm:inline">Dichte:</span>
+                <div className="flex bg-[var(--surface-subtle,var(--surface2))] p-0.5 sm:p-1 rounded-xl border border-[var(--border-subtle,var(--border))] shrink-0 items-center">
+                  <span className="text-[0.625rem] font-semibold text-[var(--text-muted,var(--text3))] px-2 hidden sm:inline">Dichte:</span>
                   {(['kompakt', 'normal', 'detail'] as const).map((m) => (
                     <button
                       key={m}
                       onClick={() => changeDensityMode(m)}
                       aria-pressed={densityMode === m}
-                      className={`px-2 sm:px-3 py-1 sm:py-1 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-black uppercase tracking-wider transition-all duration-200 ${densityMode === m ? 'bg-white text-emerald-700 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
+                      className={`px-2 sm:px-3 py-1 sm:py-1 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-semibold transition-colors duration-150 ${densityMode === m ? 'bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-sm' : 'text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))]'}`}
                     >
                       {m === 'kompakt' ? 'Kompakt' : m === 'normal' ? 'Normal' : 'Detail'}
                     </button>
@@ -1243,14 +1243,14 @@ export default function YearlyPlan() {
         </div>
         
         {activeTab === 'jahresplan' && (
-        <div className="flex flex-wrap items-center gap-1.5 md:gap-2 w-full justify-start min-w-0 border-t border-slate-100 pt-3">
+        <div className="flex flex-wrap items-center gap-1.5 md:gap-2 w-full justify-start min-w-0 border-t border-[var(--border-subtle,var(--border))] pt-3">
           <button 
             onClick={() => {
               setAiSuggestions([]);
               setAiGeneratingError(null);
               setShowAiModal(true);
             }}
-            className="inline-flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all active:scale-95 shadow-sm cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,var(--btn-text,#ffffff))] px-3.5 py-2 rounded-xl text-[0.75rem] font-bold transition-colors shadow-sm cursor-pointer"
           >
             <span>✨</span> Themen-Assistent (KI)
           </button>
@@ -1311,19 +1311,19 @@ export default function YearlyPlan() {
               }
               setApp(p => ({ ...p, currentKW: todayKW }));
             }}
-            className="inline-flex items-center justify-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border border-emerald-500 active:scale-95 shadow-sm cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 bg-[var(--accent)] text-[var(--accent-text,var(--btn-text,#ffffff))] hover:bg-[var(--accent-hover)] px-3.5 py-2 rounded-xl text-[0.75rem] font-bold transition-colors border border-[var(--accent)] shadow-sm cursor-pointer"
           >
             <Calendar size={11} className="sm:w-[15px] sm:h-[15px]" /> Heute
           </button>
           <button 
             onClick={() => setShowSettings(true)}
-            className="inline-flex items-center justify-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border border-stone-200 active:scale-95 cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary,var(--text2))] px-3.5 py-2 rounded-xl text-[0.75rem] font-semibold transition-colors border border-[var(--border-default,var(--border2))] cursor-pointer"
           >
             <Settings size={11} className="sm:w-[15px] sm:h-[15px]" /> Fächer
           </button>
           <button 
             onClick={() => setIsPrintMode(true)}
-            className="inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border border-slate-200 active:scale-95 cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 bg-[var(--surface-card,var(--surface))] hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))] px-3.5 py-2 rounded-xl text-[0.75rem] font-semibold transition-colors border border-[var(--border-default,var(--border2))] cursor-pointer"
           >
             <Printer size={11} className="sm:w-[15px] sm:h-[15px]" /> Drucken
           </button>
@@ -1332,7 +1332,7 @@ export default function YearlyPlan() {
           <div className="relative z-[210]">
             <button 
               onClick={() => setShowExcelMenu(!showExcelMenu)}
-              className="inline-flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border border-emerald-200 active:scale-95 cursor-pointer shadow-xs"
+              className="inline-flex items-center justify-center gap-1.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary,var(--text2))] px-3.5 py-2 rounded-xl text-[0.75rem] font-semibold transition-colors border border-[var(--border-default,var(--border2))] cursor-pointer"
               title="Excel-Vorlage oder Import"
             >
               <FileSpreadsheet size={13} className="sm:w-[15px] sm:h-[15px]" />
@@ -1342,7 +1342,7 @@ export default function YearlyPlan() {
             {showExcelMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowExcelMenu(false)} />
-                <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left">
+                <div className="absolute right-0 top-full mt-2 w-60 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border2))] rounded-xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left">
                   <button
                     onClick={() => {
                       setShowExcelMenu(false);
@@ -1384,8 +1384,8 @@ export default function YearlyPlan() {
             onClick={() => setIsFullscreen(!isFullscreen)}
             className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border active:scale-95 cursor-pointer shadow-xs ${
               isFullscreen
-                ? 'bg-emerald-700 hover:bg-emerald-800 text-white border-emerald-800'
-                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                ? 'bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,var(--btn-text,#ffffff))] border-[var(--accent)]'
+                : 'bg-[var(--surface-card,var(--surface))] hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary,var(--text2))] border-[var(--border-default,var(--border2))]'
             }`}
             title={isFullscreen ? 'Vollbildmodus beenden (Esc)' : 'Vollbildmodus aktivieren (Esc zum Beenden)'}
           >
@@ -1407,14 +1407,14 @@ export default function YearlyPlan() {
       </div>
 
       {activeTab === 'jahresplan' && !hasYearPlanEntries && (
-        <div className="flex flex-col gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-2xl border border-[var(--accent)]/20 bg-[var(--accent-soft)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700 shadow-sm">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--surface-card,var(--surface))] text-[var(--accent)] shadow-sm">
               <BookOpen size={17} />
             </span>
             <div>
-              <p className="text-xs font-black text-emerald-950">Dein Jahresplan ist noch leer</p>
-              <p className="mt-0.5 text-[0.6875rem] font-medium leading-relaxed text-emerald-800/80">
+              <p className="text-xs font-bold text-[var(--text-primary,var(--text))]">Dein Jahresplan ist noch leer</p>
+              <p className="mt-0.5 text-[0.6875rem] font-medium leading-relaxed text-[var(--text-secondary,var(--text2))]">
                 Klicke in der Tabelle auf eine Kalenderwoche und ein Fach, um das erste Thema oder Lernziel einzutragen.
               </p>
             </div>
@@ -1430,7 +1430,7 @@ export default function YearlyPlan() {
                 });
               }
             }}
-            className="shrink-0 rounded-xl bg-emerald-700 px-4 py-2 text-[0.6875rem] font-black text-white transition-colors hover:bg-emerald-800"
+            className="shrink-0 rounded-xl bg-[var(--accent)] px-4 py-2 text-[0.6875rem] font-bold text-[var(--accent-text,var(--btn-text,#ffffff))] transition-colors hover:bg-[var(--accent-hover)]"
           >
             Zur ersten Schulwoche
           </button>
@@ -1442,13 +1442,13 @@ export default function YearlyPlan() {
             <LernzielTracker />
          </div>
       ) : (
-      <div className="flex-1 relative bg-white rounded-2xl border border-slate-200 flex flex-col shadow-sm overflow-hidden">
+      <div className="flex-1 relative bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] flex flex-col shadow-sm overflow-hidden">
         {/* Progress Bar Gadget */}
-        <div className="h-1.5 bg-stone-100 w-full  shrink-0">
+        <div className="h-1.5 bg-[var(--surface-subtle,var(--surface2))] w-full shrink-0">
           <motion.div 
             initial={{ width: 0 }}
             animate={{ width: `${Math.max(0, Math.min(100, (weeks.findIndex(w => w.kw === actualKW) / weeks.length) * 100))}%` }}
-            className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+            className="h-full bg-[var(--accent)]"
           />
         </div>
         
