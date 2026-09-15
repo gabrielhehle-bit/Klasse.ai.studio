@@ -210,3 +210,27 @@ test('Druckzentrum modernisiert nur die Bedienoberfläche und lässt A4 Druckfl�
   assert.match(source, /print-center-overlay hidden print:block w-full bg-white/);
   assert.match(source, /bg-white[^"]*single-sheet-preview/);
 });
+
+
+test('Materialbibliothek, Kasse & Orga und Einstellungen verwenden semantische Klassio-Flächen', () => {
+  const material = read('src/components/Materialbibliothek.tsx');
+  const orga = read('src/components/OrgaLists.tsx');
+  const settings = read('src/components/Settings.tsx');
+  const settingsHeader = read('src/components/settings/SettingsHeader.tsx');
+  const settingsDashboard = read('src/components/settings/SettingsDashboard.tsx');
+
+  assert.match(material, /material-library-shell max-w-\[1180px\]/);
+  assert.match(material, /sticky top-0 z-\[150\] bg-\[var\(--surface-app/);
+  assert.match(material, /activeTab === tab \? 'bg-\[var\(--accent\)\]/);
+  assert.doesNotMatch(material, /hover:scale-\[1\.02\]/);
+
+  assert.match(orga, /max-w-\[1180px\]/);
+  assert.match(orga, /bg-\[var\(--surface-card,var\(--surface\)\)\] rounded-2xl border/);
+  assert.match(orga, /bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\]/);
+
+  assert.match(settings, /max-w-\[1180px\]/);
+  assert.match(settingsHeader, /bg-\[var\(--surface-card,var\(--surface\)\)\]/);
+  assert.match(settingsHeader, /bg-\[var\(--accent\)\] text-\[var\(--accent-text,#fff\)\]/);
+  assert.match(settingsDashboard, /hover:bg-\[var\(--surface-subtle,var\(--surface2\)\)\]/);
+  assert.doesNotMatch(settingsDashboard, /hover:shadow-md hover:border-emerald-300/);
+});
