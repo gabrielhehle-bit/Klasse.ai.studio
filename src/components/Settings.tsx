@@ -302,7 +302,9 @@ export default function Settings() {
     }
   };
 
-  const disabledModulesCount = app.settings?.disabledModules?.length || 0;
+  const disabledModulesCount = (app.settings?.disabledModules || []).filter((id: string) =>
+    AVAILABLE_MODULES.some(module => module.id === id)
+  ).length;
   const hasActiveSync = !!app.boardSettings?.activeSyncCode;
 
   return (
