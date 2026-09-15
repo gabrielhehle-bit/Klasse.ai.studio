@@ -99,7 +99,7 @@ test('historisches klassen-Mehrklassenbackup bleibt vollständig erhalten', () =
   assert.equal(normalized.klassenbezeichnung, '3a');
   assert.equal(normalized.schueler.length, 2);
   assert.equal(normalized.schueler[0].vorname, 'Anna');
-  assert.deepEqual(normalized.noten.Deutsch, legacy.klassen[0].noten.Deutsch);
+  assert.deepEqual((normalized.noten as any).Deutsch, legacy.klassen[0].noten.Deutsch);
   assert.deepEqual(normalized.notenMeta.Deutsch, legacy.klassen[0].notenMeta.Deutsch);
   assert.deepEqual(normalized.notenGewichtung.Deutsch, legacy.klassen[0].notenGewichtung.Deutsch);
   assert.deepEqual(normalized.jahresplanung.Deutsch, legacy.klassen[0].jahresplanung.Deutsch);
@@ -112,7 +112,7 @@ test('historisches klassen-Mehrklassenbackup bleibt vollständig erhalten', () =
   assert.equal(second.klassenbezeichnung, '4b');
   assert.equal(second.schueler.length, 1);
   assert.equal(second.schueler[0].vorname, 'Clara');
-  assert.deepEqual(second.noten.Mathematik, legacy.klassen[1].noten.Mathematik);
+  assert.deepEqual((second.noten as any).Mathematik, legacy.klassen[1].noten.Mathematik);
   assert.deepEqual(second.notenMeta.Mathematik, legacy.klassen[1].notenMeta.Mathematik);
   assert.deepEqual(second.notenGewichtung.Mathematik, legacy.klassen[1].notenGewichtung.Mathematik);
   assert.deepEqual(second.jahresplanung.Mathematik, legacy.klassen[1].jahresplanung.Mathematik);
