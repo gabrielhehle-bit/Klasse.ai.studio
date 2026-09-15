@@ -575,7 +575,7 @@ export default function AIAssistant() {
                       ? 'shadow-sm font-bold' 
                       : 'bg-[var(--surface-card,var(--surface))] border-transparent text-[var(--text-secondary,var(--text2))] hover:bg-[var(--surface-subtle,var(--surface2))] hover:border-[var(--border-default,var(--border))]'
                   }`}
-                  style={activeTab === tab.id && !showGuidedTool ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--btn-text, #ffffff)', borderColor: 'var(--accent, #10b981)' } : {}}
+                  style={activeTab === tab.id && !showGuidedTool ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--accent-text, var(--btn-text, #ffffff))', borderColor: 'var(--accent, #10b981)' } : {}}
                 >
                   <div className={`transition-transform duration-300 ${!isSidebarCollapsed ? 'group-hover:scale-110' : ''}`} style={activeTab === tab.id && !showGuidedTool ? { color: 'var(--btn-text, #ffffff)' } : {}}>
                     {React.cloneElement(tab.icon as React.ReactElement<any>, { size: isSidebarCollapsed ? 20 : 16 })}
@@ -621,7 +621,7 @@ export default function AIAssistant() {
                       ? 'shadow-lg -translate-y-0.5 font-bold' 
                       : 'bg-[var(--surface-card,var(--surface))] border-transparent text-[var(--text-muted,var(--text3))] hover:bg-[var(--surface-subtle,var(--surface2))] hover:border-[var(--border-subtle,var(--border))]'
                   }`}
-                  style={activeTab === tab.id && showGuidedTool ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--btn-text, #ffffff)', borderColor: 'var(--accent, #10b981)' } : {}}
+                  style={activeTab === tab.id && showGuidedTool ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--accent-text, var(--btn-text, #ffffff))', borderColor: 'var(--accent, #10b981)' } : {}}
                 >
                   <div className={`transition-transform duration-300 ${!isSidebarCollapsed ? 'group-hover:scale-110' : ''}`} style={activeTab === tab.id && showGuidedTool ? { color: 'var(--btn-text, #ffffff)' } : {}}>
                     {React.cloneElement(tab.icon as React.ReactElement<any>, { size: isSidebarCollapsed ? 20 : 16 })}
@@ -1233,7 +1233,7 @@ export default function AIAssistant() {
                         <button 
                           disabled={isLoading || !input.trim()}
                           onClick={() => handleSend()}
-                          className={`flex items-center justify-center text-white transition-all shadow-md hover:shadow-indigo-500/10 active:scale-95 shrink-0 ml-1 mb-1 cursor-pointer ${
+                          className={`flex items-center justify-center text-[var(--accent-text,#fff)] transition-colors shadow-sm shrink-0 ml-1 mb-1 cursor-pointer ${
                             isCompact ? 'w-10 h-10 rounded-xl' : 'w-12 h-12 rounded-2xl'
                           } disabled:bg-slate-50 disabled:text-slate-300`}
                           style={{ backgroundColor: 'var(--accent)' }}
@@ -1266,7 +1266,7 @@ export default function AIAssistant() {
                         <button
                           type="button"
                           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                          className="mr-1 p-2 bg-slate-50 hover:bg-slate-100 text-slate-650 rounded-xl hidden lg:flex items-center gap-1.5 border border-slate-200 text-[0.625rem] font-black uppercase tracking-wider transition-all cursor-pointer shadow-sm"
+                          className="mr-1 p-2 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--accent-soft)] text-[var(--text-secondary,var(--text2))] hover:text-[var(--accent)] rounded-xl hidden lg:flex items-center gap-1.5 border border-[var(--border-default,var(--border))] text-[0.625rem] font-bold transition-colors cursor-pointer shadow-sm"
                           title={isSidebarCollapsed ? "KI-Menü einblenden" : "KI-Menü ausblenden (Mehr Platz!)"}
                         >
                           <Layout size={13} className={isSidebarCollapsed ? "text-indigo-600 animate-pulse" : "text-slate-400"} />
