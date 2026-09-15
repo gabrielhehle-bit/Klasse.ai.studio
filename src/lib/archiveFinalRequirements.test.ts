@@ -6,6 +6,7 @@ const archive = readFileSync('src/components/Archive.tsx', 'utf8');
 const archiveData = readFileSync('src/lib/archiveData.ts', 'utf8');
 const appState = readFileSync('src/lib/appState.ts', 'utf8');
 const types = readFileSync('src/types.ts', 'utf8');
+const backup = readFileSync('src/components/Backup.tsx', 'utf8');
 
 test('Archiv uses full class snapshots instead of the old flat statistics prototype', () => {
   assert.match(archive, /app\.archivedClasses \|\| \[\]/);
@@ -44,6 +45,15 @@ test('archive snapshots are normalized during app restore and are typed separate
   assert.match(appState, /normalizeArchivedClasses\(raw\.archivedClasses\)/);
   assert.match(appState, /archivedClasses: normalizeArchivedClasses\(parsed\.archivedClasses\)/);
   assert.match(types, /archivedClasses\?: import\('\.\/lib\/archiveData'\)\.ArchivedClassSnapshot\[\]/);
+});
+
+test('Backup uses retiredClasses and no longer overloads the yearly archive field', () => {
+  assert.match(types, /retiredClasses\?: ClassRoom\[\]/);
+  assert.match(backup, /prev\.retiredClasses \|\| \[\]/);
+  assert.match(backup, /Stillgelegte Klassen/);
+  assert.match(backup, /Jahresarchivstände werden separat im Bereich „Archiv“ erstellt/);
+  assert.doesNotMatch(backup, /prev\.archivedClasses \|\| \[\]/);
+  assert.doesNotMatch(backup, /app\.archivedClasses\.map/);
 });
 
 test('legacy historical students remain clearly separated for backup compatibility', () => {
