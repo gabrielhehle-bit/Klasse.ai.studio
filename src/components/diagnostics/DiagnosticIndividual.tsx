@@ -225,7 +225,7 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
   };
 
   return (
-    <div className="max-w-5xl mx-auto py-3 px-2 sm:px-4">
+    <div className="max-w-[1180px] mx-auto py-4 px-3 sm:px-6 lg:px-8">
       {/* Navigation Header with Breadcrumbs */}
       <DiagnosticNavigationHeader
         title="Einzelkind-Diagnostik"
@@ -260,24 +260,24 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
             {/* Suchfeld */}
             <div className="mb-6 max-w-md">
               <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-[var(--text-muted,var(--text3))] absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   id="input-search-student-diagnostic"
                   placeholder="Schüler:in suchen..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-xs"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border2))] rounded-xl text-sm text-[var(--text-primary,var(--text))] placeholder:text-[var(--text-muted,var(--text3))] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))]/20 focus:border-[var(--accent)] transition-colors shadow-xs"
                 />
               </div>
             </div>
 
             {/* Schüler-Grid */}
             {filteredStudents.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-500">
+              <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] p-8 text-center text-[var(--text-muted,var(--text3))]">
                 <User className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                <p className="font-medium text-slate-700">Keine Kinder gefunden</p>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="font-medium text-[var(--text-secondary,var(--text2))]">Keine Kinder gefunden</p>
+                <p className="text-xs text-[var(--text-muted,var(--text3))] mt-1">
                   {students.length === 0 
                     ? "In dieser Klasse sind noch keine Schüler:innen angelegt." 
                     : "Kein Eintrag entspricht dem aktuellen Suchfilter."}
@@ -295,14 +295,14 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                         setSelectedStudent(s);
                         setSearchQuery('');
                       }}
-                      className="group flex items-center justify-between p-4 bg-white border border-slate-200/90 rounded-xl hover:border-indigo-300 hover:shadow-xs transition-all text-left cursor-pointer"
+                      className="group flex items-center justify-between p-4 bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] rounded-xl hover:border-[var(--accent)]/35 hover:shadow-xs transition-all text-left cursor-pointer"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                        <div className="w-10 h-10 rounded-lg bg-[var(--accent-soft)] border border-[var(--accent)]/15 flex items-center justify-center text-xs font-bold text-[var(--accent)] shrink-0  transition-colors">
                           {initials}
                         </div>
                         <div className="min-w-0">
-                          <h3 className="text-sm font-semibold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
+                          <h3 className="text-sm font-semibold text-[var(--text-primary,var(--text))] truncate group-hover:text-[var(--accent)] transition-colors">
                             {s.vorname} {s.nachname}
                           </h3>
                           <div className="flex items-center gap-1.5 mt-0.5">
@@ -316,7 +316,7 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                                 SPF
                               </span>
                             )}
-                            <span className="text-xs text-slate-400">
+                            <span className="text-xs text-[var(--text-muted,var(--text3))]">
                               Niveau {s.niveau || 1}
                             </span>
                           </div>
@@ -349,17 +349,17 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                   {selectedStudent.vorname[0]}{selectedStudent.nachname[0]}
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">
+                  <h3 className="text-sm font-bold text-[var(--text-primary,var(--text))]">
                     {selectedStudent.vorname} {selectedStudent.nachname}
                   </h3>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-[var(--text-muted,var(--text3))]">
                     Schritt 1 von 3 • Was möchtest du anschauen?
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedStudent(null)}
-                className="text-xs font-medium text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                className="text-xs font-medium text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))] underline cursor-pointer"
               >
                 Anderes Kind
               </button>
@@ -375,18 +375,18 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                   className="group flex flex-col justify-between p-6 bg-white border border-slate-200/90 rounded-2xl hover:border-indigo-400 hover:shadow-md transition-all text-left cursor-pointer"
                 >
                   <div>
-                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-700 mb-4 group-hover:bg-indigo-50 group-hover:text-indigo-600 group-hover:border-indigo-100 transition-all">
+                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-[var(--text-secondary,var(--text2))] mb-4 group-hover:bg-indigo-50 group-hover:text-[var(--accent)] group-hover:border-indigo-100 transition-all">
                       {renderDomainIcon(domain.icon)}
                     </div>
-                    <h4 className="text-lg font-bold text-slate-900 group-hover:text-indigo-600 transition-colors mb-1.5">
+                    <h4 className="text-lg font-bold text-[var(--text-primary,var(--text))] group-hover:text-[var(--accent)] transition-colors mb-1.5">
                       {domain.name}
                     </h4>
-                    <p className="text-xs text-slate-500 leading-relaxed">
+                    <p className="text-xs text-[var(--text-muted,var(--text3))] leading-relaxed">
                       {domain.description}
                     </p>
                   </div>
 
-                  <div className="mt-6 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-500 group-hover:text-indigo-600">
+                  <div className="mt-6 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-[var(--text-muted,var(--text3))] group-hover:text-[var(--accent)]">
                     <span>Kompetenzbereiche öffnen</span>
                     <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </div>
@@ -409,10 +409,10 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
           >
             <div className="mb-6 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">
+                <h3 className="text-lg font-bold text-[var(--text-primary,var(--text))]">
                   {selectedDomain.name} – Kompetenzbereich wählen
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-[var(--text-muted,var(--text3))] mt-0.5">
                   Wähle einen Teilbereich zur detaillierten Erfassung
                 </p>
               </div>
@@ -426,23 +426,23 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                     key={area.id}
                     id={`btn-area-${area.id}`}
                     onClick={() => setSelectedAreaId(area.id)}
-                    className="group flex flex-col justify-between p-5 bg-white border border-slate-200/90 rounded-xl hover:border-indigo-400 hover:shadow-sm transition-all text-left cursor-pointer"
+                    className="group flex flex-col justify-between p-5 bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] rounded-xl hover:border-indigo-400 hover:shadow-sm transition-all text-left cursor-pointer"
                   >
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-base font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                        <h4 className="text-base font-bold text-[var(--text-primary,var(--text))] group-hover:text-[var(--accent)] transition-colors">
                           {area.name}
                         </h4>
-                        <span className="text-[11px] font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                        <span className="text-[11px] font-medium text-[var(--text-muted,var(--text3))] bg-slate-100 px-2 py-0.5 rounded-full">
                           {count} {count === 1 ? 'Kompetenz' : 'Kompetenzen'}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 leading-relaxed">
+                      <p className="text-xs text-[var(--text-muted,var(--text3))] leading-relaxed">
                         {area.description}
                       </p>
                     </div>
 
-                    <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-500 group-hover:text-indigo-600">
+                    <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-[var(--text-muted,var(--text3))] group-hover:text-[var(--accent)]">
                       <span>Kompetenzen anzeigen</span>
                       <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                     </div>
@@ -465,10 +465,10 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
             transition={{ duration: 0.15 }}
           >
             <div className="mb-5">
-              <h3 className="text-lg font-bold text-slate-900">
+              <h3 className="text-lg font-bold text-[var(--text-primary,var(--text))]">
                 {selectedArea.name} – Kompetenz auswählen
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-[var(--text-muted,var(--text3))] mt-0.5">
                 Wähle die gezielte Kompetenz für {selectedStudent.vorname}
               </p>
             </div>
@@ -488,11 +488,11 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2 mb-1">
-                        <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                        <h4 className="text-sm font-bold text-[var(--text-primary,var(--text))] group-hover:text-[var(--accent)] transition-colors">
                           {comp.name}
                         </h4>
                         {hasTest && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-[var(--accent)] border border-indigo-100">
                             <Sparkles className="w-3 h-3 text-indigo-500" />
                             1:1-Check bereit
                           </span>
@@ -504,13 +504,13 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-500 line-clamp-2">
+                      <p className="text-xs text-[var(--text-muted,var(--text3))] line-clamp-2">
                         {comp.description}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                      <span className="text-xs font-semibold text-indigo-600 group-hover:text-indigo-700">
+                      <span className="text-xs font-semibold text-indigo-600 group-hover:text-[var(--accent)]">
                         Auswählen
                       </span>
                       <ChevronRight className="w-4 h-4 text-indigo-500 group-hover:translate-x-0.5 transition-transform" />
@@ -551,7 +551,7 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
               />
             ) : justSavedResult ? (
               /* Fall B: Erfolgreich gespeichertes Ergebnis */
-              <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-xs text-center space-y-6 max-w-2xl mx-auto">
+              <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] p-8 shadow-xs text-center space-y-6 max-w-2xl mx-auto">
                 <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-100 shadow-xs">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
@@ -560,10 +560,10 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                   <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
                     Erhebung abgeschlossen
                   </span>
-                  <h3 className="text-xl font-bold text-slate-900">
+                  <h3 className="text-xl font-bold text-[var(--text-primary,var(--text))]">
                     Ergebnis erfolgreich gespeichert!
                   </h3>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  <p className="text-xs text-[var(--text-muted,var(--text3))] max-w-md mx-auto leading-relaxed">
                     Der 1:1-Check für <strong>{selectedStudent.vorname} {selectedStudent.nachname}</strong> ({selectedCompetency.name}) wurde in den Diagnostik-Ergebnissen hinterlegt.
                   </p>
                 </div>
@@ -573,7 +573,7 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                   {justSavedResult.gradeLevel && (
                     <div className="flex items-center justify-between text-slate-600">
                       <span className="font-semibold">Schulstufe/Niveau:</span>
-                      <span className="font-bold text-slate-900">Niveau {justSavedResult.gradeLevel}</span>
+                      <span className="font-bold text-[var(--text-primary,var(--text))]">Niveau {justSavedResult.gradeLevel}</span>
                     </div>
                   )}
                   {justSavedResult.rawScore !== undefined && justSavedResult.maxScore !== undefined && (
@@ -583,8 +583,8 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                     </div>
                   )}
                   {justSavedResult.nextStep && (
-                    <div className="pt-2 border-t border-slate-200/60 text-slate-700">
-                      <span className="font-semibold text-slate-900 block mb-0.5">Nächster Schritt:</span>
+                    <div className="pt-2 border-t border-slate-200/60 text-[var(--text-secondary,var(--text2))]">
+                      <span className="font-semibold text-[var(--text-primary,var(--text))] block mb-0.5">Nächster Schritt:</span>
                       <p className="text-slate-600 italic">„{justSavedResult.nextStep}“</p>
                     </div>
                   )}
@@ -611,7 +611,7 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                       setSelectedCompetencyId(null);
                       setSelectedAreaId(null);
                     }}
-                    className="px-4 py-2.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer shadow-xs"
+                    className="px-4 py-2.5 text-xs font-semibold text-[var(--text-secondary,var(--text2))] bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors cursor-pointer shadow-xs"
                   >
                     Weitere Kompetenz für {selectedStudent.vorname} prüfen
                   </button>
@@ -626,7 +626,7 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                       setSelectedAreaId(null);
                       setSelectedCompetencyId(null);
                     }}
-                    className="px-4 py-2.5 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-xl hover:bg-indigo-100 transition-colors cursor-pointer"
+                    className="px-4 py-2.5 text-xs font-semibold text-indigo-600 bg-[var(--accent-soft)] border border-[var(--accent)]/15 rounded-xl hover:bg-indigo-100 transition-colors cursor-pointer"
                   >
                     Anderes Kind wählen
                   </button>
@@ -636,22 +636,22 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
               /* Fall C: Registrierter Test verfügbar -> Test Launch Card */
               <div className="space-y-6">
                 {/* Pfad-Zusammenfassung */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
+                <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] p-6 shadow-xs">
                   <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
                     <div>
                       <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">
                         Ausgewählte Kompetenz
                       </span>
-                      <h3 className="text-lg font-bold text-slate-900 mt-1">
+                      <h3 className="text-lg font-bold text-[var(--text-primary,var(--text))] mt-1">
                         {selectedCompetency.name}
                       </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-[var(--text-muted,var(--text3))] mt-0.5">
                         {selectedDomain.name} • {selectedArea.name}
                       </p>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-[var(--accent)] rounded-full text-xs font-bold">
                         <User className="w-3.5 h-3.5" />
                         {selectedStudent.vorname} {selectedStudent.nachname}
                       </span>
@@ -686,12 +686,12 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                         <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-800 rounded-full text-[11px] font-bold">
                           1:1-Diagnostik-Check bereit
                         </span>
-                        <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-500">
-                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="flex items-center gap-1 text-[11px] font-semibold text-[var(--text-muted,var(--text3))]">
+                          <Clock className="w-3.5 h-3.5 text-[var(--text-muted,var(--text3))]" />
                           ca. {registeredTest.durationMinutes} Min.
                         </span>
                       </div>
-                      <h4 className="text-xl font-black text-slate-900">
+                      <h4 className="text-xl font-black text-[var(--text-primary,var(--text))]">
                         {registeredTest.title}
                       </h4>
                       <p className="text-xs text-slate-600 leading-relaxed max-w-xl">
@@ -714,7 +714,7 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
 
                   {/* Level overview */}
                   <div className="relative z-10 pt-4 border-t border-slate-100">
-                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block mb-3">
+                    <span className="text-[11px] font-bold text-[var(--text-secondary,var(--text2))] uppercase tracking-wider block mb-3">
                       Enthaltene Niveaustufen (frei wählbar)
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -724,10 +724,10 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                           className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-left flex flex-col justify-between"
                         >
                           <div>
-                            <span className="text-xs font-bold text-slate-900 block">
+                            <span className="text-xs font-bold text-[var(--text-primary,var(--text))] block">
                               {lvl.label}
                             </span>
-                            <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                            <p className="text-[11px] text-[var(--text-muted,var(--text3))] mt-1 line-clamp-2 leading-relaxed">
                               {lvl.description}
                             </p>
                           </div>
@@ -739,7 +739,7 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                     </div>
                   </div>
 
-                  <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 pt-2 text-xs text-slate-500">
+                  <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 pt-2 text-xs text-[var(--text-muted,var(--text3))]">
                     <div className="flex items-center gap-1.5 text-slate-600">
                       <Sparkles className="w-4 h-4 text-indigo-600" />
                       <span>Erfasst Lösungswege, Strategien (z. B. Subitizing, Bündelung) und Beobachtungs-Tags</span>
@@ -750,7 +750,7 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                         type="button"
                         id="btn-choose-other-comp-from-card"
                         onClick={() => setSelectedCompetencyId(null)}
-                        className="text-xs text-slate-500 hover:text-slate-800 font-medium underline cursor-pointer"
+                        className="text-xs text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))] font-medium underline cursor-pointer"
                       >
                         Andere Kompetenz
                       </button>
@@ -762,22 +762,22 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
               /* Fall D: Neutraler Endzustand für noch nicht migrierte Kompetenzen */
               <div className="space-y-6">
                 {/* Pfad-Zusammenfassung */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
+                <div className="bg-[var(--surface-card,var(--surface))] rounded-2xl border border-[var(--border-subtle,var(--border))] p-6 shadow-xs">
                   <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
                     <div>
                       <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">
                         Ausgewählter Diagnostik-Pfad
                       </span>
-                      <h3 className="text-lg font-bold text-slate-900 mt-1">
+                      <h3 className="text-lg font-bold text-[var(--text-primary,var(--text))] mt-1">
                         {selectedCompetency.name}
                       </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-[var(--text-muted,var(--text3))] mt-0.5">
                         {selectedDomain.name} • {selectedArea.name}
                       </p>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-[var(--accent)] rounded-full text-xs font-bold">
                         <User className="w-3.5 h-3.5" />
                         {selectedStudent.vorname} {selectedStudent.nachname}
                       </span>
@@ -806,10 +806,10 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                   <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 text-indigo-600 flex items-center justify-center mx-auto mb-3 shadow-xs">
                     <Sparkles className="w-6 h-6" />
                   </div>
-                  <h4 className="text-base font-bold text-slate-800 mb-1">
+                  <h4 className="text-base font-bold text-[var(--text-primary,var(--text))] mb-1">
                     Noch kein neuer Diagnostik-Check für diese Kompetenz hinterlegt.
                   </h4>
-                  <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  <p className="text-xs text-[var(--text-muted,var(--text3))] max-w-md mx-auto leading-relaxed">
                     In den nächsten Schritten werden hier standardisierte 1:1-Checks, Beobachtungsraster und Förderempfehlungen für <strong>{selectedCompetency.name}</strong> verknüpft.
                   </p>
 
@@ -817,7 +817,7 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                     <button
                       id="btn-choose-other-competency"
                       onClick={() => setSelectedCompetencyId(null)}
-                      className="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer shadow-xs"
+                      className="px-4 py-2 text-xs font-semibold text-[var(--text-secondary,var(--text2))] bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer shadow-xs"
                     >
                       Andere Kompetenz wählen
                     </button>
@@ -829,7 +829,7 @@ export const DiagnosticIndividual: React.FC<DiagnosticIndividualProps> = ({
                         setSelectedAreaId(null);
                         setSelectedCompetencyId(null);
                       }}
-                      className="px-4 py-2 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer"
+                      className="px-4 py-2 text-xs font-semibold text-indigo-600 bg-[var(--accent-soft)] border border-[var(--accent)]/15 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer"
                     >
                       Anderes Kind wählen
                     </button>
