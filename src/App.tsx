@@ -36,6 +36,7 @@ const KlasseHub = lazyRetry(() => import('./components/KlasseHub'));
 const PlanungHub = lazyRetry(() => import('./components/PlanungHub'));
 const LeistungenHub = lazyRetry(() => import('./components/LeistungenHub'));
 const UnterrichtHub = lazyRetry(() => import('./components/UnterrichtHub'));
+const Lehrerzimmer = lazyRetry(() => import('./components/Lehrerzimmer'));
 const StudentList = lazyRetry(() => import('./components/StudentList'));
 const Gradebook = lazyRetry(() => import('./components/Gradebook'));
 const AIAssistant = lazyRetry(() => import('./components/AIAssistant'));
@@ -144,7 +145,7 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
 
 const MobileRemoteController = lazyRetry(() => import('./components/MobileRemoteController').then(m => ({ default: m.MobileRemoteController })));
 
-const FULL_HEIGHT_PAGES = ['klasse', 'planung', 'leistungen', 'unterricht', 'canva', 'ki-helfer', 'sitzplan', 'elternbrief', 'differenzierung', 'verbal', 'materialien', 'jahresplanung', 'diagnostik', 'stunden', 'eltern', 'orga', 'notenTabelle', 'arbeitsblatt', 'stationenbetrieb', 'planungszentrale'];
+const FULL_HEIGHT_PAGES = ['klasse', 'planung', 'leistungen', 'unterricht', 'lehrerzimmer', 'canva', 'ki-helfer', 'sitzplan', 'elternbrief', 'differenzierung', 'verbal', 'materialien', 'jahresplanung', 'diagnostik', 'stunden', 'eltern', 'orga', 'notenTabelle', 'arbeitsblatt', 'stationenbetrieb', 'planungszentrale'];
 
 function AppContent() {
   const { app, setApp, setPage } = useApp();
@@ -577,6 +578,7 @@ function AppContent() {
       case 'planung': return <PlanungHub />;
       case 'leistungen': return <LeistungenHub />;
       case 'unterricht': return <UnterrichtHub />;
+      case 'lehrerzimmer': return <Lehrerzimmer />;
       case 'schueler': return <StudentList />;
       case 'noten': return <Gradebook />;
       case 'ki-helfer': 
@@ -646,6 +648,7 @@ function AppContent() {
       case 'planung': return 'Planung';
       case 'leistungen': return 'Leistungen';
       case 'unterricht': return 'Unterricht';
+      case 'lehrerzimmer': return 'Lehrerzimmer';
       case 'schueler': return 'Schüler';
       case 'noten': return 'Notenmappe';
       case 'ki-helfer':
