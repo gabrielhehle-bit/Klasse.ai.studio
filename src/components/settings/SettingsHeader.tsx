@@ -65,7 +65,7 @@ export default function SettingsHeader({
                 {activeCategory === 'advanced' && 'Erweitert & Sicherheit'}
               </h1>
               <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[0.625rem] font-bold uppercase tracking-wider">
-                Ruhiger Modus
+                {einfachModus ? 'Einfachmodus' : 'Alle Optionen'}
               </span>
             </div>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
