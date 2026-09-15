@@ -232,39 +232,32 @@ export default function Backup() {
     if (file) processFile(file);
   };
 
-  // Safe reset routine: all local Klassio stores must be cleared, including the separate vault database.
+  // Safe reset routine: remove data stores before deleting the vault metadata.
+  // This avoids leaving encrypted app data behind after its recovery metadata has already been removed.
   const executeAbsoluteReset = async () => {
     if (deleteConfirmText !== 'LÖSCHEN') return;
     setDeleteModalOpen(false);
 
-    const failures: string[] = [];
-    try { await clearTrustedDeviceUnlock(); } catch (e) {
-      failures.push('Gerätevertrauen');
-      console.error('Gerätevertrauen konnte nicht gelöscht werden', e);
-    }
-    try { await deleteVaultRecord(); } catch (e) {
-      failures.push('Tresor-Metadaten');
-      console.error('Tresor-Metadaten konnten nicht gelöscht werden', e);
-    }
-    try { await localforage.clear(); } catch (e) {
-      failures.push('lokaler App-Speicher');
-      console.error('Lokaler App-Speicher konnte nicht gelöscht werden', e);
-    }
-    try { localStorage.clear(); } catch (e) {
-      failures.push('Browser-Fallback');
-      console.error('localStorage konnte nicht gelöscht werden', e);
-    }
-    try { sessionStorage.clear(); } catch (e) {
-      failures.push('Sitzungsspeicher');
-      console.error('sessionStorage konnte nicht gelöscht werden', e);
-    }
+    const resetStep = async (label: string, action: () => void | Promise<void>): Promise<boolean> => {
+      try {
+        await action();
+        return true;
+      } catch (error) {
+        console.error(`${label} konnte beim Werksreset nicht gelöscht werden`, error);
+        alert(`Der Werksreset wurde abgebrochen: ${label} konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.`);
+        return false;
+      }
+    };
+
+    if (!await resetStep('Gerätevertrauen', () => clearTrustedDeviceUnlock())) return;
+    if (!await resetStep('Lokaler App-Speicher', () => localforage.clear())) return;
+    if (!await resetStep('Browser-Fallback', () => localStorage.clear())) return;
+    if (!await resetStep('Sitzungsspeicher', () => sessionStorage.clear())) return;
+
+    // Delete vault metadata last. If this step fails, no encrypted pupil/app state is left behind.
+    if (!await resetStep('Tresor-Metadaten', () => deleteVaultRecord())) return;
+
     clearActiveVaultSession();
-
-    if (failures.length > 0) {
-      alert(`Der Werksreset konnte nicht vollständig abgeschlossen werden (${failures.join(', ')}). Bitte lade die Seite nicht neu und versuche den Reset erneut.`);
-      return;
-    }
-
     window.location.reload();
   };
 
