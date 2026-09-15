@@ -60,9 +60,44 @@ type MeResponse = {
   school: {
     id: string;
     code: string;
+    name?: string;
+    federalState?: string;
     domain: string;
   };
 };
+
+type SchoolStatusResponse = {
+  account: {
+    displayName: string;
+    email: string;
+    domain: string;
+  };
+  school: {
+    id: string;
+    code: string;
+    name: string;
+    federalState: string;
+    domains: string[];
+  } | null;
+  verificationRequest: {
+    id: string;
+    schoolName: string;
+    federalState: string;
+    status: 'pending' | 'verified' | 'rejected';
+  } | null;
+};
+
+const AUSTRIAN_FEDERAL_STATES = [
+  'Burgenland',
+  'Kärnten',
+  'Niederösterreich',
+  'Oberösterreich',
+  'Salzburg',
+  'Steiermark',
+  'Tirol',
+  'Vorarlberg',
+  'Wien',
+] as const;
 
 const CATEGORY_META: Record<Category, { label: string; icon: React.ReactNode; badge: 'accent' | 'info' | 'warning' }> = {
   organisation: { label: 'Organisation', icon: <ClipboardList size={15} />, badge: 'warning' },
@@ -104,9 +139,11 @@ async function readJson(response: Response) {
     const error = new Error(data?.error || 'Die Anfrage konnte nicht ausgeführt werden.') as Error & {
       status?: number;
       requiresSchoolEmail?: boolean;
+      requiresEmailLogin?: boolean;
     };
     error.status = response.status;
     error.requiresSchoolEmail = data?.requiresSchoolEmail === true;
+    error.requiresEmailLogin = data?.requiresEmailLogin === true;
     throw error;
   }
   return data;
@@ -119,6 +156,12 @@ export default function Lehrerzimmer() {
   const [filter, setFilter] = useState<'all' | Category>('all');
   const [loading, setLoading] = useState(true);
   const [requiresSchoolEmail, setRequiresSchoolEmail] = useState(false);
+  const [schoolStatus, setSchoolStatus] = useState<SchoolStatusResponse | null>(null);
+  const [schoolStatusLoading, setSchoolStatusLoading] = useState(false);
+  const [schoolName, setSchoolName] = useState('');
+  const [schoolFederalState, setSchoolFederalState] = useState<(typeof AUSTRIAN_FEDERAL_STATES)[number]>('Vorarlberg');
+  const [verificationSubmitting, setVerificationSubmitting] = useState(false);
+  const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [category, setCategory] = useState<Category>('organisation');
@@ -134,6 +177,25 @@ export default function Lehrerzimmer() {
   const [editTitle, setEditTitle] = useState('');
   const [editBody, setEditBody] = useState('');
   const [mutatingId, setMutatingId] = useState<string | null>(null);
+
+  const loadSchoolStatus = useCallback(async () => {
+    setSchoolStatusLoading(true);
+    try {
+      const response = await fetch('/api/schools/me', { cache: 'no-store' });
+      const data = await readJson(response) as SchoolStatusResponse;
+      setSchoolStatus(data);
+      if (data.verificationRequest?.schoolName) setSchoolName(data.verificationRequest.schoolName);
+      if (AUSTRIAN_FEDERAL_STATES.includes(data.verificationRequest?.federalState as any)) {
+        setSchoolFederalState(data.verificationRequest!.federalState as (typeof AUSTRIAN_FEDERAL_STATES)[number]);
+      }
+      return data;
+    } catch {
+      setSchoolStatus(null);
+      return null;
+    } finally {
+      setSchoolStatusLoading(false);
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -155,13 +217,14 @@ export default function Lehrerzimmer() {
         setMe(null);
         setPosts([]);
         setColleagues([]);
+        await loadSchoolStatus();
       } else {
         setError(cause instanceof Error ? cause.message : 'Das Lehrerzimmer konnte nicht geladen werden.');
       }
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, loadSchoolStatus]);
 
   useEffect(() => {
     void load();
@@ -300,6 +363,32 @@ export default function Lehrerzimmer() {
     }
   };
 
+  const submitSchoolVerification = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!schoolName.trim() || verificationSubmitting) return;
+    setVerificationSubmitting(true);
+    setVerificationNotice(null);
+    setError(null);
+    try {
+      const response = await fetch('/api/schools/verification-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schoolName: schoolName.trim(),
+          federalState: schoolFederalState,
+        }),
+      });
+      const data = await readJson(response);
+      setVerificationNotice('Anfrage gespeichert. Nach einmaliger Prüfung ist diese Schul-Domain für alle Kolleg:innen dieser Schule freigeschaltet.');
+      await loadSchoolStatus();
+      return data;
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Die Schulverifizierung konnte nicht angefordert werden.');
+    } finally {
+      setVerificationSubmitting(false);
+    }
+  };
+
   const reloginWithSchoolEmail = async () => {
     try {
       await fetch('/api/access/logout', { method: 'POST' });
@@ -320,23 +409,113 @@ export default function Lehrerzimmer() {
   }
 
   if (requiresSchoolEmail) {
+    const pending = schoolStatus?.verificationRequest?.status === 'pending';
+
     return (
       <div className="w-full max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
-        <div className="rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-7 sm:p-9 shadow-sm text-center space-y-5">
-          <div className="w-14 h-14 rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)] flex items-center justify-center mx-auto">
-            <LockKeyhole size={26} />
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-2xl font-black tracking-tight">Lehrerzimmer nur mit Schul-E-Mail</h2>
+        <div className="rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-7 sm:p-9 shadow-sm space-y-6">
+          <div className="text-center space-y-3">
+            <div className="w-14 h-14 rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)] flex items-center justify-center mx-auto">
+              <LockKeyhole size={26} />
+            </div>
+            <h2 className="text-2xl font-black tracking-tight">Lehrerzimmer braucht eine verifizierte Schule</h2>
             <p className="text-sm leading-6 text-[var(--text-secondary)] max-w-xl mx-auto">
-              Das Lehrerzimmer ist ein gemeinsamer Bereich des Kollegiums. Deshalb reicht der administrative Zugangscode hier nicht aus:
-              Die Schulzugehörigkeit wird über eine verifizierte Schul-E-Mail bestätigt.
+              Dein persönliches Klassio-Konto funktioniert unabhängig davon. Für das schulinterne Lehrerzimmer muss zusätzlich die konkrete Schule bestätigt sein.
             </p>
           </div>
-          <Button variant="primary" size="lg" onClick={reloginWithSchoolEmail}>
-            Abmelden und mit Schul-E-Mail anmelden
-          </Button>
-          <p className="text-xs text-[var(--text-muted)]">
+
+          {schoolStatusLoading ? (
+            <div className="flex items-center justify-center gap-2 py-5 text-sm text-[var(--text-muted)]">
+              <Loader2 size={18} className="animate-spin" /> Schulstatus wird geprüft …
+            </div>
+          ) : schoolStatus?.account ? (
+            <div className="space-y-5">
+              <div className="rounded-xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))] p-4">
+                <div className="text-xs text-[var(--text-muted)]">Angemeldetes Konto</div>
+                <div className="mt-1 text-sm font-bold">{schoolStatus.account.email}</div>
+                <div className="mt-1 text-xs text-[var(--text-muted)]">
+                  Schul-Domain: <span className="font-semibold text-[var(--text-secondary)]">{schoolStatus.account.domain}</span>
+                </div>
+              </div>
+
+              {pending ? (
+                <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-5 text-center">
+                  <h3 className="font-bold">Schulverifizierung wurde angefordert</h3>
+                  <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                    {schoolStatus.verificationRequest?.schoolName} · {schoolStatus.verificationRequest?.federalState}
+                  </p>
+                  <p className="mt-2 text-xs leading-5 text-[var(--text-muted)]">
+                    Nach der einmaligen Freigabe gilt die konkrete Schul-Domain für alle Kolleg:innen dieser Schule. Andere Schulen – auch beim selben Bildungsserver – bleiben getrennt.
+                  </p>
+                  <Button variant="secondary" size="sm" className="mt-4" onClick={() => void load()}>
+                    Status aktualisieren
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={submitSchoolVerification} className="space-y-4">
+                  <div>
+                    <h3 className="font-bold">Schule zur Verifizierung melden</h3>
+                    <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">
+                      Das funktioniert österreichweit und ist nicht an VOBS gebunden. Die genaue E-Mail-Domain deiner Schule wird nach Prüfung dieser Schule zugeordnet.
+                    </p>
+                  </div>
+
+                  <Input
+                    label="Name der Schule"
+                    value={schoolName}
+                    onChange={event => setSchoolName(event.target.value)}
+                    placeholder="z. B. Volksschule Musterstadt"
+                    maxLength={160}
+                  />
+
+                  <Select
+                    label="Bundesland"
+                    value={schoolFederalState}
+                    onChange={event => setSchoolFederalState(event.target.value as (typeof AUSTRIAN_FEDERAL_STATES)[number])}
+                    options={AUSTRIAN_FEDERAL_STATES.map(state => ({ value: state, label: state }))}
+                  />
+
+                  {error && (
+                    <div className="rounded-xl border border-[var(--danger)]/25 bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger-text)]">
+                      {error}
+                    </div>
+                  )}
+                  {verificationNotice && (
+                    <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-3 text-sm">
+                      {verificationNotice}
+                    </div>
+                  )}
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    disabled={!schoolName.trim() || verificationSubmitting}
+                    isLoading={verificationSubmitting}
+                  >
+                    Schulverifizierung anfordern
+                  </Button>
+                </form>
+              )}
+
+              <div className="pt-4 border-t border-[var(--border-subtle,var(--border))] text-center">
+                <button type="button" onClick={reloginWithSchoolEmail} className="text-xs font-bold text-[var(--accent)] hover:underline">
+                  Mit einer anderen E-Mail-Adresse anmelden
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center space-y-4">
+              <p className="text-sm text-[var(--text-secondary)]">
+                Du bist aktuell über einen Zugangscode angemeldet. Für eine Schulverifizierung brauchst du zuerst ein persönliches E-Mail-Konto.
+              </p>
+              <Button variant="primary" size="lg" onClick={reloginWithSchoolEmail}>
+                Mit E-Mail anmelden
+              </Button>
+            </div>
+          )}
+
+          <p className="text-xs text-center text-[var(--text-muted)]">
             Persönliche Klassen- und Schülerdaten bleiben davon getrennt im lokalen verschlüsselten Datentresor.
           </p>
         </div>
@@ -358,7 +537,7 @@ export default function Lehrerzimmer() {
                 {mentionMeCount > 0 && <Badge variant="accent">{mentionMeCount} × erwähnt</Badge>}
               </div>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                {me?.school.code?.toUpperCase()} · {me?.school.domain}
+                {me?.school.name || me?.school.code?.toUpperCase()} · {me?.school.federalState ? me.school.federalState + ' · ' : ''}{me?.school.domain}
               </p>
               <p className="mt-1 text-xs text-[var(--text-muted)]">
                 Sichtbar nur für verifizierte Kolleg:innen derselben Schul-E-Mail-Gruppe.
