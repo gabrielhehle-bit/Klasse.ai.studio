@@ -350,7 +350,7 @@ export default function Materialbibliothek() {
       )}
 
       <div className={`bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] shadow-sm ${
-        isCompact ? 'p-2.5 rounded-2xl' : isLarge ? 'p-5 rounded-[3rem]' : 'p-3 rounded-2xl'
+        isCompact ? 'p-2.5 rounded-xl' : isLarge ? 'p-5 rounded-2xl' : 'p-3 rounded-2xl'
       }`}>
         <p className={`font-bold text-slate-400 flex items-center gap-2 px-4 ${
           isCompact ? 'text-[0.5625rem]' : isLarge ? 'text-[0.75rem]' : 'text-[0.625rem]'
@@ -383,7 +383,7 @@ export default function Materialbibliothek() {
 
         {/* Search & Filter */}
         <div className={`bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] shadow-sm ${
-          isCompact ? 'p-3 rounded-2xl space-y-2.5' : isLarge ? 'p-8 rounded-[2.5rem]' : 'p-4 rounded-2xl'
+          isCompact ? 'p-3 rounded-xl space-y-2.5' : isLarge ? 'p-6 rounded-2xl' : 'p-4 rounded-2xl'
         } ${isCompact ? 'space-y-2.5' : isLarge ? 'space-y-6' : 'space-y-4'}`}>
           <div className={`flex flex-col md:flex-row ${isCompact ? 'gap-2.5' : isLarge ? 'gap-6' : 'gap-4'}`}>
             <div className="flex-1 relative">
@@ -1064,7 +1064,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
         className="bg-[var(--surface-card,var(--surface))] text-[var(--text-primary,var(--text))] rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] border border-[var(--border-default,var(--border))]"
       >
         <div className="p-5 sm:p-6 border-b border-[var(--border-subtle,var(--border))] flex items-center justify-between">
-          <h3 id="material-dialog-title" className="text-[1.25rem] leading-normal font-black text-slate-800">
+          <h3 id="material-dialog-title" className="text-[1.25rem] leading-normal font-black text-[var(--text-primary,var(--text))]">
             {initialData ? 'Material bearbeiten' : step === 'type' ? 'Neues Material erstellen' : 'Details eingeben'}
           </h3>
           <button type="button" onClick={onClose} aria-label="Materialdialog schließen" title="Schließen" className="p-2 hover:bg-[var(--surface-subtle,var(--surface2))] rounded-xl text-[var(--text-muted,var(--text3))] transition-colors"><X size={24} /></button>
@@ -1106,7 +1106,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
             <div className="space-y-6">
               <button 
                 onClick={() => setStep('type')}
-                className="flex items-center gap-1.5 text-slate-500 font-bold text-[0.6875rem] hover:text-slate-700 transition-colors uppercase tracking-widest"
+                className="flex items-center gap-1.5 text-[var(--text-muted,var(--text3))] font-bold text-[0.6875rem] hover:text-[var(--text-primary,var(--text))] transition-colors"
               >
                 <ArrowLeft size={14} /> Zurück zur Auswahl
               </button>
@@ -1116,8 +1116,8 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
                   <Wand2 size={24} />
                 </div>
                 <div>
-                  <h4 className="text-[1.125rem] leading-normal font-black text-slate-800">KI-Inhaltsgenerator</h4>
-                  <p className="text-[0.75rem] leading-tight font-bold text-slate-400">Erstelle passgenaues Unterrichtsmaterial in Sekunden.</p>
+                  <h4 className="text-[1.125rem] leading-normal font-black text-[var(--text-primary,var(--text))]">KI-Inhaltsgenerator</h4>
+                  <p className="text-[0.75rem] leading-tight font-medium text-[var(--text-muted,var(--text3))]">Erstelle passgenaues Unterrichtsmaterial in Sekunden.</p>
                 </div>
               </div>
 
@@ -1174,7 +1174,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
                 </div>
 
                 <div className="pt-2">
-                  <label className="flex items-center gap-3 cursor-pointer p-4 bg-slate-50 rounded-2xl hover:bg-slate-100 transition-colors">
+                  <label className="flex items-center gap-3 cursor-pointer p-4 bg-[var(--surface-subtle,var(--surface2))] rounded-xl border border-[var(--border-subtle,var(--border))] hover:border-[var(--accent)]/25 transition-colors">
                     <input 
                       type="checkbox" 
                       className="w-5 h-5 accent-fuchsia-600 rounded bg-slate-200 border-none" 
@@ -1182,8 +1182,8 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
                       onChange={e => setAiDiff(e.target.checked)}
                     />
                     <div>
-                      <div className="text-[0.875rem] leading-snug font-black text-slate-800 tracking-tight">Kognitive Differenzierung aktiv</div>
-                      <div className="text-[0.625rem] font-medium text-slate-500">Erstellt 3 Varianten (Leicht, Mittel, Anspruchsvoll) in einem Dokument.</div>
+                      <div className="text-[0.875rem] leading-snug font-black text-[var(--text-primary,var(--text))] tracking-tight">Kognitive Differenzierung aktiv</div>
+                      <div className="text-[0.625rem] font-medium text-[var(--text-muted,var(--text3))]">Erstellt 3 Varianten (Leicht, Mittel, Anspruchsvoll) in einem Dokument.</div>
                     </div>
                   </label>
                 </div>
@@ -1512,8 +1512,8 @@ function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkU
                <h2 className="text-[1.75rem] leading-tight font-black text-[var(--text-primary,var(--text))] tracking-tight pt-2">{item.titel}</h2>
             </div>
             <div className="flex items-center gap-2">
-               <button onClick={onToggleFavorit} className={`p-3 rounded-full transition-all ${item.favorit ? 'text-rose-500 bg-rose-50' : 'text-slate-200 hover:text-rose-300 bg-slate-50'}`}><Heart size={24} fill={item.favorit ? "currentColor" : "none"} /></button>
-               <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-full transition-colors"><X size={24} /></button>
+               <button onClick={onToggleFavorit} className={`p-3 rounded-xl transition-colors border border-transparent ${item.favorit ? 'text-rose-500 bg-rose-50 border-rose-100' : 'text-[var(--text-muted,var(--text3))] hover:text-rose-500 bg-[var(--surface-subtle,var(--surface2))]'}`}><Heart size={24} fill={item.favorit ? "currentColor" : "none"} /></button>
+               <button onClick={onClose} className="p-3 hover:bg-[var(--surface-subtle,var(--surface2))] rounded-xl text-[var(--text-muted,var(--text3))] transition-colors"><X size={24} /></button>
             </div>
          </div>
 
@@ -1568,7 +1568,7 @@ function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkU
             {item.typ === 'datei' && (
               <div className="space-y-6">
                 {item.dateiTyp?.startsWith('image/') && item.dateiInhalt && (
-                  <div className="rounded-3xl  border border-slate-100 shadow-sm bg-slate-50">
+                  <div className="rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm bg-[var(--surface-subtle,var(--surface2))]">
                     <img src={item.dateiInhalt} alt={item.titel} className="w-full h-auto max-h-[500px] object-contain" />
                   </div>
                 )}
@@ -1730,7 +1730,7 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
             <div className="text-[0.625rem] font-bold tracking-wide text-[var(--accent)]">Material → Wochenplan</div>
             <h3 className="mt-1 text-xl font-black text-[var(--text-primary,var(--text))]">{item.titel}</h3>
           </div>
-          <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500" aria-label="Schließen">
+          <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted,var(--text3))] transition-colors" aria-label="Schließen">
             <X size={20} />
           </button>
         </div>
@@ -1764,8 +1764,8 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
 
           <div className="rounded-2xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-subtle,var(--border))] p-4">
             <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Zielstunde</div>
-            <div className="mt-1 text-sm font-black text-slate-800">{existing.fach || (app.stammplan as any)?.[day]?.[hour] || 'Noch kein Fach eingetragen'}</div>
-            <div className="mt-1 text-xs text-slate-500">{existing.thema || 'Noch kein Thema eingetragen'}</div>
+            <div className="mt-1 text-sm font-black text-[var(--text-primary,var(--text))]">{existing.fach || (app.stammplan as any)?.[day]?.[hour] || 'Noch kein Fach eingetragen'}</div>
+            <div className="mt-1 text-xs text-[var(--text-muted,var(--text3))]">{existing.thema || 'Noch kein Thema eingetragen'}</div>
             {alreadyLinked && (
               <div className="mt-2 inline-flex items-center gap-1.5 text-[0.6875rem] font-bold text-emerald-700">
                 <Check size={13} /> Dieses Material ist bereits verknüpft – es wird nicht doppelt gespeichert.
@@ -1778,15 +1778,15 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
             <label className="flex gap-3 p-3.5 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] cursor-pointer hover:bg-[var(--surface-subtle,var(--surface2))] transition-colors">
               <input type="radio" name="materialTransferMode" checked={mode === 'append'} onChange={() => setMode('append')} />
               <span>
-                <strong className="block text-sm text-slate-900">Ergänzen</strong>
-                <span className="block text-xs text-slate-500 mt-0.5">Vorhandene Materialien bleiben; dieses Material kommt einmalig dazu.</span>
+                <strong className="block text-sm text-[var(--text-primary,var(--text))]">Ergänzen</strong>
+                <span className="block text-xs text-[var(--text-muted,var(--text3))] mt-0.5">Vorhandene Materialien bleiben; dieses Material kommt einmalig dazu.</span>
               </span>
             </label>
             <label className="flex gap-3 p-3.5 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] cursor-pointer hover:bg-[var(--surface-subtle,var(--surface2))] transition-colors">
               <input type="radio" name="materialTransferMode" checked={mode === 'replace'} onChange={() => setMode('replace')} />
               <span>
-                <strong className="block text-sm text-slate-900">Ersetzen</strong>
-                <span className="block text-xs text-slate-500 mt-0.5">Nur die Materialzuordnung dieser Stunde wird ersetzt; Fach, Thema und übrige Planung bleiben erhalten.</span>
+                <strong className="block text-sm text-[var(--text-primary,var(--text))]">Ersetzen</strong>
+                <span className="block text-xs text-[var(--text-muted,var(--text3))] mt-0.5">Nur die Materialzuordnung dieser Stunde wird ersetzt; Fach, Thema und übrige Planung bleiben erhalten.</span>
               </span>
             </label>
           </fieldset>
