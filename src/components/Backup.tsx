@@ -9,121 +9,77 @@ import { getActiveVaultKey, getActiveVaultRecord, loadVaultRecord } from '../lib
 import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
 import { ONEDRIVE_BACKUP_PRIMARY_NAME } from '../lib/cloudBackupNames';
 import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
+import { syncActiveClass, switchClassState } from '../lib/appState';
 
 export default function Backup() {
   const { app, setApp, restoreAppData } = useApp();
 
-  const handleArchiveActiveClass = () => {
-    if (confirm("Möchten Sie die aktive Klasse wirklich in das Archiv verschieben?")) {
-      setApp(prev => {
-        const classes = prev.classes || [];
-        const activeIdx = classes.findIndex(c => c.id === prev.activeClassId);
-        if (activeIdx === -1) return prev;
-
-        const currentClassSnapshot = {
-          ...classes[activeIdx],
-          name: prev.klassenbezeichnung,
-          stufe: prev.stufe,
-          klassenvorstand: prev.klassenvorstand,
-          schueler: prev.schueler ? JSON.parse(JSON.stringify(prev.schueler)) : [],
-          noten: prev.noten ? JSON.parse(JSON.stringify(prev.noten)) : {},
-          mitarbeit: prev.mitarbeit ? JSON.parse(JSON.stringify(prev.mitarbeit)) : {},
-          verhalten: prev.verhalten ? JSON.parse(JSON.stringify(prev.verhalten)) : {},
-          karten: prev.karten ? JSON.parse(JSON.stringify(prev.karten)) : {},
-          jahresplanung: prev.jahresplanung ? JSON.parse(JSON.stringify(prev.jahresplanung)) : {},
-          jahresplan_faecher: prev.jahresplan_faecher ? JSON.parse(JSON.stringify(prev.jahresplan_faecher)) : undefined,
-          wochenplanung: prev.wochenplanung ? JSON.parse(JSON.stringify(prev.wochenplanung)) : {},
-          wochenplanSyncSet: prev.wochenplanSyncSet ? JSON.parse(JSON.stringify(prev.wochenplanSyncSet)) : undefined,
-          stammplan: prev.stammplan ? JSON.parse(JSON.stringify(prev.stammplan)) : {},
-          anwesenheit: prev.anwesenheit ? JSON.parse(JSON.stringify(prev.anwesenheit)) : {},
-sue_kontrolle: prev.sue_kontrolle ? JSON.parse(JSON.stringify(prev.sue_kontrolle)) : {},
-sitzplan_schueler: prev.sitzplan_schueler ? JSON.parse(JSON.stringify(prev.sitzplan_schueler)) : {},
-sitzplan_objekte: prev.sitzplan_objekte ? JSON.parse(JSON.stringify(prev.sitzplan_objekte)) : [],
-          anwesenheitDetail: prev.anwesenheitDetail ? JSON.parse(JSON.stringify(prev.anwesenheitDetail)) : undefined,
-          dienste: prev.dienste ? JSON.parse(JSON.stringify(prev.dienste)) : undefined,
-          klassenglas_count: prev.klassenglas_count ?? 0,
-          klassenglas_ziel: prev.klassenglas_ziel ?? 20,
-          klassenglas_belohnung: prev.klassenglas_belohnung,
-          klassenglas_missions: prev.klassenglas_missions ? JSON.parse(JSON.stringify(prev.klassenglas_missions)) : undefined,
-        };
-
-        const newArchivedClasses = [...(prev.archivedClasses || []), currentClassSnapshot];
-        let newClasses = classes.filter(c => c.id !== prev.activeClassId);
-        
-        if (newClasses.length === 0) {
-          newClasses = [{
-            id: 'class-' + Math.random().toString(36).substring(2, 9),
-            name: 'Neue Klasse',
-            stufe: 4,
-            klassenvorstand: true,
-            schueler: [],
-            noten: {},
-            mitarbeit: {},
-            verhalten: {},
-            karten: {},
-            jahresplanung: {},
-            wochenplanung: {},
-            stammplan: {},
-            anwesenheit: {},
-            klassenglas_count: 0,
-            klassenglas_ziel: 20, sue_kontrolle: {}, sitzplan_schueler: {}, sitzplan_objekte: []
-          }];
-        }
-
-        const nextClass = newClasses[0];
-
-        return {
-          ...prev,
-          archivedClasses: newArchivedClasses,
-          classes: newClasses,
-          activeClassId: nextClass.id,
-          klassenbezeichnung: nextClass.name,
-          stufe: nextClass.stufe,
-          klassenvorstand: nextClass.klassenvorstand,
-          schueler: nextClass.schueler ? JSON.parse(JSON.stringify(nextClass.schueler)) : [],
-          noten: nextClass.noten,
-          mitarbeit: nextClass.mitarbeit,
-          verhalten: nextClass.verhalten,
-          karten: nextClass.karten,
-          jahresplanung: nextClass.jahresplanung,
-          jahresplan_faecher: nextClass.jahresplan_faecher,
-          wochenplanung: nextClass.wochenplanung,
-          wochenplanSyncSet: nextClass.wochenplanSyncSet,
-          stammplan: nextClass.stammplan,
-          anwesenheit: nextClass.anwesenheit,
-sue_kontrolle: nextClass.sue_kontrolle,
-sitzplan_schueler: nextClass.sitzplan_schueler,
-sitzplan_objekte: nextClass.sitzplan_objekte,
-          anwesenheitDetail: nextClass.anwesenheitDetail,
-          dienste: nextClass.dienste,
-          klassenglas_count: nextClass.klassenglas_count,
-          klassenglas_ziel: nextClass.klassenglas_ziel,
-          klassenglas_belohnung: nextClass.klassenglas_belohnung,
-          klassenglas_missions: nextClass.klassenglas_missions,
-        };
-      });
+  const handleRetireActiveClass = () => {
+    const activeClasses = app.classes || [];
+    if (activeClasses.length <= 1) {
+      alert('Lege bitte zuerst eine neue aktive Klasse an. Mindestens eine Klasse muss aktiv bleiben.');
+      return;
     }
-  };
 
-  const handleRestoreArchivedClass = (classId: string) => {
-    setApp(prev => {
-      const archivedClasses = prev.archivedClasses || [];
-      const idx = archivedClasses.findIndex(c => c.id === classId);
-      if (idx === -1) return prev;
-      const restoredClass = archivedClasses[idx];
-      const newArchivedClasses = archivedClasses.filter(c => c.id !== classId);
-      const newClasses = [...(prev.classes || []), restoredClass];
-      return { ...prev, archivedClasses: newArchivedClasses, classes: newClasses };
+    if (!confirm(
+      'Aktive Klasse aus der Klassenliste stilllegen? Sie bleibt vollständig erhalten und kann hier später wiederhergestellt werden. Dies erstellt keinen Jahresarchivstand.'
+    )) return;
+
+    setApp((prev) => {
+      const synced = syncActiveClass(prev);
+      const classes = synced.classes || [];
+      const activeClass = classes.find((item) => item.id === synced.activeClassId);
+      if (!activeClass || classes.length <= 1) return prev;
+
+      const remainingClasses = classes.filter((item) => item.id !== synced.activeClassId);
+      const retiredClasses = [
+        ...(synced.retiredClasses || []).filter((item) => item.id !== activeClass.id),
+        JSON.parse(JSON.stringify(activeClass)),
+      ];
+
+      const switched = switchClassState(
+        {
+          ...synced,
+          classes: remainingClasses,
+          retiredClasses,
+        },
+        remainingClasses[0].id
+      );
+
+      return {
+        ...switched,
+        retiredClasses,
+      };
     });
   };
 
-  const handleDeleteArchivedClass = (classId: string) => {
-    if (confirm("Möchten Sie diese archivierte Klasse wirklich unwiderruflich löschen? Erstellen Sie vorher bei Bedarf eine Datensicherung.")) {
-      setApp(prev => ({
+  const handleRestoreRetiredClass = (classId: string) => {
+    setApp((prev) => {
+      const retiredClasses = prev.retiredClasses || [];
+      const retiredClass = retiredClasses.find((item) => item.id === classId);
+      if (!retiredClass) return prev;
+      if ((prev.classes || []).some((item) => item.id === classId)) {
+        alert('Eine aktive Klasse mit derselben ID ist bereits vorhanden.');
+        return prev;
+      }
+
+      return {
         ...prev,
-        archivedClasses: (prev.archivedClasses || []).filter(c => c.id !== classId)
-      }));
-    }
+        retiredClasses: retiredClasses.filter((item) => item.id !== classId),
+        classes: [...(prev.classes || []), JSON.parse(JSON.stringify(retiredClass))],
+      };
+    });
+  };
+
+  const handleDeleteRetiredClass = (classId: string) => {
+    if (!confirm(
+      'Diese stillgelegte Klasse wirklich unwiderruflich aus dem aktuellen Datenbestand löschen? Erstellen Sie vorher bei Bedarf eine Datensicherung.'
+    )) return;
+
+    setApp((prev) => ({
+      ...prev,
+      retiredClasses: (prev.retiredClasses || []).filter((item) => item.id !== classId),
+    }));
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1122,7 +1078,7 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
         </div>
       </div>
 
-      {/* Archive & Safety Actions */}
+      {/* Class retirement & Safety Actions */}
       <h3 className="order-4 text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-2 mt-4">Schuljahres-Wechsel & Reset</h3>
       
       <div className="order-5 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1132,18 +1088,18 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
           <div className="space-y-1">
             <h4 className="text-[0.875rem] font-black text-indigo-950 flex items-center gap-1.5">
               <Archive size={16} className="text-indigo-600 shrink-0" />
-              Ins Archiv verschieben
+              Klasse stilllegen
             </h4>
             <p className="text-[0.75rem] text-indigo-800 font-medium leading-relaxed">
-              Verschiebt die aktuelle Klasse aus der aktiven Liste ins interne Archiv. Ideal zum Jahresende.
+              Entfernt die aktuelle Klasse aus der aktiven Klassenliste, bewahrt sie aber vollständig zur späteren Wiederherstellung. Jahresarchivstände werden separat im Bereich „Archiv“ erstellt.
             </p>
           </div>
           <button 
-            onClick={handleArchiveActiveClass}
+            onClick={handleRetireActiveClass}
             className="px-6 h-12 bg-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white border border-indigo-200 hover:border-indigo-600 transition-all duration-200 rounded-2xl font-black text-[0.625rem] uppercase tracking-widest flex items-center gap-2 group cursor-pointer hover:shadow-lg hover:shadow-indigo-500/15 active:scale-95"
           >
             <Archive size={16} className="group-hover:-translate-y-1 transition-transform" />
-            Aktive Klasse archivieren
+            Aktive Klasse stilllegen
           </button>
         </div>
 
@@ -1172,22 +1128,22 @@ sitzplan_objekte: nextClass.sitzplan_objekte,
       </div>
 
 
-      {/* App-Internes Archiv */}
-      {app.archivedClasses && app.archivedClasses.length > 0 && (
+      {/* Stillgelegte, wiederherstellbare Klassen */}
+      {app.retiredClasses && app.retiredClasses.length > 0 && (
         <div className="order-6 mt-4 mb-4">
-          <h3 className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-2 mb-4">Archivierte Klassen</h3>
+          <h3 className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-2 mb-4">Stillgelegte Klassen</h3>
           <div className="space-y-3">
-            {app.archivedClasses.map((ac: any) => (
+            {app.retiredClasses.map((ac: any) => (
               <div key={ac.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-200/50 flex items-center justify-between">
                 <div>
                   <h4 className="text-[0.875rem] font-black text-slate-900">{ac.name}</h4>
                   <p className="text-[0.75rem] font-medium text-slate-500">{(ac.schueler || []).length} Schüler • Stufe {ac.stufe}</p>
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" aria-label={`${ac.name} wiederherstellen`} onClick={() => handleRestoreArchivedClass(ac.id)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg text-[0.6875rem] font-black uppercase tracking-wider transition-all">
+                  <button type="button" aria-label={`${ac.name} wiederherstellen`} onClick={() => handleRestoreRetiredClass(ac.id)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-lg text-[0.6875rem] font-black uppercase tracking-wider transition-all">
                     Wiederherstellen
                   </button>
-                  <button type="button" aria-label={`${ac.name} unwiderruflich löschen`} onClick={() => handleDeleteArchivedClass(ac.id)} className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[0.6875rem] font-black uppercase tracking-wider transition-all">
+                  <button type="button" aria-label={`${ac.name} unwiderruflich löschen`} onClick={() => handleDeleteRetiredClass(ac.id)} className="px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[0.6875rem] font-black uppercase tracking-wider transition-all">
                     Löschen
                   </button>
                 </div>

@@ -1276,7 +1276,10 @@ export interface AppState {
   klasse?: string;
   termine?: any[];
   activeClassId?: string;
-  archivedClasses?: ClassRoom[];
+  /** Read-only pedagogical year snapshots shown in Archiv. */
+  archivedClasses?: import('./lib/archiveData').ArchivedClassSnapshot[];
+  /** Full live-class records temporarily removed from the active class list and restorable from Backup. */
+  retiredClasses?: ClassRoom[];
   activePrintTemplate?: string;
   activePrintStudentId?: string;
   openPrintModalOnLoad?: boolean;

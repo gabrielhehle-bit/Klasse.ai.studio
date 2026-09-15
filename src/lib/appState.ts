@@ -4,6 +4,7 @@ import { getCurrentSchuljahr, getKW } from './utils';
 import { DEFAULT_MORNING_WIDGETS } from '../data/morningWidgets';
 import { sanitizeSeatingRules } from './seatingPlanRules';
 import { normalizeKlassenkasse } from './orgaData';
+import { normalizeArchivedClasses } from './archiveData';
 
 export const initialAppState: AppState = {
   ipsativeGewichtung: 70,
@@ -96,6 +97,8 @@ export const initialAppState: AppState = {
   },
   unterrichtsmodus_sidebar_open: false,
   historicalStudents: [],
+  archivedClasses: [],
+  retiredClasses: [],
   klassenkasse: {
     kontostand: 0,
     sammlungen: [],
@@ -267,6 +270,18 @@ export function normalizeAppState(raw: any): AppState {
     return initialAppState;
   }
 
+  const legacyArchivedClassEntries = Array.isArray(raw.archivedClasses)
+    ? raw.archivedClasses.filter((item: any) =>
+        item &&
+        typeof item === 'object' &&
+        !item.sourceClassId &&
+        (item.klassenvorstand !== undefined || item.jahresplanung !== undefined || item.wochenplanung !== undefined)
+      )
+    : [];
+  const archiveSnapshotEntries = Array.isArray(raw.archivedClasses)
+    ? raw.archivedClasses.filter((item: any) => !legacyArchivedClassEntries.includes(item))
+    : [];
+
   const parsed = {
     ...initialAppState,
     ...raw,
@@ -289,6 +304,13 @@ export function normalizeAppState(raw: any): AppState {
     klassenglas_completed_missions: raw.klassenglas_completed_missions ?? [],
     dienste: raw.dienste ?? [],
     backupEinstellungen: raw.backupEinstellungen ?? { letztesBackup: null, erinnerungAktiv: true },
+    archivedClasses: normalizeArchivedClasses(archiveSnapshotEntries),
+    retiredClasses: JSON.parse(JSON.stringify([
+      ...(Array.isArray(raw.retiredClasses) ? raw.retiredClasses : []),
+      ...legacyArchivedClassEntries,
+    ].filter((item: any, index: number, items: any[]) =>
+      item?.id && items.findIndex((candidate: any) => candidate?.id === item.id) === index
+    ))),
   };
 
   // Migration: Multi-Class Support
@@ -715,6 +737,8 @@ export function normalizeAppState(raw: any): AppState {
     bundesland: parsed.bundesland || 'VBG',
     tourAbgeschlossen: computedTourAbgeschlossen,
     historicalStudents: parsed.historicalStudents || [],
+    archivedClasses: normalizeArchivedClasses(parsed.archivedClasses),
+    retiredClasses: Array.isArray(parsed.retiredClasses) ? parsed.retiredClasses : [],
     notes: parsed.notes || [],
     settings: { ...initialAppState.settings, ...(parsed.settings || {}) },
     boardSettings: {
