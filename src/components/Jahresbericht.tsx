@@ -10,13 +10,14 @@ import { askAI } from '../services/aiService';
 import Markdown from 'react-markdown';
 import { SchuljahrWrapped } from './SchuljahrWrapped';
 import { STANDARD_KEL_BEREICHE } from '../types';
+import { berechne, getAssessmentMode } from '../lib/GradeUtils';
 
 export default function Jahresbericht() {
   const { app, setApp } = useApp();
-  const currentTerm = app.schuljahr || '2025';
+  const currentTerm = app.schuljahr || 'Schuljahr nicht angegeben';
   
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'bericht' | 'radar'>('bericht');
+  const [activeTab, setActiveTab] = useState<'bericht' | 'datenbasis'>('bericht');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingAllStatus, setGeneratingAllStatus] = useState<{ total: number, current: number } | null>(null);
   const [editMode, setEditMode] = useState<string | null>(null);
@@ -34,21 +35,18 @@ export default function Jahresbericht() {
     return (localStorage.getItem('jb_pronoun') as any) || 'sie_er';
   });
 
-  const [includeBadges, setIncludeBadges] = useState(true);
+  const [includeBadges, setIncludeBadges] = useState(false);
   const [includeObservations, setIncludeObservations] = useState(true);
   const [includeGrades, setIncludeGrades] = useState(true);
   const [personalWish, setPersonalWish] = useState('');
   const [refinePrompt, setRefinePrompt] = useState('');
   const [isRefining, setIsRefining] = useState(false);
 
-  // Manual review flag state
-  const [reviewStatus, setReviewStatus] = useState<Record<string, 'freigegeben' | 'nacharbeiten' | 'offen'>>(() => {
-    const saved = localStorage.getItem('jb_review_status_v1');
-    return saved ? JSON.parse(saved) : {};
-  });
-
   const berichte = app.jahresberichte || {};
   const students = app.schueler || [];
+
+  const getReviewStatus = (studentId: string): 'freigegeben' | 'nacharbeiten' | 'offen' =>
+    berichte[studentId]?.reviewStatus || 'offen';
 
   // Persist options
   useEffect(() => {
@@ -63,10 +61,83 @@ export default function Jahresbericht() {
     localStorage.setItem('jb_pronoun', pronounForm);
   }, [pronounForm]);
 
+  useEffect(() => {
+    setSelectedStudent(null);
+    setEditMode(null);
+    setEditContent('');
+    setShowWrapped(null);
+    setActiveTab('bericht');
+  }, [app.activeClassId]);
+
+  useEffect(() => {
+    try {
+      localStorage.removeItem('jb_review_status_v1');
+    } catch {}
+  }, []);
+
   const handleSetReview = (studentId: string, status: 'freigegeben' | 'nacharbeiten' | 'offen') => {
-    const updated = { ...reviewStatus, [studentId]: status };
-    setReviewStatus(updated);
-    localStorage.setItem('jb_review_status_v1', JSON.stringify(updated));
+    setApp(prev => {
+      const existing = prev.jahresberichte?.[studentId];
+      if (!existing) return prev;
+      return {
+        ...prev,
+        jahresberichte: {
+          ...(prev.jahresberichte || {}),
+          [studentId]: {
+            ...existing,
+            reviewStatus: status,
+          },
+        },
+      };
+    });
+  };
+
+  const getLatestKelForStudent = (studentId: string) =>
+    [...(app.kelGespraeche || [])]
+      .filter((entry) => entry.schuelerId === studentId)
+      .sort((a: any, b: any) => String(b.datum || '').localeCompare(String(a.datum || '')))[0];
+
+  const getStudentObservationEntries = (studentId: string) => {
+    const merged = [...(app.notes || []), ...((app.journal as any[]) || [])]
+      .filter((entry: any) => entry?.schuelerId === studentId);
+
+    const seen = new Set<string>();
+    return merged
+      .filter((entry: any) => {
+        const key = entry.id || `${entry.datum || ''}|${entry.kategorie || ''}|${entry.inhalt || entry.content || ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a: any, b: any) => String(b.datum || '').localeCompare(String(a.datum || '')));
+  };
+
+  const getAnnualGradeLines = (studentId: string): string[] => {
+    const subjectRecords = app.noten?.[studentId] || {};
+    const subjects = Array.from(new Set([
+      ...(app.faecher || []),
+      ...Object.keys(subjectRecords),
+    ]));
+
+    return subjects.flatMap((fach) => {
+      const mode = getAssessmentMode(app, fach);
+      for (const semester of ['2', '1']) {
+        const semesterData: any = subjectRecords?.[fach]?.[semester];
+        const explicitEndnote = semesterData?.endnote;
+        if (explicitEndnote !== undefined && explicitEndnote !== null && String(explicitEndnote).trim() !== '') {
+          return [`- ${fach}: Endnote ${String(explicitEndnote).trim()} (Semester ${semester})`];
+        }
+
+        const calculated = berechne(app, studentId, fach, semester);
+        if (calculated !== null) {
+          const value = mode === 'grades'
+            ? `berechneter Stand ${Number(calculated).toFixed(1)}`
+            : `berechneter Stand ${Math.round(Number(calculated))}%`;
+          return [`- ${fach}: ${value} (Semester ${semester}, noch keine Endnote)`];
+        }
+      }
+      return [];
+    });
   };
 
   const triggerSingleGeneration = async (studentId: string) => {
