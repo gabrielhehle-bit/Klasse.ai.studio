@@ -61,25 +61,27 @@ PR #59 schloss danach die Einzelabnahme der Übergabemappe ab: Die frühere Stun
 
 PR #61 schloss anschließend die Einzelabnahme von Statistik & Profile ab: Mitgelieferte Demo-/Fake-Schüler und erfundene Vergleichsklassen wurden entfernt. Noten-, Prozent- und Punktestatistiken werden skalenkorrekt berechnet; Klassen- und Schüler-Leistungsindex verwenden dieselbe nachvollziehbare Grundlage. Elterngespräche, KEL, Portfolio, KI-Zusammenfassungen und Profil-Beobachtungen bleiben klassenlokal; alte Browserdaten werden in den verschlüsselten App-State migriert. Die Planungsstatistik liest die reale Wochen-/Jahresplanstruktur statt Ersatzdaten. Lehrerprofile enthalten keine erfundenen Karrierewerte oder pseudo-offiziellen Urkunden mehr. Frühere LRS-/Dyskalkulie-Risikodiagnosen, angeblich behördliche Förderpläne und ein vorgetäuschter Sitzplatz-Algorithmus wurden durch transparent bezeichnete manuelle Hilfen ersetzt. Regressionstests sichern diese Daten-, Skalen- und Ehrlichkeitsanforderungen.
 
+PR #63 schloss danach die Einzelabnahme der Diagnostik ab: Die neue 1:1- und Klassenscreening-Diagnostik ist strikt an die stabile aktive Klassen-ID gebunden; offene Schüler-/Kompetenzauswahl wird beim Klassenwechsel verworfen und Speichern meldet nur nach tatsächlicher Validierung Erfolg. Doppelte Ergebnis-IDs werden dedupliziert. Erfundenen Klassen-Fallbacks wie `2a` oder `klasse-default` wurden entfernt, Datumswerte verwenden lokale Kalendertage. Automatisch erzeugte Texte bleiben ausdrücklich pädagogische Momentaufnahmen statt Diagnosen oder klinischer Befunde; überzogene Aussagen wie „altersgemäß voll ausgeprägt“, „unauffällig“ oder „dringend“ wurden neutralisiert. Auch der Archiv-/Legacy-Bereich wurde von Fake-Klassen- und KI-„fehlerfrei“-Wording bereinigt; Normwerte dürfen nur aus der jeweiligen Originalauswertung übernommen werden. Regressionstests sichern Klassenisolation, Datumslogik, Speichersicherheit und ehrliche Ergebnisformulierungen.
+
 Die historischen divergierenden Branches `audit/production-demo-data`, `audit/visible-legacy-branding`, `audit/visible-legacy-branding-final`, `fix/klassio-visible-branding`, `fix/json-backups-and-critical-data-flows` und `feature/final-app-polish` wurden anschließend gezielt gegen den aktuellen Reconciliation-Stand geprüft. Ihre noch eigenen Commits enthalten entweder nur temporäre Audit-/CI-Workflows oder ältere Varianten von Funktionen, die im aktuellen Stand bereits gleichwertig oder neuer umgesetzt sind. Sie werden deshalb **nicht** in den Produktstand gemergt.
 
 Der historische Branch `feature/final-app-polish` wird nicht gemergt und ist keine Arbeitsgrundlage. Seine relevanten funktionalen Lücken wurden selektiv auf frischen Branches vom jeweils aktuellen Reconciliation-HEAD neu umgesetzt. Verbleibende Unterschiede in Cockpit/BoardInk/Vorlagen stammen aus älteren UI-Varianten und werden nicht über den neueren, bereits getesteten Cockpit-Stand aus PR #6 gelegt.
 
 Interne Legacy-Kennungen wie `LehrerAPP_Encrypted_Backup`, `LehrerAPP|EncryptedPayload|v1`, bestehende Storage-Namen und `gabic*`-Schlüssel bleiben absichtlich unverändert, soweit sie Daten-/Backup-Kompatibilität sichern. Sie sind keine sichtbaren Produktnamen.
 
-Der letzte codehaltige Reconciliation-Stand liegt nach PR #61 auf Commit `d85044b1f1e2eb3ff49b2c50e88693a6843c4db3` und wurde vollständig geprüft:
+Der letzte codehaltige Reconciliation-Stand liegt nach PR #63 auf Commit `c86dbc0ff2f231c28779f025f3b35f685bdff928` und wurde vollständig geprüft:
 
-- Pre-Deployment Audit #128: erfolgreich
-- Feature Validation #377 und Reconciliation-Validation #378: erfolgreich
+- Pre-Deployment Audit #130: erfolgreich
+- Feature Validation #401 und PR-Validation #402: erfolgreich
 - TypeScript: erfolgreich
-- Tests: 941/941 erfolgreich
+- Tests: 948/948 erfolgreich
 - Production Build: erfolgreich
 - PWA-/Build-Ausgabe: erfolgreich
 - Production-Server- und `/api/health`-Smoke: erfolgreich
 - Zugangscode-/Session-/E-Mail-Fallback-Smoke: erfolgreich
-- World4You-Artefakt: `klassio-world4you-d85044b1f1e2eb3ff49b2c50e88693a6843c4db3`
+- World4You-Artefakt: `klassio-world4you-c86dbc0ff2f231c28779f025f3b35f685bdff928`
 
-PR #61 wurde nach grüner Feature-/PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `d85044b1f1e2eb3ff49b2c50e88693a6843c4db3`.
+PR #63 wurde nach grüner Feature-/PR-CI in `reconcile/klassio-source-of-truth` gemergt; Merge-Commit: `c86dbc0ff2f231c28779f025f3b35f685bdff928`.
 
 Der aktuelle Branch-HEAD kann danach reine Dokumentationscommits enthalten. Deshalb wird der verbindliche Reconciliation-HEAD **nicht dauerhaft in dieser Datei festgeschrieben**, sondern vor jeder Arbeit live aus GitHub gelesen und mit seinem neuesten erfolgreichen `Pre-Deployment Audit` abgeglichen.
 
@@ -248,7 +250,8 @@ Aktueller Fortschritt:
 - Materialbibliothek: technisch abgeschlossen; PR #57 integriert, Audit #124 grün; reale Browser-/Touch-/Datei-/Link-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Übergabemappe: technisch abgeschlossen; PR #59 integriert, Audit #126 grün; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
 - Statistik & Profile: technisch abgeschlossen; PR #61 integriert, Audit #128 grün; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
-- Nächster Bereich: Diagnostik.
+- Diagnostik: technisch abgeschlossen; PR #63 integriert, Audit #130 grün; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme bleibt Teil der späteren Gesamtfreigabe.
+- Nächster Bereich: Wir-Gefühl.
 
 ## Pflicht für jeden neuen Chat
 
