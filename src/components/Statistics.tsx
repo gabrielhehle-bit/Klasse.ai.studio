@@ -24,8 +24,13 @@ import { generateKELAssessment } from '../services/aiService';
 import KELPresentation from './KELPresentation';
 import {
   getStudentAttendanceSummary,
-  getStudentGradeSummary
+  getStudentNotes
 } from '../lib/studentMetrics';
+import {
+  getClassPerformanceStats,
+  getStudentPerformanceSummary,
+  getSubjectPerformanceAverages
+} from '../lib/statisticsMetrics';
 
 const ModalPortal = ({ children }: { children: React.ReactNode }) => {
   return createPortal(children, document.body);
@@ -35,14 +40,18 @@ function SuggestionsGrid() {
   const { app, setApp } = useApp();
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
-  // Fallback / active student helpers
-  const dbStudents = app.schueler || [];
-  const activeStudents = dbStudents.length > 0 ? dbStudents : [
-    { id: 'mock-1', vorname: 'Emma', nachname: 'Becker', note: 2, charakter: ['aufmerksam', 'hilfsbereit'] },
-    { id: 'mock-2', vorname: 'Max', nachname: 'Müller', note: 3, charakter: ['impulsstark', 'kreativ'] },
-    { id: 'mock-3', vorname: 'Julia', nachname: 'Schmidt', note: 1, charakter: ['konzentriert', 'ruhig'] },
-    { id: 'mock-4', vorname: 'Felix', nachname: 'Wagner', note: 4, charakter: ['braucht_fokus', 'sportlich'] }
-  ];
+  const activeStudents = app.schueler || [];
+  const toolSubjects = useMemo(
+    () => ((app.faecher && app.faecher.length > 0) ? app.faecher : FAECHER_ALLE)
+      .filter(fach => app.fachConfig?.[fach]?.unterrichtet !== false),
+    [app.faecher, app.fachConfig],
+  );
+  const comparisonClasses = useMemo(
+    () => (app.classes || []).filter(classroom =>
+      classroom.id !== app.activeClassId && (classroom.schueler || []).length > 0
+    ),
+    [app.classes, app.activeClassId],
+  );
 
   // Tool 1: Noten-Prognose-Rechner
   const [t1StudentId, setT1StudentId] = useState<string>(activeStudents[0]?.id || '');
@@ -63,14 +72,17 @@ function SuggestionsGrid() {
     praesentation: 5
   });
 
-  // Tool 4: Fehlzeiten-Korrelationsanalyse
-  const [t4ScatterData, setT4ScatterData] = useState(() => {
-    return activeStudents.map((s, i) => ({
-      name: s.vorname,
-      fehlstunden: [4, 18, 2, 28, 6, 12, 34][i % 7],
-      gpa: Number(((s.note as number) || 2.5).toFixed(1))
-    }));
-  });
+  // Tool 4: Fehlzeiten-/Leistungsübersicht aus echten Klassiodaten
+  const t4ScatterData = useMemo(() => activeStudents.flatMap(student => {
+    const attendance = getStudentAttendanceSummary(app, student.id);
+    const performance = getStudentPerformanceSummary(app, student.id, toolSubjects);
+    if (!attendance.hasData && !performance.hasData) return [];
+    return [{
+      name: student.vorname,
+      fehlstunden: attendance.total,
+      leistung: performance.normalizedAverage,
+    }];
+  }), [activeStudents, app, toolSubjects]);
 
   // Tool 5: Screening-Assistant
   const [t5StudentId, setT5StudentId] = useState<string>(activeStudents[0]?.id || '');
@@ -95,30 +107,61 @@ function SuggestionsGrid() {
     fokusTeacher: 2
   });
 
-  // Tool 7: Belastungs-Heatmap
-  const [t7Exams, setT7Exams] = useState<Array<{ name: string, week: number, day: string }>>([
-    { name: 'Mathe-SA', week: 2, day: 'Di' },
-    { name: 'Deutsch-Diktat', week: 2, day: 'Do' }
-  ]);
+  // Tool 7: Belastungs-Heatmap; startet bewusst leer statt mit erfundenen Prüfungen.
+  const [t7Exams, setT7Exams] = useState<Array<{ name: string, week: number, day: string }>>([]);
   const [t7NewExamName, setT7NewExamName] = useState('');
   const [t7NewExamWeek, setT7NewExamWeek] = useState(1);
   const [t7NewExamDay, setT7NewExamDay] = useState('Mo');
 
   // Tool 8: Förderplan Generator
   const [t8StudentId, setT8StudentId] = useState<string>(activeStudents[0]?.id || '');
-  const [t8Goals, setT8Goals] = useState('Aktive Beteiligung steigern und Ablenkung minimieren.');
-  const [t8Measures, setT8Measures] = useState('Sitzplatz in der 1. Reihe, wöchentliches kurzes Reflexionsgespräch.');
-  const [t8ParentSupport, setT8ParentSupport] = useState('Tägliche Hausaufgabenkontrolle und Lob für konzentriertes Arbeiten.');
+  const [t8Goals, setT8Goals] = useState('');
+  const [t8Measures, setT8Measures] = useState('');
+  const [t8ParentSupport, setT8ParentSupport] = useState('');
   const [t8IsPrinted, setT8IsPrinted] = useState(false);
 
-  // Tool 9: Paralleler Kohortenvergleich
-  const [t9RefClass, setT9RefClass] = useState<'4B' | '4C' | 'Schnitt'>('4B');
+  // Tool 9: Vergleich ausschließlich mit tatsächlich vorhandenen weiteren Klassen.
+  const [t9RefClass, setT9RefClass] = useState<string>('');
 
   // Tool 10: Sitzplatz-Dynamik & Soziogramm
   const [t10FocusId, setT10FocusId] = useState<string>(activeStudents[0]?.id || '');
   const [t10Partner1Id, setT10Partner1Id] = useState<string>(activeStudents[1]?.id || '');
   const [t10Partner2Id, setT10Partner2Id] = useState<string>(activeStudents[2]?.id || '');
   const [t10OptimizationResult, setT10OptimizationResult] = useState<string>('');
+
+  useEffect(() => {
+    const firstId = activeStudents[0]?.id || '';
+    const secondId = activeStudents[1]?.id || '';
+    const thirdId = activeStudents[2]?.id || secondId;
+    const ensureStudent = (value: string, fallback: string) =>
+      activeStudents.some(student => student.id === value) ? value : fallback;
+
+    setT1StudentId(value => ensureStudent(value, firstId));
+    setT2StudentId(value => ensureStudent(value, firstId));
+    setT3StudentId(value => ensureStudent(value, firstId));
+    setT5StudentId(value => ensureStudent(value, firstId));
+    setT6StudentId(value => ensureStudent(value, firstId));
+    setT8StudentId(value => ensureStudent(value, firstId));
+    setT10FocusId(value => ensureStudent(value, firstId));
+    setT10Partner1Id(value => ensureStudent(value, secondId));
+    setT10Partner2Id(value => ensureStudent(value, thirdId));
+    setT9RefClass(value =>
+      comparisonClasses.some(classroom => classroom.id === value)
+        ? value
+        : (comparisonClasses[0]?.id || '')
+    );
+    setT10OptimizationResult('');
+  }, [app.activeClassId, activeStudents, comparisonClasses]);
+
+  if (activeStudents.length === 0) {
+    return (
+      <EmptyState
+        icon={Users}
+        title="Noch keine Schüler:innen vorhanden"
+        description="Spezialwerkzeuge verwenden ausschließlich echte Klassiodaten. Lege zuerst Schüler:innen in der aktiven Klasse an."
+      />
+    );
+  }
 
   const list = [
     {
