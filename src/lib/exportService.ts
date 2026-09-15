@@ -1,8 +1,10 @@
 import { AppState } from '../types';
 import { isDiagnosticAlert } from './diagnosticData';
+import { berechne, getAssessmentMode } from './GradeUtils';
 
 export interface DossierExportOptions {
   showStammdaten?: boolean;
+  showContacts?: boolean;
   showFinanzen?: boolean;
   showLeistungen?: boolean;
   showMikaD?: boolean;
@@ -17,16 +19,34 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
   const student = appState.schueler?.find(s => s.id === schuelerId);
   if (!student) return;
 
-  const currentTerm = appState.schuljahr || '2025';
+  const currentTerm = appState.schuljahr?.trim() || 'nicht angegeben';
+
+  const effectiveOptions: Required<DossierExportOptions> = {
+    showStammdaten: true,
+    showContacts: false,
+    showFinanzen: false,
+    showLeistungen: true,
+    showMikaD: true,
+    showVerhalten: true,
+    showKELReflexion: true,
+    showDiagnostik: true,
+    showFoerderprofil: true,
+    showKIPortfolio: false,
+    ...options,
+  };
+
+  const escapeHtml = (value: unknown): string => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
   
   // Format dates helper
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '—';
-    try {
-      return new Date(dateStr).toLocaleDateString('de-DE');
-    } catch {
-      return dateStr;
-    }
+    const date = new Date(dateStr);
+    return Number.isNaN(date.getTime()) ? escapeHtml(dateStr) : date.toLocaleDateString('de-AT');
   };
 
   // Helper for stars
@@ -40,7 +60,7 @@ export function exportSchuelerPDF(schuelerId: string, appState: AppState, option
   // Markdown to HTML converter helper
   const parseMarkdownToHtml = (markdown: string): string => {
     if (!markdown) return '';
-    return markdown
+    return escapeHtml(markdown)
       .replace(/### (.*?)\n/g, '<h3>$1</h3>')
       .replace(/## (.*?)\n/g, '<h2>$1</h2>')
       .replace(/# (.*?)\n/g, '<h1>$1</h1>')
