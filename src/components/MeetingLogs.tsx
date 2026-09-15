@@ -419,7 +419,7 @@ export default function MeetingLogs() {
   };
 
   return (
-    <div className="flex-1  relative w-full flex flex-col">
+    <div className="flex-1 relative w-full max-w-[1180px] mx-auto px-3 sm:px-5 lg:px-6 flex flex-col text-[var(--text-primary,var(--text))]">
       <AnimatePresence mode="wait">
         {/* STAGE 1: Student Overview Grid */}
         {!selectedStudentId && (
@@ -434,7 +434,7 @@ export default function MeetingLogs() {
               <div className="relative w-80">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input 
-                  className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-[0.875rem] leading-snug outline-none focus:ring-4 focus:ring-amber-500/5 transition-all font-medium"
+                  className="w-full pl-12 pr-4 py-3 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] text-[0.875rem] text-[var(--text-primary,var(--text))] leading-snug outline-none focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))] transition-colors font-medium"
                   placeholder="Schüler suchen..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
@@ -451,10 +451,10 @@ export default function MeetingLogs() {
                     <button 
                       key={s.id}
                       onClick={() => setSelectedStudentId(s.id)}
-                      className="group p-6 bg-white border border-slate-200 rounded-[32px] hover:border-amber-500 hover:shadow-xl hover:shadow-amber-500/5 transition-all text-left flex flex-col justify-between h-44"
+                      className="group p-5 bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] rounded-2xl hover:border-[var(--accent)]/35 transition-colors text-left flex flex-col justify-between h-44 shadow-sm"
                     >
                       <div className="min-w-0">
-                        <div className="text-[1.125rem] font-black text-slate-800 leading-tight group-hover:text-amber-600 transition-colors text-wrap leading-tight break-words">{s.nachname} {s.vorname}</div>
+                        <div className="text-[1.125rem] font-black text-[var(--text-primary,var(--text))] leading-tight group-hover:text-[var(--accent)] transition-colors text-wrap break-words">{s.nachname} {s.vorname}</div>
                         <div className="text-[0.625rem] uppercase font-bold tracking-widest text-slate-400 mt-2">{app.stufe}. Klasse {app.klassenbezeichnung}</div>
                       </div>
                       <div className="flex items-center justify-between pt-4 border-t border-slate-50">
@@ -462,7 +462,7 @@ export default function MeetingLogs() {
                           <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest">Einträge</span>
                           <span className={`text-[1rem] font-black ${hasMeetings ? 'text-amber-600' : 'text-slate-300'}`}>{studentMeetings.length}</span>
                         </div>
-                        <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-amber-600 group-hover:text-white transition-all shadow-sm">
+                        <div className="w-10 h-10 rounded-xl bg-[var(--surface-subtle,var(--surface2))] flex items-center justify-center text-[var(--text-muted,var(--text3))] group-hover:bg-[var(--accent-soft)] group-hover:text-[var(--accent)] transition-colors border border-[var(--border-subtle,var(--border))]">
                           <ChevronRight size={20} />
                         </div>
                       </div>
@@ -489,11 +489,11 @@ export default function MeetingLogs() {
             exit={{ opacity: 0, x: -20 }}
             className="flex-1 h-full flex flex-col gap-6"
           >
-            <div className="flex flex-col sm:flex-row items-center justify-between bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between bg-[var(--surface-card,var(--surface))] p-5 rounded-2xl border border-[var(--border-subtle,var(--border))] shadow-sm gap-4">
               <div className="flex items-center gap-5">
                 <button 
                   onClick={() => setSelectedStudentId(null)}
-                  className="p-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl transition-all"
+                  className="p-3 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--accent-soft)] text-[var(--text-secondary,var(--text2))] hover:text-[var(--accent)] rounded-xl border border-[var(--border-subtle,var(--border))] transition-colors"
                   title="Zurück zur Liste"
                 >
                   <Users size={20} />
@@ -505,7 +505,7 @@ export default function MeetingLogs() {
               </div>
               <button 
                 onClick={createMeeting}
-                className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-3 bg-amber-600 text-white rounded-2xl font-black uppercase text-[0.75rem] tracking-widest shadow-lg shadow-amber-600/20 hover:scale-105 active:scale-95 transition-all"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] rounded-xl font-bold text-[0.75rem] shadow-sm transition-colors"
               >
                 <Plus size={18} /> Neues Gespräch
               </button>
@@ -516,7 +516,7 @@ export default function MeetingLogs() {
                 {meetings.map((m) => (
                   <div 
                     key={m.id}
-                    className="group relative bg-white border border-slate-100 rounded-[32px]  hover:shadow-xl transition-all h-64 flex flex-col"
+                    className="group relative bg-[var(--surface-card,var(--surface))] border border-[var(--border-subtle,var(--border))] rounded-2xl hover:border-[var(--accent)]/30 transition-colors h-64 flex flex-col shadow-sm"
                   >
                     <div className="p-6 flex-1 flex flex-col justify-between">
                       <div>
@@ -553,7 +553,7 @@ export default function MeetingLogs() {
                            </div>
                            <button 
                              onClick={() => setSelectedMeetingId(m.id)}
-                             className="p-2.5 bg-slate-900 text-white rounded-xl hover:bg-amber-600 transition-all font-bold text-[0.6875rem] px-4 uppercase tracking-tight"
+                             className="p-2.5 bg-[var(--accent)] text-[var(--accent-text,#fff)] rounded-xl hover:bg-[var(--accent-hover)] transition-colors font-bold text-[0.6875rem] px-4"
                            >
                               Öffnen
                            </button>
@@ -575,7 +575,7 @@ export default function MeetingLogs() {
                 ))}
                 
                 {meetings.length === 0 && (
-                  <div className="col-span-full py-20 bg-white/50 border-2 border-dashed border-slate-200 rounded-[40px] flex flex-col items-center justify-center text-slate-300 gap-6">
+                  <div className="col-span-full py-16 bg-[var(--surface-card,var(--surface))] border-2 border-dashed border-[var(--border-default,var(--border))] rounded-2xl flex flex-col items-center justify-center text-[var(--text-muted,var(--text3))] gap-5">
                      <FileText size={48} strokeWidth={1} />
                      <div className="text-center">
                         <p className="font-black uppercase tracking-[0.2em] text-[0.875rem] leading-snug text-slate-400">Keine Protokolle vorhanden</p>
