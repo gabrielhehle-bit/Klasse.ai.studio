@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { 
   FileText, Wand2, Edit2, Save, Printer, Loader2, CheckCircle2, Gift,
   Sparkles, RefreshCw, Check, HelpCircle, Settings, Sliders, AlertCircle,
-  Award, TrendingUp, Heart, ChevronRight, CheckSquare, Plus, Quote, LayoutGrid
+  Award, TrendingUp, Heart, ChevronRight, CheckSquare, Plus, Quote, LayoutGrid, Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { askAI } from '../services/aiService';
