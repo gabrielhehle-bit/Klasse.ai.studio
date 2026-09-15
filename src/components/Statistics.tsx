@@ -4011,8 +4011,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
                     <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Leistung</div>
-                    <div className="text-2xl font-black text-slate-900 my-1 tabular-nums">Ø {stats.average}</div>
-                    <div className="text-[0.625rem] text-slate-450 font-bold">Klassenschnitt</div>
+                    <div className="text-2xl font-black text-slate-900 my-1 tabular-nums">{stats.averageLabel}</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">{stats.averageDescriptor}</div>
                   </div>
 
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
@@ -4023,14 +4023,14 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
 
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
                     <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Entwicklung</div>
-                    <div className="text-2xl font-black text-amber-600 my-1 tabular-nums">{classOverviewMetrics.negativeTrendCount} ↘</div>
-                    <div className="text-[0.625rem] text-slate-450 font-bold">Notenschnitt ≥ 3,8</div>
+                    <div className="text-2xl font-black text-amber-600 my-1 tabular-nums">{classOverviewMetrics.attentionPerformanceCount} ↘</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">Leistungsindex &lt; 40 %</div>
                   </div>
 
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
                     <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Positiv</div>
-                    <div className="text-2xl font-black text-emerald-600 my-1 tabular-nums">{classOverviewMetrics.positiveTrendCount} ↗</div>
-                    <div className="text-[0.625rem] text-slate-450 font-bold">Notenschnitt ≤ 2,2</div>
+                    <div className="text-2xl font-black text-emerald-600 my-1 tabular-nums">{classOverviewMetrics.strongPerformanceCount} ↗</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">Leistungsindex ≥ 80 %</div>
                   </div>
 
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
@@ -4258,10 +4258,10 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                     <TrendingUp size={15} />
                   </div>
                   <div>
-                    <div className="text-[0.625rem] font-black uppercase tracking-[0.15em] text-slate-400 mb-1">Klassenschnitt</div>
-                    <div className="text-4xl font-black tracking-tight tabular-nums text-slate-900 mt-1">{stats.average}</div>
+                    <div className="text-[0.625rem] font-black uppercase tracking-[0.15em] text-slate-400 mb-1">{stats.averageDescriptor}</div>
+                    <div className="text-4xl font-black tracking-tight tabular-nums text-slate-900 mt-1">{stats.averageLabel}</div>
                   </div>
-                  <div className="text-[0.625rem] text-slate-450 mt-3 font-semibold uppercase tracking-wider">Arithmetisches Mittel</div>
+                  <div className="text-[0.625rem] text-slate-450 mt-3 font-semibold uppercase tracking-wider">Bewertungsskalen korrekt berücksichtigt</div>
                 </div>
                 
                 <div className="group relative p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-indigo-200 transition-all duration-300 flex flex-col justify-between min-h-[125px]">
@@ -4280,8 +4280,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                     <AlertTriangle size={15} />
                   </div>
                   <div>
-                    <div className="text-[0.625rem] font-black uppercase tracking-[0.15em] text-slate-400 mb-1">Note 5</div>
-                    <div className="text-4xl font-black tracking-tight tabular-nums text-slate-900 mt-1">{stats.totalCount > 0 ? stats.risks : '–'}</div>
+                    <div className="text-[0.625rem] font-black uppercase tracking-[0.15em] text-slate-400 mb-1">{stats.attentionDescriptor}</div>
+                    <div className="text-4xl font-black tracking-tight tabular-nums text-slate-900 mt-1">{stats.totalCount > 0 ? stats.attentionCount : '–'}</div>
                   </div>
                   <div className="text-[0.625rem] text-slate-450 mt-3 font-semibold uppercase tracking-wider">
                     {stats.totalCount > 0 ? 'Einträge mit Förderbedarf' : 'Noch keine Auswertung'}
@@ -4299,7 +4299,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                     </div>
                   </div>
                   <div className="text-[0.625rem] text-slate-450 mt-3 font-semibold uppercase tracking-wider">
-                    Schnitt: {bestSubject ? bestSubject.average.toFixed(2) : '–'}
+                    Leistungsindex: {bestSubject ? `${bestSubject.normalizedAverage.toFixed(1)} %` : '–'}
                   </div>
                 </div>
               </div>
@@ -4314,7 +4314,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                         <BarChart3 size={18} />
                       </div>
                       <div>
-                        <div>Notenspiegel der Klasse</div>
+                        <div>{stats.distributionDescriptor}</div>
                         <p className="text-[0.625rem] text-slate-400 font-semibold uppercase tracking-wider">Häufigkeitsverteilung für "{activeFach}"</p>
                       </div>
                     </h4>
@@ -4364,7 +4364,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                       </div>
                       <div>
                         <div>Fächerübersicht</div>
-                        <p className="text-[0.625rem] text-slate-400 font-semibold uppercase tracking-wider">Klassen-Ø nach Unterrichtsfach</p>
+                        <p className="text-[0.625rem] text-slate-400 font-semibold uppercase tracking-wider">Normalisierter Leistungsindex 0–100 nach Fach</p>
                       </div>
                     </h4>
                   </div>
@@ -4380,7 +4380,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="subjectShort" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: '#64748b' }} interval={0} />
-                          <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} reversed={true} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                          <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
                           <Tooltip 
                             content={({ active, payload }) => {
                               if (active && payload && payload.length) {
@@ -4390,7 +4390,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                                     <p className="font-extrabold uppercase tracking-wide text-slate-400 text-[0.625rem]">{data.subject}</p>
                                     <div className="flex items-center gap-2">
                                       <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                                      <span className="font-black text-white text-[0.8125rem]">Schnitt: Ø {data.average.toFixed(2)}</span>
+                                      <span className="font-black text-white text-[0.8125rem]">Leistungsindex: {data.normalizedAverage.toFixed(1)} %</span>
                                     </div>
                                   </div>
                                 );
@@ -4398,7 +4398,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                               return null;
                             }}
                           />
-                          <Area type="monotone" dataKey="average" stroke="#f59e0b" strokeWidth={4} fillOpacity={1} fill="url(#colorAvg)" dot={{ stroke: '#f59e0b', strokeWidth: 3, fill: 'white', r: 6 }} activeDot={{ r: 8, strokeWidth: 0 }} name="Klassenschnitt" baseValue={5} />
+                          <Area type="monotone" dataKey="normalizedAverage" stroke="#f59e0b" strokeWidth={4} fillOpacity={1} fill="url(#colorAvg)" dot={{ stroke: '#f59e0b', strokeWidth: 3, fill: 'white', r: 6 }} activeDot={{ r: 8, strokeWidth: 0 }} name="Leistungsindex" baseValue={0} />
                         </AreaChart>
                       </ResponsiveContainer>
                     ) : (
