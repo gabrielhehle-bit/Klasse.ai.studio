@@ -24,19 +24,19 @@ function ClassCard({
     <button
       type="button"
       onClick={() => onOpen(item.id)}
-      className="group flex min-h-36 items-start gap-4 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--accent)]/35 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+      className="group flex min-h-36 items-start gap-4 rounded-2xl border border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 text-left shadow-sm transition-colors hover:border-[var(--border-default,var(--border2))] hover:bg-[var(--surface-subtle,var(--surface2))]/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]"
     >
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
         <Icon size={21} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-start justify-between gap-3">
-          <span className="text-base font-black text-[var(--text)]">{item.title}</span>
-          <ChevronRight size={18} className="mt-0.5 shrink-0 text-[var(--text3)] transition group-hover:translate-x-0.5 group-hover:text-[var(--accent)]" />
+          <span className="text-base font-bold tracking-[-0.01em] text-[var(--text-primary,var(--text))]">{item.title}</span>
+          <ChevronRight size={18} className="mt-0.5 shrink-0 text-[var(--text-muted,var(--text3))] transition group-hover:translate-x-0.5 group-hover:text-[var(--accent)]" />
         </span>
-        <span className="mt-1.5 block text-sm font-medium leading-relaxed text-[var(--text2)]">{item.description}</span>
+        <span className="mt-1.5 block text-sm font-medium leading-6 text-[var(--text-secondary,var(--text2))]">{item.description}</span>
         {item.meta && (
-          <span className="mt-3 inline-flex rounded-full bg-[var(--surface2)] px-2.5 py-1 text-xs font-bold text-[var(--text2)]">
+          <span className="mt-3 inline-flex rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--accent)]">
             {item.meta}
           </span>
         )}
@@ -110,21 +110,21 @@ export default function KlasseHub() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-7 px-4 py-6 sm:px-6">
-      <header className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--accent)]">Klasse</p>
-        <h1 className="mt-2 text-2xl font-black tracking-tight text-[var(--text)] sm:text-3xl">
+    <div className="mx-auto w-full max-w-[1180px] space-y-8 px-4 py-5 sm:px-6 lg:px-8">
+      <header className="rounded-2xl border border-[var(--border-subtle,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 shadow-sm">
+        <p className="text-xs font-semibold text-[var(--accent)]">Klasse</p>
+        <h1 className="mt-1.5 text-2xl font-black tracking-[-0.025em] text-[var(--text-primary,var(--text))] sm:text-[1.75rem]">
           Kinder und Klassenalltag im Blick
         </h1>
-        <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-[var(--text2)]">
+        <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-[var(--text-secondary,var(--text2))]">
           Alles, was du im täglichen Umgang mit der Klasse brauchst, ist oben gebündelt. Organisation und Gemeinschaft stehen getrennt darunter.
         </p>
       </header>
 
       <section className="space-y-3" aria-labelledby="klasse-alltag">
         <div className="px-1">
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--accent)]">Kinder & Alltag</p>
-          <h2 id="klasse-alltag" className="mt-1 text-lg font-black text-[var(--text)]">
+          <p className="text-xs font-semibold text-[var(--accent)]">Kinder & Alltag</p>
+          <h2 id="klasse-alltag" className="mt-1 text-lg font-bold tracking-[-0.01em] text-[var(--text-primary,var(--text))]">
             Häufig gebrauchte Klassenwerkzeuge
           </h2>
         </div>
@@ -138,10 +138,10 @@ export default function KlasseHub() {
       {visibleOrganizationItems.length > 0 && (
         <section className="space-y-3" aria-labelledby="klasse-organisation">
           <div className="px-1">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--text3)]">
+            <p className="text-xs font-semibold text-[var(--text-muted,var(--text3))]">
               Organisation & Gemeinschaft
             </p>
-            <h2 id="klasse-organisation" className="mt-1 text-lg font-black text-[var(--text)]">
+            <h2 id="klasse-organisation" className="mt-1 text-lg font-bold tracking-[-0.01em] text-[var(--text-primary,var(--text))]">
               Gespräche, Klasse und organisatorische Aufgaben
             </h2>
           </div>
