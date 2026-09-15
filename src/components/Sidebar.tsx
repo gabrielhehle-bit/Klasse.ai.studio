@@ -278,13 +278,14 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             </div>}
           </nav>
 
-          <div className="p-2 border-t border-border space-y-1">
+          <div className="p-2 border-t border-[var(--border-subtle,var(--border))] space-y-1">
             {grouped.utilities.map(item => <button key={item.id} type="button" aria-current={currentPage === item.id ? 'page' : undefined}
               title={item.label} onClick={() => { setPage(item.id); if (window.innerWidth < 1024) setIsOpen(false); }}
-              className={`w-full min-h-11 px-3.5 flex items-center gap-3 rounded-xl text-sm ${currentPage === item.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-semibold' : 'text-text-secondary hover:bg-[var(--surface2)]'}`}>
+              className={`w-full min-h-11 px-3.5 flex items-center gap-3 rounded-xl border transition-colors text-sm ${currentPage === item.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] border-[var(--accent)]/20 font-semibold' : 'text-[var(--text-secondary)] border-transparent hover:bg-[var(--surface-subtle,var(--surface2))]'}`}>
               {item.icon}{!isCollapsed && <span>{item.label}</span>}
             </button>)}
           </div>
+        </div>
       </aside>
 
       {/* Freikonfigurierbares Sidebar-Anpassungsmodal */}
