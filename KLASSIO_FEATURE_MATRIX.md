@@ -42,8 +42,8 @@ Legende:
 | 13 | Materialbibliothek | ✅ | PR #57 integriert; Audit #124 grün; reale Browser-/Touch-/Datei-/Link-/Staging-Abnahme im Gesamt-Walkthrough |
 | 14 | Übergabemappe | ✅ | PR #59 integriert; Audit #126 grün; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme im Gesamt-Walkthrough |
 | 15 | Statistik & Profile | ✅ | PR #61 integriert; Audit #128 grün; 941/941 Tests; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme im Gesamt-Walkthrough |
-| 16 | Diagnostik | 🔴 | als Nächstes einzeln prüfen und abschließen |
-| 17 | Wir-Gefühl | 🔴 | danach |
+| 16 | Diagnostik | ✅ | PR #63 integriert; Audit #130 grün; 948/948 Tests; reale Browser-/Touch-/Druck-/Datenschutz-/Staging-Abnahme im Gesamt-Walkthrough |
+| 17 | Wir-Gefühl | 🔴 | als Nächstes einzeln prüfen und abschließen |
 | 18 | Jahresbericht | 🔴 | danach |
 | 19 | Archiv | 🔴 | danach |
 | 20 | Druckzentrum | 🔴 | danach |
@@ -86,7 +86,7 @@ Ein neuer Chat setzt nach dem verpflichtenden Source-of-Truth-Check beim **erste
 | Schülerdossier Semesterwechsel | ✅ | Auswahl Semester 1/2 wird korrekt übernommen; Regressionstest vorhanden. |
 | Schülerdossier Browser-Abnahme | 🟡 | Navigation, Detailtabs, Fokusmodus und responsive Darstellung müssen im finalen Browser-Walkthrough praktisch geprüft werden. |
 | Sitzplan | 🟡 | PR #43: Positionen, Möbel und Regeln sind klassenlokal; Legacy-Regeln werden nach Schülerzugehörigkeit migriert. `nicht nebeneinander`, `nebeneinander`, `feste Zone` und `fester Platz` werden zentral geprüft, Fixplätze speichern ihre Position und Zonen richten sich an der realen Tafelposition aus. Würfelvorschau und Planungs-Analyse nutzen dieselbe Regelengine, erkennen Sitzkollisionen und der Optimierer hält Fixplätze sowie explizite Regeln ein. Abwesenheiten stammen aus den echten Anwesenheitsdaten mit lokalem Kalendertag. Sitzplan-UI-Zustände werden beim Klassenwechsel zurückgesetzt. Automatisierte Tests und Audit #110 grün; reale Drag/Drop-, Maus-/Touch- und Druck-/Browser-Abnahme offen. |
-| Diagnostik | 🟡 | PR #9 integriert: 3-stufige Hierarchie/Checks/Ergebnisse, klassenlokale iKM-/Antolin-/Ziel-/Beobachtungs-/Metakognitionsdaten, aktive Klassen-ID für strukturierte Ergebnisse und lokale Datumsprüfung. Vollständiger Browser-Walkthrough offen. |
+| Diagnostik | 🟡 | PR #9 + #63: 3-stufige Hierarchie, 1:1-Checks, Klassenscreenings und Ergebnisse bleiben erhalten. Neue Ergebnisse sind strikt an die stabile aktive Klassen-ID gebunden; Klassenwechsel verwerfen offene Auswahlzustände, Speichern validiert Klassen-/Schülerzuordnung und dedupliziert IDs. Screeningdaten nutzen lokale Kalendertage und keine erfundenen Klassen-Fallbacks. Automatische Auswertungstexte sind als pädagogische Momentaufnahme formuliert, nicht als Diagnose; Legacy-/Archivpfade behaupten keine fehlerfreie KI-Auslese und Normwerte müssen aus Originalauswertungen stammen. Automatisierte Tests und Audit #130 grün; reale Browser-/Touch-/Druck-/Datenschutz-Abnahme offen. |
 | Multi-Class | ✅ | Klassenwechsel/Migration/Erweiterungsfelder, Cockpit-Ink sowie Notizen/Journal/Statusverlauf per Tests klassenlokal abgesichert; Schüler-Dossier-, Editor- und Interaktionszustände sowie Sitzplan-Auswahl/Vorschau/Undo werden beim Klassenwechsel zurückgesetzt. Sitzpositionen, Möbel und Sitzplan-Regeln bleiben strikt pro Klasse getrennt. Anwesenheit und Anwesenheitsdetails sind ebenfalls klassenlokal; Anwesenheits-Undo und offene Anwesenheitsdialoge werden beim Klassenwechsel verworfen. Noten, Noten-Metadaten, Gewichtungen und Mitarbeit-Bewertungsregeln bleiben pro Klasse getrennt; offene Notenmappe-Dialoge und lokale Gewichtungsentwürfe werden beim Klassenwechsel zurückgesetzt. Kassenstand/Sammlungen, Checklisten, flexible Listen und Klassenlogins sind ebenfalls klassenlokal; offene Kassa-/Orga- und Flexible-Listen-Zustände werden beim Klassenwechsel verworfen. |
 
 ## Leistungen
