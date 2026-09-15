@@ -45,7 +45,7 @@ test('production env example contains placeholders but no real secret', () => {
 test('staging checklist pins the first real walkthrough to exact reconciliation commit', () => {
   const checklist = read('KLASSIO_STAGING_CHECKLIST.md');
   assert.match(checklist, /6ee20763a0b2624d9268118b33d2ae579aa2c9e5/);
-  assert.match(checklist, /7acecff8ffd79a41af7a72722b17ad0ca66d04e8377a8c1aa575d729c1a8002e/);
+  assert.match(checklist, /5aff6c5ec50906259e2927e3a3ade90cfcad483f21bcb67e1b47fb51a1cbf537/);
   assert.match(checklist, /Wiederherstellungscode/);
   assert.match(checklist, /Notenmodus/);
   assert.match(checklist, /Wochenplanung Vollbild/);
