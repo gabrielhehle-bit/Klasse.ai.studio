@@ -34,7 +34,7 @@ jobs:
           set -euo pipefail
           grep -q 'SESSION_SECRET=CHANGE_ME_' deploy/klassio.env.example
           grep -q 'LEHRERAPP_ALLOWED_EMAIL_DOMAINS=vsfoa.vobs.at' deploy/klassio.env.example
-          grep -q 'c6d5d52cae1af082b1b8447decbb17678ec4d1b9' KLASSIO_STAGING_CHECKLIST.md
+          grep -q '6ee20763a0b2624d9268118b33d2ae579aa2c9e5' KLASSIO_STAGING_CHECKLIST.md
           grep -q 'proxy_pass http://127.0.0.1:3100' deploy/nginx/klassio.conf
           grep -q 'User=klassio' deploy/systemd/klassio.service
 
