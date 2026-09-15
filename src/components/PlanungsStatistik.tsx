@@ -1,49 +1,21 @@
 import React from 'react';
 import { Calendar, Clock, BookOpen, Layers, BarChart, Target, FileText } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { getPlanningStatistics } from '../lib/planningStatistics';
 
 export default function PlanungsStatistik() {
   const { app } = useApp();
 
-  // 1. Stammplan Stats
-  let totalWochenstunden = 0;
-  const faecherVerteilung: Record<string, number> = {};
-  Object.values(app.stammplan || {}).forEach(dayMap => {
-    Object.values(dayMap).forEach(fach => {
-      if (fach && typeof fach === 'string' && fach.trim() !== '') {
-        totalWochenstunden++;
-        faecherVerteilung[fach] = (faecherVerteilung[fach] || 0) + 1;
-      }
-    });
-  });
+  const {
+    weeklyLessonHours: totalWochenstunden,
+    subjectHours: faecherVerteilung,
+    plannedWeeklyWeeks: geplanteWochenWochenplan,
+    weeklyTopics: totalThemenWochenplan,
+    plannedYearlyWeeks: geplanteWochenJahresplan,
+    yearlyTopics: totalThemenJahresplan,
+  } = getPlanningStatistics(app);
 
   const sortedFaecher = Object.entries(faecherVerteilung).sort((a, b) => b[1] - a[1]);
-
-  // 2. Wochenplan Stats
-  const geplanteWochenWochenplan = Object.keys(app.wochenplanung || {}).length;
-  let totalThemenWochenplan = 0;
-  Object.values(app.wochenplanung || {}).forEach((weekPlan: any) => {
-    Object.values(weekPlan).forEach((faecherPlan: any) => {
-      if (faecherPlan && typeof faecherPlan === 'object' && faecherPlan.thema) {
-        if (faecherPlan.thema.trim() !== '') {
-          totalThemenWochenplan++;
-        }
-      }
-    });
-  });
-
-  // 3. Jahresplan Stats
-  const geplanteWochenJahresplan = Object.keys(app.jahresplanung || {}).length;
-  let totalThemenJahresplan = 0;
-  Object.values(app.jahresplanung || {}).forEach((weekPlan: any) => {
-    Object.values(weekPlan).forEach((faecherPlan: any) => {
-      if (faecherPlan && typeof faecherPlan === 'object' && faecherPlan.thema) {
-        if (faecherPlan.thema.trim() !== '') {
-          totalThemenJahresplan++;
-        }
-      }
-    });
-  });
 
   return (
     <div className="space-y-8 animate-fade-in">
