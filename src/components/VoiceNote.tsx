@@ -137,16 +137,16 @@ export default function VoiceNote() {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-lg  border border-slate-200"
+        className="bg-[var(--surface-card,var(--surface))] text-[var(--text-primary,var(--text))] rounded-2xl shadow-2xl w-full max-w-lg border border-[var(--border-default,var(--border))]"
       >
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+        <div className="p-5 sm:p-6 border-b border-[var(--border-subtle,var(--border))] flex items-center justify-between">
           <div>
-            <h2 className="text-[1.25rem] leading-normal font-black text-slate-900">Sprachnotiz aufnehmen</h2>
+            <h2 className="text-[1.25rem] leading-normal font-black text-[var(--text-primary,var(--text))]">Sprachnotiz aufnehmen</h2>
             {targetStudentId && (
               <p className="text-[0.6875rem] uppercase tracking-widest font-bold text-slate-400 mt-1">Für Schüler:in</p>
             )}
           </div>
-          <button onClick={close} className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors">
+          <button onClick={close} className="p-2 text-[var(--text-muted,var(--text3))] hover:text-[var(--text-primary,var(--text))] bg-[var(--surface-subtle,var(--surface2))] rounded-xl transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -162,7 +162,7 @@ export default function VoiceNote() {
               <button 
                 onClick={toggleRecording}
                 className={`relative w-24 h-24 rounded-full flex items-center justify-center transition-all shadow-lg ${
-                  isRecording ? 'bg-rose-500 text-white shadow-rose-200' : 'bg-slate-900 text-white hover:bg-slate-800'
+                  isRecording ? 'bg-rose-500 text-white shadow-rose-200' : 'bg-[var(--accent)] text-[var(--accent-text,#fff)] hover:bg-[var(--accent-hover)]'
                 }`}
               >
                 {isRecording && (
@@ -184,14 +184,14 @@ export default function VoiceNote() {
                value={transcript + (isRecording ? interimTranscript : '')}
                onChange={(e) => setTranscript(e.target.value)}
                placeholder="Transkription erscheint hier..."
-               className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-[0.875rem] leading-snug text-slate-700 resize-none focus:outline-none focus:ring-2 focus:ring-slate-900/20"
+               className="w-full h-32 p-4 bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] rounded-xl text-[0.875rem] leading-snug text-[var(--text-primary,var(--text))] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))]"
                disabled={isRecording}
              />
              {!isRecording && transcript && (
                <button 
                  onClick={enhanceWithAI}
                  disabled={isProcessingAI}
-                 className="absolute top-2 right-2 p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl transition-all shadow-sm flex items-center gap-2 text-[0.75rem] leading-tight font-bold"
+                 className="absolute top-2 right-2 p-2 bg-[var(--accent-soft)] text-[var(--accent)] hover:bg-[var(--surface-card,var(--surface))] rounded-xl transition-colors shadow-sm flex items-center gap-2 text-[0.75rem] leading-tight font-bold border border-[var(--accent)]/15"
                  title="Mit KI verbessern (Rechtschreibung/Satzzeichen)"
                >
                  {isProcessingAI ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
@@ -205,7 +205,7 @@ export default function VoiceNote() {
                <select 
                  value={category}
                  onChange={e => setCategory(e.target.value)}
-                 className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-[0.875rem] leading-snug font-bold text-slate-700 focus:outline-none"
+                 className="w-full h-12 px-4 bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] rounded-xl text-[0.875rem] leading-snug font-bold text-[var(--text-primary,var(--text))] focus:outline-none focus:ring-2 focus:ring-[var(--focus-ring,var(--accent))]"
                >
                  <option value="Unterricht">Unterricht</option>
                  <option value="Kind">Kind</option>
@@ -216,7 +216,7 @@ export default function VoiceNote() {
              <button 
                onClick={saveNote}
                disabled={!transcript.trim() || isRecording}
-               className="flex-1 h-12 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest text-[0.6875rem] rounded-2xl transition-colors disabled:opacity-50"
+               className="flex-1 h-12 flex items-center justify-center gap-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-text,#fff)] font-bold text-[0.75rem] rounded-xl transition-colors disabled:opacity-50 shadow-sm"
              >
                <Save size={16} /> Speichern
              </button>
