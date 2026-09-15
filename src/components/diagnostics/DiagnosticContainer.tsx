@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { DiagnosticHome } from './DiagnosticHome';
 import { DiagnosticIndividual } from './DiagnosticIndividual';
@@ -27,7 +27,11 @@ export const DiagnosticContainer: React.FC = () => {
   const activeClassId = app.activeClassId || undefined;
   const activeClassName = app.klassenbezeichnung?.trim() || app.klasse?.trim() || undefined;
 
+  const previousClassIdRef = useRef(app.activeClassId);
+
   useEffect(() => {
+    if (previousClassIdRef.current === app.activeClassId) return;
+    previousClassIdRef.current = app.activeClassId;
     setView('home');
     setSelectedStudentIdForTest(undefined);
     setSelectedCompetencyIdForTest(undefined);
@@ -49,24 +53,25 @@ export const DiagnosticContainer: React.FC = () => {
     return errors;
   };
 
-  const handleSaveResult = (newResult: DiagnosticResult) => {
+  const handleSaveResult = (newResult: DiagnosticResult): boolean => {
     const errors = validateResultForActiveClass(newResult);
     if (errors.length > 0) {
       window.alert(`Ergebnis kann nicht gespeichert werden:\n${errors.join('\n')}`);
-      return;
+      return false;
     }
 
     const currentList = app.diagnosticResults || [];
     updateApp({
       diagnosticResults: [newResult, ...currentList.filter(result => result.id !== newResult.id)],
     });
+    return true;
   };
 
-  const handleSaveMultipleResults = (newResults: DiagnosticResult[]) => {
+  const handleSaveMultipleResults = (newResults: DiagnosticResult[]): boolean => {
     const errors = newResults.flatMap(result => validateResultForActiveClass(result));
     if (errors.length > 0) {
       window.alert(`Screening kann nicht gespeichert werden:\n${Array.from(new Set(errors)).join('\n')}`);
-      return;
+      return false;
     }
 
     const incomingIds = new Set(newResults.map(result => result.id));
@@ -74,6 +79,7 @@ export const DiagnosticContainer: React.FC = () => {
     updateApp({
       diagnosticResults: [...newResults, ...currentList.filter(result => !incomingIds.has(result.id))],
     });
+    return true;
   };
 
   const handleStartIndividual = (studentId: string, competencyId?: string, gradeLevel?: number) => {
