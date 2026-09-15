@@ -4,7 +4,9 @@
 
 Repository: `gabrielhehle-bit/Klasse.ai.studio`  
 Branch: `reconcile/klassio-source-of-truth`  
-Commit: `c6d5d52cae1af082b1b8447decbb17678ec4d1b9`
+Commit: `6ee20763a0b2624d9268118b33d2ae579aa2c9e5`  
+Artefakt: `klassio-world4you-6ee20763a0b2624d9268118b33d2ae579aa2c9e5.zip`  
+SHA-256: `7acecff8ffd79a41af7a72722b17ad0ca66d04e8377a8c1aa575d729c1a8002e`
 
 Während dieses Walkthroughs darf kein anderer App-Commit auf den Server geschaltet werden.
 
