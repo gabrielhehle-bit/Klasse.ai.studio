@@ -86,7 +86,9 @@ Das verwendete GitHub-Artefakt muss exakt diesen Commit in `KLASSIO_DEPLOYMENT_C
 Verbindliches Artefakt für diese Abnahme:
 
 - Datei: `klassio-world4you-6ee20763a0b2624d9268118b33d2ae579aa2c9e5.zip`
-- SHA-256: `7acecff8ffd79a41af7a72722b17ad0ca66d04e8377a8c1aa575d729c1a8002e`
+- SHA-256: `5aff6c5ec50906259e2927e3a3ade90cfcad483f21bcb67e1b47fb51a1cbf537`
+- GitHub Actions Artifact-ID: `10403947886`
+- Erzeugt durch Workflow `Frozen Staging Artifact`, Run #2
 
 Vor dem Deployment muss die SHA-256-Prüfsumme übereinstimmen.
 
@@ -94,7 +96,7 @@ Beispiel:
 
 ```bash
 sha256sum /tmp/klassio-world4you-6ee20763a0b2624d9268118b33d2ae579aa2c9e5.zip
-# Erwartet: 7acecff8ffd79a41af7a72722b17ad0ca66d04e8377a8c1aa575d729c1a8002e
+# Erwartet: 5aff6c5ec50906259e2927e3a3ade90cfcad483f21bcb67e1b47fb51a1cbf537
 
 sudo bash deploy/deploy-release.sh \
   /tmp/klassio-world4you-6ee20763a0b2624d9268118b33d2ae579aa2c9e5.zip \
