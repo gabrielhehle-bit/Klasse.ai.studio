@@ -222,7 +222,8 @@ test('Materialbibliothek, Kasse & Orga und Einstellungen verwenden semantische K
   assert.match(material, /material-library-shell max-w-\[1180px\]/);
   assert.match(material, /sticky top-0 z-\[150\] bg-\[var\(--surface-app/);
   assert.match(material, /activeTab === tab \? 'bg-\[var\(--accent\)\]/);
-  assert.doesNotMatch(material, /hover:scale-\[1\.02\]/);
+  assert.match(material, /Neues Material<\/span>/);
+  assert.match(material, /bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\][^\n]*transition-colors/);
 
   assert.match(orga, /max-w-\[1180px\]/);
   assert.match(orga, /bg-\[var\(--surface-card,var\(--surface\)\)\] rounded-2xl border/);
