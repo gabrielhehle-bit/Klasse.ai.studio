@@ -23,7 +23,8 @@ export function resolveSchoolDomain(email: string, allowedDomains: string[]): st
     .filter(Boolean)
     .sort((a, b) => b.length - a.length);
 
-  return normalized.find(allowed => domain === allowed || domain.endsWith('.' + allowed)) || null;
+  const isAllowed = normalized.some(allowed => domain === allowed || domain.endsWith('.' + allowed));
+  return isAllowed ? domain : null;
 }
 
 function titleCasePart(value: string): string {
