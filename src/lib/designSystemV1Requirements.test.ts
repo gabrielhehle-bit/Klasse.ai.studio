@@ -383,3 +383,24 @@ test('Materialbibliothek vereinheitlicht Karten und Dialoge ohne die Materiallog
   assert.doesNotMatch(material, /hover:bg-zinc-800\/95/);
   assert.doesNotMatch(material, /rounded-\[(?:3|2\.5)rem\]/);
 });
+
+
+test('Vertretung, Sprachnotiz und Startmodus nutzen Klassio Oberflächen ohne die Druckseite zu verändern', () => {
+  const substitution = read('src/components/SubstitutionPlan.tsx');
+  const voice = read('src/components/VoiceNote.tsx');
+  const initialMode = read('src/components/InitialModeModal.tsx');
+
+  assert.match(substitution, /max-w-\[1180px\]/);
+  assert.match(substitution, /bg-\[var\(--surface-card,var\(--surface\)\)\] rounded-2xl/);
+  assert.match(substitution, /bg-\[var\(--accent\)\] hover:bg-\[var\(--accent-hover\)\]/);
+  assert.match(substitution, /hidden print:block bg-white text-slate-950/);
+  assert.match(substitution, /Erstellt mit Klassio/);
+
+  assert.match(voice, /bg-\[var\(--surface-card,var\(--surface\)\)\].*rounded-2xl/s);
+  assert.match(voice, /bg-\[var\(--accent\)\] text-\[var\(--accent-text,#fff\)\]/);
+  assert.match(voice, /Sprachnotiz aufnehmen/);
+
+  assert.match(initialMode, /rounded-2xl p-6 md:p-8/);
+  assert.match(initialMode, /bg-\[var\(--surface-subtle,var\(--surface2\)\)\]/);
+  assert.doesNotMatch(initialMode, /rounded-\[2\.5rem\]/);
+});
