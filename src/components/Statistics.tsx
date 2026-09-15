@@ -2179,7 +2179,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     const lines: string[] = [];
     
     // 1. Freitext Erläuterung (Zeugnis-Bemerkungen: bevorzugt aus verschlüsseltem AppState)
-    const remarks = (app as any).oberauData?.[student.id]?.remarks || localStorage.getItem(`oberau_remarks_${student.id}`);
+    const remarks = app.oberauData?.[student.id]?.remarks;
     if (remarks && remarks.trim()) {
       lines.push(`FREITEXT-ERLÄUTERUNG ZUM ZEUGNIS:\n"${remarks.trim()}"`);
     }
@@ -2198,16 +2198,8 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       }
     }
 
-    // 3. Oberau Matrix Bewertungen (bevorzugt aus verschlüsseltem AppState)
-    let evalObj = (app as any).oberauData?.[student.id]?.evaluationData;
-    if (!evalObj) {
-      const evalRaw = localStorage.getItem(`oberau_eval_${student.id}`);
-      if (evalRaw) {
-        try {
-          evalObj = JSON.parse(evalRaw);
-        } catch {}
-      }
-    }
+    // 3. Oberau Matrix Bewertungen aus dem verschlüsselten, klassenlokalen AppState
+    const evalObj = app.oberauData?.[student.id]?.evaluationData;
     if (evalObj) {
       try {
         const ratedItems: string[] = [];
@@ -2237,16 +2229,20 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     setSummaryError(null);
     try {
       const activeFaecher = (app.faecher && app.faecher.length > 0) ? app.faecher : FAECHER_ALLE;
-      const gradeSummary = activeFaecher.map(subject => {
-        const avg = berechne(app, student.id, subject, '1');
-        const rawEndnote = app.noten?.[student.id]?.[subject]?.[ '1' ]?.endnote || 
-                           app.noten?.[student.id]?.[subject]?.[ '2' ]?.endnote;
-        const endnote = rawEndnote || (avg !== null ? Math.round(avg).toString() : '—');
-        return { subject, avg, endnote };
-      }).filter(item => item.avg !== null || item.endnote !== '—');
+      const performanceEntries = getStudentPerformanceSummary(app, student.id, activeFaecher, '1').entries;
+      const gradeSummary = performanceEntries.map(entry => {
+        const rawEndnote = app.noten?.[student.id]?.[entry.subject]?.['1']?.endnote ||
+                           app.noten?.[student.id]?.[entry.subject]?.['2']?.endnote;
+        const valueLabel = entry.mode === 'grades'
+          ? `Notenschnitt ${entry.rawValue.toFixed(2)}`
+          : `Leistungsstand ${entry.normalizedPercent.toFixed(1)} %`;
+        return { ...entry, rawEndnote, valueLabel };
+      });
 
       const perfString = gradeSummary.length > 0
-        ? gradeSummary.map(g => `- Fach: ${g.subject} | Schnitt: ${g.avg ? g.avg.toFixed(2) : 'kein Schnitt'} | Zeugnisnote / Endnote: ${g.endnote}`).join('\n')
+        ? gradeSummary.map(entry =>
+            `- Fach: ${entry.subject} | ${entry.valueLabel}${entry.rawEndnote ? ` | dokumentierte Endnote: ${entry.rawEndnote}` : ''}`
+          ).join('\n')
         : 'Keine Leistungsdaten eingetragen.';
 
       const absStats = getAttendanceStats(selectedStudentId);
@@ -2255,15 +2251,10 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
 - Unentschuldigte Fehlstunden: ${absStats.unexcused}
 - Gesamtfehlstunden: ${absStats.total}`;
 
-      const fromNotes = (app.notes || [])
-        .filter(n => n.schuelerId === student.id)
-        .map(n => `Am ${n.datum || 'Unbekannt'}: [Kategorie: ${n.kategorie || 'Leistung/Verhalten'}]: ${n.inhalt}`);
-
-      const fromNotizen = (app.notizen || [])
-        .filter(n => n.schuelerId === student.id)
-        .map(n => `Am ${n.timestamp ? new Date(n.timestamp).toLocaleDateString('de-DE') : 'Unbekannt'}: [Kategorie: ${n.kategorie || 'Journal'}]: ${n.inhalt}`);
-
-      const allMyNotes = [...fromNotes, ...fromNotizen];
+      const allMyNotes = getStudentNotes(app, student.id)
+        .map((note: any) =>
+          `Am ${note.datum || (note.timestamp ? new Date(note.timestamp).toLocaleDateString('de-AT') : 'Unbekannt')}: [Kategorie: ${note.kategorie || 'Journal'}]: ${note.inhalt}`
+        );
       const notesString = allMyNotes.length > 0
         ? allMyNotes.join('\n')
         : 'Keine Beobachtungs- oder Verhaltensnotizen erfasst.';
