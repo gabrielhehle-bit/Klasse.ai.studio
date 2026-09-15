@@ -45,3 +45,24 @@ test('Große semantische Controls behalten einen einheitlichen Radius', () => {
   assert.match(select, /lg: 'min-h-\[52px\][^']*rounded-xl/);
   assert.match(iconButton, /lg: 'w-13 h-13[^']*rounded-xl/);
 });
+
+
+test('Topbar bündelt seltene Aktionen unter Mehr und enthält keinen wirkungslosen Einfachmodus', () => {
+  const source = read('src/components/Topbar.tsx');
+
+  assert.doesNotMatch(source, /header_simple_mode/);
+  assert.doesNotMatch(source, /setSimpleHeaderMode/);
+  assert.equal((source.match(/paypal\.me\/gabrielhehle/g) || []).length, 1);
+  assert.equal((source.match(/docs\.google\.com\/spreadsheets/g) || []).length, 1);
+  assert.match(source, /setPage\('settings'\)/);
+});
+
+test('Sidebar verwendet eine ruhige aktive Navigation ohne Sonderbehandlung für Unterricht', () => {
+  const source = read('src/components/Sidebar.tsx');
+
+  assert.match(source, /Klassio/);
+  assert.match(source, /app\.schulName \|\| app\.schulOrt/);
+  assert.match(source, /bg-\[var\(--accent-soft\)\].*border-\[var\(--accent\)\]\/20/s);
+  assert.doesNotMatch(source, /item\.id === 'unterricht'/);
+  assert.doesNotMatch(source, />Aktiv<\/div>/);
+});
