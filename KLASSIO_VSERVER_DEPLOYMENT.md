@@ -79,16 +79,26 @@ openssl rand -base64 48
 
 Für die erste Staging-Abnahme ist der verbindliche Reconciliation-Commit:
 
-`c6d5d52cae1af082b1b8447decbb17678ec4d1b9`
+`6ee20763a0b2624d9268118b33d2ae579aa2c9e5`
 
 Das verwendete GitHub-Artefakt muss exakt diesen Commit in `KLASSIO_DEPLOYMENT_COMMIT.txt` enthalten.
+
+Verbindliches Artefakt für diese Abnahme:
+
+- Datei: `klassio-world4you-6ee20763a0b2624d9268118b33d2ae579aa2c9e5.zip`
+- SHA-256: `7acecff8ffd79a41af7a72722b17ad0ca66d04e8377a8c1aa575d729c1a8002e`
+
+Vor dem Deployment muss die SHA-256-Prüfsumme übereinstimmen.
 
 Beispiel:
 
 ```bash
+sha256sum /tmp/klassio-world4you-6ee20763a0b2624d9268118b33d2ae579aa2c9e5.zip
+# Erwartet: 7acecff8ffd79a41af7a72722b17ad0ca66d04e8377a8c1aa575d729c1a8002e
+
 sudo bash deploy/deploy-release.sh \
-  /tmp/klassio-world4you-c6d5d52cae1af082b1b8447decbb17678ec4d1b9.zip \
-  c6d5d52cae1af082b1b8447decbb17678ec4d1b9
+  /tmp/klassio-world4you-6ee20763a0b2624d9268118b33d2ae579aa2c9e5.zip \
+  6ee20763a0b2624d9268118b33d2ae579aa2c9e5
 ```
 
 Das Skript:
