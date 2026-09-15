@@ -149,3 +149,61 @@ test('Jahresplanung verwendet semantische Klassio-Flächen im Arbeitsrahmen', ()
   assert.match(source, /bg-\[var\(--accent\)\].*Heute/s);
   assert.doesNotMatch(source, /yearly-plan-shell flex flex-col space-y-4 bg-\[#f4f7f3\]/);
 });
+
+
+test('Anwesenheit und Befindens-Check-in verwenden die gemeinsame Klassio Oberflächensprache', () => {
+  const attendance = read('src/components/Attendance.tsx');
+  const kidCheckIn = read('src/components/cockpit/widgets/KidAttendanceWidget.tsx');
+
+  assert.match(attendance, /max-w-\[1180px\]/);
+  assert.match(attendance, /bg-\[var\(--surface-card,var\(--surface\)\)\].*Anwesenheit/s);
+  assert.match(attendance, /bg-\[var\(--accent\)\].*Offene Einträge als anwesend bestätigen/s);
+  assert.doesNotMatch(attendance, /<h1[^>]*uppercase[^>]*>\s*Anwesenheit/);
+
+  assert.match(kidCheckIn, /Ich bin da!/);
+  assert.match(kidCheckIn, /freiwilliger Check-in/);
+  assert.match(kidCheckIn, /rounded-2xl border shadow-xl/);
+  assert.doesNotMatch(kidCheckIn, /Schüler-Check-In ·/);
+});
+
+test('Sitzplan verwendet ruhige Modusschalter und keine springenden Schülerkarten', () => {
+  const source = read('src/components/SeatingPlan.tsx');
+
+  assert.match(source, /surface-card/);
+  assert.match(source, /surface-subtle/);
+  assert.match(source, /focus-ring/);
+  assert.doesNotMatch(source, /whileHover=\{\{ scale: 1\.02 \}\}/);
+  assert.match(source, /bg-\[var\(--surface-card,var\(--surface\)\)\].*Sitzplan-Modus/s);
+});
+
+test('Diagnostik verwendet über Start, Navigation und Arbeitsansichten dieselbe Klassio Hierarchie', () => {
+  const home = read('src/components/diagnostics/DiagnosticHome.tsx');
+  const nav = read('src/components/diagnostics/DiagnosticNavigationHeader.tsx');
+  const individual = read('src/components/diagnostics/DiagnosticIndividual.tsx');
+  const klass = read('src/components/diagnostics/DiagnosticClass.tsx');
+  const results = read('src/components/diagnostics/DiagnosticResults.tsx');
+
+  for (const source of [home, individual, klass, results]) {
+    assert.match(source, /max-w-\[1180px\]/);
+  }
+  assert.match(home, /surface-card/);
+  assert.match(home, /accent-soft/);
+  assert.doesNotMatch(home, /whileHover=\{\{ y: -3/);
+  assert.match(nav, /rounded-2xl border border-\[var\(--border-subtle,var\(--border\)\)\]/);
+  assert.match(nav, /focus|accent|surface-subtle/);
+});
+
+test('Druckzentrum modernisiert nur die Bedienoberfläche und lässt A4 Druckflächen weiß', () => {
+  const source = read('src/components/PrintCenter.tsx');
+
+  assert.match(source, /max-w-\[1180px\]/);
+  assert.match(source, />Druckzentrum</);
+  assert.match(source, /1\. Dokument/);
+  assert.match(source, /2\. Anpassen/);
+  assert.match(source, /3\. Vorschau &amp; Druck/);
+  assert.match(source, /surface-card/);
+  assert.match(source, /focus-ring/);
+
+  assert.match(source, /print-center-overlay hidden print:block w-full bg-white/);
+  assert.match(source, /single-sheet-preview[^"]*bg-white/);
+});
