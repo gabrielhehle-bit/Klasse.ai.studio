@@ -82,3 +82,16 @@ test('Haupt-Hubs verwenden dieselbe ruhige Karten- und Seitenhierarchie', () => 
     assert.doesNotMatch(source, /rounded-\[1\.75rem\]|rounded-\[2rem\]/, file + ' soll keine alten übergroßen Bubble-Radien mehr verwenden.');
   }
 });
+
+
+test('Standard Heute Ansicht verwendet semantische Klassio Tokens statt fixer Slate/Indigo Oberfläche', () => {
+  const source = read('src/components/DashboardSimpleOverview.tsx');
+
+  assert.match(source, /surface-card/);
+  assert.match(source, /surface-subtle/);
+  assert.match(source, /border-default/);
+  assert.match(source, /focus-ring/);
+  assert.doesNotMatch(source, /border-slate-200/);
+  assert.doesNotMatch(source, /bg-white/);
+  assert.doesNotMatch(source, /text-indigo-600|bg-indigo-50|outline-indigo-600/);
+});
