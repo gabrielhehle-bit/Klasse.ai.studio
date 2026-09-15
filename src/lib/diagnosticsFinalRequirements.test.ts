@@ -85,4 +85,7 @@ test('Diagnostik-Archiv: KI-Auslese wird nicht als fehlerfrei behauptet', () => 
   assert.match(legacy, /Auslesevorschlag, den du vor dem Speichern vollständig prüfen musst/);
   assert.match(legacy, /Normwerte dürfen nur aus der jeweiligen Originalauswertung übernommen werden/);
   assert.match(legacy, />1\. Prüfhinweise</);
+  assert.doesNotMatch(legacy, /['"]2a['"]/);
+  assert.doesNotMatch(legacy, /unauffälligen Erwartungsbereich/);
+  assert.match(legacy, /die Einordnung bleibt eine pädagogische Aufgabe/);
 });
