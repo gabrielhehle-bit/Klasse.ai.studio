@@ -40,6 +40,7 @@ import { DiagnosticScreeningPreview } from './screening/DiagnosticScreeningPrevi
 interface DiagnosticClassProps {
   students?: Student[];
   onBackToHome: () => void;
+  activeClassId?: string;
   activeClassName?: string;
   onSaveDiagnosticResults?: (results: DiagnosticResult[]) => void;
   onStartIndividualTest?: (studentId: string, competencyId?: string, gradeLevel?: number) => void;
@@ -49,6 +50,7 @@ interface DiagnosticClassProps {
 export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
   students = [],
   onBackToHome,
+  activeClassId,
   activeClassName,
   onSaveDiagnosticResults,
   onStartIndividualTest,
@@ -65,6 +67,7 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
   const [activeScreeningStudents, setActiveScreeningStudents] = useState<Student[]>([]);
   const [evaluatedResults, setEvaluatedResults] = useState<DiagnosticResult[] | null>(null);
   const [savedSuccessMessage, setSavedSuccessMessage] = useState<string | null>(null);
+  const [screeningErrorMessage, setScreeningErrorMessage] = useState<string | null>(null);
 
   // Resolved entities
   const selectedDomain: DiagnosticDomain | undefined = useMemo(() => {
@@ -177,11 +180,16 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
 
   // Start Screening from Setup
   const handleStartScreening = (level: number, selectedStudents: Student[]) => {
+    if (!activeClassId) {
+      setScreeningErrorMessage('Für ein Klassenscreening muss zuerst eine aktive Klasse ausgewählt sein.');
+      return;
+    }
     setScreeningLevel(level);
     setActiveScreeningStudents(selectedStudents);
     setIsRunningScreening(true);
     setEvaluatedResults(null);
     setSavedSuccessMessage(null);
+    setScreeningErrorMessage(null);
   };
 
   // Runner completed -> Evaluate results for each student
@@ -189,8 +197,13 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
     responsesByStudent: Record<string, Record<string, StudentScreeningTaskResponse>>
   ) => {
     if (!registeredScreening || !selectedCompetency) return;
+    if (!activeClassId) {
+      setScreeningErrorMessage('Das Screening wurde nicht ausgewertet, weil keine aktive Klasse zugeordnet ist.');
+      setIsRunningScreening(false);
+      return;
+    }
 
-    const screeningSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const screeningSessionId = `session-${globalThis.crypto?.randomUUID?.() || Date.now()}`;
     const results: DiagnosticResult[] = [];
 
     activeScreeningStudents.forEach(student => {
@@ -199,7 +212,7 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
         student,
         testDefinition: registeredScreening,
         level: screeningLevel,
-        classId: activeClassName || (student as any).klasse || 'klasse-default',
+        classId: activeClassId,
         screeningSessionId,
         taskResponses: studentTaskResponses,
       });
@@ -266,6 +279,19 @@ export const DiagnosticClass: React.FC<DiagnosticClassProps> = ({
 
   return (
     <div className="max-w-5xl mx-auto py-3 px-2 sm:px-4 space-y-4">
+      {screeningErrorMessage && (
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
+          <span className="text-xs font-bold text-rose-800">{screeningErrorMessage}</span>
+          <button
+            type="button"
+            onClick={() => setScreeningErrorMessage(null)}
+            className="text-xs font-semibold text-rose-700 hover:text-rose-900 px-2 py-1 cursor-pointer"
+          >
+            Schließen
+          </button>
+        </div>
+      )}
+
       {/* Success Notification Banner if saved */}
       {savedSuccessMessage && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
