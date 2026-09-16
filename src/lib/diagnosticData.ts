@@ -25,8 +25,10 @@ export const getDiagnosticTestName = (testId: string, tests: DiagnostikTest[]) =
   return INTERNAL_TEST_NAMES[testId] || (testId.startsWith('live-') ? '1:1 Lernstandsbeobachtung' : 'Nicht zugeordnetes Verfahren');
 };
 
-export const getDiagnosticAlert = (test: DiagnostikTest, value: number) =>
-  test.schwellenrichtung === 'unter' ? value < test.schwellenwert : value > test.schwellenwert;
+export const getDiagnosticAlert = (test: DiagnostikTest, value: number) => {
+  if (!Number.isFinite(test.schwellenwert) || test.schwellenwert <= 0) return false;
+  return test.schwellenrichtung === 'unter' ? value < test.schwellenwert : value > test.schwellenwert;
+};
 
 export const getDiagnosticUnitGuidance = (test: DiagnostikTest) => {
   switch (test.einheit) {
