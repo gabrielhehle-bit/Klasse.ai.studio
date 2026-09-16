@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Users, UserCheck, Armchair, Wallet, MessagesSquare, Heart, Notebook, ChevronRight } from 'lucide-react';
+import { Users, UserCheck, Armchair, Wallet, MessagesSquare, Heart, Notebook, ChevronRight, UserPlus } from 'lucide-react';
 import { toLocalDateKey } from '../lib/localDate';
 
 type HubItem = {
@@ -109,6 +109,12 @@ export default function KlasseHub() {
       description: 'Klassenklima und bewusst dokumentierte Gemeinschaftsaktivitäten.',
       icon: Heart,
       klassenvorstandOnly: true,
+    },
+    {
+      id: 'teamteaching',
+      title: 'Klassenteam',
+      description: 'Klasse gezielt mit Kolleg:innen derselben Schule teilen und gemeinsam bearbeiten.',
+      icon: UserPlus,
     },
   ];
 
