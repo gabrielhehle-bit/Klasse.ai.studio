@@ -12,7 +12,7 @@ import {
 import { berechne } from '../lib/GradeUtils';
 import SeatingPlanAnalysis from './SeatingPlanAnalysis';
 import { areSeatingNeighbors, classifySeatPositions, findSeatingRuleViolations, sanitizeSeatingRules, sameSeat } from '../lib/seatingPlanRules';
-import { getLocalDateKey, getSeatingPlanAbsentStudents, isStudentAbsentOnDate } from '../lib/seatingPlanData';
+import { getLocalDateKey, getSeatingPlanAbsentStudents, isStudentAbsentOnDate, orderStudentsByComplementaryLevels } from '../lib/seatingPlanData';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
   if (!geburtstagStr) return false;
@@ -1914,14 +1914,7 @@ export default function SeatingPlan() {
           if (girls[i]) sortedCurrentlyPlaced.push(girls[i]);
         }
       } else if (type === 'tandem') {
-        const l1 = currentlyPlaced.filter(s => s.niveau === 1);
-        const l2 = currentlyPlaced.filter(s => s.niveau === 2);
-        sortedCurrentlyPlaced = [];
-        const max = Math.max(l1.length, l2.length);
-        for (let i = 0; i < max; i++) {
-          if (l1[i]) sortedCurrentlyPlaced.push(l1[i]);
-          if (l2[i]) sortedCurrentlyPlaced.push(l2[i]);
-        }
+        sortedCurrentlyPlaced = orderStudentsByComplementaryLevels(currentlyPlaced);
       } else if (type === 'automatik') {
         const spfZorDaz = currentlyPlaced.filter(s => s.spf || s.espf || s.daz);
         const standard = currentlyPlaced.filter(s => !(s.spf || s.espf || s.daz));
@@ -1991,14 +1984,7 @@ export default function SeatingPlan() {
         if (girls[i]) sorted.push(girls[i]);
       }
     } else if (type === 'tandem') {
-      const l1 = students.filter(s => s.niveau === 1);
-      const l2 = students.filter(s => s.niveau === 2);
-      sorted = [];
-      const max = Math.max(l1.length, l2.length);
-      for (let i = 0; i < max; i++) {
-        if (l1[i]) sorted.push(l1[i]);
-        if (l2[i]) sorted.push(l2[i]);
-      }
+      sorted = orderStudentsByComplementaryLevels(students);
     } else if (type === 'impulse') {
       const active = students.filter(s => {
         const t = s.charakter || [];
@@ -3922,6 +3908,8 @@ export default function SeatingPlan() {
                      <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-[#ecfdf5] border border-emerald-200" /> <span className="text-[0.5625rem]">L1</span></div>
                      <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-[#f0f9ff] border border-sky-200" /> <span className="text-[0.5625rem]">L2</span></div>
                      <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-[#fffbeb] border border-amber-200" /> <span className="text-[0.5625rem]">L3</span></div>
+                     <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-[#fff7ed] border border-orange-200" /> <span className="text-[0.5625rem]">L4</span></div>
+                     <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-[#fdf2f8] border border-pink-200" /> <span className="text-[0.5625rem]">L5</span></div>
                    </div>
                  ) : overlayFilter === 'charakter' ? (
                    <div className="flex items-center gap-2">
