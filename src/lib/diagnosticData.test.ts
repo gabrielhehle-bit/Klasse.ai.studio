@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getDiagnosticClassId, isDiagnosticDateInFuture, validateDiagnosticEntry } from './diagnosticData';
+import { getDiagnosticAlert, getDiagnosticClassId, isDiagnosticDateInFuture, validateDiagnosticEntry } from './diagnosticData';
 
 test('diagnostic class id prefers the active class id', () => {
   assert.equal(
