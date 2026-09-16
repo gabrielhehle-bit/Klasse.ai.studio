@@ -75,8 +75,8 @@ export default function KlasseHub() {
     },
     {
       id: 'verhalten',
-      title: 'Notizen & Beobachtungen',
-      description: 'Pädagogische Beobachtungen und wichtige Notizen zur Klasse festhalten.',
+      title: 'Notizen',
+      description: 'Alle Klassen- und Schülernotizen zentral erfassen, kategorisieren und durchsuchen.',
       icon: Notebook,
     },
   ];
