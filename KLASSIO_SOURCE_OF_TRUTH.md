@@ -8,7 +8,7 @@ Die einzige verbindliche Entwicklungsquelle für Klassio ist:
 
 - Repository: `gabrielhehle-bit/Klasse.ai.studio`
 - Produktionsbranch: `main`
-- aktueller integrierter `main`-Stand nach PR #101: `095bf18209d0b5bbf83814591188c6018044719f`
+- letzter vollständig geprüfter und integrierter Produktcode-Stand (PR #103): `46e4044c947d54a2ef914793725f7bbb2dacb1c7`; der aktuelle `main`-HEAD ist vor jeder neuen Arbeit zusätzlich live zu prüfen
 - neue Arbeit ausschließlich in einem frischen Branch vom aktuellen `main` und anschließend per Pull Request zurück nach `main`
 
 `main` enthält die vollständige integrierte App und ist die einzige Entwicklungsgrundlage. Frühere Reconciliation-, Feature-, Fix- oder ZIP-Stände sind niemals Ausgangspunkt für neue Arbeit.
@@ -28,6 +28,7 @@ Aktuell integriert in `main`:
 - Schulregister mit exakter Schul-Domain und allen neun österreichischen Bundesländern
 - PR #101: Schulverifizierung direkt in `Einstellungen → Konto & Schulmail`, automatische Admin-Benachrichtigung, geschützte Schulverwaltung mit Freigeben/Ablehnen und automatische Aktivierung der Schulidentität nach Freigabe
 - bestehende lokale Klassen, Planungen, Noten und Tresordaten werden durch E-Mail-/Schul-Onboarding nicht zurückgesetzt oder neu angelegt
+- PR #103: Wochen- und Jahresplanung öffnen deutlich größere Arbeitsflächen; bereits geplante Einheiten zeigen zuerst eine Übersicht und werden erst über `Bearbeiten` geöffnet; Wochenplan → Jahresplan ergänzt nur eine freie KW-/Fach-Zelle und überschreibt niemals bestehende Jahresplan-Inhalte
 
 Letzter vollständig geprüfter Feature-Commit vor dem Merge von PR #101: `14802453536e9f0a8e9d051f0d3be1b57e57c8df`.
 
@@ -38,6 +39,17 @@ Prüfnachweise für PR #101:
 - Produktions-Build: grün
 - bestehender Zwei-Konto-Teamteaching-Chrome-E2E: grün
 - neuer realer Chrome-E2E für Schulverifizierung: grün; geprüft wurden E-Mail-Login, vorhandene Klasse vor Verifizierung, Antrag einer unbekannten Schule, Admin-Mail, Admin-Freigabe, automatische Schulidentität und Erhalt der bereits eingerichteten Klasse
+
+Prüfnachweise für PR #103:
+
+- Feature-Branch-HEAD vor Merge: `596946cbff7d3ee1790b8fbd115ecae147b6b9ad`
+- TypeScript: grün
+- automatisierte Tests: **1130 bestanden, 0 fehlgeschlagen**
+- Produktions-Build: grün
+- Teamteaching Browser E2E: grün
+- School Verification Browser E2E: grün; bereits eingerichtete Klasse bleibt erhalten
+- zusätzliche Regressionstests sichern große Planungseditoren, Übersicht → Bearbeiten und Wochenplan → Jahresplan ohne Überschreiben ab
+- PR #103 anschließend per Squash in `main` integriert: `46e4044c947d54a2ef914793725f7bbb2dacb1c7`
 
 ## Produktions- und Deploymentstatus
 
