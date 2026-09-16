@@ -39,6 +39,7 @@ const UnterrichtHub = lazyRetry(() => import('./components/UnterrichtHub'));
 const ToolsHub = lazyRetry(() => import('./components/ToolsHub'));
 const TextAnalysisTool = lazyRetry(() => import('./components/TextAnalysisTool'));
 const Lehrerzimmer = lazyRetry(() => import('./components/Lehrerzimmer'));
+const ClassTeam = lazyRetry(() => import('./components/ClassTeam'));
 const StudentList = lazyRetry(() => import('./components/StudentList'));
 const StudentDossierHub = lazyRetry(() => import('./components/StudentDossierHub'));
 const Gradebook = lazyRetry(() => import('./components/Gradebook'));
@@ -607,6 +608,7 @@ function AppContent() {
       case 'leistungen': return <LeistungenHub />;
       case 'unterricht': return <UnterrichtHub />;
       case 'lehrerzimmer': return <Lehrerzimmer />;
+      case 'teamteaching': return <ClassTeam />;
       case 'schueler': return <StudentList />;
       case 'dossier': return <StudentDossierHub />;
       case 'noten': return <Gradebook />;
