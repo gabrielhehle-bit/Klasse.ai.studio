@@ -137,7 +137,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       if (isAllowed) {
         res.setHeader('Access-Control-Allow-Origin', origin);
         res.setHeader('Access-Control-Allow-Credentials', 'true');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
       }
     }
@@ -155,6 +155,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   // E3.12 Differentiierte Request-Größenlimits
   app.use('/api/ai', express.json({ limit: '35mb' }));
   app.use('/api/sync', express.json({ limit: '16mb' }));
+  app.use('/api/teamteaching', express.json({ limit: '16mb' }));
   app.use('/api/onedrive/upload', express.json({ limit: '20mb' }));
   app.use(express.urlencoded({ limit: '1mb', extended: true }));
   app.use(express.json({ limit: '1mb' }));
