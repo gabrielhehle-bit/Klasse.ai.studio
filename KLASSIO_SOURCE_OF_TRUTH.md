@@ -64,7 +64,7 @@ Produktivsystem ist der World4You-Linux-vServer mit Nginx und systemd:
 - Health: `/api/health`
 - SMTP-Login ist in der Produktionsumgebung konfiguriert; Secrets bleiben ausschließlich in der Server-Umgebung und niemals im Repository.
 
-Der zuletzt vor PR #101 bestätigte Produktionsstand war `a5df9e26b3b75f279932d2771f259f24dfc14321`. Für jedes weitere Deployment muss unmittelbar davor der aktuelle GitHub-`main`-HEAD erneut geprüft und exakt dieser Commit ausgerollt werden.
+Der in diesem Chat zuletzt bestätigte GitHub-Produktcode-Stand ist PR #103 / `46e4044c947d54a2ef914793725f7bbb2dacb1c7`; der aktuelle `main` enthält zusätzlich die danach gemergte Source-of-Truth-Dokumentation. Ein World4You-Deployment dieses PR-#103-Stands wurde in diesem Chat **nicht serverseitig bestätigt**, weil kein SSH-/World4You-Terminal verbunden ist. Daher darf `klassio.at` bis zur Prüfung von `/srv/klassio/current/KLASSIO_DEPLOYMENT_COMMIT.txt` und `/api/health` nicht als auf PR #103 aktualisiert bezeichnet werden. Für jedes weitere Deployment muss unmittelbar davor der aktuelle GitHub-`main`-HEAD erneut geprüft und der gewünschte Produktcode-Commit commitgebunden ausgerollt werden.
 
 ## Historischer Reconciliation-Verlauf – nur Historie
 
