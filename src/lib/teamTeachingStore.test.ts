@@ -168,3 +168,50 @@ test('Teamteaching: Nur Owner verwaltet Mitglieder oder löscht die geteilte Kla
     await fsp.rm(dir, { recursive: true, force: true });
   }
 });
+
+
+test('Teamteaching: Owner kann neue Geräte eines bestehenden Mitglieds nachträglich freigeben', async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-team-device-refresh-'));
+  try {
+    const store = createClassCollaborationStore(dir);
+    const anna = createTeacherIdentity('anna@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    const bob = createTeacherIdentity('bob@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    assert.ok(anna && bob);
+
+    await store.registerDevice(anna, { deviceId: 'device-anna-0001', publicKeyJwk: fakeJwk('anna-1') });
+    await store.registerDevice(bob, { deviceId: 'device-bob-00001', publicKeyJwk: fakeJwk('bob-1') });
+
+    const shared = await store.createSharedClass(anna, {
+      classLabel: '1a',
+      encryptedSnapshot: encryptedSnapshot('v1'),
+      wrappedKeys: { 'device-anna-0001': wrapped('anna-1') },
+    });
+
+    await store.addMember(anna, shared.id, {
+      userId: bob.userId,
+      displayName: bob.displayName,
+      role: 'editor',
+      wrappedKeys: { 'device-bob-00001': wrapped('bob-1') },
+    });
+
+    await store.registerDevice(bob, { deviceId: 'device-bob-00002', publicKeyJwk: fakeJwk('bob-2') });
+
+    const refreshed = await store.updateMemberKeys(anna, shared.id, bob.userId, {
+      'device-bob-00001': wrapped('bob-1'),
+      'device-bob-00002': wrapped('bob-2'),
+    });
+
+    const bobMember = refreshed.members.find(member => member.userId === bob.userId);
+    assert.ok(bobMember);
+    assert.deepEqual(Object.keys(bobMember.wrappedKeys).sort(), ['device-bob-00001', 'device-bob-00002']);
+
+    await assert.rejects(
+      () => store.updateMemberKeys(bob, shared.id, anna.userId, {
+        'device-anna-0001': wrapped('forbidden'),
+      }),
+      /OWNER_REQUIRED/
+    );
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
