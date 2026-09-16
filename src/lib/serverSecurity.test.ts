@@ -78,7 +78,7 @@ test('E3: Produktionshärtung von server.ts', async (t) => {
 
     const perm = res.headers.get("permissions-policy") || "";
     assert.ok(perm.includes("camera=(self)"));
-    assert.ok(perm.includes("microphone=(self)"));
+    assert.ok(perm.includes("microphone=(self)"));\n    assert.ok(perm.includes("on-device-speech-recognition=(self)"));
     assert.ok(perm.includes("geolocation=()"));
 
     const csp = res.headers.get("content-security-policy") || "";
