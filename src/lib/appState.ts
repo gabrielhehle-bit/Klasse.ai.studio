@@ -30,6 +30,7 @@ export const initialAppState: AppState = {
   sitzplan_objekte: [],
   orga_listen: [],
   customLists: [],
+  studentDevelopmentLists: [],
   checklisten: [],
   sue_kontrolle: {},
   gruppen: [],
@@ -225,6 +226,7 @@ export function syncActiveClass(state: AppState): AppState {
     klassenkasse: normalizeKlassenkasse(state.klassenkasse),
     checklisten: state.checklisten ? JSON.parse(JSON.stringify(state.checklisten)) : [],
     customLists: state.customLists ? JSON.parse(JSON.stringify(state.customLists)) : [],
+    studentDevelopmentLists: state.studentDevelopmentLists ? JSON.parse(JSON.stringify(state.studentDevelopmentLists)) : [],
     zugangsdaten: state.zugangsdaten ? JSON.parse(JSON.stringify(state.zugangsdaten)) : [],
     behavior_status: state.behavior_status ? { ...state.behavior_status } : {},
     behavior_notes: state.behavior_notes ? { ...state.behavior_notes } : {},
@@ -432,6 +434,7 @@ export function normalizeAppState(raw: any): AppState {
         dienste: c.dienste || [],
         checklisten: c.checklisten || [],
         customLists: c.customLists || [],
+        studentDevelopmentLists: c.studentDevelopmentLists || [],
         // Legacy Kassa & Orga credentials were global; copy them into each class once.
         zugangsdaten: c.zugangsdaten ?? parsed.zugangsdaten ?? [],
         saAssessments: c.saAssessments ?? (c.id === parsed.activeClassId ? parsed.saAssessments : undefined) ?? {},
@@ -573,6 +576,7 @@ export function normalizeAppState(raw: any): AppState {
     parsed.dienste = activeClass.dienste;
     parsed.checklisten = activeClass.checklisten || [];
     parsed.customLists = activeClass.customLists || [];
+    parsed.studentDevelopmentLists = activeClass.studentDevelopmentLists || [];
     parsed.zugangsdaten = activeClass.zugangsdaten || [];
     parsed.saAssessments = activeClass.saAssessments;
     parsed.klassenglas_count = activeClass.klassenglas_count;
@@ -822,6 +826,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     dienste: targetClass.dienste || [],
     checklisten: targetClass.checklisten || [],
     customLists: targetClass.customLists || [],
+    studentDevelopmentLists: targetClass.studentDevelopmentLists || [],
     zugangsdaten: targetClass.zugangsdaten ? JSON.parse(JSON.stringify(targetClass.zugangsdaten)) : [],
     klassenglas_missions: targetClass.klassenglas_missions || [],
     klassenglas_completed_missions: targetClass.klassenglas_completed_missions || [],
