@@ -2020,7 +2020,7 @@ export default function YearlyPlan() {
 
                         {(entry.subCategories?.length || entry.subCategory) && (
                           <div className="mt-4 flex flex-wrap gap-2">
-                            {(entry.subCategories?.length ? entry.subCategories : [entry.subCategory]).filter(Boolean).map(value => (
+                            {(entry.subCategories?.length ? entry.subCategories : [entry.subCategory]).filter((value): value is string => Boolean(value)).map(value => (
                               <span key={value} className="rounded-full bg-blue-50 px-2.5 py-1 text-[0.5625rem] font-black text-blue-700">
                                 {String(value).replace('Deutsch ', '')}
                               </span>
