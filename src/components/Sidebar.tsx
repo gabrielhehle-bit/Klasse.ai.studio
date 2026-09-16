@@ -9,7 +9,7 @@ import {
   Calendar, CalendarDays, ClipboardList, Mail, Wallet, 
   FileEdit, Notebook, CheckSquare, Play, LineChart, Table, Folder, 
   Target, Replace, Archive, Bot, ChevronLeft, ChevronRight, Database, LayoutGrid,
-  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown
+  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown, Flag
 } from 'lucide-react';
 import { Button, IconButton, Badge, Chip } from './ui';
 
@@ -40,16 +40,20 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const disabledModules = app?.settings?.disabledModules || [];
 
   const sidebarOrder = app?.settings?.sidebarOrder || [];
+  const sidebarPinned = app?.settings?.sidebarPinned || [];
   const [draggedModuleId, setDraggedModuleId] = React.useState<string | null>(null);
 
   const orderSidebarItems = React.useCallback((items: any[]) => {
     const index = new Map(sidebarOrder.map((id: string, position: number) => [id, position]));
+    const pinned = new Set(sidebarPinned);
     return [...items].sort((a, b) => {
+      const pinDelta = Number(pinned.has(b.id)) - Number(pinned.has(a.id));
+      if (pinDelta !== 0) return pinDelta;
       const aPos = index.has(a.id) ? index.get(a.id)! : Number.MAX_SAFE_INTEGER;
       const bPos = index.has(b.id) ? index.get(b.id)! : Number.MAX_SAFE_INTEGER;
       return aPos - bPos;
     });
-  }, [sidebarOrder]);
+  }, [sidebarOrder, sidebarPinned]);
 
 
   const ALL_MODULES = [
@@ -128,6 +132,21 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
         settings: {
           ...prev.settings,
           sidebarOrder: withoutDragged,
+        },
+      };
+    });
+  }, [setApp]);
+
+  const toggleSidebarPin = React.useCallback((moduleId: string) => {
+    setApp(prev => {
+      const pinned = new Set(prev.settings?.sidebarPinned || []);
+      if (pinned.has(moduleId)) pinned.delete(moduleId);
+      else pinned.add(moduleId);
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          sidebarPinned: Array.from(pinned),
         },
       };
     });
@@ -346,9 +365,19 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                     {item.icon}
                   </span>
                   {!isCollapsed && (
-                    <span className="text-wrap leading-tight break-words tracking-tight">
-                      {item.label}
-                    </span>
+                    <>
+                      <span className="text-wrap leading-tight break-words tracking-tight flex-1">
+                        {item.label}
+                      </span>
+                      {sidebarPinned.includes(item.id) && (
+                        <Flag
+                          size={13}
+                          fill="currentColor"
+                          className={currentPage === item.id ? "text-white/90 shrink-0" : "text-amber-500 shrink-0"}
+                          aria-label="Angepinnt"
+                        />
+                      )}
+                    </>
                   )}
                 </button>
               ))}
@@ -419,7 +448,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                   Sidebar anpassen
                 </h3>
                 <p className="text-[0.6875rem] text-text-muted leading-relaxed font-medium">
-                  Ziehe einen Bereich an den Punkten oder verschiebe ihn mit den Pfeilen. Die ersten acht Bereiche stehen direkt in deiner Sidebar, alle weiteren unter „Mehr“.
+                  Ziehe einen Bereich an den Punkten, verschiebe ihn mit den Pfeilen oder pinne ihn mit der Flagge an. Angepinnte Bereiche stehen automatisch oben; die ersten acht Bereiche sind direkt sichtbar.
                 </p>
               </div>
               <button
@@ -489,6 +518,19 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                       <div className="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
+                          onClick={() => toggleSidebarPin(item.id)}
+                          className={`w-8 h-8 rounded-lg border flex items-center justify-center ${
+                            sidebarPinned.includes(item.id)
+                              ? "border-amber-300 bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:border-amber-500/30"
+                              : "border-border bg-surface hover:bg-surface3/60 text-text-muted"
+                          }`}
+                          title={sidebarPinned.includes(item.id) ? "Anheftung lösen" : "Mit Flagge anpinnen"}
+                          aria-label={`${item.label} ${sidebarPinned.includes(item.id) ? "Anheftung lösen" : "anpinnen"}`}
+                        >
+                          <Flag size={14} fill={sidebarPinned.includes(item.id) ? "currentColor" : "none"} />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => moveSidebarModuleBy(item.id, -1)}
                           disabled={index === 0}
                           className="w-8 h-8 rounded-lg border border-border bg-surface hover:bg-surface3/60 flex items-center justify-center disabled:opacity-25"
@@ -552,6 +594,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                       ...prev.settings,
                       disabledModules: [],
                       sidebarOrder: ALL_MODULES.map(item => item.id),
+                      sidebarPinned: [],
                     },
                   }));
                   showToast('Alle Bereiche sind wieder sichtbar und in der Standardreihenfolge.', 'success');
