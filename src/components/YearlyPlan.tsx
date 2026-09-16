@@ -171,6 +171,7 @@ const MONATE = [
 export default function YearlyPlan() {
   const { app, setApp } = useApp();
   const [editingCell, setEditingCell] = useState<{ kw: number, subjectId: string } | null>(null);
+  const [viewingCell, setViewingCell] = useState<{ kw: number, subjectId: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [editValue, setEditValue] = useState<{ thema: string, buch: string, type: string, subCategory: string, subCategories?: string[], items?: any[], completed?: boolean }>({ thema: '', buch: '', type: 'standard', subCategory: '', subCategories: [], items: [], completed: false });
   const [isPrintMode, setIsPrintMode] = useState(false);
@@ -412,7 +413,7 @@ export default function YearlyPlan() {
     swIndex++;
   }
 
-  const handleCellClick = (kw: number, subjectId: string) => {
+  const openYearPlanEditor = (kw: number, subjectId: string) => {
     const existing = app.jahresplanung[kw]?.[subjectId] || { thema: '', buch: '', type: 'standard', subCategory: '', subCategories: [], items: [], completed: false };
     setEditValue({
       thema: existing.thema || '',
@@ -426,6 +427,16 @@ export default function YearlyPlan() {
     setPlanWeeksCount(1);
     setAutoSuffix('part');
     setEditingCell({ kw, subjectId });
+  };
+
+  const handleCellClick = (kw: number, subjectId: string) => {
+    const existing = app.jahresplanung[kw]?.[subjectId];
+    const hasPlanning = yearPlanCellEntries(existing).length > 0 || Boolean(existing?.type && existing.type !== 'standard');
+    if (hasPlanning) {
+      setViewingCell({ kw, subjectId });
+      return;
+    }
+    openYearPlanEditor(kw, subjectId);
   };
 
   const handleDragStart = (e: React.DragEvent, kw: number, subjectId: string) => {
@@ -1930,15 +1941,15 @@ export default function YearlyPlan() {
       {/* Edit Overlay / Modal */}
       <AnimatePresence>
         {editingCell && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm shadow-xl">
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-2 sm:p-4 bg-stone-900/40 backdrop-blur-sm shadow-xl">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl border border-border w-full max-w-md max-h-[85vh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+              className="bg-white rounded-2xl border border-border w-[96vw] max-w-[1400px] h-[92vh] max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-4 border-b border-border bg-stone-50 flex justify-between items-center shrink-0">
+              <div className="px-6 py-4 border-b border-border bg-stone-50 flex justify-between items-center shrink-0">
                 <div>
                   <div className="text-[0.5625rem] font-black uppercase tracking-widest text-text-muted mb-1">
                     KW {editingCell.kw}
@@ -1958,9 +1969,9 @@ export default function YearlyPlan() {
                 </button>
               </div>
               
-              <div className="p-6 space-y-6 flex-1 overflow-y-auto min-h-0">
+              <div className="p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-2 gap-5 flex-1 overflow-y-auto min-h-0 items-start">
                 {/* FLAGGEN STATUS */}
-                <div className="space-y-2">
+                <div className="space-y-2 lg:col-span-2">
                   <label className="text-[0.625rem] font-black uppercase text-text-muted ml-1">Wichtiger Termin / Event</label>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     {[
@@ -2081,7 +2092,7 @@ export default function YearlyPlan() {
                 </div>
 
                 {(subjects.find(s => s.id === editingCell.subjectId)?.label.toLowerCase().includes('deutsch') || editingCell.subjectId.toLowerCase().includes('deutsch')) && (
-                  <div className="space-y-1.5 border-t border-stone-100 pt-3">
+                  <div className="space-y-1.5 border-t border-stone-100 pt-3 lg:col-span-2">
                     <label className="text-[0.625rem] font-black uppercase text-blue-500 ml-1">Zubehör & Schwerpunkte</label>
                     <div className="flex flex-wrap gap-2">
                       <button
@@ -2111,7 +2122,7 @@ export default function YearlyPlan() {
                 )}
                 
                 {editValue.items && editValue.items.length > 0 && (
-                  <div className="mt-4 space-y-2 border-t border-stone-100 pt-4">
+                  <div className="mt-1 space-y-2 border-t border-stone-100 pt-4 lg:col-span-2">
                     <label className="text-[0.625rem] font-black uppercase text-text-muted ml-1 pb-1 block">Hinzugefügte Einträge in dieser Woche:</label>
                     {editValue.items.map((it: any, idx: number) => (
                        <div key={idx} className="flex justify-between items-center text-[0.75rem] leading-tight p-2 bg-stone-100 rounded-lg border border-stone-200">
@@ -2129,7 +2140,7 @@ export default function YearlyPlan() {
                   </div>
                 )}
 
-                <div className="pt-2">
+                <div className="pt-2 lg:col-span-2">
                    <button 
                      onClick={() => {
                         if (editValue.thema.trim() || (editValue.subCategories && editValue.subCategories.length > 0)) {
@@ -2162,7 +2173,7 @@ export default function YearlyPlan() {
                 </div>
               </div>
 
-              <div className="p-4 bg-stone-50 border-t border-border flex gap-3 shrink-0">
+              <div className="p-4 lg:px-6 bg-stone-50 border-t border-border flex gap-3 shrink-0">
                 <button onClick={closeEditingCell} className="flex-1 btn bg-white text-stone-600 border-border hover:bg-stone-100">
                   Abbrechen
                 </button>
