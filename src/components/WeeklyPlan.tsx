@@ -1004,7 +1004,22 @@ export default function WeeklyPlan() {
         const numericIdx = parseInt(idx, 10);
         if (isNaN(numericIdx)) return;
         
-        const item = plan[tag][idx];
+        const storedItem = plan[tag][idx];
+        if (!storedItem) return;
+
+        const lessonItems = storedItem.halves?.enabled
+          ? [storedItem.halves.first, storedItem.halves.second]
+              .filter(Boolean)
+              .map((half: any) => ({
+                ...storedItem,
+                fach: half.fach || '',
+                thema: half.thema || '',
+                reflexion: '',
+                schwerpunkte: half.unterbereich ? [half.unterbereich] : [],
+              }))
+          : [storedItem];
+
+        lessonItems.forEach((item: any) => {
         if (!item || (!item.fach && !item.thema)) return;
         
         const fach = item.fach || '';
@@ -1014,7 +1029,7 @@ export default function WeeklyPlan() {
         
         const schwerpunkte = item.schwerpunkte || [];
         
-        if (isDeutsch(fach) || schwerpunkte.some((s: string) => isDeutsch(s))) {
+        if (isDeutsch(fach) || schwerpunkte.some((s: string) => isDeutsch(s) || isDeutschSubSubject(s))) {
           let matchedDeutsch = false;
           const hasRS = schwerpunkte.includes('Deutsch (Rechtschreibung)') || fach.toLowerCase().includes('rechtschreib') || fach.toLowerCase().includes('rs') || fach.toLowerCase() === 'rs';
           const hasSP = schwerpunkte.includes('Deutsch (Sprachbetrachtung)') || schwerpunkte.includes('Deutsch (Sprache)') || fach.toLowerCase().includes('sprachbetracht') || fach.toLowerCase() === 'sp';
@@ -1076,6 +1091,7 @@ export default function WeeklyPlan() {
           const entryStr = fach ? `${fach}: ${textToPush}` : textToPush;
           data['Besondere Vorkommnisse'].push(entryStr);
         }
+        });
       });
     });
     
