@@ -3,6 +3,8 @@ import { useApp } from '../context/AppContext';
 import { Mic, X, Save, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { askAI } from '../services/aiService';
+import { logObservation } from '../lib/utils';
+import type { AppNote } from '../types';
 
 export default function VoiceNote() {
   const { app, setApp } = useApp();
@@ -11,7 +13,7 @@ export default function VoiceNote() {
   const [interimTranscript, setInterimTranscript] = useState('');
   const [error, setError] = useState('');
   const [isProcessingAI, setIsProcessingAI] = useState(false);
-  const [category, setCategory] = useState('Unterricht');
+  const [category, setCategory] = useState<AppNote['kategorie']>('Notiz');
   
   const recognitionRef = useRef<any>(null);
   
@@ -101,14 +103,27 @@ export default function VoiceNote() {
   };
 
   const saveNote = () => {
-    if (!transcript.trim()) return;
+    const cleanedTranscript = transcript.trim();
+    if (!cleanedTranscript) return;
+
+    // Every saved voice note becomes a normal central note as well.
+    // stimmNotizen stays as the legacy/audio transcript archive.
+    logObservation(
+      setApp,
+      targetStudentId,
+      cleanedTranscript,
+      category,
+      'Sprachnotiz / Transkription',
+    );
+
     const newNote = {
       id: 'voice-' + Date.now(),
       datum: new Date().toISOString(),
       dauer: 0,
-      transkription: transcript.trim(),
+      transkription: cleanedTranscript,
       kategorie: category,
-      schuelerId: targetStudentId
+      schuelerId: targetStudentId,
+      gespeichertAls: 'Notizen-Hauptbereich'
     };
     
     setApp(prev => ({
@@ -117,15 +132,17 @@ export default function VoiceNote() {
       stimmNotizModal: false
     }));
     
-    // reset
     setTranscript('');
-    setCategory('Unterricht');
+    setInterimTranscript('');
+    setCategory('Notiz');
   };
 
   const close = () => {
     if (isRecording) recognitionRef.current?.stop();
     setApp(prev => ({ ...prev, stimmNotizModal: false }));
     setTranscript('');
+    setInterimTranscript('');
+    setCategory('Notiz');
     setError('');
   };
 
@@ -141,7 +158,7 @@ export default function VoiceNote() {
       >
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h2 className="text-[1.25rem] leading-normal font-black text-slate-900">Sprachnotiz aufnehmen</h2>
+            <h2 className="text-[1.25rem] leading-normal font-black text-slate-900">Notiz diktieren</h2>
             {targetStudentId && (
               <p className="text-[0.6875rem] uppercase tracking-widest font-bold text-slate-400 mt-1">Für Schüler:in</p>
             )}
@@ -183,7 +200,7 @@ export default function VoiceNote() {
              <textarea 
                value={transcript + (isRecording ? interimTranscript : '')}
                onChange={(e) => setTranscript(e.target.value)}
-               placeholder="Transkription erscheint hier..."
+               placeholder="Transkription erscheint hier und kann vor dem Speichern korrigiert werden..."
                className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-[0.875rem] leading-snug text-slate-700 resize-none focus:outline-none focus:ring-2 focus:ring-slate-900/20"
                disabled={isRecording}
              />
@@ -207,10 +224,11 @@ export default function VoiceNote() {
                  onChange={e => setCategory(e.target.value)}
                  className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-[0.875rem] leading-snug font-bold text-slate-700 focus:outline-none"
                >
-                 <option value="Unterricht">Unterricht</option>
-                 <option value="Kind">Kind</option>
-                 <option value="Eltern">Eltern</option>
-                 <option value="Sonstiges">Sonstiges</option>
+                 <option value="Notiz">Notiz</option>
+                 <option value="Verhalten">Beobachtung / Verhalten</option>
+                 <option value="Erfolg">Erfolg / Stärke</option>
+                 <option value="Eltern">Elternkontakt</option>
+                 <option value="Journal">Klassenjournal</option>
                </select>
              </div>
              <button 
