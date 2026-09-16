@@ -1,6 +1,6 @@
 # KLASSIO – Source of Truth
 
-Stand: 2026-09-15
+Stand: 2026-09-16
 
 ## Verbindliche Quelle
 
@@ -277,6 +277,16 @@ Aktueller Fortschritt:
 - PR #85 trennt das persönliche Klassio-E-Mail-Konto von einer verifizierten Schulidentität. Private E-Mail-Adressen dürfen Klassio verwenden; schulinterne Funktionen bleiben an eine bestätigte Schule gebunden.
 - PR #86 führt ein österreichweites serverseitiges Schulregister ein: stabile Schul-ID, Schulname, exakte Schul-Domain und Bundesland. `vobs.at` ist nur Bildungsanbieter und niemals automatisch eine gemeinsame Schule; `vsfoa.vobs.at` ist der erste verifizierte Seed. Neue Schulen aus allen Bundesländern können eine Verifizierungsanfrage stellen und werden erst nach administrativer Freigabe für das Lehrerzimmer aktiviert.
 - Diese drei PRs bleiben Draft, bis der jeweilige Preview-Commit die vollständigen Tests/Builds und die reale Staging-Browserabnahme bestanden hat. Erst danach wird die Reconciliation-Kette konsolidiert und PR #5 nach `main` gemergt.
+
+## Aktive Integrationskette am 16.09.2026
+
+Die laufende UX-/Funktionsintegration liegt aktuell auf `feature/usability-widgets-tools-notes` (PR #94 gegen `main`). Der darauf aufgebaute Teamteaching-Block liegt in `feature/teamteaching-shared-classes` (PR #96). `main` bleibt bis zur vollständigen Integrations- und öffentlichen Staging-Abnahme unverändert verbindliche Produktionsbasis; neue Arbeit wird weiterhin ausschließlich von einem live geprüften GitHub-HEAD abgezweigt.
+
+Teamteaching / gemeinsame Klassen ist technisch umgesetzt und automatisiert im echten Chrome mit zwei getrennten Schulmail-Konten geprüft. Der Test verwendet zwei getrennte Browserprofile, zwei getrennte lokale Tresore und Geräteschlüssel sowie echte sechsstellige E-Mail-Einmalcodes über einen lokalen SMTP-Testempfänger. Lehrkraft A legt eine Klasse über die reale UI an und aktiviert die verschlüsselte Freigabe; Lehrkraft B wird als Editor hinzugefügt, übernimmt und entschlüsselt die Klasse lokal, schreibt eine neue verschlüsselte Revision; Lehrkraft A lädt diese Revision anschließend wieder. Die Serverpersistenz wurde zusätzlich darauf geprüft, dass der Klassensnapshot verschlüsselt gespeichert wird und keine Klassen-/Schüler-Klartextfelder enthält. Feature Validation #1124 und Teamteaching Browser E2E #13/#14 waren grün.
+
+Der Browsercheck hat außerdem einen echten Post-Login-Navigationsfehler gefunden und behoben: das erzwungene Landing auf `Heute` galt zuvor für die komplette Sitzung und blockierte nachfolgende Navigation. Seit Commit `50ffcfff86c66d58f76c18b1843f5388809ab97c` wird das Dashboard nur beim ersten authentifizierten Render erzwungen; ein Regressionstest sichert dies ab.
+
+Noch offen bleibt die öffentliche Abnahme auf `staging.klassio.at` mit realem SMTP/World4You und anschließend der vollständige Gesamt-Walkthrough des integrierten Stands. Der grüne CI-Chrome-Lauf ersetzt diese öffentliche Staging-Abnahme ausdrücklich nicht.
 
 ## Pflicht für jeden neuen Chat
 
