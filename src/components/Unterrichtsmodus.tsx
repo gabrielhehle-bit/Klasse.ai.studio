@@ -2907,6 +2907,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isMoreOptionsMenuOpen, setIsMoreOptionsMenuOpen] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
+  const [vorlagenStartTab, setVorlagenStartTab] = useState<"browse" | "create">("browse");
   const [activeWidgetCategory, setActiveWidgetCategory] =
     useState<string>("all");
   const [widgetSearch, setWidgetSearch] = useState<string>("");
@@ -3617,8 +3618,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
           hasBeenOpened: true, // Mark it as opened!
           x: isWhiteboard ? 0 : useOld ? w.x : isMaxWidget ? 0 : finalX,
           y: isWhiteboard ? 0 : useOld ? w.y : isMaxWidget ? 0 : finalY,
-          w: isWhiteboard ? 100 : useOld ? w.w : def?.w || w.w,
-          h: isWhiteboard ? 100 : useOld ? w.h : def?.h || w.h,
+          w: isWhiteboard ? 100 : useOld ? w.w : Math.min(def?.w || w.w, 46),
+          h: isWhiteboard ? 100 : useOld ? w.h : Math.min(def?.h || w.h, 46),
           settings: isWhiteboard
             ? {
                 ...(w.settings || {}),
@@ -3666,8 +3667,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       const r = Math.floor(idx / cols);
       const c = idx % cols;
 
-      const targetW = w.w;
-      const targetH = w.h;
+      // "Automatisch anordnen" darf bewusst auch die Fenstergröße harmonisieren:
+      // vier Widgets passen damit als echtes 2×2-Raster auf die Arbeitsfläche.
+      const targetW = Math.min(w.w, Math.max(18, cellW - 3));
+      const targetH = Math.min(w.h, Math.max(18, cellH - 3));
       let targetX = padding + c * cellW + (cellW - targetW) / 2;
       let targetY = padding + r * cellH + (cellH - targetH) / 2;
 
@@ -3678,6 +3681,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         ...w,
         x: targetX,
         y: targetY,
+        w: targetW,
+        h: targetH,
       };
     });
 
@@ -3692,7 +3697,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const handleClearAllWidgets = () => {
     const visibleCount = cockpitWidgets.filter((w) => w.visible).length;
     if (visibleCount === 0) {
-      showToast("Es sind keine Unterrichtshilfen geöffnet.", "info");
+      showToast("Es sind keine Widgets geöffnet.", "info");
       return;
     }
     const cleared = cockpitWidgets.map((w) => ({ ...w, visible: false }));
@@ -3701,7 +3706,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       ...p,
       cockpitLayout: cleared,
     }));
-    showToast("Alle Unterrichtshilfen wurden geschlossen.", "info");
+    showToast("Alle Widgets wurden geschlossen.", "info");
   };
 
   const handleCloseWidget = (id: string, type: string) => {
@@ -8056,10 +8061,10 @@ ${content}
                                 setIsAddWidgetMenuOpen(!isAddWidgetMenuOpen)
                               }
                               className="min-h-11 px-4 rounded-xl font-semibold text-sm flex items-center gap-1.5 transition-all shadow-sm cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white"
-                              title="Unterrichtshilfe auf die gemeinsame Fläche legen"
+                              title="Widget auf die gemeinsame Fläche legen"
                             >
                               <Plus size={13} strokeWidth={2.5} />
-                              <span>Unterrichtshilfe hinzufügen</span>
+                              <span>Widget hinzufügen</span>
                             </button>
 
                             {isAddWidgetMenuOpen && (
@@ -8073,13 +8078,13 @@ ${content}
                                 <div className="flex flex-col sm:flex-row gap-2 justify-between items-center px-1">
                                   <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5 self-start sm:self-auto">
                                     <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                                    Unterrichtshilfe auswählen
+                                    Widget auswählen
                                   </div>
                                   {/* Responsive search bar to quickly find widgets */}
                                   <div className="relative w-full sm:w-80 shrink-0">
                                     <input
                                       type="text"
-                                      aria-label="Unterrichtshilfe suchen" placeholder="Was brauchst du? Zum Beispiel Timer …"
+                                      aria-label="Widget suchen" placeholder="Was brauchst du? Zum Beispiel Timer …"
                                       value={widgetSearch}
                                       onChange={(e) =>
                                         setWidgetSearch(e.target.value)
@@ -9296,6 +9301,24 @@ ${content}
                             )}
                           </div>
 
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setVorlagenStartTab("create");
+                              setIsVorlagenModalOpen(true);
+                            }}
+                            className={`min-h-11 px-3 rounded-xl border text-sm font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                              currentIsLight
+                                ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                                : "bg-zinc-900 border-white/10 text-white/80 hover:bg-zinc-800"
+                            }`}
+                            title="Aktuelles Widget-Layout als neue Vorlage speichern"
+                          >
+                            <Save size={13} />
+                            <span className="hidden md:inline">Vorlage erstellen</span>
+                            <span className="md:hidden">Vorlage</span>
+                          </button>
+
                           <div className="hidden sm:flex items-center px-3 text-xs font-semibold text-slate-500">
                             Weiße Smartboard-Fläche
                           </div>
@@ -9347,6 +9370,7 @@ ${content}
                                 <button
                                   type="button"
                                   onClick={() => {
+                                    setVorlagenStartTab("browse");
                                     setIsVorlagenModalOpen(true);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
@@ -9496,7 +9520,7 @@ ${content}
                                   className="w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold text-rose-500 hover:bg-rose-500/10 flex items-center gap-2 text-left transition-colors cursor-pointer"
                                 >
                                   <Trash2 size={12} className="shrink-0" />
-                                  <span>Alle Unterrichtshilfen schließen</span>
+                                  <span>Alle Widgets schließen</span>
                                 </button>
                                 <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
                                 <div className="px-2 pt-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
@@ -18286,6 +18310,7 @@ ${content}
       {/* Cockpit Vorlagen Modal */}
       <CockpitVorlagenModal
         isOpen={isVorlagenModalOpen}
+        initialTab={vorlagenStartTab}
         onClose={() => setIsVorlagenModalOpen(false)}
         cockpitWidgets={cockpitWidgets}
         workspaceProfiles={app.workspaceProfiles || []}
