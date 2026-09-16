@@ -29,6 +29,7 @@ interface WorkspaceProfile {
 
 interface CockpitVorlagenModalProps {
   isOpen: boolean;
+  initialTab?: "browse" | "create";
   onClose: () => void;
   cockpitWidgets: CockpitWidgetConfig[];
   workspaceProfiles: WorkspaceProfile[];
@@ -113,6 +114,7 @@ const EMOJI_OPTIONS = [
 
 export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
   isOpen,
+  initialTab = "browse",
   onClose,
   cockpitWidgets,
   workspaceProfiles,
@@ -130,6 +132,10 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<"browse" | "create">("browse");
   const [selectedCategory, setSelectedCategory] = useState("all");
+
+  React.useEffect(() => {
+    if (isOpen) setActiveTab(initialTab);
+  }, [isOpen, initialTab]);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Create Form State
