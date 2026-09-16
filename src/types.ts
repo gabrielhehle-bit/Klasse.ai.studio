@@ -1437,6 +1437,7 @@ export interface AppState {
     hueMode?: 'document' | 'grade';
     disabledModules?: string[];
     sidebarOrder?: string[];
+    sidebarPinned?: string[];
     klassenglasIcon?: string;
     behaviorStartDate?: string;
     enableKlimaBehaviorIntegration?: boolean;
