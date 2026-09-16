@@ -112,6 +112,13 @@ export async function listTeamTeachingColleagues(): Promise<TeamTeachingColleagu
   return (data.users || []).filter(user => user.userId !== me.user.userId);
 }
 
+export async function listTeamTeachingSchoolUsers(): Promise<TeamTeachingColleague[]> {
+  await ensureRegisteredTeamTeachingDevice();
+  const data = await fetch('/api/teamteaching/colleagues', { cache: 'no-store' })
+    .then(readJson<{ users: TeamTeachingColleague[] }>);
+  return data.users || [];
+}
+
 export async function listSharedClasses(): Promise<SharedClassSummary[]> {
   await ensureRegisteredTeamTeachingDevice();
   const data = await fetch('/api/teamteaching/classes', { cache: 'no-store' })
@@ -260,6 +267,36 @@ export async function addTeamTeachingMember(
       wrappedKeys: Object.fromEntries(wrappedEntries),
     }),
   }).then(readJson<{ class: SharedClassSummary }>);
+  return data.class;
+}
+
+export async function refreshTeamTeachingMemberDevices(
+  sharedClassId: string,
+  target: TeamTeachingColleague,
+): Promise<SharedClassSummary> {
+  if (!target.devices.length) {
+    throw new Error(target.displayName + ' hat noch kein registriertes Klassio-Gerät.');
+  }
+
+  const { device } = await ensureRegisteredTeamTeachingDevice();
+  const detail = await getSharedClassDetail(sharedClassId);
+  const classKey = await classKeyForDetail(detail, device);
+
+  const wrappedEntries = await Promise.all(
+    target.devices.map(async targetDevice => [
+      targetDevice.deviceId,
+      await wrapClassKeyForPublicKey(classKey, targetDevice.publicKeyJwk),
+    ] as const),
+  );
+
+  const data = await fetch(
+    '/api/teamteaching/classes/' + encodeURIComponent(sharedClassId) + '/members/' + encodeURIComponent(target.userId) + '/keys',
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wrappedKeys: Object.fromEntries(wrappedEntries) }),
+    },
+  ).then(readJson<{ class: SharedClassSummary }>);
   return data.class;
 }
 
