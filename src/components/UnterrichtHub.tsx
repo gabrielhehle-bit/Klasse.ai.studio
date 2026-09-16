@@ -22,7 +22,7 @@ export default function UnterrichtHub() {
           Unterrichten, zeigen, festhalten
         </h1>
         <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-[var(--text2)]">
-          Das Lehrercockpit bleibt dein zentraler Unterrichtsraum. Ergänzende Werkzeuge sind hier gesammelt, statt in der Navigation verstreut zu sein.
+          Das Lehrercockpit bleibt dein zentraler Unterrichtsraum. Häufige Unterrichtswerkzeuge sind hier weiterhin direkt erreichbar; die vollständige Werkzeugsammlung findest du zusätzlich im Bereich Tools.
         </p>
       </header>
 
