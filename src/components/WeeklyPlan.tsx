@@ -14,6 +14,8 @@ import { generateWochenplanTemplate, WochenplanImportRow } from '../lib/planerEx
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots } from '../lib/weeklyPlanData';
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
+import { getAttendanceSemester } from '../lib/attendanceData';
+import { downloadKlassenbuchDocx } from '../lib/klassenbuchDocx';
 
 const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> = {
   'Deutsch': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -946,6 +948,7 @@ export default function WeeklyPlan() {
       'Mathematik - Größen': [],
       'Mathematik - Operationen': [],
       'Mathematik - Nicht zugeordnet': [],
+      'Förderung (FÖ)': [],
       'Sachunterricht': [],
       'BSP': [],
       'Werken': [],
@@ -955,151 +958,127 @@ export default function WeeklyPlan() {
       'Religion': [],
       'Besondere Vorkommnisse': []
     };
-    
-    const plan = (app.wochenplanung || {})[targetKW];
-    if (!plan) return data;
 
-    // Robust subject match helpers for Austrian/VS abbreviations (case-insensitive)
+    const weekPlan = (app.wochenplanung || {})[targetKW];
+    if (!weekPlan) return data;
+
+    const norm = (value: string) => (value || '').trim().toLocaleLowerCase('de-AT');
     const isDeutsch = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'd' || norm === 'de' || norm === 'deutsch' || norm.includes('deutsch');
+      const value = norm(f);
+      return value === 'd' || value === 'de' || value === 'deutsch' || value.includes('deutsch');
     };
     const isMathe = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'm' || norm === 'ma' || norm === 'mathe' || norm === 'mathematik' || norm.includes('mathe') || norm.includes('rechnen');
+      const value = norm(f);
+      return value === 'm' || value === 'ma' || value === 'mathe' || value === 'mathematik' || value.includes('mathe') || value.includes('rechnen');
     };
     const isSU = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'su' || norm === 'sachunterricht' || norm.includes('sach') || norm.includes('su');
+      const value = norm(f);
+      return value === 'su' || value === 'sachunterricht' || value.includes('sach');
     };
     const isBSP = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'bsp' || norm === 'bs' || norm === 'b&s' || norm === 'sport' || norm === 'turnen' || norm.includes('sport') || norm.includes('turnen') || norm.includes('bewegung') || norm.includes('bsp');
+      const value = norm(f);
+      return value === 'bsp' || value === 'bs' || value === 'b&s' || value === 'sport' || value === 'turnen' || value.includes('sport') || value.includes('turnen') || value.includes('bewegung');
     };
     const isWerken = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'we' || norm === 'tew' || norm === 'txw' || norm === 'werken' || norm.includes('werk') || norm.includes('technisch') || norm.includes('textil');
+      const value = norm(f);
+      return value === 'we' || value === 'tew' || value === 'txw' || value === 'werken' || value.includes('werk') || value.includes('technisch') || value.includes('textil');
     };
     const isMusik = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'me' || norm === 'mu' || norm === 'musik' || norm === 'musikerziehung' || norm.includes('musik') || norm.includes('singen');
+      const value = norm(f);
+      return value === 'me' || value === 'mu' || value === 'musik' || value === 'musikerziehung' || value.includes('musik') || value.includes('singen');
     };
     const isEnglisch = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'e' || norm === 'eng' || norm === 'englisch' || norm.includes('engl') || norm.includes('english');
+      const value = norm(f);
+      return value === 'e' || value === 'eng' || value === 'englisch' || value.includes('engl') || value.includes('english');
     };
     const isZeichnen = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'be' || norm === 'ze' || norm === 'zeichnen' || norm === 'bildnerische' || norm.includes('zeichn') || norm.includes('kunst') || norm.includes('bildnerisch');
+      const value = norm(f);
+      return value === 'be' || value === 'ze' || value === 'zeichnen' || value === 'bildnerische' || value.includes('zeichn') || value.includes('kunst') || value.includes('bildnerisch');
     };
     const isReligion = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'r' || norm === 'rel' || norm === 'religion' || norm.includes('rel') || norm.includes('religion');
+      const value = norm(f);
+      return value === 'r' || value === 'rel' || value === 'religion' || value.includes('religion');
     };
-    
-    Object.keys(plan).forEach(tag => {
+    const isFoerderung = (f: string) => {
+      const value = norm(f).replace(/\s+/g, '');
+      return value === 'fö' || value === 'foe' || value === 'förderung' || value === 'foerderung' || value.includes('(förderung)') || value.includes('(foerderung)');
+    };
+
+    const pushEntry = (fachRaw: string, themaRaw: string, schwerpunkteRaw: string[] = [], prefix = '') => {
+      const fach = fachRaw || '';
+      const schwerpunkte = Array.isArray(schwerpunkteRaw) ? schwerpunkteRaw.filter(Boolean) : [];
+      const thema = String(themaRaw || '').trim();
+      if (!fach && !thema) return;
+      const textToPush = `${prefix}${thema || fach}`.trim();
+
+      if (isDeutsch(fach) || schwerpunkte.some(isDeutsch)) {
+        let matchedDeutsch = false;
+        const fachLower = norm(fach);
+        const focus = schwerpunkte.map(norm);
+        const hasRS = focus.some(value => value.includes('rechtschreib')) || fachLower.includes('rechtschreib') || fachLower === 'rs';
+        const hasSP = focus.some(value => value.includes('sprachbetracht') || value === 'deutsch (sprache)') || fachLower.includes('sprachbetracht') || fachLower === 'sp';
+        const hasSH = focus.some(value => value.includes('sprechen & hören') || value.includes('sprechen und hören')) || fachLower.includes('sprechen & hören') || fachLower.includes('sprechen und hören');
+        const hasVT = focus.some(value => value.includes('verfassen') || value.includes('texte')) || fachLower.includes('verfassen') || fachLower.includes('aufsatz') || fachLower === 'vt';
+        const hasL = focus.some(value => value.includes('lesen')) || fachLower.includes('lesen') || fachLower === 'l';
+        const hasDFO = fachLower.includes('d-fö') || fachLower.includes('d-fö') || focus.some(value => value.includes('deutsch (förderung)') || value === 'förderung' || value === 'd-fö');
+
+        if (hasRS) { data['Deutsch - Rechtschreiben'].push(textToPush); matchedDeutsch = true; }
+        if (hasSP) { data['Deutsch - Sprachbetrachtung'].push(textToPush); matchedDeutsch = true; }
+        if (hasSH) { data['Deutsch - Sprechen & Hören'].push(textToPush); matchedDeutsch = true; }
+        if (hasVT) { data['Deutsch - Texte verfassen'].push(textToPush); matchedDeutsch = true; }
+        if (hasL) { data['Deutsch - Lesen'].push(textToPush); matchedDeutsch = true; }
+        if (hasDFO) { data['Deutsch - D-FÖ'].push(textToPush); matchedDeutsch = true; }
+        if (!matchedDeutsch) data['Deutsch - Sprachbetrachtung'].push(textToPush);
+        return;
+      }
+
+      if (isMathe(fach) || schwerpunkte.some(value => isMathe(value) || isMatheSubSubject(value))) {
+        const focus = [fach, ...schwerpunkte].map(norm);
+        if (focus.some(value => value.includes('ebene & raum'))) data['Mathematik - Ebene & Raum'].push(textToPush);
+        else if (focus.some(value => value.includes('zahlen & daten'))) data['Mathematik - Zahlen & Daten'].push(textToPush);
+        else if (focus.some(value => value.includes('größen') || value.includes('groessen'))) data['Mathematik - Größen'].push(textToPush);
+        else if (focus.some(value => value.includes('operationen'))) data['Mathematik - Operationen'].push(textToPush);
+        else data['Mathematik - Nicht zugeordnet'].push(textToPush);
+        return;
+      }
+
+      if (isFoerderung(fach) || schwerpunkte.some(isFoerderung)) data['Förderung (FÖ)'].push(textToPush);
+      else if (isSU(fach)) data['Sachunterricht'].push(textToPush);
+      else if (isBSP(fach)) data['BSP'].push(textToPush);
+      else if (isWerken(fach)) data['Werken'].push(textToPush);
+      else if (isMusik(fach)) data['Musik'].push(textToPush);
+      else if (isEnglisch(fach)) data['Englisch'].push(textToPush);
+      else if (isZeichnen(fach)) data['Zeichnen'].push(textToPush);
+      else if (isReligion(fach)) data['Religion'].push(textToPush);
+      else data['Besondere Vorkommnisse'].push(fach ? `${fach}: ${textToPush}` : textToPush);
+    };
+
+    Object.keys(weekPlan).forEach(tag => {
       if (!['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].includes(tag)) return;
-      
-      Object.keys(plan[tag] || {}).forEach(idx => {
+      Object.keys(weekPlan[tag] || {}).forEach(idx => {
         const numericIdx = parseInt(idx, 10);
-        if (isNaN(numericIdx)) return;
-        
-        const storedItem = plan[tag][idx];
-        if (!storedItem) return;
+        if (!Number.isInteger(numericIdx)) return;
+        const item = weekPlan[tag][idx];
+        if (!item) return;
 
-        const lessonItems = storedItem.halves?.enabled
-          ? [storedItem.halves.first, storedItem.halves.second]
-              .filter(Boolean)
-              .map((half: any) => ({
-                ...storedItem,
-                fach: half.fach || '',
-                thema: half.thema || '',
-                reflexion: '',
-                schwerpunkte: half.unterbereich ? [half.unterbereich] : [],
-              }))
-          : [storedItem];
-
-        lessonItems.forEach((item: any) => {
-        if (!item || (!item.fach && !item.thema)) return;
-        
-        const fach = item.fach || '';
-        const thema = [item.thema, item.reflexion].filter(Boolean).join(' - ');
-        if (!thema && !fach) return;
-        const textToPush = thema || fach;
-        
-        const schwerpunkte = item.schwerpunkte || [];
-        
-        if (isDeutsch(fach) || schwerpunkte.some((s: string) => isDeutsch(s) || isDeutschSubSubject(s))) {
-          let matchedDeutsch = false;
-          const hasRS = schwerpunkte.includes('Deutsch (Rechtschreibung)') || fach.toLowerCase().includes('rechtschreib') || fach.toLowerCase().includes('rs') || fach.toLowerCase() === 'rs';
-          const hasSP = schwerpunkte.includes('Deutsch (Sprachbetrachtung)') || schwerpunkte.includes('Deutsch (Sprache)') || fach.toLowerCase().includes('sprachbetracht') || fach.toLowerCase() === 'sp';
-          const hasSH = schwerpunkte.includes('Deutsch (Sprechen & Hören)') || fach.toLowerCase().includes('sprechen & hören') || fach.toLowerCase().includes('sprechen und hören');
-          const hasVT = schwerpunkte.includes('Deutsch (Verfassen von Texten)') || fach.toLowerCase().includes('verfassen') || fach.toLowerCase().includes('texte') || fach.toLowerCase().includes('aufsatz') || fach.toLowerCase().includes('vt') || fach.toLowerCase() === 'vt';
-          const hasL  = schwerpunkte.includes('Deutsch (Lesen)') || fach.toLowerCase().includes('lesen') || fach.toLowerCase().includes('l') || fach.toLowerCase() === 'l';
-          const hasFO = fach.includes('D-FÖ') || fach.toLowerCase() === 'd-fö' || fach.includes('Förder') || schwerpunkte.includes('Förderung') || schwerpunkte.includes('Deutsch (Förderung)') || fach.toLowerCase() === 'd- fö';
-
-          if (hasRS) {
-             data['Deutsch - Rechtschreiben'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasSP) {
-             data['Deutsch - Sprachbetrachtung'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasSH) {
-             data['Deutsch - Sprechen & Hören'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasVT) {
-             data['Deutsch - Texte verfassen'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasL) {
-             data['Deutsch - Lesen'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasFO) {
-             data['Deutsch - D-FÖ'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          
-          if (!matchedDeutsch) {
-             data['Deutsch - Sprachbetrachtung'].push(textToPush);
-          }
-        } else if (isMathe(fach) || schwerpunkte.some((s: string) => isMathe(s) || isMatheSubSubject(s))) {
-          const mathFocus = [fach, ...schwerpunkte].map((value: string) => value.toLocaleLowerCase('de-AT'));
-          if (mathFocus.some((value: string) => value.includes('ebene & raum'))) data['Mathematik - Ebene & Raum'].push(textToPush);
-          else if (mathFocus.some((value: string) => value.includes('zahlen & daten'))) data['Mathematik - Zahlen & Daten'].push(textToPush);
-          else if (mathFocus.some((value: string) => value.includes('größen') || value.includes('groessen'))) data['Mathematik - Größen'].push(textToPush);
-          else if (mathFocus.some((value: string) => value.includes('operationen'))) data['Mathematik - Operationen'].push(textToPush);
-          else data['Mathematik - Nicht zugeordnet'].push(textToPush);
-        } else if (isSU(fach)) {
-          data['Sachunterricht'].push(textToPush);
-        } else if (isBSP(fach)) {
-          data['BSP'].push(textToPush);
-        } else if (isWerken(fach)) {
-          data['Werken'].push(textToPush);
-        } else if (isMusik(fach)) {
-          data['Musik'].push(textToPush);
-        } else if (isEnglisch(fach)) {
-          data['Englisch'].push(textToPush);
-        } else if (isZeichnen(fach)) {
-          data['Zeichnen'].push(textToPush);
-        } else if (isReligion(fach)) {
-          data['Religion'].push(textToPush);
-        } else {
-          const entryStr = fach ? `${fach}: ${textToPush}` : textToPush;
-          data['Besondere Vorkommnisse'].push(entryStr);
+        if (item.halves?.enabled) {
+          const first = item.halves.first || {};
+          const second = item.halves.second || {};
+          pushEntry(first.fach || item.fach || '', first.thema || '', first.unterbereich ? [first.unterbereich] : [], '1. Hälfte: ');
+          pushEntry(second.fach || item.fach || '', second.thema || '', second.unterbereich ? [second.unterbereich] : [], '2. Hälfte: ');
+          if (item.reflexion) data['Besondere Vorkommnisse'].push(`${tag}, ${numericIdx + 1}. Stunde – Reflexion: ${item.reflexion}`);
+          return;
         }
-        });
+
+        const thema = [item.thema, item.reflexion].filter(Boolean).join(' - ');
+        pushEntry(item.fach || '', thema, item.schwerpunkte || []);
       });
     });
-    
-    // Clean and unique values per subject
+
     Object.keys(data).forEach(key => {
-      data[key] = Array.from(new Set(data[key].map(str => str.trim()).filter(Boolean)));
+      data[key] = Array.from(new Set(data[key].map(value => value.trim()).filter(Boolean)));
     });
-    
+
     return data;
   };
 
