@@ -614,7 +614,7 @@ export default function StudentList() {
                                 )}
                              </div>
                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[0.5625rem] font-bold uppercase text-slate-500 bg-slate-100/80 px-1.5 py-0.5 rounded border border-slate-200/50">Stufe {s.niveau || 3}</span>
+                                <span className="text-[0.5625rem] font-bold uppercase text-slate-500 bg-slate-100/80 px-1.5 py-0.5 rounded border border-slate-200/50">Niveau {s.niveau || 3}</span>
                                 {s.ikmNummer && (
                                   <span className="text-[0.5625rem] font-black text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shadow-3xs">
                                     #{s.ikmNummer}
@@ -1262,7 +1262,7 @@ export default function StudentList() {
                  }`}>
                     <span>{s.besuchsjahr ? `${s.besuchsjahr}. Jahr` : 'Neu'}</span>
                     <span className="opacity-20">•</span>
-                    <span className="px-1 py-0.2 rounded bg-slate-50 border border-slate-150 text-slate-600 text-[0.52rem] font-bold">Stufe {s.niveau || 3}</span>
+                    <span className="px-1 py-0.2 rounded bg-slate-50 border border-slate-150 text-slate-600 text-[0.52rem] font-bold">Niveau {s.niveau || 3}</span>
                  </div>
                 <div className="mt-1 inline-flex self-start rounded-md bg-slate-50 px-1.5 py-0.5 text-[0.625rem] font-bold text-slate-500 border border-slate-100">
                   Geschlecht: {getStudentGenderLabel(s.geschlecht)}
