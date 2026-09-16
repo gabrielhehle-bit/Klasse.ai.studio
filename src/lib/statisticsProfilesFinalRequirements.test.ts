@@ -75,11 +75,15 @@ test('statistics: cohort comparison only uses stored classes', () => {
 });
 
 test('statistics profile records participate in class projection and switching', () => {
-  for (const field of ['elterngespraeche', 'kelGespraeche', 'portfolioEntries', 'kiPortfolioSummaries', 'oberauData']) {
+  for (const field of ['elterngespraeche', 'portfolioEntries', 'kiPortfolioSummaries', 'oberauData']) {
     assert.match(appState, new RegExp(`${field}: state\\.${field}`));
     assert.match(appState, new RegExp(`parsed\\.${field} = activeClass\\.${field}`));
     assert.match(appState, new RegExp(`${field}: targetClass\\.${field}`));
   }
+
+  assert.match(appState, /kelGespraeche: state\.kelGespraeche/);
+  assert.match(appState, /parsed\.kelGespraeche = normalizeKelMeetings\([\s\S]*activeClass\.kelGespraeche/);
+  assert.match(appState, /kelGespraeche: normalizeKelMeetings\([\s\S]*targetClass\.kelGespraeche/);
 });
 
 test('teacher profile contains only real editable profile, planning and self-care surfaces', () => {
