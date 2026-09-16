@@ -173,13 +173,20 @@ export function logActivity(setApp: any, action: string, entityType: string, ent
   });
 }
 
-export function logObservation(setApp: any, studentId: string | undefined, text: string, kategorie: any = 'Journal', source: string = 'Direkteingabe') {
+export function logObservation(
+  setApp: any,
+  studentId: string | undefined,
+  text: string,
+  kategorie: any = 'Journal',
+  source: string = 'Direkteingabe',
+  dateOverride?: string,
+) {
   if (!text || text.trim() === '') return;
   setApp((prev: any) => {
     const newEntry = {
       id: Math.random().toString(36).substr(2, 9),
       schuelerId: studentId,
-      datum: new Date().toISOString(),
+      datum: dateOverride || new Date().toISOString(),
       inhalt: text.trim(),
       kategorie,
       quelle: source,
