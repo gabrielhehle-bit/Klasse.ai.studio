@@ -55,10 +55,17 @@ export default function KlasseHub() {
   const dailyItems: HubItem[] = [
     {
       id: 'schueler',
-      title: 'Kinder & Dossiers',
-      description: 'Stammdaten, Dossiers, Kontakte und individuelle Informationen.',
+      title: 'Klassenliste',
+      description: 'Kinder, Stammdaten und Klassenübersicht direkt verwalten.',
       icon: Users,
       meta: `${students.length} Kinder`,
+    },
+    {
+      id: 'dossier',
+      title: 'Schülerdossier',
+      description: 'Ein Kind auswählen und direkt das vollständige Dossier öffnen.',
+      icon: Users,
+      meta: `${students.length} Dossiers`,
     },
     {
       id: 'anwesenheit',
