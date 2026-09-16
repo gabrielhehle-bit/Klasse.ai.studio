@@ -2903,8 +2903,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   );
   const [isBoardWriting, setIsBoardWriting] = useState(false);
   useEffect(() => { setIsBoardWriting(false); }, [app.activeClassId]);
-  const [isLayoutLocked, setIsLayoutLocked] = useState(true);
-  const isLayoutEditing = !isLayoutLocked;
+  // Widgets bleiben immer frei verschiebbar. So muss im Unterricht kein
+  // separater Layout-Modus ein- oder ausgeschaltet werden.
+  const isLayoutLocked = false;
+  const isLayoutEditing = true;
   const [isMoreOptionsMenuOpen, setIsMoreOptionsMenuOpen] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
@@ -9299,7 +9301,7 @@ ${content}
                           </div>
 
                           <button type="button" aria-pressed={isBoardWriting}
-                            onClick={() => { setIsBoardWriting(value => !value); setIsLayoutLocked(true); }}
+                            onClick={() => { setIsBoardWriting(value => !value); }}
                             className={`min-h-11 px-4 rounded-xl text-sm font-semibold border ${isBoardWriting ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'}`}>
                             {isBoardWriting ? 'Widgets bedienen' : 'Schreiben & Zeichnen'}
                           </button>
@@ -9381,29 +9383,14 @@ ${content}
                                   <span>Layouts & Schnell-Slots</span>
                                 </button>
 
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setIsBoardWriting(false);
-                                    setIsLayoutLocked((prev) => !prev);
-                                    setIsMoreOptionsMenuOpen(false);
-                                  }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
-                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
+                                <div
+                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left ${
+                                    currentIsLight ? "text-slate-600" : "text-white/70"
                                   }`}
                                 >
-                                  {isLayoutLocked ? (
-                                    <>
-                                      <Unlock size={12} className="text-emerald-500 shrink-0" />
-                                      <span>Anordnung ändern</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Lock size={12} className="text-amber-500 shrink-0" />
-                                      <span>Anordnung fertig</span>
-                                    </>
-                                  )}
-                                </button>
+                                  <Unlock size={12} className="text-emerald-500 shrink-0" />
+                                  <span>Widgets immer verschiebbar</span>
+                                </div>
 
                                 <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
                                 <div className="px-2 pt-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
