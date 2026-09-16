@@ -9,7 +9,7 @@ import {
   Calendar, CalendarDays, ClipboardList, Mail, Wallet, 
   FileEdit, Notebook, CheckSquare, Play, LineChart, Table, Folder, 
   Target, Replace, Archive, Bot, ChevronLeft, ChevronRight, Database, LayoutGrid,
-  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X
+  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical
 } from 'lucide-react';
 import { Button, IconButton, Badge, Chip } from './ui';
 
@@ -37,6 +37,19 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const [showCustomizeModal, setShowCustomizeModal] = React.useState(false);
 
   const disabledModules = app?.settings?.disabledModules || [];
+
+  const sidebarOrder = app?.settings?.sidebarOrder || [];
+  const [draggedModuleId, setDraggedModuleId] = React.useState<string | null>(null);
+
+  const orderSidebarItems = React.useCallback((items: any[]) => {
+    const index = new Map(sidebarOrder.map((id: string, position: number) => [id, position]));
+    return [...items].sort((a, b) => {
+      const aPos = index.has(a.id) ? index.get(a.id)! : Number.MAX_SAFE_INTEGER;
+      const bPos = index.has(b.id) ? index.get(b.id)! : Number.MAX_SAFE_INTEGER;
+      return aPos - bPos;
+    });
+  }, [sidebarOrder]);
+
 
   const ALL_MODULES = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} />, section: 'Unterricht' },
@@ -102,8 +115,36 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
 
   const navItems = rawNavItems.map(sec => ({
     ...sec,
-    items: sec.items.filter(item => !disabledModules.includes(item.id))
+    items: orderSidebarItems(sec.items).filter(item => !disabledModules.includes(item.id))
   })).filter(sec => sec.items.length > 0);
+
+  const moveSidebarModule = React.useCallback((draggedId: string, targetId: string) => {
+    if (!draggedId || draggedId === targetId) return;
+    const dragged = ALL_MODULES.find(item => item.id === draggedId);
+    const target = ALL_MODULES.find(item => item.id === targetId);
+    if (!dragged || !target || dragged.section !== target.section) return;
+
+    setApp(prev => {
+      const allIds = ALL_MODULES.map(item => item.id);
+      const saved = prev.settings?.sidebarOrder || [];
+      const current = [
+        ...saved.filter((id: string) => allIds.includes(id)),
+        ...allIds.filter(id => !saved.includes(id)),
+      ];
+      const withoutDragged = current.filter(id => id !== draggedId);
+      const targetIndex = withoutDragged.indexOf(targetId);
+      withoutDragged.splice(targetIndex < 0 ? withoutDragged.length : targetIndex, 0, draggedId);
+
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          sidebarOrder: withoutDragged,
+        },
+      };
+    });
+  }, [setApp]);
+
 
   const { switchClass, addClass } = useApp();
 
@@ -322,7 +363,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                   📋 Seitenleiste anpassen
                 </h3>
                 <p className="text-[0.6875rem] text-text-muted leading-relaxed font-medium">
-                  Schalte einzelne Werkzeuge aus oder ein, um das Klassio exakt auf deine Bedürfnisse abzustimmen.
+                  Blende Werkzeuge ein oder aus und ziehe sie innerhalb eines Bereichs in deine persönliche Reihenfolge.
                 </p>
               </div>
               <button
@@ -336,7 +377,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             {/* List with Groups */}
             <div className="flex-1 overflow-y-auto p-6 space-y-5">
               {['Unterricht', 'Werkzeuge', 'Planung', 'Extras'].map(section => {
-                const sectItems = ALL_MODULES.filter(m => m.section === section);
+                const sectItems = orderSidebarItems(ALL_MODULES.filter(m => m.section === section));
                 return (
                   <div key={section} className="space-y-2">
                     <h4 className="text-[0.5625rem] font-black uppercase tracking-wider text-text-muted">
@@ -348,13 +389,34 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                         return (
                           <label
                             key={item.id}
-                            className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
+                            draggable
+                            onDragStart={(event) => {
+                              setDraggedModuleId(item.id);
+                              event.dataTransfer.effectAllowed = 'move';
+                              event.dataTransfer.setData('text/plain', item.id);
+                            }}
+                            onDragEnd={() => setDraggedModuleId(null)}
+                            onDragOver={(event) => {
+                              const dragged = ALL_MODULES.find(module => module.id === draggedModuleId);
+                              if (dragged?.section === item.section) {
+                                event.preventDefault();
+                                event.dataTransfer.dropEffect = 'move';
+                              }
+                            }}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              const draggedId = draggedModuleId || event.dataTransfer.getData('text/plain');
+                              moveSidebarModule(draggedId, item.id);
+                              setDraggedModuleId(null);
+                            }}
+                            className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-grab active:cursor-grabbing ${draggedModuleId === item.id ? 'opacity-50 ring-2 ring-accent/30' : ''} ${
                               !isHidden
                                 ? 'bg-surface2 border-border text-text-primary font-bold'
                                 : 'bg-surface border-border/40 text-text-muted font-medium'
                             }`}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
+                              <GripVertical size={14} className="text-text-muted/70 shrink-0" aria-hidden="true" />
                               <span className={!isHidden ? 'text-accent' : 'text-text-muted/60'}>
                                 {item.icon}
                               </span>
