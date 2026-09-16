@@ -25,7 +25,8 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
   { id: 'differenzierung', label: 'Differenzierung', desc: 'Unterricht differenziert vorbereiten', category: 'Unterricht' },
   { id: 'elternbrief', label: 'Elternbrief', desc: 'Elterninformationen und Briefe erstellen', category: 'Unterricht' },
 
-  { id: 'schueler', label: 'Kinder & Dossiers', desc: 'Schülerliste, Dossiers und Stammdaten', category: 'Klasse & Kinder' },
+  { id: 'schueler', label: 'Klassenliste', desc: 'Kinder, Stammdaten und Klassenübersicht', category: 'Klasse & Kinder' },
+  { id: 'dossier', label: 'Schülerdossier', desc: 'Individuelle Dossiers, Entwicklung und Stammdaten', category: 'Klasse & Kinder' },
   { id: 'sitzplan', label: 'Sitzplan & Gruppen', desc: 'Sitzordnung und Gruppen organisieren', category: 'Klasse & Kinder' },
   { id: 'anwesenheit', label: 'Anwesenheit & Befinden', desc: 'Präsenz, Befinden und Tagesstatus erfassen', category: 'Klasse & Kinder' },
   { id: 'verhalten', label: 'Notizen', desc: 'Alle Klassen- und Schülernotizen zentral erfassen und durchsuchen', category: 'Start' },
