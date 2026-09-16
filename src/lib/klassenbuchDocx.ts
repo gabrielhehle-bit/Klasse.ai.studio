@@ -80,7 +80,7 @@ export function buildKlassenbuchDocumentXml(options: KlassenbuchDocxOptions): st
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body.join('')}</w:body></w:document>`;
 }
 
-export async function createKlassenbuchDocxBlob(options: KlassenbuchDocxOptions): Promise<Blob> {
+function buildKlassenbuchZip(options: KlassenbuchDocxOptions): JSZip {
   const zip = new JSZip();
 
   zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -109,11 +109,21 @@ export async function createKlassenbuchDocxBlob(options: KlassenbuchDocxOptions)
   </w:docDefaults>
 </w:styles>`);
 
-  return zip.generateAsync({
-    type: 'blob',
-    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  return zip;
+}
+
+export async function createKlassenbuchDocxBytes(options: KlassenbuchDocxOptions): Promise<Uint8Array> {
+  return buildKlassenbuchZip(options).generateAsync({
+    type: 'uint8array',
     compression: 'DEFLATE',
     compressionOptions: { level: 6 },
+  });
+}
+
+export async function createKlassenbuchDocxBlob(options: KlassenbuchDocxOptions): Promise<Blob> {
+  const bytes = await createKlassenbuchDocxBytes(options);
+  return new Blob([bytes], {
+    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
 }
 
