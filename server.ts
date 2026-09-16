@@ -785,6 +785,12 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   });
 
   function isSchoolAdminAuthorized(req: express.Request): boolean {
+    const cookies = parseCookies(req);
+    const account = verifyAccessToken(cookies.lehrerapp_access_token)
+      ? verifyAccountToken(cookies.klassio_email_account)
+      : null;
+    if (account && isSchoolAdminEmail(account.email)) return true;
+
     if (!SCHOOL_ADMIN_TOKEN || SCHOOL_ADMIN_TOKEN.length < 32) return false;
     const header = req.headers.authorization || '';
     const submitted = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
@@ -797,7 +803,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   }
 
   const requireSchoolAdmin: express.RequestHandler = (req, res, next) => {
-    if (!SCHOOL_ADMIN_TOKEN || SCHOOL_ADMIN_TOKEN.length < 32) {
+    const hasEmailAdmin = SCHOOL_ADMIN_EMAILS.length > 0;
+    const hasTokenAdmin = SCHOOL_ADMIN_TOKEN.length >= 32;
+    if (!hasEmailAdmin && !hasTokenAdmin) {
       res.status(503).json({ error: 'Schulverifizierungs-Administration ist auf diesem Server noch nicht konfiguriert.' });
       return;
     }
@@ -807,6 +815,32 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     }
     next();
   };
+
+  app.get('/api/admin/schools/status', requireAccess, (req, res) => {
+    const account = verifyAccountToken(parseCookies(req).klassio_email_account);
+    res.json({
+      admin: Boolean(account && isSchoolAdminEmail(account.email)),
+      email: account?.email || null,
+      notificationsConfigured: Boolean(mailTransporter && SCHOOL_ADMIN_EMAILS.length),
+    });
+  });
+
+  app.get('/api/admin/schools/verification-requests', requireSchoolAdmin, async (_req, res) => {
+    try {
+      const [requests, schools] = await Promise.all([
+        schoolRegistryStore.listVerificationRequests(),
+        schoolRegistryStore.listVerifiedSchools(),
+      ]);
+      res.json({
+        requests,
+        schools,
+        pendingCount: requests.filter(request => request.status === 'pending').length,
+      });
+    } catch (error) {
+      console.error('[Schulverifizierung] Admin-Liste konnte nicht geladen werden:', error);
+      res.status(500).json({ error: 'Die Schulverifizierungen konnten nicht geladen werden.' });
+    }
+  });
 
   app.post('/api/admin/schools/verification-requests/:requestId/approve', requireSchoolAdmin, async (req, res) => {
     try {
