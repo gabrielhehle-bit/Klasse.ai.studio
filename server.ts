@@ -845,7 +845,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   app.post('/api/admin/schools/verification-requests/:requestId/approve', requireSchoolAdmin, async (req, res) => {
     try {
       const result = await schoolRegistryStore.approveRequest(req.params.requestId);
-      res.json(result);
+      const notified = await notifySchoolVerificationResult(result.request, result.school, true);
+      res.json({ ...result, notified });
     } catch (error) {
       if (error instanceof Error && error.message === 'REQUEST_NOT_FOUND') {
         return res.status(404).json({ error: 'Verifizierungsanfrage nicht gefunden.' });
@@ -858,7 +859,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   app.post('/api/admin/schools/verification-requests/:requestId/reject', requireSchoolAdmin, async (req, res) => {
     try {
       const request = await schoolRegistryStore.rejectRequest(req.params.requestId);
-      res.json({ request });
+      const notified = await notifySchoolVerificationResult(request, null, false);
+      res.json({ request, notified });
     } catch (error) {
       if (error instanceof Error && error.message === 'REQUEST_NOT_FOUND') {
         return res.status(404).json({ error: 'Verifizierungsanfrage nicht gefunden.' });
