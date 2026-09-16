@@ -3309,7 +3309,7 @@ export default function WeeklyPlan() {
                                   
                                   const mainFaecher = allCandidates.filter(f => {
                                     if (!f || !f.trim()) return false;
-                                    if (isDeutschSubSubject(f)) return false;
+                                    if (isDeutschSubSubject(f) || isMatheSubSubject(f)) return false;
                                     return true;
                                   });
 
@@ -3326,7 +3326,11 @@ export default function WeeklyPlan() {
 
                                   return mainFaecher.map(f => {
                                     const isDeutsch = f === 'Deutsch';
-                                    const isSelected = searchFach === f || (isDeutsch && (searchFach === 'Deutsch' || searchFach.startsWith('Deutsch') || isDeutschSubSubject(searchFach)));
+                                    const isMathe = f === 'Mathematik';
+                                    const isSelected =
+                                      searchFach === f ||
+                                      (isDeutsch && (searchFach === 'Deutsch' || searchFach.startsWith('Deutsch') || isDeutschSubSubject(searchFach))) ||
+                                      (isMathe && (searchFach === 'Mathematik' || searchFach.startsWith('Mathematik') || isMatheSubSubject(searchFach)));
                                     return (
                                       <button 
                                         key={f} 
@@ -3402,6 +3406,49 @@ export default function WeeklyPlan() {
                                             }`}
                                           >
                                             <SubIcon size={13} className={isSelected ? 'text-white' : 'text-blue-500'} />
+                                            <span>{sub.label}</span>
+                                            {isSelected && <Check size={12} strokeWidth={3} className="ml-0.5 text-white" />}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+
+                              {/* EBENE 2: MATHEMATIK-UNTERBEREICHE */}
+                              <AnimatePresence>
+                                {(searchFach === 'Mathematik' || searchFach.startsWith('Mathematik') || isMatheSubSubject(searchFach)) && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="p-3.5 bg-rose-50/50 border border-rose-100 rounded-2xl space-y-2.5 overflow-hidden"
+                                  >
+                                    <div className="flex items-center gap-1.5 text-[0.6875rem] font-black uppercase text-rose-900 tracking-wider">
+                                      <BookOpen size={13} className="text-rose-600" />
+                                      <span>Mathematik-Unterbereiche / Schwerpunkte</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                      {MATHE_THEMENBEREICHE.map(sub => {
+                                        const isSelected = tempSchwerpunkte.includes(sub.id);
+                                        return (
+                                          <button
+                                            key={sub.id}
+                                            type="button"
+                                            onClick={() => {
+                                              setTempSchwerpunkte(prev =>
+                                                isSelected
+                                                  ? prev.filter(value => value !== sub.id)
+                                                  : [...prev, sub.id]
+                                              );
+                                            }}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border cursor-pointer ${
+                                              isSelected
+                                                ? 'bg-rose-600 text-white border-rose-700 shadow-sm scale-105'
+                                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                                            }`}
+                                          >
                                             <span>{sub.label}</span>
                                             {isSelected && <Check size={12} strokeWidth={3} className="ml-0.5 text-white" />}
                                           </button>
