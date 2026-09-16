@@ -7,7 +7,9 @@ const yearly = fs.readFileSync('src/components/YearlyPlan.tsx', 'utf8');
 const sync = fs.readFileSync('src/lib/planningSync.ts', 'utf8');
 
 test('Wochenplanung: große Arbeitsfläche statt kleinem Scroll-Dialog', () => {
-  assert.match(weekly, /max-w-\[1500px\]/);
+  assert.match(weekly, /w-\[calc\(100vw-1rem\)\]/);
+  assert.match(weekly, /sm:w-\[calc\(100vw-2rem\)\]/);
+  assert.match(weekly, /max-w-none/);
   assert.match(weekly, /h-\[94vh\]/);
   assert.match(weekly, /xl:grid-cols-2/);
   assert.match(weekly, /Einheit planen/);
@@ -25,7 +27,9 @@ test('Jahresplanung: bestehende Planung öffnet Übersicht und großer Editor bl
   assert.match(yearly, /viewingCell/);
   assert.match(yearly, /Jahresplanung · Übersicht/);
   assert.match(yearly, /openYearPlanEditor/);
-  assert.match(yearly, /max-w-\[1400px\]/);
+  assert.match(yearly, /w-\[calc\(100vw-1rem\)\]/);
+  assert.match(yearly, /sm:w-\[calc\(100vw-2rem\)\]/);
+  assert.match(yearly, /max-w-none/);
   assert.match(yearly, /lg:grid-cols-2/);
   assert.match(yearly, /> Bearbeiten/);
 });
