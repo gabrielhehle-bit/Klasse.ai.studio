@@ -39,3 +39,13 @@ test('Sidebar: alte Fokus- und Standard-Presets werden nicht als versteckte Funk
   assert.doesNotMatch(sidebar, />\s*🌱 Fokus\s*</);
   assert.doesNotMatch(sidebar, />\s*🚀 Standard\s*</);
 });
+
+
+test('Sidebar: Bereiche können dauerhaft mit einer Flagge angepinnt werden', () => {
+  assert.match(sidebar, /sidebarPinned/);
+  assert.match(sidebar, /toggleSidebarPin/);
+  assert.match(sidebar, /<Flag/);
+  assert.match(sidebar, /Mit Flagge anpinnen/);
+  assert.match(sidebar, /sidebarPinned: Array\.from\(pinned\)/);
+  assert.match(sidebar, /sidebarPinned: \[\]/);
+});
