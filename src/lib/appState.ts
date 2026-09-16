@@ -310,6 +310,7 @@ export function normalizeAppState(raw: any): AppState {
     diagnosticResults: raw.diagnosticResults ?? [],
     ikmRecords: raw.ikmRecords ?? [],
     antolinRecords: raw.antolinRecords ?? [],
+    studentDevelopmentLists: Array.isArray(raw.studentDevelopmentLists) ? raw.studentDevelopmentLists : [],
     schuelerGoals: raw.schuelerGoals ?? [],
     observations: raw.observations ?? [],
     metaKognitionsProtokolle: raw.metaKognitionsProtokolle ?? [],
