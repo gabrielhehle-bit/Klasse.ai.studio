@@ -1,6 +1,7 @@
 import React from 'react';
 import { CalendarClock, ExternalLink, Heart, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import { cadenceLabel, EMPTY_SUPPORT_INFO, loadSupportInfo, type SupportInfo } from '../../lib/supportApi';
+import PayPalSubscriptionButton from '../PayPalSubscriptionButton';
 
 export default function SupportSettings() {
   const [info, setInfo] = React.useState<SupportInfo>(EMPTY_SUPPORT_INFO);
@@ -23,10 +24,21 @@ export default function SupportSettings() {
     };
   }, []);
 
-  const supportLinks = [
-    { label: 'Einmalig', url: info.paypal.oneTime, icon: Heart },
-    { label: 'Monatlich', url: info.paypal.monthly, icon: CalendarClock },
-    { label: 'Jährlich', url: info.paypal.yearly, icon: Sparkles },
+  const subscriptions = [
+    {
+      label: 'Monatlich',
+      icon: CalendarClock,
+      planId: info.paypal.monthlyPlanId,
+      fallbackUrl: info.paypal.monthly,
+      cadence: 'monthly' as const,
+    },
+    {
+      label: 'Jährlich',
+      icon: Sparkles,
+      planId: info.paypal.yearlyPlanId,
+      fallbackUrl: info.paypal.yearly,
+      cadence: 'yearly' as const,
+    },
   ];
 
   return (
@@ -47,27 +59,51 @@ export default function SupportSettings() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          {supportLinks.map(item => {
-            const Icon = item.icon;
-            return item.url ? (
+        <div className="mt-6 grid gap-3 lg:grid-cols-3">
+          <div className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-black text-slate-800">
+              <Heart size={16} className="text-rose-600" /> Einmalig
+            </div>
+            {info.paypal.oneTime ? (
               <a
-                key={item.label}
-                href={item.url}
+                href={info.paypal.oneTime}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm font-black text-slate-800 transition-colors hover:border-rose-200 hover:bg-rose-50"
+                className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-xs font-black text-rose-600"
               >
-                <span className="flex items-center gap-2"><Icon size={16} className="text-rose-600" />{item.label}</span>
-                <ExternalLink size={13} className="text-slate-400" />
+                PayPal öffnen <ExternalLink size={13} />
               </a>
             ) : (
-              <div
-                key={item.label}
-                className="flex items-center justify-between rounded-2xl border border-dashed border-stone-200 bg-stone-50 px-4 py-3 text-sm font-black text-slate-400"
-              >
-                <span className="flex items-center gap-2"><Icon size={16} />{item.label}</span>
-                <span className="text-[0.58rem] uppercase tracking-wider">noch offen</span>
+              <span className="text-xs font-bold text-slate-400">noch offen</span>
+            )}
+          </div>
+
+          {subscriptions.map(item => {
+            const Icon = item.icon;
+            const canSubscribe = Boolean(info.paypal.clientId && item.planId);
+            return (
+              <div key={item.label} className="rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-black text-slate-800">
+                  <Icon size={16} className="text-rose-600" /> {item.label}
+                </div>
+                {canSubscribe ? (
+                  <PayPalSubscriptionButton
+                    clientId={info.paypal.clientId!}
+                    planId={item.planId!}
+                    cadence={item.cadence}
+                  />
+                ) : item.fallbackUrl ? (
+                  <a
+                    href={item.fallbackUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-xs font-black text-rose-600"
+                  >
+                    PayPal öffnen <ExternalLink size={13} />
+                  </a>
+                ) : (
+                  <span className="text-xs font-bold text-slate-400">noch offen</span>
+                )}
               </div>
             );
           })}
