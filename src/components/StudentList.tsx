@@ -18,7 +18,7 @@ import { EmptyState } from './EmptyState';
 import confetti from 'canvas-confetti';
 import StudentTimeline from './StudentTimeline';
 import { exportSchuelerPDF } from '../lib/exportService';
-import { calculateStudentAge, getStudentComparableName, mergeImportedStudents, parseStudentBirthday, sortStudentsForList, toDateInputValue } from '../lib/studentListData';
+import { calculateStudentAge, getStudentComparableName, getStudentGenderLabel, mergeImportedStudents, normalizeStudentGender, parseStudentBirthday, sortStudentsForList, toDateInputValue } from '../lib/studentListData';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
   const bday = parseStudentBirthday(geburtstagStr);
@@ -141,9 +141,9 @@ export default function StudentList() {
 
   const { maleCount, femaleCount, diverseCount, unknownGenderCount, dazCount, spfCount, espfCount } = useMemo(() => {
     return {
-      maleCount: schueler.filter(s => s.geschlecht === 'männlich').length,
-      femaleCount: schueler.filter(s => s.geschlecht === 'weiblich').length,
-      diverseCount: schueler.filter(s => s.geschlecht === 'divers').length,
+      maleCount: schueler.filter(s => normalizeStudentGender(s.geschlecht) === 'männlich').length,
+      femaleCount: schueler.filter(s => normalizeStudentGender(s.geschlecht) === 'weiblich').length,
+      diverseCount: schueler.filter(s => normalizeStudentGender(s.geschlecht) === 'divers').length,
       unknownGenderCount: schueler.filter(s => !s.geschlecht).length,
       dazCount: schueler.filter(s => s.daz).length,
       spfCount: schueler.filter(s => s.spf).length,
@@ -627,6 +627,10 @@ export default function StudentList() {
 
                     {/* Geburtstag & Religion */}
                     <div className="col-span-1 lg:col-span-3 flex flex-col gap-1 pl-12 lg:pl-0">
+                       <div className="flex items-center gap-1.5 text-slate-600 text-[0.8125rem]">
+                         <span className="text-slate-400 text-[0.9rem]" title="Geschlecht">⚧</span>
+                         <span className="font-semibold text-slate-700">{getStudentGenderLabel(s.geschlecht)}</span>
+                       </div>
                        {s.geburtstag ? (
                          <div className="flex items-center gap-1.5 text-slate-600 text-[0.8125rem]">
                             <span className="text-slate-400 text-[0.9rem]" title="Geburtstag">📅</span>
@@ -1260,6 +1264,9 @@ export default function StudentList() {
                     <span className="opacity-20">•</span>
                     <span className="px-1 py-0.2 rounded bg-slate-50 border border-slate-150 text-slate-600 text-[0.52rem] font-bold">Stufe {s.niveau || 3}</span>
                  </div>
+                <div className="mt-1 inline-flex self-start rounded-md bg-slate-50 px-1.5 py-0.5 text-[0.625rem] font-bold text-slate-500 border border-slate-100">
+                  Geschlecht: {getStudentGenderLabel(s.geschlecht)}
+                </div>
 
                  {/* Wichtige Eigenschaften */}
                  <div className={`mt-2.5 pt-2 border-t border-slate-100/60 flex flex-col ${isCompact ? 'gap-0.5' : 'gap-1'} text-slate-600`}>
