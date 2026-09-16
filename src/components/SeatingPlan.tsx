@@ -331,7 +331,7 @@ const StudentCard = React.memo(({
              <div className="flex flex-col gap-1.5">
                 {/* Status, Level, DaZ/SPF Row */}
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="bg-slate-800 text-slate-300 font-extrabold px-1.5 py-0.5 rounded text-[0.5rem] uppercase tracking-wider">Level {s.niveau}</span>
+                  <span className="bg-slate-800 text-slate-300 font-extrabold px-1.5 py-0.5 rounded text-[0.5rem] uppercase tracking-wider">Niveau {s.niveau}</span>
                   {s.daz && <span className="bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider text-[0.5rem]">DaZ</span>}
                   {(s.spf || s.espf) && <span className="bg-rose-500/20 text-rose-300 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider text-[0.5rem]">SPF</span>}
                   <span className="text-slate-400 ml-auto whitespace-nowrap text-[0.5625rem]">
@@ -2126,6 +2126,8 @@ export default function SeatingPlan() {
       if (s.niveau === 1) return '#ecfdf5'; // Emerald 50
       if (s.niveau === 2) return '#f0f9ff'; // Sky 50
       if (s.niveau === 3) return '#fffbeb'; // Amber 50
+      if (s.niveau === 4) return '#fff7ed'; // Orange 50
+      if (s.niveau === 5) return '#fdf2f8'; // Pink 50
       return '#ffffff';
     }
 
