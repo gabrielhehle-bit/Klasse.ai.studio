@@ -18,10 +18,11 @@ test('Tools: eigener Hauptbereich und Textanalyse sind direkt navigierbar', () =
 });
 
 test('Tools-Hub: bestehende Werkzeuge bleiben zentral erreichbar', () => {
-  for (const id of ['textanalyse', 'arbeitsblatt', 'differenzierung', 'stationenbetrieb', 'stimmnotizen', 'ki-helfer', 'drucken']) {
+  for (const id of ['textanalyse', 'arbeitsblatt', 'differenzierung', 'stationenbetrieb', 'ki-helfer', 'drucken']) {
     assert.match(hub, new RegExp(`id: '${id}'`));
   }
   assert.match(hub, /Bestehende Funktionen bleiben weiterhin auch in ihren Fachbereichen erreichbar/);
+  assert.doesNotMatch(hub, /id: 'stimmnotizen'/);
 });
 
 test('Textanalyse: läuft lokal ohne KI- oder Serveraufruf', () => {
