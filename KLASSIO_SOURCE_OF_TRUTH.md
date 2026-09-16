@@ -8,7 +8,7 @@ Die einzige verbindliche Entwicklungsquelle für Klassio ist:
 
 - Repository: `gabrielhehle-bit/Klasse.ai.studio`
 - Produktionsbranch: `main`
-- aktueller integrierter `main`-Stand nach PR #103: `46e4044c947d54a2ef914793725f7bbb2dacb1c7`
+- letzter vollständig geprüfter und integrierter Produktcode-Stand (PR #103): `46e4044c947d54a2ef914793725f7bbb2dacb1c7`; der aktuelle `main`-HEAD ist vor jeder neuen Arbeit zusätzlich live zu prüfen
 - neue Arbeit ausschließlich in einem frischen Branch vom aktuellen `main` und anschließend per Pull Request zurück nach `main`
 
 `main` enthält die vollständige integrierte App und ist die einzige Entwicklungsgrundlage. Frühere Reconciliation-, Feature-, Fix- oder ZIP-Stände sind niemals Ausgangspunkt für neue Arbeit.
