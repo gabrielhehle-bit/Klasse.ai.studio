@@ -8,14 +8,53 @@ Die einzige verbindliche Entwicklungsquelle für Klassio ist:
 
 - Repository: `gabrielhehle-bit/Klasse.ai.studio`
 - Produktionsbranch: `main`
-- Integrations-/Reconciliation-Branch bis zur Freigabe: `reconcile/klassio-source-of-truth`
-- finaler Integrations-PR: `#5` (`reconcile/klassio-source-of-truth` → `main`)
+- aktueller integrierter `main`-Stand nach PR #101: `095bf18209d0b5bbf83814591188c6018044719f`
+- neue Arbeit ausschließlich in einem frischen Branch vom aktuellen `main` und anschließend per Pull Request zurück nach `main`
 
-ZIP-Dateien sind ausschließlich Backup- oder Release-Artefakte. Sie sind niemals Entwicklungsgrundlage. Vor jeder Änderung müssen GitHub-`main`-HEAD, Branches, offene Pull Requests und diese beiden Projektdateien geprüft werden.
+`main` enthält die vollständige integrierte App und ist die einzige Entwicklungsgrundlage. Frühere Reconciliation-, Feature-, Fix- oder ZIP-Stände sind niemals Ausgangspunkt für neue Arbeit.
 
-## Aktueller Reconciliation-Status
+ZIP-Dateien sind ausschließlich Backup- oder Release-Artefakte. Sie sind niemals Entwicklungsgrundlage. Vor jeder Änderung müssen GitHub-`main`-HEAD, bestehende Branches, offene Pull Requests und diese beiden Projektdateien geprüft werden.
 
-`main` ist noch nicht der vollständige reconciliierte Stand. Der vollständige Abschlussstand liegt bis zur Staging-Freigabe auf `reconcile/klassio-source-of-truth`.
+## Aktueller verbindlicher Stand
+
+Die Reconciliation ist abgeschlossen. Aussagen weiter unten zu einem noch ausstehenden Merge von `reconcile/klassio-source-of-truth`, PR #5 oder einem zwingenden Staging-Merge sind historisch und **nicht mehr handlungsleitend**.
+
+Aktuell integriert in `main`:
+
+- produktionskritische Backup-, Konto-, Teamteaching- und Diktatkorrekturen aus PR #100
+- E-Mail-Einmalcode-Login innerhalb der laufenden App
+- Teamteaching direkt erreichbar
+- Stimmnotizen unter `Notizen → Diktieren`
+- Schulregister mit exakter Schul-Domain und allen neun österreichischen Bundesländern
+- PR #101: Schulverifizierung direkt in `Einstellungen → Konto & Schulmail`, automatische Admin-Benachrichtigung, geschützte Schulverwaltung mit Freigeben/Ablehnen und automatische Aktivierung der Schulidentität nach Freigabe
+- bestehende lokale Klassen, Planungen, Noten und Tresordaten werden durch E-Mail-/Schul-Onboarding nicht zurückgesetzt oder neu angelegt
+
+Letzter vollständig geprüfter Feature-Commit vor dem Merge von PR #101: `14802453536e9f0a8e9d051f0d3be1b57e57c8df`.
+
+Prüfnachweise für PR #101:
+
+- TypeScript: grün
+- automatisierte Tests: **1120 bestanden, 0 fehlgeschlagen**
+- Produktions-Build: grün
+- bestehender Zwei-Konto-Teamteaching-Chrome-E2E: grün
+- neuer realer Chrome-E2E für Schulverifizierung: grün; geprüft wurden E-Mail-Login, vorhandene Klasse vor Verifizierung, Antrag einer unbekannten Schule, Admin-Mail, Admin-Freigabe, automatische Schulidentität und Erhalt der bereits eingerichteten Klasse
+
+## Produktions- und Deploymentstatus
+
+Produktivsystem ist der World4You-Linux-vServer mit Nginx und systemd:
+
+- Domain: `klassio.at`
+- Dienst: `klassio.service`
+- App: `127.0.0.1:3100`
+- Releasebasis: `/srv/klassio/releases/`
+- aktiv: `/srv/klassio/current`
+- vorherige Version: `/srv/klassio/previous`
+- Health: `/api/health`
+- SMTP-Login ist in der Produktionsumgebung konfiguriert; Secrets bleiben ausschließlich in der Server-Umgebung und niemals im Repository.
+
+Der zuletzt vor PR #101 bestätigte Produktionsstand war `a5df9e26b3b75f279932d2771f259f24dfc14321`. Für jedes weitere Deployment muss unmittelbar davor der aktuelle GitHub-`main`-HEAD erneut geprüft und exakt dieser Commit ausgerollt werden.
+
+## Historischer Reconciliation-Verlauf – nur Historie
 
 Der frühere Abschlussbranch `fix/reconciliation-finalization` wurde vollständig in den Reconciliation-Branch übernommen. Zusätzlich wurde eine commitgebundene World4You-Release-Pipeline ergänzt. Am 14.09.2026 wurde PR #6 (`fix/cockpit-final-requirements`) in den Reconciliation-Branch integriert. Damit sind die final abgestimmten Lehrercockpit-Anforderungen technisch umgesetzt: freie weiße Fläche ohne Startkarte, gemeinsame Schreib-/Widgetfläche, getrenntes Löschen von Schrift und Zeichnung, verständliche Kategorien, vollständiger 108/108-Widgetkatalog, eigene Favoriten, A/B/C-Schnelllayouts, Archivzugang zu alten Tafelinhalten sowie reaktivierte historische Mathematik-Widgets.
 
