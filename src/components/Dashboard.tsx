@@ -4334,6 +4334,10 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
   const visibleLayout = getVisibleLayout();
 
   const [showBackupBanner, setShowBackupBanner] = useState(() => {
+    // Die erste Einführung soll ruhig bleiben. Eine Sicherungserinnerung
+    // erscheint nicht gleichzeitig mit dem First-Run-Onboarding.
+    if (app?.firstLogin) return false;
+
     // If backup reminders are disabled in settings, do not show the banner
     if (app?.settings?.disableBackupReminders) return false;
 
@@ -4425,9 +4429,9 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between gap-4 relative z-[5000] pointer-events-auto shadow-sm mb-4"
+            className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-20 pointer-events-auto shadow-sm mb-4"
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="bg-emerald-500/20 p-2 rounded-xl text-emerald-400">
                 <Save size={20} />
               </div>
@@ -4442,7 +4446,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 sm:justify-end">
               <button
                 type="button"
                 onClick={(e) => {
