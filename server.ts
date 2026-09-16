@@ -731,6 +731,13 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       const account = getEmailAccount(req);
       const domain = account.email.split('@')[1] || '';
       const school = await schoolRegistryStore.findVerifiedSchoolByEmail(account.email);
+      if (school) {
+        const identity = createTeacherIdentityForSchool(account.email, school);
+        if (identity) {
+          setEmailIdentitySession(req, res, identity);
+          await lehrerzimmerStore.ensureUser(identity);
+        }
+      }
       const requests = await schoolRegistryStore.listRequestsForDomain(domain);
       const pending = requests.find(request => request.status === 'pending') || null;
       res.json({
