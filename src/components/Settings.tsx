@@ -19,6 +19,7 @@ import SyncSettings from './settings/SyncSettings';
 import BackupSettings from './settings/BackupSettings';
 import AdvancedSettings from './settings/AdvancedSettings';
 import SupportSettings from './settings/SupportSettings';
+import AccountSettings from './settings/AccountSettings';
 import DeleteClassModal from './settings/DeleteClassModal';
 import { AVAILABLE_MODULES } from '../lib/settingsModuleCatalog';
 
@@ -295,6 +296,10 @@ export default function Settings() {
               hasActiveSync={hasActiveSync}
               hasDemoData={hatBeispieldaten}
             />
+          )}
+
+          {activeCategory === 'account' && (
+            <AccountSettings />
           )}
 
           {activeCategory === 'general' && (
