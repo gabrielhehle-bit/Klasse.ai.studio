@@ -15,6 +15,8 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
   { id: 'planung', label: 'Planung', desc: 'Zentrale Übersicht für Wochen-, Jahres- und Materialplanung', category: 'Start' },
   { id: 'leistungen', label: 'Leistungen', desc: 'Zentrale Übersicht für Noten, Diagnostik und Lernentwicklung', category: 'Start' },
   { id: 'unterricht', label: 'Unterricht', desc: 'Zentrale Übersicht für Cockpit und Unterrichtswerkzeuge', category: 'Start' },
+  { id: 'tools', label: 'Tools', desc: 'Zentrale Sammlung kleiner Werkzeuge für den Lehreralltag', category: 'Start' },
+  { id: 'textanalyse', label: 'Textanalyse', desc: 'Lesbarkeit und formale Textschwierigkeit lokal analysieren', category: 'Tools' },
 
   { id: 'cockpit', label: 'Lehrercockpit', desc: 'Weiße Smartboard-Fläche mit frei platzierbaren Widgets', category: 'Unterricht' },
   { id: 'ki-helfer', label: 'KI-Helfer', desc: 'KI-Werkzeuge für Planung, Differenzierung und Texte', category: 'Unterricht' },
