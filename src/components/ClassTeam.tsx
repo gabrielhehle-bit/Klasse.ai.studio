@@ -18,7 +18,7 @@ import {
   type SharedClassSummary,
   type TeamTeachingColleague,
 } from '../lib/teamTeachingService';
-import { classRoomFingerprint } from '../lib/teamTeachingCrypto';
+import { classRoomFingerprint, classRoomWithoutTeamMetadata } from '../lib/teamTeachingCrypto';
 import type { ClassRoom } from '../types';
 
 function replaceOrAddRoom(prev: any, room: ClassRoom) {
@@ -110,8 +110,36 @@ export default function ClassTeam() {
     setError(null);
     try {
       const { room } = await pullSharedClass(activeSharedId);
-      setApp(prev => replaceOrAddRoom(prev, room));
-      setNotice('Neuester verschlüsselter Stand wurde geladen.');
+      const preserveConflictCopy = activeRoom?.teamTeaching?.syncStatus === 'conflict';
+
+      setApp(prev => {
+        const current = syncActiveClass(prev);
+        let classes = [...(current.classes || [])];
+
+        if (preserveConflictCopy) {
+          const currentLocal = classes.find(candidate => candidate.id === activeRoom?.id);
+          if (currentLocal) {
+            const localCopy = classRoomWithoutTeamMetadata(currentLocal);
+            classes.push({
+              ...localCopy,
+              id: localCopy.id + '-conflict-' + Date.now().toString(36),
+              name: localCopy.name + ' – Konfliktkopie',
+            });
+          }
+        }
+
+        const remoteIndex = classes.findIndex(candidate => candidate.id === room.id);
+        if (remoteIndex >= 0) classes[remoteIndex] = room;
+        else classes.push(room);
+
+        return switchClassState({ ...current, classes, activeClassId: undefined }, room.id);
+      });
+
+      setNotice(
+        preserveConflictCopy
+          ? 'Neuester Teamstand geladen. Deine vorherigen lokalen Änderungen wurden zusätzlich als „Konfliktkopie“ behalten.'
+          : 'Neuester verschlüsselter Stand wurde geladen.'
+      );
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Synchronisieren fehlgeschlagen.');
@@ -269,6 +297,30 @@ export default function ClassTeam() {
                 ? `Teamteaching aktiv · Rolle: ${activeRoom.teamTeaching.role}`
                 : 'Noch nicht für gemeinsame Bearbeitung freigegeben.'}
             </p>
+            {activeRoom?.teamTeaching?.syncStatus && (
+              <div className={`mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ${
+                activeRoom.teamTeaching.syncStatus === 'conflict'
+                  ? 'bg-amber-500/15 text-amber-700'
+                  : activeRoom.teamTeaching.syncStatus === 'error'
+                    ? 'bg-rose-500/15 text-rose-700'
+                    : activeRoom.teamTeaching.syncStatus === 'syncing'
+                      ? 'bg-blue-500/15 text-blue-700'
+                      : 'bg-emerald-500/15 text-emerald-700'
+              }`}>
+                {activeRoom.teamTeaching.syncStatus === 'conflict'
+                  ? 'Konflikt – lokale Arbeit bleibt erhalten'
+                  : activeRoom.teamTeaching.syncStatus === 'error'
+                    ? 'Synchronisierung prüfen'
+                    : activeRoom.teamTeaching.syncStatus === 'syncing'
+                      ? 'Wird verschlüsselt synchronisiert …'
+                      : 'Synchronisiert'}
+              </div>
+            )}
+            {activeRoom?.teamTeaching?.syncMessage && (
+              <p className="mt-2 max-w-2xl text-xs leading-5 text-[var(--text2)]">
+                {activeRoom.teamTeaching.syncMessage}
+              </p>
+            )}
           </div>
           {!activeRoom?.teamTeaching ? (
             <button onClick={enableSharing} disabled={!activeRoom || busy === 'enable'} className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">
