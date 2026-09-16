@@ -2486,7 +2486,7 @@ export default function LiveDiagnostik() {
                 <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600"><Award size={24} /></div>
                 <div>
                   <h4 className="text-[1.125rem] leading-normal font-black text-slate-900 leading-tight">Auswertung des Live-Lesechecks (Klasse {currentGrade})</h4>
-                  <p className="text-[0.75rem] leading-tight text-slate-400 font-black uppercase tracking-wider">Pädagogische Kennzahlen und Förderempfehlung nach Bildungsstandards</p>
+                  <p className="text-[0.75rem] leading-tight text-slate-400 font-black uppercase tracking-wider">Lernverlaufsbeobachtung: Tempo, Genauigkeit, Textstelle und Prosodie</p>
                 </div>
               </div>
 
@@ -2545,7 +2545,7 @@ export default function LiveDiagnostik() {
               <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-200/60 flex items-start gap-4">
                 <Lightbulb size={24} className="text-amber-500 flex-shrink-0 mt-1" />
                 <div className="space-y-4 flex-1">
-                  <h5 className="text-[0.875rem] leading-snug font-black text-slate-800">Kompetenzdiagnose & Förderempfehlung</h5>
+                  <h5 className="text-[0.875rem] leading-snug font-black text-slate-800">Einordnung der Lernverlaufsbeobachtung</h5>
                   <div className="text-[0.75rem] leading-tight text-slate-600 leading-relaxed font-sans">
                     <div className="space-y-2">
                       <p>
@@ -2560,6 +2560,8 @@ export default function LiveDiagnostik() {
                         Wiederhole denselben Ablauf zu mehreren Zeitpunkten mit vergleichbar schwierigen Texten, um die Entwicklung zu beurteilen.
                       </p>
                     </div>
+                  </div>
+
                   {/* Lehrperson Kommentar */}
                   <div className="space-y-2">
                     <label className="block text-[0.625rem] font-extrabold uppercase text-slate-400">Eigene Beobachtungsnotiz hinzufügen</label>
