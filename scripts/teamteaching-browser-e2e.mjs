@@ -326,8 +326,7 @@ async function main() {
     console.log('✓ Lehrkraft B: separate school-mail login and vault/device identity ready');
 
     // Remount A's team page so the newly registered colleague/device appears.
-    await clickSidebar(anna, 'Klasse');
-    await clickButton(anna, 'Klassenteam');
+    await openClassTeam(anna);
     await waitFor(anna, 'second teacher appears', 'document.body?.innerText.toLowerCase().includes("berta")', 30000);
     await clickButton(anna, 'Berta');
     await waitFor(anna, 'second teacher added', 'document.body?.innerText.includes("wurde als Teamlehrkraft hinzugefügt") || document.body?.innerText.includes("2 Lehrperson")', 30000);
