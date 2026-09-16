@@ -956,6 +956,8 @@ export interface ClassRoom {
     revision: number;
     lastSyncedHash?: string;
     lastSyncedAt?: string;
+    syncStatus?: 'idle' | 'syncing' | 'synced' | 'conflict' | 'error';
+    syncMessage?: string;
   };
   /** Class-local detailed assessments; same shape as the active-class projection. */
   saAssessments?: AppState['saAssessments'];
