@@ -250,7 +250,7 @@ async function loginWithSchoolMail(client, email, password) {
   await waitFor(client, 'email login field', 'Boolean(document.querySelector("input[type=email]"))', 30000);
   await setInputByLabel(client, 'E-Mail', email);
   await clickButton(client, 'Anmeldecode senden');
-  await waitFor(client, 'six digit login code field', 'document.body?.innerText.includes("6-stelliger Anmeldecode")', 20000);
+  await waitFor(client, 'six digit login code field', 'document.body?.innerText.toLowerCase().includes("6-stelliger anmeldcode")', 20000);
   const code = await waitForMailCode(email);
   await setInputByLabel(client, '6-stelliger Anmeldecode', code);
   await clickButton(client, 'Klassio öffnen');
