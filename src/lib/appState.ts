@@ -853,7 +853,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     elterngespraeche: targetClass.elterngespraeche ? JSON.parse(JSON.stringify(targetClass.elterngespraeche)) : [],
     kelGespraeche: normalizeKelMeetings(
       targetClass.kelGespraeche,
-      targetClass.schuljahr || state.schuljahr || getCurrentSchuljahr(),
+      targetClass.schuljahr || prev.schuljahr || getCurrentSchuljahr(),
     ),
     portfolioEntries: targetClass.portfolioEntries ? JSON.parse(JSON.stringify(targetClass.portfolioEntries)) : {},
     kiPortfolioSummaries: targetClass.kiPortfolioSummaries ? JSON.parse(JSON.stringify(targetClass.kiPortfolioSummaries)) : {},
