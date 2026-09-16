@@ -1084,6 +1084,76 @@ export default function WeeklyPlan() {
 
   const getKlassenbuchData = () => getKlassenbuchDataForKW(activeKW);
 
+  const exportKlassenbuchDocx = async (range: 'week' | 'month' | 'semester' | 'schoolyear') => {
+    const allWeeks = buildSchoolYearWeekList(app.schuljahr, app.bundesland || 'VBG');
+    const activeSemester = getAttendanceSemester(
+      formatLocalDateKey(monday),
+      app.schuljahr || '',
+      app.bundesland || 'VBG',
+    );
+
+    let selectedWeeks = allWeeks.filter(week => week.kw === activeKW);
+    let rangeLabel = `KW ${activeKW}`;
+
+    if (range === 'month') {
+      selectedWeeks = allWeeks.filter(week =>
+        week.monday.getFullYear() === monday.getFullYear() &&
+        week.monday.getMonth() === monday.getMonth()
+      );
+      rangeLabel = monday.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
+    } else if (range === 'semester') {
+      selectedWeeks = allWeeks.filter(week =>
+        getAttendanceSemester(
+          formatLocalDateKey(week.monday),
+          app.schuljahr || '',
+          app.bundesland || 'VBG',
+        ) === activeSemester
+      );
+      rangeLabel = `${activeSemester}. Semester`;
+    } else if (range === 'schoolyear') {
+      selectedWeeks = allWeeks;
+      rangeLabel = `Schuljahr ${app.schuljahr || ''}`.trim();
+    }
+
+    const weeksWithContent = selectedWeeks.filter(week => Boolean((app.wochenplanung || {})[week.kw]));
+    const weeksToExport = weeksWithContent.length > 0
+      ? weeksWithContent
+      : selectedWeeks.slice(0, 1);
+
+    const sections = weeksToExport.map(week => {
+      const weekFriday = new Date(week.monday);
+      weekFriday.setDate(week.monday.getDate() + 4);
+      const from = week.monday.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const to = weekFriday.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      return {
+        title: `KW ${week.kw} · ${from} – ${to}`,
+        subtitle: week.sw ? `Schulwoche ${week.sw}` : undefined,
+        categories: getKlassenbuchDataForKW(week.kw),
+      };
+    });
+
+    const teacherName = [app.anrede, app.vorname, app.nachname].filter(Boolean).join(' ');
+    const safeRange = rangeLabel
+      .normalize('NFKD')
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    const safeClass = (app.klassenbezeichnung || 'Klasse')
+      .normalize('NFKD')
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+
+    await downloadKlassenbuchDocx(
+      `Klassio_Klassenbuch_${safeClass}_${safeRange || 'Export'}.docx`,
+      {
+        title: `Klassenbuch · ${rangeLabel}`,
+        className: app.klassenbezeichnung || '',
+        schoolYear: app.schuljahr || '',
+        teacherName,
+        sections,
+      },
+    );
+  };
+
   const hasFreeDayInWeek = useMemo(() => {
     return [0, 1, 2, 3, 4].some(i => {
       const date = new Date(monday);
