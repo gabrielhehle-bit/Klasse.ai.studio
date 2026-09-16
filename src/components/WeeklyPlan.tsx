@@ -11,6 +11,7 @@ import { LehrplanZuordnung } from '../types';
 import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
 import WochenplanExcelModal from './WochenplanExcelModal';
 import { generateWochenplanTemplate, WochenplanImportRow } from '../lib/planerExcelService';
+import { addWeeklyLessonToEmptyYearPlan, hasWeeklyPlanningDetails } from '../lib/planningSync';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots } from '../lib/weeklyPlanData';
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
@@ -241,6 +242,8 @@ export default function WeeklyPlan() {
   };
 
   const [editingCell, setEditingCell] = useState<{ tag: string, idx: number } | null>(null);
+  const [viewingCell, setViewingCell] = useState<{ tag: string, idx: number } | null>(null);
+  const [yearPlanSyncNotice, setYearPlanSyncNotice] = useState<string | null>(null);
   const [editingZeitunabhaengig, setEditingZeitunabhaengig] = useState<{ tag: string; item?: any } | null>(null);
   const [tempZeitThema, setTempZeitThema] = useState('');
   const [tempZeitType, setTempZeitType] = useState<'event' | 'test' | 'konferenz' | 'spielefest' | 'gespraech' | 'sonstiges' | 'sa' | 'lzk' | 'standard'>('sonstiges');
@@ -1373,6 +1376,54 @@ export default function WeeklyPlan() {
     // Auto-enable sync if part of the sync set
     const syncSet = app.wochenplanSyncSet || [];
     setSyncWpSubjects(syncSet.length > 0 && syncSet.includes(normalizedFach));
+  };
+
+  const openWeeklyCell = (tag: string, idx: number) => {
+    const current = plan[tag]?.[idx] || {};
+    if (hasWeeklyPlanningDetails(current)) {
+      setYearPlanSyncNotice(null);
+      setViewingCell({ tag, idx });
+      return;
+    }
+    handleEditCell(tag, idx);
+  };
+
+  const addWeeklyLessonToYearPlan = (tag: string, idx: number) => {
+    const lesson = plan[tag]?.[idx] || {};
+    const fallbackSubject = app.stammplan?.[tag]?.[idx + 1] || '';
+    const availableSubjects = sortYearlySubjects(app.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS);
+    const result = addWeeklyLessonToEmptyYearPlan({
+      existingPlan: app.jahresplanung || {},
+      kw: activeKW,
+      lesson,
+      fallbackSubject,
+      availableSubjects,
+    });
+
+    if (result.status === 'added') {
+      setApp(prev => {
+        const safeResult = addWeeklyLessonToEmptyYearPlan({
+          existingPlan: prev.jahresplanung || {},
+          kw: activeKW,
+          lesson,
+          fallbackSubject,
+          availableSubjects: sortYearlySubjects(prev.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS),
+        });
+        return safeResult.status === 'added'
+          ? { ...prev, jahresplanung: safeResult.plan }
+          : prev;
+      });
+      setYearPlanSyncNotice('Im Jahresplan ergänzt. Bestehende Jahresplan-Inhalte wurden nicht überschrieben.');
+      return;
+    }
+
+    if (result.status === 'occupied') {
+      setYearPlanSyncNotice('Im Jahresplan ist diese Kalenderwoche für das Fach bereits belegt. Es wurde nichts überschrieben.');
+    } else if (result.status === 'missing-topic') {
+      setYearPlanSyncNotice('Für die Übernahme in den Jahresplan braucht die Stunde zuerst ein Thema.');
+    } else {
+      setYearPlanSyncNotice('Für dieses Fach konnte keine passende Jahresplan-Spalte gefunden werden.');
+    }
   };
 
   const handleAddToSpacedPractice = (fach: string, thema: string) => {
@@ -2879,7 +2930,7 @@ export default function WeeklyPlan() {
                           onDragEnter={(e) => { e.preventDefault(); setDraggedOverCell({ tag, idx: zIdx }); }}
                           onDragLeave={() => setDraggedOverCell(null)}
                           onDrop={(e) => { handleDropPlan(e, tag, zIdx); setDraggedOverCell(null); }}
-                          onClick={() => !isFree && handleEditCell(tag, zIdx)}
+                          onClick={() => !isFree && openWeeklyCell(tag, zIdx)}
                           style={{ gridColumn: tIdx + 2, gridRow: `${gridRowStart} / span ${spanValue}`, zIndex: isSelectedStunde ? 90 : (crossesLunch ? 80 : 1) }}
                           className={`min-h-[5.3125rem] border-b border-slate-100 p-1.5 relative group/cell cursor-pointer transition-all duration-300 ${isFree ? 'bg-slate-50/30' : isToday ? 'bg-emerald-50/10' : 'bg-white'} hover:bg-slate-100/30 ${isToday ? 'ring-inset ring-1 ring-emerald-200' : ''} ${isSelectedStunde ? 'ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/25 bg-indigo-50/5' : ''} ${isNowLive ? 'ring-2 ring-amber-400 shadow-lg shadow-amber-500/25 bg-amber-50/5' : ''} ${isDraggedOver ? 'ring-2 ring-dashed ring-emerald-500 bg-emerald-50/40 scale-[0.98] z-40' : ''} ${optimizationSuggestion ? 'ring-inset ring-2 ring-emerald-400/50 bg-emerald-50/30' : ''} ${isFilteredOut || isFilteredOutByOffen ? 'opacity-20 grayscale' : filterOnlyOffen && !item?.erledigt && (item?.fach || item?.thema) ? 'ring-2 ring-amber-400 bg-amber-50/20' : ''}`}
                         >
@@ -3074,9 +3125,9 @@ export default function WeeklyPlan() {
                                      </button>
                                      
                                      <button 
-                                       onClick={(e) => { e.stopPropagation(); setEditingCell({ tag, idx: zIdx }); }}
+                                       onClick={(e) => { e.stopPropagation(); handleEditCell(tag, zIdx); }}
                                        className="w-5 h-5 rounded-md bg-white/40 flex items-center justify-center hover:bg-white hover:scale-110 transition-all text-slate-600"
-                                       title="Details bearbeiten"
+                                       title="Bearbeiten"
                                      >
                                        <Layout size={9} />
                                      </button>
@@ -3315,7 +3366,7 @@ export default function WeeklyPlan() {
 
        {/* TIME-INDEPENDENT MODAL */}
       {editingZeitunabhaengig && createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setEditingZeitunabhaengig(null)} />
            <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -3404,15 +3455,199 @@ export default function WeeklyPlan() {
         document.body
       )}
 
+      {/* PLANNED LESSON OVERVIEW */}
+      {viewingCell && (() => {
+        const lesson = plan[viewingCell.tag]?.[viewingCell.idx] || {};
+        const fallbackSubject = app.stammplan?.[viewingCell.tag]?.[viewingCell.idx + 1] || '';
+        const displaySubject = lesson.fach || fallbackSubject || 'Ohne Fach';
+        const availableSubjects = sortYearlySubjects(app.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS);
+        const yearPlanState = addWeeklyLessonToEmptyYearPlan({
+          existingPlan: app.jahresplanung || {},
+          kw: activeKW,
+          lesson,
+          fallbackSubject,
+          availableSubjects,
+        });
+        const typeLabel: Record<string, string> = {
+          standard: 'Unterricht',
+          sa: 'Schularbeit',
+          test: 'Test',
+          lzk: 'LZK',
+          event: 'Ausflug / Event',
+          spielefest: 'Spielefest',
+          konferenz: 'Konferenz',
+          gespraech: 'Gespräch',
+          sonstiges: 'Termin',
+          digital: 'Digital',
+        };
+        const socialLabel: Record<string, string> = {
+          single: 'Einzelarbeit',
+          partner: 'Partnerarbeit',
+          group: 'Gruppenarbeit',
+        };
+        const linkedMaterials = (lesson.materialIds || [])
+          .map((id: string) => app.materialien?.find(material => material.id === id)?.titel)
+          .filter((title): title is string => Boolean(title));
+
+        const closeOverview = () => {
+          setViewingCell(null);
+          setYearPlanSyncNotice(null);
+        };
+
+        return createPortal(
+          <div className="fixed inset-0 z-[10020] flex items-center justify-center p-3 sm:p-5">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+              onClick={closeOverview}
+            />
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              className="relative flex max-h-[92vh] w-[94vw] max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-6 py-5 sm:px-8">
+                <div>
+                  <div className="text-[0.625rem] font-black uppercase tracking-[0.18em] text-emerald-600">Geplante Einheit</div>
+                  <h3 className="mt-1 text-2xl font-black tracking-tight text-slate-950">{lesson.thema || 'Unterrichtseinheit'}</h3>
+                  <p className="mt-1 text-xs font-bold text-slate-500">
+                    {viewingCell.tag} · {viewingCell.idx + 1}. Stunde · KW {activeKW}{sw ? ` · SW ${sw}` : ''}
+                  </p>
+                </div>
+                <button type="button" onClick={closeOverview} className="rounded-full p-2.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                  <X size={22} />
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto p-6 sm:p-8">
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Fach & Inhalt</div>
+                    <div className="mt-2 text-base font-black text-slate-900">{displaySubject}</div>
+                    <div className="mt-2 whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-700">{lesson.thema || '—'}</div>
+                    {lesson.schwerpunkte?.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {lesson.schwerpunkte.map((value: string) => (
+                          <span key={value} className="rounded-full bg-blue-50 px-2.5 py-1 text-[0.625rem] font-black text-blue-700">
+                            {formatSchwerpunktLabel(value)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Rahmen</div>
+                    <dl className="mt-3 space-y-2 text-xs">
+                      <div className="flex justify-between gap-3"><dt className="font-semibold text-slate-500">Typ</dt><dd className="text-right font-black text-slate-800">{typeLabel[lesson.type || 'standard'] || lesson.type || 'Unterricht'}</dd></div>
+                      <div className="flex justify-between gap-3"><dt className="font-semibold text-slate-500">Dauer</dt><dd className="text-right font-black text-slate-800">{lesson.duration === 'all' ? 'Restlicher Tag' : `${lesson.duration || 1} Std.`}</dd></div>
+                      <div className="flex justify-between gap-3"><dt className="font-semibold text-slate-500">Sozialform</dt><dd className="text-right font-black text-slate-800">{socialLabel[lesson.social || 'single'] || 'Einzelarbeit'}</dd></div>
+                      <div className="flex justify-between gap-3"><dt className="font-semibold text-slate-500">Status</dt><dd className="text-right font-black text-slate-800">{lesson.erledigt ? 'Erledigt' : 'Geplant'}</dd></div>
+                    </dl>
+                  </section>
+
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Material</div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm font-medium text-slate-700">{lesson.material || 'Kein freier Materialhinweis'}</p>
+                    {linkedMaterials.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        {linkedMaterials.map((title: string) => <div key={title} className="text-xs font-bold text-indigo-700">• {title}</div>)}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-emerald-700">Hausübung</div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm font-medium text-slate-700">{lesson.housework || 'Keine Hausübung eingetragen'}</p>
+                  </section>
+
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Methodik</div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm font-medium text-slate-700">{lesson.method || 'Keine Methodik-Notiz'}</p>
+                  </section>
+
+                  {lesson.reflexion && (
+                    <section className="rounded-2xl border border-amber-100 bg-amber-50/50 p-5 lg:col-span-2">
+                      <div className="text-[0.625rem] font-black uppercase tracking-wider text-amber-700">Reflexion</div>
+                      <p className="mt-2 whitespace-pre-wrap text-sm font-medium italic text-slate-700">{lesson.reflexion}</p>
+                    </section>
+                  )}
+
+                  {lesson.halves?.enabled && (
+                    <section className="rounded-2xl border border-cyan-100 bg-cyan-50/50 p-5 lg:col-span-3">
+                      <div className="text-[0.625rem] font-black uppercase tracking-wider text-cyan-700">Geteilte Einheit</div>
+                      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {[lesson.halves.first, lesson.halves.second].map((half: any, index: number) => (
+                          <div key={index} className="rounded-xl border border-cyan-100 bg-white p-4">
+                            <div className="text-[0.625rem] font-black uppercase text-cyan-600">{index === 0 ? '1. Hälfte' : '2. Hälfte'}</div>
+                            <div className="mt-1 text-xs font-bold text-slate-500">{half?.fach || '—'}{half?.unterbereich ? ` · ${formatSchwerpunktLabel(half.unterbereich)}` : ''}</div>
+                            <div className="mt-2 text-sm font-semibold text-slate-800">{half?.thema || '—'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-xs font-black text-indigo-950">Wochenplan → Jahresplan</div>
+                      <p className="mt-1 text-xs font-medium leading-relaxed text-indigo-800">
+                        {yearPlanState.status === 'added'
+                          ? 'Für dieses Fach ist KW ' + activeKW + ' im Jahresplan noch frei. Du kannst die Einheit mit einem Klick übernehmen.'
+                          : yearPlanState.status === 'occupied'
+                            ? 'Der Jahresplan enthält für dieses Fach in KW ' + activeKW + ' bereits einen Eintrag. Klassio überschreibt ihn nicht.'
+                            : 'Für die Übernahme braucht die Einheit ein Thema und eine passende Jahresplan-Spalte.'}
+                      </p>
+                    </div>
+                    {yearPlanState.status === 'added' && (
+                      <button
+                        type="button"
+                        onClick={() => addWeeklyLessonToYearPlan(viewingCell.tag, viewingCell.idx)}
+                        className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white transition-colors hover:bg-indigo-700"
+                      >
+                        In Jahresplan übernehmen
+                      </button>
+                    )}
+                  </div>
+                  {yearPlanSyncNotice && <p className="mt-3 text-xs font-bold text-emerald-700">{yearPlanSyncNotice}</p>}
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 border-t border-slate-100 bg-slate-50/70 px-6 py-4 sm:flex-row sm:justify-end">
+                <button type="button" onClick={closeOverview} className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-xs font-black text-slate-600 hover:bg-slate-100">
+                  Schließen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = { ...viewingCell };
+                    setViewingCell(null);
+                    setYearPlanSyncNotice(null);
+                    handleEditCell(target.tag, target.idx);
+                  }}
+                  className="rounded-xl bg-emerald-600 px-6 py-3 text-xs font-black text-white shadow-sm hover:bg-emerald-700"
+                >
+                  <Pencil size={14} className="mr-2 inline" /> Bearbeiten
+                </button>
+              </div>
+            </motion.div>
+          </div>,
+          document.body
+        );
+      })()}
+
       {/* PLANNER MODAL */}
       {editingCell && createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setEditingCell(null)} />
            <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }}
-              className="relative w-full max-w-2xl bg-white rounded-2xl shadow-lg  flex flex-col max-h-[92vh] mx-auto"
+              className="relative w-[96vw] max-w-[1500px] h-[94vh] max-h-[94vh] bg-white rounded-2xl shadow-2xl flex flex-col mx-auto overflow-hidden"
            >
-              <div className="px-8 py-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
                  <div>
                     <h3 className="text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Einheit planen</h3>
                     <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mt-1">{editingCell.tag} • {editingCell.idx + 1}. Stunde • KW {activeKW}{sw && <span className="text-[0.53125rem] opacity-75 ml-1 font-bold"> (SW {sw})</span>}</p>
@@ -3420,10 +3655,10 @@ export default function WeeklyPlan() {
                  <button onClick={() => setEditingCell(null)} className="p-3 hover:bg-slate-100 rounded-full transition-all text-slate-400"><X size={24} /></button>
               </div>
 
-              <div key={`${editingCell.tag}-${editingCell.idx}`} className="p-10 space-y-12 overflow-y-auto no-scrollbar scroll-smooth">
+              <div key={`${editingCell.tag}-${editingCell.idx}`} className="p-5 lg:p-6 space-y-6 overflow-y-auto no-scrollbar scroll-smooth flex-1 min-h-0">
                  
                  {/* SECTION 1: WAS & WER */}
-                 <div className="space-y-8">
+                 <div className="space-y-5">
                     <div className="flex items-center justify-between ml-1 pr-1">
                        <div className="flex items-center gap-3">
                           <div className="w-1.5 h-6 bg-emerald-500 rounded-full" />
@@ -3466,7 +3701,7 @@ export default function WeeklyPlan() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-8">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 xl:items-start">
                         {/* THEMA */}
                         <div className="space-y-4">
                             <div className="flex justify-between items-center px-1">
@@ -3714,7 +3949,7 @@ export default function WeeklyPlan() {
                  )}
 
                  {/* SECTION 2: PRIORITÄT & SOZIALFORM */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="space-y-8">
                        <div className="space-y-4">
                           <div className="flex items-center gap-3 ml-1">
@@ -3800,7 +4035,7 @@ export default function WeeklyPlan() {
                  </div>
 
                  {/* SECTION 3: ORGA (MATERIALS & HOMEWORK) */}
-                 <div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-200">
+                 <div className="bg-slate-50/50 rounded-2xl p-4 lg:p-5 border border-slate-200">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-3">
                            <div className="flex items-center gap-2 ml-1">
@@ -3906,7 +4141,7 @@ export default function WeeklyPlan() {
                  </div>
 
                  {/* SECTION 4: FEINSCHLIFF */}
-                 <div className="space-y-8">
+                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
                     <div className="space-y-3">
                        <div className="flex items-center gap-3 ml-1">
                           <MessageSquare size={16} className="text-slate-400" />
@@ -3933,7 +4168,7 @@ export default function WeeklyPlan() {
                     </div>
 
                     {/* UNTERRICHTSEINHEIT IN ZWEI GLEICHE HÄLFTEN TEILEN – bewusst ohne Minutenlogik */}
-                    <div className="rounded-3xl border border-cyan-100 bg-cyan-50/50 p-6 space-y-4">
+                    <div className="rounded-3xl border border-cyan-100 bg-cyan-50/50 p-5 space-y-4 xl:col-span-2">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <h4 className="text-[0.875rem] font-black text-slate-800">Unterrichtseinheit halbieren</h4>
@@ -4037,7 +4272,7 @@ export default function WeeklyPlan() {
                     </div>
 
                     {/* WÖCHENTLICHE WIEDERHOLUNG (RECURRING LESSONS) */}
-                    <div className="p-6 bg-indigo-50/50 border border-indigo-100 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 transition-all hover:bg-indigo-50">
+                    <div className="p-5 bg-indigo-50/50 border border-indigo-100 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 transition-all hover:bg-indigo-50">
                        <div className="flex items-center gap-4 text-left">
                           <div className={`w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100 ${repeatWeekly ? 'animate-pulse' : ''}`}>
                              <RefreshCw size={22} className={repeatWeekly ? 'animate-spin-slow text-indigo-500' : 'text-indigo-400'} style={{ animationDuration: '6s' }} />
@@ -4065,7 +4300,7 @@ export default function WeeklyPlan() {
                     </div>
 
                     {/* WOCHENPLAN SYNC */}
-                    <div className="p-6 bg-emerald-50/50 border border-emerald-100 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 transition-all hover:bg-emerald-50">
+                    <div className="p-5 bg-emerald-50/50 border border-emerald-100 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 transition-all hover:bg-emerald-50">
                        <div className="flex items-center gap-4 text-left">
                           <div className={`w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100 ${syncWpSubjects ? 'animate-pulse' : ''}`}>
                              <Zap size={22} className={syncWpSubjects ? 'text-emerald-500' : 'text-emerald-400'} />
@@ -4094,7 +4329,7 @@ export default function WeeklyPlan() {
                  </div>
               </div>
 
-              <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex gap-4">
+              <div className="p-4 lg:px-6 bg-slate-50/50 border-t border-slate-100 flex gap-4 shrink-0">
                  <button onClick={() => saveCell('', '')} className="btn text-rose-600 hover:!bg-rose-600 hover:!text-white hover:!border-rose-600 border border-slate-200 bg-white px-8 transition-all">Löschen</button>
                  <button onClick={() => saveCell(searchFach, tempThema, tempType, tempMaterial, tempHUE, tempMethod, tempSocial, tempReflexion, tempSchwerpunkte, tempDuration, tempMaterialIds)} className="btn btn-accent flex-1">Einheit speichern</button>
               </div>

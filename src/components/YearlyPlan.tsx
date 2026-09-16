@@ -171,6 +171,7 @@ const MONATE = [
 export default function YearlyPlan() {
   const { app, setApp } = useApp();
   const [editingCell, setEditingCell] = useState<{ kw: number, subjectId: string } | null>(null);
+  const [viewingCell, setViewingCell] = useState<{ kw: number, subjectId: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [editValue, setEditValue] = useState<{ thema: string, buch: string, type: string, subCategory: string, subCategories?: string[], items?: any[], completed?: boolean }>({ thema: '', buch: '', type: 'standard', subCategory: '', subCategories: [], items: [], completed: false });
   const [isPrintMode, setIsPrintMode] = useState(false);
@@ -412,7 +413,7 @@ export default function YearlyPlan() {
     swIndex++;
   }
 
-  const handleCellClick = (kw: number, subjectId: string) => {
+  const openYearPlanEditor = (kw: number, subjectId: string) => {
     const existing = app.jahresplanung[kw]?.[subjectId] || { thema: '', buch: '', type: 'standard', subCategory: '', subCategories: [], items: [], completed: false };
     setEditValue({
       thema: existing.thema || '',
@@ -426,6 +427,16 @@ export default function YearlyPlan() {
     setPlanWeeksCount(1);
     setAutoSuffix('part');
     setEditingCell({ kw, subjectId });
+  };
+
+  const handleCellClick = (kw: number, subjectId: string) => {
+    const existing = app.jahresplanung[kw]?.[subjectId];
+    const hasPlanning = yearPlanCellEntries(existing).length > 0 || Boolean(existing?.type && existing.type !== 'standard');
+    if (hasPlanning) {
+      setViewingCell({ kw, subjectId });
+      return;
+    }
+    openYearPlanEditor(kw, subjectId);
   };
 
   const handleDragStart = (e: React.DragEvent, kw: number, subjectId: string) => {
@@ -1927,18 +1938,155 @@ export default function YearlyPlan() {
       </div>
       )}
 
+      {/* Planned year-cell overview */}
+      <AnimatePresence>
+        {viewingCell && (() => {
+          const data = app.jahresplanung?.[viewingCell.kw]?.[viewingCell.subjectId] || {};
+          const entries = yearPlanCellEntries(data);
+          const subject = subjects.find(item => item.id === viewingCell.subjectId);
+          const week = weeks.find(item => item.kw === viewingCell.kw);
+          const swValue = week
+            ? getSW(week.monday, app?.schuljahr, app?.bundesland || 'VBG')
+            : null;
+          const typeLabels: Record<string, string> = {
+            standard: 'Unterricht',
+            sa: 'Schularbeit',
+            test: 'Test / WH',
+            lzk: 'LZK',
+            spielefest: 'Spielefest',
+            konferenz: 'Konferenz',
+            gespraech: 'Gespräch',
+            sonstiges: 'Termin',
+            event: 'Ausflug / Event',
+          };
+
+          return (
+            <div className="fixed inset-0 z-[305] flex items-center justify-center p-3 sm:p-5 bg-stone-900/45 backdrop-blur-sm">
+              <motion.button
+                type="button"
+                aria-label="Übersicht schließen"
+                className="absolute inset-0 h-full w-full cursor-default"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setViewingCell(null)}
+              />
+              <motion.div
+                initial={{ scale: 0.96, opacity: 0, y: 18 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.96, opacity: 0, y: 18 }}
+                className="relative flex max-h-[92vh] w-[94vw] max-w-5xl flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-2xl"
+                onClick={event => event.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-4 border-b border-stone-100 bg-stone-50/80 px-6 py-5 sm:px-8">
+                  <div>
+                    <div className="text-[0.625rem] font-black uppercase tracking-[0.18em] text-emerald-600">Jahresplanung · Übersicht</div>
+                    <h3 className="mt-1 text-2xl font-black tracking-tight text-stone-950">{subject?.label || viewingCell.subjectId}</h3>
+                    <p className="mt-1 text-xs font-bold text-stone-500">
+                      KW {viewingCell.kw}{swValue ? ` · SW ${swValue}` : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setViewingCell(null)}
+                    className="rounded-full p-2.5 text-stone-400 transition-colors hover:bg-stone-200 hover:text-stone-700"
+                  >
+                    <X size={22} />
+                  </button>
+                </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto p-6 sm:p-8">
+                  <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    {entries.map((entry, index) => (
+                      <section key={entry.id || index} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[0.625rem] font-black uppercase tracking-wider text-stone-400">
+                              {entries.length > 1 ? `Eintrag ${index + 1}` : 'Geplanter Inhalt'}
+                            </div>
+                            <h4 className="mt-2 text-base font-black leading-snug text-stone-900">{entry.thema || '—'}</h4>
+                          </div>
+                          <span className="shrink-0 rounded-full bg-stone-100 px-2.5 py-1 text-[0.5625rem] font-black text-stone-600">
+                            {typeLabels[entry.type || data.type || 'standard'] || entry.type || data.type || 'Unterricht'}
+                          </span>
+                        </div>
+
+                        {entry.buch && (
+                          <div className="mt-4 rounded-xl bg-stone-50 px-3 py-2 text-xs font-semibold leading-relaxed text-stone-600">
+                            <FileText size={13} className="mr-1.5 inline text-stone-400" />
+                            {entry.buch}
+                          </div>
+                        )}
+
+                        {(entry.subCategories?.length || entry.subCategory) && (
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            {(entry.subCategories?.length ? entry.subCategories : [entry.subCategory]).filter((value): value is string => Boolean(value)).map(value => (
+                              <span key={value} className="rounded-full bg-blue-50 px-2.5 py-1 text-[0.5625rem] font-black text-blue-700">
+                                {String(value).replace('Deutsch ', '')}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </section>
+                    ))}
+                  </div>
+
+                  {entries.length === 0 && (
+                    <div className="rounded-2xl border border-stone-200 bg-stone-50 p-5 text-sm font-semibold text-stone-600">
+                      Für diese Zelle ist ein Termin-Typ hinterlegt, aber noch kein Thema.
+                    </div>
+                  )}
+
+                  <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-stone-200 bg-stone-50/70 p-4">
+                      <div className="text-[0.625rem] font-black uppercase tracking-wider text-stone-400">Status</div>
+                      <div className="mt-1 text-sm font-black text-stone-800">{data.completed ? 'Erledigt' : 'Geplant'}</div>
+                    </div>
+                    <div className="rounded-2xl border border-stone-200 bg-stone-50/70 p-4">
+                      <div className="text-[0.625rem] font-black uppercase tracking-wider text-stone-400">Einträge</div>
+                      <div className="mt-1 text-sm font-black text-stone-800">{Math.max(entries.length, 1)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col-reverse gap-2 border-t border-stone-100 bg-stone-50/80 px-6 py-4 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setViewingCell(null)}
+                    className="rounded-xl border border-stone-200 bg-white px-5 py-3 text-xs font-black text-stone-600 hover:bg-stone-100"
+                  >
+                    Schließen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = { ...viewingCell };
+                      setViewingCell(null);
+                      openYearPlanEditor(target.kw, target.subjectId);
+                    }}
+                    className="rounded-xl bg-emerald-600 px-6 py-3 text-xs font-black text-white shadow-sm hover:bg-emerald-700"
+                  >
+                    <Edit3 size={14} className="mr-2 inline" /> Bearbeiten
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
+      </AnimatePresence>
+
       {/* Edit Overlay / Modal */}
       <AnimatePresence>
         {editingCell && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-sm shadow-xl">
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-2 sm:p-4 bg-stone-900/40 backdrop-blur-sm shadow-xl">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl border border-border w-full max-w-md max-h-[85vh] sm:max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+              className="bg-white rounded-2xl border border-border w-[96vw] max-w-[1400px] h-[92vh] max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-4 border-b border-border bg-stone-50 flex justify-between items-center shrink-0">
+              <div className="px-6 py-4 border-b border-border bg-stone-50 flex justify-between items-center shrink-0">
                 <div>
                   <div className="text-[0.5625rem] font-black uppercase tracking-widest text-text-muted mb-1">
                     KW {editingCell.kw}
@@ -1958,9 +2106,9 @@ export default function YearlyPlan() {
                 </button>
               </div>
               
-              <div className="p-6 space-y-6 flex-1 overflow-y-auto min-h-0">
+              <div className="p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-2 gap-5 flex-1 overflow-y-auto min-h-0 items-start">
                 {/* FLAGGEN STATUS */}
-                <div className="space-y-2">
+                <div className="space-y-2 lg:col-span-2">
                   <label className="text-[0.625rem] font-black uppercase text-text-muted ml-1">Wichtiger Termin / Event</label>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     {[
@@ -2081,7 +2229,7 @@ export default function YearlyPlan() {
                 </div>
 
                 {(subjects.find(s => s.id === editingCell.subjectId)?.label.toLowerCase().includes('deutsch') || editingCell.subjectId.toLowerCase().includes('deutsch')) && (
-                  <div className="space-y-1.5 border-t border-stone-100 pt-3">
+                  <div className="space-y-1.5 border-t border-stone-100 pt-3 lg:col-span-2">
                     <label className="text-[0.625rem] font-black uppercase text-blue-500 ml-1">Zubehör & Schwerpunkte</label>
                     <div className="flex flex-wrap gap-2">
                       <button
@@ -2111,7 +2259,7 @@ export default function YearlyPlan() {
                 )}
                 
                 {editValue.items && editValue.items.length > 0 && (
-                  <div className="mt-4 space-y-2 border-t border-stone-100 pt-4">
+                  <div className="mt-1 space-y-2 border-t border-stone-100 pt-4 lg:col-span-2">
                     <label className="text-[0.625rem] font-black uppercase text-text-muted ml-1 pb-1 block">Hinzugefügte Einträge in dieser Woche:</label>
                     {editValue.items.map((it: any, idx: number) => (
                        <div key={idx} className="flex justify-between items-center text-[0.75rem] leading-tight p-2 bg-stone-100 rounded-lg border border-stone-200">
@@ -2129,7 +2277,7 @@ export default function YearlyPlan() {
                   </div>
                 )}
 
-                <div className="pt-2">
+                <div className="pt-2 lg:col-span-2">
                    <button 
                      onClick={() => {
                         if (editValue.thema.trim() || (editValue.subCategories && editValue.subCategories.length > 0)) {
@@ -2162,7 +2310,7 @@ export default function YearlyPlan() {
                 </div>
               </div>
 
-              <div className="p-4 bg-stone-50 border-t border-border flex gap-3 shrink-0">
+              <div className="p-4 lg:px-6 bg-stone-50 border-t border-border flex gap-3 shrink-0">
                 <button onClick={closeEditingCell} className="flex-1 btn bg-white text-stone-600 border-border hover:bg-stone-100">
                   Abbrechen
                 </button>
