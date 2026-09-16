@@ -198,7 +198,7 @@ async function clickSidebarPage(client, label) {
   await waitFor(
     client,
     'Sidebar marks "' + label + '" as current page',
-    '(() => {const current=document.querySelector("button[aria-current=page]"); return String(current?.textContent||"").replace(/\\s+/g," ").trim()===' + q(label) + ';})()',
+    'Array.from(document.querySelectorAll("button[aria-current=page]")).some(current=>String(current?.textContent||"").replace(/\\s+/g," ").trim()===' + q(label) + ')',
     12000,
   );
 }
