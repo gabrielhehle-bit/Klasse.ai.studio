@@ -38,7 +38,8 @@ import {
   MoreVertical,
   Edit2,
   SmilePlus,
-  BookOpen
+  BookOpen,
+  Mic
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DebouncedInput } from './DebouncedInput';
@@ -560,6 +561,15 @@ export default function Behavior() {
                         onChange={e => setNewEntryText(e.target.value)}
                      />
                      <div className="absolute bottom-6 right-6 flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setApp(prev => ({ ...prev, stimmNotizModal: selectedStudentId || true }))}
+                          className="p-4 bg-white/5 text-white/50 hover:text-cyan-300 hover:bg-cyan-400/10 rounded-2xl transition-all"
+                          title={selectedStudentId ? "Notiz für dieses Kind diktieren" : "Allgemeine Notiz diktieren"}
+                          aria-label="Notiz diktieren"
+                        >
+                           <Mic size={20} />
+                        </button>
                         <button 
                           type="button"
                           onClick={polishNewEntry}
