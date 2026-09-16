@@ -11,6 +11,7 @@ import { validateAiServerImageRequest } from "./src/lib/aiPrivacy.ts";
 import { getServerSyncTimestamps, isSyncSessionExpired } from "./src/lib/syncServerPolicy.ts";
 import { createTeacherIdentityForSchool, displayNameFromEmail, handleFromEmail, type TeacherIdentity } from "./src/server/teacherIdentity.ts";
 import { createLehrerzimmerStore, type LehrerzimmerCategory } from "./src/server/lehrerzimmerStore.ts";
+import { createClassCollaborationStore, type SharedClassRecord } from "./src/server/classCollaborationStore.ts";
 import { createSchoolRegistryStore, type AustrianFederalState } from "./src/server/schoolRegistry.ts";
 import { createSupporterStore } from "./src/server/supporterStore.ts";
 import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from "./src/data/austrianSchoolRegistry.seed.ts";
@@ -185,6 +186,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
   const KLASSIO_DATA_DIR = (process.env.KLASSIO_DATA_DIR || path.join(process.cwd(), 'data')).trim();
   const lehrerzimmerStore = createLehrerzimmerStore(KLASSIO_DATA_DIR);
+  const classCollaborationStore = createClassCollaborationStore(KLASSIO_DATA_DIR);
   const schoolRegistryStore = createSchoolRegistryStore(KLASSIO_DATA_DIR);
   const supporterStore = createSupporterStore(KLASSIO_DATA_DIR);
   if (!options.isTest) {
@@ -967,6 +969,223 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       res.json({ success: true });
     } catch (error) {
       handleLehrerzimmerError(res, error);
+    }
+  });
+
+  const teamClassSummary = (record: SharedClassRecord, identity: TeacherIdentity) => {
+    const currentMember = record.members.find(member => member.userId === identity.userId);
+    if (!currentMember) throw new Error('FORBIDDEN');
+    return {
+      id: record.id,
+      classLabel: record.classLabel,
+      ownerUserId: record.ownerUserId,
+      revision: record.revision,
+      updatedAt: record.updatedAt,
+      updatedBy: record.updatedBy,
+      myRole: currentMember.role,
+      members: record.members.map(member => ({
+        userId: member.userId,
+        displayName: member.displayName,
+        role: member.role,
+        addedAt: member.addedAt,
+      })),
+    };
+  };
+
+  const handleTeamTeachingError = async (
+    res: express.Response,
+    error: unknown,
+    identity?: TeacherIdentity,
+    classId?: string,
+  ) => {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'INVALID_DEVICE_KEY') return res.status(400).json({ code, error: 'Ungültiger Geräteschlüssel.' });
+    if (code === 'INVALID_SHARED_CLASS' || code === 'INVALID_WRAPPED_KEYS') return res.status(400).json({ code, error: 'Ungültige verschlüsselte Klassendaten.' });
+    if (code === 'NO_OWNER_DEVICE_KEY' || code === 'MEMBER_DEVICE_REQUIRED') return res.status(409).json({ code, error: 'Für diese Lehrperson ist noch kein freigegebener Teamteaching-Geräteschlüssel vorhanden.' });
+    if (code === 'INVALID_ROLE' || code === 'INVALID_MEMBER') return res.status(400).json({ code, error: 'Ungültige Teamrolle oder Lehrperson.' });
+    if (code === 'CLASS_NOT_FOUND') return res.status(404).json({ code, error: 'Die geteilte Klasse wurde nicht gefunden.' });
+    if (code === 'MEMBER_NOT_FOUND') return res.status(404).json({ code, error: 'Die Lehrperson ist nicht im Klassenteam.' });
+    if (code === 'OWNER_REQUIRED') return res.status(403).json({ code, error: 'Nur die Klassenbesitzerin bzw. der Klassenbesitzer darf das Team verwalten.' });
+    if (code === 'READ_ONLY') return res.status(403).json({ code, error: 'Diese Klasse ist für dieses Konto nur lesbar.' });
+    if (code === 'FORBIDDEN') return res.status(403).json({ code, error: 'Kein Zugriff auf diese geteilte Klasse.' });
+    if (code === 'REVISION_CONFLICT') {
+      let currentRevision: number | undefined;
+      if (identity && classId) {
+        try {
+          currentRevision = (await classCollaborationStore.getClass(identity, classId)).revision;
+        } catch {
+          currentRevision = undefined;
+        }
+      }
+      return res.status(409).json({
+        code,
+        currentRevision,
+        error: 'Die Klasse wurde inzwischen auf einem anderen Gerät geändert. Deine lokale Version wurde nicht überschrieben.',
+      });
+    }
+    console.error('[Teamteaching] Serverfehler:', error);
+    return res.status(500).json({ error: 'Teamteaching konnte nicht verarbeitet werden.' });
+  };
+
+  app.get('/api/teamteaching/me', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const user = await lehrerzimmerStore.ensureUser(identity);
+      res.json({
+        user: {
+          userId: user.userId,
+          displayName: user.displayName,
+          handle: user.handle,
+        },
+        school: {
+          id: identity.schoolId,
+          code: identity.schoolCode,
+          name: identity.schoolName,
+          domain: identity.schoolDomain,
+        },
+      });
+    } catch (error) {
+      await handleTeamTeachingError(res, error);
+    }
+  });
+
+  app.put('/api/teamteaching/devices', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      await lehrerzimmerStore.ensureUser(identity);
+      const device = await classCollaborationStore.registerDevice(identity, {
+        deviceId: req.body?.deviceId,
+        publicKeyJwk: req.body?.publicKeyJwk,
+      });
+      res.json({ device });
+    } catch (error) {
+      await handleTeamTeachingError(res, error);
+    }
+  });
+
+  app.get('/api/teamteaching/colleagues', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const users = await lehrerzimmerStore.listUsers(identity);
+      const enriched = await Promise.all(users.map(async user => ({
+        userId: user.userId,
+        displayName: user.displayName,
+        handle: user.handle,
+        devices: (await classCollaborationStore.listUserDevices(identity, user.userId)).map(device => ({
+          deviceId: device.deviceId,
+          fingerprint: device.fingerprint,
+          publicKeyJwk: device.publicKeyJwk,
+          updatedAt: device.updatedAt,
+        })),
+      })));
+      res.json({ users: enriched });
+    } catch (error) {
+      await handleTeamTeachingError(res, error);
+    }
+  });
+
+  app.get('/api/teamteaching/classes', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const classes = await classCollaborationStore.listClasses(identity);
+      res.json({ classes: classes.map(record => teamClassSummary(record, identity)) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error);
+    }
+  });
+
+  app.post('/api/teamteaching/classes', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const record = await classCollaborationStore.createSharedClass(identity, {
+        classLabel: req.body?.classLabel,
+        encryptedSnapshot: req.body?.encryptedSnapshot,
+        wrappedKeys: req.body?.wrappedKeys,
+      });
+      res.status(201).json({ class: teamClassSummary(record, identity) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error);
+    }
+  });
+
+  app.get('/api/teamteaching/classes/:classId', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const record = await classCollaborationStore.getClass(identity, req.params.classId);
+      const member = record.members.find(item => item.userId === identity.userId)!;
+      res.json({
+        ...teamClassSummary(record, identity),
+        encryptedSnapshot: record.encryptedSnapshot,
+        wrappedKeys: member.wrappedKeys,
+      });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, getTeacherIdentity(req), req.params.classId);
+    }
+  });
+
+  app.put('/api/teamteaching/classes/:classId/snapshot', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      const record = await classCollaborationStore.updateSnapshot(identity, req.params.classId, {
+        encryptedSnapshot: req.body?.encryptedSnapshot,
+        expectedRevision: req.body?.expectedRevision,
+      });
+      res.json({ class: teamClassSummary(record, identity) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, identity, req.params.classId);
+    }
+  });
+
+  app.post('/api/teamteaching/classes/:classId/members', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      const colleagues = await lehrerzimmerStore.listUsers(identity);
+      const target = colleagues.find(user => user.userId === req.body?.userId);
+      if (!target) return res.status(400).json({ code: 'INVALID_MEMBER', error: 'Diese Lehrperson gehört nicht zum verifizierten Kollegium dieser Schule.' });
+      const record = await classCollaborationStore.addMember(identity, req.params.classId, {
+        userId: target.userId,
+        displayName: target.displayName,
+        role: req.body?.role,
+        wrappedKeys: req.body?.wrappedKeys,
+      });
+      res.json({ class: teamClassSummary(record, identity) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, identity, req.params.classId);
+    }
+  });
+
+  app.patch('/api/teamteaching/classes/:classId/members/:userId', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      const record = await classCollaborationStore.updateMemberRole(
+        identity,
+        req.params.classId,
+        req.params.userId,
+        req.body?.role,
+      );
+      res.json({ class: teamClassSummary(record, identity) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, identity, req.params.classId);
+    }
+  });
+
+  app.delete('/api/teamteaching/classes/:classId/members/:userId', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      const record = await classCollaborationStore.removeMember(identity, req.params.classId, req.params.userId);
+      res.json({ class: teamClassSummary(record, identity) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, identity, req.params.classId);
+    }
+  });
+
+  app.delete('/api/teamteaching/classes/:classId', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      await classCollaborationStore.deleteClass(identity, req.params.classId);
+      res.json({ success: true });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, identity, req.params.classId);
     }
   });
 
