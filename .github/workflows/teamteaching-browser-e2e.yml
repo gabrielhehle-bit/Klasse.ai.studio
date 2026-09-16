@@ -4,9 +4,12 @@ on:
   push:
     branches:
       - 'chore/teamteaching-browser-e2e'
+      - feature/usability-widgets-tools-notes
+      - main
   pull_request:
     branches:
-      - feature/teamteaching-shared-classes
+      - feature/usability-widgets-tools-notes
+      - main
   workflow_dispatch:
 
 permissions:
