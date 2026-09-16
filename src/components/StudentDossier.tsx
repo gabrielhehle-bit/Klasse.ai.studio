@@ -37,6 +37,7 @@ import DossierErlaeuterungsmatrix from './dossier/DossierErlaeuterungsmatrix';
 import StudentLernziele from './StudentLernziele';
 import WorksheetGenerator from './WorksheetGenerator';
 import { DossierEntwicklungsuebersicht } from './dossier/DossierEntwicklungsuebersicht';
+import { getStudentGenderLabel } from '../lib/studentListData';
 import { DossierFoerderung } from './dossier/DossierFoerderung';
 import { DossierBeobachtungenVerlauf } from './dossier/DossierBeobachtungenVerlauf';
 import DossierBerichte from './dossier/DossierBerichte';
@@ -525,6 +526,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
              <div className="min-w-0">
                 <div className="text-[0.5625rem] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Dossier</div>
                 <div className="text-[0.875rem] font-black leading-tight text-white text-wrap break-words">{student.vorname} {student.nachname}</div>
+                <div className="mt-1 text-[0.625rem] font-bold text-slate-300">Geschlecht: {getStudentGenderLabel(student.geschlecht)}</div>
              </div>
           </div>
           
