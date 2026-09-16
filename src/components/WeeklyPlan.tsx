@@ -11,6 +11,7 @@ import { LehrplanZuordnung } from '../types';
 import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
 import WochenplanExcelModal from './WochenplanExcelModal';
 import { generateWochenplanTemplate, WochenplanImportRow } from '../lib/planerExcelService';
+import { addWeeklyLessonToEmptyYearPlan, hasWeeklyPlanningDetails } from '../lib/planningSync';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots } from '../lib/weeklyPlanData';
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
@@ -241,6 +242,8 @@ export default function WeeklyPlan() {
   };
 
   const [editingCell, setEditingCell] = useState<{ tag: string, idx: number } | null>(null);
+  const [viewingCell, setViewingCell] = useState<{ tag: string, idx: number } | null>(null);
+  const [yearPlanSyncNotice, setYearPlanSyncNotice] = useState<string | null>(null);
   const [editingZeitunabhaengig, setEditingZeitunabhaengig] = useState<{ tag: string; item?: any } | null>(null);
   const [tempZeitThema, setTempZeitThema] = useState('');
   const [tempZeitType, setTempZeitType] = useState<'event' | 'test' | 'konferenz' | 'spielefest' | 'gespraech' | 'sonstiges' | 'sa' | 'lzk' | 'standard'>('sonstiges');
@@ -1373,6 +1376,54 @@ export default function WeeklyPlan() {
     // Auto-enable sync if part of the sync set
     const syncSet = app.wochenplanSyncSet || [];
     setSyncWpSubjects(syncSet.length > 0 && syncSet.includes(normalizedFach));
+  };
+
+  const openWeeklyCell = (tag: string, idx: number) => {
+    const current = plan[tag]?.[idx] || {};
+    if (hasWeeklyPlanningDetails(current)) {
+      setYearPlanSyncNotice(null);
+      setViewingCell({ tag, idx });
+      return;
+    }
+    handleEditCell(tag, idx);
+  };
+
+  const addWeeklyLessonToYearPlan = (tag: string, idx: number) => {
+    const lesson = plan[tag]?.[idx] || {};
+    const fallbackSubject = app.stammplan?.[tag]?.[idx + 1] || '';
+    const availableSubjects = sortYearlySubjects(app.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS);
+    const result = addWeeklyLessonToEmptyYearPlan({
+      existingPlan: app.jahresplanung || {},
+      kw: activeKW,
+      lesson,
+      fallbackSubject,
+      availableSubjects,
+    });
+
+    if (result.status === 'added') {
+      setApp(prev => {
+        const safeResult = addWeeklyLessonToEmptyYearPlan({
+          existingPlan: prev.jahresplanung || {},
+          kw: activeKW,
+          lesson,
+          fallbackSubject,
+          availableSubjects: sortYearlySubjects(prev.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS),
+        });
+        return safeResult.status === 'added'
+          ? { ...prev, jahresplanung: safeResult.plan }
+          : prev;
+      });
+      setYearPlanSyncNotice('Im Jahresplan ergänzt. Bestehende Jahresplan-Inhalte wurden nicht überschrieben.');
+      return;
+    }
+
+    if (result.status === 'occupied') {
+      setYearPlanSyncNotice('Im Jahresplan ist diese Kalenderwoche für das Fach bereits belegt. Es wurde nichts überschrieben.');
+    } else if (result.status === 'missing-topic') {
+      setYearPlanSyncNotice('Für die Übernahme in den Jahresplan braucht die Stunde zuerst ein Thema.');
+    } else {
+      setYearPlanSyncNotice('Für dieses Fach konnte keine passende Jahresplan-Spalte gefunden werden.');
+    }
   };
 
   const handleAddToSpacedPractice = (fach: string, thema: string) => {
@@ -2879,7 +2930,7 @@ export default function WeeklyPlan() {
                           onDragEnter={(e) => { e.preventDefault(); setDraggedOverCell({ tag, idx: zIdx }); }}
                           onDragLeave={() => setDraggedOverCell(null)}
                           onDrop={(e) => { handleDropPlan(e, tag, zIdx); setDraggedOverCell(null); }}
-                          onClick={() => !isFree && handleEditCell(tag, zIdx)}
+                          onClick={() => !isFree && openWeeklyCell(tag, zIdx)}
                           style={{ gridColumn: tIdx + 2, gridRow: `${gridRowStart} / span ${spanValue}`, zIndex: isSelectedStunde ? 90 : (crossesLunch ? 80 : 1) }}
                           className={`min-h-[5.3125rem] border-b border-slate-100 p-1.5 relative group/cell cursor-pointer transition-all duration-300 ${isFree ? 'bg-slate-50/30' : isToday ? 'bg-emerald-50/10' : 'bg-white'} hover:bg-slate-100/30 ${isToday ? 'ring-inset ring-1 ring-emerald-200' : ''} ${isSelectedStunde ? 'ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/25 bg-indigo-50/5' : ''} ${isNowLive ? 'ring-2 ring-amber-400 shadow-lg shadow-amber-500/25 bg-amber-50/5' : ''} ${isDraggedOver ? 'ring-2 ring-dashed ring-emerald-500 bg-emerald-50/40 scale-[0.98] z-40' : ''} ${optimizationSuggestion ? 'ring-inset ring-2 ring-emerald-400/50 bg-emerald-50/30' : ''} ${isFilteredOut || isFilteredOutByOffen ? 'opacity-20 grayscale' : filterOnlyOffen && !item?.erledigt && (item?.fach || item?.thema) ? 'ring-2 ring-amber-400 bg-amber-50/20' : ''}`}
                         >
@@ -3074,9 +3125,9 @@ export default function WeeklyPlan() {
                                      </button>
                                      
                                      <button 
-                                       onClick={(e) => { e.stopPropagation(); setEditingCell({ tag, idx: zIdx }); }}
+                                       onClick={(e) => { e.stopPropagation(); handleEditCell(tag, zIdx); }}
                                        className="w-5 h-5 rounded-md bg-white/40 flex items-center justify-center hover:bg-white hover:scale-110 transition-all text-slate-600"
-                                       title="Details bearbeiten"
+                                       title="Bearbeiten"
                                      >
                                        <Layout size={9} />
                                      </button>
