@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 const studentList = readFileSync('src/components/StudentList.tsx', 'utf8');
 const behavior = readFileSync('src/components/Behavior.tsx', 'utf8');
 const voiceNote = readFileSync('src/components/VoiceNote.tsx', 'utf8');
+const voiceArchive = readFileSync('src/components/StimmNotizen.tsx', 'utf8');
 const dossierNotes = readFileSync('src/components/dossier/DossierBeobachtungenVerlauf.tsx', 'utf8');
 const stations = readFileSync('src/components/StationenbetriebManager.tsx', 'utf8');
 const kel = readFileSync('src/components/KELGespraeche.tsx', 'utf8');
@@ -24,7 +25,7 @@ test('Notizen: eigener Hauptbereich ist in der Sidebar sichtbar', () => {
 });
 
 test('Notizen: Hauptbereich öffnet direkt die fertige Notizerfassung', () => {
-  assert.match(behavior, /useState<'verhalten' \| 'config' \| 'chronik'>\('chronik'\)/);
+  assert.match(behavior, /useState<'verhalten' \| 'config' \| 'chronik' \| 'voice'>\('chronik'\)/);
   assert.match(behavior, /id: 'chronik', label: 'Notizen'/);
   assert.match(behavior, /Allgemeine Notiz/);
   assert.match(behavior, /Notiz zu diesem Kind eingeben/);
@@ -52,6 +53,10 @@ test('Notizen: Dossier und Hauptbereich schreiben über denselben zentralen note
 
 test('Notizen: Diktat führt über Transkript und Korrektur in den zentralen Hub', () => {
   assert.match(behavior, /aria-label="Notiz diktieren"/);
+  assert.match(behavior, /id: 'voice', label: 'Diktieren'/);
+  assert.match(behavior, /<StimmNotizen \/>/);
+  assert.match(voiceArchive, /Aufnahme starten/);
+  assert.match(voiceArchive, /stimmNotizModal: true/);
   assert.match(voiceNote, /SpeechRecognition/);
   assert.match(voiceNote, /Transkription erscheint hier und kann vor dem Speichern korrigiert werden/);
   assert.match(voiceNote, /KI-Verbesserung/);
