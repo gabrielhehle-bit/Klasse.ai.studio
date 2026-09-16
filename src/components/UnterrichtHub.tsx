@@ -1,12 +1,11 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Play, Bot, FileText, LayoutGrid, Mic, Sparkles, Mail, ChevronRight } from 'lucide-react';
+import { Play, Bot, FileText, LayoutGrid, Sparkles, Mail, ChevronRight } from 'lucide-react';
 
 const tools = [
   { id: 'ki-helfer', title: 'KI-Helfer', description: 'Unterrichtsideen, Wissen, Reflexion, Lernziele und weitere pädagogische KI-Hilfen.', icon: Bot },
   { id: 'arbeitsblatt', title: 'Arbeitsblatt-Generator', description: 'Arbeitsblätter direkt aus deinen Unterrichtsideen und Inhalten erstellen.', icon: FileText },
   { id: 'stationenbetrieb', title: 'Stationenbetrieb', description: 'Stationen vorbereiten, strukturieren und für den Unterricht organisieren.', icon: LayoutGrid },
-  { id: 'stimmnotizen', title: 'Stimm-Notizen', description: 'Gedanken und Beobachtungen schnell per Sprache festhalten.', icon: Mic },
   { id: 'differenzierung', title: 'Differenzierung', description: 'Aufgaben und Lernwege für unterschiedliche Lernvoraussetzungen vorbereiten.', icon: Sparkles },
   { id: 'elternbrief', title: 'Elternbrief', description: 'Elterninformationen und Mitteilungen vorbereitet formulieren.', icon: Mail },
 ] as const;
