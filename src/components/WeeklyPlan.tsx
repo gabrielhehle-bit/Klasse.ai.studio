@@ -2,7 +2,7 @@ import React, { useState, useRef, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
 import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, logActivity, safeJsonParse, inferDateFromText, inferEventType, sortYearlySubjects, formatLocalDateKey } from '../lib/utils';
-import { TAGE_NAMEN, STUNDENTAFEL, FAECHER_ALLE, DEUTSCH_UNTERFAECHER, DEFAULT_YEARLY_SUBJECTS, STUNDEN_INFO, MAX_LESSON_SLOTS, LESSON_SLOT_NUMBERS } from '../constants';
+import { TAGE_NAMEN, STUNDENTAFEL, FAECHER_ALLE, DEUTSCH_UNTERFAECHER, MATHEMATIK_UNTERFAECHER, DEFAULT_YEARLY_SUBJECTS, STUNDEN_INFO, MAX_LESSON_SLOTS, LESSON_SLOT_NUMBERS } from '../constants';
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, Layout, Calendar, Info, Search, X, Check, Clock, PartyPopper, Lightbulb, Filter, Flag, AlertTriangle, Star, MessageSquare, Users, User, Users2, Smartphone, BookOpen, Printer, Sparkles, Loader2, Book, RefreshCw, GripVertical, Zap, Pencil, BarChart2, Eye, EyeOff, Copy, Clipboard, CheckSquare, Paperclip, ExternalLink, MoreHorizontal, Maximize2, Minimize2, FileSpreadsheet, Download, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getLessonSuggestion, generateWeeklyPlanFromYearlyPlan, checkWeeklyPlanAlignmentAI, generateMagicPlanning } from '../services/aiService';
@@ -17,11 +17,18 @@ import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
 
 const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> = {
   'Deutsch': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
-  'Deutsch (Sprache)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
+  'Deutsch (Sprache)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' }, // Legacy
+  'Deutsch (Sprachbetrachtung)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
+  'Deutsch (Sprechen & Hören)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
+  'Deutsch (Förderung)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
   'Deutsch (Lesen)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
   'Deutsch (Rechtschreibung)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
   'Deutsch (Verfassen von Texten)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
   'Mathematik': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+  'Mathematik (Ebene & Raum)': { bg: 'bg-red-50/80', text: 'text-red-700', border: 'border-red-100' },
+  'Mathematik (Zahlen & Daten)': { bg: 'bg-red-50/80', text: 'text-red-700', border: 'border-red-100' },
+  'Mathematik (Größen)': { bg: 'bg-red-50/80', text: 'text-red-700', border: 'border-red-100' },
+  'Mathematik (Operationen)': { bg: 'bg-red-50/80', text: 'text-red-700', border: 'border-red-100' },
   'Sachunterricht': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
   'Religion': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
   'Englisch': { bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200' },
@@ -37,9 +44,18 @@ const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> 
 
 export const DEUTSCH_THEMENBEREICHE = [
   { id: 'Deutsch (Lesen)', label: 'Lesen', icon: BookOpen, color: 'bg-sky-500 hover:bg-sky-600 border-sky-500 text-white' },
-  { id: 'Deutsch (Sprache)', label: 'Sprache', icon: MessageSquare, color: 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-white' },
+  { id: 'Deutsch (Sprachbetrachtung)', label: 'Sprachbetrachtung', icon: MessageSquare, color: 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-white' },
+  { id: 'Deutsch (Sprechen & Hören)', label: 'Sprechen & Hören', icon: Users, color: 'bg-cyan-600 hover:bg-cyan-700 border-cyan-600 text-white' },
   { id: 'Deutsch (Rechtschreibung)', label: 'Rechtschreibung', icon: Zap, color: 'bg-emerald-500 hover:bg-emerald-600 border-emerald-500 text-white' },
-  { id: 'Deutsch (Verfassen von Texten)', label: 'Texte verfassen', icon: Pencil, color: 'bg-indigo-500 hover:bg-indigo-600 border-indigo-500 text-white' }
+  { id: 'Deutsch (Verfassen von Texten)', label: 'Texte verfassen', icon: Pencil, color: 'bg-indigo-500 hover:bg-indigo-600 border-indigo-500 text-white' },
+  { id: 'Deutsch (Förderung)', label: 'Förderung (FÖ)', icon: Star, color: 'bg-violet-600 hover:bg-violet-700 border-violet-600 text-white' }
+];
+
+export const MATHE_THEMENBEREICHE = [
+  { id: 'Mathematik (Ebene & Raum)', label: 'Ebene & Raum' },
+  { id: 'Mathematik (Zahlen & Daten)', label: 'Zahlen & Daten' },
+  { id: 'Mathematik (Größen)', label: 'Größen' },
+  { id: 'Mathematik (Operationen)', label: 'Operationen' },
 ];
 
 export const isDeutschSubSubject = (f: string): boolean => {
@@ -48,8 +64,17 @@ export const isDeutschSubSubject = (f: string): boolean => {
   if (lower === 'deutsch' || lower === 'd') return false;
   if (lower.startsWith('deutsch (') || lower.startsWith('deutsch -') || lower.startsWith('deutsch:')) return true;
   if (DEUTSCH_UNTERFAECHER.some(uf => uf.toLowerCase() === lower)) return true;
-  if (['lesen', 'sprache', 'sprachbetrachtung', 'rechtschreiben', 'rechtschreibung', 'texte verfassen', 'verfassen von texten', 'schreiben'].includes(lower)) return true;
+  if (['lesen', 'sprache', 'sprachbetrachtung', 'sprechen & hören', 'sprechen und hören', 'hören', 'rechtschreiben', 'rechtschreibung', 'texte verfassen', 'verfassen von texten', 'schreiben', 'förderung', 'förderung (fö)', 'd-fö'].includes(lower)) return true;
   return false;
+};
+
+export const isMatheSubSubject = (f: string): boolean => {
+  if (!f) return false;
+  const lower = f.trim().toLocaleLowerCase('de-AT');
+  if (lower === 'mathematik' || lower === 'mathe' || lower === 'm') return false;
+  if (lower.startsWith('mathematik (') || lower.startsWith('mathematik -') || lower.startsWith('mathematik:')) return true;
+  if (MATHEMATIK_UNTERFAECHER.some(uf => uf.toLocaleLowerCase('de-AT') === lower)) return true;
+  return ['ebene & raum', 'zahlen & daten', 'größen', 'groessen', 'operationen'].includes(lower);
 };
 
 const getContrastTextClass = (bgColor?: string): string => {
