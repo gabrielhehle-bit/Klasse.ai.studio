@@ -208,6 +208,13 @@ export class SchoolRegistryStore {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  async listVerificationRequests(status?: SchoolVerificationStatus): Promise<SchoolVerificationRequest[]> {
+    const data = await this.read();
+    return data.requests
+      .filter(request => !status || request.status === status)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
   async requestVerification(input: {
     requestedByEmail: string;
     schoolName: unknown;
