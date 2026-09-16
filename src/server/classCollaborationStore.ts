@@ -272,6 +272,7 @@ export class ClassCollaborationStore {
     },
   ): Promise<SharedClassRecord> {
     if (!isRole(input.role)) throw new Error('INVALID_ROLE');
+    const memberRole: Exclude<TeamTeachingRole, 'owner'> = input.role;
     if (!input.userId || !input.displayName.trim()) throw new Error('INVALID_MEMBER');
     if (!input.wrappedKeys || typeof input.wrappedKeys !== 'object' || Array.isArray(input.wrappedKeys)) {
       throw new Error('INVALID_WRAPPED_KEYS');
@@ -296,13 +297,13 @@ export class ClassCollaborationStore {
       const existing = record.members.find(member => member.userId === input.userId);
       if (existing) {
         existing.displayName = input.displayName.trim().slice(0, 100);
-        existing.role = input.role;
+        existing.role = memberRole;
         existing.wrappedKeys = wrappedKeys;
       } else {
         record.members.push({
           userId: input.userId,
           displayName: input.displayName.trim().slice(0, 100),
-          role: input.role,
+          role: memberRole,
           wrappedKeys,
           addedAt: now,
         });
@@ -320,13 +321,14 @@ export class ClassCollaborationStore {
     role: unknown,
   ): Promise<SharedClassRecord> {
     if (!isRole(role)) throw new Error('INVALID_ROLE');
+    const nextRole: Exclude<TeamTeachingRole, 'owner'> = role;
     return this.mutate(data => {
       const record = (data.classes[identity.schoolId] || []).find(item => item.id === classId);
       if (!record) throw new Error('CLASS_NOT_FOUND');
       if (record.ownerUserId !== identity.userId) throw new Error('OWNER_REQUIRED');
       const member = record.members.find(item => item.userId === userId);
       if (!member || member.role === 'owner') throw new Error('MEMBER_NOT_FOUND');
-      member.role = role;
+      member.role = nextRole;
       record.updatedAt = new Date().toISOString();
       record.updatedBy = identity.userId;
       return cloneRecord(record);
