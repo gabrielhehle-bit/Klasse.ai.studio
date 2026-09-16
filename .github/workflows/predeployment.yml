@@ -3,6 +3,8 @@ name: Pre-Deployment Audit
 on:
   push:
     branches:
+      - main
+      - feature/usability-widgets-tools-notes
       - fix/pre-deployment-blockers
       - reconcile/klassio-source-of-truth
       - fix/reconciliation-finalization
