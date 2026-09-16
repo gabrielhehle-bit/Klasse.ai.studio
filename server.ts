@@ -751,12 +751,16 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   app.post('/api/schools/verification-requests', requireEmailAccount, async (req, res) => {
     try {
       const account = getEmailAccount(req);
+      const domain = account.email.split('@')[1] || '';
+      const hadPendingRequest = (await schoolRegistryStore.listRequestsForDomain(domain))
+        .some(request => request.status === 'pending');
       const request = await schoolRegistryStore.requestVerification({
         requestedByEmail: account.email,
         schoolName: req.body?.schoolName,
         federalState: req.body?.federalState as AustrianFederalState,
       });
-      res.status(201).json({ request });
+      const adminNotified = hadPendingRequest ? true : await notifySchoolAdmins(request);
+      res.status(201).json({ request, adminNotified });
     } catch (error) {
       const code = error instanceof Error ? error.message : '';
       if (code === 'PUBLIC_EMAIL_DOMAIN') {
