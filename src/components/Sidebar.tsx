@@ -9,7 +9,7 @@ import {
   Calendar, CalendarDays, ClipboardList, Mail, Wallet, 
   FileEdit, Notebook, CheckSquare, Play, LineChart, Table, Folder, 
   Target, Replace, Archive, Bot, ChevronLeft, ChevronRight, Database, LayoutGrid,
-  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical
+  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { Button, IconButton, Badge, Chip } from './ui';
 
@@ -35,6 +35,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
 
   const [showClassMenu, setShowClassMenu] = React.useState(false);
   const [showCustomizeModal, setShowCustomizeModal] = React.useState(false);
+  const [showMorePages, setShowMorePages] = React.useState(false);
 
   const disabledModules = app?.settings?.disabledModules || [];
 
@@ -52,77 +53,64 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
 
 
   const ALL_MODULES = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} />, section: 'Unterricht' },
-    { id: 'cockpit', label: 'LEHRERCOCKPIT', icon: <Play size={14} />, section: 'Unterricht' },
-    { id: 'ki-helfer', label: 'KI Helfer', icon: <Bot size={14} />, section: 'Unterricht' },
-    { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={14} />, section: 'Unterricht' },
-    { id: 'schueler', label: 'Schüler', icon: <Users size={14} />, section: 'Werkzeuge' },
-    { id: 'sitzplan', label: 'Sitzplan', icon: <MapIcon size={14} />, section: 'Werkzeuge' },
-    { id: 'anwesenheit', label: 'Anwesenheit', icon: <Pin size={14} />, section: 'Werkzeuge' },
-    { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={14} />, section: 'Werkzeuge' },
-    { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={14} />, section: 'Werkzeuge' },
-    { id: 'planungszentrale', label: 'Planungs-Zentrale', icon: <Target size={14} />, section: 'Planung' },
-    { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={14} />, section: 'Planung' },
-    { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={14} />, section: 'Planung' },
-    { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={14} />, section: 'Planung' },
-    { id: 'uebergabemappe', label: 'Übergabemappe', icon: <ClipboardList size={14} />, section: 'Planung' },
-    { id: 'statistik', label: 'Statistik & Profile', icon: <LineChart size={14} />, section: 'Extras' },
-    { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={14} />, section: 'Extras' },
-    { id: 'klassengemeinschaft', label: 'Wir-Gefühl', icon: <Heart size={14} />, section: 'Extras' },
-    { id: 'jahresbericht', label: 'Jahresbericht', icon: <FileText size={14} />, section: 'Extras' },
-    { id: 'archiv', label: 'Archiv', icon: <Archive size={14} />, section: 'Extras' },
+    { id: 'dashboard', label: 'Heute', icon: <LayoutDashboard size={18} />, section: 'Start' },
+    { id: 'klasse', label: 'Klasse', icon: <Users size={18} />, section: 'Start' },
+    { id: 'planung', label: 'Planung', icon: <CalendarDays size={18} />, section: 'Start' },
+    { id: 'leistungen', label: 'Leistungen', icon: <BarChart3 size={18} />, section: 'Start' },
+    { id: 'unterricht', label: 'Unterricht', icon: <Play size={18} />, section: 'Start' },
+    { id: 'cockpit', label: 'Lehrercockpit', icon: <Play size={18} />, section: 'Unterricht' },
+    { id: 'ki-helfer', label: 'KI-Helfer', icon: <Bot size={18} />, section: 'Unterricht' },
+    { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={18} />, section: 'Unterricht' },
+    { id: 'arbeitsblatt', label: 'Arbeitsblatt-Generator', icon: <FileEdit size={18} />, section: 'Unterricht' },
+    { id: 'stationenbetrieb', label: 'Stationenbetrieb', icon: <LayoutGrid size={18} />, section: 'Unterricht' },
+    { id: 'stimmnotizen', label: 'Stimm-Notizen', icon: <Mic size={18} />, section: 'Unterricht' },
+    { id: 'differenzierung', label: 'Differenzierung', icon: <Target size={18} />, section: 'Unterricht' },
+    { id: 'elternbrief', label: 'Elternbrief', icon: <Mail size={18} />, section: 'Unterricht' },
+    { id: 'schueler', label: 'Kinder & Dossiers', icon: <Users size={18} />, section: 'Klasse & Kinder' },
+    { id: 'sitzplan', label: 'Sitzplan & Gruppen', icon: <MapIcon size={18} />, section: 'Klasse & Kinder' },
+    { id: 'anwesenheit', label: 'Anwesenheit & Befinden', icon: <Pin size={18} />, section: 'Klasse & Kinder' },
+    { id: 'verhalten', label: 'Notizen & Beobachtungen', icon: <Notebook size={18} />, section: 'Klasse & Kinder' },
+    { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={18} />, section: 'Klasse & Kinder' },
+    { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={18} />, section: 'Leistungen' },
+    { id: 'statistik', label: 'Statistik & Profile', icon: <LineChart size={18} />, section: 'Leistungen' },
+    { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={18} />, section: 'Leistungen' },
+    { id: 'portfolio', label: 'Lernziele & Portfolio', icon: <Briefcase size={18} />, section: 'Leistungen' },
+    { id: 'notenTabelle', label: 'Notenübersicht', icon: <Table size={18} />, section: 'Leistungen' },
+    { id: 'verbal', label: 'Verbale Beurteilung', icon: <FileText size={18} />, section: 'Leistungen' },
+    { id: 'kel', label: 'KEL-Gespräche', icon: <MessagesSquare size={18} />, section: 'Leistungen' },
+    { id: 'planungszentrale', label: 'Planungs-Zentrale', icon: <Target size={18} />, section: 'Planung' },
+    { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={18} />, section: 'Planung' },
+    { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={18} />, section: 'Planung' },
+    { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={18} />, section: 'Planung' },
+    { id: 'stunden', label: 'Stundenentwürfe', icon: <Notebook size={18} />, section: 'Planung' },
+    { id: 'canva', label: 'Canva', icon: <LayoutGrid size={18} />, section: 'Planung' },
+    { id: 'vertretung', label: 'Vertretung', icon: <Replace size={18} />, section: 'Planung' },
+    { id: 'uebergabemappe', label: 'Übergabemappe', icon: <ClipboardList size={18} />, section: 'Planung' },
+    { id: 'klassengemeinschaft', label: 'Wir-Gefühl', icon: <Heart size={18} />, section: 'Entwicklung & Berichte' },
+    { id: 'jahresbericht', label: 'Jahresbericht', icon: <FileText size={18} />, section: 'Entwicklung & Berichte' },
+    { id: 'archiv', label: 'Archiv', icon: <Archive size={18} />, section: 'Entwicklung & Berichte' },
+    { id: 'drucken', label: 'Druckzentrum', icon: <Printer size={18} />, section: 'Ausgabe & Daten' },
+    { id: 'datensicherung', label: 'Datensicherung', icon: <Database size={18} />, section: 'Ausgabe & Daten' },
+    { id: 'settings', label: 'Einstellungen', icon: <SettingsIcon size={18} />, section: 'Ausgabe & Daten' },
   ];
 
-  const rawNavItems = [
-    { section: 'Unterricht', items: [
-      { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-      { id: 'cockpit', label: 'LEHRERCOCKPIT', icon: <Play size={18} />, highlight: true },
-      { id: 'ki-helfer', label: 'KI Helfer', icon: <Bot size={18} />, highlight: true },
-      { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={18} /> },
-    ]},
-    { section: 'Werkzeuge', items: [
-      { id: 'schueler', label: 'Schüler', icon: <Users size={18} /> },
-      { id: 'sitzplan', label: 'Sitzplan', icon: <MapIcon size={18} /> },
-      { id: 'anwesenheit', label: 'Anwesenheit', icon: <Pin size={18} /> },
-      { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={18} /> },
-      app.klassenvorstand && { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={18} /> },
-    ].filter(Boolean) as any },
-    { section: 'Planung', items: [
-      { id: 'planungszentrale', label: 'Planungs-Zentrale', icon: <Target size={18} /> },
-      { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={18} /> },
-      { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={18} /> },
-      { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={18} /> },
-      app.klassenvorstand && { id: 'uebergabemappe', label: 'Übergabemappe', icon: <ClipboardList size={18} /> },
-    ].filter(Boolean) as any },
-    { section: 'Extras', items: [
-      { id: 'statistik', label: 'Statistik & Profile', icon: (
-        <div className="relative w-5 h-5">
-          <LineChart size={14} className="absolute left-0 top-0" />
-          <Users size={11} className="absolute right-0 bottom-0 opacity-85" />
-        </div>
-      ) },
-      app.klassenvorstand && { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={18} /> },
-      app.klassenvorstand && { id: 'klassengemeinschaft', label: 'Wir-Gefühl', icon: <Heart size={18} /> },
-      app.klassenvorstand && { id: 'jahresbericht', label: 'Jahresbericht', icon: <FileText size={18} /> },
-      { id: 'archiv', label: 'Archiv', icon: <Archive size={18} /> },
-    ].filter(Boolean) as any },
-    { section: 'Ausgabe & Daten', items: [
-      { id: 'drucken', label: 'Druckzentrum', icon: <Printer size={18} /> },
-      { id: 'datensicherung', label: 'Datensicherung', icon: <Database size={18} /> },
-      { id: 'settings', label: 'Einstellungen', icon: <SettingsIcon size={18} /> },
-    ]}
-  ];
+  const utilityIds = new Set(['drucken', 'datensicherung', 'settings']);
+  const restrictedForSubjectTeachers = new Set(['orga', 'uebergabemappe', 'diagnostik', 'klassengemeinschaft', 'jahresbericht']);
 
-  const navItems = rawNavItems.map(sec => ({
-    ...sec,
-    items: orderSidebarItems(sec.items).filter(item => !disabledModules.includes(item.id))
-  })).filter(sec => sec.items.length > 0);
+  const availableModules = ALL_MODULES.filter(item =>
+    (app.klassenvorstand || !restrictedForSubjectTeachers.has(item.id)) &&
+    !disabledModules.includes(item.id)
+  );
+
+  const orderedModules = orderSidebarItems(availableModules);
+  const utilityModules = orderedModules.filter(item => utilityIds.has(item.id));
+  const mainModules = orderedModules.filter(item => !utilityIds.has(item.id));
+  const PRIMARY_VISIBLE_COUNT = 8;
+  const visibleMainModules = showMorePages ? mainModules : mainModules.slice(0, PRIMARY_VISIBLE_COUNT);
+  const hiddenMainCount = Math.max(0, mainModules.length - PRIMARY_VISIBLE_COUNT);
 
   const moveSidebarModule = React.useCallback((draggedId: string, targetId: string) => {
     if (!draggedId || draggedId === targetId) return;
-    const dragged = ALL_MODULES.find(item => item.id === draggedId);
-    const target = ALL_MODULES.find(item => item.id === targetId);
-    if (!dragged || !target || dragged.section !== target.section) return;
 
     setApp(prev => {
       const allIds = ALL_MODULES.map(item => item.id);
@@ -144,6 +132,47 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
       };
     });
   }, [setApp]);
+
+  const moveSidebarModuleBy = React.useCallback((moduleId: string, offset: -1 | 1) => {
+    setApp(prev => {
+      const allIds = ALL_MODULES.map(item => item.id);
+      const saved = prev.settings?.sidebarOrder || [];
+      const current = [
+        ...saved.filter((id: string) => allIds.includes(id)),
+        ...allIds.filter(id => !saved.includes(id)),
+      ];
+      const index = current.indexOf(moduleId);
+      const nextIndex = index + offset;
+      if (index < 0 || nextIndex < 0 || nextIndex >= current.length) return prev;
+      const next = [...current];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          sidebarOrder: next,
+        },
+      };
+    });
+  }, [setApp]);
+
+  // Alte Fokus-/Standard-Presets hatten neue Funktionen unsichtbar gemacht.
+  // Nur exakt diese historischen Presets werden einmalig auf "alles sichtbar" zurückgesetzt.
+  React.useEffect(() => {
+    const signatures = [
+      ['cockpit', 'sitzplan', 'orga', 'jahresplanung', 'wochenplanung', 'materialien', 'uebergabemappe', 'statistik', 'diagnostik', 'archiv', 'jahresbericht'],
+      ['jahresplanung', 'uebergabemappe', 'statistik', 'diagnostik', 'archiv', 'jahresbericht'],
+    ].map(items => [...items].sort().join('|'));
+    const current = [...disabledModules].sort().join('|');
+    if (!current || !signatures.includes(current)) return;
+    setApp(prev => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        disabledModules: [],
+      },
+    }));
+  }, [disabledModules, setApp]);
 
 
   const { switchClass, addClass } = useApp();
