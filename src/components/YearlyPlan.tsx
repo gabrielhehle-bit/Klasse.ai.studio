@@ -171,6 +171,7 @@ const MONATE = [
 export default function YearlyPlan() {
   const { app, setApp } = useApp();
   const [editingCell, setEditingCell] = useState<{ kw: number, subjectId: string } | null>(null);
+  const [yearPlannerTab, setYearPlannerTab] = useState<'inhalt' | 'rahmen' | 'weitere'>('inhalt');
   const [viewingCell, setViewingCell] = useState<{ kw: number, subjectId: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [editValue, setEditValue] = useState<{ thema: string, buch: string, type: string, subCategory: string, subCategories?: string[], items?: any[], completed?: boolean }>({ thema: '', buch: '', type: 'standard', subCategory: '', subCategories: [], items: [], completed: false });
@@ -426,6 +427,7 @@ export default function YearlyPlan() {
     });
     setPlanWeeksCount(1);
     setAutoSuffix('part');
+    setYearPlannerTab('inhalt');
     setEditingCell({ kw, subjectId });
   };
 
@@ -2083,7 +2085,7 @@ export default function YearlyPlan() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl border border-border w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] max-w-none h-[92vh] max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
+              className="bg-white rounded-2xl border border-border w-[calc(100vw-0.5rem)] sm:w-[calc(100vw-1rem)] max-w-none h-[calc(100vh-0.5rem)] sm:h-[calc(100vh-1rem)] max-h-none flex flex-col shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-border bg-stone-50 flex justify-between items-center shrink-0">
@@ -2099,223 +2101,302 @@ export default function YearlyPlan() {
                     })()}
                     {` • ${subjects.find(s => s.id === editingCell.subjectId)?.label}`}
                   </div>
-                  <h3 className="font-bold text-text-primary">Planung bearbeiten</h3>
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-text-primary">Jahresplanung bearbeiten</h3>
                 </div>
                 <button onClick={closeEditingCell} className="p-2 hover:bg-stone-200 rounded-full transition-colors">
                   <X size={18} />
                 </button>
               </div>
               
-              <div className="p-5 lg:p-6 grid grid-cols-1 lg:grid-cols-2 gap-5 flex-1 overflow-y-auto min-h-0 items-start">
-                {/* FLAGGEN STATUS */}
-                <div className="space-y-2 lg:col-span-2">
-                  <label className="text-[0.625rem] font-black uppercase text-text-muted ml-1">Wichtiger Termin / Event</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    {[
-                      { id: 'standard', label: 'Kein Termin', icon: <X size={14} />, color: 'hover:bg-stone-100' },
-                      { id: 'sa', label: 'Schularbeit', icon: <Flag size={14} />, color: 'bg-rose-100 text-rose-700 border-rose-200' },
-                      { id: 'test', label: 'Test / WH', icon: <AlertCircle size={14} />, color: 'bg-amber-100 text-amber-700 border-amber-200' },
-                      { id: 'lzk', label: 'LZK', icon: <AlertCircle size={14} />, color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-                      { id: 'spielefest', label: 'Spielefest', icon: <PartyPopper size={14} />, color: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200' },
-                      { id: 'konferenz', label: 'Konferenz', icon: <Users size={14} />, color: 'bg-blue-100 text-blue-700 border-blue-200' },
-                      { id: 'gespraech', label: 'Gespräch', icon: <MessageSquare size={14} />, color: 'bg-violet-100 text-violet-700 border-violet-200' },
-                      { id: 'sonstiges', label: 'Termin', icon: <Calendar size={14} />, color: 'bg-rose-100 text-rose-700 border-rose-200' },
-                      { id: 'event', label: 'Ausflug', icon: <MapPin size={14} />, color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
-                    ].map(t => (
-                      <button
-                        key={t.id}
-                        onClick={() => setEditValue({ ...editValue, type: t.id })}
-                        className={`flex-1 py-2 rounded-xl border flex flex-col items-center gap-1 transition-all ${editValue.type === t.id ? (t.id === 'standard' ? 'bg-stone-900 text-white border-stone-900' : t.color + ' ring-2 ring-offset-1') : 'bg-white border-stone-200 text-stone-400'}`}
-                      >
-                        {t.icon}
-                        <span className="text-[0.5rem] font-black uppercase tracking-tighter">{t.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[0.625rem] font-black uppercase text-text-muted ml-1">Hauptthema / Inhalt</label>
-                  <textarea 
-                    ref={textareaRef}
-                    autoFocus
-                    rows={3}
-                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-[0.875rem] font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all min-h-[90px] resize-y leading-relaxed"
-                    placeholder="z.B. Nomen, Multiplikation bis 100..."
-                    value={editValue.thema}
-                    onChange={e => {
-                      setEditValue({ ...editValue, thema: e.target.value });
-                      adjustTextareaHeight();
-                    }}
-                    onInput={adjustTextareaHeight}
-                  />
-                </div>
-                
-                <div className="space-y-1.5">
-                  <label className="text-[0.625rem] font-black uppercase text-text-muted ml-1">Buch / Materialien / Seiten</label>
-                  <input 
-                    type="text"
-                    className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-[0.875rem] font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all"
-                    placeholder="z.B. S. 42-45"
-                    value={editValue.buch}
-                    onChange={e => setEditValue({ ...editValue, buch: e.target.value })}
-                    onKeyDown={e => e.key === 'Enter' && handleSave()}
-                  />
-                </div>
-
-                {/* ERLEDIGT CHECKBOX */}
-                <div className="flex items-center gap-2.5 py-1 px-1">
-                  <input
-                    type="checkbox"
-                    id="jp-erledigt"
-                    className="w-4 h-4 text-emerald-600 border-stone-300 rounded focus:ring-emerald-500 cursor-pointer"
-                    checked={!!editValue.completed}
-                    onChange={e => setEditValue({ ...editValue, completed: e.target.checked })}
-                  />
-                  <label htmlFor="jp-erledigt" className="text-[0.75rem] font-bold text-stone-700 cursor-pointer flex items-center gap-1.5 select-none">
-                    <span>Erledigt</span>
-                    <span className="text-[0.625rem] text-stone-400 font-normal">(wird im Wochenplan als abgehakt markiert)</span>
-                  </label>
-                </div>
-
-                <div className="space-y-3 border-t border-stone-100 pt-3">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={14} className="text-emerald-600" />
-                    <label className="text-[0.625rem] font-black uppercase text-text-muted">Über mehrere Wochen planen</label>
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[1, 2, 3, 4].map(wNum => (
-                      <button
-                        key={wNum}
-                        type="button"
-                        onClick={() => setPlanWeeksCount(wNum)}
-                        className={`py-2 rounded-xl border text-[0.6875rem] font-black uppercase tracking-tight transition-all ${planWeeksCount === wNum ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100'}`}
-                      >
-                        {wNum === 1 ? '1 Woche' : `${wNum} Wochen`}
-                      </button>
-                    ))}
-                  </div>
-                  
-                  {planWeeksCount > 1 && (
-                    <div className="bg-emerald-50/50 p-3 rounded-xl border border-emerald-100/75 space-y-2 text-[0.75rem] leading-tight">
-                      <div className="flex items-center gap-1.5 text-emerald-850 font-extrabold text-[0.625rem] uppercase tracking-wider">
-                        <span>💡 Automatisches Suffix für Folgewochen:</span>
-                      </div>
-                      <div className="flex gap-2 text-[0.625rem]">
-                        <button
-                          type="button"
-                          onClick={() => setAutoSuffix('part')}
-                          className={`flex-1 py-1 px-1.5 rounded-lg border font-black transition-all ${autoSuffix === 'part' ? 'bg-emerald-100 text-emerald-950 border-emerald-300' : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'}`}
-                        >
-                          "Teil 1, Teil 2..."
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setAutoSuffix('fortsetzung')}
-                          className={`flex-1 py-1 px-1.5 rounded-lg border font-black transition-all ${autoSuffix === 'fortsetzung' ? 'bg-emerald-100 text-emerald-950 border-emerald-300' : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'}`}
-                        >
-                          "Thema" & "(Forts.)"
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setAutoSuffix('none')}
-                          className={`flex-1 py-1 px-1.5 rounded-lg border font-black transition-all ${autoSuffix === 'none' ? 'bg-emerald-100 text-emerald-950 border-emerald-300' : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'}`}
-                        >
-                          Identisch
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {(subjects.find(s => s.id === editingCell.subjectId)?.label.toLowerCase().includes('deutsch') || editingCell.subjectId.toLowerCase().includes('deutsch')) && (
-                  <div className="space-y-1.5 border-t border-stone-100 pt-3 lg:col-span-2">
-                    <label className="text-[0.625rem] font-black uppercase text-blue-500 ml-1">Zubehör & Schwerpunkte</label>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => setEditValue({ ...editValue, subCategories: [], subCategory: '' })}
-                        className={`px-3 py-1.5 rounded-lg text-[0.75rem] leading-tight font-bold transition-all ${(!editValue.subCategories || editValue.subCategories.length === 0) ? 'bg-blue-600 text-white shadow-sm' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}
-                      >
-                        Allgemein
-                      </button>
-                      {DEUTSCH_UNTERFAECHER.map(uf => {
-                        const isActive = (editValue.subCategories || []).includes(uf);
-                        return (
-                          <button
-                            key={uf}
-                            onClick={() => {
-                              const current = editValue.subCategories || [];
-                              const next = isActive ? current.filter(c => c !== uf) : [...current, uf];
-                              setEditValue({ ...editValue, subCategories: next, subCategory: next[0] || '' });
-                            }}
-                            className={`px-3 py-1.5 rounded-lg text-[0.75rem] leading-tight font-bold transition-all ${isActive ? 'bg-blue-100 text-blue-800 ring-2 ring-blue-500 ring-inset shadow-sm' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}
-                          >
-                            {uf.replace('Deutsch ', '')}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                
-                {editValue.items && editValue.items.length > 0 && (
-                  <div className="mt-1 space-y-2 border-t border-stone-100 pt-4 lg:col-span-2">
-                    <label className="text-[0.625rem] font-black uppercase text-text-muted ml-1 pb-1 block">Hinzugefügte Einträge in dieser Woche:</label>
-                    {editValue.items.map((it: any, idx: number) => (
-                       <div key={idx} className="flex justify-between items-center text-[0.75rem] leading-tight p-2 bg-stone-100 rounded-lg border border-stone-200">
-                         <div>
-                           {it.subCategories && it.subCategories.length > 0 ? (
-                             <span className="font-bold text-blue-600 mr-2">{it.subCategories.map((sc: string) => sc.replace('Deutsch ', '')).join(', ')}:</span>
-                           ) : it.subCategory && <span className="font-bold text-blue-600 mr-2">{it.subCategory.replace('Deutsch ', '')}:</span>}
-                           <span className="font-bold">{it.thema}</span> {it.buch && <span className="italic text-stone-500 ml-1">({it.buch})</span>}
-                         </div>
-                         <button onClick={() => setEditValue(prev => ({ ...prev, items: (prev.items || []).filter((_, i) => i !== idx) }))} className="text-rose-500 p-1 hover:bg-rose-100 rounded">
-                           <X size={14} />
-                         </button>
-                       </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="pt-2 lg:col-span-2">
-                   <button 
-                     onClick={() => {
-                        if (editValue.thema.trim() || (editValue.subCategories && editValue.subCategories.length > 0)) {
-                          const newItem = { 
-                            id: crypto.randomUUID(), 
-                            thema: editValue.thema, 
-                            buch: editValue.buch, 
-                            subCategory: editValue.subCategory,
-                            subCategories: editValue.subCategories || [], 
-                            type: editValue.type 
-                          };
-                          setEditValue(prev => ({ 
-                            ...prev, 
-                            thema: '', 
-                            buch: '', 
-                            subCategory: '', 
-                            subCategories: [], 
-                            type: 'standard', 
-                            items: [...(prev.items || []), newItem] 
-                          }));
-                        } else {
-                          alert("Bitte gib erst ein Thema ein oder wähle einen Schwerpunkt aus, bevor du einen weiteren Eintrag hinzufügst.");
-                        }
-                     }}
-                     className="w-full py-4 bg-blue-50 text-blue-600 font-black text-[0.625rem] uppercase tracking-widest rounded-2xl hover:bg-blue-100 transition-all flex items-center justify-center gap-3 border-2 border-dashed border-blue-200"
-                   >
-                     <Plus size={20} /> Weiteren Eintrag hinzufügen
-                   </button>
-                   <p className="text-[0.625rem] text-stone-400 text-center mt-2 font-medium">Nutze diesen Button, um mehrere Themen (z.B. Lesen & Rechtschreiben) in dieselbe Woche einzutragen.</p>
+              <div className="shrink-0 border-b border-stone-100 bg-white px-4 py-3 sm:px-6">
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { id: 'inhalt', label: '1 · Inhalt', hint: 'Thema, Material, Schwerpunkte' },
+                    { id: 'rahmen', label: '2 · Rahmen', hint: 'Termin, Status, Zeitraum' },
+                    { id: 'weitere', label: '3 · Weitere Inhalte', hint: 'Mehrere Themen in derselben Woche' },
+                  ] as const).map(tab => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setYearPlannerTab(tab.id)}
+                      className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
+                        yearPlannerTab === tab.id
+                          ? 'border-emerald-600 bg-emerald-50 shadow-sm'
+                          : 'border-stone-200 bg-white hover:bg-stone-50'
+                      }`}
+                    >
+                      <span className={`block text-[0.6875rem] font-black ${
+                        yearPlannerTab === tab.id ? 'text-emerald-800' : 'text-stone-700'
+                      }`}>{tab.label}</span>
+                      <span className="mt-0.5 hidden text-[0.5625rem] font-semibold text-stone-400 sm:block">{tab.hint}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="p-4 lg:px-6 bg-stone-50 border-t border-border flex gap-3 shrink-0">
-                <button onClick={closeEditingCell} className="flex-1 btn bg-white text-stone-600 border-border hover:bg-stone-100">
+              <div className="shrink-0 border-b border-stone-100 bg-stone-50/70 px-5 py-2.5 lg:px-6">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[0.6875rem]">
+                  <span className="font-black text-stone-800">{subjects.find(s => s.id === editingCell.subjectId)?.label}</span>
+                  <span className="text-stone-300">•</span>
+                  <span className="max-w-[65vw] truncate font-semibold text-stone-500">{editValue.thema || 'Noch kein Thema eingetragen'}</span>
+                  {(editValue.items?.length || 0) > 0 && (
+                    <span className="rounded-full bg-blue-100 px-2 py-0.5 font-black text-blue-700">
+                      +{editValue.items?.length} weitere
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto min-h-0 bg-stone-50/30 p-4 sm:p-5 lg:p-6">
+                {yearPlannerTab === 'inhalt' && (
+                  <div className="mx-auto max-w-6xl space-y-5">
+                    <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6 shadow-sm">
+                      <div className="mb-5">
+                        <div className="text-[0.625rem] font-black uppercase tracking-[0.18em] text-emerald-600">Kernplanung</div>
+                        <h4 className="mt-1 text-lg font-black text-stone-900">Thema & Material</h4>
+                        <p className="mt-1 text-xs font-medium text-stone-500">Das Wesentliche der Woche zuerst. Weitere Einstellungen liegen in den anderen Reitern.</p>
+                      </div>
+                      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+                        <div className="space-y-1.5">
+                          <label className="text-[0.625rem] font-black uppercase text-text-muted ml-1">Hauptthema / Inhalt</label>
+                          <textarea 
+                            ref={textareaRef}
+                            autoFocus
+                            rows={7}
+                            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-[0.9375rem] font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all min-h-[180px] resize-y leading-relaxed"
+                            placeholder="z.B. Nomen, Multiplikation bis 100..."
+                            value={editValue.thema}
+                            onChange={e => {
+                              setEditValue({ ...editValue, thema: e.target.value });
+                              adjustTextareaHeight();
+                            }}
+                            onInput={adjustTextareaHeight}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[0.625rem] font-black uppercase text-text-muted ml-1">Buch / Materialien / Seiten</label>
+                          <textarea
+                            className="w-full min-h-[180px] resize-y bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-[0.875rem] font-medium outline-none focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all"
+                            placeholder="z.B. Schulbuch S. 42–45, Arbeitsblatt, Material..."
+                            value={editValue.buch}
+                            onChange={e => setEditValue({ ...editValue, buch: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </section>
+
+                    {(subjects.find(s => s.id === editingCell.subjectId)?.label.toLowerCase().includes('deutsch') || editingCell.subjectId.toLowerCase().includes('deutsch')) && (
+                      <section className="rounded-2xl border border-blue-100 bg-white p-5 sm:p-6 shadow-sm">
+                        <div className="mb-4">
+                          <div className="text-[0.625rem] font-black uppercase tracking-[0.18em] text-blue-600">Deutsch</div>
+                          <h4 className="mt-1 text-base font-black text-stone-900">Schwerpunkte</h4>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => setEditValue({ ...editValue, subCategories: [], subCategory: '' })}
+                            className={`px-3 py-2 rounded-xl text-[0.75rem] leading-tight font-bold transition-all ${(!editValue.subCategories || editValue.subCategories.length === 0) ? 'bg-blue-600 text-white shadow-sm' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}
+                          >
+                            Allgemein
+                          </button>
+                          {DEUTSCH_UNTERFAECHER.map(uf => {
+                            const isActive = (editValue.subCategories || []).includes(uf);
+                            return (
+                              <button
+                                key={uf}
+                                onClick={() => {
+                                  const current = editValue.subCategories || [];
+                                  const next = isActive ? current.filter(c => c !== uf) : [...current, uf];
+                                  setEditValue({ ...editValue, subCategories: next, subCategory: next[0] || '' });
+                                }}
+                                className={`px-3 py-2 rounded-xl text-[0.75rem] leading-tight font-bold transition-all ${isActive ? 'bg-blue-100 text-blue-800 ring-2 ring-blue-500 ring-inset shadow-sm' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'}`}
+                              >
+                                {uf.replace('Deutsch ', '')}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </section>
+                    )}
+                  </div>
+                )}
+
+                {yearPlannerTab === 'rahmen' && (
+                  <div className="mx-auto max-w-6xl space-y-5">
+                    <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6 shadow-sm">
+                      <div className="mb-4">
+                        <div className="text-[0.625rem] font-black uppercase tracking-[0.18em] text-rose-600">Art der Planung</div>
+                        <h4 className="mt-1 text-lg font-black text-stone-900">Unterricht oder wichtiger Termin</h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                        {[
+                          { id: 'standard', label: 'Unterricht', icon: <X size={14} />, color: 'hover:bg-stone-100' },
+                          { id: 'sa', label: 'Schularbeit', icon: <Flag size={14} />, color: 'bg-rose-100 text-rose-700 border-rose-200' },
+                          { id: 'test', label: 'Test / WH', icon: <AlertCircle size={14} />, color: 'bg-amber-100 text-amber-700 border-amber-200' },
+                          { id: 'lzk', label: 'LZK', icon: <AlertCircle size={14} />, color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+                          { id: 'spielefest', label: 'Spielefest', icon: <PartyPopper size={14} />, color: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200' },
+                          { id: 'konferenz', label: 'Konferenz', icon: <Users size={14} />, color: 'bg-blue-100 text-blue-700 border-blue-200' },
+                          { id: 'gespraech', label: 'Gespräch', icon: <MessageSquare size={14} />, color: 'bg-violet-100 text-violet-700 border-violet-200' },
+                          { id: 'sonstiges', label: 'Termin', icon: <Calendar size={14} />, color: 'bg-rose-100 text-rose-700 border-rose-200' },
+                          { id: 'event', label: 'Ausflug', icon: <MapPin size={14} />, color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+                        ].map(t => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setEditValue({ ...editValue, type: t.id })}
+                            className={`min-h-16 rounded-xl border p-2.5 flex items-center gap-2 transition-all ${editValue.type === t.id ? (t.id === 'standard' ? 'bg-stone-900 text-white border-stone-900' : t.color + ' ring-2 ring-offset-1') : 'bg-white border-stone-200 text-stone-500 hover:bg-stone-50'}`}
+                          >
+                            {t.icon}
+                            <span className="text-[0.625rem] font-black uppercase tracking-tight text-left">{t.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+
+                    <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                      <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6 shadow-sm">
+                        <div className="mb-4">
+                          <div className="text-[0.625rem] font-black uppercase tracking-[0.18em] text-emerald-600">Status</div>
+                          <h4 className="mt-1 text-base font-black text-stone-900">Planungsstatus</h4>
+                        </div>
+                        <label htmlFor="jp-erledigt" className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-stone-200 bg-stone-50 px-4 py-4">
+                          <div>
+                            <div className="text-sm font-black text-stone-800">Erledigt</div>
+                            <div className="mt-0.5 text-[0.6875rem] font-medium text-stone-500">Wird im Wochenplan als erledigt angezeigt.</div>
+                          </div>
+                          <input
+                            type="checkbox"
+                            id="jp-erledigt"
+                            className="w-5 h-5 text-emerald-600 border-stone-300 rounded focus:ring-emerald-500 cursor-pointer"
+                            checked={!!editValue.completed}
+                            onChange={e => setEditValue({ ...editValue, completed: e.target.checked })}
+                          />
+                        </label>
+                      </section>
+
+                      <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6 shadow-sm">
+                        <div className="mb-4">
+                          <div className="text-[0.625rem] font-black uppercase tracking-[0.18em] text-emerald-600">Zeitraum</div>
+                          <h4 className="mt-1 text-base font-black text-stone-900">Über mehrere Wochen planen</h4>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[1, 2, 3, 4].map(wNum => (
+                            <button
+                              key={wNum}
+                              type="button"
+                              onClick={() => setPlanWeeksCount(wNum)}
+                              className={`py-3 rounded-xl border text-[0.6875rem] font-black uppercase tracking-tight transition-all ${planWeeksCount === wNum ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100'}`}
+                            >
+                              {wNum === 1 ? '1 Woche' : `${wNum} Wochen`}
+                            </button>
+                          ))}
+                        </div>
+                        {planWeeksCount > 1 && (
+                          <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/50 p-3">
+                            <div className="mb-2 text-[0.625rem] font-black uppercase tracking-wider text-emerald-800">Folgewochen benennen</div>
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                              <button type="button" onClick={() => setAutoSuffix('part')} className={`py-2 px-2 rounded-lg border text-[0.625rem] font-black transition-all ${autoSuffix === 'part' ? 'bg-emerald-100 text-emerald-950 border-emerald-300' : 'bg-white border-stone-200 text-stone-500'}`}>Teil 1, Teil 2 …</button>
+                              <button type="button" onClick={() => setAutoSuffix('fortsetzung')} className={`py-2 px-2 rounded-lg border text-[0.625rem] font-black transition-all ${autoSuffix === 'fortsetzung' ? 'bg-emerald-100 text-emerald-950 border-emerald-300' : 'bg-white border-stone-200 text-stone-500'}`}>Thema + Forts.</button>
+                              <button type="button" onClick={() => setAutoSuffix('none')} className={`py-2 px-2 rounded-lg border text-[0.625rem] font-black transition-all ${autoSuffix === 'none' ? 'bg-emerald-100 text-emerald-950 border-emerald-300' : 'bg-white border-stone-200 text-stone-500'}`}>Identisch</button>
+                            </div>
+                          </div>
+                        )}
+                      </section>
+                    </div>
+                  </div>
+                )}
+
+                {yearPlannerTab === 'weitere' && (
+                  <div className="mx-auto max-w-6xl space-y-5">
+                    <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6 shadow-sm">
+                      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                          <div className="text-[0.625rem] font-black uppercase tracking-[0.18em] text-blue-600">Mehrere Inhalte</div>
+                          <h4 className="mt-1 text-lg font-black text-stone-900">Zusätzliche Themen in derselben Woche</h4>
+                          <p className="mt-1 text-xs font-medium text-stone-500">Praktisch z.B. für Lesen + Rechtschreiben oder mehrere Sachunterrichtsschwerpunkte.</p>
+                        </div>
+                        <button type="button" onClick={() => setYearPlannerTab('inhalt')} className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-[0.6875rem] font-black text-stone-600 hover:bg-stone-100">
+                          Inhalt bearbeiten
+                        </button>
+                      </div>
+
+                      <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                        <div className="text-[0.5625rem] font-black uppercase tracking-wider text-blue-500">Aktuell vorbereiteter Eintrag</div>
+                        <div className="mt-1 text-sm font-black text-stone-800">{editValue.thema || 'Noch kein Thema eingetragen'}</div>
+                        {editValue.buch && <div className="mt-1 text-xs font-medium text-stone-500">{editValue.buch}</div>}
+                      </div>
+
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          if (editValue.thema.trim() || (editValue.subCategories && editValue.subCategories.length > 0)) {
+                            const newItem = { 
+                              id: crypto.randomUUID(), 
+                              thema: editValue.thema, 
+                              buch: editValue.buch, 
+                              subCategory: editValue.subCategory,
+                              subCategories: editValue.subCategories || [], 
+                              type: editValue.type 
+                            };
+                            setEditValue(prev => ({ 
+                              ...prev, 
+                              thema: '', 
+                              buch: '', 
+                              subCategory: '', 
+                              subCategories: [], 
+                              type: 'standard', 
+                              items: [...(prev.items || []), newItem] 
+                            }));
+                          } else {
+                            alert("Bitte gib erst ein Thema ein oder wähle einen Schwerpunkt aus, bevor du einen weiteren Eintrag hinzufügst.");
+                          }
+                        }}
+                        className="mt-4 w-full py-4 bg-blue-50 text-blue-700 font-black text-[0.6875rem] uppercase tracking-widest rounded-xl hover:bg-blue-100 transition-all flex items-center justify-center gap-3 border-2 border-dashed border-blue-200"
+                      >
+                        <Plus size={18} /> Aktuellen Inhalt als weiteren Eintrag übernehmen
+                      </button>
+                    </section>
+
+                    <section className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6 shadow-sm">
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <h4 className="text-base font-black text-stone-900">Bereits hinzugefügt</h4>
+                        <span className="rounded-full bg-stone-100 px-2.5 py-1 text-[0.625rem] font-black text-stone-600">{editValue.items?.length || 0}</span>
+                      </div>
+                      {editValue.items && editValue.items.length > 0 ? (
+                        <div className="space-y-2">
+                          {editValue.items.map((it: any, idx: number) => (
+                            <div key={it.id || idx} className="flex justify-between items-start gap-4 text-[0.75rem] leading-tight p-3.5 bg-stone-50 rounded-xl border border-stone-200">
+                              <div className="min-w-0">
+                                {it.subCategories && it.subCategories.length > 0 ? (
+                                  <span className="font-bold text-blue-600 mr-2">{it.subCategories.map((sc: string) => sc.replace('Deutsch ', '')).join(', ')}:</span>
+                                ) : it.subCategory && <span className="font-bold text-blue-600 mr-2">{it.subCategory.replace('Deutsch ', '')}:</span>}
+                                <span className="font-black text-stone-800">{it.thema}</span>
+                                {it.buch && <div className="mt-1 italic text-stone-500">{it.buch}</div>}
+                              </div>
+                              <button type="button" onClick={() => setEditValue(prev => ({ ...prev, items: (prev.items || []).filter((_, i) => i !== idx) }))} className="shrink-0 text-rose-500 p-1.5 hover:bg-rose-100 rounded-lg">
+                                <X size={15} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50 py-10 text-center text-xs font-semibold text-stone-400">
+                          Noch keine zusätzlichen Inhalte.
+                        </div>
+                      )}
+                    </section>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 sm:p-4 lg:px-6 bg-stone-50 border-t border-border flex flex-col gap-2 sm:flex-row sm:items-center shrink-0">
+                <button onClick={closeEditingCell} className="btn bg-white text-stone-600 border-border hover:bg-stone-100 sm:min-w-[160px]">
                   Abbrechen
                 </button>
-                <button onClick={handleSave} className="flex-1 btn btn-primary flex items-center justify-center gap-2">
-                  <Save size={18} /> Plan Speichern
+                <div className="hidden flex-1 px-2 text-[0.625rem] font-semibold text-stone-400 lg:block">
+                  Alle Reiter gehören zu derselben Jahresplan-Zelle. Gespeichert wird erst mit „Plan speichern“.
+                </div>
+                <button onClick={handleSave} className="btn btn-primary flex items-center justify-center gap-2 sm:min-w-[260px]">
+                  <Save size={18} /> Plan speichern
                 </button>
               </div>
             </motion.div>
