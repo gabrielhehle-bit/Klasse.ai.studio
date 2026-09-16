@@ -22,6 +22,7 @@ import {
   Info
 } from 'lucide-react';
 import { formatGermanDate } from '../../lib/diagnosticCoreUtils';
+import { logObservation } from '../../lib/utils';
 import DossierKELReflexion from './DossierKELReflexion';
 
 interface DossierBeobachtungenVerlaufProps {
@@ -70,18 +71,18 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
     e.preventDefault();
     if (!newNoteText.trim()) return;
 
-    const freshNote: AppNote = {
-      id: `note-${Date.now()}`,
-      schuelerId: student.id,
-      datum: newNoteDate,
-      kategorie: newNoteCategory,
-      inhalt: newNoteSubject.trim() ? `[${newNoteSubject.trim()}] ${newNoteText.trim()}` : newNoteText.trim()
-    };
+    const noteText = newNoteSubject.trim()
+      ? `[${newNoteSubject.trim()}] ${newNoteText.trim()}`
+      : newNoteText.trim();
 
-    setApp(prev => ({
-      ...prev,
-      notes: [freshNote, ...(prev.notes || [])]
-    }));
+    logObservation(
+      setApp,
+      student.id,
+      noteText,
+      newNoteCategory,
+      'Schülerdossier',
+      newNoteDate,
+    );
 
     setNewNoteText('');
     setNewNoteSubject('');
@@ -92,7 +93,8 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
     if (confirm('Möchten Sie diese Beobachtung wirklich entfernen?')) {
       setApp(prev => ({
         ...prev,
-        notes: (prev.notes || []).filter((n: any) => n.id !== noteId)
+        notes: (prev.notes || []).filter((n: any) => n.id !== noteId),
+        journal: (prev.journal || []).filter((n: any) => n.id !== noteId)
       }));
     }
   };
