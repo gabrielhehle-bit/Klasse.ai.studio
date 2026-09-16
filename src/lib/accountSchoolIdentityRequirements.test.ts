@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { createTeacherIdentity } from '../server/teacherIdentity';
+import { createTeacherIdentityForSchool } from '../server/teacherIdentity';
+import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from '../data/austrianSchoolRegistry.seed';
 
 const root = process.cwd();
 const read = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
@@ -13,8 +14,9 @@ test('Private E-Mail und Schulverifizierung sind getrennte Ebenen', () => {
   assert.match(server, /const emailLoginEnabled = Boolean\(SMTP_HOST && SMTP_FROM\)/);
   assert.doesNotMatch(server, /emailLoginEnabled = Boolean\([^\n]*ALLOWED_EMAIL_DOMAINS/);
   assert.match(server, /klassio_email_account/);
-  assert.match(server, /const identity = createTeacherIdentity\(email, ALLOWED_EMAIL_DOMAINS\)/);
-  assert.match(server, /school: identity \? \{ code: identity\.schoolCode, domain: identity\.schoolDomain \} : null/);
+  assert.match(server, /const verifiedSchool = await schoolRegistryStore\.findVerifiedSchoolByEmail\(email\)/);
+  assert.match(server, /createTeacherIdentityForSchool\(email, verifiedSchool\)/);
+  assert.match(server, /school: identity \? \{/);
 });
 
 test('Private Adressen dürfen ein persönliches Klassio-Konto erhalten', () => {
@@ -29,13 +31,22 @@ test('Private Adressen dürfen ein persönliches Klassio-Konto erhalten', () => 
   assert.doesNotMatch(requestBlock, /ALLOWED_EMAIL_DOMAINS/);
 });
 
-test('Schul-E-Mail schaltet zusätzlich eine konkrete Schulidentität frei', () => {
-  const school = createTeacherIdentity('gabriel.hehle@vsfoa.vobs.at', ['vobs.at']);
-  assert.ok(school);
-  assert.equal(school.schoolDomain, 'vsfoa.vobs.at');
-  assert.equal(school.schoolId, 'vsfoa.vobs.at');
+test('Schul-E-Mail schaltet zusätzlich eine konkrete registrierte Schulidentität frei', () => {
+  const school = INITIAL_VERIFIED_AUSTRIAN_SCHOOLS[0] as any;
+  const identity = createTeacherIdentityForSchool('gabriel.hehle@vsfoa.vobs.at', {
+    ...school,
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  });
+  assert.ok(identity);
+  assert.equal(identity.schoolDomain, 'vsfoa.vobs.at');
+  assert.equal(identity.schoolId, 'at-vbg-vs-oberau');
 
-  const privateAddress = createTeacherIdentity('gabriel@example.com', ['vobs.at']);
+  const privateAddress = createTeacherIdentityForSchool('gabriel@example.com', {
+    ...school,
+    createdAt: new Date(0).toISOString(),
+    updatedAt: new Date(0).toISOString(),
+  });
   assert.equal(privateAddress, null);
 });
 

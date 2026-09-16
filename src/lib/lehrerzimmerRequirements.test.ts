@@ -111,13 +111,15 @@ test('Lehrerzimmer ist direkter Hauptbereich und im App-Routing vorhanden', () =
   assert.match(catalog, /id: 'lehrerzimmer'.*@Erwähnungen/s);
 });
 
-test('Lehrerzimmer benötigt verifizierte Schul-E-Mail-Identität', () => {
+test('Lehrerzimmer benötigt eine verifizierte Schulidentität getrennt vom persönlichen Konto', () => {
   const server = read('server.ts');
 
+  assert.match(server, /klassio_email_account/);
   assert.match(server, /klassio_email_identity/);
   assert.match(server, /requireTeacherIdentity/);
-  assert.match(server, /nur nach Anmeldung mit einer verifizierten Schul-E-Mail/);
-  assert.match(server, /clearEmailIdentitySession\(req, res\)/);
+  assert.match(server, /nur mit einer verifizierten Schulidentität verfügbar/);
+  assert.match(server, /findVerifiedSchoolByEmail\(account\.email\)/);
+  assert.match(server, /clearEmailSessions\(req, res\)/);
 });
 
 test('Lehrerzimmer UI greift nicht auf lokale Klassen- oder Schülerdaten zu', () => {
