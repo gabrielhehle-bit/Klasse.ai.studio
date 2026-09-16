@@ -180,7 +180,11 @@ async function clickCheckboxNearText(client, text) {
 
 async function clickSidebarPage(client, label) {
   const existsExpression =
-    'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").replace(/\\s+/g," ").trim()===' + q(label) + ')';
+    'Array.from(document.querySelectorAll("button")).some(button=>{' +
+    'const text=String(button.textContent||"").replace(/\\s+/g," ").trim();' +
+    'const style=getComputedStyle(button); const rect=button.getBoundingClientRect();' +
+    'return text===' + q(label) + '&&style.visibility!=="hidden"&&style.display!=="none"&&rect.width>0&&rect.height>0;' +
+    '})';
   if (!await evaluate(client, existsExpression)) {
     const moreExpression =
       'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").replace(/\\s+/g," ").trim()==="Mehr")';
