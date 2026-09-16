@@ -93,6 +93,14 @@ export async function deleteTeamTeachingDevice(userId: string): Promise<void> {
   }
 }
 
+export async function clearTeamTeachingDeviceStore(): Promise<void> {
+  memoryFallback.clear();
+  const indexed = getStorage();
+  if (indexed) {
+    await indexed.clear();
+  }
+}
+
 export function __resetTeamTeachingDeviceForTesting(): void {
   memoryFallback.clear();
   storage = null;
