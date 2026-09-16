@@ -12,7 +12,7 @@ import { getServerSyncTimestamps, isSyncSessionExpired } from "./src/lib/syncSer
 import { createTeacherIdentityForSchool, displayNameFromEmail, handleFromEmail, type TeacherIdentity } from "./src/server/teacherIdentity.ts";
 import { createLehrerzimmerStore, type LehrerzimmerCategory } from "./src/server/lehrerzimmerStore.ts";
 import { createClassCollaborationStore, type SharedClassRecord } from "./src/server/classCollaborationStore.ts";
-import { createSchoolRegistryStore, type AustrianFederalState } from "./src/server/schoolRegistry.ts";
+import { createSchoolRegistryStore, type AustrianFederalState, type SchoolVerificationRequest, type SchoolRecord } from "./src/server/schoolRegistry.ts";
 import { createSupporterStore } from "./src/server/supporterStore.ts";
 import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from "./src/data/austrianSchoolRegistry.seed.ts";
 
@@ -64,8 +64,9 @@ function validateProductionEnvironment() {
     console.warn("[KONFIGURATIONSHINWEIS] E-Mail-Login ist nur aktiv, wenn SMTP_HOST und SMTP_FROM gesetzt sind.");
   }
 
-  if (!process.env.KLASSIO_SCHOOL_ADMIN_TOKEN) {
-    console.warn("[KONFIGURATIONSHINWEIS] KLASSIO_SCHOOL_ADMIN_TOKEN ist nicht gesetzt. Neue Schul-Verifizierungsanfragen können gespeichert, aber nicht über die Admin-API freigegeben werden.");
+  const configuredSchoolAdmins = (process.env.KLASSIO_SCHOOL_ADMIN_EMAILS || process.env.SMTP_USER || '').trim();
+  if (!process.env.KLASSIO_SCHOOL_ADMIN_TOKEN && !configuredSchoolAdmins) {
+    console.warn("[KONFIGURATIONSHINWEIS] Keine Schulverifizierungs-Administration konfiguriert. Setze KLASSIO_SCHOOL_ADMIN_EMAILS oder KLASSIO_SCHOOL_ADMIN_TOKEN.");
   }
 }
 
@@ -171,6 +172,12 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const SMTP_USER = (process.env.SMTP_USER || '').trim();
   const SMTP_PASS = process.env.SMTP_PASS || '';
   const SMTP_FROM = (process.env.SMTP_FROM || '').trim();
+  const SCHOOL_ADMIN_EMAILS = [...new Set(
+    (process.env.KLASSIO_SCHOOL_ADMIN_EMAILS || SMTP_USER || '')
+      .split(',')
+      .map(value => value.trim().toLowerCase())
+      .filter(value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+  )];
   const ALLOWED_EMAIL_DOMAINS = (process.env.KLASSIO_VERIFIED_SCHOOL_DOMAINS || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
     .split(',')
     .map(value => value.trim().toLowerCase().replace(/^@/, ''))
