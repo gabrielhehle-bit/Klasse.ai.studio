@@ -672,8 +672,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (restoringRef.current) throw new Error('Eine Wiederherstellung läuft bereits.');
     const key = getActiveVaultKey();
     if (!key) throw new Error('Bitte zuerst den lokalen Tresor entsperren.');
-    if (currentAppRef.current.boardSettings?.activeSyncCode) {
-      throw new Error('Bitte zuerst die aktive Geräteverbindung beenden und das Backup danach erneut einlesen.');
+    const persistedSyncCode = currentAppRef.current.boardSettings?.activeSyncCode;
+    if (persistedSyncCode) {
+      let syncSessionStillExists = true;
+      try {
+        const response = await fetch('/api/sync/' + encodeURIComponent(persistedSyncCode), { cache: 'no-store' });
+        if (response.status === 404) syncSessionStillExists = false;
+      } catch {
+        throw new Error(
+          'Die gespeicherte Geräteverbindung konnte gerade nicht geprüft werden. Bitte Internetverbindung prüfen und den Import erneut versuchen.'
+        );
+      }
+
+      if (syncSessionStillExists) {
+        throw new Error('Bitte zuerst die aktive Geräteverbindung beenden und das Backup danach erneut einlesen.');
+      }
+
+      // Alte Builds konnten einen abgelaufenen Sync-Code lokal behalten. Eine serverseitig
+      // nicht mehr vorhandene Sitzung darf deshalb keinen Backup-Import dauerhaft blockieren.
+      clearActiveSessionKey();
+      activeSessionKeyRef.current = null;
+      const withoutStaleSync: AppState = {
+        ...currentAppRef.current,
+        boardSettings: {
+          ...currentAppRef.current.boardSettings,
+          activeSyncCode: undefined,
+          isRemoteController: undefined,
+          gabicRole: undefined,
+        },
+      };
+      currentAppRef.current = withoutStaleSync;
+      setAppInternal(withoutStaleSync);
     }
     assertRestorableAppState(data);
     const next = syncActiveClass(normalizeAppState({
