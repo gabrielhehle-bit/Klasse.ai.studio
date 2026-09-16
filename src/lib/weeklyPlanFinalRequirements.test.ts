@@ -83,3 +83,38 @@ test('Wochenplanung: Mittagspause und Mehrstundenblöcke folgen der Klassenkonfi
   assert.doesNotMatch(weekly, /zIdx === 4 &&/);
   assert.doesNotMatch(weekly, /\[1, 2, 3, 4, 5, 6\]\.map/);
 });
+
+
+test('Klassenbuch: Deutsch, Mathematik und Förderung sind eindeutig strukturiert', () => {
+  for (const label of [
+    'Deutsch - Sprachbetrachtung',
+    'Deutsch - Sprechen & Hören',
+    'Deutsch - D-FÖ',
+    'Mathematik - Ebene & Raum',
+    'Mathematik - Zahlen & Daten',
+    'Mathematik - Größen',
+    'Mathematik - Operationen',
+    'Förderung (FÖ)',
+  ]) {
+    assert.ok(weekly.includes(label), `Klassenbuch-Bereich fehlt: ${label}`);
+  }
+  assert.doesNotMatch(weekly, /label: 'Sprache'/);
+});
+
+test('Wochenplanung: eine Unterrichtseinheit kann in zwei gleich große Hälften geteilt werden', () => {
+  assert.match(weekly, /Unterrichtseinheit halbieren/);
+  assert.match(weekly, /Erste Hälfte/);
+  assert.match(weekly, /Zweite Hälfte/);
+  assert.match(weekly, /halves: tempSplitLesson/);
+  assert.match(weekly, /1\. Hälfte:/);
+  assert.match(weekly, /2\. Hälfte:/);
+});
+
+test('Klassenbuch: echter DOCX-Export ist für Woche, Monat, Semester und Gesamt verfügbar', () => {
+  assert.match(weekly, /downloadKlassenbuchDocx/);
+  assert.match(weekly, /\['week', 'Woche'\]/);
+  assert.match(weekly, /\['month', 'Monat'\]/);
+  assert.match(weekly, /\['semester', 'Semester'\]/);
+  assert.match(weekly, /\['schoolyear', 'Gesamt'\]/);
+  assert.match(weekly, /getAttendanceSemester/);
+});
