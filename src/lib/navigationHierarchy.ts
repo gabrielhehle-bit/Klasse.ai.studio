@@ -16,7 +16,6 @@ const PAGE_PARENTS: Record<string, NavigationParent> = {
   schueler: { id: 'klasse', label: 'Klasse' },
   sitzplan: { id: 'klasse', label: 'Klasse' },
   anwesenheit: { id: 'klasse', label: 'Klasse' },
-  verhalten: { id: 'klasse', label: 'Klasse' },
   orga: { id: 'klasse', label: 'Klasse' },
   klassengemeinschaft: { id: 'klasse', label: 'Klasse' },
   eltern: { id: 'klasse', label: 'Klasse' },
@@ -42,7 +41,7 @@ const PAGE_PARENTS: Record<string, NavigationParent> = {
   jahresbericht: { id: 'leistungen', label: 'Leistungen' },
 };
 
-const ROOT_PAGES = new Set(['dashboard', 'klasse', 'planung', 'leistungen', 'unterricht']);
+const ROOT_PAGES = new Set(['dashboard', 'klasse', 'verhalten', 'planung', 'leistungen', 'unterricht']);
 
 export function getNavigationParent(page: string | undefined | null): NavigationParent | null {
   if (!page || ROOT_PAGES.has(page)) return null;
