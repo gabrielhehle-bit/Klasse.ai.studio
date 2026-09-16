@@ -9,7 +9,7 @@ import {
   Calendar, CalendarDays, ClipboardList, Mail, Wallet, 
   FileEdit, Notebook, CheckSquare, Play, LineChart, Table, Folder, 
   Target, Replace, Archive, Bot, ChevronLeft, ChevronRight, Database, LayoutGrid,
-  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown, Flag, GraduationCap, Wrench, FileSearch
+  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown, Flag, GraduationCap, Wrench, FileSearch, UserPlus
 } from 'lucide-react';
 import { Button, IconButton, Badge, Chip } from './ui';
 
@@ -70,13 +70,13 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={18} />, section: 'Unterricht' },
     { id: 'arbeitsblatt', label: 'Arbeitsblatt-Generator', icon: <FileEdit size={18} />, section: 'Unterricht' },
     { id: 'stationenbetrieb', label: 'Stationenbetrieb', icon: <LayoutGrid size={18} />, section: 'Unterricht' },
-    { id: 'stimmnotizen', label: 'Stimm-Notizen', icon: <Mic size={18} />, section: 'Unterricht' },
     { id: 'differenzierung', label: 'Differenzierung', icon: <Target size={18} />, section: 'Unterricht' },
     { id: 'elternbrief', label: 'Elternbrief', icon: <Mail size={18} />, section: 'Unterricht' },
     { id: 'schueler', label: 'Klassenliste', icon: <Users size={18} />, section: 'Klasse & Kinder' },
     { id: 'dossier', label: 'Schülerdossier', icon: <GraduationCap size={18} />, section: 'Klasse & Kinder' },
     { id: 'sitzplan', label: 'Sitzplan & Gruppen', icon: <MapIcon size={18} />, section: 'Klasse & Kinder' },
     { id: 'anwesenheit', label: 'Anwesenheit & Befinden', icon: <Pin size={18} />, section: 'Klasse & Kinder' },
+    { id: 'teamteaching', label: 'Teamteaching', icon: <UserPlus size={18} />, section: 'Klasse & Kinder' },
     { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={18} />, section: 'Klasse & Kinder' },
     { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={18} />, section: 'Leistungen' },
     { id: 'statistik', label: 'Statistik & Profile', icon: <LineChart size={18} />, section: 'Leistungen' },
