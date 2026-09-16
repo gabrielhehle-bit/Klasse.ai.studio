@@ -137,7 +137,18 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    return <AccessGate onSuccess={() => setIsAuthenticated(true)} />;
+    return (
+      <AccessGate
+        onSuccess={() => {
+          try {
+            sessionStorage.setItem('klassio_after_login', 'dashboard');
+          } catch {
+            // Session storage can be unavailable in hardened/private browser modes.
+          }
+          setIsAuthenticated(true);
+        }}
+      />
+    );
   }
 
   return <>{children}</>;
@@ -150,7 +161,14 @@ const FULL_HEIGHT_PAGES = ['klasse', 'planung', 'leistungen', 'unterricht', 'leh
 function AppContent() {
   const { app, setApp, setPage } = useApp();
   const { showToast } = useToast();
-  const currentPage = app.currentPage || 'dashboard';
+  const [landOnDashboardAfterLogin] = useState(() => {
+    try {
+      return sessionStorage.getItem('klassio_after_login') === 'dashboard';
+    } catch {
+      return false;
+    }
+  });
+  const currentPage = landOnDashboardAfterLogin ? 'dashboard' : (app.currentPage || 'dashboard');
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showDiagnostikAnleitung, setShowDiagnostikAnleitung] = useState(false);
@@ -206,13 +224,20 @@ function AppContent() {
     });
   };
 
-  const setupAbgeschlossen = Boolean(
-    (app?.klassenbezeichnung && app.klassenbezeichnung.trim().length > 0) ||
-    (app?.classes && app.classes.length > 0) ||
-    (app?.schueler && app.schueler.length > 0)
-  );
-    
-  const [showSetup, setShowSetup] = useState(!setupAbgeschlossen);
+  // Anmeldung landet immer im Dashboard. Der Setup-Wizard öffnet sich nur
+  // noch bewusst über "Setup" / "Klasse hinzufügen", nie automatisch nach Login.
+  const [showSetup, setShowSetup] = useState(false);
+
+  React.useEffect(() => {
+    if (!landOnDashboardAfterLogin) return;
+    setPage('dashboard');
+    try {
+      sessionStorage.removeItem('klassio_after_login');
+    } catch {
+      // Ignore unavailable session storage.
+    }
+  }, [landOnDashboardAfterLogin, setPage]);
+
   const [hasAiKey, setHasAiKey] = useState<boolean | null>(null);
   const [showAiWarning, setShowAiWarning] = useState(true);
 
