@@ -12,7 +12,7 @@ import {
   Briefcase, RefreshCw, AlertTriangle, ArrowRight, Wallet, CheckSquare, 
   DollarSign, MessageSquare, BookOpen, Star, Award, Target, Notebook, Calendar, Clock,
   Heart, Plus, Trash2, UserMinus, FileText, CheckCircle2, ChevronLeft, ChevronRight, MapPin, Mail, Phone, GraduationCap, Users, Printer, X, Rocket,
-  ArrowLeft, SmilePlus, AlertCircle, ChevronUp, ChevronDown, ThumbsUp, Compass, TrendingDown, Activity, Flame, MoreHorizontal
+  ArrowLeft, SmilePlus, AlertCircle, ChevronUp, ChevronDown, ThumbsUp, Compass, TrendingDown, Activity, Flame, MoreHorizontal, Upload
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, LineChart, Line, AreaChart, Area, PieChart, Pie } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
@@ -23,6 +23,7 @@ import StudentStatsEditor from './StudentStatsEditor';
 import { STANDARD_KEL_BEREICHE } from '../types';
 import { generateKELAssessment } from '../services/aiService';
 import KELPresentation from './KELPresentation';
+import AntolinImportModal from './AntolinImportModal';
 import {
   getStudentAttendanceSummary,
   getStudentNotes
@@ -1276,6 +1277,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   const [search, setSearch] = useState('');
   const [profileSubTab, setProfileSubTab] = useState<'dossier' | 'parents' | 'behavior'>('dossier');
   const [showFoerderDetail, setShowFoerderDetail] = useState(false);
+  const [showAntolinImport, setShowAntolinImport] = useState(false);
 
   // KEL Parent-Info Dashboard States
   const [kelAgreementInput, setKelAgreementInput] = useState('');
@@ -3937,6 +3939,11 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
         })()}
       </AnimatePresence>
       
+      <AntolinImportModal
+        open={showAntolinImport}
+        onClose={() => setShowAntolinImport(false)}
+      />
+
       {/* Real-time Sub Filter Controls: 3 Hauptbereiche */}
       <div className="flex justify-center w-full pb-2">
         <div className="flex flex-wrap bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full md:w-auto gap-1">
@@ -3986,6 +3993,15 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
           >
             <MoreHorizontal size={15} className={selectedStudentId === null && (activeTab === 'mehr' || activeTab === 'lehrer') ? "text-indigo-600" : "text-slate-400"} />
             ⋯ Mehr
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAntolinImport(true)}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[0.75rem] leading-tight font-black uppercase tracking-wider transition-all cursor-pointer bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+            title="Antolin-Klassenbericht als PDF, CSV oder Text importieren"
+          >
+            <Upload size={15} className="text-amber-600" />
+            Antolin importieren
           </button>
         </div>
       </div>
