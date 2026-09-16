@@ -165,7 +165,7 @@ const FULL_HEIGHT_PAGES = ['klasse', 'planung', 'leistungen', 'unterricht', 'leh
 function AppContent() {
   const { app, setApp, setPage } = useApp();
   const { showToast } = useToast();
-  const [landOnDashboardAfterLogin] = useState(() => {
+  const [landOnDashboardAfterLogin, setLandOnDashboardAfterLogin] = useState(() => {
     try {
       return sessionStorage.getItem('klassio_after_login') === 'dashboard';
     } catch {
@@ -240,6 +240,9 @@ function AppContent() {
     } catch {
       // Ignore unavailable session storage.
     }
+    // Force only the first authenticated render to the dashboard.
+    // Afterwards normal sidebar/setup navigation must work in the same session.
+    setLandOnDashboardAfterLogin(false);
   }, [landOnDashboardAfterLogin, setPage]);
 
   const [hasAiKey, setHasAiKey] = useState<boolean | null>(null);
