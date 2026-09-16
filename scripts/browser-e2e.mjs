@@ -187,9 +187,9 @@ async function clickSidebarPage(client, label) {
     '})';
   if (!await evaluate(client, existsExpression)) {
     const moreExpression =
-      'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").replace(/\\s+/g," ").trim()==="Mehr")';
+      'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").replace(/\\s+/g," ").trim().startsWith("Mehr ("))';
     if (await evaluate(client, moreExpression)) {
-      await clickByText(client, 'Mehr', true);
+      await clickByText(client, 'Mehr', false);
       await sleep(250);
     }
   }
