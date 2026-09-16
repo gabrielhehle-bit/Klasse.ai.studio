@@ -685,7 +685,7 @@ function AppContent() {
       case 'cockpit': return 'Lehrercockpit';
       case 'sitzplan': return 'Sitzplan';
       case 'anwesenheit': return 'Anwesenheit';
-      case 'verhalten': return 'Verhalten & Notizen';
+      case 'verhalten': return 'Notizen';
       case 'jahresplanung': return 'Jahresplanung';
       case 'wochenplanung': return 'Wochenplanung';
       case 'uebergabemappe': return 'Übergabemappe';

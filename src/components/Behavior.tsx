@@ -49,7 +49,7 @@ import { NoteEntry } from '../types';
 
 export default function Behavior() {
   const { app, setApp } = useApp();
-  const [activeTab, setActiveTab] = useState<'verhalten' | 'config' | 'chronik'>('verhalten');
+  const [activeTab, setActiveTab] = useState<'verhalten' | 'config' | 'chronik'>('chronik');
   const [selectedStatStudentId, setSelectedStatStudentId] = useState<string | null>(null);
   const [statsPeriod, setStatsPeriod] = useState<'week' | 'month' | 'total'>('month');
   const [visibleLimit, setVisibleLimit] = useState(15);
@@ -184,6 +184,7 @@ export default function Behavior() {
   const [chronikSearch, setChronikSearch] = useState('');
   const [newEntryText, setNewEntryText] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [noteCategory, setNoteCategory] = useState<'Journal' | 'Verhalten' | 'Erfolg' | 'Eltern' | 'Notiz'>('Notiz');
   const [aiLoading, setAiLoading] = useState(false);
 
   React.useEffect(() => {
@@ -315,18 +316,16 @@ export default function Behavior() {
     if (e) e.preventDefault();
     if (!newEntryText.trim()) return;
 
-    const kategorie = selectedStudentId ? 'Verhalten' : 'Journal';
-
     logObservation(
       setApp, 
       selectedStudentId || undefined, 
       newEntryText, 
-      kategorie, 
-      'Chronik-Eingabe'
+      noteCategory, 
+      'Notizen-Hauptbereich'
     );
     
     setNewEntryText('');
-    logActivity(setApp, `Eintrag erstellt: ${kategorie}`, 'note');
+    logActivity(setApp, `Notiz erstellt: ${noteCategory}`, 'note');
   };
 
   const deleteJournalEntry = (id: string) => {
@@ -359,8 +358,8 @@ export default function Behavior() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/80 backdrop-blur-xl p-4 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-900/5 relative  print:hidden">
         <div className="flex flex-wrap gap-2 p-1.5 bg-slate-50 rounded-[2rem] border border-slate-100 relative z-10 w-full sm:w-auto">
           {[
-            { id: 'verhalten', label: 'Status', icon: <ShieldAlert size={14} /> },
-            { id: 'chronik', label: 'Chronik', icon: <BookOpen size={14} /> },
+            { id: 'chronik', label: 'Notizen', icon: <BookOpen size={14} /> },
+            { id: 'verhalten', label: 'Beobachtungsstatus', icon: <ShieldAlert size={14} /> },
             { id: 'config', label: 'Einstellungen', icon: <Settings size={14} /> }
           ].map(tab => (
             <button 
@@ -514,15 +513,15 @@ export default function Behavior() {
                </div>
                
                <form onSubmit={handleCreateEntry} className="relative z-10 space-y-6">
-                  <div className="flex flex-wrap items-center gap-4 mb-4">
-                     <div className="flex-1 min-w-[300px] relative">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
+                     <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={16} />
                         <select
                           className="w-full bg-white/5 border border-white/10 rounded-2xl pl-11 pr-10 py-4 text-white text-[0.875rem] font-black outline-none focus:border-accent/40 appearance-none transition-all cursor-pointer"
                           value={selectedStudentId}
                           onChange={e => setSelectedStudentId(e.target.value)}
                         >
-                           <option value="" className="bg-slate-900 text-white">Allgemeiner Eintrag (Journal)</option>
+                           <option value="" className="bg-slate-900 text-white">Allgemeine Notiz</option>
                            <optgroup label="Schüler/innen" className="bg-slate-900 text-white font-black">
                               {sortedStudents.map(s => (
                                 <option key={s.id} value={s.id} className="bg-slate-900 text-white italic">{s.nachname} {s.vorname}</option>
@@ -533,17 +532,30 @@ export default function Behavior() {
                           <ChevronRight size={16} className="rotate-90" />
                         </div>
                      </div>
-                     <div className="hidden sm:block">
-                        <span className="text-[0.625rem] font-black text-white/30 uppercase tracking-[0.2em]">
-                           {selectedStudentId ? 'Kategorie: Verhalten' : 'Kategorie: Journal'}
-                        </span>
+
+                     <div className="relative">
+                        <Notebook className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={16} />
+                        <select
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl pl-11 pr-10 py-4 text-white text-[0.875rem] font-black outline-none focus:border-accent/40 appearance-none transition-all cursor-pointer"
+                          value={noteCategory}
+                          onChange={e => setNoteCategory(e.target.value as typeof noteCategory)}
+                        >
+                           <option value="Notiz" className="bg-slate-900 text-white">Notiz</option>
+                           <option value="Verhalten" className="bg-slate-900 text-white">Beobachtung / Verhalten</option>
+                           <option value="Erfolg" className="bg-slate-900 text-white">Erfolg / Stärke</option>
+                           <option value="Eltern" className="bg-slate-900 text-white">Elternkontakt</option>
+                           <option value="Journal" className="bg-slate-900 text-white">Klassenjournal</option>
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
+                          <ChevronRight size={16} className="rotate-90" />
+                        </div>
                      </div>
                   </div>
 
                   <div className="relative">
                      <textarea 
                         className="w-full bg-white/5 border border-white/10 rounded-[2.5rem] p-8 text-[1.125rem] leading-normal font-medium text-white outline-none focus:border-accent/50 focus:ring-12 ring-accent/5 transition-all placeholder:text-white/20 resize-none h-40 leading-relaxed custom-scrollbar"
-                        placeholder={selectedStudentId ? "Beobachtung zum Schüler festhalten..." : "Allgemeines Ereignis für das Journal notieren..."}
+                        placeholder={selectedStudentId ? "Notiz zu diesem Kind eingeben..." : "Allgemeine Notiz für die Klasse eingeben..."}
                         value={newEntryText}
                         onChange={e => setNewEntryText(e.target.value)}
                      />

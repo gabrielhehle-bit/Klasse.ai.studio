@@ -75,7 +75,8 @@ test("Schülerliste: Suche, Filter, Ansichten, Import und Dossier bleiben erhalt
   assert.match(studentList, /KlassenlistenImport/);
   assert.match(studentList, /Dossier öffnen/);
   assert.match(studentList, /title="Bearbeiten"/);
-  assert.match(studentList, /Notiz oder Interaktion/);
+  assert.doesNotMatch(studentList, /Notiz oder Interaktion/);
+  assert.doesNotMatch(studentList, /InteractionModal/);
 });
 
 test("Klasse-Hub: zentrale Klassenfunktionen bleiben erreichbar", () => {

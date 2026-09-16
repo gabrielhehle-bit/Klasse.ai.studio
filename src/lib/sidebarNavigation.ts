@@ -1,4 +1,4 @@
-export const DAILY_PAGES = ['dashboard', 'klasse', 'planung', 'leistungen', 'unterricht', 'lehrerzimmer'];
+export const DAILY_PAGES = ['dashboard', 'klasse', 'verhalten', 'planung', 'leistungen', 'unterricht', 'lehrerzimmer'];
 export const UTILITY_PAGES = ['datensicherung', 'settings'];
 
 export function groupSidebarItems<T extends { id: string; section: string }>(items: T[], disabled: string[], currentPage: string, showMore: boolean) {

@@ -28,7 +28,7 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
   { id: 'schueler', label: 'Kinder & Dossiers', desc: 'Schülerliste, Dossiers und Stammdaten', category: 'Klasse & Kinder' },
   { id: 'sitzplan', label: 'Sitzplan & Gruppen', desc: 'Sitzordnung und Gruppen organisieren', category: 'Klasse & Kinder' },
   { id: 'anwesenheit', label: 'Anwesenheit & Befinden', desc: 'Präsenz, Befinden und Tagesstatus erfassen', category: 'Klasse & Kinder' },
-  { id: 'verhalten', label: 'Notizen & Beobachtungen', desc: 'Beobachtungen und Verhaltensnotizen festhalten', category: 'Klasse & Kinder' },
+  { id: 'verhalten', label: 'Notizen', desc: 'Alle Klassen- und Schülernotizen zentral erfassen und durchsuchen', category: 'Start' },
   { id: 'orga', label: 'Kasse & Orga', desc: 'Klassenkasse, Geldsammlungen und Organisation', category: 'Klasse & Kinder', condition: (app: any) => app.klassenvorstand },
 
   { id: 'noten', label: 'Notenmappe', desc: 'Noten, Prozent, Punkte, Gewichtungen und Leistungen', category: 'Leistungen' },

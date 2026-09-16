@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { getNavigationParent } from './navigationHierarchy';
 
 test('core pages have no parent breadcrumb', () => {
-  for (const page of ['dashboard', 'klasse', 'planung', 'leistungen', 'unterricht']) {
+  for (const page of ['dashboard', 'klasse', 'verhalten', 'planung', 'leistungen', 'unterricht']) {
     assert.equal(getNavigationParent(page), null);
   }
 });
@@ -15,7 +15,7 @@ test('Unterricht tools return to Unterricht', () => {
 });
 
 test('Klasse, Planung and Leistungen detail pages have a stable parent', () => {
-  for (const page of ['schueler', 'sitzplan', 'anwesenheit', 'verhalten', 'orga', 'klassengemeinschaft', 'eltern']) {
+  for (const page of ['schueler', 'sitzplan', 'anwesenheit', 'orga', 'klassengemeinschaft', 'eltern']) {
     assert.equal(getNavigationParent(page)?.id, 'klasse');
   }
   for (const page of ['planungszentrale', 'jahresplanung', 'wochenplanung', 'stunden', 'materialien', 'canva', 'vertretung', 'uebergabemappe']) {

@@ -5,7 +5,7 @@ import { Student, UNIFIED_DEFAULT_BADGES } from '../types';
 import { 
   Plus, Search, Edit2, Trash2, UserPlus, Phone, Globe, 
   Languages, Gift, Info, Star, GraduationCap, Activity, 
-  FileText, Heart, X, Printer, History, Save, MessageSquare,
+  FileText, Heart, X, Printer, History, Save,
   Clock, Filter, ChevronRight, Notebook, Sparkles, Loader2, Award, ArrowLeft, Download, Mic, AlertCircle, Map, FileUp, Camera
 } from 'lucide-react';
 import { KlassenlistenImport } from './KlassenlistenImport';
@@ -18,7 +18,6 @@ import { EmptyState } from './EmptyState';
 import confetti from 'canvas-confetti';
 import StudentTimeline from './StudentTimeline';
 import { exportSchuelerPDF } from '../lib/exportService';
-import { InteractionModal } from './InteractionModal';
 import { calculateStudentAge, getStudentComparableName, mergeImportedStudents, parseStudentBirthday, sortStudentsForList, toDateInputValue } from '../lib/studentListData';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
@@ -87,7 +86,6 @@ export default function StudentList() {
   const [editingStudent, setEditingStudent] = useState<Partial<Student> | null>(null);
   const [timelineStudent, setTimelineStudent] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'map'>('list');
-  const [interactionModalStudent, setInteractionModalStudent] = useState<string | null>(null);
   const [selectedFolderStudent, setSelectedFolderStudent] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [folderQuickNote, setFolderQuickNote] = useState('');
@@ -110,7 +108,6 @@ export default function StudentList() {
   useEffect(() => {
     // A class change must never keep an old child, editor or interaction open.
     setSelectedFolderStudent(null);
-    setInteractionModalStudent(null);
     setEditingStudent(null);
     setTimelineStudent(null);
     setIsModalOpen(false);
@@ -218,12 +215,11 @@ export default function StudentList() {
   const handleDeleteStudent = (student: Student) => {
     const fullName = `${student.vorname} ${student.nachname}`.trim();
     const confirmed = confirm(
-      `${fullName} wirklich aus dieser Klasse löschen?\n\nDabei werden auch die zu diesem Kind gespeicherten Notizen, Anwesenheiten, Bewertungen, Diagnostik-, Sitzplan- und Interaktionsdaten aus dieser Klasse entfernt. Finanztransaktionen bleiben für die Kassenbilanz erhalten, werden aber vom Kind entkoppelt.`
+      `${fullName} wirklich aus dieser Klasse löschen?\n\nDabei werden auch die zu diesem Kind gespeicherten Notizen, Anwesenheiten, Bewertungen, Diagnostik- und Sitzplandaten aus dieser Klasse entfernt. Finanztransaktionen bleiben für die Kassenbilanz erhalten, werden aber vom Kind entkoppelt.`
     );
     if (!confirmed) return;
 
     if (selectedFolderStudent === student.id) setSelectedFolderStudent(null);
-    if (interactionModalStudent === student.id) setInteractionModalStudent(null);
     deleteStudent(student.id);
   };
 
@@ -696,7 +692,6 @@ export default function StudentList() {
                     {/* Actions */}
                     <div className="col-span-1 lg:col-span-2 flex justify-start lg:justify-end items-center gap-1.5 flex-nowrap pl-11 lg:pl-0">
                        <button onClick={e => { e.stopPropagation(); setSelectedFolderStudent(s.id); }} aria-label={`Dossier von ${s.vorname} ${s.nachname} öffnen`} className={`text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Dossier öffnen"><GraduationCap size={isCompact ? 14 : isLarge ? 18 : 16} strokeWidth={2.5} /></button>
-                       <button onClick={e => { e.stopPropagation(); setInteractionModalStudent(s.id); }} aria-label={`Notiz oder Interaktion für ${s.vorname} ${s.nachname}`} className={`text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Notiz oder Interaktion"><MessageSquare size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
                        <button onClick={e => { e.stopPropagation(); setEditingStudent(s); setIsModalOpen(true); }} aria-label={`${s.vorname} ${s.nachname} bearbeiten`} className={`text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Bearbeiten"><Edit2 size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
                        <button onClick={e => { e.stopPropagation(); handleDeleteStudent(s); }} aria-label={`${s.vorname} ${s.nachname} löschen`} className={`text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Löschen"><Trash2 size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
                     </div>
@@ -2262,11 +2257,6 @@ export default function StudentList() {
         </div>
       </div>
 
-      <InteractionModal 
-        isOpen={!!interactionModalStudent} 
-        onClose={() => setInteractionModalStudent(null)} 
-        presetStudentId={interactionModalStudent} 
-      />
     </>
   );
 }
