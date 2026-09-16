@@ -78,6 +78,14 @@ export function normalizeStudentGender(value?: string | null): string {
   return String(value || '').trim();
 }
 
+export function getStudentGenderLabel(value?: string | null): string {
+  const normalized = normalizeStudentGender(value);
+  if (normalized === 'männlich') return 'Männlich';
+  if (normalized === 'weiblich') return 'Weiblich';
+  if (normalized === 'divers') return 'Divers';
+  return normalized || 'Nicht erfasst';
+}
+
 
 export type StudentSortBy = 'nachname' | 'vorname' | 'alter';
 export type StudentSortOrder = 'asc' | 'desc';
