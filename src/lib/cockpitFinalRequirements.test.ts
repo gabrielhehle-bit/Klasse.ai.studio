@@ -73,14 +73,14 @@ test("Cockpit: Standardlayout öffnet keine Widgets und Beispielprofile sind lee
   assert.match(teachingSurface, /const DEFAULT_WORKSPACE_PROFILES: any\[\] = \[\];/);
 });
 
-test("Cockpit: Anordnung liegt unter Optionen und beendet den Schreibmodus", () => {
-  assert.doesNotMatch(teachingSurface, /aria-pressed=\{!isLayoutLocked\}/);
-  assert.match(teachingSurface, /<span>Anordnung ändern<\/span>/);
-  assert.match(teachingSurface, /<span>Anordnung fertig<\/span>/);
-  assert.match(
-    teachingSurface,
-    /setIsBoardWriting\(false\);\s*setIsLayoutLocked\(\(prev\) => !prev\);/,
-  );
+test("Cockpit: Widgets bleiben ohne separaten Layout-Modus immer verschiebbar", () => {
+  assert.match(teachingSurface, /const isLayoutLocked = false;/);
+  assert.match(teachingSurface, /const isLayoutEditing = true;/);
+  assert.match(teachingSurface, /Widgets immer verschiebbar/);
+  assert.doesNotMatch(teachingSurface, /<span>Anordnung ändern<\/span>/);
+  assert.doesNotMatch(teachingSurface, /<span>Anordnung fertig<\/span>/);
+  assert.doesNotMatch(teachingSurface, /setIsLayoutLocked/);
+  assert.match(cockpitWidget, /layoutLocked \? "auto" : "none"/);
 });
 
 test("Cockpit: Unterrichtshilfen schließen lässt Schrift und Zeichnung bestehen", () => {
