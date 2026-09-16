@@ -8,8 +8,8 @@ test('Sidebar: vollständige moderne Klassio-Bereiche bleiben erreichbar', () =>
   for (const id of [
     'dashboard', 'klasse', 'planung', 'leistungen', 'unterricht',
     'cockpit', 'ki-helfer', 'lehrerzimmer', 'arbeitsblatt', 'stationenbetrieb',
-    'stimmnotizen', 'differenzierung', 'elternbrief',
-    'schueler', 'sitzplan', 'anwesenheit', 'verhalten', 'orga',
+    'differenzierung', 'elternbrief',
+    'schueler', 'sitzplan', 'anwesenheit', 'verhalten', 'teamteaching', 'orga',
     'noten', 'statistik', 'diagnostik', 'portfolio', 'notenTabelle', 'verbal', 'kel',
     'planungszentrale', 'jahresplanung', 'wochenplanung', 'materialien', 'stunden',
     'canva', 'vertretung', 'uebergabemappe', 'klassengemeinschaft', 'jahresbericht',
