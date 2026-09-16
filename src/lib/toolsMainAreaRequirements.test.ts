@@ -9,9 +9,9 @@ const textTool = readFileSync('src/components/TextAnalysisTool.tsx', 'utf8');
 const analysis = readFileSync('src/lib/textAnalysis.ts', 'utf8');
 const hierarchy = readFileSync('src/lib/navigationHierarchy.ts', 'utf8');
 
-test('Tools: eigener Hauptbereich und Textanalyse sind direkt navigierbar', () => {
+test('Tools: eigener Hauptbereich; Textanalyse liegt im Tools-Hub statt direkt in der Sidebar', () => {
   assert.match(sidebar, /id: 'tools', label: 'Tools'.*section: 'Start'/);
-  assert.match(sidebar, /id: 'textanalyse', label: 'Textanalyse'.*section: 'Tools'/);
+  assert.doesNotMatch(sidebar, /id: 'textanalyse', label: 'Textanalyse'/);
   assert.match(app, /case 'tools': return <ToolsHub \/>/);
   assert.match(app, /case 'textanalyse': return <TextAnalysisTool \/>/);
   assert.match(hierarchy, /textanalyse: \{ id: 'tools', label: 'Tools' \}/);
