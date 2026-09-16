@@ -47,10 +47,11 @@ import { polishText } from '../services/aiService';
 import { formatLocalDateKey, logObservation, logActivity } from '../lib/utils';
 import { filterChronicleEntries } from '../lib/behaviorChronicle';
 import { NoteEntry } from '../types';
+import StimmNotizen from './StimmNotizen';
 
 export default function Behavior() {
   const { app, setApp } = useApp();
-  const [activeTab, setActiveTab] = useState<'verhalten' | 'config' | 'chronik'>('chronik');
+  const [activeTab, setActiveTab] = useState<'verhalten' | 'config' | 'chronik' | 'voice'>('chronik');
   const [selectedStatStudentId, setSelectedStatStudentId] = useState<string | null>(null);
   const [statsPeriod, setStatsPeriod] = useState<'week' | 'month' | 'total'>('month');
   const [visibleLimit, setVisibleLimit] = useState(15);
@@ -360,6 +361,7 @@ export default function Behavior() {
         <div className="flex flex-wrap gap-2 p-1.5 bg-slate-50 rounded-[2rem] border border-slate-100 relative z-10 w-full sm:w-auto">
           {[
             { id: 'chronik', label: 'Notizen', icon: <BookOpen size={14} /> },
+            { id: 'voice', label: 'Diktieren', icon: <Mic size={14} /> },
             { id: 'verhalten', label: 'Beobachtungsstatus', icon: <ShieldAlert size={14} /> },
             { id: 'config', label: 'Einstellungen', icon: <Settings size={14} /> }
           ].map(tab => (
@@ -498,6 +500,15 @@ export default function Behavior() {
                  </div>
                </div>
             </div>
+          </motion.div>
+        ) : activeTab === 'voice' ? (
+          <motion.div
+            key="voice"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <StimmNotizen />
           </motion.div>
         ) : activeTab === 'chronik' ? (
           <motion.div
