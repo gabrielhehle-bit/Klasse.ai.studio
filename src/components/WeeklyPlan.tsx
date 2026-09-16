@@ -2427,13 +2427,35 @@ export default function WeeklyPlan() {
                 <p className="text-[0.75rem] leading-tight text-slate-400 font-bold">Automatisch befüllt aus deiner Wochenplanung</p>
               </div>
 
-              <button 
-                onClick={() => setApp(prev => ({ ...prev, currentPage: 'drucken', activePrintTemplate: 'klassenbuch' }))}
-                className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white transition-all rounded-2xl font-black text-[0.75rem] leading-tight uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-indigo-600/10 cursor-pointer select-none"
-              >
-                <Printer size={16} />
-                <span>Im Druckzentrum öffnen</span>
-              </button>
+              <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                <button 
+                  onClick={() => setApp(prev => ({ ...prev, currentPage: 'drucken', activePrintTemplate: 'klassenbuch' }))}
+                  className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white transition-all rounded-2xl font-black text-[0.75rem] leading-tight uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/10 cursor-pointer select-none"
+                >
+                  <Printer size={16} />
+                  <span>Im Druckzentrum öffnen</span>
+                </button>
+
+                <div className="flex flex-wrap justify-start gap-1.5 sm:justify-end" aria-label="Klassenbuch als Word-Dokument exportieren">
+                  {([
+                    ['week', 'Woche'],
+                    ['month', 'Monat'],
+                    ['semester', 'Semester'],
+                    ['schoolyear', 'Gesamt'],
+                  ] as const).map(([range, label]) => (
+                    <button
+                      key={range}
+                      type="button"
+                      onClick={() => void exportKlassenbuchDocx(range)}
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[0.6875rem] font-black text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                      title={`Klassenbuch ${label} als echte DOCX-Datei exportieren`}
+                    >
+                      <Download size={13} />
+                      DOCX {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-100/50 text-[0.75rem] leading-tight font-bold text-slate-700">
               <div className="space-y-1">
