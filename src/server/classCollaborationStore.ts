@@ -314,6 +314,44 @@ export class ClassCollaborationStore {
     });
   }
 
+  async updateMemberKeys(
+    identity: TeacherIdentity,
+    classId: string,
+    userId: string,
+    wrappedKeysInput: unknown,
+  ): Promise<SharedClassRecord> {
+    if (!wrappedKeysInput || typeof wrappedKeysInput !== 'object' || Array.isArray(wrappedKeysInput)) {
+      throw new Error('INVALID_WRAPPED_KEYS');
+    }
+
+    return this.mutate(data => {
+      const record = (data.classes[identity.schoolId] || []).find(item => item.id === classId);
+      if (!record) throw new Error('CLASS_NOT_FOUND');
+      const requester = record.members.find(member => member.userId === identity.userId);
+      if (!requester) throw new Error('FORBIDDEN');
+      if (record.ownerUserId !== identity.userId && identity.userId !== userId) {
+        throw new Error('OWNER_REQUIRED');
+      }
+
+      const member = record.members.find(item => item.userId === userId);
+      if (!member) throw new Error('MEMBER_NOT_FOUND');
+
+      const registered = data.devices[identity.schoolId]?.[userId] || [];
+      const rawWrapped = wrappedKeysInput as Record<string, unknown>;
+      const wrappedKeys: Record<string, string> = {};
+      for (const device of registered) {
+        const candidate = rawWrapped[device.deviceId];
+        if (isWrappedKey(candidate)) wrappedKeys[device.deviceId] = candidate;
+      }
+      if (!Object.keys(wrappedKeys).length) throw new Error('MEMBER_DEVICE_REQUIRED');
+
+      member.wrappedKeys = wrappedKeys;
+      record.updatedAt = new Date().toISOString();
+      record.updatedBy = identity.userId;
+      return cloneRecord(record);
+    });
+  }
+
   async updateMemberRole(
     identity: TeacherIdentity,
     classId: string,
