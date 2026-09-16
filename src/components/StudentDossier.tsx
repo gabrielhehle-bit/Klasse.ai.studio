@@ -5,7 +5,7 @@ import {
   Stethoscope, GraduationCap, Banknote, FileText, ChevronRight, ChevronDown,
   ArrowLeft, Download, Printer, Clock, Save, Edit3, Trash2, Award, ClipboardList,
   AlertCircle, Compass, Maximize2, Minimize2, Calendar, Shield, CheckCircle2,
-  BookOpen, Phone
+  BookOpen, Phone, ListChecks
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { exportSchuelerPDF } from '../lib/exportService';
@@ -37,6 +37,7 @@ import DossierErlaeuterungsmatrix from './dossier/DossierErlaeuterungsmatrix';
 import StudentLernziele from './StudentLernziele';
 import WorksheetGenerator from './WorksheetGenerator';
 import { DossierEntwicklungsuebersicht } from './dossier/DossierEntwicklungsuebersicht';
+import DossierDevelopmentLists from './dossier/DossierDevelopmentLists';
 import { getStudentGenderLabel } from '../lib/studentListData';
 import { DossierFoerderung } from './dossier/DossierFoerderung';
 import { DossierBeobachtungenVerlauf } from './dossier/DossierBeobachtungenVerlauf';
@@ -90,7 +91,8 @@ export type DossierTab =
   | 'kel_reflexion'
   | 'entwicklungsuebersicht'
   | 'foerderung'
-  | 'beobachtungen_verlauf';
+  | 'beobachtungen_verlauf'
+  | 'entwicklungslisten';
 
 export interface MainAreaDef {
   id: MainAreaId;
@@ -141,6 +143,7 @@ export const MAIN_AREAS: MainAreaDef[] = [
       { id: 'diagnostik', label: 'Diagnostik', shortLabel: 'Diagnostik', icon: Stethoscope, description: 'Kompetenzchecks & Erfassung von Lernvoraussetzungen' },
       { id: 'foerderung', label: 'Förderung', shortLabel: 'Förderung', icon: Heart, description: 'Aktive Förderziele, pädagogische Maßnahmen und Stärken' },
       { id: 'beobachtungen_verlauf', label: 'Beobachtungen & Verlauf', shortLabel: 'Beobachtungen & Verlauf', icon: Clock, description: 'Pädagogische Notizen, Verhaltensverlauf, Anwesenheit und KEL' },
+      { id: 'entwicklungslisten', label: 'Entwicklungslisten', shortLabel: 'Entwicklungslisten', icon: ListChecks, description: 'Fortlaufende individuelle Verläufe wie Antolin, Lautlesen und Förderung' },
     ]
   },
   {
@@ -978,6 +981,9 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                     student={student}
                     initialSubSection={activeTab === 'kel_reflexion' ? 'kel' : activeTab === 'stats' ? 'verhalten' : 'beobachtungen'}
                   />
+                )}
+                {activeTab === 'entwicklungslisten' && (
+                  <DossierDevelopmentLists studentId={student.id} />
                 )}
                 {activeTab === 'stammdaten' && <DossierStammdaten student={student} />}
                 {activeTab === 'kontakte_einwilligungen' && <DossierKontakteEinwilligungen student={student} />}
