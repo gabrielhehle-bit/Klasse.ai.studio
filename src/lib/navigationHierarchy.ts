@@ -14,6 +14,7 @@ const PAGE_PARENTS: Record<string, NavigationParent> = {
 
   // Klasse
   schueler: { id: 'klasse', label: 'Klasse' },
+  dossier: { id: 'klasse', label: 'Klasse' },
   sitzplan: { id: 'klasse', label: 'Klasse' },
   anwesenheit: { id: 'klasse', label: 'Klasse' },
   orga: { id: 'klasse', label: 'Klasse' },
