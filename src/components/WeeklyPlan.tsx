@@ -3487,7 +3487,7 @@ export default function WeeklyPlan() {
         };
         const linkedMaterials = (lesson.materialIds || [])
           .map((id: string) => app.materialien?.find(material => material.id === id)?.titel)
-          .filter(Boolean);
+          .filter((title): title is string => Boolean(title));
 
         const closeOverview = () => {
           setViewingCell(null);
