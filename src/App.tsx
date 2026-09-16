@@ -36,6 +36,8 @@ const KlasseHub = lazyRetry(() => import('./components/KlasseHub'));
 const PlanungHub = lazyRetry(() => import('./components/PlanungHub'));
 const LeistungenHub = lazyRetry(() => import('./components/LeistungenHub'));
 const UnterrichtHub = lazyRetry(() => import('./components/UnterrichtHub'));
+const ToolsHub = lazyRetry(() => import('./components/ToolsHub'));
+const TextAnalysisTool = lazyRetry(() => import('./components/TextAnalysisTool'));
 const Lehrerzimmer = lazyRetry(() => import('./components/Lehrerzimmer'));
 const StudentList = lazyRetry(() => import('./components/StudentList'));
 const StudentDossierHub = lazyRetry(() => import('./components/StudentDossierHub'));
@@ -649,6 +651,8 @@ function AppContent() {
       case 'jahresbericht': return <Jahresbericht />;
       case 'stimmnotizen': return <StimmNotizen />;
       case 'stationenbetrieb': return <StationenbetriebManager />;
+      case 'tools': return <ToolsHub />;
+      case 'textanalyse': return <TextAnalysisTool />;
       case 'planungszentrale': return <PlanungsZentrale />;
       case 'design-system': return <DesignSystemPreview />;
       default: return (
@@ -675,6 +679,8 @@ function AppContent() {
       case 'planung': return 'Planung';
       case 'leistungen': return 'Leistungen';
       case 'unterricht': return 'Unterricht';
+      case 'tools': return 'Tools';
+      case 'textanalyse': return 'Textanalyse';
       case 'lehrerzimmer': return 'Lehrerzimmer';
       case 'schueler': return 'Klassenliste';
       case 'dossier': return 'Schülerdossier';
