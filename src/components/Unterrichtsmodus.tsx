@@ -1,4 +1,3 @@
-import { BoardInk } from './cockpit/BoardInk';
 import { shouldApplyTafelCommand } from '../lib/tafelCommands';
 import React, {
   useEffect,
@@ -2901,8 +2900,6 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       return loadAndSanitizeLayout(app.cockpitLayout);
     },
   );
-  const [isBoardWriting, setIsBoardWriting] = useState(false);
-  useEffect(() => { setIsBoardWriting(false); }, [app.activeClassId]);
   // Widgets bleiben immer frei verschiebbar. So muss im Unterricht kein
   // separater Layout-Modus ein- oder ausgeschaltet werden.
   const isLayoutLocked = false;
@@ -3574,7 +3571,6 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const handleOpenWidgetInCockpitLayout = (
     type: CockpitWidgetConfig["type"],
   ) => {
-    setIsBoardWriting(false);
     setRecentWidgetTypes((previous) => {
       const updatedRecent = [String(type), ...previous.filter((entry) => entry !== type)].slice(0, 5);
       localStorage.setItem("cockpit_recent_widget_types", JSON.stringify(updatedRecent));
@@ -9300,11 +9296,9 @@ ${content}
                             )}
                           </div>
 
-                          <button type="button" aria-pressed={isBoardWriting}
-                            onClick={() => { setIsBoardWriting(value => !value); }}
-                            className={`min-h-11 px-4 rounded-xl text-sm font-semibold border ${isBoardWriting ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50'}`}>
-                            {isBoardWriting ? 'Widgets bedienen' : 'Schreiben & Zeichnen'}
-                          </button>
+                          <div className="hidden sm:flex items-center px-3 text-xs font-semibold text-slate-500">
+                            Weiße Smartboard-Fläche
+                          </div>
 
                           {/* Secondary Actions: Dropdown Menu (••• Optionen) */}
                           <div className="relative">
@@ -9713,15 +9707,8 @@ ${content}
                         }`}
                         id="widget-board-stage"
                       >
-                        <BoardInk key={app.activeClassId} active={isBoardWriting}
-                          items={app.boardSettings?.cockpitInkByClass?.[app.activeClassId] || []}
-                          onDone={() => setIsBoardWriting(false)}
-                          onChange={items => {
-                            const classId = app.activeClassId;
-                            setApp(prev => ({ ...prev, boardSettings: { ...prev.boardSettings,
-                              cockpitInkByClass: { ...prev.boardSettings?.cockpitInkByClass, [classId]: items },
-                            } }));
-                          }} />
+                        {/* Bewusst leer: Schreiben/Zeichnen übernimmt das Smartboard selbst.
+                            Klassio stellt nur die weiße Projektionsfläche und die Widgets bereit. */}
                         {/* Centered Confirm Dialog inside stage instead of native popup */}
                         {timerToCloseId && (
                           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[99999] no-print">
