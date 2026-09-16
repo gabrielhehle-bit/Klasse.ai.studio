@@ -39,6 +39,7 @@ const UnterrichtHub = lazyRetry(() => import('./components/UnterrichtHub'));
 const ToolsHub = lazyRetry(() => import('./components/ToolsHub'));
 const TextAnalysisTool = lazyRetry(() => import('./components/TextAnalysisTool'));
 const Lehrerzimmer = lazyRetry(() => import('./components/Lehrerzimmer'));
+const ClassTeam = lazyRetry(() => import('./components/ClassTeam'));
 const StudentList = lazyRetry(() => import('./components/StudentList'));
 const StudentDossierHub = lazyRetry(() => import('./components/StudentDossierHub'));
 const Gradebook = lazyRetry(() => import('./components/Gradebook'));
@@ -164,7 +165,7 @@ const FULL_HEIGHT_PAGES = ['klasse', 'planung', 'leistungen', 'unterricht', 'leh
 function AppContent() {
   const { app, setApp, setPage } = useApp();
   const { showToast } = useToast();
-  const [landOnDashboardAfterLogin] = useState(() => {
+  const [landOnDashboardAfterLogin, setLandOnDashboardAfterLogin] = useState(() => {
     try {
       return sessionStorage.getItem('klassio_after_login') === 'dashboard';
     } catch {
@@ -239,6 +240,9 @@ function AppContent() {
     } catch {
       // Ignore unavailable session storage.
     }
+    // Force only the first authenticated render to the dashboard.
+    // Afterwards normal sidebar/setup navigation must work in the same session.
+    setLandOnDashboardAfterLogin(false);
   }, [landOnDashboardAfterLogin, setPage]);
 
   const [hasAiKey, setHasAiKey] = useState<boolean | null>(null);
@@ -607,6 +611,7 @@ function AppContent() {
       case 'leistungen': return <LeistungenHub />;
       case 'unterricht': return <UnterrichtHub />;
       case 'lehrerzimmer': return <Lehrerzimmer />;
+      case 'teamteaching': return <ClassTeam />;
       case 'schueler': return <StudentList />;
       case 'dossier': return <StudentDossierHub />;
       case 'noten': return <Gradebook />;

@@ -7,6 +7,7 @@ import localforage from 'localforage';
 import { getSpeicherStatus } from '../lib/utils';
 import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
 import { clearActiveVaultSession, deleteVaultRecord } from '../lib/vaultStorage';
+import { clearTeamTeachingDeviceStore } from '../lib/teamTeachingDevice';
 
 // Subcomponents
 import SettingsHeader, { SettingsCategory } from './settings/SettingsHeader';
@@ -209,9 +210,10 @@ export default function Settings() {
     if (resetType === 'all') {
       try {
         await clearTrustedDeviceUnlock();
+        await clearTeamTeachingDeviceStore();
       } catch (error) {
-        console.error('Gerätevertrauen konnte beim Werksreset nicht gelöscht werden', error);
-        showToast('Werksreset abgebrochen: Gerätevertrauen konnte nicht gelöscht werden.', 'error');
+        console.error('Geräteschlüssel konnten beim Werksreset nicht gelöscht werden', error);
+        showToast('Werksreset abgebrochen: Lokale Geräteschlüssel konnten nicht gelöscht werden.', 'error');
         return;
       }
 

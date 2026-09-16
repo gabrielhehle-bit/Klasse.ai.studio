@@ -9,6 +9,7 @@ import { clearActiveVaultSession, deleteVaultRecord, getActiveVaultKey, getActiv
 import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
 import { ONEDRIVE_BACKUP_PRIMARY_NAME } from '../lib/cloudBackupNames';
 import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
+import { clearTeamTeachingDeviceStore } from '../lib/teamTeachingDevice';
 import { syncActiveClass, switchClassState } from '../lib/appState';
 
 function formatBackupMoment(timestamp: number, label = 'Zuletzt gesichert'): string {
@@ -240,9 +241,10 @@ export default function Backup() {
 
     try {
       await clearTrustedDeviceUnlock();
+      await clearTeamTeachingDeviceStore();
     } catch (error) {
-      console.error('Gerätevertrauen konnte beim Werksreset nicht gelöscht werden', error);
-      alert('Der Werksreset wurde abgebrochen: Gerätevertrauen konnte nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
+      console.error('Geräteschlüssel konnten beim Werksreset nicht gelöscht werden', error);
+      alert('Der Werksreset wurde abgebrochen: Lokale Geräteschlüssel konnten nicht vollständig gelöscht werden. Bitte versuche den Reset erneut.');
       return;
     }
 

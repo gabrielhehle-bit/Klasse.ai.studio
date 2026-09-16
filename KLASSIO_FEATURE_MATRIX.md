@@ -1,6 +1,6 @@
 # KLASSIO – Feature Matrix
 
-Stand: 2026-09-15 · Integrationsbranch `reconcile/klassio-source-of-truth`
+Stand: 2026-09-16 · aktive Integrationskette `feature/usability-widgets-tools-notes` → `main`; Teamteaching in PR #96
 
 Legende:
 
@@ -142,6 +142,7 @@ Alle 22 Einzelmodule sind technisch abgeschlossen. Ein neuer Chat setzt nach dem
 | E-Mail-Einmalcode-Login | 🟡 | PR #85 trennt persönliches E-Mail-Konto und Schulidentität: jede gültige E-Mail kann grundsätzlich den Einmalcode-Login nutzen; 30-Tage-Session und Rate-Limits bleiben. Reales SMTP-Staging noch testen. |
 | Schulregister Österreich | 🟡 | PR #86: persistentes serverseitiges Register mit stabiler Schul-ID, exakter Schul-Domain und Bundesland; alle 9 Bundesländer vorgesehen. VS Oberau / `vsfoa.vobs.at` ist initialer Seed. Neue Schulen können eine Verifizierungsanfrage stellen; private Mailanbieter und die VOBS-Sammeldomain werden nicht als Schule akzeptiert. Admin-Freigabe und Staging-Abnahme offen. |
 | Lehrerzimmer / Kollegium | 🟡 | PR #78 in UX-Reconciliation integriert; Beiträge, Fragen, Antworten, @Erwähnungen und Kollegium bleiben strikt an die verifizierte Schul-ID gebunden. Private Klassio-Konten erhalten keinen schulweiten Zugriff. |
+| Gemeinsame Klassen / Teamteaching | 🟡 | PR #96 technisch umgesetzt. Jede Lehrperson nutzt ein eigenes Schulmail-Konto und einen eigenen lokalen Tresor/Geräteschlüssel; Klassen werden nur explizit für Mitglieder derselben verifizierten Schule freigegeben. Rollen Owner/Editor/Viewer, AES-GCM-256-Klassensnapshot, per RSA-OAEP für berechtigte Geräte verpackter Klassenschlüssel, Revisions-/Konfliktschutz und Geräte-Nachfreigabe sind implementiert. Feature Validation #1124 sowie realer Zwei-Konto-Chrome-Test Teamteaching Browser E2E #13/#14 sind grün: A erstellt/freigibt, B übernimmt/entschlüsselt/schreibt, A lädt die neue Revision; Serverpersistenz enthält keinen Klassen-/Schüler-Klartext. Öffentliche Staging-Abnahme mit realem SMTP/World4You bleibt offen. |
 | Administrativer Zugangscode | ✅ | Bleibt als Fallback; CI-Smoke prüft Cookie-Session. |
 | Vertrauenswürdiges Gerät für Tresor | 🟡 | PR #20 + #73: 30 Tage optional; Vault-Key nur verschlüsselt, Device-CryptoKey nicht exportierbar. Beide vollständigen Werksreset-Pfade entfernen Trusted-Device-Daten sowie danach die separaten Vault-Metadaten; stale/fremde Einträge werden bereinigt und Persistenz-Löschfehler brechen den Reset ab. Realer Browser/IndexedDB-Test offen. |
 | Recovery-Code per E-Mail | 🔒 | Bewusst nicht umgesetzt: E-Mail-Kompromittierung darf den lokalen Tresor nicht entschlüsseln. |

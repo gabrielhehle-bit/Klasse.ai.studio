@@ -6,9 +6,9 @@ const trustedDevice = readFileSync(new URL('./trustedDeviceVault.ts', import.met
 const backup = readFileSync(new URL('../components/Backup.tsx', import.meta.url), 'utf8');
 const settings = readFileSync(new URL('../components/Settings.tsx', import.meta.url), 'utf8');
 
-test('full factory reset clears the separate trusted-device database', () => {
-  assert.match(backup, /await clearTrustedDeviceUnlock\(\);[\s\S]*await localforage\.clear\(\)/);
-  assert.match(settings, /await clearTrustedDeviceUnlock\(\);[\s\S]*localStorage\.clear\(\);[\s\S]*sessionStorage\.clear\(\);[\s\S]*await localforage\.clear\(\)/);
+test('full factory reset clears trusted-device and teamteaching device databases', () => {
+  assert.match(backup, /await clearTrustedDeviceUnlock\(\);[\s\S]*await clearTeamTeachingDeviceStore\(\);[\s\S]*await localforage\.clear\(\)/);
+  assert.match(settings, /await clearTrustedDeviceUnlock\(\);[\s\S]*await clearTeamTeachingDeviceStore\(\);[\s\S]*localStorage\.clear\(\);[\s\S]*sessionStorage\.clear\(\);[\s\S]*await localforage\.clear\(\)/);
 });
 
 test('trusted-device unlock purges stale or mismatched records', () => {

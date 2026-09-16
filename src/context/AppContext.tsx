@@ -34,6 +34,8 @@ import {
   subscribeVaultSession,
 } from '../lib/vaultStorage';
 import { registerActiveAppStateGetter } from '../services/aiService';
+import { ensureRegisteredTeamTeachingDevice, pullSharedClass, pushSharedClass } from '../lib/teamTeachingService';
+import { classRoomFingerprint } from '../lib/teamTeachingCrypto';
 
 localforage.config({
   name: 'LehrerApp',
@@ -74,6 +76,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   currentAppRef.current = app;
   const restoringRef = useRef(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const teamSyncBusyRef = useRef(false);
 
   const setApp = React.useCallback((val: React.SetStateAction<AppState>) => {
     if (restoringRef.current) return;
@@ -190,6 +193,175 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     return () => clearTimeout(timeout);
   }, [app, isLoaded, isVaultUnlocked]);
+
+  // Teamteaching: school account device key registration stays separate from local pupil data.
+  useEffect(() => {
+    if (!isLoaded || !isVaultUnlocked) return;
+    void ensureRegisteredTeamTeachingDevice().catch((error: any) => {
+      if (error?.status !== 403 && error?.status !== 401) {
+        console.warn('[Teamteaching] Geräteschlüssel konnte nicht registriert werden:', error);
+      }
+    });
+  }, [isLoaded, isVaultUnlocked]);
+
+  const activeTeamSharedId = app.classes
+    ?.find(room => room.id === app.activeClassId)
+    ?.teamTeaching?.sharedClassId;
+
+  // Teamteaching: encrypted class-only sync with optimistic revision protection.
+  useEffect(() => {
+    if (!isLoaded || !isVaultUnlocked || !activeTeamSharedId) return;
+
+    let active = true;
+
+    const setLocalTeamStatus = (
+      status: 'idle' | 'syncing' | 'synced' | 'conflict' | 'error',
+      message?: string,
+    ) => {
+      setApp(prev => {
+        const current = syncActiveClass(prev);
+        const classes = (current.classes || []).map(room => {
+          if (room.id !== current.activeClassId || room.teamTeaching?.sharedClassId !== activeTeamSharedId) return room;
+          return {
+            ...room,
+            teamTeaching: {
+              ...room.teamTeaching!,
+              syncStatus: status,
+              syncMessage: message,
+            },
+          };
+        });
+        return { ...current, classes };
+      });
+    };
+
+    const applyRemoteRoom = (remoteRoom: any) => {
+      setApp(prev => {
+        const current = syncActiveClass(prev);
+        const room = {
+          ...remoteRoom,
+          teamTeaching: {
+            ...remoteRoom.teamTeaching,
+            syncStatus: 'synced' as const,
+            syncMessage: undefined,
+          },
+        };
+        const classes = [...(current.classes || [])];
+        const index = classes.findIndex(candidate => candidate.id === room.id);
+        if (index >= 0) classes[index] = room;
+        else classes.push(room);
+        return switchClassState({ ...current, classes, activeClassId: undefined }, room.id);
+      });
+    };
+
+    const updateAfterPush = (revision: number, hash: string) => {
+      setApp(prev => {
+        const current = syncActiveClass(prev);
+        const classes = (current.classes || []).map(room => {
+          if (room.id !== current.activeClassId || room.teamTeaching?.sharedClassId !== activeTeamSharedId) return room;
+          return {
+            ...room,
+            teamTeaching: {
+              ...room.teamTeaching!,
+              revision,
+              lastSyncedHash: hash,
+              lastSyncedAt: new Date().toISOString(),
+              syncStatus: 'synced' as const,
+              syncMessage: undefined,
+            },
+          };
+        });
+        return { ...current, classes };
+      });
+    };
+
+    const syncOnce = async () => {
+      if (!active || teamSyncBusyRef.current || restoringRef.current) return;
+      teamSyncBusyRef.current = true;
+
+      try {
+        const current = syncActiveClass(currentAppRef.current);
+        const localRoom = current.classes?.find(room => room.id === current.activeClassId);
+        const meta = localRoom?.teamTeaching;
+        if (!localRoom || !meta || meta.sharedClassId !== activeTeamSharedId) return;
+        if (meta.syncStatus === 'conflict') return;
+
+        const localHash = classRoomFingerprint(localRoom);
+        const remote = await pullSharedClass(activeTeamSharedId);
+        if (!active) return;
+
+        const remoteHash = classRoomFingerprint(remote.room);
+        const baseline = meta.lastSyncedHash;
+
+        if (remote.detail.revision > meta.revision) {
+          if (baseline && localHash !== baseline && meta.role !== 'viewer') {
+            setLocalTeamStatus(
+              'conflict',
+              'Die Klasse wurde gleichzeitig auf einem anderen Gerät geändert. Deine lokale Änderung wurde nicht überschrieben.',
+            );
+            return;
+          }
+          applyRemoteRoom(remote.room);
+          return;
+        }
+
+        if (remote.detail.revision < meta.revision) {
+          setLocalTeamStatus('error', 'Der Serverstand ist älter als dein lokaler Teamteaching-Stand.');
+          return;
+        }
+
+        if (!baseline) {
+          if (remoteHash !== localHash) {
+            setLocalTeamStatus(
+              'conflict',
+              'Lokaler und geteilter Stand unterscheiden sich. Bitte im Klassenteam bewusst auswählen, welche Version geladen werden soll.',
+            );
+            return;
+          }
+          updateAfterPush(meta.revision, localHash);
+          return;
+        }
+
+        if (meta.role === 'viewer') {
+          if (localHash !== remoteHash) applyRemoteRoom(remote.room);
+          return;
+        }
+
+        if (localHash !== baseline) {
+          setLocalTeamStatus('syncing');
+          try {
+            const pushed = await pushSharedClass(localRoom);
+            if (active) updateAfterPush(pushed.revision, localHash);
+          } catch (error: any) {
+            if (error?.code === 'REVISION_CONFLICT' || error?.status === 409) {
+              setLocalTeamStatus(
+                'conflict',
+                'Eine andere Lehrperson hat gleichzeitig gespeichert. Nichts wurde überschrieben.',
+              );
+            } else {
+              setLocalTeamStatus('error', error instanceof Error ? error.message : 'Teamteaching-Sync fehlgeschlagen.');
+            }
+          }
+        } else if (meta.syncStatus !== 'synced') {
+          setLocalTeamStatus('synced');
+        }
+      } catch (error: any) {
+        if (error?.status !== 401 && error?.status !== 403) {
+          setLocalTeamStatus('error', error instanceof Error ? error.message : 'Teamteaching-Sync fehlgeschlagen.');
+        }
+      } finally {
+        teamSyncBusyRef.current = false;
+      }
+    };
+
+    const startup = window.setTimeout(() => void syncOnce(), 650);
+    const interval = window.setInterval(() => void syncOnce(), 2500);
+    return () => {
+      active = false;
+      window.clearTimeout(startup);
+      window.clearInterval(interval);
+    };
+  }, [activeTeamSharedId, isLoaded, isVaultUnlocked, setApp]);
 
   // Tab Close & Refresh Intercept: Ensure synced / pending changes are secured
   useEffect(() => {
