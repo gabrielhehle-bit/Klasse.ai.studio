@@ -81,7 +81,8 @@ test("Schülerliste: Suche, Filter, Ansichten, Import und Dossier bleiben erhalt
 
 test("Klasse-Hub: zentrale Klassenfunktionen bleiben erreichbar", () => {
   for (const label of [
-    "Kinder & Dossiers",
+    "Klassenliste",
+    "Schülerdossier",
     "Anwesenheit & Befinden",
     "Sitzplan & Gruppen",
     "Organisation",
