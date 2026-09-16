@@ -221,7 +221,7 @@ export default function VoiceNote() {
              <div className="flex-1">
                <select 
                  value={category}
-                 onChange={e => setCategory(e.target.value)}
+                 onChange={e => setCategory(e.target.value as AppNote['kategorie'])}
                  className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-[0.875rem] leading-snug font-bold text-slate-700 focus:outline-none"
                >
                  <option value="Notiz">Notiz</option>
