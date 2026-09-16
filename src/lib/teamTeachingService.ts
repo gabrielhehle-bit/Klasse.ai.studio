@@ -66,6 +66,7 @@ export interface SharedClassDetail extends SharedClassSummary {
 type ReadJsonError = Error & { status?: number; code?: string; currentRevision?: number };
 
 const keyCache = new Map<string, CryptoKey>();
+let registeredSession: { me: TeamTeachingMe; device: TeamTeachingDeviceIdentity } | null = null;
 
 async function readJson<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
@@ -87,6 +88,8 @@ export async function ensureRegisteredTeamTeachingDevice(): Promise<{
   me: TeamTeachingMe;
   device: TeamTeachingDeviceIdentity;
 }> {
+  if (registeredSession) return registeredSession;
+
   const me = await getTeamTeachingMe();
   const device = await ensureTeamTeachingDevice(me.user.userId);
   await fetch('/api/teamteaching/devices', {
@@ -97,7 +100,9 @@ export async function ensureRegisteredTeamTeachingDevice(): Promise<{
       publicKeyJwk: device.publicKeyJwk,
     }),
   }).then(readJson);
-  return { me, device };
+
+  registeredSession = { me, device };
+  return registeredSession;
 }
 
 export async function listTeamTeachingColleagues(): Promise<TeamTeachingColleague[]> {
@@ -293,4 +298,5 @@ export async function deleteSharedClass(sharedClassId: string): Promise<void> {
 
 export function clearTeamTeachingKeyCache(): void {
   keyCache.clear();
+  registeredSession = null;
 }
