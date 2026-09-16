@@ -6,15 +6,19 @@ const OUT = process.env.KLASSIO_E2E_SMTP_CODES || '/tmp/klassio-e2e-mail-codes.j
 
 let queue = Promise.resolve();
 
-async function persist(email, code) {
+async function persist(email, code, subject) {
   queue = queue.then(async () => {
     let data = {};
     try {
       data = JSON.parse(await fs.readFile(OUT, 'utf8'));
     } catch {}
-    data[email.toLowerCase()] = { code, capturedAt: new Date().toISOString() };
+    const capturedAt = new Date().toISOString();
+    if (code) data[email.toLowerCase()] = { code, capturedAt };
+    const messages = Array.isArray(data.__messages) ? data.__messages : [];
+    messages.push({ to: email.toLowerCase(), code: code || null, subject: subject || '', capturedAt });
+    data.__messages = messages.slice(-100);
     await fs.writeFile(OUT, JSON.stringify(data, null, 2), 'utf8');
-    console.log('Captured Klassio login code for', email);
+    console.log('Captured Klassio message for', email, code ? '(login code)' : '(notification)');
   });
   await queue;
 }
@@ -22,9 +26,11 @@ async function persist(email, code) {
 function extractMessage(raw) {
   const toMatch = raw.match(/^To:\s*([^\r\n]+)/im);
   const codeMatch = raw.match(/\b(\d{6})\b/);
+  const subjectMatch = raw.match(/^Subject:\s*([^\r\n]+)/im);
   const email = toMatch?.[1]?.replace(/[<>]/g, '').trim().toLowerCase();
   const code = codeMatch?.[1];
-  return email && code ? { email, code } : null;
+  const subject = subjectMatch?.[1]?.trim() || '';
+  return email ? { email, code, subject } : null;
 }
 
 const server = net.createServer(socket => {
@@ -43,7 +49,7 @@ const server = net.createServer(socket => {
         inData = false;
         const message = extractMessage(dataBuffer);
         dataBuffer = '';
-        if (message) await persist(message.email, message.code);
+        if (message) await persist(message.email, message.code, message.subject);
         socket.write('250 2.0.0 queued\r\n');
       } else {
         dataBuffer += line + '\r\n';
