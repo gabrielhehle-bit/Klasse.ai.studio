@@ -949,6 +949,14 @@ export interface StatusHistory {
 }
 
 export interface ClassRoom {
+  /** Zero-knowledge Teamteaching metadata. This metadata remains local and is stripped before class encryption. */
+  teamTeaching?: {
+    sharedClassId: string;
+    role: 'owner' | 'editor' | 'viewer';
+    revision: number;
+    lastSyncedHash?: string;
+    lastSyncedAt?: string;
+  };
   /** Class-local detailed assessments; same shape as the active-class projection. */
   saAssessments?: AppState['saAssessments'];
   id: string;
