@@ -3645,7 +3645,7 @@ export default function WeeklyPlan() {
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setEditingCell(null)} />
            <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }}
-              className="relative w-[96vw] max-w-[1500px] h-[94vh] max-h-[94vh] bg-white rounded-2xl shadow-2xl flex flex-col mx-auto overflow-hidden"
+              className="relative w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] max-w-none h-[94vh] max-h-[94vh] bg-white rounded-2xl shadow-2xl flex flex-col mx-auto overflow-hidden"
            >
               <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
                  <div>
