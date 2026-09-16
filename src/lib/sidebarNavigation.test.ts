@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { groupSidebarItems } from './sidebarNavigation';
 
 const items = [
-  'dashboard', 'klasse', 'planung', 'leistungen', 'unterricht',
+  'dashboard', 'klasse', 'verhalten', 'planung', 'leistungen', 'unterricht',
   'cockpit', 'ki-helfer', 'schueler', 'anwesenheit', 'noten',
   'diagnostik', 'jahresplanung', 'datensicherung', 'settings'
 ].map(id => ({ id, section: 'Test' }));
 
-test('Klassio core navigation has Heute, Klasse, Planung, Leistungen and Unterricht in order', () => {
+test('Klassio core navigation includes Notizen as a direct main area', () => {
   const result = groupSidebarItems(items, [], 'dashboard', false);
-  assert.deepEqual(result.daily.map(i => i.id), ['dashboard', 'klasse', 'planung', 'leistungen', 'unterricht']);
+  assert.deepEqual(result.daily.map(i => i.id), ['dashboard', 'klasse', 'verhalten', 'planung', 'leistungen', 'unterricht']);
   assert.deepEqual(result.utilities.map(i => i.id), ['datensicherung', 'settings']);
   assert.deepEqual(result.extra.map(i => i.id), ['cockpit', 'ki-helfer', 'schueler', 'anwesenheit', 'noten', 'diagnostik', 'jahresplanung']);
   assert.equal(result.expanded, false);
@@ -19,7 +19,7 @@ test('Klassio core navigation has Heute, Klasse, Planung, Leistungen and Unterri
 
 test('custom visibility is preserved but an already open page remains discoverable', () => {
   const result = groupSidebarItems(items, ['diagnostik', 'settings', 'datensicherung'], 'diagnostik', false);
-  assert.equal(result.daily.map(i => i.id).join(','), 'dashboard,klasse,planung,leistungen,unterricht');
+  assert.equal(result.daily.map(i => i.id).join(','), 'dashboard,klasse,verhalten,planung,leistungen,unterricht');
   assert.equal(result.extra.some(i => i.id === 'diagnostik'), true);
   assert.deepEqual(result.utilities.map(i => i.id), ['datensicherung', 'settings']);
   assert.equal(result.expanded, false);
