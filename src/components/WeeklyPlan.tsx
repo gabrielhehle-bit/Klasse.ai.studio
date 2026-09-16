@@ -1264,6 +1264,14 @@ export default function WeeklyPlan() {
     }
     
     setTempSchwerpunkte(initialSchwerpunkte);
+    const storedHalves = current.halves?.enabled ? current.halves : null;
+    setTempSplitLesson(Boolean(storedHalves));
+    setTempFirstHalf(storedHalves?.first
+      ? { ...EMPTY_LESSON_HALF, ...storedHalves.first }
+      : { ...EMPTY_LESSON_HALF, fach: normalizedFach || '', unterbereich: initialSchwerpunkte[0] || '', thema: current.thema || '' });
+    setTempSecondHalf(storedHalves?.second
+      ? { ...EMPTY_LESSON_HALF, ...storedHalves.second }
+      : { ...EMPTY_LESSON_HALF });
     setTempThema(current.thema || '');
     setTempType(current.type || 'standard');
     setTempMaterial(current.material || '');
@@ -1351,6 +1359,13 @@ export default function WeeklyPlan() {
               social,
               reflexion: reflexion.trim(),
               schwerpunkte,
+              halves: tempSplitLesson
+                ? {
+                    enabled: true,
+                    first: { ...tempFirstHalf },
+                    second: { ...tempSecondHalf },
+                  }
+                : undefined,
               duration: duration === 'all' ? 'all' : weeklyLessonDurationSlots(duration, idx)
             }
           };
@@ -1387,6 +1402,13 @@ export default function WeeklyPlan() {
                     social,
                     reflexion: reflexion.trim(),
                     schwerpunkte,
+                    halves: tempSplitLesson
+                      ? {
+                          enabled: true,
+                          first: { ...tempFirstHalf },
+                          second: { ...tempSecondHalf },
+                        }
+                      : undefined,
                     duration: duration === 'all' ? 'all' : weeklyLessonDurationSlots(duration, Number(dIdx))
                   }
                 };
