@@ -56,7 +56,7 @@ export function getWstfLabel(score: number): string {
 
 export function analyzeGermanText(input: string): GermanTextAnalysis | null {
   const text = input.trim();
-  const words = text.match(WORD_RE) || [];
+  const words: string[] = Array.from(text.matchAll(WORD_RE), match => match[0]);
   if (words.length === 0) return null;
 
   const sentenceSegments = text
