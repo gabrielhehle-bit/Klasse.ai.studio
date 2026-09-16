@@ -31,3 +31,13 @@ test('Sitzplan: nicht platzierte und außerhalb liegende Kinder bleiben erreichb
   assert.match(seatingPlan, /außerhalb \(Zurückholen\)/);
   assert.match(seatingPlan, /handleBringOutOfBoundsToRoom/);
 });
+
+
+test('Sitzplan: Niveauanzeige deckt 1 bis 5 ab und nutzt keine schwach/stark-Etiketten', () => {
+  assert.match(seatingPlan, /orderStudentsByComplementaryLevels/);
+  for (const level of ['L1', 'L2', 'L3', 'L4', 'L5']) {
+    assert.ok(seatingPlan.includes(level), `Niveau-Legende fehlt: ${level}`);
+  }
+  assert.doesNotMatch(seatingPlan, />\s*schwach\s*</i);
+  assert.doesNotMatch(seatingPlan, />\s*stark\s*</i);
+});
