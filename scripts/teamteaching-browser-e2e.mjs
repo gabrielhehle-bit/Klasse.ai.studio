@@ -264,7 +264,18 @@ async function loginWithSchoolMail(client, email, password) {
 }
 
 async function createClassInUi(client, className) {
-  await clickAnyText(client, 'Ohne Namen');
+  const opened = await evaluate(client,
+    '(() => {' +
+    'const norm=v=>String(v||"").replace(/\\s+/g," ").trim();' +
+    'const candidates=Array.from(document.querySelectorAll("div")).filter(el=>norm(el.textContent).includes("Klasse Ohne Namen"));' +
+    'const node=candidates.sort((a,b)=>a.getBoundingClientRect().width-b.getBoundingClientRect().width).find(el=>{' +
+      'const style=getComputedStyle(el); const rect=el.getBoundingClientRect();' +
+      'return style.visibility!=="hidden"&&style.display!=="none"&&rect.width>0&&rect.height>0&&style.cursor==="pointer";' +
+    '});' +
+    'if(!node)return false; node.click(); return true;' +
+    '})()'
+  );
+  if (!opened) throw new Error(client.name + ': could not open class selector.');
   await waitFor(client, 'class dropdown', 'document.body?.innerText.includes("Klasse hinzufügen")');
   await clickButton(client, 'Klasse hinzufügen');
   await waitFor(client, 'new class setup', 'document.body?.innerText.includes("Klasse & Theme")', 20000);
