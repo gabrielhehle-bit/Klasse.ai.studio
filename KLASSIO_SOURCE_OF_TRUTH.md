@@ -8,7 +8,7 @@ Die einzige verbindliche Entwicklungsquelle für Klassio ist:
 
 - Repository: `gabrielhehle-bit/Klasse.ai.studio`
 - Produktionsbranch: `main`
-- letzter vollständig geprüfter und integrierter Produktcode-Stand (PR #103): `46e4044c947d54a2ef914793725f7bbb2dacb1c7`; der aktuelle `main`-HEAD ist vor jeder neuen Arbeit zusätzlich live zu prüfen
+- letzter vollständig geprüfter und integrierter Produktcode-Stand (PR #106): `311d5bc16d3313749be040e3e8edbb44be30bf15`; der aktuelle `main`-HEAD ist vor jeder neuen Arbeit zusätzlich live zu prüfen
 - neue Arbeit ausschließlich in einem frischen Branch vom aktuellen `main` und anschließend per Pull Request zurück nach `main`
 
 `main` enthält die vollständige integrierte App und ist die einzige Entwicklungsgrundlage. Frühere Reconciliation-, Feature-, Fix- oder ZIP-Stände sind niemals Ausgangspunkt für neue Arbeit.
@@ -29,6 +29,7 @@ Aktuell integriert in `main`:
 - PR #101: Schulverifizierung direkt in `Einstellungen → Konto & Schulmail`, automatische Admin-Benachrichtigung, geschützte Schulverwaltung mit Freigeben/Ablehnen und automatische Aktivierung der Schulidentität nach Freigabe
 - bestehende lokale Klassen, Planungen, Noten und Tresordaten werden durch E-Mail-/Schul-Onboarding nicht zurückgesetzt oder neu angelegt
 - PR #103: Wochen- und Jahresplanung öffnen deutlich größere Arbeitsflächen; bereits geplante Einheiten zeigen zuerst eine Übersicht und werden erst über `Bearbeiten` geöffnet; Wochenplan → Jahresplan ergänzt nur eine freie KW-/Fach-Zelle und überschreibt niemals bestehende Jahresplan-Inhalte
+- PR #106: die Bearbeitungsflächen von Wochenplan und Jahresplan nutzen jetzt nahezu die vollständige Viewport-Breite; die bisherigen Maximalbreiten von 1500 px bzw. 1400 px wurden entfernt, kleine Sicherheitsränder bleiben erhalten
 
 Letzter vollständig geprüfter Feature-Commit vor dem Merge von PR #101: `14802453536e9f0a8e9d051f0d3be1b57e57c8df`.
 
@@ -51,6 +52,17 @@ Prüfnachweise für PR #103:
 - zusätzliche Regressionstests sichern große Planungseditoren, Übersicht → Bearbeiten und Wochenplan → Jahresplan ohne Überschreiben ab
 - PR #103 anschließend per Squash in `main` integriert: `46e4044c947d54a2ef914793725f7bbb2dacb1c7`
 
+Prüfnachweise für PR #106:
+
+- Feature-Branch-HEAD vor Merge: `94835b9c19b299fbee4baef54f6027859faf91f7`
+- Feature Validation: grün
+- TypeScript: grün
+- automatisierte Tests: grün
+- Produktions-Build und Build-Ausgabe: grün
+- Teamteaching Browser E2E: grün
+- School Verification Browser E2E: grün
+- PR #106 anschließend per Squash in `main` integriert: `311d5bc16d3313749be040e3e8edbb44be30bf15`
+
 ## Produktions- und Deploymentstatus
 
 Produktivsystem ist der World4You-Linux-vServer mit Nginx und systemd:
@@ -64,7 +76,7 @@ Produktivsystem ist der World4You-Linux-vServer mit Nginx und systemd:
 - Health: `/api/health`
 - SMTP-Login ist in der Produktionsumgebung konfiguriert; Secrets bleiben ausschließlich in der Server-Umgebung und niemals im Repository.
 
-Der in diesem Chat zuletzt bestätigte GitHub-Produktcode-Stand ist PR #103 / `46e4044c947d54a2ef914793725f7bbb2dacb1c7`; der aktuelle `main` enthält zusätzlich die danach gemergte Source-of-Truth-Dokumentation. Ein World4You-Deployment dieses PR-#103-Stands wurde in diesem Chat **nicht serverseitig bestätigt**, weil kein SSH-/World4You-Terminal verbunden ist. Daher darf `klassio.at` bis zur Prüfung von `/srv/klassio/current/KLASSIO_DEPLOYMENT_COMMIT.txt` und `/api/health` nicht als auf PR #103 aktualisiert bezeichnet werden. Für jedes weitere Deployment muss unmittelbar davor der aktuelle GitHub-`main`-HEAD erneut geprüft und der gewünschte Produktcode-Commit commitgebunden ausgerollt werden.
+Der in diesem Chat zuletzt bestätigte GitHub-Produktcode-Stand ist PR #106 / `311d5bc16d3313749be040e3e8edbb44be30bf15`; der aktuelle `main` enthält diesen Produktcode. Ein World4You-Deployment dieses PR-#106-Stands wurde in diesem Chat **nicht serverseitig bestätigt**, weil kein SSH-/World4You-Terminal verbunden ist. Daher darf `klassio.at` bis zur Prüfung von `/srv/klassio/current/KLASSIO_DEPLOYMENT_COMMIT.txt` und `/api/health` nicht als auf PR #106 aktualisiert bezeichnet werden. Für jedes weitere Deployment muss unmittelbar davor der aktuelle GitHub-`main`-HEAD erneut geprüft und der gewünschte Produktcode-Commit commitgebunden ausgerollt werden.
 
 ## Historischer Reconciliation-Verlauf – nur Historie
 
