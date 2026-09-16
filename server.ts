@@ -228,9 +228,13 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     return /^P-[A-Z0-9]{10,40}$/.test(raw) ? raw : '';
   }
 
-  const SUPPORT_PAYPAL_CLIENT_ID = safePayPalClientId(process.env.KLASSIO_PAYPAL_CLIENT_ID);
-  const SUPPORT_PAYPAL_MONTHLY_PLAN_ID = safePayPalPlanId(process.env.KLASSIO_PAYPAL_MONTHLY_PLAN_ID);
-  const SUPPORT_PAYPAL_YEARLY_PLAN_ID = safePayPalPlanId(process.env.KLASSIO_PAYPAL_YEARLY_PLAN_ID);
+  const SUPPORT_PAYPAL_CLIENT_ID = safePayPalClientId(
+    process.env.KLASSIO_PAYPAL_CLIENT_ID,
+  ) || 'BAAbpNLXm9phiq123NHxZM_jrMeNsEkrLvxz9dYVwRnG2oVK0DDl7G3JoBCO3eHIRJslTGAE_jHr4xRBa0';
+  const SUPPORT_PAYPAL_MONTHLY_PLAN_ID =
+    safePayPalPlanId(process.env.KLASSIO_PAYPAL_MONTHLY_PLAN_ID) || 'P-39527139B4457294RNKVOWJQ';
+  const SUPPORT_PAYPAL_YEARLY_PLAN_ID =
+    safePayPalPlanId(process.env.KLASSIO_PAYPAL_YEARLY_PLAN_ID) || 'P-82J97339KC156492WNKVOZGA';
 
   type EmailAccessChallenge = {
     codeHash: string;
