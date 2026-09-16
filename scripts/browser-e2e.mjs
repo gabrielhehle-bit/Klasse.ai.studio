@@ -225,7 +225,7 @@ async function main() {
     await client.send('Network.enable');
     await client.send('Page.navigate', { url: BASE_URL });
 
-    await waitFor(client, 'Klassio access gate', 'document.body?.innerText.toLowerCase().includes("geschützter zugang")');
+    await waitFor(client, 'Klassio access code field', 'Boolean(document.querySelector("input[placeholder*=\\\"Zugangscode\\\"]"))');
     await setInputByLabel(client, 'Zugangscode', ACCESS_CODE);
     await clickByText(client, 'Klassio öffnen');
     await waitFor(client, 'local vault setup', 'document.body?.innerText.toLowerCase().includes("lokalen datentresor einrichten")', 20000);
