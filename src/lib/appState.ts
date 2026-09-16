@@ -5,6 +5,7 @@ import { DEFAULT_MORNING_WIDGETS } from '../data/morningWidgets';
 import { sanitizeSeatingRules } from './seatingPlanRules';
 import { normalizeKlassenkasse } from './orgaData';
 import { normalizeArchivedClasses } from './archiveData';
+import { normalizeKelMeetings } from './kelData';
 
 export const initialAppState: AppState = {
   ipsativeGewichtung: 70,
@@ -301,6 +302,7 @@ export function normalizeAppState(raw: any): AppState {
     ipsativeGewichtung: raw.ipsativeGewichtung ?? 70,
     tourAbgeschlossen: raw.tourAbgeschlossen ?? (raw.schueler?.length > 0 || raw.klassen?.length > 0 || raw.classes?.length > 0 ? true : false),
     stimmNotizen: raw.stimmNotizen ?? [],
+    kelGespraeche: normalizeKelMeetings(raw.kelGespraeche, raw.schuljahr || getCurrentSchuljahr()),
     jahresberichte: raw.jahresberichte ?? {},
     wochenrueckblick: raw.wochenrueckblick ?? null,
     lernzielTracker: raw.lernzielTracker ?? {},
@@ -457,10 +459,12 @@ export function normalizeAppState(raw: any): AppState {
           c.elterngespraeche ??
           (c.id === parsed.activeClassId ? parsed.elterngespraeche : undefined) ??
           [],
-        kelGespraeche:
+        kelGespraeche: normalizeKelMeetings(
           c.kelGespraeche ??
           (c.id === parsed.activeClassId ? parsed.kelGespraeche : undefined) ??
           [],
+          c.schuljahr || parsed.schuljahr || getCurrentSchuljahr(),
+        ),
         portfolioEntries:
           c.portfolioEntries ??
           (c.id === parsed.activeClassId ? parsed.portfolioEntries : undefined) ??
@@ -590,7 +594,10 @@ export function normalizeAppState(raw: any): AppState {
     parsed.behavior_notes = activeClass.behavior_notes;
     parsed.jahresberichte = activeClass.jahresberichte || {};
     parsed.elterngespraeche = activeClass.elterngespraeche || [];
-    parsed.kelGespraeche = activeClass.kelGespraeche || [];
+    parsed.kelGespraeche = normalizeKelMeetings(
+      activeClass.kelGespraeche,
+      activeClass.schuljahr || parsed.schuljahr || getCurrentSchuljahr(),
+    );
     parsed.portfolioEntries = activeClass.portfolioEntries || {};
     parsed.kiPortfolioSummaries = activeClass.kiPortfolioSummaries || {};
     parsed.oberauData = activeClass.oberauData || {};
@@ -844,7 +851,10 @@ export function switchClassState(prev: AppState, id: string): AppState {
     statusLog: targetClass.statusLog ? JSON.parse(JSON.stringify(targetClass.statusLog)) : [],
     jahresberichte: targetClass.jahresberichte ? JSON.parse(JSON.stringify(targetClass.jahresberichte)) : {},
     elterngespraeche: targetClass.elterngespraeche ? JSON.parse(JSON.stringify(targetClass.elterngespraeche)) : [],
-    kelGespraeche: targetClass.kelGespraeche ? JSON.parse(JSON.stringify(targetClass.kelGespraeche)) : [],
+    kelGespraeche: normalizeKelMeetings(
+      targetClass.kelGespraeche,
+      targetClass.schuljahr || state.schuljahr || getCurrentSchuljahr(),
+    ),
     portfolioEntries: targetClass.portfolioEntries ? JSON.parse(JSON.stringify(targetClass.portfolioEntries)) : {},
     kiPortfolioSummaries: targetClass.kiPortfolioSummaries ? JSON.parse(JSON.stringify(targetClass.kiPortfolioSummaries)) : {},
     oberauData: targetClass.oberauData ? JSON.parse(JSON.stringify(targetClass.oberauData)) : {},
