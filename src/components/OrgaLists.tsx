@@ -11,6 +11,17 @@ import {
 import { AnimatePresence, motion } from 'motion/react';
 import { Zugangsdaten, Geldsammlung, KassenTransaktion, CustomList, OrgCheckliste, CustomListColumn, CustomListColumnType } from '../types';
 import FlexibleListsView, { PRESET_TEMPLATES } from './orga/FlexibleListsView';
+import {
+  addManualCashTransaction,
+  dateInputToLocalNoonIso,
+  deleteManualCashTransaction,
+  formatOrgaDate,
+  getLocalOrgaDateKey,
+  markCollectionPaidForStudents,
+  normalizeKlassenkasse,
+  parseEuroInput,
+  setCollectionPaymentAmount,
+} from '../lib/orgaData';
 
 const formatEuro = (value: number) =>
   new Intl.NumberFormat('de-AT', {
@@ -78,7 +89,7 @@ export default function OrgaLists() {
   const [txAmount, setTxAmount] = useState('');
   const [txCategory, setTxCategory] = useState<'sammlung' | 'ausgabe' | 'sonstiges'>('sonstiges');
   const [txStudentId, setTxStudentId] = useState('');
-  const [txDate, setTxDate] = useState(new Date().toISOString().split('T')[0]);
+  const [txDate, setTxDate] = useState(getLocalOrgaDateKey());
   const [txToDelete, setTxToDelete] = useState<KassenTransaktion | null>(null);
 
   // Partial payment inline edit
@@ -93,45 +104,53 @@ export default function OrgaLists() {
     return () => clearTimeout(timer);
   }, [visiblePasswords]);
 
+  useEffect(() => {
+    // Kein offener Kassa-/Orga-Entwurf darf in die nächste Klasse mitwandern.
+    setActiveTab('offen');
+    setSelectedSammlungId(null);
+    setSelectedChecklisteId(null);
+    setSelectedCustomListId(null);
+    setStudentSearch('');
+    setPasswordSearch('');
+    setKasseSearch('');
+    setStudentFilter('all');
+    setIsMehrMenuOpen(false);
+    setIsNewModalOpen(false);
+    setNewItemType(null);
+    setSammlungTitle('');
+    setSammlungAmount('');
+    setSammlungDueDate('');
+    setSammlungNote('');
+    setChecklisteTitle('');
+    setChecklisteDate('');
+    setPwBezeichnung('');
+    setPwBenutzername('');
+    setPwPasswort('');
+    setPwUrl('');
+    setEditingPwItem(null);
+    setVisiblePasswords({});
+    setCustomListTitle('');
+    setCustomListDesc('');
+    setCustomListColumns([{ id: 'col_1', label: 'Notiz / Info', type: 'text' }]);
+    setTxType('plus');
+    setTxTitle('');
+    setTxAmount('');
+    setTxCategory('sonstiges');
+    setTxStudentId('');
+    setTxDate(getLocalOrgaDateKey());
+    setTxToDelete(null);
+    setEditingPartialStudentId(null);
+    setPartialAmountInput('');
+  }, [app.activeClassId]);
+
   // App state getters
-  const kasse = app.klassenkasse || { kontostand: 0, sammlungen: [], transaktionen: [] };
+  const kasse = normalizeKlassenkasse(app.klassenkasse);
   const passwords = app.zugangsdaten || [];
   const customLists = app.customLists || [];
   const checklisten = app.checklisten || [];
   const students = app.schueler || [];
 
-  // Migration logic for legacy structure
-  useEffect(() => {
-    // @ts-ignore
-    if (app.klassenkasse && (app.klassenkasse as any).beitrag_pro_kind !== undefined) {
-      const oldKasse = app.klassenkasse as any;
-      const initialSammlung: Geldsammlung = {
-        id: 'basis-migration',
-        titel: 'Basisbeitrag',
-        betrag: oldKasse.beitrag_pro_kind || 0,
-        erstelltAm: new Date().toISOString(),
-        abgeschlossen: false,
-        status: {},
-        betraege: {}
-      };
-
-      Object.entries(oldKasse.zahlungen || {}).forEach(([sid, paid]) => {
-        if (paid) {
-          initialSammlung.status[sid] = 'bezahlt';
-          initialSammlung.betraege[sid] = oldKasse.beitrag_pro_kind;
-        }
-      });
-
-      setApp(prev => ({
-        ...prev,
-        klassenkasse: {
-          kontostand: oldKasse.kontostand || 0,
-          sammlungen: [initialSammlung],
-          transaktionen: oldKasse.transaktionen || []
-        }
-      }));
-    }
-  }, []);
+  // Legacy cash migration is handled centrally by normalizeAppState / normalizeKlassenkasse.
 
   // Helper stats calculation
   const activeSammlungen = kasse.sammlungen.filter(s => !s.abgeschlossen);
@@ -164,116 +183,54 @@ export default function OrgaLists() {
   // Handle 1-click toggle payment
   const toggleStudentPayment = (sid: string, sammlungId: string) => {
     setApp(prev => {
-      if (!prev.klassenkasse) return prev;
-      const sammlungen = prev.klassenkasse.sammlungen.map(s => {
-        if (s.id !== sammlungId) return s;
+      const currentKasse = normalizeKlassenkasse(prev.klassenkasse);
+      const collection = currentKasse.sammlungen.find(item => item.id === sammlungId);
+      if (!collection) return prev;
 
-        const currentStatus = s.status[sid] || 'offen';
-        const newStatus = (currentStatus === 'bezahlt' ? 'offen' : 'bezahlt') as 'offen' | 'teilweise' | 'bezahlt';
-        const diff = newStatus === 'bezahlt' ? s.betrag - (s.betraege[sid] || 0) : -(s.betraege[sid] || 0);
-
-        const newBetraege = { ...s.betraege, [sid]: newStatus === 'bezahlt' ? s.betrag : 0 };
-        const newStatusMap = { ...s.status, [sid]: newStatus };
-
-        return { ...s, status: newStatusMap, betraege: newBetraege, _diff: diff };
-      });
-
-      const updatedSammlung = sammlungen.find(s => s.id === sammlungId);
-      // @ts-ignore
-      const diff = updatedSammlung?._diff || 0;
-      sammlungen.forEach(s => {
-        // @ts-ignore
-        delete s._diff;
-      });
-
-      const newTrans: KassenTransaktion[] = [...prev.klassenkasse!.transaktionen];
-      if (diff !== 0) {
-        const student = students.find(st => st.id === sid);
-        const stName = student ? `${student.vorname} ${student.nachname}` : 'Schüler';
-        newTrans.unshift({
-          id: crypto.randomUUID(),
-          datum: new Date().toISOString(),
-          titel: `${stName} – ${updatedSammlung?.titel}`,
-          betrag: Math.abs(diff),
-          typ: diff > 0 ? 'plus' : 'minus',
-          kategorie: 'sammlung',
-          geldsammlungId: sammlungId,
-          schuelerId: sid
-        });
-      }
+      const currentPaid = collection.betraege?.[sid] || 0;
+      const isFullyPaid = currentPaid >= collection.betrag;
+      const student = (prev.schueler || []).find(st => st.id === sid);
+      const studentLabel = student ? `${student.vorname} ${student.nachname}`.trim() : 'Schüler:in';
 
       return {
         ...prev,
-        klassenkasse: {
-          ...prev.klassenkasse,
-          kontostand: prev.klassenkasse.kontostand + diff,
-          sammlungen,
-          transaktionen: newTrans
-        }
+        klassenkasse: setCollectionPaymentAmount(currentKasse, {
+          sammlungId,
+          studentId: sid,
+          paidAmount: isFullyPaid ? 0 : collection.betrag,
+          studentLabel,
+        }),
       };
     });
   };
 
   // Handle custom amount entry
   const applyPartialAmount = (sid: string, sammlungId: string, amountStr: string) => {
-    const rawVal = amountStr.replace(',', '.');
-    const amount = parseFloat(rawVal);
-    if (isNaN(amount) || amount < 0) {
-      alert('Bitte einen gültigen Betrag eingeben.');
+    const collection = kasse.sammlungen.find(item => item.id === sammlungId);
+    if (!collection) return;
+
+    const parsed = parseEuroInput(amountStr, { allowZero: true, max: collection.betrag });
+    if (!parsed.valid) {
+      alert(`Bitte einen gültigen Betrag zwischen 0 und ${formatEuro(collection.betrag)} eingeben.`);
       return;
     }
 
     setApp(prev => {
-      if (!prev.klassenkasse) return prev;
-      const sammlungen = prev.klassenkasse.sammlungen.map(s => {
-        if (s.id !== sammlungId) return s;
+      const currentKasse = normalizeKlassenkasse(prev.klassenkasse);
+      const currentCollection = currentKasse.sammlungen.find(item => item.id === sammlungId);
+      if (!currentCollection || parsed.value > currentCollection.betrag) return prev;
 
-        const oldPaid = s.betraege[sid] || 0;
-        const targetAmount = s.betrag;
-        const finalPaid = Math.min(amount, targetAmount);
-        const status: 'offen' | 'teilweise' | 'bezahlt' = 
-          finalPaid === 0 ? 'offen' : 
-          finalPaid >= targetAmount ? 'bezahlt' : 'teilweise';
-        const diff = finalPaid - oldPaid;
-
-        const newBetraege = { ...s.betraege, [sid]: finalPaid };
-        const newStatus = { ...s.status, [sid]: status };
-
-        return { ...s, status: newStatus, betraege: newBetraege, _diff: diff };
-      });
-
-      const updatedSammlung = sammlungen.find(s => s.id === sammlungId);
-      // @ts-ignore
-      const diff = updatedSammlung?._diff || 0;
-      sammlungen.forEach(s => {
-        // @ts-ignore
-        delete s._diff;
-      });
-
-      const newTrans = [...prev.klassenkasse.transaktionen];
-      if (diff !== 0) {
-        const student = students.find(st => st.id === sid);
-        const stName = student ? `${student.vorname} ${student.nachname}` : 'Schüler';
-        newTrans.unshift({
-          id: crypto.randomUUID(),
-          datum: new Date().toISOString(),
-          titel: `${stName} – ${updatedSammlung?.titel} (${formatEuro(amount)})`,
-          betrag: Math.abs(diff),
-          typ: diff > 0 ? 'plus' : 'minus',
-          kategorie: 'sammlung',
-          geldsammlungId: sammlungId,
-          schuelerId: sid
-        });
-      }
+      const student = (prev.schueler || []).find(st => st.id === sid);
+      const studentLabel = student ? `${student.vorname} ${student.nachname}`.trim() : 'Schüler:in';
 
       return {
         ...prev,
-        klassenkasse: {
-          ...prev.klassenkasse,
-          kontostand: prev.klassenkasse.kontostand + diff,
-          sammlungen,
-          transaktionen: newTrans
-        }
+        klassenkasse: setCollectionPaymentAmount(currentKasse, {
+          sammlungId,
+          studentId: sid,
+          paidAmount: parsed.value,
+          studentLabel,
+        }),
       };
     });
 
@@ -285,46 +242,20 @@ export default function OrgaLists() {
   const markAllPaidForSammlung = (samId: string) => {
     if (!confirm('Alle Schüler als vollständig bezahlt markieren?')) return;
     setApp(prev => {
-      if (!prev.klassenkasse) return prev;
-      let sumDiff = 0;
-      const newTrans = [...prev.klassenkasse.transaktionen];
-
-      const sammlungen = prev.klassenkasse.sammlungen.map(s => {
-        if (s.id !== samId) return s;
-        const newBetraege = { ...s.betraege };
-        const newStatus = { ...s.status };
-
-        students.forEach(st => {
-          const oldPaid = s.betraege[st.id] || 0;
-          const diff = s.betrag - oldPaid;
-          if (diff > 0) {
-            sumDiff += diff;
-            newTrans.unshift({
-              id: crypto.randomUUID(),
-              datum: new Date().toISOString(),
-              titel: `Sammel-Einzahlung: ${s.titel}`,
-              betrag: diff,
-              typ: 'plus',
-              kategorie: 'sammlung',
-              geldsammlungId: samId,
-              schuelerId: st.id
-            });
-          }
-          newBetraege[st.id] = s.betrag;
-          newStatus[st.id] = 'bezahlt';
-        });
-
-        return { ...s, betraege: newBetraege, status: newStatus };
-      });
+      const currentKasse = normalizeKlassenkasse(prev.klassenkasse);
+      const classStudents = (prev.schueler || []).map(student => ({
+        id: student.id,
+        label: `${student.vorname} ${student.nachname}`.trim() || 'Schüler:in',
+      }));
 
       return {
         ...prev,
-        klassenkasse: {
-          ...prev.klassenkasse,
-          kontostand: prev.klassenkasse.kontostand + sumDiff,
-          sammlungen,
-          transaktionen: newTrans
-        }
+        klassenkasse: markCollectionPaidForStudents(
+          currentKasse,
+          samId,
+          classStudents,
+          new Date().toISOString()
+        ),
       };
     });
   };
@@ -348,36 +279,45 @@ export default function OrgaLists() {
   // Create Geldsammlung
   const handleCreateSammlung = (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = parseFloat(sammlungAmount.replace(',', '.'));
-    if (!sammlungTitle.trim() || isNaN(amount) || amount < 0) {
-      alert('Bitte geben Sie einen gültigen Titel und Betrag ein.');
+    const parsed = parseEuroInput(sammlungAmount);
+    if (!sammlungTitle.trim() || !parsed.valid) {
+      alert('Bitte einen gültigen Titel und einen positiven Betrag mit höchstens zwei Nachkommastellen eingeben.');
       return;
     }
 
     const newSammlung: Geldsammlung = {
       id: crypto.randomUUID(),
       titel: sammlungTitle.trim(),
-      betrag: amount,
+      betrag: parsed.value,
       faelligkeit: sammlungDueDate || undefined,
-      beschreibung: sammlungNote || undefined,
+      beschreibung: sammlungNote.trim() || undefined,
       erstelltAm: new Date().toISOString(),
       abgeschlossen: false,
       status: {},
       betraege: {}
     };
 
-    students.forEach(s => {
-      newSammlung.status[s.id] = 'offen';
-      newSammlung.betraege[s.id] = 0;
-    });
+    setApp(prev => {
+      const currentKasse = normalizeKlassenkasse(prev.klassenkasse);
+      const collection = {
+        ...newSammlung,
+        status: {} as Geldsammlung['status'],
+        betraege: {} as Geldsammlung['betraege'],
+      };
 
-    setApp(prev => ({
-      ...prev,
-      klassenkasse: {
-        ...kasse,
-        sammlungen: [...kasse.sammlungen, newSammlung]
-      }
-    }));
+      (prev.schueler || []).forEach(student => {
+        collection.status[student.id] = 'offen';
+        collection.betraege[student.id] = 0;
+      });
+
+      return {
+        ...prev,
+        klassenkasse: {
+          ...currentKasse,
+          sammlungen: [...currentKasse.sammlungen, collection],
+        },
+      };
+    });
 
     setSammlungTitle('');
     setSammlungAmount('');
@@ -397,7 +337,7 @@ export default function OrgaLists() {
     const newList: OrgCheckliste = {
       id: crypto.randomUUID(),
       titel: checklisteTitle.trim(),
-      datum: checklisteDate ? new Date(checklisteDate).toISOString() : undefined,
+      datum: checklisteDate ? dateInputToLocalNoonIso(checklisteDate) : undefined,
       spalten: [
         { id: crypto.randomUUID(), label: 'Einverständnis' },
         { id: crypto.randomUUID(), label: 'Geld abgegeben' }
@@ -496,39 +436,38 @@ export default function OrgaLists() {
   // Add Manual Ledger Transaction
   const handleAddTransaction = (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = parseFloat(txAmount.replace(',', '.'));
-    if (isNaN(amount) || amount <= 0) {
-      alert('Bitte einen gültigen Betrag eingeben.');
+    const parsed = parseEuroInput(txAmount);
+    if (!parsed.valid) {
+      alert('Bitte einen positiven Betrag mit höchstens zwei Nachkommastellen eingeben.');
       return;
     }
 
-    const student = students.find(s => s.id === txStudentId);
-    const labelTitle = txTitle.trim() || (txType === 'plus' ? 'Einnahme' : 'Ausgabe');
-    const fullTitle = student ? `${student.vorname} ${student.nachname}: ${labelTitle}` : labelTitle;
+    setApp(prev => {
+      const student = (prev.schueler || []).find(s => s.id === txStudentId);
+      const labelTitle = txTitle.trim() || (txType === 'plus' ? 'Einnahme' : 'Ausgabe');
+      const fullTitle = student ? `${student.vorname} ${student.nachname}: ${labelTitle}` : labelTitle;
+      const dateIso = txDate ? dateInputToLocalNoonIso(txDate) : undefined;
 
-    const newTx: KassenTransaktion = {
-      id: crypto.randomUUID(),
-      datum: txDate ? new Date(txDate).toISOString() : new Date().toISOString(),
-      titel: fullTitle,
-      betrag: amount,
-      typ: txType,
-      kategorie: txCategory,
-      schuelerId: txStudentId || undefined
-    };
+      const newTx: KassenTransaktion = {
+        id: crypto.randomUUID(),
+        datum: dateIso || new Date().toISOString(),
+        titel: fullTitle,
+        betrag: parsed.value,
+        typ: txType,
+        kategorie: txCategory,
+        schuelerId: txStudentId || undefined
+      };
 
-    const diff = txType === 'plus' ? amount : -amount;
-    setApp(prev => ({
-      ...prev,
-      klassenkasse: {
-        ...kasse,
-        kontostand: kasse.kontostand + diff,
-        transaktionen: [newTx, ...kasse.transaktionen]
-      }
-    }));
+      return {
+        ...prev,
+        klassenkasse: addManualCashTransaction(normalizeKlassenkasse(prev.klassenkasse), newTx),
+      };
+    });
 
     setTxTitle('');
     setTxAmount('');
     setTxStudentId('');
+    setTxDate(getLocalOrgaDateKey());
     setIsNewModalOpen(false);
     setNewItemType(null);
     setActiveTab('kassenbuch');
@@ -537,18 +476,13 @@ export default function OrgaLists() {
   // Delete manual transaction
   const handleConfirmDeleteTransaction = () => {
     if (!txToDelete) return;
-    const balanceDiff = txToDelete.typ === 'plus' ? -txToDelete.betrag : txToDelete.betrag;
-    setApp(prev => {
-      if (!prev.klassenkasse) return prev;
-      return {
-        ...prev,
-        klassenkasse: {
-          ...prev.klassenkasse,
-          kontostand: (prev.klassenkasse.kontostand || 0) + balanceDiff,
-          transaktionen: (prev.klassenkasse.transaktionen || []).filter(t => t.id !== txToDelete.id)
-        }
-      };
-    });
+    setApp(prev => ({
+      ...prev,
+      klassenkasse: deleteManualCashTransaction(
+        normalizeKlassenkasse(prev.klassenkasse),
+        txToDelete.id
+      ),
+    }));
     setTxToDelete(null);
   };
 
@@ -572,7 +506,7 @@ export default function OrgaLists() {
             <div className="flex items-center gap-2">
               <h1 className="text-[1.125rem] font-black text-slate-900 tracking-tight leading-tight">Kasse & Orga</h1>
               <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[0.6875rem] font-bold">
-                Klasse {app.klassenbezeichnung || app.klasse || '2a'}
+                {app.klassenbezeichnung || app.klasse ? `Klasse ${app.klassenbezeichnung || app.klasse}` : 'Kassa & Orga'}
               </span>
             </div>
             <p className="text-[0.75rem] font-medium text-slate-500">
@@ -839,7 +773,7 @@ export default function OrgaLists() {
                               {formatEuro(s.betrag)} pro Kind
                               {s.faelligkeit && (
                                 <span className="ml-2 text-slate-400 font-normal">
-                                  • Fällig: {new Date(s.faelligkeit).toLocaleDateString('de-AT')}
+                                  • Fällig: {formatOrgaDate(s.faelligkeit)}
                                 </span>
                               )}
                             </p>
@@ -938,7 +872,7 @@ export default function OrgaLists() {
                           </div>
                           {c.datum && (
                             <p className="text-[0.6875rem] font-semibold text-slate-400">
-                              Termin: {new Date(c.datum).toLocaleDateString('de-AT')}
+                              Termin: {formatOrgaDate(c.datum)}
                             </p>
                           )}
                         </div>
@@ -1256,7 +1190,7 @@ export default function OrgaLists() {
                       <div className="min-w-0 flex-1 pr-3">
                         <div className="font-bold text-slate-900 truncate">{tx.titel}</div>
                         <div className="text-[0.6875rem] text-slate-400 flex items-center gap-1.5 flex-wrap">
-                          <span>{new Date(tx.datum).toLocaleDateString('de-AT')}</span>
+                          <span>{formatOrgaDate(tx.datum)}</span>
                           <span>•</span>
                           <span>{tx.kategorie === 'ausgabe' ? 'Ausgabe' : tx.kategorie === 'sammlung' ? 'Geldsammlung' : tx.kategorie === 'sonstiges' ? 'Sonstiges' : tx.kategorie || 'Allgemein'}</span>
                           {isManual && (
@@ -1524,7 +1458,7 @@ export default function OrgaLists() {
                 <div key={s.id} className="bg-white rounded-2xl border border-slate-200/80 p-4 flex items-center justify-between gap-4">
                   <div>
                     <h3 className="text-[0.875rem] font-bold text-slate-900">{s.titel}</h3>
-                    <p className="text-[0.6875rem] text-slate-400">{formatEuro(s.betrag)} pro Kind • Erstellt am {new Date(s.erstelltAm).toLocaleDateString('de-AT')}</p>
+                    <p className="text-[0.6875rem] text-slate-400">{formatEuro(s.betrag)} pro Kind • Erstellt am {formatOrgaDate(s.erstelltAm)}</p>
                   </div>
 
                   <button
@@ -2003,7 +1937,7 @@ export default function OrgaLists() {
                 <div className="flex justify-between items-center text-[0.8125rem]">
                   <span className="text-[0.6875rem] font-bold uppercase tracking-wider text-slate-400">Datum</span>
                   <span className="font-bold text-slate-700">
-                    {new Date(txToDelete.datum).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    {formatOrgaDate(txToDelete.datum)}
                   </span>
                 </div>
                 <div className="flex justify-between items-start text-[0.8125rem] gap-2">

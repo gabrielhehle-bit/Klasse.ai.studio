@@ -78,7 +78,7 @@ Starke: ${plan.differenzierung.starke}
 Schwache: ${plan.differenzierung.schwache}
     `.trim();
 
-    addMaterialFromAI({
+    const saved = addMaterialFromAI({
       titel: thema || 'KI-Stundenentwurf',
       beschreibung: `${fach}, ${duration} Min. Generiert am ${new Date().toLocaleDateString('de-DE')}.`,
       typ: 'stundenentwurf',
@@ -89,6 +89,7 @@ Schwache: ${plan.differenzierung.schwache}
       dauer: duration,
       lernziel: plan.lernziele.kognitiv
     }, 'KI-Planer');
+    if (!saved) return;
 
     setSaveMaterialSuccess(true);
     setTimeout(() => setSaveMaterialSuccess(false), 3000);

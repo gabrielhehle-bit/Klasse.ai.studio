@@ -527,26 +527,19 @@ export default function WhiteboardWidget({ isInteractive = true }: { isInteracti
         className={`absolute inset-0 transition-opacity duration-500 ${isInteractive ? 'opacity-100' : 'opacity-40'}`}
         style={{ pointerEvents: isInteractive ? 'auto' : 'none' }}
       >
-        {boardMode === 'whiteboard' ? (
-          <Tldraw persistenceKey="shuhu-whiteboard-v1">
-            <WhiteboardUI 
-              isLocked={isLocked} setIsLocked={setIsLocked}
-              isSpotlight={isSpotlight} setIsSpotlight={setIsSpotlight}
-              isShade={isShade} setIsShade={setIsShade}
-              isInteractive={isInteractive}
-            />
-          </Tldraw>
-        ) : (
-          <div className="w-full h-full relative">
-            <NotepadView isLocked={isLocked} />
-            <WhiteboardUI 
-              isLocked={isLocked} setIsLocked={setIsLocked}
-              isSpotlight={isSpotlight} setIsSpotlight={setIsSpotlight}
-              isShade={isShade} setIsShade={setIsShade}
-              isInteractive={isInteractive}
-            />
-          </div>
-        )}
+        <Tldraw persistenceKey="shuhu-whiteboard-v1">
+          {boardMode === 'text' && (
+            <div className="absolute inset-0 z-[10] bg-white">
+              <NotepadView isLocked={isLocked} />
+            </div>
+          )}
+          <WhiteboardUI 
+            isLocked={isLocked} setIsLocked={setIsLocked}
+            isSpotlight={isSpotlight} setIsSpotlight={setIsSpotlight}
+            isShade={isShade} setIsShade={setIsShade}
+            isInteractive={isInteractive}
+          />
+        </Tldraw>
       </div>
 
       {/* Special Effects Layers */}

@@ -1,8 +1,8 @@
 import React, { useState, useRef, useLayoutEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../context/AppContext';
-import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, logActivity, safeJsonParse, inferDateFromText, inferEventType, sortYearlySubjects } from '../lib/utils';
-import { TAGE_NAMEN, VM_ZEITEN, STUNDENTAFEL, FAECHER_ALLE, DEUTSCH_UNTERFAECHER, DEFAULT_YEARLY_SUBJECTS, STUNDEN_INFO } from '../constants';
+import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, logActivity, safeJsonParse, inferDateFromText, inferEventType, sortYearlySubjects, formatLocalDateKey } from '../lib/utils';
+import { TAGE_NAMEN, STUNDENTAFEL, FAECHER_ALLE, DEUTSCH_UNTERFAECHER, MATHEMATIK_UNTERFAECHER, DEFAULT_YEARLY_SUBJECTS, STUNDEN_INFO, MAX_LESSON_SLOTS, LESSON_SLOT_NUMBERS } from '../constants';
 import { ChevronLeft, ChevronRight, ChevronDown, Plus, Layout, Calendar, Info, Search, X, Check, Clock, PartyPopper, Lightbulb, Filter, Flag, AlertTriangle, Star, MessageSquare, Users, User, Users2, Smartphone, BookOpen, Printer, Sparkles, Loader2, Book, RefreshCw, GripVertical, Zap, Pencil, BarChart2, Eye, EyeOff, Copy, Clipboard, CheckSquare, Paperclip, ExternalLink, MoreHorizontal, Maximize2, Minimize2, FileSpreadsheet, Download, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getLessonSuggestion, generateWeeklyPlanFromYearlyPlan, checkWeeklyPlanAlignmentAI, generateMagicPlanning } from '../services/aiService';
@@ -12,14 +12,25 @@ import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
 import WochenplanExcelModal from './WochenplanExcelModal';
 import { generateWochenplanTemplate, WochenplanImportRow } from '../lib/planerExcelService';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
+import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots } from '../lib/weeklyPlanData';
+import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
+import { getAttendanceSemester } from '../lib/attendanceData';
+import { downloadKlassenbuchDocx } from '../lib/klassenbuchDocx';
 
 const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> = {
   'Deutsch': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
-  'Deutsch (Sprache)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
+  'Deutsch (Sprache)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' }, // Legacy
+  'Deutsch (Sprachbetrachtung)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
+  'Deutsch (Sprechen & Hören)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
+  'Deutsch (Förderung)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
   'Deutsch (Lesen)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
   'Deutsch (Rechtschreibung)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
   'Deutsch (Verfassen von Texten)': { bg: 'bg-blue-50/80', text: 'text-blue-600', border: 'border-blue-100' },
   'Mathematik': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+  'Mathematik (Ebene & Raum)': { bg: 'bg-red-50/80', text: 'text-red-700', border: 'border-red-100' },
+  'Mathematik (Zahlen & Daten)': { bg: 'bg-red-50/80', text: 'text-red-700', border: 'border-red-100' },
+  'Mathematik (Größen)': { bg: 'bg-red-50/80', text: 'text-red-700', border: 'border-red-100' },
+  'Mathematik (Operationen)': { bg: 'bg-red-50/80', text: 'text-red-700', border: 'border-red-100' },
   'Sachunterricht': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
   'Religion': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
   'Englisch': { bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200' },
@@ -35,9 +46,18 @@ const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> 
 
 export const DEUTSCH_THEMENBEREICHE = [
   { id: 'Deutsch (Lesen)', label: 'Lesen', icon: BookOpen, color: 'bg-sky-500 hover:bg-sky-600 border-sky-500 text-white' },
-  { id: 'Deutsch (Sprache)', label: 'Sprache', icon: MessageSquare, color: 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-white' },
+  { id: 'Deutsch (Sprachbetrachtung)', label: 'Sprachbetrachtung', icon: MessageSquare, color: 'bg-amber-500 hover:bg-amber-600 border-amber-500 text-white' },
+  { id: 'Deutsch (Sprechen & Hören)', label: 'Sprechen & Hören', icon: Users, color: 'bg-cyan-600 hover:bg-cyan-700 border-cyan-600 text-white' },
   { id: 'Deutsch (Rechtschreibung)', label: 'Rechtschreibung', icon: Zap, color: 'bg-emerald-500 hover:bg-emerald-600 border-emerald-500 text-white' },
-  { id: 'Deutsch (Verfassen von Texten)', label: 'Texte verfassen', icon: Pencil, color: 'bg-indigo-500 hover:bg-indigo-600 border-indigo-500 text-white' }
+  { id: 'Deutsch (Verfassen von Texten)', label: 'Texte verfassen', icon: Pencil, color: 'bg-indigo-500 hover:bg-indigo-600 border-indigo-500 text-white' },
+  { id: 'Deutsch (Förderung)', label: 'Förderung (FÖ)', icon: Star, color: 'bg-violet-600 hover:bg-violet-700 border-violet-600 text-white' }
+];
+
+export const MATHE_THEMENBEREICHE = [
+  { id: 'Mathematik (Ebene & Raum)', label: 'Ebene & Raum' },
+  { id: 'Mathematik (Zahlen & Daten)', label: 'Zahlen & Daten' },
+  { id: 'Mathematik (Größen)', label: 'Größen' },
+  { id: 'Mathematik (Operationen)', label: 'Operationen' },
 ];
 
 export const isDeutschSubSubject = (f: string): boolean => {
@@ -46,8 +66,44 @@ export const isDeutschSubSubject = (f: string): boolean => {
   if (lower === 'deutsch' || lower === 'd') return false;
   if (lower.startsWith('deutsch (') || lower.startsWith('deutsch -') || lower.startsWith('deutsch:')) return true;
   if (DEUTSCH_UNTERFAECHER.some(uf => uf.toLowerCase() === lower)) return true;
-  if (['lesen', 'sprache', 'sprachbetrachtung', 'rechtschreiben', 'rechtschreibung', 'texte verfassen', 'verfassen von texten', 'schreiben'].includes(lower)) return true;
+  if (['lesen', 'sprache', 'sprachbetrachtung', 'sprechen & hören', 'sprechen und hören', 'hören', 'rechtschreiben', 'rechtschreibung', 'texte verfassen', 'verfassen von texten', 'schreiben', 'förderung', 'förderung (fö)', 'd-fö'].includes(lower)) return true;
   return false;
+};
+
+export const isMatheSubSubject = (f: string): boolean => {
+  if (!f) return false;
+  const lower = f.trim().toLocaleLowerCase('de-AT');
+  if (lower === 'mathematik' || lower === 'mathe' || lower === 'm') return false;
+  if (lower.startsWith('mathematik (') || lower.startsWith('mathematik -') || lower.startsWith('mathematik:')) return true;
+  if (MATHEMATIK_UNTERFAECHER.some(uf => uf.toLocaleLowerCase('de-AT') === lower)) return true;
+  return ['ebene & raum', 'zahlen & daten', 'größen', 'groessen', 'operationen'].includes(lower);
+};
+
+type LessonHalfDraft = {
+  fach: string;
+  unterbereich: string;
+  thema: string;
+  farbe: string;
+};
+
+const EMPTY_LESSON_HALF: LessonHalfDraft = {
+  fach: '',
+  unterbereich: '',
+  thema: '',
+  farbe: '#ffffff',
+};
+
+const getSubareaOptionsForSubject = (fach: string) => {
+  if (fach === 'Deutsch') return DEUTSCH_THEMENBEREICHE.map(item => ({ id: item.id, label: item.label }));
+  if (fach === 'Mathematik') return MATHE_THEMENBEREICHE.map(item => ({ id: item.id, label: item.label }));
+  if (!fach) return [];
+  return [{ id: fach + ' (Förderung)', label: 'Förderung (FÖ)' }];
+};
+
+const formatSchwerpunktLabel = (value: string) => {
+  if (value === 'Deutsch (Förderung)' || value === 'D-FÖ') return 'D-FÖ';
+  if (value === 'Deutsch (Sprache)') return 'Sprachbetrachtung';
+  return value.replace('Deutsch (', '').replace('Mathematik (', '').replace(')', '');
 };
 
 const getContrastTextClass = (bgColor?: string): string => {
@@ -201,6 +257,9 @@ export default function WeeklyPlan() {
   const [tempSocial, setTempSocial] = useState('single');
   const [tempReflexion, setTempReflexion] = useState('');
   const [tempSchwerpunkte, setTempSchwerpunkte] = useState<string[]>([]);
+  const [tempSplitLesson, setTempSplitLesson] = useState(false);
+  const [tempFirstHalf, setTempFirstHalf] = useState<LessonHalfDraft>({ ...EMPTY_LESSON_HALF });
+  const [tempSecondHalf, setTempSecondHalf] = useState<LessonHalfDraft>({ ...EMPTY_LESSON_HALF });
   const [tempDuration, setTempDuration] = useState<number | 'all'>(1);
   const [syncWpSubjects, setSyncWpSubjects] = useState(false);
   const [showDraftsSelector, setShowDraftsSelector] = useState(false);
@@ -251,7 +310,8 @@ export default function WeeklyPlan() {
     if (!window.confirm('Achtung: Dies überschreibt die aktuelle Woche! Fortfahren?')) return;
     setApp(prev => {
       const wp = { ...(prev.wochenplanung || {}) };
-      const lastWp = wp[activeKW - 1];
+      const previousKw = getPreviousCalendarWeekKw(activeKW, prev.schuljahr);
+      const lastWp = wp[previousKw];
       if (lastWp) {
         wp[activeKW] = JSON.parse(JSON.stringify(lastWp));
       }
@@ -606,27 +666,10 @@ export default function WeeklyPlan() {
 
   const parkedLessons = app.parkgarage || [];
 
-  const incompleteWeeklySlots = useMemo(() => {
-    const currentWeekPlan = app.wochenplanung?.[activeKW] || {};
-    const slots: { tag: string; idx: number; fach: string; thema: string }[] = [];
-    const tage = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
-    tage.forEach(tag => {
-      const dayData = currentWeekPlan[tag] || {};
-      Object.keys(dayData).forEach(idxStr => {
-        const idx = parseInt(idxStr);
-        const lesson = dayData[idx];
-        if (lesson && lesson.thema && !lesson.completed) {
-          slots.push({
-            tag,
-            idx,
-            fach: lesson.fach || 'Fach',
-            thema: lesson.thema
-          });
-        }
-      });
-    });
-    return slots;
-  }, [app.wochenplanung, activeKW]);
+  const incompleteWeeklySlots = useMemo(
+    () => collectIncompleteWeeklyLessonSlots(app.wochenplanung?.[activeKW]),
+    [app.wochenplanung, activeKW],
+  );
 
   const incompleteDenkzettelNotes = useMemo(() => {
     return (app.denkzettelNotes || []).filter((note: any) => !note.completed);
@@ -690,11 +733,9 @@ export default function WeeklyPlan() {
       const existingWp = prev.wochenplanung || {};
       const existingWeek = existingWp[targetKW] || {};
 
-      let newWeekData: Record<string, any> = {};
-
-      if (mode === 'merge') {
-        newWeekData = JSON.parse(JSON.stringify(existingWeek));
-      }
+      // Always start from the current week. "Overwrite" applies only to slots
+      // explicitly present in the import file; omitted rows must never delete lessons.
+      let newWeekData: Record<string, any> = JSON.parse(JSON.stringify(existingWeek));
 
       importedRows.forEach(row => {
         const tag = row.tag;
@@ -716,7 +757,7 @@ export default function WeeklyPlan() {
           material: row.material || existingSlot?.material || '',
           housework: row.housework || existingSlot?.housework || '',
           reflexion: row.reflexion || existingSlot?.reflexion || '',
-          zeit: row.uhrzeit || existingSlot?.zeit || STUNDEN_INFO[row.stunde] || '',
+          zeit: row.uhrzeit || existingSlot?.zeit || configuredLessonTime(prev.stundenZeiten, STUNDEN_INFO, row.stunde),
         };
       });
 
@@ -737,7 +778,7 @@ export default function WeeklyPlan() {
     let missingMat = 0;
     const currentWeekPlan = app.wochenplanung?.[activeKW] || {};
     TAGE_NAMEN.forEach(tag => {
-      for (let idx = 0; idx < 8; idx++) {
+      for (let idx = 0; idx < MAX_LESSON_SLOTS; idx++) {
         const item = currentWeekPlan[tag]?.[idx];
         const stammFach = app.stammplan?.[tag]?.[idx + 1] || '';
         if (item?.fach || item?.thema || stammFach) {
@@ -778,7 +819,7 @@ export default function WeeklyPlan() {
         }
       });
 
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < MAX_LESSON_SLOTS; i++) {
         const item = dayData[i];
         if (item && (item.type === 'sa' || item.type === 'test' || item.type === 'event')) {
           events.push({
@@ -843,7 +884,8 @@ export default function WeeklyPlan() {
     const stats: Record<string, number> = {
       'Lesen': 0,
       'Rechtschreibung': 0,
-      'Sprache': 0,
+      'Sprachbetrachtung': 0,
+      'Sprechen & Hören': 0,
       'Verfassen von Texten': 0
     };
 
@@ -863,7 +905,8 @@ export default function WeeklyPlan() {
                     const spLower = sp.toLowerCase();
                     if (spLower.includes('lesen') || spLower === 'l' || spLower === 'deutsch (lesen)') stats['Lesen']++;
                     if (spLower.includes('rechtschreibung') || spLower === 'rs' || spLower === 'deutsch (rechtschreibung)') stats['Rechtschreibung']++;
-                    if (spLower.includes('sprache') || spLower === 'sp' || spLower.includes('sprachbetrachtung') || spLower === 'deutsch (sprache)') stats['Sprache']++;
+                    if (spLower.includes('sprachbetrachtung') || spLower === 'sp' || spLower === 'deutsch (sprache)') stats['Sprachbetrachtung']++;
+                    if (spLower.includes('sprechen & hören') || spLower.includes('sprechen und hören')) stats['Sprechen & Hören']++;
                     if (spLower.includes('verfassen') || spLower === 'vt' || spLower.includes('texte') || spLower === 'deutsch (verfassen von texten)') stats['Verfassen von Texten']++;
                  });
               }
@@ -877,13 +920,14 @@ export default function WeeklyPlan() {
     return [
       { label: 'Lesen', count: stats['Lesen'], color: 'bg-sky-500', iconColor: 'text-sky-500', icon: BookOpen, maxCount },
       { label: 'Rechtschreibung', count: stats['Rechtschreibung'], color: 'bg-emerald-500', iconColor: 'text-emerald-500', icon: Zap, maxCount },
-      { label: 'Sprache', count: stats['Sprache'], color: 'bg-amber-500', iconColor: 'text-amber-500', icon: MessageSquare, maxCount },
+      { label: 'Sprachbetrachtung', count: stats['Sprachbetrachtung'], color: 'bg-amber-500', iconColor: 'text-amber-500', icon: MessageSquare, maxCount },
+      { label: 'Sprechen & Hören', count: stats['Sprechen & Hören'], color: 'bg-cyan-600', iconColor: 'text-cyan-600', icon: Users, maxCount },
       { label: 'Verfassen von Texten', count: stats['Verfassen von Texten'], color: 'bg-indigo-500', iconColor: 'text-indigo-500', icon: Pencil, maxCount },
     ];
   };
 
   const getDayStatus = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatLocalDateKey(date);
     const override = app.calendarOverrides?.[dateStr];
     if (override) return { status: override, isOverride: true, holidayName: isHoliday(date, app.calendarSettings?.disabledHolidays || [], app.bundesland || 'VBG') };
     
@@ -895,10 +939,16 @@ export default function WeeklyPlan() {
     const data: Record<string, string[]> = {
       'Deutsch - Rechtschreiben': [],
       'Deutsch - Sprachbetrachtung': [],
+      'Deutsch - Sprechen & Hören': [],
       'Deutsch - Texte verfassen': [],
       'Deutsch - Lesen': [],
-      'Deutsch - D- FÖ': [],
-      'Mathematik': [],
+      'Deutsch - D-FÖ': [],
+      'Mathematik - Ebene & Raum': [],
+      'Mathematik - Zahlen & Daten': [],
+      'Mathematik - Größen': [],
+      'Mathematik - Operationen': [],
+      'Mathematik - Nicht zugeordnet': [],
+      'Förderung (FÖ)': [],
       'Sachunterricht': [],
       'BSP': [],
       'Werken': [],
@@ -908,129 +958,201 @@ export default function WeeklyPlan() {
       'Religion': [],
       'Besondere Vorkommnisse': []
     };
-    
-    const plan = (app.wochenplanung || {})[targetKW];
-    if (!plan) return data;
 
-    // Robust subject match helpers for Austrian/VS abbreviations (case-insensitive)
+    const weekPlan = (app.wochenplanung || {})[targetKW];
+    if (!weekPlan) return data;
+
+    const norm = (value: string) => (value || '').trim().toLocaleLowerCase('de-AT');
     const isDeutsch = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'd' || norm === 'de' || norm === 'deutsch' || norm.includes('deutsch');
+      const value = norm(f);
+      return value === 'd' || value === 'de' || value === 'deutsch' || value.includes('deutsch');
     };
     const isMathe = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'm' || norm === 'ma' || norm === 'mathe' || norm === 'mathematik' || norm.includes('mathe') || norm.includes('rechnen');
+      const value = norm(f);
+      return value === 'm' || value === 'ma' || value === 'mathe' || value === 'mathematik' || value.includes('mathe') || value.includes('rechnen');
     };
     const isSU = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'su' || norm === 'sachunterricht' || norm.includes('sach') || norm.includes('su');
+      const value = norm(f);
+      return value === 'su' || value === 'sachunterricht' || value.includes('sach');
     };
     const isBSP = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'bsp' || norm === 'bs' || norm === 'b&s' || norm === 'sport' || norm === 'turnen' || norm.includes('sport') || norm.includes('turnen') || norm.includes('bewegung') || norm.includes('bsp');
+      const value = norm(f);
+      return value === 'bsp' || value === 'bs' || value === 'b&s' || value === 'sport' || value === 'turnen' || value.includes('sport') || value.includes('turnen') || value.includes('bewegung');
     };
     const isWerken = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'we' || norm === 'tew' || norm === 'txw' || norm === 'werken' || norm.includes('werk') || norm.includes('technisch') || norm.includes('textil');
+      const value = norm(f);
+      return value === 'we' || value === 'tew' || value === 'txw' || value === 'werken' || value.includes('werk') || value.includes('technisch') || value.includes('textil');
     };
     const isMusik = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'me' || norm === 'mu' || norm === 'musik' || norm === 'musikerziehung' || norm.includes('musik') || norm.includes('singen');
+      const value = norm(f);
+      return value === 'me' || value === 'mu' || value === 'musik' || value === 'musikerziehung' || value.includes('musik') || value.includes('singen');
     };
     const isEnglisch = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'e' || norm === 'eng' || norm === 'englisch' || norm.includes('engl') || norm.includes('english');
+      const value = norm(f);
+      return value === 'e' || value === 'eng' || value === 'englisch' || value.includes('engl') || value.includes('english');
     };
     const isZeichnen = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'be' || norm === 'ze' || norm === 'zeichnen' || norm === 'bildnerische' || norm.includes('zeichn') || norm.includes('kunst') || norm.includes('bildnerisch');
+      const value = norm(f);
+      return value === 'be' || value === 'ze' || value === 'zeichnen' || value === 'bildnerische' || value.includes('zeichn') || value.includes('kunst') || value.includes('bildnerisch');
     };
     const isReligion = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'r' || norm === 'rel' || norm === 'religion' || norm.includes('rel') || norm.includes('religion');
+      const value = norm(f);
+      return value === 'r' || value === 'rel' || value === 'religion' || value.includes('religion');
     };
-    
-    Object.keys(plan).forEach(tag => {
-      if (!['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].includes(tag)) return;
-      
-      Object.keys(plan[tag] || {}).forEach(idx => {
-        const numericIdx = parseInt(idx, 10);
-        if (isNaN(numericIdx)) return;
-        
-        const item = plan[tag][idx];
-        if (!item || (!item.fach && !item.thema)) return;
-        
-        const fach = item.fach || '';
-        const thema = [item.thema, item.reflexion].filter(Boolean).join(' - ');
-        if (!thema && !fach) return;
-        const textToPush = thema || fach;
-        
-        const schwerpunkte = item.schwerpunkte || [];
-        
-        if (isDeutsch(fach) || schwerpunkte.some((s: string) => isDeutsch(s))) {
-          let matchedDeutsch = false;
-          const hasRS = schwerpunkte.includes('Deutsch (Rechtschreibung)') || fach.toLowerCase().includes('rechtschreib') || fach.toLowerCase().includes('rs') || fach.toLowerCase() === 'rs';
-          const hasSP = schwerpunkte.includes('Deutsch (Sprache)') || fach.toLowerCase().includes('sprach') || fach.toLowerCase().includes('sp') || fach.toLowerCase() === 'sp';
-          const hasVT = schwerpunkte.includes('Deutsch (Verfassen von Texten)') || fach.toLowerCase().includes('verfassen') || fach.toLowerCase().includes('texte') || fach.toLowerCase().includes('aufsatz') || fach.toLowerCase().includes('vt') || fach.toLowerCase() === 'vt';
-          const hasL  = schwerpunkte.includes('Deutsch (Lesen)') || fach.toLowerCase().includes('lesen') || fach.toLowerCase().includes('l') || fach.toLowerCase() === 'l';
-          const hasFO = fach.includes('D-FÖ') || fach.toLowerCase() === 'd-fö' || fach.includes('Förder') || schwerpunkte.includes('Förderung') || fach.toLowerCase() === 'd- fö' || fach.toLowerCase() === 'd-fö';
+    const isFoerderung = (f: string) => {
+      const value = norm(f).replace(/\s+/g, '');
+      return value === 'fö' || value === 'foe' || value === 'förderung' || value === 'foerderung' || value.includes('(förderung)') || value.includes('(foerderung)');
+    };
 
-          if (hasRS) {
-             data['Deutsch - Rechtschreiben'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasSP) {
-             data['Deutsch - Sprachbetrachtung'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasVT) {
-             data['Deutsch - Texte verfassen'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasL) {
-             data['Deutsch - Lesen'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasFO) {
-             data['Deutsch - D- FÖ'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          
-          if (!matchedDeutsch) {
-             data['Deutsch - Sprachbetrachtung'].push(textToPush);
-          }
-        } else if (isMathe(fach)) {
-          data['Mathematik'].push(textToPush);
-        } else if (isSU(fach)) {
-          data['Sachunterricht'].push(textToPush);
-        } else if (isBSP(fach)) {
-          data['BSP'].push(textToPush);
-        } else if (isWerken(fach)) {
-          data['Werken'].push(textToPush);
-        } else if (isMusik(fach)) {
-          data['Musik'].push(textToPush);
-        } else if (isEnglisch(fach)) {
-          data['Englisch'].push(textToPush);
-        } else if (isZeichnen(fach)) {
-          data['Zeichnen'].push(textToPush);
-        } else if (isReligion(fach)) {
-          data['Religion'].push(textToPush);
-        } else {
-          const entryStr = fach ? `${fach}: ${textToPush}` : textToPush;
-          data['Besondere Vorkommnisse'].push(entryStr);
+    const pushEntry = (fachRaw: string, themaRaw: string, schwerpunkteRaw: string[] = [], prefix = '') => {
+      const fach = fachRaw || '';
+      const schwerpunkte = Array.isArray(schwerpunkteRaw) ? schwerpunkteRaw.filter(Boolean) : [];
+      const thema = String(themaRaw || '').trim();
+      if (!fach && !thema) return;
+      const textToPush = `${prefix}${thema || fach}`.trim();
+
+      if (isDeutsch(fach) || schwerpunkte.some(isDeutsch)) {
+        let matchedDeutsch = false;
+        const fachLower = norm(fach);
+        const focus = schwerpunkte.map(norm);
+        const hasRS = focus.some(value => value.includes('rechtschreib')) || fachLower.includes('rechtschreib') || fachLower === 'rs';
+        const hasSP = focus.some(value => value.includes('sprachbetracht') || value === 'deutsch (sprache)') || fachLower.includes('sprachbetracht') || fachLower === 'sp';
+        const hasSH = focus.some(value => value.includes('sprechen & hören') || value.includes('sprechen und hören')) || fachLower.includes('sprechen & hören') || fachLower.includes('sprechen und hören');
+        const hasVT = focus.some(value => value.includes('verfassen') || value.includes('texte')) || fachLower.includes('verfassen') || fachLower.includes('aufsatz') || fachLower === 'vt';
+        const hasL = focus.some(value => value.includes('lesen')) || fachLower.includes('lesen') || fachLower === 'l';
+        const hasDFO = fachLower.includes('d-fö') || fachLower.includes('d-fö') || focus.some(value => value.includes('deutsch (förderung)') || value === 'förderung' || value === 'd-fö');
+
+        if (hasRS) { data['Deutsch - Rechtschreiben'].push(textToPush); matchedDeutsch = true; }
+        if (hasSP) { data['Deutsch - Sprachbetrachtung'].push(textToPush); matchedDeutsch = true; }
+        if (hasSH) { data['Deutsch - Sprechen & Hören'].push(textToPush); matchedDeutsch = true; }
+        if (hasVT) { data['Deutsch - Texte verfassen'].push(textToPush); matchedDeutsch = true; }
+        if (hasL) { data['Deutsch - Lesen'].push(textToPush); matchedDeutsch = true; }
+        if (hasDFO) { data['Deutsch - D-FÖ'].push(textToPush); matchedDeutsch = true; }
+        if (!matchedDeutsch) data['Deutsch - Sprachbetrachtung'].push(textToPush);
+        return;
+      }
+
+      if (isMathe(fach) || schwerpunkte.some(value => isMathe(value) || isMatheSubSubject(value))) {
+        const focus = [fach, ...schwerpunkte].map(norm);
+        if (focus.some(value => value.includes('ebene & raum'))) data['Mathematik - Ebene & Raum'].push(textToPush);
+        else if (focus.some(value => value.includes('zahlen & daten'))) data['Mathematik - Zahlen & Daten'].push(textToPush);
+        else if (focus.some(value => value.includes('größen') || value.includes('groessen'))) data['Mathematik - Größen'].push(textToPush);
+        else if (focus.some(value => value.includes('operationen'))) data['Mathematik - Operationen'].push(textToPush);
+        else data['Mathematik - Nicht zugeordnet'].push(textToPush);
+        return;
+      }
+
+      if (isFoerderung(fach) || schwerpunkte.some(isFoerderung)) data['Förderung (FÖ)'].push(textToPush);
+      else if (isSU(fach)) data['Sachunterricht'].push(textToPush);
+      else if (isBSP(fach)) data['BSP'].push(textToPush);
+      else if (isWerken(fach)) data['Werken'].push(textToPush);
+      else if (isMusik(fach)) data['Musik'].push(textToPush);
+      else if (isEnglisch(fach)) data['Englisch'].push(textToPush);
+      else if (isZeichnen(fach)) data['Zeichnen'].push(textToPush);
+      else if (isReligion(fach)) data['Religion'].push(textToPush);
+      else data['Besondere Vorkommnisse'].push(fach ? `${fach}: ${textToPush}` : textToPush);
+    };
+
+    Object.keys(weekPlan).forEach(tag => {
+      if (!['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].includes(tag)) return;
+      Object.keys(weekPlan[tag] || {}).forEach(idx => {
+        const numericIdx = parseInt(idx, 10);
+        if (!Number.isInteger(numericIdx)) return;
+        const item = weekPlan[tag][idx];
+        if (!item) return;
+
+        if (item.halves?.enabled) {
+          const first = item.halves.first || {};
+          const second = item.halves.second || {};
+          pushEntry(first.fach || item.fach || '', first.thema || '', first.unterbereich ? [first.unterbereich] : [], '1. Hälfte: ');
+          pushEntry(second.fach || item.fach || '', second.thema || '', second.unterbereich ? [second.unterbereich] : [], '2. Hälfte: ');
+          if (item.reflexion) data['Besondere Vorkommnisse'].push(`${tag}, ${numericIdx + 1}. Stunde – Reflexion: ${item.reflexion}`);
+          return;
         }
+
+        const thema = [item.thema, item.reflexion].filter(Boolean).join(' - ');
+        pushEntry(item.fach || '', thema, item.schwerpunkte || []);
       });
     });
-    
-    // Clean and unique values per subject
+
     Object.keys(data).forEach(key => {
-      data[key] = Array.from(new Set(data[key].map(str => str.trim()).filter(Boolean)));
+      data[key] = Array.from(new Set(data[key].map(value => value.trim()).filter(Boolean)));
     });
-    
+
     return data;
   };
 
   const getKlassenbuchData = () => getKlassenbuchDataForKW(activeKW);
+
+  const exportKlassenbuchDocx = async (range: 'week' | 'month' | 'semester' | 'schoolyear') => {
+    const allWeeks = buildSchoolYearWeekList(app.schuljahr, app.bundesland || 'VBG');
+    const activeSemester = getAttendanceSemester(
+      formatLocalDateKey(monday),
+      app.schuljahr || '',
+      app.bundesland || 'VBG',
+    );
+
+    let selectedWeeks = allWeeks.filter(week => week.kw === activeKW);
+    let rangeLabel = `KW ${activeKW}`;
+
+    if (range === 'month') {
+      selectedWeeks = allWeeks.filter(week =>
+        week.monday.getFullYear() === monday.getFullYear() &&
+        week.monday.getMonth() === monday.getMonth()
+      );
+      rangeLabel = monday.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
+    } else if (range === 'semester') {
+      selectedWeeks = allWeeks.filter(week =>
+        getAttendanceSemester(
+          formatLocalDateKey(week.monday),
+          app.schuljahr || '',
+          app.bundesland || 'VBG',
+        ) === activeSemester
+      );
+      rangeLabel = `${activeSemester}. Semester`;
+    } else if (range === 'schoolyear') {
+      selectedWeeks = allWeeks;
+      rangeLabel = `Schuljahr ${app.schuljahr || ''}`.trim();
+    }
+
+    const weeksWithContent = selectedWeeks.filter(week => Boolean((app.wochenplanung || {})[week.kw]));
+    const weeksToExport = weeksWithContent.length > 0
+      ? weeksWithContent
+      : selectedWeeks.slice(0, 1);
+
+    const sections = weeksToExport.map(week => {
+      const weekFriday = new Date(week.monday);
+      weekFriday.setDate(week.monday.getDate() + 4);
+      const from = week.monday.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const to = weekFriday.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      return {
+        title: `KW ${week.kw} · ${from} – ${to}`,
+        subtitle: week.sw ? `Schulwoche ${week.sw}` : undefined,
+        categories: getKlassenbuchDataForKW(week.kw),
+      };
+    });
+
+    const teacherName = [app.anrede, app.vorname, app.nachname].filter(Boolean).join(' ');
+    const safeRange = rangeLabel
+      .normalize('NFKD')
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    const safeClass = (app.klassenbezeichnung || 'Klasse')
+      .normalize('NFKD')
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+
+    await downloadKlassenbuchDocx(
+      `Klassio_Klassenbuch_${safeClass}_${safeRange || 'Export'}.docx`,
+      {
+        title: `Klassenbuch · ${rangeLabel}`,
+        className: app.klassenbezeichnung || '',
+        schoolYear: app.schuljahr || '',
+        teacherName,
+        sections,
+      },
+    );
+  };
 
   const hasFreeDayInWeek = useMemo(() => {
     return [0, 1, 2, 3, 4].some(i => {
@@ -1056,8 +1178,9 @@ export default function WeeklyPlan() {
     };
   }, [monday, app.calendarOverrides, app.calendarSettings, app.bundesland]);
 
-  const sw = getSW(monday, app.schuljahr);
+  const sw = getSW(monday, app.schuljahr, app.bundesland || 'VBG');
   const plan = (app.wochenplanung || {})[activeKW] || {};
+  const lunchAfterSlot = Math.max(1, Math.min(MAX_LESSON_SLOTS - 1, app.mittagspauseNachStunde || 5));
 
   const isCurrentHour = (tag: string, zIdx: number): boolean => {
     const days = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
@@ -1065,29 +1188,19 @@ export default function WeeklyPlan() {
     const dayName = days[now.getDay()];
     if (dayName !== tag) return false;
 
-    const timeString = STUNDEN_INFO[zIdx + 1];
-    if (!timeString) return false;
+    const timeString = configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, zIdx + 1);
+    const parsed = parseLessonTimeRange(timeString);
+    if (!parsed) return false;
 
-    const [startStr, endStr] = timeString.split('–');
-    if (!startStr || !endStr) return false;
-
-    const [startH, startM] = startStr.split(':').map(Number);
-    const [endH, endM] = endStr.split(':').map(Number);
-
-    const startTime = new Date(now);
-    startTime.setHours(startH, startM, 0, 0);
-
-    const endTime = new Date(now);
-    endTime.setHours(endH, endM, 0, 0);
-
-    return now >= startTime && now <= endTime;
+    const minuteOfDay = now.getHours() * 60 + now.getMinutes();
+    return minuteOfDay >= parsed.start && minuteOfDay < parsed.end;
   };
 
   const getDayProgress = (tag: string) => {
     const dayData = plan[tag] || {};
     let total = 0;
     let completed = 0;
-    for (let idx = 0; idx < 8; idx++) {
+    for (let idx = 0; idx < MAX_LESSON_SLOTS; idx++) {
       const item = dayData[idx];
       const displayFach = item?.fach || app.stammplan?.[tag]?.[idx + 1] || '';
       if (displayFach || item?.thema) {
@@ -1126,7 +1239,7 @@ export default function WeeklyPlan() {
     if (!item) return;
     
     const nextIdx = idx + 1;
-    if (nextIdx < 8) {
+    if (nextIdx < MAX_LESSON_SLOTS) {
       setApp(prev => {
         const wp = { ...(prev.wochenplanung || {}) };
         const currentWeekObj = { ...wp[activeKW] };
@@ -1164,7 +1277,8 @@ export default function WeeklyPlan() {
     const mapping: Record<string, string> = {
       'Lesen': 'Deutsch (Lesen)',
       'Rechtschreibung': 'Deutsch (Rechtschreibung)',
-      'Sprache': 'Deutsch (Sprache)',
+      'Sprachbetrachtung': 'Deutsch (Sprachbetrachtung)',
+      'Sprechen & Hören': 'Deutsch (Sprechen & Hören)',
       'Verfassen von Texten': 'Deutsch (Verfassen von Texten)'
     };
     return rarest && mapping[rarest] ? [mapping[rarest]] : [];
@@ -1174,13 +1288,24 @@ export default function WeeklyPlan() {
     let normalized = f;
     if (isDeutschSubSubject(f)) {
       normalized = 'Deutsch';
-      const matchingUf = DEUTSCH_UNTERFAECHER.find(uf => 
-        uf.toLowerCase() === f.toLowerCase() || 
-        uf.toLowerCase().includes(f.toLowerCase())
+      const legacyMap: Record<string, string> = {
+        'Deutsch (Sprache)': 'Deutsch (Sprachbetrachtung)',
+        'Sprache': 'Deutsch (Sprachbetrachtung)',
+      };
+      const canonical = legacyMap[f] || f;
+      const matchingUf = DEUTSCH_UNTERFAECHER.find(uf =>
+        uf.toLocaleLowerCase('de-AT') === canonical.toLocaleLowerCase('de-AT') ||
+        uf.toLocaleLowerCase('de-AT').includes(canonical.toLocaleLowerCase('de-AT'))
+      );
+      setTempSchwerpunkte([matchingUf || canonical]);
+    } else if (isMatheSubSubject(f)) {
+      normalized = 'Mathematik';
+      const matchingUf = MATHEMATIK_UNTERFAECHER.find(uf =>
+        uf.toLocaleLowerCase('de-AT') === f.toLocaleLowerCase('de-AT') ||
+        uf.toLocaleLowerCase('de-AT').includes(f.toLocaleLowerCase('de-AT'))
       );
       setTempSchwerpunkte([matchingUf || f]);
-    } else if (f !== 'Deutsch' && !f.startsWith('Deutsch')) {
-      // Switching to a different subject: clear Deutsch sub-areas
+    } else if (f !== 'Deutsch' && f !== 'Mathematik' && !f.startsWith('Deutsch') && !f.startsWith('Mathematik')) {
       setTempSchwerpunkte([]);
     } else if (f === 'Deutsch' && app.autoSuggestSchwerpunkte) {
       setTempSchwerpunkte(prev => prev.length > 0 ? prev : autoSuggestSchwerpunkt());
@@ -1197,13 +1322,23 @@ export default function WeeklyPlan() {
     let normalizedFach = initialFach;
     let initialSchwerpunkte = Array.isArray(current.schwerpunkte) ? [...current.schwerpunkte] : [];
 
-    // If stored subject was a Deutsch sub-subject (legacy or imported), normalize to Deutsch + Schwerpunkt
+    // Legacy/imported sub-subjects are projected onto the canonical subject + subarea.
     if (isDeutschSubSubject(initialFach)) {
       normalizedFach = 'Deutsch';
       if (initialSchwerpunkte.length === 0) {
-        const matchingUf = DEUTSCH_UNTERFAECHER.find(uf => 
-          uf.toLowerCase() === initialFach.toLowerCase() || 
-          uf.toLowerCase().includes(initialFach.toLowerCase())
+        const legacy = initialFach === 'Deutsch (Sprache)' ? 'Deutsch (Sprachbetrachtung)' : initialFach;
+        const matchingUf = DEUTSCH_UNTERFAECHER.find(uf =>
+          uf.toLocaleLowerCase('de-AT') === legacy.toLocaleLowerCase('de-AT') ||
+          uf.toLocaleLowerCase('de-AT').includes(legacy.toLocaleLowerCase('de-AT'))
+        );
+        initialSchwerpunkte = [matchingUf || legacy];
+      }
+    } else if (isMatheSubSubject(initialFach)) {
+      normalizedFach = 'Mathematik';
+      if (initialSchwerpunkte.length === 0) {
+        const matchingUf = MATHEMATIK_UNTERFAECHER.find(uf =>
+          uf.toLocaleLowerCase('de-AT') === initialFach.toLocaleLowerCase('de-AT') ||
+          uf.toLocaleLowerCase('de-AT').includes(initialFach.toLocaleLowerCase('de-AT'))
         );
         initialSchwerpunkte = [matchingUf || initialFach];
       }
@@ -1216,6 +1351,14 @@ export default function WeeklyPlan() {
     }
     
     setTempSchwerpunkte(initialSchwerpunkte);
+    const storedHalves = current.halves?.enabled ? current.halves : null;
+    setTempSplitLesson(Boolean(storedHalves));
+    setTempFirstHalf(storedHalves?.first
+      ? { ...EMPTY_LESSON_HALF, ...storedHalves.first }
+      : { ...EMPTY_LESSON_HALF, fach: normalizedFach || '', unterbereich: initialSchwerpunkte[0] || '', thema: current.thema || '' });
+    setTempSecondHalf(storedHalves?.second
+      ? { ...EMPTY_LESSON_HALF, ...storedHalves.second }
+      : { ...EMPTY_LESSON_HALF });
     setTempThema(current.thema || '');
     setTempType(current.type || 'standard');
     setTempMaterial(current.material || '');
@@ -1237,10 +1380,10 @@ export default function WeeklyPlan() {
       alert("Bitte geben Sie zuerst ein Fach und ein Thema ein.");
       return;
     }
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatLocalDateKey(new Date());
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() + 14);
-    const naechsteWiederholung = targetDate.toISOString().split('T')[0];
+    const naechsteWiederholung = formatLocalDateKey(targetDate);
 
     const newEntry = {
       id: `sp-${Date.now()}`,
@@ -1266,17 +1409,12 @@ export default function WeeklyPlan() {
 
     const futureWeeks: number[] = [];
     if (repeatWeekly) {
-      let currentMonday = kwToMonday(36, startYear);
-      let foundActive = false;
-      for (let i = 0; i < 52; i++) {
-        const kw = getKW(currentMonday);
-        if (kw === activeKW) {
-          foundActive = true;
-        }
-        if (foundActive) {
-          futureWeeks.push(kw);
-        }
-        currentMonday.setDate(currentMonday.getDate() + 7);
+      const schoolWeeks = buildSchoolYearWeekList(app.schuljahr, app.bundesland || 'VBG').map((week) => week.kw);
+      const activeIndex = schoolWeeks.indexOf(activeKW);
+      if (activeIndex >= 0) {
+        futureWeeks.push(...schoolWeeks.slice(activeIndex));
+      } else {
+        futureWeeks.push(activeKW);
       }
     } else {
       futureWeeks.push(activeKW);
@@ -1308,7 +1446,14 @@ export default function WeeklyPlan() {
               social,
               reflexion: reflexion.trim(),
               schwerpunkte,
-              duration
+              halves: tempSplitLesson
+                ? {
+                    enabled: true,
+                    first: { ...tempFirstHalf },
+                    second: { ...tempSecondHalf },
+                  }
+                : undefined,
+              duration: duration === 'all' ? 'all' : weeklyLessonDurationSlots(duration, idx)
             }
           };
         }
@@ -1344,7 +1489,14 @@ export default function WeeklyPlan() {
                     social,
                     reflexion: reflexion.trim(),
                     schwerpunkte,
-                    duration
+                    halves: tempSplitLesson
+                      ? {
+                          enabled: true,
+                          first: { ...tempFirstHalf },
+                          second: { ...tempSecondHalf },
+                        }
+                      : undefined,
+                    duration: duration === 'all' ? 'all' : weeklyLessonDurationSlots(duration, Number(dIdx))
                   }
                 };
               }
@@ -1363,7 +1515,7 @@ export default function WeeklyPlan() {
         if (dayIdx !== -1) {
           const d = new Date(mon);
           d.setDate(mon.getDate() + dayIdx);
-          dateStr = d.toISOString().split('T')[0];
+          dateStr = formatLocalDateKey(d);
         }
 
         if (dateStr && thema.trim() && trimmedFach) {
@@ -1686,8 +1838,8 @@ export default function WeeklyPlan() {
     
     // Find empty slot for that day
     const dayPlan = (app.wochenplanung?.[activeKW]?.[targetTag]) || {};
-    let chosenIdx = 5; // fallback index 5
-    for (let i = 0; i < 6; i++) {
+    let chosenIdx = MAX_LESSON_SLOTS - 1;
+    for (let i = 0; i < MAX_LESSON_SLOTS; i++) {
       if (!dayPlan[i] || !dayPlan[i].fach) {
         chosenIdx = i;
         break;
@@ -1715,18 +1867,11 @@ export default function WeeklyPlan() {
     }
   };
 
-  const generateWeeksList = () => {
-    const weeks = [];
-    let currentMonday = kwToMonday(36, startYear);
-    for (let i = 0; i < 52; i++) {
-        weeks.push({ 
-          kw: getKW(currentMonday), 
-          sw_val: getSW(currentMonday, app.schuljahr) 
-        });
-        currentMonday.setDate(currentMonday.getDate() + 7);
-    }
-    return weeks;
-  };
+  const generateWeeksList = () =>
+    buildSchoolYearWeekList(app.schuljahr, app.bundesland || 'VBG').map((week) => ({
+      kw: week.kw,
+      sw_val: week.sw,
+    }));
 
   const handleToggleDayStatus = (dateStr: string, status: 'school' | 'free') => {
     setApp(prev => ({
@@ -1760,10 +1905,11 @@ export default function WeeklyPlan() {
   const unscheduledSuggestionsCount = yearlyPlanItems.filter(item => !isYearlyItemScheduled(item)).length;
 
   const skipCells = new Set<string>();
-  (Object.values(STUNDEN_INFO) as string[]).forEach((_, zIdx) => {
+  LESSON_SLOT_NUMBERS.forEach((slot) => {
+    const zIdx = slot - 1;
     TAGE_NAMEN.forEach((tag) => {
       const item = plan[tag]?.[zIdx];
-      const duration = item?.duration === 'all' ? (8 - zIdx) : (Number(item?.duration) || 1);
+      const duration = weeklyLessonDurationSlots(item?.duration, zIdx);
       if (duration > 1) {
         for (let d = 1; d < duration; d++) {
           skipCells.add(`${tag}-${zIdx + d}`);
@@ -1772,7 +1918,7 @@ export default function WeeklyPlan() {
     });
   });
 
-  return (
+  const planContent = (
     <div 
       className={`weekly-plan-shell flex flex-col bg-[#f4f7f3] ${
         isFullscreen 
@@ -1940,6 +2086,7 @@ export default function WeeklyPlan() {
 
                 {/* Fullscreen Button */}
                 <button
+                  aria-pressed={isFullscreen}
                   onClick={() => setIsFullscreen(!isFullscreen)}
                   className={`px-3 py-2 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border shadow-xs ${
                     isFullscreen
@@ -2226,7 +2373,7 @@ export default function WeeklyPlan() {
         }
 
       {/* 2. MAIN SCROLLABLE CONTENT AREA */}
-      <div className={`w-full ${isFullscreen ? 'flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden flex flex-col custom-scrollbar mt-2' : 'flex flex-col'}`}>
+      <div className={`w-full ${isFullscreen ? 'flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-auto flex flex-col custom-scrollbar mt-2' : 'flex flex-col'}`}>
       <AnimatePresence>
         {showSollCheck && (
           <motion.div 
@@ -2280,13 +2427,35 @@ export default function WeeklyPlan() {
                 <p className="text-[0.75rem] leading-tight text-slate-400 font-bold">Automatisch befüllt aus deiner Wochenplanung</p>
               </div>
 
-              <button 
-                onClick={() => setApp(prev => ({ ...prev, currentPage: 'drucken', activePrintTemplate: 'klassenbuch' }))}
-                className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white transition-all rounded-2xl font-black text-[0.75rem] leading-tight uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-indigo-600/10 cursor-pointer select-none"
-              >
-                <Printer size={16} />
-                <span>Im Druckzentrum öffnen</span>
-              </button>
+              <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                <button 
+                  onClick={() => setApp(prev => ({ ...prev, currentPage: 'drucken', activePrintTemplate: 'klassenbuch' }))}
+                  className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white transition-all rounded-2xl font-black text-[0.75rem] leading-tight uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/10 cursor-pointer select-none"
+                >
+                  <Printer size={16} />
+                  <span>Im Druckzentrum öffnen</span>
+                </button>
+
+                <div className="flex flex-wrap justify-start gap-1.5 sm:justify-end" aria-label="Klassenbuch als Word-Dokument exportieren">
+                  {([
+                    ['week', 'Woche'],
+                    ['month', 'Monat'],
+                    ['semester', 'Semester'],
+                    ['schoolyear', 'Gesamt'],
+                  ] as const).map(([range, label]) => (
+                    <button
+                      key={range}
+                      type="button"
+                      onClick={() => void exportKlassenbuchDocx(range)}
+                      className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[0.6875rem] font-black text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                      title={`Klassenbuch ${label} als echte DOCX-Datei exportieren`}
+                    >
+                      <Download size={13} />
+                      DOCX {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-100/50 text-[0.75rem] leading-tight font-bold text-slate-700">
               <div className="space-y-1">
@@ -2313,12 +2482,17 @@ export default function WeeklyPlan() {
                 {(() => {
                   const kData = getKlassenbuchData();
                   const subjectsToShow = [
-                    { key: 'Deutsch - Rechtschreiben', label: 'Deutsch - Rechtschreiben', sub: 'Hören, Sprechen / Richtig Schreiben' },
-                    { key: 'Deutsch - Sprachbetrachtung', label: 'Deutsch - Sprachbetrachtung', sub: 'Sprachbewusstsein' },
+                    { key: 'Deutsch - Rechtschreiben', label: 'Deutsch - Rechtschreiben', sub: 'Rechtschreiben' },
+                    { key: 'Deutsch - Sprachbetrachtung', label: 'Deutsch - Sprachbetrachtung', sub: 'Sprache untersuchen und reflektieren' },
+                    { key: 'Deutsch - Sprechen & Hören', label: 'Deutsch - Sprechen & Hören', sub: 'Sprechen, Zuhören und Gespräche' },
                     { key: 'Deutsch - Texte verfassen', label: 'Deutsch - Texte verfassen', sub: 'Texte verfassen' },
                     { key: 'Deutsch - Lesen', label: 'Deutsch - Lesen', sub: 'Lesen' },
-                    { key: 'Deutsch - D- FÖ', label: 'Deutsch - D-FÖ', sub: 'D-FÖ / Begabungsförderung' },
-                    { key: 'Mathematik', label: 'Mathematik', sub: 'Erarbeitung, Übung, Geometrie, Sachrechnen' },
+                    { key: 'Deutsch - D-FÖ', label: 'Deutsch - D-FÖ', sub: 'Förderung' },
+                    { key: 'Mathematik - Ebene & Raum', label: 'Mathematik - Ebene & Raum', sub: 'Geometrie, Lagebeziehungen und Raumvorstellung' },
+                    { key: 'Mathematik - Zahlen & Daten', label: 'Mathematik - Zahlen & Daten', sub: 'Zahlenräume, Darstellungen und Daten' },
+                    { key: 'Mathematik - Größen', label: 'Mathematik - Größen', sub: 'Größen, Maße und Sachbezüge' },
+                    { key: 'Mathematik - Operationen', label: 'Mathematik - Operationen', sub: 'Rechenoperationen und Strategien' },
+                    { key: 'Mathematik - Nicht zugeordnet', label: 'Mathematik - nicht zugeordnet', sub: 'Historische Einträge ohne Unterbereich' },
                     { key: 'Sachunterricht', label: 'Sachunterricht', sub: 'Natur, Gemeinschaft, Raum, Zeit, Wirtschaft, Technik' },
                     { key: 'BSP', label: 'Bewegung und Sport (BSP)', sub: 'Spiel, Turnen, Bewegung und Sport' },
                     { key: 'Werken', label: 'Werken (TEC/TEX)', sub: 'Technik und Textiles Gestalten' },
@@ -2399,7 +2573,7 @@ export default function WeeklyPlan() {
                   {TAGE_NAMEN.map((tag, i) => {
                     const date = new Date(monday);
                     date.setDate(monday.getDate() + i);
-                    const dateStr = date.toISOString().split('T')[0];
+                    const dateStr = formatLocalDateKey(date);
                     const isToday = date.toDateString() === actualToday.toDateString();
                     const { status, isOverride, holidayName } = getDayStatus(date);
                     
@@ -2622,8 +2796,10 @@ export default function WeeklyPlan() {
                 </div>
 
                 {/* FOLLOWING ROWS: TIME SLOTS */}
-                {(Object.values(STUNDEN_INFO) as string[]).map((zeit, zIdx) => {
-                  const gridRowStart = zIdx + 2 + (zIdx >= 5 ? 1 : 0);
+                {LESSON_SLOT_NUMBERS.map((slot) => {
+                  const zIdx = slot - 1;
+                  const zeit = configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, slot);
+                  const gridRowStart = zIdx + 2 + (zIdx >= lunchAfterSlot ? 1 : 0);
                   
                   return (
                   <React.Fragment key={zIdx}>
@@ -2665,8 +2841,8 @@ export default function WeeklyPlan() {
                       const { status, holidayName } = getDayStatus(date);
                       const isFree = status === 'free';
                       const isToday = date.toDateString() === actualToday.toDateString();
-                      const cellDuration = item?.duration === 'all' ? (8 - zIdx) : (Number(item?.duration) || 1);
-                      const crossesLunch = zIdx < 5 && (zIdx + cellDuration) > 5;
+                      const cellDuration = weeklyLessonDurationSlots(item?.duration, zIdx);
+                      const crossesLunch = zIdx < lunchAfterSlot && (zIdx + cellDuration) > lunchAfterSlot;
                       const spanValue = cellDuration + (crossesLunch ? 1 : 0);
                       
                       const scheduleAnalysisForWeek = app.scheduleAnalysis?.[activeKW];
@@ -2761,6 +2937,62 @@ export default function WeeklyPlan() {
                                whileHover={{ scale: 1.03, y: -2, zIndex: 50 }}
                                className={`h-full w-full rounded-xl border border-transparent pl-4 pr-2.5 py-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.08)] transition-all flex flex-col gap-1 relative  group/card contrast-container ${style?.bg || 'bg-white'} ${item.erledigt ? '!bg-white ring-2 ring-emerald-500/20 opacity-70 saturate-[0.8]' : getContrastTextClass(style?.bg)} ${item.type === 'sa' ? 'ring-2 ring-rose-500/20' : item.type === 'test' || item.type === 'lzk' ? 'ring-2 ring-amber-500/20' : ''}`}
                             >
+                               {item.halves?.enabled ? (
+                                 <div className="absolute inset-0 grid grid-rows-2 overflow-hidden rounded-xl bg-white">
+                                   {[
+                                     { label: '1. Hälfte', data: item.halves.first },
+                                     { label: '2. Hälfte', data: item.halves.second },
+                                   ].map((half: any) => (
+                                     <div
+                                       key={half.label}
+                                       className="relative min-h-0 border-b last:border-b-0 border-slate-200 px-3 py-2 flex flex-col justify-center"
+                                       style={{
+                                         borderLeftWidth: 6,
+                                         borderLeftColor: half.data?.farbe || '#cbd5e1',
+                                         backgroundColor: (half.data?.farbe && /^#[0-9a-fA-F]{6}$/.test(half.data.farbe))
+                                           ? `${half.data.farbe}12`
+                                           : '#ffffff',
+                                       }}
+                                     >
+                                       <div className="flex items-center gap-1.5 min-w-0">
+                                         <span className="shrink-0 rounded bg-white/90 border border-slate-200 px-1.5 py-0.5 text-[0.4375rem] font-black uppercase tracking-wider text-slate-500">
+                                           {half.label}
+                                         </span>
+                                         {half.data?.fach && (
+                                           <span className="truncate text-[0.5625rem] font-black text-slate-800">{half.data.fach}</span>
+                                         )}
+                                         {half.data?.unterbereich && (
+                                           <span className="truncate rounded bg-white/80 px-1 py-0.5 text-[0.4375rem] font-bold text-slate-600">
+                                             {formatSchwerpunktLabel(half.data.unterbereich)}
+                                           </span>
+                                         )}
+                                       </div>
+                                       <div className="mt-1 truncate text-[0.6875rem] font-bold text-slate-700">
+                                         {half.data?.thema || '—'}
+                                       </div>
+                                     </div>
+                                   ))}
+                                   <div className="absolute right-1.5 top-1.5 z-20 flex gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                                     <button
+                                       type="button"
+                                       onClick={(event) => { event.stopPropagation(); setCopiedLesson({ ...item }); }}
+                                       className="flex h-5 w-5 items-center justify-center rounded bg-white/90 text-slate-600 shadow-sm"
+                                       title="Geteilte Einheit kopieren"
+                                     >
+                                       <Copy size={9} />
+                                     </button>
+                                     <button
+                                       type="button"
+                                       onClick={(event) => toggleDoneStatus(event, tag, zIdx)}
+                                       className="flex h-5 w-5 items-center justify-center rounded bg-white/90 text-emerald-600 shadow-sm"
+                                       title={item.erledigt ? 'Als unerledigt markieren' : 'Als erledigt markieren'}
+                                     >
+                                       <Check size={9} />
+                                     </button>
+                                   </div>
+                                 </div>
+                               ) : (
+                                 <>
                                {/* Left Accent timeline bar matching subject color config */}
                                {(() => {
                                  const hex = getFachHexColor(app.fachConfig?.[item.fach || app.stammplan?.[tag]?.[zIdx + 1]]?.color || item.fach || app.stammplan?.[tag]?.[zIdx + 1]);
@@ -2867,7 +3099,7 @@ export default function WeeklyPlan() {
                                <div className="mt-auto pt-1.5 flex flex-wrap gap-1 border-t border-black/[0.03] relative z-10">
                                  {item.duration === 'all' && (
                                    <div className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[0.4375rem] font-black uppercase tracking-wider shadow-sm flex items-center gap-0.5">
-                                     <Calendar size={8} /> Ganztägig
+                                     <Calendar size={8} /> Restlicher Tag
                                    </div>
                                  )}
                                  {typeof item.duration === 'number' && item.duration > 1 && (
@@ -2901,6 +3133,8 @@ export default function WeeklyPlan() {
                                     {item.social === 'single' && <User size={8} />}
                                  </div>
                                </div>
+                                 </>
+                               )}
                             </motion.div>
                           ) : (
                             <div className={`h-full min-h-[4.6875rem] rounded-2xl border border-dashed transition-all duration-300 flex flex-col items-center justify-center ${copiedLesson ? 'border-indigo-400 bg-indigo-50/20 opacity-100 animate-pulse' : 'border-slate-200 opacity-0 group-hover/cell:opacity-100 bg-white hover:bg-emerald-50/30 hover:border-emerald-200'} group/btn`}>
@@ -2923,18 +3157,18 @@ export default function WeeklyPlan() {
                         </div>
                       );
                     })}
-                    {zIdx === 4 && (
+                    {zIdx === lunchAfterSlot - 1 && (
                       <React.Fragment>
-                        <div style={{ gridColumn: 1, gridRow: 7 }} className="sticky left-0 bg-slate-100/50 backdrop-blur-sm border-r border-slate-200 flex items-center justify-center p-1 z-[90]">
+                        <div style={{ gridColumn: 1, gridRow: lunchAfterSlot + 2 }} className="sticky left-0 bg-slate-100/50 backdrop-blur-sm border-r border-slate-200 flex items-center justify-center p-1 z-[90]">
                            <span className="text-[0.375rem] font-black text-slate-400 uppercase tracking-widest [writing-mode:vertical-lr] rotate-180">Pause</span>
                         </div>
                         {(() => {
                           const isDayCrossed = (tag: string) => {
-                            return [0, 1, 2, 3, 4].some((hIdx) => {
+                            return Array.from({ length: lunchAfterSlot }, (_, hIdx) => hIdx).some((hIdx) => {
                               const item = plan[tag]?.[hIdx];
                               if (!item) return false;
-                              const dur = item.duration === 'all' ? (8 - hIdx) : (Number(item.duration) || 1);
-                              return hIdx + dur > 5;
+                              const dur = weeklyLessonDurationSlots(item.duration, hIdx);
+                              return hIdx + dur > lunchAfterSlot;
                             });
                           };
                           const nonCrossedTags = TAGE_NAMEN.filter(tag => !isDayCrossed(tag));
@@ -2946,7 +3180,7 @@ export default function WeeklyPlan() {
                             return (
                               <div 
                                 key={`pause-screen-${tag}`}
-                                style={{ gridColumn: tIdx + 2, gridRow: 7 }} 
+                                style={{ gridColumn: tIdx + 2, gridRow: lunchAfterSlot + 2 }} 
                                 className="h-8 bg-slate-50/10 flex items-center justify-center border-b border-slate-100 relative z-20"
                               >
                                  <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
@@ -3299,7 +3533,7 @@ export default function WeeklyPlan() {
                                   
                                   const mainFaecher = allCandidates.filter(f => {
                                     if (!f || !f.trim()) return false;
-                                    if (isDeutschSubSubject(f)) return false;
+                                    if (isDeutschSubSubject(f) || isMatheSubSubject(f)) return false;
                                     return true;
                                   });
 
@@ -3316,7 +3550,11 @@ export default function WeeklyPlan() {
 
                                   return mainFaecher.map(f => {
                                     const isDeutsch = f === 'Deutsch';
-                                    const isSelected = searchFach === f || (isDeutsch && (searchFach === 'Deutsch' || searchFach.startsWith('Deutsch') || isDeutschSubSubject(searchFach)));
+                                    const isMathe = f === 'Mathematik';
+                                    const isSelected =
+                                      searchFach === f ||
+                                      (isDeutsch && (searchFach === 'Deutsch' || searchFach.startsWith('Deutsch') || isDeutschSubSubject(searchFach))) ||
+                                      (isMathe && (searchFach === 'Mathematik' || searchFach.startsWith('Mathematik') || isMatheSubSubject(searchFach)));
                                     return (
                                       <button 
                                         key={f} 
@@ -3401,6 +3639,49 @@ export default function WeeklyPlan() {
                                   </motion.div>
                                 )}
                               </AnimatePresence>
+
+                              {/* EBENE 2: MATHEMATIK-UNTERBEREICHE */}
+                              <AnimatePresence>
+                                {(searchFach === 'Mathematik' || searchFach.startsWith('Mathematik') || isMatheSubSubject(searchFach)) && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="p-3.5 bg-rose-50/50 border border-rose-100 rounded-2xl space-y-2.5 overflow-hidden"
+                                  >
+                                    <div className="flex items-center gap-1.5 text-[0.6875rem] font-black uppercase text-rose-900 tracking-wider">
+                                      <BookOpen size={13} className="text-rose-600" />
+                                      <span>Mathematik-Unterbereiche / Schwerpunkte</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                      {MATHE_THEMENBEREICHE.map(sub => {
+                                        const isSelected = tempSchwerpunkte.includes(sub.id);
+                                        return (
+                                          <button
+                                            key={sub.id}
+                                            type="button"
+                                            onClick={() => {
+                                              setTempSchwerpunkte(prev =>
+                                                isSelected
+                                                  ? prev.filter(value => value !== sub.id)
+                                                  : [...prev, sub.id]
+                                              );
+                                            }}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border cursor-pointer ${
+                                              isSelected
+                                                ? 'bg-rose-600 text-white border-rose-700 shadow-sm scale-105'
+                                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                                            }`}
+                                          >
+                                            <span>{sub.label}</span>
+                                            {isSelected && <Check size={12} strokeWidth={3} className="ml-0.5 text-white" />}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                            </div>
                         </div>
                     </div>
@@ -3471,7 +3752,7 @@ export default function WeeklyPlan() {
                              <label className="text-[0.6875rem] font-black text-slate-400 uppercase tracking-[0.2em]">Dauer</label>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                             {[1, 2, 3, 4, 5, 6].map(d => (
+                             {Array.from({ length: editingCell ? MAX_LESSON_SLOTS - editingCell.idx : MAX_LESSON_SLOTS }, (_, index) => index + 1).map(d => (
                                <button
                                  key={d}
                                  onClick={() => setTempDuration(d)}
@@ -3485,7 +3766,7 @@ export default function WeeklyPlan() {
                                className={`px-4 py-3 rounded-2xl border transition-all font-black text-sm flex items-center justify-center gap-1.5 shrink-0 ${tempDuration === 'all' ? 'bg-amber-600 text-white border-amber-700 shadow-md scale-105' : 'bg-slate-50 text-amber-600/70 border-slate-200 hover:bg-amber-50/50 hover:border-amber-300'}`}
                              >
                                <Calendar size={14} />
-                               <span>Ganztägig</span>
+                               <span>Restlicher Tag</span>
                              </button>
                           </div>
                        </div>
@@ -3649,6 +3930,110 @@ export default function WeeklyPlan() {
                           placeholder="Wie war die Stunde? Reflexion..."
                           value={tempReflexion} onChange={e => setTempReflexion(e.target.value)}
                        />
+                    </div>
+
+                    {/* UNTERRICHTSEINHEIT IN ZWEI GLEICHE HÄLFTEN TEILEN – bewusst ohne Minutenlogik */}
+                    <div className="rounded-3xl border border-cyan-100 bg-cyan-50/50 p-6 space-y-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <h4 className="text-[0.875rem] font-black text-slate-800">Unterrichtseinheit halbieren</h4>
+                          <p className="mt-0.5 text-[0.6875rem] font-medium text-slate-500">
+                            Zwei gleich große Hälften – unabhängig von der tatsächlichen Minutenlänge der Schulstunde.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTempSplitLesson(value => {
+                              const next = !value;
+                              if (next && !tempFirstHalf.fach && searchFach) {
+                                setTempFirstHalf({
+                                  ...EMPTY_LESSON_HALF,
+                                  fach: searchFach,
+                                  unterbereich: tempSchwerpunkte[0] || '',
+                                  thema: tempThema,
+                                  farbe: getFachHexColor(app.fachConfig?.[searchFach]?.color || searchFach),
+                                });
+                              }
+                              return next;
+                            });
+                          }}
+                          className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-all ${
+                            tempSplitLesson ? 'bg-cyan-600' : 'bg-slate-200'
+                          }`}
+                          aria-pressed={tempSplitLesson}
+                        >
+                          <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                            tempSplitLesson ? 'translate-x-6' : 'translate-x-1'
+                          }`} />
+                        </button>
+                      </div>
+
+                      {tempSplitLesson && (
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          {([
+                            { key: 'first', label: 'Erste Hälfte', value: tempFirstHalf, setValue: setTempFirstHalf },
+                            { key: 'second', label: 'Zweite Hälfte', value: tempSecondHalf, setValue: setTempSecondHalf },
+                          ] as const).map(half => {
+                            const subjectOptions = Array.from(new Set(['Deutsch', 'Mathematik', ...(app.faecher || FAECHER_ALLE)]));
+                            const subareaOptions = getSubareaOptionsForSubject(half.value.fach);
+                            return (
+                              <div key={half.key} className="rounded-2xl border border-cyan-100 bg-white p-4 space-y-3">
+                                <div className="text-[0.6875rem] font-black uppercase tracking-wider text-cyan-700">{half.label}</div>
+                                <label className="block space-y-1">
+                                  <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">Fach</span>
+                                  <select
+                                    value={half.value.fach}
+                                    onChange={event => {
+                                      const fach = event.target.value;
+                                      half.setValue(current => ({
+                                        ...current,
+                                        fach,
+                                        unterbereich: '',
+                                        farbe: getFachHexColor(app.fachConfig?.[fach]?.color || fach),
+                                      }));
+                                    }}
+                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold"
+                                  >
+                                    <option value="">Fach wählen</option>
+                                    {subjectOptions.map(subject => <option key={subject} value={subject}>{subject}</option>)}
+                                  </select>
+                                </label>
+                                <label className="block space-y-1">
+                                  <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">Unterbereich</span>
+                                  <select
+                                    value={half.value.unterbereich}
+                                    onChange={event => half.setValue(current => ({ ...current, unterbereich: event.target.value }))}
+                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold"
+                                  >
+                                    <option value="">Kein Unterbereich</option>
+                                    {subareaOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+                                  </select>
+                                </label>
+                                <label className="block space-y-1">
+                                  <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">Thema / Inhalt</span>
+                                  <input
+                                    type="text"
+                                    value={half.value.thema}
+                                    onChange={event => half.setValue(current => ({ ...current, thema: event.target.value }))}
+                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold"
+                                    placeholder="Inhalt dieser Hälfte"
+                                  />
+                                </label>
+                                <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                                  <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">Farbe</span>
+                                  <input
+                                    type="color"
+                                    value={half.value.farbe || '#ffffff'}
+                                    onChange={event => half.setValue(current => ({ ...current, farbe: event.target.value }))}
+                                    className="h-8 w-12 cursor-pointer rounded border-0 bg-transparent"
+                                  />
+                                </label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {/* WÖCHENTLICHE WIEDERHOLUNG (RECURRING LESSONS) */}
@@ -3853,7 +4238,7 @@ export default function WeeklyPlan() {
                       ))
                     ) : (
                       <div className="p-10 text-center bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-slate-400 font-bold italic">
-                        Keine Daten für {lpFach} (Stufe {app.stufe || 1}) hinterlegt. (TODO)
+                        Für {lpFach} (Stufe {app.stufe || 1}) sind derzeit keine Lehrplandaten hinterlegt.
                       </div>
                     )}
                   </div>
@@ -4827,9 +5212,15 @@ export default function WeeklyPlan() {
                       onChange={e => setQuickPlanStunde(Number(e.target.value))}
                       className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
                     >
-                      {[0, 1, 2, 3, 4, 5, 6, 7].map(st => (
-                        <option key={st} value={st}>{st + 1}. Stunde ({VM_ZEITEN[st + 1] || `${st + 1}`})</option>
-                      ))}
+                      {LESSON_SLOT_NUMBERS.map((slot) => {
+                        const st = slot - 1;
+                        const time = configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, slot);
+                        return (
+                          <option key={st} value={st}>
+                            {slot}. Stunde{time ? ` (${time})` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 )}
@@ -4926,4 +5317,6 @@ export default function WeeklyPlan() {
 
     </div>
   );
+  return isFullscreen ? createPortal(planContent, document.body) : planContent;
+
 }

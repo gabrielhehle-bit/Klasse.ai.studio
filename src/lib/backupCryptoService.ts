@@ -28,6 +28,7 @@ import {
   unlockVault,
   type VaultRecordV1,
 } from './vaultService.js';
+import { toLocalDateKey } from './localDate.js';
 
 // ==========================================
 // 1. DATENSTRUKTUREN & FORMATE
@@ -35,7 +36,7 @@ import {
 
 export const BACKUP_FORMAT_IDENTIFIER = 'LehrerAPP_Encrypted_Backup' as const;
 export const CURRENT_BACKUP_VERSION = 1 as const;
-export const BACKUP_FILE_EXTENSION = '.lehrerapp';
+export const BACKUP_FILE_EXTENSION = '.json';
 export const DEFAULT_APP_VERSION = '3.0.0';
 
 /**
@@ -89,10 +90,11 @@ export function isLegacyPlaintextBackup(value: unknown): boolean {
   return (
     'schueler' in c ||
     'classes' in c ||
+    'klassen' in c ||
     'klassenbezeichnung' in c ||
     'stammplan' in c ||
     'noten' in c ||
-    ('version' in c && typeof c.version === 'number' && ('schueler' in c || 'classes' in c))
+    ('version' in c && typeof c.version === 'number' && ('schueler' in c || 'classes' in c || 'klassen' in c))
   );
 }
 
@@ -258,11 +260,10 @@ export async function unlockAndDecryptBackup<T = any>(
 /**
  * Erzeugt einen standardisierten, sicheren Dateinamen für den Backup-Export.
  * Enthält ein Datum, aber KEINERLEI personenbezogene Daten (keine Namen, Klassen, Schulen).
- * Format: LehrerAPP_Sicherung_YYYY-MM-DD.lehrerapp
+ * Format: Klassio_Sicherung_YYYY-MM-DD.json
  */
 export function generateBackupFilename(date: Date = new Date()): string {
-  const dateStr = date.toISOString().split('T')[0];
-  return `LehrerAPP_Sicherung_${dateStr}${BACKUP_FILE_EXTENSION}`;
+  return `Klassio_Sicherung_${toLocalDateKey(date)}${BACKUP_FILE_EXTENSION}`;
 }
 
 /**
@@ -284,7 +285,7 @@ export function deserializeBackup(rawContent: string): LehrerAppEncryptedBackupV
     if (!isEncryptedBackupV1(parsed)) {
       throw new CryptoError(
         'INVALID_PAYLOAD',
-        'Die Datei ist kein gültiges, verschlüsseltes LehrerAPP-Backup.'
+        'Die Datei ist kein gültiges, verschlüsseltes Klassio-Backup.'
       );
     }
     return parsed;

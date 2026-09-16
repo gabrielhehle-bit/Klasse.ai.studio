@@ -154,7 +154,7 @@ export const DiagnosticScreeningPreview: React.FC<DiagnosticScreeningPreviewProp
               {testDefinition.title} • {competency.name}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              {evaluatedResults.length} Kinder erfasst • Klasse {activeClassName || '2a'}
+              {evaluatedResults.length} Kinder erfasst • Klasse {activeClassName || 'Aktuelle Klasse'}
             </p>
           </div>
 

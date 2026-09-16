@@ -8,12 +8,16 @@ import {
   Filter, ArrowUpDown, ChevronRight, Trash2, Edit3, Heart, History, User, BarChart3, FileCheck, Activity, Star, Map as MapIcon, ArrowLeft, RefreshCw, ShieldAlert
 } from 'lucide-react';
 import { RichTextEditor } from './RichTextEditor';
-import { TAGE_NAMEN, STUNDEN_INFO, FAECHER_ALLE } from '../constants';
+import { TAGE_NAMEN, STUNDEN_INFO, FAECHER_ALLE, LESSON_SLOT_NUMBERS } from '../constants';
 import { LEHRPLAN_VS_2023 } from '../lehrplan';
-import { VertretungsStundenbild, VORLAGEN_VERTRETUNGSSTUNDEN, MaterialItem } from '../types';
-import { createMaterialItemFromStundenbild } from '../utils/materialienUtils';
+import { VertretungsStundenbild, VORLAGEN_VERTRETUNGSSTUNDEN } from '../types';
+import { createMaterialItemFromStundenbild, migrateStundenbilderToMaterialien } from '../utils/materialienUtils';
 import { askAI } from '../services/aiService';
 import { getSW } from '../lib/utils';
+import { berechne, getAssessmentMode } from '../lib/GradeUtils';
+import { getDiagnosticTestById } from '../lib/diagnosticCoreUtils';
+import { formatTransferGradeValue, getHandoverLessonPlans, getHandoverLessonTime, toLocalDateInputValue } from '../lib/handoverUtils';
+import { calculateMaterialStorageSize, MATERIAL_LIBRARY_MAX_MB, removeMaterialReferencesFromClasses, removeMaterialReferencesFromWeeklyPlan, upsertMaterial } from '../lib/materialLibraryUtils';
 import Markdown from 'react-markdown';
 
 // Help functions for date handling
@@ -35,6 +39,15 @@ function formatDate(date: Date) {
   return date.toLocaleDateString('de-AT', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+const DEFAULT_EMERGENCY_CHECKLIST = [
+  { id: '1', text: 'Klassenzimmer-Schlüssel beim Schulwart hinterlegt', checked: false },
+  { id: '2', text: 'Klassendienste (Tafeldienst etc.) zugeteilt', checked: false },
+  { id: '3', text: 'Allergie- & Notfallkontaktliste liegt sichtbar am Lehrertisch', checked: false },
+  { id: '4', text: 'Pausenregeln und Aufsichtszeiten kurz notiert', checked: false },
+  { id: '5', text: 'Arbeitsblätter & Handreichungen kopiert und bereitgelegt', checked: false },
+  { id: '6', text: 'Zugangsdaten / Logins für Schul-Tablets & WLAN vermerkt', checked: false },
+];
+
 export default function Uebergabemappe() {
   const { app, setApp, setPage } = useApp();
   const [activeTab, setActiveTab] = useState<'config' | 'manage' | 'transfer'>('config');
@@ -42,15 +55,25 @@ export default function Uebergabemappe() {
   const [transferStudentId, setTransferStudentId] = useState<string | null>(null);
   const [showTransferPrint, setShowTransferPrint] = useState(false);
   
-  // Initialization of lesson plans
+  // One-time migration of the former handover lesson-plan collection into the shared material library.
   useEffect(() => {
-    if (!app.vertretungsStundenbilder || app.vertretungsStundenbilder.length === 0) {
-      setApp(prev => ({
+    if (app.stundenbilderMigriert) return;
+    setApp(prev => {
+      const legacyLessonPlans =
+        prev.vertretungsStundenbilder && prev.vertretungsStundenbilder.length > 0
+          ? prev.vertretungsStundenbilder
+          : VORLAGEN_VERTRETUNGSSTUNDEN;
+      const migrationState = {
         ...prev,
-        vertretungsStundenbilder: VORLAGEN_VERTRETUNGSSTUNDEN
-      }));
-    }
-  }, []);
+        vertretungsStundenbilder: legacyLessonPlans,
+      };
+      return {
+        ...migrationState,
+        materialien: migrateStundenbilderToMaterialien(migrationState),
+        stundenbilderMigriert: true,
+      };
+    });
+  }, [app.stundenbilderMigriert, setApp]);
 
   // Trigger print configuration modal automatically if requested from Print Center
   useEffect(() => {
@@ -65,10 +88,14 @@ export default function Uebergabemappe() {
 
   // --- TAB 1: Config & Assignment State ---
   const [rangeMode, setRangeMode] = useState<'single' | 'multi' | 'week'>('single');
-  const [singleDate, setSingleDate] = useState(new Date().toISOString().split('T')[0]);
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
-  const [weekDate, setWeekDate] = useState(new Date().toISOString().split('T')[0]);
+  const [singleDate, setSingleDate] = useState(() => toLocalDateInputValue(new Date()));
+  const [startDate, setStartDate] = useState(() => toLocalDateInputValue(new Date()));
+  const [endDate, setEndDate] = useState(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + 2);
+    return toLocalDateInputValue(date);
+  });
+  const [weekDate, setWeekDate] = useState(() => toLocalDateInputValue(new Date()));
   
   // Assignments: Key is "YYYY-MM-DD-Std", Value is Stundenbild ID
   const [assignedStundenbilder, setAssignedStundenbilder] = useState<Record<string, string>>({});
@@ -95,14 +122,9 @@ export default function Uebergabemappe() {
     diagnostik: true
   });
   
-  const [emergencyChecklist, setEmergencyChecklist] = useState([
-    { id: '1', text: 'Klassenzimmer-Schlüssel beim Schulwart hinterlegt', checked: true },
-    { id: '2', text: 'Klassendienste (Tafeldienst etc.) zugeteilt', checked: true },
-    { id: '3', text: 'Allergie- & Notfallkontaktliste liegt sichtbar am Lehrertisch', checked: true },
-    { id: '4', text: 'Pausenregeln und Aufsichtszeiten kurz notiert', checked: false },
-    { id: '5', text: 'Arbeitsblätter & Handreichungen kopiert und bereitgelegt', checked: false },
-    { id: '6', text: 'Zugangsdaten / Logins für Schul-Tablets & WLAN vermerkt', checked: false }
-  ]);
+  const [emergencyChecklist, setEmergencyChecklist] = useState(() =>
+    DEFAULT_EMERGENCY_CHECKLIST.map(item => ({ ...item })),
+  );
   const [newChecklistItem, setNewChecklistItem] = useState('');
 
   const [isEditing, setIsEditing] = useState(false);
@@ -113,10 +135,14 @@ export default function Uebergabemappe() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showSinglePrint, setShowSinglePrint] = useState(false);
 
+  const lessonPlans = useMemo(
+    () => getHandoverLessonPlans(app.materialien),
+    [app.materialien],
+  );
+
   // Popular tags computed dynamically from material list + fallbacks
   const popularTags = useMemo(() => {
-    const list = (app.materialien || []).filter(m => m.typ === 'stundenentwurf') as unknown as VertretungsStundenbild[];
-    const allTags = list.flatMap(s => s.tags || []);
+    const allTags = lessonPlans.flatMap(s => s.tags || []);
     const counts: Record<string, number> = {};
     allTags.forEach(tag => {
       counts[tag] = (counts[tag] || 0) + 1;
@@ -127,11 +153,11 @@ export default function Uebergabemappe() {
     const defaults = ["Spiele", "Einstieg", "Kreativ", "Bewegung", "Rätsel", "Partnerarbeit", "Lesen", "Rechnen", "Gruppe"];
     const merged = Array.from(new Set([...dynamic, ...defaults])).slice(0, 10);
     return merged;
-  }, [app.materialien]);
+  }, [lessonPlans]);
 
   // Filtered and Sorted list
   const filteredStundenbilder = useMemo(() => {
-    let list = (app.materialien || []).filter(m => m.typ === 'stundenentwurf') as unknown as VertretungsStundenbild[];
+    let list = [...lessonPlans];
     
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -162,7 +188,7 @@ export default function Uebergabemappe() {
     });
     
     return list;
-  }, [app.materialien, searchQuery, filterFach, filterStufe, filterDauer, filterSchwierigkeit, sortBy, selectedTag]);
+  }, [lessonPlans, searchQuery, filterFach, filterStufe, filterDauer, filterSchwierigkeit, sortBy, selectedTag]);
 
   const handleAiSuggest = async () => {
     if (!editingStundenbild?.fach || !editingStundenbild?.schulstufen?.length || !editingStundenbild?.dauer) {
@@ -202,24 +228,47 @@ export default function Uebergabemappe() {
   };
 
   const handleSaveStundenbild = () => {
-    if (!editingStundenbild?.titel || !editingStundenbild?.fach) return;
-    
-    const newId = editingStundenbild.id || `custom-${Date.now()}`;
-    const sb = {
+    if (!editingStundenbild?.titel?.trim() || !editingStundenbild?.fach) {
+      alert('Bitte Titel und Fach angeben.');
+      return;
+    }
+
+    const newId = editingStundenbild.id || `custom-${globalThis.crypto?.randomUUID?.() || Date.now()}`;
+    const sb: VertretungsStundenbild = {
       ...editingStundenbild as VertretungsStundenbild,
       id: newId,
-      erstelltAm: editingStundenbild.erstelltAm || new Date().toISOString().split('T')[0],
-      istEigeneVorlage: true
+      titel: editingStundenbild.titel.trim(),
+      erstelltAm: editingStundenbild.erstelltAm || new Date().toISOString(),
+      istEigeneVorlage: true,
+      schulstufen: editingStundenbild.schulstufen || [app.stufe || 1],
+      dauer: editingStundenbild.dauer || 45,
+      schwierigkeit: editingStundenbild.schwierigkeit || 'mittel',
+      beschreibung: editingStundenbild.beschreibung || '',
+      benoetigtesMaterial: editingStundenbild.benoetigtesMaterial || [],
+      lernziel: editingStundenbild.lernziel || '',
+      tags: editingStundenbild.tags || [],
     };
-    
-    const materialItem = createMaterialItemFromStundenbild(sb);
+
+    const existing = (app.materialien || []).find(material => material.id === newId);
+    const created = createMaterialItemFromStundenbild(sb);
+    const materialItem = existing
+      ? {
+          ...existing,
+          ...created,
+          erstelltAm: existing.erstelltAm || created.erstelltAm,
+          favorit: existing.favorit,
+          zuletztVerwendet: existing.zuletztVerwendet,
+        }
+      : created;
+    const nextMaterials = upsertMaterial(app.materialien || [], materialItem);
+    if (calculateMaterialStorageSize(nextMaterials) > MATERIAL_LIBRARY_MAX_MB) {
+      alert('Speicher voll. Bitte lösche alte Materialien oder kürze das Stundenbild.');
+      return;
+    }
 
     setApp(prev => ({
       ...prev,
-      materialien: [
-        ...(prev.materialien?.filter(m => m.id !== newId) || []),
-        materialItem
-      ]
+      materialien: upsertMaterial(prev.materialien || [], materialItem),
     }));
     setIsEditing(false);
     setEditingStundenbild(null);
@@ -229,8 +278,13 @@ export default function Uebergabemappe() {
     if (confirm("Möchtest du dieses Stundenbild wirklich löschen?")) {
       setApp(prev => ({
         ...prev,
-        materialien: prev.materialien?.filter(m => m.id !== id)
+        materialien: prev.materialien?.filter(m => m.id !== id),
+        wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung, [id]),
+        classes: removeMaterialReferencesFromClasses(prev.classes, [id]),
       }));
+      setAssignedStundenbilder(prev => Object.fromEntries(
+        Object.entries(prev).filter(([, materialId]) => materialId !== id),
+      ));
     }
   };
 
@@ -251,6 +305,49 @@ export default function Uebergabemappe() {
     }
     return `${s.vorname} ${s.nachname}`;
   };
+
+  const transferNotes = useMemo(() => {
+    if (!transferStudentId) return [];
+    const source = (app.notes && app.notes.length > 0) ? app.notes : (app.journal || []);
+    return source
+      .filter(note => note.schuelerId === transferStudentId)
+      .slice()
+      .sort((a, b) => String(b.datum || '').localeCompare(String(a.datum || '')))
+      .slice(0, 5);
+  }, [app.notes, app.journal, transferStudentId]);
+
+  const transferGradeRows = useMemo(() => {
+    if (!transferStudentId) return [];
+    const subjects = Array.from(new Set(app.faecher || FAECHER_ALLE))
+      .filter(fach => app.fachConfig?.[fach]?.unterrichtet !== false);
+
+    return subjects.flatMap(fach => {
+      const mode = getAssessmentMode(app, fach);
+      const firstData = app.noten?.[transferStudentId]?.[fach]?.['1'];
+      const secondData = app.noten?.[transferStudentId]?.[fach]?.['2'];
+      const firstRaw = firstData?.endnote ?? berechne(app, transferStudentId, fach, '1');
+      const secondRaw = secondData?.endnote ?? berechne(app, transferStudentId, fach, '2');
+      const hasFirst = firstRaw !== null && firstRaw !== undefined && firstRaw !== '';
+      const hasSecond = secondRaw !== null && secondRaw !== undefined && secondRaw !== '';
+      if (!hasFirst && !hasSecond) return [];
+
+      return [{
+        fach,
+        mode,
+        semester1: formatTransferGradeValue(firstRaw, mode),
+        semester2: formatTransferGradeValue(secondRaw, mode),
+      }];
+    });
+  }, [app, transferStudentId]);
+
+  const transferDiagnosticResults = useMemo(() => {
+    if (!transferStudentId) return [];
+    return (app.diagnosticResults || [])
+      .filter(result => result.studentId === transferStudentId)
+      .slice()
+      .sort((a, b) => String(b.createdAt || b.date || '').localeCompare(String(a.createdAt || a.date || '')))
+      .slice(0, 5);
+  }, [app.diagnosticResults, transferStudentId]);
   const [printColumns, setPrintColumns] = useState<Record<string, boolean>>({
     geschlecht: true,
     geburtstag: true,
@@ -272,11 +369,23 @@ export default function Uebergabemappe() {
   });
   const [klassenlisteOrientation, setKlassenlisteOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [density, setDensity] = useState<'standard' | 'compact'>('standard');
-  const [schulleitungName, setSchulleitungName] = useState('Volker Gabriel (VD.)');
-  const [sekretariatTel, setSekretariatTel] = useState('+43 5522 72412');
-  const [nachbarKlasse, setNachbarKlasse] = useState('Frau Petra Gruber (Klasse 3B)');
+  const [schulleitungName, setSchulleitungName] = useState('');
+  const [sekretariatTel, setSekretariatTel] = useState('');
+  const [nachbarKlasse, setNachbarKlasse] = useState('');
   const [dayNotes, setDayNotes] = useState<Record<string, string>>({});
   const [zoomLevel, setZoomLevel] = useState<number>(0.7);
+
+  useEffect(() => {
+    setPrintNotes(app.vertretungHinweise || '');
+    setAssignedStundenbilder({});
+    setDayNotes({});
+    setTransferStudentId(null);
+    setShowTransferPrint(false);
+    setEmergencyChecklist(DEFAULT_EMERGENCY_CHECKLIST.map(item => ({ ...item })));
+    setNewChecklistItem('');
+    setSelectedStundenbild(null);
+    setShowDetailModal(false);
+  }, [app.activeClassId]);
 
   // Generate list of dates to print
   const getDaysToPrint = () => {
@@ -477,15 +586,15 @@ export default function Uebergabemappe() {
               <div className="grid grid-cols-2 gap-3 text-[0.75rem] leading-tight">
                 <div className="p-2 bg-rose-50/20 border border-rose-100 rounded-xl">
                   <p className="text-[0.4375rem] font-black text-rose-500 uppercase">Direktion / Schulleitung</p>
-                  <p className="font-extrabold text-slate-800 text-[0.6875rem] text-wrap leading-tight break-words">{schulleitungName}</p>
+                  <p className="font-extrabold text-slate-800 text-[0.6875rem] text-wrap leading-tight break-words">{schulleitungName || '—'}</p>
                 </div>
                 <div className="p-2 bg-slate-50 border border-slate-100 rounded-xl">
                   <p className="text-[0.4375rem] font-black text-slate-400 uppercase">Sekretariat / Kanzlei</p>
-                  <p className="font-extrabold text-slate-800 text-[0.6875rem] text-wrap leading-tight break-words">{sekretariatTel}</p>
+                  <p className="font-extrabold text-slate-800 text-[0.6875rem] text-wrap leading-tight break-words">{sekretariatTel || '—'}</p>
                 </div>
                 <div className="col-span-2 p-2 bg-slate-50 border border-slate-100 rounded-xl">
                   <p className="text-[0.4375rem] font-black text-slate-400 uppercase">Betreuende Lehrkraft (Ansprechpartner Nachbarklasse)</p>
-                  <p className="font-extrabold text-slate-800 text-[0.6875rem] text-wrap leading-tight break-words">{nachbarKlasse}</p>
+                  <p className="font-extrabold text-slate-800 text-[0.6875rem] text-wrap leading-tight break-words">{nachbarKlasse || '—'}</p>
                 </div>
               </div>
             </div>
@@ -503,7 +612,7 @@ export default function Uebergabemappe() {
       daysToPrint.forEach((currentDay, dayIdx) => {
         const kw = getISOWeek(currentDay);
         const dayName = getDayName(currentDay);
-        const dayStr = currentDay.toISOString().split('T')[0];
+        const dayStr = toLocalDateInputValue(currentDay);
         const birthdaysToday = getBirthdaysToday(currentDay);
 
         pages.push(
@@ -543,7 +652,7 @@ export default function Uebergabemappe() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[1, 2, 3, 4, 5, 6].map(std => {
+                  {LESSON_SLOT_NUMBERS.map(std => {
                     const stammFach = app.stammplan[dayName]?.[std];
                     const wpItem = app.wochenplanung[kw]?.[dayName]?.[std - 1];
                     const lpKey = `${kw}-${dayName}-${std - 1}`;
@@ -551,16 +660,16 @@ export default function Uebergabemappe() {
                     
                     const assignmentKey = `${dayStr}-${std}`;
                     const assignedId = assignedStundenbilder[assignmentKey];
-                    const assignedSb = app.materialien?.filter(m => m.typ === 'stundenentwurf').find(m => m.id === assignedId);
+                    const assignedSb = lessonPlans.find(m => m.id === assignedId);
 
-                    const effectiveFach = (assignedSb?.faecher && assignedSb.faecher[0]) || wpItem?.fach || stammFach || '—';
+                    const effectiveFach = assignedSb?.fach || wpItem?.fach || stammFach || '—';
                     const effectiveInhalt = assignedSb?.titel || wpItem?.thema || '—';
 
                     if (stammFach === 'frei' && !assignedSb && !wpItem) {
                       return (
                         <tr key={std} className="border-b border-slate-250 bg-slate-50/50 italic text-slate-400 select-none">
                           <td className="border border-slate-300 p-2 text-center font-bold bg-slate-50">{std}.</td>
-                          <td className="border border-slate-300 p-2 text-center text-[7.5pt]">{STUNDEN_INFO[std]}</td>
+                          <td className="border border-slate-300 p-2 text-center text-[7.5pt]">{getHandoverLessonTime(app.stundenZeiten, STUNDEN_INFO, std)}</td>
                           <td className="border border-slate-300 p-2 text-center font-bold" colSpan={3}>Unterrichtsfrei / Pause</td>
                         </tr>
                       );
@@ -569,7 +678,7 @@ export default function Uebergabemappe() {
                     return (
                       <tr key={std} className="border-b border-slate-200 text-slate-800">
                         <td className="border border-slate-300 p-2 font-black text-center bg-slate-50">{std}.</td>
-                        <td className="border border-slate-300 p-1.5 text-center text-[8pt] text-slate-500 font-semibold">{STUNDEN_INFO[std]}</td>
+                        <td className="border border-slate-300 p-1.5 text-center text-[8pt] text-slate-500 font-semibold">{getHandoverLessonTime(app.stundenZeiten, STUNDEN_INFO, std)}</td>
                         <td className="border border-slate-300 p-2 text-center font-bold">{effectiveFach}</td>
                         <td className="border border-slate-300 p-2 text-left">
                           <div>
@@ -875,7 +984,7 @@ export default function Uebergabemappe() {
           </div>
 
           <div className="text-center text-[0.53125rem] text-slate-400 border-t pt-2 mt-4 select-none">
-            Hinterlassen am Lehrertisch – Schulplaner Handover System.
+            Hinterlassen am Lehrertisch – Klassio · Übergabemappe.
           </div>
         </div>
       );
@@ -883,10 +992,10 @@ export default function Uebergabemappe() {
 
     // PAGE 5: WORKWHEETS FOR LESSON PLANS
     const assignedWorksheets = daysToPrint.flatMap(date => {
-      const dateStr = date.toISOString().split('T')[0];
-      return [1, 2, 3, 4, 5, 6].map(std => {
+      const dateStr = toLocalDateInputValue(date);
+      return LESSON_SLOT_NUMBERS.map(std => {
         const id = assignedStundenbilder[`${dateStr}-${std}`];
-        return app.materialien?.filter(m => m.typ === 'stundenentwurf').find(m => m.id === id);
+        return lessonPlans.find(m => m.id === id);
       }).filter(Boolean);
     }).reduce((acc: any[], curr) => {
       if (curr && !acc.some(a => a.id === curr.id)) acc.push(curr);
@@ -911,7 +1020,7 @@ export default function Uebergabemappe() {
               </div>
               <div className="text-right text-[0.625rem]">
                 <span className="text-[0.5rem] font-black uppercase text-slate-400 block tracking-widest">Detail-Stundenbild</span>
-                <span className="font-bold text-slate-700">{sb.dauer} Min. • {sb.schueler?.length || app.stufe}. Stufe</span>
+                <span className="font-bold text-slate-700">{sb.dauer} Min. • {(sb.schulstufen.join(', ') || app.stufe)}. Stufe</span>
               </div>
             </div>
 
@@ -1173,7 +1282,7 @@ export default function Uebergabemappe() {
               </div>
               <span className="text-[0.75rem] font-bold text-indigo-950 flex items-center gap-1.5">
                 {privacyMode ? <EyeOff size={14} className="text-indigo-600" /> : <Eye size={14} className="text-slate-500" />}
-                GDPR Datenschutz-Modus (Anonymisiert)
+                Datenschutzansicht (Initialen, sensible Stammdaten ausgeblendet)
               </span>
             </div>
 
@@ -1220,7 +1329,7 @@ export default function Uebergabemappe() {
                       <FileText size={16} className="text-indigo-500" />
                       <div>
                         <p className="text-[0.5625rem] font-black uppercase text-slate-400">Beobachtungen</p>
-                        <p className="text-[0.75rem] font-black text-slate-700">{app.notizen?.filter(n => n.schuelerId === transferStudentId).length || 0} Berichte</p>
+                        <p className="text-[0.75rem] font-black text-slate-700">{transferNotes.length} Berichte</p>
                       </div>
                     </div>
                     <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-2.5">
@@ -1238,8 +1347,10 @@ export default function Uebergabemappe() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {[
                         { key: 'stammdaten', label: 'Stammdaten & Schulausschnitt' },
+                        { key: 'leistungen', label: 'Leistungsstand' },
                         { key: 'beobachtungen', label: 'Pädagogische Notizen' },
                         { key: 'ikm', label: 'IKM Plus Testergebnisse' },
+                        { key: 'diagnostik', label: 'Diagnostik & Förderbedarf' },
                       ].map((mod) => (
                         <label key={mod.key} className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-xl cursor-pointer hover:border-amber-200 transition-all">
                           <input 
@@ -1378,10 +1489,13 @@ export default function Uebergabemappe() {
                   <ArrowUpDown size={14} className="text-indigo-500" />
                   <select 
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as any)}
+                    onChange={(e) => setSortBy(e.target.value as 'used' | 'date' | 'title')}
                     className="bg-transparent text-[0.75rem] leading-tight font-bold text-indigo-700 outline-none cursor-pointer"
                   >
-                         </select>
+                    <option value="used">Zuletzt verwendet</option>
+                    <option value="date">Neueste zuerst</option>
+                    <option value="title">Titel A–Z</option>
+                  </select>
                 </div>
              </div>
 
@@ -1545,7 +1659,7 @@ export default function Uebergabemappe() {
                       type="button"
                       onClick={() => {
                         setRangeMode('single');
-                        setSingleDate(new Date().toISOString().split('T')[0]);
+                        setSingleDate(toLocalDateInputValue(new Date()));
                       }}
                       className="px-2 py-2 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-xl text-[0.625rem] font-black uppercase tracking-wider transition-all text-slate-200"
                     >
@@ -1557,7 +1671,7 @@ export default function Uebergabemappe() {
                         setRangeMode('single');
                         const tom = new Date();
                         tom.setDate(tom.getDate() + 1);
-                        setSingleDate(tom.toISOString().split('T')[0]);
+                        setSingleDate(toLocalDateInputValue(tom));
                       }}
                       className="px-2 py-2 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-xl text-[0.625rem] font-black uppercase tracking-wider transition-all text-slate-200"
                     >
@@ -1567,7 +1681,7 @@ export default function Uebergabemappe() {
                       type="button"
                       onClick={() => {
                         setRangeMode('week');
-                        setWeekDate(new Date().toISOString().split('T')[0]);
+                        setWeekDate(toLocalDateInputValue(new Date()));
                       }}
                       className="px-2 py-2 bg-slate-900 border border-slate-800 hover:border-emerald-500 rounded-xl text-[0.625rem] font-black uppercase tracking-wider transition-all text-slate-200"
                     >
@@ -1735,14 +1849,14 @@ export default function Uebergabemappe() {
                   <div className="space-y-4">
                     {getDaysToPrint().map(date => {
                       const dName = getDayName(date);
-                      const dateStr = date.toISOString().split('T')[0];
+                      const dateStr = toLocalDateInputValue(date);
                       const kw = getISOWeek(date);
 
                       return (
                         <div key={dateStr} className="space-y-2 bg-slate-950 p-3 rounded-xl border border-slate-850">
                           <p className="text-[0.625rem] font-extrabold text-indigo-400">{formatDate(date)}</p>
                           <div className="grid grid-cols-1 gap-2">
-                            {[1, 2, 3, 4, 5, 6].map(std => {
+                            {LESSON_SLOT_NUMBERS.map(std => {
                               const stammFach = app.stammplan[dName]?.[std];
                               const wpItem = app.wochenplanung[kw]?.[dName]?.[std - 1];
                               const hasContent = stammFach || wpItem?.thema;
@@ -1759,7 +1873,7 @@ export default function Uebergabemappe() {
                                     </div>
                                     <button 
                                       onClick={() => {
-                                        const firstSb = app.materialien?.find(m => m.typ === 'stundenentwurf');
+                                        const firstSb = lessonPlans[0];
                                         if (firstSb) {
                                           setAssignedStundenbilder(prev => ({ ...prev, [assignmentKey]: firstSb.id }));
                                         } else {
@@ -1789,7 +1903,7 @@ export default function Uebergabemappe() {
                                     className="flex-1 bg-transparent text-[0.65625rem] font-bold text-slate-200 outline-none cursor-pointer border-none p-0 focus:ring-0 animate-fade-in"
                                   >
                                     <option value="" className="bg-slate-950 text-slate-400">(Freie Stunde)</option>
-                                    {app.materialien?.filter(m => m.typ === 'stundenentwurf').map(sb => (
+                                    {lessonPlans.map(sb => (
                                       <option key={sb.id} value={sb.id} className="bg-slate-950 text-slate-100">{sb.titel} ({sb.dauer}m)</option>
                                     ))}
                                   </select>
@@ -1826,7 +1940,7 @@ export default function Uebergabemappe() {
                   <p className="text-[0.5625rem] font-black uppercase tracking-widest text-emerald-400">📝 Tagesbezogene Hinweise:</p>
                   <div className="space-y-3">
                     {getDaysToPrint().map(date => {
-                      const dateStr = date.toISOString().split('T')[0];
+                      const dateStr = toLocalDateInputValue(date);
                       return (
                         <div key={dateStr} className="space-y-1 bg-slate-950 p-2.5 border border-slate-850 rounded-xl">
                           <span className="text-[0.5625rem] font-black text-indigo-400 uppercase tracking-widest">{formatDate(date)}</span>
@@ -2058,10 +2172,10 @@ export default function Uebergabemappe() {
 
       {/* PAGE 4: DETAILED LESSON PLANS */}
         {getDaysToPrint().flatMap(date => {
-          const dateStr = date.toISOString().split('T')[0];
-          return [1, 2, 3, 4, 5, 6].map(std => {
+          const dateStr = toLocalDateInputValue(date);
+          return LESSON_SLOT_NUMBERS.map(std => {
             const id = assignedStundenbilder[`${dateStr}-${std}`];
-            return app.materialien?.filter(m => m.typ === 'stundenentwurf').find(m => m.id === id);
+            return lessonPlans.find(m => m.id === id);
           }).filter(Boolean);
         }).reduce((acc: any[], curr) => {
           if (curr && !acc.some(a => a.id === curr.id)) acc.push(curr);
@@ -2583,7 +2697,7 @@ export default function Uebergabemappe() {
                                </div>
                                <div className="bg-slate-50 p-4 rounded-2xl">
                                   <p className="text-[0.5625rem] font-black uppercase text-slate-400 mb-1">Geburtsdatum</p>
-                                  <p className="font-black text-[1.125rem] leading-normal">{app.schueler.find(s => s.id === transferStudentId)?.geburtstag || '--'}</p>
+                                  <p className="font-black text-[1.125rem] leading-normal">{privacyMode ? 'Ausgeblendet' : (app.schueler.find(s => s.id === transferStudentId)?.geburtstag || '--')}</p>
                                </div>
                             </div>
                             <div className="space-y-4">
@@ -2593,11 +2707,49 @@ export default function Uebergabemappe() {
                                 </div>
                                 <div className="bg-slate-50 p-4 rounded-2xl">
                                    <p className="text-[0.5625rem] font-black uppercase text-slate-400 mb-1">Religionsbekenntnis</p>
-                                   <p className="font-black text-[1.125rem] leading-normal">{app.schueler.find(s => s.id === transferStudentId)?.religion || '--'}</p>
+                                   <p className="font-black text-[1.125rem] leading-normal">{privacyMode ? 'Ausgeblendet' : (app.schueler.find(s => s.id === transferStudentId)?.religion || '--')}</p>
                                 </div>
                              </div>
                           </div>
                        </section>
+                      )}
+
+
+                      {transferModules.leistungen && (
+                        <section className="space-y-4">
+                          <h3 className="text-[1.5rem] leading-normal font-black uppercase tracking-tight flex items-center gap-3 border-b-2 border-slate-900 pb-2">
+                            <BarChart3 className="text-emerald-500" /> Leistungsstand
+                          </h3>
+                          {transferGradeRows.length > 0 ? (
+                            <div className="overflow-hidden rounded-2xl border border-slate-200">
+                              <table className="w-full text-left text-[0.875rem]">
+                                <thead className="bg-slate-50">
+                                  <tr>
+                                    <th className="p-3 font-black">Fach</th>
+                                    <th className="p-3 font-black">1. Semester</th>
+                                    <th className="p-3 font-black">2. Semester</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {transferGradeRows.map(row => (
+                                    <tr key={row.fach} className="border-t border-slate-100">
+                                      <td className="p-3 font-bold">{row.fach}</td>
+                                      <td className="p-3">{row.semester1}</td>
+                                      <td className="p-3">{row.semester2}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <p className="p-8 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center text-slate-400 font-bold italic">
+                              Keine Leistungsdaten erfasst.
+                            </p>
+                          )}
+                          <p className="text-[0.625rem] text-slate-400 font-bold">
+                            Prozent- und Punktebewertung werden als berechneter Gesamtstand in Prozent ausgegeben; Notenmodus als Notenwert.
+                          </p>
+                        </section>
                       )}
 
                       {/* Notizen */}
@@ -2607,13 +2759,13 @@ export default function Uebergabemappe() {
                              <FileText className="text-indigo-500" /> Pädagogische Beobachtungen
                            </h3>
                            <div className="p-8 bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-3xl min-h-32 text-[1.125rem] leading-normal italic leading-relaxed text-slate-700">
-                              {app.notizen?.filter(n => n.schuelerId === transferStudentId).sort((a,b) => b.timestamp - a.timestamp).slice(0,3).map((n, i) => (
-                                <div key={i} className="mb-4">
-                                   <span className="text-[0.625rem] font-black uppercase text-slate-400 bg-white px-2 py-0.5 rounded-lg border border-slate-100">{n.termin || new Date(n.timestamp).toLocaleDateString('de-AT')}</span>
-                                   <p className="mt-1">{n.inhalt}</p>
+                              {transferNotes.map((note) => (
+                                <div key={note.id} className="mb-4">
+                                   <span className="text-[0.625rem] font-black uppercase text-slate-400 bg-white px-2 py-0.5 rounded-lg border border-slate-100">{note.datum || 'Ohne Datum'}</span>
+                                   <p className="mt-1">{note.inhalt}</p>
                                 </div>
                               ))}
-                              {!app.notizen?.some(n => n.schuelerId === transferStudentId) && <p className="text-slate-400">Keine aktuellen Notizen vorhanden.</p>}
+                              {transferNotes.length === 0 && <p className="text-slate-400">Keine aktuellen Notizen vorhanden.</p>}
                            </div>
                         </section>
                       )}
@@ -2649,6 +2801,47 @@ export default function Uebergabemappe() {
                            ) : (
                              <p className="p-10 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center text-slate-400 font-bold italic">Keine IKM Plus Ergebnisse erfasst.</p>
                            )}
+                        </section>
+                      )}
+
+
+                      {transferModules.diagnostik && (
+                        <section className="space-y-4">
+                          <h3 className="text-[1.5rem] leading-normal font-black uppercase tracking-tight flex items-center gap-3 border-b-2 border-slate-900 pb-2">
+                            <Activity className="text-purple-500" /> Diagnostik & Förderbedarf
+                          </h3>
+                          {transferDiagnosticResults.length > 0 ? (
+                            <div className="space-y-3">
+                              {transferDiagnosticResults.map(result => {
+                                const definition = getDiagnosticTestById(result.testId);
+                                return (
+                                  <div key={result.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                    <div className="flex items-start justify-between gap-4">
+                                      <div>
+                                        <p className="font-black text-slate-900">{definition?.title || result.testId}</p>
+                                        <p className="text-[0.6875rem] font-bold text-slate-400">
+                                          {result.date} · Niveau {result.gradeLevel || app.stufe}
+                                        </p>
+                                      </div>
+                                      <span className="text-[0.6875rem] font-black text-purple-700 bg-purple-50 px-2 py-1 rounded-lg">
+                                        {result.competencyResults?.length || 0} Kompetenzen
+                                      </span>
+                                    </div>
+                                    {result.nextStep && (
+                                      <div className="mt-3 pt-3 border-t border-slate-200">
+                                        <p className="text-[0.625rem] font-black uppercase text-slate-400">Nächster pädagogischer Schritt</p>
+                                        <p className="mt-1 text-[0.8125rem] font-bold text-slate-700">{result.nextStep}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="p-8 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center text-slate-400 font-bold italic">
+                              Keine Ergebnisse aus dem kompetenzorientierten Diagnostiksystem erfasst.
+                            </p>
+                          )}
                         </section>
                       )}
                    </div>

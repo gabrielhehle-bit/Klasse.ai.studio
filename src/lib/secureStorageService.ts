@@ -32,6 +32,7 @@ import {
   loadVaultRecord,
 } from './vaultStorage.js';
 import type { AppState } from '../types.js';
+import { toLocalDateKey } from './localDate.js';
 
 // ==========================================
 // 1. KONSTANTEN & IDENTIFIKATOREN
@@ -88,36 +89,23 @@ function getStorageDriver(): {
 } {
   return {
     getItem: async (key: string) => {
-      try {
-        if (typeof window !== 'undefined' && window.indexedDB) {
-          const item = await localforage.getItem<string | object>(key);
-          if (item === null || item === undefined) return null;
-          return typeof item === 'string' ? item : JSON.stringify(item);
-        }
-      } catch {
-        // Fallback
+      if (typeof window !== 'undefined') {
+        const item = await localforage.getItem<string | object>(key);
+        return item == null ? null : typeof item === 'string' ? item : JSON.stringify(item);
       }
       return testMemoryStorage.get(key) ?? null;
     },
     setItem: async (key: string, value: string) => {
-      try {
-        if (typeof window !== 'undefined' && window.indexedDB) {
-          await localforage.setItem(key, value);
-          return;
-        }
-      } catch {
-        // Fallback
+      if (typeof window !== 'undefined') {
+        await localforage.setItem(key, value);
+        return;
       }
       testMemoryStorage.set(key, value);
     },
     removeItem: async (key: string) => {
-      try {
-        if (typeof window !== 'undefined' && window.indexedDB) {
-          await localforage.removeItem(key);
-          return;
-        }
-      } catch {
-        // Fallback
+      if (typeof window !== 'undefined') {
+        await localforage.removeItem(key);
+        return;
       }
       testMemoryStorage.delete(key);
     },
@@ -240,7 +228,20 @@ export function isLegacyPlaintextState(obj: unknown): boolean {
  * @param appState Der zu sichernde Zustand
  * @param vaultKey Der aktive AES-GCM-256 Schlüssel aus dem RAM
  */
-export async function saveEncryptedAppState(
+let primaryWriteQueue: Promise<unknown> = Promise.resolve();
+function queuePrimaryWrite<T>(operation: () => Promise<T>): Promise<T> {
+  const result = primaryWriteQueue.then(operation);
+  primaryWriteQueue = result.catch(() => undefined);
+  return result;
+}
+
+export function saveEncryptedAppState(appState: AppState, vaultKey: CryptoKey): Promise<EncryptedLocalStateV1> {
+  // Capture now so mutations during crypto/storage work cannot change the saved generation.
+  const snapshot = JSON.parse(JSON.stringify(appState));
+  return queuePrimaryWrite(() => writeEncryptedAppState(snapshot, vaultKey));
+}
+
+async function writeEncryptedAppState(
   appState: AppState,
   vaultKey: CryptoKey
 ): Promise<EncryptedLocalStateV1> {
@@ -279,6 +280,56 @@ export async function saveEncryptedAppState(
   return record;
 }
 
+/** Keep the previous generation recoverable before replacing the primary record.
+ * Uses the existing local key; importing another vault never changes local credentials.
+ */
+export function restoreEncryptedAppState(previous: AppState, next: AppState, vaultKey: CryptoKey): Promise<void> {
+  const previousSnapshot = JSON.parse(JSON.stringify(previous));
+  const nextSnapshot = JSON.parse(JSON.stringify(next));
+  return queuePrimaryWrite(async () => {
+    const storage = getStorageDriver();
+    const previousRecord: EncryptedLocalStateV1 = {
+      format: ENCRYPTED_LOCAL_STATE_FORMAT, version: 1, savedAt: Date.now(),
+      encryptedState: await encryptData(previousSnapshot, vaultKey),
+    };
+    const serializedPrevious = JSON.stringify(previousRecord);
+    await storage.setItem(STORAGE_KEYS.PRE_IMPORT, serializedPrevious);
+    const savedPrevious = await storage.getItem(STORAGE_KEYS.PRE_IMPORT);
+    if (savedPrevious !== serializedPrevious) throw new Error('Sicherung vor dem Import konnte nicht verifiziert werden.');
+    await decryptData(JSON.parse(savedPrevious).encryptedState, vaultKey);
+
+    const nextRecord: EncryptedLocalStateV1 = {
+      format: ENCRYPTED_LOCAL_STATE_FORMAT, version: 1, savedAt: Date.now(),
+      encryptedState: await encryptData(nextSnapshot, vaultKey),
+    };
+    await decryptData(nextRecord.encryptedState, vaultKey);
+    const serializedNext = JSON.stringify(nextRecord);
+    try {
+      await storage.setItem(STORAGE_KEYS.PRIMARY, serializedNext);
+      const readBack = await storage.getItem(STORAGE_KEYS.PRIMARY);
+      if (readBack !== serializedNext) throw new Error('Import konnte nicht verifiziert werden.');
+      await decryptData(JSON.parse(readBack).encryptedState, vaultKey);
+    } catch (error) {
+      // The verified PRE_IMPORT generation remains available even if rollback fails.
+      try { await storage.setItem(STORAGE_KEYS.PRIMARY, serializedPrevious); } catch { /* retain PRE_IMPORT */ }
+      throw error;
+    }
+    await saveEncryptedFallbackRecord(serializedNext);
+    try {
+      getSessionStorage().setItem(STORAGE_KEYS.TEMP, serializedNext);
+      getLocalStorage().setItem(STORAGE_KEYS.PRE_IMPORT_TIME, new Date().toISOString());
+    } catch { /* primary and recovery generation are already durable */ }
+  });
+}
+
+export async function loadPreImportBackup(vaultKey: CryptoKey): Promise<AppState | null> {
+  const raw = await getStorageDriver().getItem(STORAGE_KEYS.PRE_IMPORT);
+  if (!raw) return null;
+  const record = JSON.parse(raw);
+  if (!isEncryptedLocalState(record)) throw new Error('Keine verschlüsselte Sicherung vor dem Import gefunden.');
+  return decryptData<AppState>(record.encryptedState, vaultKey);
+}
+
 /**
  * Speichert den verschlüsselten Record in den localStorage-Fallback-Speichern.
  */
@@ -312,7 +363,7 @@ export async function saveEncryptedEmergencyBackup(
     const serialized = JSON.stringify(record);
     const ls = getLocalStorage();
     ls.setItem(STORAGE_KEYS.NOTFALLKOPIE, serialized);
-    ls.setItem(STORAGE_KEYS.NOTFALLKOPIE_DATE, new Date().toISOString().split('T')[0]);
+    ls.setItem(STORAGE_KEYS.NOTFALLKOPIE_DATE, toLocalDateKey());
     ls.setItem(STORAGE_KEYS.NOTFALLKOPIE_TIME, new Date().toLocaleString('de-DE'));
   } catch (e) {
     console.warn('[Datenschutz] Notfallkopie konnte nicht verschlüsselt gesichert werden.', e);
@@ -445,7 +496,7 @@ export async function loadEncryptedAppState(
   }
 
   // Wenn keine Daten vorhanden sind (Neuinstallation), geben wir null zurück
-  if (!anySourceFound) {
+  if (!anySourceFound && !lastError) {
     return null;
   }
 

@@ -387,15 +387,15 @@ Antworte kurz, lustig und in maximal 2-3 Sätzen. Nutze ab und zu Emojis.`;
             animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
             exit={{ opacity: 0, scale: 0.85, y: 35, x: 10 }}
             transition={{ type: "spring", stiffness: 350, damping: 25 }}
-            className="w-[320.5px] max-w-[calc(100vw-2rem)] bg-white rounded-[2.5rem] shadow-[0_24px_56px_rgba(15,23,42,0.18)] border border-slate-105 flex flex-col  pb-4"
+            className="w-[320.5px] max-w-[calc(100vw-2rem)] bg-[var(--surface-card,var(--surface))] rounded-[2.5rem] shadow-2xl border border-[var(--border-default,var(--border))] flex flex-col pb-4"
           >
             {/* Console Header */}
-            <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+            <div className="p-4 bg-[var(--surface-subtle,var(--surface2))] border-b border-[var(--border-default,var(--border))] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-[1.25rem] leading-normal">🏆</span>
                 <div>
-                  <h4 className="text-[0.75rem] leading-tight font-black text-slate-800 uppercase tracking-widest">{petState.name}</h4>
-                  <p className="text-[0.5625rem] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Klassen-Begleiter & Cockpit</p>
+                  <h4 className="text-[0.75rem] leading-tight font-black text-[var(--text-primary)] uppercase tracking-widest">{petState.name}</h4>
+                  <p className="text-[0.5625rem] font-bold text-[var(--text-muted)] uppercase tracking-wider mt-0.5">Klassen-Begleiter & Cockpit</p>
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
@@ -406,10 +406,10 @@ Antworte kurz, lustig und in maximal 2-3 Sätzen. Nutze ab und zu Emojis.`;
                     setShowPetControls(next);
                     playInteractSound(440, 'sine', 0.1);
                   }}
-                  className={`px-2.5 py-1 rounded-xl text-[0.5625rem] font-black uppercase tracking-wider border transition-all ${
+                  className={`px-2.5 py-1 rounded-xl text-[0.5625rem] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
                     showPetControls 
-                      ? 'bg-indigo-50 border-indigo-100 text-indigo-650' 
-                      : 'bg-slate-100 border-slate-200 text-slate-650'
+                      ? 'bg-[var(--accent-soft)] border-[var(--accent)]/30 text-[var(--accent)]'
+                      : 'bg-[var(--surface-card,var(--surface))] border-[var(--border-default,var(--border))] text-[var(--text-muted)]'
                   }`}
                 >
                   {showPetControls ? 'Aktionen' : 'Haustier'}
@@ -419,7 +419,7 @@ Antworte kurz, lustig und in maximal 2-3 Sätzen. Nutze ab und zu Emojis.`;
                     setIsOpen(false);
                     playInteractSound(350, 'sine', 0.1);
                   }}
-                  className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all cursor-pointer"
+                  className="w-7 h-7 rounded-full bg-[var(--surface-card,var(--surface))] hover:bg-[var(--surface-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)] flex items-center justify-center transition-all cursor-pointer border border-[var(--border-subtle,var(--border))]"
                 >
                   <X size={13} />
                 </button>
@@ -537,7 +537,7 @@ Antworte kurz, lustig und in maximal 2-3 Sätzen. Nutze ab und zu Emojis.`;
             ) : (
               /* TAB 2: UNIFIED TEACHER QUICK ACTION TOOLBAR */
               <div className="px-4 py-3 space-y-2 flex-1 max-h-[350px] overflow-y-auto style-scrollbar">
-                <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none block mb-2">Schnell-Operationszentrale:</span>
+                <span className="text-[0.5625rem] font-bold text-[var(--text-muted)] uppercase tracking-widest leading-none block mb-2">Schnell-Operationszentrale:</span>
                 
                 <div className="space-y-1.5">
                   {teacherActions.map((act) => (
@@ -548,21 +548,21 @@ Antworte kurz, lustig und in maximal 2-3 Sätzen. Nutze ab und zu Emojis.`;
                         setIsOpen(false);
                         playInteractSound(523.25, 'sine', 0.15); // C5 sound
                       }}
-                      className="w-full flex items-center gap-3 p-2.5 bg-slate-50/60 hover:bg-slate-100 active:scale-98 rounded-2xl border border-slate-150 transition-all group text-left cursor-pointer"
+                      className="w-full flex items-center gap-3 p-2.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] active:scale-98 rounded-2xl border border-[var(--border-default,var(--border))] transition-all group text-left cursor-pointer"
                     >
                       <div className={`w-9 h-9 shrink-0 ${act.color} text-white rounded-xl flex items-center justify-center shadow-sm transition-all group-hover:scale-105`}>
                         {act.icon}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[0.71875rem] font-black text-slate-850 group-hover:text-indigo-650 transition-colors">{act.label}</p>
-                        <p className="text-[0.5625rem] text-slate-400 font-medium text-wrap leading-tight break-words mt-0.5">{act.desc}</p>
+                        <p className="text-[0.71875rem] font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">{act.label}</p>
+                        <p className="text-[0.5625rem] text-[var(--text-muted)] font-medium text-wrap leading-tight break-words mt-0.5">{act.desc}</p>
                       </div>
-                      <ChevronRight size={13} className="text-slate-300 group-hover:text-indigo-500 transition-all transform group-hover:translate-x-0.5" />
+                      <ChevronRight size={13} className="text-[var(--text-muted)] group-hover:text-[var(--accent)] transition-all transform group-hover:translate-x-0.5" />
                     </button>
                   ))}
                 </div>
 
-                <p className="text-center text-[0.5625rem] text-slate-400 font-bold italic mt-2.5">
+                <p className="text-center text-[0.5625rem] text-[var(--text-muted)] font-medium italic mt-2.5">
                   Begleiter-Laune beeinflussbar im "Haustier" Modus!
                 </p>
               </div>
@@ -614,8 +614,8 @@ Antworte kurz, lustig und in maximal 2-3 Sätzen. Nutze ab und zu Emojis.`;
           }}
           className={`w-[68px] h-[68px] rounded-[2.2rem] flex items-center justify-center border-4 shadow-2xl transition-all duration-300 relative z-20 cursor-pointer overflow-visible ${
             isOpen 
-              ? 'bg-slate-900 border-slate-700 scale-95 text-slate-450' 
-              : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 hover:scale-105 active:scale-95'
+              ? 'bg-[var(--surface-muted)] border-[var(--border-default,var(--border))] scale-95 text-[var(--text-primary)]'
+              : 'bg-[var(--surface-card,var(--surface))] hover:bg-[var(--surface-subtle,var(--surface2))] border-[var(--border-default,var(--border))] text-[var(--text-primary)] hover:scale-105 active:scale-95'
           }`}
           title={`${petState.name} - ${currentBreed.breedLabel}`}
         >
@@ -646,8 +646,8 @@ Antworte kurz, lustig und in maximal 2-3 Sätzen. Nutze ab und zu Emojis.`;
           <div 
             className={`absolute -bottom-1 -right-1 rounded-full w-6.5 h-6.5 border-2 border-white flex items-center justify-center shadow-lg transition-all duration-300 transform ${
               isOpen 
-                ? 'bg-rose-500 text-white rotate-45 scale-110' 
-                : 'bg-indigo-600 text-white hover:bg-indigo-550 group-hover/fab:scale-110'
+                ? 'bg-[var(--danger-text)] text-white rotate-45 scale-110'
+                : 'bg-[var(--accent)] text-white hover:opacity-90 group-hover/fab:scale-110'
             }`}
           >
             <Plus size={11} strokeWidth={4} />

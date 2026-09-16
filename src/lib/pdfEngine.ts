@@ -8,48 +8,49 @@ const pdfMake = pdfMakeLib as any;
 // @ts-ignore
 pdfMake.vfs = pdfFonts?.pdfMake?.vfs || (pdfFonts as any)?.vfs;
 
-export async function generateFoerderBescheid(student: any, erhebungen: any[]) {
+export async function generateFoerderUebersicht(student: any, erhebungen: any[]) {
+  const rows = (Array.isArray(erhebungen) ? erhebungen : []).map((entry: any) => [
+    String(entry.testId || 'Erhebung'),
+    String(entry.datum || '—'),
+    entry.foerderbedarfErkannt
+      ? 'Förderhinweis dokumentiert'
+      : isDiagnosticAlert(entry)
+        ? 'Pädagogischer Prüfhinweis'
+        : 'Kein automatischer Prüfhinweis'
+  ]);
+
   const docDefinition: TDocumentDefinitions = {
     pageSize: 'A4',
-    pageMargins: [40, 60, 40, 60],
+    pageMargins: [40, 55, 40, 55],
     content: [
-      { text: 'Bescheid über sonderpädagogischen Förderbedarf', style: 'header' },
-      { text: `Schüler/in: ${student.vorname} ${student.nachname}`, style: 'subheader', margin: [0, 10, 0, 5] },
-      { text: `Geburtsdatum: ${student.geburtsdatum || 'Keine Angabe'}`, margin: [0, 0, 0, 15] },
-      { text: 'Begründung & Diagnostik', style: 'subheader', margin: [0, 10, 0, 10] },
-      { text: 'Aufgrund der durchgeführten pädagogischen Diagnostik wird für die oben genannte Schülerin / den oben genannten Schüler folgender Förderbedarf festgestellt:', margin: [0, 0, 0, 10] },
+      { text: 'Pädagogische Förderübersicht', style: 'header' },
+      {
+        text: 'Arbeitsunterlage aus Klassio – kein amtlicher Bescheid und keine behördliche Feststellung.',
+        style: 'notice',
+        margin: [0, 0, 0, 18]
+      },
+      { text: `Schüler:in: ${[student?.vorname, student?.nachname].filter(Boolean).join(' ') || 'nicht angegeben'}`, style: 'subheader', margin: [0, 4, 0, 4] },
+      { text: `Geburtsdatum: ${student?.geburtsdatum || student?.geburtstag || 'nicht angegeben'}`, margin: [0, 0, 0, 16] },
+      { text: 'Dokumentierte pädagogische Erhebungen', style: 'subheader', margin: [0, 8, 0, 8] },
       {
         table: {
           headerRows: 1,
-          widths: ['*', 'auto', 'auto'],
+          widths: ['*', 'auto', '*'],
           body: [
-            ['Erhebung / Test', 'Datum', 'Ergebnis / Maßnahme'],
-            ...erhebungen.map((e: any) => [
-              e.testId,
-              e.datum,
-              e.foerderbedarfErkannt
-                ? 'Förderbedarf dokumentiert'
-                : isDiagnosticAlert(e)
-                  ? 'Pädagogischer Prüfhinweis'
-                  : 'Kein Prüfhinweis'
-            ]),
+            ['Erhebung / Test', 'Datum', 'Dokumentierter Hinweis'],
+            ...(rows.length > 0 ? rows : [['Keine Erhebungen vorhanden', '—', '—']])
           ]
         },
-        margin: [0, 0, 0, 20]
+        margin: [0, 0, 0, 18]
       },
-      { text: 'Gültigkeit des Bescheids:', style: 'subheader', margin: [0, 10, 0, 5] },
-      { text: 'Dieser Bescheid ist für das laufende Schuljahr gültig und berechtigt zur Inanspruchnahme von Fördermaßnahmen im Unterricht.', margin: [0, 0, 0, 40] },
-      
+      {
+        text: 'Hinweis: Die Einträge bilden ausschließlich vorhandene pädagogische Dokumentation ab. Klassio trifft damit keine Entscheidung über sonderpädagogischen Förderbedarf und ersetzt keine schulbehördlichen Verfahren.',
+        style: 'notice'
+      },
       {
         columns: [
-          {
-            text: '_________________________________\nOrt, Datum',
-            alignment: 'center'
-          },
-          {
-            text: '_________________________________\nUnterschrift Direktion',
-            alignment: 'center'
-          }
+          { text: '_________________________________\nDatum', alignment: 'center', margin: [0, 38, 10, 0] },
+          { text: '_________________________________\nLehrperson / interne Prüfung', alignment: 'center', margin: [10, 38, 0, 0] }
         ]
       }
     ],
@@ -58,21 +59,31 @@ export async function generateFoerderBescheid(student: any, erhebungen: any[]) {
         fontSize: 18,
         bold: true,
         alignment: 'center',
-        margin: [0, 0, 0, 20]
+        margin: [0, 0, 0, 12]
       },
       subheader: {
-        fontSize: 14,
+        fontSize: 13,
         bold: true
+      },
+      notice: {
+        fontSize: 9,
+        color: '#475569',
+        italics: true,
+        lineHeight: 1.35
       }
     },
     defaultStyle: {
       fontSize: 11,
-      lineHeight: 1.5
+      lineHeight: 1.45
     }
   };
 
   const pdfDocGenerator = pdfMake.createPdf(docDefinition);
-  pdfDocGenerator.download(`Foerderbescheid_${student.nachname}_${student.vorname}.pdf`);
+  const safeName = [student?.nachname, student?.vorname]
+    .filter(Boolean)
+    .join('_')
+    .replace(/[^a-zA-Z0-9ÄÖÜäöüß_-]+/g, '_') || 'Schueler';
+  pdfDocGenerator.download(`Foerderuebersicht_${safeName}.pdf`);
 }
 
 export async function generateDataConsistencyReport(app: any, issues: any[]) {

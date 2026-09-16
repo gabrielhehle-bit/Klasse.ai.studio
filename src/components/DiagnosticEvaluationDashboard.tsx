@@ -813,7 +813,7 @@ const DiagnosticEvaluationDashboard: React.FC<
               📜 Lehrplan-Abstimmung der Quests
             </span>
             <p className="text-[0.75rem] leading-tight text-slate-400 leading-relaxed">
-              Jede GabicQuest-Prüfung wurde exakt nach den Vorgaben der österreichischen Bundesministerien akkreditiert. Nachstehend ist die lückenlose Zuordnung des Tests gelistet:
+              Jede Klassio-Quest-Prüfung wurde exakt nach den Vorgaben der österreichischen Bundesministerien akkreditiert. Nachstehend ist die lückenlose Zuordnung des Tests gelistet:
             </p>
           </div>
 
@@ -899,7 +899,7 @@ const DiagnosticEvaluationDashboard: React.FC<
               <div className="text-center text-slate-500 py-8">
                 <Activity className="mx-auto mb-2 opacity-50" size={32} />
                 <p className="text-[0.875rem] font-bold">Noch keine abgeschlossenen Durchläufe für dieses Kind gespeichert.</p>
-                <p className="text-[0.75rem]">Sobald GabicQuest für {activeStudentName} abgeschlossen und gespeichert wird, erscheint hier der Verlauf.</p>
+                <p className="text-[0.75rem]">Sobald Klassio Quest für {activeStudentName} abgeschlossen und gespeichert wird, erscheint hier der Verlauf.</p>
               </div>
             ) : (
               <div className="space-y-6">
@@ -1067,7 +1067,7 @@ const DiagnosticEvaluationDashboard: React.FC<
 
               {/* Date banner */}
               <p className="text-[0.5625rem] text-slate-500 font-bold tracking-wider pt-2 flex items-center justify-center gap-1 font-mono">
-                <Calendar size={11} className="text-slate-400" /> Ausgefertigt am {new Date().toLocaleDateString("de-DE")} • GABICQUEST ENGINE
+                <Calendar size={11} className="text-slate-400" /> Ausgefertigt am {new Date().toLocaleDateString("de-DE")} • KLASSIO QUEST ENGINE
               </p>
             </div>
             

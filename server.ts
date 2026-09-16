@@ -1,9 +1,20 @@
+import { escapeHtml, scriptJson, createOAuthState, verifyOAuthState } from './src/lib/oauthSecurity';
+import { ONEDRIVE_BACKUP_PRIMARY_NAME, getOneDriveBackupCandidateNames } from './src/lib/cloudBackupNames';
 import express from "express";
 import path from "path";
 import crypto from "crypto";
+import nodemailer from "nodemailer";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type, Modality } from "@google/genai";
 import { KI_SYSTEM_PROMPTS, GLOBAL_KI_RULES } from "./src/kiSystemPrompts.ts";
+import { validateAiServerImageRequest } from "./src/lib/aiPrivacy.ts";
+import { getServerSyncTimestamps, isSyncSessionExpired } from "./src/lib/syncServerPolicy.ts";
+import { createTeacherIdentityForSchool, displayNameFromEmail, handleFromEmail, type TeacherIdentity } from "./src/server/teacherIdentity.ts";
+import { createLehrerzimmerStore, type LehrerzimmerCategory } from "./src/server/lehrerzimmerStore.ts";
+import { createClassCollaborationStore, type SharedClassRecord } from "./src/server/classCollaborationStore.ts";
+import { createSchoolRegistryStore, type AustrianFederalState } from "./src/server/schoolRegistry.ts";
+import { createSupporterStore } from "./src/server/supporterStore.ts";
+import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from "./src/data/austrianSchoolRegistry.seed.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
 // that do `typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url))`
@@ -18,8 +29,13 @@ function validateProductionEnvironment() {
 
   const sessionSecret = process.env.SESSION_SECRET;
   const insecureSecrets = ["lehrerapp_secure_session_secret_2026", "secret", "changeme", "123456", "admin", "password"];
-  if (!sessionSecret || insecureSecrets.includes(sessionSecret.trim().toLowerCase())) {
-    console.warn("[SICHERHEITSWARNUNG] SESSION_SECRET ist nicht gesetzt oder nutzt einen unsicheren Standardwert. In Produktion muss ein starkes Zufalls-Secret gesetzt werden.");
+  if (!sessionSecret || sessionSecret.trim().length < 32 || insecureSecrets.includes(sessionSecret.trim().toLowerCase())) {
+    throw new Error("[SICHERHEITSWARNUNG] SESSION_SECRET ist nicht gesetzt oder nutzt einen unsicheren Standardwert. In Produktion muss ein starkes Zufalls-Secret gesetzt werden.");
+  }
+
+  const codes = [process.env.LEHRERAPP_ACCESS_TEAM, process.env.LEHRERAPP_ACCESS_EXTERNAL].map(code => code?.trim()).filter(Boolean);
+  if (!codes.length || codes.some(code => ['team2026', 'gast2026'].includes(code!))) {
+    throw new Error('In Produktion mindestens einen eigenen LEHRERAPP_ACCESS_TEAM/EXTERNAL Zugangscode konfigurieren; Standardcodes sind nicht erlaubt.');
   }
 
   const appUrl = process.env.APP_URL;
@@ -40,6 +56,16 @@ function validateProductionEnvironment() {
 
   if (!process.env.MICROSOFT_CLIENT_ID || !process.env.MICROSOFT_CLIENT_SECRET) {
     console.warn("[KONFIGURATIONSHINWEIS] Microsoft OneDrive Secrets sind nicht vollständig konfiguriert. Cloud-Backups sind im Client deaktiviert.");
+  }
+
+  const configuredSchoolDomains = process.env.KLASSIO_VERIFIED_SCHOOL_DOMAINS || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS;
+  const wantsEmailLogin = Boolean(process.env.SMTP_HOST || process.env.SMTP_FROM || configuredSchoolDomains);
+  if (wantsEmailLogin && (!process.env.SMTP_HOST || !process.env.SMTP_FROM)) {
+    console.warn("[KONFIGURATIONSHINWEIS] E-Mail-Login ist nur aktiv, wenn SMTP_HOST und SMTP_FROM gesetzt sind.");
+  }
+
+  if (!process.env.KLASSIO_SCHOOL_ADMIN_TOKEN) {
+    console.warn("[KONFIGURATIONSHINWEIS] KLASSIO_SCHOOL_ADMIN_TOKEN ist nicht gesetzt. Neue Schul-Verifizierungsanfragen können gespeichert, aber nicht über die Admin-API freigegeben werden.");
   }
 }
 
@@ -111,7 +137,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       if (isAllowed) {
         res.setHeader('Access-Control-Allow-Origin', origin);
         res.setHeader('Access-Control-Allow-Credentials', 'true');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
       }
     }
@@ -129,14 +155,99 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   // E3.12 Differentiierte Request-Größenlimits
   app.use('/api/ai', express.json({ limit: '35mb' }));
   app.use('/api/sync', express.json({ limit: '16mb' }));
+  app.use('/api/teamteaching', express.json({ limit: '16mb' }));
   app.use('/api/onedrive/upload', express.json({ limit: '20mb' }));
   app.use(express.urlencoded({ limit: '1mb', extended: true }));
   app.use(express.json({ limit: '1mb' }));
 
   // Access Control Setup
-  const SESSION_SECRET = process.env.SESSION_SECRET || process.env.GEMINI_API_KEY || "lehrerapp_secure_session_secret_2026";
-  const ACCESS_TEAM_CODE = (process.env.LEHRERAPP_ACCESS_TEAM || "team2026").trim();
-  const ACCESS_EXTERNAL_CODE = (process.env.LEHRERAPP_ACCESS_EXTERNAL || "gast2026").trim();
+  const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+  const ACCESS_TEAM_CODE = (process.env.LEHRERAPP_ACCESS_TEAM || (process.env.NODE_ENV === "production" ? "" : "team2026")).trim();
+  const ACCESS_EXTERNAL_CODE = (process.env.LEHRERAPP_ACCESS_EXTERNAL || (process.env.NODE_ENV === "production" ? "" : "gast2026")).trim();
+
+  const SMTP_HOST = (process.env.SMTP_HOST || '').trim();
+  const SMTP_PORT = Math.max(1, Number(process.env.SMTP_PORT || 587) || 587);
+  const SMTP_SECURE = (process.env.SMTP_SECURE || '').trim().toLowerCase() === 'true' || SMTP_PORT === 465;
+  const SMTP_USER = (process.env.SMTP_USER || '').trim();
+  const SMTP_PASS = process.env.SMTP_PASS || '';
+  const SMTP_FROM = (process.env.SMTP_FROM || '').trim();
+  const ALLOWED_EMAIL_DOMAINS = (process.env.KLASSIO_VERIFIED_SCHOOL_DOMAINS || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
+    .split(',')
+    .map(value => value.trim().toLowerCase().replace(/^@/, ''))
+    .filter(Boolean);
+  const emailLoginEnabled = Boolean(SMTP_HOST && SMTP_FROM);
+  const mailTransporter = emailLoginEnabled
+    ? nodemailer.createTransport({
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_SECURE,
+        ...(SMTP_USER && SMTP_PASS ? { auth: { user: SMTP_USER, pass: SMTP_PASS } } : {})
+      })
+    : null;
+
+  const KLASSIO_DATA_DIR = (process.env.KLASSIO_DATA_DIR || path.join(process.cwd(), 'data')).trim();
+  const lehrerzimmerStore = createLehrerzimmerStore(KLASSIO_DATA_DIR);
+  const classCollaborationStore = createClassCollaborationStore(KLASSIO_DATA_DIR);
+  const schoolRegistryStore = createSchoolRegistryStore(KLASSIO_DATA_DIR);
+  const supporterStore = createSupporterStore(KLASSIO_DATA_DIR);
+  if (!options.isTest) {
+    await schoolRegistryStore.ensureSeedSchools(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS);
+    await schoolRegistryStore.ensureLegacyDomains(ALLOWED_EMAIL_DOMAINS);
+  }
+  const SCHOOL_ADMIN_TOKEN = (process.env.KLASSIO_SCHOOL_ADMIN_TOKEN || '').trim();
+  const SUPPORT_ADMIN_TOKEN = (process.env.KLASSIO_SUPPORT_ADMIN_TOKEN || '').trim();
+
+  function safePayPalUrl(value: string | undefined, fallback = ''): string {
+    const raw = (value || fallback).trim();
+    if (!raw) return '';
+    try {
+      const url = new URL(raw);
+      const host = url.hostname.toLowerCase();
+      const isPayPal = host === 'paypal.com' || host.endsWith('.paypal.com') || host === 'paypal.me' || host.endsWith('.paypal.me');
+      return url.protocol === 'https:' && isPayPal ? url.toString() : '';
+    } catch {
+      return '';
+    }
+  }
+
+  const SUPPORT_PAYPAL_ONE_TIME_URL = safePayPalUrl(
+    process.env.KLASSIO_PAYPAL_ONE_TIME_URL,
+    'https://paypal.me/gabrielhehle'
+  );
+  const SUPPORT_PAYPAL_MONTHLY_URL = safePayPalUrl(process.env.KLASSIO_PAYPAL_MONTHLY_URL);
+  const SUPPORT_PAYPAL_YEARLY_URL = safePayPalUrl(process.env.KLASSIO_PAYPAL_YEARLY_URL);
+
+  type EmailAccessChallenge = {
+    codeHash: string;
+    expiresAt: number;
+    attempts: number;
+    lastSentAt: number;
+  };
+  const emailAccessChallenges = new Map<string, EmailAccessChallenge>();
+  const emailRequestThrottle = new Map<string, number>();
+
+  function normalizeEmail(value: unknown): string | null {
+    if (typeof value !== 'string') return null;
+    const normalized = value.trim().toLowerCase();
+    if (normalized.length < 5 || normalized.length > 254) return null;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
+    return normalized;
+  }
+
+  function hashEmailCode(email: string, code: string): string {
+    return crypto
+      .createHmac('sha256', SESSION_SECRET)
+      .update('klassio-email-access:' + email + ':' + code)
+      .digest('hex');
+  }
+
+  function maskEmail(email: string): string {
+    const parts = email.split('@');
+    const local = parts[0] || '';
+    const domain = parts[1] || '';
+    const visible = local.length <= 2 ? local.slice(0, 1) : local.slice(0, 2);
+    return visible + '*'.repeat(Math.max(2, Math.min(8, local.length - visible.length))) + '@' + domain;
+  }
 
   function parseCookies(req: express.Request): Record<string, string> {
     const list: Record<string, string> = {};
@@ -145,8 +256,10 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       rc.split(';').forEach(cookie => {
         const parts = cookie.split('=');
         const key = parts.shift()?.trim();
-        const value = decodeURIComponent(parts.join('='));
-        if (key) list[key] = value;
+        try {
+          const value = decodeURIComponent(parts.join('='));
+          if (key) list[key] = value;
+        } catch { /* Ignore malformed cookies instead of crashing authentication. */ }
       });
     }
     return list;
@@ -173,6 +286,126 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     } catch (e) {
       return false;
     }
+  }
+
+  type EmailAccountIdentity = {
+    userId: string;
+    email: string;
+    displayName: string;
+    handle: string;
+  };
+
+  type AccountSessionPayload = EmailAccountIdentity & { v: 1; exp: number };
+  type IdentitySessionPayload = TeacherIdentity & { v: 1; exp: number };
+
+  function createEmailAccountIdentity(email: string): EmailAccountIdentity {
+    const normalizedEmail = email.trim().toLowerCase();
+    return {
+      userId: crypto.createHash('sha256').update('klassio-account:' + normalizedEmail).digest('hex').slice(0, 24),
+      email: normalizedEmail,
+      displayName: displayNameFromEmail(normalizedEmail),
+      handle: handleFromEmail(normalizedEmail),
+    };
+  }
+
+  function createSignedIdentityToken<T extends object>(prefix: string, payload: T): string {
+    const encoded = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+    const signature = crypto.createHmac('sha256', SESSION_SECRET).update(prefix + encoded).digest('hex');
+    return encoded + '.' + signature;
+  }
+
+  function verifySignedIdentityToken<T>(prefix: string, token: string | undefined): T | null {
+    if (!token) return null;
+    const [encoded, signature, ...rest] = token.split('.');
+    if (!encoded || !signature || rest.length) return null;
+    const expected = crypto.createHmac('sha256', SESSION_SECRET).update(prefix + encoded).digest('hex');
+    try {
+      if (!crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expected, 'hex'))) return null;
+      return JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8')) as T;
+    } catch {
+      return null;
+    }
+  }
+
+  function createAccountToken(identity: EmailAccountIdentity): string {
+    return createSignedIdentityToken('klassio-account:', {
+      ...identity,
+      v: 1,
+      exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
+    } satisfies AccountSessionPayload);
+  }
+
+  function verifyAccountToken(token: string | undefined): EmailAccountIdentity | null {
+    const payload = verifySignedIdentityToken<AccountSessionPayload>('klassio-account:', token);
+    if (!payload || payload.v !== 1 || !payload.exp || payload.exp < Date.now()) return null;
+    if (!payload.userId || !payload.email) return null;
+    return {
+      userId: payload.userId,
+      email: payload.email,
+      displayName: payload.displayName || 'Klassio-Nutzer:in',
+      handle: payload.handle || 'klassio',
+    };
+  }
+
+  function createIdentityToken(identity: TeacherIdentity): string {
+    return createSignedIdentityToken('klassio-identity:', {
+      ...identity,
+      v: 1,
+      exp: Date.now() + 30 * 24 * 60 * 60 * 1000,
+    } satisfies IdentitySessionPayload);
+  }
+
+  function verifyIdentityToken(token: string | undefined): TeacherIdentity | null {
+    const payload = verifySignedIdentityToken<IdentitySessionPayload>('klassio-identity:', token);
+    if (!payload || payload.v !== 1 || !payload.exp || payload.exp < Date.now()) return null;
+    if (!payload.userId || !payload.email || !payload.schoolId || !payload.schoolDomain || !payload.schoolCode) return null;
+    return {
+      userId: payload.userId,
+      email: payload.email,
+      schoolId: payload.schoolId,
+      schoolCode: payload.schoolCode,
+      schoolDomain: payload.schoolDomain,
+      schoolName: payload.schoolName,
+      schoolFederalState: payload.schoolFederalState,
+      displayName: payload.displayName || 'Lehrperson',
+      handle: payload.handle || 'lehrperson',
+    };
+  }
+
+  function secureCookieSuffix(req: express.Request): string {
+    const isProd = process.env.NODE_ENV === 'production';
+    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+    return (isProd || isSecure) ? '; Secure' : '';
+  }
+
+  function setAccessSession(req: express.Request, res: express.Response): string {
+    const token = createAccessToken();
+    res.setHeader(
+      'Set-Cookie',
+      'lehrerapp_access_token=' + token + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
+    );
+    return token;
+  }
+
+  function setEmailAccountSession(req: express.Request, res: express.Response, identity: EmailAccountIdentity): void {
+    res.append(
+      'Set-Cookie',
+      'klassio_email_account=' + createAccountToken(identity) + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
+    );
+  }
+
+  function setEmailIdentitySession(req: express.Request, res: express.Response, identity: TeacherIdentity): void {
+    const token = createIdentityToken(identity);
+    res.append(
+      'Set-Cookie',
+      'klassio_email_identity=' + token + '; Max-Age=' + (30 * 24 * 60 * 60) + '; Path=/; HttpOnly; SameSite=Lax' + secureCookieSuffix(req)
+    );
+  }
+
+  function clearEmailSessions(req: express.Request, res: express.Response): void {
+    const suffix = secureCookieSuffix(req);
+    res.append('Set-Cookie', 'klassio_email_account=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + suffix);
+    res.append('Set-Cookie', 'klassio_email_identity=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + suffix);
   }
 
   const failedLoginAttempts = new Map<string, { count: number; resetAt: number }>();
@@ -208,7 +441,149 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const cookies = parseCookies(req);
     const token = cookies.lehrerapp_access_token || (req.headers.authorization ? req.headers.authorization.replace('Bearer ', '') : undefined);
     const isValid = verifyAccessToken(token);
-    res.json({ authenticated: isValid });
+    const account = isValid ? verifyAccountToken(cookies.klassio_email_account) : null;
+    const identity = isValid ? verifyIdentityToken(cookies.klassio_email_identity) : null;
+    res.json({
+      authenticated: isValid,
+      emailLoginEnabled,
+      account: account
+        ? {
+            displayName: account.displayName,
+            handle: account.handle,
+            email: account.email,
+          }
+        : null,
+      identity: identity
+        ? {
+            displayName: identity.displayName,
+            handle: identity.handle,
+            schoolCode: identity.schoolCode,
+            schoolName: identity.schoolName,
+            schoolFederalState: identity.schoolFederalState,
+            schoolDomain: identity.schoolDomain,
+          }
+        : null,
+    });
+  });
+
+  app.post("/api/access/email/request", async (req, res) => {
+    if (!emailLoginEnabled || !mailTransporter) {
+      return res.status(503).json({ success: false, error: 'E-Mail-Anmeldung ist auf diesem Server noch nicht konfiguriert.' });
+    }
+
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const email = normalizeEmail(req.body?.email);
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Bitte gib eine gültige E-Mail-Adresse ein.' });
+    }
+
+    const throttleKey = ip + ':' + email;
+    const now = Date.now();
+    const lastRequest = emailRequestThrottle.get(throttleKey) || 0;
+    const retryAfterMs = 60_000 - (now - lastRequest);
+    if (retryAfterMs > 0) {
+      return res.status(429).json({
+        success: false,
+        error: 'Bitte warte noch ' + Math.ceil(retryAfterMs / 1000) + ' Sekunden, bevor du einen neuen Code anforderst.'
+      });
+    }
+
+    const code = crypto.randomInt(100000, 1000000).toString();
+    emailAccessChallenges.set(email, {
+      codeHash: hashEmailCode(email, code),
+      expiresAt: now + 10 * 60 * 1000,
+      attempts: 0,
+      lastSentAt: now
+    });
+    emailRequestThrottle.set(throttleKey, now);
+
+    try {
+      await mailTransporter.sendMail({
+        from: SMTP_FROM,
+        to: email,
+        subject: 'Dein Klassio-Anmeldecode',
+        text: 'Dein Klassio-Anmeldecode lautet: ' + code + '\n\nDer Code ist 10 Minuten gültig. Wenn du diese Anmeldung nicht angefordert hast, kannst du diese Nachricht ignorieren.',
+        html: '<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#0f172a"><h2>Klassio</h2><p>Dein Anmeldecode:</p><div style="font-size:34px;font-weight:800;letter-spacing:8px;padding:18px 20px;background:#f1f5f9;border-radius:14px;text-align:center">' + code + '</div><p style="color:#64748b">Der Code ist 10 Minuten gültig. Wenn du diese Anmeldung nicht angefordert hast, kannst du diese Nachricht ignorieren.</p></div>'
+      });
+      return res.json({ success: true, maskedEmail: maskEmail(email), expiresInSeconds: 600 });
+    } catch (error) {
+      emailAccessChallenges.delete(email);
+      console.error('[Access] E-Mail-Code konnte nicht versendet werden:', error);
+      return res.status(502).json({ success: false, error: 'Der Anmeldecode konnte nicht versendet werden. Bitte später erneut versuchen.' });
+    }
+  });
+
+  app.post("/api/access/email/verify", async (req, res) => {
+    if (!emailLoginEnabled) {
+      return res.status(503).json({ success: false, error: 'E-Mail-Anmeldung ist auf diesem Server noch nicht konfiguriert.' });
+    }
+
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const rateLimit = checkRateLimit(ip);
+    if (!rateLimit.allowed) {
+      return res.status(429).json({ success: false, error: 'Zu viele Versuche. Bitte warte ' + rateLimit.waitSeconds + ' Sekunden.' });
+    }
+
+    const email = normalizeEmail(req.body?.email);
+    const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
+    if (!email || !/^\d{6}$/.test(code)) {
+      recordFailedAttempt(ip);
+      return res.status(400).json({ success: false, error: 'E-Mail-Adresse oder Anmeldecode ist ungültig.' });
+    }
+
+    const challenge = emailAccessChallenges.get(email);
+    if (!challenge || challenge.expiresAt < Date.now()) {
+      emailAccessChallenges.delete(email);
+      recordFailedAttempt(ip);
+      return res.status(400).json({ success: false, error: 'Der Anmeldecode ist abgelaufen. Bitte fordere einen neuen Code an.' });
+    }
+    if (challenge.attempts >= 5) {
+      emailAccessChallenges.delete(email);
+      recordFailedAttempt(ip);
+      return res.status(429).json({ success: false, error: 'Zu viele Fehlversuche. Bitte fordere einen neuen Code an.' });
+    }
+
+    challenge.attempts += 1;
+    const expected = Buffer.from(challenge.codeHash, 'hex');
+    const received = Buffer.from(hashEmailCode(email, code), 'hex');
+    const matches = expected.length === received.length && crypto.timingSafeEqual(expected, received);
+    if (!matches) {
+      recordFailedAttempt(ip);
+      return res.status(401).json({ success: false, error: 'Der Anmeldecode ist nicht gültig.' });
+    }
+
+    const account = createEmailAccountIdentity(email);
+    const verifiedSchool = await schoolRegistryStore.findVerifiedSchoolByEmail(email);
+    const identity = verifiedSchool ? createTeacherIdentityForSchool(email, verifiedSchool) : null;
+
+    emailAccessChallenges.delete(email);
+    resetFailedAttempts(ip);
+    setAccessSession(req, res);
+    setEmailAccountSession(req, res, account);
+
+    if (identity) {
+      setEmailIdentitySession(req, res, identity);
+      try {
+        await lehrerzimmerStore.ensureUser(identity);
+      } catch (error) {
+        console.error('[Lehrerzimmer] Benutzerprofil konnte beim Login nicht gespeichert werden:', error);
+      }
+    } else {
+      const suffix = secureCookieSuffix(req);
+      res.append('Set-Cookie', 'klassio_email_identity=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax' + suffix);
+    }
+
+    return res.json({
+      success: true,
+      account: { displayName: account.displayName, email: account.email },
+      school: identity ? {
+        id: identity.schoolId,
+        code: identity.schoolCode,
+        name: identity.schoolName,
+        federalState: identity.schoolFederalState,
+        domain: identity.schoolDomain,
+      } : null,
+    });
   });
 
   app.post("/api/access/verify", (req, res) => {
@@ -233,12 +608,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
     if (isTeam || isExternal) {
       resetFailedAttempts(ip);
-      const token = createAccessToken();
-      const isProd = process.env.NODE_ENV === 'production';
-      const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-      const secureFlag = (isProd || isSecure) ? '; Secure' : '';
-      res.setHeader('Set-Cookie', `lehrerapp_access_token=${token}; Max-Age=${30 * 24 * 60 * 60}; Path=/; HttpOnly; SameSite=Lax${secureFlag}`);
-      return res.json({ success: true, token });
+      setAccessSession(req, res);
+      clearEmailSessions(req, res);
+      return res.json({ success: true });
     } else {
       recordFailedAttempt(ip);
       return res.json({ success: false, error: "Der Zugangscode ist nicht gültig." });
@@ -246,12 +618,938 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   });
 
   app.post("/api/access/logout", (req, res) => {
-    const isProd = process.env.NODE_ENV === 'production';
-    const isSecure = req.secure || req.headers['x-forwarded-proto'] === 'https';
-    const secureFlag = (isProd || isSecure) ? '; Secure' : '';
-    res.setHeader('Set-Cookie', `lehrerapp_access_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`);
+    const secureFlag = secureCookieSuffix(req);
+    res.setHeader('Set-Cookie', [
+      `lehrerapp_access_token=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`,
+      `klassio_email_account=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`,
+      `klassio_email_identity=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${secureFlag}`,
+    ]);
     res.json({ success: true });
   });
+
+  const requireAccess: express.RequestHandler = (req, res, next) => {
+    const token = parseCookies(req).lehrerapp_access_token;
+    if (!verifyAccessToken(token)) {
+      res.status(401).json({ error: 'Bitte zuerst bei Klassio anmelden.' });
+      return;
+    }
+    next();
+  };
+
+  type AccountRequest = express.Request & { klassioAccount?: EmailAccountIdentity };
+  type TeacherRequest = express.Request & { klassioTeacher?: TeacherIdentity };
+
+  const requireEmailAccount: express.RequestHandler = (req, res, next) => {
+    const cookies = parseCookies(req);
+    if (!verifyAccessToken(cookies.lehrerapp_access_token)) {
+      res.status(401).json({ error: 'Bitte zuerst bei Klassio anmelden.' });
+      return;
+    }
+    const account = verifyAccountToken(cookies.klassio_email_account);
+    if (!account) {
+      res.status(403).json({
+        error: 'Bitte melde dich mit deiner E-Mail-Adresse an.',
+        requiresEmailLogin: true,
+      });
+      return;
+    }
+    (req as AccountRequest).klassioAccount = account;
+    next();
+  };
+
+  const getEmailAccount = (req: express.Request): EmailAccountIdentity =>
+    (req as AccountRequest).klassioAccount as EmailAccountIdentity;
+
+  app.get('/api/schools/me', requireEmailAccount, async (req, res) => {
+    try {
+      const account = getEmailAccount(req);
+      const domain = account.email.split('@')[1] || '';
+      const school = await schoolRegistryStore.findVerifiedSchoolByEmail(account.email);
+      const requests = await schoolRegistryStore.listRequestsForDomain(domain);
+      const pending = requests.find(request => request.status === 'pending') || null;
+      res.json({
+        account: {
+          displayName: account.displayName,
+          email: account.email,
+          domain,
+        },
+        school,
+        verificationRequest: pending,
+      });
+    } catch (error) {
+      console.error('[Schulverifizierung] Status konnte nicht geladen werden:', error);
+      res.status(500).json({ error: 'Der Schulstatus konnte nicht geladen werden.' });
+    }
+  });
+
+  app.post('/api/schools/verification-requests', requireEmailAccount, async (req, res) => {
+    try {
+      const account = getEmailAccount(req);
+      const request = await schoolRegistryStore.requestVerification({
+        requestedByEmail: account.email,
+        schoolName: req.body?.schoolName,
+        federalState: req.body?.federalState as AustrianFederalState,
+      });
+      res.status(201).json({ request });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      if (code === 'PUBLIC_EMAIL_DOMAIN') {
+        return res.status(400).json({
+          error: 'Eine private E-Mail-Domain kann nicht als Schule verifiziert werden. Bitte verwende deine dienstliche Schul-E-Mail.',
+        });
+      }
+      if (code === 'PROVIDER_UMBRELLA_DOMAIN') {
+        return res.status(400).json({
+          error: 'Diese Domain gehört zu einem Bildungsanbieter und ist nicht eindeutig einer einzelnen Schule zugeordnet. Bitte verwende die konkrete Schul-E-Mail-Domain.',
+        });
+      }
+      if (code === 'ALREADY_VERIFIED') {
+        return res.status(409).json({ error: 'Diese Schul-Domain ist bereits verifiziert. Bitte lade die Seite neu.' });
+      }
+      if (code === 'INVALID_REQUEST') {
+        return res.status(400).json({ error: 'Bitte gib Schulname und Bundesland vollständig an.' });
+      }
+      console.error('[Schulverifizierung] Anfrage konnte nicht gespeichert werden:', error);
+      return res.status(500).json({ error: 'Die Schulverifizierung konnte nicht angefordert werden.' });
+    }
+  });
+
+  function isSchoolAdminAuthorized(req: express.Request): boolean {
+    if (!SCHOOL_ADMIN_TOKEN || SCHOOL_ADMIN_TOKEN.length < 32) return false;
+    const header = req.headers.authorization || '';
+    const submitted = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    if (!submitted || submitted.length !== SCHOOL_ADMIN_TOKEN.length) return false;
+    try {
+      return crypto.timingSafeEqual(Buffer.from(submitted, 'utf8'), Buffer.from(SCHOOL_ADMIN_TOKEN, 'utf8'));
+    } catch {
+      return false;
+    }
+  }
+
+  const requireSchoolAdmin: express.RequestHandler = (req, res, next) => {
+    if (!SCHOOL_ADMIN_TOKEN || SCHOOL_ADMIN_TOKEN.length < 32) {
+      res.status(503).json({ error: 'Schulverifizierungs-Administration ist auf diesem Server noch nicht konfiguriert.' });
+      return;
+    }
+    if (!isSchoolAdminAuthorized(req)) {
+      res.status(401).json({ error: 'Nicht autorisiert.' });
+      return;
+    }
+    next();
+  };
+
+  app.post('/api/admin/schools/verification-requests/:requestId/approve', requireSchoolAdmin, async (req, res) => {
+    try {
+      const result = await schoolRegistryStore.approveRequest(req.params.requestId);
+      res.json(result);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'REQUEST_NOT_FOUND') {
+        return res.status(404).json({ error: 'Verifizierungsanfrage nicht gefunden.' });
+      }
+      console.error('[Schulverifizierung] Freigabe fehlgeschlagen:', error);
+      return res.status(500).json({ error: 'Die Schule konnte nicht freigegeben werden.' });
+    }
+  });
+
+  app.post('/api/admin/schools/verification-requests/:requestId/reject', requireSchoolAdmin, async (req, res) => {
+    try {
+      const request = await schoolRegistryStore.rejectRequest(req.params.requestId);
+      res.json({ request });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'REQUEST_NOT_FOUND') {
+        return res.status(404).json({ error: 'Verifizierungsanfrage nicht gefunden.' });
+      }
+      console.error('[Schulverifizierung] Ablehnung fehlgeschlagen:', error);
+      return res.status(500).json({ error: 'Die Anfrage konnte nicht abgelehnt werden.' });
+    }
+  });
+
+  function isSupportAdminAuthorized(req: express.Request): boolean {
+    if (!SUPPORT_ADMIN_TOKEN || SUPPORT_ADMIN_TOKEN.length < 32) return false;
+    const header = req.headers.authorization || '';
+    const submitted = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    if (!submitted || submitted.length !== SUPPORT_ADMIN_TOKEN.length) return false;
+    try {
+      return crypto.timingSafeEqual(Buffer.from(submitted, 'utf8'), Buffer.from(SUPPORT_ADMIN_TOKEN, 'utf8'));
+    } catch {
+      return false;
+    }
+  }
+
+  const requireSupportAdmin: express.RequestHandler = (req, res, next) => {
+    if (!SUPPORT_ADMIN_TOKEN || SUPPORT_ADMIN_TOKEN.length < 32) {
+      res.status(503).json({ error: 'Unterstützer:innen-Administration ist auf diesem Server noch nicht konfiguriert.' });
+      return;
+    }
+    if (!isSupportAdminAuthorized(req)) {
+      res.status(401).json({ error: 'Nicht autorisiert.' });
+      return;
+    }
+    next();
+  };
+
+  app.get('/api/support', requireAccess, async (_req, res) => {
+    try {
+      const supporters = await supporterStore.listPublic();
+      res.json({
+        message: 'Klassio bleibt kostenlos und für alle frei zugänglich. Die laufenden Serverkosten werden durch freiwillige Unterstützung mitgetragen.',
+        paypal: {
+          oneTime: SUPPORT_PAYPAL_ONE_TIME_URL || null,
+          monthly: SUPPORT_PAYPAL_MONTHLY_URL || null,
+          yearly: SUPPORT_PAYPAL_YEARLY_URL || null,
+        },
+        supporters,
+        privacy: 'Auf der öffentlichen Dankesliste erscheinen nur Namen, deren Veröffentlichung ausdrücklich erlaubt wurde. Beträge und Zahlungsdaten werden nicht angezeigt.',
+      });
+    } catch (error) {
+      console.error('[Support] Unterstützer:innen konnten nicht geladen werden:', error);
+      res.status(500).json({ error: 'Die Unterstützer:innen konnten nicht geladen werden.' });
+    }
+  });
+
+  app.put('/api/admin/support/supporters', requireSupportAdmin, async (req, res) => {
+    try {
+      const supporters = await supporterStore.replacePublic(req.body?.supporters);
+      res.json({ supporters });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'INVALID_SUPPORTERS') {
+        return res.status(400).json({ error: 'Ungültige Unterstützer:innen-Liste.' });
+      }
+      console.error('[Support] Unterstützer:innen-Liste konnte nicht gespeichert werden:', error);
+      return res.status(500).json({ error: 'Die Unterstützer:innen-Liste konnte nicht gespeichert werden.' });
+    }
+  });
+
+  const requireTeacherIdentity: express.RequestHandler = (req, res, next) => {
+    void (async () => {
+      const cookies = parseCookies(req);
+      if (!verifyAccessToken(cookies.lehrerapp_access_token)) {
+        res.status(401).json({ error: 'Bitte zuerst bei Klassio anmelden.' });
+        return;
+      }
+
+      let identity = verifyIdentityToken(cookies.klassio_email_identity);
+      if (!identity) {
+        const account = verifyAccountToken(cookies.klassio_email_account);
+        if (account) {
+          const school = await schoolRegistryStore.findVerifiedSchoolByEmail(account.email);
+          identity = school ? createTeacherIdentityForSchool(account.email, school) : null;
+          if (identity) {
+            setEmailIdentitySession(req, res, identity);
+            await lehrerzimmerStore.ensureUser(identity);
+          }
+        }
+      }
+
+      if (!identity) {
+        res.status(403).json({
+          error: 'Das Lehrerzimmer ist nur mit einer verifizierten Schulidentität verfügbar.',
+          requiresSchoolEmail: true,
+        });
+        return;
+      }
+
+      (req as TeacherRequest).klassioTeacher = identity;
+      next();
+    })().catch(next);
+  };
+
+  const getTeacherIdentity = (req: express.Request): TeacherIdentity =>
+    (req as TeacherRequest).klassioTeacher as TeacherIdentity;
+
+  const handleLehrerzimmerError = (res: express.Response, error: unknown) => {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'INVALID_CATEGORY') return res.status(400).json({ error: 'Ungültige Kategorie.' });
+    if (code === 'INVALID_KIND') return res.status(400).json({ error: 'Ungültige Beitragsart.' });
+    if (code === 'INVALID_CONTENT') return res.status(400).json({ error: 'Titel und Inhalt dürfen nicht leer sein.' });
+    if (code === 'POST_NOT_FOUND') return res.status(404).json({ error: 'Dieser Beitrag wurde nicht gefunden.' });
+    if (code === 'REPLY_NOT_FOUND') return res.status(404).json({ error: 'Diese Antwort wurde nicht gefunden.' });
+    if (code === 'FORBIDDEN') return res.status(403).json({ error: 'Du kannst nur eigene Lehrerzimmer-Beiträge und eigene Antworten ändern oder löschen.' });
+    console.error('[Lehrerzimmer] Serverfehler:', error);
+    return res.status(500).json({ error: 'Das Lehrerzimmer konnte nicht geladen werden.' });
+  };
+
+  app.get('/api/lehrerzimmer/me', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const user = await lehrerzimmerStore.ensureUser(identity);
+      res.json({
+        user,
+        school: {
+          id: identity.schoolId,
+          code: identity.schoolCode,
+          name: identity.schoolName,
+          federalState: identity.schoolFederalState,
+          domain: identity.schoolDomain,
+        },
+      });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.get('/api/lehrerzimmer/colleagues', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const users = await lehrerzimmerStore.listUsers(identity);
+      res.json({ users });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.get('/api/lehrerzimmer/posts', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const rawCategory = typeof req.query.category === 'string' ? req.query.category : '';
+      const category: LehrerzimmerCategory | undefined =
+        rawCategory === 'organisation' || rawCategory === 'unterricht' || rawCategory === 'info'
+          ? rawCategory
+          : undefined;
+      const posts = await lehrerzimmerStore.listPosts(identity, category);
+      res.json({ posts });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.post('/api/lehrerzimmer/posts', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const post = await lehrerzimmerStore.createPost(identity, {
+        category: req.body?.category,
+        kind: req.body?.kind,
+        title: req.body?.title,
+        body: req.body?.body,
+      });
+      res.status(201).json({ post });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.put('/api/lehrerzimmer/posts/:postId', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const post = await lehrerzimmerStore.updatePost(identity, req.params.postId, {
+        category: req.body?.category,
+        kind: req.body?.kind,
+        title: req.body?.title,
+        body: req.body?.body,
+      });
+      res.json({ post });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.delete('/api/lehrerzimmer/posts/:postId', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      await lehrerzimmerStore.deletePost(identity, req.params.postId);
+      res.json({ success: true });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.post('/api/lehrerzimmer/posts/:postId/replies', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const reply = await lehrerzimmerStore.addReply(identity, req.params.postId, req.body?.body);
+      res.status(201).json({ reply });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.delete('/api/lehrerzimmer/posts/:postId/replies/:replyId', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      await lehrerzimmerStore.deleteReply(identity, req.params.postId, req.params.replyId);
+      res.json({ success: true });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  const teamClassSummary = (record: SharedClassRecord, identity: TeacherIdentity) => {
+    const currentMember = record.members.find(member => member.userId === identity.userId);
+    if (!currentMember) throw new Error('FORBIDDEN');
+    return {
+      id: record.id,
+      classLabel: record.classLabel,
+      ownerUserId: record.ownerUserId,
+      revision: record.revision,
+      updatedAt: record.updatedAt,
+      updatedBy: record.updatedBy,
+      myRole: currentMember.role,
+      members: record.members.map(member => ({
+        userId: member.userId,
+        displayName: member.displayName,
+        role: member.role,
+        addedAt: member.addedAt,
+      })),
+    };
+  };
+
+  const handleTeamTeachingError = async (
+    res: express.Response,
+    error: unknown,
+    identity?: TeacherIdentity,
+    classId?: string,
+  ) => {
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'INVALID_DEVICE_KEY') return res.status(400).json({ code, error: 'Ungültiger Geräteschlüssel.' });
+    if (code === 'INVALID_SHARED_CLASS' || code === 'INVALID_WRAPPED_KEYS') return res.status(400).json({ code, error: 'Ungültige verschlüsselte Klassendaten.' });
+    if (code === 'NO_OWNER_DEVICE_KEY' || code === 'MEMBER_DEVICE_REQUIRED') return res.status(409).json({ code, error: 'Für diese Lehrperson ist noch kein freigegebener Teamteaching-Geräteschlüssel vorhanden.' });
+    if (code === 'INVALID_ROLE' || code === 'INVALID_MEMBER') return res.status(400).json({ code, error: 'Ungültige Teamrolle oder Lehrperson.' });
+    if (code === 'CLASS_NOT_FOUND') return res.status(404).json({ code, error: 'Die geteilte Klasse wurde nicht gefunden.' });
+    if (code === 'MEMBER_NOT_FOUND') return res.status(404).json({ code, error: 'Die Lehrperson ist nicht im Klassenteam.' });
+    if (code === 'OWNER_REQUIRED') return res.status(403).json({ code, error: 'Nur die Klassenbesitzerin bzw. der Klassenbesitzer darf das Team verwalten.' });
+    if (code === 'READ_ONLY') return res.status(403).json({ code, error: 'Diese Klasse ist für dieses Konto nur lesbar.' });
+    if (code === 'FORBIDDEN') return res.status(403).json({ code, error: 'Kein Zugriff auf diese geteilte Klasse.' });
+    if (code === 'REVISION_CONFLICT') {
+      let currentRevision: number | undefined;
+      if (identity && classId) {
+        try {
+          currentRevision = (await classCollaborationStore.getClass(identity, classId)).revision;
+        } catch {
+          currentRevision = undefined;
+        }
+      }
+      return res.status(409).json({
+        code,
+        currentRevision,
+        error: 'Die Klasse wurde inzwischen auf einem anderen Gerät geändert. Deine lokale Version wurde nicht überschrieben.',
+      });
+    }
+    console.error('[Teamteaching] Serverfehler:', error);
+    return res.status(500).json({ error: 'Teamteaching konnte nicht verarbeitet werden.' });
+  };
+
+  app.get('/api/teamteaching/me', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const user = await lehrerzimmerStore.ensureUser(identity);
+      res.json({
+        user: {
+          userId: user.userId,
+          displayName: user.displayName,
+          handle: user.handle,
+        },
+        school: {
+          id: identity.schoolId,
+          code: identity.schoolCode,
+          name: identity.schoolName,
+          domain: identity.schoolDomain,
+        },
+      });
+    } catch (error) {
+      await handleTeamTeachingError(res, error);
+    }
+  });
+
+  app.put('/api/teamteaching/devices', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      await lehrerzimmerStore.ensureUser(identity);
+      const device = await classCollaborationStore.registerDevice(identity, {
+        deviceId: req.body?.deviceId,
+        publicKeyJwk: req.body?.publicKeyJwk,
+      });
+      res.json({ device });
+    } catch (error) {
+      await handleTeamTeachingError(res, error);
+    }
+  });
+
+  app.get('/api/teamteaching/colleagues', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const users = await lehrerzimmerStore.listUsers(identity);
+      const enriched = await Promise.all(users.map(async user => ({
+        userId: user.userId,
+        displayName: user.displayName,
+        handle: user.handle,
+        devices: (await classCollaborationStore.listUserDevices(identity, user.userId)).map(device => ({
+          deviceId: device.deviceId,
+          fingerprint: device.fingerprint,
+          publicKeyJwk: device.publicKeyJwk,
+          updatedAt: device.updatedAt,
+        })),
+      })));
+      res.json({ users: enriched });
+    } catch (error) {
+      await handleTeamTeachingError(res, error);
+    }
+  });
+
+  app.get('/api/teamteaching/classes', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const classes = await classCollaborationStore.listClasses(identity);
+      res.json({ classes: classes.map(record => teamClassSummary(record, identity)) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error);
+    }
+  });
+
+  app.post('/api/teamteaching/classes', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const record = await classCollaborationStore.createSharedClass(identity, {
+        classLabel: req.body?.classLabel,
+        encryptedSnapshot: req.body?.encryptedSnapshot,
+        wrappedKeys: req.body?.wrappedKeys,
+      });
+      res.status(201).json({ class: teamClassSummary(record, identity) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error);
+    }
+  });
+
+  app.get('/api/teamteaching/classes/:classId', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const record = await classCollaborationStore.getClass(identity, req.params.classId);
+      const member = record.members.find(item => item.userId === identity.userId)!;
+      res.json({
+        ...teamClassSummary(record, identity),
+        encryptedSnapshot: record.encryptedSnapshot,
+        wrappedKeys: member.wrappedKeys,
+      });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, getTeacherIdentity(req), req.params.classId);
+    }
+  });
+
+  app.put('/api/teamteaching/classes/:classId/snapshot', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      const record = await classCollaborationStore.updateSnapshot(identity, req.params.classId, {
+        encryptedSnapshot: req.body?.encryptedSnapshot,
+        expectedRevision: req.body?.expectedRevision,
+      });
+      res.json({ class: teamClassSummary(record, identity) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, identity, req.params.classId);
+    }
+  });
+
+  app.post('/api/teamteaching/classes/:classId/members', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      const colleagues = await lehrerzimmerStore.listUsers(identity);
+      const target = colleagues.find(user => user.userId === req.body?.userId);
+      if (!target) return res.status(400).json({ code: 'INVALID_MEMBER', error: 'Diese Lehrperson gehört nicht zum verifizierten Kollegium dieser Schule.' });
+      const record = await classCollaborationStore.addMember(identity, req.params.classId, {
+        userId: target.userId,
+        displayName: target.displayName,
+        role: req.body?.role,
+        wrappedKeys: req.body?.wrappedKeys,
+      });
+      res.json({ class: teamClassSummary(record, identity) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, identity, req.params.classId);
+    }
+  });
+
+  app.patch('/api/teamteaching/classes/:classId/members/:userId', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      const record = await classCollaborationStore.updateMemberRole(
+        identity,
+        req.params.classId,
+        req.params.userId,
+        req.body?.role,
+      );
+      res.json({ class: teamClassSummary(record, identity) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, identity, req.params.classId);
+    }
+  });
+
+  app.put('/api/teamteaching/classes/:classId/members/:userId/keys', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      const record = await classCollaborationStore.updateMemberKeys(
+        identity,
+        req.params.classId,
+        req.params.userId,
+        req.body?.wrappedKeys,
+      );
+      res.json({ class: teamClassSummary(record, identity) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, identity, req.params.classId);
+    }
+  });
+
+  app.delete('/api/teamteaching/classes/:classId/members/:userId', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      const record = await classCollaborationStore.removeMember(identity, req.params.classId, req.params.userId);
+      res.json({ class: teamClassSummary(record, identity) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, identity, req.params.classId);
+    }
+  });
+
+  app.delete('/api/teamteaching/classes/:classId', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      await classCollaborationStore.deleteClass(identity, req.params.classId);
+      res.json({ success: true });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, identity, req.params.classId);
+    }
+  });
+
+  app.use('/api/ai', requireAccess);
+  app.use('/api/onedrive', (req, res, next) => {
+    // OAuth returns through a separate, short-lived state cookie.
+    if (req.path === '/callback') return next();
+    requireAccess(req, res, next);
+  });
+  app.post('/api/sync/create', requireAccess);
+  // Existing paired devices still use their encrypted sync protocol for GET/PUT.
+  app.delete('/api/sync/:code', requireAccess);
+
+  // --- Canva Connect integration -------------------------------------------------
+  // OAuth tokens never leave the server. The browser receives only a random
+  // HttpOnly session identifier; the token payload itself is AES-256-GCM encrypted.
+  type CanvaTokenPayload = {
+    access_token: string;
+    refresh_token?: string;
+    expires_at: number;
+    scope?: string;
+    token_type?: string;
+  };
+
+  const CANVA_CLIENT_ID = (process.env.CANVA_CLIENT_ID || '').trim();
+  const CANVA_CLIENT_SECRET = (process.env.CANVA_CLIENT_SECRET || '').trim();
+  const canvaConfigured = Boolean(CANVA_CLIENT_ID && CANVA_CLIENT_SECRET);
+  const CANVA_SCOPES = ['design:meta:read', 'design:content:read', 'design:content:write'].join(' ');
+
+  const canvaOauthFlows = new Map<string, { state: string; verifier: string; createdAt: number }>();
+  const canvaSessions = new Map<string, { iv: string; tag: string; ciphertext: string; updatedAt: number }>();
+
+  const canvaTokenKey = crypto
+    .createHash('sha256')
+    .update(process.env.CANVA_TOKEN_ENCRYPTION_KEY || SESSION_SECRET)
+    .digest();
+
+  function encryptCanvaTokens(payload: CanvaTokenPayload) {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', canvaTokenKey, iv);
+    const ciphertext = Buffer.concat([
+      cipher.update(JSON.stringify(payload), 'utf8'),
+      cipher.final()
+    ]);
+    return {
+      iv: iv.toString('base64url'),
+      tag: cipher.getAuthTag().toString('base64url'),
+      ciphertext: ciphertext.toString('base64url'),
+      updatedAt: Date.now()
+    };
+  }
+
+  function decryptCanvaTokens(record: { iv: string; tag: string; ciphertext: string }): CanvaTokenPayload {
+    const decipher = crypto.createDecipheriv(
+      'aes-256-gcm',
+      canvaTokenKey,
+      Buffer.from(record.iv, 'base64url')
+    );
+    decipher.setAuthTag(Buffer.from(record.tag, 'base64url'));
+    const plain = Buffer.concat([
+      decipher.update(Buffer.from(record.ciphertext, 'base64url')),
+      decipher.final()
+    ]).toString('utf8');
+    return JSON.parse(plain) as CanvaTokenPayload;
+  }
+
+  function canvaBasicAuth() {
+    return 'Basic ' + Buffer.from(`${CANVA_CLIENT_ID}:${CANVA_CLIENT_SECRET}`).toString('base64');
+  }
+
+  function getCanvaSessionId(req: express.Request) {
+    return parseCookies(req).klassio_canva_session;
+  }
+
+  function setCanvaSessionCookie(req: express.Request, res: express.Response, sessionId: string) {
+    res.cookie('klassio_canva_session', sessionId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+  }
+
+  async function exchangeCanvaToken(body: URLSearchParams): Promise<CanvaTokenPayload> {
+    if (!canvaConfigured) throw new Error('Canva ist serverseitig nicht konfiguriert.');
+    const response = await fetch('https://api.canva.com/rest/v1/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': canvaBasicAuth(),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: body.toString(),
+    });
+    const data: any = await response.json().catch(() => ({}));
+    if (!response.ok || !data.access_token) {
+      throw new Error(data?.message || data?.error_description || data?.error || `Canva OAuth Fehler (${response.status})`);
+    }
+    return {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: Date.now() + Math.max(60, Number(data.expires_in || 14400)) * 1000,
+      scope: data.scope,
+      token_type: data.token_type,
+    };
+  }
+
+  async function getCanvaAccessToken(req: express.Request): Promise<string> {
+    const sessionId = getCanvaSessionId(req);
+    if (!sessionId) throw Object.assign(new Error('Canva ist nicht verbunden.'), { status: 401 });
+    const encrypted = canvaSessions.get(sessionId);
+    if (!encrypted) throw Object.assign(new Error('Canva-Sitzung ist abgelaufen. Bitte neu verbinden.'), { status: 401 });
+
+    let tokenData: CanvaTokenPayload;
+    try {
+      tokenData = decryptCanvaTokens(encrypted);
+    } catch {
+      canvaSessions.delete(sessionId);
+      throw Object.assign(new Error('Canva-Sitzung konnte nicht sicher gelesen werden. Bitte neu verbinden.'), { status: 401 });
+    }
+
+    if (tokenData.expires_at > Date.now() + 90_000) {
+      return tokenData.access_token;
+    }
+    if (!tokenData.refresh_token) {
+      canvaSessions.delete(sessionId);
+      throw Object.assign(new Error('Canva-Sitzung ist abgelaufen. Bitte neu verbinden.'), { status: 401 });
+    }
+
+    // Canva refresh tokens are rotated. Always replace the stored refresh token
+    // with the one returned by the latest refresh response.
+    const refreshed = await exchangeCanvaToken(new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: tokenData.refresh_token,
+    }));
+    canvaSessions.set(sessionId, encryptCanvaTokens(refreshed));
+    return refreshed.access_token;
+  }
+
+  async function canvaApi(req: express.Request, url: string, init: RequestInit = {}) {
+    const accessToken = await getCanvaAccessToken(req);
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(init.headers || {}),
+      },
+    });
+    const data: any = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const error: any = new Error(data?.message || data?.error?.message || data?.error || `Canva API Fehler (${response.status})`);
+      error.status = response.status;
+      throw error;
+    }
+    return data;
+  }
+
+  app.use('/api/canva', (req, res, next) => {
+    if (req.path === '/callback') return next();
+    requireAccess(req, res, next);
+  });
+
+  app.get('/api/canva/status', (req, res) => {
+    const sessionId = getCanvaSessionId(req);
+    const connected = Boolean(sessionId && canvaSessions.has(sessionId));
+    res.json({
+      configured: canvaConfigured,
+      connected: canvaConfigured && connected,
+      reason: canvaConfigured ? undefined : 'CANVA_CLIENT_ID/CANVA_CLIENT_SECRET fehlen',
+    });
+  });
+
+  app.get('/api/canva/auth-url', (req, res) => {
+    if (!canvaConfigured) return res.json({ configured: false });
+
+    const flowId = crypto.randomBytes(32).toString('base64url');
+    const verifier = crypto.randomBytes(96).toString('base64url');
+    const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+    const state = crypto.randomBytes(48).toString('base64url');
+    canvaOauthFlows.set(flowId, { state, verifier, createdAt: Date.now() });
+
+    res.cookie('klassio_canva_flow', flowId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/api/canva/callback',
+      maxAge: 10 * 60 * 1000,
+    });
+
+    const appUrl = (process.env.APP_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
+    const redirectUri = `${appUrl}/api/canva/callback`;
+    const params = new URLSearchParams({
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+      scope: CANVA_SCOPES,
+      response_type: 'code',
+      client_id: CANVA_CLIENT_ID,
+      state,
+      redirect_uri: redirectUri,
+    });
+    res.json({
+      configured: true,
+      url: `https://www.canva.com/api/oauth/authorize?${params.toString()}`,
+    });
+  });
+
+  app.get('/api/canva/callback', async (req, res) => {
+    const callbackOrigin = new URL(process.env.APP_URL || 'http://127.0.0.1:3000').origin;
+    const flowId = parseCookies(req).klassio_canva_flow;
+    const flow = flowId ? canvaOauthFlows.get(flowId) : undefined;
+    const code = typeof req.query.code === 'string' ? req.query.code : '';
+    const state = typeof req.query.state === 'string' ? req.query.state : '';
+    const oauthError = typeof req.query.error === 'string' ? req.query.error : '';
+
+    res.clearCookie('klassio_canva_flow', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/api/canva/callback',
+    });
+    if (flowId) canvaOauthFlows.delete(flowId);
+
+    const fail = (message: string) => res.status(400).type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva-Verbindung fehlgeschlagen</h2><p>${escapeHtml(message)}</p><script>if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_ERROR',error:${scriptJson(message)}},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),1500);</script></body></html>`);
+
+    if (oauthError) return fail('Canva-Anmeldung wurde abgebrochen oder abgelehnt.');
+    if (!flow || Date.now() - flow.createdAt > 10 * 60 * 1000 || !state || state !== flow.state || !code) {
+      return fail('Canva-Anmeldung ist abgelaufen oder ungültig. Bitte erneut verbinden.');
+    }
+
+    try {
+      const appUrl = (process.env.APP_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
+      const tokenData = await exchangeCanvaToken(new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        code_verifier: flow.verifier,
+        redirect_uri: `${appUrl}/api/canva/callback`,
+      }));
+      const sessionId = crypto.randomBytes(32).toString('base64url');
+      canvaSessions.set(sessionId, encryptCanvaTokens(tokenData));
+      setCanvaSessionCookie(req, res, sessionId);
+      return res.type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva verbunden</h2><p>Du kannst zu Klassio zurückkehren.</p><script>if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_SUCCESS'},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),700);</script></body></html>`);
+    } catch (error: any) {
+      return fail(error?.message || 'Canva-Token konnte nicht erzeugt werden.');
+    }
+  });
+
+  app.post('/api/canva/disconnect', async (req, res) => {
+    const sessionId = getCanvaSessionId(req);
+    const record = sessionId ? canvaSessions.get(sessionId) : undefined;
+    if (record && canvaConfigured) {
+      try {
+        const tokenData = decryptCanvaTokens(record);
+        const token = tokenData.refresh_token || tokenData.access_token;
+        await fetch('https://api.canva.com/rest/v1/oauth/revoke', {
+          method: 'POST',
+          headers: {
+            'Authorization': canvaBasicAuth(),
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({ token }).toString(),
+        });
+      } catch (error) {
+        console.warn('[Canva] Token-Revoke fehlgeschlagen; lokale Sitzung wird trotzdem entfernt.');
+      }
+    }
+    if (sessionId) canvaSessions.delete(sessionId);
+    res.clearCookie('klassio_canva_session', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/',
+    });
+    res.json({ success: true });
+  });
+
+  app.get('/api/canva/designs', async (req, res, next) => {
+    try {
+      const params = new URLSearchParams();
+      for (const key of ['query', 'continuation', 'ownership', 'sort_by', 'limit']) {
+        const value = req.query[key];
+        if (typeof value === 'string' && value.trim()) params.set(key, value.trim());
+      }
+      const data = await canvaApi(req, `https://api.canva.com/rest/v1/designs?${params.toString()}`);
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  app.post('/api/canva/designs', async (req, res, next) => {
+    try {
+      const kind = String(req.body?.kind || '');
+      const title = typeof req.body?.title === 'string' ? req.body.title.slice(0, 255) : 'Klassio Design';
+      const presets: Record<string, any> = {
+        presentation: { type: 'preset', name: 'presentation' },
+        whiteboard: { type: 'preset', name: 'whiteboard' },
+        doc: { type: 'preset', name: 'doc' },
+        // A4 portrait at 300 dpi. Well within Canva's custom-design size limits.
+        a4: { type: 'custom', width: 2480, height: 3508 },
+      };
+      const designType = presets[kind];
+      if (!designType) return res.status(400).json({ error: 'Unbekannter Canva-Designtyp.' });
+
+      const data = await canvaApi(req, 'https://api.canva.com/rest/v1/designs', {
+        method: 'POST',
+        body: JSON.stringify({
+          type: 'type_and_asset',
+          design_type: designType,
+          title,
+        }),
+      });
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  app.post('/api/canva/exports', async (req, res, next) => {
+    try {
+      const designId = typeof req.body?.design_id === 'string' ? req.body.design_id.trim() : '';
+      const format = String(req.body?.format || '').toLowerCase();
+      if (!designId || !['pdf', 'png', 'jpg', 'pptx'].includes(format)) {
+        return res.status(400).json({ error: 'Ungültiger Canva-Export.' });
+      }
+      const data = await canvaApi(req, 'https://api.canva.com/rest/v1/exports', {
+        method: 'POST',
+        body: JSON.stringify({
+          design_id: designId,
+          format: { type: format },
+        }),
+      });
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  app.get('/api/canva/exports/:id', async (req, res, next) => {
+    try {
+      const jobId = encodeURIComponent(String(req.params.id || ''));
+      if (!jobId) return res.status(400).json({ error: 'Export-ID fehlt.' });
+      const data = await canvaApi(req, `https://api.canva.com/rest/v1/exports/${jobId}`);
+      res.json(data);
+    } catch (error) { next(error); }
+  });
+
+  const canvaCleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [id, flow] of canvaOauthFlows.entries()) {
+      if (now - flow.createdAt > 15 * 60 * 1000) canvaOauthFlows.delete(id);
+    }
+  }, 10 * 60 * 1000);
+  canvaCleanupTimer.unref();
 
   // Startup diagnostic logging
   const apiKey = process.env.GEMINI_API_KEY;
@@ -522,11 +1820,27 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       return res.status(400).json({ error: "Unbekannte oder unzulässige KI-Aktion." });
     }
 
-    let params = req.body.params;
+    let params = req.body.params || {};
 
-    // B1.5 Server-Schutznetz: Eingehende Parameter vor Weitergabe an Gemini prüfen & maskieren
+    // Bilddaten dürfen nicht durch Textfilter laufen: Regex-Ersetzungen würden Base64 beschädigen.
+    // Deshalb wird die explizite Datenschutzbestätigung serverseitig erneut geprüft und das Bild
+    // erst nach der Text-/JSON-Sanitization unverändert wieder angehängt.
+    const imageBase64 = params?.imageBase64;
+    const imagePrivacyConfirmed = params?.imagePrivacyConfirmed === true;
+    const imageRequestError = validateAiServerImageRequest(action, imageBase64, imagePrivacyConfirmed);
+    if (imageRequestError) {
+      return res.status(400).json({ error: imageRequestError });
+    }
+
+    const { imageBase64: _image, imagePrivacyConfirmed: _confirmation, ...textParams } = params;
+
+    // B1.5 Server-Schutznetz: Nur Text-/JSON-Parameter prüfen & maskieren.
     const privacyViolations: string[] = [];
-    params = sanitizeAIPayloadRecursively(params, privacyViolations);
+    const sanitizedTextParams = sanitizeAIPayloadRecursively(textParams, privacyViolations);
+    params = {
+      ...sanitizedTextParams,
+      ...(imageBase64 ? { imageBase64 } : {})
+    };
     if (privacyViolations.length > 0) {
       console.warn("[DATENSCHUTZ-WARNUNG] Sensibles Muster in KI-Request entfernt.");
     }
@@ -1080,69 +2394,14 @@ Antworte exakt im vorgegebenen JSON-Format.`;
     }
   });
 
-  // Weather Fallback Helper
-  function getFallbackWeatherData(lat: any, lon: any) {
-    return {
-      latitude: Number(lat || 47.2333),
-      longitude: Number(lon || 9.6),
-      timezone: "Europe/Vienna",
-      current: {
-        time: new Date().toISOString().substring(0, 16),
-        temperature_2m: 21.5,
-        precipitation: 0.0,
-        wind_speed_10m: 7.5,
-        weather_code: 0
-      },
-      current_weather: {
-        temperature: 21.5,
-        windspeed: 7.5,
-        winddirection: 120,
-        weathercode: 0,
-        time: new Date().toISOString().substring(0, 16)
-      },
-      hourly: {
-        time: Array.from({ length: 6 }, (_, i) => {
-          const d = new Date();
-          d.setHours(d.getHours() + i);
-          return d.toISOString();
-        }),
-        temperature_2m: [19, 20, 21, 22, 21, 19],
-        precipitation: [0, 0, 0, 0, 0, 0],
-        weather_code: [0, 0, 0, 0, 0, 0]
-      },
-      daily: {
-        time: Array.from({ length: 7 }, (_, i) => {
-          const d = new Date();
-          d.setDate(d.getDate() + i);
-          return d.toISOString().substring(0, 10);
-        }),
-        weathercode: [0, 1, 3, 0, 1, 2, 0],
-        temperature_2m_max: [22.5, 23.1, 21.4, 22.0, 24.5, 25.0, 23.8],
-        temperature_2m_min: [11.2, 12.0, 11.5, 10.8, 12.5, 13.0, 12.2]
-      }
-    };
-  }
-
-  // Geocoding Fallback Helper
-  function getFallbackGeocodingData(name: string) {
-    return {
-      results: [
-        {
-          id: 2780775,
-          name: name || "Feldkirch",
-          latitude: 47.2333,
-          longitude: 9.6,
-          country: "Österreich"
-        }
-      ]
-    };
-  }
-
   // Weather Proxy Route
   app.get("/api/weather", async (req, res) => {
     const { lat, lon, latitude, longitude, current_weather, daily, current, hourly, timezone, forecast_days } = req.query;
-    const finalLat = lat || latitude || "47.2333";
-    const finalLon = lon || longitude || "9.6";
+    const finalLat = lat || latitude;
+    const finalLon = lon || longitude;
+    if (typeof finalLat !== 'string' || typeof finalLon !== 'string' || !finalLat || !finalLon) {
+      return res.status(400).json({ error: "Für Wetterdaten werden latitude/longitude benötigt." });
+    }
 
     try {
       const baseUrl = "https://api.open-meteo.com/v1/forecast";
@@ -1173,13 +2432,17 @@ Antworte exakt im vorgegebenen JSON-Format.`;
       const data = await response.json();
       res.json(data);
     } catch (error: any) {
-      res.json(getFallbackWeatherData(finalLat, finalLon));
+      console.warn("[Weather Proxy] Wetterdienst nicht erreichbar:", error?.message || error);
+      res.status(502).json({ error: "Wetterdaten sind derzeit nicht verfügbar." });
     }
   });
 
   // Geocoding Proxy Route
   app.get("/api/geocoding", async (req, res) => {
     const { name } = req.query;
+    if (typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: "Für die Ortssuche wird ein Name benötigt." });
+    }
     try {
       const baseUrl = "https://geocoding-api.open-meteo.com/v1/search";
       const params = new URLSearchParams();
@@ -1197,7 +2460,8 @@ Antworte exakt im vorgegebenen JSON-Format.`;
       const data = await response.json();
       res.json(data);
     } catch (error: any) {
-      res.json(getFallbackGeocodingData((name as string) || "Feldkirch"));
+      console.warn("[Geocoding Proxy] Dienst nicht erreichbar:", error?.message || error);
+      res.status(502).json({ error: "Ortssuche ist derzeit nicht verfügbar." });
     }
   });
 
@@ -1587,6 +2851,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
   interface ServerSyncSession {
     encryptedPayload: any;
     lastUpdated: number;
+    lastActivityAt: number;
     protocolVersion: 1;
   }
   const syncSessions: Record<string, ServerSyncSession> = {};
@@ -1629,14 +2894,18 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       const data = await response.json();
       res.json(data);
     } catch (e: any) {
-      res.json(getFallbackGeocodingData(req.query.city as string || "Feldkirch"));
+      console.warn("[Weather Geocode] Dienst nicht erreichbar:", e?.message || e);
+      res.status(502).json({ error: "Wetter-Ortssuche ist derzeit nicht verfügbar." });
     }
   });
 
   // API Route for Forecast (Weather)
   app.get("/api/weather/forecast", async (req, res) => {
-    const lat = req.query.lat as string || "47.2333";
-    const lon = req.query.lon as string || "9.6";
+    const lat = req.query.lat as string;
+    const lon = req.query.lon as string;
+    if (!lat || !lon) {
+      return res.status(400).json({ error: "Für die Wetterprognose werden lat/lon benötigt." });
+    }
     try {
       const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(lat)}&longitude=${encodeURIComponent(lon)}&current=temperature_2m,precipitation,wind_speed_10m,weather_code&hourly=temperature_2m,precipitation,weather_code&timezone=Europe/Vienna&forecast_days=1`;
       const response = await fetch(weatherUrl, { signal: AbortSignal.timeout(6000) });
@@ -1644,7 +2913,8 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       const data = await response.json();
       res.json(data);
     } catch (e: any) {
-      res.json(getFallbackWeatherData(lat, lon));
+      console.warn("[Weather Forecast] Dienst nicht erreichbar:", e?.message || e);
+      res.status(502).json({ error: "Wetterprognose ist derzeit nicht verfügbar." });
     }
   });
 
@@ -1683,10 +2953,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       code += characters.charAt(crypto.randomInt(0, characters.length));
     }
 
-    const lastUpdated = typeof encryptedPayload.updatedAt === 'number' ? encryptedPayload.updatedAt : Date.now();
+    const timing = getServerSyncTimestamps(encryptedPayload.updatedAt);
     syncSessions[code] = {
       encryptedPayload,
-      lastUpdated,
+      lastUpdated: timing.lastUpdated,
+      lastActivityAt: timing.lastActivityAt,
       protocolVersion: 1
     };
 
@@ -1722,12 +2993,13 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(413).json({ error: "Sync-Payload überschreitet das Limit von 15 MB." });
     }
 
-    const lastUpdated = typeof encryptedPayload.updatedAt === 'number' ? encryptedPayload.updatedAt : Date.now();
+    const timing = getServerSyncTimestamps(encryptedPayload.updatedAt);
     syncSessions[code].encryptedPayload = encryptedPayload;
-    syncSessions[code].lastUpdated = lastUpdated;
+    syncSessions[code].lastUpdated = timing.lastUpdated;
+    syncSessions[code].lastActivityAt = timing.lastActivityAt;
     syncSessions[code].protocolVersion = 1;
 
-    res.json({ success: true, lastUpdated });
+    res.json({ success: true, lastUpdated: timing.lastUpdated });
   });
 
   // Get encrypted state of a sync session
@@ -1745,6 +3017,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(400).json({ error: "unsupported legacy sync session" });
     }
 
+    session.lastActivityAt = Date.now();
     res.json({
       encryptedPayload: session.encryptedPayload,
       lastUpdated: session.lastUpdated,
@@ -1771,20 +3044,33 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     }
     const appUrl = process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : 'http://localhost:3000';
     const redirectUri = `${appUrl}/api/onedrive/callback`;
+    const oauthState = createOAuthState(SESSION_SECRET);
+    res.cookie('lehrerapp_onedrive_state', oauthState, {
+      httpOnly: true, sameSite: 'lax', secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/api/onedrive/callback', maxAge: 10 * 60 * 1000,
+    });
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: "code",
       redirect_uri: redirectUri,
       response_mode: "query",
       scope: "Files.ReadWrite offline_access",
-      state: "onedrive_sync"
+      state: oauthState
     });
     const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
     res.json({ configured: true, url: authUrl });
   });
 
   app.get("/api/onedrive/callback", async (req, res) => {
-    const { code, error, error_description } = req.query;
+    const { code, error, error_description, state } = req.query;
+    if (!verifyOAuthState(state, parseCookies(req).lehrerapp_onedrive_state, SESSION_SECRET)) {
+      return res.status(400).type('text/plain').send('OneDrive-Anmeldung abgelaufen oder ungültig. Bitte erneut verbinden.');
+    }
+    res.clearCookie('lehrerapp_onedrive_state', {
+      httpOnly: true, sameSite: 'lax', secure: req.secure || process.env.NODE_ENV === 'production',
+      path: '/api/onedrive/callback',
+    });
+    const callbackOrigin = new URL(process.env.APP_URL || 'http://localhost:3000').origin;
     
     if (error || !code) {
       const errMsg = (error_description as string) || (error as string) || "Unbekannter Fehler bei Microsoft OAuth.";
@@ -1819,11 +3105,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
         <body>
           <div class="error-icon">❌</div>
           <h2>Verbindung fehlgeschlagen</h2>
-          <p>${errMsg}</p>
+          <p>${escapeHtml(errMsg)}</p>
           <button onclick="window.close()">Fenster schließen</button>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${JSON.stringify(errMsg)} }, '*');
+              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${scriptJson(errMsg)} }, ${scriptJson(callbackOrigin)});
             }
           </script>
         </body>
@@ -1899,11 +3185,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
               window.opener.postMessage({ 
                 type: 'ONEDRIVE_AUTH_SUCCESS', 
                 tokenData: {
-                  access_token: ${JSON.stringify(tokenData.access_token)},
-                  refresh_token: ${JSON.stringify(tokenData.refresh_token)},
+                  access_token: ${scriptJson(tokenData.access_token)},
+                  refresh_token: ${scriptJson(tokenData.refresh_token ?? null)},
                   expires_at: ${Date.now() + (tokenData.expires_in || 3600) * 1000}
                 } 
-              }, '*');
+              }, ${scriptJson(callbackOrigin)});
               setTimeout(() => window.close(), 1000);
             } else {
               window.location.href = '/';
@@ -1945,11 +3231,11 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
         <body>
           <div class="error-icon">❌</div>
           <h2>Token-Austausch fehlgeschlagen</h2>
-          <p>${errMsg}</p>
+          <p>${escapeHtml(errMsg)}</p>
           <button onclick="window.close()">Fenster schließen</button>
           <script>
             if (window.opener) {
-              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${JSON.stringify(errMsg)} }, '*');
+              window.opener.postMessage({ type: 'ONEDRIVE_AUTH_ERROR', error: ${scriptJson(errMsg)} }, ${scriptJson(callbackOrigin)});
             }
           </script>
         </body>
@@ -2024,15 +3310,15 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       }
     }
 
-    // Striktes Durchsetzen des verschlüsselten LehrerAPP-Backup-Formats
+    // Intern bleibt das historische verschlüsselte Format aus Kompatibilitätsgründen erhalten.
     if (!isValidEncryptedBackup(body)) {
-      return res.status(400).json({ 
-        error: "Ungültiges Backup-Format. Server akzeptiert ausschließlich verschlüsselte LehrerAPP-Backups (V1)." 
+      return res.status(400).json({
+        error: "Ungültiges Backup-Format. Server akzeptiert ausschließlich verschlüsselte Klassio-Sicherungen (V1)."
       });
     }
 
     try {
-      const response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp:/content", {
+      const response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${ONEDRIVE_BACKUP_PRIMARY_NAME}:/content`, {
         method: "PUT",
         headers: {
           "Authorization": authHeader,
@@ -2057,23 +3343,17 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(401).json({ error: "Authorization Header fehlt" });
     }
     try {
-      // 1. Primär nach neuem verschlüsseltem .lehrerapp suchen
-      let response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp:/content", {
-        headers: {
-          "Authorization": authHeader
-        }
-      });
-
-      // 2. Abwärtskompatibler Fallback auf altes .json, falls noch keine neue Sicherung existiert
-      if (response.status === 404) {
-        response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/Lehrermappe_Backup.json:/content", {
+      let response: Response | null = null;
+      for (const fileName of getOneDriveBackupCandidateNames()) {
+        response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}:/content`, {
           headers: {
             "Authorization": authHeader
           }
         });
+        if (response.status !== 404) break;
       }
 
-      if (response.status === 404) {
+      if (!response || response.status === 404) {
         return res.status(404).json({ error: "Keine Sicherungsdatei auf OneDrive gefunden." });
       }
       if (!response.ok) {
@@ -2093,23 +3373,21 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
       return res.status(401).json({ error: "Authorization Header fehlt" });
     }
     try {
-      // 1. Zuerst neues .lehrerapp prüfen
-      let response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/LehrerAPP_Backup.lehrerapp", {
-        headers: {
-          "Authorization": authHeader
-        }
-      });
-
-      // 2. Fallback auf altes .json zur Bestandsanzeige
-      if (response.status === 404) {
-        response = await fetch("https://graph.microsoft.com/v1.0/me/drive/root:/Lehrermappe_Backup.json", {
+      let response: Response | null = null;
+      let resolvedFileName: string | null = null;
+      for (const fileName of getOneDriveBackupCandidateNames()) {
+        response = await fetch(`https://graph.microsoft.com/v1.0/me/drive/root:/${fileName}`, {
           headers: {
             "Authorization": authHeader
           }
         });
+        if (response.status !== 404) {
+          resolvedFileName = fileName;
+          break;
+        }
       }
 
-      if (response.status === 404) {
+      if (!response || response.status === 404) {
         return res.json({ exists: false });
       }
       if (!response.ok) {
@@ -2117,7 +3395,12 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
         return res.status(response.status).json({ error: `OneDrive API Fehler: ${errText}` });
       }
       const data = await response.json();
-      res.json({ exists: true, lastModifiedDateTime: data.lastModifiedDateTime, size: data.size });
+      res.json({
+        exists: true,
+        fileName: resolvedFileName,
+        lastModifiedDateTime: data.lastModifiedDateTime,
+        size: data.size
+      });
     } catch (err: any) {
       res.status(500).json({ error: err.message || "Metadaten-Abruf fehlgeschlagen" });
     }
@@ -2128,7 +3411,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
     const now = Date.now();
     const MAX_INACTIVITY_MS = 2 * 60 * 60 * 1000; // 2 Stunden Inaktivität (Modul B4)
     Object.keys(syncSessions).forEach(code => {
-      if (now - syncSessions[code].lastUpdated > MAX_INACTIVITY_MS) {
+      if (isSyncSessionExpired(syncSessions[code].lastActivityAt, now, MAX_INACTIVITY_MS)) {
         delete syncSessions[code];
         // E3.18 Logging ohne Offenlegung des Sitzungscodes
         console.log("[Sync Server] Inaktive Sitzung bereinigt.");
@@ -2188,7 +3471,8 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
 
 export async function startServer() {
   const app = await createApp();
-  const PORT = 3000;
+  const configuredPort = Number.parseInt(process.env.PORT || '3000', 10);
+  const PORT = Number.isFinite(configuredPort) && configuredPort > 0 ? configuredPort : 3000;
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });

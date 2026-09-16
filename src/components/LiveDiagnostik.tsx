@@ -3,11 +3,11 @@ import {
   motion, AnimatePresence 
 } from 'motion/react';
 import { 
-  Play, Pause, RotateCcw, Check, X, AlertTriangle, BookOpen, Calculator, Volume2, Save, Sparkles, User, Search, Award, BarChart3, Clock, Flame, ChevronRight, HelpCircle, Lightbulb, CheckCircle2, AlertCircle, Info, ThumbsUp, Brain, Hand, Zap, ClipboardList
+  Play, Pause, RotateCcw, Check, X, AlertTriangle, BookOpen, Calculator, Volume2, Save, Sparkles, User, Search, Award, BarChart3, Clock, Flame, ChevronRight, HelpCircle, Lightbulb, CheckCircle2, AlertCircle, Info, ThumbsUp, Brain, Hand, Zap, ClipboardList, Flag
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Student, DiagnostikErhebung, DiagnostikTest, VORSCHLAG_DIAGNOSTIK_TESTS } from '../types';
-import { logActivity } from '../lib/utils';
+import { formatLocalDateKey, logActivity } from '../lib/utils';
 import { ZahlenspanneTest } from './ZahlenspanneTest';
 import { MengenBlitzenTest } from './MengenBlitzenTest';
 import { GoNoGoTest } from './GoNoGoTest';
@@ -37,31 +37,46 @@ import { Test16SozialEmotional } from './Test16SozialEmotional';
 import { Test17Anfangsdiagnostik } from './Test17Anfangsdiagnostik';
 import { getDiagnosticClassId, upsertByKey } from '../lib/diagnosticData';
 
-// Grade Specific Reading Texts with thresholds based on standard educational benchmarks
-const GRADE_READING_TEXTS: Record<number, { id: string; titel: string; text: string; threshold: number }> = {
+// Grade-specific 100-word texts for a one-minute Lautleseprotokoll.
+// Class values are orientation only, never automatic diagnostic cut-offs.
+type ReadingOrientation = { value: number; label: string; source: string };
+type ReadingTextConfig = { id: string; titel: string; text: string; orientation?: ReadingOrientation };
+
+const GRADE_READING_TEXTS: Record<number, ReadingTextConfig> = {
   1: {
     id: 'stufe1',
-    titel: 'Klasse 1: Susi und Leo am See (Einfache Sätze & kurze Wörter)',
-    text: 'Susi und Leo gehen am warmen Nachmittag zum See. Die Sonne scheint herrlich auf das Wasser. Ein kleiner gelber Hund bellt laut. Er sieht eine Ente im nassen Gras. Susi ruft fröhlich: Schau mal her! Die Ente schwimmt schnell auf dem großen See weg. Alle Kinder lachen laut.',
-    threshold: 25
+    titel: 'Klasse 1: Susi und Leo am See (100 Wörter)',
+    text: 'Susi und Leo gehen am warmen Nachmittag zum See. Die Sonne scheint auf das Wasser. Ein kleiner gelber Hund läuft neben ihnen her und bellt fröhlich. Am Ufer schwimmt eine Ente zwischen grünen Pflanzen. Susi zeigt auf das Tier und Leo lacht. Dann finden die Kinder einen glatten Stein. Sie werfen ihn vorsichtig ins Wasser. Kleine Kreise wachsen auf der Oberfläche. Der Hund setzt sich ins Gras und schaut zu. Später essen Susi und Leo einen Apfel. Auf dem Heimweg hören sie einen Vogel singen. Beide erzählen, was ihnen am See besonders gut gefallen hat. Auf diesem schönen kleinen Ausflug.'
   },
   2: {
     id: 'stufe2',
-    titel: 'Klasse 2: Oma im Garten (Flüssiges Lesen auf Satz-Ebene)',
-    text: 'Oma sitzt zufrieden im Garten. Die Frühlingssonne scheint herrlich warm auf das grüne Moos. Eine flinke Katze schleicht leise durch das dichte Gras. Sie sieht plötzlich einen dicken, roten Ball. Der Ball liegt mitten im Blumenbeet. Oma ruft laut: Hallo liebe Katze! Die kleine Katze springt hoch und fängt eine bunte Hummel. Es ist ein sehr schöner Nachmittag im Garten.',
-    threshold: 45
+    titel: 'Klasse 2: Oma im Garten (100 Wörter)',
+    text: 'Oma sitzt zufrieden im Garten und gießt die Blumen. Die Frühlingssonne scheint warm auf das grüne Gras. Eine flinke Katze schleicht leise am Zaun entlang. Plötzlich entdeckt sie einen roten Ball mitten im Blumenbeet. Oma ruft: Bitte pass auf meine Tulpen auf! Die Katze springt über einen kleinen Stein und bleibt neugierig stehen. Hinter dem Schuppen summt eine dicke Hummel. Zwei Spatzen suchen unter dem Apfelbaum nach Futter. Oma setzt sich auf die Bank und trinkt Wasser. Später kommt ihr Enkel vorbei. Gemeinsam sammeln sie trockene Zweige ein und freuen sich über den ruhigen Nachmittag im Garten. Unter dem Apfelbaum.',
+    orientation: {
+      value: 85,
+      label: 'Ende 2. Klasse: ca. 80–90 richtig gelesene Wörter/min als Orientierung – keine amtliche Norm',
+      source: 'Rosebrock u. a.; ISB-LehrplanPLUS-Rezeption'
+    }
   },
   3: {
     id: 'stufe3',
-    titel: 'Klasse 3: Das Abenteuer im Zauberwald (Satzgefüge & Leseprosodie)',
-    text: 'Zwei abenteuerlustige Kinder wandern an einem frischen Sommermorgen tief in den schattigen Zauberwald hinein. Zwischen den uralten, mächtigen Eichen raschelt das trockene Herbstlaub leise im Wind. Ein kleines, schillerndes Chamäleon sitzt regungslos auf einem dicken Ast und verändert rasch seine Farbe von Dunkelgrün zu Himmelblau. Die Singvögel trällern fröhliche Lieder hoch oben in den Wipfeln. Plötzlich entdecken die erstaunten Wanderer einen geheimnisvoll glitzernden Schlüssel direkt auf einem grauen Kieselstein im klaren Bachbett. Wohin dieser unbekannte, schmale Pfad sie heute wohl führen mag?',
-    threshold: 70
+    titel: 'Klasse 3: Der Schlüssel im Wald (100 Wörter)',
+    text: 'Zwei Kinder wandern an einem frischen Morgen tief in den schattigen Wald hinein. Zwischen alten Eichen raschelt trockenes Laub im Wind. Ein schillerndes Chamäleon sitzt regungslos auf einem Ast und verändert langsam seine Farbe. Die Kinder bleiben stehen und beobachten das Tier. Hoch oben in den Wipfeln singen Vögel. Plötzlich entdecken sie einen kleinen Schlüssel auf einem grauen Stein im Bachbett. Daneben beginnt ein schmaler Pfad, den sie vorher nicht gesehen haben. Vorsichtig folgen sie ihm bis zu einer Lichtung. Dort steht eine verwitterte Holzkiste. Bevor sie den Schlüssel ausprobieren, überlegen sie gemeinsam, wem die Kiste gehören könnte. Gemeinsam weiter.',
+    orientation: {
+      value: 110,
+      label: 'Ende 3. Klasse: ca. 110 richtig gelesene Wörter/min als Studienorientierung – keine amtliche Norm',
+      source: 'Wiener Längsschnitt; Röttig, Schwerkolt & Nottbusch (2021)'
+    }
   },
   4: {
     id: 'stufe4',
-    titel: 'Klasse 4: Die faszinierende Welt der Honigbienen (Sachtext & Fachbegriffe)',
-    text: 'Die Honigbienen gehören zweifellos zu den faszinierendsten und nützlichsten Insekten auf unserer Erde. Sie leben in einem perfekt organisierten Bienenstaat zusammen, welcher von einer einzigen, fleißigen Bienenkönigin regiert wird. Jedes Mitglied erfüllt eine streng definierte Aufgabe im Bienenstock. Manche reinigen unermüdlich die Wachswaben, während andere die heranwachsende Brut liebevoll pflegen. Auf ihrer täglichen Nahrungssuche fliegen die Sammlerinnen Tausende bunte Blüten an, um köstlichen Nektar und proteinreichen Blütenstaub einzusammeln. Bei diesem emsigen Prozess bestäuben die Bienen beiläufig unzählige heimische Obstbäume und vielfältige Wildpflanzen im Umland.',
-    threshold: 90
+    titel: 'Klasse 4: Die Honigbienen (100 Wörter)',
+    text: 'Honigbienen gehören zu den wichtigsten Insekten unserer Umwelt. Sie leben gemeinsam in einem gut organisierten Bienenstaat. Jede Biene übernimmt bestimmte Aufgaben. Einige Tiere reinigen die Waben, andere versorgen die Brut. Sammlerinnen fliegen von Blüte zu Blüte und suchen Nektar sowie Pollen. Dabei bestäuben sie viele Obstbäume und Wildpflanzen. Ohne diese Arbeit würden manche Pflanzen deutlich weniger Früchte bilden. Im Stock teilen die Bienen Informationen über ergiebige Futterplätze. Dazu nutzen sie besondere Bewegungen, die als Schwänzeltanz bezeichnet werden. Eine Königin legt Eier und sorgt so für Nachwuchs. Im Winter bleibt das Volk eng zusammen und hält den Stock warm. Im Inneren.',
+    orientation: {
+      value: 100,
+      label: 'Ca. 100 richtig gelesene Wörter/min markieren allgemein den Übergang zum flüssigen Lesen – keine Klassen-Norm',
+      source: 'BiSS-Transfer / Bildungsdirektion Steiermark nach Rosebrock & Nix'
+    }
   }
 };
 
@@ -846,6 +861,9 @@ export default function LiveDiagnostik() {
   const [timerRunning, setTimerRunning] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [wordsStatus, setWordsStatus] = useState<Record<number, 'ok' | 'fail' | 'corr'>>({});
+  const [lastReadWordIndex, setLastReadWordIndex] = useState<number | null>(null);
+  const [markingLastWord, setMarkingLastWord] = useState(false);
+  const [prosodyRating, setProsodyRating] = useState<'offen' | 'abgehackt' | 'teilweise' | 'ueberwiegend' | 'sinngestaltend'>('offen');
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 2. Kopfrechen-Blitz State
@@ -951,6 +969,9 @@ export default function LiveDiagnostik() {
     if (timerRef.current) clearInterval(timerRef.current);
     setSeconds(0);
     setWordsStatus({});
+    setLastReadWordIndex(null);
+    setMarkingLastWord(false);
+    setProsodyRating('offen');
     // Math reset
     setMathStage(0);
     setMathAnswers([]);
@@ -1007,7 +1028,7 @@ export default function LiveDiagnostik() {
     return GRADE_READING_TEXTS[currentGrade] || GRADE_READING_TEXTS[1];
   };
 
-  const textWords = getSelectedTextObj().text.split(/\s+/);
+  const textWords = getSelectedTextObj().text.trim().split(/\s+/).slice(0, 100);
 
   // Initialize Attention Game Grid
   useEffect(() => {
@@ -1081,30 +1102,39 @@ export default function LiveDiagnostik() {
 
   // Calculations for Lese-Fluessigkeit Result
   const getLesediagnoseData = () => {
-    let totalWordsRead = 0;
+    const markedIndices = Object.keys(wordsStatus)
+      .map(Number)
+      .filter(index => Number.isInteger(index) && index >= 0 && index < textWords.length);
+    const fallbackLastIndex = markedIndices.length > 0 ? Math.max(...markedIndices) : -1;
+    const effectiveLastIndex = lastReadWordIndex ?? fallbackLastIndex;
+    const totalWordsRead = effectiveLastIndex >= 0 ? effectiveLastIndex + 1 : 0;
+
     let errorsCount = 0;
     let selfCorrections = 0;
-
-    textWords.forEach((_, idx) => {
+    for (let idx = 0; idx < totalWordsRead; idx++) {
       const status = wordsStatus[idx];
-      if (status) {
-        totalWordsRead = idx + 1;
-        if (status === 'fail') errorsCount++;
-        if (status === 'corr') selfCorrections++;
-      }
-    });
+      if (status === 'fail') errorsCount++;
+      if (status === 'corr') selfCorrections++;
+    }
 
-    if (totalWordsRead === 0) totalWordsRead = textWords.length;
+    const correctWords = Math.max(0, totalWordsRead - errorsCount);
+    const minutesElapsed = seconds > 0 ? seconds / 60 : 0;
+    const wpm = minutesElapsed > 0 ? Math.round(totalWordsRead / minutesElapsed) : 0;
+    const rgw = minutesElapsed > 0 ? Math.round(correctWords / minutesElapsed) : 0;
+    const accuracy = totalWordsRead > 0 ? Math.round((correctWords / totalWordsRead) * 100) : 0;
 
-    // Words correctly read
-    const correctWords = totalWordsRead - errorsCount;
-    // Calculate words per minute based on time elapsed
-    const minutesElapsed = seconds / 60 || 0.01; // Avoid divide by 0
-    const wpm = Math.round(totalWordsRead / minutesElapsed);
-    const rgw = Math.round(correctWords / minutesElapsed); // Richtig gelesene Wörter pro Minute
-    const accuracy = Math.round((correctWords / totalWordsRead) * 100);
-
-    return { totalWordsRead, errorsCount, selfCorrections, correctWords, wpm, rgw, accuracy };
+    return {
+      totalWordsRead,
+      errorsCount,
+      selfCorrections,
+      correctWords,
+      wpm,
+      rgw,
+      accuracy,
+      lastReadWordIndex: effectiveLastIndex,
+      lastReadWord: effectiveLastIndex >= 0 ? textWords[effectiveLastIndex] : '',
+      prosodyRating,
+    };
   };
 
   // Math Analysis Results
@@ -1170,7 +1200,7 @@ export default function LiveDiagnostik() {
       id: crypto.randomUUID(),
       schuelerId: selectedStudentId,
       testId: result.testId,
-      datum: new Date().toISOString().split('T')[0],
+      datum: formatLocalDateKey(new Date()),
       schuljahr: app.schuljahr || '2023/24',
       schulstufe: currentGrade,
       rohwert: result.score,
@@ -1221,19 +1251,22 @@ export default function LiveDiagnostik() {
     let fbedarf = false;
     let metaVal: any = null;
 
-    const targetThreshold = getSelectedTextObj().threshold;
+    const readingOrientation = getSelectedTextObj().orientation;
 
     if (activeDiagnostic === 'lesen') {
       const info = getLesediagnoseData();
       testId = 'live-lesefluessigkeit';
-      ergebnis = info.rgw; // Score is RGW (Words per minute correctly read)
-      fbedarf = info.rgw < targetThreshold;
-      customNote = `1:1 Lesefluss-Diagnose (${getSelectedTextObj().titel}). ` +
-        `Schulstufe des Tests: ${currentGrade}. Klasse | ` +
-        `Richtig gelesene Wörter pro Minute (RGW): ${info.rgw} (Schwellenwert: ${targetThreshold}) | ` +
-        `Gelesene Wörter gesamt: ${info.totalWordsRead}/${textWords.length} | ` +
+      ergebnis = info.rgw;
+      // A single one-minute reading sample is a learning-progress observation,
+      // not a stand-alone diagnosis or automatic support decision.
+      fbedarf = false;
+      customNote = `1:1 Lautleseprotokoll (${getSelectedTextObj().titel}). ` +
+        `Schulstufe des Textes: ${currentGrade}. Klasse | ` +
+        `Richtig gelesene Wörter pro Minute (RGW): ${info.rgw} | ` +
+        `Gelesene Wörter gesamt: ${info.totalWordsRead}/100 | letztes Wort: ${info.lastReadWord || 'nicht markiert'} | ` +
         `Fehler: ${info.errorsCount} | Selbstkorrekturen: ${info.selfCorrections} | ` +
-        `Genauigkeit: ${info.accuracy}%. ` +
+        `Genauigkeit: ${info.accuracy}% | Prosodie: ${info.prosodyRating}. ` +
+        (readingOrientation ? `Orientierung: ${readingOrientation.label}. ` : '') +
         (kommentar ? `\nLehrperson-Notiz: ${kommentar}` : '');
 
       metaVal = {
@@ -1245,7 +1278,11 @@ export default function LiveDiagnostik() {
         correctWords: info.correctWords,
         errorsCount: info.errorsCount,
         selfCorrections: info.selfCorrections,
-        targetThreshold,
+        lastReadWordIndex: info.lastReadWordIndex,
+        lastReadWord: info.lastReadWord,
+        prosodyRating: info.prosodyRating,
+        orientation: readingOrientation,
+        belowOrientation: readingOrientation ? info.rgw < readingOrientation.value : undefined,
         titel: getSelectedTextObj().titel,
         duration: seconds
       };
@@ -1489,7 +1526,7 @@ export default function LiveDiagnostik() {
       id: crypto.randomUUID(),
       schuelerId: selectedStudentId,
       testId,
-      datum: new Date().toISOString().split('T')[0],
+      datum: formatLocalDateKey(new Date()),
       schuljahr: app.schuljahr || '2023/24',
       schulstufe: currentGrade,
       rohwert: ergebnis,
@@ -2351,6 +2388,16 @@ export default function LiveDiagnostik() {
                   >
                     {timerRunning ? <Pause size={18} /> : <Play size={18} />}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setMarkingLastWord(value => !value)}
+                    className={`px-3 py-3 rounded-2xl transition-all flex items-center gap-1.5 text-[0.6875rem] font-black ${markingLastWord ? 'bg-indigo-600 text-white ring-4 ring-indigo-100' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'}`}
+                    aria-pressed={markingLastWord}
+                    title="Danach auf das zuletzt gelesene Wort klicken"
+                  >
+                    <Flag size={16} />
+                    Letztes Wort
+                  </button>
                   <button 
                     onClick={resetAll}
                     className="p-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl transition-all"
@@ -2369,7 +2416,7 @@ export default function LiveDiagnostik() {
                   <span className="font-extrabold uppercase text-[0.625rem] tracking-wider block mb-0.5 font-sans">Diagnose-Anleitung:</span>
                   Starte den Timer und bitte {activeStudent.vorname}, den Text laut vorzulesen.
                   Während das Kind liest, <strong>tippe auf Wörter</strong>, die falsch vorgelesen werden (1x tippen = <span className="bg-rose-100 text-rose-800 font-extrabold px-1.5 rounded-sm">Fehler</span>, 2x tippen = <span className="bg-emerald-100 text-emerald-800 font-extrabold px-1.5 rounded-sm">Selbstkorrektur</span>).
-                  Tippe auf das letzte gelesene Wort am Ende einer Minute (oder wenn das Kind fertig ist) und stoppe den Timer.
+                  Markiere Fehler wie bisher. Nach 60 Sekunden klicke auf <strong>„Letztes Wort markieren“</strong> und anschließend auf das zuletzt gelesene Wort. So bleiben Fehler-Markierung und erreichte Textstelle getrennt.
                 </div>
               </div>
 
@@ -2381,11 +2428,18 @@ export default function LiveDiagnostik() {
                     let wordClass = 'hover:bg-slate-100 border-b-2 border-transparent';
                     if (status === 'fail') wordClass = 'bg-rose-100 text-rose-850 border-b-2 border-rose-500 font-bold';
                     if (status === 'corr') wordClass = 'bg-emerald-100 text-emerald-850 border-b-2 border-emerald-500 font-bold';
+                    if (lastReadWordIndex === idx) wordClass += ' ring-2 ring-indigo-500 ring-offset-2';
 
                     return (
                       <span 
                         key={idx} 
                         onClick={() => {
+                          if (markingLastWord) {
+                            setLastReadWordIndex(idx);
+                            setMarkingLastWord(false);
+                            setTimerRunning(false);
+                            return;
+                          }
                           setWordsStatus(prev => {
                             const cur = prev[idx];
                             if (!cur) return { ...prev, [idx]: 'fail' };
@@ -2396,7 +2450,7 @@ export default function LiveDiagnostik() {
                           });
                         }}
                         className={`px-1.5 py-0.5 rounded cursor-pointer transition-all duration-150 ${wordClass}`}
-                        title="Tippe zum Ändern des Lesestatus"
+                        title={markingLastWord ? "Als letztes gelesenes Wort markieren" : "Tippe: Fehler → Selbstkorrektur → neutral"}
                       >
                         {word}
                         {status && (
@@ -2404,6 +2458,7 @@ export default function LiveDiagnostik() {
                             {status === 'fail' ? '❌' : '🔄'}
                           </span>
                         )}
+                        {lastReadWordIndex === idx && <span className="ml-1 text-indigo-600" aria-label="Letztes gelesenes Wort">⚑</span>}
                       </span>
                     );
                   })}
@@ -2414,7 +2469,9 @@ export default function LiveDiagnostik() {
               <div className="flex justify-end gap-3 mt-4">
                 <button 
                   onClick={() => { setDiagnoseFertig(true); setTimerRunning(false); }}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[0.75rem] leading-tight font-black uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-all"
+                  disabled={lastReadWordIndex === null}
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-[0.75rem] leading-tight font-black uppercase tracking-widest flex items-center gap-2 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  title={lastReadWordIndex === null ? 'Zuerst das letzte gelesene Wort markieren' : undefined}
                 >
                   <Award size={16} /> Lese-Auswertung anzeigen
                 </button>
@@ -2429,7 +2486,7 @@ export default function LiveDiagnostik() {
                 <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600"><Award size={24} /></div>
                 <div>
                   <h4 className="text-[1.125rem] leading-normal font-black text-slate-900 leading-tight">Auswertung des Live-Lesechecks (Klasse {currentGrade})</h4>
-                  <p className="text-[0.75rem] leading-tight text-slate-400 font-black uppercase tracking-wider">Pädagogische Kennzahlen und Förderempfehlung nach Bildungsstandards</p>
+                  <p className="text-[0.75rem] leading-tight text-slate-400 font-black uppercase tracking-wider">Lernverlaufsbeobachtung: Tempo, Genauigkeit, Textstelle und Prosodie</p>
                 </div>
               </div>
 
@@ -2438,7 +2495,7 @@ export default function LiveDiagnostik() {
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                   <span className="block text-[0.5625rem] font-black uppercase text-slate-400">Lesetempo (RGW)</span>
                   <span className="text-[1.875rem] leading-tight font-black text-slate-900">{getLesediagnoseData().rgw} <span className="text-[0.875rem] leading-snug text-slate-500">w/min</span></span>
-                  <span className="block text-[0.5rem] font-bold text-slate-450 mt-1">Ziel für Klasse {currentGrade}: {getSelectedTextObj().threshold} RGW/min</span>
+                  <span className="block text-[0.5rem] font-bold text-slate-450 mt-1">{getSelectedTextObj().orientation?.label || 'Keine feste Klassen-Norm hinterlegt'}</span>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                   <span className="block text-[0.5625rem] font-black uppercase text-slate-400">Gelesen Gesamt</span>
@@ -2457,28 +2514,54 @@ export default function LiveDiagnostik() {
                 </div>
               </div>
 
+              <div className="rounded-2xl border border-cyan-100 bg-cyan-50/50 p-5">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <h5 className="text-[0.75rem] font-black uppercase tracking-wider text-cyan-900">Intonation / Prosodie</h5>
+                    <p className="mt-1 text-[0.6875rem] font-medium text-slate-500">Qualitative Beobachtung – bewusst getrennt vom Lesetempo.</p>
+                  </div>
+                  <span className="text-[0.625rem] font-bold text-slate-400">Letztes Wort: {getLesediagnoseData().lastReadWord || '—'}</span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 lg:grid-cols-4 gap-2">
+                  {([
+                    ['abgehackt', 'Abgehackt / monoton'],
+                    ['teilweise', 'Teilweise passend'],
+                    ['ueberwiegend', 'Überwiegend passend'],
+                    ['sinngestaltend', 'Sinngestaltend / sicher'],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setProsodyRating(value)}
+                      className={`rounded-xl border px-3 py-2 text-[0.6875rem] font-bold transition ${prosodyRating === value ? 'border-cyan-500 bg-cyan-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-cyan-300'}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* FEEDBACK & COMMENTS */}
               <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-200/60 flex items-start gap-4">
                 <Lightbulb size={24} className="text-amber-500 flex-shrink-0 mt-1" />
                 <div className="space-y-4 flex-1">
-                  <h5 className="text-[0.875rem] leading-snug font-black text-slate-800">Kompetenzdiagnose & Förderempfehlung</h5>
+                  <h5 className="text-[0.875rem] leading-snug font-black text-slate-800">Einordnung der Lernverlaufsbeobachtung</h5>
                   <div className="text-[0.75rem] leading-tight text-slate-600 leading-relaxed font-sans">
-                    {getLesediagnoseData().rgw < getSelectedTextObj().threshold ? (
+                    <div className="space-y-2">
                       <p>
-                        ⚠️ <strong>Förderbedarf auf Dekodierbildebene</strong>. Das Lesetempo bzw. die Automatisierungsebene liegt unter dem Benchmark von {getSelectedTextObj().threshold} RGW/min für die {currentGrade}. Klasse.
-                        {currentGrade <= 2 ? (
-                          <span> Wir empfehlen gezielte Übungen mit <strong>Sprechsilbenteppichen</strong>, täglichen Blitzlesekarten für Sichtwortschätze und lautorientierten Lese-Spuren.</span>
-                        ) : (
-                          <span> Das Kind benötigt vertiefte Routinen im Erfassen mehrsilbiger Wortstämme sowie wiederholtes Lautlesen (Chor-Lesen) zur Steigerung der Lesewege.</span>
-                        )}
+                        <strong>Einzelmessung als Lernverlaufsbeobachtung:</strong> Tempo, Genauigkeit, letztes gelesenes Wort und Prosodie gemeinsam betrachten. Ein einzelner WpM-Wert begründet keine Diagnose.
                       </p>
-                    ) : (
+                      {getSelectedTextObj().orientation && (
+                        <p>
+                          <strong>Orientierung:</strong> {getSelectedTextObj().orientation?.label}. Quelle/Einordnung: {getSelectedTextObj().orientation?.source}.
+                        </p>
+                      )}
                       <p>
-                        🌟 <strong>Erfolgreiche Lese-Automatisierung begründet</strong>! Der Lesefluss liegt über dem geforderten Benchmark der {currentGrade}. Klasse ({getSelectedTextObj().threshold} RGW/min). Das Kind liest entspannt, flüssig und verfügt über ausreichend kognitive Handlungsenergie, um sich während des Lesens voll auf das Textverständnis und semantische Erfassen zu konzentrieren.
+                        Wiederhole denselben Ablauf zu mehreren Zeitpunkten mit vergleichbar schwierigen Texten, um die Entwicklung zu beurteilen.
                       </p>
-                    )}
+                    </div>
                   </div>
-                  
+
                   {/* Lehrperson Kommentar */}
                   <div className="space-y-2">
                     <label className="block text-[0.625rem] font-extrabold uppercase text-slate-400">Eigene Beobachtungsnotiz hinzufügen</label>

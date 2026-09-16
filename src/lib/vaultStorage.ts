@@ -111,8 +111,13 @@ export async function deleteVaultRecord(): Promise<void> {
   if (storage) {
     try {
       await storage.removeItem(VAULT_STORAGE_KEY);
-    } catch {
+    } catch (error) {
+      memoryFallback = null;
       isNodeOrNoStorage = true;
+      throw new CryptoError(
+        'INVALID_PAYLOAD',
+        'Tresor-Metadaten konnten nicht vollständig aus dem Gerätespeicher gelöscht werden.'
+      );
     }
   }
   memoryFallback = null;

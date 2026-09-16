@@ -7,28 +7,29 @@ import {
   FileText, Link as LinkIcon, Sparkles, BookOpen, LifeBuoy, Mail, StickyNote,
   X, Download, ExternalLink, Copy, Printer, Info, AlertTriangle, Check,
   Folder, Database, ArrowLeft, Upload, ClipboardList, Wand2, Loader2,
-  LayoutGrid, List, CheckSquare, Square, FolderClosed, Trash, BarChart2, Tag, UploadCloud
+  LayoutGrid, List, CheckSquare, Square, FolderClosed, Trash, BarChart2, Tag, UploadCloud, Palette
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { FAECHER_ALLE } from '../constants';
+import { FAECHER_ALLE, LESSON_SLOT_NUMBERS } from '../constants';
 import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { MaterialItem } from '../types';
 import { generateTeachingMaterial } from '../services/aiService';
+import { calculateMaterialStorageSize, MATERIAL_LIBRARY_MAX_MB, normalizeMaterialExternalLink, removeMaterialReferencesFromClasses, removeMaterialReferencesFromWeeklyPlan, sanitizeMaterialForType, upsertMaterial, validateMaterialFile } from '../lib/materialLibraryUtils';
+export { calculateMaterialStorageSize as calculateStorageSize } from '../lib/materialLibraryUtils';
 
-// Helper for memory calculation
-export const calculateStorageSize = (items: MaterialItem[]) => {
-  let totalBytes = 0;
-  items.forEach(item => {
-    if (item.dateiInhalt) totalBytes += item.dateiInhalt.length;
-    if (item.inhaltText) totalBytes += item.inhaltText.length;
-    // Rough estimate for metadata
-    totalBytes += JSON.stringify(item).length;
-  });
-  return totalBytes / (1024 * 1024); // MB
-};
+const normalizeMaterialItem = (item: MaterialItem): MaterialItem => ({
+  ...item,
+  titel: item.titel || '',
+  beschreibung: item.beschreibung || '',
+  typ: item.typ || 'notiz',
+  faecher: Array.isArray(item.faecher) ? item.faecher : [],
+  schulstufen: Array.isArray(item.schulstufen) ? item.schulstufen : [],
+  tags: Array.isArray(item.tags) ? item.tags : [],
+  erstelltAm: item.erstelltAm || '',
+});
 
 export default function Materialbibliothek() {
-  const { app, setApp } = useApp();
+  const { app, setApp, setPage } = useApp();
   const [activeTab, setActiveTab] = useState<string>('Alle');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterFach, setFilterFach] = useState('');
@@ -44,11 +45,16 @@ export default function Materialbibliothek() {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState<MaterialItem | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [weekPlanMaterial, setWeekPlanMaterial] = useState<MaterialItem | null>(null);
 
   // Stats
-  const storageMB = useMemo(() => calculateStorageSize(app.materialien || []), [app.materialien]);
+  const storageMB = useMemo(() => calculateMaterialStorageSize(app.materialien || []), [app.materialien]);
   const favoritesCount = useMemo(() => (app.materialien || []).filter(m => m.favorit).length, [app.materialien]);
   const totalCount = (app.materialien || []).length;
+
+  useEffect(() => {
+    setWeekPlanMaterial(null);
+  }, [app.activeClassId]);
 
   const activeFiltersCount = useMemo(() => {
     return (activeTab !== 'Alle' ? 1 : 0) + 
@@ -70,7 +76,7 @@ export default function Materialbibliothek() {
 
   // Filtered & Sorted list
   const filteredMaterials = useMemo(() => {
-    let list = [...(app.materialien || [])];
+    let list = (app.materialien || []).map(normalizeMaterialItem);
     
     // Tab filter
     if (activeTab === 'Favoriten') list = list.filter(m => m.favorit);
@@ -86,9 +92,9 @@ export default function Materialbibliothek() {
     // Search
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(m => 
-        m.titel.toLowerCase().includes(q) || 
-        m.beschreibung.toLowerCase().includes(q) || 
+      list = list.filter(m =>
+        m.titel.toLowerCase().includes(q) ||
+        m.beschreibung.toLowerCase().includes(q) ||
         m.tags.some(t => t.toLowerCase().includes(q)) ||
         (m.inhaltText && m.inhaltText.toLowerCase().includes(q))
       );
@@ -121,10 +127,15 @@ export default function Materialbibliothek() {
     return list;
   }, [app.materialien, activeTab, searchQuery, onlyAi, filterFach, filterStufe, sortBy, filterTag]);
 
+  useEffect(() => {
+    const visibleIds = new Set(filteredMaterials.map(material => material.id));
+    setSelectedItems(prev => prev.filter(id => visibleIds.has(id)));
+  }, [filteredMaterials]);
+
   // Extract all unique tags
   const allTags = useMemo(() => {
     const tags = new Set<string>();
-    (app.materialien || []).forEach(m => m.tags.forEach(t => tags.add(t)));
+    (app.materialien || []).forEach(m => (m.tags || []).forEach(t => tags.add(t)));
     return Array.from(tags).sort();
   }, [app.materialien]);
 
@@ -134,15 +145,20 @@ export default function Materialbibliothek() {
   };
 
   const selectAll = () => {
-    if (selectedItems.length === filteredMaterials.length) setSelectedItems([]);
-    else setSelectedItems(filteredMaterials.map(m => m.id));
+    const allVisibleSelected =
+      filteredMaterials.length > 0 &&
+      filteredMaterials.every(material => selectedItems.includes(material.id));
+    setSelectedItems(allVisibleSelected ? [] : filteredMaterials.map(material => material.id));
   };
 
   const handleBulkDelete = () => {
     if (confirm(`Möchtest du die ${selectedItems.length} markierten Materialien wirklich löschen?`)) {
+      const removedIds = [...selectedItems];
       setApp(prev => ({
         ...prev,
-        materialien: prev.materialien?.filter(m => !selectedItems.includes(m.id))
+        materialien: prev.materialien?.filter(m => !removedIds.includes(m.id)),
+        wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung, removedIds),
+        classes: removeMaterialReferencesFromClasses(prev.classes, removedIds),
       }));
       setSelectedItems([]);
     }
@@ -161,9 +177,9 @@ export default function Materialbibliothek() {
     if (groupBy === 'none') return { 'Alle Materialien': filteredMaterials };
     const groups: Record<string, MaterialItem[]> = {};
     filteredMaterials.forEach(m => {
-      const key = groupBy === 'fach' 
+      const key = groupBy === 'fach'
         ? (m.faecher.length > 0 ? m.faecher[0] : 'Ohne Fach')
-        : (m.typ.charAt(0).toUpperCase() + m.typ.slice(1));
+        : ((m.typ || 'notiz').charAt(0).toUpperCase() + (m.typ || 'notiz').slice(1));
       if (!groups[key]) groups[key] = [];
       groups[key].push(m);
     });
@@ -189,8 +205,11 @@ export default function Materialbibliothek() {
     if (confirm("Möchtest du dieses Material wirklich löschen?")) {
       setApp(prev => ({
         ...prev,
-        materialien: prev.materialien?.filter(m => m.id !== id)
+        materialien: prev.materialien?.filter(m => m.id !== id),
+        wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung, [id]),
+        classes: removeMaterialReferencesFromClasses(prev.classes, [id]),
       }));
+      setSelectedItems(prev => prev.filter(selectedId => selectedId !== id));
       setShowDetail(false);
     }
   };
@@ -262,7 +281,13 @@ export default function Materialbibliothek() {
                        onClick={(e) => {
                          e.stopPropagation();
                          if (confirm("Möchtest du den gesamten Speicher zurücksetzen? Das löscht alle deine hochgeladenen und generierten Materialien.")) {
-                           setApp(prev => ({ ...prev, materialien: [] }));
+                           setApp(prev => ({
+                             ...prev,
+                             materialien: [],
+                             wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung),
+                             classes: removeMaterialReferencesFromClasses(prev.classes),
+                           }));
+                           setSelectedItems([]);
                          }
                        }}
                        title="Speicher zurücksetzen"
@@ -277,7 +302,7 @@ export default function Materialbibliothek() {
                      isCompact ? 'text-[1rem]' : isLarge ? 'text-[1.625rem]' : 'text-[1.25rem]'
                    } ${storageMB > 4 ? 'text-rose-700' : 'text-indigo-800'}`}>
                       {storageMB.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      <span className={`${isCompact ? 'text-[0.625rem]' : isLarge ? 'text-[0.875rem]' : 'text-[0.75rem]'} font-bold text-slate-400`}> MB von 5 MB</span>
+                      <span className={`${isCompact ? 'text-[0.625rem]' : isLarge ? 'text-[0.875rem]' : 'text-[0.75rem]'} font-bold text-slate-400`}> MB von {MATERIAL_LIBRARY_MAX_MB} MB</span>
                    </span>
                    {/* Storage Progress Bar */}
                    <div className={`w-full bg-slate-200/70 rounded-full overflow-hidden ${isCompact ? 'h-1 mt-0.5' : isLarge ? 'h-2 mt-2' : 'h-1.5 mt-1'}`}>
@@ -285,7 +310,7 @@ export default function Materialbibliothek() {
                        className={`h-full rounded-full transition-all duration-500 ${
                          storageMB > 4 ? 'bg-rose-600' : storageMB > 2.5 ? 'bg-amber-500' : 'bg-indigo-600'
                        }`}
-                       style={{ width: `${Math.min(100, (storageMB / 5) * 100)}%` }}
+                       style={{ width: `${Math.min(100, (storageMB / MATERIAL_LIBRARY_MAX_MB) * 100)}%` }}
                      />
                    </div>
                  </div>
@@ -293,18 +318,26 @@ export default function Materialbibliothek() {
            </div>
         </div>
         
-        <button 
-          onClick={() => {
-            setSelectedMaterial(null);
-            setIsAdding(true);
-          }}
-          className={`btn btn-primary flex shrink-0 items-center gap-2 shadow-xl shadow-indigo-100 hover:scale-[1.02] transition-transform ${
-            isCompact ? 'h-11 px-5 rounded-xl text-xs mt-1 md:mt-4' : isLarge ? 'h-16 px-10 rounded-[1.5rem] text-lg mt-3 md:mt-10' : 'h-14 px-8 mt-2 md:mt-8'
-          }`}
-        >
-          <Plus size={isCompact ? 18 : isLarge ? 28 : 24} />
-          <span>Neues Material</span>
-        </button>
+        <div className={`flex shrink-0 flex-col gap-2 sm:flex-row ${isCompact ? 'mt-1 md:mt-4' : isLarge ? 'mt-3 md:mt-10' : 'mt-2 md:mt-8'}`}>
+          <button
+            type="button"
+            onClick={() => setPage('canva')}
+            className={`flex items-center justify-center gap-2 rounded-xl border border-[var(--accent)]/25 bg-[var(--accent-soft)] px-5 font-black text-[var(--accent)] transition hover:border-[var(--accent)]/45 hover:bg-[var(--surface)] ${isCompact ? 'h-11 text-xs' : isLarge ? 'h-16 text-lg' : 'h-14 text-sm'}`}
+          >
+            <Palette size={isCompact ? 18 : isLarge ? 28 : 22} />
+            <span>Mit Canva gestalten</span>
+          </button>
+          <button 
+            onClick={() => {
+              setSelectedMaterial(null);
+              setIsAdding(true);
+            }}
+            className={`btn btn-primary flex shrink-0 items-center gap-2 shadow-xl hover:scale-[1.02] transition-transform ${isCompact ? 'h-11 px-5 rounded-xl text-xs' : isLarge ? 'h-16 px-10 rounded-[1.5rem] text-lg' : 'h-14 px-8'}`}
+          >
+            <Plus size={isCompact ? 18 : isLarge ? 28 : 24} />
+            <span>Neues Material</span>
+          </button>
+        </div>
       </div>
 
       {storageMB > 4 && (
@@ -550,7 +583,7 @@ export default function Materialbibliothek() {
                 </div>
                 <div className="flex items-center gap-2">
                   <button onClick={selectAll} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[0.75rem] leading-tight font-bold transition-colors">
-                    {selectedItems.length === filteredMaterials.length ? 'Auswahl aufheben' : 'Alle auswählen'}
+                    {filteredMaterials.length > 0 && filteredMaterials.every(material => selectedItems.includes(material.id)) ? 'Auswahl aufheben' : 'Alle auswählen'}
                   </button>
                   <button onClick={handleBulkFavorite} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[0.75rem] leading-tight font-bold transition-colors flex items-center gap-2">
                     <Heart size={14} /> Markieren
@@ -652,15 +685,17 @@ export default function Materialbibliothek() {
           <AddMaterialModal 
             onClose={() => setIsAdding(false)} 
             onSave={(item) => {
-              const totalNewSize = storageMB + calculateStorageSize([item]);
-              if (totalNewSize > 5) {
+              const nextMaterials = upsertMaterial(app.materialien || [], item);
+              const totalNewSize = calculateMaterialStorageSize(nextMaterials);
+              if (totalNewSize > MATERIAL_LIBRARY_MAX_MB) {
                 alert("Speicher voll. Bitte lösche alte Materialien oder reduziere die Dateigröße.");
                 return;
               }
               setApp(prev => ({
                 ...prev,
-                materialien: [...(prev.materialien || []), item]
+                materialien: upsertMaterial(prev.materialien || [], item)
               }));
+              setSelectedMaterial(null);
               setIsAdding(false);
             }}
             initialData={selectedMaterial && selectedMaterial.id ? selectedMaterial : undefined}
@@ -673,10 +708,20 @@ export default function Materialbibliothek() {
             onDelete={() => handleDelete(selectedMaterial.id)}
             onToggleFavorit={(e) => handleToggleFavorit(e, selectedMaterial.id)}
             onMarkUsed={() => handleMarkUsed(selectedMaterial.id)}
+            onSendToWeekPlan={() => {
+              setShowDetail(false);
+              setWeekPlanMaterial(selectedMaterial);
+            }}
             onEdit={() => {
               setShowDetail(false);
               setIsAdding(true);
             }}
+          />
+        )}
+        {weekPlanMaterial && (
+          <MaterialToWeekPlanModal
+            item={weekPlanMaterial}
+            onClose={() => setWeekPlanMaterial(null)}
           />
         )}
       </AnimatePresence>
@@ -893,14 +938,12 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
     setFileError(null);
     setFileWarning(null);
 
-    const sizeMB = file.size / (1024 * 1024);
-    if (sizeMB > 3) {
-      setFileError("Datei zu groß (> 3MB). Bitte verkleinere die Datei.");
+    const validation = validateMaterialFile(file);
+    if (validation.error) {
+      setFileError(validation.error);
       return;
     }
-    if (sizeMB > 1) {
-      setFileWarning("Hinweis: Datei ist über 1 MB groß. Das kann den Speicher schnell füllen.");
-    }
+    setFileWarning(validation.warning);
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -942,7 +985,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiFach, setAiFach] = useState('');
   const [aiThema, setAiThema] = useState('');
-  const [aiStufe, setAiStufe] = useState(1);
+  const [aiStufe, setAiStufe] = useState(Math.min(4, Math.max(1, Number(app.stufe) || 1)));
   const [aiArt, setAiArt] = useState('Lesetext');
   const [aiDiff, setAiDiff] = useState(false);
 
@@ -978,22 +1021,21 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
       return;
     }
 
-    let finalLink = formData.externerLink;
-    if (typ === 'link' && finalLink) {
-      if (!finalLink.startsWith('http://') && !finalLink.startsWith('https://')) {
-        finalLink = 'https://' + finalLink;
-      }
-      try {
-        new URL(finalLink);
-      } catch (e) {
-        alert("Ungültige URL");
-        return;
-      }
+    const finalLink = typ === 'link'
+      ? normalizeMaterialExternalLink(formData.externerLink)
+      : undefined;
+    if (typ === 'link' && !finalLink) {
+      alert("Bitte einen gültigen http- oder https-Link angeben.");
+      return;
+    }
+    if (typ === 'datei' && !formData.dateiInhalt) {
+      alert("Bitte zuerst eine unterstützte Datei auswählen.");
+      return;
     }
 
-    const finalItem: MaterialItem = {
+    const finalItem = sanitizeMaterialForType({
       ...formData as MaterialItem,
-      id: initialData?.id || `mat-${Date.now()}`,
+      id: initialData?.id || `mat-${globalThis.crypto?.randomUUID?.() || Date.now()}`,
       typ,
       externerLink: finalLink,
       erstelltAm: initialData?.erstelltAm || new Date().toISOString(),
@@ -1006,7 +1048,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
       inhaltText: (typ === 'stundenentwurf' && formData.lernziel) 
         ? `Lernziel: ${formData.lernziel}\n\nMaterial: ${formData.benoetigtesMaterial?.join(', ') || '-'}\n\nAblauf:\n${formData.inhaltText || ''}`
         : formData.inhaltText
-    };
+    });
     onSave(finalItem);
   };
 
@@ -1177,7 +1219,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
                       : 'border-indigo-200 bg-indigo-50/30 hover:bg-indigo-50/50 hover:border-indigo-400'
                   }`}
                 >
-                  <input type="file" accept="image/*,application/pdf" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" id="file-upload" onChange={handleFileChange} />
+                  <input type="file" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" id="file-upload" onChange={handleFileChange} />
                   <div className="pointer-events-none">
                     <div className={`w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm group-hover:scale-110 transition-transform ${isDragging ? 'animate-bounce text-indigo-600' : 'text-indigo-500'}`}>
                        <UploadCloud size={32} />
@@ -1419,7 +1461,7 @@ function TypeSelectionCard({ icon, label, desc, color, onClick }: any) {
   );
 }
 
-function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkUsed, onEdit }: any) {
+function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkUsed, onSendToWeekPlan, onEdit }: any) {
   const { app } = useApp();
   const getSafeLink = (url?: string) => {
     if (!url) return '';
@@ -1430,11 +1472,8 @@ function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkU
   };
 
   const handleOpenPdf = () => {
-    if (item.dateiInhalt) {
-      const win = window.open();
-      if (win) {
-         win.document.write(`<iframe src="${item.dateiInhalt}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-      }
+    if (item.dateiInhalt && item.dateiTyp === 'application/pdf') {
+      window.open(item.dateiInhalt, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -1585,6 +1624,7 @@ function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkU
          </div>
 
          <div className="p-8 pt-4 bg-slate-50/50 border-t border-slate-100 flex flex-wrap gap-3 no-print">
+            <button onClick={onSendToWeekPlan} className="btn bg-indigo-600 text-white flex items-center gap-2 px-6 h-14"><ClipboardList size={20} /> In Wochenplan</button>
             <button onClick={onMarkUsed} className="btn bg-emerald-600 text-white flex items-center gap-2 px-6 h-14"><Check size={20} /> Als verwendet markieren</button>
             <button onClick={onEdit} className="btn bg-white border border-slate-200 text-slate-600 flex items-center gap-2 px-6 h-14"><Edit3 size={20} /> Bearbeiten</button>
             <button onClick={onDelete} className="p-4 text-rose-500 hover:bg-rose-50 rounded-2xl transition-all ml-auto"><Trash2 size={24} /></button>
@@ -1614,30 +1654,205 @@ function MaterialDetailModal({ item, onClose, onDelete, onToggleFavorit, onMarkU
 }
 
 // Utility export for Step 8
+
+function getIsoWeekNumber(date = new Date()): number {
+  const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = target.getUTCDay() || 7;
+  target.setUTCDate(target.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+  return Math.ceil((((target.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+}
+
+function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClose: () => void }) {
+  const { app, setApp, setPage } = useApp();
+  const [kw, setKw] = useState(app.currentKW || getIsoWeekNumber());
+  const [day, setDay] = useState('Montag');
+  const [hour, setHour] = useState(1);
+  const [mode, setMode] = useState<'append' | 'replace'>('append');
+
+  const days = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
+  const availableHours = LESSON_SLOT_NUMBERS;
+
+  useEffect(() => {
+    if (!availableHours.includes(hour)) setHour(availableHours[0] || 1);
+  }, [availableHours, hour]);
+
+  const existing = (app.wochenplanung as any)?.[kw]?.[day]?.[hour - 1] || {};
+  const existingMaterialIds = Array.isArray(existing.materialIds) ? existing.materialIds : [];
+  const alreadyLinked = existingMaterialIds.includes(item.id);
+
+  const save = () => {
+    setApp(prev => {
+      const wochenplanung = { ...(prev.wochenplanung || {}) } as any;
+      const week = { ...(wochenplanung[kw] || {}) } as any;
+      const dayPlan = { ...(week[day] || {}) } as any;
+      const index = hour - 1;
+      const slot = { ...(dayPlan[index] || {}) } as any;
+      const currentIds = Array.isArray(slot.materialIds) ? slot.materialIds : [];
+      const materialIds = mode === 'replace'
+        ? [item.id]
+        : Array.from(new Set([...currentIds, item.id]));
+
+      dayPlan[index] = {
+        ...slot,
+        fach: slot.fach || (prev.stammplan as any)?.[day]?.[hour] || item.faecher?.[0] || '',
+        material: mode === 'replace' ? '' : (slot.material || ''),
+        materialIds,
+      };
+      week[day] = dayPlan;
+      wochenplanung[kw] = week;
+
+      return {
+        ...prev,
+        wochenplanung,
+        materialien: (prev.materialien || []).map(material =>
+          material.id === item.id
+            ? { ...material, zuletztVerwendet: new Date().toISOString() }
+            : material
+        ),
+      };
+    });
+
+    onClose();
+    setPage('wochenplanung');
+  };
+
+  return (
+    <div className="fixed inset-0 z-[270] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 18 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 18 }}
+        className="w-full max-w-lg rounded-[2rem] bg-white shadow-2xl border border-slate-100 overflow-hidden"
+      >
+        <div className="p-6 border-b border-slate-100 flex items-start justify-between gap-4">
+          <div>
+            <div className="text-[0.625rem] font-black uppercase tracking-widest text-indigo-500">Material → Wochenplan</div>
+            <h3 className="mt-1 text-xl font-black text-slate-900">{item.titel}</h3>
+          </div>
+          <button type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500" aria-label="Schließen">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <div className="grid grid-cols-3 gap-3">
+            <label className="space-y-1.5">
+              <span className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">KW</span>
+              <input
+                type="number"
+                min={1}
+                max={53}
+                value={kw}
+                onChange={event => setKw(Math.min(53, Math.max(1, Number(event.target.value) || 1)))}
+                className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-800"
+              />
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Tag</span>
+              <select value={day} onChange={event => setDay(event.target.value)} className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-800 bg-white">
+                {days.map(value => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+            <label className="space-y-1.5">
+              <span className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Stunde</span>
+              <select value={hour} onChange={event => setHour(Number(event.target.value))} className="w-full h-11 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-800 bg-white">
+                {availableHours.map(value => <option key={value} value={value}>{value}.</option>)}
+              </select>
+            </label>
+          </div>
+
+          <div className="rounded-2xl bg-slate-50 border border-slate-100 p-4">
+            <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Zielstunde</div>
+            <div className="mt-1 text-sm font-black text-slate-800">{existing.fach || (app.stammplan as any)?.[day]?.[hour] || 'Noch kein Fach eingetragen'}</div>
+            <div className="mt-1 text-xs text-slate-500">{existing.thema || 'Noch kein Thema eingetragen'}</div>
+            {alreadyLinked && (
+              <div className="mt-2 inline-flex items-center gap-1.5 text-[0.6875rem] font-bold text-emerald-700">
+                <Check size={13} /> Dieses Material ist bereits verknüpft – es wird nicht doppelt gespeichert.
+              </div>
+            )}
+          </div>
+
+          <fieldset className="space-y-2">
+            <legend className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400 mb-2">Übernahme</legend>
+            <label className="flex gap-3 p-3.5 rounded-2xl border border-slate-200 cursor-pointer">
+              <input type="radio" name="materialTransferMode" checked={mode === 'append'} onChange={() => setMode('append')} />
+              <span>
+                <strong className="block text-sm text-slate-900">Ergänzen</strong>
+                <span className="block text-xs text-slate-500 mt-0.5">Vorhandene Materialien bleiben; dieses Material kommt einmalig dazu.</span>
+              </span>
+            </label>
+            <label className="flex gap-3 p-3.5 rounded-2xl border border-slate-200 cursor-pointer">
+              <input type="radio" name="materialTransferMode" checked={mode === 'replace'} onChange={() => setMode('replace')} />
+              <span>
+                <strong className="block text-sm text-slate-900">Ersetzen</strong>
+                <span className="block text-xs text-slate-500 mt-0.5">Nur die Materialzuordnung dieser Stunde wird ersetzt; Fach, Thema und übrige Planung bleiben erhalten.</span>
+              </span>
+            </label>
+          </fieldset>
+        </div>
+
+        <div className="p-6 pt-0 flex gap-3">
+          <button type="button" onClick={onClose} className="h-12 px-5 rounded-xl border border-slate-200 text-slate-600 font-bold">Abbrechen</button>
+          <button type="button" onClick={save} className="h-12 flex-1 rounded-xl bg-indigo-600 text-white font-black flex items-center justify-center gap-2">
+            <ClipboardList size={17} /> In Wochenplan übernehmen
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 export function useMaterialLibrary() {
-  const { setApp } = useApp();
+  const { app, setApp } = useApp();
   
-  const addMaterialFromAI = (item: Partial<MaterialItem>, quelleModul: string = 'ki-helfer') => {
+  const addMaterialFromAI = (item: Partial<MaterialItem>, quelleModul: string = 'ki-helfer'): boolean => {
+    const existing = (app.materialien || []).find(material => material.id === item.id);
     const newItem: MaterialItem = {
-      id: item.id || `ai-${Date.now()}`,
-      titel: item.titel || 'KI Generiertes Material',
+      ...(existing || {}),
+      id: item.id || `ai-${globalThis.crypto?.randomUUID?.() || Date.now()}`,
+      titel: item.titel || existing?.titel || 'KI Generiertes Material',
       beschreibung: item.beschreibung || '',
-      typ: item.typ || 'stundenentwurf',
-      faecher: item.faecher || [],
-      schulstufen: item.schulstufen || [],
-      tags: item.tags || [],
-      erstelltAm: new Date().toISOString(),
-      favorit: false,
+      typ: item.typ || existing?.typ || 'stundenentwurf',
+      faecher: item.faecher || existing?.faecher || [],
+      schulstufen: item.schulstufen || existing?.schulstufen || [],
+      tags: item.tags || existing?.tags || [],
+      erstelltAm: existing?.erstelltAm || new Date().toISOString(),
+      favorit: existing?.favorit || false,
       kiGeneriert: true,
       quelleModul,
       inhaltText: item.inhaltText,
       externerLink: item.externerLink,
+      zuletztVerwendet: existing?.zuletztVerwendet,
     };
 
-    setApp(prev => ({
-      ...prev,
-      materialien: [...(prev.materialien || []), newItem]
-    }));
+    const candidate = upsertMaterial(app.materialien || [], newItem);
+    if (calculateMaterialStorageSize(candidate) > MATERIAL_LIBRARY_MAX_MB) {
+      window.alert("Speicher voll. Bitte lösche alte Materialien oder kürze den Inhalt.");
+      return false;
+    }
+
+    setApp(prev => {
+      const prevExisting = (prev.materialien || []).find(material => material.id === newItem.id);
+      const mergedItem = prevExisting
+        ? {
+            ...prevExisting,
+            ...newItem,
+            erstelltAm: prevExisting.erstelltAm || newItem.erstelltAm,
+            favorit: prevExisting.favorit,
+            zuletztVerwendet: prevExisting.zuletztVerwendet,
+          }
+        : newItem;
+      const nextMaterials = upsertMaterial(prev.materialien || [], mergedItem);
+      if (calculateMaterialStorageSize(nextMaterials) > MATERIAL_LIBRARY_MAX_MB) {
+        return prev;
+      }
+      return {
+        ...prev,
+        materialien: nextMaterials,
+      };
+    });
+    return true;
   };
 
   return { addMaterialFromAI };

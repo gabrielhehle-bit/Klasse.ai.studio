@@ -9,7 +9,8 @@ import {
   Clock,
   LayoutGrid,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  PenTool
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { AESTHETIC_THEMES } from '../../constants';
@@ -174,88 +175,18 @@ export default function DisplaySettings({
         </div>
       </div>
 
-      {/* Smartboard & Whiteboard Optionen */}
-      <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-6 shadow-sm">
-        <div className="flex items-center gap-3 border-b border-stone-150 pb-4">
+      {/* Cockpit-Hinweis */}
+      <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-4 shadow-sm">
+        <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 border border-teal-100 flex items-center justify-center">
-            <Type size={20} />
+            <PenTool size={20} />
           </div>
           <div>
-            <h2 className="text-base font-black text-slate-900">Whiteboard & Smartboard Werkzeuge</h2>
-            <p className="text-xs text-slate-500 font-medium">Einstellungen für die digitale Tafel im Unterrichtsmodus.</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Laserpointer */}
-          <div className="p-5 bg-slate-50 rounded-2xl border border-stone-200 space-y-3">
-            <div className="text-xs font-black uppercase text-slate-800">Laserpointer-Funktion</div>
-            <p className="text-[0.6875rem] text-slate-500 font-medium leading-relaxed">
-              Zeichnet temporäre rote Linien auf der Tafel, die nach 2 Sekunden automatisch verblassen.
+            <h2 className="text-base font-black text-slate-900">Weiße Arbeitsfläche im Lehrercockpit</h2>
+            <p className="text-xs text-slate-500 font-medium leading-relaxed">
+              Das Lehrercockpit stellt eine bewusst leere weiße Fläche und die gewünschten Widgets bereit. Schreiben und Zeichnen übernimmt das Smartboard selbst.
             </p>
-            <button
-              type="button"
-              onClick={() => setApp((prev: any) => ({
-                ...prev,
-                settings: { ...prev.settings, enableWhiteboardLaser: !prev.settings.enableWhiteboardLaser }
-              }))}
-              className={`w-full py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
-                app.settings?.enableWhiteboardLaser
-                  ? 'bg-rose-500 text-white shadow-md'
-                  : 'bg-white border border-stone-200 text-slate-700'
-              }`}
-            >
-              {app.settings?.enableWhiteboardLaser ? 'Aktiviert ✓' : 'Aktivieren'}
-            </button>
           </div>
-
-          {/* Whiteboard Hintergrund */}
-          <div className="p-5 bg-slate-50 rounded-2xl border border-stone-200 space-y-3">
-            <div className="text-xs font-black uppercase text-slate-800">Whiteboard Hintergrundmuster</div>
-            <p className="text-[0.6875rem] text-slate-500 font-medium leading-relaxed">
-              Standard-Muster (Karopapier, Liniatur, Noten) für das digitale Whiteboard.
-            </p>
-            <select
-              value={app.settings?.whiteboardBackground || 'karo'}
-              onChange={(e) => setApp((prev: any) => ({
-                ...prev,
-                settings: { ...prev.settings, whiteboardBackground: e.target.value }
-              }))}
-              className="w-full h-11 px-3 bg-white border border-stone-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value="none">Standard Weiß</option>
-              <option value="karo">Karopapier (Mathematik)</option>
-              <option value="liniert_2">Liniatur (2. Klasse)</option>
-              <option value="liniert_3">Liniatur (3. Klasse)</option>
-              <option value="liniert_4">Liniatur (4. Klasse)</option>
-              <option value="noten">Notenlinien (Musik)</option>
-              <option value="haeuschen">Häuschen (Schulstart)</option>
-              <option value="punktraster">Punktraster (Dot Grid)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Board Sichtbarkeit */}
-        <div className="p-5 bg-slate-50 rounded-2xl border border-stone-200 flex items-center justify-between gap-4">
-          <div>
-            <div className="text-xs font-black text-slate-800">Verhalten & Ränge auf der Tafel anzeigen</div>
-            <p className="text-[0.6875rem] text-slate-500 font-medium">Zeigt Tages-Symbole auf der Smartboard-Tafel an.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setApp((prev: any) => ({
-              ...prev,
-              settings: { ...prev.settings, showVerhaltenOnBoard: !prev.settings.showVerhaltenOnBoard }
-            }))}
-            className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-0.5 cursor-pointer shrink-0 ${
-              app.settings?.showVerhaltenOnBoard ? 'bg-emerald-500' : 'bg-slate-300'
-            }`}
-          >
-            <motion.div
-              animate={{ x: app.settings?.showVerhaltenOnBoard ? 24 : 0 }}
-              className="w-5 h-5 bg-white rounded-full shadow-sm"
-            />
-          </button>
         </div>
       </div>
 

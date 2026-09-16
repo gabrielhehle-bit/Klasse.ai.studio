@@ -51,17 +51,30 @@ export default function AdvancedSettings({
     setIsChecking(true);
     const results: { id: string; label: string; status: 'ok' | 'warn' | 'error'; info: string }[] = [];
 
-    // 1. Storage Check
+    // 1. Storage Check: use the browser-reported origin quota when available.
     try {
       if (speicherInfo) {
-        if (speicherInfo.localStorageBytes > 4 * 1024 * 1024) {
-          results.push({ id: 'storage', label: 'Schnellspeicher (localStorage)', status: 'warn', info: 'Fast voll (> 4 MB)' });
+        const usage = speicherInfo.indexedDbBytes;
+        const quota = speicherInfo.quotaBytes;
+        if (typeof usage === 'number' && typeof quota === 'number' && quota > 0) {
+          const ratio = usage / quota;
+          results.push({
+            id: 'storage',
+            label: 'Browser-Speicher',
+            status: ratio >= 0.9 ? 'warn' : 'ok',
+            info: `${(usage / (1024 * 1024)).toFixed(1)} MB von ca. ${(quota / (1024 * 1024)).toFixed(0)} MB belegt`
+          });
         } else {
-          results.push({ id: 'storage', label: 'Schnellspeicher (localStorage)', status: 'ok', info: `${(speicherInfo.localStorageBytes / 1024).toFixed(0)} KB belegt` });
+          results.push({
+            id: 'storage',
+            label: 'Browser-Speicher',
+            status: 'ok',
+            info: `localStorage: ${(speicherInfo.localStorageBytes / 1024).toFixed(0)} KB; Browser-Quote nicht verfügbar`
+          });
         }
       }
-    } catch (e) {
-      results.push({ id: 'storage', label: 'Schnellspeicher', status: 'error', info: 'Fehler beim Lesen' });
+    } catch {
+      results.push({ id: 'storage', label: 'Browser-Speicher', status: 'error', info: 'Fehler beim Lesen' });
     }
 
     // 2. Data Integrity Check
@@ -72,7 +85,7 @@ export default function AdvancedSettings({
     if (navigator.onLine) {
       results.push({ id: 'network', label: 'Netzwerk-Status', status: 'ok', info: 'Online' });
     } else {
-      results.push({ id: 'network', label: 'Netzwerk-Status', status: 'warn', info: 'Offline (Lokal voll einsatzbereit)' });
+      results.push({ id: 'network', label: 'Netzwerk-Status', status: 'warn', info: 'Offline – lokale Kernfunktionen verfügbar, Online-Funktionen eingeschränkt' });
     }
 
     setCheckResults(results);
@@ -292,15 +305,28 @@ export default function AdvancedSettings({
           <div className="pt-4 border-t border-stone-150 space-y-3">
             <h3 className="text-xs font-black uppercase text-slate-700">Speicherbelegung (Technisch)</h3>
             <div className="p-4 bg-slate-50 rounded-2xl border border-stone-200 space-y-2 text-xs">
-              <div className="flex justify-between font-bold text-slate-700">
-                <span>localStorage Belegung:</span>
-                <span>{(speicherInfo.localStorageBytes / (1024 * 1024)).toFixed(2)} MB / 5.0 MB</span>
-              </div>
-              <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-emerald-500 h-full transition-all" 
-                  style={{ width: `${Math.min(100, (speicherInfo.localStorageBytes / (5 * 1024 * 1024)) * 100)}%` }}
-                />
+              {typeof speicherInfo.indexedDbBytes === 'number' && typeof speicherInfo.quotaBytes === 'number' && speicherInfo.quotaBytes > 0 ? (
+                <>
+                  <div className="flex justify-between font-bold text-slate-700 gap-4">
+                    <span>Browser-Speicher gesamt:</span>
+                    <span>
+                      {(speicherInfo.indexedDbBytes / (1024 * 1024)).toFixed(1)} MB von ca. {(speicherInfo.quotaBytes / (1024 * 1024)).toFixed(0)} MB
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full transition-all"
+                      style={{ width: `${Math.min(100, (speicherInfo.indexedDbBytes / speicherInfo.quotaBytes) * 100)}%` }}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="font-bold text-slate-700">
+                  Browser-Speicherquote wird von diesem Browser nicht bereitgestellt.
+                </div>
+              )}
+              <div className="text-[0.6875rem] text-slate-500 font-medium">
+                localStorage-Anteil: {(speicherInfo.localStorageBytes / 1024).toFixed(0)} KB. Der verschlüsselte Hauptdatenbestand liegt nicht ausschließlich in localStorage.
               </div>
             </div>
           </div>
@@ -381,8 +407,8 @@ export default function AdvancedSettings({
           {/* Rest database */}
           <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 flex items-center justify-between gap-4">
             <div>
-              <h3 className="text-xs font-black text-rose-950">Alle Daten löschen (Werkseinstellung)</h3>
-              <p className="text-[0.6875rem] text-rose-700 font-medium">Setzt die gesamte App vollständig zurück. Alle Daten werden gelöscht.</p>
+              <h3 className="text-xs font-black text-rose-950">Lokale App-Daten löschen (Werkseinstellung)</h3>
+              <p className="text-[0.6875rem] text-rose-700 font-medium">Löscht die lokalen Klassio-Daten dieses Browsers. Separate OneDrive-/Cloud-Sicherungen bleiben bestehen und müssen dort separat gelöscht werden.</p>
             </div>
             <button
               type="button"

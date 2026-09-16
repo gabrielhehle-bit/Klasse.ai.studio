@@ -125,8 +125,8 @@ export const IndividualProfileView: React.FC<IndividualProfileViewProps> = ({
                 {student.vorname} {student.nachname}
               </h2>
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                <span>Klasse {activeClassName || '2a'}</span>
-                <span>•</span>
+                {activeClassName && <span>Klasse {activeClassName}</span>}
+                {activeClassName && <span>•</span>}
                 <span className="text-slate-400">Noch keine Diagnostik erfasst</span>
               </div>
             </div>
@@ -188,9 +188,11 @@ export const IndividualProfileView: React.FC<IndividualProfileViewProps> = ({
               <h2 className="text-lg font-bold text-slate-900">
                 {student.vorname} {student.nachname}
               </h2>
-              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-semibold">
-                Klasse {activeClassName || '2a'}
-              </span>
+              {activeClassName && (
+                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[11px] font-semibold">
+                  Klasse {activeClassName}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
               <span className="font-medium">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import pptxgen from 'pptxgenjs';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   Legend, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
@@ -601,27 +602,32 @@ export default function KELPresentation({
 
   const handleRepairIkmData = () => {
     setApp((prev: any) => {
-      const existingRecords = prev.ikmRecords || [];
-      const updatedIkmRecords = existingRecords.map((r: any) => {
-        if (r.schuelerId === student.id) {
-          return {
-            ...r,
-            mathematikPR: typeof r.mathematikPR === 'number' && !isNaN(r.mathematikPR) ? r.mathematikPR : 54,
-            deutschLesenPR: typeof r.deutschLesenPR === 'number' && !isNaN(r.deutschLesenPR) ? r.deutschLesenPR : 58,
-            matheDetails: {
-              zahlen: 4.2,
-              operationen: 3.8,
-              groessen: 5.1,
-              ebeneRaum: 4.5
-            }
-          };
-        }
-        return r;
+      const cleanNumber = (value: any) =>
+        typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+
+      const updatedIkmRecords = (prev.ikmRecords || []).map((record: any) => {
+        if (record.schuelerId !== student.id) return record;
+
+        const cleanedDetails = record.matheDetails && typeof record.matheDetails === 'object'
+          ? Object.fromEntries(
+              Object.entries(record.matheDetails)
+                .filter(([, value]) => typeof value === 'number' && Number.isFinite(value))
+            )
+          : undefined;
+
+        return {
+          ...record,
+          mathematikPR: cleanNumber(record.mathematikPR),
+          deutschLesenPR: cleanNumber(record.deutschLesenPR),
+          deutschZuhoerenPR: cleanNumber(record.deutschZuhoerenPR),
+          deutschSprachbewusstseinPR: cleanNumber(record.deutschSprachbewusstseinPR),
+          ...(cleanedDetails && Object.keys(cleanedDetails).length > 0
+            ? { matheDetails: cleanedDetails }
+            : { matheDetails: undefined })
+        };
       });
-      return {
-        ...prev,
-        ikmRecords: updatedIkmRecords
-      };
+
+      return { ...prev, ikmRecords: updatedIkmRecords };
     });
   };
   const [slideIndex, setSlideIndex] = useState<number>(0);
@@ -629,6 +635,7 @@ export default function KELPresentation({
   const [presentationView, setPresentationView] = useState<'slides' | 'dossier'>('slides');
   const [selectedChartType, setSelectedChartType] = useState<'column' | 'bar' | 'line' | 'area' | 'pie'>('area');
   const [dossierChartType, setDossierChartType] = useState<'column' | 'line' | 'area' | 'radar'>('column');
+  const [isExportingPptx, setIsExportingPptx] = useState(false);
 
   const [kelMode, setKelMode] = useState<'einfach' | 'experte'>(() => {
     return (localStorage.getItem('kel_presentation_mode') as 'einfach' | 'experte') || 'einfach';
@@ -819,195 +826,130 @@ Antworte AUSSCHLIESSLICH mit dem übersetzten JSON-Objekt in exakt derselben Str
   const [ikmChartModus, setIkmChartModus] = useState<'mathe' | 'deutsch'>('mathe');
   const [isAnalyzingProfile, setIsAnalyzingProfile] = useState<boolean>(false);
 
-  const generateFallbackAnalysis = (student: any, ikmRecord: any, app: any, sem: string) => {
-    const mathGrade = berechne ? (berechne(app, student.id, 'Mathematik', sem) || 3) : 3;
-    const deutschGrade = berechne ? (berechne(app, student.id, 'Deutsch', sem) || 3) : 3;
-    
-    let staerken = "";
-    let herausforderungen = "";
-    let stationen = [];
-    let elternTipps = [];
-
-    if (mathGrade <= 2) {
-      staerken += `Ich besitze ein hervorragendes mathematisches Grundverständnis. Mir gelingt es sehr schnell, neue Rechenwege zu erfassen, Muster zu erkennen und Logikrätsel selbstständig zu lösen.\n`;
-    } else {
-      staerken += `Ich arbeite fleißig an Rechenaufgaben und zeige großes Interesse daran, neue mathematische Lösungswege schrittweise zu verstehen.\n`;
-    }
-    
-    if (deutschGrade <= 2) {
-      staerken += `Das flüssige und sinnerfassende Lesen von Texten bereitet mir große Freude. Ich kann Gehörtes und Gelesenes schnell auffassen, interpretieren und meinen Mitschülern verständlich erklären.`;
-    } else {
-      staerken += `Ich bemühe mich sehr beim Lesen von Texten und kann mir unbekannte Wörter zunehmend selbstständig erschließen.`;
-    }
-
-    staerken += ` Im sozialen Miteinander bin ich stets hilfsbereit und arbeite gerne kooperativ in Gruppenarbeiten mit meinen Mitschülern zusammen.`;
-
-    if (mathGrade >= 3) {
-      herausforderungen += `Rechen-König werden: Wir nehmen uns vor, das Einmaleins und die Grundrechenarten weiter zu automatisieren, um bei größeren Sachaufgaben noch mehr Zeit und Sicherheit zu haben.\n`;
-    } else {
-      herausforderungen += `Knifflige Logikrätsel: Wir wollen anspruchsvolle Sach- und Geometrieaufgaben ausprobieren, um mein mathematisches Denken noch tiefer zu fordern.\n`;
-    }
-
-    if (deutschGrade >= 3) {
-      herausforderungen += `Lesefluss-Reise: Ich möchte täglich 10 Minuten laut vorlesen, um mein Lesetempo zu steigern, und die Rechtschreibung schwieriger Wörter im Schreibtagebuch aktiv üben.`;
-    } else {
-      herausforderungen += `Kreatives Schreiben: Ich möchte mein Vokabular und meine Satzstrukturen erweitern, indem ich eigene kleine Geschichten verfasse und diese stolz präsentiere.`;
-    }
-
-    if (mathGrade >= deutschGrade) {
-      stationen = [
-        { titel: 'Insel der Zahlenreisen', aufgabe: 'Erforsche das große Einmaleins mit unserem magischen Mal-Rad im Klassenzimmer.', ziel: 'Einmaleins-Automatisierung für blitzschnelles Kopfrechnen', icon: 'map' },
-        { titel: 'Dschungel der Geschichten', aufgabe: 'Lies wöchentlich 2 kurze Abenteuergeschichten und erzähle einer Begleitperson das Ende.', ziel: 'Sinnerfassendes Lesen und freies Nacherzählen am Lagerfeuer', icon: 'star' },
-        { titel: 'Gipfel des Erfolgs', aufgabe: 'Löse ein echtes IKM-Meisterrätsel und trage die goldene Lösungsflagge ins Ziel.', ziel: 'Eigenständiges Lösen komplexer Knobelaufgaben', icon: 'flag' }
-      ];
-      elternTipps = [
-        "🎲 Multiplikations-Duell: Spielen Sie ein rasches Würfelspiel zu Hause, bei dem beide gewürfelten Zahlen blitzschnell malgenommen werden müssen.",
-        "📖 Lesetandem am Abend: Lesen Sie abwechselnd eine Seite aus einem spannenden Buch laut vor und sprechen Sie über die skurrilen Figuren."
-      ];
-    } else {
-      stationen = [
-        { titel: 'Wortakrobatik-Tal', aufgabe: 'Sammle wöchentlich 5 schwierige Wörter in deiner Schatzkiste und baue Witze damit.', ziel: 'Wortschatz-Erweiterung und kreativer Umgang mit Schriftsprache', icon: 'map' },
-        { titel: 'Zahlen-Brücke', aufgabe: 'Spiele das Zahlenlinien-Rennen und hüpfe auf dem Spielplatz in Einer-, Zehner- oder Hunderterschritten.', ziel: 'Sicherheit im Zahlenraum und räumliches Vorstellungsvermögen', icon: 'star' },
-        { titel: 'Gipfel des Erfolgs', aufgabe: 'Schreibe einen kleinen Eltern-Ratgeber als Schatzkarte für ein anderes Kind und präsentiere es.', ziel: 'Selbstreflexion und Stolz auf eigene schulische Meilensteine', icon: 'flag' }
-      ];
-      elternTipps = [
-        "🍳 Rezept-Detektiv: Lassen Sie Ihr Kind beim Kochen oder Backen die Mengenangaben und Schritte der Zutatenliste laut vorlesen und abmessen.",
-        "🃏 Stadt-Land-Zahl: Eine spielerische Variante, bei der schnell kleine Rechenrätsel gelöst werden müssen, um den nächsten Buchstaben freizuschalten."
-      ];
-    }
-
-    return { staerken, herausforderungen, stationen, elternTipps };
+  const generateFallbackAnalysis = (_student: any, ikmRecord: any, currentApp: any, _sem: string) => {
+    const existingPath = currentApp.lernpfade?.[student.id] || {};
+    return {
+      staerken: typeof ikmRecord?.diagnoseStaerken === 'string' ? ikmRecord.diagnoseStaerken : '',
+      herausforderungen: typeof ikmRecord?.diagnoseHerausforderungen === 'string' ? ikmRecord.diagnoseHerausforderungen : '',
+      stationen: Array.isArray(existingPath.stationen) ? existingPath.stationen : [],
+      elternTipps: Array.isArray(existingPath.elternTipps) ? existingPath.elternTipps : []
+    };
   };
-
   const runProfileAnalysis = async () => {
     setIsAnalyzingProfile(true);
     const ikmRecord: any = (app.ikmRecords || []).find((r: any) => r.schuelerId === student.id) || null;
     try {
-      const mathGrade = berechne ? (berechne(app, student.id, 'Mathematik', sem) || 3) : 3;
-      const deutschGrade = berechne ? (berechne(app, student.id, 'Deutsch', sem) || 3) : 3;
-      const suGrade = berechne ? (berechne(app, student.id, 'Sachunterricht', sem) || 3) : 3;
-      
-      
-      
-      // B1.5 DATENSCHUTZ: Keine Namen, keine Religion und keine Roh-Schülerprofile an die KI übertragen!
-      // Nur didaktisch relevante Kompetenzwerte und Förderziele pseudonymisiert bereitstellen.
+      const mathGrade = berechne ? berechne(app, student.id, 'Mathematik', sem) : null;
+      const deutschGrade = berechne ? berechne(app, student.id, 'Deutsch', sem) : null;
+      const suGrade = berechne ? berechne(app, student.id, 'Sachunterricht', sem) : null;
+
       const sanitizedIkm = ikmRecord ? {
         mathematikPR: ikmRecord.mathematikPR,
         deutschLesenPR: ikmRecord.deutschLesenPR,
         deutschZuhoerenPR: ikmRecord.deutschZuhoerenPR,
+        deutschSprachbewusstseinPR: ikmRecord.deutschSprachbewusstseinPR,
         diagnoseStaerken: ikmRecord.diagnoseStaerken,
         diagnoseHerausforderungen: ikmRecord.diagnoseHerausforderungen
       } : null;
 
-      const badgeNames = (student.badges || []).map((b: any) => typeof b === 'string' ? b : b.name).filter(Boolean);
+      const badgeNames = (student.badges || [])
+        .map((b: any) => typeof b === 'string' ? b : b.name)
+        .filter(Boolean);
       const foerderZiele = (student.foerderprofil?.foerderziele || [])
-        .map((z: any) => z.ziel ? `${z.ziel} (${z.bereich || 'Allgemein'})` : '')
+        .map((z: any) => z.ziel ? `${z.ziel} (${z.bereich || 'ohne Bereichsangabe'})` : '')
+        .filter(Boolean);
+      const documentedStrengths = (student.foerderprofil?.staerken || []).filter(Boolean);
+      const observations = getStudentNotes(app, student.id)
+        .slice(0, 8)
+        .map((note: any) => note.inhalt || note.notiz || note.text || note.titel)
         .filter(Boolean);
 
-      const promptText = `Analysiere die Lernausgangslage für ein Kind der Volksschule (Pseudonym: Kind A).
-      Klasse/Stufe: ${app.stufe || '4'}. Schulstufe.
-      Relevante Kompetenzdaten (IKM-Auszug): ${sanitizedIkm ? JSON.stringify(sanitizedIkm) : 'Keine IKM-Daten vorhanden'}.
-      Noten-Einstufung: Mathematik: ${mathGrade}, Deutsch: ${deutschGrade}, Sachunterricht: ${suGrade}.
-      Besondere Interessen & Stärken: ${badgeNames.length > 0 ? badgeNames.join(', ') : 'Vielseitig interessiert'}.
-      Vorhandene Förderziele: ${foerderZiele.length > 0 ? foerderZiele.join(', ') : 'Reguläre Kompetenzvertiefung'}.
-      Schuljahr: ${app.schuljahr || 'Aktuelles Schuljahr'}.
+      const gradeData = [
+        mathGrade !== null ? `Mathematik: ${Number(mathGrade).toFixed(2)}` : '',
+        deutschGrade !== null ? `Deutsch: ${Number(deutschGrade).toFixed(2)}` : '',
+        suGrade !== null ? `Sachunterricht: ${Number(suGrade).toFixed(2)}` : ''
+      ].filter(Boolean);
 
-      Gib uns das Ergebnis als JSON-Struktur zurück mit:
-      {
-        "staerken": "Ein kurzer, extrem positiver, schülerzentrierter Absatz in der 'Ich-Form' (z.B. 'Ich kann sehr gut logisch denken...'), der die Stärken für die KEL-Präsentation zusammenfasst.",
-        "herausforderungen": "Ein motivierender, konkreter Absatz in der 'Wir-Form' oder 'Ich-Form' (z.B. 'Wir nehmen uns vor, das Einmaleins zu festigen...'), der die nächsten Ziele zusammenfasst.",
-        "stationen": [
-          { "titel": "Station 1", "aufgabe": "Beschreibung einer konkreten Aufgabe", "ziel": "Was lernt das Kind dabei", "icon": "map" },
-          { "titel": "Station 2", "aufgabe": "Beschreibung einer konkreten Aufgabe", "ziel": "Was lernt das Kind dabei", "icon": "star" },
-          { "titel": "Station 3", "aufgabe": "Beschreibung einer konkreten Aufgabe", "ziel": "Was lernt das Kind dabei", "icon": "flag" }
-        ],
-        "elternTipps": [
-          "Konkrete Idee 1 für zu Hause",
-          "Konkrete Idee 2 für zu Hause"
-        ]
-      }`;
+      const hasEvidence = Boolean(
+        sanitizedIkm ||
+        gradeData.length ||
+        badgeNames.length ||
+        foerderZiele.length ||
+        documentedStrengths.length ||
+        observations.length
+      );
+      if (!hasEvidence) return;
+
+      const promptText = `Erstelle einen KEL-Entwurf ausschließlich aus den folgenden dokumentierten Daten für ein pseudonymisiertes Kind (Kind A).
+Erfinde keine Persönlichkeit, Motivation, Stärken, Schwächen, Diagnosen, Leistungen, Förderbedarfe oder häuslichen Umstände.
+Wenn eine Aussage durch die Daten nicht belegt ist, lasse sie weg. Formuliere Vorschläge ausdrücklich als Vorschläge, nicht als Tatsachen.
+
+Schulstufe: ${app.stufe ? `${app.stufe}. Schulstufe` : 'nicht erfasst'}
+IKM-/Diagnostikdaten: ${sanitizedIkm ? JSON.stringify(sanitizedIkm) : 'nicht vorhanden'}
+Erfasste Leistungswerte: ${gradeData.length ? gradeData.join('; ') : 'nicht vorhanden'}
+Dokumentierte Stärken/Badges: ${[...documentedStrengths, ...badgeNames].join('; ') || 'nicht vorhanden'}
+Vorhandene Förderziele: ${foerderZiele.join('; ') || 'nicht vorhanden'}
+Dokumentierte Beobachtungen: ${observations.join('; ') || 'nicht vorhanden'}
+
+Antworte ausschließlich als JSON:
+{
+  "staerken": "Nur belegte Stärken; sonst leerer String",
+  "herausforderungen": "Nur belegte bzw. bereits dokumentierte nächste Ziele; sonst leerer String",
+  "stationen": [
+    { "titel": "Vorschlag", "aufgabe": "konkrete Übung auf Basis eines belegten Ziels", "ziel": "zugehöriges belegtes Ziel", "icon": "map" }
+  ],
+  "elternTipps": ["Optionaler Vorschlag auf Basis eines belegten Ziels"]
+}`;
 
       const responseText = await askAI('ki-lernpfad', promptText);
-      if (responseText) {
-        let cleanText = responseText.trim();
-        if (cleanText.startsWith('```json')) {
-          cleanText = cleanText.substring(7);
-        }
-        if (cleanText.endsWith('```')) {
-          cleanText = cleanText.substring(0, cleanText.length - 3);
-        }
-        cleanText = cleanText.trim();
-        
-        const pathData = JSON.parse(cleanText);
-        
-        setApp(prev => {
-          const newLernpfade = { ...(prev.lernpfade || {}), [student.id]: { stationen: pathData.stationen, elternTipps: pathData.elternTipps } };
-          const existingRecords = prev.ikmRecords || [];
-          const recIdx = existingRecords.findIndex((r: any) => r.schuelerId === student.id);
-          let updatedIkmRecords = [...existingRecords];
-          
-          if (recIdx >= 0) {
-            updatedIkmRecords[recIdx] = {
-              ...updatedIkmRecords[recIdx],
-              diagnoseStaerken: pathData.staerken || updatedIkmRecords[recIdx].diagnoseStaerken,
-              diagnoseHerausforderungen: pathData.herausforderungen || updatedIkmRecords[recIdx].diagnoseHerausforderungen,
-            };
-          } else {
-            updatedIkmRecords.push({
-              id: 'ikm-' + Date.now(),
-              schuelerId: student.id,
-              datum: new Date().toISOString(),
-              schuljahr: prev.schuljahr || '—',
-              schulstufe: prev.stufe || 4,
-              diagnoseStaerken: pathData.staerken,
-              diagnoseHerausforderungen: pathData.herausforderungen
-            });
-          }
+      if (!responseText) return;
 
-          return {
-            ...prev,
-            lernpfade: newLernpfade,
-            ikmRecords: updatedIkmRecords
-          };
-        });
-      }
-    } catch (error) {
-      console.error('AI Profile Analysis failed, using smart fallback', error);
-      const fallback = generateFallbackAnalysis(student, ikmRecord, app, sem);
+      let cleanText = responseText.trim()
+        .replace(/^\`\`\`json\s*/i, '')
+        .replace(/^\`\`\`\s*/i, '')
+        .replace(/\`\`\`$/, '')
+        .trim();
+      const pathData = JSON.parse(cleanText);
+
+      const safeStations = Array.isArray(pathData.stationen) ? pathData.stationen : [];
+      const safeTips = Array.isArray(pathData.elternTipps) ? pathData.elternTipps : [];
+
       setApp(prev => {
-        const newLernpfade = { ...(prev.lernpfade || {}), [student.id]: { stationen: fallback.stationen, elternTipps: fallback.elternTipps } };
+        const newLernpfade = {
+          ...(prev.lernpfade || {}),
+          [student.id]: {
+            stationen: safeStations,
+            elternTipps: safeTips,
+            source: 'ai-draft',
+            generatedAt: new Date().toISOString()
+          }
+        };
+
         const existingRecords = prev.ikmRecords || [];
         const recIdx = existingRecords.findIndex((r: any) => r.schuelerId === student.id);
-        let updatedIkmRecords = [...existingRecords];
-        
+        let updatedIkmRecords = existingRecords;
+
         if (recIdx >= 0) {
+          updatedIkmRecords = [...existingRecords];
           updatedIkmRecords[recIdx] = {
             ...updatedIkmRecords[recIdx],
-            diagnoseStaerken: fallback.staerken,
-            diagnoseHerausforderungen: fallback.herausforderungen,
+            diagnoseStaerken: typeof pathData.staerken === 'string' && pathData.staerken.trim()
+              ? pathData.staerken.trim()
+              : updatedIkmRecords[recIdx].diagnoseStaerken,
+            diagnoseHerausforderungen: typeof pathData.herausforderungen === 'string' && pathData.herausforderungen.trim()
+              ? pathData.herausforderungen.trim()
+              : updatedIkmRecords[recIdx].diagnoseHerausforderungen,
           };
-        } else {
-          updatedIkmRecords.push({
-            id: 'ikm-' + Date.now(),
-            schuelerId: student.id,
-            datum: new Date().toISOString(),
-            schuljahr: prev.schuljahr || '—',
-            schulstufe: prev.stufe || 4,
-            diagnoseStaerken: fallback.staerken,
-            diagnoseHerausforderungen: fallback.herausforderungen
-          });
         }
-        return {
-          ...prev,
-          lernpfade: newLernpfade,
-          ikmRecords: updatedIkmRecords
-        };
+
+        return { ...prev, lernpfade: newLernpfade, ikmRecords: updatedIkmRecords };
       });
+    } catch (error) {
+      console.error('AI profile analysis failed; no fallback content was created.', error);
     } finally {
       setIsAnalyzingProfile(false);
     }
   };
-
   const handleSaveAreaComment = (areaId: string, type: 'teacher' | 'student', text: string) => {
     setApp(prev => {
       const kelGespraeche = prev.kelGespraeche || [];
@@ -1090,7 +1032,7 @@ Antworte AUSSCHLIESSLICH mit dem übersetzten JSON-Objekt in exakt derselben Str
           };
 
       const key = type === 'teacher' ? 'einschaetzungLehrperson' : 'selbsteinschaetzungKind';
-      const existingVal = targetMeeting[key]?.[areaId] || { wert: 2, kommentar: '' };
+      const existingVal = targetMeeting[key]?.[areaId] || { kommentar: '' };
       
       const updatedMeeting = {
         ...targetMeeting,
@@ -1800,6 +1742,407 @@ Antworte AUSSCHLIESSLICH mit dem übersetzten JSON-Objekt in exakt derselben Str
     return list;
   }, [student, activeFaecher, app, sem, berechne, activeTranslations, kelMode, visibleSlidesConfig, hasKelAssessmentData]);
 
+  const exportPowerPoint = async () => {
+    if (isExportingPptx || slides.length === 0) return;
+    setIsExportingPptx(true);
+
+    try {
+      const pptx: any = new (pptxgen as any)();
+      pptx.layout = 'LAYOUT_WIDE';
+      pptx.author = 'Klassio';
+      pptx.company = 'Klassio';
+      pptx.subject = 'KEL-Gespräch';
+      pptx.title = `KEL – ${student.vorname} ${student.nachname}`;
+      pptx.lang = selectedLang === 'de' ? 'de-AT' : selectedLang;
+
+      const COLORS = {
+        ink: '0F172A',
+        muted: '64748B',
+        line: 'E2E8F0',
+        surface: 'F8FAFC',
+        white: 'FFFFFF',
+        primary: '4F46E5',
+        secondary: '94A3B8',
+        emerald: '10B981',
+        rose: 'F43F5E',
+        amber: 'F59E0B',
+        blue: '3B82F6',
+        violet: '8B5CF6'
+      };
+
+      const addChrome = (slide: any, title: string, subtitle?: string) => {
+        slide.background = { color: COLORS.surface };
+        slide.addText(title || 'KEL', {
+          x: 0.65, y: 0.34, w: 12.05, h: 0.42,
+          fontFace: 'Aptos Display', fontSize: 22, bold: true,
+          color: COLORS.ink, margin: 0
+        });
+        if (subtitle) {
+          slide.addText(subtitle, {
+            x: 0.65, y: 0.82, w: 12.05, h: 0.3,
+            fontFace: 'Aptos', fontSize: 10.5, color: COLORS.muted, margin: 0
+          });
+        }
+        slide.addText(
+          `Klassio · ${student.vorname} ${student.nachname} · ${app.schuljahr || ''}`,
+          {
+            x: 0.65, y: 7.12, w: 12.05, h: 0.18,
+            fontFace: 'Aptos', fontSize: 7.5, color: '94A3B8',
+            align: 'right', margin: 0
+          }
+        );
+      };
+
+      const addNoData = (slide: any, message = 'Für diese Folie sind noch keine dokumentierten Daten vorhanden.') => {
+        slide.addText(message, {
+          x: 1.1, y: 2.9, w: 11.1, h: 0.65,
+          fontFace: 'Aptos', fontSize: 18, bold: true,
+          color: COLORS.muted, align: 'center', valign: 'mid',
+          fill: { color: 'FFFFFF' }, line: { color: COLORS.line, pt: 1 },
+          margin: 0.18
+        });
+      };
+
+      const textOf = (value: any): string => {
+        if (typeof value === 'string') return value.trim();
+        if (!value || typeof value !== 'object') return '';
+        return String(
+          value.text ?? value.titel ?? value.title ?? value.name ?? value.ziel ??
+          value.aufgabe ?? value.beschreibung ?? value.inhalt ?? value.notiz ?? ''
+        ).trim();
+      };
+
+      const addBulletText = (slide: any, items: string[], x: number, y: number, w: number, h: number) => {
+        const clean = items.map(item => item.trim()).filter(Boolean);
+        if (clean.length === 0) {
+          addNoData(slide);
+          return;
+        }
+        slide.addText(clean.map(item => `• ${item}`).join('\n'), {
+          x, y, w, h, fontFace: 'Aptos', fontSize: 15,
+          color: COLORS.ink, breakLine: false, valign: 'top',
+          margin: 0.12, breakLineOnOverflow: false, fit: 'shrink',
+          lineSpacingMultiple: 1.08
+        } as any);
+      };
+
+      const commonChart = {
+        showTitle: false,
+        showLegend: true,
+        legendPos: 'b',
+        legendFontSize: 9,
+        catAxisLabelFontSize: 9,
+        valAxisLabelFontSize: 8,
+        chartColors: [COLORS.primary, COLORS.secondary, COLORS.emerald, COLORS.rose],
+        showValue: false,
+        showCatName: false,
+        border: { color: COLORS.line, pt: 1 },
+        chartArea: { fill: { color: COLORS.white }, border: { color: COLORS.line, pt: 1 } },
+        plotArea: { fill: { color: COLORS.white }, border: { color: COLORS.line, pt: 0.5 } }
+      } as any;
+
+      for (const slideData of slides) {
+        const slide: any = pptx.addSlide();
+        addChrome(slide, slideData.title || 'KEL', slideData.subtitle || '');
+
+        if (slideData.type === 'cover') {
+          slide.addText(`${student.vorname} ${student.nachname}`, {
+            x: 0.85, y: 2.1, w: 11.65, h: 0.85,
+            fontFace: 'Aptos Display', fontSize: 34, bold: true,
+            color: COLORS.primary, align: 'center', margin: 0
+          });
+          slide.addText(slideData.subtitle || 'Herzlich willkommen zum KEL-Gespräch!', {
+            x: 1.4, y: 3.05, w: 10.55, h: 0.55,
+            fontFace: 'Aptos', fontSize: 20, color: COLORS.ink,
+            align: 'center', margin: 0
+          });
+          slide.addText(highlightStrength, {
+            x: 1.65, y: 4.05, w: 10.05, h: 1.1,
+            fontFace: 'Aptos', fontSize: 16, italic: true,
+            color: COLORS.muted, align: 'center', valign: 'mid',
+            fill: { color: 'FFFFFF' }, line: { color: COLORS.line, pt: 1 },
+            margin: 0.18, fit: 'shrink'
+          });
+          continue;
+        }
+
+        if (slideData.type === 'overview') {
+          if (overallChartData.length > 0) {
+            const labels = overallChartData.map((d: any) => d.name);
+            slide.addChart(pptx.ChartType.bar, [
+              { name: 'Schüler:in', labels, values: overallChartData.map((d: any) => Number(d['Schüler (Du)'] ?? 0)) },
+              { name: 'Klasse Ø', labels, values: overallChartData.map((d: any) => Number(d['Klasse (Ø)'] ?? 0)) }
+            ], {
+              ...commonChart, x: 0.8, y: 1.45, w: 8.1, h: 4.95,
+              barDir: 'col', barGrouping: 'clustered',
+              valAxisMinVal: 1, valAxisMaxVal: 5, valAxisMajorUnit: 1,
+              valAxisTitle: 'Note (1 = sehr gut)'
+            } as any);
+          } else {
+            addNoData(slide, 'Noch keine Fachbewertungen vorhanden.');
+          }
+          slide.addText(
+            [
+              `Gesamtschnitt: ${gesamtSchnitt !== null ? gesamtSchnitt.toFixed(2) : '–'}`,
+              `Klasse Ø: ${overallClassSchnitt !== null ? overallClassSchnitt.toFixed(2) : '–'}`,
+              `Anwesenheit: ${attendance.hasData ? `${attendance.total} Fehlstunden` : 'noch nicht erfasst'}`,
+              `Verhalten: ${behaviorSummary.hasData ? behaviorStage.label : 'noch nicht erfasst'}`
+            ].join('\n\n'),
+            {
+              x: 9.25, y: 1.7, w: 3.2, h: 3.9,
+              fontFace: 'Aptos', fontSize: 16, bold: true,
+              color: COLORS.ink, valign: 'mid', margin: 0.15,
+              fill: { color: 'FFFFFF' }, line: { color: COLORS.line, pt: 1 },
+              fit: 'shrink'
+            }
+          );
+          continue;
+        }
+
+        if (slideData.type === 'badges') {
+          const badgeTexts = (slideData.badges || []).map((badge: any) => textOf(badge)).filter(Boolean);
+          addBulletText(slide, badgeTexts, 1.0, 1.55, 11.3, 4.95);
+          continue;
+        }
+
+        if (slideData.type === 'subject') {
+          const chartRows = (slideData.detailsChartData || []).filter((row: any) =>
+            row['Du'] !== null || row['Klasse Ø'] !== null
+          );
+          if (chartRows.length > 0) {
+            const labels = chartRows.map((row: any) => String(row.name));
+            slide.addChart(pptx.ChartType.bar, [
+              { name: 'Schüler:in', labels, values: chartRows.map((row: any) => Number(row['Du'] ?? 0)) },
+              { name: 'Klasse Ø', labels, values: chartRows.map((row: any) => Number(row['Klasse Ø'] ?? 0)) }
+            ], {
+              ...commonChart, x: 0.75, y: 1.45, w: 8.5, h: 5.0,
+              barDir: 'col', barGrouping: 'clustered',
+              valAxisMinVal: 1, valAxisMaxVal: 5, valAxisMajorUnit: 1,
+              valAxisTitle: 'Bewertung (1 = sehr gut)'
+            } as any);
+          } else {
+            addNoData(slide, 'Für dieses Fach sind noch keine vergleichbaren Bewertungsdaten vorhanden.');
+          }
+
+          const subjectSummary = [
+            `Fach: ${slideData.fach || ''}`,
+            `Schnitt: ${slideData.avgGrade !== null && slideData.avgGrade !== undefined ? Number(slideData.avgGrade).toFixed(2) : '–'}`,
+            slideData.hasParticipationData
+              ? `Mitarbeit: ${slideData.miDirekt !== undefined && slideData.miDirekt !== null && slideData.miDirekt !== '' ? `Note ${slideData.miDirekt}` : `${slideData.miPoints} Punkte`}`
+              : 'Mitarbeit: noch nicht erfasst',
+            slideData.hasHomeworkData
+              ? `Hausübungen: ${slideData.hueCount || 0}× fehlend`
+              : 'Hausübungen: noch nicht erfasst',
+            `Schularbeiten: ${(slideData.studentSa || []).length}`,
+            `Lernkontrollen: ${(slideData.studentLzk || []).length}`,
+            `Wochenpläne: ${(slideData.studentWp || []).length}`
+          ];
+          slide.addText(subjectSummary.join('\n\n'), {
+            x: 9.55, y: 1.6, w: 2.85, h: 4.6,
+            fontFace: 'Aptos', fontSize: 13.5, color: COLORS.ink,
+            margin: 0.14, valign: 'mid', fit: 'shrink',
+            fill: { color: 'FFFFFF' }, line: { color: COLORS.line, pt: 1 }
+          });
+          continue;
+        }
+
+        if (slideData.type === 'ikm') {
+          const record = slideData.record || {};
+          const ikmRows = [
+            ['Mathematik', record.mathematikPR],
+            ['Deutsch Lesen', record.deutschLesenPR],
+            ['Deutsch Zuhören', record.deutschZuhoerenPR],
+            ['Sprachbewusstsein', record.deutschSprachbewusstseinPR]
+          ].filter((entry: any[]) => entry[1] !== undefined && entry[1] !== null && Number.isFinite(Number(entry[1])));
+
+          if (ikmRows.length > 0) {
+            slide.addChart(pptx.ChartType.bar, [{
+              name: 'Kompetenzpunkte',
+              labels: ikmRows.map((entry: any[]) => entry[0]),
+              values: ikmRows.map((entry: any[]) => Number(entry[1]))
+            }], {
+              ...commonChart, x: 0.75, y: 1.5, w: 7.5, h: 4.85,
+              barDir: 'col', showLegend: false,
+              chartColors: [COLORS.rose]
+            } as any);
+          } else {
+            addNoData(slide, 'IKM+-Datensatz vorhanden, aber ohne numerische Kompetenzwerte.');
+          }
+
+          const diagnose = [
+            record.diagnoseStaerken ? `Stärken: ${record.diagnoseStaerken}` : '',
+            record.diagnoseHerausforderungen ? `Herausforderungen: ${record.diagnoseHerausforderungen}` : ''
+          ].filter(Boolean);
+          if (diagnose.length > 0) {
+            slide.addText(diagnose.join('\n\n'), {
+              x: 8.55, y: 1.55, w: 3.85, h: 4.75,
+              fontFace: 'Aptos', fontSize: 13.5, color: COLORS.ink,
+              margin: 0.15, fit: 'shrink', valign: 'mid',
+              fill: { color: 'FFFFFF' }, line: { color: COLORS.line, pt: 1 }
+            });
+          }
+          continue;
+        }
+
+        if (slideData.type === 'ratgeber') {
+          const path = app.lernpfade?.[student.id];
+          const stations = Array.isArray(path?.stationen) ? path.stationen.map((entry: any) => textOf(entry)).filter(Boolean) : [];
+          const tips = Array.isArray(path?.elternTipps) ? path.elternTipps.map((entry: any) => textOf(entry)).filter(Boolean) : [];
+          slide.addText('Nächste Lernstationen', {
+            x: 0.85, y: 1.45, w: 5.75, h: 0.35, fontSize: 15, bold: true, color: COLORS.primary, margin: 0
+          });
+          addBulletText(slide, stations, 0.85, 1.88, 5.75, 4.65);
+          slide.addText('Ideen für zu Hause', {
+            x: 6.95, y: 1.45, w: 5.55, h: 0.35, fontSize: 15, bold: true, color: COLORS.rose, margin: 0
+          });
+          if (tips.length > 0) addBulletText(slide, tips, 6.95, 1.88, 5.55, 4.65);
+          else if (stations.length === 0) addNoData(slide, 'Noch kein dokumentierter Lernpfad oder Eltern-Ratgeber vorhanden.');
+          continue;
+        }
+
+        if (slideData.type === 'flower') {
+          if (presentationFlowerData.length > 0) {
+            const labels = presentationFlowerData.map((row: any) => row.label);
+            slide.addChart(pptx.ChartType.radar, [
+              { name: 'Kind', labels, values: presentationFlowerData.map((row: any) => Number(row.kindRaw ?? 0)) },
+              { name: 'Lehrkraft', labels, values: presentationFlowerData.map((row: any) => Number(row.lehrRaw ?? 0)) }
+            ], {
+              ...commonChart, x: 0.8, y: 1.35, w: 8.0, h: 5.25,
+              radarStyle: 'marker', valAxisMinVal: 0, valAxisMaxVal: 5,
+              chartColors: [COLORS.primary, COLORS.emerald]
+            } as any);
+            slide.addText(
+              `Übereinstimmung\n${agreementPercentage}%\n\n${agreementCount} von ${totalKelFields} Bereichen`,
+              {
+                x: 9.2, y: 2.05, w: 3.0, h: 2.35,
+                fontFace: 'Aptos', fontSize: 18, bold: true,
+                color: COLORS.ink, align: 'center', valign: 'mid',
+                fill: { color: 'FFFFFF' }, line: { color: COLORS.line, pt: 1 },
+                margin: 0.16, fit: 'shrink'
+              }
+            );
+          } else {
+            addNoData(slide, 'Noch keine KEL-Selbst- oder Lehrkrafteinschätzung dokumentiert.');
+          }
+          continue;
+        }
+
+        if (slideData.type === 'behavior') {
+          if (attendance.hasData) {
+            slide.addChart(pptx.ChartType.bar, [
+              {
+                name: 'Entschuldigt',
+                labels: ['Schüler:in', 'Klasse Ø'],
+                values: [attendance.excused, classAvgAttendance.excused]
+              },
+              {
+                name: 'Unentschuldigt',
+                labels: ['Schüler:in', 'Klasse Ø'],
+                values: [attendance.unexcused, classAvgAttendance.unexcused]
+              }
+            ], {
+              ...commonChart, x: 0.65, y: 1.55, w: 6.0, h: 4.7,
+              barDir: 'col', barGrouping: 'stacked',
+              chartColors: [COLORS.blue, COLORS.rose],
+              valAxisTitle: 'Fehlstunden'
+            } as any);
+          } else {
+            slide.addText('Anwesenheit noch nicht erfasst', {
+              x: 0.8, y: 3.0, w: 5.7, h: 0.5, align: 'center',
+              fontSize: 16, bold: true, color: COLORS.muted
+            });
+          }
+
+          if (studentBehaviorPieData.length > 0) {
+            slide.addChart(pptx.ChartType.pie, [{
+              name: 'Verhalten',
+              labels: studentBehaviorPieData.map((row: any) => row.name),
+              values: studentBehaviorPieData.map((row: any) => Number(row.value))
+            }], {
+              ...commonChart, x: 6.9, y: 1.55, w: 5.75, h: 4.7,
+              legendPos: 'b',
+              chartColors: studentBehaviorPieData.map((row: any) =>
+                String(row.color || '').replace('#', '').toUpperCase() || COLORS.secondary
+              )
+            } as any);
+          } else {
+            slide.addText(
+              behaviorSummary.hasData ? `Aktueller Status: ${behaviorStage.icon} ${behaviorStage.label}` : 'Verhalten noch nicht dokumentiert',
+              {
+                x: 7.05, y: 3.0, w: 5.4, h: 0.5, align: 'center',
+                fontSize: 16, bold: true, color: COLORS.muted
+              }
+            );
+          }
+          continue;
+        }
+
+        if (slideData.type === 'portfolio') {
+          const items = deduplicatedNotes.slice(0, 8).map((note: any) => {
+            const date = note.datum || note.timestamp;
+            const dateLabel = date ? new Date(date).toLocaleDateString('de-AT') : '';
+            const body = textOf(note);
+            return [dateLabel, body].filter(Boolean).join(' · ');
+          }).filter(Boolean);
+          addBulletText(slide, items, 0.9, 1.5, 11.5, 5.2);
+          continue;
+        }
+
+        if (slideData.type === 'ziele') {
+          const kelGoals = Array.isArray(latestKel?.zieleKind)
+            ? latestKel.zieleKind.map((goal: any) => textOf(goal)).filter(Boolean)
+            : [];
+          const supportGoals = (student.foerderprofil?.foerderziele || [])
+            .map((goal: any) => textOf(goal)).filter(Boolean);
+          const goals = [...kelGoals, ...supportGoals].filter((value, index, all) => all.indexOf(value) === index);
+          slide.addText('Ziele', {
+            x: 0.85, y: 1.45, w: 5.6, h: 0.35, fontSize: 15, bold: true, color: COLORS.primary, margin: 0
+          });
+          if (goals.length > 0) addBulletText(slide, goals, 0.85, 1.88, 5.6, 4.65);
+          else slide.addText('Noch keine Ziele dokumentiert.', { x: 0.85, y: 2.1, w: 5.6, h: 0.4, fontSize: 14, color: COLORS.muted });
+
+          slide.addText('Vereinbarungen', {
+            x: 6.85, y: 1.45, w: 5.6, h: 0.35, fontSize: 15, bold: true, color: COLORS.rose, margin: 0
+          });
+          const agreements = [
+            editVereinbarung || latestKel?.vereinbarungen || '',
+            latestKel?.naechsterTermin ? `Nächster Termin: ${latestKel.naechsterTermin}` : ''
+          ].filter(Boolean);
+          if (agreements.length > 0) {
+            slide.addText(agreements.join('\n\n'), {
+              x: 6.85, y: 1.88, w: 5.6, h: 4.65,
+              fontFace: 'Aptos', fontSize: 15, color: COLORS.ink,
+              margin: 0.14, fit: 'shrink', valign: 'top',
+              fill: { color: 'FFFFFF' }, line: { color: COLORS.line, pt: 1 }
+            });
+          } else {
+            slide.addText('Noch keine Vereinbarung dokumentiert.', { x: 6.85, y: 2.1, w: 5.6, h: 0.4, fontSize: 14, color: COLORS.muted });
+          }
+          continue;
+        }
+
+        addNoData(slide);
+      }
+
+      const safeStudentName = `${student.vorname || 'Schueler'}-${student.nachname || ''}`
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
+      await pptx.writeFile({
+        fileName: `Klassio-KEL-${safeStudentName || 'Praesentation'}.pptx`,
+        compression: true
+      });
+    } catch (error) {
+      console.error('PowerPoint export failed', error);
+      window.alert('Die PowerPoint-Datei konnte nicht erstellt werden. Bitte erneut versuchen.');
+    } finally {
+      setIsExportingPptx(false);
+    }
+  };
+
   // Clamping slideIndex when slides list changes
   useEffect(() => {
     if (slides.length > 0 && slideIndex >= slides.length) {
@@ -2255,6 +2598,15 @@ Antworte AUSSCHLIESSLICH mit dem übersetzten JSON-Objekt in exakt derselben Str
               <span className="hidden md:flex items-center gap-1.5 text-slate-500 text-[0.625rem] font-bold border border-slate-800 rounded-full px-3 py-1 mr-2" title="Aktueller Stand der Daten">
                 <Clock size={10} /> Datenstand: {lastDataUpdate.toLocaleDateString('de-DE')}
               </span>
+              <button
+                onClick={exportPowerPoint}
+                disabled={isExportingPptx || slides.length === 0}
+                className="hidden sm:flex px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed border border-emerald-500 text-white rounded-full text-[0.625rem] font-bold transition-all uppercase items-center gap-1.5 cursor-pointer shadow-md mr-1"
+                title="Ausgewählte KEL-Folien als echte PowerPoint-Datei mit editierbaren Diagrammen exportieren"
+              >
+                {isExportingPptx ? <Loader2 size={11} className="animate-spin" /> : <FileText size={11} />}
+                <span>{isExportingPptx ? 'Erstelle PPTX…' : 'PowerPoint'}</span>
+              </button>
               <button
                 onClick={() => exportSchuelerPDF(student.id, app)}
                 className="hidden sm:flex px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 text-white rounded-full text-[0.625rem] font-bold transition-all uppercase items-center gap-1.5 cursor-pointer shadow-md mr-1"
@@ -2906,15 +3258,8 @@ Antworte AUSSCHLIESSLICH mit dem übersetzten JSON-Objekt in exakt derselben Str
                 })()}
 
                 {currentSlide.type === 'ikm' && (() => {
-                  const record = (app.ikmRecords || []).find((r: any) => r.schuelerId === student.id) || currentSlide?.record || {
-                    id: 'ikm-fallback',
-                    schuelerId: student?.id || '',
-                    datum: new Date().toISOString(),
-                    schuljahr: app?.schuljahr || '—',
-                    schulstufe: app?.stufe || 4,
-                    mathematikPR: 54,
-                    deutschLesenPR: 58
-                  };
+                  const record = (app.ikmRecords || []).find((r: any) => r.schuelerId === student.id) || currentSlide?.record;
+                  if (!record) return null;
                   const rawLernpfad = app.lernpfade?.[student.id];
 
                   // Class average computations for reference lines in chart
@@ -2924,7 +3269,7 @@ Antworte AUSSCHLIESSLICH mit dem übersetzten JSON-Objekt in exakt derselben Str
                       .map((r: any) => r[key])
                       .filter((val: any) => val !== undefined && val !== null && !isNaN(Number(val)))
                       .map(Number);
-                    if (validScores.length === 0) return 50; // default average percentile rank
+                    if (validScores.length === 0) return null;
                     return Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length);
                   };
                   const avgRead = calcClassAvg('deutschLesenPR');

@@ -1,9 +1,10 @@
+import { removeSubjectColumn, updateSubjectColumn } from '../lib/classroomEdits';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { logActivity, getAccentTextColor } from '../lib/utils';
-import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel } from '../lib/GradeUtils';
+import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput, getHomeworkGradebookSettings, getMirroredAssessmentValue } from '../lib/GradeUtils';
 import { getFachHexColor } from '../lib/fachColorUtils';
 import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
@@ -195,6 +196,7 @@ export default function Gradebook() {
   const [sortBy, setSortBy] = useState<'name' | 'avg' | 'triage'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [filterMissing, setFilterMissing] = useState(false);
+  const [showHueSettings, setShowHueSettings] = useState(false);
   const [isolatedCol, setIsolatedCol] = useState<{typ: 'sa'|'lzk'|'wp'|'obj', idx: number} | null>(null);
   const [editingAssessmentModal, setEditingAssessmentModal] = useState<{
     typ: 'sa' | 'lzk' | 'wp' | 'obj';
@@ -537,6 +539,26 @@ export default function Gradebook() {
   const [visibleLimit, setVisibleLimit] = useState(15);
   const sentinelRef = useRef<HTMLTableRowElement | null>(null);
 
+  const focusQuickEntry = (kind: 'mitarbeit' | 'hue', currentIndex: number, direction: 1 | -1) => {
+    const targetIndex = currentIndex + direction;
+    const target = document.querySelector<HTMLElement>(
+      `[data-quick-entry="${kind}"][data-student-index="${targetIndex}"]`
+    );
+    target?.focus();
+  };
+
+  const handleQuickEntryKey = (
+    event: React.KeyboardEvent<HTMLElement>,
+    kind: 'mitarbeit' | 'hue',
+    currentIndex: number
+  ) => {
+    const backward = event.key === 'ArrowUp' || (event.key === 'Enter' && event.shiftKey);
+    const forward = event.key === 'ArrowDown' || (event.key === 'Enter' && !event.shiftKey);
+    if (!backward && !forward) return;
+    event.preventDefault();
+    focusQuickEntry(kind, currentIndex, backward ? -1 : 1);
+  };
+
   useEffect(() => {
     setVisibleLimit(20);
   }, [activeFach, activeView, sortBy, sortOrder]);
@@ -636,6 +658,27 @@ export default function Gradebook() {
   const colCounts = app.notenMeta?.[activeFach]?.colCounts || { lzk: 4, wp: 4, obj: 4 };
   const [pendingDelete, setPendingDelete] = useState<{typ: 'lzk' | 'wp' | 'obj', label: string} | null>(null);
 
+  useEffect(() => {
+    // Offene Notenmappe-Dialoge oder Schülerbezüge dürfen nie in die nächste Klasse mitwandern.
+    setShowWeights(false);
+    setShowGradeCalculator(false);
+    setShowStats(false);
+    setShowHueSettings(false);
+    setIsolatedCol(null);
+    setEditingAssessmentModal(null);
+    setEditingColLabel(null);
+    setSimulateModalForSid(null);
+    setFocusedCell(null);
+    setHoveredCell(null);
+    setPendingDelete(null);
+    setSaAssessment(null);
+    setSelectedTrendStudentId(null);
+    setSelectedGradeExplanationStudent(null);
+    setShowAddAssessmentModal(false);
+    setShowMoreMenu(false);
+    setConfirmedWarnings({});
+  }, [app.activeClassId]);
+
   const missingCount = useMemo(() => {
     let count = 0;
     if (!app.schueler || app.schueler.length === 0) return 0;
@@ -653,17 +696,22 @@ export default function Gradebook() {
         }
         return false;
       };
-      const isMissing = (cfg.sa && hasMissing(nd.sa || [], cfg.saCount)) || 
+      const manualMitarbeitMissing =
+        cfg.mi &&
+        mitarbeitSettings.mode === 'manual' &&
+        (nd.miDirekt === undefined || nd.miDirekt === null || (nd.miDirekt as any) === '');
+      const isMissing = (cfg.sa && hasMissing(nd.sa || [], cfg.saCount)) ||
                         (cfg.lzk && hasMissing(nd.lzk || [], colCounts.lzk)) ||
                         (cfg.wp && hasMissing(nd.wp || [], colCounts.wp)) ||
-                        (cfg.obj && hasMissing(nd.aufgaben || [], colCounts.obj));
+                        (cfg.obj && hasMissing(nd.aufgaben || [], colCounts.obj)) ||
+                        manualMitarbeitMissing;
       if (isMissing) {
         count++;
       }
     });
 
     return count;
-  }, [app.schueler, app.noten, activeFach, sem, colCounts]);
+  }, [app, activeFach, sem, colCounts, mitarbeitSettings.mode]);
 
   const hasAnyAssessment = useMemo(() => {
     return (app.schueler || []).some((student) => {
@@ -749,32 +797,29 @@ export default function Gradebook() {
   const addColumn = (e: React.MouseEvent, typ: 'lzk' | 'wp' | 'obj') => {
     e.stopPropagation();
     const currentCount = colCounts[typ] || 0;
-    setApp(prev => {
-      const isSyncWP = prev.notenMeta?.syncWpDeutschMath;
-      const shouldSync = isSyncWP && typ === 'wp' && (activeFach === 'Deutsch' || activeFach === 'Mathematik');
-      const targetFach = activeFach === 'Deutsch' ? 'Mathematik' : 'Deutsch';
+    const dataKey: 'lzk' | 'wp' | 'aufgaben' = typ === 'obj' ? 'aufgaben' : typ;
 
-      const nm = { ...(prev.notenMeta || {}) };
-      
-      const currentFachData = { ...(nm[activeFach] || {}) };
-      const counts = { ...(currentFachData.colCounts || { lzk: 4, wp: 4, obj: 4 }) };
-      const newCounts = { ...counts, [typ]: (counts[typ] || 0) + 1 };
-      
-      const updatedMeta = {
-        ...nm,
-        [activeFach]: { ...currentFachData, colCounts: newCounts }
-      };
+    // Reuse the first genuinely empty visible slot before creating another column.
+    let reusableIndex = -1;
+    for (let idx = 0; idx < currentCount; idx++) {
+      const hasStudentValue = (app.schueler || []).some((student) => {
+        const values = app.noten?.[student.id]?.[activeFach]?.[sem]?.[dataKey] || [];
+        const value = values[idx];
+        return value !== undefined && value !== null && value !== '';
+      });
+      const hasMeta =
+        !!app.notenMeta?.[activeFach]?.colLabels?.[typ]?.[idx] ||
+        !!app.notenMeta?.[activeFach]?.colDates?.[typ]?.[idx] ||
+        app.notenMeta?.[activeFach]?.maxPoints?.[typ]?.[idx] !== undefined;
 
-      if (shouldSync) {
-        const targetFachData = { ...(nm[targetFach] || {}) };
-        const targetCounts = { ...(targetFachData.colCounts || { lzk: 4, wp: 4, obj: 4 }) };
-        const newTargetCounts = { ...targetCounts, [typ]: (targetCounts[typ] || 0) + 1 };
-        updatedMeta[targetFach] = { ...targetFachData, colCounts: newTargetCounts };
+      if (!hasStudentValue && !hasMeta) {
+        reusableIndex = idx;
+        break;
       }
-      
-      return { ...prev, notenMeta: updatedMeta };
-    });
-    setEditingAssessmentModal({ typ, idx: currentCount, isNew: true });
+    }
+
+    const idx = reusableIndex >= 0 ? reusableIndex : currentCount;
+    setEditingAssessmentModal({ typ, idx, isNew: reusableIndex < 0 });
   };
 
   const removeColumn = (e: React.MouseEvent, typ: 'lzk' | 'wp' | 'obj') => {
@@ -786,38 +831,31 @@ export default function Gradebook() {
   const confirmDelete = () => {
     if (!pendingDelete) return;
     const { typ } = pendingDelete;
-    
+
     setApp(prev => {
-      const isSyncWP = prev.notenMeta?.syncWpDeutschMath;
-      const shouldSync = isSyncWP && typ === 'wp' && (activeFach === 'Deutsch' || activeFach === 'Mathematik');
-      const targetFach = activeFach === 'Deutsch' ? 'Mathematik' : 'Deutsch';
+      const currentCount = prev.notenMeta?.[activeFach]?.colCounts?.[typ] ?? 4;
+      if (currentCount <= 0) return prev;
 
-      const nm = { ...(prev.notenMeta || {}) };
-      const currentFachData = { ...(nm[activeFach] || {}) };
-      const counts = { ...(currentFachData.colCounts || { lzk: 4, wp: 4, obj: 4 }) };
-      
-      if (counts[typ] <= 0) return prev;
-      
-      const newCounts = { ...counts, [typ]: Math.max(0, counts[typ] - 1) };
-      const updatedMeta = {
-        ...nm,
-        [activeFach]: { ...currentFachData, colCounts: newCounts }
+      const result = removeSubjectColumn(
+        prev.noten || {},
+        prev.notenMeta || {},
+        activeFach,
+        typ,
+        currentCount - 1,
+      );
+
+      return {
+        ...prev,
+        noten: result.noten,
+        notenMeta: result.notenMeta,
       };
-
-      if (shouldSync) {
-        const targetFachData = { ...(nm[targetFach] || {}) };
-        const targetCounts = { ...(targetFachData.colCounts || { lzk: 4, wp: 4, obj: 4 }) };
-        const newTargetCounts = { ...targetCounts, [typ]: Math.max(0, targetCounts[typ] - 1) };
-        updatedMeta[targetFach] = { ...targetFachData, colCounts: newTargetCounts };
-      }
-      
-      return { ...prev, notenMeta: updatedMeta };
     });
     setPendingDelete(null);
   };
 
   const cfg = getFachCfg(app, activeFach);
   const assessmentMode = getAssessmentMode(app, activeFach);
+  const homeworkSettings = getHomeworkGradebookSettings(app, activeFach);
 
   const handleModeChange = (fach: string, newMode: 'grades' | 'percent' | 'points') => {
     const currentMode = app.notenMeta?.[fach]?.assessmentMode || 'grades';
@@ -852,15 +890,25 @@ export default function Gradebook() {
     setApp(prev => {
       const nm = { ...(prev.notenMeta || {}) };
       const currentFach = { ...(nm[fach] || {}) };
+      const nextMeta: Record<string, any> = {
+        ...nm,
+        [fach]: {
+          ...currentFach,
+          assessmentMode: newMode
+        }
+      };
+
+      if (nextMeta.syncWpDeutschMath && (fach === 'Deutsch' || fach === 'Mathematik')) {
+        const otherFach = fach === 'Deutsch' ? 'Mathematik' : 'Deutsch';
+        const otherMode = getAssessmentMode(prev, otherFach);
+        if (otherMode !== newMode) {
+          nextMeta.syncWpDeutschMath = false;
+        }
+      }
+
       return {
         ...prev,
-        notenMeta: {
-          ...nm,
-          [fach]: {
-            ...currentFach,
-            assessmentMode: newMode
-          }
-        }
+        notenMeta: nextMeta
       };
     });
   };
@@ -875,11 +923,13 @@ export default function Gradebook() {
       }
       return {
         ...s,
-        currentAvg: avg || 99 // Placeholder for sorting
+        currentAvg: hasCalculatedAverage(avg) ? avg : 99 // Placeholder for sorting
       };
     });
 
-    if (filterMissing) {
+    // "Unvollständig" is a grade-entry aid only. It must never hide children in
+    // the fast Mitarbeit/Hausübung views.
+    if (filterMissing && activeView === 'noten') {
       list = list.filter(s => {
         const nd = app?.noten?.[s.id]?.[activeFach]?.[sem];
         if (!nd) return true; // entirely missing
@@ -892,6 +942,13 @@ export default function Gradebook() {
         };
         if (cfg.sa && hasMissing(nd.sa || [], cfg.saCount)) return true;
         if (cfg.lzk && hasMissing(nd.lzk || [], colCounts.lzk)) return true;
+        if (cfg.wp && hasMissing(nd.wp || [], colCounts.wp)) return true;
+        if (cfg.obj && hasMissing(nd.aufgaben || [], colCounts.obj)) return true;
+        if (
+          cfg.mi &&
+          mitarbeitSettings.mode === 'manual' &&
+          (nd.miDirekt === undefined || nd.miDirekt === null || (nd.miDirekt as any) === '')
+        ) return true;
         return false;
       });
     }
@@ -931,7 +988,7 @@ export default function Gradebook() {
       }
       return 0;
     });
-  }, [app.schueler, app.noten, activeFach, sem, sortBy, sortOrder, filterMissing, cfg, colCounts, assessmentMode]);
+  }, [app.schueler, app.noten, activeFach, sem, sortBy, sortOrder, filterMissing, cfg, colCounts, assessmentMode, activeView, mitarbeitSettings.mode]);
 
   const columnAverages = useMemo(() => {
     const results: Record<string, { avg: number | null }> = {};
@@ -1039,8 +1096,8 @@ export default function Gradebook() {
     const rows = students.map(s => {
       const avg = berechne(app, s.id, activeFach, sem);
       const nd = app.noten?.[s.id]?.[activeFach]?.[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
-      const en = (s.spf || s.espf) && nd.endnote ? nd.endnote : (avg ? (assessmentMode === 'grades' ? Math.round(avg) : `${Math.round(avg)}%`) : '');
-      return [`${s.nachname} ${s.vorname}`, avg ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '', en];
+      const en = (s.spf || s.espf) && nd.endnote ? nd.endnote : (hasCalculatedAverage(avg) ? (assessmentMode === 'grades' ? Math.round(avg) : `${Math.round(avg)}%`) : '');
+      return [`${s.nachname} ${s.vorname}`, hasCalculatedAverage(avg) ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '', en];
     });
     
     const csvContent = [header, ...rows].map(e => e.join(';')).join('\n');
@@ -1073,12 +1130,12 @@ export default function Gradebook() {
   };
 
   const getGradeColor = (rawVal: number | string | null | undefined, isRequired: boolean = false, typ?: string, idx?: number) => {
-    const isMissing = !rawVal || rawVal === 'e' || rawVal === 'f' || rawVal === '-' || rawVal === ' ' || rawVal === '';
+    const isMissing = isAssessmentValueMissing(rawVal);
     if (filterMissing && isRequired && isMissing) {
       return '!bg-rose-100 ring-2 ring-rose-500 ring-inset border-rose-500 text-rose-800 animate-pulse z-10 font-bold';
     }
     
-    if (!rawVal) return '';
+    if (isAssessmentValueMissing(rawVal)) return '';
     if (rawVal === 'f' || rawVal === 'x' || rawVal === '-') return 'bg-slate-50 text-slate-400 opacity-60';
     if (!heatmapMode) return '';
     
@@ -1115,49 +1172,11 @@ export default function Gradebook() {
   };
 
   const setNote = (sid: string, typ: 'sa' | 'lzk' | 'wp' | 'aufgaben', idx: number, val: string) => {
-    let validated: number | string | null = null;
     const mode = getAssessmentMode(app, activeFach);
-    
-    if (!val || val.trim() === '') {
-      validated = null;
-    } else {
-      const stripped = val.trim().toLowerCase();
-      if (['f', 'x', 'e', '-'].includes(stripped)) {
-        validated = 'f';
-      } else if (mode === 'percent') {
-        const cleanStr = stripped.replace('%', '').replace(',', '.');
-        const n = parseFloat(cleanStr);
-        if (!isNaN(n)) {
-          validated = Math.min(100, Math.max(0, Math.round(n * 10) / 10));
-        } else {
-          validated = null;
-        }
-      } else if (mode === 'points') {
-        const maxP = getMaxPoints(app, activeFach, typ, idx);
-        const cleanStr = stripped.replace(/p(?:kt)?/g, '').replace(',', '.');
-        const n = parseFloat(cleanStr);
-        if (!isNaN(n)) {
-          validated = Math.min(maxP, Math.max(0, Math.round(n * 10) / 10));
-        } else {
-          validated = null;
-        }
-      } else {
-        // Standard Noten 1..5
-        const n = parseFloat(stripped.replace(',', '.'));
-        if (!isNaN(n)) {
-          if (n < 1) validated = 1;
-          else if (n > 5) validated = 5;
-          else validated = n;
-        } else {
-          const match = stripped.match(/([1-5])/);
-          if (match) {
-            validated = parseInt(match[1], 10);
-          } else {
-            validated = null;
-          }
-        }
-      }
-    }
+    const maxP = getMaxPoints(app, activeFach, typ, idx);
+    const parsedInput = parseAssessmentInput(val, mode, maxP);
+    if (!parsedInput.valid) return;
+    const validated = parsedInput.value;
 
     setApp(prev => {
       const isSyncWP = prev.notenMeta?.syncWpDeutschMath;
@@ -1177,14 +1196,28 @@ export default function Gradebook() {
       newNoten[sid] = { ...sidData, [activeFach]: updatedFachData };
 
       if (shouldSync) {
-        const targetSidData = newNoten[sid] || {};
-        const targetFachData = targetSidData[targetFach] || {};
-        const targetSemData: GradeData = targetFachData[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
-        const targetArray = [...(targetSemData[typ] || [])];
-        targetArray[idx] = validated;
-        
-        const updatedTargetFachData = { ...targetFachData, [sem]: { ...targetSemData, [typ]: targetArray } };
-        newNoten[sid] = { ...targetSidData, [targetFach]: updatedTargetFachData };
+        const sourceMode = getAssessmentMode(prev, activeFach);
+        const targetMode = getAssessmentMode(prev, targetFach);
+        const sourceMax = getMaxPoints(prev, activeFach, typ, idx);
+        const targetMax = getMaxPoints(prev, targetFach, typ, idx);
+        const mirrored = getMirroredAssessmentValue(
+          validated as number | string | null,
+          sourceMode,
+          sourceMax,
+          targetMode,
+          targetMax,
+        );
+
+        if (mirrored.sync) {
+          const targetSidData = newNoten[sid] || {};
+          const targetFachData = targetSidData[targetFach] || {};
+          const targetSemData: GradeData = targetFachData[sem] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
+          const targetArray = [...(targetSemData[typ] || [])];
+          targetArray[idx] = mirrored.value;
+          
+          const updatedTargetFachData = { ...targetFachData, [sem]: { ...targetSemData, [typ]: targetArray } };
+          newNoten[sid] = { ...targetSidData, [targetFach]: updatedTargetFachData };
+        }
       }
 
       return {
@@ -1209,20 +1242,9 @@ export default function Gradebook() {
   };
 
   const setEndnote = (sid: string, val: string) => {
-    let validated = val;
-    if (val && val.trim() !== '') {
-      const upper = val.trim().toUpperCase();
-      if (['SPF', 'ESPF'].includes(upper)) {
-        validated = upper;
-      } else {
-        const n = parseFloat(val.replace(',', '.'));
-        if (!isNaN(n)) {
-          if (n < 1) validated = '1';
-          else if (n > 5) validated = '5';
-          else validated = String(n);
-        }
-      }
-    }
+    const parsed = parseFinalGradeInput(val);
+    if (!parsed.valid) return;
+    const validated = parsed.value;
 
     setApp(prev => {
       const sidData = prev.noten[sid] || {};
@@ -1249,20 +1271,9 @@ export default function Gradebook() {
   };
 
   const updateSimpleGrade = (sid: string, targetSem: '1' | '2', val: string) => {
-    let validated = val;
-    if (val && val.trim() !== '') {
-      const upper = val.trim().toUpperCase();
-      if (['SPF', 'ESPF'].includes(upper)) {
-        validated = upper;
-      } else {
-        const n = parseFloat(val.replace(',', '.'));
-        if (!isNaN(n)) {
-          if (n < 1) validated = '1';
-          else if (n > 5) validated = '5';
-          else validated = String(n);
-        }
-      }
-    }
+    const parsed = parseFinalGradeInput(val);
+    if (!parsed.valid) return;
+    const validated = parsed.value;
 
     setApp(prev => {
       const currentNoten = prev.noten || {};
@@ -1318,16 +1329,10 @@ export default function Gradebook() {
   const setMIDirekt = (sid: string, val: string) => {
     let validated: number | undefined = undefined;
     if (val !== undefined && val !== null && String(val).trim() !== '') {
-      const n = parseFloat(String(val).replace(',', '.'));
-      if (!isNaN(n)) {
-        if (assessmentMode === 'percent') {
-          validated = Math.min(100, Math.max(0, n));
-        } else if (assessmentMode === 'points') {
-          validated = Math.max(0, n);
-        } else {
-          validated = (n >= 1 && n <= 5) ? n : undefined;
-        }
-      }
+      const maxMiPoints = app.notenMeta?.[activeFach]?.maxPoints?.mi?.[0] || 20;
+      const parsed = parseAssessmentInput(String(val), assessmentMode, maxMiPoints);
+      if (!parsed.valid || typeof parsed.value !== 'number') return;
+      validated = parsed.value;
     }
 
     setApp(prev => {
@@ -1466,73 +1471,7 @@ export default function Gradebook() {
   };
 
   const updateColMeta = (typ: 'sa'|'lzk'|'wp'|'obj', idx: number, labelVal: string, dateVal: string, maxPointsVal?: number) => {
-    setApp(prev => {
-      const isSyncWP = prev.notenMeta?.syncWpDeutschMath;
-      const shouldSync = isSyncWP && typ === 'wp' && (activeFach === 'Deutsch' || activeFach === 'Mathematik');
-      const targetFach = activeFach === 'Deutsch' ? 'Mathematik' : 'Deutsch';
-
-      const nm = { ...(prev.notenMeta || {}) };
-      
-      const currentFachData = { ...(nm[activeFach] || {}) };
-      const labels = { ...(currentFachData.colLabels || {}) };
-      const typeLabels = { ...(labels[typ] || {}) };
-      typeLabels[idx] = labelVal;
-
-      const dates = { ...(currentFachData.colDates || {}) };
-      const typeDates = { ...(dates[typ] || {}) };
-      if (dateVal) {
-        typeDates[idx] = dateVal;
-      } else {
-        delete typeDates[idx];
-      }
-
-      const maxPoints = { ...(currentFachData.maxPoints || {}) };
-      const typeMaxPoints = { ...(maxPoints[typ] || {}) };
-      if (maxPointsVal !== undefined && maxPointsVal > 0) {
-        typeMaxPoints[idx] = maxPointsVal;
-      }
-      
-      const updatedMeta = {
-        ...nm,
-        [activeFach]: {
-          ...currentFachData,
-          colLabels: { ...labels, [typ]: typeLabels },
-          colDates: { ...dates, [typ]: typeDates },
-          maxPoints: { ...maxPoints, [typ]: typeMaxPoints }
-        }
-      };
-
-      if (shouldSync) {
-        const targetFachData = { ...(nm[targetFach] || {}) };
-        
-        const targetLabels = { ...(targetFachData.colLabels || {}) };
-        const targetTypeLabels = { ...(targetLabels[typ] || {}) };
-        targetTypeLabels[idx] = labelVal;
-        
-        const targetDates = { ...(targetFachData.colDates || {}) };
-        const targetTypeDates = { ...(targetDates[typ] || {}) };
-        if (dateVal) {
-          targetTypeDates[idx] = dateVal;
-        } else {
-          delete targetTypeDates[idx];
-        }
-
-        const targetMaxPoints = { ...(targetFachData.maxPoints || {}) };
-        const targetTypeMaxPoints = { ...(targetMaxPoints[typ] || {}) };
-        if (maxPointsVal !== undefined && maxPointsVal > 0) {
-          targetTypeMaxPoints[idx] = maxPointsVal;
-        }
-
-        updatedMeta[targetFach] = {
-          ...targetFachData,
-          colLabels: { ...targetLabels, [typ]: targetTypeLabels },
-          colDates: { ...targetDates, [typ]: targetTypeDates },
-          maxPoints: { ...targetMaxPoints, [typ]: targetTypeMaxPoints }
-        };
-      }
-      
-      return { ...prev, notenMeta: updatedMeta };
-    });
+    setApp(prev => ({ ...prev, notenMeta: updateSubjectColumn(prev.notenMeta || {}, activeFach, typ, idx, labelVal, dateVal, maxPointsVal) }));
     setEditingColLabel(null);
   };
 
@@ -2204,6 +2143,9 @@ export default function Gradebook() {
                                               <button
                                                 key={n}
                                                 onClick={() => setMIDirekt(s.id, n.toString())}
+                                                onKeyDown={(event) => handleQuickEntryKey(event, 'mitarbeit', idx)}
+                                                data-quick-entry={n === 1 ? 'mitarbeit' : undefined}
+                                                data-student-index={n === 1 ? idx : undefined}
                                                 className={`font-black transition-all transform active:scale-95 ${zoomLevel === 'compact' ? 'w-7 h-7 text-[0.75rem] rounded-md' : zoomLevel === 'large' ? 'w-11 h-11 text-[1rem] rounded-xl' : 'w-9 h-9 text-[0.875rem] rounded-lg'} ${String(currentMIDirekt) === String(n) ? (n === 1 ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-100' : n === 2 ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-100' : n === 3 ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-100' : n === 4 ? 'bg-orange-500 text-white shadow-sm ring-2 ring-orange-100' : 'bg-red-500 text-white shadow-sm ring-2 ring-red-100') : 'bg-white text-slate-500 hover:text-slate-800 hover:shadow-3xs border border-slate-150'}`}
                                               >
                                                 {n}
@@ -2243,6 +2185,9 @@ export default function Gradebook() {
                                                   min="0"
                                                   value={val || ''}
                                                   onChange={(e) => setMIVal(s.id, e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
+                                                  onKeyDown={(event) => handleQuickEntryKey(event, 'mitarbeit', idx)}
+                                                  data-quick-entry="mitarbeit"
+                                                  data-student-index={idx}
                                                   className={`bg-transparent outline-none font-black ${currentSymbol.color} tabular-nums leading-none tracking-tight appearance-none p-0 m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${zoomLevel === 'compact' ? 'w-[32px] text-[1.125rem]' : zoomLevel === 'large' ? 'w-[52px] text-[1.875rem]' : 'w-[40px] text-[1.5rem]'}`}
                                                   placeholder="0"
                                                 />
@@ -2324,49 +2269,64 @@ export default function Gradebook() {
                       <span>📖</span>
                       <span>Hausübungen · {activeFach}</span>
                     </h3>
-                    <span className={`text-[0.625rem] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${app.settings?.hueGewichten === false ? 'bg-amber-100 text-amber-900 border-amber-200' : 'bg-emerald-100 text-emerald-900 border-emerald-200'}`}>
-                      {app.settings?.hueGewichten === false ? 'Nur Dokumentieren' : 'In Bewertung aktiv'}
+                    <span className={`text-[0.625rem] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${homeworkSettings.mode === 'document' ? 'bg-amber-100 text-amber-900 border-amber-200' : 'bg-emerald-100 text-emerald-900 border-emerald-200'}`}>
+                      {homeworkSettings.mode === 'document' ? 'Nur Dokumentieren' : 'In Bewertung aktiv'}
                     </span>
                   </div>
                   <p className="text-[0.6875rem] text-rose-800/60 font-medium">
-                    {app.settings?.hueGewichten === false
+                    {homeworkSettings.mode === 'document'
                       ? 'Dokumentations-Modus: Fehlende Hausübungen werden erfasst, führen aber zu keinem automatischen Noten- oder Punkteabzug.'
-                      : `Bewertungs-Modus: Ausgangswert 100% minus ${app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}% pro vergessene HÜ. Gewichtung: ${Math.round(cfg.g.hue * 100)}%.`}
+                      : `Bewertungs-Modus: Ausgangswert 100% minus ${homeworkSettings.percentDeduction}% pro vergessene HÜ. Gewichtung: ${Math.round(cfg.g.hue * 100)}%.`}
                   </p>
                </div>
                
-               <div className="flex flex-wrap items-center gap-2.5">
+               <div className="flex flex-col xl:items-end gap-2.5">
+                 <button
+                   type="button"
+                   onClick={() => setShowHueSettings(prev => !prev)}
+                   aria-expanded={showHueSettings}
+                   className="px-3.5 py-2 bg-white border border-rose-200 text-rose-800 rounded-xl text-[0.625rem] font-black uppercase tracking-wider shadow-3xs hover:bg-rose-50 active:scale-95 transition-all"
+                 >
+                   {showHueSettings ? 'HÜ-Einstellungen schließen' : 'HÜ-Einstellungen'}
+                 </button>
+                 {showHueSettings && (
+                 <div className="flex flex-wrap items-center justify-end gap-2.5">
                  {/* Mode Toggle */}
                  <div className="flex bg-rose-100/70 p-1 rounded-xl">
                    <button
                      onClick={() => setApp(prev => ({
                        ...prev,
-                       settings: {
-                         ...prev.settings,
-                         hueGewichten: true
+                       notenMeta: {
+                         ...(prev.notenMeta || {}),
+                         [activeFach]: {
+                           ...(prev.notenMeta?.[activeFach] || {}),
+                           hueMode: 'grade'
+                         }
                        }
                      }))}
-                     className={`px-3 py-1.5 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all cursor-pointer ${app.settings?.hueGewichten !== false ? 'bg-white text-rose-900 shadow-xs' : 'text-rose-700 hover:text-rose-900'}`}
+                     className={`px-3 py-1.5 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all cursor-pointer ${homeworkSettings.mode !== 'document' ? 'bg-white text-rose-900 shadow-xs' : 'text-rose-700 hover:text-rose-900'}`}
                    >
                      Bewerten
                    </button>
                    <button
                      onClick={() => setApp(prev => ({
                        ...prev,
-                       settings: {
-                         ...prev.settings,
-                         hueGewichten: false,
-                         hueWeight: 0
+                       notenMeta: {
+                         ...(prev.notenMeta || {}),
+                         [activeFach]: {
+                           ...(prev.notenMeta?.[activeFach] || {}),
+                           hueMode: 'document'
+                         }
                        }
                      }))}
-                     className={`px-3 py-1.5 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all cursor-pointer ${app.settings?.hueGewichten === false ? 'bg-white text-amber-900 shadow-xs' : 'text-rose-700 hover:text-rose-900'}`}
+                     className={`px-3 py-1.5 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all cursor-pointer ${homeworkSettings.mode === 'document' ? 'bg-white text-amber-900 shadow-xs' : 'text-rose-700 hover:text-rose-900'}`}
                    >
                      Nur Doku
                    </button>
                  </div>
 
                  {/* %-Deduction Config (if evaluating) */}
-                 {app.settings?.hueGewichten !== false && (
+                 {homeworkSettings.mode !== 'document' && (
                    <div className="flex items-center gap-1.5 bg-white border border-rose-200 rounded-xl px-2.5 py-1.5 shadow-3xs">
                      <span className="text-[0.5625rem] font-black text-rose-800 uppercase tracking-widest leading-none">
                        %-Abzug / HÜ:
@@ -2376,14 +2336,17 @@ export default function Gradebook() {
                        min="0"
                        max="50"
                        className="w-10 text-center text-[0.6875rem] font-black bg-rose-50 border border-rose-200 rounded-md py-0.5 outline-none text-rose-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                       value={app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5}
+                       value={homeworkSettings.percentDeduction}
                        onChange={(e) => {
                          const val = Math.max(0, parseInt(e.target.value) || 0);
                          setApp(prev => ({
                            ...prev,
-                           settings: {
-                             ...prev.settings,
-                             huePercentDeduction: val
+                           notenMeta: {
+                             ...(prev.notenMeta || {}),
+                             [activeFach]: {
+                               ...(prev.notenMeta?.[activeFach] || {}),
+                               hueDeduction: val
+                             }
                            }
                          }));
                        }}
@@ -2400,13 +2363,16 @@ export default function Gradebook() {
                    <div className="flex items-center gap-0.5">
                      <button
                        onClick={() => {
-                         const currentVal = app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1;
+                         const currentVal = homeworkSettings.participationDeduction;
                          const newVal = Math.max(0, currentVal - 0.5);
                          setApp(prev => ({
                            ...prev,
-                           settings: {
-                             ...prev.settings,
-                             hueWeight: newVal
+                           notenMeta: {
+                             ...(prev.notenMeta || {}),
+                             [activeFach]: {
+                               ...(prev.notenMeta?.[activeFach] || {}),
+                               hueMitarbeitWeight: newVal
+                             }
                            }
                          }));
                        }}
@@ -2420,27 +2386,33 @@ export default function Gradebook() {
                        min="0"
                        max="10"
                        className="w-8 text-center text-[0.6875rem] font-black bg-rose-50 border border-rose-200 rounded py-0.5 outline-none text-rose-700 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                       value={app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1}
+                       value={homeworkSettings.participationDeduction}
                        onChange={(e) => {
                          const val = Math.max(0, parseFloat(e.target.value) || 0);
                          setApp(prev => ({
                            ...prev,
-                           settings: {
-                             ...prev.settings,
-                             hueWeight: val
+                           notenMeta: {
+                             ...(prev.notenMeta || {}),
+                             [activeFach]: {
+                               ...(prev.notenMeta?.[activeFach] || {}),
+                               hueMitarbeitWeight: val
+                             }
                            }
                          }));
                        }}
                      />
                      <button
                        onClick={() => {
-                         const currentVal = app.settings?.hueWeight !== undefined ? app.settings.hueWeight : 1;
+                         const currentVal = homeworkSettings.participationDeduction;
                          const newVal = currentVal + 0.5;
                          setApp(prev => ({
                            ...prev,
-                           settings: {
-                             ...prev.settings,
-                             hueWeight: newVal
+                           notenMeta: {
+                             ...(prev.notenMeta || {}),
+                             [activeFach]: {
+                               ...(prev.notenMeta?.[activeFach] || {}),
+                               hueMitarbeitWeight: newVal
+                             }
                            }
                          }));
                        }}
@@ -2463,6 +2435,8 @@ export default function Gradebook() {
                      Gewichten
                    </button>
                  </div>
+                 </div>
+                 )}
                </div>
             </div>
 
@@ -2484,7 +2458,7 @@ export default function Gradebook() {
                     const hasHueTracking = nd.hueErfasst === true || val > 0 || ((nd.hueAnm || []).length > 0);
                     const comment = (nd.hueAnm && nd.hueAnm.length > 0) ? nd.hueAnm[0] : '';
                     
-                    const ded = app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5;
+                    const ded = homeworkSettings.percentDeduction;
                     const pct = Math.max(0, 100 - val * ded);
                     let note = 1;
                     if (pct >= 87.5) note = 1;
@@ -2517,6 +2491,9 @@ export default function Gradebook() {
                                 value={hasHueTracking ? val : ''}
                                 placeholder="0"
                                 onChange={(e) => setHUEVal(s.id, e.target.value === '' ? 0 : parseInt(e.target.value) || 0)}
+                                onKeyDown={(event) => handleQuickEntryKey(event, 'hue', idx)}
+                                data-quick-entry="hue"
+                                data-student-index={idx}
                                 className={`text-center font-black bg-rose-50/70 border border-rose-200 rounded-xl py-1 text-rose-700 outline-none focus:bg-white focus:border-rose-400 shadow-3xs ${zoomLevel === 'compact' ? 'w-12 text-[0.8125rem]' : zoomLevel === 'large' ? 'w-20 text-[1.25rem]' : 'w-16 text-[1rem]'}`}
                               />
 
@@ -2538,7 +2515,7 @@ export default function Gradebook() {
                           />
                         </td>
                         <td className={`${zoomLevel === 'compact' ? 'px-3 py-1.5' : zoomLevel === 'large' ? 'px-8 py-5' : 'px-6 py-4'} text-center`}>
-                          {app.settings?.hueGewichten === false ? (
+                          {homeworkSettings.mode === 'document' ? (
                             <span className="text-[0.625rem] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full uppercase tracking-wider">
                               Nur Dokumentiert
                             </span>
@@ -3645,7 +3622,7 @@ export default function Gradebook() {
                             </div>
                           </div>
                         </td>
-                        <td className={`${zoomLevel === 'compact' ? 'px-0.5 py-1 text-[0.75rem]' : zoomLevel === 'large' ? 'px-2 py-2 text-[0.9375rem]' : 'px-1 py-1.5 text-[0.8125rem]'} text-center border-b border-r border-border/40 font-bold font-mono relative ${avg && assessmentMode === 'grades' && avg >= 4.5 ? 'text-red-700 bg-red-50/40' : avg && assessmentMode !== 'grades' && avg < 50 ? 'text-red-700 bg-red-50/40' : avg ? 'text-blue-900 bg-blue-50/40' : 'text-slate-400'}`}>
+                        <td className={`${zoomLevel === 'compact' ? 'px-0.5 py-1 text-[0.75rem]' : zoomLevel === 'large' ? 'px-2 py-2 text-[0.9375rem]' : 'px-1 py-1.5 text-[0.8125rem]'} text-center border-b border-r border-border/40 font-bold font-mono relative ${hasCalculatedAverage(avg) && assessmentMode === 'grades' && avg >= 4.5 ? 'text-red-700 bg-red-50/40' : hasCalculatedAverage(avg) && assessmentMode !== 'grades' && avg < 50 ? 'text-red-700 bg-red-50/40' : hasCalculatedAverage(avg) ? 'text-blue-900 bg-blue-50/40' : 'text-slate-400'}`}>
                           {avg !== null && assessmentMode === 'grades' && (avg % 1 >= 0.45 && avg % 1 <= 0.55) && (
                             <div className="absolute top-1 right-1 text-[0.5rem] leading-none font-black text-amber-700 bg-amber-100 border border-amber-300 rounded-full w-4 h-4 flex items-center justify-center shadow-3xs" title="Grenzentscheidung zwischen zwei Noten: Der Notendurchschnitt liegt genau in der Mitte (.5)">
                               !
@@ -3657,14 +3634,14 @@ export default function Gradebook() {
                               aria-label={`Endnote für ${s.vorname} ${s.nachname}`}
                               value={nd.endnote || ''}
                               onChange={(val) => setEndnote(s.id, val)}
-                              placeholder={avg ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '-'}
+                              placeholder={hasCalculatedAverage(avg) ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '-'}
                               title="Endnote (SPF/ESPF) manuell überschreiben"
                               debounceMs={400}
                               className={`mx-auto block text-center bg-white/80 border border-slate-200 hover:border-emerald-500 focus:border-emerald-600 focus:bg-white transition-all outline-none font-black text-slate-800 placeholder:text-slate-400 print:bg-transparent print:border-none shadow-3xs ${zoomLevel === 'compact' ? 'rounded-md py-0.5 text-[0.75rem] w-10' : zoomLevel === 'large' ? 'rounded-xl py-2 text-[0.9375rem] w-14' : 'rounded-lg py-1 text-[0.8125rem] w-12'}`}
                             />
                           ) : (
                             <div className={`${zoomLevel === 'compact' ? 'py-1 text-[0.75rem]' : zoomLevel === 'large' ? 'py-4 text-[0.9375rem]' : 'py-2.5 text-[0.8125rem]'} font-extrabold`}>
-                              {avg ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '–'}
+                              {hasCalculatedAverage(avg) ? (assessmentMode === 'grades' ? avg.toFixed(2) : `${avg.toFixed(1)}%`) : '–'}
                             </div>
                           )}
                         </td>
@@ -3949,13 +3926,13 @@ export default function Gradebook() {
                           <td 
                             onMouseEnter={() => setHoveredCell({sid: s.id, typ: 'hue', idx: 0})}
                             onMouseLeave={() => setHoveredCell(null)}
-                            title={app.settings?.hueGewichten === false ? `Hausübungen: ${nd.hue || 0}× vergessen (rein dokumentarisch, kein Notenabzug)` : `Hausübungen: ${nd.hue || 0}× vergessen (${Math.max(0, 100 - (nd.hue || 0) * (app.settings?.huePercentDeduction !== undefined ? app.settings.huePercentDeduction : 5))}% / Gewicht: ${Math.round(cfg.g.hue * 100)}%)`}
+                            title={homeworkSettings.mode === 'document' ? `Hausübungen: ${nd.hue || 0}× vergessen (rein dokumentarisch, kein Notenabzug)` : `Hausübungen: ${nd.hue || 0}× vergessen (${Math.max(0, 100 - (nd.hue || 0) * (homeworkSettings.percentDeduction))}% / Gewicht: ${Math.round(cfg.g.hue * 100)}%)`}
                             className={`${zoomLevel === 'compact' ? 'px-0.5 py-1' : zoomLevel === 'large' ? 'px-2 py-3' : 'px-1 py-2'} border-b border-r border-border/30 bg-rose-50/10 border-l-2 border-l-rose-400/50 text-center ${isolatedCol ? 'hidden' : ''} ${getHighlightClass(s.id, 'hue', 0)}`}>
                             <div className="flex flex-col items-center justify-center">
                               <span className={`${zoomLevel === 'compact' ? 'text-[0.75rem]' : zoomLevel === 'large' ? 'text-[0.9375rem]' : 'text-[0.8125rem]'} font-bold ${nd.hue > 0 ? 'text-rose-700 font-mono' : 'text-slate-400'}`}>
                                 {nd.hue || 0}
                               </span>
-                              {app.settings?.hueGewichten === false && (
+                              {homeworkSettings.mode === 'document' && (
                                 <span className="text-[0.5rem] font-bold text-amber-700/80 uppercase tracking-tighter leading-none">
                                   doku
                                 </span>
@@ -3964,7 +3941,7 @@ export default function Gradebook() {
                           </td>
                         )}
                         <td className={`${zoomLevel === 'compact' ? 'px-2.5 py-1 text-[0.75rem]' : zoomLevel === 'large' ? 'px-5 py-4 text-[0.9375rem]' : 'px-4 py-3 text-[0.8125rem]'} text-center font-display font-bold border-b border-border/10 bg-surface/50 ${isolatedCol ? 'hidden' : ''}`}>
-                          {avg ? (
+                          {hasCalculatedAverage(avg) ? (
                             <div className="flex flex-col items-center justify-center gap-1 group/ball relative">
                               {assessmentMode === 'grades' ? (
                                 <div 
@@ -4027,7 +4004,7 @@ export default function Gradebook() {
                       <td className="px-4 py-4 border-t px-2 border-neutral-700 border-r border-r-neutral-800 sticky left-0 z-40 bg-neutral-900 print:relative print:left-0 shadow-[2px_0_5px_rgba(0,0,0,0.2)]">∑</td>
                       <td className="px-5 py-4 text-left border-t border-neutral-700 border-r border-r-neutral-800 sticky left-[4rem] z-40 bg-neutral-900 print:relative print:left-0 uppercase text-white shadow-[2px_0_5px_rgba(0,0,0,0.2)]">∅ Klasse</td>
                       <td className="px-2 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-800 text-white border-x-2">
-                        {stats?.avg ? (assessmentMode === 'grades' ? stats.avg.toFixed(2) : `${stats.avg.toFixed(1)}%`) : '–'}
+                        {hasCalculatedAverage(stats?.avg) ? (assessmentMode === 'grades' ? stats!.avg.toFixed(2) : `${stats!.avg.toFixed(1)}%`) : '–'}
                       </td>
                       {cfg.sa && Array.from({length: cfg.saCount}).map((_, idx) => (
                         <td key={`fsa-${idx}`} className="px-1 py-3 border-t border-neutral-700 border-r border-neutral-800 bg-neutral-900 text-white">
@@ -4178,7 +4155,33 @@ export default function Gradebook() {
                     <button
                       onClick={(e) => {
                         setShowAddAssessmentModal(false);
-                        addColumn(e, 'wp');
+                        e.stopPropagation();
+
+                        const subjectMeta = app.notenMeta?.[activeFach] || {};
+                        const alreadyEnabled = subjectMeta.enableObj === true || getFachCfg(app, activeFach).obj;
+                        if (!alreadyEnabled) {
+                          setApp(prev => {
+                            const meta = { ...(prev.notenMeta || {}) };
+                            const current = { ...(meta[activeFach] || {}) };
+                            const counts = { ...(current.colCounts || { lzk: 4, wp: 4, obj: 4 }), obj: 1 };
+                            const labels = { ...(current.labels || {}), obj: current.labels?.obj || 'Sonstige Leistungen' };
+                            return {
+                              ...prev,
+                              notenMeta: {
+                                ...meta,
+                                [activeFach]: {
+                                  ...current,
+                                  enableObj: true,
+                                  labels,
+                                  colCounts: counts,
+                                },
+                              },
+                            };
+                          });
+                          setEditingAssessmentModal({ typ: 'obj', idx: 0, isNew: false });
+                        } else {
+                          addColumn(e, 'obj');
+                        }
                       }}
                       className="p-4 rounded-2xl border border-purple-200 bg-purple-50/50 hover:bg-purple-100/60 text-left transition-all hover:scale-[1.02] cursor-pointer group"
                     >
@@ -4187,7 +4190,7 @@ export default function Gradebook() {
                         Sonstige Leistung
                       </div>
                       <div className="text-[0.75rem] text-purple-700 leading-snug">
-                        Wochenplan, Referat oder Projektarbeit
+                        Referat, Projekt, Präsentation oder andere Leistung
                       </div>
                     </button>
                   </div>
@@ -4201,7 +4204,7 @@ export default function Gradebook() {
             {selectedGradeExplanationStudent && (() => {
               const s = selectedGradeExplanationStudent;
               const avg = berechne(app, s.id, activeFach, sem);
-              const roundedNote = avg ? Math.round(avg) : null;
+              const roundedNote = hasCalculatedAverage(avg) ? Math.round(avg) : null;
               const rawNd = (app.noten?.[s.id]?.[activeFach]?.[sem] || {}) as any;
 
               return (
@@ -4257,7 +4260,7 @@ export default function Gradebook() {
                           Berechneter Notenschnitt
                         </div>
                         <div className="text-[1.25rem] font-black text-slate-900">
-                          {avg ? avg.toFixed(2) : 'Keine Noten'}{' '}
+                          {hasCalculatedAverage(avg) ? avg.toFixed(2) : 'Keine Noten'}{' '}
                           {roundedNote && (
                             <span className="text-[0.875rem] font-bold text-slate-500 font-sans">
                               ({NOTE_LABELS[roundedNote]})
@@ -4336,6 +4339,29 @@ export default function Gradebook() {
               isOpen={editingAssessmentModal !== null}
               onClose={() => setEditingAssessmentModal(null)}
               onSave={(labelVal, dateVal, maxPointsVal) => {
+                if (editingAssessmentModal.isNew) {
+                  setApp(prev => {
+                    const meta = { ...(prev.notenMeta || {}) };
+                    const subjectMeta = { ...(meta[activeFach] || {}) };
+                    const counts = { ...(subjectMeta.colCounts || { lzk: 4, wp: 4, obj: 4 }) };
+                    return {
+                      ...prev,
+                      notenMeta: {
+                        ...meta,
+                        [activeFach]: {
+                          ...subjectMeta,
+                          colCounts: {
+                            ...counts,
+                            [editingAssessmentModal.typ]: Math.max(
+                              counts[editingAssessmentModal.typ] || 0,
+                              editingAssessmentModal.idx + 1,
+                            ),
+                          },
+                        },
+                      },
+                    };
+                  });
+                }
                 updateColMeta(editingAssessmentModal.typ, editingAssessmentModal.idx, labelVal, dateVal, maxPointsVal);
               }}
               onOpenSchularbeitRaster={() => {

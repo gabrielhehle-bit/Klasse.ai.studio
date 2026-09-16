@@ -202,7 +202,7 @@ export const DiagnosticScreeningRunner: React.FC<DiagnosticScreeningRunnerProps>
               </span>
             </div>
             <h3 className="text-sm font-bold text-slate-900">
-              {testDefinition.title} • Klasse {activeClassName || '2a'}
+              {testDefinition.title} • Klasse {activeClassName || 'Aktuelle Klasse'}
             </h3>
           </div>
         </div>

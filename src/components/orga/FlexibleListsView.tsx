@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
 import { CustomList, CustomListColumn, CustomListColumnType } from '../../types';
 import {
@@ -152,6 +152,20 @@ export default function FlexibleListsView({
 
   // Delete list confirmation state
   const [listToDelete, setListToDelete] = useState<CustomList | null>(null);
+
+  useEffect(() => {
+    setSearchQuery('');
+    setIsAddColumnOpen(false);
+    setNewColLabel('');
+    setNewColType('text');
+    setNewColOptions('');
+    setEditingColumn(null);
+    setIsEditListTitleOpen(false);
+    setEditListTitleInput('');
+    setEditListDescInput('');
+    setColumnToDelete(null);
+    setListToDelete(null);
+  }, [app.activeClassId]);
 
   // Filtered students
   const sortedAndFilteredStudents = useMemo(() => {

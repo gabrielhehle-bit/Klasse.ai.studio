@@ -12,11 +12,10 @@ import {
   Search,
   Bookmark,
   Layers,
-  Clock,
-  SlidersHorizontal,
-  Info
+  Clock
 } from "lucide-react";
 import { CockpitWidgetConfig } from "../../types";
+import { Button, IconButton, Badge, Chip, Input, Select, Textarea } from "../ui";
 
 interface WorkspaceProfile {
   id: string;
@@ -30,6 +29,7 @@ interface WorkspaceProfile {
 
 interface CockpitVorlagenModalProps {
   isOpen: boolean;
+  initialTab?: "browse" | "create";
   onClose: () => void;
   cockpitWidgets: CockpitWidgetConfig[];
   workspaceProfiles: WorkspaceProfile[];
@@ -114,6 +114,7 @@ const EMOJI_OPTIONS = [
 
 export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
   isOpen,
+  initialTab = "browse",
   onClose,
   cockpitWidgets,
   workspaceProfiles,
@@ -123,7 +124,6 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
   onUpdateProfile,
   onDeleteProfile,
   onResetToDefault,
-  currentIsLight,
   slotNames,
   saveSlotName,
   handleSaveLayoutSlot,
@@ -132,6 +132,10 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<"browse" | "create">("browse");
   const [selectedCategory, setSelectedCategory] = useState("all");
+
+  React.useEffect(() => {
+    if (isOpen) setActiveTab(initialTab);
+  }, [isOpen, initialTab]);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Create Form State
@@ -144,12 +148,8 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
 
   const activeWidgets = cockpitWidgets.filter((w) => w.visible);
 
-  // Combine user profiles and default profiles
-  const allProfiles: WorkspaceProfile[] = [
-    ...(workspaceProfiles && workspaceProfiles.length > 0
-      ? workspaceProfiles
-      : defaultProfiles),
-  ];
+  // Only explicitly saved user profiles are shown. Klassio ships without example layouts.
+  const allProfiles: WorkspaceProfile[] = workspaceProfiles || [];
 
   const filteredProfiles = allProfiles.filter((p) => {
     const isCustom = p.id.startsWith("profile_custom_") || p.id.startsWith("profile_1") || p.id.startsWith("profile_2") || p.id.startsWith("profile_3");
@@ -188,134 +188,97 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
     try {
       navigator.clipboard.writeText(JSON.stringify(p.layout, null, 2));
       showToast(`Layout "${p.name}" als JSON in Zwischenablage kopiert!`, "success");
-    } catch (e) {
+    } catch {
       showToast("Kopieren fehlgeschlagen.", "error");
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
-      <div
-        className={`w-full max-w-4xl max-h-[85vh] rounded-3xl border shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 ${
-          currentIsLight
-            ? "bg-white border-slate-200 text-slate-800"
-            : "bg-zinc-900 border-white/10 text-neutral-100"
-        }`}
-      >
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="w-full max-w-4xl max-h-[85vh] rounded-[2rem] border border-[var(--border-default,var(--border))] shadow-2xl flex flex-col overflow-hidden bg-[var(--surface-card,var(--surface))] text-[var(--text-primary)]">
         {/* Header */}
-        <div
-          className={`px-6 py-4 border-b flex items-center justify-between shrink-0 ${
-            currentIsLight ? "bg-slate-50/80 border-slate-200/80" : "bg-zinc-950/50 border-white/5"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black text-xl shadow-xs">
+        <div className="px-6 py-4 border-b border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)] border border-[var(--accent)]/20 flex items-center justify-center font-black text-xl shadow-xs">
               📋
             </div>
             <div>
               <h3 className="text-base font-black tracking-tight flex items-center gap-2">
-                Lehrercockpit Vorlagen & Layouts
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                Layouts
+                <Badge variant="neutral" size="sm">
                   {allProfiles.length} Vorlagen
-                </span>
+                </Badge>
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Erstelle, verwalte und lade Arbeitsbereich-Vorlagen für deinen Unterricht
+              <p className="text-xs text-[var(--text-muted)] font-medium">
+                Speichere und lade nur deine eigenen Arbeitsbereiche
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <button
+            <IconButton
+              variant="ghost"
+              size="sm"
+              aria-label="Schließen"
               onClick={onClose}
-              className={`p-2 rounded-xl transition-all cursor-pointer ${
-                currentIsLight
-                  ? "hover:bg-slate-200 text-slate-500"
-                  : "hover:bg-zinc-800 text-slate-400"
-              }`}
-              title="Schließen"
             >
               <X size={18} />
-            </button>
+            </IconButton>
           </div>
         </div>
 
         {/* Navigation Bar */}
-        <div
-          className={`px-6 py-2.5 border-b flex items-center justify-between gap-4 shrink-0 overflow-x-auto no-scrollbar ${
-            currentIsLight ? "bg-white border-slate-200/60" : "bg-zinc-900/80 border-white/5"
-          }`}
-        >
+        <div className="px-6 py-2.5 border-b border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))]/40 flex items-center justify-between gap-4 shrink-0 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant={activeTab === "browse" ? "primary" : "secondary"}
+              size="sm"
+              leftIcon={<LayoutGrid size={14} />}
               onClick={() => setActiveTab("browse")}
-              className={`px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer ${
-                activeTab === "browse"
-                  ? "bg-indigo-600 text-white shadow-sm font-black"
-                  : currentIsLight
-                  ? "bg-slate-100 hover:bg-slate-200 text-slate-600"
-                  : "bg-zinc-800 hover:bg-zinc-700 text-slate-300"
-              }`}
             >
-              <LayoutGrid size={14} />
-              <span>Vorlagen Durchsuchen</span>
-            </button>
+              Eigene Layouts
+            </Button>
 
-            <button
+            <Button
+              variant={activeTab === "create" ? "primary" : "secondary"}
+              size="sm"
+              leftIcon={<Plus size={14} />}
               onClick={() => setActiveTab("create")}
-              className={`px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer ${
-                activeTab === "create"
-                  ? "bg-emerald-600 text-white shadow-sm font-black"
-                  : currentIsLight
-                  ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60"
-                  : "bg-emerald-950/40 text-emerald-300 hover:bg-emerald-900/50 border border-emerald-800/40"
-              }`}
             >
-              <Plus size={14} />
               <span>Aktuelles Board als Vorlage speichern</span>
-              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-white/20">
+              <span className="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-black/10 dark:bg-white/15">
                 {activeWidgets.length} Widgets
               </span>
-            </button>
+            </Button>
           </div>
 
           {activeTab === "browse" && (
             <div className="relative w-64 shrink-0">
-              <Search size={13} className="absolute left-3 top-2.5 text-slate-400" />
+              <Search size={13} className="absolute left-3 top-2.5 text-[var(--text-muted)] pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Vorlagen suchen..."
-                className={`w-full pl-8 pr-3 py-1.5 rounded-xl text-xs font-medium border outline-none transition-all ${
-                  currentIsLight
-                    ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-indigo-500"
-                    : "bg-zinc-800 border-white/10 focus:bg-zinc-950 focus:border-indigo-500"
-                }`}
+                placeholder="Eigene Layouts suchen..."
+                className="w-full pl-8 pr-3 py-1.5 rounded-xl text-xs font-medium border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--focus-ring,var(--accent))]"
               />
             </div>
           )}
         </div>
 
         {/* Modal Main Body */}
-        <div className="flex-1 overflow-y-auto p-6 min-h-0">
+        <div className="flex-1 overflow-y-auto p-6 min-h-0 space-y-6">
           {activeTab === "create" ? (
             /* CREATE VORLAGE FORM */
-            <div className="max-w-2xl mx-auto flex flex-col gap-6">
-              <div
-                className={`p-5 rounded-2xl border ${
-                  currentIsLight
-                    ? "bg-emerald-50/50 border-emerald-200/70"
-                    : "bg-emerald-950/20 border-emerald-900/40"
-                }`}
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <Sparkles size={18} className="text-emerald-500" />
-                  <h4 className="text-sm font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+            <div className="max-w-2xl mx-auto flex flex-col gap-5">
+              <div className="p-5 rounded-2xl border border-[var(--success-border)] bg-[var(--success-soft)] text-[var(--success-text)]">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <Sparkles size={18} />
+                  <h4 className="text-xs font-black uppercase tracking-wider">
                     Aktuelles Cockpit-Layout erfassen
                   </h4>
                 </div>
-                <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
+                <p className="text-xs font-medium leading-relaxed opacity-90">
                   Speichere dein aktuelles Arrangement aus Positionen, Größen und Einstellungen der <strong>{activeWidgets.length} geöffneten Widgets</strong> dauerhaft als Vorlage.
                 </p>
 
@@ -325,14 +288,14 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                     activeWidgets.map((w) => (
                       <span
                         key={w.id}
-                        className="px-2.5 py-1 rounded-lg text-[10.5px] font-bold bg-white dark:bg-zinc-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 shadow-xs flex items-center gap-1"
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] text-[var(--text-primary)] shadow-xs flex items-center gap-1"
                       >
-                        <Check size={11} className="text-emerald-500" />
+                        <Check size={11} className="text-[var(--success-text)]" />
                         {WIDGET_NAME_MAP[w.type] || w.type}
                       </span>
                     ))
                   ) : (
-                    <span className="text-xs text-amber-600 dark:text-amber-400 font-bold italic">
+                    <span className="text-xs text-[var(--warning-text)] font-bold italic">
                       ⚠️ Hinweis: Aktuell sind keine Widgets auf dem Board geöffnet.
                     </span>
                   )}
@@ -341,27 +304,22 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
 
               <form onSubmit={handleCreateSubmit} className="flex flex-col gap-4">
                 {/* Name */}
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1.5">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] block">
                     Vorlagen-Name *
                   </label>
-                  <input
+                  <Input
                     type="text"
                     required
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="z.B. Mathe-Freiarbeit 3. Klasse, Morgenkreis, Stille-Test..."
-                    className={`w-full px-3.5 py-2.5 rounded-xl text-sm font-bold border outline-none transition-all ${
-                      currentIsLight
-                        ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-indigo-500"
-                        : "bg-zinc-800 border-white/10 focus:bg-zinc-950 focus:border-indigo-500"
-                    }`}
+                    placeholder="Name für dein Layout..."
                   />
                 </div>
 
                 {/* Emoji Icon Picker */}
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1.5">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] block">
                     Symbol / Emoji
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -372,10 +330,8 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                         onClick={() => setNewIcon(emoji)}
                         className={`w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all cursor-pointer border ${
                           newIcon === emoji
-                            ? "bg-indigo-600 border-indigo-600 text-white scale-110 shadow-md"
-                            : currentIsLight
-                            ? "bg-slate-100 hover:bg-slate-200 border-slate-200"
-                            : "bg-zinc-800 hover:bg-zinc-700 border-white/10"
+                            ? "bg-[var(--accent)] border-[var(--accent)] text-white scale-110 shadow-md"
+                            : "bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-card,var(--surface))] border-[var(--border-default,var(--border))]"
                         }`}
                       >
                         {emoji}
@@ -385,18 +341,13 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                 </div>
 
                 {/* Category */}
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1.5">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] block">
                     Kategorie
                   </label>
-                  <select
+                  <Select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
-                    className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold border outline-none cursor-pointer ${
-                      currentIsLight
-                        ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-indigo-500"
-                        : "bg-zinc-800 border-white/10 focus:bg-zinc-950 focus:border-indigo-500"
-                    }`}
                   >
                     <option value="Morgenkreis">🌅 Morgenkreis & Tagesstart</option>
                     <option value="Stillarbeit">🤫 Stillarbeit & Testzeit</option>
@@ -404,72 +355,58 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                     <option value="Fachunterricht">📚 Fachunterricht (Mathe/Deutsch/etc.)</option>
                     <option value="Rituale">✨ Rituale & Pausen</option>
                     <option value="Sonstiges">📋 Sonstiges</option>
-                  </select>
+                  </Select>
                 </div>
 
                 {/* Description */}
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1.5">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] block">
                     Beschreibung / Verwendungszweck (optional)
                   </label>
-                  <textarea
+                  <Textarea
                     rows={2}
                     value={newDescription}
                     onChange={(e) => setNewDescription(e.target.value)}
                     placeholder="z.B. Enthält Timer (15 Min), Lärmampel auf Stufe 2, Zufallsschüler & Arbeitsanweisung..."
-                    className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium border outline-none transition-all ${
-                      currentIsLight
-                        ? "bg-slate-50 border-slate-200 focus:bg-white focus:border-indigo-500"
-                        : "bg-zinc-800 border-white/10 focus:bg-zinc-950 focus:border-indigo-500"
-                    }`}
                   />
                 </div>
 
                 {/* Actions */}
                 <div className="flex gap-3 pt-2">
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
                     onClick={() => setActiveTab("browse")}
-                    className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                      currentIsLight
-                        ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                        : "bg-zinc-800 hover:bg-zinc-700 text-slate-300"
-                    }`}
                   >
                     Abbrechen
-                  </button>
+                  </Button>
 
-                  <button
+                  <Button
                     type="submit"
+                    variant="primary"
+                    className="flex-1"
+                    leftIcon={<Check size={16} />}
                     disabled={!newName.trim()}
-                    className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
                   >
-                    <Check size={16} />
-                    <span>Vorlage jetzt speichern</span>
-                  </button>
+                    Vorlage jetzt speichern
+                  </Button>
                 </div>
               </form>
             </div>
           ) : (
             /* BROWSE VORLAGEN LIST */
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-5">
               {/* Category Filter Chips */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar shrink-0">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar shrink-0">
                 {CATEGORIES.map((cat) => (
-                  <button
+                  <Chip
                     key={cat.id}
+                    selected={selectedCategory === cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all cursor-pointer border ${
-                      selectedCategory === cat.id
-                        ? "bg-indigo-600 border-indigo-600 text-white shadow-xs font-black"
-                        : currentIsLight
-                        ? "bg-slate-100 hover:bg-slate-200 border-slate-200/80 text-slate-700"
-                        : "bg-zinc-800 hover:bg-zinc-700 border-white/5 text-slate-300"
-                    }`}
                   >
                     <span>{cat.icon}</span>
                     <span>{cat.label}</span>
-                  </button>
+                  </Chip>
                 ))}
               </div>
 
@@ -486,30 +423,26 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                   return (
                     <div
                       key={p.id}
-                      className={`p-4 rounded-2xl border flex flex-col justify-between transition-all duration-200 hover:shadow-lg ${
-                        currentIsLight
-                          ? "bg-white border-slate-200/80 hover:border-indigo-300"
-                          : "bg-zinc-950/60 border-white/10 hover:border-indigo-500/50"
-                      }`}
+                      className="p-4 rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] flex flex-col justify-between transition-all duration-200 hover:shadow-md"
                     >
                       <div>
                         {/* Top info */}
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="w-9 h-9 rounded-xl bg-indigo-500/10 text-xl flex items-center justify-center shrink-0">
+                            <span className="w-9 h-9 rounded-xl bg-[var(--surface-subtle,var(--surface2))] border border-[var(--border-default,var(--border))] text-xl flex items-center justify-center shrink-0">
                               {p.icon || "📋"}
                             </span>
                             <div className="min-w-0">
-                              <h4 className="text-sm font-black truncate text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                              <h4 className="text-sm font-black truncate text-[var(--text-primary)] flex items-center gap-2">
                                 {p.name}
                                 {isCustom && (
-                                  <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                  <Badge variant="warning" size="sm">
                                     Eigene
-                                  </span>
+                                  </Badge>
                                 )}
                               </h4>
                               {p.category && (
-                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 block">
+                                <span className="text-[10px] font-bold text-[var(--text-muted)] block">
                                   {p.category}
                                 </span>
                               )}
@@ -517,35 +450,37 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                           </div>
 
                           <div className="flex items-center gap-1">
-                            <button
+                            <IconButton
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Layout als JSON kopieren"
                               onClick={() => handleCopyProfileJson(p)}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
-                              title="Layout als JSON kopieren"
                             >
                               <Copy size={13} />
-                            </button>
+                            </IconButton>
 
                             {isCustom && (
-                              <button
+                              <IconButton
+                                variant="ghost"
+                                size="sm"
+                                aria-label="Vorlage löschen"
                                 onClick={() => onDeleteProfile(p.id)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                                title="Vorlage löschen"
                               >
                                 <Trash2 size={13} />
-                              </button>
+                              </IconButton>
                             )}
                           </div>
                         </div>
 
                         {p.description && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-3 line-clamp-2">
+                          <p className="text-xs text-[var(--text-muted)] font-medium mb-3 line-clamp-2">
                             {p.description}
                           </p>
                         )}
 
                         {/* Included Widgets Chips */}
                         <div className="mb-4">
-                          <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1">
+                          <div className="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-muted)] mb-1.5 flex items-center gap-1">
                             <Layers size={10} />
                             Enthaltene Widgets ({visibleWidgetsInProfile.length})
                           </div>
@@ -554,13 +489,13 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                               visibleWidgetsInProfile.map((w) => (
                                 <span
                                   key={w.id}
-                                  className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-slate-300 border border-slate-200/50 dark:border-white/5"
+                                  className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-secondary)] border border-[var(--border-default,var(--border))]"
                                 >
                                   {WIDGET_NAME_MAP[w.type] || w.type}
                                 </span>
                               ))
                             ) : (
-                              <span className="text-[10px] text-slate-400 italic">
+                              <span className="text-[10px] text-[var(--text-muted)] italic">
                                 Keine Widgets aktiv
                               </span>
                             )}
@@ -569,90 +504,77 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-white/5">
-                        <button
+                      <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-default,var(--border))]">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          leftIcon={<RefreshCw size={12} />}
                           onClick={() => {
                             onUpdateProfile(p.id);
                             showToast(`Vorlage "${p.name}" mit aktuellem Board-Layout aktualisiert!`, "success");
                           }}
-                          className={`px-3 py-1.5 rounded-xl font-bold text-[11px] flex items-center gap-1 transition-all cursor-pointer ${
-                            currentIsLight
-                              ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                              : "bg-zinc-800 hover:bg-zinc-700 text-slate-300"
-                          }`}
-                          title="Überschreibt diese Vorlage mit deinem aktuellen Board"
                         >
-                          <RefreshCw size={12} />
-                          <span>Überschreiben</span>
-                        </button>
+                          Überschreiben
+                        </Button>
 
-                        <button
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          className="flex-1"
+                          leftIcon={<Play size={12} fill="currentColor" />}
                           onClick={() => {
                             onLoadProfile(p.id);
                             onClose();
                           }}
-                          className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
                         >
-                          <Play size={12} fill="currentColor" />
-                          <span>Vorlage laden</span>
-                        </button>
+                          Vorlage laden
+                        </Button>
                       </div>
                     </div>
                   );
                 })}
 
                 {filteredProfiles.length === 0 && (
-                  <div className="col-span-2 text-center py-12 border-2 border-dashed rounded-3xl opacity-60">
-                    <Bookmark size={32} className="mx-auto mb-2 text-slate-400" />
-                    <p className="text-sm font-bold text-slate-500">
-                      Keine passenden Vorlagen gefunden.
+                  <div className="col-span-2 text-center py-12 border-2 border-dashed border-[var(--border-default,var(--border))] rounded-3xl opacity-60">
+                    <Bookmark size={32} className="mx-auto mb-2 text-[var(--text-muted)]" />
+                    <p className="text-sm font-bold text-[var(--text-muted)]">
+                      Noch keine passenden eigenen Layouts.
                     </p>
-                    <button
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="mt-3"
                       onClick={() => setActiveTab("create")}
-                      className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold cursor-pointer hover:bg-indigo-700"
                     >
                       Erstelle jetzt deine erste eigene Vorlage!
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
 
               {/* Schnell-Slots Section */}
-              <div
-                className={`p-4 rounded-2xl border ${
-                  currentIsLight ? "bg-slate-50/80 border-slate-200/80" : "bg-zinc-950/40 border-white/5"
-                }`}
-              >
+              <div className="p-4 rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))]">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Clock size={15} className="text-indigo-500" />
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">
+                    <Clock size={15} className="text-[var(--accent)]" />
+                    <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
                       Schnell-Slots (Tastatur / Quick-Presets)
                     </h4>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-medium">
+                  <span className="text-[10px] text-[var(--text-muted)] font-medium">
                     1-Klick Plätze für den täglichen Wechsel
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {(["A", "B", "C"] as const).map((slot) => {
-                    let isSaved = false;
-                    if (slot === "C") {
-                      isSaved = !!localStorage.getItem("cockpitLayoutC");
-                    } else {
-                      isSaved = slot === "A" ? !!(slotNames as any).cockpitLayoutA : !!(slotNames as any).cockpitLayoutB;
-                    }
-
                     return (
                       <div
                         key={slot}
-                        className={`p-3 rounded-xl border flex flex-col gap-2 ${
-                          currentIsLight ? "bg-white border-slate-200" : "bg-zinc-900 border-white/10"
-                        }`}
+                        className="p-3 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] flex flex-col gap-2.5"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="w-6 h-6 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-black text-xs flex items-center justify-center">
+                          <span className="w-6 h-6 rounded-lg bg-[var(--accent-soft)] text-[var(--accent)] font-black text-xs flex items-center justify-center">
                             {slot}
                           </span>
                           <input
@@ -660,26 +582,30 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
                             value={slotNames[slot] || `Schnell-Slot ${slot}`}
                             onChange={(e) => saveSlotName(slot, e.target.value)}
                             placeholder={`Slot ${slot} Name...`}
-                            className="flex-1 bg-transparent text-xs font-bold text-slate-800 dark:text-slate-100 outline-none"
+                            className="flex-1 bg-transparent text-xs font-bold text-[var(--text-primary)] outline-none"
                           />
                         </div>
 
                         <div className="flex gap-2">
-                          <button
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="flex-1"
                             onClick={() => handleSaveLayoutSlot(slot)}
-                            className="flex-1 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold text-[10.5px] hover:bg-indigo-100 transition-colors"
                           >
                             Speichern
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            className="flex-1"
                             onClick={() => {
                               handleLoadLayoutSlot(slot);
                               onClose();
                             }}
-                            className="flex-1 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10.5px] transition-colors shadow-xs"
                           >
                             Laden
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     );
@@ -689,17 +615,19 @@ export const CockpitVorlagenModal: React.FC<CockpitVorlagenModalProps> = ({
 
               {/* Reset to Default */}
               <div className="flex justify-end pt-2">
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-[var(--danger-text)]"
                   onClick={() => {
                     if (window.confirm("Bist du sicher, dass du das Board auf das Werkseinstellungs-Standardlayout zurücksetzen möchtest?")) {
                       onResetToDefault();
                       onClose();
                     }
                   }}
-                  className="text-xs font-bold text-rose-500 hover:text-rose-600 px-3 py-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                 >
                   ⚠️ Werks-Standardlayout laden
-                </button>
+                </Button>
               </div>
             </div>
           )}

@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { EmptyState } from './EmptyState';
 import { useEscapeKey } from '../hooks/useEscapeKey';
 import { useApp } from '../context/AppContext';
-import { berechne } from '../lib/GradeUtils';
+import { berechne, calculateItemPercent, getAssessmentMode, getMaxPoints } from '../lib/GradeUtils';
+import { formatLocalDateKey } from '../lib/utils';
 import { FAECHER_ALLE } from '../constants';
 import { KEL_GRADES_INFO, FlowerChart } from './FlowerChart';
 import { 
@@ -11,7 +12,7 @@ import {
   Briefcase, RefreshCw, AlertTriangle, ArrowRight, Wallet, CheckSquare, 
   DollarSign, MessageSquare, BookOpen, Star, Award, Target, Notebook, Calendar, Clock,
   Heart, Plus, Trash2, UserMinus, FileText, CheckCircle2, ChevronLeft, ChevronRight, MapPin, Mail, Phone, GraduationCap, Users, Printer, X, Rocket,
-  ArrowLeft, SmilePlus, AlertCircle, ChevronUp, ChevronDown, ThumbsUp, Compass, TrendingDown, Activity, Flame, MoreHorizontal
+  ArrowLeft, SmilePlus, AlertCircle, ChevronUp, ChevronDown, ThumbsUp, Compass, TrendingDown, Activity, Flame, MoreHorizontal, Upload
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend, LineChart, Line, AreaChart, Area, PieChart, Pie } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
@@ -22,27 +23,46 @@ import StudentStatsEditor from './StudentStatsEditor';
 import { STANDARD_KEL_BEREICHE } from '../types';
 import { generateKELAssessment } from '../services/aiService';
 import KELPresentation from './KELPresentation';
+import AntolinImportModal from './AntolinImportModal';
 import {
   getStudentAttendanceSummary,
-  getStudentGradeSummary
+  getStudentNotes
 } from '../lib/studentMetrics';
+import {
+  getClassPerformanceStats,
+  getStudentPerformanceSummary,
+  getSubjectPerformanceAverages
+} from '../lib/statisticsMetrics';
 
 const ModalPortal = ({ children }: { children: React.ReactNode }) => {
   return createPortal(children, document.body);
 };
 
+function escapeHtmlForPrint(value: unknown): string {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
 function SuggestionsGrid() {
   const { app, setApp } = useApp();
   const [openIdx, setOpenIdx] = useState<number | null>(null);
 
-  // Fallback / active student helpers
-  const dbStudents = app.schueler || [];
-  const activeStudents = dbStudents.length > 0 ? dbStudents : [
-    { id: 'mock-1', vorname: 'Emma', nachname: 'Becker', note: 2, charakter: ['aufmerksam', 'hilfsbereit'] },
-    { id: 'mock-2', vorname: 'Max', nachname: 'Müller', note: 3, charakter: ['impulsstark', 'kreativ'] },
-    { id: 'mock-3', vorname: 'Julia', nachname: 'Schmidt', note: 1, charakter: ['konzentriert', 'ruhig'] },
-    { id: 'mock-4', vorname: 'Felix', nachname: 'Wagner', note: 4, charakter: ['braucht_fokus', 'sportlich'] }
-  ];
+  const activeStudents = app.schueler || [];
+  const toolSubjects = useMemo(
+    () => ((app.faecher && app.faecher.length > 0) ? app.faecher : FAECHER_ALLE)
+      .filter(fach => app.fachConfig?.[fach]?.unterrichtet !== false),
+    [app.faecher, app.fachConfig],
+  );
+  const comparisonClasses = useMemo(
+    () => (app.classes || []).filter(classroom =>
+      classroom.id !== app.activeClassId && (classroom.schueler || []).length > 0
+    ),
+    [app.classes, app.activeClassId],
+  );
 
   // Tool 1: Noten-Prognose-Rechner
   const [t1StudentId, setT1StudentId] = useState<string>(activeStudents[0]?.id || '');
@@ -63,14 +83,17 @@ function SuggestionsGrid() {
     praesentation: 5
   });
 
-  // Tool 4: Fehlzeiten-Korrelationsanalyse
-  const [t4ScatterData, setT4ScatterData] = useState(() => {
-    return activeStudents.map((s, i) => ({
-      name: s.vorname,
-      fehlstunden: [4, 18, 2, 28, 6, 12, 34][i % 7],
-      gpa: Number(((s.note as number) || 2.5).toFixed(1))
-    }));
-  });
+  // Tool 4: Fehlzeiten-/Leistungsübersicht aus echten Klassiodaten
+  const t4ScatterData = useMemo(() => activeStudents.flatMap(student => {
+    const attendance = getStudentAttendanceSummary(app, student.id);
+    const performance = getStudentPerformanceSummary(app, student.id, toolSubjects);
+    if (!attendance.hasData && !performance.hasData) return [];
+    return [{
+      name: student.vorname,
+      fehlstunden: attendance.total,
+      leistung: performance.normalizedAverage,
+    }];
+  }), [activeStudents, app, toolSubjects]);
 
   // Tool 5: Screening-Assistant
   const [t5StudentId, setT5StudentId] = useState<string>(activeStudents[0]?.id || '');
@@ -95,30 +118,61 @@ function SuggestionsGrid() {
     fokusTeacher: 2
   });
 
-  // Tool 7: Belastungs-Heatmap
-  const [t7Exams, setT7Exams] = useState<Array<{ name: string, week: number, day: string }>>([
-    { name: 'Mathe-SA', week: 2, day: 'Di' },
-    { name: 'Deutsch-Diktat', week: 2, day: 'Do' }
-  ]);
+  // Tool 7: Belastungs-Heatmap; startet bewusst leer statt mit erfundenen Prüfungen.
+  const [t7Exams, setT7Exams] = useState<Array<{ name: string, week: number, day: string }>>([]);
   const [t7NewExamName, setT7NewExamName] = useState('');
   const [t7NewExamWeek, setT7NewExamWeek] = useState(1);
   const [t7NewExamDay, setT7NewExamDay] = useState('Mo');
 
   // Tool 8: Förderplan Generator
   const [t8StudentId, setT8StudentId] = useState<string>(activeStudents[0]?.id || '');
-  const [t8Goals, setT8Goals] = useState('Aktive Beteiligung steigern und Ablenkung minimieren.');
-  const [t8Measures, setT8Measures] = useState('Sitzplatz in der 1. Reihe, wöchentliches kurzes Reflexionsgespräch.');
-  const [t8ParentSupport, setT8ParentSupport] = useState('Tägliche Hausaufgabenkontrolle und Lob für konzentriertes Arbeiten.');
+  const [t8Goals, setT8Goals] = useState('');
+  const [t8Measures, setT8Measures] = useState('');
+  const [t8ParentSupport, setT8ParentSupport] = useState('');
   const [t8IsPrinted, setT8IsPrinted] = useState(false);
 
-  // Tool 9: Paralleler Kohortenvergleich
-  const [t9RefClass, setT9RefClass] = useState<'4B' | '4C' | 'Schnitt'>('4B');
+  // Tool 9: Vergleich ausschließlich mit tatsächlich vorhandenen weiteren Klassen.
+  const [t9RefClass, setT9RefClass] = useState<string>('');
 
   // Tool 10: Sitzplatz-Dynamik & Soziogramm
   const [t10FocusId, setT10FocusId] = useState<string>(activeStudents[0]?.id || '');
   const [t10Partner1Id, setT10Partner1Id] = useState<string>(activeStudents[1]?.id || '');
   const [t10Partner2Id, setT10Partner2Id] = useState<string>(activeStudents[2]?.id || '');
   const [t10OptimizationResult, setT10OptimizationResult] = useState<string>('');
+
+  useEffect(() => {
+    const firstId = activeStudents[0]?.id || '';
+    const secondId = activeStudents[1]?.id || '';
+    const thirdId = activeStudents[2]?.id || secondId;
+    const ensureStudent = (value: string, fallback: string) =>
+      activeStudents.some(student => student.id === value) ? value : fallback;
+
+    setT1StudentId(value => ensureStudent(value, firstId));
+    setT2StudentId(value => ensureStudent(value, firstId));
+    setT3StudentId(value => ensureStudent(value, firstId));
+    setT5StudentId(value => ensureStudent(value, firstId));
+    setT6StudentId(value => ensureStudent(value, firstId));
+    setT8StudentId(value => ensureStudent(value, firstId));
+    setT10FocusId(value => ensureStudent(value, firstId));
+    setT10Partner1Id(value => ensureStudent(value, secondId));
+    setT10Partner2Id(value => ensureStudent(value, thirdId));
+    setT9RefClass(value =>
+      comparisonClasses.some(classroom => classroom.id === value)
+        ? value
+        : (comparisonClasses[0]?.id || '')
+    );
+    setT10OptimizationResult('');
+  }, [app.activeClassId, activeStudents, comparisonClasses]);
+
+  if (activeStudents.length === 0) {
+    return (
+      <EmptyState
+        icon="👥"
+        title="Noch keine Schüler:innen vorhanden"
+        description="Spezialwerkzeuge verwenden ausschließlich echte Klassiodaten. Lege zuerst Schüler:innen in der aktiven Klasse an."
+      />
+    );
+  }
 
   const list = [
     {
@@ -128,11 +182,15 @@ function SuggestionsGrid() {
       icon: "🧮",
       render: () => {
         const student = activeStudents.find(s => s.id === t1StudentId) || activeStudents[0];
-        const baseGrade = ((student as any)?.note as number) || 2.5;
-        // Calculation: new grade weighted in average
+        const performance = getStudentPerformanceSummary(app, student.id, toolSubjects);
+        const baseGrade = performance.gradeAverage;
         const forecastWeightDecimal = t1NewWeight / 100;
-        const newAverage = Number(((baseGrade * (1 - forecastWeightDecimal)) + (t1NewGrade * forecastWeightDecimal)).toFixed(2));
-        const delta = Number((newAverage - baseGrade).toFixed(2));
+        const newAverage = baseGrade === null
+          ? null
+          : Number(((baseGrade * (1 - forecastWeightDecimal)) + (t1NewGrade * forecastWeightDecimal)).toFixed(2));
+        const delta = baseGrade === null || newAverage === null
+          ? null
+          : Number((newAverage - baseGrade).toFixed(2));
         
         return (
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
@@ -146,9 +204,14 @@ function SuggestionsGrid() {
                   onChange={(e) => setT1StudentId(e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-[0.75rem] font-bold text-slate-100 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 focus:outline-none"
                 >
-                  {activeStudents.map(s => (
-                    <option key={s.id} value={s.id}>{s.vorname} {s.nachname} (Schnitt: {s.note || 'None'})</option>
-                  ))}
+                  {activeStudents.map(s => {
+                    const avg = getStudentPerformanceSummary(app, s.id, toolSubjects).gradeAverage;
+                    return (
+                      <option key={s.id} value={s.id}>
+                        {s.vorname} {s.nachname}{avg !== null ? ` (Notenschnitt: ${avg.toFixed(2)})` : ' (keine Notenskala-Daten)'}
+                      </option>
+                    );
+                  })}
                 </select>
 
                 <div className="space-y-1.5">
@@ -185,11 +248,11 @@ function SuggestionsGrid() {
                   <span className="text-[0.5625rem] font-black uppercase text-slate-500 block">Echtzeit-Berechnung</span>
                   <div className="flex justify-between items-baseline border-b border-slate-800/60 pb-2">
                     <span className="text-[0.75rem] text-slate-300 font-bold">Aktueller Schnitt:</span>
-                    <span className="text-md font-extrabold text-slate-200">{baseGrade}</span>
+                    <span className="text-md font-extrabold text-slate-200">{baseGrade !== null ? baseGrade.toFixed(2) : '–'}</span>
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-[0.75rem] text-indigo-300 font-bold">Prognostizierter Schnitt:</span>
-                    <span className="text-xl font-black text-indigo-400">{newAverage}</span>
+                    <span className="text-xl font-black text-indigo-400">{newAverage !== null ? newAverage.toFixed(2) : '–'}</span>
                   </div>
                 </div>
 
@@ -200,12 +263,14 @@ function SuggestionsGrid() {
                     ? 'bg-emerald-950/30 border-emerald-900/40 text-emerald-300' 
                     : 'bg-rose-950/30 border-rose-900/40 text-rose-300'
                 }`}>
-                  {delta === 0 ? (
-                    'Keine Änderung im arithmetischen Mittel.'
+                  {delta === null ? (
+                    'Für diese Simulation werden echte Beurteilungen auf der Notenskala 1–5 benötigt. Prozent- und Punktedaten werden hier bewusst nicht als Noten umgedeutet.'
+                  ) : delta === 0 ? (
+                    'Keine Änderung im simulierten arithmetischen Mittel.'
                   ) : delta < 0 ? (
-                    `📈 Verbesserung um ${Math.abs(delta)} Punkte auf der Notenskala!`
+                    `📈 Simulierte Verbesserung um ${Math.abs(delta)} Punkte auf der Notenskala.`
                   ) : (
-                    `📉 Verschiebung um +${delta} Punkte (Schnitt wird schwächer).`
+                    `📉 Simulierte Verschiebung um +${delta} Punkte auf der Notenskala.`
                   )}
                 </div>
               </div>
@@ -221,8 +286,8 @@ function SuggestionsGrid() {
       icon: "📈",
       render: () => {
         const student = activeStudents.find(s => s.id === t2StudentId) || activeStudents[0];
-        const currentGrade = ((student as any)?.note as number) || 2.5;
-        const diff = Number((t2PrevAvg - currentGrade).toFixed(2));
+        const currentGrade = getStudentPerformanceSummary(app, student.id, toolSubjects).gradeAverage;
+        const diff = currentGrade === null ? null : Number((t2PrevAvg - currentGrade).toFixed(2));
         
         return (
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
@@ -267,7 +332,7 @@ function SuggestionsGrid() {
                     <span className="text-xl">➡️</span>
                     <div className="text-center bg-slate-900 px-3 py-1.5 rounded-lg border border-indigo-950">
                       <span className="block text-[0.5625rem] font-black text-indigo-400">JETZT</span>
-                      <span className="text-sm font-black text-indigo-300">{currentGrade}</span>
+                      <span className="text-sm font-black text-indigo-300">{currentGrade !== null ? currentGrade.toFixed(2) : '–'}</span>
                     </div>
                   </div>
                 </div>
@@ -279,12 +344,14 @@ function SuggestionsGrid() {
                     ? 'bg-rose-950/30 border-rose-955 text-rose-300' 
                     : 'bg-slate-900 border-slate-800 text-slate-400'
                 }`}>
-                  {diff > 0 ? (
-                    `🎉 Hervorragender Eigenfortschritt! Eine Steigerung von +${diff} im Vergleich zur vorherigen Periode.`
+                  {diff === null ? (
+                    'Keine Beurteilungen auf der Notenskala 1–5 vorhanden. Der manuelle Referenzvergleich wird deshalb nicht berechnet.'
+                  ) : diff > 0 ? (
+                    `📈 Simulierte Verbesserung um ${diff} gegenüber dem manuell gesetzten Referenzwert.`
                   ) : diff < 0 ? (
-                    `⚠️ Unterstützung empfohlen. Aktueller Stand liegt um -${Math.abs(diff)} hinter dem persönlichen Bestwert.`
+                    `📉 Aktueller Notenschnitt liegt um ${Math.abs(diff)} über dem manuell gesetzten Referenzwert.`
                   ) : (
-                    `🌱 Konsistent: Exakt stabil im Vergleich zum persönlichen Referenzwert.`
+                    'Der aktuelle Notenschnitt entspricht dem manuell gesetzten Referenzwert.'
                   )}
                 </div>
               </div>
@@ -337,7 +404,10 @@ function SuggestionsGrid() {
 
         return (
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
-            <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">🎯 Kompetenz-Radar & Spidermap</h5>
+            <div className="space-y-1">
+              <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">🎯 Kompetenz-Radar & Spidermap</h5>
+              <p className="text-[0.625rem] text-slate-400 font-bold">Manuelle Gesprächs-/Planungssimulation. Die Regler werden nicht als Diagnostikdaten gespeichert.</p>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
               
               <div className="sm:col-span-4 flex justify-center">
@@ -391,18 +461,7 @@ function SuggestionsGrid() {
                   <select 
                     id="t3-student-select"
                     value={t3StudentId} 
-                    onChange={(e) => {
-                      setT3StudentId(e.target.value);
-                      // Generate simulated skill numbers based on student name to feel real!
-                      const seed = e.target.value.charCodeAt(0) || 3;
-                      setT3Skills({
-                        lese: (seed % 4) + 2,
-                        rechtschreiben: ((seed + 1) % 4) + 2,
-                        text: ((seed + 2) % 4) + 2,
-                        grammatik: ((seed + 3) % 4) + 2,
-                        praesentation: ((seed + 4) % 3) + 3
-                      });
-                    }}
+                    onChange={(e) => setT3StudentId(e.target.value)}
                     className="bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-[0.7rem] font-bold text-slate-200 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 focus:outline-none"
                   >
                     {activeStudents.map(s => (
@@ -450,42 +509,34 @@ function SuggestionsGrid() {
 
             <div className="space-y-3">
               <span className="text-[0.625rem] text-slate-400 font-bold block leading-relaxed">
-                Diese Auswertung zeigt den direkten Zusammenhang zwischen Fehlzeiten (Fehlstunden) und dem allgemeinen Notendurchschnitt der Schüler in Hauptfächern.
+                Diese Übersicht stellt erfasste Fehlstunden und den skalenübergreifend normalisierten Leistungsindex nebeneinander. Sie behauptet keine Kausalität oder Diagnose.
               </span>
 
               {/* Vertical Chart bar list representing the correlation */}
               <div className="space-y-2.5">
-                {t4ScatterData.map((data, ix) => {
-                  const status = data.fehlstunden > 25 ? '⚠️ Sehr hohe Fehlzeit' : data.fehlstunden > 15 ? '⚠️ Erhöhte Fehlzeit' : '🌱 Unauffällig';
-                  const percentageWidth = Math.min(100, (data.fehlstunden / 40) * 100);
+                {t4ScatterData.length > 0 ? t4ScatterData.map((data, ix) => {
+                  const percentageWidth = Math.min(100, data.fehlstunden > 0 ? (data.fehlstunden / Math.max(...t4ScatterData.map(item => item.fehlstunden), 1)) * 100 : 0);
                   return (
                     <div key={ix} className="p-3 bg-slate-950/45 rounded-xl border border-slate-800/80 space-y-1.5">
                       <div className="flex justify-between items-center text-[0.7rem]">
                         <span className="font-extrabold text-slate-200">{data.name}</span>
-                        <div className="flex gap-2 items-center text-[0.625rem] font-bold">
-                          <span className="text-slate-450">{data.fehlstunden} Fehlstunden</span>
-                          <span className={`px-1.5 py-0.5 rounded text-[0.5625rem] font-black uppercase ${
-                            data.fehlstunden > 25 ? 'bg-rose-950/80 text-rose-300' : data.fehlstunden > 15 ? 'bg-amber-950/80 text-amber-300' : 'bg-emerald-950/80 text-emerald-300'
-                          }`}>{status}</span>
-                        </div>
+                        <span className="text-[0.625rem] font-bold text-slate-450">{data.fehlstunden} Fehlstunden</span>
                       </div>
-                      
                       <div className="flex gap-3 items-center">
                         <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                          <div 
-                            style={{ width: `${percentageWidth}%` }} 
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              data.fehlstunden > 25 ? 'bg-rose-500' : data.fehlstunden > 15 ? 'bg-amber-500' : 'bg-indigo-500'
-                            }`}
-                          />
+                          <div style={{ width: `${percentageWidth}%` }} className="h-full rounded-full bg-indigo-500 transition-all duration-500" />
                         </div>
-                        <span className="font-black text-[0.725rem] text-slate-300 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-md min-w-[2.5rem] text-center">
-                          Ø {data.gpa}
+                        <span className="font-black text-[0.725rem] text-slate-300 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-md min-w-[4.5rem] text-center">
+                          {data.leistung !== null ? `${data.leistung.toFixed(1)} %` : 'keine Leistung'}
                         </span>
                       </div>
                     </div>
                   );
-                })}
+                }) : (
+                  <div className="p-4 rounded-xl border border-dashed border-slate-700 text-[0.6875rem] font-bold text-slate-400 text-center">
+                    Noch keine Anwesenheits- oder Leistungsdaten vorhanden.
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -493,28 +544,24 @@ function SuggestionsGrid() {
       }
     },
     {
-      title: "5. Dyskalkulie & Legasthenie Screening-Assistant",
-      short: "Früherkennungs-Filter basierend auf Fehlermustern in schriftlichen Beiträgen.",
-      details: "Ein KI-gestütztes Assistenzmodul sucht nach typischen, wiederkehrenden Fehlermustern in Schülerinhalten, um Hinweise auf eventuelle Teilleistungsstörungen (LRS, Dyskalkulie) frühzeitig an die Lehrkraft zu melden.",
+      title: "5. Pädagogische Beobachtungs-Checkliste",
+      short: "Manuelle Merkhilfe für wiederkehrende Beobachtungen – ausdrücklich keine Diagnose.",
+      details: "Die Checkliste dient nur als Gesprächs- und Dokumentationshilfe. Sie berechnet kein Störungsrisiko und ersetzt weder die strukturierte Klassio-Diagnostik noch eine fachliche Abklärung.",
       icon: "🧠",
       render: () => {
         const student = activeStudents.find(s => s.id === t5StudentId) || activeStudents[0];
         
-        // Count active indicators checked
         const score = Object.values(t5Checklist).filter(Boolean).length;
-        let riskLabel = "🌱 Geringes Risiko";
-        let riskColor = "text-emerald-400 bg-emerald-950/50 border-emerald-900";
-        if (score >= 4) {
-          riskLabel = "🚨 Deutlich erhöhtes Risiko";
-          riskColor = "text-rose-450 bg-rose-950/50 border-rose-900";
-        } else if (score >= 2) {
-          riskLabel = "⚠️ Erhöhtes Risiko / Verdacht";
-          riskColor = "text-amber-450 bg-amber-950/50 border-amber-900";
-        }
+        const observationLabel = score === 0
+          ? 'Keine Beobachtung markiert'
+          : `${score} Beobachtung${score === 1 ? '' : 'en'} markiert`;
+        const observationColor = score === 0
+          ? "text-slate-300 bg-slate-950/50 border-slate-800"
+          : "text-amber-300 bg-amber-950/40 border-amber-900/70";
 
         return (
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
-            <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">🧠 Diagnostischer Screening-Assistent</h5>
+            <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">🧠 Pädagogische Beobachtungs-Checkliste</h5>
             <div className="space-y-3">
               <div className="flex gap-2 items-center">
                 <label htmlFor="t5-student-select" className="text-[0.6875rem] font-bold text-slate-450">Fokus-Kind:</label>
@@ -535,7 +582,7 @@ function SuggestionsGrid() {
 
               {/* Checklist items */}
               <div className="space-y-2 pt-2">
-                <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-500 block">Symptomatische Beobachtungs-Checkliste:</span>
+                <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-500 block">Beobachtungen für den nächsten pädagogischen Blick:</span>
                 {[
                   { key: 'laute', label: 'Vertauscht ähnlich klingende Laute beim lauten Vorlesen / Schreiben' },
                   { key: 'ziffern', label: 'Häufige Spiegelschrift bei Zahlen oder verwechselt die Stellen (z.B. 12 vs 21)' },
@@ -556,19 +603,13 @@ function SuggestionsGrid() {
               </div>
 
               {/* Result Indicator */}
-              <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[0.7rem] font-bold ${riskColor}`}>
+              <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-[0.7rem] font-bold ${observationColor}`}>
                 <div className="space-y-1">
-                  <span className="block text-[0.5625rem] font-black uppercase text-slate-400">Auswertung für {student.vorname}:</span>
-                  <span className="text-[0.8125rem] font-black">{riskLabel}</span>
+                  <span className="block text-[0.5625rem] font-black uppercase text-slate-400">Manuelle Auswahl für {student.vorname}:</span>
+                  <span className="text-[0.8125rem] font-black">{observationLabel}</span>
                 </div>
                 <div className="text-[0.65rem] max-w-sm leading-relaxed text-slate-300 font-medium">
-                  {score >= 4 ? (
-                    "💡 Empfohlenes Handeln: Vereinbare kurzfristig ein Gespräch mit Schulpsychologen / Eltern bezüglich gezielter Diagnostik-Sitzungen (LRS/Diskalkulie)."
-                  ) : score >= 2 ? (
-                    "💡 Empfohlenes Handeln: Biete verstärkte Üben-Hausaufgaben mit Bildkarten / Rechenschieber an, behalte die Hausaufgaben genau im Auge."
-                  ) : (
-                    "🌱 Aktuell sind keine akuten, auffälligen Interventionen aus pädagogischer Sicht erforderlich."
-                  )}
+                  Diese Markierungen erzeugen bewusst keine automatische Risikoeinstufung. Für standardisierte Beobachtungen und 1:1-Checks nutze das Diagnostikmodul.
                 </div>
               </div>
             </div>
@@ -820,74 +861,51 @@ function SuggestionsGrid() {
       }
     },
     {
-      title: "8. One-Click Pädagogischer Förderplan (Automatisches PDF)",
-      short: "Vollständig ausgefüllte, offizielle Vorlagen für schulische Förderpläne per Mausklick.",
-      details: "Basierend auf den gesammelten Noten, Verhaltensdaten und Diagnostiken generiert die Plattform per Klick einen behördlich anerkannten Förderplanentwurf inklusive pädagogischer Zielsetzungen für Eltern und Schulleitung.",
+      title: "8. Pädagogischer Förderplan – Druckentwurf",
+      short: "Manuell ausgefüllter Gesprächs- und Förderplan als lokale Druckansicht.",
+      details: "Erstellt aus den von der Lehrkraft eingegebenen Zielen und Maßnahmen einen druckbaren Entwurf. Der Ausdruck ist keine behördliche Vorlage und wird nicht automatisch als PDF gespeichert.",
       icon: "📋",
       render: () => {
         const student = activeStudents.find(s => s.id === t8StudentId) || activeStudents[0];
         
         const handlePrintSimulation = () => {
-          setT8IsPrinted(true);
-          setTimeout(() => setT8IsPrinted(false), 3000);
-          
-          // True print action for just the generated plan
-          const printWindow = window.open('', '_blank');
+          const performance = getStudentPerformanceSummary(app, student.id, toolSubjects);
+          const schoolName = app.schulName || app.lehrerProfil?.schule || 'Schule';
+          const className = app.klassenbezeichnung || '—';
+          const html = `<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Förderplan-Entwurf</title>
+<style>
+body{font-family:Arial,sans-serif;padding:40px;color:#1e293b} .header{border-bottom:3px solid #4338ca;padding-bottom:16px;margin-bottom:24px}
+h1{font-size:24px;margin:0 0 6px}.meta{background:#f8fafc;padding:16px;border-radius:12px;margin-bottom:20px}.box{border:1px solid #e2e8f0;padding:18px;border-radius:12px;margin-bottom:16px}
+.label{font-size:11px;font-weight:700;text-transform:uppercase;color:#4f46e5}.note{font-size:11px;color:#64748b;margin-top:24px}
+</style>
+</head>
+<body>
+<div class="header"><h1>Pädagogischer Förderplan – Entwurf</h1><div>${escapeHtmlForPrint(schoolName)} · Klasse ${escapeHtmlForPrint(className)}</div></div>
+<div class="meta"><strong>Schüler:in:</strong> ${escapeHtmlForPrint(`${student.vorname} ${student.nachname}`)}<br>
+<strong>Schulstufe:</strong> ${escapeHtmlForPrint(app.stufe)}<br>
+<strong>Leistungsindex:</strong> ${performance.normalizedAverage === null ? '—' : escapeHtmlForPrint(`${performance.normalizedAverage.toFixed(1)} %`)}<br>
+<strong>Erstellt:</strong> ${escapeHtmlForPrint(new Date().toLocaleDateString('de-AT'))}</div>
+<div class="box"><div class="label">Pädagogische Ziele</div><p>${escapeHtmlForPrint(t8Goals) || '—'}</p></div>
+<div class="box"><div class="label">Schulische Maßnahmen</div><p>${escapeHtmlForPrint(t8Measures) || '—'}</p></div>
+<div class="box"><div class="label">Kooperation Elternhaus</div><p>${escapeHtmlForPrint(t8ParentSupport) || '—'}</p></div>
+<p class="note">Klassio-Druckentwurf. Keine behördliche oder amtlich anerkannte Vorlage.</p>
+<script>window.addEventListener('load',()=>window.print())<\/script>
+</body></html>`;
+          const blobUrl = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+          const printWindow = window.open(blobUrl, '_blank', 'noopener,noreferrer');
           if (printWindow) {
-            printWindow.document.write(`
-              <html>
-                <head>
-                  <title>Pädagogischer Förderplan: ${student.vorname} ${student.nachname}</title>
-                  <style>
-                    body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 40px; color: #1e293b; background: white; }
-                    .header { text-align: center; border-b: 4px solid #4338ca; padding-bottom: 20px; margin-bottom: 30px; }
-                    h1 { font-size: 24px; font-weight: 800; color: #1e1b4b; text-transform: uppercase; margin-bottom: 5px; }
-                    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; background: #f8fafc; padding: 15px; border-radius: 12px; font-size: 14px; }
-                    .box { border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
-                    .box-title { font-weight: bold; font-size: 12px; color: #4f46e5; text-transform: uppercase; margin-bottom: 8px; border-bottom: 1px solid #f1f5f9; padding-bottom: 5px; }
-                    p { line-height: 1.6; font-size: 14px; margin-top: 5px; }
-                    .footer { margin-top: 50px; display: flex; justify-content: space-between; font-size: 12px; color: #64748b; }
-                    .sig { border-top: 1px solid #cbd5e1; width: 200px; text-align: center; padding-top: 5px; margin-top: 40px; }
-                  </style>
-                </head>
-                <body>
-                  <div class="header">
-                    <h1>Individueller Entwicklungs- & Förderplan</h1>
-                    <p style="margin: 0; color: #6366f1; font-weight: bold;">Grundschule Oberau • Schuljahr 2026/27</p>
-                  </div>
-                  <div class="meta border">
-                    <div><strong>Schüler/in:</strong> ${student.vorname} ${student.nachname}</div>
-                    <div><strong>Klasse:</strong> 4A</div>
-                    <div><strong>Notendurchschnitt:</strong> ${(student as any).note || 'None'}</div>
-                    <div><strong>Erstellungsdatum:</strong> ${new Date().toLocaleDateString('de-DE')}</div>
-                  </div>
-                  <div class="box">
-                    <div class="box-title">1. Pädagogische Entwicklungsziele:</div>
-                    <p>${t8Goals}</p>
-                  </div>
-                  <div class="box">
-                    <div class="box-title">2. Konkrete schulische Fördermaßnahmen:</div>
-                    <p>${t8Measures}</p>
-                  </div>
-                  <div class="box">
-                    <div class="box-title">3. Vereinbarte Maßnahmen für das Elternhaus:</div>
-                    <p>${t8ParentSupport}</p>
-                  </div>
-                  <div class="footer">
-                    <div>
-                      <br/>
-                      <div class="sig">Klassenlehrkraft</div>
-                    </div>
-                    <div>
-                      <br/>
-                      <div class="sig">Eltern / Erziehungsberechtigte</div>
-                    </div>
-                  </div>
-                  <script>window.print();</script>
-                </body>
-              </html>
-            `);
-            printWindow.document.close();
+            setT8IsPrinted(true);
+            setTimeout(() => {
+              setT8IsPrinted(false);
+              URL.revokeObjectURL(blobUrl);
+            }, 3000);
+          } else {
+            URL.revokeObjectURL(blobUrl);
+            alert('Die Druckansicht konnte nicht geöffnet werden. Bitte Pop-ups für Klassio erlauben.');
           }
         };
 
@@ -895,7 +913,7 @@ function SuggestionsGrid() {
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
             <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest flex justify-between items-center">
               <span>📋 Förderplan-Vorlage erzeugen</span>
-              <span className="text-[0.5625rem] font-bold text-slate-550 italic">Klassenstufe 4</span>
+              <span className="text-[0.5625rem] font-bold text-slate-550 italic">{app.stufe}. Schulstufe</span>
             </h5>
 
             <div className="space-y-3.5">
@@ -952,9 +970,9 @@ function SuggestionsGrid() {
                 className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-2.5 text-[0.725rem] font-black transition-colors flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 {t8IsPrinted ? (
-                  <>🎉 Förderplan wurde exportiert (PDF-Kopie)</>
+                  <>✓ Druckansicht geöffnet</>
                 ) : (
-                  <>🖨️ Förderplan-PDF generieren & drucken</>
+                  <>🖨️ Druckentwurf öffnen</>
                 )}
               </button>
             </div>
@@ -964,99 +982,125 @@ function SuggestionsGrid() {
     },
     {
       title: "9. Paralleler Kohortenvergleich (Inter-Klassen-Vergleich)",
-      short: "Anonymisierte Vergleiche zwischen Jahrgangsstufen (z.B. 4A vs 4B).",
-      details: "Ermöglicht Schulleitungen und Jahrgangsteams den anonymisierten, datenschutzkonformen Abgleich von Leistungsständen über alle Parallelklassen hinweg zur Überwachung eines einheitlichen Lehr- und Prüfungsniveaus.",
+      short: "Aggregierter Vergleich mit tatsächlich vorhandenen weiteren Klassen.",
+      details: "Vergleicht ausschließlich gespeicherte Klassiodaten. Die Darstellung zeigt normalisierte Leistungsindizes und keine erfundenen Parallelklassen oder Jahrgangswerte.",
       icon: "👥",
       render: () => {
-        // Render comparison dynamic bar charts
-        const subjects = [
-          { name: "Deutsch", active: 2.1, ref: t9RefClass === '4B' ? 2.4 : t9RefClass === '4C' ? 2.0 : 2.2 },
-          { name: "Mathematik", active: 2.5, ref: t9RefClass === '4B' ? 2.3 : t9RefClass === '4C' ? 2.8 : 2.5 },
-          { name: "Englisch", active: 1.8, ref: t9RefClass === '4B' ? 1.9 : t9RefClass === '4C' ? 1.7 : 1.8 },
-          { name: "Sachkunde", active: 2.2, ref: t9RefClass === '4B' ? 2.5 : t9RefClass === '4C' ? 2.3 : 2.3 }
-        ];
+        const refClass = comparisonClasses.find(classroom => classroom.id === t9RefClass);
+        if (!refClass) {
+          return (
+            <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100">
+              <p className="text-[0.6875rem] font-bold text-slate-400 text-center">
+                Für einen Klassenvergleich muss mindestens eine weitere Klasse mit echten Schüler- und Leistungsdaten vorhanden sein.
+              </p>
+            </div>
+          );
+        }
+
+        const referenceApp = {
+          ...app,
+          activeClassId: refClass.id,
+          schueler: refClass.schueler || [],
+          noten: refClass.noten || {},
+          notenMeta: refClass.notenMeta || {},
+          notenGewichtung: refClass.notenGewichtung || {},
+          mitarbeit: refClass.mitarbeit || {},
+          mitarbeit_settings: refClass.mitarbeit_settings || app.mitarbeit_settings,
+          faecher: refClass.faecher || app.faecher,
+          fachConfig: refClass.fachConfig || app.fachConfig,
+        } as any;
+        const referenceSubjects = (refClass.faecher && refClass.faecher.length > 0) ? refClass.faecher : toolSubjects;
+        const sharedSubjects = toolSubjects.filter(subject => referenceSubjects.includes(subject));
+        const currentRows = getSubjectPerformanceAverages(app, activeStudents, sharedSubjects);
+        const refRows = getSubjectPerformanceAverages(referenceApp, refClass.schueler || [], sharedSubjects);
+        const subjects = sharedSubjects.flatMap(subject => {
+          const active = currentRows.find(row => row.subject === subject);
+          const ref = refRows.find(row => row.subject === subject);
+          if (!active || !ref) return [];
+          return [{
+            name: subject,
+            active: active.normalizedAverage,
+            ref: ref.normalizedAverage,
+          }];
+        });
 
         return (
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
             <div className="flex justify-between items-center flex-wrap gap-2">
-              <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">👥 Kohortenvergleich Jahrgang 4</h5>
-              
+              <div>
+                <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">👥 Klassenvergleich</h5>
+                <p className="text-[0.5625rem] text-slate-500 font-bold mt-1">Leistungsindex 0–100 · skalenübergreifend normalisiert</p>
+              </div>
               <div className="flex items-center gap-1.5">
-                <label htmlFor="t9-ref-class" className="text-[0.5625rem] font-black uppercase text-slate-450">Referenzgruppe:</label>
-                <select 
+                <label htmlFor="t9-ref-class" className="text-[0.5625rem] font-black uppercase text-slate-450">Referenzklasse:</label>
+                <select
                   id="t9-ref-class"
-                  value={t9RefClass} 
-                  onChange={(e) => setT9RefClass(e.target.value as any)}
+                  value={t9RefClass}
+                  onChange={(e) => setT9RefClass(e.target.value)}
                   className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-0.5 text-[0.675rem] font-bold text-slate-200 focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 focus:outline-none"
                 >
-                  <option value="4B">Klasse 4B</option>
-                  <option value="4C">Klasse 4C</option>
-                  <option value="Schnitt">Jahrgangsschnitt</option>
+                  {comparisonClasses.map(classroom => (
+                    <option key={classroom.id} value={classroom.id}>{classroom.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
 
-            <div className="space-y-4 pt-2">
-              <div className="flex justify-end gap-4 text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded bg-indigo-500 block" /> Deine Klasse (4A)
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded bg-slate-500 block" /> Referenz ({t9RefClass})
-                </div>
-              </div>
-
+            {subjects.length > 0 ? (
               <div className="space-y-3.5">
-                {subjects.map((sub, ix) => {
-                  // Percentage calculation (note 1-5, note 1 is best, so let's inverse width)
-                  const pActive = ((6 - sub.active) / 5) * 100;
-                  const pRef = ((6 - sub.ref) / 5) * 100;
-
-                  return (
-                    <div key={ix} className="space-y-1 bg-slate-950/40 border border-slate-800/60 p-3 rounded-xl">
-                      <div className="flex justify-between text-[0.7rem] font-bold">
-                        <span className="text-slate-150">{sub.name}</span>
-                        <div className="flex gap-3 text-slate-400 text-[0.65rem]">
-                          <span>Klasse 4A: <strong className="text-indigo-400">{sub.active}</strong></span>
-                          <span>{t9RefClass}: <strong>{sub.ref}</strong></span>
+                {subjects.map(sub => (
+                  <div key={sub.name} className="space-y-1 bg-slate-950/40 border border-slate-800/60 p-3 rounded-xl">
+                    <div className="flex justify-between text-[0.7rem] font-bold gap-3">
+                      <span className="text-slate-150">{sub.name}</span>
+                      <div className="flex gap-3 text-slate-400 text-[0.65rem]">
+                        <span>{app.klassenbezeichnung || 'Aktive Klasse'}: <strong className="text-indigo-400">{sub.active.toFixed(1)} %</strong></span>
+                        <span>{refClass.name}: <strong>{sub.ref.toFixed(1)} %</strong></span>
+                      </div>
+                    </div>
+                    <div className="space-y-1 pt-1">
+                      <div className="flex gap-2 items-center">
+                        <span className="text-[0.45rem] font-black uppercase text-indigo-400 min-w-[3rem]">Aktiv</span>
+                        <div className="w-full bg-slate-900/80 h-1.5 rounded-full overflow-hidden">
+                          <div style={{ width: `${sub.active}%` }} className="h-full bg-indigo-500 rounded-full" />
                         </div>
                       </div>
-                      
-                      <div className="space-y-1 pt-1">
-                        {/* 4A Bar */}
-                        <div className="flex gap-2 items-center">
-                          <span className="text-[0.45rem] font-black uppercase text-indigo-400 min-w-[2rem]">4A</span>
-                          <div className="w-full bg-slate-900/80 h-1.5 rounded-full overflow-hidden">
-                            <div style={{ width: `${pActive}%` }} className="h-full bg-indigo-500 rounded-full" />
-                          </div>
-                        </div>
-                        {/* Ref class Bar */}
-                        <div className="flex gap-2 items-center">
-                          <span className="text-[0.45rem] font-black uppercase text-slate-500 min-w-[2rem]">{t9RefClass}</span>
-                          <div className="w-full bg-slate-900/80 h-1.5 rounded-full overflow-hidden">
-                            <div style={{ width: `${pRef}%` }} className="h-full bg-slate-500 rounded-full" />
-                          </div>
+                      <div className="flex gap-2 items-center">
+                        <span className="text-[0.45rem] font-black uppercase text-slate-500 min-w-[3rem]">Referenz</span>
+                        <div className="w-full bg-slate-900/80 h-1.5 rounded-full overflow-hidden">
+                          <div style={{ width: `${sub.ref}%` }} className="h-full bg-slate-500 rounded-full" />
                         </div>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
-
-              <p className="text-[0.6rem] text-slate-500 font-medium italic leading-relaxed">
-                🛡️ Datenschutz-Hinweis: Die Daten der Parallelklassen 4B und 4C sind vollständig anonymisiert und aggregieren nur die Klassendurchschnitte gemäß Schulordnung.
+            ) : (
+              <p className="text-[0.6875rem] font-bold text-slate-400 text-center py-4">
+                Für die beiden Klassen liegen noch keine gemeinsam vergleichbaren Leistungsdaten vor.
               </p>
-            </div>
+            )}
+
+            <p className="text-[0.6rem] text-slate-500 font-medium italic leading-relaxed">
+              Es werden ausschließlich aggregierte Werte aus den im lokalen Klassio-Datenbestand vorhandenen Klassen berechnet.
+            </p>
           </div>
         );
       }
     },
     {
-      title: "10. Digitales Soziogramm & Interaktive Sitzplatz-Dynamik",
-      short: "Analyse sozialer Präferenzen für ein harmonisches und integratives Miteinander.",
-      details: "Durch ein kurzes, spielerisches Befragen ('Mit wem arbeitest du am liebsten und mit wem möchtest du noch mehr zusammenwachsen?') visualisiert das System ein anonymes Beziehungsgeflecht der Klasse. Ein intelligenter Algorithmus berechnet daraufhin optimierte Sitzplankombinationen, die schüchterne Kinder behutsam integrieren, das Sozialgefüge stärken und Konfliktherde reduzieren.",
+      title: "10. Sitzplatz-Präferenzen als Gesprächshilfe",
+      short: "Manuelle Auswahl von Wunschpartner:innen als Hinweis für die Sitzplanung.",
+      details: "Die Lehrkraft kann zwei gewünschte Nähebeziehungen notieren und daraus eine einfache Sitzplatz-Idee anzeigen lassen. Es findet keine automatische Sozialdiagnose, Konflikterkennung oder Optimierung statt.",
       icon: "🧩",
       render: () => {
+        if (activeStudents.length < 3) {
+          return (
+            <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 text-[0.6875rem] font-bold text-center">
+              Für zwei Wunschpartner:innen werden mindestens drei Schüler:innen in der aktiven Klasse benötigt.
+            </div>
+          );
+        }
+
         const student = activeStudents.find(s => s.id === t10FocusId) || activeStudents[0];
         const wish1 = activeStudents.find(s => s.id === t10Partner1Id) || activeStudents[1];
         const wish2 = activeStudents.find(s => s.id === t10Partner2Id) || activeStudents[2];
@@ -1066,12 +1110,12 @@ function SuggestionsGrid() {
             setT10OptimizationResult("⚠️ Fehler: Bitte wähle zwei unterschiedliche Wunschpartner aus!");
             return;
           }
-          setT10OptimizationResult(`✅ Optimierung erfolgreich! \nDer Sitzordnungs-Algorithmus schlägt vor, ${student.vorname} an einen gemeinsamen Gruppentisch mit ${wish1.vorname} zu setzen. Da ${wish2.vorname} bereits einen anderen dichten Partnerwunsch hat, wird ${wish2.vorname} am direkt angrenzenden Tisch platziert, was eine hervorragende Balance aus Wunschkopplung und Integrationsförderung gewährt.`);
+          setT10OptimizationResult(`💡 Manuelle Sitzplatz-Idee auf Basis deiner Auswahl:\n${student.vorname} könnte in der Nähe von ${wish1.vorname} sitzen; ${wish2.vorname} kann als zweite gewünschte Nähe berücksichtigt werden. Prüfe den Vorschlag mit den tatsächlichen Sitzplanregeln und deiner pädagogischen Einschätzung.`);
         };
 
         return (
           <div className="mt-4 p-5 rounded-2xl bg-slate-900 border border-slate-800 text-slate-100 space-y-4">
-            <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">🧩 Interaktives Soziogramm & Sitzordnung</h5>
+            <h5 className="font-black text-[0.8125rem] text-indigo-400 uppercase tracking-widest">🧩 Sitzplatz-Präferenzen</h5>
             
             <div className="space-y-3.5">
                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 bg-slate-950/45 border border-slate-800 p-3 rounded-xl">
@@ -1120,7 +1164,7 @@ function SuggestionsGrid() {
                 onClick={runOptimizer}
                 className="w-full bg-indigo-650 hover:bg-indigo-600 text-white rounded-xl py-2 text-[0.7rem] font-black transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                🔮 Sitzordnung berechnen & balancieren
+                💡 Sitzplatz-Idee aus Auswahl anzeigen
               </button>
 
               {t10OptimizationResult && (
@@ -1221,7 +1265,9 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     initialTab === 'lehrer' ? 'mehr' : initialTab
   );
   const [statsSubTab, setStatsSubTab] = useState<'leistung' | 'antolin'>('leistung');
-  const [mehrSubTab, setMehrSubTab] = useState<'charts' | 'tools' | 'antolin' | 'lehrer'>('charts');
+  const [mehrSubTab, setMehrSubTab] = useState<'charts' | 'tools' | 'antolin' | 'lehrer'>(
+    initialTab === 'lehrer' ? 'lehrer' : 'charts'
+  );
   const [profilesSubTab, setProfilesSubTab] = useState<'liste' | 'antolin'>('liste');
   const [activeFach, setActiveFach] = useState<string>('Gesamt');
   
@@ -1231,6 +1277,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   const [search, setSearch] = useState('');
   const [profileSubTab, setProfileSubTab] = useState<'dossier' | 'parents' | 'behavior'>('dossier');
   const [showFoerderDetail, setShowFoerderDetail] = useState(false);
+  const [showAntolinImport, setShowAntolinImport] = useState(false);
 
   // KEL Parent-Info Dashboard States
   const [kelAgreementInput, setKelAgreementInput] = useState('');
@@ -1310,30 +1357,78 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   const [newMeetingNotizen, setNewMeetingNotizen] = useState('');
   const [newMeetingVereinbarungen, setNewMeetingVereinbarungen] = useState('');
   const [newMeetingTeilnehmer, setNewMeetingTeilnehmer] = useState('Mutter, Vater, Klassenlehrerin');
-  const [newMeetingDatum, setNewMeetingDatum] = useState(() => new Date().toISOString().split('T')[0]);
+  const [newMeetingDatum, setNewMeetingDatum] = useState(() => formatLocalDateKey(new Date()));
 
-  // Local storage migration for custom portfolio entries (Datenschutz B6/B8: Verschlüsselter AppState statt ungeschütztem localStorage)
-  const [portfolioEntries, setPortfolioEntries] = useState<Record<string, { id: string; titel: string; fach: string; datum: string; bewertung: string; beschreibung: string }[]>>(() => {
+  const [portfolioEntries, setPortfolioEntries] = useState<Record<string, { id: string; titel: string; fach: string; datum: string; bewertung: string; beschreibung: string }[]>>(
+    () => (app.portfolioEntries || {}) as any
+  );
+
+  // One-time migration of historical unencrypted portfolio data into class-local app state.
+  React.useEffect(() => {
     try {
-      if ((app as any).portfolioEntries) {
-        return (app as any).portfolioEntries;
-      }
       const saved = localStorage.getItem('lm_portfolio_entries_v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as Record<string, any[]>;
+      if (!parsed || typeof parsed !== 'object') {
         localStorage.removeItem('lm_portfolio_entries_v2');
-        return parsed;
+        return;
       }
+
+      setApp(prev => {
+        const classes = (prev.classes || []).map(classroom => {
+          const studentIds = new Set((classroom.schueler || []).map(student => student.id));
+          const migrated = Object.fromEntries(
+            Object.entries(parsed).filter(([studentId]) => studentIds.has(studentId))
+          );
+          if (Object.keys(migrated).length === 0) return classroom;
+          return {
+            ...classroom,
+            portfolioEntries: {
+              ...(classroom.portfolioEntries || {}),
+              ...migrated,
+            },
+          };
+        });
+        const activeClass = classes.find(classroom => classroom.id === prev.activeClassId);
+        return {
+          ...prev,
+          classes,
+          portfolioEntries: {
+            ...(prev.portfolioEntries || {}),
+            ...(activeClass?.portfolioEntries || {}),
+          },
+        };
+      });
+      localStorage.removeItem('lm_portfolio_entries_v2');
     } catch {
-      return {};
+      // Corrupt historical local data is ignored rather than replacing encrypted state.
     }
-    return {};
-  });
+  }, [setApp]);
 
   // KI summary state
   const [summary, setSummary] = useState<string>('');
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    setSelectedStudentId(null);
+    setAntolinSelectedStudentId(null);
+    setSearch('');
+    setActiveFach('Gesamt');
+    setStatsSubTab('leistung');
+    setProfilesSubTab('liste');
+    setProfileSubTab('dossier');
+    setShowFoerderDetail(false);
+    setShowAddPortfolio(false);
+    setShowAddNote(false);
+    setShowAddMeeting(false);
+    setPresentationModeActive(false);
+    setKelDetailFach(null);
+    setExpandedItems({});
+    setSummary('');
+    setSummaryError(null);
+    setPortfolioEntries((app.portfolioEntries || {}) as any);
+  }, [app.activeClassId]);
 
   // Sync selectedStudentForPortfolio from other app sections
   React.useEffect(() => {
@@ -1344,27 +1439,75 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     }
   }, [app.selectedStudentForPortfolio, setApp]);
 
-  // Sync summary with encrypted app state
+  // Sync summary with encrypted app state and migrate historical browser-only data once.
   React.useEffect(() => {
-    if (selectedStudentId) {
-      const appCached = (app as any).kiPortfolioSummaries?.[selectedStudentId];
-      if (appCached) {
-        setSummary(appCached);
-      } else {
-        const cached = localStorage.getItem(`ki_portfolio_summary_${selectedStudentId}`);
+    if (!selectedStudentId) {
+      setSummary('');
+      setProfileSubTab('dossier');
+      return;
+    }
+
+    const appCached = app.kiPortfolioSummaries?.[selectedStudentId];
+    if (appCached) {
+      setSummary(appCached);
+    } else {
+      try {
+        const key = `ki_portfolio_summary_${selectedStudentId}`;
+        const cached = localStorage.getItem(key);
         if (cached) {
           setSummary(cached);
-          localStorage.removeItem(`ki_portfolio_summary_${selectedStudentId}`);
+          setApp(prev => ({
+            ...prev,
+            kiPortfolioSummaries: {
+              ...(prev.kiPortfolioSummaries || {}),
+              [selectedStudentId]: cached,
+            },
+          }));
+          localStorage.removeItem(key);
         } else {
           setSummary('');
         }
+      } catch {
+        setSummary('');
       }
-      setSummaryError(null);
-    } else {
-      setSummary('');
     }
+    setSummaryError(null);
     setProfileSubTab('dossier');
-  }, [selectedStudentId, (app as any).kiPortfolioSummaries]);
+  }, [selectedStudentId, app.kiPortfolioSummaries, setApp]);
+
+  // One-time migration of legacy Oberau remarks/evaluation data for the selected student.
+  React.useEffect(() => {
+    if (!selectedStudentId) return;
+    try {
+      const remarksKey = `oberau_remarks_${selectedStudentId}`;
+      const evalKey = `oberau_eval_${selectedStudentId}`;
+      const remarks = localStorage.getItem(remarksKey);
+      const evaluationRaw = localStorage.getItem(evalKey);
+      if (!remarks && !evaluationRaw) return;
+
+      let evaluationData: Record<string, number | null> | undefined;
+      if (evaluationRaw) {
+        try {
+          const parsed = JSON.parse(evaluationRaw);
+          if (parsed && typeof parsed === 'object') evaluationData = parsed;
+        } catch {}
+      }
+
+      setApp(prev => ({
+        ...prev,
+        oberauData: {
+          ...(prev.oberauData || {}),
+          [selectedStudentId]: {
+            ...(prev.oberauData?.[selectedStudentId] || {}),
+            ...(remarks ? { remarks } : {}),
+            ...(evaluationData ? { evaluationData } : {}),
+          },
+        },
+      }));
+      localStorage.removeItem(remarksKey);
+      localStorage.removeItem(evalKey);
+    } catch {}
+  }, [selectedStudentId, setApp]);
 
 
 
@@ -1401,7 +1544,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
         updatedMeeting = {
           id: `kel-${Date.now()}`,
           schuelerId: studentId,
-          datum: new Date().toISOString().split('T')[0],
+          datum: formatLocalDateKey(new Date()),
           schuljahr: prev.schuljahr || '2023/24',
           selbsteinschaetzungKind: {
             [bereichId]: { wert: type === 'kind' ? value : 2, kommentar: '' }
@@ -1456,7 +1599,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
         updatedMeeting = {
           id: `kel-${Date.now()}`,
           schuelerId: studentId,
-          datum: new Date().toISOString().split('T')[0],
+          datum: formatLocalDateKey(new Date()),
           schuljahr: prev.schuljahr || '2023/24',
           selbsteinschaetzungKind: {
             [bereichId]: { wert: 2, kommentar: type === 'kind' ? comment : '' }
@@ -1485,10 +1628,9 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   };
 
   const activeFaecher = useMemo(() => {
-    // If user has specific subjects selected in app settings, use them. Otherwise show all standard ones.
     const subjects = (app.faecher && app.faecher.length > 0) ? app.faecher : FAECHER_ALLE;
-    return subjects;
-  }, [app.faecher]);
+    return subjects.filter(fach => app.fachConfig?.[fach]?.unterrichtet !== false);
+  }, [app.faecher, app.fachConfig]);
 
   // Save portfolio entry to localStorage
   const handleAddPortfolioEntry = (e: React.FormEvent) => {
@@ -1499,7 +1641,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       id: `port-${Date.now()}`,
       titel: portfolioTitle.trim(),
       fach: portfolioSubject,
-      datum: new Date().toISOString().split('T')[0],
+      datum: formatLocalDateKey(new Date()),
       bewertung: portfolioRating,
       beschreibung: portfolioDesc.trim()
     };
@@ -1547,18 +1689,18 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     if (!selectedStudentId || !newNoteInhalt.trim()) return;
 
     const newNote = {
-      id: `note-${Date.now()}`,
-      titel: newNoteTitel || 'Beobachtung',
+      id: `profile-note-${globalThis.crypto?.randomUUID?.() || Date.now()}`,
+      datum: new Date().toISOString(),
+      kategorie: 'Notiz' as const,
       inhalt: newNoteInhalt.trim(),
-      icon: '📝',
-      timestamp: Date.now(),
       schuelerId: selectedStudentId,
-      kategorie: newNoteKategorie
+      quelle: `Statistik & Profile · ${newNoteKategorie || newNoteTitel || 'Beobachtung'}`,
     };
 
-    setApp((prev: any) => ({
+    setApp(prev => ({
       ...prev,
-      notizen: [newNote, ...(prev.notizen || [])]
+      notes: [newNote, ...(prev.notes || [])],
+      journal: [newNote, ...(prev.journal || [])],
     }));
 
     setNewNoteInhalt('');
@@ -1571,7 +1713,9 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     if (!confirm('Eintrag wirklich löschen?')) return;
     setApp((prev: any) => ({
       ...prev,
-      notizen: (prev.notizen || []).filter((n: any) => n.id !== id)
+      notes: (prev.notes || []).filter((note: any) => note.id !== id),
+      journal: (prev.journal || []).filter((note: any) => note.id !== id),
+      notizen: (prev.notizen || []).filter((note: any) => note.id !== id),
     }));
   };
 
@@ -1582,7 +1726,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     const newMeeting = {
       id: `meet-${Date.now()}`,
       schuelerId: selectedStudentId,
-      datum: newMeetingDatum || new Date().toISOString().split('T')[0],
+      datum: newMeetingDatum || formatLocalDateKey(new Date()),
       thema: newMeetingThema.trim(),
       notizen: newMeetingNotizen.trim(),
       vereinbarungen: newMeetingVereinbarungen.trim(),
@@ -1598,7 +1742,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     setNewMeetingNotizen('');
     setNewMeetingVereinbarungen('');
     setNewMeetingTeilnehmer('Mutter, Vater, Klassenlehrerin');
-    setNewMeetingDatum(new Date().toISOString().split('T')[0]);
+    setNewMeetingDatum(formatLocalDateKey(new Date()));
     setShowAddMeeting(false);
   };
 
@@ -1687,51 +1831,11 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
 
   // --- Calculations for Klassenstatistik ---
   const stats = useMemo(() => {
-    const distribution = [1, 2, 3, 4, 5].map(n => ({
-      name: n.toString(),
-      count: 0
-    }));
-
-    let totalSum = 0;
-    let totalCount = 0;
-    const grades: number[] = [];
-
-    const faecherToEval = activeFach === 'Gesamt' ? activeFaecher : [activeFach];
-
-    faecherToEval.forEach(f => {
-      students.forEach(s => {
-        const g = berechne(app, s.id, f, '1');
-        if (g !== null) {
-          const val = Math.round(g);
-          const idx = val - 1;
-          if (distribution[idx]) distribution[idx].count++;
-          totalSum += g;
-          totalCount++;
-          grades.push(g);
-        }
-      });
-    });
-
-    const average = totalCount > 0 ? (totalSum / totalCount) : 0;
-    
-    let variance = 0;
-    if (totalCount > 1) {
-      const sumOfSquaredDiffs = grades.reduce((acc, val) => acc + Math.pow(val - average, 2), 0);
-      variance = sumOfSquaredDiffs / totalCount;
-    }
-    const stdDev = Math.sqrt(variance);
-
-    return {
-      distribution,
-      average: totalCount > 0 ? average.toFixed(2) : '–',
-      totalCount,
-      variance: variance.toFixed(2),
-      stdDev: stdDev.toFixed(2),
-      risks: totalCount > 0 ? distribution[4].count : 0
-    };
+    const subjects = activeFach === 'Gesamt' ? activeFaecher : [activeFach];
+    return getClassPerformanceStats(app, students, subjects, '1');
   }, [app, students, activeFach, activeFaecher, notenUpdateTrigger]);
 
-  // Class subject averages
+  // Fächervergleich nutzt immer einen einheitlichen 0–100-Leistungsindex.
   const subjectAverages = useMemo(() => {
     const getShortSubjectName = (fullName: string) => {
       const lower = fullName.toLowerCase();
@@ -1747,34 +1851,21 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       return fullName.substring(0, Math.min(3, fullName.length)).toUpperCase();
     };
 
-    return activeFaecher.map(fach => {
-      let sum = 0;
-      let count = 0;
-      students.forEach(s => {
-        const grade = berechne(app, s.id, fach, '1');
-        if (grade !== null) {
-          sum += grade;
-          count++;
-        }
-      });
-      return {
-        subject: fach,
-        subjectShort: getShortSubjectName(fach),
-        average: count > 0 ? parseFloat((sum / count).toFixed(2)) : null
-      };
-    }).filter(item => item.average !== null) as { subject: string; subjectShort: string; average: number }[];
+    return getSubjectPerformanceAverages(app, students, activeFaecher, '1').map(row => ({
+      ...row,
+      subjectShort: getShortSubjectName(row.subject),
+    }));
   }, [app, students, activeFaecher, notenUpdateTrigger]);
 
-  // Best performing subject
+  // Bestes Fach = höchster normalisierter Leistungsindex.
   const bestSubject = useMemo(() => {
     if (!subjectAverages.length) return null;
-    const sorted = [...subjectAverages].sort((a, b) => a.average - b.average);
-    return sorted[0];
+    return [...subjectAverages].sort((a, b) => b.normalizedAverage - a.normalizedAverage)[0];
   }, [subjectAverages]);
 
   const dataCoverage = useMemo(() => {
     const studentsWithGrades = students.filter(student =>
-      getStudentGradeSummary(app, student.id, activeFaecher, '1').hasData
+      getStudentPerformanceSummary(app, student.id, activeFaecher, '1').hasData
     ).length;
     const studentsWithAttendance = students.filter(student =>
       getStudentAttendanceSummary(app, student.id).hasData
@@ -1784,8 +1875,15 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       totalStudents: students.length,
       studentsWithGrades,
       studentsWithAttendance,
-      studentsWithBehavior: new Set((app.statusLog || []).map((entry: any) => entry.schuelerId)).size,
-      studentsWithDiagnostics: new Set((app.diagnostikErhebungen || []).map((entry: any) => entry.schuelerId)).size
+      studentsWithBehavior: new Set(
+        (app.statusLog || [])
+          .map((entry: any) => entry.schuelerId)
+          .filter((id: string) => students.some(student => student.id === id))
+      ).size,
+      studentsWithDiagnostics: new Set([
+        ...(app.diagnostikErhebungen || []).map((entry: any) => entry.schuelerId),
+        ...(app.diagnosticResults || []).map((entry: any) => entry.studentId),
+      ].filter((id: string) => students.some(student => student.id === id))).size
     };
   }, [app, students, activeFaecher]);
 
@@ -1859,53 +1957,53 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   }, [app.antolinRecords, students]);
 
   const classOverviewMetrics = useMemo(() => {
-    let positiveTrendCount = 0;
-    let negativeTrendCount = 0;
+    let strongPerformanceCount = 0;
+    let attentionPerformanceCount = 0;
     const blindSpotStudents: { id: string; name: string; reason: string }[] = [];
     let openAlertCount = 0;
 
     const twentyEightDaysAgo = Date.now() - 28 * 24 * 60 * 60 * 1000;
 
-    students.forEach(s => {
-      let totalSum = 0;
-      let count = 0;
-      activeFaecher.forEach(f => {
-        const avg = berechne(app, s.id, f, '1');
-        if (avg !== null) {
-          totalSum += avg;
-          count++;
-        }
-      });
-      const gpa = count > 0 ? totalSum / count : null;
-
-      if (gpa !== null) {
-        if (gpa <= 2.2) positiveTrendCount++;
-        else if (gpa >= 3.8) negativeTrendCount++;
+    students.forEach(student => {
+      const performance = getStudentPerformanceSummary(app, student.id, activeFaecher, '1');
+      if (performance.normalizedAverage !== null) {
+        if (performance.normalizedAverage >= 80) strongPerformanceCount++;
+        else if (performance.normalizedAverage < 40) attentionPerformanceCount++;
       }
 
-      const att = getStudentAttendanceSummary(app, s.id);
-      if (att.unexcused > 0) {
-        openAlertCount++;
-      }
+      const attendance = getStudentAttendanceSummary(app, student.id);
+      if (attendance.unexcused > 0) openAlertCount++;
 
-      const notes = (app.notizen || []).filter((n: any) => n.schuelerId === s.id);
+      const notes = getStudentNotes(app, student.id);
       if (notes.length === 0) {
-        blindSpotStudents.push({ id: s.id, name: `${s.vorname} ${s.nachname}`, reason: 'Bisher keine Beobachtungen erfasst' });
+        blindSpotStudents.push({
+          id: student.id,
+          name: `${student.vorname} ${student.nachname}`,
+          reason: 'Bisher keine Beobachtungen erfasst',
+        });
       } else {
-        const latest = Math.max(...notes.map((n: any) => n.timestamp || 0));
+        const latest = Math.max(...notes.map((note: any) =>
+          new Date(note.datum || note.timestamp || 0).getTime()
+        ));
         if (latest < twentyEightDaysAgo) {
-          blindSpotStudents.push({ id: s.id, name: `${s.vorname} ${s.nachname}`, reason: 'Keine neue Notiz seit über 4 Wochen' });
+          blindSpotStudents.push({
+            id: student.id,
+            name: `${student.vorname} ${student.nachname}`,
+            reason: 'Keine neue Notiz seit über 4 Wochen',
+          });
         }
       }
     });
 
-    const openDiag = (app.diagnostikErhebungen || []).filter((d: any) => d.status === 'Offen' || d.status === 'In Bearbeitung').length;
+    const openDiag = (app.diagnostikErhebungen || [])
+      .filter((entry: any) => entry.status === 'Offen' || entry.status === 'In Bearbeitung')
+      .length;
 
     return {
-      positiveTrendCount,
-      negativeTrendCount,
+      strongPerformanceCount,
+      attentionPerformanceCount,
       blindSpotStudents,
-      openAlertCount: openAlertCount + openDiag
+      openAlertCount: openAlertCount + openDiag,
     };
   }, [students, app, activeFaecher]);
 
@@ -1915,30 +2013,30 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     if (stats.totalCount > 0) {
       list.push({
         id: 'gpa',
-        badge: 'Klassenschnitt',
+        badge: stats.averageDescriptor,
         badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-100',
-        title: 'Arithmetisches Mittel der Klasse',
-        text: `Der Gesamtdurchschnitt liegt bei Ø ${stats.average} über ${stats.totalCount} erfasste Noteneinträge.`
+        title: 'Aktueller Leistungsstand der Klasse',
+        text: `${stats.averageDescriptor}: ${stats.averageLabel} über ${stats.totalCount} auswertbare Fachstände.`
       });
     }
 
-    if (classOverviewMetrics.positiveTrendCount > 0) {
+    if (classOverviewMetrics.strongPerformanceCount > 0) {
       list.push({
         id: 'positive',
         badge: 'Positive Entwicklung',
         badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-100',
         title: 'Leistungsstarke Schüler:innen',
-        text: `${classOverviewMetrics.positiveTrendCount} Schüler:innen zeigen sehr gute bis gute Gesamtleistungen (Schnitt ≤ 2,2).`
+        text: `${classOverviewMetrics.strongPerformanceCount} Schüler:innen liegen im normalisierten Leistungsindex bei mindestens 80 %.`
       });
     }
 
-    if (classOverviewMetrics.negativeTrendCount > 0) {
+    if (classOverviewMetrics.attentionPerformanceCount > 0) {
       list.push({
         id: 'attention',
         badge: 'Beobachten',
         badgeColor: 'bg-amber-50 text-amber-700 border-amber-100',
         title: 'Unterstützungsbedarf',
-        text: `${classOverviewMetrics.negativeTrendCount} Schüler:innen weisen derzeit einen Notenschnitt ab 3,8 auf.`
+        text: `${classOverviewMetrics.attentionPerformanceCount} Schüler:innen liegen im normalisierten Leistungsindex derzeit unter 40 %.`
       });
     }
 
@@ -1965,79 +2063,49 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     return list;
   }, [stats, classOverviewMetrics, classAttendance]);
 
-  const getStudentGrades = (sid: string | null) => {
+  const getStudentPerformance = (sid: string | null) => {
     if (!sid) return [];
-    const flat: { fach: string; wert: number }[] = [];
-    activeFaecher.forEach(fach => {
-      const avg = berechne(app, sid, fach, '1');
-      if (avg !== null) {
-        flat.push({ fach, wert: parseFloat(avg.toFixed(2)) });
-      }
-    });
-    return flat;
+    return getStudentPerformanceSummary(app, sid, activeFaecher, '1').entries;
   };
 
   const student = students.find(s => s.id === selectedStudentId);
-  const studentGrades = getStudentGrades(selectedStudentId);
-  const meetings = (app.elterngespraeche || []).filter(m => m.schuelerId === selectedStudentId);
-  const studentNotes = (app.notizen || []).filter(n => n.schuelerId === selectedStudentId);
-  
-  const studentAvg = studentGrades.length > 0
-    ? studentGrades.reduce((a, b) => a + b.wert, 0) / studentGrades.length
-    : 0;
+  const studentPerformance = getStudentPerformance(selectedStudentId);
+  const meetings = (app.elterngespraeche || []).filter(meeting => meeting.schuelerId === selectedStudentId);
+  const studentNotes = selectedStudentId ? getStudentNotes(app, selectedStudentId) : [];
 
-  // Single pupil grade vs class comparison dataset
+  const studentPerformanceIndex = studentPerformance.length > 0
+    ? studentPerformance.reduce((sum, entry) => sum + entry.normalizedPercent, 0) / studentPerformance.length
+    : null;
+
+  // Single pupil vs class comparison on the common 0–100 performance index.
   const compareChartData = useMemo(() => {
     if (!selectedStudentId) return [];
-    return activeFaecher.map(fach => {
-      const sAvg = berechne(app, selectedStudentId, fach, '1');
-      
-      let classSum = 0;
-      let classCount = 0;
-      students.forEach(st => {
-        const g = berechne(app, st.id, fach, '1');
-        if (g !== null) {
-          classSum += g;
-          classCount++;
-        }
-      });
-      const cAvg = classCount > 0 ? classSum / classCount : null;
-      
-      if (sAvg === null && cAvg === null) return null;
-      return {
-        subject: fach.length > 15 ? `${fach.substring(0, 15)}...` : fach,
-        'Schüler': (sAvg !== null && sAvg !== undefined && sAvg !== 0) ? parseFloat(sAvg.toFixed(2)) : null,
-        'Klassen-Ø': (cAvg !== null && cAvg !== undefined && cAvg !== 0) ? parseFloat(cAvg.toFixed(2)) : null,
-      };
-    }).filter(Boolean) as { subject: string; Schüler: number; 'Klassen-Ø': number }[];
+    const subjectRows = getSubjectPerformanceAverages(app, students, activeFaecher, '1');
+    const studentRows = getStudentPerformanceSummary(app, selectedStudentId, activeFaecher, '1').entries;
+    return activeFaecher.flatMap(subject => {
+      const studentEntry = studentRows.find(entry => entry.subject === subject);
+      const classEntry = subjectRows.find(entry => entry.subject === subject);
+      if (!studentEntry && !classEntry) return [];
+      return [{
+        subject: subject.length > 15 ? `${subject.substring(0, 15)}...` : subject,
+        'Schüler': studentEntry?.normalizedPercent ?? null,
+        'Klassen-Ø': classEntry?.normalizedAverage ?? null,
+      }];
+    });
   }, [app, selectedStudentId, students, activeFaecher, notenUpdateTrigger]);
 
   // SVG Sparkline Trend Generator
   const renderSparkline = (sid: string) => {
-    const grades = getStudentGrades(sid);
-    const mLogs = (app.mitarbeitLogs || []).filter(l => l.sid === sid);
-    
-    let series = [3, 3, 3, 3, 3];
-    if (grades.length > 0) {
-      series = grades.map(g => 6 - g.wert); // map 1..5 to high..low
-    } else if (mLogs.length > 0) {
-      let sum = 3;
-      series = mLogs.map(p => {
-        sum += (p.points || 0);
-        return Math.max(1, Math.min(5, sum));
-      });
-    }
+    const performance = getStudentPerformance(sid);
+    const series = performance.map(entry => entry.normalizedPercent);
+    if (series.length < 2) return null;
 
-    while (series.length < 5) {
-      series.unshift(3);
-    }
-    
     const width = 100;
     const height = 30;
     const padding = 3;
-    const maxVal = Math.max(...series, 5);
-    const minVal = Math.min(...series, 1);
-    const valRange = maxVal - minVal || 1;
+    const maxVal = 100;
+    const minVal = 0;
+    const valRange = 100;
     
     const pointsString = series.map((val, idx) => {
       const x = (idx / (series.length - 1)) * (width - padding * 2) + padding;
@@ -2099,7 +2167,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     const lines: string[] = [];
     
     // 1. Freitext Erläuterung (Zeugnis-Bemerkungen: bevorzugt aus verschlüsseltem AppState)
-    const remarks = (app as any).oberauData?.[student.id]?.remarks || localStorage.getItem(`oberau_remarks_${student.id}`);
+    const remarks = app.oberauData?.[student.id]?.remarks;
     if (remarks && remarks.trim()) {
       lines.push(`FREITEXT-ERLÄUTERUNG ZUM ZEUGNIS:\n"${remarks.trim()}"`);
     }
@@ -2118,16 +2186,8 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       }
     }
 
-    // 3. Oberau Matrix Bewertungen (bevorzugt aus verschlüsseltem AppState)
-    let evalObj = (app as any).oberauData?.[student.id]?.evaluationData;
-    if (!evalObj) {
-      const evalRaw = localStorage.getItem(`oberau_eval_${student.id}`);
-      if (evalRaw) {
-        try {
-          evalObj = JSON.parse(evalRaw);
-        } catch {}
-      }
-    }
+    // 3. Oberau Matrix Bewertungen aus dem verschlüsselten, klassenlokalen AppState
+    const evalObj = app.oberauData?.[student.id]?.evaluationData;
     if (evalObj) {
       try {
         const ratedItems: string[] = [];
@@ -2157,16 +2217,20 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     setSummaryError(null);
     try {
       const activeFaecher = (app.faecher && app.faecher.length > 0) ? app.faecher : FAECHER_ALLE;
-      const gradeSummary = activeFaecher.map(subject => {
-        const avg = berechne(app, student.id, subject, '1');
-        const rawEndnote = app.noten?.[student.id]?.[subject]?.[ '1' ]?.endnote || 
-                           app.noten?.[student.id]?.[subject]?.[ '2' ]?.endnote;
-        const endnote = rawEndnote || (avg !== null ? Math.round(avg).toString() : '—');
-        return { subject, avg, endnote };
-      }).filter(item => item.avg !== null || item.endnote !== '—');
+      const performanceEntries = getStudentPerformanceSummary(app, student.id, activeFaecher, '1').entries;
+      const gradeSummary = performanceEntries.map(entry => {
+        const rawEndnote = app.noten?.[student.id]?.[entry.subject]?.['1']?.endnote ||
+                           app.noten?.[student.id]?.[entry.subject]?.['2']?.endnote;
+        const valueLabel = entry.mode === 'grades'
+          ? `Notenschnitt ${entry.rawValue.toFixed(2)}`
+          : `Leistungsstand ${entry.normalizedPercent.toFixed(1)} %`;
+        return { ...entry, rawEndnote, valueLabel };
+      });
 
       const perfString = gradeSummary.length > 0
-        ? gradeSummary.map(g => `- Fach: ${g.subject} | Schnitt: ${g.avg ? g.avg.toFixed(2) : 'kein Schnitt'} | Zeugnisnote / Endnote: ${g.endnote}`).join('\n')
+        ? gradeSummary.map(entry =>
+            `- Fach: ${entry.subject} | ${entry.valueLabel}${entry.rawEndnote ? ` | dokumentierte Endnote: ${entry.rawEndnote}` : ''}`
+          ).join('\n')
         : 'Keine Leistungsdaten eingetragen.';
 
       const absStats = getAttendanceStats(selectedStudentId);
@@ -2175,15 +2239,10 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
 - Unentschuldigte Fehlstunden: ${absStats.unexcused}
 - Gesamtfehlstunden: ${absStats.total}`;
 
-      const fromNotes = (app.notes || [])
-        .filter(n => n.schuelerId === student.id)
-        .map(n => `Am ${n.datum || 'Unbekannt'}: [Kategorie: ${n.kategorie || 'Leistung/Verhalten'}]: ${n.inhalt}`);
-
-      const fromNotizen = (app.notizen || [])
-        .filter(n => n.schuelerId === student.id)
-        .map(n => `Am ${n.timestamp ? new Date(n.timestamp).toLocaleDateString('de-DE') : 'Unbekannt'}: [Kategorie: ${n.kategorie || 'Journal'}]: ${n.inhalt}`);
-
-      const allMyNotes = [...fromNotes, ...fromNotizen];
+      const allMyNotes = getStudentNotes(app, student.id)
+        .map((note: any) =>
+          `Am ${note.datum || (note.timestamp ? new Date(note.timestamp).toLocaleDateString('de-AT') : 'Unbekannt')}: [Kategorie: ${note.kategorie || 'Journal'}]: ${note.inhalt}`
+        );
       const notesString = allMyNotes.length > 0
         ? allMyNotes.join('\n')
         : 'Keine Beobachtungs- oder Verhaltensnotizen erfasst.';
@@ -2407,32 +2466,20 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
       };
     })();
 
-    const activeFaecherList = FAECHER_ALLE;
-    const gradeData = activeFaecherList.map(fach => {
-      const sAvg = berechne(app, student.id, fach, '1');
-      let classSum = 0;
-      let classCount = 0;
-      app.schueler.forEach(st => {
-        const g = berechne(app, st.id, fach, '1');
-        if (g !== null) {
-          classSum += g;
-          classCount++;
-        }
-      });
-      const cAvg = classCount > 0 ? classSum / classCount : null;
-      if (sAvg === null && cAvg === null) return null;
-      
-      // Transform grades: Better grade (low number) = Taller bar (high number)
-      // 1 -> 5, 2 -> 4, 3 -> 3, 4 -> 2, 5 -> 1
-      return {
+    const activeFaecherList = activeFaecher;
+    const studentPerformanceRows = getStudentPerformanceSummary(app, student.id, activeFaecherList, sem).entries;
+    const classPerformanceRows = getSubjectPerformanceAverages(app, students, activeFaecherList, sem);
+    const gradeData = activeFaecherList.flatMap(fach => {
+      const studentEntry = studentPerformanceRows.find(entry => entry.subject === fach);
+      const classEntry = classPerformanceRows.find(entry => entry.subject === fach);
+      if (!studentEntry && !classEntry) return [];
+      return [{
         subject: fach.length > 15 ? `${fach.substring(0, 15)}...` : fach,
         fullSubjectName: fach,
-        'Schüler': sAvg !== null ? Number((6 - sAvg).toFixed(2)) : null,
-        'Klassen-Ø': cAvg !== null ? Number((6 - cAvg).toFixed(2)) : null,
-        originalStudentAvg: sAvg,
-        originalClassAvg: cAvg
-      };
-    }).filter(Boolean);
+        'Schüler': studentEntry?.normalizedPercent ?? null,
+        'Klassen-Ø': classEntry?.normalizedAverage ?? null,
+      }];
+    });
 
     const studentAbs = getAttendanceStats(student.id);
     const absenceData = [
@@ -2463,32 +2510,13 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
     });
     const isFinanceBalanced = financePaid >= financeRequired;
 
-    const customPortfolio = portfolioEntries[student.id] || [];
-    const defaultPortfolio = [
-      {
-        id: `def-1-${student.id}`,
-        titel: 'Forschungstagebuch: Waldökologie',
-        fach: 'Sachunterricht',
-        datum: new Date().toISOString().split('T')[0],
-        bewertung: 'Sehr Gut',
-        beschreibung: 'Detaillierte Analyse lokaler Ökosysteme und eigenständiges Herbarium. Großer Fokus auf den Schutz einheimischer Bäume.'
-      },
-      {
-        id: `def-2-${student.id}`,
-        titel: 'Portfolio-Mappe: Geometrisches Zeichnen',
-        fach: 'Mathematik',
-        datum: new Date().toISOString().split('T')[0],
-        bewertung: 'Gut',
-        beschreibung: 'Präzise Rekonstruktionen geometrischer Grundformen und kreative Symmetriebilder.'
-      }
-    ];
-    const portfolioToDisplay = customPortfolio.length > 0 ? customPortfolio : defaultPortfolio;
+    const portfolioToDisplay = portfolioEntries[student.id] || [];
 
     const latestMeeting = meetings.length > 0 ? meetings[0] : null;
 
     const profil = student.foerderprofil || {};
-    const strengths = profil.staerken || ['Besonders hilfsbereit in Gruppenarbeiten', 'Starkes logisch-mathematisches Verständnis'];
-    const supportAreas = profil.foerderbedarfBereiche || ['Arbeitsorganisation', 'Schriftlicher Ausdruck'];
+    const strengths = profil.staerken || [];
+    const supportAreas = profil.foerderbedarfBereiche || [];
     const supportGoals = profil.foerderziele || [];
     const supportMeasures = profil.massnahmen || [];
 
@@ -2565,12 +2593,12 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-8 border-t border-slate-200">
             <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 backdrop-blur-xs text-center md:text-left">
-              <span className="text-[0.5625rem] font-black uppercase text-slate-500 tracking-wider block">Leistungs-Durchschnitt</span>
+              <span className="text-[0.5625rem] font-black uppercase text-slate-500 tracking-wider block">Leistungsindex</span>
               <span className="text-[1.5rem] leading-normal font-black text-slate-900 block mt-1">
-                {studentAvg > 0 ? studentAvg.toFixed(2) : '—'}
+                {studentPerformanceIndex !== null ? `${studentPerformanceIndex.toFixed(1)} %` : '—'}
               </span>
               <span className="text-[0.625rem] font-extrabold text-amber-500 mt-1 block">
-                {studentAvg > 0 ? formatGradeLabel(studentAvg) : 'Keine Noten'}
+                {studentPerformanceIndex !== null ? 'Bewertungsskalen normalisiert' : 'Keine Leistungsdaten'}
               </span>
             </div>
 
@@ -2636,8 +2664,9 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                 className="pt-4 border-t border-slate-100"
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {FAECHER_ALLE.map(fach => {
-                    const avg = berechne(app, student.id, fach, sem);
+                  {activeFaecher.map(fach => {
+                    const performanceEntry = studentPerformanceRows.find(entry => entry.subject === fach);
+                    const avg = performanceEntry?.rawValue ?? null;
                     const miPoints = app.mitarbeit?.[student.id]?.[fach]?.[sem] || 0;
                     const hueCount = app.noten?.[student.id]?.[fach]?.[sem]?.hue || 0;
 
@@ -2660,11 +2689,11 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                             {avg !== null ? (
                               <div className="text-right">
                                 <span className="text-[0.75rem] leading-tight font-black px-2.5 py-1 rounded-full bg-slate-900 text-accent shadow-xs">
-                                  {avg.toFixed(1)}
+                                  {performanceEntry?.mode === 'grades' ? avg.toFixed(1) : `${performanceEntry?.normalizedPercent.toFixed(1)} %`}
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-[0.625rem] font-black uppercase text-slate-350 tracking-wider">Keine Note</span>
+                              <span className="text-[0.625rem] font-black uppercase text-slate-350 tracking-wider">Keine Leistung</span>
                             )}
                           </div>
 
@@ -2700,7 +2729,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                           <span className="text-indigo-600 font-extrabold group-hover:text-indigo-800 transition-colors flex items-center gap-1">
                             Details →
                           </span>
-                          <span>{avg !== null ? formatGradeLabel(avg) : '—'}</span>
+                          <span>{avg !== null ? (performanceEntry?.mode === 'grades' ? formatGradeLabel(avg) : 'Leistungsindex') : '—'}</span>
                         </div>
                       </div>
                     );
@@ -2724,7 +2753,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
               </div>
               <div>
                 <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">Leistungsvergleich (Klassen-Ø)</h3>
-                <p className="text-slate-450 font-bold text-[0.75rem] leading-tight mt-0.5">Visueller Vergleich der Fachnoten.</p>
+                <p className="text-slate-450 font-bold text-[0.75rem] leading-tight mt-0.5">Visueller Vergleich auf einem gemeinsamen Leistungsindex von 0–100.</p>
               </div>
             </div>
             <div className="p-2 rounded-full border border-slate-100 text-slate-400 hover:bg-slate-50 transition-colors">
@@ -2751,20 +2780,20 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                         <BarChart data={gradeData}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="subject" tickLine={false} axisLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#64748b' }} />
-                          <YAxis 
-                            domain={[1, 5]} 
-                            ticks={[1, 2, 3, 4, 5]} 
-                            tickLine={false} 
-                            axisLine={false} 
-                            tick={{ fontSize: 11, fill: '#94a3b8' }} 
-                            tickFormatter={(val) => (6 - val).toString()} 
+                          <YAxis
+                            domain={[0, 100]}
+                            ticks={[0, 20, 40, 60, 80, 100]}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fontSize: 11, fill: '#94a3b8' }}
+                            tickFormatter={(val) => `${val}%`}
                           />
-                          <Tooltip 
+                          <Tooltip
                             contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', fontWeight: 900, fontSize: 11 }}
-                            formatter={(value: any, name: any, props: any) => {
-                              const original = name === 'Schüler' ? props.payload.originalStudentAvg : props.payload.originalClassAvg;
-                              return [original ? original.toFixed(2) : '—', name === 'Schüler' ? student.vorname : 'Klassen-Ø'];
-                            }}
+                            formatter={(value: any, name: any) => [
+                              typeof value === 'number' ? `${value.toFixed(1)} %` : '—',
+                              name === 'Schüler' ? student.vorname : 'Klassen-Ø'
+                            ]}
                           />
                           <Legend wrapperStyle={{ fontSize: 10, fontWeight: 900, paddingTop: 12 }} />
                           <Bar dataKey="Schüler" fill="#4f46e5" radius={[6, 6, 0, 0]} name={`${student?.vorname} (Schnitt)`} barSize={35} />
@@ -3714,63 +3743,104 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
         {kelDetailFach && (() => {
           const detailFach = kelDetailFach;
           
-          // 1. Schularbeiten calculations
-          const classmatesSa = app.schueler.map((s: any) => app.noten?.[s.id]?.[detailFach]?.[sem]?.sa || []);
-          const maxSaCount = classmatesSa.length > 0 ? Math.max(0, ...classmatesSa.map((arr: any) => arr.length)) : 0;
-          const saDetails = Array.from({ length: maxSaCount }).map((_, idx) => {
-            const studentGrade = app.noten?.[student.id]?.[detailFach]?.[sem]?.sa?.[idx];
-            const classmatesGrades = app.schueler.map((s: any) => app.noten?.[s.id]?.[detailFach]?.[sem]?.sa?.[idx])
-              .filter((g: any): g is number => typeof g === 'number' && !isNaN(g) && g >= 1 && g <= 5);
-            const classAvg = classmatesGrades.length > 0 ? parseFloat((classmatesGrades.reduce((a, b) => a + b, 0) / classmatesGrades.length).toFixed(2)) : null;
-            return {
-              name: `SA ${idx + 1}`,
-              studentGrade: typeof studentGrade === 'number' ? studentGrade : null,
-              classAvg,
-            };
-          });
-          
-          const studentSaList = saDetails.map(d => d.studentGrade).filter((g): g is number => g !== null);
-          const studentSaAvgValue = studentSaList.length > 0 ? parseFloat((studentSaList.reduce((a, b) => a + b, 0) / studentSaList.length).toFixed(2)) : null;
-          const classSaList = saDetails.map(d => d.classAvg).filter((g): g is number => g !== null);
-          const classSaAvgValue = classSaList.length > 0 ? parseFloat((classSaList.reduce((a, b) => a + b, 0) / classSaList.length).toFixed(2)) : null;
+          const assessmentMode = getAssessmentMode(app, detailFach);
 
-          // 2. Wochenplan calculations
-          const classmatesWp = app.schueler.map((s: any) => app.noten?.[s.id]?.[detailFach]?.[sem]?.wp || []);
-          const maxWpCount = classmatesWp.length > 0 ? Math.max(0, ...classmatesWp.map((arr: any) => arr.length)) : 0;
-          const wpDetails = Array.from({ length: maxWpCount }).map((_, idx) => {
-            const studentGrade = app.noten?.[student.id]?.[detailFach]?.[sem]?.wp?.[idx];
-            const classmatesGrades = app.schueler.map((s: any) => app.noten?.[s.id]?.[detailFach]?.[sem]?.wp?.[idx])
-              .filter((g: any): g is number => typeof g === 'number' && !isNaN(g) && g >= 1 && g <= 5);
-            const classAvg = classmatesGrades.length > 0 ? parseFloat((classmatesGrades.reduce((a, b) => a + b, 0) / classmatesGrades.length).toFixed(2)) : null;
-            return { name: `WP ${idx + 1}`, studentGrade: typeof studentGrade === 'number' ? studentGrade : null, classAvg };
-          });
-          const studentWpList = wpDetails.map(d => d.studentGrade).filter((g): g is number => g !== null);
-          const studentWpAvgValue = studentWpList.length > 0 ? parseFloat((studentWpList.reduce((a, b) => a + b, 0) / studentWpList.length).toFixed(2)) : null;
-          const classWpList = wpDetails.map(d => d.classAvg).filter((g): g is number => g !== null);
-          const classWpAvgValue = classWpList.length > 0 ? parseFloat((classWpList.reduce((a, b) => a + b, 0) / classWpList.length).toFixed(2)) : null;
-
-          // 3. Lernkontrollen
-          const studentLzkList = (app.noten?.[student.id]?.[detailFach]?.[sem]?.lzk || [])
-            .filter((g: any): g is number => typeof g === 'number' && !isNaN(g) && g >= 1 && g <= 5);
-          const studentLzkAvgValue = studentLzkList.length > 0 ? parseFloat((studentLzkList.reduce((a, b) => a + b, 0) / studentLzkList.length).toFixed(2)) : null;
-          const classLzkList = app.schueler.flatMap((s: any) => app.noten?.[s.id]?.[detailFach]?.[sem]?.lzk || [])
-            .filter((g: any): g is number => typeof g === 'number' && !isNaN(g) && g >= 1 && g <= 5);
-          const classLzkAvgValue = classLzkList.length > 0 ? parseFloat((classLzkList.reduce((a, b) => a + b, 0) / classLzkList.length).toFixed(2)) : null;
-
-          // Chart data
-          const chartDataSummary = [
-            { name: 'Schularbeiten (SA)', 'Schüler': studentSaAvgValue || 0, 'Klassenschnitt': classSaAvgValue || 0 },
-            { name: 'Wochenplan (WOPL)', 'Schüler': studentWpAvgValue || 0, 'Klassenschnitt': classWpAvgValue || 0 },
-            { name: 'Lernkontrollen (LZK)', 'Schüler': studentLzkAvgValue || 0, 'Klassenschnitt': classLzkAvgValue || 0 },
-          ].filter(item => item['Schüler'] > 0 || item['Klassenschnitt'] > 0);
-
-          const getPerformanceBadge = (grade: number | null, avg: number | null) => {
-            if (grade === null || avg === null) return <span className="text-slate-400 font-semibold">—</span>;
-            const diff = grade - avg;
-            if (diff <= -0.5) return <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-[0.5625rem] font-black border border-emerald-100 flex items-center gap-0.5 shadow-2xs">Über Durchschnitt 🚀</span>;
-            if (diff >= 0.5) return <span className="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-[0.5625rem] font-black border border-amber-100 flex items-center gap-0.5 shadow-2xs">Ausbaufähig 🎯</span>;
-            return <span className="bg-slate-50 text-slate-600 px-2.5 py-1 rounded-full text-[0.5625rem] font-black border border-slate-100 flex items-center gap-0.5 shadow-2xs">Im Schnitt 🤝</span>;
+          const toComparableValue = (
+            value: number | string | null | undefined,
+            type: 'sa' | 'wp' | 'lzk',
+            index: number,
+          ): number | null => {
+            if (assessmentMode === 'grades') {
+              const numeric = typeof value === 'number'
+                ? value
+                : typeof value === 'string'
+                  ? Number.parseFloat(value.replace(',', '.'))
+                  : Number.NaN;
+              return Number.isFinite(numeric) && numeric >= 1 && numeric <= 5 ? numeric : null;
+            }
+            return calculateItemPercent(
+              value,
+              assessmentMode,
+              getMaxPoints(app, detailFach, type, index),
+            );
           };
+
+          const buildAssessmentDetails = (type: 'sa' | 'wp' | 'lzk', label: string) => {
+            const rows = app.schueler.map((classmate: any) =>
+              app.noten?.[classmate.id]?.[detailFach]?.[sem]?.[type] || []
+            );
+            const maxCount = rows.length > 0 ? Math.max(0, ...rows.map((values: any[]) => values.length)) : 0;
+            return Array.from({ length: maxCount }).map((_, index) => {
+              const studentValue = toComparableValue(
+                app.noten?.[student.id]?.[detailFach]?.[sem]?.[type]?.[index],
+                type,
+                index,
+              );
+              const classValues = app.schueler
+                .map((classmate: any) =>
+                  toComparableValue(
+                    app.noten?.[classmate.id]?.[detailFach]?.[sem]?.[type]?.[index],
+                    type,
+                    index,
+                  )
+                )
+                .filter((value: number | null): value is number => value !== null);
+              const classAvg = classValues.length
+                ? classValues.reduce((sum, value) => sum + value, 0) / classValues.length
+                : null;
+              return {
+                name: `${label} ${index + 1}`,
+                studentGrade: studentValue,
+                classAvg,
+              };
+            });
+          };
+
+          const saDetails = buildAssessmentDetails('sa', 'SA');
+          const wpDetails = buildAssessmentDetails('wp', 'WP');
+          const lzkDetails = buildAssessmentDetails('lzk', 'LZK');
+
+          const averageDetailValues = (details: Array<{ studentGrade: number | null; classAvg: number | null }>, key: 'studentGrade' | 'classAvg') => {
+            const values = details.map(detail => detail[key]).filter((value): value is number => value !== null);
+            return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+          };
+
+          const chartDataSummary = [
+            { name: 'Schularbeiten (SA)', 'Schüler': averageDetailValues(saDetails, 'studentGrade'), 'Klassenschnitt': averageDetailValues(saDetails, 'classAvg') },
+            { name: 'Wochenplan (WOPL)', 'Schüler': averageDetailValues(wpDetails, 'studentGrade'), 'Klassenschnitt': averageDetailValues(wpDetails, 'classAvg') },
+            { name: 'Lernkontrollen (LZK)', 'Schüler': averageDetailValues(lzkDetails, 'studentGrade'), 'Klassenschnitt': averageDetailValues(lzkDetails, 'classAvg') },
+          ].filter(item => item['Schüler'] !== null || item['Klassenschnitt'] !== null);
+
+          const formatDetailValue = (value: number | null) =>
+            value === null
+              ? '—'
+              : assessmentMode === 'grades'
+                ? value.toFixed(2)
+                : `${value.toFixed(1)} %`;
+
+          const getPerformanceBadge = (value: number | null, avg: number | null) => {
+            if (value === null || avg === null) return <span className="text-slate-400 font-semibold">—</span>;
+            const difference = value - avg;
+            const threshold = assessmentMode === 'grades' ? 0.5 : 10;
+            const isBetter = assessmentMode === 'grades' ? difference <= -threshold : difference >= threshold;
+            const isLower = assessmentMode === 'grades' ? difference >= threshold : difference <= -threshold;
+            if (isBetter) return <span className="bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-[0.5625rem] font-black border border-emerald-100 flex items-center gap-0.5 shadow-2xs">Über Klassen-Ø</span>;
+            if (isLower) return <span className="bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full text-[0.5625rem] font-black border border-amber-100 flex items-center gap-0.5 shadow-2xs">Unter Klassen-Ø</span>;
+            return <span className="bg-slate-50 text-slate-600 px-2.5 py-1 rounded-full text-[0.5625rem] font-black border border-slate-100 flex items-center gap-0.5 shadow-2xs">Nahe Klassen-Ø</span>;
+          };
+
+          const studentSummaryValues = chartDataSummary
+            .map(row => row['Schüler'])
+            .filter((value): value is number => value !== null);
+          const classSummaryValues = chartDataSummary
+            .map(row => row['Klassenschnitt'])
+            .filter((value): value is number => value !== null);
+          const studentSummaryAverage = studentSummaryValues.length
+            ? studentSummaryValues.reduce((sum, value) => sum + value, 0) / studentSummaryValues.length
+            : null;
+          const classSummaryAverage = classSummaryValues.length
+            ? classSummaryValues.reduce((sum, value) => sum + value, 0) / classSummaryValues.length
+            : null;
 
           return (
             <ModalPortal>
@@ -3811,8 +3881,22 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                           <BarChart data={chartDataSummary}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                             <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: '#64748b' }} />
-                            <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
-                            <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 900 }} />
+                            <YAxis
+                              domain={assessmentMode === 'grades' ? [1, 5] : [0, 100]}
+                              ticks={assessmentMode === 'grades' ? [1, 2, 3, 4, 5] : [0, 20, 40, 60, 80, 100]}
+                              reversed={assessmentMode === 'grades'}
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{ fontSize: 10, fill: '#94a3b8' }}
+                              tickFormatter={(value) => assessmentMode === 'grades' ? String(value) : `${value}%`}
+                            />
+                            <Tooltip
+                              contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', fontWeight: 900 }}
+                              formatter={(value: any) => [
+                                typeof value === 'number' ? formatDetailValue(value) : '—',
+                                undefined
+                              ]}
+                            />
                             <Legend wrapperStyle={{ fontSize: 10, fontWeight: 900, paddingTop: 10 }} />
                             <Bar dataKey="Schüler" fill="#6366f1" radius={[6, 6, 0, 0]} barSize={40} />
                             <Bar dataKey="Klassenschnitt" fill="#cbd5e1" radius={[6, 6, 0, 0]} barSize={40} />
@@ -3823,14 +3907,14 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs flex flex-col justify-center text-center">
-                        <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 block mb-1">Mein Schnitt</span>
-                        <span className="text-[1.875rem] leading-tight font-black text-slate-900">{(chartDataSummary.reduce((a, b) => a + b['Schüler'], 0) / (chartDataSummary.length || 1)).toFixed(2)}</span>
-                        <span className="text-[0.5625rem] font-bold text-indigo-500 mt-2">{detailFach} GPA</span>
+                        <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 block mb-1">Eigener Fachstand</span>
+                        <span className="text-[1.875rem] leading-tight font-black text-slate-900">{formatDetailValue(studentSummaryAverage)}</span>
+                        <span className="text-[0.5625rem] font-bold text-indigo-500 mt-2">{assessmentMode === 'grades' ? 'Notenskala 1–5' : 'Leistungsindex 0–100'}</span>
                       </div>
                       <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-xs flex flex-col justify-center text-center">
-                        <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 block mb-1">Klassen Ø</span>
-                        <span className="text-[1.875rem] leading-tight font-black text-slate-400">{(chartDataSummary.reduce((a, b) => a + b['Klassenschnitt'], 0) / (chartDataSummary.length || 1)).toFixed(2)}</span>
-                        <span className="text-[0.5625rem] font-bold text-slate-400 mt-2">Gesamtschnitt</span>
+                        <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 block mb-1">Klassen-Ø</span>
+                        <span className="text-[1.875rem] leading-tight font-black text-slate-400">{formatDetailValue(classSummaryAverage)}</span>
+                        <span className="text-[0.5625rem] font-bold text-slate-400 mt-2">{assessmentMode === 'grades' ? 'Notenschnitt' : 'Leistungsindex'}</span>
                       </div>
                       <div className="col-span-2 bg-indigo-50/50 p-6 rounded-3xl border border-indigo-100/50">
                          <span className="text-[0.625rem] font-black uppercase tracking-widest text-indigo-600 block mb-3">Erfolgs-Indikator</span>
@@ -3839,7 +3923,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                              <div key={i} className="flex items-center justify-between">
                                <span className="text-[0.75rem] leading-tight font-bold text-slate-700">{sa.name}</span>
                                <div className="flex items-center gap-3">
-                                 <span className={`text-[0.625rem] font-black px-2 py-0.5 rounded-md ${sa.studentGrade === 1 ? 'bg-emerald-500 text-white' : 'bg-white border border-slate-200 text-slate-900'}`}>{sa.studentGrade || '—'}</span>
+                                 <span className="text-[0.625rem] font-black px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-900">{formatDetailValue(sa.studentGrade)}</span>
                                  {getPerformanceBadge(sa.studentGrade, sa.classAvg)}
                                </div>
                              </div>
@@ -3855,6 +3939,11 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
         })()}
       </AnimatePresence>
       
+      <AntolinImportModal
+        open={showAntolinImport}
+        onClose={() => setShowAntolinImport(false)}
+      />
+
       {/* Real-time Sub Filter Controls: 3 Hauptbereiche */}
       <div className="flex justify-center w-full pb-2">
         <div className="flex flex-wrap bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full md:w-auto gap-1">
@@ -3904,6 +3993,15 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
           >
             <MoreHorizontal size={15} className={selectedStudentId === null && (activeTab === 'mehr' || activeTab === 'lehrer') ? "text-indigo-600" : "text-slate-400"} />
             ⋯ Mehr
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAntolinImport(true)}
+            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[0.75rem] leading-tight font-black uppercase tracking-wider transition-all cursor-pointer bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100"
+            title="Antolin-Klassenbericht als PDF, CSV oder Text importieren"
+          >
+            <Upload size={15} className="text-amber-600" />
+            Antolin importieren
           </button>
         </div>
       </div>
@@ -3959,8 +4057,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
                     <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Leistung</div>
-                    <div className="text-2xl font-black text-slate-900 my-1 tabular-nums">Ø {stats.average}</div>
-                    <div className="text-[0.625rem] text-slate-450 font-bold">Klassenschnitt</div>
+                    <div className="text-2xl font-black text-slate-900 my-1 tabular-nums">{stats.averageLabel}</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">{stats.averageDescriptor}</div>
                   </div>
 
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
@@ -3971,14 +4069,14 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
 
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
                     <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Entwicklung</div>
-                    <div className="text-2xl font-black text-amber-600 my-1 tabular-nums">{classOverviewMetrics.negativeTrendCount} ↘</div>
-                    <div className="text-[0.625rem] text-slate-450 font-bold">Notenschnitt ≥ 3,8</div>
+                    <div className="text-2xl font-black text-amber-600 my-1 tabular-nums">{classOverviewMetrics.attentionPerformanceCount} ↘</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">Leistungsindex &lt; 40 %</div>
                   </div>
 
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
                     <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Positiv</div>
-                    <div className="text-2xl font-black text-emerald-600 my-1 tabular-nums">{classOverviewMetrics.positiveTrendCount} ↗</div>
-                    <div className="text-[0.625rem] text-slate-450 font-bold">Notenschnitt ≤ 2,2</div>
+                    <div className="text-2xl font-black text-emerald-600 my-1 tabular-nums">{classOverviewMetrics.strongPerformanceCount} ↗</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">Leistungsindex ≥ 80 %</div>
                   </div>
 
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
@@ -4206,10 +4304,10 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                     <TrendingUp size={15} />
                   </div>
                   <div>
-                    <div className="text-[0.625rem] font-black uppercase tracking-[0.15em] text-slate-400 mb-1">Klassenschnitt</div>
-                    <div className="text-4xl font-black tracking-tight tabular-nums text-slate-900 mt-1">{stats.average}</div>
+                    <div className="text-[0.625rem] font-black uppercase tracking-[0.15em] text-slate-400 mb-1">{stats.averageDescriptor}</div>
+                    <div className="text-4xl font-black tracking-tight tabular-nums text-slate-900 mt-1">{stats.averageLabel}</div>
                   </div>
-                  <div className="text-[0.625rem] text-slate-450 mt-3 font-semibold uppercase tracking-wider">Arithmetisches Mittel</div>
+                  <div className="text-[0.625rem] text-slate-450 mt-3 font-semibold uppercase tracking-wider">Bewertungsskalen korrekt berücksichtigt</div>
                 </div>
                 
                 <div className="group relative p-5 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-indigo-200 transition-all duration-300 flex flex-col justify-between min-h-[125px]">
@@ -4228,8 +4326,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                     <AlertTriangle size={15} />
                   </div>
                   <div>
-                    <div className="text-[0.625rem] font-black uppercase tracking-[0.15em] text-slate-400 mb-1">Note 5</div>
-                    <div className="text-4xl font-black tracking-tight tabular-nums text-slate-900 mt-1">{stats.totalCount > 0 ? stats.risks : '–'}</div>
+                    <div className="text-[0.625rem] font-black uppercase tracking-[0.15em] text-slate-400 mb-1">{stats.attentionDescriptor}</div>
+                    <div className="text-4xl font-black tracking-tight tabular-nums text-slate-900 mt-1">{stats.totalCount > 0 ? stats.attentionCount : '–'}</div>
                   </div>
                   <div className="text-[0.625rem] text-slate-450 mt-3 font-semibold uppercase tracking-wider">
                     {stats.totalCount > 0 ? 'Einträge mit Förderbedarf' : 'Noch keine Auswertung'}
@@ -4247,7 +4345,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                     </div>
                   </div>
                   <div className="text-[0.625rem] text-slate-450 mt-3 font-semibold uppercase tracking-wider">
-                    Schnitt: {bestSubject ? bestSubject.average.toFixed(2) : '–'}
+                    Leistungsindex: {bestSubject ? `${bestSubject.normalizedAverage.toFixed(1)} %` : '–'}
                   </div>
                 </div>
               </div>
@@ -4262,7 +4360,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                         <BarChart3 size={18} />
                       </div>
                       <div>
-                        <div>Notenspiegel der Klasse</div>
+                        <div>{stats.distributionDescriptor}</div>
                         <p className="text-[0.625rem] text-slate-400 font-semibold uppercase tracking-wider">Häufigkeitsverteilung für "{activeFach}"</p>
                       </div>
                     </h4>
@@ -4312,7 +4410,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                       </div>
                       <div>
                         <div>Fächerübersicht</div>
-                        <p className="text-[0.625rem] text-slate-400 font-semibold uppercase tracking-wider">Klassen-Ø nach Unterrichtsfach</p>
+                        <p className="text-[0.625rem] text-slate-400 font-semibold uppercase tracking-wider">Normalisierter Leistungsindex 0–100 nach Fach</p>
                       </div>
                     </h4>
                   </div>
@@ -4328,7 +4426,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="subjectShort" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: '#64748b' }} interval={0} />
-                          <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} reversed={true} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                          <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
                           <Tooltip 
                             content={({ active, payload }) => {
                               if (active && payload && payload.length) {
@@ -4338,7 +4436,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                                     <p className="font-extrabold uppercase tracking-wide text-slate-400 text-[0.625rem]">{data.subject}</p>
                                     <div className="flex items-center gap-2">
                                       <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                                      <span className="font-black text-white text-[0.8125rem]">Schnitt: Ø {data.average.toFixed(2)}</span>
+                                      <span className="font-black text-white text-[0.8125rem]">Leistungsindex: {data.normalizedAverage.toFixed(1)} %</span>
                                     </div>
                                   </div>
                                 );
@@ -4346,7 +4444,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                               return null;
                             }}
                           />
-                          <Area type="monotone" dataKey="average" stroke="#f59e0b" strokeWidth={4} fillOpacity={1} fill="url(#colorAvg)" dot={{ stroke: '#f59e0b', strokeWidth: 3, fill: 'white', r: 6 }} activeDot={{ r: 8, strokeWidth: 0 }} name="Klassenschnitt" baseValue={5} />
+                          <Area type="monotone" dataKey="normalizedAverage" stroke="#f59e0b" strokeWidth={4} fillOpacity={1} fill="url(#colorAvg)" dot={{ stroke: '#f59e0b', strokeWidth: 3, fill: 'white', r: 6 }} activeDot={{ r: 8, strokeWidth: 0 }} name="Leistungsindex" baseValue={0} />
                         </AreaChart>
                       </ResponsiveContainer>
                     ) : (
@@ -4795,14 +4893,12 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                   </div>
                 )}
                 {filteredStudents.map(s => {
-                  const studentGradesLocal = getStudentGrades(s.id);
-                  const localAvg = studentGradesLocal.length > 0
-                    ? studentGradesLocal.reduce((a, b) => a + b.wert, 0) / studentGradesLocal.length
-                    : null;
+                  const studentPerformanceLocal = getStudentPerformanceSummary(app, s.id, activeFaecher, '1');
+                  const localPerformanceIndex = studentPerformanceLocal.normalizedAverage;
 
                   const attStats = getAttendanceStats(s.id);
                   const meetingsCount = (app.elterngespraeche || []).filter(m => m.schuelerId === s.id).length;
-                  const notesCount = (app.notizen || []).filter(n => n.schuelerId === s.id).length;
+                  const notesCount = getStudentNotes(app, s.id).length;
 
                   return (
                     <button
@@ -4857,14 +4953,14 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
 
                         {/* Interactive Sparkline graph at top-right */}
                         <div className="pt-1.5 shrink-0 select-none text-right">
-                          {studentGradesLocal.length > 0 ? (
+                          {studentPerformanceLocal.entries.length > 1 ? (
                             <>
                               {renderSparkline(s.id)}
-                              <div className="text-[0.5rem] text-right font-black uppercase text-slate-350 tracking-wider mt-1">Notenverlauf · 30 Tage</div>
+                              <div className="text-[0.5rem] text-right font-black uppercase text-slate-350 tracking-wider mt-1">Leistungsprofil nach Fach</div>
                             </>
                           ) : (
                             <div className="max-w-24 rounded-lg bg-slate-50 px-2 py-1.5 text-[0.5625rem] font-black leading-tight text-slate-400">
-                              Noch keine Notendaten
+                              Noch zu wenig Leistungsdaten
                             </div>
                           )}
                         </div>
@@ -4877,9 +4973,9 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                             <GraduationCap size={14} />
                           </div>
                           <div>
-                            <div className="text-[0.5625rem] font-black uppercase text-slate-400 tracking-wider">Notenschnitt</div>
+                            <div className="text-[0.5625rem] font-black uppercase text-slate-400 tracking-wider">Leistungsindex</div>
                             <div className="text-[0.9375rem] font-black text-slate-800 leading-none mt-0.5">
-                              {localAvg !== null ? localAvg.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '–'}
+                              {localPerformanceIndex !== null ? `${localPerformanceIndex.toFixed(1)} %` : '–'}
                             </div>
                           </div>
                         </div>
@@ -4901,9 +4997,9 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                       {/* Footer count row */}
                       <div className="flex items-center justify-between pt-4">
                         <div className="flex gap-2.5">
-                          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg shadow-3xs" title="Noteneinträge">
+                          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg shadow-3xs" title="Fächer mit Leistungsdaten">
                             <Award size={12} className="text-emerald-500" />
-                            <span className="text-[0.6875rem] font-extrabold text-slate-650">{studentGradesLocal.length}</span>
+                            <span className="text-[0.6875rem] font-extrabold text-slate-650">{studentPerformanceLocal.entries.length}</span>
                           </div>
                           <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-lg shadow-3xs" title="Elterngespräche">
                             <MessageSquare size={12} className="text-indigo-500" />

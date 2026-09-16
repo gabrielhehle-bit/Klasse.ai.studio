@@ -503,14 +503,10 @@ export const MATH_FACHMODUL_TOOLS: MathFachmodulTool[] = [
 ];
 
 /**
- * 4 Altlasten, die aus dem Picker und Katalog entfernt wurden.
+ * Keine Mathematik-Widgets sind aus der Unterrichtshilfe-Auswahl entfernt.
+ * Historische Typen bleiben für bestehende Layouts und neue Auswahl erhalten.
  */
-export const RETIRED_MATH_WIDGETS = [
-  "divrobot",
-  "mathduel",
-  "shapepuzzle",
-  "sorting",
-] as const;
+export const RETIRED_MATH_WIDGETS = [] as const;
 
 export type RetiredMathWidgetType = (typeof RETIRED_MATH_WIDGETS)[number];
 

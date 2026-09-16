@@ -1,0 +1,117 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import fsp from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { createSchoolRegistryStore } from '../server/schoolRegistry';
+import { createTeacherIdentityForSchool } from '../server/teacherIdentity';
+import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from '../data/austrianSchoolRegistry.seed';
+
+const root = process.cwd();
+const read = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
+
+test('Schulregister ordnet nur die exakte konkrete Schul-Domain zu', async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-schools-'));
+  try {
+    const store = createSchoolRegistryStore(dir);
+    await store.ensureSeedSchools(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS);
+
+    const oberau = await store.findVerifiedSchoolByEmail('lehrperson@vsfoa.vobs.at');
+    assert.ok(oberau);
+    assert.equal(oberau.id, 'at-vbg-vs-oberau');
+    assert.equal(oberau.federalState, 'Vorarlberg');
+
+    assert.equal(
+      await store.findVerifiedSchoolByEmail('lehrperson@andere-schule.vobs.at'),
+      null,
+      'Gleicher Bildungsserver darf Schulen nicht in ein gemeinsames Lehrerzimmer zusammenfassen.'
+    );
+    assert.equal(
+      await store.findVerifiedSchoolByEmail('lehrperson@vobs.at'),
+      null,
+      'Provider-Domain allein darf nicht automatisch als konkrete Schule gelten.'
+    );
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('Neue Schule aus anderem Bundesland kann angefragt und einmalig freigegeben werden', async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-school-request-'));
+  try {
+    const store = createSchoolRegistryStore(dir);
+    const request = await store.requestVerification({
+      requestedByEmail: 'anna@vs-muster.tirol',
+      schoolName: 'Volksschule Muster',
+      federalState: 'Tirol',
+    });
+
+    assert.equal(request.status, 'pending');
+    assert.equal(request.emailDomain, 'vs-muster.tirol');
+    assert.equal(request.federalState, 'Tirol');
+    assert.equal(await store.findVerifiedSchoolByEmail('anna@vs-muster.tirol'), null);
+
+    const approved = await store.approveRequest(request.id);
+    assert.equal(approved.school.name, 'Volksschule Muster');
+    assert.equal(approved.school.federalState, 'Tirol');
+    assert.deepEqual(approved.school.domains, ['vs-muster.tirol']);
+
+    const resolved = await store.findVerifiedSchoolByEmail('max@vs-muster.tirol');
+    assert.ok(resolved);
+    assert.equal(resolved.id, approved.school.id);
+
+    const teacher = createTeacherIdentityForSchool('max@vs-muster.tirol', resolved);
+    assert.ok(teacher);
+    assert.equal(teacher.schoolId, approved.school.id);
+    assert.equal(teacher.schoolFederalState, 'Tirol');
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('Private Mailanbieter können nicht als Schule verifiziert werden', async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-public-mail-'));
+  try {
+    const store = createSchoolRegistryStore(dir);
+    await assert.rejects(
+      () => store.requestVerification({
+        requestedByEmail: 'anna@gmail.com',
+        schoolName: 'Keine Schule',
+        federalState: 'Wien',
+      }),
+      /PUBLIC_EMAIL_DOMAIN/
+    );
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('Alle neun österreichischen Bundesländer sind vorgesehen', () => {
+  const source = read('src/server/schoolRegistry.ts');
+  for (const state of [
+    'Burgenland', 'Kärnten', 'Niederösterreich', 'Oberösterreich', 'Salzburg',
+    'Steiermark', 'Tirol', 'Vorarlberg', 'Wien',
+  ]) {
+    assert.match(source, new RegExp(state));
+  }
+});
+
+test('Server trennt persönliches Konto, Schulregister und Lehrerzimmer', () => {
+  const server = read('server.ts');
+  assert.match(server, /createSchoolRegistryStore/);
+  assert.match(server, /findVerifiedSchoolByEmail\(email\)/);
+  assert.match(server, /createTeacherIdentityForSchool\(email, verifiedSchool\)/);
+  assert.match(server, /app\.get\('\/api\/schools\/me'/);
+  assert.match(server, /app\.post\('\/api\/schools\/verification-requests'/);
+  assert.match(server, /verification-requests\/:requestId\/approve/);
+  assert.match(server, /KLASSIO_SCHOOL_ADMIN_TOKEN/);
+});
+
+test('Lehrerzimmer bietet bei unbekannter Schule eine österreichweite Verifizierungsanfrage an', () => {
+  const component = read('src/components/Lehrerzimmer.tsx');
+  assert.match(component, /Schule zur Verifizierung melden/);
+  assert.match(component, /Das funktioniert österreichweit und ist nicht an VOBS gebunden/);
+  assert.match(component, /Schulverifizierung anfordern/);
+  assert.match(component, /AUSTRIAN_FEDERAL_STATES/);
+});

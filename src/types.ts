@@ -137,7 +137,7 @@ export const VORSCHLAG_DIAGNOSTIK_TESTS: DiagnostikTest[] = [
   { id: 'sls-2-9', name: 'SLS 2-9', kategorie: 'lesen', kurzbeschreibung: 'Salzburger Lesescreening', einheit: 'prozentrang', schwellenwert: 15, schwellenrichtung: 'unter', schulstufen: [2, 3, 4, 5, 6, 7, 8, 9] },
   { id: 'slrt-ii', name: 'SLRT-II', kategorie: 'lesen', kurzbeschreibung: 'Salzburger Lese- und Rechtschreibtest', einheit: 'prozentrang', schwellenwert: 15, schwellenrichtung: 'unter', schulstufen: [1, 2, 3, 4] },
   { id: 'elfe-ii', name: 'ELFE-II', kategorie: 'lesen', kurzbeschreibung: 'Leseverständnistest für Erst- bis Sechstklässler', einheit: 'prozentrang', schwellenwert: 15, schwellenrichtung: 'unter', schulstufen: [1, 2, 3, 4, 5, 6] },
-  { id: 'live-lesefluessigkeit', name: '1:1 Leseflüssigkeit (RGW)', kategorie: 'lesen', kurzbeschreibung: 'Mund-zu-Ohr-Leseflüssigkeitsdiagnose (Richtig gelesene Wörter pro Minute)', einheit: 'rohwert', schwellenwert: 40, schwellenrichtung: 'unter', schulstufen: [1, 2, 3, 4] },
+  { id: 'live-lesefluessigkeit', name: '1:1 Lautleseprotokoll (RGW)', kategorie: 'lesen', kurzbeschreibung: 'Informelle Lernverlaufsbeobachtung: 100-Wörter-Text, eine Minute, Fehler, letztes Wort und Prosodie. Kein globaler diagnostischer Schwellenwert; schulstufenbezogene Werte werden nur als Orientierung ausgewiesen.', einheit: 'rohwert', schwellenwert: 0, schwellenrichtung: 'unter', schulstufen: [1, 2, 3, 4] },
   { id: 'hsp', name: 'HSP', kategorie: 'rechtschreiben', kurzbeschreibung: 'Hamburger Schreib-Probe', einheit: 'prozentrang', schwellenwert: 15, schwellenrichtung: 'unter', schulstufen: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
   { id: 'ert-0-plus', name: 'ERT 0+', kategorie: 'mathematik', kurzbeschreibung: 'Eggenberger Rechentest', einheit: 'prozentrang', schwellenwert: 15, schwellenrichtung: 'unter', schulstufen: [0, 1] },
   { id: 'ert-1-plus', name: 'ERT 1+', kategorie: 'mathematik', kurzbeschreibung: 'Eggenberger Rechentest', einheit: 'prozentrang', schwellenwert: 15, schwellenrichtung: 'unter', schulstufen: [1, 2] },
@@ -362,6 +362,9 @@ export interface PortfolioEntry {
   datum: string;
   titel: string;
   beschreibung?: string;
+  /** Legacy portfolio metadata retained during migration. */
+  fach?: string;
+  bewertung?: string;
   bildUrl?: string; // base64 or file reference
   tags?: string[];
   isInKEL?: boolean; // Highlight for KEL
@@ -741,6 +744,10 @@ export type AssessmentMode = 'grades' | 'percent' | 'points';
 export interface SubjectNotenMeta {
   saCount?: number;
   assessmentMode?: AssessmentMode;
+  /** Subject-specific homework handling. Legacy global settings are only migration fallbacks. */
+  hueMode?: 'document' | 'grade';
+  hueDeduction?: number;
+  hueMitarbeitWeight?: number;
   maxPoints?: {
     sa?: number[];
     lzk?: number[];
@@ -889,6 +896,25 @@ export interface CustomList {
   spaltenName?: string;
 }
 
+export interface StudentDevelopmentListEntry {
+  id: string;
+  datum: string;
+  werte: Record<string, string | number | boolean>;
+  erstelltAm?: string;
+  updatedAm?: string;
+}
+
+export interface StudentDevelopmentList {
+  id: string;
+  schuelerId: string;
+  titel: string;
+  beschreibung?: string;
+  spalten: CustomListColumn[];
+  eintraege: StudentDevelopmentListEntry[];
+  erstelltAm?: string;
+  updatedAm?: string;
+}
+
 export interface KlassenDienst {
   id: string;
   titel: string;
@@ -923,6 +949,18 @@ export interface StatusHistory {
 }
 
 export interface ClassRoom {
+  /** Zero-knowledge Teamteaching metadata. This metadata remains local and is stripped before class encryption. */
+  teamTeaching?: {
+    sharedClassId: string;
+    role: 'owner' | 'editor' | 'viewer';
+    revision: number;
+    lastSyncedHash?: string;
+    lastSyncedAt?: string;
+    syncStatus?: 'idle' | 'syncing' | 'synced' | 'conflict' | 'error';
+    syncMessage?: string;
+  };
+  /** Class-local detailed assessments; same shape as the active-class projection. */
+  saAssessments?: AppState['saAssessments'];
   id: string;
   name: string;
   stufe: number;
@@ -930,12 +968,36 @@ export interface ClassRoom {
   klassenvorstand: boolean;
   schueler: Student[];
   noten: Record<string, Record<string, Record<string, GradeData>>>;
+  /** Per-class assessment modes, column metadata/labels and related gradebook configuration. */
+  notenMeta?: Record<string, any>;
+  /** Per-class subject/category weightings. */
+  notenGewichtung?: Record<string, any>;
+  /** Class-local learning-goal tracker and individual ratings. */
+  lernzielTracker?: AppState['lernzielTracker'];
+  studentLernzielBewertungen?: AppState['studentLernzielBewertungen'];
+  studentLernzielSemesterBewertungen?: AppState['studentLernzielSemesterBewertungen'];
+  /** Class-local diagnostic and student-development data. */
+  diagnostikErgebnisse?: AppState['diagnostikErgebnisse'];
+  diagnostikErhebungen?: AppState['diagnostikErhebungen'];
+  diagnosticResults?: AppState['diagnosticResults'];
+  ikmRecords?: AppState['ikmRecords'];
+  antolinRecords?: AppState['antolinRecords'];
+  schuelerGoals?: AppState['schuelerGoals'];
+  observations?: AppState['observations'];
+  metaKognitionsProtokolle?: AppState['metaKognitionsProtokolle'];
+  interaktionsLog?: AppState['interaktionsLog'];
   mitarbeit: Record<string, Record<string, Record<string, number>>>;
+  /** Class-local participation grading thresholds/mode used by the gradebook. */
+  mitarbeit_settings?: AppState['mitarbeit_settings'];
   verhalten: Record<string, number>;
   karten: Record<string, { gelb: number; rot: number; archiv: any[] }>;
   jahresplanung: Record<number, any>;
   jahresplan_faecher?: { id: string; label: string; color: string }[];
   wochenplanung: Record<number, any>;
+  /** Class-local temporarily parked lessons from the planning center. */
+  parkgarage?: AppState['parkgarage'];
+  /** Class-local reusable weekly templates from the planning center. */
+  savedWeekTemplates?: AppState['savedWeekTemplates'];
   wochenplanSyncSet?: string[];
   scheduleAnalysis?: Record<number, any>;
   stammplan: Record<string, Record<number, string>>;
@@ -948,8 +1010,14 @@ export interface ClassRoom {
   klassenglas_belohnung?: string;
   klassenglas_missions?: any[];
   klassenglas_completed_missions?: any[];
+  /** Class-local Wir-Gefühl agreements and council inbox. */
+  classContracts?: AppState['classContracts'];
+  councilNotes?: AppState['councilNotes'];
   checklisten?: OrgCheckliste[];
   customLists?: CustomList[];
+  studentDevelopmentLists?: StudentDevelopmentList[];
+  /** Class-local portal/login credentials shown in Kassa & Orga. */
+  zugangsdaten?: Zugangsdaten[];
   klassenkasse?: {
     kontostand: number;
     sammlungen: Geldsammlung[];
@@ -957,12 +1025,29 @@ export interface ClassRoom {
   };
   behavior_status?: Record<string, string>;
   behavior_notes?: Record<string, string>;
+  /** Class-local chronicle/observation entries. */
+  notes?: AppNote[];
+  /** Legacy mirror of class-local chronicle entries. */
+  journal?: NoteEntry[];
+  /** Class-local behavior status history. */
+  statusLog?: StatusHistory[];
+  /** Class-local annual report drafts. */
+  jahresberichte?: AppState['jahresberichte'];
+  /** Class-local profile / parent-conversation data. */
+  elterngespraeche?: AppState['elterngespraeche'];
+  kelGespraeche?: AppState['kelGespraeche'];
+  portfolioEntries?: AppState['portfolioEntries'];
+  kiPortfolioSummaries?: AppState['kiPortfolioSummaries'];
+  oberauData?: AppState['oberauData'];
+  /** Class-local handover/coverage notes used by the Übergabemappe. */
+  vertretungHinweise?: string;
   stundenZeiten?: Record<number, string>;
   mittagspauseNachStunde?: number;
   sue_kontrolle: Record<string, Record<string, string>>;
   lastGroups?: string[][];
   sitzplan_schueler: Record<string, { x: number; y: number }>;
   sitzplan_objekte: any[];
+  sitzplanRegeln?: SitzplanRegel[];
   tageplan?: Record<string, any>;
   faecher?: string[];
   fachConfig?: Record<string, { color: string; scaleColor?: 'blue' | 'red' | 'emerald'; unterrichtet?: boolean }>;
@@ -1067,7 +1152,8 @@ export interface SitzplanRegel {
   typ: 'nicht_nebeneinander' | 'nebeneinander' | 'feste_zone' | 'fester_platz';
   schuelerIds: string[]; // 1 oder 2 IDs
   zone?: 'vorne' | 'mitte' | 'hinten'; // nur bei feste_zone
-  platzId?: string; // nur bei fester_platz, ID des Sitzplatzes
+  platzId?: string; // Legacy-Feld für ältere Sitzplatzreferenzen
+  position?: { x: number; y: number }; // exakte Position für einen festen Platz
   notiz?: string; // optionaler Grund
 }
 
@@ -1185,6 +1271,7 @@ export interface AppState {
       inhalt: string;
       generiert: string;
       schuljahr: string;
+      reviewStatus?: 'freigegeben' | 'nacharbeiten' | 'offen';
     }
   };
   wochenrueckblick?: {
@@ -1219,7 +1306,10 @@ export interface AppState {
   klasse?: string;
   termine?: any[];
   activeClassId?: string;
-  archivedClasses?: ClassRoom[];
+  /** Read-only pedagogical year snapshots shown in Archiv. */
+  archivedClasses?: import('./lib/archiveData').ArchivedClassSnapshot[];
+  /** Full live-class records temporarily removed from the active class list and restorable from Backup. */
+  retiredClasses?: ClassRoom[];
   activePrintTemplate?: string;
   activePrintStudentId?: string;
   openPrintModalOnLoad?: boolean;
@@ -1283,7 +1373,16 @@ export interface AppState {
   };
   elterngespraeche: ParentMeeting[];
   kelGespraeche?: KELGespraech[];
+  /** Class-local student profile artifacts, summaries and legacy Oberau assessment data. */
+  portfolioEntries?: Record<string, PortfolioEntry[]>;
+  kiPortfolioSummaries?: Record<string, string>;
+  oberauData?: Record<string, {
+    remarks?: string;
+    evaluationData?: Record<string, number | null>;
+  }>;
   diagnostikTests?: DiagnostikTest[];
+  /** Legacy diagnostic result collection retained for migration/compatibility. */
+  diagnostikErgebnisse?: any[];
   diagnostikErhebungen?: DiagnostikErhebung[];
   /** Neues strukturiertes, kompetenzorientiertes Diagnostik-Ergebnis-Modell (Schritt 1) */
   diagnosticResults?: DiagnosticResult[];
@@ -1328,6 +1427,7 @@ export interface AppState {
   dienste?: KlassenDienst[];
   checklisten?: OrgCheckliste[];
   customLists?: CustomList[];
+  studentDevelopmentLists?: StudentDevelopmentList[];
   lernpfade?: Record<string, any>;
   errorDetectiveRecords?: any[];
   lehrerName?: string;
@@ -1367,6 +1467,8 @@ export interface AppState {
     huePercentDeduction?: number;
     hueMode?: 'document' | 'grade';
     disabledModules?: string[];
+    sidebarOrder?: string[];
+    sidebarPinned?: string[];
     klassenglasIcon?: string;
     behaviorStartDate?: string;
     enableKlimaBehaviorIntegration?: boolean;
@@ -1417,6 +1519,7 @@ export interface AppState {
   cockpitLayout?: CockpitWidgetConfig[];
   cockpitLayoutA?: CockpitWidgetConfig[];
   cockpitLayoutB?: CockpitWidgetConfig[];
+  cockpitLayoutC?: CockpitWidgetConfig[];
   boardSettings: {
     paperType?: 'blank' | 'lined' | 'squared' | 'writing-lines' | 'millimeter';
     paperSize?: number;
@@ -1466,6 +1569,8 @@ export interface AppState {
     remoteDrawingImage?: { dataUrl: string; timestamp: number };
     clearTafelTrigger?: number;
     isTafelOpen?: boolean;
+    tafelCommand?: import('./lib/tafelCommands').TafelCommand;
+    cockpitInkByClass?: Record<string, import('./components/cockpit/BoardInk').InkItem[]>;
     sidebarMode?: 'expanded' | 'mini' | 'hidden';
     activeFont?: string;
     toolbarWidgets?: string[]; // IDs of visible widgets in order

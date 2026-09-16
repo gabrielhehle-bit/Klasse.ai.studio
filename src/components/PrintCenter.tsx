@@ -46,8 +46,8 @@ import {
 import Markdown from 'react-markdown';
 import PrintHeader from './PrintHeader';
 import { exportSchuelerPDF } from '../lib/exportService';
-import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySubjects, getSchulstartKW, getSemester, getCurrentSchuljahr } from '../lib/utils';
-import { getFachCfg, berechne, getNotenLabel } from '../lib/GradeUtils';
+import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySubjects, getSchulstartKW, getSemester, getCurrentSchuljahr, formatLocalDateKey } from '../lib/utils';
+import { getFachCfg, berechne, getNotenLabel, getAssessmentMode } from '../lib/GradeUtils';
 import { DEFAULT_YEARLY_SUBJECTS, FAECHER_ALLE } from '../constants';
 
 const STANDARD_KEL_BEREICHE = [
@@ -117,6 +117,28 @@ export default function PrintCenter() {
   const zoomLevel = app.settings?.zoomLevel || 'standard';
   const students = app?.schueler || [];
   const startYear = getStartYear(app?.schuljahr);
+  const schoolYearKws = useMemo(() => {
+    const schuljahr = app?.schuljahr || getCurrentSchuljahr();
+    const bundesland = app?.bundesland || 'VBG';
+    const startKw = getSchulstartKW(schuljahr, bundesland);
+    const startMonday = kwToMonday(startKw, startYear);
+    const endYear = startYear + 1;
+    const weeks: number[] = [];
+    const currentMonday = new Date(startMonday);
+
+    while (
+      currentMonday.getFullYear() < endYear ||
+      (currentMonday.getFullYear() === endYear && currentMonday.getMonth() < 7)
+    ) {
+      weeks.push(getKW(currentMonday));
+      currentMonday.setDate(currentMonday.getDate() + 7);
+    }
+    return weeks;
+  }, [app?.schuljahr, app?.bundesland, startYear]);
+
+  const fallbackPlanningKW = schoolYearKws.includes(app?.currentKW || -1)
+    ? (app?.currentKW as number)
+    : (schoolYearKws[0] || getKW(new Date()));
 
   // Iframe check state
   const [isInIframe, setIsInIframe] = useState(false);
@@ -143,7 +165,7 @@ export default function PrintCenter() {
   const ALL_TEMPLATES = useMemo(() => [
     { id: 'schuelerliste', icon: Users, label: 'Klassenliste', desc: 'Namens- & Stammdatenliste', cat: 'listen', taskCat: 'klasse', badge: 'Klasse', keywords: 'schüler name klasse stammdaten telefon adresse' },
     { id: 'checkliste', icon: CheckSquare, label: 'Notenübersicht', desc: 'Punkteraster & Notenschnitt', cat: 'listen', taskCat: 'leistung', badge: 'Noten', keywords: 'noten punkte checkliste hausübung test kontrolle' },
-    { id: 'zeugnis_noten', icon: GraduationCap, label: 'Zeugnis-Noten', desc: '1. & 2. Semester Übersicht', cat: 'listen', taskCat: 'leistung', badge: 'Zeugnis', keywords: 'zeugnis noten semester ganzjahr halbjahr fächer' },
+    { id: 'zeugnis_noten', icon: GraduationCap, label: 'Semester-Notenspiegel', desc: '1. & 2. Semester Übersicht', cat: 'listen', taskCat: 'leistung', badge: 'Semester', keywords: 'noten semester übersicht ganzjahr halbjahr fächer' },
     { id: 'fehlstunden', icon: Clock, label: 'Anwesenheitsliste', desc: 'Entschuldigt / Unentschuldigt', cat: 'listen', taskCat: 'klasse', badge: 'Absenzen', keywords: 'fehlstunden krankenstand absenzen entschuldigt' },
 
     { id: 'wochenplan', icon: Calendar, label: 'Wochenplan', desc: 'Unterrichts- & Wochenplan', cat: 'planung', taskCat: 'planung', badge: 'Unterricht', keywords: 'wochenplan kalender unterricht aufgaben stunden' },
@@ -160,7 +182,7 @@ export default function PrintCenter() {
     { id: 'sitzplan', icon: Scale, label: 'Sitzplan', desc: 'Klassenzimmer-Tischordnung', cat: 'spezial', taskCat: 'klasse', badge: 'Raumplan', keywords: 'sitzplan raum tische tischordnung schüler' },
     { id: 'lob_druckkarte', icon: Award, label: 'Lob-Karten', desc: 'Urkunden & Motivation', cat: 'spezial', taskCat: 'schueler', badge: 'Motivation', keywords: 'lob karte urkunde auszeichnung karten belohnung' },
     { id: 'kassenuebersicht', icon: Banknote, label: 'Kassenübersicht', desc: 'Einnahmen, Ausgaben & Saldo', cat: 'spezial', taskCat: 'orga', badge: 'Kassa', keywords: 'kasse kassenbuch einnahmen ausgaben saldo geld finanzen buchungen klassenkasse orga beiträge sammlung' },
-    { id: 'pdf_export', icon: FileText, label: 'PDF-Export', desc: 'Bescheide & Formulare als PDF', cat: 'spezial', taskCat: 'orga', badge: 'PDF', keywords: 'pdf export raster layout print' },
+    { id: 'pdf_export', icon: FileText, label: 'PDF-Export', desc: 'Pädagogische Übersichten als PDF', cat: 'spezial', taskCat: 'orga', badge: 'PDF', keywords: 'pdf export förderübersicht raster layout print' },
     { id: 'smart_tools', icon: Sparkles, label: 'Geldsammlung & Orga', desc: 'Tischschilder, Kasse & Joker', cat: 'spezial', taskCat: 'orga', badge: 'Orga & Kasse', keywords: 'spezial tools powerup helfer zufall gruppen geld sammlung' },
   ], []);
 
@@ -231,7 +253,7 @@ export default function PrintCenter() {
   const [znSelectedSubjects, setZnSelectedSubjects] = useState<string[]>(() => [...FAECHER_ALLE]);
 
   // C. Wochenplan Options
-  const [wpKW, setWpKW] = useState<number>(app?.currentKW || 36);
+  const [wpKW, setWpKW] = useState<number>(fallbackPlanningKW);
   const [wpShowTimes, setWpShowTimes] = useState(true);
   const [wpShowSubjectOnly, setWpShowSubjectOnly] = useState(false);
   const [wpShowReflexion, setWpShowReflexion] = useState(true);
@@ -239,10 +261,10 @@ export default function PrintCenter() {
   const [wpShowEmptyNotesBox, setWpShowEmptyNotesBox] = useState(true);
 
   // D. Klassenbuch Wochenbericht Options
-  const [kbKW, setKbKW] = useState<number>(app?.currentKW || 36);
+  const [kbKW, setKbKW] = useState<number>(fallbackPlanningKW);
   const [kbMode, setKbMode] = useState<'single' | 'range' | 'all'>('single');
-  const [kbStartKW, setKbStartKW] = useState<number>(36);
-  const [kbEndKW, setKbEndKW] = useState<number>(app?.currentKW || 36);
+  const [kbStartKW, setKbStartKW] = useState<number>(fallbackPlanningKW);
+  const [kbEndKW, setKbEndKW] = useState<number>(fallbackPlanningKW);
   const [kbIncludeAbsentees, setKbIncludeAbsentees] = useState(true);
   const [kbIncludeOccurrences, setKbIncludeOccurrences] = useState(true);
   const [kbCustomNotesValue, setKbCustomNotesValue] = useState('');
@@ -283,14 +305,15 @@ export default function PrintCenter() {
   const [profStudentMode, setProfStudentMode] = useState<'single' | 'all'>('single');
   const [profSelectedStudentId, setProfSelectedStudentId] = useState<string>(students[0]?.id || '');
   const [profShowStammdaten, setProfShowStammdaten] = useState(true);
+  const [profShowContacts, setProfShowContacts] = useState(false);
   const [profShowLeistungen, setProfShowLeistungen] = useState(true);
   const [profShowFoerderprofil, setProfShowFoerderprofil] = useState(true);
   const [profShowDiagnostik, setProfShowDiagnostik] = useState(true);
   const [profShowKELReflexion, setProfShowKELReflexion] = useState(true);
-  const [profShowFinanzen, setProfShowFinanzen] = useState(true);
+  const [profShowFinanzen, setProfShowFinanzen] = useState(false);
   const [profShowMikaD, setProfShowMikaD] = useState(true);
   const [profShowVerhalten, setProfShowVerhalten] = useState(true);
-  const [profShowKIPortfolio, setProfShowKIPortfolio] = useState(true);
+  const [profShowKIPortfolio, setProfShowKIPortfolio] = useState(false);
   const [dossierPreviewOpen, setDossierPreviewOpen] = useState(false);
   const [dossierZoom, setDossierZoom] = useState(0.65);
 
@@ -318,14 +341,14 @@ export default function PrintCenter() {
   const [umShowKlassenliste, setUmShowKlassenliste] = useState(true);
   const [umShowSitzplan, setUmShowSitzplan] = useState(true);
   const [umShowFeedback, setUmShowFeedback] = useState(true);
-  const [umSchulleitung, setUmSchulleitung] = useState('Dir. Maria Musterfrau');
-  const [umSekretariat, setUmSekretariat] = useState('02742 - 123456');
-  const [umNachbarKlasse, setUmNachbarKlasse] = useState('Klasse 2b - Herr Huber');
+  const [umSchulleitung, setUmSchulleitung] = useState('');
+  const [umSekretariat, setUmSekretariat] = useState('');
+  const [umNachbarKlasse, setUmNachbarKlasse] = useState('');
   const [umVertretungsZeitraum, setUmVertretungsZeitraum] = useState('');
   const [umKrankheitNotes, setUmKrankheitNotes] = useState('');
 
-  // Z. Offizieller PDF Export
-  const [pdfFormType, setPdfFormType] = useState<'foerder_bescheid'>('foerder_bescheid');
+  // Z. Pädagogischer PDF Export – ausdrücklich kein amtlicher Bescheid
+  const [pdfFormType, setPdfFormType] = useState<'foerder_uebersicht'>('foerder_uebersicht');
   const [pdfStudentId, setPdfStudentId] = useState<string>(students[0]?.id || '');
 
   // M. Lob-Druckkarte Options
@@ -350,7 +373,7 @@ export default function PrintCenter() {
   const [stUrkundeType, setStUrkundeType] = useState<'rechnen' | 'lesen' | 'helfer' | 'sport' | 'custom'>('rechnen');
   const [stUrkundeTitle, setStUrkundeTitle] = useState('Urkunde: Rechen-Meister/in 🧮');
   const [stUrkundeText, setStUrkundeText] = useState('für herausragende Leistungen beim Rechnen im Zahlenraum 100 und die erfolgreiche Bewältigung aller Mathe-Quests!');
-  const [stUrkundeDate, setStUrkundeDate] = useState('10. Juli 2026');
+  const [stUrkundeDate, setStUrkundeDate] = useState(() => new Date().toLocaleDateString('de-AT'));
   const [stUrkundeStudentId, setStUrkundeStudentId] = useState<string>('all');
   
   // 3. Labels
@@ -360,7 +383,7 @@ export default function PrintCenter() {
   const [stNewLabelText, setStNewLabelText] = useState('');
   
   // 4. Mini Student IDs
-  const [stSchoolName, setStSchoolName] = useState('Volksschule Sonnenweg');
+  const [stSchoolName, setStSchoolName] = useState(app?.schulName || '');
   
   // 5. Homework Joker
   const [stJokerType, setStJokerType] = useState<'homework' | 'reading' | 'custom'>('homework');
@@ -378,10 +401,10 @@ export default function PrintCenter() {
   });
   
   // 7. Parents Meeting Slips
-  const [stMeetingDate, setStMeetingDate] = useState('24. November 2026');
-  const [stMeetingRoom, setStMeetingRoom] = useState('Klassenraum 2a (1. Stock)');
+  const [stMeetingDate, setStMeetingDate] = useState(() => new Date().toLocaleDateString('de-AT'));
+  const [stMeetingRoom, setStMeetingRoom] = useState('');
   const [stMeetingTimes, setStMeetingTimes] = useState<Record<string, string>>({});
-  const [stMeetingDocs, setStMeetingDocs] = useState('Schreibzeug, Portfolio-Mappe');
+  const [stMeetingDocs, setStMeetingDocs] = useState('');
 
   // --- KASSENÜBERSICHT (EINNAHMEN & AUSGABEN) OPTIONS ---
   const [koPeriodMode, setKoPeriodMode] = useState<'schuljahr' | 'monat' | 'custom'>('schuljahr');
@@ -395,7 +418,7 @@ export default function PrintCenter() {
     return `${startYr}-09-01`;
   });
   const [koCustomEndDate, setKoCustomEndDate] = useState<string>(() => {
-    return new Date().toISOString().split('T')[0];
+    return formatLocalDateKey(new Date());
   });
   const [koCategoryFilter, setKoCategoryFilter] = useState<'all' | 'sammlung' | 'ausgabe' | 'sonstiges'>('all');
   const [koShowSignatures, setKoShowSignatures] = useState<boolean>(true);
@@ -448,7 +471,7 @@ export default function PrintCenter() {
 
     // custom
     const s = koCustomStartDate || `${startYear}-09-01`;
-    const e = koCustomEndDate || new Date().toISOString().split('T')[0];
+    const e = koCustomEndDate || formatLocalDateKey(new Date());
     const sFormatted = new Date(s).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const eFormatted = new Date(e).toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const label = `${sFormatted} – ${eFormatted}`;
@@ -527,20 +550,37 @@ export default function PrintCenter() {
   useEffect(() => {
     if (app?.activePrintTemplate) {
       setActiveTemplate(app.activePrintTemplate as any);
-      
-      // Clean up template selection parameter
+
       setApp(prev => ({ ...prev, activePrintTemplate: undefined }));
     }
-    if (app?.activePrintStudentId) {
-      setKelSelectedStudentId(app.activePrintStudentId);
-      setProfSelectedStudentId(app.activePrintStudentId);
-      setKpSelectedStudentId(app.activePrintStudentId);
-      setLobSelectedStudentId(app.activePrintStudentId);
 
-      // Clean up student parameter
+    if (app?.activePrintStudentId) {
+      const belongsToActiveClass = students.some((student) => student.id === app.activePrintStudentId);
+      if (belongsToActiveClass) {
+        setKelSelectedStudentId(app.activePrintStudentId);
+        setProfSelectedStudentId(app.activePrintStudentId);
+        setDiagSelectedStudentId(app.activePrintStudentId);
+        setKpSelectedStudentId(app.activePrintStudentId);
+        setPdfStudentId(app.activePrintStudentId);
+        setLobSelectedStudentId(app.activePrintStudentId);
+      }
+
       setApp(prev => ({ ...prev, activePrintStudentId: undefined }));
     }
-  }, [app?.activePrintTemplate, app?.activePrintStudentId]);
+  }, [app?.activePrintTemplate, app?.activePrintStudentId, students, setApp]);
+
+  useEffect(() => {
+    const firstStudentId = students[0]?.id || '';
+    setKelSelectedStudentId(firstStudentId);
+    setProfSelectedStudentId(firstStudentId);
+    setDiagSelectedStudentId(firstStudentId);
+    setKpSelectedStudentId(firstStudentId);
+    setPdfStudentId(firstStudentId);
+    setLobSelectedStudentId(firstStudentId);
+    setStTischStudentId('all');
+    setStUrkundeStudentId('all');
+    setDossierPreviewOpen(false);
+  }, [app?.activeClassId]);
 
   const applyPreset = (preset: 'klassisch' | 'raster' | 'ausflug' | 'kel') => {
     setBypassOrientationAutoSet(true);
@@ -669,10 +709,11 @@ export default function PrintCenter() {
   // B. Weekly Calendar helpers
   const kwToDates = (kw: number) => {
     try {
-      const mon = kwToMonday(kw, startYear);
+      const isoYear = kwYear(kw, startYear, app?.bundesland || 'VBG');
+      const mon = kwToMonday(kw, isoYear);
       const fri = new Date(mon);
       fri.setDate(mon.getDate() + 4);
-      const sw = getSW(mon, app?.schuljahr || '2023/24');
+      const sw = getSW(mon, app?.schuljahr || getCurrentSchuljahr(), app?.bundesland || 'VBG');
       return { monday: mon, friday: fri, sw };
     } catch {
       return { monday: new Date(), friday: new Date(), sw: 1 };
@@ -826,11 +867,11 @@ export default function PrintCenter() {
   const getAbsenteesForWeek = (targetKW: number) => {
     const list: { name: string; info: string }[] = [];
     try {
-      const mon = kwToMonday(targetKW, startYear);
+      const mon = kwToDates(targetKW).monday;
       const datesOfPrevWeek = Array.from({ length: 5 }).map((_, i) => {
         const d = new Date(mon);
         d.setDate(mon.getDate() + i);
-        return d.toISOString().split('T')[0];
+        return formatLocalDateKey(d);
       });
 
       const stMap: Record<string, { daysLost: string[]; reasons: string[] }> = {};
@@ -902,55 +943,48 @@ export default function PrintCenter() {
 
   const kbAbsenteesList = useMemo(() => getAbsenteesForWeek(kbKW), [kbKW, app?.anwesenheit, app?.anwesenheitDetail, students, startYear]);
 
-  // E. Grades computation helper for single Student Dossier (KEL)
+  // E. Leistungsübersicht: immer mit der tatsächlich konfigurierten Beurteilungsart.
   const getStudentGradesSummary = (sId: string) => {
-    const list: { subject: string; grades: string[]; average: number | null }[] = [];
-    const subjects = ['Deutsch', 'Mathematik', 'Sachunterricht', 'Englisch'];
-    
-    if (!app?.noten || !app.noten[sId]) return list;
+    const subjectRecords = app?.noten?.[sId] || {};
+    const subjects = Array.from(new Set([
+      ...(app?.faecher || []),
+      ...Object.keys(subjectRecords),
+    ]));
 
-    // We search across 1. Sem and 2. Sem
-    subjects.forEach(sub => {
-      const gradesCollected: number[] = [];
-      const labelsCollected: string[] = [];
-
-      ['1', '2'].forEach(sem => {
-        const semData = app.noten[sId]?.[sub]?.[sem];
-        if (semData) {
-          // SA
-          if (Array.isArray(semData.sa)) {
-            semData.sa.forEach((g: any) => {
-              if (typeof g === 'number' && g >= 1 && g <= 5) gradesCollected.push(g);
-              else if (g && typeof g === 'object' && typeof g.note === 'number') gradesCollected.push(g.note);
-            });
-          }
-          // LZK
-          if (Array.isArray(semData.lzk)) {
-            semData.lzk.forEach((g: any) => {
-              if (typeof g === 'number' && g >= 1 && g <= 5) gradesCollected.push(g);
-              else if (g && typeof g === 'object' && typeof g.note === 'number') gradesCollected.push(g.note);
-            });
-          }
+    return subjects.map((subject) => {
+      const mode = getAssessmentMode(app, subject);
+      const semesterValues = (['1', '2'] as const).map((semester) => {
+        const semesterData: any = subjectRecords?.[subject]?.[semester];
+        const explicitEndnote = semesterData?.endnote;
+        if (explicitEndnote !== undefined && explicitEndnote !== null && String(explicitEndnote).trim() !== '') {
+          return { semester, text: `Endnote ${String(explicitEndnote).trim()}`, numeric: mode === 'grades' ? Number(explicitEndnote) : null };
         }
+
+        const calculated = berechne(app, sId, subject, semester);
+        if (calculated === null) return { semester, text: '—', numeric: null };
+        const text = mode === 'grades'
+          ? `Berechneter Stand ${Number(calculated).toFixed(1)}`
+          : `Berechneter Stand ${Math.round(Number(calculated))}%`;
+        return { semester, text, numeric: mode === 'grades' ? Number(calculated) : null };
       });
 
-      const avg = gradesCollected.length > 0 
-        ? parseFloat((gradesCollected.reduce((a, b) => a + b, 0) / gradesCollected.length).toFixed(1))
-        : null;
-
-      list.push({
-        subject: sub,
-        grades: gradesCollected.map(String),
-        average: avg
-      });
-    });
-
-    return list;
+      const latest = [...semesterValues].reverse().find((entry) => entry.text !== '—') || null;
+      return {
+        subject,
+        mode,
+        semester1: semesterValues[0].text,
+        semester2: semesterValues[1].text,
+        currentDisplay: latest?.text || '—',
+        average: latest?.numeric ?? null,
+      };
+    }).filter((row) => row.semester1 !== '—' || row.semester2 !== '—');
   };
 
   // Get active KEL data for a student
   const getKelDataForStudent = (sId: string) => {
-    return (app?.kelGespraeche || []).find((k: any) => k.schuelerId === sId);
+    return [...(app?.kelGespraeche || [])]
+      .filter((entry: any) => entry.schuelerId === sId)
+      .sort((a: any, b: any) => String(b.datum || '').localeCompare(String(a.datum || '')))[0];
   };
 
   // Theme styling definitions for high fidelity print/screen consistency
@@ -1340,7 +1374,7 @@ export default function PrintCenter() {
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg font-black text-slate-800 tracking-tight">DRUCKZENTRUM</h1>
                   <span className="bg-slate-100 text-slate-700 text-[0.6875rem] font-bold px-2.5 py-0.5 rounded-full border border-slate-200">
-                    Klasse {(app as any).activeKlasse || (app as any).selectedKlasse || '1a'}
+                    Klasse {app?.klassenbezeichnung?.trim() || 'nicht angegeben'}
                   </span>
                 </div>
                 <p className="text-[0.6875rem] text-slate-400 font-semibold mt-0.5">
@@ -1772,8 +1806,8 @@ export default function PrintCenter() {
               {/* Toggle Main Metadata Header */}
               <div className="flex items-center justify-between py-1 bg-slate-50 px-3 rounded-xl border border-slate-100">
                 <div className="space-y-0.5">
-                  <span className="text-[0.75rem] leading-tight font-black text-slate-700 block">Offiziellen Briefkopf drucken</span>
-                  <span className="text-[0.5625rem] font-semibold text-slate-400 leading-none">Inkludiert Schuldaten, § 17, Stand-Uhrzeit</span>
+                  <span className="text-[0.75rem] leading-tight font-black text-slate-700 block">Dokumentkopf drucken</span>
+                  <span className="text-[0.5625rem] font-semibold text-slate-400 leading-none">Zeigt vorhandene Schuldaten, Klasse und Stand – ohne amtliche Gültigkeitsbehauptung</span>
                 </div>
                 <input 
                   type="checkbox"
@@ -2058,7 +2092,7 @@ export default function PrintCenter() {
               {activeTemplate === 'zeugnis_noten' && (
                 <div className="space-y-4">
                   <div className="space-y-1">
-                    <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider block">Zeugnis-Typ</label>
+                    <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider block">Semester</label>
                     <div className="grid grid-cols-2 gap-2 bg-slate-50 p-1 rounded-2xl border border-slate-100">
                       <button
                         type="button"
@@ -2069,7 +2103,7 @@ export default function PrintCenter() {
                             : 'text-slate-500 hover:bg-white hover:text-slate-700'
                         }`}
                       >
-                        Halbjahreszeugnis (1. Sem)
+                        1. Semester
                       </button>
                       <button
                         type="button"
@@ -2080,7 +2114,7 @@ export default function PrintCenter() {
                             : 'text-slate-500 hover:bg-white hover:text-slate-700'
                         }`}
                       >
-                        Ganzjahreszeugnis (2. Sem)
+                        2. Semester
                       </button>
                     </div>
                   </div>
@@ -2128,7 +2162,7 @@ export default function PrintCenter() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (confirm("Möchten Sie wirklich alle manuell eingetragenen Zeugnisnoten für das ausgewählte Semester zurücksetzen? Dies stellt die live berechneten Werte wieder her.")) {
+                        if (confirm("Möchten Sie wirklich alle manuell eingetragenen Endnoten für das ausgewählte Semester zurücksetzen? Dies stellt die live berechneten Werte wieder her.")) {
                           setApp(prev => {
                             const updatedNoten = { ...(prev.noten || {}) };
                             students.forEach(st => {
@@ -2174,8 +2208,7 @@ export default function PrintCenter() {
                       onChange={(e) => setWpKW(parseInt(e.target.value))}
                       className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[0.75rem] leading-tight font-bold focus:ring-1"
                     >
-                      {Array.from({ length: 45 }).map((_, idx) => {
-                        const val = idx < 18 ? idx + 36 : idx - 17; // 36 to 52, then 1 to 27
+                      {schoolYearKws.map((val) => {
                         const dateDetails = kwToDates(val);
                         return (
                           <option key={val} value={val}>
@@ -2276,8 +2309,7 @@ export default function PrintCenter() {
                         onChange={(e) => setKbKW(parseInt(e.target.value))}
                         className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-[0.75rem] leading-tight font-bold focus:ring-1"
                       >
-                        {Array.from({ length: 45 }).map((_, idx) => {
-                          const val = idx < 18 ? idx + 36 : idx - 17;
+                        {schoolYearKws.map((val) => {
                           const dateDetails = kwToDates(val);
                           return (
                             <option key={val} value={val}>
@@ -2302,8 +2334,7 @@ export default function PrintCenter() {
                           }}
                           className="w-full px-2 py-1.5 rounded-lg bg-white border border-indigo-100 text-[0.65625rem] font-bold focus:ring-1 text-slate-850"
                         >
-                          {Array.from({ length: 45 }).map((_, idx) => {
-                            const val = idx < 18 ? idx + 36 : idx - 17;
+                          {schoolYearKws.map((val) => {
                             const dateDetails = kwToDates(val);
                             return (
                               <option key={val} value={val}>
@@ -2324,8 +2355,7 @@ export default function PrintCenter() {
                           }}
                           className="w-full px-2 py-1.5 rounded-lg bg-white border border-indigo-100 text-[0.65625rem] font-bold focus:ring-1 text-slate-850"
                         >
-                          {Array.from({ length: 45 }).map((_, idx) => {
-                            const val = idx < 18 ? idx + 36 : idx - 17;
+                          {schoolYearKws.map((val) => {
                             const dateDetails = kwToDates(val);
                             return (
                               <option key={val} value={val}>
@@ -3093,13 +3123,13 @@ export default function PrintCenter() {
               {activeTemplate === 'pdf_export' && (
                 <div className="space-y-4 text-left">
                   <div className="space-y-1.5">
-                    <span className="text-[0.625rem] font-black uppercase text-slate-400 tracking-wider block">Formular / Bescheid:</span>
+                    <span className="text-[0.625rem] font-black uppercase text-slate-400 tracking-wider block">PDF-Dokument:</span>
                     <select 
                       value={pdfFormType} 
                       onChange={(e) => setPdfFormType(e.target.value as any)}
                       className="w-full bg-slate-100 text-slate-700 text-[0.875rem] leading-snug font-bold border-none rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer"
                     >
-                      <option value="foerder_bescheid">Bescheid: Sonderpäd. Förderbedarf (SPF)</option>
+                      <option value="foerder_uebersicht">Pädagogische Förderübersicht</option>
                     </select>
                   </div>
 
@@ -3118,7 +3148,7 @@ export default function PrintCenter() {
 
                   <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100 mt-4">
                      <p className="text-[0.625rem] text-indigo-800 font-bold leading-relaxed">
-                        Die PDF-Funktion erzeugt Formulare und Übersichten zum Herunterladen. Prüfen Sie das Ergebnis vor der Weitergabe.
+                        Diese PDF ist eine pädagogische Arbeitsübersicht und kein amtlicher Bescheid. Prüfen Sie Inhalt und Empfängerkreis vor der Weitergabe.
                      </p>
                   </div>
                 </div>
@@ -3385,11 +3415,11 @@ export default function PrintCenter() {
                       className="w-full bg-slate-100 text-slate-700 text-[0.875rem] leading-snug font-bold border-none rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 appearance-none cursor-pointer font-black text-indigo-950"
                     >
                       <option value="tischschilder">🪪 1. Klassen-Tischschilder</option>
-                      <option value="urkunden">🏆 2. Schul-Urkunden & Diplome</option>
+                      <option value="urkunden">🏆 2. Motivations-Urkunden</option>
                       <option value="joker">🎟️ 3. Hausübungs- & Joker-Gutscheine</option>
                       <option value="pocket">🎒 4. Taschen-Notfall-Klassenliste</option>
                       <option value="labels">🏷️ 5. Klassenzimmer-Beschriftungen</option>
-                      <option value="ids">💳 6. Schülerausweise (Miniformat)</option>
+                      <option value="ids">💳 6. Namenskarten (Miniformat)</option>
                       <option value="birthday">📅 7. Klassen-Geburtstagskalender</option>
                       <option value="jobs">🧹 8. Klassendienste-Plakat</option>
                       <option value="meeting">💬 9. Sprechtag-Terminkärtchen</option>
@@ -3626,7 +3656,7 @@ export default function PrintCenter() {
                   {activeSmartTool === 'ids' && (
                     <div className="space-y-3 p-3.5 bg-slate-50 border border-slate-150 rounded-2xl">
                       <div className="space-y-1">
-                        <span className="text-[0.5625rem] font-black text-slate-400 uppercase">Schulname für Schülerausweise</span>
+                        <span className="text-[0.5625rem] font-black text-slate-400 uppercase">Schulname für Namenskarten</span>
                         <input
                           type="text"
                           value={stSchoolName}
@@ -3635,7 +3665,7 @@ export default function PrintCenter() {
                         />
                       </div>
                       <p className="text-[0.5625rem] text-slate-400 italic font-bold">
-                        Generiert pocket-große (85x54mm) Scheckkarten-Ausweise für alle Schüler mit offiziellem Design, Schulstempel-Vorschau und Foto-Platzhalter.
+                        Generiert Namenskarten im Format 85 × 54 mm. Sie sind ausdrücklich keine amtlichen Schülerausweise und enthalten keinen Gültigkeitsnachweis.
                       </p>
                     </div>
                   )}
@@ -4019,15 +4049,16 @@ export default function PrintCenter() {
                 
                 <div className="space-y-2 select-none">
                   {[
-                    { id: 'stammdaten', label: 'I. Stammdaten', desc: 'Allgemeine Schülerdaten', checked: profShowStammdaten, setter: setProfShowStammdaten },
+                    { id: 'stammdaten', label: 'I. Stammdaten', desc: 'Grunddaten ohne SV-Nummer und Elternkontakte', checked: profShowStammdaten, setter: setProfShowStammdaten },
+                    { id: 'kontakte', label: 'Kontaktdaten', desc: 'Adresse & Elternkontakte bewusst zusätzlich', checked: profShowContacts, setter: setProfShowContacts },
                     { id: 'finanzen', label: 'II. Finanzen & Beiträge', desc: 'Klassenkasse & Geldsammlungen', checked: profShowFinanzen, setter: setProfShowFinanzen },
                     { id: 'leistungen', label: 'III. Fachleistungen & Noten', desc: 'Notengitter & Notenspiegel', checked: profShowLeistungen, setter: setProfShowLeistungen },
                     { id: 'mikaD', label: 'IV. MIKA-D Sprachstand', desc: 'AO / Ordentliche DaZ Einstufung', checked: profShowMikaD, setter: setProfShowMikaD },
                     { id: 'verhalten', label: 'V. Sozialverhalten & Präsenz', desc: 'Verhaltensampel & Fehlstunden', checked: profShowVerhalten, setter: setProfShowVerhalten },
                     { id: 'kel', label: 'VI. KEL Selbstreflexion', desc: 'Schülereinschätzung & Notizen', checked: profShowKELReflexion, setter: setProfShowKELReflexion },
-                    { id: 'diagnostik', label: 'VII. Standardisierte Tests', desc: 'Oberau-Skala & Live-Protokolle', checked: profShowDiagnostik, setter: setProfShowDiagnostik },
+                    { id: 'diagnostik', label: 'VII. Pädagogische Erhebungen', desc: 'Dokumentierte Tests & 1:1-Protokolle', checked: profShowDiagnostik, setter: setProfShowDiagnostik },
                     { id: 'foerderprofil', label: 'VIII. Pädagogischer Förderplan', desc: 'Stärken & konkrete Förderziele', checked: profShowFoerderprofil, setter: setProfShowFoerderprofil },
-                    { id: 'kiPortfolio', label: 'IX. KI Entwicklungsbericht', desc: 'Gemini-gestützte Synthese', checked: profShowKIPortfolio, setter: setProfShowKIPortfolio },
+                    { id: 'kiPortfolio', label: 'IX. KI-Zusammenfassung', desc: 'Gespeicherter KI-Entwurf · vor Weitergabe prüfen', checked: profShowKIPortfolio, setter: setProfShowKIPortfolio },
                   ].map((item) => (
                     <label key={item.id} className="flex items-start justify-between cursor-pointer p-2.5 rounded-xl border border-slate-150 hover:bg-slate-50 hover:border-slate-200 transition-all">
                       <div className="space-y-0.5 text-left">
@@ -4051,6 +4082,7 @@ export default function PrintCenter() {
                   type="button"
                   onClick={() => {
                     setProfShowStammdaten(true);
+                    setProfShowContacts(true);
                     setProfShowFinanzen(true);
                     setProfShowLeistungen(true);
                     setProfShowMikaD(true);
@@ -4068,6 +4100,7 @@ export default function PrintCenter() {
                   type="button"
                   onClick={() => {
                     setProfShowStammdaten(false);
+                    setProfShowContacts(false);
                     setProfShowFinanzen(false);
                     setProfShowLeistungen(false);
                     setProfShowMikaD(false);
@@ -4108,6 +4141,7 @@ export default function PrintCenter() {
                 onClick={() => {
                   const options = {
                     showStammdaten: profShowStammdaten,
+                    showContacts: profShowContacts,
                     showFinanzen: profShowFinanzen,
                     showLeistungen: profShowLeistungen,
                     showMikaD: profShowMikaD,
@@ -4202,23 +4236,16 @@ export default function PrintCenter() {
   );
 
   function getKwIndex(kw: number) {
-    if (kw >= 36) {
-      return kw - 36;
-    }
-    return kw + 17;
+    return schoolYearKws.indexOf(kw);
   }
 
   function getActiveKbWeeks() {
     const startIdx = getKwIndex(kbStartKW);
     const endIdx = getKwIndex(kbEndKW);
+    if (startIdx < 0 || endIdx < 0) return [];
     const minIdx = Math.min(startIdx, endIdx);
     const maxIdx = Math.max(startIdx, endIdx);
-    const weeks: number[] = [];
-    for (let idx = minIdx; idx <= maxIdx; idx++) {
-      const kw = idx < 18 ? idx + 36 : idx - 17;
-      weeks.push(kw);
-    }
-    return weeks;
+    return schoolYearKws.slice(minIdx, maxIdx + 1);
   }
 
   function getKbWeeksToRender() {
@@ -4226,7 +4253,7 @@ export default function PrintCenter() {
     if (kbMode === 'single') {
       weeks = [kbKW];
     } else if (kbMode === 'all') {
-      weeks = Array.from({ length: 45 }).map((_, idx) => idx < 18 ? idx + 36 : idx - 17);
+      weeks = [...schoolYearKws];
     } else {
       weeks = getActiveKbWeeks();
     }
@@ -4864,9 +4891,9 @@ export default function PrintCenter() {
 
       // B2. ZEUGNIS NOTENLISTE
       case 'zeugnis_noten': {
-        const titleText = znSemester === '1' 
-          ? 'Notenspiegel / Halbjahreszeugnis-Noten' 
-          : 'Notenspiegel / Ganzjahreszeugnis-Noten';
+        const titleText = znSemester === '1'
+          ? 'Semester-Notenspiegel · 1. Semester'
+          : 'Semester-Notenspiegel · 2. Semester';
         
         return (
           <div className="space-y-4 print:space-y-2.5">
@@ -4928,72 +4955,78 @@ export default function PrintCenter() {
                       {znSelectedSubjects.map(f => {
                         const isFachActive = !app.faecher || app.faecher.includes(f);
                         const nd: any = app.noten?.[st.id]?.[f]?.[znSemester] || {};
+                        const mode = getAssessmentMode(app, f);
                         const manualGrade = nd.endnote || '';
-                        
-                        // Calculated grade via live sync
                         const calculatedNum = isFachActive ? berechne(app, st.id, f, znSemester) : null;
-                        const calculatedStr = calculatedNum !== null ? String(calculatedNum) : '';
-                        
-                        const hasManual = !!nd.endnote;
-                        const displayValue = hasManual ? manualGrade : calculatedStr;
+                        const hasManual = mode === 'grades' && !!nd.endnote;
+                        const displayValue = mode === 'grades'
+                          ? (hasManual ? String(manualGrade) : calculatedNum !== null ? Number(calculatedNum).toFixed(1) : '')
+                          : calculatedNum !== null
+                            ? `${Math.round(Number(calculatedNum))}%`
+                            : '';
 
                         return (
-                          <td 
-                            key={f} 
+                          <td
+                            key={f}
                             className="border-r border-zinc-200 py-1 px-1 text-center last:border-r-0 text-[0.625rem]"
                           >
                             <div className="flex items-center justify-center">
-                              {/* Screen-only interactive Select dropdown */}
-                              <select
-                                value={displayValue}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setApp(prev => {
-                                    const currentNoten = prev.noten || {};
-                                    const sidData = currentNoten[st.id] || {};
-                                    const fachData = sidData[f] || {};
-                                    const semData = fachData[znSemester] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
-                                    
-                                    return {
-                                      ...prev,
-                                      noten: {
-                                        ...currentNoten,
-                                        [st.id]: {
-                                          ...sidData,
-                                          [f]: {
-                                            ...fachData,
-                                            [znSemester]: {
-                                              ...semData,
-                                              endnote: val
+                              {mode === 'grades' ? (
+                                <>
+                                  <select
+                                    value={hasManual ? String(manualGrade) : ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setApp(prev => {
+                                        const currentNoten = prev.noten || {};
+                                        const sidData = currentNoten[st.id] || {};
+                                        const fachData = sidData[f] || {};
+                                        const semData = fachData[znSemester] || { sa: [], lzk: [], wp: [], aufgaben: [], hue: 0, hueAnm: [] };
+
+                                        return {
+                                          ...prev,
+                                          noten: {
+                                            ...currentNoten,
+                                            [st.id]: {
+                                              ...sidData,
+                                              [f]: {
+                                                ...fachData,
+                                                [znSemester]: {
+                                                  ...semData,
+                                                  endnote: val
+                                                }
+                                              }
                                             }
                                           }
-                                        }
-                                      }
-                                    };
-                                  });
-                                }}
-                                className={`no-print w-full max-w-[50px] bg-white border rounded-lg py-0.5 px-0.5 text-center font-bold text-[0.6875rem] outline-none transition-all cursor-pointer ${
-                                  hasManual 
-                                    ? 'border-amber-400 text-amber-700 bg-amber-50/20 focus:ring-1 focus:ring-amber-400' 
-                                    : calculatedNum !== null 
-                                      ? 'border-emerald-300 text-emerald-700 bg-emerald-50/15 focus:ring-1 focus:ring-emerald-400' 
-                                      : 'border-slate-200 text-slate-400 hover:border-slate-300 focus:ring-1 focus:ring-slate-300'
-                                }`}
-                              >
-                                <option value="">–</option>
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                                <option value="SPF">SPF</option>
-                                <option value="ESPF">ESPF</option>
-                              </select>
-
-                              {/* Print-only beautifully formatted clean display grade */}
-                              <span className="hidden print:inline font-bold text-zinc-900 text-[0.7125rem]">
-                                {displayValue || '—'}
-                              </span>
+                                        };
+                                      });
+                                    }}
+                                    className={`no-print w-full max-w-[50px] bg-white border rounded-lg py-0.5 px-0.5 text-center font-bold text-[0.6875rem] outline-none transition-all cursor-pointer ${
+                                      hasManual
+                                        ? 'border-amber-400 text-amber-700 bg-amber-50/20 focus:ring-1 focus:ring-amber-400'
+                                        : calculatedNum !== null
+                                          ? 'border-emerald-300 text-emerald-700 bg-emerald-50/15 focus:ring-1 focus:ring-emerald-400'
+                                          : 'border-slate-200 text-slate-400 hover:border-slate-300 focus:ring-1 focus:ring-slate-300'
+                                    }`}
+                                  >
+                                    <option value="">–</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="SPF">SPF</option>
+                                    <option value="ESPF">ESPF</option>
+                                  </select>
+                                  <span className="hidden print:inline font-bold text-zinc-900 text-[0.7125rem]">
+                                    {displayValue || '—'}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="font-bold text-zinc-700 text-[0.6875rem]">
+                                  {displayValue || '—'}
+                                </span>
+                              )}
                             </div>
                           </td>
                         );
@@ -5006,7 +5039,7 @@ export default function PrintCenter() {
 
             <div className="pt-2 border-t border-dashed border-zinc-200 flex justify-between items-center text-[0.5625rem] text-zinc-400 font-bold uppercase tracking-wider">
               <span>* SPF/ESPF = Sonderpädagogischer Förderbedarf / Erhöhter sonderpädagogischer Förderbedarf</span>
-              <span>Druckdatum: {new Date().toLocaleDateString('de-DE')} • Erstellt mit AI Studio</span>
+              <span>Druckdatum: {new Date().toLocaleDateString('de-AT')} • Erstellt mit Klassio</span>
             </div>
           </div>
         );
@@ -5140,7 +5173,7 @@ export default function PrintCenter() {
 
         // Generate actual sequence of school weeks (similar to YearlyPlan.tsx)
         const startYearVal = getStartYear(app?.schuljahr);
-        const startKW = getSchulstartKW(app?.schuljahr || '2023/24');
+        const startKW = getSchulstartKW(app?.schuljahr || getCurrentSchuljahr(), app?.bundesland || 'VBG');
         const endYear = startYearVal + 1;
         const startMonday = kwToMonday(startKW, startYearVal);
         const weeksList: Array<{ sw: number, kw: number, year: number, monday: Date }> = [];
@@ -6204,7 +6237,7 @@ export default function PrintCenter() {
             {list.map(st => (
               <div key={st.id} className="avoid-break bg-white border border-slate-200 rounded-3xl p-6 shadow-sm max-w-2xl mx-auto">
                 <span className="text-[0.5625rem] font-bold text-slate-400 uppercase block mb-4 select-none">
-                  🖨️ A4 Hochformat · Offizielles Schul-Diplom
+                  🖨️ A4 Hochformat · Motivations-Urkunde
                 </span>
 
                 {/* Diploma Content Frame */}
@@ -6381,7 +6414,7 @@ export default function PrintCenter() {
         return (
           <div className="space-y-6 p-2 text-left">
             <span className="text-[0.5625rem] font-bold text-slate-400 uppercase block select-none">
-              🖨️ A4 Hochformat · Mini-Schülerausweise (Scheckkarten-Format)
+              🖨️ A4 Hochformat · Namenskarten (85 × 54 mm)
             </span>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -6396,7 +6429,7 @@ export default function PrintCenter() {
                       <h4 className="text-[0.5625rem] font-black tracking-wider uppercase text-indigo-400 truncate max-w-[150px]">
                         {stSchoolName}
                       </h4>
-                      <span className="text-[0.5rem] font-bold text-slate-400 block mt-0.5 leading-none">OFFIZIELLER SCHÜLERAUSWEIS</span>
+                      <span className="text-[0.5rem] font-bold text-slate-400 block mt-0.5 leading-none">NAMENSKARTE · KEIN AMTLICHER AUSWEIS</span>
                     </div>
                     <span className="text-[0.5625rem] bg-indigo-600 text-white font-black px-1.5 py-0.5 rounded tracking-wide font-mono">
                       {app?.schuljahr}
@@ -6808,43 +6841,6 @@ export default function PrintCenter() {
   function renderSingleStudentProfile(st: any) {
     // 1. Fetch Grades Summary
     const grades = getStudentGradesSummary(st.id);
-    const coreSubjects = ['Deutsch', 'Mathematik', 'Sachunterricht', 'Englisch'];
-    if (app?.noten?.[st.id]) {
-      Object.keys(app.noten[st.id]).forEach(sub => {
-        if (!coreSubjects.includes(sub)) {
-          const gradesCollected: number[] = [];
-          ['1', '2'].forEach(sem => {
-            const semData = app.noten[st.id]?.[sub]?.[sem];
-            if (semData) {
-              if (Array.isArray(semData.sa)) {
-                semData.sa.forEach((g: any) => {
-                  if (typeof g === 'number' && g >= 1 && g <= 5) gradesCollected.push(g);
-                  else if (g && typeof g === 'object' && typeof g.note === 'number') gradesCollected.push(g.note);
-                });
-              }
-              if (Array.isArray(semData.lzk)) {
-                semData.lzk.forEach((g: any) => {
-                  if (typeof g === 'number' && g >= 1 && g <= 5) gradesCollected.push(g);
-                  else if (g && typeof g === 'object' && typeof g.note === 'number') gradesCollected.push(g.note);
-                });
-              }
-            }
-          });
-          const avg = gradesCollected.length > 0 
-            ? parseFloat((gradesCollected.reduce((a, b) => a + b, 0) / gradesCollected.length).toFixed(1))
-            : null;
-          
-          // Only push if there are actually grades or if it doesn't already exist in the list
-          if (gradesCollected.length > 0 && !grades.some(g => g.subject === sub)) {
-            grades.push({
-              subject: sub,
-              grades: gradesCollected.map(String),
-              average: avg
-            });
-          }
-        }
-      });
-    }
 
     // 2. Fetch KEL & Reflexion
     const kelRow = getKelDataForStudent(st.id);
@@ -6933,7 +6929,7 @@ export default function PrintCenter() {
       .sort((a: any, b: any) => (b.timestamp || 0) - (a.timestamp || 0));
 
     // 7. KI-Portfolio summary
-    const cachedKiSummary = localStorage.getItem(`ki_portfolio_summary_${st.id}`);
+    const cachedKiSummary = app.kiPortfolioSummaries?.[st.id] || '';
 
     // 8. Stars rendering helper
     const renderStars = (val?: number) => {
@@ -6957,8 +6953,8 @@ export default function PrintCenter() {
               </h2>
             </div>
             <div className="text-right text-[0.6875rem] font-bold text-slate-500 leading-tight">
-              <span>Stufe: {app?.stufe || st.besuchsjahr}.Klasse • SJ {app?.schuljahr || '2025/26'}</span>
-              <span className="block mt-1 font-semibold text-slate-450">Erstellt: {new Date().toLocaleDateString('de-DE')}</span>
+              <span>Stufe: {app?.stufe || st.besuchsjahr || '—'} • SJ {app?.schuljahr?.trim() || 'nicht angegeben'}</span>
+              <span className="block mt-1 font-semibold text-slate-450">Erstellt: {new Date().toLocaleDateString('de-AT')}</span>
             </div>
           </div>
 
@@ -6972,18 +6968,18 @@ export default function PrintCenter() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-y-3.5 gap-x-6 text-[0.75rem] leading-tight text-slate-700 leading-normal font-semibold">
                 <div><strong>Vorname:</strong> {st.vorname}</div>
                 <div><strong>Nachname:</strong> {st.nachname}</div>
-                <div><strong>Geburtstag:</strong> {st.geburtstag ? new Date(st.geburtstag).toLocaleDateString('de-DE') : '—'}</div>
-                <div><strong>SV-Nummer:</strong> {st.sv_nummer || '—'}</div>
-                <div><strong>Religion / Bekenntnis:</strong> {st.religion || 'ohne'}</div>
-                <div><strong>Staatsbürgerschaft:</strong> {st.staatsbuergerschaft || 'Österreich'}</div>
+                <div><strong>Geburtstag:</strong> {st.geburtstag ? new Date(st.geburtstag).toLocaleDateString('de-AT') : '—'}</div>
+                <div><strong>Religion / Bekenntnis:</strong> {st.religion || '—'}</div>
+                <div><strong>Staatsbürgerschaft:</strong> {st.staatsbuergerschaft || '—'}</div>
                 <div><strong>Besuchsjahr:</strong> {st.besuchsjahr ? `${st.besuchsjahr}. Schuljahr` : '—'}</div>
                 <div><strong>Schulstufe:</strong> {app?.stufe || st.besuchsjahr}. Schulstufe</div>
                 <div><strong>Klassencode:</strong> {app?.klassenbezeichnung || '—'}</div>
                 <div><strong>DaZ (Deutsch als Zweitsprache):</strong> {st.daz ? 'Ja' : 'Nein'}</div>
                 <div><strong>Sonderpäd. Förderbedarf (SPF):</strong> {st.spf ? 'Ja' : 'Nein'}</div>
-                <div><strong>Leistungsniveau:</strong> {st.niveau || 'Standard'}</div>
+                <div><strong>Leistungsniveau:</strong> {st.niveau || '—'}</div>
               </div>
 
+              {profShowContacts && (
               <div className="pt-3 border-t border-slate-100 space-y-3">
                 <span className="text-[0.625rem] font-black uppercase text-slate-400 tracking-wider block flex items-center gap-1.5">
                   <MapPin size={12} className="text-indigo-600" />
@@ -7001,6 +6997,7 @@ export default function PrintCenter() {
                   </div>
                 </div>
               </div>
+              )}
             </div>
           )}
 
@@ -7072,7 +7069,7 @@ export default function PrintCenter() {
                 </h2>
               </div>
               <div className="text-right text-[0.625rem] font-bold text-slate-400">
-                <span>SJ {app?.schuljahr || '2025/26'}</span>
+                <span>SJ {app?.schuljahr?.trim() || 'nicht angegeben'}</span>
               </div>
             </div>
 
@@ -7088,9 +7085,9 @@ export default function PrintCenter() {
                   <thead>
                     <tr className="border-b border-slate-300 text-[0.59375rem] text-slate-500 uppercase tracking-widest font-black">
                       <th className="py-2.5">Pflichtgegenstand</th>
-                      <th className="py-2.5 text-center">Erfasste Leistungsnoten (SA / LZK)</th>
-                      <th className="py-2.5 text-center">Notenmittelwert</th>
-                      <th className="py-2.5 text-right">Pädagogische Zielerreichung</th>
+                      <th className="py-2.5 text-center">1. Semester</th>
+                      <th className="py-2.5 text-center">2. Semester</th>
+                      <th className="py-2.5 text-right">Beurteilungsart</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -7098,19 +7095,10 @@ export default function PrintCenter() {
                       grades.map((gr, idx) => (
                         <tr key={idx} className="border-b border-slate-100 last:border-b-0 font-semibold text-slate-700">
                           <td className="py-2.5 font-bold text-slate-900">{gr.subject}</td>
-                          <td className="py-2.5 text-center text-slate-500 font-mono">
-                            {gr.grades.length > 0 ? gr.grades.join(', ') : '—'}
-                          </td>
-                          <td className="py-2.5 text-center">
-                            <span className="bg-slate-100 border border-slate-250 text-slate-800 font-extrabold px-2.5 py-0.5 rounded text-[0.6875rem] font-mono shadow-3xs">
-                              {gr.average !== null ? gr.average.toFixed(1) : '—'}
-                            </span>
-                          </td>
+                          <td className="py-2.5 text-center text-slate-600 font-semibold">{gr.semester1}</td>
+                          <td className="py-2.5 text-center text-slate-600 font-semibold">{gr.semester2}</td>
                           <td className="py-2.5 text-right text-slate-500 font-black uppercase text-[0.59375rem]">
-                            {gr.average !== null && gr.average <= 1.5 ? 'Herausragend' 
-                              : gr.average !== null && gr.average <= 2.5 ? 'Erwarteter Standard voll erfüllt' 
-                              : gr.average !== null && gr.average <= 4.0 ? 'Erwarteter Standard erfüllt' 
-                              : gr.average !== null ? 'Entwicklungsbedarf' : 'Keine Leistungsdaten'}
+                            {gr.mode === 'grades' ? 'Noten' : gr.mode === 'percent' ? 'Prozent' : 'Punkte → Prozentstand'}
                           </td>
                         </tr>
                       ))
@@ -7308,18 +7296,17 @@ export default function PrintCenter() {
                   VII. Standardisierte Erhebungen &amp; 1:1 Live-Protokolle
                 </span>
 
-                {/* Oberau Skala box */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[0.75rem] leading-tight font-semibold leading-normal">
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <p className="text-[0.5625rem] uppercase font-black text-slate-400 mb-1">Oberau-Skala (Selbststeuerungs-Index):</p>
+                    <p className="text-[0.5625rem] uppercase font-black text-slate-400 mb-1">Zusätzliche strukturierte Profildaten:</p>
                     <p className="text-slate-800 font-extrabold text-[0.875rem] leading-snug">
-                      Indexierungswert: {st.oberauIndex !== undefined ? `${st.oberauIndex} / 10` : '8.5 / 10'}
+                      {Object.values(app.oberauData?.[st.id]?.evaluationData || {}).filter((value) => value !== null && value !== undefined).length} dokumentierte Werte
                     </p>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <p className="text-[0.5625rem] uppercase font-black text-slate-400 mb-1">Matrix-Erläuterung &amp; Zusatzinfo:</p>
+                    <p className="text-[0.5625rem] uppercase font-black text-slate-400 mb-1">Pädagogische Zusatzbemerkung:</p>
                     <p className="text-slate-600 text-[0.6875rem] italic leading-tight">
-                      {st.foerderprofil?.zusatzinfo || localStorage.getItem(`oberau_remarks_${st.id}`) || 'Keine spezifischen qualitativen Matrix-Zusatzinformationen hinterlegt.'}
+                      {st.foerderprofil?.zusatzinfo || app.oberauData?.[st.id]?.remarks || 'Keine zusätzliche Bemerkung hinterlegt.'}
                     </p>
                   </div>
                 </div>
@@ -7452,7 +7439,7 @@ export default function PrintCenter() {
                 </h2>
               </div>
               <div className="text-right text-[0.625rem] font-bold text-slate-400">
-                <span>KI-Modell: Gemini 1.5 Pro</span>
+                <span>Gespeicherter KI-Entwurf · fachlich prüfen</span>
               </div>
             </div>
 
@@ -7498,7 +7485,7 @@ export default function PrintCenter() {
             </div>
           </div>
           <div className="pt-8 text-center text-[0.5rem] text-slate-300 font-bold uppercase tracking-widest">
-            Vertrauliches Dokument • Nur für den internen pädagogischen Dienstgebrauch • DSGVO-Konform
+            Vertraulich behandeln • Empfängerkreis und Inhalt vor Weitergabe prüfen
           </div>
         </div>
 
@@ -7547,8 +7534,8 @@ export default function PrintCenter() {
               <thead>
                 <tr className="border-b border-slate-300 text-[0.625rem] text-slate-500 uppercase tracking-widest leading-none">
                   <th className="py-2.5">Fachgebiet</th>
-                  <th className="py-2.5 text-center">Semester-Note</th>
-                  <th className="py-2.5 text-right font-medium">Klassen-Standard</th>
+                  <th className="py-2.5 text-center">Aktueller dokumentierter Stand</th>
+                  <th className="py-2.5 text-right font-medium">Beurteilungsart</th>
                 </tr>
               </thead>
               <tbody>
@@ -7558,10 +7545,12 @@ export default function PrintCenter() {
                       <td className="py-2.5 text-slate-800 font-extrabold">{gr.subject}</td>
                       <td className="py-2.5 text-center">
                         <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-black px-2.5 py-0.5 rounded text-[0.6875rem]">
-                          {gr.average !== null ? gr.average.toFixed(1) : '—'}
+                          {gr.currentDisplay}
                         </span>
                       </td>
-                      <td className="py-2.5 text-right text-slate-400 text-[0.625rem] uppercase font-bold">Erfüllt M-Standard</td>
+                      <td className="py-2.5 text-right text-slate-400 text-[0.625rem] uppercase font-bold">
+                        {gr.mode === 'grades' ? 'Noten' : gr.mode === 'percent' ? 'Prozent' : 'Punkte'}
+                      </td>
                     </tr>
                   ))
                 ) : (
@@ -7581,7 +7570,7 @@ export default function PrintCenter() {
             <div className="bg-white p-4 rounded-xl border border-slate-205 text-[0.75rem] leading-tight italic font-semibold text-slate-600 leading-relaxed relative">
               <span className="text-[1.875rem] leading-tight text-indigo-200 absolute right-3 bottom-0 leading-none select-none">“</span>
               <p className="z-10 relative">
-                {kelRow?.notiz || st.notiz || `${st.vorname} zeigt eine hervorragende soziale Integration in die Klassengemeinschaft, arbeitet sehr fleißig an Aufgaben und ist stets hilfsbereit.`}
+                {kelRow?.notiz || st.notiz || 'Keine pädagogische Stärkennotiz hinterlegt.'}
               </p>
             </div>
             
@@ -7837,7 +7826,7 @@ export default function PrintCenter() {
         </div>
         <h2 className="text-[1.25rem] leading-normal font-black text-slate-800 mb-2 mt-2">PDF erstellen und prüfen</h2>
         <p className="text-[0.875rem] leading-snug font-bold text-slate-500 mb-6 text-center max-w-sm">
-          Diese Ansicht wird nicht im HTML-Browser gerendert, sondern direkt über die PDF-Engine erzeugt.
+          Die Datei wird lokal im Browser erzeugt. Sie ist eine pädagogische Arbeitsübersicht und kein amtliches Dokument.
         </p>
         
         <button
@@ -7846,14 +7835,14 @@ export default function PrintCenter() {
              
              // Dynamic import to split chunk
              const pdfEngine = await import('../lib/pdfEngine');
-             if (pdfFormType === 'foerder_bescheid') {
-               pdfEngine.generateFoerderBescheid(targetSt, erhebungen);
+             if (pdfFormType === 'foerder_uebersicht') {
+               await pdfEngine.generateFoerderUebersicht(targetSt, erhebungen);
              }
           }}
           className="flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all text-white px-8 py-4 rounded-2xl font-black shadow-lg"
         >
           <FileText size={20} />
-          {pdfFormType === 'foerder_bescheid' ? 'Förder-Bescheid PDF' : 'PDF Exportieren'}
+          {pdfFormType === 'foerder_uebersicht' ? 'Förderübersicht als PDF' : 'PDF exportieren'}
         </button>
       </div>
     );
@@ -7970,7 +7959,7 @@ export default function PrintCenter() {
           </div>
 
           <div className="border-t border-slate-100 pt-4 text-center text-[0.5625rem] text-slate-400 font-bold select-none uppercase tracking-widest leading-relaxed">
-            Unterliegt der DSGVO Verschwiegenheitspflicht • Erstellt mit Schulplaner-Assistent
+            Vertraulich behandeln • Nur an berechtigte Empfänger:innen weitergeben
           </div>
         </div>
       );
@@ -8199,37 +8188,28 @@ export default function PrintCenter() {
         {/* Grades summary matrix */}
         {kelShowGrades && gradings.length > 0 && (
           <div className="space-y-2.5 avoid-break pt-2">
-            <h3 className="text-[0.75rem] leading-tight font-black uppercase tracking-wide text-zinc-500">III. Leistungsüberblick (Aktuelle Semester-Mittelwerte)</h3>
+            <h3 className="text-[0.75rem] leading-tight font-black uppercase tracking-wide text-zinc-500">III. Leistungsüberblick (dokumentierte Semesterstände)</h3>
             <div className="border border-zinc-450 p-4 rounded-2xl bg-white">
               <table className="w-full">
                 <thead>
                   <tr className="text-left font-black text-[0.59375rem] text-zinc-400 uppercase border-b border-zinc-200 pb-1">
                     <th className="pb-1">Pflichtgegenstand / Fach</th>
-                    <th className="pb-1 text-center w-40">Mittelwert Ø</th>
-                    <th className="pb-1 text-right w-44">Kompetenz-Gauges (1-5)</th>
+                    <th className="pb-1 text-center w-56">Aktueller Stand</th>
+                    <th className="pb-1 text-right w-44">Beurteilungsart</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {gradings.map((gr, gx) => {
-                    const barPercent = gr.average ? Math.max(0, Math.min(100, (5 - gr.average) * 25)) : 0;
-                    return (
-                      <tr key={gx} className="border-b border-zinc-150 last:border-0 py-2.5">
-                        <td className="py-2.5 font-black text-black">{gr.subject}</td>
-                        <td className="py-2.5 text-center font-black text-zinc-800 text-[0.875rem] leading-snug">
-                          {gr.average ? gr.average : <span className="text-zinc-300 text-[0.75rem] leading-tight italic">Kein Ertrag</span>}
-                        </td>
-                        <td className="py-2.5 text-right">
-                          {gr.average ? (
-                            <div className="w-36 h-2 bg-zinc-100 rounded-full inline-block border border-zinc-300 ">
-                              <div className="h-full bg-zinc-700 rounded-full" style={{ width: `${barPercent}%` }}></div>
-                            </div>
-                          ) : (
-                            <span className="text-zinc-300 text-[0.75rem] leading-tight italic">-</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                  {gradings.map((gr, gx) => (
+                    <tr key={gx} className="border-b border-zinc-150 last:border-0 py-2.5">
+                      <td className="py-2.5 font-black text-black">{gr.subject}</td>
+                      <td className="py-2.5 text-center font-black text-zinc-800 text-[0.75rem] leading-snug">
+                        {gr.currentDisplay}
+                      </td>
+                      <td className="py-2.5 text-right text-zinc-500 text-[0.6875rem] font-bold uppercase">
+                        {gr.mode === 'grades' ? 'Noten' : gr.mode === 'percent' ? 'Prozent' : 'Punkte'}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -8263,17 +8243,10 @@ export default function PrintCenter() {
                     </div>
                   );
                 })}
-                {/* Fallback to default nice styled view if no comments have been recorded yet */}
                 {(!kelRow || !STANDARD_KEL_BEREICHE.some(f => kelRow.selbsteinschaetzungKind?.[f.id]?.kommentar || kelRow.einschaetzungLehrperson?.[f.id]?.kommentar)) && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1 bg-zinc-50 p-3 rounded-xl border border-zinc-200/50">
-                      <span className="text-[0.5625rem] font-black uppercase text-indigo-700 tracking-wider block">Kind Selbsteinschätzung (Beispiel)</span>
-                      <p className="italic text-zinc-650 font-bold">"Ich kann mich in der Klasse gut konzentrieren und halte mich meistens an die vereinbarten Klassenregeln."</p>
-                    </div>
-                    <div className="space-y-1 bg-zinc-50 p-3 rounded-xl border border-zinc-200/50">
-                      <span className="text-[0.5625rem] font-black uppercase text-emerald-700 tracking-wider block">Lehrperson Einschätzung (Beispiel)</span>
-                      <p className="italic text-zinc-650 font-bold">"Sehr fleißige und bewusste Mitarbeit. Teilt sich Aufgaben klug ein. Helfende Hand in Gruppenstunden."</p>
-                    </div>
+                  <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center">
+                    <span className="text-[0.625rem] font-black uppercase tracking-wider text-zinc-500">Noch keine Einschätzungen erfasst</span>
+                    <p className="mt-1 text-[0.6875rem] font-medium text-zinc-500">Für dieses Kind liegen noch keine KEL-Kommentare vor.</p>
                   </div>
                 )}
               </div>

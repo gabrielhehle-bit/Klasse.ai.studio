@@ -5,7 +5,7 @@ import { FAECHER_ALLE } from '../constants';
 import { 
   Plus, Table, Check, X, ChevronLeft, LayoutGrid, Tag, Trash2, Calendar, 
   BookOpen, Search, ArrowUp, ArrowDown, Sparkles, Filter, Users, 
-  TrendingUp, AlertCircle, CheckSquare, RotateCcw, Award, Star, HelpCircle, Settings
+  TrendingUp, AlertCircle, CheckSquare, RotateCcw, Award, Star, HelpCircle, Settings, Mic
 } from 'lucide-react';
 import { generateId } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
@@ -938,6 +938,15 @@ export function StationenbetriebManager() {
                               </div>
 
                               <div className="flex items-center gap-1 shrink-0 ml-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setApp(prev => ({ ...prev, stimmNotizModal: student.id }))}
+                                  className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-400 hover:border-cyan-300 hover:bg-cyan-50 hover:text-cyan-700 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all"
+                                  title={`Notiz zu ${student.vorname} diktieren`}
+                                  aria-label={`Notiz zu ${student.vorname} diktieren`}
+                                >
+                                  <Mic size={12} />
+                                </button>
                                 {isFullyDonePflicht && (
                                   <motion.span 
                                     initial={{ scale: 0 }}

@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { berechne } from '../lib/GradeUtils';
 import SeatingPlanAnalysis from './SeatingPlanAnalysis';
+import { areSeatingNeighbors, classifySeatPositions, findSeatingRuleViolations, sanitizeSeatingRules, sameSeat } from '../lib/seatingPlanRules';
+import { getLocalDateKey, getSeatingPlanAbsentStudents, isStudentAbsentOnDate, orderStudentsByComplementaryLevels } from '../lib/seatingPlanData';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
   if (!geburtstagStr) return false;
@@ -173,10 +175,7 @@ const StudentCard = React.memo(({
   };
 
   const isTodayAbsent = () => {
-    const today = new Date().toISOString().split('T')[0];
-    const data = app.anwesenheit?.[s.id]?.[today];
-    if (data && Object.values(data).some(v => v && v !== 'a')) return true;
-    return false;
+    return isStudentAbsentOnDate(app, s.id, getLocalDateKey());
   };
 
   // Boundary logic to prevent info box from clipping at screen edges
@@ -332,7 +331,7 @@ const StudentCard = React.memo(({
              <div className="flex flex-col gap-1.5">
                 {/* Status, Level, DaZ/SPF Row */}
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="bg-slate-800 text-slate-300 font-extrabold px-1.5 py-0.5 rounded text-[0.5rem] uppercase tracking-wider">Level {s.niveau}</span>
+                  <span className="bg-slate-800 text-slate-300 font-extrabold px-1.5 py-0.5 rounded text-[0.5rem] uppercase tracking-wider">Niveau {s.niveau}</span>
                   {s.daz && <span className="bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider text-[0.5rem]">DaZ</span>}
                   {(s.spf || s.espf) && <span className="bg-rose-500/20 text-rose-300 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider text-[0.5rem]">SPF</span>}
                   <span className="text-slate-400 ml-auto whitespace-nowrap text-[0.5625rem]">
@@ -553,11 +552,12 @@ const parseDateToMs = (dateStr: string) => {
 };
 
 const getTodayAttendanceStatus = (sid: string, app: any) => {
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalDateKey();
   const todayRecord = app?.anwesenheit?.[sid]?.[todayStr] || {};
   const statusValues = Object.values(todayRecord);
+  const todayDetail = app?.anwesenheitDetail?.[sid]?.[todayStr];
   
-  if (statusValues.length === 0) {
+  if (statusValues.length === 0 && Number(todayDetail?.fehlstunden || 0) <= 0) {
     return { label: "Kein Eintrag", color: "text-slate-500", bgColor: "bg-slate-50 border-slate-100", icon: "⚪" };
   }
   
@@ -566,6 +566,12 @@ const getTodayAttendanceStatus = (sid: string, app: any) => {
   }
   if (statusValues.some(st => st === 'e')) {
     return { label: "Entschuldigt fehlend", color: "text-amber-600", bgColor: "bg-amber-50 border-amber-150", icon: "🟡" };
+  }
+  if (Number(todayDetail?.fehlstunden || 0) > 0) {
+    const isUnexcused = todayDetail?.notiz === 'Unentschuldigt';
+    return isUnexcused
+      ? { label: "Unentschuldigt fehlend", color: "text-rose-600", bgColor: "bg-rose-50 border-rose-150", icon: "🔴" }
+      : { label: "Entschuldigt fehlend", color: "text-amber-600", bgColor: "bg-amber-50 border-amber-150", icon: "🟡" };
   }
   return { label: "Anwesend", color: "text-emerald-600", bgColor: "bg-emerald-50 border-emerald-150", icon: "🟢" };
 };
@@ -1123,11 +1129,11 @@ const RulesGeneratorModal = ({
     notiz?: string;
   }>({ typ: 'nicht_nebeneinander', schuelerIds: [] });
 
-  const [pickingSeat, setPickingSeat] = useState(false);
-
-  // Filter students that actually exist (if deleted)
-  const existingRules = (app.sitzplanRegeln || []).filter((r: any) => 
-    r.schuelerIds.every((id: string) => app.schueler.some((s: any) => s.id === id))
+  // Filter malformed/legacy rules and capture missing fixed-seat positions safely.
+  const existingRules = sanitizeSeatingRules(
+    app.sitzplanRegeln || [],
+    app.schueler || [],
+    app.sitzplan_schueler || {}
   );
 
   const students = [...app.schueler].sort((a: any, b: any) => a.vorname.localeCompare(b.vorname));
@@ -1138,8 +1144,31 @@ const RulesGeneratorModal = ({
       alert("Maximal 20 Regeln erlaubt.");
       return;
     }
-    const rule = { ...newRule, id: Date.now().toString() };
-    setApp({ ...app, sitzplanRegeln: [...existingRules, rule] });
+
+    const primaryStudentId = newRule.schuelerIds[0];
+    const fixedPosition = newRule.typ === 'fester_platz'
+      ? app.sitzplan_schueler?.[primaryStudentId]
+      : undefined;
+
+    if (newRule.typ === 'fester_platz' && !fixedPosition) {
+      alert("Bitte platziere das Kind zuerst im Sitzplan. Erst dann kann dieser Platz fixiert werden.");
+      return;
+    }
+
+    const rule = {
+      ...newRule,
+      id: crypto.randomUUID(),
+      ...(newRule.typ === 'feste_zone' ? { zone: newRule.zone || 'vorne' } : {}),
+      ...(fixedPosition ? { position: { ...fixedPosition } } : {})
+    };
+
+    setApp((prev: any) => ({
+      ...prev,
+      sitzplanRegeln: [
+        ...sanitizeSeatingRules(prev.sitzplanRegeln || [], prev.schueler || [], prev.sitzplan_schueler || {}),
+        rule
+      ]
+    }));
     setNewRule({ typ: 'nicht_nebeneinander', schuelerIds: [] });
   };
 
@@ -1173,7 +1202,10 @@ const RulesGeneratorModal = ({
                       {r.notiz && <span className="text-xs text-slate-400 truncate">{r.notiz}</span>}
                     </div>
                     <button 
-                      onClick={() => setApp({ ...app, sitzplanRegeln: existingRules.filter((er: any) => er.id !== r.id) })}
+                      onClick={() => setApp((prev: any) => ({
+                        ...prev,
+                        sitzplanRegeln: (prev.sitzplanRegeln || []).filter((er: any) => er.id !== r.id)
+                      }))}
                       className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
                     >
                       <Trash2 size={16} />
@@ -1198,7 +1230,6 @@ const RulesGeneratorModal = ({
                     key={t.typ}
                     onClick={() => {
                       setNewRule({ typ: t.typ as any, schuelerIds: [] });
-                      setPickingSeat(false);
                     }}
                     className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${newRule.typ === t.typ ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-600 hover:border-indigo-200 hover:bg-slate-50'}`}
                   >
@@ -1244,7 +1275,9 @@ const RulesGeneratorModal = ({
                   {newRule.typ === 'fester_platz' && (
                      <div className="flex-1 flex items-center">
                         <span className="text-xs text-slate-500 italic mr-2 bg-slate-100 p-2 rounded-lg">
-                          Aktueller Platz wird automatisch übernommen
+                          {newRule.schuelerIds[0] && app.sitzplan_schueler?.[newRule.schuelerIds[0]]
+                            ? `Aktueller Platz wird fixiert (${Math.round(app.sitzplan_schueler[newRule.schuelerIds[0]].x)} / ${Math.round(app.sitzplan_schueler[newRule.schuelerIds[0]].y)})`
+                            : 'Kind zuerst im Raum platzieren'}
                         </span>
                      </div>
                   )}
@@ -1260,7 +1293,11 @@ const RulesGeneratorModal = ({
 
                 <button 
                   onClick={handleSave}
-                  disabled={newRule.schuelerIds.length === 0 || ((newRule.typ === 'nicht_nebeneinander' || newRule.typ === 'nebeneinander') && newRule.schuelerIds.length < 2)}
+                  disabled={
+                    newRule.schuelerIds.length === 0 ||
+                    ((newRule.typ === 'nicht_nebeneinander' || newRule.typ === 'nebeneinander') && newRule.schuelerIds.length < 2) ||
+                    (newRule.typ === 'fester_platz' && !app.sitzplan_schueler?.[newRule.schuelerIds[0]])
+                  }
                   className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-black disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-indigo-600/20"
                 >
                   Regel speichern
@@ -1320,7 +1357,6 @@ export default function SeatingPlan() {
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [gridSnapType, setGridSnapType] = useState<'none' | '10' | '20' | '40'>('20');
   const snapToGrid = gridSnapType !== 'none';
-  const [absentStudents, setAbsentStudents] = useState<Record<string, boolean>>({});
   const [hoveredStudentId, setHoveredStudentId] = useState<string | null>(null);
   const [pinnedStudentId, setPinnedStudentId] = useState<string | null>(null);
   const [isLottoRunning, setIsLottoRunning] = useState(false);
@@ -1369,6 +1405,38 @@ export default function SeatingPlan() {
   const [showPresetsMenu, setShowPresetsMenu] = useState(false);
   const [showAnalysisPanel, setShowAnalysisPanel] = useState(false);
   const [highlightedStudentIds, setHighlightedStudentIds] = useState<string[] | null>(null);
+  const lottoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  React.useEffect(() => {
+    // Seat-plan editing state must never cross a class boundary.
+    if (lottoIntervalRef.current) {
+      clearInterval(lottoIntervalRef.current);
+      lottoIntervalRef.current = null;
+    }
+    setSelectedObjId(null);
+    setShowGenerator(false);
+    setShowRulesModal(false);
+    setShowAnalysisPanel(false);
+    setShowFilterMenu(false);
+    setShowPresetsMenu(false);
+    setHighlightedStudentIds(null);
+    setHoveredStudentId(null);
+    setPinnedStudentId(null);
+    setActiveDrag(null);
+    setSwapHoverTargetId(null);
+    setActiveTableDrag(null);
+    tableDragRef.current = null;
+    setHistory([]);
+    setPreviewState({ active: false, previousSitzplan: null, violatedRules: [], history: [], historyIndex: -1 });
+    setShowUndoShuffle(false);
+    setLastShuffleSitzplan(null);
+    setIsLottoRunning(false);
+    setLottoWinner(null);
+  }, [app.activeClassId]);
+
+  React.useEffect(() => () => {
+    if (lottoIntervalRef.current) clearInterval(lottoIntervalRef.current);
+  }, []);
 
   const toggleEmojis = () => {
     setShowEmojis(prev => {
@@ -1607,6 +1675,10 @@ export default function SeatingPlan() {
   const GRID_SIZE = gridSnapType === '10' ? 10 : gridSnapType === '20' ? 20 : gridSnapType === '40' ? 40 : 10;
 
   const students = app.schueler;
+  const absentStudents = React.useMemo(
+    () => getSeatingPlanAbsentStudents(app, (students || []).map((student: any) => student.id)),
+    [app.anwesenheit, app.anwesenheitDetail, students]
+  );
   
   // Safety fallback for seating data
   const sitzplan_schueler = app.sitzplan_schueler || {};
@@ -1842,14 +1914,7 @@ export default function SeatingPlan() {
           if (girls[i]) sortedCurrentlyPlaced.push(girls[i]);
         }
       } else if (type === 'tandem') {
-        const l1 = currentlyPlaced.filter(s => s.niveau === 1);
-        const l2 = currentlyPlaced.filter(s => s.niveau === 2);
-        sortedCurrentlyPlaced = [];
-        const max = Math.max(l1.length, l2.length);
-        for (let i = 0; i < max; i++) {
-          if (l1[i]) sortedCurrentlyPlaced.push(l1[i]);
-          if (l2[i]) sortedCurrentlyPlaced.push(l2[i]);
-        }
+        sortedCurrentlyPlaced = orderStudentsByComplementaryLevels(currentlyPlaced);
       } else if (type === 'automatik') {
         const spfZorDaz = currentlyPlaced.filter(s => s.spf || s.espf || s.daz);
         const standard = currentlyPlaced.filter(s => !(s.spf || s.espf || s.daz));
@@ -1919,14 +1984,7 @@ export default function SeatingPlan() {
         if (girls[i]) sorted.push(girls[i]);
       }
     } else if (type === 'tandem') {
-      const l1 = students.filter(s => s.niveau === 1);
-      const l2 = students.filter(s => s.niveau === 2);
-      sorted = [];
-      const max = Math.max(l1.length, l2.length);
-      for (let i = 0; i < max; i++) {
-        if (l1[i]) sorted.push(l1[i]);
-        if (l2[i]) sorted.push(l2[i]);
-      }
+      sorted = orderStudentsByComplementaryLevels(students);
     } else if (type === 'impulse') {
       const active = students.filter(s => {
         const t = s.charakter || [];
@@ -2054,6 +2112,8 @@ export default function SeatingPlan() {
       if (s.niveau === 1) return '#ecfdf5'; // Emerald 50
       if (s.niveau === 2) return '#f0f9ff'; // Sky 50
       if (s.niveau === 3) return '#fffbeb'; // Amber 50
+      if (s.niveau === 4) return '#fff7ed'; // Orange 50
+      if (s.niveau === 5) return '#fdf2f8'; // Pink 50
       return '#ffffff';
     }
 
@@ -2182,77 +2242,50 @@ export default function SeatingPlan() {
 
   const runLotto = () => {
     if (placedStudents.length === 0) return;
+    if (lottoIntervalRef.current) clearInterval(lottoIntervalRef.current);
+
     setIsLottoRunning(true);
     setLottoWinner(null);
     let counter = 0;
-    const interval = setInterval(() => {
+    lottoIntervalRef.current = setInterval(() => {
       const idx = Math.floor(Math.random() * placedStudents.length);
       if (placedStudents[idx]) setLottoWinner(placedStudents[idx].id);
       counter++;
       if (counter > 20) {
-        clearInterval(interval);
+        if (lottoIntervalRef.current) clearInterval(lottoIntervalRef.current);
+        lottoIntervalRef.current = null;
         setIsLottoRunning(false);
         setTimeout(() => setLottoWinner(null), 5000);
       }
     }, 100);
   };
 
-  const checkRuleViolations = (assignments: Record<string, { x: number, y: number }>) => {
-    const rules = app.sitzplanRegeln || [];
-    const violations: string[] = [];
-    
-    // Nearest neighbor: dx < 160 && dy < 60 OR dx < 60 && dy < 160
-    const areNeighbors = (p1: any, p2: any) => {
-      const dx = Math.abs(p1.x - p2.x);
-      const dy = Math.abs(p1.y - p2.y);
-      return (dx < 160 && dy < 60) || (dx < 60 && dy < 160);
-    };
-
-    rules.forEach((r: any) => {
-      if (r.typ === 'nicht_nebeneinander') {
-        const p1 = assignments[r.schuelerIds[0]];
-        const p2 = assignments[r.schuelerIds[1]];
-        if (p1 && p2 && areNeighbors(p1, p2)) {
-          violations.push(`${app.schueler.find((s:any) => s.id === r.schuelerIds[0])?.vorname} & ${app.schueler.find((s:any) => s.id === r.schuelerIds[1])?.vorname} (zu nah)`);
-        }
-      }
-    });
-    return violations;
+  const checkRuleViolations = (
+    assignments: Record<string, { x: number; y: number }>,
+    fixedReferencePlan: Record<string, { x: number; y: number }> = {}
+  ) => {
+    const rules = sanitizeSeatingRules(app.sitzplanRegeln || [], app.schueler || [], app.sitzplan_schueler || {});
+    return findSeatingRuleViolations(
+      assignments,
+      rules,
+      app.schueler || [],
+      app.sitzplan_objekte || [],
+      fixedReferencePlan
+    ).map(violation => violation.message);
   };
 
   const handleShuffleRules = () => {
     const existingPlan = app.sitzplan_schueler || {};
-    const rules = app.sitzplanRegeln || [];
-    // Only shuffle students that are already placed! So we only use existing positions.
-    const currentStudentIds = Object.keys(existingPlan);
+    const rules = sanitizeSeatingRules(app.sitzplanRegeln || [], app.schueler || [], existingPlan);
+    const currentStudentIds = (app.schueler || [])
+      .filter((student: any) => existingPlan[student.id])
+      .map((student: any) => student.id);
     if (currentStudentIds.length === 0) return;
 
-    // Get all chairs
-    const availableChairs = currentStudentIds.map(id => existingPlan[id]);
-    
-    // Find if the blackboard (Tafel) is placed at the bottom of the room
-    const blackboard = app.sitzplan_objekte?.find((obj: any) => obj.type === 'blackboard');
-    let isBlackboardAtBottom = false;
-    if (blackboard && availableChairs.length > 0) {
-      const avgY = availableChairs.reduce((sum, c) => sum + c.y, 0) / availableChairs.length;
-      if (blackboard.y > avgY) {
-        isBlackboardAtBottom = true;
-      }
-    }
-
-    // Sort vertical for zones. 
-    // If the blackboard is at the bottom, higher Y coords are closer to the blackboard ("vorne"), so sort descending.
-    // Otherwise, lower Y coords are closer to the blackboard ("vorne"), so sort ascending.
-    const sortedChairs = [...availableChairs].sort((a, b) => {
-      return isBlackboardAtBottom ? (b.y - a.y) : (a.y - b.y);
-    });
-    const third = Math.ceil(sortedChairs.length / 3);
-    const chairsWithZones = sortedChairs.map((pos, idx) => {
-      let zone = 'mitte';
-      if (idx < third) zone = 'vorne';
-      else if (idx >= sortedChairs.length - third) zone = 'hinten';
-      return { pos, zone };
-    });
+    // Seat zones are ranked by real distance to the current blackboard, so
+    // "vorne" also works when the board is at the bottom or side of the room.
+    const availableChairs = currentStudentIds.map((id: string) => ({ ...existingPlan[id] }));
+    const chairsWithZones = classifySeatPositions(availableChairs, app.sitzplan_objekte || []);
 
     let bestAssignments: any = null;
     let minViolations = 999;
@@ -2264,11 +2297,12 @@ export default function SeatingPlan() {
       const pendingIds: string[] = [];
 
       // 1. Fester Platz
-      currentStudentIds.forEach(id => {
-        const isFesterPlatz = rules.find((r:any) => r.typ === 'fester_platz' && r.schuelerIds.includes(id));
-        if (isFesterPlatz) {
-          newPlan[id] = existingPlan[id];
-          const idx = unusedChairs.findIndex(c => c.pos.x === existingPlan[id].x && c.pos.y === existingPlan[id].y);
+      currentStudentIds.forEach((id: string) => {
+        const fixedRule = rules.find((r:any) => r.typ === 'fester_platz' && r.schuelerIds.includes(id));
+        if (fixedRule) {
+          const fixedPosition = fixedRule.position || existingPlan[id];
+          newPlan[id] = { ...fixedPosition };
+          const idx = unusedChairs.findIndex(c => sameSeat(c.position, fixedPosition));
           if (idx !== -1) unusedChairs.splice(idx, 1);
         } else {
           pendingIds.push(id);
@@ -2283,7 +2317,7 @@ export default function SeatingPlan() {
           const validChairs = unusedChairs.filter(c => c.zone === zoneRule.zone);
           if (validChairs.length > 0) {
             const chairIdx = Math.floor(Math.random() * validChairs.length);
-            newPlan[id] = validChairs[chairIdx].pos;
+            newPlan[id] = validChairs[chairIdx].position;
             const globalIdx = unusedChairs.indexOf(validChairs[chairIdx]);
             unusedChairs.splice(globalIdx, 1);
           } else {
@@ -2291,6 +2325,29 @@ export default function SeatingPlan() {
           }
         } else {
           stillPendingIds.push(id);
+        }
+      });
+
+      // 3. Nebeneinander: if one partner is already constrained by a fixed
+      // seat/zone, place the other partner next to that position first.
+      rules.filter((r:any) => r.typ === 'nebeneinander').forEach((r:any) => {
+        const [firstId, secondId] = r.schuelerIds;
+        const firstPlaced = newPlan[firstId];
+        const secondPlaced = newPlan[secondId];
+        const pendingId = firstPlaced && !secondPlaced && stillPendingIds.includes(secondId)
+          ? secondId
+          : secondPlaced && !firstPlaced && stillPendingIds.includes(firstId)
+            ? firstId
+            : null;
+        const anchorPosition = firstPlaced || secondPlaced;
+
+        if (!pendingId || !anchorPosition) return;
+        const neighborIndex = unusedChairs.findIndex(chair =>
+          areSeatingNeighbors(anchorPosition, chair.position)
+        );
+        if (neighborIndex >= 0) {
+          newPlan[pendingId] = unusedChairs[neighborIndex].position;
+          unusedChairs.splice(neighborIndex, 1);
         }
       });
 
@@ -2311,11 +2368,11 @@ export default function SeatingPlan() {
         // Find neighborhood pair
         for (let j = 0; j < unusedChairs.length; j++) {
            for (let k = j + 1; k < unusedChairs.length; k++) {
-              const dx = Math.abs(unusedChairs[j].pos.x - unusedChairs[k].pos.x);
-              const dy = Math.abs(unusedChairs[j].pos.y - unusedChairs[k].pos.y);
+              const dx = Math.abs(unusedChairs[j].position.x - unusedChairs[k].position.x);
+              const dy = Math.abs(unusedChairs[j].position.y - unusedChairs[k].position.y);
               if ((dx < 160 && dy < 60) || (dx < 60 && dy < 160)) {
-                newPlan[id1] = unusedChairs[j].pos;
-                newPlan[id2] = unusedChairs[k].pos;
+                newPlan[id1] = unusedChairs[j].position;
+                newPlan[id2] = unusedChairs[k].position;
                 unusedChairs.splice(k, 1);
                 unusedChairs.splice(j, 1);
                 placed = true;
@@ -2324,13 +2381,14 @@ export default function SeatingPlan() {
            }
            if (placed) break;
         }
-        if (!placed) {
-          // just put them somewhere if no pair available
+        if (!placed && unusedChairs.length >= 2) {
+          // Fallback keeps both students placed, while the rule checker will
+          // still report if the two fallback seats are not actually adjacent.
           const r1 = Math.floor(Math.random() * unusedChairs.length);
-          newPlan[id1] = unusedChairs[r1].pos;
+          newPlan[id1] = unusedChairs[r1].position;
           unusedChairs.splice(r1, 1);
           const r2 = Math.floor(Math.random() * unusedChairs.length);
-          newPlan[id2] = unusedChairs[r2].pos;
+          newPlan[id2] = unusedChairs[r2].position;
           unusedChairs.splice(r2, 1);
         }
       }
@@ -2340,11 +2398,11 @@ export default function SeatingPlan() {
       for (const idx of remainingIds) {
         if (unusedChairs.length === 0) break;
         const cIdx = Math.floor(Math.random() * unusedChairs.length);
-        newPlan[idx] = unusedChairs[cIdx].pos;
+        newPlan[idx] = unusedChairs[cIdx].position;
         unusedChairs.splice(cIdx, 1);
       }
 
-      const currentViolations = checkRuleViolations(newPlan);
+      const currentViolations = checkRuleViolations(newPlan, existingPlan);
       if (currentViolations.length === 0) {
         bestAssignments = newPlan;
         finalViolations = [];
@@ -2358,20 +2416,23 @@ export default function SeatingPlan() {
       }
     }
 
+    const resolvedAssignments = bestAssignments || { ...existingPlan };
+    const resolvedViolations = bestAssignments ? finalViolations : checkRuleViolations(resolvedAssignments, existingPlan);
+
     setPreviewState(prev => {
       const isNew = !prev.active;
       const initialPlan = isNew ? { ...existingPlan } : prev.previousSitzplan;
-      const newHistoryItem = { plan: bestAssignments, violations: finalViolations };
+      const newHistoryItem = { plan: resolvedAssignments, violations: resolvedViolations };
       const newHistory = isNew ? [newHistoryItem] : [...prev.history.slice(0, prev.historyIndex + 1), newHistoryItem];
       return {
         active: true,
         previousSitzplan: initialPlan,
-        violatedRules: finalViolations,
+        violatedRules: resolvedViolations,
         history: newHistory,
         historyIndex: newHistory.length - 1
       };
     });
-    setApp(prev => ({ ...prev, sitzplan_schueler: bestAssignments }));
+    setApp(prev => ({ ...prev, sitzplan_schueler: resolvedAssignments }));
   };
 
   const handleReset = () => {
@@ -3847,6 +3908,8 @@ export default function SeatingPlan() {
                      <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-[#ecfdf5] border border-emerald-200" /> <span className="text-[0.5625rem]">L1</span></div>
                      <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-[#f0f9ff] border border-sky-200" /> <span className="text-[0.5625rem]">L2</span></div>
                      <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-[#fffbeb] border border-amber-200" /> <span className="text-[0.5625rem]">L3</span></div>
+                     <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-[#fff7ed] border border-orange-200" /> <span className="text-[0.5625rem]">L4</span></div>
+                     <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-[#fdf2f8] border border-pink-200" /> <span className="text-[0.5625rem]">L5</span></div>
                    </div>
                  ) : overlayFilter === 'charakter' ? (
                    <div className="flex items-center gap-2">

@@ -6,6 +6,13 @@ import { format } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { LERNZIELE_BY_STUFE } from './LernzielTracker';
 import { analyzePortfolioEntryForGoals } from '../services/aiService';
+import { formatLocalDateKey } from '../lib/utils';
+
+const formatPortfolioDate = (value: string, pattern: string) => {
+  const date = new Date(value);
+  if (!value || Number.isNaN(date.getTime())) return 'Datum nicht erfasst';
+  return format(date, pattern, { locale: de });
+};
 
 const getFachStyles = (fachName: string) => {
   const name = (fachName || '').toLowerCase();
@@ -65,11 +72,46 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Bitte wähle eine Bilddatei aus.');
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      alert('Das Bild ist zu groß. Bitte wähle ein Bild unter 15 MB.');
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      setNewEntry(prev => ({ ...prev, bildUrl: event.target?.result as string }));
+      const source = event.target?.result;
+      if (typeof source !== 'string') return;
+
+      const image = new window.Image();
+      image.onload = () => {
+        const maxDimension = 1600;
+        const scale = Math.min(1, maxDimension / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          alert('Das Bild konnte nicht verarbeitet werden.');
+          return;
+        }
+        context.drawImage(image, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', 0.82);
+        if (compressed.length > 4 * 1024 * 1024) {
+          alert('Das komprimierte Bild ist noch zu groß. Bitte wähle ein kleineres Bild.');
+          return;
+        }
+        setNewEntry(prev => ({ ...prev, bildUrl: compressed }));
+      };
+      image.onerror = () => alert('Das Bild konnte nicht gelesen werden.');
+      image.src = source;
     };
+    reader.onerror = () => alert('Das Bild konnte nicht gelesen werden.');
     reader.readAsDataURL(file);
   };
 
@@ -78,7 +120,7 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
 
     const entry: PortfolioEntry = {
       id: crypto.randomUUID(),
-      datum: new Date().toISOString(),
+      datum: formatLocalDateKey(new Date()),
       titel: newEntry.titel,
       beschreibung: newEntry.beschreibung,
       bildUrl: newEntry.bildUrl,
@@ -144,7 +186,7 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
   const analyzeEntry = async (entry: PortfolioEntry) => {
     setAnalyzingId(entry.id);
     try {
-      const stufe = student?.niveau || 1;
+      const stufe = Math.max(1, Math.min(4, Number(app.stufe) || Number(student?.niveau) || 1));
       const allGoalsObj = LERNZIELE_BY_STUFE[stufe] || {};
       const availableGoals: {id: string, text: string, fach: string}[] = [];
       Object.keys(allGoalsObj).forEach(fach => {
@@ -190,7 +232,7 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
                   schuelerId: schuelerId,
                   bereich: 'schule',
                   zielText: goal.text,
-                  datum: new Date().toISOString().split('T')[0],
+                  datum: formatLocalDateKey(new Date()),
                   status: 'aktiv'
               }
           ]
@@ -274,7 +316,7 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
                   
                   <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                     <span className="text-[0.5625rem] font-bold text-slate-400">
-                      {format(new Date(entry.datum), "dd.MM.yyyy", { locale: de })}
+                      {formatPortfolioDate(entry.datum, "dd.MM.yyyy")}
                     </span>
                     {entry.tags && entry.tags[0] && (
                       <span className={`text-[0.5625rem] font-black uppercase tracking-wider px-2 py-0.5 rounded border ${getFachStyles(entry.tags[0])}`}>
@@ -503,7 +545,7 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
                 {/* Card Header metadata */}
                 <div className="flex flex-wrap items-center gap-2 mb-3.5">
                   <div className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-150">
-                    <Calendar size={10} /> {format(new Date(entry.datum), "dd. MMMM yyyy", { locale: de })}
+                    <Calendar size={10} /> {formatPortfolioDate(entry.datum, "dd. MMMM yyyy")}
                   </div>
                   {isKelHighlight && (
                     <span className="text-[0.5625rem] font-black uppercase tracking-wider text-amber-700 bg-amber-100/75 px-2.5 py-1 rounded-full border border-amber-200/40 flex items-center gap-1">

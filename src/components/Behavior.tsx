@@ -38,17 +38,19 @@ import {
   MoreVertical,
   Edit2,
   SmilePlus,
-  BookOpen
+  BookOpen,
+  Mic
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DebouncedInput } from './DebouncedInput';
 import { polishText } from '../services/aiService';
-import { logObservation, logActivity } from '../lib/utils';
+import { formatLocalDateKey, logObservation, logActivity } from '../lib/utils';
+import { filterChronicleEntries } from '../lib/behaviorChronicle';
 import { NoteEntry } from '../types';
 
 export default function Behavior() {
   const { app, setApp } = useApp();
-  const [activeTab, setActiveTab] = useState<'verhalten' | 'config' | 'chronik'>('verhalten');
+  const [activeTab, setActiveTab] = useState<'verhalten' | 'config' | 'chronik'>('chronik');
   const [selectedStatStudentId, setSelectedStatStudentId] = useState<string | null>(null);
   const [statsPeriod, setStatsPeriod] = useState<'week' | 'month' | 'total'>('month');
   const [visibleLimit, setVisibleLimit] = useState(15);
@@ -72,6 +74,13 @@ export default function Behavior() {
     statusLog: any[];
     behavior_status: Record<string, string>;
   }[]>([]);
+
+  React.useEffect(() => {
+    // Undo/redo snapshots belong to exactly one class.
+    setBehaviorHistory([]);
+    setRedoHistory([]);
+    setSelectedStatStudentId(null);
+  }, [app.activeClassId]);
 
   const pushToHistory = (customLog?: any[], customStatus?: Record<string, string>) => {
     const logSnapshot = (customLog || app.statusLog || []).map((l: any) => ({ ...l }));
@@ -176,7 +185,25 @@ export default function Behavior() {
   const [chronikSearch, setChronikSearch] = useState('');
   const [newEntryText, setNewEntryText] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
+  const [noteCategory, setNoteCategory] = useState<'Journal' | 'Verhalten' | 'Erfolg' | 'Eltern' | 'Notiz'>('Notiz');
   const [aiLoading, setAiLoading] = useState(false);
+
+  React.useEffect(() => {
+    // Never carry a selected child from one class into another class's chronicle.
+    setSelectedStudentId('');
+    setChronikSearch('');
+    setVisibleLimit(15);
+  }, [app.activeClassId]);
+
+  const chronicleEntries = React.useMemo(
+    () => filterChronicleEntries(
+      app.notes || [],
+      chronikFilter,
+      chronikSearch,
+      app.schueler || []
+    ).sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime()),
+    [app.notes, app.schueler, chronikFilter, chronikSearch]
+  );
 
   const [showIconPicker, setShowIconPicker] = useState<number | null>(null);
   const commonIcons = ['🌟', '😊', '😐', '⚠️', '🚫', '🔥', '❤️', '👍', '👎', '👏', '🙌', '🤝', '💎', '🏆', '👑', '✨', '🚀', '⭐', '🎈', '🎉', '📝', '💬', '📖', '💡', '⏰', '🍎', '🎒', '🎨', '🧩', '⚽', '💻', '🦁', '🐘', '🦎', '🦉', '🐝'];
@@ -185,7 +212,7 @@ export default function Behavior() {
     if (confirm('Möchtest du alle Schüler auf die Standard-Stufe zurücksetzen?')) {
       pushToHistory();
       const newStatusMap: Record<string, string> = {};
-      const now = new Date().toISOString().split('T')[0];
+      const now = formatLocalDateKey(new Date());
       const timestamp = Date.now();
       
       const newHistoryEntries = app.schueler.map((s: any) => ({
@@ -199,8 +226,7 @@ export default function Behavior() {
       app.schueler.forEach((s: any) => { newStatusMap[s.id] = defaultStageId; });
       setApp((prev: any) => ({ 
         ...prev, 
-        behavior_status: newStatusMap, 
-        behavior_notes: {},
+        behavior_status: newStatusMap,
         statusLog: [...newHistoryEntries, ...(prev.statusLog || [])]
       }));
     }
@@ -216,7 +242,7 @@ export default function Behavior() {
       const newEntry = {
         id: Math.random().toString(36).substr(2, 9),
         schuelerId: sid,
-        datum: new Date().toISOString().split('T')[0],
+        datum: formatLocalDateKey(new Date()),
         iconId: stageId,
         timestamp: Date.now()
       };
@@ -291,18 +317,16 @@ export default function Behavior() {
     if (e) e.preventDefault();
     if (!newEntryText.trim()) return;
 
-    const kategorie = selectedStudentId ? 'Verhalten' : 'Journal';
-
     logObservation(
       setApp, 
       selectedStudentId || undefined, 
       newEntryText, 
-      kategorie, 
-      'Chronik-Eingabe'
+      noteCategory, 
+      'Notizen-Hauptbereich'
     );
     
     setNewEntryText('');
-    logActivity(setApp, `Eintrag erstellt: ${kategorie}`, 'note');
+    logActivity(setApp, `Notiz erstellt: ${noteCategory}`, 'note');
   };
 
   const deleteJournalEntry = (id: string) => {
@@ -335,9 +359,9 @@ export default function Behavior() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/80 backdrop-blur-xl p-4 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-900/5 relative  print:hidden">
         <div className="flex flex-wrap gap-2 p-1.5 bg-slate-50 rounded-[2rem] border border-slate-100 relative z-10 w-full sm:w-auto">
           {[
-            { id: 'verhalten', label: 'Status', icon: <ShieldAlert size={14} /> },
-            { id: 'chronik', label: 'Chronik & Notizen', icon: <BookOpen size={14} /> },
-            { id: 'config', label: 'Setup', icon: <Settings size={14} /> }
+            { id: 'chronik', label: 'Notizen', icon: <BookOpen size={14} /> },
+            { id: 'verhalten', label: 'Beobachtungsstatus', icon: <ShieldAlert size={14} /> },
+            { id: 'config', label: 'Einstellungen', icon: <Settings size={14} /> }
           ].map(tab => (
             <button 
               key={tab.id}
@@ -352,7 +376,7 @@ export default function Behavior() {
         <div className="flex items-center gap-3 pr-4 relative z-10">
           <div className="text-right hidden md:block">
             <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Modul</p>
-            <p className="text-[0.875rem] leading-snug font-black text-slate-900">Verhalten & Notizen</p>
+            <p className="text-[0.875rem] leading-snug font-black text-slate-900">Notizen & Beobachtungen</p>
           </div>
           <div className="w-10 h-10 bg-accent/10 rounded-2xl flex items-center justify-center text-accent shadow-inner">
              <Notebook size={20} />
@@ -376,7 +400,7 @@ export default function Behavior() {
                       <ShieldAlert size={28} />
                     </div>
                     <div>
-                      <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">Verhaltens-Dashboard</h3>
+                      <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">Beobachtungsstatus</h3>
                       <p className="text-[0.875rem] text-slate-400 font-bold uppercase tracking-widest mt-1">Aktueller Status der Kinder</p>
                     </div>
                   </div>
@@ -490,15 +514,15 @@ export default function Behavior() {
                </div>
                
                <form onSubmit={handleCreateEntry} className="relative z-10 space-y-6">
-                  <div className="flex flex-wrap items-center gap-4 mb-4">
-                     <div className="flex-1 min-w-[300px] relative">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
+                     <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={16} />
                         <select
                           className="w-full bg-white/5 border border-white/10 rounded-2xl pl-11 pr-10 py-4 text-white text-[0.875rem] font-black outline-none focus:border-accent/40 appearance-none transition-all cursor-pointer"
                           value={selectedStudentId}
                           onChange={e => setSelectedStudentId(e.target.value)}
                         >
-                           <option value="" className="bg-slate-900 text-white">Allgemeiner Eintrag (Journal)</option>
+                           <option value="" className="bg-slate-900 text-white">Allgemeine Notiz</option>
                            <optgroup label="Schüler/innen" className="bg-slate-900 text-white font-black">
                               {sortedStudents.map(s => (
                                 <option key={s.id} value={s.id} className="bg-slate-900 text-white italic">{s.nachname} {s.vorname}</option>
@@ -509,21 +533,43 @@ export default function Behavior() {
                           <ChevronRight size={16} className="rotate-90" />
                         </div>
                      </div>
-                     <div className="hidden sm:block">
-                        <span className="text-[0.625rem] font-black text-white/30 uppercase tracking-[0.2em]">
-                           {selectedStudentId ? 'Kategorie: Verhalten' : 'Kategorie: Journal'}
-                        </span>
+
+                     <div className="relative">
+                        <Notebook className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={16} />
+                        <select
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl pl-11 pr-10 py-4 text-white text-[0.875rem] font-black outline-none focus:border-accent/40 appearance-none transition-all cursor-pointer"
+                          value={noteCategory}
+                          onChange={e => setNoteCategory(e.target.value as typeof noteCategory)}
+                        >
+                           <option value="Notiz" className="bg-slate-900 text-white">Notiz</option>
+                           <option value="Verhalten" className="bg-slate-900 text-white">Beobachtung / Verhalten</option>
+                           <option value="Erfolg" className="bg-slate-900 text-white">Erfolg / Stärke</option>
+                           <option value="Eltern" className="bg-slate-900 text-white">Elternkontakt</option>
+                           <option value="Journal" className="bg-slate-900 text-white">Klassenjournal</option>
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/20">
+                          <ChevronRight size={16} className="rotate-90" />
+                        </div>
                      </div>
                   </div>
 
                   <div className="relative">
                      <textarea 
                         className="w-full bg-white/5 border border-white/10 rounded-[2.5rem] p-8 text-[1.125rem] leading-normal font-medium text-white outline-none focus:border-accent/50 focus:ring-12 ring-accent/5 transition-all placeholder:text-white/20 resize-none h-40 leading-relaxed custom-scrollbar"
-                        placeholder={selectedStudentId ? "Beobachtung zum Schüler festhalten..." : "Allgemeines Ereignis für das Journal notieren..."}
+                        placeholder={selectedStudentId ? "Notiz zu diesem Kind eingeben..." : "Allgemeine Notiz für die Klasse eingeben..."}
                         value={newEntryText}
                         onChange={e => setNewEntryText(e.target.value)}
                      />
                      <div className="absolute bottom-6 right-6 flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setApp(prev => ({ ...prev, stimmNotizModal: selectedStudentId || true }))}
+                          className="p-4 bg-white/5 text-white/50 hover:text-cyan-300 hover:bg-cyan-400/10 rounded-2xl transition-all"
+                          title={selectedStudentId ? "Notiz für dieses Kind diktieren" : "Allgemeine Notiz diktieren"}
+                          aria-label="Notiz diktieren"
+                        >
+                           <Mic size={20} />
+                        </button>
                         <button 
                           type="button"
                           onClick={polishNewEntry}
@@ -576,15 +622,7 @@ export default function Behavior() {
 
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 print:grid-cols-1 print:gap-4">
                   <AnimatePresence>
-                    {(app.notes || [])
-                      .filter(entry => {
-                         const searchLower = chronikSearch.toLowerCase();
-                         const matchesSearch = entry.inhalt.toLowerCase().includes(searchLower) || (entry.kategorie || '').toLowerCase().includes(searchLower);
-                         const matchesFilter = chronikFilter === 'all' ? true : chronikFilter === 'journal' ? entry.kategorie === 'Journal' : entry.kategorie === 'Verhalten';
-                         return matchesSearch && matchesFilter;
-                      })
-                      .sort((a,b) => new Date(b.datum).getTime() - new Date(a.datum).getTime())
-                      .map((entry) => {
+                    {chronicleEntries.map((entry) => {
                          const student = entry.schuelerId ? app.schueler.find(s => s.id === entry.schuelerId) : null;
                          const categoryColors: Record<string, string> = {
                            'Journal': 'bg-blue-50 text-blue-600 border-blue-100 print:bg-white print:text-black print:border-black',
@@ -647,12 +685,18 @@ export default function Behavior() {
                   </AnimatePresence>
                </div>
                
-               {(!app.notes || app.notes.length === 0) && (
+               {chronicleEntries.length === 0 && (
                   <div className="py-32 bg-slate-50 rounded-[3rem] border-4 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-300 space-y-6">
                      <History size={64} className="opacity-10" strokeWidth={1} />
                      <div className="text-center space-y-2">
-                        <p className="text-[0.875rem] leading-snug font-black uppercase tracking-[0.2em]">Deine Chronik ist noch leer</p>
-                        <p className="text-[0.75rem] leading-tight font-bold opacity-60">Erfasse deinen ersten Eintrag im Feld oben.</p>
+                        <p className="text-[0.875rem] leading-snug font-black uppercase tracking-[0.2em]">
+                          {(app.notes || []).length === 0 ? 'Deine Chronik ist noch leer' : 'Keine passenden Einträge'}
+                        </p>
+                        <p className="text-[0.75rem] leading-tight font-bold opacity-60">
+                          {(app.notes || []).length === 0
+                            ? 'Erfasse deinen ersten Eintrag im Feld oben.'
+                            : 'Passe Suche oder Filter an.'}
+                        </p>
                      </div>
                   </div>
                )}
@@ -888,7 +932,7 @@ export default function Behavior() {
                     {Array.from({ length: 7 }).map((_, i) => {
                       const d = new Date();
                       d.setDate(d.getDate() - (6 - i));
-                      const dateStr = d.toISOString().split('T')[0];
+                      const dateStr = formatLocalDateKey(d);
                       const dayLogs = (app.statusLog || []).filter(l => l.schuelerId === selectedStatStudentId && l.datum === dateStr);
                       const lastLog = dayLogs.length > 0 ? dayLogs.sort((a,b) => b.timestamp - a.timestamp)[0] : null;
                       const stage = lastLog ? stages.find(s => s.id === lastLog.iconId) : null;

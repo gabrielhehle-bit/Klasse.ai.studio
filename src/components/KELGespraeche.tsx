@@ -39,7 +39,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { EmptyState } from './EmptyState';
-import { logActivity } from '../lib/utils';
+import { logActivity, getCurrentSchuljahr } from '../lib/utils';
 import { 
   KELGespraech, 
   STANDARD_KEL_BEREICHE, 
@@ -50,6 +50,7 @@ import { FAECHER_ALLE } from '../constants';
 import { FlowerChart, KEL_GRADES_INFO } from './FlowerChart';
 import { berechne } from '../lib/GradeUtils';
 import { generateKELAssessment, generateKELAgreement } from '../services/aiService';
+import { normalizeKelMeetings } from '../lib/kelData';
 import { 
   ResponsiveContainer, 
   RadarChart, 
@@ -81,8 +82,8 @@ const SMILEYS = [
   { wert: 1, icon: '⏳', label: 'In Ansätzen' }
 ];
 
-const normalizeRating = (v: any, meeting?: any) => {
-  if (v === undefined || v === null) return 3;
+const normalizeRating = (v: any, meeting?: any): number | null => {
+  if (v === undefined || v === null || v === '') return null;
   const val = Number(v);
   if (val === 5) return 5;
   if (val === 0) return 1;
@@ -131,22 +132,31 @@ const KELGespraeche: React.FC = () => {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [analyseChartType, setAnalyseChartType] = useState<'column' | 'bar' | 'pie' | 'line'>('column');
   const [notesFilterCategory, setNotesFilterCategory] = useState<string>('all');
+  const [showBehaviorNotesInKel, setShowBehaviorNotesInKel] = useState(false);
   const [kelCategoriesToShow, setKelCategoriesToShow] = useState<string[]>(['lernen', 'arbeitsverhalten', 'sozialverhalten', 'interessen']);
   const [isFullWidthChart, setIsFullWidthChart] = useState<boolean>(false);
-  const [portfolioEntries, setPortfolioEntries] = useState<Record<string, { id: string; titel: string; fach: string; datum: string; bewertung: string; beschreibung: string }[]>>(() => {
-    try {
-      const raw = localStorage.getItem('lm_portfolio_entries_v2');
-      return raw ? JSON.parse(raw) : {};
-    } catch (e) {
-      return {};
-    }
-  });
+  const portfolioEntries = useMemo<Record<string, { id: string; titel: string; fach: string; datum: string; bewertung: string; beschreibung: string }[]>>(() => {
+    return Object.fromEntries((app.schueler || []).map(student => [
+      student.id,
+      (student.portfolio || []).map(entry => ({
+        id: entry.id,
+        titel: entry.titel,
+        fach: entry.tags?.[0] || '',
+        datum: entry.datum,
+        bewertung: '',
+        beschreibung: entry.beschreibung || ''
+      }))
+    ]));
+  }, [app.schueler]);
 
   const toggleExpand = (id: string) => {
     setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const meetings = useMemo(() => app.kelGespraeche || [], [app.kelGespraeche]);
+  const meetings = useMemo(
+    () => normalizeKelMeetings(app.kelGespraeche, app.schuljahr || getCurrentSchuljahr()),
+    [app.kelGespraeche, app.schuljahr],
+  );
 
   const filteredMeetings = useMemo(() => {
     if (filterStudentId === 'all') return meetings;
@@ -166,7 +176,7 @@ const KELGespraeche: React.FC = () => {
     const newMeeting: Partial<KELGespraech> = {
       id: crypto.randomUUID(),
       datum: new Date().toISOString().split('T')[0],
-      schuljahr: app.schuljahr || '2023/24',
+      schuljahr: app.schuljahr || getCurrentSchuljahr(),
       teilnehmer: ['Kind', 'Klassenlehrerin'],
       selbsteinschaetzungKind: {},
       einschaetzungLehrperson: {},
@@ -233,7 +243,6 @@ const KELGespraeche: React.FC = () => {
           ...prev?.einschaetzungLehrperson,
           [bereich.id]: {
             ...prev?.einschaetzungLehrperson?.[bereich.id],
-            wert: prev?.einschaetzungLehrperson?.[bereich.id]?.wert || 2,
             kommentar: result
           }
         }
@@ -490,26 +499,7 @@ const KELGespraeche: React.FC = () => {
     const isFinanceBalanced = financePaid >= financeRequired;
 
     // Portfolio
-    const customPortfolio = portfolioEntries[sid] || [];
-    const defaultPortfolio = [
-      {
-        id: `def-1-${sid}`,
-        titel: 'Forschungstagebuch: Waldökologie',
-        fach: 'Sachunterricht',
-        datum: new Date().toISOString().split('T')[0],
-        bewertung: 'Sehr Gut',
-        beschreibung: 'Detaillierte Analyse lokaler Ökosysteme und eigenständiges Herbarium. Großer Fokus auf den Schutz einheimischer Bäume.'
-      },
-      {
-        id: `def-2-${sid}`,
-        titel: 'Portfolio-Mappe: Geometrisches Zeichnen',
-        fach: 'Mathematik',
-        datum: new Date().toISOString().split('T')[0],
-        bewertung: 'Gut',
-        beschreibung: 'Präzise Rekonstruktionen geometrischer Grundformen und kreative Symmetriebilder.'
-      }
-    ];
-    const portfolioToDisplay = customPortfolio.length > 0 ? customPortfolio : defaultPortfolio;
+    const portfolioToDisplay = portfolioEntries[sid] || [];
 
     // Latest KEL Evaluation
     const latestMeeting = meetings.find(m => m.schuelerId === sid);
@@ -523,13 +513,13 @@ const KELGespraeche: React.FC = () => {
 
     // Support Profile
     const profil = student.foerderprofil || {};
-    const strengths = profil.staerken || ['Besonders hilfsbereit in Gruppenarbeiten', 'Starkes logisch-mathematisches Verständnis'];
-    const supportAreas = profil.foerderbedarfBereiche || ['Arbeitsorganisation', 'Schriftlicher Ausdruck'];
+    const strengths = profil.staerken || [];
+    const supportAreas = profil.foerderbedarfBereiche || [];
     const supportGoals = profil.foerderziele || [];
     const supportMeasures = profil.massnahmen || [];
 
     // Behavioral Notes
-    const studentNotes = (app.notizen || []).filter(n => n.schuelerId === sid);
+    const studentNotes = (app.notes || []).filter(n => n.schuelerId === sid);
     const filteredNotes = notesFilterCategory === 'all' 
       ? studentNotes 
       : studentNotes.filter(n => n.kategorie === notesFilterCategory);
@@ -555,6 +545,20 @@ const KELGespraeche: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setShowBehaviorNotesInKel(value => !value)}
+              className={`px-5 py-3.5 rounded-[1.25rem] text-[0.6875rem] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer border ${
+                showBehaviorNotesInKel
+                  ? 'bg-amber-50 border-amber-200 text-amber-800'
+                  : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+              }`}
+              aria-pressed={showBehaviorNotesInKel}
+              title="Pädagogische Beobachtungs- und Verhaltensnotizen nur bewusst für dieses KEL einblenden"
+            >
+              <History size={15} />
+              {showBehaviorNotesInKel ? 'Notizen ausblenden' : 'Notizen einblenden'}
+            </button>
             
             <button 
               onClick={() => setSelectedStudentId(null)}
@@ -569,7 +573,7 @@ const KELGespraeche: React.FC = () => {
         {/* PRINT BANNER (only shown when printing) */}
         <div className="hidden print:block border-b-4 border-slate-900 pb-6 mb-10">
           <h2 className="text-[1.875rem] leading-tight font-black uppercase tracking-tighter">KEL-Gespräch Komplett-Dossier</h2>
-          <p className="text-[0.875rem] leading-snug font-bold text-slate-500 uppercase tracking-widest mt-1">Schulstufe: {app.stufe ? `${app.stufe}. Klasse` : 'Volksschule'} • Schuljahr: {app.schuljahr || '2023/24'}</p>
+          <p className="text-[0.875rem] leading-snug font-bold text-slate-500 uppercase tracking-widest mt-1">Schulstufe: {app.stufe ? `${app.stufe}. Klasse` : 'Volksschule'} • Schuljahr: {app.schuljahr || getCurrentSchuljahr()}</p>
           <div className="mt-6 p-6 bg-slate-50 rounded-2xl border border-slate-200 grid grid-cols-2 gap-4">
              <div>
                 <span className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-widest block">Schüler/in:</span>
@@ -1048,8 +1052,8 @@ const KELGespraeche: React.FC = () => {
                             const kindRatingValue = normalizeRating(latestMeeting?.selbsteinschaetzungKind?.[field.id]?.wert, latestMeeting);
                             const lehrRatingValue = normalizeRating(latestMeeting?.einschaetzungLehrperson?.[field.id]?.wert, latestMeeting);
                             const commentValue = latestMeeting?.einschaetzungLehrperson?.[field.id]?.kommentar || '';
-                            const kindSmileyObj = SMILEYS.find(s => s.wert === kindRatingValue) || SMILEYS[2];
-                            const lehrSmileyObj = SMILEYS.find(s => s.wert === lehrRatingValue) || SMILEYS[2];
+                            const kindSmileyObj = SMILEYS.find(s => s.wert === kindRatingValue) || { wert: 0, icon: '–', label: 'Nicht erfasst' };
+                            const lehrSmileyObj = SMILEYS.find(s => s.wert === lehrRatingValue) || { wert: 0, icon: '–', label: 'Nicht erfasst' };
 
                             const isExpandedField = expandedItems[field.id];
 
@@ -1243,6 +1247,7 @@ const KELGespraeche: React.FC = () => {
         </div>
 
         {/* 9. BEHAVIORAL OBSERVATION JOURNAL NOTES CARD LIST (FULL WIDTH) */}
+        {showBehaviorNotesInKel && (
         <div className="bg-white p-8 sm:p-10 rounded-[2.5rem] border border-slate-100 shadow-sm col-span-full">
            <div className="flex justify-between items-start border-b border-slate-100 pb-6 mb-8 gap-4 flex-wrap">
               <div>
@@ -1286,11 +1291,11 @@ const KELGespraeche: React.FC = () => {
                       className="p-5 bg-slate-50 border border-slate-150 rounded-2xl cursor-pointer hover:bg-slate-100/40 transition-all text-left"
                     >
                        <div className="flex justify-between items-center text-[0.5625rem] font-black uppercase tracking-wider text-slate-400 mb-2">
-                          <span>{new Date(note.timestamp || '').toLocaleDateString('de-DE')}</span>
+                          <span>{note.datum ? new Date(note.datum).toLocaleDateString('de-AT') : '—'}</span>
                           <span className="px-2 py-0.5 bg-white border border-slate-150 rounded-md text-slate-600">{note.kategorie || 'Allgemein'}</span>
                        </div>
                        
-                       <h4 className="text-[0.75rem] leading-tight font-black text-slate-850 text-wrap leading-tight break-words">{note.titel || 'Beobachtungseintrag'}</h4>
+                       <h4 className="text-[0.75rem] leading-tight font-black text-slate-850 text-wrap leading-tight break-words">{note.quelle || 'Beobachtungseintrag'}</h4>
                        
                        <div className={`mt-2 text-[0.75rem] leading-tight text-slate-650 transition-all ${isExpandedNote ? 'max-h-[300px] opacity-100 pt-2 whitespace-pre-wrap border-t border-slate-200 mt-3' : 'max-h-12 opacity-80  line-clamp-2 italic'}`}>
                           {note.inhalt}
@@ -1305,6 +1310,8 @@ const KELGespraeche: React.FC = () => {
               )}
            </div>
         </div>
+        )}
+
       </div>
     );
   };
@@ -1377,10 +1384,26 @@ const KELGespraeche: React.FC = () => {
           </div>
         </header>
 
+        <div className="no-print flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowBehaviorNotesInKel(value => !value)}
+            className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-[0.6875rem] font-black uppercase tracking-wider transition ${
+              showBehaviorNotesInKel
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+            }`}
+            aria-pressed={showBehaviorNotesInKel}
+          >
+            <History size={14} />
+            {showBehaviorNotesInKel ? 'Beobachtungsnotizen ausblenden' : 'Beobachtungsnotizen anzeigen'}
+          </button>
+        </div>
+
         <ComparisonView meeting={viewingMeeting} />
 
         {/* Observation Journal Summary - NEW CONTEXTUAL SECTION */}
-        {studentObservations.length > 0 && (
+        {showBehaviorNotesInKel && studentObservations.length > 0 && (
           <div className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-sm relative  no-print">
             <div className="flex items-center gap-4 mb-8 relative z-10">
               <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 border border-amber-100">
@@ -1783,7 +1806,7 @@ const KELGespraeche: React.FC = () => {
                           type="text"
                           value={editingMeeting?.schuljahr || ''}
                           onChange={(e) => setEditingMeeting(prev => ({ ...prev, schuljahr: e.target.value }))}
-                          placeholder="z.B. 2023/24"
+                          placeholder={`z.B. ${getCurrentSchuljahr()}`}
                           className="w-full p-5 bg-slate-50 border-none rounded-3xl text-[0.875rem] leading-snug font-bold focus:ring-4 focus:ring-rose-500/10"
                         />
                      </div>
@@ -1802,7 +1825,7 @@ const KELGespraeche: React.FC = () => {
                             <div className="space-y-6">
                                {fields.map(field => {
                                   const dataKey = activeTab === 'kind' ? 'selbsteinschaetzungKind' : 'einschaetzungLehrperson';
-                                  const fieldData = editingMeeting?.[dataKey]?.[field.id] || { wert: 2 };
+                                  const fieldData = editingMeeting?.[dataKey]?.[field.id] || { wert: undefined, kommentar: '' };
                                   
                                   return (
                                     <div key={field.id} className="p-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
@@ -2076,20 +2099,20 @@ const ComparisonView: React.FC<{ meeting: KELGespraech }> = ({ meeting }) => {
      ['lernen', 'arbeitsverhalten', 'sozialverhalten', 'interessen'].forEach(kat => {
         let kindSum = 0;
         let lehrSum = 0;
-        let count = 0;
+        let kindCount = 0;
+        let lehrCount = 0;
         STANDARD_KEL_BEREICHE.filter(b => b.kategorie === kat).forEach(field => {
            const dbK = meeting.selbsteinschaetzungKind?.[field.id]?.wert;
            const dbL = meeting.einschaetzungLehrperson?.[field.id]?.wert;
            const k = normalizeRating(dbK, meeting);
            const l = normalizeRating(dbL, meeting);
-           kindSum += k;
-           lehrSum += l;
-           count++;
+           if (k !== null) { kindSum += k; kindCount++; }
+           if (l !== null) { lehrSum += l; lehrCount++; }
         });
         data.push({
            name: KATEGORIE_LABELS[kat as keyof typeof KATEGORIE_LABELS],
-           Kind: Number((kindSum / count).toFixed(1)),
-           Lehrperson: Number((lehrSum / count).toFixed(1))
+           Kind: kindCount > 0 ? Number((kindSum / kindCount).toFixed(1)) : null,
+           Lehrperson: lehrCount > 0 ? Number((lehrSum / lehrCount).toFixed(1)) : null
         });
      });
      return data;
@@ -2186,8 +2209,10 @@ const ComparisonView: React.FC<{ meeting: KELGespraech }> = ({ meeting }) => {
                     const nLehrVal = normalizeRating(meeting.einschaetzungLehrperson[field.id]?.wert, meeting);
                     const kind = { ...meeting.selbsteinschaetzungKind[field.id], wert: nKindVal };
                     const lehr = { ...meeting.einschaetzungLehrperson[field.id], wert: nLehrVal };
-                    const diff = Math.abs(kind.wert - lehr.wert);
-                    const isIssue = diff >= 2;
+                    const diff = typeof kind.wert === 'number' && typeof lehr.wert === 'number'
+                      ? Math.abs(kind.wert - lehr.wert)
+                      : null;
+                    const isIssue = diff !== null && diff >= 2;
 
                     return (
                       <div key={field.id} className={`p-4 rounded-3xl transition-all border ${isIssue ? 'bg-amber-50/50 border-amber-100 shadow-[0_4px_15px_-5px_rgba(251,191,36,0.2)]' : 'bg-white border-slate-100 hover:bg-slate-50'}`}>

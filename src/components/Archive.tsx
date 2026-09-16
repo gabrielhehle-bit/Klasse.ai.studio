@@ -1,458 +1,451 @@
-import React, { useState, useMemo } from 'react';
-import { Archive as ArchiveIcon, Search, Filter, ChevronLeft, ChevronRight, Download, FileSpreadsheet, Eye, RefreshCw, Trash2 } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import {
+  Archive as ArchiveIcon,
+  Search,
+  Filter,
+  Eye,
+  RefreshCw,
+  Trash2,
+  ShieldCheck,
+  Users,
+  BookOpen,
+  FileText,
+  AlertTriangle,
+  X,
+} from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DEFAULT_HISTORICAL_STUDENTS } from '../data/historicalStudents';
+import {
+  createArchivedClassSnapshot,
+  getArchivedFinalGrade,
+  upsertArchivedClass,
+  type ArchivedClassSnapshot,
+} from '../lib/archiveData';
 
 export const HISTORICAL_STUDENTS = DEFAULT_HISTORICAL_STUDENTS;
+
+const studentName = (student: any) =>
+  [student?.vorname, student?.nachname].filter(Boolean).join(' ').trim() || student?.name || 'Unbenanntes Kind';
+
+const formatArchiveDate = (value?: string) => {
+  if (!value) return 'Datum nicht überliefert';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Datum nicht überliefert' : date.toLocaleString('de-AT');
+};
 
 export default function Archive() {
   const { app, setApp } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedYear, setSelectedYear] = useState('Alle');
-  const [selectedClass, setSelectedClass] = useState('Alle');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(8);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedArchiveId, setSelectedArchiveId] = useState<string | null>(null);
+  const [showLegacy, setShowLegacy] = useState(false);
 
+  const archivedClasses = app.archivedClasses || [];
   const historicalStudents = app.historicalStudents || [];
 
-  // Group unique archived classes
-  const archivedClassesList = useMemo(() => {
-    const classMap = new Map<string, { year: string; className: string; count: number }>();
-    historicalStudents.forEach(student => {
-      const key = `${student.year}-${student.class}`;
-      if (!classMap.has(key)) {
-        classMap.set(key, { year: student.year, className: student.class, count: 1 });
-      } else {
-        const item = classMap.get(key)!;
-        item.count += 1;
-      }
-    });
-    return Array.from(classMap.values()).sort((a, b) => b.year.localeCompare(a.year));
-  }, [historicalStudents]);
+  const existingCurrentSnapshot = useMemo(
+    () => archivedClasses.find(
+      (item) => item.sourceClassId === app.activeClassId && item.schuljahr === app.schuljahr
+    ),
+    [archivedClasses, app.activeClassId, app.schuljahr]
+  );
 
-  // Derive filter choices
-  const years = useMemo(() => {
-    return ['Alle', ...Array.from(new Set(historicalStudents.map(s => s.year)))];
-  }, [historicalStudents]);
+  const years = useMemo(
+    () => ['Alle', ...Array.from(new Set(archivedClasses.map((item) => item.schuljahr))).sort((a, b) => b.localeCompare(a))],
+    [archivedClasses]
+  );
 
-  const classes = useMemo(() => {
-    const list = historicalStudents.filter(s => selectedYear === 'Alle' || s.year === selectedYear);
-    return ['Alle', ...Array.from(new Set(list.map(s => s.class)))];
-  }, [historicalStudents, selectedYear]);
+  const filteredArchives = useMemo(() => {
+    const needle = searchTerm.trim().toLowerCase();
+    return archivedClasses
+      .filter((item) => selectedYear === 'Alle' || item.schuljahr === selectedYear)
+      .filter((item) => {
+        if (!needle) return true;
+        if (item.name.toLowerCase().includes(needle)) return true;
+        return (item.schueler || []).some((student) => studentName(student).toLowerCase().includes(needle));
+      })
+      .sort((a, b) => {
+        const byYear = b.schuljahr.localeCompare(a.schuljahr);
+        return byYear !== 0 ? byYear : a.name.localeCompare(b.name, 'de');
+      });
+  }, [archivedClasses, searchTerm, selectedYear]);
 
-  // Handle resetting page on filter change
-  const handleYearChange = (year: string) => {
-    setSelectedYear(year);
-    setSelectedClass('Alle');
-    setCurrentPage(1);
-  };
+  const selectedArchive = selectedArchiveId
+    ? archivedClasses.find((item) => item.id === selectedArchiveId) || null
+    : null;
 
-  const handleClassChange = (cls: string) => {
-    setSelectedClass(cls);
-    setCurrentPage(1);
-  };
+  const handleArchiveCurrentClass = () => {
+    if (!app.activeClassId) {
+      alert('Bitte zuerst eine aktive Klasse auswählen.');
+      return;
+    }
+    if (!app.schueler?.length) {
+      alert('Die aktive Klasse enthält keine Schüler:innen und wird daher nicht archiviert.');
+      return;
+    }
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setCurrentPage(1);
-  };
+    const action = existingCurrentSnapshot ? 'aktualisieren' : 'erstellen';
+    const message = existingCurrentSnapshot
+      ? `Archivstand für „${app.klassenbezeichnung || 'Aktuelle Klasse'}“ (${app.schuljahr}) aktualisieren? Der bisherige Archivstand dieses Schuljahres wird ersetzt. Die aktive Klasse bleibt unverändert.`
+      : `Schreibgeschützten Archivstand für „${app.klassenbezeichnung || 'Aktuelle Klasse'}“ (${app.schuljahr}) erstellen? Die aktive Klasse bleibt unverändert.`;
 
-  const handleDeleteClass = (className: string, yearStr: string) => {
-    const confirmMsg = `Möchten Sie die Klasse "${className}" (${yearStr}) wirklich vollständig aus dem Archiv löschen? Alle zugehörigen archivierten Schülerdaten werden unwiderruflich gelöscht. Erstellen Sie vorher bei Bedarf eine Datensicherung.`;
-    if (confirm(confirmMsg)) {
-      setApp(prev => ({
-        ...prev,
-        historicalStudents: (prev.historicalStudents || []).filter(s => !(s.class === className && s.year === yearStr))
-      }));
-      if (selectedClass === className && selectedYear === yearStr) {
-        setSelectedClass('Alle');
-        setSelectedYear('Alle');
-      }
-      setCurrentPage(1);
+    if (!confirm(message)) return;
+
+    try {
+      setApp((prev) => {
+        const snapshot = createArchivedClassSnapshot(prev);
+        return {
+          ...prev,
+          archivedClasses: upsertArchivedClass(prev.archivedClasses, snapshot),
+        };
+      });
+      alert(`Archivstand erfolgreich ${action === 'aktualisieren' ? 'aktualisiert' : 'erstellt'}.`);
+    } catch (error: any) {
+      alert(error?.message || 'Der Archivstand konnte nicht erstellt werden.');
     }
   };
 
-  const handleDeleteStudent = (id: string, name: string) => {
-    if (confirm(`Möchten Sie den Archiveintrag von "${name}" wirklich unwiderruflich löschen? Erstellen Sie vorher bei Bedarf eine Datensicherung.`)) {
-      setApp(prev => ({
-        ...prev,
-        historicalStudents: (prev.historicalStudents || []).filter(s => s.id !== id)
-      }));
-    }
+  const handleDeleteArchive = (snapshot: ArchivedClassSnapshot) => {
+    if (!confirm(
+      `Archivstand „${snapshot.name}“ (${snapshot.schuljahr}) wirklich unwiderruflich aus dem aktuellen Datenbestand löschen? Vorhandene ältere Datensicherungen können weiterhin frühere Stände enthalten.`
+    )) return;
+
+    setApp((prev) => ({
+      ...prev,
+      archivedClasses: (prev.archivedClasses || []).filter((item) => item.id !== snapshot.id),
+    }));
+    if (selectedArchiveId === snapshot.id) setSelectedArchiveId(null);
   };
 
-  // Filter students
-  const filteredStudents = useMemo(() => {
-    return historicalStudents.filter(s => {
-      const matchSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          s.class.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchYear = selectedYear === 'Alle' || s.year === selectedYear;
-      const matchClass = selectedClass === 'Alle' || s.class === selectedClass;
-      return matchSearch && matchYear && matchClass;
-    });
-  }, [historicalStudents, searchTerm, selectedYear, selectedClass]);
+  const handleDeleteLegacyStudent = (id: string, name: string) => {
+    if (!confirm(
+      `Legacy-Archiveintrag von „${name}“ wirklich löschen? Vorhandene ältere Datensicherungen können weiterhin frühere Stände enthalten.`
+    )) return;
 
-  // Statistics
-  const stats = useMemo(() => {
-    if (filteredStudents.length === 0) return { avgGrade: 0, topStudentsCount: 0 };
-    const sum = filteredStudents.reduce((acc, s) => acc + s.average, 0);
-    const top = filteredStudents.filter(s => s.average <= 1.5).length;
-    return {
-      avgGrade: Number((sum / filteredStudents.length).toFixed(2)),
-      topStudentsCount: top
-    };
-  }, [filteredStudents]);
-
-  // Pagination calculation
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage) || 1;
-  const paginatedStudents = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredStudents.slice(start, start + itemsPerPage);
-  }, [filteredStudents, currentPage, itemsPerPage]);
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
+    setApp((prev) => ({
+      ...prev,
+      historicalStudents: (prev.historicalStudents || []).filter((item) => item.id !== id),
+    }));
   };
 
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-  };
-
-  // Grade color badges
-  const getGradeBadge = (grade: number) => {
-    let color = '';
-    if (grade === 1) color = 'bg-emerald-50 text-emerald-700 border-emerald-100';
-    else if (grade === 2) color = 'bg-blue-50 text-blue-700 border-blue-100';
-    else if (grade === 3) color = 'bg-amber-50 text-amber-700 border-amber-100';
-    else if (grade === 4) color = 'bg-orange-50 text-orange-700 border-orange-100';
-    else color = 'bg-rose-50 text-rose-700 border-rose-100';
-
-    return (
-      <span className={`w-6 h-6 rounded-md border flex items-center justify-center font-bold text-[0.75rem] leading-tight ${color}`}>
-        {grade}
-      </span>
-    );
-  };
+  const detailCounts = selectedArchive ? {
+    students: selectedArchive.schueler?.length || 0,
+    reports: Object.keys(selectedArchive.jahresberichte || {}).length,
+    diagnostics:
+      (selectedArchive.diagnostikErhebungen?.length || 0) +
+      (selectedArchive.diagnosticResults?.length || 0),
+    observations:
+      (selectedArchive.notes?.length || 0) +
+      (selectedArchive.journal?.length || 0),
+  } : null;
 
   return (
-    <div className="archive-shell max-w-6xl mx-auto space-y-4 py-4 px-4">
-      {/* Title Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-stone-200 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-11 h-11 bg-amber-50 text-amber-700 rounded-xl flex items-center justify-center shrink-0">
-            <ArchiveIcon size={21} />
+    <div className="archive-shell max-w-6xl mx-auto space-y-5 py-4 px-4">
+      <div className="bg-white rounded-3xl border border-stone-200 shadow-sm p-5 sm:p-6 flex flex-col xl:flex-row xl:items-center justify-between gap-5">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 bg-amber-50 text-amber-700 rounded-2xl flex items-center justify-center shrink-0">
+            <ArchiveIcon size={23} />
           </div>
           <div>
-            <h2 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">Archivierte Jahrgänge</h2>
-            <p className="text-[0.75rem] text-slate-500 font-medium">Durchsuchen Sie archivierte Stammblätter aus vorangegangenen Schuljahren.</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto self-stretch sm:self-auto">
-          <div className="flex bg-amber-50/50 rounded-2xl p-3 border border-amber-100/40 items-center gap-4 flex-1 sm:flex-initial">
-            <div className="text-right">
-              <p className="text-[0.5rem] font-black uppercase tracking-wider text-amber-700">Notenschnitt Gesamt</p>
-              <p className="text-[1.125rem] leading-normal font-black text-slate-900 font-mono leading-none mt-0.5">{stats.avgGrade || '—'}</p>
-            </div>
-            <div className="w-[1px] h-6 bg-amber-200/40" />
-            <div>
-              <p className="text-[0.5rem] font-black uppercase tracking-wider text-amber-700">Schnitt bis 1,5</p>
-              <p className="text-[1.125rem] leading-normal font-black text-slate-900 font-mono leading-none mt-0.5">{stats.topStudentsCount}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Sticky Filter and Search Bar */}
-      <div className="sticky top-0 z-30 bg-[#f4f7f3]/95 backdrop-blur-md py-3 border-b border-stone-200 flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-        <div className="flex flex-col sm:flex-row gap-3 flex-1">
-          {/* Search bar */}
-          <div className="relative flex-1">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              aria-label="Archiv nach Schüler oder Klasse durchsuchen"
-              placeholder="Schüler oder Klasse suchen..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              className="w-full h-12 pl-11 pr-4 bg-white border border-stone-200 rounded-2xl text-[0.8125rem] font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/35 focus:border-amber-600 shadow-sm transition-all"
-            />
-          </div>
-
-          {/* Academic Year Filter */}
-          <div className="relative min-w-[140px]">
-            <span className="absolute left-3.5 top-[5px] text-[0.5rem] font-black uppercase tracking-wider text-slate-400">Schuljahr</span>
-            <select
-              aria-label="Archiv nach Schuljahr filtern"
-              value={selectedYear}
-              onChange={(e) => handleYearChange(e.target.value)}
-              className="w-full h-12 pt-3 pl-3.5 pr-8 bg-white border border-stone-200 rounded-2xl text-[0.75rem] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500/35 cursor-pointer appearance-none shadow-sm transition-all"
-            >
-              {years.map(yr => (
-                <option key={yr} value={yr}>{yr === 'Alle' ? 'Alle Schuljahre' : yr}</option>
-              ))}
-            </select>
-            <Filter size={12} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
-          </div>
-
-          {/* Class Filter */}
-          <div className="relative min-w-[140px]">
-            <span className="absolute left-3.5 top-[5px] text-[0.5rem] font-black uppercase tracking-wider text-slate-400">Klasse</span>
-            <select
-              aria-label="Archiv nach Klasse filtern"
-              value={selectedClass}
-              onChange={(e) => handleClassChange(e.target.value)}
-              className="w-full h-12 pt-3 pl-3.5 pr-8 bg-white border border-stone-200 rounded-2xl text-[0.75rem] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500/35 cursor-pointer appearance-none shadow-sm transition-all"
-            >
-              {classes.map(cl => (
-                <option key={cl} value={cl}>{cl === 'Alle' ? 'Alle Klassen' : cl}</option>
-              ))}
-            </select>
-            <Filter size={12} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
-          </div>
-        </div>
-
-        {/* Action Controls / Page size */}
-        <div className="flex items-center gap-2 self-end md:self-auto shrink-0">
-          <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-2xl border border-stone-200 shadow-sm">
-            <span className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-tighter">Zeilen:</span>
-            <select
-              aria-label="Einträge pro Seite"
-              value={itemsPerPage}
-              onChange={(e) => {
-                setItemsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="text-[0.6875rem] font-black text-slate-700 bg-transparent outline-none cursor-pointer"
-            >
-              <option value={5}>5</option>
-              <option value={8}>8</option>
-              <option value={15}>15</option>
-              <option value={25}>25</option>
-            </select>
-          </div>
-          <button 
-            type="button"
-            onClick={() => setShowDeleteModal(true)}
-            className="h-10 px-4 bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 rounded-xl text-[0.6875rem] font-black transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <Trash2 size={13} />
-            Löschbereich öffnen
-          </button>
-          <button 
-            type="button"
-            disabled
-            title="Der XLS-Export ist im Prototyp noch nicht verfügbar"
-            className="h-10 px-4 bg-stone-100 border border-stone-200 text-stone-400 rounded-xl text-[0.6875rem] font-black transition-all flex items-center justify-center gap-2 cursor-not-allowed"
-          >
-            <FileSpreadsheet size={13} />
-            XLS-Export folgt
-          </button>
-        </div>
-      </div>
-
-      {/* Main Table Container */}
-      {filteredStudents.length === 0 ? (
-        <div className="bg-white rounded-[2.5rem] border border-stone-100 p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-xl shadow-slate-900/5">
-          <div className="w-16 h-16 bg-stone-50 rounded-full flex items-center justify-center text-stone-300">
-            <Search size={28} />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-[1rem] leading-normal font-black text-slate-900">Keine Datensätze gefunden</h3>
-            <p className="text-[0.75rem] leading-tight font-semibold text-slate-400 max-w-sm">
-              Verfeinern Sie die Suche oder wählen Sie eine andere Kombination aus Schuljahr und Klasse.
+            <h2 className="text-xl font-black text-slate-900 tracking-tight">Archivierte Klassenstände</h2>
+            <p className="text-sm text-slate-500 font-medium mt-1 max-w-2xl">
+              Bewahren Sie abgeschlossene Schuljahre als schreibgeschützte, pädagogisch relevante Momentaufnahme auf.
+              Die aktive Klasse wird beim Archivieren nicht verändert oder gelöscht.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setSearchTerm('');
-              setSelectedYear('Alle');
-              setSelectedClass('Alle');
-            }}
-            className="px-5 h-10 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-xl text-[0.625rem] font-black uppercase tracking-widest transition-all"
+        </div>
+
+        <button
+          type="button"
+          onClick={handleArchiveCurrentClass}
+          disabled={!app.activeClassId || !app.schueler?.length}
+          className="px-4 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+        >
+          {existingCurrentSnapshot ? <RefreshCw size={15} /> : <ArchiveIcon size={15} />}
+          {existingCurrentSnapshot ? 'Archivstand aktualisieren' : 'Aktuelle Klasse archivieren'}
+        </button>
+      </div>
+
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 flex items-start gap-3 text-emerald-950">
+        <ShieldCheck size={17} className="mt-0.5 shrink-0 text-emerald-700" />
+        <p className="text-xs font-semibold leading-relaxed">
+          Archivstände liegen im verschlüsselten Klassio-Datenbestand. Archiviert werden schulisch relevante Daten wie
+          Schüler:innen, Leistungen, Lernziele, Diagnostik, Beobachtungen, Anwesenheit, KEL und Jahresberichte.
+          Operative Daten wie Portal-Zugangsdaten, Klassenkassa, Sitzplan und laufende Unterrichtsplanung werden bewusst nicht übernommen.
+        </p>
+      </div>
+
+      <div className="sticky top-0 z-20 bg-[#f4f7f3]/95 backdrop-blur-md py-3 border-b border-stone-200 flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            aria-label="Archiv nach Klasse oder Schüler:in durchsuchen"
+            placeholder="Klasse oder Schüler:in suchen …"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            className="w-full h-12 pl-11 pr-4 bg-white border border-stone-200 rounded-2xl text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+          />
+        </div>
+
+        <div className="relative min-w-[170px]">
+          <span className="absolute left-3.5 top-[5px] text-[9px] font-black uppercase tracking-wider text-slate-400">Schuljahr</span>
+          <select
+            aria-label="Archiv nach Schuljahr filtern"
+            value={selectedYear}
+            onChange={(event) => setSelectedYear(event.target.value)}
+            className="w-full h-12 pt-3 pl-3.5 pr-8 bg-white border border-stone-200 rounded-2xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500/30 appearance-none"
           >
-            Filter zurücksetzen
-          </button>
+            {years.map((year) => (
+              <option key={year} value={year}>{year === 'Alle' ? 'Alle Schuljahre' : year}</option>
+            ))}
+          </select>
+          <Filter size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+        </div>
+      </div>
+
+      {filteredArchives.length === 0 ? (
+        <div className="bg-white rounded-3xl border border-stone-200 p-10 text-center shadow-sm">
+          <div className="w-14 h-14 mx-auto rounded-full bg-stone-50 flex items-center justify-center text-stone-300">
+            <ArchiveIcon size={26} />
+          </div>
+          <h3 className="mt-4 text-base font-black text-slate-900">
+            {archivedClasses.length === 0 ? 'Noch keine vollständigen Klassenstände archiviert' : 'Keine passenden Archivstände'}
+          </h3>
+          <p className="mt-2 text-xs font-semibold text-slate-500 max-w-lg mx-auto">
+            {archivedClasses.length === 0
+              ? 'Mit „Aktuelle Klasse archivieren“ können Sie einen schreibgeschützten Stand des aktuellen Schuljahres anlegen.'
+              : 'Ändern Sie Suchbegriff oder Schuljahrfilter.'}
+          </p>
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border border-stone-200/60 shadow-xl shadow-slate-900/[0.02]  flex flex-col">
-          <div className="overflow-x-auto">
-            <table className="w-full text-[0.75rem] border-collapse text-left">
-              <thead>
-                <tr className="bg-stone-50/70 border-b border-stone-200/60">
-                  <th className="py-4 px-5 font-black text-slate-400 uppercase tracking-widest text-[0.5625rem]">Schüler:in</th>
-                  <th className="py-4 px-4 font-black text-slate-400 uppercase tracking-widest text-[0.5625rem] text-center">Klasse & Jahr</th>
-                  <th className="py-4 px-3 font-black text-slate-400 uppercase tracking-widest text-[0.5625rem] text-center">Deutsch</th>
-                  <th className="py-4 px-3 font-black text-slate-400 uppercase tracking-widest text-[0.5625rem] text-center">Mathe</th>
-                  <th className="py-4 px-3 font-black text-slate-400 uppercase tracking-widest text-[0.5625rem] text-center">Sachunterr.</th>
-                  <th className="py-4 px-4 font-black text-slate-400 uppercase tracking-widest text-[0.5625rem]">Sozialverhalten</th>
-                  <th className="py-4 px-4 font-black text-slate-400 uppercase tracking-widest text-[0.5625rem] text-right">Notenschnitt</th>
-                  <th className="py-4 px-5 font-black text-slate-400 uppercase tracking-widest text-[0.5625rem] text-center">Aktion</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {paginatedStudents.map((s, index) => {
-                  const isGoldAvg = s.average <= 1.34;
-                  return (
-                    <tr key={s.id} className="hover:bg-amber-50/15 transition-colors group">
-                      <td className="py-4 px-5 font-bold text-slate-950 flex flex-col">
-                        <span className="text-[0.8125rem]">{s.name}</span>
-                        <span className="w-fit text-[0.5625rem] font-bold text-amber-800 uppercase tracking-wider leading-none mt-1 px-1.5 py-1 rounded-md bg-amber-50 border border-amber-100">Schreibgeschützt</span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="font-bold text-slate-700">{s.class}</div>
-                        <div className="text-[0.625rem] text-slate-400 font-medium leading-none mt-0.5">{s.year}</div>
-                      </td>
-                      <td className="py-4 px-3 align-middle"><div className="flex justify-center">{getGradeBadge(s.german)}</div></td>
-                      <td className="py-4 px-3 align-middle"><div className="flex justify-center">{getGradeBadge(s.math)}</div></td>
-                      <td className="py-4 px-3 align-middle"><div className="flex justify-center">{getGradeBadge(s.sach)}</div></td>
-                      <td className="py-4 px-4">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[0.625rem] font-black uppercase tracking-wider bg-slate-50 text-slate-600 border border-slate-100">
-                          {s.behavior}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {filteredArchives.map((snapshot) => {
+            const isCurrentVersion =
+              snapshot.sourceClassId === app.activeClassId && snapshot.schuljahr === app.schuljahr;
+            return (
+              <div key={snapshot.id} className="bg-white rounded-3xl border border-stone-200 shadow-sm p-5 flex flex-col gap-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-lg font-black text-slate-900 truncate">{snapshot.name}</h3>
+                      {isCurrentVersion && (
+                        <span className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-100 text-[9px] font-black uppercase tracking-wider text-emerald-700">
+                          aktuelle Klasse
                         </span>
-                      </td>
-                      <td className="py-4 px-4 text-right font-mono font-black text-[0.8125rem] text-slate-800">
-                        <span className={isGoldAvg ? 'text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-100' : ''}>
-                          {s.average.toFixed(2)}
-                        </span>
-                      </td>
-                      <td className="py-4 px-5">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            type="button"
-                            disabled
-                            aria-label={`Detailansicht für ${s.name} noch nicht verfügbar`}
-                            className="p-1.5 bg-stone-50 text-stone-300 border border-stone-200/40 rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed"
-                            title="Die Detailansicht ist im Prototyp noch nicht verfügbar"
-                          >
-                            <Eye size={13} />
-                          </button>
-                          <button
-                            type="button"
-                            aria-label={`Archiveintrag von ${s.name} löschen`}
-                            onClick={() => handleDeleteStudent(s.id, s.name)}
-                            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-500 hover:text-rose-700 border border-rose-200/40 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-                            title="Aus dem Archiv löschen"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      )}
+                    </div>
+                    <p className="text-xs font-bold text-slate-500 mt-1">
+                      Schuljahr {snapshot.schuljahr} · {snapshot.stufe}. Schulstufe
+                    </p>
+                    <p className="text-[10px] font-semibold text-slate-400 mt-1">
+                      Archiviert: {formatArchiveDate(snapshot.archiviertAm)}
+                    </p>
+                  </div>
+                  <span className="px-2.5 py-1.5 rounded-xl bg-amber-50 border border-amber-100 text-[10px] font-black text-amber-800 shrink-0">
+                    Schreibgeschützt
+                  </span>
+                </div>
 
-          {/* Pagination Footer */}
-          <div className="bg-stone-50/70 border-t border-stone-200/60 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-[0.6875rem] font-bold text-slate-500">
-              Einträge <strong className="text-slate-800">{(currentPage - 1) * itemsPerPage + 1}</strong> bis <strong className="text-slate-800">{Math.min(currentPage * itemsPerPage, filteredStudents.length)}</strong> von <strong className="text-slate-800">{filteredStudents.length}</strong>
-            </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div className="text-xl font-black text-slate-900">{snapshot.schueler?.length || 0}</div>
+                    <div className="text-[10px] font-bold text-slate-500">Schüler:innen</div>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div className="text-xl font-black text-slate-900">{Object.keys(snapshot.jahresberichte || {}).length}</div>
+                    <div className="text-[10px] font-bold text-slate-500">Jahresberichte</div>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div className="text-xl font-black text-slate-900">
+                      {(snapshot.diagnostikErhebungen?.length || 0) + (snapshot.diagnosticResults?.length || 0)}
+                    </div>
+                    <div className="text-[10px] font-bold text-slate-500">Diagnostik-Einträge</div>
+                  </div>
+                </div>
 
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                aria-label="Vorherige Archivseite"
-                onClick={handlePrevPage}
-                disabled={currentPage === 1}
-                className="w-10 h-10 rounded-xl bg-white border border-stone-200/80 hover:border-amber-600/30 flex items-center justify-center text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:hover:border-stone-200 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer"
-              >
-                <ChevronLeft size={16} />
-              </button>
-
-              {Array.from({ length: totalPages }).map((_, idx) => {
-                const pageNum = idx + 1;
-                const isActive = pageNum === currentPage;
-                return (
+                <div className="flex items-center justify-between gap-2 pt-1">
                   <button
-                    key={pageNum}
                     type="button"
-                    aria-label={`Archivseite ${pageNum}`}
-                    aria-current={isActive ? 'page' : undefined}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`w-10 h-10 rounded-xl text-[0.6875rem] font-black transition-all shadow-sm ${isActive ? 'bg-amber-600 border border-amber-600 text-white' : 'bg-white border border-stone-200/80 hover:border-amber-600/30 text-slate-700 hover:text-slate-900'}`}
+                    onClick={() => setSelectedArchiveId(snapshot.id)}
+                    className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black flex items-center gap-2"
                   >
-                    {pageNum}
+                    <Eye size={14} />
+                    Archiv ansehen
                   </button>
-                );
-              })}
-
-              <button
-                type="button"
-                aria-label="Nächste Archivseite"
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages}
-                className="w-10 h-10 rounded-xl bg-white border border-stone-200/80 hover:border-amber-600/30 flex items-center justify-center text-slate-600 hover:text-slate-900 disabled:opacity-40 disabled:hover:border-stone-200 disabled:cursor-not-allowed transition-all shadow-sm cursor-pointer"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteArchive(snapshot)}
+                    className="p-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100"
+                    aria-label={`Archivstand ${snapshot.name} löschen`}
+                    title="Archivstand löschen"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Info notice */}
-      <p className="text-[0.625rem] font-black text-center text-stone-400 uppercase tracking-widest mt-4">
-        Archivdaten enthalten personenbezogene Informationen und dürfen nur berechtigten Personen zugänglich sein.
-      </p>
-
-      {/* Klassen löschen Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-[1500] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm animate-fade-in">
-          <div role="dialog" aria-modal="true" aria-labelledby="archive-delete-dialog-title" className="bg-white rounded-2xl w-full max-w-md border border-stone-200 shadow-2xl p-5 flex flex-col gap-4">
-            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
-              <div className="flex items-center gap-2">
-                <Trash2 size={18} className="text-rose-600" />
-                <h3 id="archive-delete-dialog-title" className="text-[1.125rem] leading-normal font-black text-slate-900 tracking-tight">Klassen aus dem Archiv löschen</h3>
+      {historicalStudents.length > 0 && (
+        <div className="bg-white rounded-3xl border border-amber-200 shadow-sm overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowLegacy((value) => !value)}
+            className="w-full p-5 flex items-center justify-between gap-4 text-left"
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={18} className="text-amber-600 mt-0.5 shrink-0" />
+              <div>
+                <h3 className="text-sm font-black text-slate-900">Legacy-Archiv aus älteren Klassio-Versionen</h3>
+                <p className="text-xs font-semibold text-slate-500 mt-1">
+                  {historicalStudents.length} alte Zusammenfassungseinträge. Diese enthalten keine vollständige Klassenakte und werden nicht als neue Archivstände behandelt.
+                </p>
               </div>
-              <button 
+            </div>
+            <span className="text-xs font-black text-amber-700">{showLegacy ? 'Ausblenden' : 'Anzeigen'}</span>
+          </button>
+
+          {showLegacy && (
+            <div className="border-t border-amber-100 overflow-x-auto">
+              <table className="w-full min-w-[760px] text-xs">
+                <thead className="bg-amber-50/60 text-slate-500">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-black">Schüler:in</th>
+                    <th className="text-left px-4 py-3 font-black">Klasse / Jahr</th>
+                    <th className="text-center px-3 py-3 font-black">Deutsch</th>
+                    <th className="text-center px-3 py-3 font-black">Mathematik</th>
+                    <th className="text-center px-3 py-3 font-black">Sachunterricht</th>
+                    <th className="text-right px-4 py-3 font-black">Aktion</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {historicalStudents.map((entry) => (
+                    <tr key={entry.id}>
+                      <td className="px-4 py-3 font-bold text-slate-800">{entry.name}</td>
+                      <td className="px-4 py-3 text-slate-600">{entry.class} · {entry.year}</td>
+                      <td className="px-3 py-3 text-center">{entry.german ?? '—'}</td>
+                      <td className="px-3 py-3 text-center">{entry.math ?? '—'}</td>
+                      <td className="px-3 py-3 text-center">{entry.sach ?? '—'}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteLegacyStudent(entry.id, entry.name)}
+                          className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
+                          aria-label={`Legacy-Archiveintrag von ${entry.name} löschen`}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="text-[11px] leading-relaxed text-slate-500 px-1">
+        Archivdaten enthalten personenbezogene Informationen. Löschen entfernt den Eintrag aus dem aktuellen Klassio-Datenbestand;
+        bereits erstellte ältere Datensicherungen können frühere Stände weiterhin enthalten.
+      </div>
+
+      {selectedArchive && detailCounts && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="archive-detail-title" className="bg-white rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-2xl border border-stone-200 flex flex-col">
+            <div className="p-5 border-b border-stone-200 flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <ArchiveIcon size={18} className="text-amber-700" />
+                  <h3 id="archive-detail-title" className="text-lg font-black text-slate-900">{selectedArchive.name}</h3>
+                </div>
+                <p className="text-xs font-semibold text-slate-500 mt-1">
+                  {selectedArchive.schuljahr} · {selectedArchive.stufe}. Schulstufe · archiviert {formatArchiveDate(selectedArchive.archiviertAm)}
+                </p>
+              </div>
+              <button
                 type="button"
-                aria-label="Dialog zum Löschen von Klassen schließen"
-                onClick={() => setShowDeleteModal(false)}
-                className="text-stone-400 hover:text-stone-700 font-extrabold text-[0.875rem] leading-snug cursor-pointer"
+                onClick={() => setSelectedArchiveId(null)}
+                className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-slate-600"
+                aria-label="Archivdetail schließen"
               >
-                ✕
+                <X size={17} />
               </button>
             </div>
 
-            <p className="text-[0.75rem] leading-tight text-stone-500 font-medium leading-relaxed">
-              Wählen Sie eine archivierte Klasse aus, um sie unwiderruflich aus dem Systemarchiv und der Statistik zu entfernen. Erstellen Sie vorher bei Bedarf eine Datensicherung.
-            </p>
+            <div className="p-5 overflow-y-auto space-y-5">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                  <Users size={16} className="text-slate-500" />
+                  <div className="text-xl font-black text-slate-900 mt-2">{detailCounts.students}</div>
+                  <div className="text-[10px] font-bold text-slate-500">Schüler:innen</div>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                  <FileText size={16} className="text-slate-500" />
+                  <div className="text-xl font-black text-slate-900 mt-2">{detailCounts.reports}</div>
+                  <div className="text-[10px] font-bold text-slate-500">Jahresberichte</div>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                  <BookOpen size={16} className="text-slate-500" />
+                  <div className="text-xl font-black text-slate-900 mt-2">{detailCounts.diagnostics}</div>
+                  <div className="text-[10px] font-bold text-slate-500">Diagnostik</div>
+                </div>
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                  <ShieldCheck size={16} className="text-slate-500" />
+                  <div className="text-xl font-black text-slate-900 mt-2">{detailCounts.observations}</div>
+                  <div className="text-[10px] font-bold text-slate-500">Notizen / Beobachtungen</div>
+                </div>
+              </div>
 
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {archivedClassesList.length === 0 ? (
-                <p className="text-[0.75rem] leading-tight text-stone-400 italic text-center py-6 font-semibold">Keine archivierten Klassen vorhanden.</p>
-              ) : (
-                archivedClassesList.map((cl, i) => (
-                  <div key={i} className="flex justify-between items-center bg-stone-50 hover:bg-stone-100/70 p-3 rounded-2xl border border-stone-200/40 transition-all">
-                    <div>
-                      <h4 className="font-bold text-slate-800 text-[0.75rem] leading-tight">{cl.className}</h4>
-                      <p className="text-[0.625rem] text-slate-500 font-bold">Schuljahr {cl.year} • {cl.count} Schüler:innen</p>
-                    </div>
-                    <button 
-                      type="button"
-                      aria-label={`${cl.className} aus dem Schuljahr ${cl.year} unwiderruflich löschen`}
-                      onClick={() => {
-                        handleDeleteClass(cl.className, cl.year);
-                      }}
-                      className="p-1.5 bg-rose-50 text-rose-600 hover:text-white hover:bg-rose-600 rounded-xl transition-all cursor-pointer border border-transparent hover:border-rose-700"
-                      title="Diese Klasse löschen"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))
-              )}
+              <div className="rounded-2xl border border-stone-200 overflow-hidden">
+                <div className="px-4 py-3 bg-stone-50 border-b border-stone-200">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-600">Schüler:innen und hinterlegte Endnoten</h4>
+                  <p className="text-[10px] font-semibold text-slate-400 mt-1">
+                    Es werden nur tatsächlich gespeicherte Endnoten angezeigt; Klassio berechnet im Archiv keine nachträglichen Noten oder Durchschnittswerte.
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[620px] text-xs">
+                    <thead className="bg-white text-slate-400">
+                      <tr>
+                        <th className="text-left px-4 py-3 font-black">Schüler:in</th>
+                        <th className="text-center px-3 py-3 font-black">Deutsch</th>
+                        <th className="text-center px-3 py-3 font-black">Mathematik</th>
+                        <th className="text-center px-3 py-3 font-black">Sachunterricht</th>
+                        <th className="text-center px-3 py-3 font-black">Jahresbericht</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {(selectedArchive.schueler || []).map((student) => (
+                        <tr key={student.id}>
+                          <td className="px-4 py-3 font-bold text-slate-800">{studentName(student)}</td>
+                          <td className="px-3 py-3 text-center font-semibold">{getArchivedFinalGrade(selectedArchive, student.id, 'Deutsch') || '—'}</td>
+                          <td className="px-3 py-3 text-center font-semibold">{getArchivedFinalGrade(selectedArchive, student.id, 'Mathematik') || '—'}</td>
+                          <td className="px-3 py-3 text-center font-semibold">{getArchivedFinalGrade(selectedArchive, student.id, 'Sachunterricht') || '—'}</td>
+                          <td className="px-3 py-3 text-center">
+                            {selectedArchive.jahresberichte?.[student.id]
+                              ? <span className="text-emerald-700 font-black">vorhanden</span>
+                              : <span className="text-slate-400">—</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-stone-100">
-              <button 
+            <div className="p-4 border-t border-stone-200 bg-stone-50 flex justify-between items-center gap-3">
+              <span className="text-[10px] font-semibold text-slate-500">
+                Schreibgeschützter Archivstand · keine Bearbeitung innerhalb des Archivs
+              </span>
+              <button
                 type="button"
-                onClick={() => setShowDeleteModal(false)}
-                className="px-5 h-10 bg-stone-100 hover:bg-stone-200 text-slate-700 rounded-xl text-[0.75rem] leading-tight font-black uppercase tracking-wider transition-all cursor-pointer"
+                onClick={() => setSelectedArchiveId(null)}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-black"
               >
                 Schließen
               </button>

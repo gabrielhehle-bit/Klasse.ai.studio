@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { formatLocalDateKey } from '../../../lib/utils';
+import { useApp } from '../../../context/AppContext';
 import { 
   CheckCircle2, 
   RotateCcw, 
@@ -31,7 +33,7 @@ interface DiagnosticResultReviewProps {
   test: DiagnosticTestDefinition;
   level: DiagnosticLevelDefinition;
   evaluation: EvaluationResult;
-  onSave: (result: DiagnosticResult) => void;
+  onSave: (result: DiagnosticResult) => boolean;
   onBackToTasks: () => void;
   onCancel: () => void;
 }
@@ -45,6 +47,7 @@ export const DiagnosticResultReview: React.FC<DiagnosticResultReviewProps> = ({
   onBackToTasks,
   onCancel,
 }) => {
+  const { app } = useApp();
   const [editableNextStep, setEditableNextStep] = useState(evaluation.suggestedNextStep);
   const [generalNotes, setGeneralNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -52,10 +55,15 @@ export const DiagnosticResultReview: React.FC<DiagnosticResultReviewProps> = ({
   const statusCfg = getCompetencyStatusConfig(evaluation.status);
 
   const handleSaveResult = () => {
+    if (!app.activeClassId) {
+      window.alert('Ergebnis kann nicht gespeichert werden: Es ist keine aktive Klasse ausgewählt.');
+      return;
+    }
+
     setIsSaving(true);
 
     const now = new Date();
-    const isoDate = now.toISOString().split('T')[0];
+    const isoDate = formatLocalDateKey(now);
 
     const finalCompetencyResults = evaluation.competencyResults && evaluation.competencyResults.length > 0
       ? evaluation.competencyResults
@@ -73,7 +81,7 @@ export const DiagnosticResultReview: React.FC<DiagnosticResultReviewProps> = ({
       id: `diag-res-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       schemaVersion: 1,
       studentId: student.id,
-      classId: (student as any).schulklasseId || (student as any).klasse || 'default',
+      classId: app.activeClassId,
       testId: test.id,
       date: isoDate,
       mode: (test.mode as any) || 'oneToOne',
@@ -88,7 +96,10 @@ export const DiagnosticResultReview: React.FC<DiagnosticResultReviewProps> = ({
       notes: generalNotes.trim() || undefined,
     };
 
-    onSave(newResult);
+    const saved = onSave(newResult);
+    if (!saved) {
+      setIsSaving(false);
+    }
   };
 
   return (

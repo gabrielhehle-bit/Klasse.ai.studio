@@ -79,6 +79,17 @@ export default function StudentLernziele({
           const parsedSemester = JSON.parse(savedSemester) as SemesterGoalRatings;
           setSemesterEvaluations(parsedSemester);
           setEvaluationData(parsedSemester[selectedSemester] || {});
+          setApp(prev => ({
+            ...prev,
+            studentLernzielBewertungen: {
+              ...(prev.studentLernzielBewertungen || {}),
+              [schuelerId]: parsedSemester[selectedSemester] || {}
+            },
+            studentLernzielSemesterBewertungen: {
+              ...(prev.studentLernzielSemesterBewertungen || {}),
+              [schuelerId]: parsedSemester
+            }
+          }));
           return;
         }
         const syncedEvaluations = app.studentLernzielBewertungen?.[schuelerId];
@@ -112,6 +123,15 @@ export default function StudentLernziele({
   useEffect(() => {
     setEvaluationData(semesterEvaluations[selectedSemester] || {});
   }, [selectedSemester, semesterEvaluations]);
+
+  useEffect(() => {
+    if (!schuelerId || !app.studentLernzielSemesterBewertungen?.[schuelerId]) return;
+    try {
+      localStorage.removeItem(`student_lernziele_${schuelerId}`);
+      localStorage.removeItem(`student_lernziele_semester_${schuelerId}`);
+    } catch {}
+  }, [schuelerId, app.studentLernzielSemesterBewertungen]);
+
 
   useEffect(() => {
     setSelectedStufe(Math.max(1, Math.min(4, Number(app.stufe) || initialClassLevel)));

@@ -46,10 +46,10 @@ test('Zero-Knowledge Sync – generateSyncSessionKey erzeugt frischen 256-Bit Ke
 test('Zero-Knowledge Sync – createSyncUrl und parseSyncHash generieren und parsen #sync=CODE&key=KEY korrekt', () => {
   const code = 'X9K2P4';
   const encodedKey = 'abcdefghijklmnopqrstuvwxyz0123456789-_ABCDE'; // 43 Zeichen (32 Bytes Base64URL)
-  const origin = 'https://lehrerapp.at/unterricht';
+  const origin = 'https://klassio.example/unterricht';
 
   const fullUrl = createSyncUrl(code, encodedKey, origin);
-  assert.equal(fullUrl, `https://lehrerapp.at/unterricht#sync=X9K2P4&key=${encodedKey}`);
+  assert.equal(fullUrl, `https://klassio.example/unterricht#sync=X9K2P4&key=${encodedKey}`);
 
   // Fragment isoliert parsen
   const parsedFromHash = parseSyncHash(`#sync=X9K2P4&key=${encodedKey}`);
@@ -67,6 +67,16 @@ test('Zero-Knowledge Sync – createSyncUrl und parseSyncHash generieren und par
   assert.equal(parseSyncHash(''), null);
   assert.equal(parseSyncHash('#other=123'), null);
   assert.equal(parseSyncHash('#sync=X9K2P4'), null, 'Fehlender Key muss abgewiesen werden');
+  assert.equal(
+    parseSyncHash(`?sync=X9K2P4&key=${encodedKey}`),
+    null,
+    'SessionKey in Query-Parametern muss abgewiesen werden, weil Queries an den Server übertragen werden',
+  );
+  assert.equal(
+    parseSyncHash(`https://klassio.example/unterricht?sync=X9K2P4&key=${encodedKey}`),
+    null,
+    'Auch vollständige URLs mit Query-Key dürfen nicht als Sync-Link akzeptiert werden',
+  );
 });
 
 test('Zero-Knowledge Sync – encryptSyncState und decryptSyncState Roundtrip mit echtem Datenbestand', async () => {
