@@ -1,0 +1,131 @@
+name: Teamteaching Browser E2E
+
+on:
+  push:
+    branches:
+      - 'chore/teamteaching-browser-e2e'
+  pull_request:
+    branches:
+      - feature/teamteaching-shared-classes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  teamteaching-browser-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: TypeScript
+        run: bun run lint
+
+      - name: Tests
+        run: bun run test
+
+      - name: Production build
+        run: bun run build
+
+      - name: Run two-account school-mail Teamteaching in real Chrome
+        env:
+          NODE_ENV: production
+          PORT: 3100
+          APP_URL: http://localhost:3100
+          SESSION_SECRET: ci-teamteaching-browser-session-secret-2026-at-least-32-characters
+          LEHRERAPP_ACCESS_TEAM: ci-teamteaching-owner-gate-4x9k-2026
+          LEHRERAPP_ACCESS_EXTERNAL: ci-teamteaching-external-gate-7m2q-2026
+          SMTP_HOST: 127.0.0.1
+          SMTP_PORT: 2525
+          SMTP_SECURE: "false"
+          SMTP_FROM: klassio-e2e@klassio.local
+          KLASSIO_VERIFIED_SCHOOL_DOMAINS: vsfoa.vobs.at
+          KLASSIO_DATA_DIR: /tmp/klassio-e2e-data
+          KLASSIO_E2E_BASE_URL: http://localhost:3100
+          KLASSIO_E2E_SMTP_PORT: 2525
+          KLASSIO_E2E_SMTP_CODES: /tmp/klassio-e2e-mail-codes.json
+          KLASSIO_CHROME_DEBUG_A: http://127.0.0.1:9222
+          KLASSIO_CHROME_DEBUG_B: http://127.0.0.1:9223
+          KLASSIO_E2E_EMAIL_A: anna.e2e@vsfoa.vobs.at
+          KLASSIO_E2E_EMAIL_B: berta.e2e@vsfoa.vobs.at
+          KLASSIO_E2E_VAULT_A: Klassio-E2E-Anna-2026!
+          KLASSIO_E2E_VAULT_B: Klassio-E2E-Berta-2026!
+          KLASSIO_E2E_SCREENSHOT_A: /tmp/klassio-team-a.png
+          KLASSIO_E2E_SCREENSHOT_B: /tmp/klassio-team-b.png
+        run: |
+          set -euo pipefail
+
+          rm -rf /tmp/klassio-e2e-data /tmp/klassio-chrome-a /tmp/klassio-chrome-b
+          rm -f /tmp/klassio-team-health.json /tmp/klassio-e2e-mail-codes.json
+          mkdir -p /tmp/klassio-e2e-data
+
+          node scripts/e2e-smtp-capture.mjs > /tmp/klassio-e2e-smtp.log 2>&1 &
+          SMTP_PID=$!
+
+          node dist/server.cjs > /tmp/klassio-team-server.log 2>&1 &
+          SERVER_PID=$!
+
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME_BIN" ]; then
+            echo "No Chrome/Chromium binary found on runner."
+            exit 1
+          fi
+
+          "$CHROME_BIN"             --headless=new             --no-sandbox             --disable-gpu             --disable-dev-shm-usage             --remote-debugging-port=9222             --remote-allow-origins=*             --user-data-dir=/tmp/klassio-chrome-a             about:blank > /tmp/klassio-chrome-a.log 2>&1 &
+          CHROME_A_PID=$!
+
+          "$CHROME_BIN"             --headless=new             --no-sandbox             --disable-gpu             --disable-dev-shm-usage             --remote-debugging-port=9223             --remote-allow-origins=*             --user-data-dir=/tmp/klassio-chrome-b             about:blank > /tmp/klassio-chrome-b.log 2>&1 &
+          CHROME_B_PID=$!
+
+          cleanup() {
+            kill "$CHROME_A_PID" 2>/dev/null || true
+            kill "$CHROME_B_PID" 2>/dev/null || true
+            kill "$SERVER_PID" 2>/dev/null || true
+            kill "$SMTP_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for i in {1..60}; do
+            if curl --fail --silent http://localhost:3100/api/health >/tmp/klassio-team-health.json; then
+              break
+            fi
+            sleep 0.5
+          done
+          grep -q '"status":"ok"' /tmp/klassio-team-health.json
+
+          for i in {1..40}; do
+            if grep -q 'SMTP listening' /tmp/klassio-e2e-smtp.log 2>/dev/null; then
+              break
+            fi
+            sleep 0.25
+          done
+          grep -q 'SMTP listening' /tmp/klassio-e2e-smtp.log
+
+          bun scripts/teamteaching-browser-e2e.mjs
+
+      - name: Upload Teamteaching browser diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: klassio-teamteaching-browser-${{ github.sha }}
+          path: |
+            /tmp/klassio-team-a.png
+            /tmp/klassio-team-b.png
+            /tmp/klassio-team-server.log
+            /tmp/klassio-e2e-smtp.log
+            /tmp/klassio-chrome-a.log
+            /tmp/klassio-chrome-b.log
+            /tmp/klassio-e2e-mail-codes.json
+            /tmp/klassio-e2e-data/teamteaching.json
+          if-no-files-found: ignore
+          retention-days: 7
