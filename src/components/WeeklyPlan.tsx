@@ -3455,9 +3455,193 @@ export default function WeeklyPlan() {
         document.body
       )}
 
+      {/* PLANNED LESSON OVERVIEW */}
+      {viewingCell && (() => {
+        const lesson = plan[viewingCell.tag]?.[viewingCell.idx] || {};
+        const fallbackSubject = app.stammplan?.[viewingCell.tag]?.[viewingCell.idx + 1] || '';
+        const displaySubject = lesson.fach || fallbackSubject || 'Ohne Fach';
+        const availableSubjects = sortYearlySubjects(app.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS);
+        const yearPlanState = addWeeklyLessonToEmptyYearPlan({
+          existingPlan: app.jahresplanung || {},
+          kw: activeKW,
+          lesson,
+          fallbackSubject,
+          availableSubjects,
+        });
+        const typeLabel: Record<string, string> = {
+          standard: 'Unterricht',
+          sa: 'Schularbeit',
+          test: 'Test',
+          lzk: 'LZK',
+          event: 'Ausflug / Event',
+          spielefest: 'Spielefest',
+          konferenz: 'Konferenz',
+          gespraech: 'Gespräch',
+          sonstiges: 'Termin',
+          digital: 'Digital',
+        };
+        const socialLabel: Record<string, string> = {
+          single: 'Einzelarbeit',
+          partner: 'Partnerarbeit',
+          group: 'Gruppenarbeit',
+        };
+        const linkedMaterials = (lesson.materialIds || [])
+          .map((id: string) => app.materialien?.find(material => material.id === id)?.titel)
+          .filter(Boolean);
+
+        const closeOverview = () => {
+          setViewingCell(null);
+          setYearPlanSyncNotice(null);
+        };
+
+        return createPortal(
+          <div className="fixed inset-0 z-[10020] flex items-center justify-center p-3 sm:p-5">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md"
+              onClick={closeOverview}
+            />
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              className="relative flex max-h-[92vh] w-[94vw] max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
+            >
+              <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/70 px-6 py-5 sm:px-8">
+                <div>
+                  <div className="text-[0.625rem] font-black uppercase tracking-[0.18em] text-emerald-600">Geplante Einheit</div>
+                  <h3 className="mt-1 text-2xl font-black tracking-tight text-slate-950">{lesson.thema || 'Unterrichtseinheit'}</h3>
+                  <p className="mt-1 text-xs font-bold text-slate-500">
+                    {viewingCell.tag} · {viewingCell.idx + 1}. Stunde · KW {activeKW}{sw ? ` · SW ${sw}` : ''}
+                  </p>
+                </div>
+                <button type="button" onClick={closeOverview} className="rounded-full p-2.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                  <X size={22} />
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto p-6 sm:p-8">
+                <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Fach & Inhalt</div>
+                    <div className="mt-2 text-base font-black text-slate-900">{displaySubject}</div>
+                    <div className="mt-2 whitespace-pre-wrap text-sm font-medium leading-relaxed text-slate-700">{lesson.thema || '—'}</div>
+                    {lesson.schwerpunkte?.length > 0 && (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {lesson.schwerpunkte.map((value: string) => (
+                          <span key={value} className="rounded-full bg-blue-50 px-2.5 py-1 text-[0.625rem] font-black text-blue-700">
+                            {formatSchwerpunktLabel(value)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Rahmen</div>
+                    <dl className="mt-3 space-y-2 text-xs">
+                      <div className="flex justify-between gap-3"><dt className="font-semibold text-slate-500">Typ</dt><dd className="text-right font-black text-slate-800">{typeLabel[lesson.type || 'standard'] || lesson.type || 'Unterricht'}</dd></div>
+                      <div className="flex justify-between gap-3"><dt className="font-semibold text-slate-500">Dauer</dt><dd className="text-right font-black text-slate-800">{lesson.duration === 'all' ? 'Restlicher Tag' : `${lesson.duration || 1} Std.`}</dd></div>
+                      <div className="flex justify-between gap-3"><dt className="font-semibold text-slate-500">Sozialform</dt><dd className="text-right font-black text-slate-800">{socialLabel[lesson.social || 'single'] || 'Einzelarbeit'}</dd></div>
+                      <div className="flex justify-between gap-3"><dt className="font-semibold text-slate-500">Status</dt><dd className="text-right font-black text-slate-800">{lesson.erledigt ? 'Erledigt' : 'Geplant'}</dd></div>
+                    </dl>
+                  </section>
+
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Material</div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm font-medium text-slate-700">{lesson.material || 'Kein freier Materialhinweis'}</p>
+                    {linkedMaterials.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        {linkedMaterials.map((title: string) => <div key={title} className="text-xs font-bold text-indigo-700">• {title}</div>)}
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-emerald-700">Hausübung</div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm font-medium text-slate-700">{lesson.housework || 'Keine Hausübung eingetragen'}</p>
+                  </section>
+
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Methodik</div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm font-medium text-slate-700">{lesson.method || 'Keine Methodik-Notiz'}</p>
+                  </section>
+
+                  {lesson.reflexion && (
+                    <section className="rounded-2xl border border-amber-100 bg-amber-50/50 p-5 lg:col-span-2">
+                      <div className="text-[0.625rem] font-black uppercase tracking-wider text-amber-700">Reflexion</div>
+                      <p className="mt-2 whitespace-pre-wrap text-sm font-medium italic text-slate-700">{lesson.reflexion}</p>
+                    </section>
+                  )}
+
+                  {lesson.halves?.enabled && (
+                    <section className="rounded-2xl border border-cyan-100 bg-cyan-50/50 p-5 lg:col-span-3">
+                      <div className="text-[0.625rem] font-black uppercase tracking-wider text-cyan-700">Geteilte Einheit</div>
+                      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {[lesson.halves.first, lesson.halves.second].map((half: any, index: number) => (
+                          <div key={index} className="rounded-xl border border-cyan-100 bg-white p-4">
+                            <div className="text-[0.625rem] font-black uppercase text-cyan-600">{index === 0 ? '1. Hälfte' : '2. Hälfte'}</div>
+                            <div className="mt-1 text-xs font-bold text-slate-500">{half?.fach || '—'}{half?.unterbereich ? ` · ${formatSchwerpunktLabel(half.unterbereich)}` : ''}</div>
+                            <div className="mt-2 text-sm font-semibold text-slate-800">{half?.thema || '—'}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-xs font-black text-indigo-950">Wochenplan → Jahresplan</div>
+                      <p className="mt-1 text-xs font-medium leading-relaxed text-indigo-800">
+                        {yearPlanState.status === 'added'
+                          ? 'Für dieses Fach ist KW ' + activeKW + ' im Jahresplan noch frei. Du kannst die Einheit mit einem Klick übernehmen.'
+                          : yearPlanState.status === 'occupied'
+                            ? 'Der Jahresplan enthält für dieses Fach in KW ' + activeKW + ' bereits einen Eintrag. Klassio überschreibt ihn nicht.'
+                            : 'Für die Übernahme braucht die Einheit ein Thema und eine passende Jahresplan-Spalte.'}
+                      </p>
+                    </div>
+                    {yearPlanState.status === 'added' && (
+                      <button
+                        type="button"
+                        onClick={() => addWeeklyLessonToYearPlan(viewingCell.tag, viewingCell.idx)}
+                        className="shrink-0 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-black text-white transition-colors hover:bg-indigo-700"
+                      >
+                        In Jahresplan übernehmen
+                      </button>
+                    )}
+                  </div>
+                  {yearPlanSyncNotice && <p className="mt-3 text-xs font-bold text-emerald-700">{yearPlanSyncNotice}</p>}
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 border-t border-slate-100 bg-slate-50/70 px-6 py-4 sm:flex-row sm:justify-end">
+                <button type="button" onClick={closeOverview} className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-xs font-black text-slate-600 hover:bg-slate-100">
+                  Schließen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = { ...viewingCell };
+                    setViewingCell(null);
+                    setYearPlanSyncNotice(null);
+                    handleEditCell(target.tag, target.idx);
+                  }}
+                  className="rounded-xl bg-emerald-600 px-6 py-3 text-xs font-black text-white shadow-sm hover:bg-emerald-700"
+                >
+                  <Pencil size={14} className="mr-2 inline" /> Bearbeiten
+                </button>
+              </div>
+            </motion.div>
+          </div>,
+          document.body
+        );
+      })()}
+
       {/* PLANNER MODAL */}
       {editingCell && createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setEditingCell(null)} />
            <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }}
