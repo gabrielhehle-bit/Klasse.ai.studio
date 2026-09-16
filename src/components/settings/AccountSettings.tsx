@@ -1,8 +1,12 @@
 import React from 'react';
-import { Mail, Users } from 'lucide-react';
+import { Database, Mail, Users } from 'lucide-react';
 import EmailAccountLogin from '../EmailAccountLogin';
+import SchoolIdentitySettings from './SchoolIdentitySettings';
+import SchoolVerificationAdmin from './SchoolVerificationAdmin';
 
 export default function AccountSettings() {
+  const [refreshKey, setRefreshKey] = React.useState(0);
+
   return (
     <div className="space-y-6">
       <section className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
@@ -17,7 +21,20 @@ export default function AccountSettings() {
             </p>
           </div>
         </div>
-        <EmailAccountLogin />
+        <EmailAccountLogin onSuccess={() => setRefreshKey(value => value + 1)} />
+
+        <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+          <div className="flex items-start gap-3">
+            <Database size={17} className="mt-0.5 shrink-0 text-emerald-700" />
+            <p className="text-xs font-semibold leading-relaxed text-emerald-900">
+              Bereits eingerichtete Klassen, Planungen, Noten und Tresordaten bleiben auf diesem Gerät erhalten. Die E-Mail-Anmeldung ergänzt dein bestehendes Klassio nur um Konto- und Teamfunktionen – sie setzt nichts zurück.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <SchoolIdentitySettings refreshKey={refreshKey} />
+        </div>
       </section>
 
       <section className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
@@ -31,6 +48,8 @@ export default function AccountSettings() {
           </div>
         </div>
       </section>
+
+      <SchoolVerificationAdmin refreshKey={refreshKey} />
     </div>
   );
 }

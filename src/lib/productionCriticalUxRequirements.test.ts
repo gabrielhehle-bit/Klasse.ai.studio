@@ -6,6 +6,8 @@ const context = readFileSync('src/context/AppContext.tsx', 'utf8');
 const settings = readFileSync('src/components/Settings.tsx', 'utf8');
 const accountSettings = readFileSync('src/components/settings/AccountSettings.tsx', 'utf8');
 const emailLogin = readFileSync('src/components/EmailAccountLogin.tsx', 'utf8');
+const schoolIdentity = readFileSync('src/components/settings/SchoolIdentitySettings.tsx', 'utf8');
+const schoolAdmin = readFileSync('src/components/settings/SchoolVerificationAdmin.tsx', 'utf8');
 const notes = readFileSync('src/components/Behavior.tsx', 'utf8');
 const voiceArchive = readFileSync('src/components/StimmNotizen.tsx', 'utf8');
 const sidebar = readFileSync('src/components/Sidebar.tsx', 'utf8');
@@ -25,6 +27,20 @@ test('E-Mail-Anmeldung ist innerhalb der laufenden App erreichbar', () => {
   assert.match(emailLogin, /\/api\/access\/email\/request/);
   assert.match(emailLogin, /\/api\/access\/email\/verify/);
   assert.match(emailLogin, /Schulmail/);
+});
+
+test('Bestehende Einrichtung bleibt beim E-Mail- und Schul-Onboarding unangetastet', () => {
+  assert.match(accountSettings, /Bereits eingerichtete Klassen, Planungen, Noten und Tresordaten bleiben/);
+  assert.match(schoolIdentity, /Du musst nichts neu einrichten/);
+  assert.match(schoolIdentity, /Bestehende Klassio-Daten werden dabei nicht verschoben, gelöscht oder neu angelegt/);
+  assert.doesNotMatch(emailLogin, /factoryReset|Werksreset|clearAppData/);
+});
+
+test('Neue Schulen können ohne externen Kontakt beantragt und intern freigegeben werden', () => {
+  assert.match(schoolIdentity, /Schulverifizierung anfordern/);
+  assert.match(schoolAdmin, /Schulverwaltung/);
+  assert.match(schoolAdmin, /Freigeben/);
+  assert.match(schoolAdmin, /Ablehnen/);
 });
 
 test('Teamteaching ist direkt in der Sidebar sichtbar', () => {

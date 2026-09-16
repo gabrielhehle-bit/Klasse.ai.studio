@@ -12,7 +12,7 @@ import { getServerSyncTimestamps, isSyncSessionExpired } from "./src/lib/syncSer
 import { createTeacherIdentityForSchool, displayNameFromEmail, handleFromEmail, type TeacherIdentity } from "./src/server/teacherIdentity.ts";
 import { createLehrerzimmerStore, type LehrerzimmerCategory } from "./src/server/lehrerzimmerStore.ts";
 import { createClassCollaborationStore, type SharedClassRecord } from "./src/server/classCollaborationStore.ts";
-import { createSchoolRegistryStore, type AustrianFederalState } from "./src/server/schoolRegistry.ts";
+import { createSchoolRegistryStore, type AustrianFederalState, type SchoolVerificationRequest, type SchoolRecord } from "./src/server/schoolRegistry.ts";
 import { createSupporterStore } from "./src/server/supporterStore.ts";
 import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from "./src/data/austrianSchoolRegistry.seed.ts";
 
@@ -64,8 +64,9 @@ function validateProductionEnvironment() {
     console.warn("[KONFIGURATIONSHINWEIS] E-Mail-Login ist nur aktiv, wenn SMTP_HOST und SMTP_FROM gesetzt sind.");
   }
 
-  if (!process.env.KLASSIO_SCHOOL_ADMIN_TOKEN) {
-    console.warn("[KONFIGURATIONSHINWEIS] KLASSIO_SCHOOL_ADMIN_TOKEN ist nicht gesetzt. Neue Schul-Verifizierungsanfragen können gespeichert, aber nicht über die Admin-API freigegeben werden.");
+  const configuredSchoolAdmins = (process.env.KLASSIO_SCHOOL_ADMIN_EMAILS || process.env.SMTP_USER || '').trim();
+  if (!process.env.KLASSIO_SCHOOL_ADMIN_TOKEN && !configuredSchoolAdmins) {
+    console.warn("[KONFIGURATIONSHINWEIS] Keine Schulverifizierungs-Administration konfiguriert. Setze KLASSIO_SCHOOL_ADMIN_EMAILS oder KLASSIO_SCHOOL_ADMIN_TOKEN.");
   }
 }
 
@@ -171,6 +172,12 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const SMTP_USER = (process.env.SMTP_USER || '').trim();
   const SMTP_PASS = process.env.SMTP_PASS || '';
   const SMTP_FROM = (process.env.SMTP_FROM || '').trim();
+  const SCHOOL_ADMIN_EMAILS = [...new Set(
+    (process.env.KLASSIO_SCHOOL_ADMIN_EMAILS || SMTP_USER || '')
+      .split(',')
+      .map(value => value.trim().toLowerCase())
+      .filter(value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+  )];
   const ALLOWED_EMAIL_DOMAINS = (process.env.KLASSIO_VERIFIED_SCHOOL_DOMAINS || process.env.LEHRERAPP_ALLOWED_EMAIL_DOMAINS || '')
     .split(',')
     .map(value => value.trim().toLowerCase().replace(/^@/, ''))
@@ -247,6 +254,65 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const domain = parts[1] || '';
     const visible = local.length <= 2 ? local.slice(0, 1) : local.slice(0, 2);
     return visible + '*'.repeat(Math.max(2, Math.min(8, local.length - visible.length))) + '@' + domain;
+  }
+
+  function isSchoolAdminEmail(email: string | undefined | null): boolean {
+    if (!email) return false;
+    return SCHOOL_ADMIN_EMAILS.includes(email.trim().toLowerCase());
+  }
+
+  async function notifySchoolAdmins(request: SchoolVerificationRequest): Promise<boolean> {
+    if (!mailTransporter || !SCHOOL_ADMIN_EMAILS.length) return false;
+    const appUrl = (process.env.APP_URL || 'https://klassio.at').replace(/\/+$/, '');
+    try {
+      await mailTransporter.sendMail({
+        from: SMTP_FROM,
+        to: SCHOOL_ADMIN_EMAILS.join(','),
+        subject: 'Neue Klassio-Schulverifizierung: ' + request.schoolName,
+        text:
+          'In Klassio wurde eine neue Schulverifizierung angefordert.\n\n' +
+          'Schule: ' + request.schoolName + '\n' +
+          'Bundesland: ' + request.federalState + '\n' +
+          'Schul-Domain: ' + request.emailDomain + '\n' +
+          'Angefordert von: ' + request.requestedByEmail + '\n\n' +
+          'Öffne ' + appUrl + ' und gehe zu Einstellungen → Konto & Schulmail → Schulverwaltung.',
+        html:
+          '<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#0f172a">' +
+          '<h2>Neue Schulverifizierung</h2>' +
+          '<p><strong>' + escapeHtml(request.schoolName) + '</strong></p>' +
+          '<p>Bundesland: ' + escapeHtml(request.federalState) + '<br>' +
+          'Schul-Domain: <strong>' + escapeHtml(request.emailDomain) + '</strong><br>' +
+          'Angefordert von: ' + escapeHtml(request.requestedByEmail) + '</p>' +
+          '<p>Öffne Klassio und gehe zu <strong>Einstellungen → Konto & Schulmail → Schulverwaltung</strong>.</p>' +
+          '</div>'
+      });
+      return true;
+    } catch (error) {
+      console.error('[Schulverifizierung] Admin-Benachrichtigung konnte nicht versendet werden:', error);
+      return false;
+    }
+  }
+
+  async function notifySchoolVerificationResult(
+    request: SchoolVerificationRequest,
+    school: SchoolRecord | null,
+    approved: boolean
+  ): Promise<boolean> {
+    if (!mailTransporter) return false;
+    try {
+      await mailTransporter.sendMail({
+        from: SMTP_FROM,
+        to: request.requestedByEmail,
+        subject: approved ? 'Deine Schule ist in Klassio freigeschaltet' : 'Klassio-Schulverifizierung',
+        text: approved
+          ? 'Die Schule "' + (school?.name || request.schoolName) + '" wurde in Klassio freigeschaltet.\n\nDu musst nichts neu einrichten. Deine bereits vorhandenen Klassen, Planungen und dein lokaler Datentresor bleiben unverändert. Öffne Klassio einfach erneut; Lehrerzimmer und Teamteaching werden für diese Schul-Domain automatisch verfügbar.'
+          : 'Die Anfrage für "' + request.schoolName + '" konnte noch nicht freigegeben werden. Dein persönliches Klassio-Konto und deine bereits eingerichteten Daten bleiben davon unberührt. Prüfe bitte Schulname und dienstliche Schul-Domain und stelle die Anfrage bei Bedarf erneut.',
+      });
+      return true;
+    } catch (error) {
+      console.error('[Schulverifizierung] Ergebnis-Mail konnte nicht versendet werden:', error);
+      return false;
+    }
   }
 
   function parseCookies(req: express.Request): Record<string, string> {
@@ -665,6 +731,13 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       const account = getEmailAccount(req);
       const domain = account.email.split('@')[1] || '';
       const school = await schoolRegistryStore.findVerifiedSchoolByEmail(account.email);
+      if (school) {
+        const identity = createTeacherIdentityForSchool(account.email, school);
+        if (identity) {
+          setEmailIdentitySession(req, res, identity);
+          await lehrerzimmerStore.ensureUser(identity);
+        }
+      }
       const requests = await schoolRegistryStore.listRequestsForDomain(domain);
       const pending = requests.find(request => request.status === 'pending') || null;
       res.json({
@@ -685,12 +758,16 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   app.post('/api/schools/verification-requests', requireEmailAccount, async (req, res) => {
     try {
       const account = getEmailAccount(req);
+      const domain = account.email.split('@')[1] || '';
+      const hadPendingRequest = (await schoolRegistryStore.listRequestsForDomain(domain))
+        .some(request => request.status === 'pending');
       const request = await schoolRegistryStore.requestVerification({
         requestedByEmail: account.email,
         schoolName: req.body?.schoolName,
         federalState: req.body?.federalState as AustrianFederalState,
       });
-      res.status(201).json({ request });
+      const adminNotified = hadPendingRequest ? true : await notifySchoolAdmins(request);
+      res.status(201).json({ request, adminNotified });
     } catch (error) {
       const code = error instanceof Error ? error.message : '';
       if (code === 'PUBLIC_EMAIL_DOMAIN') {
@@ -715,6 +792,12 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   });
 
   function isSchoolAdminAuthorized(req: express.Request): boolean {
+    const cookies = parseCookies(req);
+    const account = verifyAccessToken(cookies.lehrerapp_access_token)
+      ? verifyAccountToken(cookies.klassio_email_account)
+      : null;
+    if (account && isSchoolAdminEmail(account.email)) return true;
+
     if (!SCHOOL_ADMIN_TOKEN || SCHOOL_ADMIN_TOKEN.length < 32) return false;
     const header = req.headers.authorization || '';
     const submitted = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
@@ -727,7 +810,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   }
 
   const requireSchoolAdmin: express.RequestHandler = (req, res, next) => {
-    if (!SCHOOL_ADMIN_TOKEN || SCHOOL_ADMIN_TOKEN.length < 32) {
+    const hasEmailAdmin = SCHOOL_ADMIN_EMAILS.length > 0;
+    const hasTokenAdmin = SCHOOL_ADMIN_TOKEN.length >= 32;
+    if (!hasEmailAdmin && !hasTokenAdmin) {
       res.status(503).json({ error: 'Schulverifizierungs-Administration ist auf diesem Server noch nicht konfiguriert.' });
       return;
     }
@@ -738,10 +823,37 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     next();
   };
 
+  app.get('/api/admin/schools/status', requireAccess, (req, res) => {
+    const account = verifyAccountToken(parseCookies(req).klassio_email_account);
+    res.json({
+      admin: Boolean(account && isSchoolAdminEmail(account.email)),
+      email: account?.email || null,
+      notificationsConfigured: Boolean(mailTransporter && SCHOOL_ADMIN_EMAILS.length),
+    });
+  });
+
+  app.get('/api/admin/schools/verification-requests', requireSchoolAdmin, async (_req, res) => {
+    try {
+      const [requests, schools] = await Promise.all([
+        schoolRegistryStore.listVerificationRequests(),
+        schoolRegistryStore.listVerifiedSchools(),
+      ]);
+      res.json({
+        requests,
+        schools,
+        pendingCount: requests.filter(request => request.status === 'pending').length,
+      });
+    } catch (error) {
+      console.error('[Schulverifizierung] Admin-Liste konnte nicht geladen werden:', error);
+      res.status(500).json({ error: 'Die Schulverifizierungen konnten nicht geladen werden.' });
+    }
+  });
+
   app.post('/api/admin/schools/verification-requests/:requestId/approve', requireSchoolAdmin, async (req, res) => {
     try {
       const result = await schoolRegistryStore.approveRequest(req.params.requestId);
-      res.json(result);
+      const notified = await notifySchoolVerificationResult(result.request, result.school, true);
+      res.json({ ...result, notified });
     } catch (error) {
       if (error instanceof Error && error.message === 'REQUEST_NOT_FOUND') {
         return res.status(404).json({ error: 'Verifizierungsanfrage nicht gefunden.' });
@@ -754,7 +866,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   app.post('/api/admin/schools/verification-requests/:requestId/reject', requireSchoolAdmin, async (req, res) => {
     try {
       const request = await schoolRegistryStore.rejectRequest(req.params.requestId);
-      res.json({ request });
+      const notified = await notifySchoolVerificationResult(request, null, false);
+      res.json({ request, notified });
     } catch (error) {
       if (error instanceof Error && error.message === 'REQUEST_NOT_FOUND') {
         return res.status(404).json({ error: 'Verifizierungsanfrage nicht gefunden.' });

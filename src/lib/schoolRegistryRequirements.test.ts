@@ -70,6 +70,35 @@ test('Neue Schule aus anderem Bundesland kann angefragt und einmalig freigegeben
   }
 });
 
+test('Admin-Queue listet offene Anfragen und Entscheidungen nachvollziehbar', async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-school-admin-'));
+  try {
+    const store = createSchoolRegistryStore(dir);
+    const first = await store.requestVerification({
+      requestedByEmail: 'anna@schule-a.at',
+      schoolName: 'VS Schule A',
+      federalState: 'Wien',
+    });
+    const second = await store.requestVerification({
+      requestedByEmail: 'berta@schule-b.at',
+      schoolName: 'VS Schule B',
+      federalState: 'Salzburg',
+    });
+
+    assert.equal((await store.listVerificationRequests('pending')).length, 2);
+    await store.approveRequest(first.id);
+    await store.rejectRequest(second.id);
+
+    const all = await store.listVerificationRequests();
+    assert.equal(all.length, 2);
+    assert.equal(all.find(item => item.id === first.id)?.status, 'verified');
+    assert.equal(all.find(item => item.id === second.id)?.status, 'rejected');
+    assert.equal((await store.listVerificationRequests('pending')).length, 0);
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('Private Mailanbieter können nicht als Schule verifiziert werden', async () => {
   const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-public-mail-'));
   try {
@@ -105,6 +134,11 @@ test('Server trennt persönliches Konto, Schulregister und Lehrerzimmer', () => 
   assert.match(server, /app\.get\('\/api\/schools\/me'/);
   assert.match(server, /app\.post\('\/api\/schools\/verification-requests'/);
   assert.match(server, /verification-requests\/:requestId\/approve/);
+  assert.match(server, /app\.get\('\/api\/admin\/schools\/verification-requests'/);
+  assert.match(server, /KLASSIO_SCHOOL_ADMIN_EMAILS/);
+  assert.match(server, /notifySchoolAdmins/);
+  assert.match(server, /notifySchoolVerificationResult/);
+  assert.match(server, /setEmailIdentitySession\(req, res, identity\)/);
   assert.match(server, /KLASSIO_SCHOOL_ADMIN_TOKEN/);
 });
 
@@ -114,4 +148,20 @@ test('Lehrerzimmer bietet bei unbekannter Schule eine österreichweite Verifizie
   assert.match(component, /Das funktioniert österreichweit und ist nicht an VOBS gebunden/);
   assert.match(component, /Schulverifizierung anfordern/);
   assert.match(component, /AUSTRIAN_FEDERAL_STATES/);
+});
+
+test('Schulverwaltung ist für Admin-Konten in den Konto-Einstellungen integriert', () => {
+  const account = read('src/components/settings/AccountSettings.tsx');
+  const admin = read('src/components/settings/SchoolVerificationAdmin.tsx');
+  const identity = read('src/components/settings/SchoolIdentitySettings.tsx');
+
+  assert.match(account, /SchoolIdentitySettings/);
+  assert.match(account, /SchoolVerificationAdmin/);
+  assert.match(account, /Bereits eingerichtete Klassen, Planungen, Noten und Tresordaten bleiben/);
+  assert.match(admin, /Schulverwaltung/);
+  assert.match(admin, /\/api\/admin\/schools\/verification-requests/);
+  assert.match(admin, /Freigeben/);
+  assert.match(admin, /Ablehnen/);
+  assert.match(identity, /Du musst nichts neu einrichten/);
+  assert.match(identity, /Schulverifizierung anfordern/);
 });
