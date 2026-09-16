@@ -3366,7 +3366,7 @@ export default function WeeklyPlan() {
 
        {/* TIME-INDEPENDENT MODAL */}
       {editingZeitunabhaengig && createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4">
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setEditingZeitunabhaengig(null)} />
            <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -3461,9 +3461,9 @@ export default function WeeklyPlan() {
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setEditingCell(null)} />
            <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }}
-              className="relative w-full max-w-2xl bg-white rounded-2xl shadow-lg  flex flex-col max-h-[92vh] mx-auto"
+              className="relative w-[96vw] max-w-[1500px] h-[94vh] max-h-[94vh] bg-white rounded-2xl shadow-2xl flex flex-col mx-auto overflow-hidden"
            >
-              <div className="px-8 py-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
                  <div>
                     <h3 className="text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Einheit planen</h3>
                     <p className="text-[0.625rem] font-black text-slate-400 uppercase tracking-widest mt-1">{editingCell.tag} • {editingCell.idx + 1}. Stunde • KW {activeKW}{sw && <span className="text-[0.53125rem] opacity-75 ml-1 font-bold"> (SW {sw})</span>}</p>
@@ -3471,10 +3471,10 @@ export default function WeeklyPlan() {
                  <button onClick={() => setEditingCell(null)} className="p-3 hover:bg-slate-100 rounded-full transition-all text-slate-400"><X size={24} /></button>
               </div>
 
-              <div key={`${editingCell.tag}-${editingCell.idx}`} className="p-10 space-y-12 overflow-y-auto no-scrollbar scroll-smooth">
+              <div key={`${editingCell.tag}-${editingCell.idx}`} className="p-5 lg:p-6 space-y-6 overflow-y-auto no-scrollbar scroll-smooth flex-1 min-h-0">
                  
                  {/* SECTION 1: WAS & WER */}
-                 <div className="space-y-8">
+                 <div className="space-y-5">
                     <div className="flex items-center justify-between ml-1 pr-1">
                        <div className="flex items-center gap-3">
                           <div className="w-1.5 h-6 bg-emerald-500 rounded-full" />
@@ -3517,7 +3517,7 @@ export default function WeeklyPlan() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-8">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 xl:items-start">
                         {/* THEMA */}
                         <div className="space-y-4">
                             <div className="flex justify-between items-center px-1">
@@ -3765,7 +3765,7 @@ export default function WeeklyPlan() {
                  )}
 
                  {/* SECTION 2: PRIORITÄT & SOZIALFORM */}
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="space-y-8">
                        <div className="space-y-4">
                           <div className="flex items-center gap-3 ml-1">
@@ -3851,7 +3851,7 @@ export default function WeeklyPlan() {
                  </div>
 
                  {/* SECTION 3: ORGA (MATERIALS & HOMEWORK) */}
-                 <div className="bg-slate-50/50 rounded-2xl p-6 border border-slate-200">
+                 <div className="bg-slate-50/50 rounded-2xl p-4 lg:p-5 border border-slate-200">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div className="space-y-3">
                            <div className="flex items-center gap-2 ml-1">
@@ -3957,7 +3957,7 @@ export default function WeeklyPlan() {
                  </div>
 
                  {/* SECTION 4: FEINSCHLIFF */}
-                 <div className="space-y-8">
+                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
                     <div className="space-y-3">
                        <div className="flex items-center gap-3 ml-1">
                           <MessageSquare size={16} className="text-slate-400" />
@@ -3984,7 +3984,7 @@ export default function WeeklyPlan() {
                     </div>
 
                     {/* UNTERRICHTSEINHEIT IN ZWEI GLEICHE HÄLFTEN TEILEN – bewusst ohne Minutenlogik */}
-                    <div className="rounded-3xl border border-cyan-100 bg-cyan-50/50 p-6 space-y-4">
+                    <div className="rounded-3xl border border-cyan-100 bg-cyan-50/50 p-5 space-y-4 xl:col-span-2">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <h4 className="text-[0.875rem] font-black text-slate-800">Unterrichtseinheit halbieren</h4>
@@ -4088,7 +4088,7 @@ export default function WeeklyPlan() {
                     </div>
 
                     {/* WÖCHENTLICHE WIEDERHOLUNG (RECURRING LESSONS) */}
-                    <div className="p-6 bg-indigo-50/50 border border-indigo-100 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 transition-all hover:bg-indigo-50">
+                    <div className="p-5 bg-indigo-50/50 border border-indigo-100 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 transition-all hover:bg-indigo-50">
                        <div className="flex items-center gap-4 text-left">
                           <div className={`w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100 ${repeatWeekly ? 'animate-pulse' : ''}`}>
                              <RefreshCw size={22} className={repeatWeekly ? 'animate-spin-slow text-indigo-500' : 'text-indigo-400'} style={{ animationDuration: '6s' }} />
@@ -4116,7 +4116,7 @@ export default function WeeklyPlan() {
                     </div>
 
                     {/* WOCHENPLAN SYNC */}
-                    <div className="p-6 bg-emerald-50/50 border border-emerald-100 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 transition-all hover:bg-emerald-50">
+                    <div className="p-5 bg-emerald-50/50 border border-emerald-100 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 transition-all hover:bg-emerald-50">
                        <div className="flex items-center gap-4 text-left">
                           <div className={`w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-emerald-600 shadow-sm border border-emerald-100 ${syncWpSubjects ? 'animate-pulse' : ''}`}>
                              <Zap size={22} className={syncWpSubjects ? 'text-emerald-500' : 'text-emerald-400'} />
@@ -4145,7 +4145,7 @@ export default function WeeklyPlan() {
                  </div>
               </div>
 
-              <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex gap-4">
+              <div className="p-4 lg:px-6 bg-slate-50/50 border-t border-slate-100 flex gap-4 shrink-0">
                  <button onClick={() => saveCell('', '')} className="btn text-rose-600 hover:!bg-rose-600 hover:!text-white hover:!border-rose-600 border border-slate-200 bg-white px-8 transition-all">Löschen</button>
                  <button onClick={() => saveCell(searchFach, tempThema, tempType, tempMaterial, tempHUE, tempMethod, tempSocial, tempReflexion, tempSchwerpunkte, tempDuration, tempMaterialIds)} className="btn btn-accent flex-1">Einheit speichern</button>
               </div>
