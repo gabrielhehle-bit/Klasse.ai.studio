@@ -6,12 +6,16 @@ const weekly = fs.readFileSync('src/components/WeeklyPlan.tsx', 'utf8');
 const yearly = fs.readFileSync('src/components/YearlyPlan.tsx', 'utf8');
 const sync = fs.readFileSync('src/lib/planningSync.ts', 'utf8');
 
-test('Wochenplanung: große Arbeitsfläche statt kleinem Scroll-Dialog', () => {
-  assert.match(weekly, /w-\[calc\(100vw-1rem\)\]/);
-  assert.match(weekly, /sm:w-\[calc\(100vw-2rem\)\]/);
+test('Wochenplanung: großer Arbeitsbereich mit klaren Reitern statt Formularwand', () => {
+  assert.match(weekly, /w-\[calc\(100vw-0\.5rem\)\]/);
+  assert.match(weekly, /sm:w-\[calc\(100vw-1rem\)\]/);
   assert.match(weekly, /max-w-none/);
-  assert.match(weekly, /h-\[94vh\]/);
-  assert.match(weekly, /xl:grid-cols-2/);
+  assert.match(weekly, /h-\[calc\(100vh-0\.5rem\)\]/);
+  assert.match(weekly, /plannerEditorTab/);
+  assert.match(weekly, /1 · Inhalt & Fach/);
+  assert.match(weekly, /2 · Unterrichtsrahmen/);
+  assert.match(weekly, /3 · Material & HÜ/);
+  assert.match(weekly, /4 · Ablauf & Optionen/);
   assert.match(weekly, /Einheit planen/);
 });
 
@@ -23,14 +27,18 @@ test('Wochenplanung: geplante Stunde öffnet Übersicht und wird erst bewusst be
   assert.match(weekly, /hasWeeklyPlanningDetails/);
 });
 
-test('Jahresplanung: bestehende Planung öffnet Übersicht und großer Editor bleibt separat', () => {
+test('Jahresplanung: bestehende Planung öffnet Übersicht und großer Editor ist klar gegliedert', () => {
   assert.match(yearly, /viewingCell/);
   assert.match(yearly, /Jahresplanung · Übersicht/);
   assert.match(yearly, /openYearPlanEditor/);
-  assert.match(yearly, /w-\[calc\(100vw-1rem\)\]/);
-  assert.match(yearly, /sm:w-\[calc\(100vw-2rem\)\]/);
+  assert.match(yearly, /w-\[calc\(100vw-0\.5rem\)\]/);
+  assert.match(yearly, /sm:w-\[calc\(100vw-1rem\)\]/);
   assert.match(yearly, /max-w-none/);
-  assert.match(yearly, /lg:grid-cols-2/);
+  assert.match(yearly, /h-\[calc\(100vh-0\.5rem\)\]/);
+  assert.match(yearly, /yearPlannerTab/);
+  assert.match(yearly, /1 · Inhalt/);
+  assert.match(yearly, /2 · Rahmen/);
+  assert.match(yearly, /3 · Weitere Inhalte/);
   assert.match(yearly, /> Bearbeiten/);
 });
 
