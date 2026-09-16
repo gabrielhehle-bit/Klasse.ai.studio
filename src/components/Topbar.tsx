@@ -18,6 +18,7 @@ import { scanDataConsistency } from '../lib/DataConsistencyService';
 import { triggerBackupDownload } from '../utils/backupUtils';
 import { startSyncSession, createSyncUrl, getActiveEncodedSessionKey } from '../lib/syncService';
 import { Button, IconButton, Badge, Input } from './ui';
+import SupportModal from './SupportModal';
 import { getNavigationParent } from '../lib/navigationHierarchy';
 
 interface TopbarProps {
@@ -74,6 +75,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   const [showDesignMenu, setShowDesignMenu] = useState(false);
   const [showWeatherDetails, setShowWeatherDetails] = useState(false);
   const [showSchoolYearDetails, setShowSchoolYearDetails] = useState(false);
+  const [showSupportModal, setShowSupportModal] = useState(false);
   
   // Einfachmodus Toggle (saved in localStorage)
   const [simpleHeaderMode, setSimpleHeaderMode] = useState<boolean>(() => {
@@ -394,18 +396,17 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
               <span className="hidden sm:inline">Fehler melden</span>
             </a>
 
-            {/* PayPal Unterstützen Link */}
-            <a
-              href="https://paypal.me/gabrielhehle"
-              target="_blank"
-              rel="noopener noreferrer"
+            {/* Freiwillige Unterstützung */}
+            <button
+              type="button"
+              onClick={() => setShowSupportModal(true)}
               title="Klassio freiwillig unterstützen"
               aria-label="Klassio freiwillig unterstützen"
               className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-2xl text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
             >
               <Heart size={15} className="text-rose-500 fill-rose-500/20 shrink-0" />
               <span className="hidden xs:inline">Unterstützen</span>
-            </a>
+            </button>
 
             {/* Speichern Button */}
             <Button
@@ -1029,20 +1030,21 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                         <ExternalLink size={13} className="text-[var(--text-muted)]" />
                       </a>
 
-                      <a
-                        href="https://paypal.me/gabrielhehle"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => setShowMehrMenu(false)}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMehrMenu(false);
+                          setShowSupportModal(true);
+                        }}
                         className="w-full flex items-center justify-between p-2 bg-[var(--surface-card,var(--surface))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-xl text-xs font-bold text-[var(--text-primary)] transition-colors cursor-pointer"
                         title="Klassio freiwillig unterstützen"
                       >
                         <div className="flex items-center gap-2">
                           <Heart size={15} className="text-rose-500 fill-rose-500/20 shrink-0" />
-                          <span>Klassio unterstützen (PayPal)</span>
+                          <span>Klassio unterstützen</span>
                         </div>
-                        <ExternalLink size={13} className="text-[var(--text-muted)]" />
-                      </a>
+                        <ChevronRight size={13} className="text-[var(--text-muted)]" />
+                      </button>
 
                       <button
                         onClick={() => {
@@ -1064,6 +1066,8 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
           </div>
         </div>
       </div>
+
+      <SupportModal open={showSupportModal} onClose={() => setShowSupportModal(false)} />
 
       {/* Modal für Remote-QR & WLAN-Kopplung */}
       {showLargeQR && createPortal(
