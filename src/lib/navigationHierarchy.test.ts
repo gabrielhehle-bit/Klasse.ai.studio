@@ -9,13 +9,17 @@ test('core pages have no parent breadcrumb', () => {
 });
 
 test('Unterricht tools return to Unterricht', () => {
-  for (const page of ['cockpit', 'ki-helfer', 'ki-paedagogik', 'arbeitsblatt', 'stationenbetrieb', 'stimmnotizen', 'differenzierung', 'elternbrief']) {
+  for (const page of ['cockpit', 'ki-helfer', 'ki-paedagogik', 'arbeitsblatt', 'stationenbetrieb', 'differenzierung', 'elternbrief']) {
     assert.deepEqual(getNavigationParent(page), { id: 'unterricht', label: 'Unterricht' });
   }
 });
 
+test('Diktat gehört zu Notizen', () => {
+  assert.deepEqual(getNavigationParent('stimmnotizen'), { id: 'verhalten', label: 'Notizen' });
+});
+
 test('Klasse, Planung and Leistungen detail pages have a stable parent', () => {
-  for (const page of ['schueler', 'sitzplan', 'anwesenheit', 'orga', 'klassengemeinschaft', 'eltern']) {
+  for (const page of ['schueler', 'sitzplan', 'anwesenheit', 'orga', 'klassengemeinschaft', 'eltern', 'teamteaching']) {
     assert.equal(getNavigationParent(page)?.id, 'klasse');
   }
   for (const page of ['planungszentrale', 'jahresplanung', 'wochenplanung', 'stunden', 'materialien', 'canva', 'vertretung', 'uebergabemappe']) {
