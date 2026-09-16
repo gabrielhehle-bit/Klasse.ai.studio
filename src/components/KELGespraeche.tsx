@@ -50,6 +50,7 @@ import { FAECHER_ALLE } from '../constants';
 import { FlowerChart, KEL_GRADES_INFO } from './FlowerChart';
 import { berechne } from '../lib/GradeUtils';
 import { generateKELAssessment, generateKELAgreement } from '../services/aiService';
+import { normalizeKelMeetings } from '../lib/kelData';
 import { 
   ResponsiveContainer, 
   RadarChart, 
@@ -152,7 +153,10 @@ const KELGespraeche: React.FC = () => {
     setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const meetings = useMemo(() => app.kelGespraeche || [], [app.kelGespraeche]);
+  const meetings = useMemo(
+    () => normalizeKelMeetings(app.kelGespraeche, app.schuljahr || getCurrentSchuljahr()),
+    [app.kelGespraeche, app.schuljahr],
+  );
 
   const filteredMeetings = useMemo(() => {
     if (filterStudentId === 'all') return meetings;
