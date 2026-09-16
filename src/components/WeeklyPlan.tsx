@@ -255,6 +255,9 @@ export default function WeeklyPlan() {
   const [tempSocial, setTempSocial] = useState('single');
   const [tempReflexion, setTempReflexion] = useState('');
   const [tempSchwerpunkte, setTempSchwerpunkte] = useState<string[]>([]);
+  const [tempSplitLesson, setTempSplitLesson] = useState(false);
+  const [tempFirstHalf, setTempFirstHalf] = useState<LessonHalfDraft>({ ...EMPTY_LESSON_HALF });
+  const [tempSecondHalf, setTempSecondHalf] = useState<LessonHalfDraft>({ ...EMPTY_LESSON_HALF });
   const [tempDuration, setTempDuration] = useState<number | 'all'>(1);
   const [syncWpSubjects, setSyncWpSubjects] = useState(false);
   const [showDraftsSelector, setShowDraftsSelector] = useState(false);
