@@ -386,69 +386,56 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           </span>
         </div>
 
-        {/* Fortschritts-Anzeige */}
-        <div className="flex-1 flex flex-col justify-center gap-2 min-h-0 py-1">
-          {summary.isComplete ? (
-            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-center">
-              <span className="flex items-center justify-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-black text-sm">
-                <Check size={16} strokeWidth={3} />
-                Alle Kinder erfasst ✓
-              </span>
-              <p className="text-[11px] text-emerald-600/80 dark:text-emerald-400/80 font-medium mt-0.5">
-                {summary.present} da · {summary.absent} abwesend
-              </p>
+        {/* Kompaktansicht: alle Namen bleiben sichtbar und jeder Status ist direkt zugeordnet. */}
+        <div className="flex-1 min-h-0 flex flex-col gap-2 py-1">
+          <div className="grid grid-cols-3 gap-1.5 text-center shrink-0">
+            <div className="p-1.5 rounded-lg border bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
+              <span className="block text-base font-black tabular-nums leading-none">{summary.present}</span>
+              <span className="text-[9px] font-bold">da</span>
             </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div
-                className={`p-2.5 rounded-xl border flex flex-col items-center justify-center ${
-                  currentIsLight
-                    ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
-                    : 'bg-emerald-950/30 border-emerald-800 text-emerald-100'
-                }`}
-              >
-                <span className="text-2xl font-black tabular-nums leading-none">
-                  {summary.present}
-                </span>
-                <span className="text-[11px] font-bold mt-1">da</span>
-              </div>
-
-              <div
-                className={`p-2.5 rounded-xl border flex flex-col items-center justify-center ${
-                  currentIsLight
-                    ? 'bg-amber-50/70 border-amber-200 text-amber-950'
-                    : 'bg-amber-950/30 border-amber-800 text-amber-100'
-                }`}
-              >
-                <span className="text-2xl font-black tabular-nums leading-none">
-                  {summary.open}
-                </span>
-                <span className="text-[11px] font-bold mt-1">noch offen</span>
-              </div>
+            <div className="p-1.5 rounded-lg border bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+              <span className="block text-base font-black tabular-nums leading-none">{summary.open}</span>
+              <span className="text-[9px] font-bold">offen</span>
             </div>
-          )}
+            <div className="p-1.5 rounded-lg border bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800">
+              <span className="block text-base font-black tabular-nums leading-none">{summary.absent}</span>
+              <span className="text-[9px] font-bold">fehlt</span>
+            </div>
+          </div>
 
-          {/* Vorschau der offenen Kinder (falls < 380px Platz reicht) */}
-          {!summary.isComplete && openStudents.length > 0 && !size.isVeryShort && (
-            <div className="flex flex-wrap gap-1 items-center justify-center max-h-14 overflow-hidden py-1">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 mr-0.5">
-                Offen:
-              </span>
-              {openStudents.slice(0, 4).map((s) => (
-                <span
-                  key={s.id}
-                  className="px-1.5 py-0.5 rounded text-[10px] font-black bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 border border-slate-200 dark:border-zinc-700"
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-1 pr-0.5" aria-label="Anwesenheitsliste mit allen Kindern">
+            {students.map((student) => {
+              const displayName = displayNames.get(student.id) || student.vorname;
+              const { status, delayMinutes } = getStudentAttendanceStatus(student.id, app, todayStr);
+              return (
+                <button
+                  key={student.id}
+                  type="button"
+                  onClick={() => handleStudentCardTap(student.id)}
+                  disabled={status === 'absent'}
+                  className={`w-full min-h-9 px-2 py-1.5 rounded-lg border flex items-center gap-2 text-left ${
+                    status === 'present'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
+                      : status === 'absent'
+                      ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800'
+                      : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
+                  }`}
                 >
-                  {displayNames.get(s.id) || s.vorname}
-                </span>
-              ))}
-              {openStudents.length > 4 && (
-                <span className="text-[10px] font-bold text-slate-400">
-                  +{openStudents.length - 4} weitere
-                </span>
-              )}
-            </div>
-          )}
+                  <span className="min-w-0 flex-1 truncate text-[11px] font-black">{displayName}</span>
+                  {delayMinutes > 0 && <span className="text-[9px] font-bold text-amber-600">+{delayMinutes}m</span>}
+                  <span className={`shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded ${
+                    status === 'present'
+                      ? 'text-emerald-700 dark:text-emerald-300'
+                      : status === 'absent'
+                      ? 'text-rose-700 dark:text-rose-300'
+                      : 'text-amber-700 dark:text-amber-300'
+                  }`}>
+                    {status === 'present' ? '✓ Da' : status === 'absent' ? 'Fehlt' : 'Offen'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Aktionsleiste COMPACT */}
