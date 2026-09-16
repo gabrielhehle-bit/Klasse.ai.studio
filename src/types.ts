@@ -896,6 +896,25 @@ export interface CustomList {
   spaltenName?: string;
 }
 
+export interface StudentDevelopmentListEntry {
+  id: string;
+  datum: string;
+  werte: Record<string, string | number | boolean>;
+  erstelltAm?: string;
+  updatedAm?: string;
+}
+
+export interface StudentDevelopmentList {
+  id: string;
+  schuelerId: string;
+  titel: string;
+  beschreibung?: string;
+  spalten: CustomListColumn[];
+  eintraege: StudentDevelopmentListEntry[];
+  erstelltAm?: string;
+  updatedAm?: string;
+}
+
 export interface KlassenDienst {
   id: string;
   titel: string;
@@ -986,6 +1005,7 @@ export interface ClassRoom {
   councilNotes?: AppState['councilNotes'];
   checklisten?: OrgCheckliste[];
   customLists?: CustomList[];
+  studentDevelopmentLists?: StudentDevelopmentList[];
   /** Class-local portal/login credentials shown in Kassa & Orga. */
   zugangsdaten?: Zugangsdaten[];
   klassenkasse?: {
@@ -1397,6 +1417,7 @@ export interface AppState {
   dienste?: KlassenDienst[];
   checklisten?: OrgCheckliste[];
   customLists?: CustomList[];
+  studentDevelopmentLists?: StudentDevelopmentList[];
   lernpfade?: Record<string, any>;
   errorDetectiveRecords?: any[];
   lehrerName?: string;
