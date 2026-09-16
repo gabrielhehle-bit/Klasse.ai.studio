@@ -25,9 +25,11 @@ export const FAECHER_ALLE = [
 ];
 export const FAECHER_VS = FAECHER_ALLE;
 
-export const DEUTSCH_UNTERFAECHER = ['Deutsch (Sprache)', 'Deutsch (Lesen)', 'Deutsch (Rechtschreibung)', 'Deutsch (Verfassen von Texten)'];
+export const DEUTSCH_UNTERFAECHER = ['Deutsch (Sprachbetrachtung)', 'Deutsch (Sprechen & Hören)', 'Deutsch (Lesen)', 'Deutsch (Rechtschreibung)', 'Deutsch (Verfassen von Texten)', 'Deutsch (Förderung)'];
+export const MATHEMATIK_UNTERFAECHER = ['Mathematik (Ebene & Raum)', 'Mathematik (Zahlen & Daten)', 'Mathematik (Größen)', 'Mathematik (Operationen)'];
 
-export const DEUTSCH_BEREICHE = ['Deutsch Lesen', 'Sprachbetrachtung', 'Rechtschreibung', 'Texte verfassen'];
+export const DEUTSCH_BEREICHE = ['Deutsch Lesen', 'Sprachbetrachtung', 'Sprechen & Hören', 'Rechtschreibung', 'Texte verfassen', 'Förderung (FÖ)'];
+export const MATHEMATIK_BEREICHE = ['Ebene & Raum', 'Zahlen & Daten', 'Größen', 'Operationen'];
 
 export const NOTE_LABELS: Record<number, string> = {
   1: 'Sehr gut',
