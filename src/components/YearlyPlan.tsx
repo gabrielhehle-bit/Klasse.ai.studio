@@ -2083,7 +2083,7 @@ export default function YearlyPlan() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl border border-border w-[96vw] max-w-[1400px] h-[92vh] max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
+              className="bg-white rounded-2xl border border-border w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] max-w-none h-[92vh] max-h-[92vh] flex flex-col shadow-2xl overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
               <div className="px-6 py-4 border-b border-border bg-stone-50 flex justify-between items-center shrink-0">
