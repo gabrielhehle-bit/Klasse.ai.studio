@@ -9,7 +9,7 @@ import {
   Calendar, CalendarDays, ClipboardList, Mail, Wallet, 
   FileEdit, Notebook, CheckSquare, Play, LineChart, Table, Folder, 
   Target, Replace, Archive, Bot, ChevronLeft, ChevronRight, Database, LayoutGrid,
-  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical
+  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { Button, IconButton, Badge, Chip } from './ui';
 
@@ -35,6 +35,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
 
   const [showClassMenu, setShowClassMenu] = React.useState(false);
   const [showCustomizeModal, setShowCustomizeModal] = React.useState(false);
+  const [showMorePages, setShowMorePages] = React.useState(false);
 
   const disabledModules = app?.settings?.disabledModules || [];
 
@@ -52,77 +53,64 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
 
 
   const ALL_MODULES = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} />, section: 'Unterricht' },
-    { id: 'cockpit', label: 'LEHRERCOCKPIT', icon: <Play size={14} />, section: 'Unterricht' },
-    { id: 'ki-helfer', label: 'KI Helfer', icon: <Bot size={14} />, section: 'Unterricht' },
-    { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={14} />, section: 'Unterricht' },
-    { id: 'schueler', label: 'Schüler', icon: <Users size={14} />, section: 'Werkzeuge' },
-    { id: 'sitzplan', label: 'Sitzplan', icon: <MapIcon size={14} />, section: 'Werkzeuge' },
-    { id: 'anwesenheit', label: 'Anwesenheit', icon: <Pin size={14} />, section: 'Werkzeuge' },
-    { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={14} />, section: 'Werkzeuge' },
-    { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={14} />, section: 'Werkzeuge' },
-    { id: 'planungszentrale', label: 'Planungs-Zentrale', icon: <Target size={14} />, section: 'Planung' },
-    { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={14} />, section: 'Planung' },
-    { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={14} />, section: 'Planung' },
-    { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={14} />, section: 'Planung' },
-    { id: 'uebergabemappe', label: 'Übergabemappe', icon: <ClipboardList size={14} />, section: 'Planung' },
-    { id: 'statistik', label: 'Statistik & Profile', icon: <LineChart size={14} />, section: 'Extras' },
-    { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={14} />, section: 'Extras' },
-    { id: 'klassengemeinschaft', label: 'Wir-Gefühl', icon: <Heart size={14} />, section: 'Extras' },
-    { id: 'jahresbericht', label: 'Jahresbericht', icon: <FileText size={14} />, section: 'Extras' },
-    { id: 'archiv', label: 'Archiv', icon: <Archive size={14} />, section: 'Extras' },
+    { id: 'dashboard', label: 'Heute', icon: <LayoutDashboard size={18} />, section: 'Start' },
+    { id: 'klasse', label: 'Klasse', icon: <Users size={18} />, section: 'Start' },
+    { id: 'planung', label: 'Planung', icon: <CalendarDays size={18} />, section: 'Start' },
+    { id: 'leistungen', label: 'Leistungen', icon: <BarChart3 size={18} />, section: 'Start' },
+    { id: 'unterricht', label: 'Unterricht', icon: <Play size={18} />, section: 'Start' },
+    { id: 'cockpit', label: 'Lehrercockpit', icon: <Play size={18} />, section: 'Unterricht' },
+    { id: 'ki-helfer', label: 'KI-Helfer', icon: <Bot size={18} />, section: 'Unterricht' },
+    { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={18} />, section: 'Unterricht' },
+    { id: 'arbeitsblatt', label: 'Arbeitsblatt-Generator', icon: <FileEdit size={18} />, section: 'Unterricht' },
+    { id: 'stationenbetrieb', label: 'Stationenbetrieb', icon: <LayoutGrid size={18} />, section: 'Unterricht' },
+    { id: 'stimmnotizen', label: 'Stimm-Notizen', icon: <Mic size={18} />, section: 'Unterricht' },
+    { id: 'differenzierung', label: 'Differenzierung', icon: <Target size={18} />, section: 'Unterricht' },
+    { id: 'elternbrief', label: 'Elternbrief', icon: <Mail size={18} />, section: 'Unterricht' },
+    { id: 'schueler', label: 'Kinder & Dossiers', icon: <Users size={18} />, section: 'Klasse & Kinder' },
+    { id: 'sitzplan', label: 'Sitzplan & Gruppen', icon: <MapIcon size={18} />, section: 'Klasse & Kinder' },
+    { id: 'anwesenheit', label: 'Anwesenheit & Befinden', icon: <Pin size={18} />, section: 'Klasse & Kinder' },
+    { id: 'verhalten', label: 'Notizen & Beobachtungen', icon: <Notebook size={18} />, section: 'Klasse & Kinder' },
+    { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={18} />, section: 'Klasse & Kinder' },
+    { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={18} />, section: 'Leistungen' },
+    { id: 'statistik', label: 'Statistik & Profile', icon: <LineChart size={18} />, section: 'Leistungen' },
+    { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={18} />, section: 'Leistungen' },
+    { id: 'portfolio', label: 'Lernziele & Portfolio', icon: <Briefcase size={18} />, section: 'Leistungen' },
+    { id: 'notenTabelle', label: 'Notenübersicht', icon: <Table size={18} />, section: 'Leistungen' },
+    { id: 'verbal', label: 'Verbale Beurteilung', icon: <FileText size={18} />, section: 'Leistungen' },
+    { id: 'kel', label: 'KEL-Gespräche', icon: <MessagesSquare size={18} />, section: 'Leistungen' },
+    { id: 'planungszentrale', label: 'Planungs-Zentrale', icon: <Target size={18} />, section: 'Planung' },
+    { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={18} />, section: 'Planung' },
+    { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={18} />, section: 'Planung' },
+    { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={18} />, section: 'Planung' },
+    { id: 'stunden', label: 'Stundenentwürfe', icon: <Notebook size={18} />, section: 'Planung' },
+    { id: 'canva', label: 'Canva', icon: <LayoutGrid size={18} />, section: 'Planung' },
+    { id: 'vertretung', label: 'Vertretung', icon: <Replace size={18} />, section: 'Planung' },
+    { id: 'uebergabemappe', label: 'Übergabemappe', icon: <ClipboardList size={18} />, section: 'Planung' },
+    { id: 'klassengemeinschaft', label: 'Wir-Gefühl', icon: <Heart size={18} />, section: 'Entwicklung & Berichte' },
+    { id: 'jahresbericht', label: 'Jahresbericht', icon: <FileText size={18} />, section: 'Entwicklung & Berichte' },
+    { id: 'archiv', label: 'Archiv', icon: <Archive size={18} />, section: 'Entwicklung & Berichte' },
+    { id: 'drucken', label: 'Druckzentrum', icon: <Printer size={18} />, section: 'Ausgabe & Daten' },
+    { id: 'datensicherung', label: 'Datensicherung', icon: <Database size={18} />, section: 'Ausgabe & Daten' },
+    { id: 'settings', label: 'Einstellungen', icon: <SettingsIcon size={18} />, section: 'Ausgabe & Daten' },
   ];
 
-  const rawNavItems = [
-    { section: 'Unterricht', items: [
-      { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
-      { id: 'cockpit', label: 'LEHRERCOCKPIT', icon: <Play size={18} />, highlight: true },
-      { id: 'ki-helfer', label: 'KI Helfer', icon: <Bot size={18} />, highlight: true },
-      { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={18} /> },
-    ]},
-    { section: 'Werkzeuge', items: [
-      { id: 'schueler', label: 'Schüler', icon: <Users size={18} /> },
-      { id: 'sitzplan', label: 'Sitzplan', icon: <MapIcon size={18} /> },
-      { id: 'anwesenheit', label: 'Anwesenheit', icon: <Pin size={18} /> },
-      { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={18} /> },
-      app.klassenvorstand && { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={18} /> },
-    ].filter(Boolean) as any },
-    { section: 'Planung', items: [
-      { id: 'planungszentrale', label: 'Planungs-Zentrale', icon: <Target size={18} /> },
-      { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={18} /> },
-      { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={18} /> },
-      { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={18} /> },
-      app.klassenvorstand && { id: 'uebergabemappe', label: 'Übergabemappe', icon: <ClipboardList size={18} /> },
-    ].filter(Boolean) as any },
-    { section: 'Extras', items: [
-      { id: 'statistik', label: 'Statistik & Profile', icon: (
-        <div className="relative w-5 h-5">
-          <LineChart size={14} className="absolute left-0 top-0" />
-          <Users size={11} className="absolute right-0 bottom-0 opacity-85" />
-        </div>
-      ) },
-      app.klassenvorstand && { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={18} /> },
-      app.klassenvorstand && { id: 'klassengemeinschaft', label: 'Wir-Gefühl', icon: <Heart size={18} /> },
-      app.klassenvorstand && { id: 'jahresbericht', label: 'Jahresbericht', icon: <FileText size={18} /> },
-      { id: 'archiv', label: 'Archiv', icon: <Archive size={18} /> },
-    ].filter(Boolean) as any },
-    { section: 'Ausgabe & Daten', items: [
-      { id: 'drucken', label: 'Druckzentrum', icon: <Printer size={18} /> },
-      { id: 'datensicherung', label: 'Datensicherung', icon: <Database size={18} /> },
-      { id: 'settings', label: 'Einstellungen', icon: <SettingsIcon size={18} /> },
-    ]}
-  ];
+  const utilityIds = new Set(['drucken', 'datensicherung', 'settings']);
+  const restrictedForSubjectTeachers = new Set(['orga', 'uebergabemappe', 'diagnostik', 'klassengemeinschaft', 'jahresbericht']);
 
-  const navItems = rawNavItems.map(sec => ({
-    ...sec,
-    items: orderSidebarItems(sec.items).filter(item => !disabledModules.includes(item.id))
-  })).filter(sec => sec.items.length > 0);
+  const availableModules = ALL_MODULES.filter(item =>
+    (app.klassenvorstand || !restrictedForSubjectTeachers.has(item.id)) &&
+    !disabledModules.includes(item.id)
+  );
+
+  const orderedModules = orderSidebarItems(availableModules);
+  const utilityModules = orderedModules.filter(item => utilityIds.has(item.id));
+  const mainModules = orderedModules.filter(item => !utilityIds.has(item.id));
+  const PRIMARY_VISIBLE_COUNT = 8;
+  const visibleMainModules = showMorePages ? mainModules : mainModules.slice(0, PRIMARY_VISIBLE_COUNT);
+  const hiddenMainCount = Math.max(0, mainModules.length - PRIMARY_VISIBLE_COUNT);
 
   const moveSidebarModule = React.useCallback((draggedId: string, targetId: string) => {
     if (!draggedId || draggedId === targetId) return;
-    const dragged = ALL_MODULES.find(item => item.id === draggedId);
-    const target = ALL_MODULES.find(item => item.id === targetId);
-    if (!dragged || !target || dragged.section !== target.section) return;
 
     setApp(prev => {
       const allIds = ALL_MODULES.map(item => item.id);
@@ -144,6 +132,47 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
       };
     });
   }, [setApp]);
+
+  const moveSidebarModuleBy = React.useCallback((moduleId: string, offset: -1 | 1) => {
+    setApp(prev => {
+      const allIds = ALL_MODULES.map(item => item.id);
+      const saved = prev.settings?.sidebarOrder || [];
+      const current = [
+        ...saved.filter((id: string) => allIds.includes(id)),
+        ...allIds.filter(id => !saved.includes(id)),
+      ];
+      const index = current.indexOf(moduleId);
+      const nextIndex = index + offset;
+      if (index < 0 || nextIndex < 0 || nextIndex >= current.length) return prev;
+      const next = [...current];
+      [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+      return {
+        ...prev,
+        settings: {
+          ...prev.settings,
+          sidebarOrder: next,
+        },
+      };
+    });
+  }, [setApp]);
+
+  // Alte Fokus-/Standard-Presets hatten neue Funktionen unsichtbar gemacht.
+  // Nur exakt diese historischen Presets werden einmalig auf "alles sichtbar" zurückgesetzt.
+  React.useEffect(() => {
+    const signatures = [
+      ['cockpit', 'sitzplan', 'orga', 'jahresplanung', 'wochenplanung', 'materialien', 'uebergabemappe', 'statistik', 'diagnostik', 'archiv', 'jahresbericht'],
+      ['jahresplanung', 'uebergabemappe', 'statistik', 'diagnostik', 'archiv', 'jahresbericht'],
+    ].map(items => [...items].sort().join('|'));
+    const current = [...disabledModules].sort().join('|');
+    if (!current || !signatures.includes(current)) return;
+    setApp(prev => ({
+      ...prev,
+      settings: {
+        ...prev.settings,
+        disabledModules: [],
+      },
+    }));
+  }, [disabledModules, setApp]);
 
 
   const { switchClass, addClass } = useApp();
@@ -167,25 +196,17 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                   <span className="text-[0.75rem] text-accent font-bold uppercase tracking-widest leading-none mt-1 inline-block">Volksschule</span>
                 </h1>
                 
-                <div className="mt-2 flex items-center justify-between gap-1 w-full">
-                  <div className="flex flex-wrap gap-1">
-                    {disabledModules.includes('jahresplanung') && disabledModules.includes('statistik') && disabledModules.includes('sitzplan') ? (
-                      <Badge variant="success" size="sm">🌱 Fokus</Badge>
-                    ) : disabledModules.includes('statistik') && !disabledModules.includes('orga') ? (
-                      <Badge variant="info" size="sm">🚀 Standard</Badge>
-                    ) : (
-                      <Badge variant="neutral" size="sm">👑 Experte</Badge>
-                    )}
-                  </div>
+                <div className="mt-2 flex items-center justify-between gap-2 w-full">
+                  <span className="text-xs font-semibold text-text-muted">Klassio</span>
                   <button
                     type="button"
                     onClick={() => setShowCustomizeModal(true)}
-                    className="p-1 px-2 hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg transition-all active:scale-95 cursor-pointer flex items-center gap-1 text-[0.625rem] font-bold uppercase tracking-wider border border-[var(--border-default,var(--border))] shrink-0 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]"
-                    title="Seitenleiste anpassen"
-                    aria-label="Seitenleiste anpassen"
+                    className="px-2.5 py-1.5 hover:bg-[var(--surface-subtle,var(--surface2))] text-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg transition-all active:scale-95 cursor-pointer flex items-center gap-1.5 text-[0.625rem] font-bold uppercase tracking-wider border border-[var(--border-default,var(--border))] shrink-0 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]"
+                    title="Sidebar sortieren und Bereiche ein-/ausblenden"
+                    aria-label="Sidebar anpassen"
                   >
-                    <SettingsIcon size={11} className="text-[var(--text-muted)] group-hover:rotate-45 transition-transform" />
-                    <span>Anpassen</span>
+                    <GripVertical size={12} />
+                    <span>Sidebar</span>
                   </button>
                 </div>
                 
@@ -290,59 +311,95 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             )}
           </div>
         
-          <nav className="flex-1 py-3 overflow-y-auto no-scrollbar space-y-3">
-            {navItems.map((sec, idx) => (
-              <div key={idx} className="px-2">
-                {!isCollapsed && (
-                  <div className="px-3.5 py-1.5 text-[0.625rem] font-bold uppercase tracking-[0.16em] text-text-muted mb-1">
-                    {sec.section}
-                  </div>
-                )}
-                <div className="space-y-0.5">
-                  {sec.items.map(item => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      id={`tour-${item.id}`}
-                      data-menu-id={item.id}
-                      aria-current={currentPage === item.id ? 'page' : undefined}
-                      title={isCollapsed ? item.label : ''}
-                      className={`w-full text-left flex items-center gap-3 px-3.5 py-2.5 cursor-pointer rounded-xl transition-all duration-200 text-[0.8125rem] relative overflow-hidden
-                        ${currentPage === item.id 
-                          ? 'text-white shadow-sm font-bold'
-                          : 'text-text-secondary hover:bg-surface2 hover:text-text-primary group'} 
-                        ${item.highlight && currentPage !== item.id && item.id !== 'ki-helfer' ? 'bg-amber-100/50 text-amber-900 font-black border border-amber-200/50' : ''} 
-                        ${isCollapsed ? 'justify-center px-0' : ''}`}
-                      style={currentPage === item.id ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--btn-text, #ffffff)' } : {}}
-                      onClick={() => {
-                        setPage(item.id);
-                        if (window.innerWidth < 1024) setIsOpen(false);
-                      }}
-                    >
-                      {/* Left glowing indicator bar */}
-                      {currentPage === item.id && (
-                        <motion.div 
-                          layoutId="activeSideIndicator"
-                          className="absolute left-0 top-2.5 bottom-2.5 w-0.5 rounded-r-full bg-white opacity-90 z-20"
-                          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                        />
-                      )}
-                      <span className={`${currentPage === item.id ? '' : item.highlight ? 'text-amber-700' : 'text-text-muted group-hover:text-accent transition-colors'}`} style={currentPage === item.id ? { color: 'var(--btn-text, #ffffff)' } : {}}>{item.icon}</span>
-                      {!isCollapsed && <span className="text-wrap leading-tight break-words tracking-tight" style={currentPage === item.id ? { color: 'var(--btn-text, #ffffff)' } : {}}>{item.label}</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
+          <nav className="flex-1 py-3 overflow-y-auto no-scrollbar">
+            <div className="px-2 space-y-0.5">
+              {visibleMainModules.map(item => (
+                <button
+                  key={item.id}
+                  type="button"
+                  id={`tour-${item.id}`}
+                  data-menu-id={item.id}
+                  aria-current={currentPage === item.id ? 'page' : undefined}
+                  title={isCollapsed ? item.label : ''}
+                  className={`w-full text-left flex items-center gap-3 px-3.5 py-2.5 cursor-pointer rounded-xl transition-all duration-200 text-[0.8125rem] relative overflow-hidden ${
+                    currentPage === item.id
+                      ? 'text-white shadow-sm font-bold'
+                      : 'text-text-secondary hover:bg-surface2 hover:text-text-primary group'
+                  } ${isCollapsed ? 'justify-center px-0' : ''}`}
+                  style={currentPage === item.id ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--btn-text, #ffffff)' } : {}}
+                  onClick={() => {
+                    setPage(item.id);
+                    if (window.innerWidth < 1024) setIsOpen(false);
+                  }}
+                >
+                  {currentPage === item.id && (
+                    <motion.div
+                      layoutId="activeSideIndicator"
+                      className="absolute left-0 top-2.5 bottom-2.5 w-0.5 rounded-r-full bg-white opacity-90 z-20"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span
+                    className={currentPage === item.id ? '' : 'text-text-muted group-hover:text-accent transition-colors'}
+                    style={currentPage === item.id ? { color: 'var(--btn-text, #ffffff)' } : {}}
+                  >
+                    {item.icon}
+                  </span>
+                  {!isCollapsed && (
+                    <span className="text-wrap leading-tight break-words tracking-tight">
+                      {item.label}
+                    </span>
+                  )}
+                </button>
+              ))}
+
+              {hiddenMainCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowMorePages(value => !value)}
+                  className="w-full mt-1 flex items-center gap-3 px-3.5 py-2.5 rounded-xl border border-border text-[0.8125rem] font-bold text-text-secondary hover:bg-surface2 hover:text-text-primary transition-colors"
+                  aria-expanded={showMorePages}
+                  title={showMorePages ? 'Weniger Bereiche anzeigen' : 'Alle Bereiche anzeigen'}
+                >
+                  <LayoutGrid size={18} className="text-accent shrink-0" />
+                  {!isCollapsed && (
+                    <span>{showMorePages ? 'Weniger' : `Mehr (${hiddenMainCount})`}</span>
+                  )}
+                </button>
+              )}
+            </div>
           </nav>
 
-          <div className={`p-5 border-t border-border ${isCollapsed ? 'flex justify-center' : ''}`}>
+          <div className="p-2 border-t border-border space-y-1">
+            {utilityModules.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                aria-current={currentPage === item.id ? 'page' : undefined}
+                title={item.label}
+                onClick={() => {
+                  setPage(item.id);
+                  if (window.innerWidth < 1024) setIsOpen(false);
+                }}
+                className={`w-full min-h-11 px-3.5 flex items-center gap-3 rounded-xl text-sm transition-colors ${
+                  currentPage === item.id
+                    ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-semibold'
+                    : 'text-text-secondary hover:bg-[var(--surface2)]'
+                } ${isCollapsed ? 'justify-center px-0' : ''}`}
+              >
+                {item.icon}
+                {!isCollapsed && <span>{item.label}</span>}
+              </button>
+            ))}
+          </div>
+
+          <div className={`p-4 border-t border-border ${isCollapsed ? 'flex justify-center' : ''}`}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-surface2 border border-border flex items-center justify-center text-[1.25rem] shadow-sm shrink-0 leading-none">
                 {app.anrede === 'Frau' ? '👩‍🏫' : '👨‍🏫'}
               </div>
               {!isCollapsed && (
-                <div className="">
+                <div>
                   <div className="text-[0.6875rem] font-black text-text-muted uppercase tracking-widest leading-none mb-1">Aktiv</div>
                   <div className="text-[0.8125rem] font-bold text-text-primary text-wrap leading-tight break-words">{app.vorname || 'Lehrkraft'}</div>
                 </div>
@@ -352,165 +409,164 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
         </div>
       </aside>
 
-      {/* Freikonfigurierbares Sidebar-Anpassungsmodal */}
+      {/* Persönliche Sidebar: global sortierbar, zusätzlich Pfeile für Touch/Trackpad */}
       {showCustomizeModal && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs select-none">
-          <div className="bg-surface rounded-[2rem] border border-border shadow-2xl w-full max-w-lg  flex flex-col max-h-[85vh]">
-            {/* Header */}
+          <div className="bg-surface rounded-[2rem] border border-border shadow-2xl w-full max-w-xl flex flex-col max-h-[88vh] overflow-hidden">
             <div className="p-6 border-b border-border/50 flex items-start justify-between gap-4">
               <div className="space-y-1">
-                <h3 className="text-[1rem] leading-normal font-black text-text-primary tracking-tight flex items-center gap-2">
-                  📋 Seitenleiste anpassen
+                <h3 className="text-[1rem] leading-normal font-black text-text-primary tracking-tight">
+                  Sidebar anpassen
                 </h3>
                 <p className="text-[0.6875rem] text-text-muted leading-relaxed font-medium">
-                  Blende Werkzeuge ein oder aus und ziehe sie innerhalb eines Bereichs in deine persönliche Reihenfolge.
+                  Ziehe einen Bereich an den Punkten oder verschiebe ihn mit den Pfeilen. Die ersten acht Bereiche stehen direkt in deiner Sidebar, alle weiteren unter „Mehr“.
                 </p>
               </div>
               <button
                 onClick={() => setShowCustomizeModal(false)}
-                className="p-1.5 px-3 bg-surface2 hover:bg-surface3/60 border border-border hover:text-text-primary text-text-secondary rounded-xl text-[0.75rem] leading-tight font-bold transition-all cursor-pointer"
+                className="p-2 bg-surface2 hover:bg-surface3/60 border border-border text-text-secondary rounded-xl transition-all cursor-pointer"
+                aria-label="Sidebar-Anpassung schließen"
               >
-                ✕
+                <X size={17} />
               </button>
             </div>
 
-            {/* List with Groups */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-5">
-              {['Unterricht', 'Werkzeuge', 'Planung', 'Extras'].map(section => {
-                const sectItems = orderSidebarItems(ALL_MODULES.filter(m => m.section === section));
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2">
+              {orderSidebarItems(
+                ALL_MODULES.filter(item =>
+                  app.klassenvorstand || !restrictedForSubjectTeachers.has(item.id)
+                )
+              ).map((item, index, orderedItems) => {
+                const isHidden = disabledModules.includes(item.id);
+                const isUtility = utilityIds.has(item.id);
                 return (
-                  <div key={section} className="space-y-2">
-                    <h4 className="text-[0.5625rem] font-black uppercase tracking-wider text-text-muted">
-                      {section}
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {sectItems.map(item => {
-                        const isHidden = disabledModules.includes(item.id);
-                        return (
-                          <label
-                            key={item.id}
-                            draggable
-                            onDragStart={(event) => {
-                              setDraggedModuleId(item.id);
-                              event.dataTransfer.effectAllowed = 'move';
-                              event.dataTransfer.setData('text/plain', item.id);
-                            }}
-                            onDragEnd={() => setDraggedModuleId(null)}
-                            onDragOver={(event) => {
-                              const dragged = ALL_MODULES.find(module => module.id === draggedModuleId);
-                              if (dragged?.section === item.section) {
-                                event.preventDefault();
-                                event.dataTransfer.dropEffect = 'move';
-                              }
-                            }}
-                            onDrop={(event) => {
-                              event.preventDefault();
-                              const draggedId = draggedModuleId || event.dataTransfer.getData('text/plain');
-                              moveSidebarModule(draggedId, item.id);
-                              setDraggedModuleId(null);
-                            }}
-                            className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-grab active:cursor-grabbing ${draggedModuleId === item.id ? 'opacity-50 ring-2 ring-accent/30' : ''} ${
-                              !isHidden
-                                ? 'bg-surface2 border-border text-text-primary font-bold'
-                                : 'bg-surface border-border/40 text-text-muted font-medium'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <GripVertical size={14} className="text-text-muted/70 shrink-0" aria-hidden="true" />
-                              <span className={!isHidden ? 'text-accent' : 'text-text-muted/60'}>
-                                {item.icon}
-                              </span>
-                              <span className="text-[0.6875rem] text-wrap leading-tight break-words">
-                                {item.label}
-                              </span>
-                            </div>
-                            <input
-                              type="checkbox"
-                              checked={!isHidden}
-                              onChange={() => {
-                                const active = !isHidden;
-                                setApp(prev => {
-                                  let updated = [...(prev.settings?.disabledModules || [])];
-                                  if (active) {
-                                    if (!updated.includes(item.id)) updated.push(item.id);
-                                  } else {
-                                    updated = updated.filter(id => id !== item.id);
-                                  }
-                                  return {
-                                    ...prev,
-                                    settings: {
-                                      ...prev.settings,
-                                      disabledModules: updated
-                                    }
-                                  };
-                                });
-                              }}
-                              className="accent-accent scale-105 cursor-pointer"
-                            />
-                          </label>
-                        );
-                      })}
+                  <div
+                    key={item.id}
+                    draggable={!isUtility}
+                    onDragStart={(event) => {
+                      if (isUtility) return;
+                      setDraggedModuleId(item.id);
+                      event.dataTransfer.effectAllowed = 'move';
+                      event.dataTransfer.setData('text/plain', item.id);
+                    }}
+                    onDragEnd={() => setDraggedModuleId(null)}
+                    onDragOver={(event) => {
+                      if (isUtility) return;
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = 'move';
+                    }}
+                    onDrop={(event) => {
+                      if (isUtility) return;
+                      event.preventDefault();
+                      const draggedId = draggedModuleId || event.dataTransfer.getData('text/plain');
+                      moveSidebarModule(draggedId, item.id);
+                      setDraggedModuleId(null);
+                    }}
+                    className={`flex items-center gap-2.5 p-2.5 rounded-xl border transition-all ${
+                      draggedModuleId === item.id ? 'opacity-50 ring-2 ring-accent/30' : ''
+                    } ${
+                      !isHidden
+                        ? 'bg-surface2 border-border text-text-primary'
+                        : 'bg-surface border-border/40 text-text-muted'
+                    }`}
+                  >
+                    <div className={`shrink-0 p-1 ${isUtility ? 'opacity-30' : 'cursor-grab active:cursor-grabbing text-text-muted'}`}>
+                      <GripVertical size={17} aria-hidden="true" />
                     </div>
+
+                    <span className={!isHidden ? 'text-accent shrink-0' : 'text-text-muted/60 shrink-0'}>
+                      {item.icon}
+                    </span>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[0.75rem] font-bold truncate">{item.label}</div>
+                      <div className="text-[0.6rem] text-text-muted truncate">
+                        {isUtility ? 'Fester Datenbereich' : item.section}
+                      </div>
+                    </div>
+
+                    {!isUtility && (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => moveSidebarModuleBy(item.id, -1)}
+                          disabled={index === 0}
+                          className="w-8 h-8 rounded-lg border border-border bg-surface hover:bg-surface3/60 flex items-center justify-center disabled:opacity-25"
+                          title="Nach oben"
+                          aria-label={`${item.label} nach oben`}
+                        >
+                          <ArrowUp size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveSidebarModuleBy(item.id, 1)}
+                          disabled={index === orderedItems.length - 1}
+                          className="w-8 h-8 rounded-lg border border-border bg-surface hover:bg-surface3/60 flex items-center justify-center disabled:opacity-25"
+                          title="Nach unten"
+                          aria-label={`${item.label} nach unten`}
+                        >
+                          <ArrowDown size={14} />
+                        </button>
+                      </div>
+                    )}
+
+                    <label className="flex items-center gap-1.5 shrink-0 cursor-pointer">
+                      <span className="sr-only">{item.label} anzeigen</span>
+                      <input
+                        type="checkbox"
+                        checked={!isHidden}
+                        disabled={isUtility}
+                        onChange={() => {
+                          const active = !isHidden;
+                          setApp(prev => {
+                            let updated = [...(prev.settings?.disabledModules || [])];
+                            if (active) {
+                              if (!updated.includes(item.id)) updated.push(item.id);
+                            } else {
+                              updated = updated.filter(id => id !== item.id);
+                            }
+                            return {
+                              ...prev,
+                              settings: {
+                                ...prev.settings,
+                                disabledModules: updated,
+                              },
+                            };
+                          });
+                        }}
+                        className="accent-accent scale-110 cursor-pointer disabled:cursor-default"
+                      />
+                    </label>
                   </div>
                 );
               })}
             </div>
 
-            {/* Actions Footer */}
-            <div className="p-4 bg-surface2 border-t border-border/50 flex items-center justify-between gap-2.5 flex-wrap">
-              <div className="flex gap-1.5 items-center">
-                <button
-                  onClick={() => {
-                    setApp(prev => ({
-                      ...prev,
-                      settings: {
-                        ...prev.settings,
-                        disabledModules: ['cockpit', 'sitzplan', 'orga', 'jahresplanung', 'wochenplanung', 'materialien', 'uebergabemappe', 'statistik', 'diagnostik', 'archiv', 'jahresbericht']
-                      }
-                    }));
-                    showToast("🌱 Auf minimalistischen Fokus-Modus umgestellt!", "success");
-                  }}
-                  className={`px-2.5 py-1.5 rounded-lg text-[0.5625rem] font-extrabold uppercase tracking-wider transition-all border ${disabledModules.includes('jahresplanung') && disabledModules.includes('statistik') && disabledModules.includes('sitzplan') ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-surface hover:bg-surface3/60 text-text-secondary border-border'}`}
-                >
-                  🌱 Fokus
-                </button>
-                <button
-                  onClick={() => {
-                    setApp(prev => ({
-                      ...prev,
-                      settings: {
-                        ...prev.settings,
-                        disabledModules: ['jahresplanung', 'uebergabemappe', 'statistik', 'diagnostik', 'archiv', 'jahresbericht']
-                      }
-                    }));
-                    showToast("🚀 Auf Standard-Modus umgestellt!", "success");
-                  }}
-                  className={`px-2.5 py-1.5 rounded-lg text-[0.5625rem] font-extrabold uppercase tracking-wider transition-all border ${disabledModules.includes('statistik') && !disabledModules.includes('sitzplan') && !disabledModules.includes('orga') ? 'bg-sky-500/10 text-sky-600 border-sky-500/20' : 'bg-surface hover:bg-surface3/60 text-text-secondary border-border'}`}
-                >
-                  🚀 Standard
-                </button>
-                <button
-                  onClick={() => {
-                    setApp(prev => ({
-                      ...prev,
-                      settings: {
-                        ...prev.settings,
-                        disabledModules: []
-                      }
-                    }));
-                    showToast("👑 Alle Werkzeuge wurden aktiviert!", "success");
-                  }}
-                  className={`px-2.5 py-1.5 rounded-lg text-[0.5625rem] font-extrabold uppercase tracking-wider transition-all border ${disabledModules.length === 0 ? 'bg-accent text-accent-text border-accent' : 'bg-surface hover:bg-surface3/60 text-text-secondary border-border'}`}
-                >
-                  👑 Experte
-                </button>
-              </div>
+            <div className="p-4 bg-surface2 border-t border-border/50 flex items-center justify-between gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  setApp(prev => ({
+                    ...prev,
+                    settings: {
+                      ...prev.settings,
+                      disabledModules: [],
+                      sidebarOrder: ALL_MODULES.map(item => item.id),
+                    },
+                  }));
+                  showToast('Alle Bereiche sind wieder sichtbar und in der Standardreihenfolge.', 'success');
+                }}
+                className="px-3 py-2 rounded-xl border border-border bg-surface text-[0.6875rem] font-bold text-text-secondary hover:text-text-primary hover:bg-surface3/60"
+              >
+                Standard wiederherstellen
+              </button>
 
               <button
+                type="button"
                 onClick={() => setShowCustomizeModal(false)}
-                className="px-5 py-2 bg-accent hover:bg-accent/90 text-accent-text rounded-full text-[0.6875rem] font-extrabold uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95"
+                className="px-5 py-2 bg-accent hover:bg-accent/90 text-accent-text rounded-xl text-[0.6875rem] font-extrabold uppercase tracking-wider transition-all cursor-pointer shadow-sm active:scale-95"
               >
-                Akzeptieren
+                Fertig
               </button>
             </div>
           </div>

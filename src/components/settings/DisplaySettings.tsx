@@ -184,7 +184,7 @@ export default function DisplaySettings({
           <div>
             <h2 className="text-base font-black text-slate-900">Weiße Arbeitsfläche im Lehrercockpit</h2>
             <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              Schreiben, Zeichnen, Texte und Widgets werden direkt im Lehrercockpit bedient. Die zugehörigen Werkzeuge erscheinen dort, wo sie gebraucht werden – nicht als wirkungslose globale Schalter.
+              Das Lehrercockpit stellt eine bewusst leere weiße Fläche und die gewünschten Widgets bereit. Schreiben und Zeichnen übernimmt das Smartboard selbst.
             </p>
           </div>
         </div>

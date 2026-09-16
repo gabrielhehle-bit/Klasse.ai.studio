@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const teachingSurface = readFileSync("src/components/Unterrichtsmodus.tsx", "utf8");
-const boardInk = readFileSync("src/components/cockpit/BoardInk.tsx", "utf8");
 const cockpitWidget = readFileSync("src/components/cockpit/CockpitWidget.tsx", "utf8");
 
 const widgetTypes = (source: string) =>
@@ -83,13 +82,10 @@ test("Cockpit: Widgets bleiben ohne separaten Layout-Modus immer verschiebbar", 
   assert.match(cockpitWidget, /layoutLocked \? "auto" : "none"/);
 });
 
-test("Cockpit: Unterrichtshilfen schließen lässt Schrift und Zeichnung bestehen", () => {
+test("Cockpit: Unterrichtshilfen schließen verändert die weiße Smartboard-Fläche nicht", () => {
   assert.match(teachingSurface, /Alle Unterrichtshilfen schließen/);
   assert.doesNotMatch(teachingSurface, /Tafel leeren \(Alle schließen\)/);
-  const clearStart = teachingSurface.indexOf("const handleClearAllWidgets");
-  const clearEnd = teachingSurface.indexOf("const handleCloseWidget", clearStart);
-  const clearHandler = teachingSurface.slice(clearStart, clearEnd);
-  assert.doesNotMatch(clearHandler, /cockpitInkByClass/);
+  assert.doesNotMatch(teachingSurface, /cockpitInkByClass/);
 });
 
 test("Cockpit: alte Tafel liegt ausschließlich im Archiv", () => {
@@ -107,16 +103,12 @@ test("Cockpit: Zeichenfeld und gemeinsame Zeichenebene sind sprachlich getrennt"
   assert.doesNotMatch(cockpitWidget, /drawing: "🖍️ Zeichentafel"/);
 });
 
-test("Cockpit: Schrift und Zeichnung lassen sich getrennt löschen", () => {
-  assert.match(boardInk, />Zeichnung löschen<\/button>/);
-  assert.match(boardInk, />Schrift löschen<\/button>/);
-  assert.match(boardInk, /items\.filter\(item => item\.text !== undefined\)/);
-  assert.match(boardInk, /items\.filter\(item => item\.text === undefined\)/);
-  assert.match(boardInk, />Rückgängig<\/button>/);
-  assert.match(boardInk, />Wiederholen<\/button>/);
-  assert.match(boardInk, /\['pen', 'Stift'\]/);
-  assert.match(boardInk, /\['text', 'Text'\]/);
-  assert.match(boardInk, /\['erase', 'Radierer'\]/);
+test("Cockpit: aktive Unterrichtsfläche ist nur eine weiße Smartboard-Fläche ohne eigene Zeichenebene", () => {
+  assert.match(teachingSurface, /Weiße Smartboard-Fläche/);
+  assert.doesNotMatch(teachingSurface, /<BoardInk/);
+  assert.doesNotMatch(teachingSurface, /Schreiben & Zeichnen/);
+  assert.doesNotMatch(teachingSurface, /Widgets bedienen/);
+  assert.doesNotMatch(teachingSurface, /setIsBoardWriting/);
 });
 
 

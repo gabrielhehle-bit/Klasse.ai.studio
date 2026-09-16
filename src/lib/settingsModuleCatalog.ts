@@ -6,30 +6,51 @@ export type KlassioModuleCatalogEntry = {
   condition?: (app: any) => boolean;
 };
 
-// Nur Bereiche, die in der kompakten Sidebar tatsächlich ein-/ausblendbar sind.
-// Zusätzliche Funktionsseiten bleiben über ihre Fachbereiche erreichbar und blähen
-// weder Sidebar noch Modulverwaltung wieder auf.
+// Alle echten Klassio-Bereiche, die in der persönlichen Sidebar ein-/ausblendbar sind.
+// Detailfunktionen bleiben damit vollständig erreichbar; die Reihenfolge wird separat
+// über die Sidebar-Anpassung gesteuert.
 export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
-  { id: 'dashboard', label: 'Dashboard', desc: 'Tagesübersicht mit Unterricht, Aufgaben und Terminen', category: 'Unterricht' },
-  { id: 'cockpit', label: 'Lehrercockpit', desc: 'Weiße Arbeitsfläche, Schreiben, Zeichnen und Widgets', category: 'Unterricht' },
+  { id: 'dashboard', label: 'Heute', desc: 'Tagesübersicht mit Unterricht, Aufgaben und Terminen', category: 'Start' },
+  { id: 'klasse', label: 'Klasse', desc: 'Zentrale Übersicht für Kinder, Anwesenheit und Klassenalltag', category: 'Start' },
+  { id: 'planung', label: 'Planung', desc: 'Zentrale Übersicht für Wochen-, Jahres- und Materialplanung', category: 'Start' },
+  { id: 'leistungen', label: 'Leistungen', desc: 'Zentrale Übersicht für Noten, Diagnostik und Lernentwicklung', category: 'Start' },
+  { id: 'unterricht', label: 'Unterricht', desc: 'Zentrale Übersicht für Cockpit und Unterrichtswerkzeuge', category: 'Start' },
+
+  { id: 'cockpit', label: 'Lehrercockpit', desc: 'Weiße Smartboard-Fläche mit frei platzierbaren Widgets', category: 'Unterricht' },
   { id: 'ki-helfer', label: 'KI-Helfer', desc: 'KI-Werkzeuge für Planung, Differenzierung und Texte', category: 'Unterricht' },
   { id: 'lehrerzimmer', label: 'Lehrerzimmer', desc: 'Schulweiter Austausch mit Beiträgen, Fragen, @Erwähnungen und Antworten', category: 'Unterricht' },
+  { id: 'arbeitsblatt', label: 'Arbeitsblatt-Generator', desc: 'Arbeitsblätter direkt in Klassio erstellen', category: 'Unterricht' },
+  { id: 'stationenbetrieb', label: 'Stationenbetrieb', desc: 'Stationen planen und verwalten', category: 'Unterricht' },
+  { id: 'stimmnotizen', label: 'Stimm-Notizen', desc: 'Sprachbasierte Notizen im Unterricht erfassen', category: 'Unterricht' },
+  { id: 'differenzierung', label: 'Differenzierung', desc: 'Unterricht differenziert vorbereiten', category: 'Unterricht' },
+  { id: 'elternbrief', label: 'Elternbrief', desc: 'Elterninformationen und Briefe erstellen', category: 'Unterricht' },
 
-  { id: 'schueler', label: 'Schüler:innen', desc: 'Schülerliste, Dossiers, Stammdaten und Lernentwicklung', category: 'Werkzeuge' },
-  { id: 'sitzplan', label: 'Sitzplan', desc: 'Sitzordnung und Gruppen organisieren', category: 'Werkzeuge' },
-  { id: 'anwesenheit', label: 'Anwesenheit', desc: 'Präsenz, Befinden und Tagesstatus erfassen', category: 'Werkzeuge' },
-  { id: 'noten', label: 'Notenmappe', desc: 'Noten, Prozent, Punkte, Gewichtungen und Leistungen', category: 'Werkzeuge' },
-  { id: 'orga', label: 'Kasse & Orga', desc: 'Klassenkasse, Geldsammlungen und Organisation', category: 'Werkzeuge', condition: (app: any) => app.klassenvorstand },
+  { id: 'schueler', label: 'Kinder & Dossiers', desc: 'Schülerliste, Dossiers und Stammdaten', category: 'Klasse & Kinder' },
+  { id: 'sitzplan', label: 'Sitzplan & Gruppen', desc: 'Sitzordnung und Gruppen organisieren', category: 'Klasse & Kinder' },
+  { id: 'anwesenheit', label: 'Anwesenheit & Befinden', desc: 'Präsenz, Befinden und Tagesstatus erfassen', category: 'Klasse & Kinder' },
+  { id: 'verhalten', label: 'Notizen & Beobachtungen', desc: 'Beobachtungen und Verhaltensnotizen festhalten', category: 'Klasse & Kinder' },
+  { id: 'orga', label: 'Kasse & Orga', desc: 'Klassenkasse, Geldsammlungen und Organisation', category: 'Klasse & Kinder', condition: (app: any) => app.klassenvorstand },
+
+  { id: 'noten', label: 'Notenmappe', desc: 'Noten, Prozent, Punkte, Gewichtungen und Leistungen', category: 'Leistungen' },
+  { id: 'statistik', label: 'Statistik & Profile', desc: 'Leistungsprofile und Klassenanalysen', category: 'Leistungen' },
+  { id: 'diagnostik', label: 'Diagnostik', desc: 'Lese-, Rechen- und Beobachtungschecks', category: 'Leistungen', condition: (app: any) => app.klassenvorstand },
+  { id: 'portfolio', label: 'Lernziele & Portfolio', desc: 'Lernziele und Portfolioeinträge begleiten', category: 'Leistungen' },
+  { id: 'notenTabelle', label: 'Notenübersicht', desc: 'Leistungen tabellarisch überblicken', category: 'Leistungen' },
+  { id: 'verbal', label: 'Verbale Beurteilung', desc: 'Verbale Rückmeldungen vorbereiten', category: 'Leistungen' },
+  { id: 'kel', label: 'KEL-Gespräche', desc: 'Kinder-Eltern-Lehrperson-Gespräche vorbereiten', category: 'Leistungen' },
 
   { id: 'planungszentrale', label: 'Planungs-Zentrale', desc: 'Planungsbereiche zentral überblicken', category: 'Planung' },
   { id: 'jahresplanung', label: 'Jahresplanung', desc: 'Langfristige Stoff- und Jahresplanung', category: 'Planung' },
   { id: 'wochenplanung', label: 'Wochenplan', desc: 'Wochenplanung, Aufgaben und Hausübungen', category: 'Planung' },
   { id: 'materialien', label: 'Materialbibliothek', desc: 'Unterrichtsmaterialien verwalten', category: 'Planung' },
-  { id: 'uebergabemappe', label: 'Übergabemappe', desc: 'Klassenübergabe und Schülerbeurteilungen', category: 'Planung', condition: (app: any) => app.klassenvorstand },
+  { id: 'stunden', label: 'Stundenentwürfe', desc: 'Unterrichtsstunden vorbereiten und speichern', category: 'Planung' },
+  { id: 'canva', label: 'Canva', desc: 'Canva-bezogene Export- und Gestaltungsfunktionen', category: 'Planung' },
+  { id: 'vertretung', label: 'Vertretung', desc: 'Vertretungsunterricht vorbereiten', category: 'Planung' },
+  { id: 'uebergabemappe', label: 'Übergabemappe', desc: 'Klassenübergabe und Vertretungsinformationen', category: 'Planung', condition: (app: any) => app.klassenvorstand },
 
-  { id: 'statistik', label: 'Statistik & Profile', desc: 'Leistungsprofile und Klassenanalysen', category: 'Extras' },
-  { id: 'diagnostik', label: 'Diagnostik', desc: 'Lese-, Rechen- und Beobachtungschecks', category: 'Extras', condition: (app: any) => app.klassenvorstand },
-  { id: 'klassengemeinschaft', label: 'Wir-Gefühl', desc: 'Klassengemeinschaft und soziales Lernen begleiten', category: 'Extras', condition: (app: any) => app.klassenvorstand },
-  { id: 'jahresbericht', label: 'Jahresbericht', desc: 'Jahresrückblick und Berichte erstellen', category: 'Extras', condition: (app: any) => app.klassenvorstand },
-  { id: 'archiv', label: 'Archiv', desc: 'Abgeschlossene Schuljahre und Verläufe', category: 'Extras' },
+  { id: 'klassengemeinschaft', label: 'Wir-Gefühl', desc: 'Klassengemeinschaft und soziales Lernen begleiten', category: 'Entwicklung & Berichte', condition: (app: any) => app.klassenvorstand },
+  { id: 'jahresbericht', label: 'Jahresbericht', desc: 'Jahresrückblick und Berichte erstellen', category: 'Entwicklung & Berichte', condition: (app: any) => app.klassenvorstand },
+  { id: 'archiv', label: 'Archiv', desc: 'Abgeschlossene Schuljahre und Verläufe', category: 'Entwicklung & Berichte' },
+
+  { id: 'drucken', label: 'Druckzentrum', desc: 'Druck- und Ausgabeformate zentral aufrufen', category: 'Ausgabe & Daten' },
 ];

@@ -27,12 +27,12 @@ const INTRO_STEPS = [
   {
     eyebrow: 'Deine Navigation',
     title: 'Die Sidebar gehört dir.',
-    text: 'Unter „Anpassen“ blendest du Module ein oder aus und verschiebst sie innerhalb ihrer Bereiche in deine persönliche Reihenfolge.',
+    text: 'Über „Sidebar“ blendest du Bereiche ein oder aus und ziehst die für dich wichtigsten ganz nach oben. Mit den Pfeilen geht das auch ohne Drag & Drop.',
     icon: PanelLeft,
     points: [
-      'Wichtige Werkzeuge nach vorne holen',
-      'Selten Benötigtes ausblenden',
-      'Deine Auswahl wird gespeichert',
+      'Wichtige Werkzeuge frei nach vorne holen',
+      'Selten Benötigtes unter „Mehr“ lassen oder ausblenden',
+      'Deine Reihenfolge wird gespeichert',
     ],
   },
   {

@@ -55,7 +55,8 @@ test('Einstellungen: alte wirkungslose Whiteboard-Schalter sind aus Darstellung 
   assert.doesNotMatch(display, /whiteboardBackground/);
   assert.doesNotMatch(display, /showVerhaltenOnBoard/);
   assert.match(display, /Weiße Arbeitsfläche im Lehrercockpit/);
-  assert.match(display, /Schreiben, Zeichnen, Texte und Widgets werden direkt im Lehrercockpit bedient/);
+  assert.match(display, /bewusst leere weiße Fläche und die gewünschten Widgets/);
+  assert.match(display, /Schreiben und Zeichnen übernimmt das Smartboard selbst/);
 });
 
 test('Einstellungen: Speicherdiagnose verwendet Browser-Quote statt 4- oder 5-MB-Fiktion', () => {
