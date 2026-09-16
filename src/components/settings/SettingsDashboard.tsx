@@ -8,7 +8,8 @@ import {
   Shield,
   Heart,
   ChevronRight,
-  Info
+  Info,
+  Mail
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { SettingsCategory } from './SettingsHeader';
@@ -27,6 +28,15 @@ export default function SettingsDashboard({
   hasDemoData
 }: SettingsDashboardProps) {
   const TILES = [
+    {
+      id: 'account' as SettingsCategory,
+      title: 'Konto & Schulmail',
+      subtitle: 'E-Mail-Anmeldung und Schulidentität',
+      desc: 'Melde dich mit deiner E-Mail an. Eine verifizierte Schulmail schaltet Klassenteam und Lehrerzimmer frei.',
+      icon: Mail,
+      badge: 'Login & Teamteaching',
+      color: 'bg-indigo-500/10 text-indigo-600 border-indigo-200'
+    },
     {
       id: 'general' as SettingsCategory,
       title: 'Allgemein',

@@ -6,7 +6,6 @@ import {
   FileEdit,
   FileSearch,
   LayoutGrid,
-  Mic,
   Printer,
   Sparkles,
   Wrench,
@@ -39,13 +38,6 @@ const tools = [
     title: 'Stationenbetrieb',
     description: 'Stationen planen, Fortschritt verfolgen und Beobachtungen festhalten.',
     icon: LayoutGrid,
-    featured: false,
-  },
-  {
-    id: 'stimmnotizen',
-    title: 'Notiz diktieren',
-    description: 'Sprachnotizen transkribieren, korrigieren und zentral speichern.',
-    icon: Mic,
     featured: false,
   },
   {

@@ -23,7 +23,6 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
   { id: 'lehrerzimmer', label: 'Lehrerzimmer', desc: 'Schulweiter Austausch mit Beiträgen, Fragen, @Erwähnungen und Antworten', category: 'Unterricht' },
   { id: 'arbeitsblatt', label: 'Arbeitsblatt-Generator', desc: 'Arbeitsblätter direkt in Klassio erstellen', category: 'Unterricht' },
   { id: 'stationenbetrieb', label: 'Stationenbetrieb', desc: 'Stationen planen und verwalten', category: 'Unterricht' },
-  { id: 'stimmnotizen', label: 'Stimm-Notizen', desc: 'Sprachbasierte Notizen im Unterricht erfassen', category: 'Unterricht' },
   { id: 'differenzierung', label: 'Differenzierung', desc: 'Unterricht differenziert vorbereiten', category: 'Unterricht' },
   { id: 'elternbrief', label: 'Elternbrief', desc: 'Elterninformationen und Briefe erstellen', category: 'Unterricht' },
 
@@ -31,6 +30,7 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
   { id: 'dossier', label: 'Schülerdossier', desc: 'Individuelle Dossiers, Entwicklung und Stammdaten', category: 'Klasse & Kinder' },
   { id: 'sitzplan', label: 'Sitzplan & Gruppen', desc: 'Sitzordnung und Gruppen organisieren', category: 'Klasse & Kinder' },
   { id: 'anwesenheit', label: 'Anwesenheit & Befinden', desc: 'Präsenz, Befinden und Tagesstatus erfassen', category: 'Klasse & Kinder' },
+  { id: 'teamteaching', label: 'Teamteaching', desc: 'Klasse gezielt mit Kolleg:innen derselben Schule teilen', category: 'Klasse & Kinder' },
   { id: 'verhalten', label: 'Notizen', desc: 'Alle Klassen- und Schülernotizen zentral erfassen und durchsuchen', category: 'Start' },
   { id: 'orga', label: 'Kasse & Orga', desc: 'Klassenkasse, Geldsammlungen und Organisation', category: 'Klasse & Kinder', condition: (app: any) => app.klassenvorstand },
 

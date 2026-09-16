@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Mic, Trash2, Search, Filter, Calendar } from 'lucide-react';
+import { Mic, Trash2, Search, Filter, Calendar, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function StimmNotizen() {
@@ -32,10 +32,19 @@ export default function StimmNotizen() {
             <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
               <Mic size={20} />
             </div>
-            Stimm-Notizen
+            Diktieren & Transkripte
           </h1>
-          <p className="text-[0.875rem] leading-snug font-bold text-slate-500 mt-2">Ihre gesprochenen Unterrichts- und Schüler-Notizen</p>
+          <p className="text-[0.875rem] leading-snug font-bold text-slate-500 mt-2">Sprachnotiz aufnehmen, automatisch transkribieren, korrigieren und in Notizen speichern.</p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setApp(prev => ({ ...prev, stimmNotizModal: true }))}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg transition hover:bg-slate-800 active:scale-95"
+        >
+          <Mic size={16} />
+          Aufnahme starten
+        </button>
         
         <div className="flex gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-64">
@@ -55,10 +64,11 @@ export default function StimmNotizen() {
               className="appearance-none pl-10 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl text-[0.875rem] leading-snug font-bold text-slate-700 cursor-pointer outline-none focus:border-slate-300 transition-all"
             >
               <option value="Alle">Alle Kategorien</option>
-              <option value="Unterricht">Unterricht</option>
-              <option value="Kind">Kind</option>
-              <option value="Eltern">Eltern</option>
-              <option value="Sonstiges">Sonstiges</option>
+              <option value="Notiz">Notiz</option>
+              <option value="Verhalten">Beobachtung / Verhalten</option>
+              <option value="Erfolg">Erfolg / Stärke</option>
+              <option value="Eltern">Elternkontakt</option>
+              <option value="Journal">Klassenjournal</option>
             </select>
             <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           </div>
@@ -71,7 +81,7 @@ export default function StimmNotizen() {
              <Mic className="text-slate-300 w-12 h-12 mb-4" />
              <h3 className="text-[1.125rem] leading-normal font-black text-slate-800">Keine Notizen gefunden</h3>
              <p className="text-[0.875rem] leading-snug font-medium text-slate-500 max-w-sm mx-auto mt-2">
-               Sie haben noch keine Stimm-Notizen aufgenommen oder keine entspricht dem aktuellen Filter.
+               Noch keine Transkripte vorhanden. Starte oben eine Aufnahme; der erkannte Text kann vor dem Speichern korrigiert werden.
              </p>
            </div>
         ) : (

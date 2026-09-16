@@ -31,7 +31,19 @@ test('Klassenteam ist als Klassenwerkzeug erreichbar', () => {
   assert.match(app, /ClassTeam/);
   assert.match(app, /case 'teamteaching': return <ClassTeam/);
   assert.match(hub, /id: 'teamteaching'/);
-  assert.match(hub, /title: 'Klassenteam'/);
+  assert.match(hub, /title: 'Teamteaching \/ Klassenteam'/);
+  const sidebar = read('src/components/Sidebar.tsx');
+  assert.match(sidebar, /id: 'teamteaching'.*label: 'Teamteaching'/);
+});
+
+test('Teamteaching bietet bei fehlender Schulidentität die E-Mail-Anmeldung direkt an', () => {
+  const team = read('src/components/ClassTeam.tsx');
+  const login = read('src/components/EmailAccountLogin.tsx');
+  assert.match(team, /EmailAccountLogin/);
+  assert.match(team, /needsSchoolLogin/);
+  assert.match(team, /verifizierten Schulmail/);
+  assert.match(login, /\/api\/access\/email\/request/);
+  assert.match(login, /\/api\/access\/email\/verify/);
 });
 
 test('Hintergrundsync überschreibt Konflikte nicht still', () => {

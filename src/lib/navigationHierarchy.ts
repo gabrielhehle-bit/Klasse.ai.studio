@@ -1,5 +1,5 @@
 export type NavigationParent = {
-  id: 'klasse' | 'planung' | 'leistungen' | 'unterricht' | 'tools';
+  id: 'klasse' | 'verhalten' | 'planung' | 'leistungen' | 'unterricht' | 'tools';
   label: string;
 };
 
@@ -11,7 +11,7 @@ const PAGE_PARENTS: Record<string, NavigationParent> = {
   cockpit: { id: 'unterricht', label: 'Unterricht' },
   arbeitsblatt: { id: 'unterricht', label: 'Unterricht' },
   stationenbetrieb: { id: 'unterricht', label: 'Unterricht' },
-  stimmnotizen: { id: 'unterricht', label: 'Unterricht' },
+  stimmnotizen: { id: 'verhalten', label: 'Notizen' },
   differenzierung: { id: 'unterricht', label: 'Unterricht' },
   elternbrief: { id: 'unterricht', label: 'Unterricht' },
 
@@ -20,6 +20,7 @@ const PAGE_PARENTS: Record<string, NavigationParent> = {
   dossier: { id: 'klasse', label: 'Klasse' },
   sitzplan: { id: 'klasse', label: 'Klasse' },
   anwesenheit: { id: 'klasse', label: 'Klasse' },
+  teamteaching: { id: 'klasse', label: 'Klasse' },
   orga: { id: 'klasse', label: 'Klasse' },
   klassengemeinschaft: { id: 'klasse', label: 'Klasse' },
   eltern: { id: 'klasse', label: 'Klasse' },

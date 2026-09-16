@@ -20,11 +20,12 @@ function assertContainsAll(text: string, ids: string[]) {
 test('Unterricht hub exposes the cockpit and previously scattered teaching tools', () => {
   const text = source('UnterrichtHub.tsx');
   assert.match(text, /setPage\(['"]cockpit['"]\)/);
-  assertContainsAll(text, ['ki-helfer', 'arbeitsblatt', 'stationenbetrieb', 'stimmnotizen', 'differenzierung', 'elternbrief']);
+  assertContainsAll(text, ['ki-helfer', 'arbeitsblatt', 'stationenbetrieb', 'differenzierung', 'elternbrief']);
+  assert.doesNotMatch(text, /id:\s*['\"]stimmnotizen['\"]/);
 });
 
 test('Klasse, Planung and Leistungen hubs expose their remaining legacy tools', () => {
-  assertContainsAll(source('KlasseHub.tsx'), ['schueler', 'dossier', 'anwesenheit', 'sitzplan', 'verhalten', 'orga', 'kel', 'klassengemeinschaft']);
+  assertContainsAll(source('KlasseHub.tsx'), ['schueler', 'dossier', 'anwesenheit', 'sitzplan', 'verhalten', 'orga', 'kel', 'klassengemeinschaft', 'teamteaching']);
   assertContainsAll(source('PlanungHub.tsx'), ['planungszentrale', 'wochenplanung', 'jahresplanung', 'stunden', 'materialien', 'canva', 'vertretung', 'uebergabemappe']);
   assertContainsAll(source('LeistungenHub.tsx'), ['noten', 'portfolio', 'diagnostik', 'statistik', 'kel', 'notenTabelle', 'verbal', 'jahresbericht']);
 });

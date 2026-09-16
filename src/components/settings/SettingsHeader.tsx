@@ -10,11 +10,12 @@ import {
   Info, 
   Sparkles,
   Check,
-  Heart
+  Heart,
+  Mail
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
-export type SettingsCategory = 'overview' | 'general' | 'display' | 'modules' | 'sync' | 'backup' | 'support' | 'advanced';
+export type SettingsCategory = 'overview' | 'account' | 'general' | 'display' | 'modules' | 'sync' | 'backup' | 'support' | 'advanced';
 
 interface SettingsHeaderProps {
   activeCategory: SettingsCategory;
@@ -24,6 +25,7 @@ interface SettingsHeaderProps {
 }
 
 export const CATEGORIES: { id: SettingsCategory; label: string; icon: any; shortDesc: string }[] = [
+  { id: 'account', label: 'Konto', icon: Mail, shortDesc: 'E-Mail & Schulidentität' },
   { id: 'general', label: 'Allgemein', icon: Sliders, shortDesc: 'Schuljahr, Bundesland & Fächer' },
   { id: 'display', label: 'Darstellung', icon: Palette, shortDesc: 'Design, Schrift & Cockpit' },
   { id: 'modules', label: 'Module', icon: LayoutGrid, shortDesc: 'Bereiche ein- & ausblenden' },
@@ -59,6 +61,7 @@ export default function SettingsHeader({
             <div className="flex items-center gap-2">
               <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight font-sans">
                 {activeCategory === 'overview' && 'Einstellungen'}
+                {activeCategory === 'account' && 'Konto & Schulmail'}
                 {activeCategory === 'general' && 'Allgemeine Einstellungen'}
                 {activeCategory === 'display' && 'Darstellung & Cockpit'}
                 {activeCategory === 'modules' && 'Module & Bereiche'}

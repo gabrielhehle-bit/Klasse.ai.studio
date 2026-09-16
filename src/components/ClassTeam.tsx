@@ -20,6 +20,7 @@ import {
 } from '../lib/teamTeachingService';
 import { classRoomFingerprint, classRoomWithoutTeamMetadata } from '../lib/teamTeachingCrypto';
 import type { ClassRoom } from '../types';
+import EmailAccountLogin from './EmailAccountLogin';
 
 function replaceOrAddRoom(prev: any, room: ClassRoom) {
   const synced = syncActiveClass(prev);
@@ -39,6 +40,7 @@ export default function ClassTeam() {
   const [busy, setBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
+  const [needsSchoolLogin, setNeedsSchoolLogin] = React.useState(false);
 
   const synced = React.useMemo(() => syncActiveClass(app), [app]);
   const activeRoom = synced.classes?.find(room => room.id === synced.activeClassId);
@@ -58,9 +60,12 @@ export default function ClassTeam() {
       setShared(classes);
       setColleagues(users);
       setSchoolUsers(allSchoolUsers);
+      setNeedsSchoolLogin(false);
     } catch (cause: any) {
-      setError(cause?.status === 403
-        ? 'Für Klassenteam brauchst du eine Anmeldung mit einer verifizierten Schulmail.'
+      const schoolLoginRequired = cause?.status === 403;
+      setNeedsSchoolLogin(schoolLoginRequired);
+      setError(schoolLoginRequired
+        ? 'Für Teamteaching brauchst du eine Anmeldung mit einer verifizierten Schulmail.'
         : cause instanceof Error ? cause.message : 'Klassenteam konnte nicht geladen werden.');
     } finally {
       setLoading(false);
@@ -286,6 +291,15 @@ export default function ClassTeam() {
       </header>
 
       {error && <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm font-semibold text-rose-700">{error}</div>}
+      {needsSchoolLogin && (
+        <EmailAccountLogin
+          onSuccess={() => {
+            setError(null);
+            setNeedsSchoolLogin(false);
+            void load();
+          }}
+        />
+      )}
       {notice && <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-semibold">{notice}</div>}
 
       <section className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
