@@ -1170,6 +1170,21 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     }
   });
 
+  app.put('/api/teamteaching/classes/:classId/members/:userId/keys', requireTeacherIdentity, async (req, res) => {
+    const identity = getTeacherIdentity(req);
+    try {
+      const record = await classCollaborationStore.updateMemberKeys(
+        identity,
+        req.params.classId,
+        req.params.userId,
+        req.body?.wrappedKeys,
+      );
+      res.json({ class: teamClassSummary(record, identity) });
+    } catch (error) {
+      await handleTeamTeachingError(res, error, identity, req.params.classId);
+    }
+  });
+
   app.delete('/api/teamteaching/classes/:classId/members/:userId', requireTeacherIdentity, async (req, res) => {
     const identity = getTeacherIdentity(req);
     try {
