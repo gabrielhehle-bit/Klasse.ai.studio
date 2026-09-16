@@ -131,6 +131,7 @@ const KELGespraeche: React.FC = () => {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
   const [analyseChartType, setAnalyseChartType] = useState<'column' | 'bar' | 'pie' | 'line'>('column');
   const [notesFilterCategory, setNotesFilterCategory] = useState<string>('all');
+  const [showBehaviorNotesInKel, setShowBehaviorNotesInKel] = useState(false);
   const [kelCategoriesToShow, setKelCategoriesToShow] = useState<string[]>(['lernen', 'arbeitsverhalten', 'sozialverhalten', 'interessen']);
   const [isFullWidthChart, setIsFullWidthChart] = useState<boolean>(false);
   const portfolioEntries = useMemo<Record<string, { id: string; titel: string; fach: string; datum: string; bewertung: string; beschreibung: string }[]>>(() => {
@@ -514,7 +515,7 @@ const KELGespraeche: React.FC = () => {
     const supportMeasures = profil.massnahmen || [];
 
     // Behavioral Notes
-    const studentNotes = (app.notizen || []).filter(n => n.schuelerId === sid);
+    const studentNotes = (app.notes || []).filter(n => n.schuelerId === sid);
     const filteredNotes = notesFilterCategory === 'all' 
       ? studentNotes 
       : studentNotes.filter(n => n.kategorie === notesFilterCategory);
@@ -540,6 +541,20 @@ const KELGespraeche: React.FC = () => {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setShowBehaviorNotesInKel(value => !value)}
+              className={`px-5 py-3.5 rounded-[1.25rem] text-[0.6875rem] font-black uppercase tracking-widest transition-all flex items-center gap-2 cursor-pointer border ${
+                showBehaviorNotesInKel
+                  ? 'bg-amber-50 border-amber-200 text-amber-800'
+                  : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+              }`}
+              aria-pressed={showBehaviorNotesInKel}
+              title="Pädagogische Beobachtungs- und Verhaltensnotizen nur bewusst für dieses KEL einblenden"
+            >
+              <History size={15} />
+              {showBehaviorNotesInKel ? 'Notizen ausblenden' : 'Notizen einblenden'}
+            </button>
             
             <button 
               onClick={() => setSelectedStudentId(null)}
@@ -1228,6 +1243,7 @@ const KELGespraeche: React.FC = () => {
         </div>
 
         {/* 9. BEHAVIORAL OBSERVATION JOURNAL NOTES CARD LIST (FULL WIDTH) */}
+        {showBehaviorNotesInKel && (
         <div className="bg-white p-8 sm:p-10 rounded-[2.5rem] border border-slate-100 shadow-sm col-span-full">
            <div className="flex justify-between items-start border-b border-slate-100 pb-6 mb-8 gap-4 flex-wrap">
               <div>
@@ -1271,11 +1287,11 @@ const KELGespraeche: React.FC = () => {
                       className="p-5 bg-slate-50 border border-slate-150 rounded-2xl cursor-pointer hover:bg-slate-100/40 transition-all text-left"
                     >
                        <div className="flex justify-between items-center text-[0.5625rem] font-black uppercase tracking-wider text-slate-400 mb-2">
-                          <span>{new Date(note.timestamp || '').toLocaleDateString('de-DE')}</span>
+                          <span>{note.datum ? new Date(note.datum).toLocaleDateString('de-AT') : '—'}</span>
                           <span className="px-2 py-0.5 bg-white border border-slate-150 rounded-md text-slate-600">{note.kategorie || 'Allgemein'}</span>
                        </div>
                        
-                       <h4 className="text-[0.75rem] leading-tight font-black text-slate-850 text-wrap leading-tight break-words">{note.titel || 'Beobachtungseintrag'}</h4>
+                       <h4 className="text-[0.75rem] leading-tight font-black text-slate-850 text-wrap leading-tight break-words">{note.quelle || 'Beobachtungseintrag'}</h4>
                        
                        <div className={`mt-2 text-[0.75rem] leading-tight text-slate-650 transition-all ${isExpandedNote ? 'max-h-[300px] opacity-100 pt-2 whitespace-pre-wrap border-t border-slate-200 mt-3' : 'max-h-12 opacity-80  line-clamp-2 italic'}`}>
                           {note.inhalt}
@@ -1290,6 +1306,8 @@ const KELGespraeche: React.FC = () => {
               )}
            </div>
         </div>
+        )}
+
       </div>
     );
   };
@@ -1362,10 +1380,26 @@ const KELGespraeche: React.FC = () => {
           </div>
         </header>
 
+        <div className="no-print flex justify-end">
+          <button
+            type="button"
+            onClick={() => setShowBehaviorNotesInKel(value => !value)}
+            className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-[0.6875rem] font-black uppercase tracking-wider transition ${
+              showBehaviorNotesInKel
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'
+            }`}
+            aria-pressed={showBehaviorNotesInKel}
+          >
+            <History size={14} />
+            {showBehaviorNotesInKel ? 'Beobachtungsnotizen ausblenden' : 'Beobachtungsnotizen anzeigen'}
+          </button>
+        </div>
+
         <ComparisonView meeting={viewingMeeting} />
 
         {/* Observation Journal Summary - NEW CONTEXTUAL SECTION */}
-        {studentObservations.length > 0 && (
+        {showBehaviorNotesInKel && studentObservations.length > 0 && (
           <div className="bg-white rounded-[2.5rem] p-10 border border-slate-100 shadow-sm relative  no-print">
             <div className="flex items-center gap-4 mb-8 relative z-10">
               <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-500 border border-amber-100">
