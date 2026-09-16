@@ -94,7 +94,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
 
     // E3.5 Permissions-Policy: Kamera & Mikrofon für bestehende Funktionen (Lärmampel, Sitzplan) erlauben, Unbenötigtes blockieren
-    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), magnetometer=(), gyroscope=()');
+    res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), on-device-speech-recognition=(self), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), magnetometer=(), gyroscope=()');
 
     // E3.1 HSTS: Nur in Produktion
     if (process.env.NODE_ENV === 'production') {
