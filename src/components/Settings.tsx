@@ -17,6 +17,7 @@ import ModuleSettings from './settings/ModuleSettings';
 import SyncSettings from './settings/SyncSettings';
 import BackupSettings from './settings/BackupSettings';
 import AdvancedSettings from './settings/AdvancedSettings';
+import SupportSettings from './settings/SupportSettings';
 import DeleteClassModal from './settings/DeleteClassModal';
 import { AVAILABLE_MODULES } from '../lib/settingsModuleCatalog';
 
@@ -337,6 +338,10 @@ export default function Settings() {
               isStandalone={isStandalone}
               triggerInstall={triggerInstall}
             />
+          )}
+
+          {activeCategory === 'support' && (
+            <SupportSettings />
           )}
 
           {activeCategory === 'advanced' && (
