@@ -5,7 +5,7 @@ import { Student, UNIFIED_DEFAULT_BADGES } from '../types';
 import { 
   Plus, Search, Edit2, Trash2, UserPlus, Phone, Globe, 
   Languages, Gift, Info, Star, GraduationCap, Activity, 
-  FileText, Heart, X, Printer, History, Save, MessageSquare,
+  FileText, Heart, X, Printer, History, Save,
   Clock, Filter, ChevronRight, Notebook, Sparkles, Loader2, Award, ArrowLeft, Download, Mic, AlertCircle, Map, FileUp, Camera
 } from 'lucide-react';
 import { KlassenlistenImport } from './KlassenlistenImport';
@@ -18,7 +18,6 @@ import { EmptyState } from './EmptyState';
 import confetti from 'canvas-confetti';
 import StudentTimeline from './StudentTimeline';
 import { exportSchuelerPDF } from '../lib/exportService';
-import { InteractionModal } from './InteractionModal';
 import { calculateStudentAge, getStudentComparableName, mergeImportedStudents, parseStudentBirthday, sortStudentsForList, toDateInputValue } from '../lib/studentListData';
 
 const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
@@ -87,7 +86,6 @@ export default function StudentList() {
   const [editingStudent, setEditingStudent] = useState<Partial<Student> | null>(null);
   const [timelineStudent, setTimelineStudent] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'map'>('list');
-  const [interactionModalStudent, setInteractionModalStudent] = useState<string | null>(null);
   const [selectedFolderStudent, setSelectedFolderStudent] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [folderQuickNote, setFolderQuickNote] = useState('');
@@ -110,7 +108,6 @@ export default function StudentList() {
   useEffect(() => {
     // A class change must never keep an old child, editor or interaction open.
     setSelectedFolderStudent(null);
-    setInteractionModalStudent(null);
     setEditingStudent(null);
     setTimelineStudent(null);
     setIsModalOpen(false);
@@ -223,7 +220,6 @@ export default function StudentList() {
     if (!confirmed) return;
 
     if (selectedFolderStudent === student.id) setSelectedFolderStudent(null);
-    if (interactionModalStudent === student.id) setInteractionModalStudent(null);
     deleteStudent(student.id);
   };
 
@@ -2262,11 +2258,6 @@ export default function StudentList() {
         </div>
       </div>
 
-      <InteractionModal 
-        isOpen={!!interactionModalStudent} 
-        onClose={() => setInteractionModalStudent(null)} 
-        presetStudentId={interactionModalStudent} 
-      />
     </>
   );
 }
