@@ -9,7 +9,7 @@ import {
   Calendar, CalendarDays, ClipboardList, Mail, Wallet, 
   FileEdit, Notebook, CheckSquare, Play, LineChart, Table, Folder, 
   Target, Replace, Archive, Bot, ChevronLeft, ChevronRight, Database, LayoutGrid,
-  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown, Flag
+  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown, Flag, GraduationCap
 } from 'lucide-react';
 import { Button, IconButton, Badge, Chip } from './ui';
 
