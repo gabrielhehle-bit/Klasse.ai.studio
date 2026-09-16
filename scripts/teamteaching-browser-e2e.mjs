@@ -342,8 +342,7 @@ async function main() {
     await waitFor(berta, 'editor can push encrypted class', 'document.body?.innerText.includes("Änderungen wurden verschlüsselt")', 30000);
     console.log('✓ Lehrkraft B: editor write path accepted');
 
-    await clickSidebar(anna, 'Klasse');
-    await clickButton(anna, 'Klassenteam');
+    await openClassTeam(anna);
     await clickButton(anna, 'Neueste Version laden');
     await waitFor(anna, 'owner pulls second teacher revision', 'document.body?.innerText.includes("Neuester verschlüsselter Stand wurde geladen")', 30000);
     console.log('✓ Lehrkraft A: pulled newest encrypted revision');
