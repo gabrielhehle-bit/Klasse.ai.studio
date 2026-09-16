@@ -112,8 +112,9 @@ export default function KlasseHub() {
     },
     {
       id: 'teamteaching',
-      title: 'Klassenteam',
-      description: 'Klasse gezielt mit Kolleg:innen derselben Schule teilen und gemeinsam bearbeiten.',
+      title: 'Teamteaching / Klassenteam',
+      description: 'Mit eigener Schulmail anmelden, Klasse gezielt mit Kolleg:innen derselben Schule teilen und gemeinsam bearbeiten.',
+      meta: 'Schulmail erforderlich',
       icon: UserPlus,
     },
   ];
