@@ -2828,6 +2828,62 @@ export default function WeeklyPlan() {
                                whileHover={{ scale: 1.03, y: -2, zIndex: 50 }}
                                className={`h-full w-full rounded-xl border border-transparent pl-4 pr-2.5 py-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.08)] transition-all flex flex-col gap-1 relative  group/card contrast-container ${style?.bg || 'bg-white'} ${item.erledigt ? '!bg-white ring-2 ring-emerald-500/20 opacity-70 saturate-[0.8]' : getContrastTextClass(style?.bg)} ${item.type === 'sa' ? 'ring-2 ring-rose-500/20' : item.type === 'test' || item.type === 'lzk' ? 'ring-2 ring-amber-500/20' : ''}`}
                             >
+                               {item.halves?.enabled ? (
+                                 <div className="absolute inset-0 grid grid-rows-2 overflow-hidden rounded-xl bg-white">
+                                   {[
+                                     { label: '1. Hälfte', data: item.halves.first },
+                                     { label: '2. Hälfte', data: item.halves.second },
+                                   ].map((half: any) => (
+                                     <div
+                                       key={half.label}
+                                       className="relative min-h-0 border-b last:border-b-0 border-slate-200 px-3 py-2 flex flex-col justify-center"
+                                       style={{
+                                         borderLeftWidth: 6,
+                                         borderLeftColor: half.data?.farbe || '#cbd5e1',
+                                         backgroundColor: (half.data?.farbe && /^#[0-9a-fA-F]{6}$/.test(half.data.farbe))
+                                           ? `${half.data.farbe}12`
+                                           : '#ffffff',
+                                       }}
+                                     >
+                                       <div className="flex items-center gap-1.5 min-w-0">
+                                         <span className="shrink-0 rounded bg-white/90 border border-slate-200 px-1.5 py-0.5 text-[0.4375rem] font-black uppercase tracking-wider text-slate-500">
+                                           {half.label}
+                                         </span>
+                                         {half.data?.fach && (
+                                           <span className="truncate text-[0.5625rem] font-black text-slate-800">{half.data.fach}</span>
+                                         )}
+                                         {half.data?.unterbereich && (
+                                           <span className="truncate rounded bg-white/80 px-1 py-0.5 text-[0.4375rem] font-bold text-slate-600">
+                                             {formatSchwerpunktLabel(half.data.unterbereich)}
+                                           </span>
+                                         )}
+                                       </div>
+                                       <div className="mt-1 truncate text-[0.6875rem] font-bold text-slate-700">
+                                         {half.data?.thema || '—'}
+                                       </div>
+                                     </div>
+                                   ))}
+                                   <div className="absolute right-1.5 top-1.5 z-20 flex gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                                     <button
+                                       type="button"
+                                       onClick={(event) => { event.stopPropagation(); setCopiedLesson({ ...item }); }}
+                                       className="flex h-5 w-5 items-center justify-center rounded bg-white/90 text-slate-600 shadow-sm"
+                                       title="Geteilte Einheit kopieren"
+                                     >
+                                       <Copy size={9} />
+                                     </button>
+                                     <button
+                                       type="button"
+                                       onClick={(event) => toggleDoneStatus(event, tag, zIdx)}
+                                       className="flex h-5 w-5 items-center justify-center rounded bg-white/90 text-emerald-600 shadow-sm"
+                                       title={item.erledigt ? 'Als unerledigt markieren' : 'Als erledigt markieren'}
+                                     >
+                                       <Check size={9} />
+                                     </button>
+                                   </div>
+                                 </div>
+                               ) : (
+                                 <>
                                {/* Left Accent timeline bar matching subject color config */}
                                {(() => {
                                  const hex = getFachHexColor(app.fachConfig?.[item.fach || app.stammplan?.[tag]?.[zIdx + 1]]?.color || item.fach || app.stammplan?.[tag]?.[zIdx + 1]);
@@ -2968,6 +3024,8 @@ export default function WeeklyPlan() {
                                     {item.social === 'single' && <User size={8} />}
                                  </div>
                                </div>
+                                 </>
+                               )}
                             </motion.div>
                           ) : (
                             <div className={`h-full min-h-[4.6875rem] rounded-2xl border border-dashed transition-all duration-300 flex flex-col items-center justify-center ${copiedLesson ? 'border-indigo-400 bg-indigo-50/20 opacity-100 animate-pulse' : 'border-slate-200 opacity-0 group-hover/cell:opacity-100 bg-white hover:bg-emerald-50/30 hover:border-emerald-200'} group/btn`}>
