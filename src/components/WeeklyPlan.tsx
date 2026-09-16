@@ -1212,7 +1212,8 @@ export default function WeeklyPlan() {
     const mapping: Record<string, string> = {
       'Lesen': 'Deutsch (Lesen)',
       'Rechtschreibung': 'Deutsch (Rechtschreibung)',
-      'Sprache': 'Deutsch (Sprache)',
+      'Sprachbetrachtung': 'Deutsch (Sprachbetrachtung)',
+      'Sprechen & Hören': 'Deutsch (Sprechen & Hören)',
       'Verfassen von Texten': 'Deutsch (Verfassen von Texten)'
     };
     return rarest && mapping[rarest] ? [mapping[rarest]] : [];
@@ -1222,13 +1223,24 @@ export default function WeeklyPlan() {
     let normalized = f;
     if (isDeutschSubSubject(f)) {
       normalized = 'Deutsch';
-      const matchingUf = DEUTSCH_UNTERFAECHER.find(uf => 
-        uf.toLowerCase() === f.toLowerCase() || 
-        uf.toLowerCase().includes(f.toLowerCase())
+      const legacyMap: Record<string, string> = {
+        'Deutsch (Sprache)': 'Deutsch (Sprachbetrachtung)',
+        'Sprache': 'Deutsch (Sprachbetrachtung)',
+      };
+      const canonical = legacyMap[f] || f;
+      const matchingUf = DEUTSCH_UNTERFAECHER.find(uf =>
+        uf.toLocaleLowerCase('de-AT') === canonical.toLocaleLowerCase('de-AT') ||
+        uf.toLocaleLowerCase('de-AT').includes(canonical.toLocaleLowerCase('de-AT'))
+      );
+      setTempSchwerpunkte([matchingUf || canonical]);
+    } else if (isMatheSubSubject(f)) {
+      normalized = 'Mathematik';
+      const matchingUf = MATHEMATIK_UNTERFAECHER.find(uf =>
+        uf.toLocaleLowerCase('de-AT') === f.toLocaleLowerCase('de-AT') ||
+        uf.toLocaleLowerCase('de-AT').includes(f.toLocaleLowerCase('de-AT'))
       );
       setTempSchwerpunkte([matchingUf || f]);
-    } else if (f !== 'Deutsch' && !f.startsWith('Deutsch')) {
-      // Switching to a different subject: clear Deutsch sub-areas
+    } else if (f !== 'Deutsch' && f !== 'Mathematik' && !f.startsWith('Deutsch') && !f.startsWith('Mathematik')) {
       setTempSchwerpunkte([]);
     } else if (f === 'Deutsch' && app.autoSuggestSchwerpunkte) {
       setTempSchwerpunkte(prev => prev.length > 0 ? prev : autoSuggestSchwerpunkt());
@@ -1245,13 +1257,23 @@ export default function WeeklyPlan() {
     let normalizedFach = initialFach;
     let initialSchwerpunkte = Array.isArray(current.schwerpunkte) ? [...current.schwerpunkte] : [];
 
-    // If stored subject was a Deutsch sub-subject (legacy or imported), normalize to Deutsch + Schwerpunkt
+    // Legacy/imported sub-subjects are projected onto the canonical subject + subarea.
     if (isDeutschSubSubject(initialFach)) {
       normalizedFach = 'Deutsch';
       if (initialSchwerpunkte.length === 0) {
-        const matchingUf = DEUTSCH_UNTERFAECHER.find(uf => 
-          uf.toLowerCase() === initialFach.toLowerCase() || 
-          uf.toLowerCase().includes(initialFach.toLowerCase())
+        const legacy = initialFach === 'Deutsch (Sprache)' ? 'Deutsch (Sprachbetrachtung)' : initialFach;
+        const matchingUf = DEUTSCH_UNTERFAECHER.find(uf =>
+          uf.toLocaleLowerCase('de-AT') === legacy.toLocaleLowerCase('de-AT') ||
+          uf.toLocaleLowerCase('de-AT').includes(legacy.toLocaleLowerCase('de-AT'))
+        );
+        initialSchwerpunkte = [matchingUf || legacy];
+      }
+    } else if (isMatheSubSubject(initialFach)) {
+      normalizedFach = 'Mathematik';
+      if (initialSchwerpunkte.length === 0) {
+        const matchingUf = MATHEMATIK_UNTERFAECHER.find(uf =>
+          uf.toLocaleLowerCase('de-AT') === initialFach.toLocaleLowerCase('de-AT') ||
+          uf.toLocaleLowerCase('de-AT').includes(initialFach.toLocaleLowerCase('de-AT'))
         );
         initialSchwerpunkte = [matchingUf || initialFach];
       }
