@@ -9,9 +9,11 @@ import {
   ensureRegisteredTeamTeachingDevice,
   listSharedClasses,
   listTeamTeachingColleagues,
+  listTeamTeachingSchoolUsers,
   pullSharedClass,
   pushSharedClass,
   removeTeamTeachingMember,
+  refreshTeamTeachingMemberDevices,
   updateTeamTeachingMemberRole,
   type SharedClassSummary,
   type TeamTeachingColleague,
@@ -32,6 +34,7 @@ export default function ClassTeam() {
   const { app, setApp } = useApp();
   const [shared, setShared] = React.useState<SharedClassSummary[]>([]);
   const [colleagues, setColleagues] = React.useState<TeamTeachingColleague[]>([]);
+  const [schoolUsers, setSchoolUsers] = React.useState<TeamTeachingColleague[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -47,12 +50,14 @@ export default function ClassTeam() {
     setError(null);
     try {
       await ensureRegisteredTeamTeachingDevice();
-      const [classes, users] = await Promise.all([
+      const [classes, users, allSchoolUsers] = await Promise.all([
         listSharedClasses(),
         listTeamTeachingColleagues(),
+        listTeamTeachingSchoolUsers(),
       ]);
       setShared(classes);
       setColleagues(users);
+      setSchoolUsers(allSchoolUsers);
     } catch (cause: any) {
       setError(cause?.status === 403
         ? 'Für Klassenteam brauchst du eine Anmeldung mit einer verifizierten Schulmail.'
@@ -174,6 +179,26 @@ export default function ClassTeam() {
     }
   };
 
+  const refreshMemberDevices = async (userId: string) => {
+    if (!activeSharedId) return;
+    const target = schoolUsers.find(user => user.userId === userId);
+    if (!target) {
+      setError('Diese Lehrperson ist im Schulkollegium noch nicht verfügbar.');
+      return;
+    }
+    setBusy('keys:' + userId);
+    setError(null);
+    try {
+      await refreshTeamTeachingMemberDevices(activeSharedId, target);
+      setNotice('Gerätefreigabe für ' + target.displayName + ' wurde aktualisiert.');
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Gerätefreigabe konnte nicht aktualisiert werden.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const removeMember = async (userId: string) => {
     if (!activeSharedId) return;
     setBusy('remove:' + userId);
@@ -271,13 +296,25 @@ export default function ClassTeam() {
                   <div className="font-bold">{member.displayName}</div>
                   <div className="text-xs text-[var(--text3)]">{member.role === 'owner' ? 'Besitzer:in' : member.role === 'editor' ? 'Teamlehrkraft · bearbeiten' : 'Nur ansehen'}</div>
                 </div>
-                {activeSummary.myRole === 'owner' && member.role !== 'owner' && (
+                {activeSummary.myRole === 'owner' && (
                   <div className="flex items-center gap-2">
-                    <select value={member.role} onChange={event => void changeRole(member.userId, event.target.value as 'editor'|'viewer')} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm">
-                      <option value="editor">Bearbeiten</option>
-                      <option value="viewer">Nur ansehen</option>
-                    </select>
-                    <button onClick={() => void removeMember(member.userId)} className="rounded-lg p-2 text-rose-600 hover:bg-rose-500/10" aria-label="Lehrperson entfernen"><Trash2 size={16}/></button>
+                    <button
+                      onClick={() => void refreshMemberDevices(member.userId)}
+                      disabled={Boolean(busy)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-xs font-bold disabled:opacity-50"
+                      title="Neu registrierte Geräte dieser Lehrperson für die Klasse freigeben"
+                    >
+                      <RefreshCw size={14}/> Geräte
+                    </button>
+                    {member.role !== 'owner' && (
+                      <>
+                        <select value={member.role} onChange={event => void changeRole(member.userId, event.target.value as 'editor'|'viewer')} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm">
+                          <option value="editor">Bearbeiten</option>
+                          <option value="viewer">Nur ansehen</option>
+                        </select>
+                        <button onClick={() => void removeMember(member.userId)} className="rounded-lg p-2 text-rose-600 hover:bg-rose-500/10" aria-label="Lehrperson entfernen"><Trash2 size={16}/></button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
