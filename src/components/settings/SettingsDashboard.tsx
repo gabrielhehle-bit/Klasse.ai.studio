@@ -5,7 +5,8 @@ import {
   LayoutGrid, 
   Smartphone, 
   Download, 
-  Shield, 
+  Shield,
+  Heart,
   ChevronRight,
   Info
 } from 'lucide-react';
@@ -39,7 +40,7 @@ export default function SettingsDashboard({
       id: 'display' as SettingsCategory,
       title: 'Darstellung',
       subtitle: 'Design, Schriftgröße & Cockpit',
-      desc: 'Passe Farbschema, Schriftgröße und die Darstellung auf Laptop oder Smartboard an. Schreib- und Zeichenwerkzeuge werden direkt im Lehrercockpit bedient.',
+      desc: 'Passe Farbschema, Schriftgröße und die Darstellung auf Laptop oder Smartboard an. Das Lehrercockpit bleibt eine weiße Smartboard-Fläche mit Widgets.',
       icon: Palette,
       badge: 'Design & Anzeige',
       color: 'bg-amber-500/10 text-amber-600 border-amber-200'
@@ -74,6 +75,15 @@ export default function SettingsDashboard({
       color: 'bg-blue-500/10 text-blue-600 border-blue-200'
     },
     {
+      id: 'support' as SettingsCategory,
+      title: 'Unterstützung',
+      subtitle: 'Freiwillige Beiträge & Dankesliste',
+      desc: 'Unterstütze den laufenden Serverbetrieb freiwillig und sieh, wer mit Zustimmung auf der Dankesliste steht.',
+      icon: Heart,
+      badge: 'Klassio bleibt frei',
+      color: 'bg-rose-500/10 text-rose-600 border-rose-200'
+    },
+    {
       id: 'advanced' as SettingsCategory,
       title: 'Erweitert & Sicherheit',
       subtitle: 'Datenschutz & Gefahrenbereich',
@@ -98,7 +108,7 @@ export default function SettingsDashboard({
             Möchtest du Anpassungen an deiner Klassio vornehmen?
           </h2>
           <p className="text-sm text-emerald-100 font-medium leading-relaxed">
-            Wähle unten einen der 6 Hauptbereiche aus. Änderungen werden im lokalen App-Datenstand gespeichert. Löschfunktionen sind getrennt im Gefahrenbereich abgesichert.
+            Wähle unten den passenden Bereich aus. Änderungen werden im lokalen App-Datenstand gespeichert. Löschfunktionen sind getrennt im Gefahrenbereich abgesichert.
           </p>
         </div>
 
@@ -106,7 +116,7 @@ export default function SettingsDashboard({
         <div className="absolute -right-12 -bottom-12 w-64 h-64 rounded-full bg-white/5 pointer-events-none blur-2xl" />
       </div>
 
-      {/* 6 Tiles Grid */}
+      {/* Settings tiles */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {TILES.map((tile, idx) => {
           const Icon = tile.icon;

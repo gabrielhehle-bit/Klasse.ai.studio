@@ -104,7 +104,7 @@ Nach jeder Dokumentations- oder Codeänderung ist ausschließlich der **neue** G
 Der Reconciliation-Stand enthält unter anderem:
 
 - vereinfachte Kernnavigation mit `Heute`, `Klasse`, `Planung`, `Leistungen` und `Unterricht`; der neue Unterricht-Hub bündelt Lehrercockpit, KI-Helfer, Arbeitsblatt-Generator, Stationenbetrieb, Stimm-Notizen, Differenzierung und Elternbrief. Die übrigen Bestandswerkzeuge sind ihren fachlichen Hubs oder `Mehr` zugeordnet, statt unsichtbar zu bleiben. Detailseiten zeigen zusätzlich ihren Hauptbereich und bieten einen eindeutigen Rückweg dorthin.
-- Lehrercockpit mit freier weißer Schreib-/Zeichen-/Widgetfläche ohne Startkarte; 108/108 erhaltene Widgets sind über Suche/Kategorien erreichbar, Favoriten bleiben benutzerdefiniert; sekundäre Ansichtssteuerung ist unter `Optionen → Ansicht` gebündelt, Stunden/Pausen folgen den konfigurierten 1–10 Slots und der tägliche Sicherungsstatus ist klassenlokal
+- Lehrercockpit mit bewusst leerer weißer Smartboard-Fläche ohne Startkarte; Klassio stellt darauf Widgets bereit, während Schreiben/Zeichnen die Smartboard-Werkzeuge übernehmen. 108/108 erhaltene Widgets sind über Suche/Kategorien erreichbar, Favoriten bleiben benutzerdefiniert; sekundäre Ansichtssteuerung ist unter `Optionen → Ansicht` gebündelt, Stunden/Pausen folgen den konfigurierten 1–10 Slots und der tägliche Sicherungsstatus ist klassenlokal
 - Dashboard/Heute mit ehrlicher Anwesenheitslogik und kompakter Lehrerstartseite: keine angenommene Präsenz, keine Pflicht an freien Tagen, „geprüft“ erst nach vollständiger Stunden-Erfassung; Standardansicht folgt `Jetzt → Heute → Wichtig → Schnell`, erweiterte Widgets bleiben optional erreichbar
 - KI-Helfer mit serverseitiger Verfügbarkeitsprüfung, datensparsamem optionalem Klassenkontext, ausschließlich aggregiertem Lernzielkontext ohne automatisch übermittelte Schülernamen, klassenlokalen Chatverläufen sowie expliziter Bild-Datenschutzfreigabe; JPG/PNG/WebP sind auf 8 MB begrenzt
 - Notizen & Beobachtungen mit klassenlokaler Chronik, Journal, Schnellnotizen und Statusverlauf; alte gemischte Mehrklassen-Einträge werden beim Laden anhand der Schüler-ID getrennt, Filter/Suche sind auf den Lehreralltag abgestimmt; Stimm-Notizen bleiben separat
@@ -127,6 +127,7 @@ Der Reconciliation-Stand enthält unter anderem:
 - nativen KEL-PowerPoint-`.pptx`-Export
 - OneDrive und verschlüsselten Smartboard-Sync
 - PWA-/Offline-Unterstützung
+- freiwillige Klassio-Unterstützung über einen Herz-Dialog: bestehender PayPal.Me-Link für einmalige Beiträge; separate serverseitig konfigurierbare PayPal-Links für monatliche und jährliche Beiträge. Eine Dankesliste zeigt ausschließlich ausdrücklich zur Veröffentlichung freigegebene Namen und niemals Beträge, E-Mail-Adressen oder Zahlungsdaten.
 
 Die genaue Abnahme steht in `KLASSIO_FEATURE_MATRIX.md`.
 

@@ -9,11 +9,12 @@ import {
   ArrowLeft, 
   Info, 
   Sparkles,
-  Check
+  Check,
+  Heart
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
-export type SettingsCategory = 'overview' | 'general' | 'display' | 'modules' | 'sync' | 'backup' | 'advanced';
+export type SettingsCategory = 'overview' | 'general' | 'display' | 'modules' | 'sync' | 'backup' | 'support' | 'advanced';
 
 interface SettingsHeaderProps {
   activeCategory: SettingsCategory;
@@ -28,6 +29,7 @@ export const CATEGORIES: { id: SettingsCategory; label: string; icon: any; short
   { id: 'modules', label: 'Module', icon: LayoutGrid, shortDesc: 'Bereiche ein- & ausblenden' },
   { id: 'sync', label: 'Synchronisierung', icon: Smartphone, shortDesc: 'Smartboard & Fernbedienung' },
   { id: 'backup', label: 'Daten & Backup', icon: Download, shortDesc: 'Sichern, Laden & App-Install' },
+  { id: 'support', label: 'Unterstützung', icon: Heart, shortDesc: 'Freiwillige Beiträge & Unterstützer:innen' },
   { id: 'advanced', label: 'Erweitert', icon: Shield, shortDesc: 'Datenschutz & Gefahrenbereich' },
 ];
 
@@ -62,6 +64,7 @@ export default function SettingsHeader({
                 {activeCategory === 'modules' && 'Module & Bereiche'}
                 {activeCategory === 'sync' && 'Smartboard & Synchronisierung'}
                 {activeCategory === 'backup' && 'Daten & Datensicherung'}
+                {activeCategory === 'support' && 'Klassio unterstützen'}
                 {activeCategory === 'advanced' && 'Erweitert & Sicherheit'}
               </h1>
               <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-[0.625rem] font-bold uppercase tracking-wider">

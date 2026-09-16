@@ -12,6 +12,7 @@ import { getServerSyncTimestamps, isSyncSessionExpired } from "./src/lib/syncSer
 import { createTeacherIdentityForSchool, displayNameFromEmail, handleFromEmail, type TeacherIdentity } from "./src/server/teacherIdentity.ts";
 import { createLehrerzimmerStore, type LehrerzimmerCategory } from "./src/server/lehrerzimmerStore.ts";
 import { createSchoolRegistryStore, type AustrianFederalState } from "./src/server/schoolRegistry.ts";
+import { createSupporterStore } from "./src/server/supporterStore.ts";
 import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from "./src/data/austrianSchoolRegistry.seed.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
@@ -185,11 +186,33 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const KLASSIO_DATA_DIR = (process.env.KLASSIO_DATA_DIR || path.join(process.cwd(), 'data')).trim();
   const lehrerzimmerStore = createLehrerzimmerStore(KLASSIO_DATA_DIR);
   const schoolRegistryStore = createSchoolRegistryStore(KLASSIO_DATA_DIR);
+  const supporterStore = createSupporterStore(KLASSIO_DATA_DIR);
   if (!options.isTest) {
     await schoolRegistryStore.ensureSeedSchools(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS);
     await schoolRegistryStore.ensureLegacyDomains(ALLOWED_EMAIL_DOMAINS);
   }
   const SCHOOL_ADMIN_TOKEN = (process.env.KLASSIO_SCHOOL_ADMIN_TOKEN || '').trim();
+  const SUPPORT_ADMIN_TOKEN = (process.env.KLASSIO_SUPPORT_ADMIN_TOKEN || '').trim();
+
+  function safePayPalUrl(value: string | undefined, fallback = ''): string {
+    const raw = (value || fallback).trim();
+    if (!raw) return '';
+    try {
+      const url = new URL(raw);
+      const host = url.hostname.toLowerCase();
+      const isPayPal = host === 'paypal.com' || host.endsWith('.paypal.com') || host === 'paypal.me' || host.endsWith('.paypal.me');
+      return url.protocol === 'https:' && isPayPal ? url.toString() : '';
+    } catch {
+      return '';
+    }
+  }
+
+  const SUPPORT_PAYPAL_ONE_TIME_URL = safePayPalUrl(
+    process.env.KLASSIO_PAYPAL_ONE_TIME_URL,
+    'https://paypal.me/gabrielhehle'
+  );
+  const SUPPORT_PAYPAL_MONTHLY_URL = safePayPalUrl(process.env.KLASSIO_PAYPAL_MONTHLY_URL);
+  const SUPPORT_PAYPAL_YEARLY_URL = safePayPalUrl(process.env.KLASSIO_PAYPAL_YEARLY_URL);
 
   type EmailAccessChallenge = {
     codeHash: string;
@@ -735,6 +758,62 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       }
       console.error('[Schulverifizierung] Ablehnung fehlgeschlagen:', error);
       return res.status(500).json({ error: 'Die Anfrage konnte nicht abgelehnt werden.' });
+    }
+  });
+
+  function isSupportAdminAuthorized(req: express.Request): boolean {
+    if (!SUPPORT_ADMIN_TOKEN || SUPPORT_ADMIN_TOKEN.length < 32) return false;
+    const header = req.headers.authorization || '';
+    const submitted = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+    if (!submitted || submitted.length !== SUPPORT_ADMIN_TOKEN.length) return false;
+    try {
+      return crypto.timingSafeEqual(Buffer.from(submitted, 'utf8'), Buffer.from(SUPPORT_ADMIN_TOKEN, 'utf8'));
+    } catch {
+      return false;
+    }
+  }
+
+  const requireSupportAdmin: express.RequestHandler = (req, res, next) => {
+    if (!SUPPORT_ADMIN_TOKEN || SUPPORT_ADMIN_TOKEN.length < 32) {
+      res.status(503).json({ error: 'Unterstützer:innen-Administration ist auf diesem Server noch nicht konfiguriert.' });
+      return;
+    }
+    if (!isSupportAdminAuthorized(req)) {
+      res.status(401).json({ error: 'Nicht autorisiert.' });
+      return;
+    }
+    next();
+  };
+
+  app.get('/api/support', requireAccess, async (_req, res) => {
+    try {
+      const supporters = await supporterStore.listPublic();
+      res.json({
+        message: 'Klassio bleibt kostenlos und für alle frei zugänglich. Die laufenden Serverkosten werden durch freiwillige Unterstützung mitgetragen.',
+        paypal: {
+          oneTime: SUPPORT_PAYPAL_ONE_TIME_URL || null,
+          monthly: SUPPORT_PAYPAL_MONTHLY_URL || null,
+          yearly: SUPPORT_PAYPAL_YEARLY_URL || null,
+        },
+        supporters,
+        privacy: 'Auf der öffentlichen Dankesliste erscheinen nur Namen, deren Veröffentlichung ausdrücklich erlaubt wurde. Beträge und Zahlungsdaten werden nicht angezeigt.',
+      });
+    } catch (error) {
+      console.error('[Support] Unterstützer:innen konnten nicht geladen werden:', error);
+      res.status(500).json({ error: 'Die Unterstützer:innen konnten nicht geladen werden.' });
+    }
+  });
+
+  app.put('/api/admin/support/supporters', requireSupportAdmin, async (req, res) => {
+    try {
+      const supporters = await supporterStore.replacePublic(req.body?.supporters);
+      res.json({ supporters });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'INVALID_SUPPORTERS') {
+        return res.status(400).json({ error: 'Ungültige Unterstützer:innen-Liste.' });
+      }
+      console.error('[Support] Unterstützer:innen-Liste konnte nicht gespeichert werden:', error);
+      return res.status(500).json({ error: 'Die Unterstützer:innen-Liste konnte nicht gespeichert werden.' });
     }
   });
 
