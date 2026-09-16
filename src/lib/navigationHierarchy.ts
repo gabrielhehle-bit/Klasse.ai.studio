@@ -1,9 +1,12 @@
 export type NavigationParent = {
-  id: 'klasse' | 'planung' | 'leistungen' | 'unterricht';
+  id: 'klasse' | 'planung' | 'leistungen' | 'unterricht' | 'tools';
   label: string;
 };
 
 const PAGE_PARENTS: Record<string, NavigationParent> = {
+  // Tools
+  textanalyse: { id: 'tools', label: 'Tools' },
+
   // Unterricht
   cockpit: { id: 'unterricht', label: 'Unterricht' },
   arbeitsblatt: { id: 'unterricht', label: 'Unterricht' },
@@ -42,7 +45,7 @@ const PAGE_PARENTS: Record<string, NavigationParent> = {
   jahresbericht: { id: 'leistungen', label: 'Leistungen' },
 };
 
-const ROOT_PAGES = new Set(['dashboard', 'klasse', 'verhalten', 'planung', 'leistungen', 'unterricht']);
+const ROOT_PAGES = new Set(['dashboard', 'klasse', 'verhalten', 'planung', 'leistungen', 'unterricht', 'tools']);
 
 export function getNavigationParent(page: string | undefined | null): NavigationParent | null {
   if (!page || ROOT_PAGES.has(page)) return null;
