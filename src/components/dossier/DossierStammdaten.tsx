@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Student } from '../../types';
 import { useApp } from '../../context/AppContext';
+import { getStudentGenderLabel, normalizeStudentGender } from '../../lib/studentListData';
 import {
   User,
   Calendar,
@@ -33,7 +34,7 @@ export default function DossierStammdaten({ student }: DossierStammdatenProps) {
     vorname: student.vorname || '',
     nachname: student.nachname || '',
     geburtstag: student.geburtstag || student.geburtsdatum || '',
-    geschlecht: student.geschlecht || '',
+    geschlecht: normalizeStudentGender(student.geschlecht),
     besuchsjahr: student.besuchsjahr || '',
     staatsbuergerschaft: student.staatsbuergerschaft || '',
     religion: student.religion || '',
@@ -50,7 +51,7 @@ export default function DossierStammdaten({ student }: DossierStammdatenProps) {
       vorname: student.vorname || '',
       nachname: student.nachname || '',
       geburtstag: student.geburtstag || student.geburtsdatum || '',
-      geschlecht: student.geschlecht || '',
+      geschlecht: normalizeStudentGender(student.geschlecht),
       besuchsjahr: student.besuchsjahr || '',
       staatsbuergerschaft: student.staatsbuergerschaft || '',
       religion: student.religion || '',
@@ -109,7 +110,7 @@ export default function DossierStammdaten({ student }: DossierStammdatenProps) {
       vorname: student.vorname || '',
       nachname: student.nachname || '',
       geburtstag: student.geburtstag || student.geburtsdatum || '',
-      geschlecht: student.geschlecht || '',
+      geschlecht: normalizeStudentGender(student.geschlecht),
       besuchsjahr: student.besuchsjahr || '',
       staatsbuergerschaft: student.staatsbuergerschaft || '',
       religion: student.religion || '',
@@ -287,19 +288,15 @@ export default function DossierStammdaten({ student }: DossierStammdatenProps) {
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
                 >
                   <option value="">Keine Angabe</option>
-                  <option value="m">männlich (m)</option>
-                  <option value="w">weiblich (w)</option>
-                  <option value="d">divers (d)</option>
+                  <option value="männlich">männlich</option>
+                  <option value="weiblich">weiblich</option>
+                  <option value="divers">divers</option>
                 </select>
               ) : (
                 <div className="text-sm font-bold text-slate-800">
-                  {student.geschlecht === 'm'
-                    ? 'Männlich'
-                    : student.geschlecht === 'w'
-                    ? 'Weiblich'
-                    : student.geschlecht === 'd'
-                    ? 'Divers'
-                    : student.geschlecht || <span className="text-slate-400 font-normal">Nicht erfasst</span>}
+                  {student.geschlecht
+                    ? getStudentGenderLabel(student.geschlecht)
+                    : <span className="text-slate-400 font-normal">Nicht erfasst</span>}
                 </div>
               )}
             </div>
