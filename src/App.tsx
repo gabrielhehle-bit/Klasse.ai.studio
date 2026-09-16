@@ -38,6 +38,7 @@ const LeistungenHub = lazyRetry(() => import('./components/LeistungenHub'));
 const UnterrichtHub = lazyRetry(() => import('./components/UnterrichtHub'));
 const Lehrerzimmer = lazyRetry(() => import('./components/Lehrerzimmer'));
 const StudentList = lazyRetry(() => import('./components/StudentList'));
+const StudentDossierHub = lazyRetry(() => import('./components/StudentDossierHub'));
 const Gradebook = lazyRetry(() => import('./components/Gradebook'));
 const AIAssistant = lazyRetry(() => import('./components/AIAssistant'));
 const SetupWizard = lazyRetry(() => import('./components/SetupWizard'));
@@ -605,6 +606,7 @@ function AppContent() {
       case 'unterricht': return <UnterrichtHub />;
       case 'lehrerzimmer': return <Lehrerzimmer />;
       case 'schueler': return <StudentList />;
+      case 'dossier': return <StudentDossierHub />;
       case 'noten': return <Gradebook />;
       case 'ki-helfer': 
       case 'ki-paedagogik':
@@ -674,7 +676,8 @@ function AppContent() {
       case 'leistungen': return 'Leistungen';
       case 'unterricht': return 'Unterricht';
       case 'lehrerzimmer': return 'Lehrerzimmer';
-      case 'schueler': return 'Schüler';
+      case 'schueler': return 'Klassenliste';
+      case 'dossier': return 'Schülerdossier';
       case 'noten': return 'Notenmappe';
       case 'ki-helfer':
       case 'ki-paedagogik':
