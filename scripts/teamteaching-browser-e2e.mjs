@@ -282,11 +282,11 @@ async function createClassInUi(client, className) {
   await setInputByLabel(client, 'Klassenbezeichnung', className);
 
   for (const step of ['Fächer', 'Stundenplan', 'Schüler', 'Übersicht']) {
-    await clickButton(client, 'Weiter');
+    await clickButton(client, 'Nächster Schritt');
     await waitFor(client, 'setup step ' + step, 'document.body?.innerText.includes(' + q(step) + ')');
   }
 
-  await clickButton(client, 'Speichern');
+  await clickButton(client, 'Einrichtung abschließen');
   await waitFor(client, 'dashboard after class setup', 'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").trim()==="Heute")', 30000);
   await waitFor(client, 'class selector contains name', 'document.body?.innerText.includes(' + q(className) + ')', 20000);
 }
