@@ -9,7 +9,7 @@ import {
   Calendar, CalendarDays, ClipboardList, Mail, Wallet, 
   FileEdit, Notebook, CheckSquare, Play, LineChart, Table, Folder, 
   Target, Replace, Archive, Bot, ChevronLeft, ChevronRight, Database, LayoutGrid,
-  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown, Flag, GraduationCap
+  MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown, Flag, GraduationCap, Wrench, FileSearch
 } from 'lucide-react';
 import { Button, IconButton, Badge, Chip } from './ui';
 
@@ -63,6 +63,8 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'planung', label: 'Planung', icon: <CalendarDays size={18} />, section: 'Start' },
     { id: 'leistungen', label: 'Leistungen', icon: <BarChart3 size={18} />, section: 'Start' },
     { id: 'unterricht', label: 'Unterricht', icon: <Play size={18} />, section: 'Start' },
+    { id: 'tools', label: 'Tools', icon: <Wrench size={18} />, section: 'Start' },
+    { id: 'textanalyse', label: 'Textanalyse', icon: <FileSearch size={18} />, section: 'Tools' },
     { id: 'cockpit', label: 'Lehrercockpit', icon: <Play size={18} />, section: 'Unterricht' },
     { id: 'ki-helfer', label: 'KI-Helfer', icon: <Bot size={18} />, section: 'Unterricht' },
     { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={18} />, section: 'Unterricht' },
