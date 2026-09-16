@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 
 const teachingSurface = readFileSync("src/components/Unterrichtsmodus.tsx", "utf8");
 const cockpitWidget = readFileSync("src/components/cockpit/CockpitWidget.tsx", "utf8");
+const templatesModal = readFileSync("src/components/cockpit/CockpitVorlagenModal.tsx", "utf8");
+const kidAttendance = readFileSync("src/components/cockpit/widgets/KidAttendanceWidget.tsx", "utf8");
 
 const widgetTypes = (source: string) =>
   [...new Set([...source.matchAll(/type:\s*"([^"]+)"/g)].map((match) => match[1]))];
@@ -82,8 +84,9 @@ test("Cockpit: Widgets bleiben ohne separaten Layout-Modus immer verschiebbar", 
   assert.match(cockpitWidget, /layoutLocked \? "auto" : "none"/);
 });
 
-test("Cockpit: Unterrichtshilfen schließen verändert die weiße Smartboard-Fläche nicht", () => {
-  assert.match(teachingSurface, /Alle Unterrichtshilfen schließen/);
+test("Cockpit: Widgets schließen verändert die weiße Smartboard-Fläche nicht", () => {
+  assert.match(teachingSurface, /Alle Widgets schließen/);
+  assert.doesNotMatch(teachingSurface, /Unterrichtshilf/);
   assert.doesNotMatch(teachingSurface, /Tafel leeren \(Alle schließen\)/);
   assert.doesNotMatch(teachingSurface, /cockpitInkByClass/);
 });
@@ -175,4 +178,37 @@ test("Cockpit: Tagesabschluss ist verständlich statt technisch beschriftet", ()
   assert.match(teachingSurface, /"Tag sichern"/);
   assert.match(teachingSurface, />\s*Verfügbar\s*</);
   assert.doesNotMatch(teachingSurface, />\s*Sperre\s*</);
+});
+
+
+test("Cockpit: Vorlage erstellen ist direkt sichtbar und öffnet den Erstellen-Tab", () => {
+  assert.match(teachingSurface, />Vorlage erstellen</);
+  assert.match(teachingSurface, /setVorlagenStartTab\("create"\)/);
+  assert.match(teachingSurface, /initialTab=\{vorlagenStartTab\}/);
+  assert.match(templatesModal, /initialTab\?: "browse" \| "create"/);
+  assert.match(templatesModal, /if \(isOpen\) setActiveTab\(initialTab\)/);
+});
+
+test("Cockpit: Widget-Bearbeitung liegt in einem kompakten Kontextmenü", () => {
+  assert.match(cockpitWidget, /aria-label="Widget-Menü öffnen"/);
+  for (const label of ["Einstellungen", "Größe", "Widget schließen"]) {
+    assert.ok(cockpitWidget.includes(label), `Widget-Menüeintrag fehlt: ${label}`);
+  }
+  assert.doesNotMatch(cockpitWidget, /aria-label="Widget maximieren"/);
+  assert.doesNotMatch(cockpitWidget, /aria-label="Widget-Einstellungen öffnen"/);
+  assert.doesNotMatch(cockpitWidget, /aria-label="Widget-Größe einstellen"/);
+});
+
+test("Cockpit: automatische Anordnung kann vier Widgets als 2x2-Raster einpassen", () => {
+  assert.match(teachingSurface, /const targetW = Math\.min\(w\.w, Math\.max\(18, cellW - 3\)\)/);
+  assert.match(teachingSurface, /const targetH = Math\.min\(w\.h, Math\.max\(18, cellH - 3\)\)/);
+  assert.match(teachingSurface, /w: targetW/);
+  assert.match(teachingSurface, /h: targetH/);
+});
+
+test("Cockpit: Ich-bin-da zeigt auch kompakt alle Kindernamen mit Status", () => {
+  assert.match(kidAttendance, /Anwesenheitsliste mit allen Kindern/);
+  assert.match(kidAttendance, /students\.map\(\(student\) =>/);
+  assert.match(kidAttendance, /status === 'present' \? '✓ Da' : status === 'absent' \? 'Fehlt' : 'Offen'/);
+  assert.doesNotMatch(kidAttendance, /openStudents\.slice\(0, 4\)/);
 });
