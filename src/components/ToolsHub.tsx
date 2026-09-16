@@ -25,36 +25,42 @@ const tools = [
     title: 'Arbeitsblatt-Generator',
     description: 'Aus Inhalten und Unterrichtsideen direkt Arbeitsblätter erstellen.',
     icon: FileEdit,
+    featured: false,
   },
   {
     id: 'differenzierung',
     title: 'Differenzierung',
     description: 'Aufgaben und Lernwege für unterschiedliche Lernvoraussetzungen vorbereiten.',
     icon: Sparkles,
+    featured: false,
   },
   {
     id: 'stationenbetrieb',
     title: 'Stationenbetrieb',
     description: 'Stationen planen, Fortschritt verfolgen und Beobachtungen festhalten.',
     icon: LayoutGrid,
+    featured: false,
   },
   {
     id: 'stimmnotizen',
     title: 'Notiz diktieren',
     description: 'Sprachnotizen transkribieren, korrigieren und zentral speichern.',
     icon: Mic,
+    featured: false,
   },
   {
     id: 'ki-helfer',
     title: 'KI-Helfer',
     description: 'Pädagogische KI-Hilfen bewusst und gezielt aufrufen.',
     icon: Bot,
+    featured: false,
   },
   {
     id: 'drucken',
     title: 'Druckzentrum',
     description: 'Listen, Klassenbuch und weitere Ausgabeformate zentral vorbereiten.',
     icon: Printer,
+    featured: false,
   },
 ] as const;
 
