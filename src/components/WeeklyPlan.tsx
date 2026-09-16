@@ -2321,12 +2321,17 @@ export default function WeeklyPlan() {
                 {(() => {
                   const kData = getKlassenbuchData();
                   const subjectsToShow = [
-                    { key: 'Deutsch - Rechtschreiben', label: 'Deutsch - Rechtschreiben', sub: 'Hören, Sprechen / Richtig Schreiben' },
-                    { key: 'Deutsch - Sprachbetrachtung', label: 'Deutsch - Sprachbetrachtung', sub: 'Sprachbewusstsein' },
+                    { key: 'Deutsch - Rechtschreiben', label: 'Deutsch - Rechtschreiben', sub: 'Rechtschreiben' },
+                    { key: 'Deutsch - Sprachbetrachtung', label: 'Deutsch - Sprachbetrachtung', sub: 'Sprache untersuchen und reflektieren' },
+                    { key: 'Deutsch - Sprechen & Hören', label: 'Deutsch - Sprechen & Hören', sub: 'Sprechen, Zuhören und Gespräche' },
                     { key: 'Deutsch - Texte verfassen', label: 'Deutsch - Texte verfassen', sub: 'Texte verfassen' },
                     { key: 'Deutsch - Lesen', label: 'Deutsch - Lesen', sub: 'Lesen' },
-                    { key: 'Deutsch - D- FÖ', label: 'Deutsch - D-FÖ', sub: 'D-FÖ / Begabungsförderung' },
-                    { key: 'Mathematik', label: 'Mathematik', sub: 'Erarbeitung, Übung, Geometrie, Sachrechnen' },
+                    { key: 'Deutsch - D-FÖ', label: 'Deutsch - D-FÖ', sub: 'Förderung' },
+                    { key: 'Mathematik - Ebene & Raum', label: 'Mathematik - Ebene & Raum', sub: 'Geometrie, Lagebeziehungen und Raumvorstellung' },
+                    { key: 'Mathematik - Zahlen & Daten', label: 'Mathematik - Zahlen & Daten', sub: 'Zahlenräume, Darstellungen und Daten' },
+                    { key: 'Mathematik - Größen', label: 'Mathematik - Größen', sub: 'Größen, Maße und Sachbezüge' },
+                    { key: 'Mathematik - Operationen', label: 'Mathematik - Operationen', sub: 'Rechenoperationen und Strategien' },
+                    { key: 'Mathematik - Nicht zugeordnet', label: 'Mathematik - nicht zugeordnet', sub: 'Historische Einträge ohne Unterbereich' },
                     { key: 'Sachunterricht', label: 'Sachunterricht', sub: 'Natur, Gemeinschaft, Raum, Zeit, Wirtschaft, Technik' },
                     { key: 'BSP', label: 'Bewegung und Sport (BSP)', sub: 'Spiel, Turnen, Bewegung und Sport' },
                     { key: 'Werken', label: 'Werken (TEC/TEX)', sub: 'Technik und Textiles Gestalten' },
