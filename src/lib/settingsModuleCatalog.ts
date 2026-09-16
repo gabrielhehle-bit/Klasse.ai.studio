@@ -18,7 +18,7 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
 
   { id: 'cockpit', label: 'Lehrercockpit', desc: 'Weiße Smartboard-Fläche mit frei platzierbaren Widgets', category: 'Unterricht' },
   { id: 'ki-helfer', label: 'KI-Helfer', desc: 'KI-Werkzeuge für Planung, Differenzierung und Texte', category: 'Unterricht' },
-  { id: 'lehrerzimmer', label: 'Lehrerzimmer', desc: 'Schulweiter Austausch mit Beiträgen, Fragen und Antworten', category: 'Unterricht' },
+  { id: 'lehrerzimmer', label: 'Lehrerzimmer', desc: 'Schulweiter Austausch mit Beiträgen, Fragen, @Erwähnungen und Antworten', category: 'Unterricht' },
   { id: 'arbeitsblatt', label: 'Arbeitsblatt-Generator', desc: 'Arbeitsblätter direkt in Klassio erstellen', category: 'Unterricht' },
   { id: 'stationenbetrieb', label: 'Stationenbetrieb', desc: 'Stationen planen und verwalten', category: 'Unterricht' },
   { id: 'stimmnotizen', label: 'Stimm-Notizen', desc: 'Sprachbasierte Notizen im Unterricht erfassen', category: 'Unterricht' },
