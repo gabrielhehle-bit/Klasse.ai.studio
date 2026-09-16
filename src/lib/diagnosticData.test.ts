@@ -74,3 +74,20 @@ test('future-date checks use the local Austrian calendar day instead of UTC', ()
     else process.env.TZ = previousTz;
   }
 });
+
+
+test('diagnostic alert: non-positive threshold disables automatic warning', () => {
+  const testDef = {
+    id: 'live-lesefluessigkeit',
+    name: '1:1 Lautleseprotokoll',
+    kategorie: 'lesen',
+    kurzbeschreibung: 'Lernverlaufsbeobachtung',
+    einheit: 'rohwert',
+    schwellenwert: 0,
+    schwellenrichtung: 'unter',
+    schulstufen: [1, 2, 3, 4],
+  } as any;
+
+  assert.equal(getDiagnosticAlert(testDef, 12), false);
+  assert.equal(getDiagnosticAlert(testDef, 0), false);
+});
