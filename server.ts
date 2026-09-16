@@ -256,6 +256,65 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     return visible + '*'.repeat(Math.max(2, Math.min(8, local.length - visible.length))) + '@' + domain;
   }
 
+  function isSchoolAdminEmail(email: string | undefined | null): boolean {
+    if (!email) return false;
+    return SCHOOL_ADMIN_EMAILS.includes(email.trim().toLowerCase());
+  }
+
+  async function notifySchoolAdmins(request: SchoolVerificationRequest): Promise<boolean> {
+    if (!mailTransporter || !SCHOOL_ADMIN_EMAILS.length) return false;
+    const appUrl = (process.env.APP_URL || 'https://klassio.at').replace(/\/+$/, '');
+    try {
+      await mailTransporter.sendMail({
+        from: SMTP_FROM,
+        to: SCHOOL_ADMIN_EMAILS.join(','),
+        subject: 'Neue Klassio-Schulverifizierung: ' + request.schoolName,
+        text:
+          'In Klassio wurde eine neue Schulverifizierung angefordert.\n\n' +
+          'Schule: ' + request.schoolName + '\n' +
+          'Bundesland: ' + request.federalState + '\n' +
+          'Schul-Domain: ' + request.emailDomain + '\n' +
+          'Angefordert von: ' + request.requestedByEmail + '\n\n' +
+          'Öffne ' + appUrl + ' und gehe zu Einstellungen → Konto & Schulmail → Schulverwaltung.',
+        html:
+          '<div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#0f172a">' +
+          '<h2>Neue Schulverifizierung</h2>' +
+          '<p><strong>' + escapeHtml(request.schoolName) + '</strong></p>' +
+          '<p>Bundesland: ' + escapeHtml(request.federalState) + '<br>' +
+          'Schul-Domain: <strong>' + escapeHtml(request.emailDomain) + '</strong><br>' +
+          'Angefordert von: ' + escapeHtml(request.requestedByEmail) + '</p>' +
+          '<p>Öffne Klassio und gehe zu <strong>Einstellungen → Konto & Schulmail → Schulverwaltung</strong>.</p>' +
+          '</div>'
+      });
+      return true;
+    } catch (error) {
+      console.error('[Schulverifizierung] Admin-Benachrichtigung konnte nicht versendet werden:', error);
+      return false;
+    }
+  }
+
+  async function notifySchoolVerificationResult(
+    request: SchoolVerificationRequest,
+    school: SchoolRecord | null,
+    approved: boolean
+  ): Promise<boolean> {
+    if (!mailTransporter) return false;
+    try {
+      await mailTransporter.sendMail({
+        from: SMTP_FROM,
+        to: request.requestedByEmail,
+        subject: approved ? 'Deine Schule ist in Klassio freigeschaltet' : 'Klassio-Schulverifizierung',
+        text: approved
+          ? 'Die Schule "' + (school?.name || request.schoolName) + '" wurde in Klassio freigeschaltet.\n\nDu musst nichts neu einrichten. Deine bereits vorhandenen Klassen, Planungen und dein lokaler Datentresor bleiben unverändert. Öffne Klassio einfach erneut; Lehrerzimmer und Teamteaching werden für diese Schul-Domain automatisch verfügbar.'
+          : 'Die Anfrage für "' + request.schoolName + '" konnte noch nicht freigegeben werden. Dein persönliches Klassio-Konto und deine bereits eingerichteten Daten bleiben davon unberührt. Prüfe bitte Schulname und dienstliche Schul-Domain und stelle die Anfrage bei Bedarf erneut.',
+      });
+      return true;
+    } catch (error) {
+      console.error('[Schulverifizierung] Ergebnis-Mail konnte nicht versendet werden:', error);
+      return false;
+    }
+  }
+
   function parseCookies(req: express.Request): Record<string, string> {
     const list: Record<string, string> = {};
     const rc = req.headers.cookie;
