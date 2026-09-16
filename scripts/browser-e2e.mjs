@@ -141,6 +141,18 @@ async function setInputByLabel(client, labelText, value, occurrence = 0) {
     '})()';
   if (!await evaluate(client, expression)) throw new Error('Could not fill field labelled "' + labelText + '".');
 }
+async function setTextareaByPlaceholder(client, placeholder, value) {
+  const expression =
+    '(() => {' +
+    'const field=Array.from(document.querySelectorAll("textarea")).find(el=>String(el.getAttribute("placeholder")||"").includes(' + q(placeholder) + '));' +
+    'if(!field)return false;' +
+    'const setter=Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value")?.set;' +
+    'if(setter)setter.call(field,' + q(value) + '); else field.value=' + q(value) + ';' +
+    'field.focus(); field.dispatchEvent(new Event("input",{bubbles:true})); field.dispatchEvent(new Event("change",{bubbles:true})); return true;' +
+    '})()';
+  if (!await evaluate(client, expression)) throw new Error('Could not fill textarea "' + placeholder + '".');
+}
+
 async function clickByText(client, text, exact = false) {
   const matchExpression = exact ? 'current===expected' : 'current.includes(expected)';
   const expression =
@@ -227,12 +239,16 @@ async function main() {
 
     await clickCheckboxNearText(client, 'Ich habe den Wiederherstellungscode sicher notiert');
     await clickByText(client, 'Einrichtung abschließen');
-    await waitFor(client, 'Klassio first setup', 'document.body?.innerText.toLowerCase().includes("willkommen bei klassio")', 25000);
-
-    await clickByText(client, 'Beispielklasse erkunden');
     await waitFor(
       client,
-      'daily dashboard after demo setup',
+      'Klassio first-run intro',
+      'document.body?.innerText.toLowerCase().includes("klassio passt sich dir an")',
+      25000,
+    );
+    await clickByText(client, 'Überspringen');
+    await waitFor(
+      client,
+      'daily dashboard after login',
       'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").trim()==="Heute")',
       25000,
     );
@@ -252,6 +268,22 @@ async function main() {
     await clickSidebarPage(client, 'Diagnostik');
     await waitFor(client, 'diagnostics content', 'document.body?.innerText.toLowerCase().includes("diagnostik")');
 
+    await clickSidebarPage(client, 'Tools');
+    await waitFor(client, 'tools hub', 'document.body?.innerText.includes("Kleine, konkrete Helfer an einem Ort")');
+
+    await clickByText(client, 'Textanalyse', true);
+    await waitFor(client, 'text analysis tool', 'document.body?.innerText.includes("Textschwierigkeit nachvollziehbar prüfen")');
+    await setTextareaByPlaceholder(
+      client,
+      'Text hier einfügen',
+      'Die Kinder lesen gemeinsam einen kurzen Text. Danach sprechen sie über die wichtigsten Aussagen und markieren schwierige Wörter.'
+    );
+    await waitFor(
+      client,
+      'text analysis metrics',
+      'document.body?.innerText.includes("Flesch DE") && document.body?.innerText.includes("Wiener Sachtextformel 1") && !document.body?.innerText.includes("Noch kein Text")'
+    );
+
     await clickSidebarPage(client, 'Druckzentrum');
     await waitFor(client, 'print center content', 'document.body?.innerText.toLowerCase().includes("druckzentrum")');
 
@@ -266,7 +298,7 @@ async function main() {
 
     if (uncaught.length) throw new Error('Uncaught browser exceptions:\n' + uncaught.join('\n---\n'));
 
-    console.log('Klassio browser E2E passed: access -> vault -> demo class -> attendance -> seating -> gradebook -> weekly plan -> diagnostics -> print center -> backup.');
+    console.log('Klassio browser E2E passed: access -> vault -> dashboard -> attendance -> seating -> gradebook -> weekly plan -> diagnostics -> tools -> text analysis -> print center -> backup.');
   } catch (error) {
     try { await saveScreenshot(client); } catch {}
     throw error;
