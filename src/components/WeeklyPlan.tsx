@@ -852,7 +852,8 @@ export default function WeeklyPlan() {
     const stats: Record<string, number> = {
       'Lesen': 0,
       'Rechtschreibung': 0,
-      'Sprache': 0,
+      'Sprachbetrachtung': 0,
+      'Sprechen & Hören': 0,
       'Verfassen von Texten': 0
     };
 
@@ -872,7 +873,8 @@ export default function WeeklyPlan() {
                     const spLower = sp.toLowerCase();
                     if (spLower.includes('lesen') || spLower === 'l' || spLower === 'deutsch (lesen)') stats['Lesen']++;
                     if (spLower.includes('rechtschreibung') || spLower === 'rs' || spLower === 'deutsch (rechtschreibung)') stats['Rechtschreibung']++;
-                    if (spLower.includes('sprache') || spLower === 'sp' || spLower.includes('sprachbetrachtung') || spLower === 'deutsch (sprache)') stats['Sprache']++;
+                    if (spLower.includes('sprachbetrachtung') || spLower === 'sp' || spLower === 'deutsch (sprache)') stats['Sprachbetrachtung']++;
+                    if (spLower.includes('sprechen & hören') || spLower.includes('sprechen und hören')) stats['Sprechen & Hören']++;
                     if (spLower.includes('verfassen') || spLower === 'vt' || spLower.includes('texte') || spLower === 'deutsch (verfassen von texten)') stats['Verfassen von Texten']++;
                  });
               }
@@ -886,7 +888,8 @@ export default function WeeklyPlan() {
     return [
       { label: 'Lesen', count: stats['Lesen'], color: 'bg-sky-500', iconColor: 'text-sky-500', icon: BookOpen, maxCount },
       { label: 'Rechtschreibung', count: stats['Rechtschreibung'], color: 'bg-emerald-500', iconColor: 'text-emerald-500', icon: Zap, maxCount },
-      { label: 'Sprache', count: stats['Sprache'], color: 'bg-amber-500', iconColor: 'text-amber-500', icon: MessageSquare, maxCount },
+      { label: 'Sprachbetrachtung', count: stats['Sprachbetrachtung'], color: 'bg-amber-500', iconColor: 'text-amber-500', icon: MessageSquare, maxCount },
+      { label: 'Sprechen & Hören', count: stats['Sprechen & Hören'], color: 'bg-cyan-600', iconColor: 'text-cyan-600', icon: Users, maxCount },
       { label: 'Verfassen von Texten', count: stats['Verfassen von Texten'], color: 'bg-indigo-500', iconColor: 'text-indigo-500', icon: Pencil, maxCount },
     ];
   };
@@ -904,10 +907,15 @@ export default function WeeklyPlan() {
     const data: Record<string, string[]> = {
       'Deutsch - Rechtschreiben': [],
       'Deutsch - Sprachbetrachtung': [],
+      'Deutsch - Sprechen & Hören': [],
       'Deutsch - Texte verfassen': [],
       'Deutsch - Lesen': [],
-      'Deutsch - D- FÖ': [],
-      'Mathematik': [],
+      'Deutsch - D-FÖ': [],
+      'Mathematik - Ebene & Raum': [],
+      'Mathematik - Zahlen & Daten': [],
+      'Mathematik - Größen': [],
+      'Mathematik - Operationen': [],
+      'Mathematik - Nicht zugeordnet': [],
       'Sachunterricht': [],
       'BSP': [],
       'Werken': [],
@@ -979,10 +987,11 @@ export default function WeeklyPlan() {
         if (isDeutsch(fach) || schwerpunkte.some((s: string) => isDeutsch(s))) {
           let matchedDeutsch = false;
           const hasRS = schwerpunkte.includes('Deutsch (Rechtschreibung)') || fach.toLowerCase().includes('rechtschreib') || fach.toLowerCase().includes('rs') || fach.toLowerCase() === 'rs';
-          const hasSP = schwerpunkte.includes('Deutsch (Sprache)') || fach.toLowerCase().includes('sprach') || fach.toLowerCase().includes('sp') || fach.toLowerCase() === 'sp';
+          const hasSP = schwerpunkte.includes('Deutsch (Sprachbetrachtung)') || schwerpunkte.includes('Deutsch (Sprache)') || fach.toLowerCase().includes('sprachbetracht') || fach.toLowerCase() === 'sp';
+          const hasSH = schwerpunkte.includes('Deutsch (Sprechen & Hören)') || fach.toLowerCase().includes('sprechen & hören') || fach.toLowerCase().includes('sprechen und hören');
           const hasVT = schwerpunkte.includes('Deutsch (Verfassen von Texten)') || fach.toLowerCase().includes('verfassen') || fach.toLowerCase().includes('texte') || fach.toLowerCase().includes('aufsatz') || fach.toLowerCase().includes('vt') || fach.toLowerCase() === 'vt';
           const hasL  = schwerpunkte.includes('Deutsch (Lesen)') || fach.toLowerCase().includes('lesen') || fach.toLowerCase().includes('l') || fach.toLowerCase() === 'l';
-          const hasFO = fach.includes('D-FÖ') || fach.toLowerCase() === 'd-fö' || fach.includes('Förder') || schwerpunkte.includes('Förderung') || fach.toLowerCase() === 'd- fö' || fach.toLowerCase() === 'd-fö';
+          const hasFO = fach.includes('D-FÖ') || fach.toLowerCase() === 'd-fö' || fach.includes('Förder') || schwerpunkte.includes('Förderung') || schwerpunkte.includes('Deutsch (Förderung)') || fach.toLowerCase() === 'd- fö';
 
           if (hasRS) {
              data['Deutsch - Rechtschreiben'].push(textToPush);
@@ -990,6 +999,10 @@ export default function WeeklyPlan() {
           }
           if (hasSP) {
              data['Deutsch - Sprachbetrachtung'].push(textToPush);
+             matchedDeutsch = true;
+          }
+          if (hasSH) {
+             data['Deutsch - Sprechen & Hören'].push(textToPush);
              matchedDeutsch = true;
           }
           if (hasVT) {
@@ -1001,15 +1014,20 @@ export default function WeeklyPlan() {
              matchedDeutsch = true;
           }
           if (hasFO) {
-             data['Deutsch - D- FÖ'].push(textToPush);
+             data['Deutsch - D-FÖ'].push(textToPush);
              matchedDeutsch = true;
           }
           
           if (!matchedDeutsch) {
              data['Deutsch - Sprachbetrachtung'].push(textToPush);
           }
-        } else if (isMathe(fach)) {
-          data['Mathematik'].push(textToPush);
+        } else if (isMathe(fach) || schwerpunkte.some((s: string) => isMathe(s) || isMatheSubSubject(s))) {
+          const mathFocus = [fach, ...schwerpunkte].map((value: string) => value.toLocaleLowerCase('de-AT'));
+          if (mathFocus.some((value: string) => value.includes('ebene & raum'))) data['Mathematik - Ebene & Raum'].push(textToPush);
+          else if (mathFocus.some((value: string) => value.includes('zahlen & daten'))) data['Mathematik - Zahlen & Daten'].push(textToPush);
+          else if (mathFocus.some((value: string) => value.includes('größen') || value.includes('groessen'))) data['Mathematik - Größen'].push(textToPush);
+          else if (mathFocus.some((value: string) => value.includes('operationen'))) data['Mathematik - Operationen'].push(textToPush);
+          else data['Mathematik - Nicht zugeordnet'].push(textToPush);
         } else if (isSU(fach)) {
           data['Sachunterricht'].push(textToPush);
         } else if (isBSP(fach)) {
