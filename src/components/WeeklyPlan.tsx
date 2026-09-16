@@ -77,6 +77,33 @@ export const isMatheSubSubject = (f: string): boolean => {
   return ['ebene & raum', 'zahlen & daten', 'größen', 'groessen', 'operationen'].includes(lower);
 };
 
+type LessonHalfDraft = {
+  fach: string;
+  unterbereich: string;
+  thema: string;
+  farbe: string;
+};
+
+const EMPTY_LESSON_HALF: LessonHalfDraft = {
+  fach: '',
+  unterbereich: '',
+  thema: '',
+  farbe: '#ffffff',
+};
+
+const getSubareaOptionsForSubject = (fach: string) => {
+  if (fach === 'Deutsch') return DEUTSCH_THEMENBEREICHE.map(item => ({ id: item.id, label: item.label }));
+  if (fach === 'Mathematik') return MATHE_THEMENBEREICHE.map(item => ({ id: item.id, label: item.label }));
+  if (!fach) return [];
+  return [{ id: fach + ' (Förderung)', label: 'Förderung (FÖ)' }];
+};
+
+const formatSchwerpunktLabel = (value: string) => {
+  if (value === 'Deutsch (Förderung)' || value === 'D-FÖ') return 'D-FÖ';
+  if (value === 'Deutsch (Sprache)') return 'Sprachbetrachtung';
+  return value.replace('Deutsch (', '').replace('Mathematik (', '').replace(')', '');
+};
+
 const getContrastTextClass = (bgColor?: string): string => {
   if (!bgColor || bgColor === 'bg-white' || bgColor === 'white' || bgColor === 'bg-transparent' || bgColor === 'transparent') {
     return 'text-zinc-950';
