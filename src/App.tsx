@@ -246,7 +246,13 @@ function AppContent() {
   }, [landOnDashboardAfterLogin, setPage]);
 
   const [hasAiKey, setHasAiKey] = useState<boolean | null>(null);
-  const [showAiWarning, setShowAiWarning] = useState(true);
+  const [showAiWarning, setShowAiWarning] = useState(() => {
+    try {
+      return sessionStorage.getItem('klassio_ai_warning_dismissed') !== '1';
+    } catch {
+      return true;
+    }
+  });
 
   React.useEffect(() => {
     fetch('/api/ai/status')
@@ -786,7 +792,7 @@ function AppContent() {
           />
         )}
         
-        {hasAiKey === false && showAiWarning && (
+        {hasAiKey === false && showAiWarning && currentPage.startsWith('ki-') && (
           <div className="bg-amber-500 text-white font-sans text-xs py-2 px-4 sm:px-6 shrink-0 flex items-center justify-between gap-3 shadow-md z-[50] no-print">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-sm shrink-0" aria-hidden="true">⚠️</span>
@@ -796,7 +802,14 @@ function AppContent() {
             </div>
             <button
               type="button"
-              onClick={() => setShowAiWarning(false)}
+              onClick={() => {
+                setShowAiWarning(false);
+                try {
+                  sessionStorage.setItem('klassio_ai_warning_dismissed', '1');
+                } catch {
+                  // Session storage can be unavailable in hardened/private browser modes.
+                }
+              }}
               className="p-1.5 rounded-lg hover:bg-white/20 transition-colors cursor-pointer shrink-0"
               aria-label="KI-Hinweis schließen"
               title="Hinweis schließen"
