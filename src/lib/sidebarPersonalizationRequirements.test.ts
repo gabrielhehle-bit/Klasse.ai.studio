@@ -27,9 +27,11 @@ test('Sidebar: persönliche Reihenfolge ist global statt auf Bereiche begrenzt',
   assert.match(sidebar, /<ArrowDown/);
 });
 
-test('Sidebar: kompakter Standard zeigt acht Prioritäten und alle weiteren unter Mehr', () => {
-  assert.match(sidebar, /const PRIMARY_VISIBLE_COUNT = 8/);
-  assert.match(sidebar, /visibleMainModules = showMorePages \? mainModules : mainModules\.slice/);
+test('Sidebar: kompakter Standard zeigt Kernbereiche plus Pins und alle weiteren unter Mehr', () => {
+  assert.match(sidebar, /const CORE_MODULE_IDS = new Set\(\[/);
+  assert.match(sidebar, /CORE_MODULE_IDS\.has\(item\.id\) \|\| sidebarPinned\.includes\(item\.id\)/);
+  assert.match(sidebar, /visibleMainModules = showMorePages \? mainModules : defaultPrimaryModules/);
+  assert.match(sidebar, /activeSecondaryModule/);
   assert.match(sidebar, /Mehr \(\$\{hiddenMainCount\}\)/);
 });
 
