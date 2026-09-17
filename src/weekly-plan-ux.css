@@ -1,0 +1,62 @@
+/*
+ * KLASSIO weekly-plan UX cleanup.
+ *
+ * The weekly plan still keeps the underlying filter/density state for backwards
+ * compatibility with existing app data, but the redundant controls are no longer
+ * shown. Keeping this scoped to .weekly-plan-shell avoids affecting filters or
+ * toolbars elsewhere in the app.
+ */
+
+/* Kompakt / Normal / Detail: the three-button density switcher directly before
+   the subject-filter control. */
+.weekly-plan-shell
+  .flex.bg-slate-100:has(> button:nth-child(3)):has(
+    + .relative > button > .lucide-filter
+  ) {
+  display: none !important;
+}
+
+/* Fach-Filter in the secondary weekly-plan toolbar. */
+.weekly-plan-shell
+  .relative:has(
+    > button[class*="px-2.5"][class*="py-1"] > .lucide-filter
+  ) {
+  display: none !important;
+}
+
+/* "Nur Offene" filter in the same toolbar. The selector deliberately requires
+   the compact toolbar sizing so the Filter icon inside "Mehr" remains available. */
+.weekly-plan-shell
+  button[class*="px-2.5"][class*="py-1"]:has(> .lucide-filter) {
+  display: none !important;
+}
+
+/*
+ * Layering contract:
+ * - normal weekly-plan content stays low in the page stack;
+ * - sticky row/column headers stay above the grid only;
+ * - actual dropdown panels (z-40/z-50 in WeeklyPlan) can therefore cover them;
+ * - the Excel/Mehr trigger wrappers must not create their own high stacking
+ *   contexts, otherwise unrelated dropdowns are forced behind those buttons.
+ */
+.weekly-plan-shell .relative.z-\[210\] {
+  z-index: auto !important;
+}
+
+.weekly-plan-shell .sticky.top-0.z-\[160\] {
+  z-index: 20 !important;
+}
+
+.weekly-plan-shell .sticky.left-0.z-\[165\] {
+  z-index: 25 !important;
+}
+
+.weekly-plan-shell .sticky.left-0.z-\[100\] {
+  z-index: 10 !important;
+}
+
+/* The dashboard backup reminder is content, not an overlay. It must never sit
+   above navigation/dropdowns simply because it happens to be visible. */
+.dashboard-shell > .relative.z-20.bg-emerald-50.border-emerald-200 {
+  z-index: auto !important;
+}
