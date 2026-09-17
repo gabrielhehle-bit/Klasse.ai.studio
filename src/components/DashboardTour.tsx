@@ -8,7 +8,9 @@ export default function DashboardTour() {
   const { app, setApp } = useApp();
   const [currentStep, setCurrentStep] = useState(0);
 
-  // Die Tour darf nur beim echten Erststart erscheinen.\n  // `tourAbgeschlossen` ist der dauerhafte Marker; `firstLogin` bleibt\n  // aus Legacy-Kompatibilitätsgründen erhalten.\n  if (!app.firstLogin || app.tourAbgeschlossen) return null;
+  // Die Tour darf nur beim echten Erststart erscheinen.
+  // `tourAbgeschlossen` ist der dauerhafte Marker; `firstLogin` bleibt
+  // aus Legacy-Kompatibilitätsgründen erhalten.\n  if (!app.firstLogin || app.tourAbgeschlossen) return null;
 
   const t = app.settings?.theme || 'warm_sand';
   let b = 'amber';
@@ -65,7 +67,7 @@ export default function DashboardTour() {
   };
 
   const handleClose = () => {
-    setApp(prev => ({ ...prev, firstLogin: false }));
+    setApp(prev => ({ ...prev, firstLogin: false, tourAbgeschlossen: true }));
   };
 
   return (
