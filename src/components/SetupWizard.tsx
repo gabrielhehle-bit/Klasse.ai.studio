@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
 import { ArrowRight, Mail, ShieldCheck } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 import EmailAccountLogin from './EmailAccountLogin';
 import SetupWizardCore from './SetupWizardCore';
 
 type SetupWizardProps = React.ComponentProps<typeof SetupWizardCore>;
 
 export default function SetupWizard(props: SetupWizardProps) {
-  const [accountIntroDone, setAccountIntroDone] = useState(Boolean(props.isNewClass));
+  const { app } = useApp();
+  const hasExistingSetup = Boolean(
+    app?.klassenbezeichnung?.trim() ||
+    app?.classes?.length ||
+    app?.schueler?.length
+  );
+  const [accountIntroDone, setAccountIntroDone] = useState(Boolean(props.isNewClass || hasExistingSetup));
 
   if (accountIntroDone) {
     return <SetupWizardCore {...props} />;
