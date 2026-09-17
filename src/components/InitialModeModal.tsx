@@ -1,5 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
+import { isOnboardingCompleted, markOnboardingCompleted } from '../lib/onboardingState';
 import {
   Check,
   ChevronLeft,
@@ -62,14 +63,36 @@ const INTRO_STEPS = [
 export default function InitialModeModal() {
   const { app, setApp } = useApp();
   const [currentStep, setCurrentStep] = React.useState(0);
+  const onboardingCompleted = isOnboardingCompleted();
 
-  if (!app.firstLogin) return null;
+  // Bestehende Installationen hatten bisher nur tourAbgeschlossen im App-State.
+  // Diesen bereits getroffenen Nutzerentscheid migrieren wir einmalig in den neuen
+  // dauerhaften Browser-Marker. Danach können Setup, Klassenwechsel oder ein älterer
+  // Restore die Einführung nicht versehentlich wieder aktivieren.
+  React.useEffect(() => {
+    if (!onboardingCompleted && app.tourAbgeschlossen && !app.firstLogin) {
+      markOnboardingCompleted();
+      return;
+    }
+
+    if (!onboardingCompleted) return;
+    if (!app.firstLogin && app.tourAbgeschlossen) return;
+
+    setApp(prev => ({
+      ...prev,
+      firstLogin: false,
+      tourAbgeschlossen: true,
+    }));
+  }, [app.firstLogin, app.tourAbgeschlossen, onboardingCompleted, setApp]);
+
+  if (onboardingCompleted || !app.firstLogin) return null;
 
   const step = INTRO_STEPS[currentStep];
   const StepIcon = step.icon;
   const isLastStep = currentStep === INTRO_STEPS.length - 1;
 
   const finishIntro = () => {
+    markOnboardingCompleted();
     setApp(prev => ({
       ...prev,
       firstLogin: false,
