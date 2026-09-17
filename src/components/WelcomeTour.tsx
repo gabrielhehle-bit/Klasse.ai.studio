@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { isOnboardingCompleted, markOnboardingCompleted } from '../lib/onboardingState';
 import { 
   LayoutDashboard, 
   Users, 
@@ -25,7 +26,17 @@ export default function WelcomeTour() {
   const [coords, setCoords] = useState<{ top: number; left: number; isMobile: boolean }>({ top: 0, left: 0, isMobile: false });
   const [highlightCoords, setHighlightCoords] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
 
-  const shouldRender = !app.tourAbgeschlossen && !app.firstLogin && app.currentPage !== 'cockpit';
+  const onboardingCompleted = isOnboardingCompleted();
+  // Die Tour darf nach einer abgeschlossenen Einführung nicht durch Setup-/Klassenwechsel
+  // erneut auftauchen. Ein bewusstes "Tour erneut starten" setzt tourAbgeschlossen=false
+  // und wechselt ins Cockpit; genau dieser Zustand ist die einzige Ausnahme.
+  const explicitRestart = onboardingCompleted
+    && !app.tourAbgeschlossen
+    && !app.firstLogin
+    && app.currentPage === 'cockpit';
+  const shouldRender = !app.firstLogin
+    && !app.tourAbgeschlossen
+    && (!onboardingCompleted || explicitRestart);
 
   const steps: TourStep[] = [
     {
@@ -106,7 +117,7 @@ export default function WelcomeTour() {
       window.removeEventListener('resize', updatePosition);
       clearInterval(interval);
     };
-  }, [currentStep, activeStep.targetId]);
+  }, [currentStep, activeStep.targetId, shouldRender]);
 
   const handleNext = () => {
     if (currentStep < steps.length - 1) {
@@ -123,6 +134,7 @@ export default function WelcomeTour() {
   };
 
   const handleComplete = () => {
+    markOnboardingCompleted();
     setApp(prev => ({
       ...prev,
       tourAbgeschlossen: true
