@@ -4,6 +4,10 @@ const path = require('path');
 function replaceRequired(file, search, replacement, label) {
   const abs = path.resolve(file);
   const before = fs.readFileSync(abs, 'utf8');
+  if (before.includes(replacement)) {
+    console.log(`already patched: ${label}`);
+    return;
+  }
   if (!before.includes(search)) {
     throw new Error(`Expected source pattern missing for ${label} in ${file}`);
   }
