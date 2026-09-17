@@ -242,6 +242,7 @@ export default function WeeklyPlan() {
   };
 
   const [editingCell, setEditingCell] = useState<{ tag: string, idx: number } | null>(null);
+  const [plannerEditorTab, setPlannerEditorTab] = useState<'inhalt' | 'rahmen' | 'organisation' | 'optionen'>('inhalt');
   const [viewingCell, setViewingCell] = useState<{ tag: string, idx: number } | null>(null);
   const [yearPlanSyncNotice, setYearPlanSyncNotice] = useState<string | null>(null);
   const [editingZeitunabhaengig, setEditingZeitunabhaengig] = useState<{ tag: string; item?: any } | null>(null);
@@ -1321,6 +1322,7 @@ export default function WeeklyPlan() {
     const stammFach = app.stammplan?.[tag]?.[idx + 1] || '';
     const initialFach = current.fach || stammFach;
     setEditingCell({ tag, idx });
+    setPlannerEditorTab('inhalt');
 
     let normalizedFach = initialFach;
     let initialSchwerpunkte = Array.isArray(current.schwerpunkte) ? [...current.schwerpunkte] : [];
@@ -3645,7 +3647,7 @@ export default function WeeklyPlan() {
            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setEditingCell(null)} />
            <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 30 }} animate={{ scale: 1, opacity: 1, y: 0 }}
-              className="relative w-[calc(100vw-1rem)] sm:w-[calc(100vw-2rem)] max-w-none h-[94vh] max-h-[94vh] bg-white rounded-2xl shadow-2xl flex flex-col mx-auto overflow-hidden"
+              className="relative w-[calc(100vw-0.5rem)] sm:w-[calc(100vw-1rem)] max-w-none h-[calc(100vh-0.5rem)] sm:h-[calc(100vh-1rem)] max-h-none bg-white rounded-2xl shadow-2xl flex flex-col mx-auto overflow-hidden"
            >
               <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
                  <div>
@@ -3655,8 +3657,45 @@ export default function WeeklyPlan() {
                  <button onClick={() => setEditingCell(null)} className="p-3 hover:bg-slate-100 rounded-full transition-all text-slate-400"><X size={24} /></button>
               </div>
 
-              <div key={`${editingCell.tag}-${editingCell.idx}`} className="p-5 lg:p-6 space-y-6 overflow-y-auto no-scrollbar scroll-smooth flex-1 min-h-0">
+              <div className="shrink-0 border-b border-slate-100 bg-white px-4 py-3 sm:px-6">
+                <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                  {([
+                    { id: 'inhalt', label: '1 · Inhalt & Fach', hint: 'Thema, Lernziel, Fach, Lehrplan' },
+                    { id: 'rahmen', label: '2 · Unterrichtsrahmen', hint: 'Typ, Dauer, Sozialform' },
+                    { id: 'organisation', label: '3 · Material & HÜ', hint: 'Materialien und Hausübung' },
+                    { id: 'optionen', label: '4 · Ablauf & Optionen', hint: 'Methodik, Reflexion, Wiederholung' },
+                  ] as const).map(tab => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setPlannerEditorTab(tab.id)}
+                      className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
+                        plannerEditorTab === tab.id
+                          ? 'border-emerald-600 bg-emerald-50 shadow-sm'
+                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className={`block text-[0.6875rem] font-black ${
+                        plannerEditorTab === tab.id ? 'text-emerald-800' : 'text-slate-700'
+                      }`}>{tab.label}</span>
+                      <span className="mt-0.5 hidden text-[0.5625rem] font-semibold text-slate-400 sm:block">{tab.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="shrink-0 border-b border-slate-100 bg-slate-50/70 px-5 py-2.5 lg:px-6">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[0.6875rem]">
+                  <span className="font-black text-slate-800">{searchFach || 'Noch kein Fach gewählt'}</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="max-w-[60vw] truncate font-semibold text-slate-500">{tempThema || 'Noch kein Thema / Lernziel eingetragen'}</span>
+                </div>
+              </div>
+
+              <div key={`${editingCell.tag}-${editingCell.idx}`} className="p-4 sm:p-5 lg:p-6 overflow-y-auto no-scrollbar scroll-smooth flex-1 min-h-0">
                  
+                 {plannerEditorTab === 'inhalt' && (
+                   <div className="space-y-6">
                  {/* SECTION 1: WAS & WER */}
                  <div className="space-y-5">
                     <div className="flex items-center justify-between ml-1 pr-1">
@@ -3948,6 +3987,11 @@ export default function WeeklyPlan() {
                    </motion.div>
                  )}
 
+                   </div>
+                 )}
+
+                 {plannerEditorTab === 'rahmen' && (
+                   <div className="space-y-6">
                  {/* SECTION 2: PRIORITÄT & SOZIALFORM */}
                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="space-y-8">
@@ -4034,6 +4078,11 @@ export default function WeeklyPlan() {
                     </div>
                  </div>
 
+                   </div>
+                 )}
+
+                 {plannerEditorTab === 'organisation' && (
+                   <div className="space-y-6">
                  {/* SECTION 3: ORGA (MATERIALS & HOMEWORK) */}
                  <div className="bg-slate-50/50 rounded-2xl p-4 lg:p-5 border border-slate-200">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -4140,6 +4189,11 @@ export default function WeeklyPlan() {
                     </div>
                  </div>
 
+                   </div>
+                 )}
+
+                 {plannerEditorTab === 'optionen' && (
+                   <div className="space-y-6">
                  {/* SECTION 4: FEINSCHLIFF */}
                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
                     <div className="space-y-3">
@@ -4327,11 +4381,16 @@ export default function WeeklyPlan() {
                        </button>
                     </div>
                  </div>
+                   </div>
+                 )}
               </div>
 
-              <div className="p-4 lg:px-6 bg-slate-50/50 border-t border-slate-100 flex gap-4 shrink-0">
-                 <button onClick={() => saveCell('', '')} className="btn text-rose-600 hover:!bg-rose-600 hover:!text-white hover:!border-rose-600 border border-slate-200 bg-white px-8 transition-all">Löschen</button>
-                 <button onClick={() => saveCell(searchFach, tempThema, tempType, tempMaterial, tempHUE, tempMethod, tempSocial, tempReflexion, tempSchwerpunkte, tempDuration, tempMaterialIds)} className="btn btn-accent flex-1">Einheit speichern</button>
+              <div className="p-3 sm:p-4 lg:px-6 bg-slate-50/80 border-t border-slate-100 flex flex-col gap-2 sm:flex-row sm:items-center shrink-0">
+                 <button onClick={() => saveCell('', '')} className="btn text-rose-600 hover:!bg-rose-600 hover:!text-white hover:!border-rose-600 border border-slate-200 bg-white px-6 transition-all">Löschen</button>
+                 <div className="hidden flex-1 px-2 text-[0.625rem] font-semibold text-slate-400 lg:block">
+                   Änderungen werden erst mit „Einheit speichern“ übernommen.
+                 </div>
+                 <button onClick={() => saveCell(searchFach, tempThema, tempType, tempMaterial, tempHUE, tempMethod, tempSocial, tempReflexion, tempSchwerpunkte, tempDuration, tempMaterialIds)} className="btn btn-accent sm:min-w-[260px]">Einheit speichern</button>
               </div>
            </motion.div>
         </div>,
