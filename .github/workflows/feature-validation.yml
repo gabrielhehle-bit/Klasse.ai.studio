@@ -12,7 +12,7 @@ on:
       - reconcile/klassio-source-of-truth
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
@@ -21,6 +21,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Apply navigation audit package
+        run: node scripts/apply-audit-navigation-core.cjs
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -46,3 +49,16 @@ jobs:
           test -f dist/manifest.webmanifest
           test -f dist/sw.js
           echo "Feature validation passed."
+
+      - name: Commit validated navigation package
+        if: github.event_name == 'push'
+        run: |
+          if git diff --quiet -- src/components/Sidebar.tsx src/lib/navigationCoreRequirements.test.ts; then
+            echo "No generated navigation changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/Sidebar.tsx src/lib/navigationCoreRequirements.test.ts
+          git commit -m "fix: simplify primary navigation hierarchy"
+          git push origin HEAD:${GITHUB_REF_NAME}
