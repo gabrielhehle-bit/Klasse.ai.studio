@@ -1633,7 +1633,7 @@ export default function Dashboard() {
   };
 
   const handleTrackLuuise = (value: "gruen" | "gelb" | "rot") => {
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = formatLocalDateKey(new Date());
     setApp((prev) => {
       const tracker = prev.luuiseTracker || {
         aktiv: true,
@@ -3839,13 +3839,13 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const kwStart = kwToMonday(currentKW, startYear);
     const kwEnd = new Date(kwStart);
     kwEnd.setDate(kwEnd.getDate() + 5);
-    const todayStrFull = heute.toISOString().split("T")[0];
+    const todayStrFull = formatLocalDateKey(heute);
 
     const absenceCounts: Record<string, number> = {};
     for (let i = 0; i < 5; i++) {
       const d = new Date(kwStart);
       d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split("T")[0];
+      const dateStr = formatLocalDateKey(d);
       (app?.schueler || []).forEach((s) => {
         const lessons = app.anwesenheit?.[s.id]?.[dateStr] || {};
         if (
