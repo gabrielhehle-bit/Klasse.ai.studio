@@ -10,7 +10,8 @@ export default function DashboardTour() {
 
   // Die Tour darf nur beim echten Erststart erscheinen.
   // `tourAbgeschlossen` ist der dauerhafte Marker; `firstLogin` bleibt
-  // aus Legacy-Kompatibilitätsgründen erhalten.\n  if (!app.firstLogin || app.tourAbgeschlossen) return null;
+  // aus Legacy-Kompatibilitätsgründen erhalten.
+  if (!app.firstLogin || app.tourAbgeschlossen) return null;
 
   const t = app.settings?.theme || 'warm_sand';
   let b = 'amber';
