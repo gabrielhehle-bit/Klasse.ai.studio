@@ -109,7 +109,7 @@ export const ALL_WIDGET_CONFIG = [
   { id: "lernwoerter", icon: BookA, label: "WÖRTER" },
   { id: "links", icon: Link, label: "LINK" },
   { id: "qrcode", icon: QrCode, label: "QR" },
-  { id: "sticky", icon: StickyNote, label: "NOTIZ" },
+  { id: "sticky", icon: StickyNote, label: "TEXT" },
   { id: "studentlist", icon: User, label: "SCHÜLER" },
   { id: "kidattendance", icon: Hand, label: "ICH BIN DA" },
   { id: "scoreboard", icon: Trophy, label: "PUNKTE" },
