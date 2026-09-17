@@ -5,6 +5,7 @@ import fs from 'node:fs';
 const setup = fs.readFileSync('src/components/SetupWizard.tsx', 'utf8');
 const setupCore = fs.readFileSync('src/components/SetupWizardCore.tsx', 'utf8');
 const settings = fs.readFileSync('src/components/Settings.tsx', 'utf8');
+const accountSettings = fs.readFileSync('src/components/settings/AccountSettings.tsx', 'utf8');
 
 test('Setup bietet den bestehenden E-Mail-Einmalcode-Login optional an', () => {
   assert.match(setup, /EmailAccountLogin/);
@@ -32,8 +33,9 @@ test('Setup übernimmt den bestehenden Wizard vollständig', () => {
 });
 
 test('Einstellungen behalten E-Mail-Anmeldung unter Konto & Schulmail', () => {
-  assert.match(settings, /case 'account'/);
-  assert.match(settings, /<AccountSettings/);
-  assert.match(settings, /settings-account-login/);
-  assert.match(settings, /<EmailAccountLogin\s*\/>/);
+  assert.match(settings, /activeCategory === 'account'/);
+  assert.match(settings, /<AccountSettings\s*\/>/);
+  assert.match(accountSettings, /Konto & Schulmail/);
+  assert.match(accountSettings, /<EmailAccountLogin/);
+  assert.match(accountSettings, /<SchoolIdentitySettings/);
 });
