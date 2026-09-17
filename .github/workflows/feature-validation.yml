@@ -12,7 +12,7 @@ on:
       - reconcile/klassio-source-of-truth
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
@@ -21,6 +21,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Apply audit package 2/3/8/9
+        if: github.event_name == 'push' && github.ref == 'refs/heads/fix/audit-package-2-3-8-9'
+        run: node scripts/apply-audit-package-2-3-8-9.cjs
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -46,3 +50,16 @@ jobs:
           test -f dist/manifest.webmanifest
           test -f dist/sw.js
           echo "Feature validation passed."
+
+      - name: Commit validated audit package
+        if: github.event_name == 'push' && github.ref == 'refs/heads/fix/audit-package-2-3-8-9'
+        run: |
+          if git diff --quiet; then
+            echo "Audit package already committed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.tsx src/components/Dashboard.tsx src/lib/auditPackage2389Requirements.test.ts
+          git commit -m "fix: resolve audit package 2 3 8 9"
+          git push
