@@ -1,0 +1,81 @@
+/*
+ * Wochenplanung: Der Dialog zum Planen einzelner Unterrichtseinheiten ist auf
+ * Desktop bewusst als große Arbeitsfläche ausgelegt. Die Selektoren hängen an
+ * der vorhandenen Tab-Leiste, damit andere max-w-lg-Dialoge nicht betroffen sind.
+ */
+@media (min-width: 900px) {
+  div.fixed.inset-0.z-50
+    > div.max-w-lg:has(> div.grid.grid-cols-2.bg-slate-100) {
+    width: min(96vw, 1180px) !important;
+    max-width: 1180px !important;
+    min-height: min(760px, 90vh);
+    max-height: 94vh !important;
+    padding: 1.75rem !important;
+    gap: 1.1rem !important;
+    overflow: hidden !important;
+  }
+
+  /* Unterricht/Termin bleibt im Dialog scrollbar, Header und Moduswahl bleiben sichtbar. */
+  div.fixed.inset-0.z-50
+    > div.max-w-lg:has(> div.grid.grid-cols-2.bg-slate-100)
+    > div.space-y-4 {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-content: start;
+    gap: 1rem 1.25rem;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.25rem 0.35rem 0.35rem 0;
+  }
+
+  div.fixed.inset-0.z-50
+    > div.max-w-lg:has(> div.grid.grid-cols-2.bg-slate-100)
+    > div.space-y-4
+    > * {
+    margin-top: 0 !important;
+    min-width: 0;
+  }
+
+  /* Thema bekommt die volle Breite; so ist die eigentliche Unterrichtsplanung sofort im Fokus. */
+  div.fixed.inset-0.z-50
+    > div.max-w-lg:has(> div.grid.grid-cols-2.bg-slate-100)
+    > div.space-y-4
+    > :nth-child(3) {
+    grid-column: 1 / -1;
+  }
+
+  div.fixed.inset-0.z-50
+    > div.max-w-lg:has(> div.grid.grid-cols-2.bg-slate-100)
+    > div.space-y-4
+    textarea {
+    min-height: 130px;
+  }
+
+  /* Speichern/Leeren bzw. Termin speichern bleiben als klare Abschlusszeile unten. */
+  div.fixed.inset-0.z-50
+    > div.max-w-lg:has(> div.grid.grid-cols-2.bg-slate-100)
+    > div.space-y-4
+    > :last-child {
+    grid-column: 1 / -1;
+    margin-top: 0.25rem !important;
+  }
+
+  /* Ausgeklappte Didaktikdetails nutzen den verfügbaren Platz besser. */
+  div.fixed.inset-0.z-50
+    > div.max-w-lg:has(> div.grid.grid-cols-2.bg-slate-100)
+    > div.space-y-4
+    > div.border-t {
+    align-self: start;
+    border: 1px solid rgb(226 232 240);
+    border-radius: 1rem;
+    background: rgb(248 250 252 / 0.75);
+    padding: 0.9rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  div.fixed.inset-0.z-50
+    > div.max-w-lg:has(> div.grid.grid-cols-2.bg-slate-100) {
+    max-width: 1280px !important;
+  }
+}
