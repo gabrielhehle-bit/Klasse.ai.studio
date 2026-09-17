@@ -14,13 +14,21 @@ test('Setup bietet den bestehenden E-Mail-Einmalcode-Login optional an', () => {
   assert.match(setup, /Weiter zur Einrichtung/);
 });
 
-test('Setup übernimmt den bestehenden Wizard vollständig und überspringt den Konto-Hinweis beim Anlegen einer weiteren Klasse', () => {
+test('Konto-Hinweis erscheint nur beim ersten Setup', () => {
+  assert.match(setup, /useApp/);
+  assert.match(setup, /const hasExistingSetup = Boolean/);
+  assert.match(setup, /app\?\.klassenbezeichnung\?\.trim\(\)/);
+  assert.match(setup, /app\?\.classes\?\.length/);
+  assert.match(setup, /app\?\.schueler\?\.length/);
+  assert.match(setup, /Boolean\(props\.isNewClass \|\| hasExistingSetup\)/);
+});
+
+test('Setup übernimmt den bestehenden Wizard vollständig', () => {
   assert.match(setup, /SetupWizardCore/);
-  assert.match(setup, /Boolean\(props\.isNewClass\)/);
   assert.match(setup, /<SetupWizardCore \{\.\.\.props\} \/>/);
-  assert.match(setupCore, /const STEPS = \[/);
+  assert.match(setupCore, /const expertSteps = isEditing/);
   assert.match(setupCore, /title: 'Profil & Schule'/);
-  assert.match(setupCore, /title: 'Zusammenfassung'/);
+  assert.match(setupCore, /title: 'Übersicht'/);
 });
 
 test('Einstellungen behalten E-Mail-Anmeldung unter Konto & Schulmail', () => {
