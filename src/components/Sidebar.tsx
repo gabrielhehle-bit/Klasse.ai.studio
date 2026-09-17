@@ -21,6 +21,16 @@ interface SidebarProps {
   openSetup: () => void;
 }
 
+const CORE_MODULE_IDS = new Set([
+  'dashboard',
+  'klasse',
+  'verhalten',
+  'planung',
+  'leistungen',
+  'unterricht',
+  'tools',
+]);
+
 const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: SidebarProps) => {
   const { app, setApp } = useApp();
   const { showToast } = useToast();
@@ -112,9 +122,14 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const orderedModules = orderSidebarItems(availableModules);
   const utilityModules = orderedModules.filter(item => utilityIds.has(item.id));
   const mainModules = orderedModules.filter(item => !utilityIds.has(item.id));
-  const PRIMARY_VISIBLE_COUNT = 8;
-  const visibleMainModules = showMorePages ? mainModules : mainModules.slice(0, PRIMARY_VISIBLE_COUNT);
-  const hiddenMainCount = Math.max(0, mainModules.length - PRIMARY_VISIBLE_COUNT);
+  const defaultPrimaryModules = mainModules.filter(
+    item => CORE_MODULE_IDS.has(item.id) || sidebarPinned.includes(item.id)
+  );
+  const visibleMainModules = showMorePages ? mainModules : defaultPrimaryModules;
+  const hiddenMainCount = Math.max(0, mainModules.length - defaultPrimaryModules.length);
+  const activeSecondaryModule = mainModules.find(
+    item => item.id === currentPage && !defaultPrimaryModules.some(primary => primary.id === item.id)
+  );
 
   const moveSidebarModule = React.useCallback((draggedId: string, targetId: string) => {
     if (!draggedId || draggedId === targetId) return;
@@ -395,7 +410,13 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                 >
                   <LayoutGrid size={18} className="text-accent shrink-0" />
                   {!isCollapsed && (
-                    <span>{showMorePages ? 'Weniger' : `Mehr (${hiddenMainCount})`}</span>
+                    <span>
+                      {showMorePages
+                        ? 'Weniger'
+                        : activeSecondaryModule
+                          ? `Mehr · ${activeSecondaryModule.label}`
+                          : `Mehr (${hiddenMainCount})`}
+                    </span>
                   )}
                 </button>
               )}
@@ -451,7 +472,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                   Sidebar anpassen
                 </h3>
                 <p className="text-[0.6875rem] text-text-muted leading-relaxed font-medium">
-                  Ziehe einen Bereich an den Punkten, verschiebe ihn mit den Pfeilen oder pinne ihn mit der Flagge an. Angepinnte Bereiche stehen automatisch oben; die ersten acht Bereiche sind direkt sichtbar.
+                  Die Kernbereiche bleiben immer direkt sichtbar. Mit der Flagge angepinnte Bereiche stehen zusätzlich direkt in der Seitenleiste. Alle übrigen Bereiche findest du über „Mehr“.
                 </p>
               </div>
               <button
