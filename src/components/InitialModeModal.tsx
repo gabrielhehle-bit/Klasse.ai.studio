@@ -65,10 +65,16 @@ export default function InitialModeModal() {
   const [currentStep, setCurrentStep] = React.useState(0);
   const onboardingCompleted = isOnboardingCompleted();
 
-  // Setup, Klassenwechsel oder ein wiederhergestellter älterer App-State dürfen eine
-  // bereits erledigte Einführung nicht erneut aktivieren. Der dauerhafte Browser-Marker
-  // ist dafür die Quelle; der App-State wird bei Bedarf automatisch wieder synchronisiert.
+  // Bestehende Installationen hatten bisher nur tourAbgeschlossen im App-State.
+  // Diesen bereits getroffenen Nutzerentscheid migrieren wir einmalig in den neuen
+  // dauerhaften Browser-Marker. Danach können Setup, Klassenwechsel oder ein älterer
+  // Restore die Einführung nicht versehentlich wieder aktivieren.
   React.useEffect(() => {
+    if (!onboardingCompleted && app.tourAbgeschlossen && !app.firstLogin) {
+      markOnboardingCompleted();
+      return;
+    }
+
     if (!onboardingCompleted) return;
     if (!app.firstLogin && app.tourAbgeschlossen) return;
 
