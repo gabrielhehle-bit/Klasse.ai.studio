@@ -45,6 +45,13 @@ test('Überspringen und Fertig markieren die Einführung dauerhaft als erledigt'
   assert.match(tour, /!app\.tourAbgeschlossen/);
 });
 
+test('Bereits abgeschlossene Alt-Installationen werden in den dauerhaften Marker migriert', () => {
+  const intro = fs.readFileSync('src/components/InitialModeModal.tsx', 'utf8');
+
+  assert.match(intro, /!onboardingCompleted && app\.tourAbgeschlossen && !app\.firstLogin/);
+  assert.match(intro, /markOnboardingCompleted\(\);\s*return;/);
+});
+
 test('Tour kann nur über den vorhandenen bewussten Neustart wieder erscheinen', () => {
   const tour = fs.readFileSync('src/components/WelcomeTour.tsx', 'utf8');
   const generalSettings = fs.readFileSync('src/components/settings/GeneralSettings.tsx', 'utf8');
