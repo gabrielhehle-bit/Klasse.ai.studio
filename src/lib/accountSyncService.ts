@@ -152,6 +152,7 @@ export function accountSyncState(state: AppState): AppState {
   if (clone.boardSettings) {
     clone.boardSettings = {
       ...clone.boardSettings,
+      activeFont: clone.boardSettings.activeFont || 'font-standard',
       activeSyncCode: undefined,
       isRemoteController: undefined,
       gabicRole: undefined,
