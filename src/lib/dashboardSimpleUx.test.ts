@@ -39,3 +39,18 @@ test('attendance remains visible without being auto-confirmed', () => {
   assert.match(source, /Noch nicht geprüft/);
   assert.match(source, /onNavigate\(p\.totalStudents \? 'anwesenheit' : 'schueler'\)/);
 });
+
+
+test('compact Heute dashboard no longer shows privacy toggle or redundant tagline', () => {
+  assert.doesNotMatch(source, /Private Angaben verbergen/);
+  assert.doesNotMatch(source, /Private Angaben verborgen/);
+  assert.doesNotMatch(source, /Das Wichtigste für deinen Schultag/);
+});
+
+test('important notices are rendered before attendance inside Offen & im Blick', () => {
+  const importantIndex = source.indexOf('{tasks.length ? (');
+  const attendanceIndex = source.indexOf('Anwesenheit');
+  assert.ok(importantIndex >= 0, 'Hinweis-Liste fehlt');
+  assert.ok(attendanceIndex > importantIndex, 'Anwesenheit darf wichtige Hinweise nicht überdecken');
+  assert.match(source, /item\.category/);
+});
