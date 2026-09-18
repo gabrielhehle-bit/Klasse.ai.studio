@@ -59,16 +59,18 @@ jobs:
           KLASSIO_E2E_SMTP_CODES: /tmp/klassio-e2e-mail-codes.json
           KLASSIO_CHROME_DEBUG_A: http://127.0.0.1:9222
           KLASSIO_CHROME_DEBUG_B: http://127.0.0.1:9223
+          KLASSIO_CHROME_DEBUG_RECOVERY: http://127.0.0.1:9224
           KLASSIO_E2E_EMAIL_A: anna.e2e@vsfoa.vobs.at
           KLASSIO_E2E_EMAIL_B: berta.e2e@vsfoa.vobs.at
           KLASSIO_E2E_VAULT_A: Klassio-E2E-Anna-2026!
           KLASSIO_E2E_VAULT_B: Klassio-E2E-Berta-2026!
           KLASSIO_E2E_SCREENSHOT_A: /tmp/klassio-team-a.png
           KLASSIO_E2E_SCREENSHOT_B: /tmp/klassio-team-b.png
+          KLASSIO_E2E_SCREENSHOT_RECOVERY: /tmp/klassio-account-recovery.png
         run: |
           set -euo pipefail
 
-          rm -rf /tmp/klassio-e2e-data /tmp/klassio-chrome-a /tmp/klassio-chrome-b
+          rm -rf /tmp/klassio-e2e-data /tmp/klassio-chrome-a /tmp/klassio-chrome-b /tmp/klassio-chrome-recovery
           rm -f /tmp/klassio-team-health.json /tmp/klassio-e2e-mail-codes.json
           mkdir -p /tmp/klassio-e2e-data
 
@@ -90,9 +92,13 @@ jobs:
           "$CHROME_BIN"             --headless=new             --no-sandbox             --disable-gpu             --disable-dev-shm-usage             --remote-debugging-port=9223             --remote-allow-origins=*             --user-data-dir=/tmp/klassio-chrome-b             about:blank > /tmp/klassio-chrome-b.log 2>&1 &
           CHROME_B_PID=$!
 
+          "$CHROME_BIN"             --headless=new             --no-sandbox             --disable-gpu             --disable-dev-shm-usage             --remote-debugging-port=9224             --remote-allow-origins=*             --user-data-dir=/tmp/klassio-chrome-recovery             about:blank > /tmp/klassio-chrome-recovery.log 2>&1 &
+          CHROME_RECOVERY_PID=$!
+
           cleanup() {
             kill "$CHROME_A_PID" 2>/dev/null || true
             kill "$CHROME_B_PID" 2>/dev/null || true
+            kill "$CHROME_RECOVERY_PID" 2>/dev/null || true
             kill "$SERVER_PID" 2>/dev/null || true
             kill "$SMTP_PID" 2>/dev/null || true
           }
@@ -124,11 +130,14 @@ jobs:
           path: |
             /tmp/klassio-team-a.png
             /tmp/klassio-team-b.png
+            /tmp/klassio-account-recovery.png
             /tmp/klassio-team-server.log
             /tmp/klassio-e2e-smtp.log
             /tmp/klassio-chrome-a.log
             /tmp/klassio-chrome-b.log
+            /tmp/klassio-chrome-recovery.log
             /tmp/klassio-e2e-mail-codes.json
             /tmp/klassio-e2e-data/teamteaching.json
+            /tmp/klassio-e2e-data/account-sync/*.json
           if-no-files-found: ignore
           retention-days: 7
