@@ -39,7 +39,8 @@ import {
   Edit2,
   SmilePlus,
   BookOpen,
-  Mic
+  Mic,
+  ListTodo
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DebouncedInput } from './DebouncedInput';
@@ -187,6 +188,7 @@ export default function Behavior() {
   const [newEntryText, setNewEntryText] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [noteCategory, setNoteCategory] = useState<'Journal' | 'Verhalten' | 'Erfolg' | 'Eltern' | 'Notiz'>('Notiz');
+  const [entryMode, setEntryMode] = useState<'note' | 'todo'>('note');
   const [aiLoading, setAiLoading] = useState(false);
 
   React.useEffect(() => {
@@ -316,18 +318,50 @@ export default function Behavior() {
 
   const handleCreateEntry = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!newEntryText.trim()) return;
+    const text = newEntryText.trim();
+    if (!text) return;
+
+    if (entryMode === 'todo') {
+      const todo = {
+        id: `todo-${Date.now()}`,
+        text,
+        done: false,
+      };
+      setApp(prev => ({
+        ...prev,
+        dashboardTodos: [todo, ...(prev.dashboardTodos || [])],
+      }));
+      setNewEntryText('');
+      logActivity(setApp, 'To-Do erstellt', 'note');
+      return;
+    }
 
     logObservation(
       setApp, 
       selectedStudentId || undefined, 
-      newEntryText, 
+      text, 
       noteCategory, 
       'Notizen-Hauptbereich'
     );
     
     setNewEntryText('');
     logActivity(setApp, `Notiz erstellt: ${noteCategory}`, 'note');
+  };
+
+  const togglePersonalTodo = (id: string) => {
+    setApp(prev => ({
+      ...prev,
+      dashboardTodos: (prev.dashboardTodos || []).map(todo =>
+        todo.id === id ? { ...todo, done: !todo.done } : todo
+      ),
+    }));
+  };
+
+  const deletePersonalTodo = (id: string) => {
+    setApp(prev => ({
+      ...prev,
+      dashboardTodos: (prev.dashboardTodos || []).filter(todo => todo.id !== id),
+    }));
   };
 
   const deleteJournalEntry = (id: string) => {
@@ -525,6 +559,27 @@ export default function Behavior() {
                </div>
                
                <form onSubmit={handleCreateEntry} className="relative z-10 space-y-6">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEntryMode('note')}
+                      className={`px-4 py-2.5 rounded-2xl text-[0.6875rem] font-black uppercase tracking-wider transition-all flex items-center gap-2 ${entryMode === 'note' ? 'bg-white text-slate-900 shadow-lg' : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10'}`}
+                    >
+                      <Notebook size={15} /> Allgemeine Notiz
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEntryMode('todo');
+                        setSelectedStudentId('');
+                      }}
+                      className={`px-4 py-2.5 rounded-2xl text-[0.6875rem] font-black uppercase tracking-wider transition-all flex items-center gap-2 ${entryMode === 'todo' ? 'bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20' : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10'}`}
+                    >
+                      <ListTodo size={15} /> To-Do
+                    </button>
+                  </div>
+
+                  {entryMode === 'note' && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
                      <div className="relative">
                         <User className="absolute left-4 top-1/2 -translate-y-1/2 text-white/20" size={16} />
@@ -563,43 +618,85 @@ export default function Behavior() {
                         </div>
                      </div>
                   </div>
+                  )}
 
                   <div className="relative">
                      <textarea 
                         className="w-full bg-white/5 border border-white/10 rounded-[2.5rem] p-8 text-[1.125rem] leading-normal font-medium text-white outline-none focus:border-accent/50 focus:ring-12 ring-accent/5 transition-all placeholder:text-white/20 resize-none h-40 leading-relaxed custom-scrollbar"
-                        placeholder={selectedStudentId ? "Notiz zu diesem Kind eingeben..." : "Allgemeine Notiz für die Klasse eingeben..."}
+                        placeholder={entryMode === 'todo' ? "To-Do eingeben, z.B. Bus für Ausflug bestellen..." : selectedStudentId ? "Notiz zu diesem Kind eingeben..." : "Allgemeine Notiz für die Klasse eingeben..."}
                         value={newEntryText}
                         onChange={e => setNewEntryText(e.target.value)}
                      />
                      <div className="absolute bottom-6 right-6 flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setApp(prev => ({ ...prev, stimmNotizModal: selectedStudentId || true }))}
-                          className="p-4 bg-white/5 text-white/50 hover:text-cyan-300 hover:bg-cyan-400/10 rounded-2xl transition-all"
-                          title={selectedStudentId ? "Notiz für dieses Kind diktieren" : "Allgemeine Notiz diktieren"}
-                          aria-label="Notiz diktieren"
-                        >
-                           <Mic size={20} />
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={polishNewEntry}
-                          className={`p-4 bg-white/5 text-white/50 hover:text-amber-400 hover:bg-amber-400/10 rounded-2xl transition-all ${aiLoading ? 'animate-pulse' : ''}`}
-                          title="Text durch KI verbessern lassen"
-                        >
-                           <Sparkles size={20} />
-                        </button>
+                        {entryMode === 'note' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setApp(prev => ({ ...prev, stimmNotizModal: selectedStudentId || true }))}
+                              className="p-4 bg-white/5 text-white/50 hover:text-cyan-300 hover:bg-cyan-400/10 rounded-2xl transition-all"
+                              title={selectedStudentId ? "Notiz für dieses Kind diktieren" : "Allgemeine Notiz diktieren"}
+                              aria-label="Notiz diktieren"
+                            >
+                               <Mic size={20} />
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={polishNewEntry}
+                              className={`p-4 bg-white/5 text-white/50 hover:text-amber-400 hover:bg-amber-400/10 rounded-2xl transition-all ${aiLoading ? 'animate-pulse' : ''}`}
+                              title="Text durch KI verbessern lassen"
+                            >
+                               <Sparkles size={20} />
+                            </button>
+                          </>
+                        )}
                         <button 
                           type="submit"
                           disabled={!newEntryText.trim()}
-                          className="px-10 py-4 bg-accent text-white rounded-2xl font-black uppercase text-[0.75rem] tracking-[0.2em] shadow-2xl shadow-accent/20 hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:hover:scale-100"
+                          className={`px-10 py-4 rounded-2xl font-black uppercase text-[0.75rem] tracking-[0.2em] shadow-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:hover:scale-100 ${entryMode === 'todo' ? 'bg-amber-400 text-slate-950 shadow-amber-500/20' : 'bg-accent text-white shadow-accent/20'}`}
                         >
-                           Speichern
+                           {entryMode === 'todo' ? 'To-Do speichern' : 'Speichern'}
                         </button>
                      </div>
                   </div>
                </form>
             </div>
+
+            {(app.dashboardTodos || []).length > 0 && (
+              <section className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-6 sm:p-8 print:hidden">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <p className="text-[0.625rem] font-black uppercase tracking-[0.18em] text-amber-600">Persönliche Aufgaben</p>
+                    <h3 className="mt-1 text-[1rem] font-black text-slate-900">Meine To-Do-Liste</h3>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-[0.625rem] font-black border border-amber-200">
+                    {(app.dashboardTodos || []).filter(todo => !todo.done).length} offen
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {(app.dashboardTodos || []).map(todo => (
+                    <div key={todo.id} className={`flex items-center gap-3 rounded-2xl border p-3 transition-all ${todo.done ? 'border-slate-100 bg-slate-50 opacity-65' : 'border-amber-100 bg-amber-50/50'}`}>
+                      <button
+                        type="button"
+                        onClick={() => togglePersonalTodo(todo.id)}
+                        className={`w-7 h-7 shrink-0 rounded-xl border flex items-center justify-center transition-all ${todo.done ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-300 text-transparent hover:border-amber-400'}`}
+                        aria-label={todo.done ? 'To-Do wieder öffnen' : 'To-Do erledigen'}
+                      >
+                        <Check size={15} strokeWidth={3} />
+                      </button>
+                      <span className={`flex-1 text-sm font-semibold ${todo.done ? 'line-through text-slate-400' : 'text-slate-800'}`}>{todo.text}</span>
+                      <button
+                        type="button"
+                        onClick={() => deletePersonalTodo(todo.id)}
+                        className="p-2 rounded-xl text-slate-300 hover:bg-rose-50 hover:text-rose-600 transition-all"
+                        aria-label="To-Do löschen"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Filter & Chronicle List - Schritt 3.3 / 3.4 */}
             <div className="space-y-6">

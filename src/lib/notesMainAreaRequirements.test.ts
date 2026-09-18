@@ -79,3 +79,14 @@ test('KEL: Beobachtungs- und Verhaltensnotizen sind standardmäßig ausgeblendet
   assert.doesNotMatch(kel, /const studentNotes = \(app\.notizen \|\| \[\]\)/);
   assert.match(kel, /showBehaviorNotesInKel && studentObservations\.length > 0/);
 });
+
+
+test('Notizen: allgemeine Einträge können direkt als persönliche To-Dos angelegt werden', () => {
+  assert.match(behavior, /useState<'note' \| 'todo'>\('note'\)/);
+  assert.match(behavior, /> To-Do/);
+  assert.match(behavior, /dashboardTodos: \[todo, \.\.\.\(prev\.dashboardTodos \|\| \[\]\)\]/);
+  assert.match(behavior, /Meine To-Do-Liste/);
+  assert.match(behavior, /togglePersonalTodo/);
+  assert.match(behavior, /deletePersonalTodo/);
+  assert.match(behavior, /To-Do speichern/);
+});
