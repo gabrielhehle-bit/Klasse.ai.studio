@@ -22,9 +22,8 @@ test('First run: Abschluss landet im Dashboard und verhindert eine zweite Tour',
   assert.match(intro, /currentPage: 'dashboard'/);
 });
 
-test('Dashboard: Sicherungserinnerung überdeckt die Sidebar nicht', () => {
-  assert.match(dashboard, /if \(app\?\.firstLogin\) return false;/);
-  assert.match(dashboard, /relative z-20 pointer-events-auto/);
-  assert.doesNotMatch(dashboard, /z-\[5000\].*Zeit für eine Wochensicherung/s);
+test('Dashboard: Sicherungserinnerung lenkt im Alltag nicht mehr ab', () => {
+  assert.doesNotMatch(dashboard, /Zeit für eine Wochensicherung/);
+  assert.doesNotMatch(dashboard, /showBackupBanner|handleDownloadBackup/);
   assert.match(sidebar, /z-\[150\]/);
 });
