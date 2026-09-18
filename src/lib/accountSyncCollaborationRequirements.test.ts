@@ -151,6 +151,7 @@ test('E-Mail-Konto synchronisiert den AppState Ende-zu-Ende statt Klartext serve
   assert.match(server, /createAccountSyncStore/);
   assert.match(context, /pushAccountSyncSnapshot/);
   assert.match(context, /decryptAccountSyncSnapshot/);
+  assert.match(context, /syncActiveClass\(mergeAccountSyncState\(/);
   assert.match(context, /REVISION_CONFLICT/);
   assert.match(vaultGate, /fetchAccountSyncSnapshot/);
   assert.match(vaultGate, /saveVaultRecord\(remote\.vaultRecord\)/);
