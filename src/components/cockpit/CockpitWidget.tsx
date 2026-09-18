@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { X, Settings, PenTool, SlidersHorizontal, Check, Maximize2, Minimize2, LockKeyhole, MoreHorizontal, Rocket } from "lucide-react";
 import { CockpitWidgetConfig } from "../../types";
 import { useApp } from "../../context/AppContext";
-import { WIDGET_MIN_SIZES } from "./widgetLayout";
+import { WIDGET_MIN_SIZES, getWidgetMinSizeConfig } from "./widgetLayout";
 
 interface CockpitWidgetProps {
   widget: CockpitWidgetConfig;
@@ -169,14 +169,19 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     if (!stageRef.current) return;
     const stageRect = stageRef.current.getBoundingClientRect();
 
-    // Clamp values roughly to sensible percentages
+    // Nie unter die inhaltssichere Mindestgröße schrumpfen.
     const wRaw = parseInt(sizeInputWidth, 10);
     const hRaw = parseInt(sizeInputHeight, 10);
     if (!isNaN(wRaw) && !isNaN(hRaw)) {
-      const wNum = Math.max(10, Math.min(100, wRaw));
-      const hNum = Math.max(10, Math.min(100, hRaw));
+      const minConfig = getWidgetMinSizeConfig(widget.type);
+      const minWPercent = Math.min(100, (minConfig.minW / stageRect.width) * 100);
+      const minHPercent = Math.min(100, (minConfig.minH / stageRect.height) * 100);
+      const wNum = Math.max(minWPercent, Math.min(100, wRaw));
+      const hNum = Math.max(minHPercent, Math.min(100, hRaw));
+      const xNum = Math.max(0, Math.min(widget.x, 100 - wNum));
+      const yNum = Math.max(0, Math.min(widget.y, 100 - hNum));
 
-      onUpdate({ w: wNum, h: hNum });
+      onUpdate({ x: xNum, y: yNum, w: wNum, h: hNum });
       setShowSizeConfig(false);
     }
   };
@@ -271,9 +276,9 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       const newWidthPx = resizeStartPos.current.startW + deltaX;
       const newHeightPx = resizeStartPos.current.startH + deltaY;
 
-      const minConfig = WIDGET_MIN_SIZES[widget.type];
-      const minW = minConfig?.minW || 160;
-      const minH = minConfig?.minH || 130;
+      const minConfig = getWidgetMinSizeConfig(widget.type);
+      const minW = minConfig.minW;
+      const minH = minConfig.minH;
 
       const clampedWidthPx = Math.max(
         minW,
@@ -304,6 +309,14 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
     target.addEventListener("pointermove", handlePointerMove);
     target.addEventListener("pointerup", handlePointerUp);
+  };
+
+  const handleSetPersistentLargeSize = () => {
+    // Im Gegensatz zu "Maximieren" wird diese Größe über onUpdate im Layout gespeichert.
+    setIsMaximized(false);
+    onUpdate({ x: 4, y: 4, w: 92, h: 90 });
+    setShowWidgetMenu(false);
+    setShowSizeConfig(false);
   };
 
   const labelMapping: Record<string, string> = {
@@ -590,6 +603,21 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
                 </button>
               )}
 
+              {!isDirect && !layoutLocked && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSetPersistentLargeSize();
+                  }}
+                  className="w-full px-2.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-white/10 text-left"
+                  title="Widget dauerhaft groß auf der Smartboard-Fläche ablegen"
+                >
+                  <LockKeyhole size={14} />
+                  <span>Groß fest einstellen</span>
+                </button>
+              )}
+
               {showSettingsButton && onSettingsToggle && (
                 <button
                   type="button"
@@ -714,7 +742,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       {/* Widget Content Area */}
       <div className="flex-grow overflow-hidden relative min-h-0">
         <div
-          className="absolute inset-0 flex flex-col overflow-y-auto no-scrollbar"
+          className="absolute inset-0 flex flex-col overflow-auto no-scrollbar"
           style={
             isDirect || !!WIDGET_MIN_SIZES[widget.type] || widget.type === "instruction"
               ? {
