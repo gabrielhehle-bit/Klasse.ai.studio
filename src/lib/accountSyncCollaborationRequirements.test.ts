@@ -106,6 +106,40 @@ test('Konto-Sync verhindert stilles Überschreiben durch veraltete Geräte', asy
   }
 });
 
+test('Konto-Sync-Konflikt kann nur mit der aktuell gelesenen Serverrevision bewusst überschrieben werden', async () => {
+  const temp = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-account-sync-resolve-'));
+  try {
+    const store = new AccountSyncStore(temp);
+    const userId = 'abcdefabcdefabcdefabcdef';
+    const first = await store.put(userId, {
+      vaultRecord,
+      encryptedState: encryptedPayload,
+      expectedRevision: 0,
+    });
+
+    await assert.rejects(
+      () => store.put(userId, {
+        vaultRecord,
+        encryptedState: encryptedPayload,
+        expectedRevision: 0,
+      }),
+      /REVISION_CONFLICT/,
+    );
+
+    const latest = await store.get(userId);
+    assert.equal(latest?.revision, first.revision);
+
+    const resolved = await store.put(userId, {
+      vaultRecord,
+      encryptedState: encryptedPayload,
+      expectedRevision: latest?.revision,
+    });
+    assert.equal(resolved.revision, first.revision + 1);
+  } finally {
+    await fsp.rm(temp, { recursive: true, force: true });
+  }
+});
+
 test('E-Mail-Konto synchronisiert den AppState Ende-zu-Ende statt Klartext serverseitig zu verarbeiten', () => {
   const server = read('server.ts');
   const context = read('src/context/AppContext.tsx');
@@ -230,9 +264,15 @@ test('Konto-Einstellungen zeigen Sync-Zustand, Fehlerhinweis und manuellen Neuve
   const accountSettings = read('src/components/settings/AccountSettings.tsx');
 
   assert.match(context, /accountSyncMessage/);
+  assert.match(context, /accountSyncConflictResolvable/);
   assert.match(context, /retryAccountSync/);
+  assert.match(context, /resolveAccountSyncConflict/);
+  assert.match(context, /saveEncryptedEmergencyBackup\(localState, vaultKey\)/);
   assert.match(context, /document\.visibilityState === 'visible'/);
   assert.match(accountSettings, /data-testid="account-sync-status"/);
+  assert.match(accountSettings, /data-testid="account-sync-conflict-actions"/);
+  assert.match(accountSettings, /Konto-Stand laden/);
+  assert.match(accountSettings, /Diesen Geräte-Stand verwenden/);
   assert.match(accountSettings, /Erneut versuchen/);
   assert.match(accountSettings, /Sync-Konflikt – nichts überschrieben/);
 
