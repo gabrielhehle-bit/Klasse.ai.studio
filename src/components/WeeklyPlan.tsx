@@ -3961,6 +3961,111 @@ export default function WeeklyPlan() {
                     </div>
                  </div>
 
+                 {/* UNTERRICHTSEINHEIT IN ZWEI GLEICHE HÄLFTEN TEILEN – bewusst ohne Minutenlogik */}
+                 <div className="rounded-3xl border border-cyan-100 bg-cyan-50/50 p-5 space-y-4 xl:col-span-2">
+                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                     <div>
+                       <h4 className="text-[0.875rem] font-black text-slate-800">Unterrichtseinheit halbieren</h4>
+                       <p className="mt-0.5 text-[0.6875rem] font-medium text-slate-500">
+                         Zwei gleich große Hälften – unabhängig von der tatsächlichen Minutenlänge der Schulstunde.
+                       </p>
+                     </div>
+                     <button
+                       type="button"
+                       onClick={() => {
+                         setTempSplitLesson(value => {
+                           const next = !value;
+                           if (next && !tempFirstHalf.fach && searchFach) {
+                             setTempFirstHalf({
+                               ...EMPTY_LESSON_HALF,
+                               fach: searchFach,
+                               unterbereich: tempSchwerpunkte[0] || '',
+                               thema: tempThema,
+                               farbe: getFachHexColor(app.fachConfig?.[searchFach]?.color || searchFach),
+                             });
+                           }
+                           return next;
+                         });
+                       }}
+                       className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-all ${
+                         tempSplitLesson ? 'bg-cyan-600' : 'bg-slate-200'
+                       }`}
+                       aria-pressed={tempSplitLesson}
+                     >
+                       <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                         tempSplitLesson ? 'translate-x-6' : 'translate-x-1'
+                       }`} />
+                     </button>
+                   </div>
+
+                   {tempSplitLesson && (
+                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                       {([
+                         { key: 'first', label: 'Erste Hälfte', value: tempFirstHalf, setValue: setTempFirstHalf },
+                         { key: 'second', label: 'Zweite Hälfte', value: tempSecondHalf, setValue: setTempSecondHalf },
+                       ] as const).map(half => {
+                         const subjectOptions = Array.from(new Set(['Deutsch', 'Mathematik', ...(app.faecher || FAECHER_ALLE)]));
+                         const subareaOptions = getSubareaOptionsForSubject(half.value.fach);
+                         return (
+                           <div key={half.key} className="rounded-2xl border border-cyan-100 bg-white p-4 space-y-3">
+                             <div className="text-[0.6875rem] font-black uppercase tracking-wider text-cyan-700">{half.label}</div>
+                             <label className="block space-y-1">
+                               <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">Fach</span>
+                               <select
+                                 value={half.value.fach}
+                                 onChange={event => {
+                                   const fach = event.target.value;
+                                   half.setValue(current => ({
+                                     ...current,
+                                     fach,
+                                     unterbereich: '',
+                                     farbe: getFachHexColor(app.fachConfig?.[fach]?.color || fach),
+                                   }));
+                                 }}
+                                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold"
+                               >
+                                 <option value="">Fach wählen</option>
+                                 {subjectOptions.map(subject => <option key={subject} value={subject}>{subject}</option>)}
+                               </select>
+                             </label>
+                             <label className="block space-y-1">
+                               <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">Unterbereich</span>
+                               <select
+                                 value={half.value.unterbereich}
+                                 onChange={event => half.setValue(current => ({ ...current, unterbereich: event.target.value }))}
+                                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold"
+                               >
+                                 <option value="">Kein Unterbereich</option>
+                                 {subareaOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
+                               </select>
+                             </label>
+                             <label className="block space-y-1">
+                               <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">Thema / Inhalt</span>
+                               <input
+                                 type="text"
+                                 value={half.value.thema}
+                                 onChange={event => half.setValue(current => ({ ...current, thema: event.target.value }))}
+                                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold"
+                                 placeholder="Inhalt dieser Hälfte"
+                               />
+                             </label>
+                             <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
+                               <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">Farbe</span>
+                               <input
+                                 type="color"
+                                 value={half.value.farbe || '#ffffff'}
+                                 onChange={event => half.setValue(current => ({ ...current, farbe: event.target.value }))}
+                                 className="h-8 w-12 cursor-pointer rounded border-0 bg-transparent"
+                               />
+                             </label>
+                           </div>
+                         );
+                       })}
+                     </div>
+                   )}
+                 </div>
+
+
                  {/* SCHNELLAUSWAHL AUS STAMMPLAN (Highlight if different) */}
                  {app.stammplan?.[editingCell.tag]?.[editingCell.idx + 1] && (
                    <motion.div 
@@ -4219,110 +4324,6 @@ export default function WeeklyPlan() {
                           placeholder="Wie war die Stunde? Reflexion..."
                           value={tempReflexion} onChange={e => setTempReflexion(e.target.value)}
                        />
-                    </div>
-
-                    {/* UNTERRICHTSEINHEIT IN ZWEI GLEICHE HÄLFTEN TEILEN – bewusst ohne Minutenlogik */}
-                    <div className="rounded-3xl border border-cyan-100 bg-cyan-50/50 p-5 space-y-4 xl:col-span-2">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <h4 className="text-[0.875rem] font-black text-slate-800">Unterrichtseinheit halbieren</h4>
-                          <p className="mt-0.5 text-[0.6875rem] font-medium text-slate-500">
-                            Zwei gleich große Hälften – unabhängig von der tatsächlichen Minutenlänge der Schulstunde.
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setTempSplitLesson(value => {
-                              const next = !value;
-                              if (next && !tempFirstHalf.fach && searchFach) {
-                                setTempFirstHalf({
-                                  ...EMPTY_LESSON_HALF,
-                                  fach: searchFach,
-                                  unterbereich: tempSchwerpunkte[0] || '',
-                                  thema: tempThema,
-                                  farbe: getFachHexColor(app.fachConfig?.[searchFach]?.color || searchFach),
-                                });
-                              }
-                              return next;
-                            });
-                          }}
-                          className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-all ${
-                            tempSplitLesson ? 'bg-cyan-600' : 'bg-slate-200'
-                          }`}
-                          aria-pressed={tempSplitLesson}
-                        >
-                          <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                            tempSplitLesson ? 'translate-x-6' : 'translate-x-1'
-                          }`} />
-                        </button>
-                      </div>
-
-                      {tempSplitLesson && (
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          {([
-                            { key: 'first', label: 'Erste Hälfte', value: tempFirstHalf, setValue: setTempFirstHalf },
-                            { key: 'second', label: 'Zweite Hälfte', value: tempSecondHalf, setValue: setTempSecondHalf },
-                          ] as const).map(half => {
-                            const subjectOptions = Array.from(new Set(['Deutsch', 'Mathematik', ...(app.faecher || FAECHER_ALLE)]));
-                            const subareaOptions = getSubareaOptionsForSubject(half.value.fach);
-                            return (
-                              <div key={half.key} className="rounded-2xl border border-cyan-100 bg-white p-4 space-y-3">
-                                <div className="text-[0.6875rem] font-black uppercase tracking-wider text-cyan-700">{half.label}</div>
-                                <label className="block space-y-1">
-                                  <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">Fach</span>
-                                  <select
-                                    value={half.value.fach}
-                                    onChange={event => {
-                                      const fach = event.target.value;
-                                      half.setValue(current => ({
-                                        ...current,
-                                        fach,
-                                        unterbereich: '',
-                                        farbe: getFachHexColor(app.fachConfig?.[fach]?.color || fach),
-                                      }));
-                                    }}
-                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold"
-                                  >
-                                    <option value="">Fach wählen</option>
-                                    {subjectOptions.map(subject => <option key={subject} value={subject}>{subject}</option>)}
-                                  </select>
-                                </label>
-                                <label className="block space-y-1">
-                                  <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">Unterbereich</span>
-                                  <select
-                                    value={half.value.unterbereich}
-                                    onChange={event => half.setValue(current => ({ ...current, unterbereich: event.target.value }))}
-                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold"
-                                  >
-                                    <option value="">Kein Unterbereich</option>
-                                    {subareaOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
-                                  </select>
-                                </label>
-                                <label className="block space-y-1">
-                                  <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">Thema / Inhalt</span>
-                                  <input
-                                    type="text"
-                                    value={half.value.thema}
-                                    onChange={event => half.setValue(current => ({ ...current, thema: event.target.value }))}
-                                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold"
-                                    placeholder="Inhalt dieser Hälfte"
-                                  />
-                                </label>
-                                <label className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-                                  <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400">Farbe</span>
-                                  <input
-                                    type="color"
-                                    value={half.value.farbe || '#ffffff'}
-                                    onChange={event => half.setValue(current => ({ ...current, farbe: event.target.value }))}
-                                    className="h-8 w-12 cursor-pointer rounded border-0 bg-transparent"
-                                  />
-                                </label>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
                     </div>
 
                     {/* WÖCHENTLICHE WIEDERHOLUNG (RECURRING LESSONS) */}
