@@ -77,6 +77,8 @@ test("Schülerformular: Navigation schützt Pflichtnamen und speichert unveränd
   assert.match(studentList, /type="button"\s+onClick=\{saveEditingStudent\}/);
   assert.match(studentList, /disabled=\{studentFormSection === 'basis' && \(!editingStudent\?\.vorname\?\.trim\(\) \|\| !editingStudent\?\.nachname\?\.trim\(\)\)\}/);
   assert.match(studentList, /studentFormSection !== 'kontakte'/);
+  assert.match(studentList, /\{editingStudent\?\.id \? 'Speichern' : 'Anlegen'\}/);
+  assert.match(studentList, /disabled=\{!editingStudent\?\.vorname\?\.trim\(\) \|\| !editingStudent\?\.nachname\?\.trim\(\)\}/);
   assert.match(studentList, />\s*Weiter\s*</);
   assert.match(studentList, />\s*Zurück\s*</);
 });
