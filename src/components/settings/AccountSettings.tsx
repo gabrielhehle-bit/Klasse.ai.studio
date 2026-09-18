@@ -32,8 +32,8 @@ export default function AccountSettings() {
     if (resolvingSync) return;
     const confirmed = window.confirm(
       source === 'local'
-        ? 'Soll der vollständige Stand dieses Geräts den Konto-Stand ersetzen? Vorher erstellt Klassio auf diesem Gerät eine verschlüsselte Notfallkopie.'
-        : 'Soll der vollständige Konto-Stand auf dieses Gerät geladen werden? Lokale Änderungen werden ersetzt; vorher erstellt Klassio eine verschlüsselte Notfallkopie.'
+        ? 'Soll der Stand dieses Geräts übernommen werden? Klassio erstellt vorher automatisch eine Sicherheitskopie.'
+        : 'Soll der zuletzt gespeicherte Konto-Stand auf dieses Gerät geladen werden? Änderungen nur auf diesem Gerät werden ersetzt; Klassio erstellt vorher automatisch eine Sicherheitskopie.'
     );
     if (!confirmed) return;
 
@@ -46,16 +46,16 @@ export default function AccountSettings() {
   };
 
   const syncMeta = accountSyncStatus === 'synced'
-    ? { title: 'Konto-Sync aktuell', detail: accountSyncLastAt ? 'Zuletzt erfolgreich: ' + new Date(accountSyncLastAt).toLocaleString('de-AT') : 'Verschlüsselter Stand ist abgeglichen.', tone: 'emerald' }
+    ? { title: 'Daten aktuell', detail: accountSyncLastAt ? 'Zuletzt aktualisiert: ' + new Date(accountSyncLastAt).toLocaleString('de-AT') : 'Deine Daten sind auf dem aktuellen Stand.', tone: 'emerald' }
     : accountSyncStatus === 'syncing'
-      ? { title: 'Konto wird abgeglichen …', detail: 'Lokale Daten bleiben währenddessen vollständig verfügbar.', tone: 'indigo' }
+      ? { title: 'Daten werden aktualisiert …', detail: 'Du kannst währenddessen normal weiterarbeiten.', tone: 'indigo' }
       : accountSyncStatus === 'conflict'
-        ? { title: 'Sync-Konflikt – nichts überschrieben', detail: accountSyncMessage || 'Auf mehreren Geräten liegen unterschiedliche Änderungen vor.', tone: 'amber' }
+        ? { title: 'Änderungen auf zwei Geräten', detail: accountSyncMessage || 'Auf zwei Geräten wurden unterschiedliche Änderungen gefunden. Wähle, welchen Stand du weiterverwenden möchtest.', tone: 'amber' }
         : accountSyncStatus === 'error'
-          ? { title: 'Konto-Sync derzeit nicht möglich', detail: accountSyncMessage || 'Lokale Daten bleiben erhalten. Der Abgleich kann erneut versucht werden.', tone: 'rose' }
+          ? { title: 'Datenabgleich gerade nicht möglich', detail: accountSyncMessage || 'Deine Daten auf diesem Gerät bleiben erhalten. Versuche es später erneut.', tone: 'rose' }
           : accountSyncStatus === 'disabled'
-            ? { title: 'Konto-Sync nicht aktiv', detail: accountSyncMessage || 'Melde dich mit deiner E-Mail-Adresse an, um den verschlüsselten Konto-Sync zu verwenden.', tone: 'slate' }
-            : { title: 'Konto-Sync bereit', detail: 'Nach E-Mail-Anmeldung und Entsperren des Tresors wird automatisch verschlüsselt abgeglichen.', tone: 'slate' };
+            ? { title: 'Geräte-Sync nicht aktiv', detail: accountSyncMessage || 'Melde dich mit deiner E-Mail-Adresse an, um deine Daten auch auf weiteren Geräten verwenden zu können.', tone: 'slate' }
+            : { title: 'Geräte-Sync bereit', detail: 'Nach der Anmeldung hält Klassio deine Geräte automatisch auf demselben Stand.', tone: 'slate' };
 
   const syncToneClasses = syncMeta.tone === 'emerald'
     ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
@@ -77,7 +77,7 @@ export default function AccountSettings() {
           <div>
             <h2 className="text-lg font-black text-slate-950">Konto & Schulmail</h2>
             <p className="mt-1 text-sm font-medium leading-relaxed text-slate-600">
-              Die E-Mail-Anmeldung ist dein persönliches Klassio-Konto. Sobald dein Datentresor entsperrt ist, wird dein KLASSIO-Stand automatisch Ende-zu-Ende-verschlüsselt mit diesem Konto synchronisiert. Eine verifizierte Schulmail schaltet zusätzlich schulinterne Funktionen frei.
+              Mit deiner E-Mail-Adresse meldest du dich bei Klassio an. Deine Daten können dadurch automatisch auf deinen Geräten aktuell gehalten werden. Eine verifizierte Schulmail schaltet zusätzlich schulinterne Funktionen frei.
             </p>
           </div>
         </div>
@@ -112,7 +112,7 @@ export default function AccountSettings() {
               data-testid="account-sync-conflict-actions"
             >
               <p className="text-xs font-bold leading-relaxed">
-                Beide Stände bleiben unverändert, bis du bewusst entscheidest. Vor der Auflösung legt Klassio eine verschlüsselte Notfallkopie des aktuellen Geräte-Stands an.
+                Nichts wird automatisch überschrieben. Wähle bewusst den Stand, den du weiterverwenden möchtest. Vorher erstellt Klassio eine Sicherheitskopie.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
@@ -131,7 +131,7 @@ export default function AccountSettings() {
                   className="rounded-xl bg-amber-900 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
                 >
                   {resolvingSync === 'local' ? <Loader2 size={13} className="mr-1.5 inline animate-spin" /> : <Database size={13} className="mr-1.5 inline" />}
-                  Diesen Geräte-Stand verwenden
+                  Stand dieses Geräts verwenden
                 </button>
               </div>
             </div>
@@ -142,7 +142,7 @@ export default function AccountSettings() {
           <div className="flex items-start gap-3">
             <Database size={17} className="mt-0.5 shrink-0 text-emerald-700" />
             <p className="text-xs font-semibold leading-relaxed text-emerald-900">
-              Bereits eingerichtete Klassen, Planungen, Noten und Tresordaten bleiben auf diesem Gerät erhalten und lokal verschlüsselt. Mit aktivem E-Mail-Konto wird derselbe KLASSIO-Stand zusätzlich Ende-zu-Ende-verschlüsselt auf dem Server gespeichert. Der Server erhält keinen lesbaren Schülerbestand und keinen unverschlüsselten Tresorschlüssel. Datei- oder OneDrive-Backups bleiben als freiwillige Zusatzsicherung möglich.
+              Klassen, Planungen und Noten bleiben auf diesem Gerät verfügbar. Mit aktivem Konto hält Klassio denselben Datenstand zusätzlich für deine anderen Geräte bereit. Datei- oder OneDrive-Backups kannst du weiterhin freiwillig als zusätzliche Sicherung verwenden.
             </p>
           </div>
         </div>
