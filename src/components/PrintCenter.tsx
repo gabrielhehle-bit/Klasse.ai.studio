@@ -5092,7 +5092,7 @@ export default function PrintCenter() {
                         let displayFach = cellItem?.fach || stammplanFach || '';
                         let displayThema = cellItem?.thema || '';
 
-                        const isExcludedEvent = (cellItem && (
+                        const isExcludedEvent = !!(cellItem && (
                           cellItem.type === 'sa' || 
                           cellItem.type === 'test' || 
                           cellItem.type === 'lzk' || 
@@ -5101,7 +5101,7 @@ export default function PrintCenter() {
                           cellItem.type === 'konferenz' || 
                           cellItem.type === 'gespraech' || 
                           cellItem.type === 'sonstiges'
-                        )) || /^sachunterricht$|^su$/i.test(displayFach);
+                        ));
 
                         if (isExcludedEvent) {
                           displayFach = '';
