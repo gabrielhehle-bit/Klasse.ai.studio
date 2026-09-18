@@ -970,11 +970,14 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
 
                   <div className="border-t border-slate-100 pt-1 mt-1">
                     <button
-                      onClick={() => window.print()}
+                      onClick={() => {
+                        setApp(prev => ({ ...prev, currentPage: 'drucken', activePrintTemplate: 'wochenplan' }));
+                        setShowMehrMenu(false);
+                      }}
                       className="w-full text-left px-3 py-2 hover:bg-slate-100 text-slate-600 rounded-xl font-bold text-xs flex items-center gap-2.5 transition"
                     >
                       <FileText size={15} />
-                      <span>Wochenplan drucken</span>
+                      <span>Wochenplan im Druckzentrum öffnen</span>
                     </button>
                   </div>
                 </div>
