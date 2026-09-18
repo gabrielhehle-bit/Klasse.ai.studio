@@ -17,6 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { Badge, Button, Input, Select, Textarea } from './ui';
+import { markLehrerzimmerPostsRead } from '../lib/lehrerzimmerNotifications';
 
 type Category = 'organisation' | 'unterricht' | 'info';
 type Kind = 'beitrag' | 'frage';
@@ -43,6 +44,8 @@ type LehrerzimmerReply = {
 
 type LehrerzimmerPost = {
   id: string;
+  quick?: boolean;
+  unread?: boolean;
   category: Category;
   kind: Kind;
   title: string;
@@ -165,9 +168,6 @@ export default function Lehrerzimmer() {
   const [verificationNotice, setVerificationNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [category, setCategory] = useState<Category>('organisation');
-  const [kind, setKind] = useState<Kind>('beitrag');
-  const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [posting, setPosting] = useState(false);
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
@@ -208,10 +208,18 @@ export default function Lehrerzimmer() {
         fetch('/api/lehrerzimmer/posts' + query, { cache: 'no-store' }).then(readJson),
         fetch('/api/lehrerzimmer/colleagues', { cache: 'no-store' }).then(readJson),
       ]);
+      const loadedPosts = (postsData.posts || []) as LehrerzimmerPost[];
       setMe(meData);
-      setPosts(postsData.posts || []);
+      setPosts(loadedPosts);
       setColleagues(colleaguesData.users || []);
       setRequiresSchoolEmail(false);
+
+      const unreadIds = loadedPosts.filter(post => post.unread).map(post => post.id);
+      if (unreadIds.length) {
+        window.setTimeout(() => {
+          void markLehrerzimmerPostsRead(unreadIds);
+        }, 500);
+      }
     } catch (cause: any) {
       if (cause?.requiresSchoolEmail || cause?.status === 403) {
         setRequiresSchoolEmail(true);
@@ -231,14 +239,10 @@ export default function Lehrerzimmer() {
     void load();
   }, [load]);
 
-  const mentionMeCount = useMemo(() => {
-    if (!me) return 0;
-    return posts.reduce((count, post) => {
-      const postMention = post.mentions.includes(me.user.userId) ? 1 : 0;
-      const replyMentions = post.replies.filter(reply => reply.mentions.includes(me.user.userId)).length;
-      return count + postMention + replyMentions;
-    }, 0);
-  }, [me, posts]);
+  const unreadCount = useMemo(
+    () => posts.filter(post => post.unread).length,
+    [posts],
+  );
 
   const insertMention = (handle: string) => {
     const token = '@' + handle;
@@ -250,7 +254,8 @@ export default function Lehrerzimmer() {
 
   const submitPost = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!title.trim() || !body.trim() || posting) return;
+    const message = body.trim();
+    if (!message || posting) return;
 
     setPosting(true);
     setError(null);
@@ -258,13 +263,12 @@ export default function Lehrerzimmer() {
       await fetch('/api/lehrerzimmer/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category, kind, title: title.trim(), body: body.trim() }),
+        body: JSON.stringify({ body: message }),
       }).then(readJson);
-      setTitle('');
       setBody('');
       await load();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Der Beitrag konnte nicht gespeichert werden.');
+      setError(cause instanceof Error ? cause.message : 'Die Nachricht konnte nicht gespeichert werden.');
     } finally {
       setPosting(false);
     }
@@ -535,7 +539,7 @@ export default function Lehrerzimmer() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-2xl font-black tracking-[-0.025em]">Lehrerzimmer</h1>
-                {mentionMeCount > 0 && <Badge variant="accent">{mentionMeCount} × erwähnt</Badge>}
+                {unreadCount > 0 && <Badge variant="accent">{unreadCount} neu</Badge>}
               </div>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
                 {me?.school.name || me?.school.code?.toUpperCase()} · {me?.school.federalState ? me.school.federalState + ' · ' : ''}{me?.school.domain}
@@ -563,55 +567,26 @@ export default function Lehrerzimmer() {
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] gap-6 items-start">
         <main className="space-y-6 min-w-0">
-          <form onSubmit={submitPost} className="rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="font-bold text-lg tracking-[-0.01em]">Ins Kollegium schreiben</h2>
-                <p className="text-xs text-[var(--text-muted)] mt-1">Beiträge und Fragen bleiben innerhalb deiner Schule.</p>
-              </div>
-              <Badge variant={kind === 'frage' ? 'warning' : 'neutral'} icon={kind === 'frage' ? <HelpCircle size={13} /> : <MessageCircle size={13} />}>
-                {kind === 'frage' ? 'Frage' : 'Beitrag'}
-              </Badge>
+          <form
+            onSubmit={submitPost}
+            data-testid="lehrerzimmer-quick-message"
+            className="rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] p-5 sm:p-6 shadow-sm space-y-4"
+          >
+            <div>
+              <h2 className="font-bold text-lg tracking-[-0.01em]">Nachricht ans Kollegium</h2>
+              <p className="text-xs text-[var(--text-muted)] mt-1">
+                Schnell fragen oder informieren – z. B. „Wer hat dieses Material?“ oder „Wer hat morgen Aufsicht?“
+              </p>
             </div>
-
-            <div className="grid sm:grid-cols-2 gap-3">
-              <Select
-                label="Kategorie"
-                value={category}
-                onChange={event => setCategory(event.target.value as Category)}
-                options={[
-                  { value: 'organisation', label: 'Organisation' },
-                  { value: 'unterricht', label: 'Unterricht' },
-                  { value: 'info', label: 'Info' },
-                ]}
-              />
-              <Select
-                label="Art"
-                value={kind}
-                onChange={event => setKind(event.target.value as Kind)}
-                options={[
-                  { value: 'beitrag', label: 'Beitrag / Information' },
-                  { value: 'frage', label: 'Frage ans Kollegium' },
-                ]}
-              />
-            </div>
-
-            <Input
-              label="Titel"
-              value={title}
-              onChange={event => setTitle(event.target.value)}
-              maxLength={140}
-              placeholder={kind === 'frage' ? 'Was möchtest du das Kollegium fragen?' : 'Worum geht es?'}
-            />
 
             <Textarea
-              label="Text"
-              rows={5}
+              label="Nachricht"
+              rows={4}
               value={body}
               onChange={event => setBody(event.target.value)}
               maxLength={4000}
-              placeholder="Schreib deine Nachricht … z. B. @anna, @muster oder @annamuster"
-              helperText="Erwähnungen funktionieren mit @Vorname, @Nachname, @VornameNachname oder dem vollständigen @Handle."
+              placeholder="Nachricht schreiben … @anna, @muster oder @annamuster"
+              helperText="Mit @ kannst du Kolleg:innen direkt erwähnen."
             />
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -621,11 +596,11 @@ export default function Lehrerzimmer() {
               <Button
                 type="submit"
                 variant="primary"
-                disabled={!title.trim() || !body.trim() || posting}
+                disabled={!body.trim() || posting}
                 isLoading={posting}
                 rightIcon={<Send size={15} />}
               >
-                {kind === 'frage' ? 'Frage stellen' : 'Veröffentlichen'}
+                Senden
               </Button>
             </div>
           </form>
@@ -666,14 +641,25 @@ export default function Lehrerzimmer() {
                 const isEditing = editingPostId === post.id;
 
                 return (
-                  <article key={post.id} className="rounded-2xl border border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))] shadow-sm overflow-hidden">
+                  <article
+                    key={post.id}
+                    data-unread={post.unread ? 'true' : 'false'}
+                    className={`rounded-2xl border shadow-sm overflow-hidden transition-colors ${post.unread
+                      ? 'border-[var(--accent)]/40 bg-[var(--accent-soft)]/45 ring-1 ring-[var(--accent)]/10'
+                      : 'border-[var(--border-default,var(--border))] bg-[var(--surface-card,var(--surface))]'}`}
+                  >
                     <div className="p-5 sm:p-6 space-y-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant={meta.badge} icon={meta.icon}>{meta.label}</Badge>
-                          <Badge variant={post.kind === 'frage' ? 'warning' : 'neutral'} icon={post.kind === 'frage' ? <HelpCircle size={12} /> : <MessageCircle size={12} />}>
-                            {post.kind === 'frage' ? 'Frage' : 'Beitrag'}
-                          </Badge>
+                          {!post.quick && (
+                            <>
+                              <Badge variant={meta.badge} icon={meta.icon}>{meta.label}</Badge>
+                              <Badge variant={post.kind === 'frage' ? 'warning' : 'neutral'} icon={post.kind === 'frage' ? <HelpCircle size={12} /> : <MessageCircle size={12} />}>
+                                {post.kind === 'frage' ? 'Frage' : 'Beitrag'}
+                              </Badge>
+                            </>
+                          )}
+                          {post.unread && <Badge variant="accent">Neu</Badge>}
                           {mentionedMe && <Badge variant="accent" icon={<AtSign size={12} />}>Erwähnt dich</Badge>}
                         </div>
 
@@ -761,8 +747,8 @@ export default function Lehrerzimmer() {
                       ) : (
                         <>
                           <div>
-                            <h2 className="text-lg sm:text-xl font-bold tracking-[-0.01em]">{post.title}</h2>
-                            <div className="mt-1 text-xs text-[var(--text-muted)]">
+                            {!post.quick && <h2 className="text-lg sm:text-xl font-bold tracking-[-0.01em]">{post.title}</h2>}
+                            <div className={`${post.quick ? '' : 'mt-1 '}text-xs text-[var(--text-muted)]`}>
                               <span className="font-bold text-[var(--text-secondary)]">{post.authorName}</span>
                               {' '}@{post.authorHandle} · {formatDate(post.createdAt)}
                               {post.updatedAt !== post.createdAt && <span> · bearbeitet</span>}
