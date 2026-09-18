@@ -198,6 +198,10 @@ Bitte optimiere den Text entsprechend den oben genannten System-Instruktionen fÃ
               </div>
             </div>
 
+            <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[0.6875rem] font-semibold leading-relaxed text-slate-600">
+              Vor dem Senden Namen, Adressen und andere personenbezogene Angaben aus eingefÃ¼gten Texten entfernen.
+            </p>
+
             <div className="space-y-3">
               <label className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Optimierungs-Fokus</label>
               <div className="grid grid-cols-1 gap-2">
