@@ -40,6 +40,7 @@ import {
   fetchAccountSyncSnapshot,
   hasEmailAccountSession,
   loadAccountSyncMetadata,
+  mergeAccountSyncState,
   pushAccountSyncSnapshot,
   saveAccountSyncMetadata,
   setAccountSyncHealthy,
@@ -163,7 +164,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       const decryptedRemote = await decryptAccountSyncSnapshot(remote, vaultKey);
       assertRestorableAppState(decryptedRemote);
-      const remoteState = normalizeAppState(decryptedRemote);
+      const normalizedRemoteState = normalizeAppState(decryptedRemote);
+      const remoteState = mergeAccountSyncState(normalizedRemoteState, current);
       const localFingerprint = appStateFingerprint(current);
       const remoteFingerprint = appStateFingerprint(remoteState);
       const baseline = loadAccountSyncMetadata(vaultRecord.id);
