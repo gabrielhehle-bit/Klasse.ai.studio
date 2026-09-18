@@ -111,8 +111,8 @@ test("Cockpit: Zeichenfeld und gemeinsame Zeichenebene sind sprachlich getrennt"
   assert.doesNotMatch(cockpitWidget, /drawing: "🖍️ Zeichentafel"/);
 });
 
-test("Cockpit: aktive Unterrichtsfläche ist nur eine weiße Smartboard-Fläche ohne eigene Zeichenebene", () => {
-  assert.match(teachingSurface, /Weiße Smartboard-Fläche/);
+test("Cockpit: aktive Unterrichtsfläche bleibt weiß, aber ohne platzraubende Smartboard-Beschriftung", () => {
+  assert.doesNotMatch(teachingSurface, /Weiße Smartboard-Fläche/);
   assert.doesNotMatch(teachingSurface, /<BoardInk/);
   assert.doesNotMatch(teachingSurface, /Schreiben & Zeichnen/);
   assert.doesNotMatch(teachingSurface, /Widgets bedienen/);
@@ -222,7 +222,7 @@ test("Cockpit: Vorlage erstellen ist direkt sichtbar und öffnet den Erstellen-T
 
 test("Cockpit: Widget-Bearbeitung liegt in einem kompakten Kontextmenü", () => {
   assert.match(cockpitWidget, /aria-label="Widget-Menü öffnen"/);
-  for (const label of ["Einstellungen", "Größe", "Widget schließen"]) {
+  for (const label of ["Einstellungen", "Größe", "Groß fest einstellen", "Widget schließen"]) {
     assert.ok(cockpitWidget.includes(label), `Widget-Menüeintrag fehlt: ${label}`);
   }
   assert.doesNotMatch(cockpitWidget, /aria-label="Widget maximieren"/);
@@ -237,9 +237,12 @@ test("Cockpit: automatische Anordnung kann vier Widgets als 2x2-Raster einpassen
   assert.match(teachingSurface, /h: targetH/);
 });
 
-test("Cockpit: Ich-bin-da zeigt auch kompakt alle Kindernamen mit Status", () => {
+test("Cockpit: Ich-bin-da zeigt Kindernamen vollständig und gibt ihnen ausreichend Kartenbreite", () => {
   assert.match(kidAttendance, /Anwesenheitsliste mit allen Kindern/);
   assert.match(kidAttendance, /students\.map\(\(student\) =>/);
   assert.match(kidAttendance, /status === 'present' \? '✓ Da' : status === 'absent' \? 'Fehlt' : 'Offen'/);
   assert.doesNotMatch(kidAttendance, /openStudents\.slice\(0, 4\)/);
+  assert.match(kidAttendance, /whitespace-normal break-words font-black leading-tight/);
+  assert.match(kidAttendance, /grid-cols-2 md:grid-cols-3 xl:grid-cols-4/);
+  assert.doesNotMatch(kidAttendance, /grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5/);
 });
