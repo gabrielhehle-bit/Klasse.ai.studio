@@ -34,22 +34,26 @@ export default function EmailAccountLogin({ compact = false, onSuccess }: EmailA
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
+  const [statusLoadError, setStatusLoadError] = React.useState<string | null>(null);
 
   const loadStatus = React.useCallback(async () => {
-    const response = await fetch('/api/access/status', { cache: 'no-store' });
-    if (!response.ok) throw new Error('Anmeldestatus konnte nicht geladen werden.');
+    setStatusLoadError(null);
+    let response: Response;
+    try {
+      response = await fetch('/api/access/status', { cache: 'no-store' });
+    } catch {
+      throw new Error('Klassio kann den Kontostatus gerade nicht erreichen. Bitte Internetverbindung prüfen.');
+    }
+    if (!response.ok) throw new Error('Anmeldestatus konnte nicht geladen werden. Bitte erneut versuchen.');
     const data = await response.json();
     setStatus(data);
     return data as AccessStatus;
   }, []);
 
   React.useEffect(() => {
-    loadStatus().catch(() => setStatus({
-      authenticated: true,
-      emailLoginEnabled: false,
-      account: null,
-      identity: null,
-    }));
+    loadStatus().catch((cause) => {
+      setStatusLoadError(cause instanceof Error ? cause.message : 'Anmeldestatus konnte nicht geladen werden.');
+    });
   }, [loadStatus]);
 
   const requestCode = async (event: React.FormEvent) => {
@@ -100,8 +104,8 @@ export default function EmailAccountLogin({ compact = false, onSuccess }: EmailA
       setStep('email');
       setCode('');
       setNotice(data?.school
-        ? 'Schulmail bestätigt. Verschlüsselter Konto-Sync, Klassenteam und Lehrerzimmer sind jetzt verfügbar.'
-        : 'E-Mail-Konto bestätigt. Dein verschlüsselter Konto-Sync ist aktiv; diese Adresse ist noch keiner verifizierten Schule zugeordnet.');
+        ? 'Schulmail bestätigt. Der verschlüsselte Konto-Abgleich wird jetzt gestartet; Klassenteam und Lehrerzimmer sind verfügbar.'
+        : 'E-Mail-Konto bestätigt. Der verschlüsselte Konto-Abgleich wird jetzt gestartet; diese Adresse ist noch keiner verifizierten Schule zugeordnet.');
       onSuccess?.();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'E-Mail-Anmeldung fehlgeschlagen.');
@@ -111,7 +115,19 @@ export default function EmailAccountLogin({ compact = false, onSuccess }: EmailA
   };
 
   if (!status) {
-    return (
+    return statusLoadError ? (
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
+        <div className="text-sm font-black text-rose-900">Kontostatus nicht erreichbar</div>
+        <p className="mt-1 text-xs font-semibold leading-relaxed text-rose-700">{statusLoadError}</p>
+        <button
+          type="button"
+          onClick={() => void loadStatus().catch(cause => setStatusLoadError(cause instanceof Error ? cause.message : 'Anmeldestatus konnte nicht geladen werden.'))}
+          className="mt-3 rounded-xl border border-rose-200 bg-white px-4 py-2 text-xs font-black text-rose-700"
+        >
+          Erneut prüfen
+        </button>
+      </div>
+    ) : (
       <div className="rounded-2xl border border-stone-200 bg-white p-5 text-sm font-bold text-slate-500">
         <Loader2 size={16} className="mr-2 inline animate-spin" /> Anmeldestatus wird geladen …
       </div>
