@@ -48,8 +48,10 @@ test('compact Heute dashboard no longer shows privacy toggle or redundant taglin
 });
 
 test('important notices are rendered before attendance inside Offen & im Blick', () => {
-  const importantIndex = source.indexOf('{tasks.length ? (');
-  const attendanceIndex = source.indexOf('Anwesenheit');
+  const sectionIndex = source.indexOf('aria-label="Wichtig und offen"');
+  const importantIndex = source.indexOf('{tasks.length ? (', sectionIndex);
+  const attendanceIndex = source.indexOf('<Users size={15} />', sectionIndex);
+  assert.ok(sectionIndex >= 0, 'Wichtig-Sektion fehlt');
   assert.ok(importantIndex >= 0, 'Hinweis-Liste fehlt');
   assert.ok(attendanceIndex > importantIndex, 'Anwesenheit darf wichtige Hinweise nicht überdecken');
   assert.match(source, /item\.category/);
