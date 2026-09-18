@@ -100,8 +100,8 @@ export default function EmailAccountLogin({ compact = false, onSuccess }: EmailA
       setStep('email');
       setCode('');
       setNotice(data?.school
-        ? 'Schulmail bestätigt. Klassenteam und Lehrerzimmer sind jetzt freigeschaltet.'
-        : 'E-Mail-Konto bestätigt. Diese Adresse ist noch keiner verifizierten Schule zugeordnet.');
+        ? 'Schulmail bestätigt. Verschlüsselter Konto-Sync, Klassenteam und Lehrerzimmer sind jetzt verfügbar.'
+        : 'E-Mail-Konto bestätigt. Dein verschlüsselter Konto-Sync ist aktiv; diese Adresse ist noch keiner verifizierten Schule zugeordnet.');
       onSuccess?.();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'E-Mail-Anmeldung fehlgeschlagen.');
@@ -161,7 +161,7 @@ export default function EmailAccountLogin({ compact = false, onSuccess }: EmailA
         <div>
           <h3 className="text-base font-black text-slate-950">E-Mail & Schulidentität</h3>
           <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">
-            Melde dich mit deiner E-Mail an. Eine verifizierte Schulmail schaltet zusätzlich Klassenteam und Lehrerzimmer frei.
+            Melde dich mit deiner E-Mail an. Dein entsperrter Datentresor wird damit verschlüsselt zwischen deinen Geräten synchronisiert; eine verifizierte Schulmail schaltet zusätzlich Klassenteam und Lehrerzimmer frei.
           </p>
         </div>
       </div>
