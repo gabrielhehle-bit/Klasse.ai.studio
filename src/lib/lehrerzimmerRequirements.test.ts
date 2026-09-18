@@ -98,6 +98,43 @@ test('@Erwähnungen werden auf Kollegiumsbenutzer derselben Schule aufgelöst', 
   }
 });
 
+test('Lehrerzimmer speichert Gelesen-Status pro Lehrperson und macht neue Antworten wieder ungelesen', async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-lehrerzimmer-unread-'));
+  try {
+    const store = createLehrerzimmerStore(dir);
+    const anna = createTeacherIdentity('anna.test@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    const bob = createTeacherIdentity('bob.test@vsfoa.vobs.at', ['vsfoa.vobs.at']);
+    assert.ok(anna && bob);
+
+    await store.ensureUser(anna);
+    await store.ensureUser(bob);
+    const post = await store.createPost(bob, {
+      category: undefined,
+      kind: undefined,
+      title: undefined,
+      body: 'Wer hat morgen Aufsicht?',
+    });
+
+    assert.equal(post.quick, true);
+    assert.equal(post.category, 'info');
+    assert.equal(post.kind, 'beitrag');
+
+    const annaPosts = await store.listPosts(anna);
+    assert.equal(annaPosts[0].unread, true);
+    assert.equal((await store.getUnreadSummary(anna)).count, 1);
+    assert.equal((await store.getUnreadSummary(bob)).count, 0);
+
+    await store.markPostsRead(anna, [post.id]);
+    assert.equal((await store.getUnreadSummary(anna)).count, 0);
+
+    await store.addReply(bob, post.id, 'Ich tausche mit dir.');
+    assert.equal((await store.getUnreadSummary(anna)).count, 1);
+    assert.equal((await store.listPosts(anna))[0].unread, true);
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('Lehrerzimmer ist direkter Hauptbereich und im App-Routing vorhanden', () => {
   const sidebar = read('src/components/Sidebar.tsx');
   const nav = read('src/lib/sidebarNavigation.ts');
@@ -230,4 +267,23 @@ test('Lehrerzimmer zeigt Bearbeiten und Löschen nur für eigene Inhalte', () =>
   assert.match(component, /startEditingPost\(post\)/);
   assert.match(component, /deleteOwnPost\(post\.id\)/);
   assert.match(component, /deleteOwnReply\(post\.id, reply\.id\)/);
+});
+
+
+test('Lehrerzimmer ist fest unter Tools sichtbar und signalisiert ungelesene Nachrichten', () => {
+  const sidebar = read('src/components/Sidebar.tsx');
+  const dashboard = read('src/components/Dashboard.tsx');
+  const component = read('src/components/Lehrerzimmer.tsx');
+  const server = read('server.ts');
+
+  assert.match(sidebar, /'tools',[\s\S]*'lehrerzimmer'/);
+  assert.match(sidebar, /id: 'lehrerzimmer'.*section: 'Tools'/);
+  assert.match(sidebar, /lehrerzimmerUnread\.count > 0/);
+  assert.match(dashboard, /data-testid="dashboard-lehrerzimmer-unread"/);
+  assert.match(dashboard, /setPage\("lehrerzimmer"\)/);
+  assert.match(component, /data-testid="lehrerzimmer-quick-message"/);
+  assert.match(component, /JSON\.stringify\(\{ body: message \}\)/);
+  assert.match(component, /data-unread=\{post\.unread/);
+  assert.match(server, /app\.get\('\/api\/lehrerzimmer\/unread', requireTeacherIdentity/);
+  assert.match(server, /app\.post\('\/api\/lehrerzimmer\/read', requireTeacherIdentity/);
 });
