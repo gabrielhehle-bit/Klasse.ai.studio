@@ -4362,162 +4362,40 @@ export default function PrintCenter() {
     const friStr = `${pageDates.friday.getDate()}.${pageDates.friday.getMonth() + 1}.${pageDates.friday.getFullYear()}`;
     const kbHeaderDateStr = `(${monStr}-${friStr})`;
 
+    const printableCategories = Object.entries(pageKbData).filter(([category]) =>
+      kbIncludeOccurrences || category !== 'Besondere Vorkommnisse'
+    );
+
     return (
       <div className="space-y-4 print:space-y-3 font-sans">
         {/* Scanned-document replica table */}
-        <table className="w-full border-collapse border-[2.5px] border-black text-black">
+        <table className="w-full border-collapse border-2 border-slate-900 text-black">
           <thead>
             <tr>
-              <th colSpan={3} className="bg-[#e4e4e7] border-b-[2.5px] border-black p-3 text-center text-[0.875rem] leading-snug md:text-[1rem] leading-normal font-black tracking-wide text-black uppercase">
+              <th colSpan={2} className="bg-slate-900 border-b-2 border-slate-900 p-3 text-center text-[0.875rem] font-black tracking-wide text-white uppercase">
                 {pageDates.sw}. Schulwoche {kbHeaderDateStr}
+              </th>
+            </tr>
+            <tr className="bg-slate-100 border-b border-slate-400">
+              <th className="w-[34%] border-r border-slate-400 px-3 py-2 text-left text-[0.625rem] font-black uppercase tracking-wider text-slate-600">
+                Bereich
+              </th>
+              <th className="px-3 py-2 text-left text-[0.625rem] font-black uppercase tracking-wider text-slate-600">
+                Unterricht / Inhalt
               </th>
             </tr>
           </thead>
           <tbody>
-            {/* Deutsch Rechtschreiben */}
-            <tr className="border-b-[1.5px] border-black">
-              <td rowSpan={5} className="bg-[#f4f4f5] border-r-[2px] border-black p-2 font-black text-center w-[12%] align-middle">
-                <div className="font-extrabold text-[0.75rem] uppercase tracking-[0.14em]" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', margin: 'auto' }}>
-                  Deutsch
-                </div>
-              </td>
-              <td className="bg-white border-r border-b border-zinc-300 p-2 font-bold text-left text-[0.65625rem] text-zinc-900 w-[20%] leading-tight">
-                Recht-<br/>schreiben
-              </td>
-              <td className="border-b border-zinc-300 p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap">
-                {pageKbData['Deutsch - Rechtschreiben']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Deutsch Sprachbetrachtung */}
-            <tr className="border-b-[1.5px] border-black">
-              <td className="bg-white border-r border-b border-zinc-300 p-2 font-bold text-left text-[0.65625rem] text-zinc-900 leading-tight">
-                Sprach-<br/>betrachtung
-              </td>
-              <td className="border-b border-zinc-300 p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap">
-                {pageKbData['Deutsch - Sprachbetrachtung']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Deutsch Texte verfassen */}
-            <tr className="border-b-[1.5px] border-black">
-              <td className="bg-white border-r border-b border-zinc-300 p-2 font-bold text-left text-[0.65625rem] text-zinc-900 leading-tight">
-                Texte<br/>verfassen
-              </td>
-              <td className="border-b border-zinc-300 p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap">
-                {pageKbData['Deutsch - Texte verfassen']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Deutsch Lesen */}
-            <tr className="border-b-[1.5px] border-black">
-              <td className="bg-white border-r border-b border-zinc-300 p-2 font-bold text-left text-[0.65625rem] text-zinc-900 leading-tight">
-                Lesen
-              </td>
-              <td className="border-b border-zinc-300 p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap">
-                {pageKbData['Deutsch - Lesen']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Deutsch D- FÖ */}
-            <tr className="border-b-[2px] border-black">
-              <td className="bg-white border-r border-black p-2 font-bold text-left text-[0.65625rem] text-zinc-900 leading-tight">
-                D- FÖ
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap">
-                {pageKbData['Deutsch - D- FÖ']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Mathematik */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Mathematik
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Mathematik']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Sachunterricht */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Sachunterricht
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Sachunterricht']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* BSP */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                BSP
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['BSP']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Werken */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Werken
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Werken']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Musik */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Musik
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Musik']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Englisch */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Englisch
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Englisch']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Zeichnen */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Zeichnen
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Zeichnen']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Religion */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Religion
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Religion']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Besondere Vorkommnisse */}
-            <tr className="avoid-break">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3.5 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%] leading-tight">
-                Besondere<br/>Vorkommnisse
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3.5rem]">
-                {pageKbData['Besondere Vorkommnisse']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
+            {printableCategories.map(([category, entries]) => (
+              <tr key={category} className="avoid-break border-b border-slate-300 last:border-b-0">
+                <td className="border-r border-slate-300 bg-slate-50 px-3 py-2 text-[0.65625rem] font-black leading-tight text-slate-800">
+                  {category}
+                </td>
+                <td className="px-3 py-2 text-[0.6875rem] font-semibold leading-relaxed text-slate-800 whitespace-pre-wrap">
+                  {entries.length > 0 ? entries.join(' · ') : <span className="text-slate-300">—</span>}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
 
