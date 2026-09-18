@@ -17,7 +17,7 @@ export default function AccountSettings() {
           <div>
             <h2 className="text-lg font-black text-slate-950">Konto & Schulmail</h2>
             <p className="mt-1 text-sm font-medium leading-relaxed text-slate-600">
-              Die E-Mail-Anmeldung ist dein persönliches Klassio-Konto. Mit einer verifizierten Schulmail werden zusätzlich schulinterne Funktionen freigeschaltet.
+              Die E-Mail-Anmeldung ist dein persönliches Klassio-Konto. Sobald dein Datentresor entsperrt ist, wird dein KLASSIO-Stand automatisch Ende-zu-Ende-verschlüsselt mit diesem Konto synchronisiert. Eine verifizierte Schulmail schaltet zusätzlich schulinterne Funktionen frei.
             </p>
           </div>
         </div>
@@ -27,7 +27,7 @@ export default function AccountSettings() {
           <div className="flex items-start gap-3">
             <Database size={17} className="mt-0.5 shrink-0 text-emerald-700" />
             <p className="text-xs font-semibold leading-relaxed text-emerald-900">
-              Bereits eingerichtete Klassen, Planungen, Noten und Tresordaten bleiben auf diesem Gerät erhalten. Die E-Mail-Anmeldung ergänzt dein bestehendes Klassio nur um Konto- und Teamfunktionen – sie setzt nichts zurück.
+              Klassen, Planungen, Noten und Einstellungen bleiben lokal verschlüsselt und werden mit aktivem E-Mail-Konto zusätzlich verschlüsselt auf dem KLASSIO-Server gespeichert. Der Server erhält keinen lesbaren Schülerbestand und keinen unverschlüsselten Tresorschlüssel. Datei- oder OneDrive-Backups bleiben als freiwillige Zusatzsicherung möglich.
             </p>
           </div>
         </div>
