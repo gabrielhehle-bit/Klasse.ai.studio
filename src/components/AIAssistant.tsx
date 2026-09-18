@@ -16,9 +16,6 @@ import EmailAssistant from './EmailAssistant';
 import Differentiation from './Differentiation';
 import VerbalAssessment from './VerbalAssessment';
 import MaterialOptimizer from './MaterialOptimizer';
-import WorksheetGenerator from './WorksheetGenerator';
-import ScheduleOptimizer from './ScheduleOptimizer';
-import { StationenbetriebManager } from './StationenbetriebManager';
 import { askAI, type AiUsageStatus } from '../services/aiService';
 import { KI_SYSTEM_PROMPTS } from '../kiSystemPrompts';
 import { useMaterialLibrary, calculateStorageSize } from './Materialbibliothek';
@@ -28,82 +25,52 @@ import Markdown from 'react-markdown';
 
 const EXAMPLE_PROMPTS: Record<string, { text: string; icon: any }[]> = {
   'ki-helfer': [
-    { text: "Methode für Einstieg in den Wasserkreislauf für 4. Klasse", icon: BookOpen },
-    { text: "Wie differenziere ich eine Lesestunde für DaZ-Kinder?", icon: Layers },
-    { text: "Spielerische Übung für die Stille-Wiederholung", icon: MessageSquare },
-    { text: "Gruppenarbeit mit klaren Rollen für eine 4. Klasse", icon: Target },
-    { text: "5-Minuten-Aktivierungsspiel für regnerische Pausen", icon: Activity },
-    { text: "Unterrichtsidee zum Thema 'Demokratie & Klassensprecher'", icon: User },
-    { text: "Einstiegs-Rätsel für eine Geometrie-Stunde (Körper & Formen)", icon: Sparkles },
-    { text: "Fördertipps für Kinder mit Rechenschwierigkeiten (Zehnerübergang)", icon: Zap },
-    { text: "Kreative Schreibaufgabe für die 3. Klasse: Abenteuergeschichte", icon: PenTool },
-    { text: "Wie erkläre ich den Unterschied zwischen Nadel- & Laubwald?", icon: Waves },
-  ],
-  'ki-lernziele': [
-    { text: "Welche Ziele aus dem Deutsch-Lehrplan fehlen uns noch in der 3. Klasse?", icon: Target },
-    { text: "Schlage mir Stationen vor, um die offenen Lese-Ziele zu erarbeiten.", icon: Layers },
-    { text: "Was sind sinnvolle Lernziele für ein Kind mit SPF nächste Woche?", icon: Target },
-    { text: "Bitte analysiere den aktuellen Klassen-Fortschritt in Sachunterricht.", icon: Sparkles },
+    { text: "Gib mir einen 10-Minuten-Einstieg zum Wasserkreislauf für die 4. Klasse.", icon: BookOpen },
+    { text: "Wie bekomme ich nach der Pause schnell wieder Ruhe in die Klasse?", icon: Activity },
+    { text: "Plane eine kooperative Übung, bei der wirklich jedes Kind beteiligt ist.", icon: Target },
+    { text: "Welche einfache Methode eignet sich für eine kurze Lernstandsabfrage?", icon: Sparkles },
   ],
   'ki-wissen': [
-    { text: "Was sind die Bildungsstandards für Mathematik 4. Klasse?", icon: BookOpen },
-    { text: "Wie funktioniert die Beurteilung mit MIKA-D?", icon: Scale },
-    { text: "Was ist der Unterschied zwischen formativer und summativer Bewertung?", icon: Info },
-    { text: "Welche Methoden zur Lese-Diagnostik gibt es?", icon: Search },
-  ],
-  'ki-recht': [
-    { text: "Was muss ich bei einer schriftlichen Mitteilung beachten?", icon: Scale },
-    { text: "Welche Regeln gelten für die Aufsichtspflicht im Pausenhof?", icon: Shield },
-    { text: "Was sind die rechtlichen Vorgaben für KEL-Gespräche?", icon: Scale },
-    { text: "Wer entscheidet bei einem Förderbedarf-Wechsel?", icon: User },
+    { text: "Erkläre den Zehnerübergang fachlich korrekt und anschließend kindgerecht.", icon: BookOpen },
+    { text: "Wie kann ich Kindern den Wasserkreislauf mit einer guten Analogie erklären?", icon: Waves },
+    { text: "Erkläre den Unterschied zwischen Fläche und Umfang für die Volksschule.", icon: Info },
+    { text: "Was bedeutet formative Rückmeldung im Unterricht?", icon: Search },
   ],
   'ki-reflexion': [
-    { text: "Hilf mir, eine schwierige Stunde von heute zu reflektieren", icon: MessageSquare },
-    { text: "Wie kann ich mit einem konflikthaften Elterngespräch umgehen?", icon: User },
-    { text: "Was sollte ich diese Woche anders machen?", icon: Target },
-    { text: "Selbstreflexion zu meiner Unterrichtssprache", icon: Wand2 },
+    { text: "Hilf mir, eine unruhige Unterrichtsstunde strukturiert zu reflektieren.", icon: MessageSquare },
+    { text: "Welche Fragen helfen mir nach einem schwierigen Elterngespräch bei der Reflexion?", icon: User },
+    { text: "Ich habe heute zu viel selbst gesprochen. Hilf mir, einen kleinen nächsten Schritt zu finden.", icon: Target },
+  ],
+  'ki-lernziele': [
+    { text: "Welche offenen Lernziele sollten wir als Nächstes priorisieren?", icon: Target },
+    { text: "Schlage kleine Unterrichtsschritte für die noch offenen Ziele vor.", icon: Layers },
+    { text: "Wie kann ich die erreichten Lernziele sinnvoll sichern und wiederholen?", icon: Sparkles },
   ],
   'ki-elternbrief': [
-    { text: "Information für Eltern über den Wald-Ausflug", icon: Mail },
-    { text: "Rückmeldung an Eltern zu Verhalten im Unterricht", icon: Mail },
-    { text: "Elternbrief zur Ankündigung der nächsten Schularbeit", icon: Mail },
-    { text: "Tipps für Eltern zur Förderung des Kindes zuhause", icon: Mail },
+    { text: "Information für Eltern über einen Ausflug.", icon: Mail },
+    { text: "Kurze, freundliche Erinnerung an einen Termin.", icon: Mail },
+    { text: "Sachliche Mitteilung zu einem Unterrichtsthema.", icon: Mail },
   ],
   'ki-differenzierung': [
-    { text: "Sachtext über den Wasserkreislauf für DaZ-Schüler vereinfachen", icon: Layers },
-    { text: "Matheaufgabe für Kinder mit erhöhtem Förderbedarf (SPF) anpassen", icon: Target },
-    { text: "Transferaufgaben zur Begabtenförderung erstellen", icon: Layers },
-    { text: "Visuelle Lösungs-Schritte für lese-schwache Kinder generieren", icon: Zap },
+    { text: "Vereinfache eine Leseaufgabe für DaZ, ohne das Lernziel zu verändern.", icon: Layers },
+    { text: "Erstelle drei Niveaustufen für eine Mathematikaufgabe.", icon: Target },
+    { text: "Gib mir eine Transferaufgabe für besonders schnelle Kinder.", icon: Zap },
   ],
   'ki-beurteilung': [
-    { text: "Verbale Beurteilung für ein Kind mit Lernfortschritt in Lesen", icon: FileEdit },
-    { text: "Wie formuliere ich Förderhinweise in einem Zeugnis?", icon: Save },
-    { text: "Bewertung einer Projektarbeit in Sachunterricht", icon: ClipboardList },
-    { text: "Kommentar zur Mitarbeit eines stillen Kindes", icon: MessageSquare },
+    { text: "Formuliere aus fachbezogenen Leistungsdaten ein neutrales Lernfeedback.", icon: FileEdit },
+    { text: "Formuliere einen konkreten nächsten Lernschritt ohne eine Note vorzuschlagen.", icon: Target },
   ],
   'ki-korrektur': [
-    { text: "Korrektur eines Aufsatzes zum Wasserkreislauf", icon: Check },
-    { text: "Hilf mir, einen Mathematik-Test zu erstellen", icon: ClipboardList },
-    { text: "Bewertungsraster für eine Buchpräsentation", icon: Layout },
-    { text: "Häufige Rechtschreibfehler in 4. Klasse", icon: Search },
-  ],
-  'ki-arbeitsblatt': [
-    { text: "Rechenpäckchen Einmaleins mit 6, Stufe 2, 10 Aufgaben", icon: FileEdit },
-    { text: "Lückentext zum Thema Waldtiere, Sachunterricht", icon: Layers },
-    { text: "Satzglieder bestimmen, Deutsch 4. Klasse, mittel", icon: Target },
+    { text: "Prüfe diesen Text nur auf Rechtschreibung und Grammatik.", icon: Check },
+    { text: "Kürze diesen Text, ohne wichtige Informationen zu verlieren.", icon: FileEdit },
+    { text: "Formuliere diesen Text kindgerechter.", icon: Wand2 },
   ],
   'ki-foto-korrektur': [
-    { text: "Fokus auf Rechtschreibung und Grammatik", icon: Search },
-    { text: "Stärkenorientiertes Feedback zum Textaufbau", icon: Heart },
-    { text: "Fördertipp für Ausdruck und Stil", icon: Wand2 },
-  ],
-  'ki-wochenplan': [
-    { text: "Wochenplan KW 23, Mathe S.45 und Deutsch Lernwörter", icon: ClipboardList },
-    { text: "Freiarbeitsplan mit Basis und Fordernd Differenzierung", icon: Layers },
-    { text: "Stationenbetrieb zum Thema Bauernhof, 2. Stufe", icon: BookOpen },
+    { text: "Fokus auf Rechtschreibung und Grammatik.", icon: Search },
+    { text: "Stärkenorientiertes Feedback zum Textaufbau.", icon: Heart },
+    { text: "Ein konkreter Fördertipp für Ausdruck und Stil.", icon: Wand2 },
   ],
 };
-
 const getRelativeTime = (timestamp: number) => {
   const diff = Date.now() - timestamp;
   const mins = Math.floor(diff / (1000 * 60));
@@ -254,7 +221,7 @@ function AISaveButton({ content, userPrompt, type, onSave }: AISaveButtonProps) 
   );
 }
 
-type AiTab = 'ki-helfer' | 'ki-paedagogik' | 'ki-wissen' | 'ki-recht' | 'ki-elternbrief' | 'ki-differenzierung' | 'ki-beurteilung' | 'ki-korrektur' | 'ki-reflexion' | 'ki-arbeitsblatt' | 'ki-foto-korrektur' | 'ki-wochenplan' | 'ki-stundenplan-check' | 'ki-lernziele' | 'ki-stationenbetrieb';
+type AiTab = 'ki-helfer' | 'ki-wissen' | 'ki-elternbrief' | 'ki-differenzierung' | 'ki-beurteilung' | 'ki-korrektur' | 'ki-reflexion' | 'ki-foto-korrektur' | 'ki-lernziele';
 
 export default function AIAssistant() {
   const { app, setApp, setPage } = useApp();
@@ -295,48 +262,12 @@ export default function AIAssistant() {
     return () => window.removeEventListener('klassio:ai-usage', onUsage);
   }, []);
 
-  // Form States for new modes
-  const [abFach, setAbFach] = useState('Deutsch');
-  const [abStufe, setAbStufe] = useState(app.stufe || 1);
-  const [abTyp, setAbTyp] = useState('Lückentext');
-  const [abThema, setAbThema] = useState('');
-  const [abSchwierigkeit, setAbSchwierigkeit] = useState('Mittel');
-  const [abAnzahl, setAbAnzahl] = useState(10);
-  
-  // Update available types when subject changes
-  useEffect(() => {
-    if (abFach === 'Deutsch') {
-      setAbTyp('Lückentext');
-    } else if (abFach === 'Mathematik') {
-      setAbTyp('Diagnostischer Kurztest');
-    } else {
-      setAbTyp('Wissensfragen');
-    }
-    setAbThema('');
-  }, [abFach]);
-
-  // Derived available lehrplan topics
-  const availableLehrplanTopics = React.useMemo(() => {
-    try {
-      const kompetenzen = LEHRPLAN_VS_2023[abFach]?.[abStufe] || [];
-      return kompetenzen.flatMap((k: any) => k.anwendungsbereiche.map((a: any) => a.titel));
-    } catch {
-      return [];
-    }
-  }, [abFach, abStufe]);
-
+  // Foto-Feedback stays intentionally lightweight: one image + school level + selected feedback focus.
   const [fkStufe, setFkStufe] = useState(app.stufe || 1);
   const [fkImageBase64, setFkImageBase64] = useState<{data: string, mimeType: string} | null>(null);
   const [fkImagePreview, setFkImagePreview] = useState<string | null>(null);
   const [fkPrivacyConfirmed, setFkPrivacyConfirmed] = useState(false);
   const [fkFokus, setFkFokus] = useState({rechtschreibung: true, grammatik: true, ausdruck: true, aufbau: true, inhalt: true});
-
-  const [wpStufe, setWpStufe] = useState(app.stufe || 1);
-  const [wpZeitraum, setWpZeitraum] = useState('');
-  const [wpPflicht, setWpPflicht] = useState('');
-  const [wpWahl, setWpWahl] = useState('');
-  const [wpDiff, setWpDiff] = useState({basis: true, standard: true, fordernd: true});
-  
   // Local messages for the current session - we'll sync this with app.aiChats on send/load
   const [activeMessages, setActiveMessages] = useState<Message[]>([]);
   
@@ -344,26 +275,30 @@ export default function AIAssistant() {
   const [showGuidedTool, setShowGuidedTool] = useState(false);
 
   useEffect(() => {
-    if (app.currentPage.startsWith('ki-')) {
-      const tab = app.currentPage === 'ki-paedagogik' ? 'ki-helfer' : app.currentPage as AiTab;
-      setActiveTab(tab);
-      // Reset chat for now when switching tabs via page navigation
-      setActiveMessages([]);
-      setActiveChatId(null);
-      // Decide if we should show guided tool by default (original behavior)
-      const isSpecialized = ['ki-elternbrief', 'ki-differenzierung', 'ki-beurteilung', 'ki-korrektur', 'ki-stundenplan-check', 'ki-stationenbetrieb'].includes(tab);
-      setShowGuidedTool(isSpecialized);
-    }
+    if (!app.currentPage.startsWith('ki-')) return;
+
+    const legacyMap: Record<string, AiTab> = {
+      'ki-paedagogik': 'ki-helfer',
+      'ki-recht': 'ki-wissen',
+    };
+    const candidate = legacyMap[app.currentPage] || app.currentPage;
+    const allowedTabs: AiTab[] = [
+      'ki-helfer', 'ki-wissen', 'ki-reflexion', 'ki-lernziele',
+      'ki-elternbrief', 'ki-differenzierung', 'ki-beurteilung',
+      'ki-korrektur', 'ki-foto-korrektur',
+    ];
+    const tab = allowedTabs.includes(candidate as AiTab) ? candidate as AiTab : 'ki-helfer';
+    setActiveTab(tab);
+    setActiveMessages([]);
+    setActiveChatId(null);
+    setShowGuidedTool(['ki-elternbrief', 'ki-differenzierung', 'ki-beurteilung', 'ki-korrektur'].includes(tab));
   }, [app.currentPage]);
   
-  // Also reset when activeTab changes manually
   useEffect(() => {
     setActiveMessages([]);
     setActiveChatId(null);
-    const isSpecialized = ['ki-elternbrief', 'ki-differenzierung', 'ki-beurteilung', 'ki-korrektur', 'ki-stundenplan-check', 'ki-stationenbetrieb'].includes(activeTab);
-    setShowGuidedTool(isSpecialized);
+    setShowGuidedTool(['ki-elternbrief', 'ki-differenzierung', 'ki-beurteilung', 'ki-korrektur'].includes(activeTab));
   }, [activeTab]);
-
   // A conversation must never remain open when the active class changes.
   useEffect(() => {
     setActiveMessages([]);
@@ -461,7 +396,8 @@ export default function AIAssistant() {
     
     if (!manualText) setInp('');
     
-    let contextStr = useClassContext ? buildAiClassContext(app) : '';
+    const allowClassContext = useClassContext && modusId !== 'ki-foto-korrektur';
+    let contextStr = allowClassContext ? buildAiClassContext(app) : '';
     if (useClassContext && modusId === 'ki-lernziele' && activeMessages.length === 0) {
       contextStr += buildAiLearningGoalContext(app);
     }
@@ -519,20 +455,15 @@ export default function AIAssistant() {
   };
 
   const tabs: { id: AiTab, label: string, icon: React.ReactNode, color: string, colorClass: string, bgClass: string, buttonColor: string, description: string, chat: boolean, category: 'advisor' | 'tool' }[] = [
-    { id: 'ki-helfer', label: 'Pädagogik', icon: <Bot size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#059669', description: 'Methoden & Planung', chat: true, category: 'advisor' },
-    { id: 'ki-wissen', label: 'Wissen', icon: <BookOpen size={20} />, color: 'amber', colorClass: 'text-amber-500/70', bgClass: 'bg-amber-600', buttonColor: '#d97706', description: 'Fachwissen & Sachkunde', chat: true, category: 'advisor' },
-    { id: 'ki-recht', label: 'Schulrecht', icon: <Scale size={20} />, color: 'slate', colorClass: 'text-slate-500/70', bgClass: 'bg-slate-600', buttonColor: '#475569', description: 'Gesetze & Regeln', chat: true, category: 'advisor' },
-    { id: 'ki-reflexion', label: 'Reflexion', icon: <MessageSquare size={20} />, color: 'teal', colorClass: 'text-teal-500/70', bgClass: 'bg-teal-600', buttonColor: '#0d9488', description: 'Feedback & Coaching', chat: true, category: 'advisor' },
-    { id: 'ki-elternbrief', label: 'Elternkommunikation', icon: <Mail size={20} />, color: 'indigo', colorClass: 'text-indigo-500/70', bgClass: 'bg-indigo-600', buttonColor: '#4f46e5', description: 'Information & Förderung', chat: true, category: 'tool' },
-    { id: 'ki-differenzierung', label: 'Differenzierung', icon: <Layers size={20} />, color: 'sky', colorClass: 'text-sky-500/70', bgClass: 'bg-sky-600', buttonColor: '#0284c7', description: 'DaZ & Förderbedarf', chat: true, category: 'tool' },
-    { id: 'ki-beurteilung', label: 'Leistungsbeurteilung', icon: <FileEdit size={20} />, color: 'orange', colorClass: 'text-orange-500/70', bgClass: 'bg-orange-600', buttonColor: '#ea580c', description: 'Noten & KEL', chat: true, category: 'tool' },
-    { id: 'ki-korrektur', label: 'Text prüfen', icon: <Check size={20} />, color: 'rose', colorClass: 'text-rose-500/70', bgClass: 'bg-rose-600', buttonColor: '#e11d48', description: 'Korrekturlesen', chat: true, category: 'tool' },
-    { id: 'ki-arbeitsblatt', label: 'Arbeitsblätter', icon: <FileText size={20} />, color: 'cyan', colorClass: 'text-cyan-500/70', bgClass: 'bg-cyan-600', buttonColor: '#0891b2', description: 'Fördern & Talente', chat: true, category: 'tool' },
-    { id: 'ki-foto-korrektur', label: 'Text-Korrektur (Foto)', icon: <Camera size={20} />, color: 'red', colorClass: 'text-red-500/70', bgClass: 'bg-red-500', buttonColor: '#ef4444', description: 'Schülertexte korrigieren', chat: true, category: 'tool' },
-    { id: 'ki-wochenplan', label: 'Wochenplan-Arbeit', icon: <ClipboardList size={20} />, color: 'purple', colorClass: 'text-purple-500/70', bgClass: 'bg-purple-600', buttonColor: '#9333ea', description: 'Pläne & Freiarbeit', chat: true, category: 'tool' },
-    { id: 'ki-lernziele', label: 'Lernziele', icon: <Target size={20} />, color: 'blue', colorClass: 'text-blue-500/70', bgClass: 'bg-blue-600', buttonColor: '#2563eb', description: 'Planung & Empfehlungen', chat: true, category: 'tool' },
-    { id: 'ki-stundenplan-check', label: 'Wochenplan prüfen', icon: <Activity size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#10b981', description: 'Wochenplanung prüfen', chat: false, category: 'tool' },
-    { id: 'ki-stationenbetrieb', label: 'Lernwerkstätten', icon: <LayoutGrid size={20} />, color: 'indigo', colorClass: 'text-indigo-500/70', bgClass: 'bg-indigo-600', buttonColor: '#4f46e5', description: 'Lernwerkstatt & Stationenbetrieb', chat: false, category: 'tool' },
+    { id: 'ki-helfer', label: 'Pädagogik', icon: <Bot size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#059669', description: 'Methoden & Klassenführung', chat: true, category: 'advisor' },
+    { id: 'ki-wissen', label: 'Fachwissen', icon: <BookOpen size={20} />, color: 'amber', colorClass: 'text-amber-500/70', bgClass: 'bg-amber-600', buttonColor: '#d97706', description: 'Erklären & didaktisch reduzieren', chat: true, category: 'advisor' },
+    { id: 'ki-reflexion', label: 'Reflexion', icon: <MessageSquare size={20} />, color: 'teal', colorClass: 'text-teal-500/70', bgClass: 'bg-teal-600', buttonColor: '#0d9488', description: 'Unterricht reflektieren', chat: true, category: 'advisor' },
+    { id: 'ki-lernziele', label: 'Lernziele', icon: <Target size={20} />, color: 'blue', colorClass: 'text-blue-500/70', bgClass: 'bg-blue-600', buttonColor: '#2563eb', description: 'Aggregierte Lernzielanalyse', chat: true, category: 'advisor' },
+    { id: 'ki-elternbrief', label: 'Elternkommunikation', icon: <Mail size={20} />, color: 'indigo', colorClass: 'text-indigo-500/70', bgClass: 'bg-indigo-600', buttonColor: '#4f46e5', description: 'Mitteilungen & Elternbriefe', chat: true, category: 'tool' },
+    { id: 'ki-differenzierung', label: 'Differenzierung', icon: <Layers size={20} />, color: 'sky', colorClass: 'text-sky-500/70', bgClass: 'bg-sky-600', buttonColor: '#0284c7', description: 'DaZ, Förderung & Begabung', chat: true, category: 'tool' },
+    { id: 'ki-beurteilung', label: 'Leistungsfeedback', icon: <FileEdit size={20} />, color: 'orange', colorClass: 'text-orange-500/70', bgClass: 'bg-orange-600', buttonColor: '#ea580c', description: 'Formulieren statt benoten', chat: true, category: 'tool' },
+    { id: 'ki-korrektur', label: 'Text prüfen', icon: <Check size={20} />, color: 'rose', colorClass: 'text-rose-500/70', bgClass: 'bg-rose-600', buttonColor: '#e11d48', description: 'Korrigieren & vereinfachen', chat: true, category: 'tool' },
+    { id: 'ki-foto-korrektur', label: 'Foto-Feedback', icon: <Camera size={20} />, color: 'red', colorClass: 'text-red-500/70', bgClass: 'bg-red-500', buttonColor: '#ef4444', description: 'Handschriftliche Texte', chat: true, category: 'tool' },
   ];
 
   const activeTabData = tabs.find(t => t.id === activeTab) || tabs[0];
@@ -557,10 +488,10 @@ export default function AIAssistant() {
             </div>
             {!isSidebarCollapsed && (
               <div className="">
-                <h2 className="text-[1.125rem] leading-normal font-black text-slate-900 tracking-tight whitespace-nowrap">ExpertISE-KI</h2>
+                <h2 className="text-[1.125rem] leading-normal font-black text-slate-900 tracking-tight whitespace-nowrap">KI-Helfer</h2>
                 <div className="flex items-center gap-1.5 opacity-50 whitespace-nowrap">
                   <Sparkles size={10} className="text-indigo-500" />
-                  <span className="text-[0.5rem] font-black uppercase tracking-widest text-slate-400 leading-none">Vernetzte Intelligenz</span>
+                  <span className="text-[0.5rem] font-black uppercase tracking-widest text-slate-400 leading-none">Schnelle Hilfe für den Lehreralltag</span>
                 </div>
               </div>
             )}
