@@ -23,8 +23,8 @@ test('Dossierübersicht verwendet scanbare Statuszeilen statt sechs enger Minika
 
 test('KEL hat eine einzige klare Kommandozeile und keine doppelte Modussteuerung im Präsentationsbereich', () => {
   assert.match(kel, /CLEAN KEL COMMAND BAR/);
-  assert.match(kel, />Folien</);
-  assert.match(kel, />Gesamtübersicht</);
+  assert.match(kel, /\n\s*Folien\s*\n/);
+  assert.match(kel, /\n\s*Gesamtübersicht\s*\n/);
   assert.match(kel, /Folien auswählen/);
   assert.match(kel, /Präsentieren/);
   assert.match(kel, /<summary[^>]*>\s*Mehr\s*<\/summary>/s);
