@@ -27,52 +27,6 @@ const isBirthdayToday = (geburtstagStr: string | undefined | null) => {
   return bday.getDate() === today.getDate() && bday.getMonth() === today.getMonth();
 };
 
-const playBirthdayJingle = () => {
-  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-  if (!AudioContext) return;
-  const ctx = new AudioContext();
-  const now = ctx.currentTime;
-  
-  // Happy birthday notes (C4 = 261.63, D4 = 293.66, E4 = 329.63, F4 = 349.23, G4 = 392.00, A4 = 440.00, B4 = 493.88, C5 = 523.25)
-  // Notes: C C D C F E
-  const notes = [
-    { freq: 261.63, delay: 0 },
-    { freq: 261.63, delay: 0.2 },
-    { freq: 293.66, delay: 0.4 },
-    { freq: 261.63, delay: 0.8 },
-    { freq: 349.23, delay: 1.2 },
-    { freq: 329.63, delay: 1.6 },
-  ];
-
-  notes.forEach((note) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(note.freq, now + note.delay);
-    
-    gain.gain.setValueAtTime(0, now + note.delay);
-    gain.gain.linearRampToValueAtTime(0.18, now + note.delay + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + note.delay + 0.6);
-    
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    osc.start(now + note.delay);
-    osc.stop(now + note.delay + 0.655);
-  });
-};
-
-const handleBirthdayCelebrate = (studentName: string) => {
-  confetti({
-    particleCount: 150,
-    spread: 80,
-    origin: { y: 0.6 },
-    zIndex: 99999
-  });
-  playBirthdayJingle();
-};
-
 export default function StudentList() {
   const { app, updateStudent, deleteStudent, setApp, setPage } = useApp();
   const zoomLevel = app?.settings?.zoomLevel || "standard";
@@ -610,20 +564,16 @@ export default function StudentList() {
                              <div className="flex flex-wrap items-center gap-2">
                                 <span className={`font-black ${
                                   isCompact ? 'text-[0.85rem]' : isLarge ? 'text-[1.125rem]' : 'text-[0.9375rem] sm:text-[1.0625rem]'
-                                } ${bday ? 'bg-gradient-to-r from-pink-500 via-amber-500 to-indigo-500 bg-clip-text text-transparent animate-bounce pr-1 font-extrabold' : 'text-slate-900'}`}>
+                                } ${bday ? 'text-pink-700 pr-1 font-extrabold' : 'text-slate-900'}`}>
                                    {s.nachname} {s.vorname}
                                 </span>
                                 {bday && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleBirthdayCelebrate(s.vorname);
-                                    }}
-                                    className="p-1 bg-amber-100 hover:bg-amber-200 text-rose-500 rounded-full cursor-pointer animate-bounce border border-amber-200/50 shadow-3xs flex items-center justify-center text-[0.75rem]"
-                                    title="Geburtstag feiern! 🎉"
+                                  <span
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-pink-50 text-pink-700 rounded-full border border-pink-200 text-[0.625rem] font-black"
+                                    title="Geburtstag heute"
                                   >
-                                    <Gift size={12} className="animate-spin duration-[3000ms]" />
-                                  </button>
+                                    <Gift size={11} /> Geburtstag
+                                  </span>
                                 )}
                              </div>
                              <div className="flex items-center gap-2 mt-1">
@@ -1250,24 +1200,19 @@ export default function StudentList() {
                    isCompact ? 'text-[0.75rem]' : isLarge ? 'text-[1.05rem]' : 'text-[0.84375rem]'
                  }`}>
                    {isBirthdayToday(s.geburtstag) ? (
-                     <span className="bg-gradient-to-r from-pink-500 via-amber-500 to-indigo-500 bg-clip-text text-transparent font-black pr-1 font-extrabold animate-pulse">
+                     <span className="text-pink-700 font-black pr-1 font-extrabold">
                        {s.vorname} {s.nachname}
                      </span>
                    ) : (
                      <span>{s.vorname} {s.nachname}</span>
                    )}
                    {isBirthdayToday(s.geburtstag) && (
-                     <button
-                       onClick={(e) => {
-                         e.stopPropagation();
-                         handleBirthdayCelebrate(s.vorname);
-                       }}
-                       className="inline-flex items-center justify-center p-0.5 bg-amber-500/10 hover:bg-amber-500/20 text-[0.75rem] leading-tight rounded-full cursor-pointer animate-bounce select-none border border-amber-500/20 active:scale-95 duration-100 animate-pulse"
-                       title="Geburtstagsüberraschung starten! 🎂🎉"
-                       type="button"
+                     <span
+                       className="inline-flex items-center justify-center px-1.5 py-0.5 bg-pink-50 text-pink-700 text-[0.6875rem] leading-tight rounded-full border border-pink-200"
+                       title="Geburtstag heute"
                      >
                        🎂
-                     </button>
+                     </span>
                    )}
                  </h4>
                  <div className={`flex items-center gap-2 font-black uppercase text-slate-400 ${
