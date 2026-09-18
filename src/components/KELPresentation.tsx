@@ -2826,10 +2826,15 @@ Antworte ausschließlich als JSON:
                       </div>
 
                       {/* Subject Presentation Grid */}
+                      {kelMode === 'einfach' && (
+                        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-2.5 text-left text-xs font-bold text-indigo-800">
+                          Im Gesprächsmodus stehen die Leistungen von {student.vorname} im Mittelpunkt. Klassenvergleich und Diagrammvarianten findest du unter „Mehr → Alle Folien“.
+                        </div>
+                      )}
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 flex-1 items-stretch">
                         
                         {/* LEFT COLUMN: GRADES PROFILE */}
-                        <div className="md:col-span-5 flex flex-col justify-between bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-4 text-left">
+                        <div className={`${kelMode === 'einfach' ? 'md:col-span-12' : 'md:col-span-5'} flex flex-col justify-between bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-4 text-left`}>
                           
                           {/* Grade chips grouped */}
                           <div className="space-y-4">
@@ -2990,7 +2995,7 @@ Antworte ausschließlich als JSON:
                         </div>
 
                         {/* RIGHT COLUMN: COMPARATIVE DIAGRAM WITH OPTIONS */}
-                        <div className="md:col-span-7 flex flex-col justify-between space-y-3 text-left">
+                        <div className={`${kelMode === 'einfach' ? 'hidden' : 'md:col-span-7'} flex flex-col justify-between space-y-3 text-left`}>
                           
                           {/* Diagram Format Selector tabs */}
                           <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
@@ -4739,10 +4744,10 @@ Antworte ausschließlich als JSON:
                 <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                   <div className="space-y-1">
                     <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight flex items-center gap-2">
-                      <span>⚙️ KEL-Foliensichtbarkeit</span>
+                      <span>Folien auswählen</span>
                     </h3>
                     <p className="text-[0.75rem] text-slate-500 font-bold leading-normal">
-                      Wählen Sie genau aus, welche Folien in der Präsentation für {student.vorname} angezeigt werden sollen.
+                      Wähle, welche Inhalte du im Gespräch mit {student.vorname} zeigen möchtest.
                     </p>
                   </div>
                   <button 
@@ -4757,7 +4762,7 @@ Antworte ausschließlich als JSON:
                 <div className="p-6 md:p-8 overflow-y-auto space-y-6 flex-1">
                   {/* Scope Selector in Modal too! */}
                   <div className="bg-indigo-50/40 border border-indigo-100/50 p-4.5 rounded-2xl space-y-3">
-                    <span className="text-[0.625rem] font-black uppercase tracking-widest text-indigo-900 block">Umfang-Voreinstellung</span>
+                    <span className="text-[0.625rem] font-black uppercase tracking-widest text-indigo-900 block">Schnellauswahl</span>
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -4782,7 +4787,7 @@ Antworte ausschließlich als JSON:
                             : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
                         }`}
                       >
-                        🌱 Einfach-Modus (Kernbereiche)
+                        Kernfolien
                       </button>
                       <button
                         type="button"
@@ -4803,7 +4808,7 @@ Antworte ausschließlich als JSON:
                             : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
                         }`}
                       >
-                        ⚡ Experten-Modus (Vollständig)
+                        Alle Folien
                       </button>
                     </div>
                   </div>
@@ -4811,7 +4816,7 @@ Antworte ausschließlich als JSON:
                   {/* List of custom slides checkable */}
                   <div className="space-y-4">
                     <h4 className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1">
-                      Einzelseiten-Sichtbarkeit ({kelMode === 'einfach' ? 'Einfach-Modus schränkt Sichtbarkeit ein' : 'Freie Auswahl'})
+                      Einzelne Folien ({kelMode === 'einfach' ? 'Kernauswahl aktiv' : 'freie Auswahl'})
                     </h4>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -4864,7 +4869,7 @@ Antworte ausschließlich als JSON:
                             {isRequired ? (
                               <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400 bg-slate-250 px-1.5 py-0.5 rounded">Erforderlich</span>
                             ) : isExcludedBySimple ? (
-                              <span className="text-[0.5625rem] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">In "Einfach" aus</span>
+                              <span className="text-[0.5625rem] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Nur bei „Alle Folien“</span>
                             ) : (
                               <input 
                                 type="checkbox"
@@ -4894,7 +4899,7 @@ Antworte ausschließlich als JSON:
                     onClick={() => setShowConfigDrawer(false)}
                     className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-[0.75rem] leading-tight uppercase tracking-widest rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
                   >
-                    Anwenden & Schließen
+                    Fertig
                   </button>
                 </div>
               </div>
