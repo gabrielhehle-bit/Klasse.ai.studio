@@ -287,7 +287,9 @@ export default function Backup() {
 
   // --- OneDrive Synchronisations-Logik ---
   const [isOneDriveConfigured, setIsOneDriveConfigured] = useState<boolean | null>(null);
-  const [showOneDriveFaq, setShowOneDriveFaq] = useState<boolean>(true);
+  const [showOneDriveFaq, setShowOneDriveFaq] = useState<boolean>(false);
+  const [showOneDriveTechnical, setShowOneDriveTechnical] = useState<boolean>(false);
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState<boolean>(false);
   const [activeAdminTab, setActiveAdminTab] = useState<'entra' | 'intune' | 'dsgvo'>('entra');
   const [copiedRedirectUri, setCopiedRedirectUri] = useState<boolean>(false);
   const [isOneDriveConnected, setIsOneDriveConnected] = useState<boolean>(false);
@@ -571,30 +573,30 @@ export default function Backup() {
       {/* Title & Core Status Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border border-stone-200/60 shadow-sm shrink-0">
         <div>
-          <h2 className="text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Datensicherung & Import</h2>
-          <p className="text-slate-500 font-medium tracking-tight">Lokale Sandbox-Daten verwalten, herunterladen oder rückspielen.</p>
+          <h2 className="text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Datensicherung</h2>
+          <p className="text-slate-500 font-medium tracking-tight">Sichere deine Klassio-Daten oder stelle eine vorhandene Sicherung wieder her.</p>
         </div>
         
         {/* Dynamic Timestamp Panel - Typografisch überlegen abgesetzt */}
         <div className="flex items-center gap-2.5 bg-amber-50/50 border border-amber-200/50 px-4 py-2.5 rounded-2xl shrink-0 w-full md:w-auto">
-          <Clock size={16} className="text-amber-600 animate-pulse" />
+          <Clock size={16} className="text-amber-600" />
           <div>
-            <p className="text-[0.5625rem] font-black uppercase tracking-wider text-amber-700 leading-none">Backup-Status</p>
+            <p className="text-[0.5625rem] font-black uppercase tracking-wider text-amber-700 leading-none">Letzte Sicherung</p>
             <p className="text-[0.75rem] font-black text-slate-900 mt-1 leading-tight">{lastBackupStr}</p>
           </div>
         </div>
       </div>
 
       {/* --- OneDrive Synchronisations-Panel --- */}
-      <div className="order-3 bg-white p-6 rounded-3xl border border-stone-200/60 shadow-sm space-y-5 flex flex-col relative group">
+      <div className="order-2 bg-white p-6 rounded-3xl border border-stone-200/60 shadow-sm space-y-5 flex flex-col relative group">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-stone-100 pb-6">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center shadow-inner">
               <Cloud size={28} />
             </div>
             <div>
-              <h3 className="text-[1.25rem] leading-normal font-black text-slate-900">OneDrive Cloud-Synchronisation</h3>
-              <p className="text-[0.8125rem] text-slate-500 font-medium">Speichern oder laden Sie eine Sicherungsdatei über ein verbundenes Microsoft-OneDrive-Konto.</p>
+              <h3 className="text-[1.25rem] leading-normal font-black text-slate-900">OneDrive-Sicherung</h3>
+              <p className="text-[0.8125rem] text-slate-500 font-medium">Optional: Sichere denselben verschlüsselten Datenbestand in deinem verbundenen OneDrive.</p>
             </div>
           </div>
           {isOneDriveConnected && (
@@ -620,11 +622,23 @@ export default function Backup() {
               <div>
                 <h4 className="text-[0.8125rem] font-black text-slate-900">Cloud-Sicherung noch nicht eingerichtet</h4>
                 <p className="text-[0.75rem] text-slate-500 font-medium leading-relaxed mt-1">
-                  Verwenden Sie bis dahin die lokale Sicherungsdatei oben. Die technische Einrichtung für M365 OneDrive & Intune erfolgt zentral durch die Schulinformatik / IT-Administration.
+                  OneDrive ist für diese Klassio-Installation noch nicht eingerichtet. Die lokale Sicherung oben funktioniert trotzdem vollständig.
                 </p>
               </div>
             </div>
             
+            <button
+              type="button"
+              aria-expanded={showOneDriveTechnical}
+              onClick={() => setShowOneDriveTechnical((value) => !value)}
+              className="w-full min-h-11 px-4 rounded-xl border border-sky-200 bg-white text-sky-800 text-xs font-black flex items-center justify-between gap-3 hover:bg-sky-50 transition-colors"
+            >
+              <span>Technische Einrichtung anzeigen</span>
+              <span aria-hidden="true">{showOneDriveTechnical ? '▲' : '▼'}</span>
+            </button>
+
+            {showOneDriveTechnical && (
+              <div className="space-y-4">
             {/* Quick Env Variable Setup Banner */}
             <div className="bg-white p-4 rounded-2xl border border-sky-150 text-[0.75rem] space-y-2.5 text-slate-700 shadow-sm">
               <p className="font-bold text-slate-800 flex items-center gap-1.5">
@@ -867,6 +881,8 @@ export default function Backup() {
                 </div>
               )}
             </div>
+              </div>
+            )}
           </div>
         ) : !isOneDriveConnected ? (
           <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
@@ -986,8 +1002,29 @@ export default function Backup() {
         )}
       </div>
 
+      <div className="order-3 bg-slate-50/70 border border-slate-200 rounded-2xl p-3">
+        <button
+          type="button"
+          aria-expanded={showAdvancedOptions}
+          onClick={() => setShowAdvancedOptions((value) => !value)}
+          className="w-full min-h-11 px-2 flex items-center justify-between gap-4 text-left"
+        >
+          <div>
+            <p className="text-sm font-black text-slate-800">Weitere Optionen</p>
+            <p className="text-xs font-medium text-slate-500 mt-0.5">
+              Speicher, Schuljahreswechsel, stillgelegte Klassen, Werksreset und Hinweise.
+            </p>
+          </div>
+          <span className="text-xs font-black text-slate-500 shrink-0">
+            {showAdvancedOptions ? 'Weniger ▲' : 'Anzeigen ▼'}
+          </span>
+        </button>
+      </div>
+
+      {showAdvancedOptions && (
+        <>
       {/* Visual storage-use check block */}
-      <div className="order-2 bg-white p-5 rounded-3xl border border-stone-200/60 shadow-sm space-y-3 shrink-0">
+      <div className="order-4 bg-white p-5 rounded-3xl border border-stone-200/60 shadow-sm space-y-3 shrink-0">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Database size={16} className={`${percentage > 80 ? 'text-rose-550 animate-bounce' : 'text-blue-500'}`} />
@@ -1011,6 +1048,9 @@ export default function Backup() {
         )}
       </div>
 
+        </>
+      )}
+
       {/* Main Action Boxes */}
       <div className="order-1 grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Export Card */}
@@ -1020,9 +1060,9 @@ export default function Backup() {
               <Download size={28} />
             </div>
             <div className="space-y-2">
-              <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 leading-none">Backup herunterladen</h3>
+              <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 leading-none">Jetzt sichern</h3>
               <p className="text-[0.8125rem] text-slate-500 font-medium leading-relaxed">
-                Laden Sie Schülerdaten, Noten, Sitzpläne und Einstellungen als JSON-Datensicherung herunter. Bewahren Sie die Datei geschützt auf.
+                Erstellt eine verschlüsselte Sicherungsdatei mit deinen Klassio-Daten. Bewahre sie an einem geschützten Ort auf.
               </p>
             </div>
           </div>
@@ -1055,7 +1095,7 @@ export default function Backup() {
               {backupStatus === 'idle' && (
                 <>
                   <Download size={16} />
-                  <span>Lokales Backup generieren</span>
+                  <span>Sicherung herunterladen</span>
                 </>
               )}
             </button>
@@ -1087,9 +1127,9 @@ export default function Backup() {
               <Upload size={28} />
             </div>
             <div className="space-y-2">
-              <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 leading-none">Backup einspielen</h3>
+              <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 leading-none">Backup wiederherstellen</h3>
               <p className="text-[0.8125rem] text-slate-500 font-medium leading-relaxed">
-                Wählen Sie eine zuvor erstellte JSON-Datei aus. Vor dem vollständigen Ersetzen des aktuellen lokalen Datenbestands wird nochmals nachgefragt.
+                Wähle eine vorhandene Klassio-Sicherung aus. Vor dem Ersetzen deiner aktuellen Daten fragt Klassio nochmals nach.
               </p>
             </div>
           </div>
@@ -1123,19 +1163,19 @@ export default function Backup() {
               {importStatus === 'importing' && (
                 <>
                   <Loader2 size={16} className="animate-spin text-emerald-850" />
-                  <span>Validierung läuft...</span>
+                  <span>Sicherung wird geprüft...</span>
                 </>
               )}
               {importStatus === 'success' && (
                 <>
                   <CheckCircle2 size={16} className="text-white animate-bounce" />
-                  <span>Erfolgreich eingespielt!</span>
+                  <span>Wiederhergestellt</span>
                 </>
               )}
               {importStatus === 'idle' && (
                 <>
                   <FileJson size={16} />
-                  <span>Backup hochladen</span>
+                  <span>Sicherungsdatei auswählen</span>
                 </>
               )}
             </button>
@@ -1143,10 +1183,12 @@ export default function Backup() {
         </div>
       </div>
 
+      {showAdvancedOptions && (
+        <>
       {/* Class retirement & Safety Actions */}
-      <h3 className="order-4 text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-2 mt-4">Schuljahres-Wechsel & Reset</h3>
+      <h3 className="order-5 text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-2 mt-4">Schuljahres-Wechsel & Reset</h3>
       
-      <div className="order-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="order-6 grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* Archive Action */}
         <div className="bg-indigo-50/50 p-6 rounded-3xl border border-indigo-200/50 flex flex-col justify-between gap-4">
@@ -1195,7 +1237,7 @@ export default function Backup() {
 
       {/* Stillgelegte, wiederherstellbare Klassen */}
       {app.retiredClasses && app.retiredClasses.length > 0 && (
-        <div className="order-6 mt-4 mb-4">
+        <div className="order-7 mt-4 mb-4">
           <h3 className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-2 mb-4">Stillgelegte Klassen</h3>
           <div className="space-y-3">
             {app.retiredClasses.map((ac: any) => (
@@ -1219,7 +1261,7 @@ export default function Backup() {
       )}
 
       {/* Info Boxes */}
-      <div className="order-7 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="order-8 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-slate-50 p-5 rounded-3xl border border-stone-200/40 flex gap-3.5">
           <div className="shrink-0 text-slate-400 mt-1"><Shield size={18} /></div>
           <div>
@@ -1235,6 +1277,9 @@ export default function Backup() {
           </div>
         </div>
       </div>
+
+        </>
+      )}
 
       {/* Safe Warn-Modal zum Löschen von Daten - Absolute highest Z-Index and backdrop-blur-sm */}
       <AnimatePresence>
