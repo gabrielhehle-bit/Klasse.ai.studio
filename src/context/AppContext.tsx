@@ -179,7 +179,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const decryptedRemote = await decryptAccountSyncSnapshot(remote, vaultKey);
       assertRestorableAppState(decryptedRemote);
       const normalizedRemoteState = normalizeAppState(decryptedRemote);
-      const remoteState = mergeAccountSyncState(normalizedRemoteState, current);
+      // Der Server-Baseline-Fingerprint muss exakt dem State entsprechen, den setApp
+      // anschließend im UI hält. Sonst kann ein frisch wiederhergestelltes Gerät allein
+      // durch die lokale Klassen-Normalisierung eine unnötige neue Serverrevision erzeugen.
+      const remoteState = syncActiveClass(mergeAccountSyncState(normalizedRemoteState, current));
       const localFingerprint = appStateFingerprint(current);
       const remoteFingerprint = appStateFingerprint(remoteState);
       const baseline = loadAccountSyncMetadata(vaultRecord.id);
@@ -377,7 +380,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const decryptedRemote = await decryptAccountSyncSnapshot(remote, vaultKey);
       assertRestorableAppState(decryptedRemote);
       const normalizedRemote = normalizeAppState(decryptedRemote);
-      const remoteState = mergeAccountSyncState(normalizedRemote, localState);
+      const remoteState = syncActiveClass(mergeAccountSyncState(normalizedRemote, localState));
       await saveEncryptedAppState(remoteState, vaultKey);
       currentAppRef.current = remoteState;
       setApp(remoteState);
