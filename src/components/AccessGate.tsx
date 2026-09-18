@@ -195,9 +195,9 @@ export default function AccessGate({ onSuccess }: AccessGateProps) {
               ? 'Anmeldemöglichkeiten werden geprüft …'
               : mode === 'email'
                 ? emailStep === 'email'
-                  ? 'Mit deiner E-Mail-Adresse anmelden.'
-                  : 'Gib den Code aus deiner E-Mail ein.'
-                : 'Mit dem administrativen Zugangscode anmelden.'}
+                  ? 'Mit deiner E-Mail anmelden und deine verschlüsselten KLASSIO-Daten auf diesem Gerät laden.'
+                  : 'Gib den Code aus deiner E-Mail ein. Ein separates KLASSIO-Kontopasswort brauchst du nicht.'
+                : 'Nur mit Zugangscode öffnen – ohne persönlichen Konto-Sync.'}
           </p>
         </div>
 
@@ -233,8 +233,11 @@ export default function AccessGate({ onSuccess }: AccessGateProps) {
                         className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold text-sm placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
                       />
                     </div>
+                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 px-3.5 py-3 text-[0.7rem] leading-relaxed text-indigo-800 font-semibold">
+                      <strong>Deine E-Mail ist dein KLASSIO-Konto.</strong> Du brauchst kein eigenes Kontopasswort. Nach dem 6-stelligen Code findet KLASSIO auf einem neuen PC automatisch deinen verschlüsselten Datenstand. Zum Entschlüsseln gibst du dort einmal dein bestehendes Tresor-Passwort ein.
+                    </div>
                     <p className="text-[0.7rem] leading-relaxed text-slate-400 font-medium">
-                      Private E-Mail-Adressen funktionieren für dein persönliches Klassio-Konto. Mit einer freigegebenen Schul-E-Mail wird zusätzlich deine Schule verifiziert und das Lehrerzimmer freigeschaltet.
+                      Auch private E-Mail-Adressen funktionieren für deinen persönlichen Geräte-Sync. Eine verifizierte Schul-E-Mail schaltet zusätzlich schulinterne Funktionen wie das Lehrerzimmer frei.
                     </p>
                   </div>
 
@@ -286,7 +289,7 @@ export default function AccessGate({ onSuccess }: AccessGateProps) {
                     className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none text-white rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/25 cursor-pointer"
                   >
                     {loading ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
-                    <span>{loading ? 'Code wird geprüft …' : 'Klassio öffnen'}</span>
+                    <span>{loading ? 'Code wird geprüft …' : 'Anmelden & Daten laden'}</span>
                     {!loading && <ArrowRight size={16} />}
                   </button>
 
@@ -314,6 +317,9 @@ export default function AccessGate({ onSuccess }: AccessGateProps) {
               )
             ) : (
               <form onSubmit={verifyAccessCode} className="space-y-5">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-[0.7rem] font-semibold leading-relaxed text-amber-900">
+                  Der Zugangscode öffnet KLASSIO ohne persönliches E-Mail-Konto. Daten von anderen PCs werden damit nicht automatisch geladen oder synchronisiert.
+                </div>
                 <div className="space-y-2">
                   <label className="block text-xs font-black uppercase tracking-wider text-slate-700">
                     Zugangscode
@@ -374,12 +380,12 @@ export default function AccessGate({ onSuccess }: AccessGateProps) {
                   onClick={() => switchMode(mode === 'email' ? 'access-code' : 'email')}
                   className="text-[0.72rem] font-bold text-indigo-600 hover:text-indigo-800"
                 >
-                  {mode === 'email' ? 'Stattdessen Zugangscode verwenden' : 'Mit E-Mail anmelden'}
+                  {mode === 'email' ? 'Nur Zugangscode verwenden (ohne Geräte-Sync)' : 'Mit E-Mail & Geräte-Sync anmelden'}
                 </button>
               )}
               <p className="text-[0.7rem] leading-relaxed font-medium text-slate-400">
-                Nach erfolgreicher Anmeldung bleibt dieses Gerät bis zu 30 Tage angemeldet.
-                Der lokale Datentresor ist davon getrennt und schützt deine Klassendaten zusätzlich.
+                Die E-Mail-Anmeldung bestätigt dein Konto und bleibt auf diesem Gerät bis zu 30 Tage aktiv.
+                Dein Tresor-Passwort wird nicht an den Server übertragen und schützt weiterhin die verschlüsselten Klassendaten.
               </p>
             </div>
           </>
