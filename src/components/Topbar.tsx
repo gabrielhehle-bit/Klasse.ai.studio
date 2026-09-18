@@ -15,8 +15,8 @@ import { getFerien } from '../lib/ferienOesterreich';
 import { AESTHETIC_THEMES, FONTS, DASHBOARD_CURATED_FONTS, DASHBOARD_FONT_SIZES } from '../constants';
 import { QRCodeCanvas } from 'qrcode.react';
 import { scanDataConsistency } from '../lib/DataConsistencyService';
-import { triggerBackupDownload } from '../utils/backupUtils';
 import { startSyncSession, createSyncUrl, getActiveEncodedSessionKey } from '../lib/syncService';
+import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
 import { Button, IconButton, Badge, Input } from './ui';
 import SupportModal from './SupportModal';
 import { getNavigationParent } from '../lib/navigationHierarchy';
@@ -29,64 +29,18 @@ interface TopbarProps {
 }
 
 const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) => {
-  const { app, setApp, setScreenLocked, setPage, switchClass, saveApp, lockAppVault } = useApp();
+  const { app, setApp, setScreenLocked, setPage, switchClass, lockAppVault } = useApp();
   const { showToast } = useToast();
   const consistencyIssues = React.useMemo(() => scanDataConsistency(app), [app]);
   const currentPage = app.currentPage || 'dashboard';
   const navigationParent = React.useMemo(() => getNavigationParent(currentPage), [currentPage]);
 
-  // Speichern State
-  const [saveSuccess, setSaveSuccess] = useState(false);
-
-  const handleManualSave = async () => {
-    try {
-      // 1. Lokale Speicherung in LocalForage / LocalStorage
-      await saveApp();
-
-      // 2. Verschlüsselte JSON Backup-Datei erzeugen und Download im Browser anstoßen
-      await triggerBackupDownload(app);
-
-      // 3. Zeitstempel aktualisieren
-      const nowStr = new Date().toISOString();
-      localStorage.setItem('lehrkraft_last_backup_time', nowStr);
-      localStorage.setItem('lastBackupTimestamp', Date.now().toString());
-
-      setApp((prev) => ({
-        ...prev,
-        backupEinstellungen: {
-          ...prev.backupEinstellungen,
-          letztesBackup: nowStr,
-          erinnerungAktiv: prev.backupEinstellungen?.erinnerungAktiv ?? true,
-        },
-      }));
-
-      setSaveSuccess(true);
-      showToast("Sicherungsdatei (.json) erfolgreich heruntergeladen & gespeichert!", "success");
-      setTimeout(() => setSaveSuccess(false), 2400);
-    } catch (e: any) {
-      console.error(e);
-      showToast(e?.message || "Fehler beim Herunterladen der Sicherungsdatei.", "error");
-    }
-  };
-
   // Dropdown States
   const [showMehrMenu, setShowMehrMenu] = useState(false);
-  const [showClassDropdown, setShowClassDropdown] = useState(false);
-  const [showDesignMenu, setShowDesignMenu] = useState(false);
   const [showWeatherDetails, setShowWeatherDetails] = useState(false);
   const [showSchoolYearDetails, setShowSchoolYearDetails] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
   
-  // Einfachmodus Toggle (saved in localStorage)
-  const [simpleHeaderMode, setSimpleHeaderMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('header_simple_mode');
-    return saved !== null ? saved === 'true' : false;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('header_simple_mode', simpleHeaderMode.toString());
-  }, [simpleHeaderMode]);
-
   // State for Modals & Systems
   const [currentTime, setCurrentTime] = useState(new Date());
   const [weather, setWeather] = useState<any>(null);
@@ -145,8 +99,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
       if (e.key === 'Escape') {
         setShowLargeQR(false);
         setShowMehrMenu(false);
-        setShowClassDropdown(false);
-        setShowDesignMenu(false);
         setShowWeatherDetails(false);
         setShowSchoolYearDetails(false);
       }
@@ -337,6 +289,22 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
     }
   };
 
+  const handleLogout = async () => {
+    const confirmed = window.confirm(
+      'Möchtest du dich auf diesem Gerät wirklich abmelden? Deine synchronisierten Daten bleiben erhalten. Das Gerätevertrauen wird entfernt, damit beim nächsten Login wieder dein Tresor-Passwort benötigt wird.'
+    );
+    if (!confirmed) return;
+
+    setShowMehrMenu(false);
+    try {
+      lockAppVault();
+      await clearTrustedDeviceUnlock();
+    } catch (error) {
+      console.warn('Lokale Entsperrung konnte beim Abmelden nicht vollständig entfernt werden.', error);
+    }
+    window.dispatchEvent(new CustomEvent('lehrerapp-logout'));
+  };
+
   return (
     <header className={`flex flex-col sticky top-0 z-[100] topbar no-print print:hidden ${className || ''}`}>
       {/* Haupt-Header Zeile */}
@@ -383,43 +351,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
           {/* Rechter Bereich: Wetter & Schuljahr-Zeitdiagramm & PayPal & Fehler melden & Mehr */}
           <div className="flex items-center gap-2 sm:gap-2.5">
             
-            {/* Fehler melden Google Sheet Link */}
-            <a
-              href="https://docs.google.com/spreadsheets/d/15bWUTQyXcJnVKkR9VlIR-h2CMJ3a8ua5GO68JT7vmDc/edit?gid=1159556393#gid=1159556393"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Fehler oder Feedback direkt in Google Sheet eintragen"
-              aria-label="Fehler in Google Sheet melden"
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-2xl text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
-            >
-              <Bug size={15} className="text-amber-500 shrink-0" />
-              <span className="hidden sm:inline">Fehler melden</span>
-            </a>
-
-            {/* Freiwillige Unterstützung */}
-            <button
-              type="button"
-              onClick={() => setShowSupportModal(true)}
-              title="Klassio freiwillig unterstützen"
-              aria-label="Klassio freiwillig unterstützen"
-              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-2xl text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer shrink-0 shadow-2xs active:scale-95"
-            >
-              <Heart size={15} className="text-rose-500 fill-rose-500/20 shrink-0" />
-              <span className="hidden xs:inline">Unterstützen</span>
-            </button>
-
-            {/* Speichern Button */}
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleManualSave}
-              leftIcon={saveSuccess ? <Check size={15} className="animate-bounce" /> : <Save size={15} />}
-              title="JSON-Sicherungsdatei herunterladen & alle Änderungen speichern"
-              aria-label="JSON-Sicherung herunterladen & speichern"
-            >
-              <span className="hidden xs:inline">{saveSuccess ? 'Gespeichert!' : 'Speichern'}</span>
-            </Button>
-
             {/* Wetter Anzeige mit Klick-Details */}
             <div className="relative">
               <button 
@@ -428,8 +359,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                   setShowWeatherDetails(!showWeatherDetails);
                   setShowSchoolYearDetails(false);
                   setShowMehrMenu(false);
-                  setShowClassDropdown(false);
-                }}
+                          }}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-2xl font-bold text-xs shrink-0 shadow-2xs transition-all cursor-pointer active:scale-95 ${
                   showWeatherDetails 
                     ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-xs'
@@ -517,8 +447,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                   setShowSchoolYearDetails(!showSchoolYearDetails);
                   setShowWeatherDetails(false);
                   setShowMehrMenu(false);
-                  setShowClassDropdown(false);
-                }}
+                          }}
                 className={`flex items-center gap-2 px-3 py-1.5 border rounded-2xl font-bold text-xs shrink-0 shadow-2xs transition-all cursor-pointer active:scale-95 ${
                   showSchoolYearDetails
                     ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-xs'
@@ -612,8 +541,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                 size="sm"
                 onClick={() => {
                   setShowMehrMenu(!showMehrMenu);
-                  setShowClassDropdown(false);
-                }}
+                          }}
                 leftIcon={<MoreHorizontal size={18} />}
                 rightIcon={<ChevronDown size={14} className={`transition-transform ${showMehrMenu ? 'rotate-180' : ''}`} />}
                 title="Weitere Optionen & Werkzeuge"
@@ -644,214 +572,10 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                       </button>
                     </div>
 
-                    {/* Dashboard: Struktur & Vorschau-Zeiten */}
+                    {/* Geräte */}
                     <div className="space-y-1.5">
                       <div className="text-[0.5625rem] font-bold uppercase tracking-widest text-[var(--text-muted)] px-1">
-                        Dashboard &amp; Layout
-                      </div>
-                      <button
-                        onClick={() => {
-                          setShowMehrMenu(false);
-                          setPage('dashboard');
-                          setTimeout(() => {
-                            window.dispatchEvent(new CustomEvent('open-dashboard-customize'));
-                          }, 100);
-                        }}
-                        className="w-full flex items-center justify-between p-2.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] border border-[var(--border-default,var(--border))] rounded-xl text-xs font-bold text-[var(--text-primary)] transition-colors cursor-pointer shadow-3xs"
-                        title="Struktur, Zonen, Vorschau-Zeiten & Widgets auf dem Dashboard anpassen"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Sliders size={15} className="text-[var(--accent)] shrink-0" />
-                          <span>Struktur &amp; Vorschau-Zeiten</span>
-                        </div>
-                        <ChevronRight size={14} className="text-[var(--text-muted)] shrink-0" />
-                      </button>
-                    </div>
-
-                    {/* Header Modus Umschalter (Einfachmodus Toggle) */}
-                    <div className="bg-[var(--surface-subtle,var(--surface2))] p-2.5 rounded-2xl border border-[var(--border-default,var(--border))] flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Eye size={15} className="text-[var(--accent)]" />
-                        <div>
-                          <div className="text-xs font-bold text-[var(--text-primary)]">Einfachmodus</div>
-                          <div className="text-[0.625rem] font-medium text-[var(--text-muted)]">Header auf 4 Elemente beschränken</div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setSimpleHeaderMode(!simpleHeaderMode)}
-                        className={`p-1 rounded-xl transition-colors cursor-pointer ${simpleHeaderMode ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`}
-                        title={simpleHeaderMode ? "Einfachmodus deaktivieren" : "Einfachmodus aktivieren"}
-                      >
-                        {simpleHeaderMode ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
-                      </button>
-                    </div>
-
-                    {/* Seiten-Spezifische Aktionen (Falls von der Seite übergeben, z.B. Anpassen / Hilfe) */}
-                    {actions && (
-                      <div className="space-y-1.5">
-                        <div className="text-[0.5625rem] font-bold uppercase tracking-widest text-[var(--text-muted)] px-1">
-                          Seiten-Aktionen
-                        </div>
-                        <div className="bg-[var(--surface-subtle,var(--surface2))] p-2 rounded-2xl border border-[var(--border-subtle,var(--border))] flex flex-wrap gap-2">
-                          {actions}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 1. Ansicht & Design */}
-                    <div className="space-y-1.5">
-                      <div className="text-[0.5625rem] font-bold uppercase tracking-widest text-[var(--text-muted)] px-1 flex items-center justify-between">
-                        <span>Ansicht &amp; Design</span>
-                      </div>
-                      <div className="grid grid-cols-1 gap-1">
-                        <button
-                          onClick={() => {
-                            setShowDesignMenu(!showDesignMenu);
-                          }}
-                          className="w-full flex items-center justify-between p-2.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-card,var(--surface))] border border-[var(--border-default,var(--border))] rounded-xl text-xs font-bold text-[var(--text-primary)] transition-colors cursor-pointer"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Palette size={15} className="text-[var(--accent)]" />
-                            <span>Farben, Theme &amp; Schrift</span>
-                          </div>
-                          <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${showDesignMenu ? 'rotate-180' : ''}`} />
-                        </button>
-
-                        {/* Inline Design Menu Details */}
-                        {showDesignMenu && (
-                          <div className="bg-[var(--surface-card,var(--surface))] p-3 rounded-2xl border border-[var(--border-default,var(--border))] space-y-3.5 mt-1 animate-in fade-in duration-150 shadow-sm">
-                            {/* 1. Farb-Theme */}
-                            <div className="space-y-1">
-                              <span className="text-[0.5625rem] font-bold uppercase text-[var(--text-muted)]">Farb-Theme</span>
-                              <div className="grid grid-cols-2 gap-1">
-                                {AESTHETIC_THEMES.map(t => (
-                                  <button
-                                    key={t.id}
-                                    onClick={() => setAestheticTheme(t.id)}
-                                    className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-[0.6875rem] font-bold transition-colors ${
-                                      app.theme === t.id ? 'bg-[var(--accent)] text-white shadow-xs' : 'hover:bg-[var(--surface-muted)] text-[var(--text-primary)] bg-[var(--surface-subtle,var(--surface2))]'
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-1.5 truncate">
-                                      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${t.color}`} />
-                                      <span className="truncate">{t.label}</span>
-                                    </div>
-                                    {app.theme === t.id && <Check size={11} className="shrink-0" />}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* 2. Schriftart */}
-                            <div className="space-y-1.5 pt-2 border-t border-[var(--border-subtle,var(--border))]">
-                              <span className="text-[0.5625rem] font-bold uppercase text-[var(--text-muted)] flex items-center gap-1">
-                                <Type size={11} /> Schriftart
-                              </span>
-                              <div className="grid grid-cols-1 gap-1 max-h-40 overflow-y-auto custom-scrollbar pr-0.5">
-                                {DASHBOARD_CURATED_FONTS.map(f => {
-                                  const isSelected = (app?.settings?.fontFamily || 'standard') === f.id;
-                                  return (
-                                    <button
-                                      key={f.id}
-                                      onClick={() => setFontFamily(f.id)}
-                                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left transition-colors cursor-pointer ${
-                                        isSelected ? 'bg-[var(--accent)]/15 border border-[var(--accent)] text-[var(--accent)] font-bold' : 'hover:bg-[var(--surface-muted)] text-[var(--text-primary)] bg-[var(--surface-subtle,var(--surface2))] border border-transparent'
-                                      }`}
-                                    >
-                                      <div>
-                                        <div className="text-xs font-bold leading-tight">{f.label}</div>
-                                        <div className="text-[0.5625rem] text-[var(--text-muted)] leading-tight">{f.sub}</div>
-                                      </div>
-                                      {isSelected && <Check size={12} className="text-[var(--accent)] shrink-0" />}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            {/* 3. Schriftgröße */}
-                            <div className="space-y-1.5 pt-2 border-t border-[var(--border-subtle,var(--border))]">
-                              <span className="text-[0.5625rem] font-bold uppercase text-[var(--text-muted)]">Schriftgröße</span>
-                              <div className="grid grid-cols-3 gap-1">
-                                {DASHBOARD_FONT_SIZES.map(sz => {
-                                  const isCurrent = (app?.settings?.zoomLevel || app?.settings?.fontSize || 'standard') === sz.id;
-                                  return (
-                                    <button
-                                      key={sz.id}
-                                      onClick={() => {
-                                        setApp(prev => ({
-                                          ...prev,
-                                          settings: { ...prev.settings, zoomLevel: sz.id as any, fontSize: sz.id as any }
-                                        }));
-                                      }}
-                                      className={`py-1.5 px-1 rounded-lg text-center text-xs font-bold transition-colors cursor-pointer border ${
-                                        isCurrent 
-                                          ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-xs'
-                                          : 'bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] text-[var(--text-primary)] border-[var(--border-default,var(--border))]'
-                                      }`}
-                                    >
-                                      <div>{sz.label}</div>
-                                      <div className="text-[0.5625rem] opacity-75 font-normal">{sz.scale}</div>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-
-                            {/* 4. Schriftstil (Fett / Normal, Kursiv) */}
-                            <div className="space-y-1.5 pt-2 border-t border-[var(--border-subtle,var(--border))]">
-                              <span className="text-[0.5625rem] font-bold uppercase text-[var(--text-muted)]">Schriftstil</span>
-                              <div className="grid grid-cols-2 gap-1.5">
-                                {/* Fett */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const next = app?.settings?.fontWeight === 'bold' ? 'normal' : 'bold';
-                                    setApp(prev => ({
-                                      ...prev,
-                                      settings: { ...prev.settings, fontWeight: next }
-                                    }));
-                                  }}
-                                  className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-colors cursor-pointer border ${
-                                    app?.settings?.fontWeight === 'bold'
-                                      ? 'bg-[var(--accent)]/15 border-[var(--accent)] text-[var(--accent)] font-bold'
-                                      : 'bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] text-[var(--text-primary)] border-[var(--border-default,var(--border))]'
-                                  }`}
-                                >
-                                  <Bold size={12} />
-                                  <span>{app?.settings?.fontWeight === 'bold' ? 'Fett (Aktiv)' : 'Normal'}</span>
-                                </button>
-
-                                {/* Kursiv */}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const next = app?.settings?.fontStyle === 'italic' ? 'normal' : 'italic';
-                                    setApp(prev => ({
-                                      ...prev,
-                                      settings: { ...prev.settings, fontStyle: next }
-                                    }));
-                                  }}
-                                  className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-colors cursor-pointer border ${
-                                    app?.settings?.fontStyle === 'italic'
-                                      ? 'bg-[var(--accent)]/15 border-[var(--accent)] text-[var(--accent)] italic font-bold'
-                                      : 'bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--surface-muted)] text-[var(--text-primary)] border-[var(--border-default,var(--border))]'
-                                  }`}
-                                >
-                                  <Italic size={12} />
-                                  <span>{app?.settings?.fontStyle === 'italic' ? 'Kursiv (Aktiv)' : 'Normal'}</span>
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 2. Mobilansicht & WLAN-Kopplung */}
-                    <div className="space-y-1.5">
-                      <div className="text-[0.5625rem] font-bold uppercase tracking-widest text-[var(--text-muted)] px-1">
-                        Mobil &amp; Vernetzung
+                        Geräte
                       </div>
                       <div className="grid grid-cols-2 gap-1.5">
                         <button
@@ -871,10 +595,10 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                       </div>
                     </div>
 
-                    {/* 3. Sicherheit & Datenschutz */}
+                    {/* Sicherheit */}
                     <div className="space-y-1.5">
                       <div className="text-[0.5625rem] font-bold uppercase tracking-widest text-[var(--text-muted)] px-1">
-                        Sicherheit &amp; Werkzeuge
+                        Sicherheit
                       </div>
                       <div className="grid grid-cols-1 gap-1">
                         <button
@@ -897,19 +621,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                         >
                           <Lock size={15} className="text-rose-500" />
                           <span>Bildschirm sofort sperren</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setShowMehrMenu(false);
-                            if (window.confirm("Möchtest du den Zugang auf diesem Gerät wirklich entfernen?")) {
-                              window.dispatchEvent(new CustomEvent('lehrerapp-logout'));
-                            }
-                          }}
-                          className="w-full flex items-center gap-2 p-2.5 bg-[var(--surface-subtle,var(--surface2))] hover:bg-[var(--warning-soft)] hover:text-[var(--warning-text)] border border-[var(--border-default,var(--border))] rounded-xl text-xs font-bold text-[var(--text-primary)] transition-colors cursor-pointer"
-                        >
-                          <LogOut size={15} className="text-amber-500" />
-                          <span>Zugang auf diesem Gerät entfernen</span>
                         </button>
 
                         <button
@@ -947,73 +658,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                       </div>
                     </div>
 
-                    {/* 4. Wetter & 3-Tages-Vorschau & Schuljahr-Zeitstrahl */}
-                    <div className="bg-[var(--surface-subtle,var(--surface2))] p-3 rounded-2xl border border-[var(--border-default,var(--border))] space-y-3">
-                      
-                      {/* Wetter & 3-Tages-Vorschau */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-primary)]">
-                            {weather ? getWeatherIcon(weather.weathercode, 16) : <Cloud size={16} className="text-slate-400" />}
-                            <span>Wetter ({weather ? `${Math.round(weather.temperature)}°C` : '—'})</span>
-                          </div>
-                          <span className="text-[0.5625rem] font-bold text-[var(--text-muted)] uppercase">3-Tages-Vorschau</span>
-                        </div>
-
-                        {threeDayForecast.length > 0 ? (
-                          <div className="grid grid-cols-3 gap-1.5 pt-0.5">
-                            {threeDayForecast.map((item, idx) => (
-                              <div key={idx} className="bg-[var(--surface-card,var(--surface))] p-2 rounded-xl border border-[var(--border-default,var(--border))] flex flex-col items-center text-center space-y-0.5">
-                                <span className="text-[0.5625rem] font-bold text-[var(--text-muted)] uppercase tracking-tight">
-                                  {item.label}
-                                </span>
-                                <div className="my-0.5">
-                                  {getWeatherIcon(item.code, 16)}
-                                </div>
-                                <div className="text-[0.625rem] font-bold text-[var(--text-primary)]">
-                                  {item.max}° <span className="text-[var(--text-muted)] font-normal text-[0.5625rem]">{item.min}°</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="rounded-xl border border-dashed border-[var(--border-default,var(--border))] px-3 py-3 text-center text-[0.625rem] font-medium text-[var(--text-muted)]">
-                            Keine Wetterprognose verfügbar.
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Zeitstrahl des Schuljahres */}
-                      <div className="border-t border-[var(--border-subtle,var(--border))] pt-2 space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-1.5 font-bold text-[var(--text-primary)]">
-                            <FlagTriangleLeft size={14} className="text-[var(--accent)]" />
-                            <span>Schuljahr-Zeitstrahl</span>
-                          </div>
-                          <Badge variant="accent" size="sm">
-                            {Math.round(schoolYearProgressPercent)}%
-                          </Badge>
-                        </div>
-
-                        {/* Grafischer Zeitstrahl */}
-                        <div className="space-y-1">
-                          <div className="h-2 w-full bg-[var(--surface-muted)] rounded-full overflow-hidden p-0.5 border border-[var(--border-subtle,var(--border))]">
-                            <div 
-                              className="h-full bg-[var(--accent)] rounded-full transition-all duration-500 relative"
-                              style={{ width: `${Math.max(4, Math.min(100, schoolYearProgressPercent))}%` }}
-                            />
-                          </div>
-                          <div className="flex justify-between items-center text-[0.5625rem] font-bold text-[var(--text-muted)]">
-                            <span>Sep (Start)</span>
-                            <span className="text-[var(--accent)] font-bold">{schoolDaysRemaining} Schultage übrig</span>
-                            <span>Juli (Ferien)</span>
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-
-                    {/* 5. Einstellungen & Profil & Unterstützung & Feedback */}
+                    {/* Konto & Hilfe */}
                     <div className="border-t border-[var(--border-subtle,var(--border))] pt-2 space-y-1">
                       <a
                         href="https://docs.google.com/spreadsheets/d/15bWUTQyXcJnVKkR9VlIR-h2CMJ3a8ua5GO68JT7vmDc/edit?gid=1159556393#gid=1159556393"
@@ -1049,12 +694,24 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                       <button
                         onClick={() => {
                           setShowMehrMenu(false);
-                          setPage('einstellungen');
+                          setPage('settings');
                         }}
                         className="w-full flex items-center gap-2 p-2 rounded-xl text-xs font-bold text-[var(--text-primary)] hover:bg-[var(--surface-subtle,var(--surface2))] transition-colors cursor-pointer"
                       >
                         <Settings size={15} className="text-[var(--text-muted)]" />
                         <span>Haupteinstellungen</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="w-full flex items-center justify-between p-2.5 rounded-xl border border-[var(--warning-border,var(--border))] bg-[var(--warning-soft,var(--surface2))] text-xs font-bold text-[var(--warning-text,var(--text-primary))] transition-colors hover:opacity-90 cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <LogOut size={15} className="text-amber-600" />
+                          <span>Abmelden</span>
+                        </div>
+                        <span className="text-[0.5625rem] font-bold uppercase tracking-wider opacity-70">dieses Gerät</span>
                       </button>
                     </div>
 
