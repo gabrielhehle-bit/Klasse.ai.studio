@@ -7,6 +7,7 @@ const planningCenter = readFileSync("src/components/PlanungsZentrale.tsx", "utf8
 const attendance = readFileSync("src/components/Attendance.tsx", "utf8");
 const yearlyPlan = readFileSync("src/components/YearlyPlan.tsx", "utf8");
 const gradebook = readFileSync("src/components/Gradebook.tsx", "utf8");
+const printCenter = readFileSync("src/components/PrintCenter.tsx", "utf8");
 
 test("Druckwege: Wochenplan wird konsequent im Druckzentrum geöffnet", () => {
   assert.match(weeklyPlan, /activePrintTemplate:\s*'wochenplan'/);
@@ -31,4 +32,10 @@ test("Druckwege: Notenmappe trennt CSV-Export klar vom Drucken", () => {
   assert.match(gradebook, /activePrintTemplate:\s*'zeugnis_noten'/);
   assert.match(gradebook, /Im Druckzentrum öffnen/);
   assert.doesNotMatch(gradebook, /Export \/ Drucken/);
+});
+
+test("Wochenplan-Druck: gewählte KW und Sachunterricht bleiben erhalten", () => {
+  assert.match(printCenter, /const \[wpKW, setWpKW\] = useState<number>\(fallbackPlanningKW\)/);
+  assert.match(printCenter, /const lessonsData = \(app\?\.wochenplanung \|\| \{\}\)\[wpKW\] \|\| \{\}/);
+  assert.doesNotMatch(printCenter, /\^sachunterricht\$\|\^su\$/i);
 });
