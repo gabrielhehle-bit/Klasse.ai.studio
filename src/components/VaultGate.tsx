@@ -24,6 +24,7 @@ import {
   isEncryptedLocalState,
 } from '../lib/secureStorageService';
 import { fetchAccountSyncSnapshot, hasEmailAccountSession } from '../lib/accountSyncService';
+import { parseSyncHash } from '../lib/syncService';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Shield,
@@ -47,7 +48,8 @@ interface VaultGateProps {
 }
 
 export default function VaultGate({ children }: VaultGateProps) {
-  const { isVaultUnlocked, unlockAppVault } = useApp();
+  const { app, isVaultUnlocked, unlockAppVault } = useApp();
+  const [remotePairingRequested] = useState(() => Boolean(parseSyncHash(window.location.hash)));
   const { showToast } = useToast();
 
   const [gateState, setGateState] = useState<'checking' | 'needs_setup' | 'locked' | 'unlocked'>(() => {
@@ -81,6 +83,7 @@ export default function VaultGate({ children }: VaultGateProps) {
   useEffect(() => {
     let isMounted = true;
     async function checkVaultStatus() {
+      if (remotePairingRequested) return;
       try {
         const activeKey = getActiveVaultKey();
         if (activeKey) {
@@ -163,7 +166,7 @@ export default function VaultGate({ children }: VaultGateProps) {
     return () => {
       isMounted = false;
     };
-  }, [isVaultUnlocked, unlockAppVault]);
+  }, [isVaultUnlocked, unlockAppVault, remotePairingRequested]);
 
   const triggerShake = () => {
     setShake(true);
@@ -367,7 +370,7 @@ export default function VaultGate({ children }: VaultGateProps) {
   };
 
   // Wenn der Tresor entsperrt ist, rendern wir die App normal
-  if (gateState === 'unlocked') {
+  if (remotePairingRequested || app.boardSettings?.isRemoteController || gateState === 'unlocked') {
     return <>{children}</>;
   }
 
