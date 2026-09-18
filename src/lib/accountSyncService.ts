@@ -194,8 +194,19 @@ export function mergeAccountSyncState(remote: AppState, local: AppState): AppSta
   };
 }
 
+function stableSerialize(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return '[' + value.map(item => stableSerialize(item)).join(',') + ']';
+
+  const record = value as Record<string, unknown>;
+  return '{' + Object.keys(record)
+    .sort()
+    .map(key => JSON.stringify(key) + ':' + stableSerialize(record[key]))
+    .join(',') + '}';
+}
+
 export function appStateFingerprint(state: AppState): string {
-  const json = JSON.stringify(accountSyncState(state));
+  const json = stableSerialize(accountSyncState(state));
   let hash = 2166136261;
   for (let i = 0; i < json.length; i++) {
     hash ^= json.charCodeAt(i);
