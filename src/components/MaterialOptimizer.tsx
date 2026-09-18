@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { ClipboardList, Sparkles, Wand2, Copy, Check, RotateCcw, FileText, Search, Info, Archive, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { askAI } from '../services/aiService';
@@ -120,6 +121,7 @@ function AISaveButton({ content, context }: { content: string; context: string }
 }
 
 export default function MaterialOptimizer() {
+  const { showToast } = useToast();
   const [text, setText] = useState('');
   const [focus, setFocus] = useState('allgemein');
   const [result, setResult] = useState('');
@@ -154,6 +156,7 @@ Bitte optimiere den Text entsprechend den oben genannten System-Instruktionen f√
       }
     } catch (err) {
       console.error(err);
+      showToast(err instanceof Error ? err.message : 'Text konnte nicht verarbeitet werden.', 'error');
     } finally {
       setLoading(false);
     }
