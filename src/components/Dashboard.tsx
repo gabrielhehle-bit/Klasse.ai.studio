@@ -2909,48 +2909,180 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
 
   const heuteWichtigItems = React.useMemo(() => {
     const items: any[] = [];
-    birthdaysToday.forEach((s: any) => {
-      items.push({
-        id: `bday-${s.id}`,
-        type: "birthday",
-        text: `🎂 Geburtstag: ${s.vorname} ${s.nachname}`,
-        category: "Geburtstag",
-        linkPage: "schueler",
-        urgent: true,
+    const displayedDay = new Date(scheduleDatum);
+    displayedDay.setHours(0, 0, 0, 0);
+    const dayOffsetFromMonday = (displayedDay.getDay() + 6) % 7;
+    const weekMonday = new Date(displayedDay);
+    weekMonday.setDate(displayedDay.getDate() - dayOffsetFromMonday);
+    const weekSunday = new Date(weekMonday);
+    weekSunday.setDate(weekMonday.getDate() + 6);
+
+    // Geburtstage bis Sonntag stehen immer ganz oben, damit sie nicht untergehen.
+    (app?.schueler || [])
+      .map((student: any) => {
+        if (!student.geburtstag) return null;
+        const parts = String(student.geburtstag).split(".");
+        const source = parts.length === 3 ? null : new Date(student.geburtstag);
+        const month = parts.length === 3 ? Number(parts[1]) - 1 : source?.getMonth();
+        const day = parts.length === 3 ? Number(parts[0]) : source?.getDate();
+        if (month === undefined || day === undefined || Number.isNaN(month) || Number.isNaN(day)) return null;
+
+        const candidates = [
+          new Date(weekMonday.getFullYear(), month, day),
+          new Date(weekSunday.getFullYear(), month, day),
+        ];
+        const birthdayDate = candidates.find((candidate) =>
+          candidate >= weekMonday && candidate <= weekSunday
+        );
+        if (!birthdayDate || birthdayDate < displayedDay) return null;
+
+        const diffDays = Math.round((birthdayDate.getTime() - displayedDay.getTime()) / 86400000);
+        return { student, birthdayDate, diffDays };
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => a.diffDays - b.diffDays)
+      .forEach(({ student, birthdayDate, diffDays }: any) => {
+        const dayLabel = birthdayDate.toLocaleDateString("de-DE", { weekday: "long" });
+        items.push({
+          id: `bday-week-${student.id}-${formatLocalDateKey(birthdayDate)}`,
+          type: "birthday",
+          text: diffDays === 0
+            ? `🎂 Heute Geburtstag: ${student.vorname} ${student.nachname}`
+            : `🎂 ${dayLabel}: Geburtstag von ${student.vorname} ${student.nachname}`,
+          category: "Geburtstag",
+          linkPage: "schueler",
+          urgent: true,
+        });
+      });
+
+    // Termine, Ausflüge, Schularbeiten und andere relevante Wochenplan-Einträge.
+    const importantTypes = new Set([
+      "test", "schularbeit", "sa", "lzk", "ausflug", "event",
+      "spielefest", "konferenz", "gespraech", "sonstiges",
+    ]);
+    const weekDays = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
+    const seenWeeklyEvents = new Set<string>();
+
+    weekDays.forEach((dayName, dayIndex) => {
+      const eventDate = new Date(weekMonday);
+      eventDate.setDate(weekMonday.getDate() + dayIndex);
+      if (eventDate < displayedDay) return;
+
+      const dayPlan: any = app?.wochenplanung?.[kw]?.[dayName] || {};
+      const addWeeklyItem = (entry: any, fallbackId: string) => {
+        if (!entry || entry.erledigt) return;
+        const title = String(entry.thema || entry.text || "").trim();
+        if (!title) return;
+        const lower = title.toLowerCase();
+        const isTypedEvent = importantTypes.has(String(entry.type || "").toLowerCase());
+        const hasKeyword = [
+          "termin", "test", "schularbeit", "ausflug", "konferenz",
+          "gespräch", "gespraech", "spielefest", "lzk",
+        ].some((keyword) => lower.includes(keyword));
+        if (!isTypedEvent && !hasKeyword) return;
+
+        const key = `${formatLocalDateKey(eventDate)}-${title.toLowerCase()}`;
+        if (seenWeeklyEvents.has(key)) return;
+        seenWeeklyEvents.add(key);
+
+        const type = String(entry.type || "").toLowerCase();
+        const emoji =
+          type === "ausflug" || type === "event" ? "🚌" :
+          type === "sa" || type === "schularbeit" ? "📑" :
+          type === "test" || type === "lzk" ? "📝" :
+          type === "konferenz" || type === "gespraech" ? "📅" : "📌";
+        items.push({
+          id: `week-important-${fallbackId}`,
+          type: "wochenplan",
+          text: `${emoji} ${dayName}: ${title}`,
+          category: entry.fach ? `${entry.fach} · Wochenplan` : "Wochenplan",
+          linkPage: "wochenplanung",
+          urgent: true,
+        });
+      };
+
+      Object.entries(dayPlan).forEach(([slot, entry]: [string, any]) => {
+        if (slot === "zeitunabhaengig" || Array.isArray(entry)) return;
+        addWeeklyItem(entry, `${kw}-${dayName}-${slot}`);
+      });
+      (Array.isArray(dayPlan.zeitunabhaengig) ? dayPlan.zeitunabhaengig : []).forEach((entry: any, idx: number) => {
+        // Zeitunabhängige Einträge sind bewusst Termine/Notizen der Woche und gehören in den Blick.
+        const normalized = {
+          ...entry,
+          type: entry.type === "standard" ? "sonstiges" : (entry.type || "sonstiges"),
+        };
+        addWeeklyItem(normalized, `${kw}-${dayName}-zt-${entry.id || idx}`);
       });
     });
-    specialEventsForDay.forEach((e: any, idx: number) => {
-      items.push({
-        id: `event-${idx}`,
-        type: e.type,
-        text: e.title,
-        category: e.desc || "Termin",
-        linkPage: "wochenplanung",
-        urgent: true,
+
+    // Tageshinweise wie Feiertage bleiben sichtbar; Geburtstage/Wochenplantermine sind oben bereits enthalten.
+    specialEventsForDay
+      .filter((event: any) => event.type === "holiday")
+      .forEach((event: any, idx: number) => {
+        items.push({
+          id: `day-info-${idx}`,
+          type: event.type,
+          text: event.title,
+          category: event.desc || "Hinweis",
+          linkPage: "wochenplanung",
+          urgent: true,
+        });
       });
-    });
-    (app?.klassenkasse?.sammlungen || []).filter((g: any) => !g.abgeschlossen).slice(0, 2).forEach((g: any) => {
-      items.push({
-        id: `geld-${g.id}`,
-        type: "money",
-        text: `💶 Geldsammlung: ${g.titel}`,
-        category: "Finanzen",
-        linkPage: "orga",
-        urgent: false,
+
+    // Persönliche To-Dos aus Notizen/Dashboard folgen direkt nach den Wochen-Terminen.
+    (app?.dashboardTodos || [])
+      .filter((todo: any) => !todo.done)
+      .slice(0, 5)
+      .forEach((todo: any) => {
+        items.push({
+          id: `todo-${todo.id}`,
+          type: "task",
+          text: `☑️ ${todo.text}`,
+          category: "To-Do",
+          linkPage: "verhalten",
+          urgent: false,
+        });
       });
-    });
-    (app?.denkzettelNotes || []).filter((n: any) => !n.completed).slice(0, 3).forEach((n: any) => {
-      items.push({
-        id: n.id,
-        type: "task",
-        text: `📌 ${n.text}`,
-        category: "Aufgabe",
-        linkPage: "orga",
-        urgent: false,
+
+    (app?.denkzettelNotes || [])
+      .filter((note: any) => !note.completed)
+      .slice(0, 3)
+      .forEach((note: any) => {
+        items.push({
+          id: `denkzettel-${note.id}`,
+          type: "task",
+          text: `📌 ${note.text}`,
+          category: note.category === "termin" ? "Termin" : "Notiz",
+          linkPage: "verhalten",
+          urgent: note.category === "wichtig" || note.category === "termin",
+        });
       });
-    });
+
+    (app?.klassenkasse?.sammlungen || [])
+      .filter((group: any) => !group.abgeschlossen)
+      .slice(0, 2)
+      .forEach((group: any) => {
+        items.push({
+          id: `geld-${group.id}`,
+          type: "money",
+          text: `💶 Geldsammlung: ${group.titel}`,
+          category: "Finanzen",
+          linkPage: "orga",
+          urgent: false,
+        });
+      });
+
     return items;
-  }, [birthdaysToday, specialEventsForDay, app?.klassenkasse?.sammlungen, app?.denkzettelNotes]);
+  }, [
+    scheduleDatum,
+    kw,
+    app?.schueler,
+    app?.wochenplanung,
+    app?.dashboardTodos,
+    app?.denkzettelNotes,
+    app?.klassenkasse?.sammlungen,
+    specialEventsForDay,
+  ]);
 
   const tomorrowEventsList = React.useMemo(() => {
     const tomorrow = new Date(scheduleDatum);
