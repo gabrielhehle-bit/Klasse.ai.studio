@@ -2,6 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { CalendarClock, ExternalLink, Heart, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { EMPTY_SUPPORT_INFO, loadSupportInfo, type SupportInfo } from '../lib/supportApi';
+import PayPalSubscriptionButton from './PayPalSubscriptionButton';
 
 interface SupportModalProps {
   open: boolean;
@@ -42,29 +43,26 @@ export default function SupportModal({ open, onClose }: SupportModalProps) {
 
   if (!open || typeof document === 'undefined') return null;
 
-  const options = [
-    {
-      id: 'oneTime',
-      label: 'Einmalig unterstützen',
-      sub: 'Ein freiwilliger Beitrag über PayPal.',
-      url: info.paypal.oneTime,
-      icon: Heart,
-    },
+  const subscriptionOptions = [
     {
       id: 'monthly',
       label: 'Monatlich unterstützen',
       sub: 'Hilft besonders dabei, die laufenden Serverkosten planbar zu decken.',
-      url: info.paypal.monthly,
       icon: CalendarClock,
+      planId: info.paypal.monthlyPlanId,
+      fallbackUrl: info.paypal.monthly,
+      cadence: 'monthly' as const,
     },
     {
       id: 'yearly',
       label: 'Jährlich unterstützen',
       sub: 'Ein regelmäßiger Beitrag einmal pro Jahr.',
-      url: info.paypal.yearly,
       icon: Sparkles,
+      planId: info.paypal.yearlyPlanId,
+      fallbackUrl: info.paypal.yearly,
+      cadence: 'yearly' as const,
     },
-  ] as const;
+  ];
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
@@ -79,7 +77,7 @@ export default function SupportModal({ open, onClose }: SupportModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="klassio-support-title"
-        className="relative z-10 w-full max-w-2xl overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-2xl"
+        className="relative z-10 max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-stone-200 bg-white shadow-2xl"
       >
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-500" />
 
@@ -119,44 +117,61 @@ export default function SupportModal({ open, onClose }: SupportModalProps) {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            {options.map(option => {
-              const Icon = option.icon;
-              const available = Boolean(option.url);
-              return available ? (
+          <div className="grid gap-3 lg:grid-cols-3">
+            <div className="flex min-h-44 flex-col justify-between rounded-2xl border border-stone-200 bg-white p-4">
+              <div>
+                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-stone-100 text-slate-700">
+                  <Heart size={17} />
+                </div>
+                <div className="text-sm font-black text-slate-900">Einmalig unterstützen</div>
+                <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">Ein freiwilliger Beitrag über PayPal.</p>
+              </div>
+              {info.paypal.oneTime ? (
                 <a
-                  key={option.id}
-                  href={option.url || undefined}
+                  href={info.paypal.oneTime}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex min-h-40 flex-col justify-between rounded-2xl border border-stone-200 bg-white p-4 transition-all hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-lg"
+                  className="mt-4 flex items-center gap-1.5 text-[0.65rem] font-black uppercase tracking-wider text-rose-600"
                 >
+                  Zu PayPal <ExternalLink size={12} />
+                </a>
+              ) : (
+                <span className="mt-4 text-[0.62rem] font-bold uppercase tracking-wider text-slate-400">PayPal-Link wird eingerichtet</span>
+              )}
+            </div>
+
+            {subscriptionOptions.map(option => {
+              const Icon = option.icon;
+              const canSubscribe = Boolean(info.paypal.clientId && option.planId);
+              return (
+                <div key={option.id} className="flex min-h-44 flex-col rounded-2xl border border-stone-200 bg-white p-4">
                   <div>
-                    <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-stone-100 text-slate-700 group-hover:bg-rose-50 group-hover:text-rose-600">
+                    <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-stone-100 text-slate-700">
                       <Icon size={17} />
                     </div>
                     <div className="text-sm font-black text-slate-900">{option.label}</div>
                     <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">{option.sub}</p>
                   </div>
-                  <div className="mt-4 flex items-center gap-1.5 text-[0.65rem] font-black uppercase tracking-wider text-rose-600">
-                    Zu PayPal <ExternalLink size={12} />
+                  <div className="mt-auto pt-4">
+                    {canSubscribe ? (
+                      <PayPalSubscriptionButton
+                        clientId={info.paypal.clientId!}
+                        planId={option.planId!}
+                        cadence={option.cadence}
+                      />
+                    ) : option.fallbackUrl ? (
+                      <a
+                        href={option.fallbackUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-[0.65rem] font-black uppercase tracking-wider text-rose-600"
+                      >
+                        Zu PayPal <ExternalLink size={12} />
+                      </a>
+                    ) : (
+                      <span className="text-[0.62rem] font-bold uppercase tracking-wider text-slate-400">PayPal-Abo wird eingerichtet</span>
+                    )}
                   </div>
-                </a>
-              ) : (
-                <div
-                  key={option.id}
-                  className="flex min-h-40 flex-col justify-between rounded-2xl border border-dashed border-stone-200 bg-stone-50 p-4"
-                >
-                  <div>
-                    <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-white text-slate-400">
-                      <Icon size={17} />
-                    </div>
-                    <div className="text-sm font-black text-slate-700">{option.label}</div>
-                    <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">{option.sub}</p>
-                  </div>
-                  <span className="mt-4 text-[0.62rem] font-bold uppercase tracking-wider text-slate-400">
-                    PayPal-Link wird eingerichtet
-                  </span>
                 </div>
               );
             })}
