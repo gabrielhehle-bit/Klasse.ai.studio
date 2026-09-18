@@ -50,8 +50,86 @@ function storage(): Storage | null {
   }
 }
 
+const DEFAULT_MITARBEIT_SETTINGS = {
+  thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 },
+  mode: 'absolute',
+};
+
+function isPlainEmptyObject(value: unknown): boolean {
+  return !!value
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && Object.keys(value as Record<string, unknown>).length === 0;
+}
+
+function canonicalizeSyncDefaults(state: AppState): AppState {
+  const target = state as any;
+
+  // Alte Backups und frisch normalisierte App-Stände können dieselben leeren
+  // Felder unterschiedlich darstellen (fehlend vs. [] / {}). Für den Konto-
+  // Fingerprint ist das semantisch identisch und darf keine neue Revision erzeugen.
+  const emptyArrayFields = [
+    'differenzierungsGruppen',
+    'kelGespraeche',
+    'klassenglas_missions',
+    'notes',
+  ];
+  for (const field of emptyArrayFields) {
+    if (target[field] === undefined || (Array.isArray(target[field]) && target[field].length === 0)) {
+      target[field] = [];
+    }
+  }
+
+  const emptyObjectFields = [
+    'kiPortfolioSummaries',
+    'oberauData',
+    'portfolioEntries',
+    'studentLernzielBewertungen',
+    'studentLernzielSemesterBewertungen',
+  ];
+  for (const field of emptyObjectFields) {
+    if (target[field] === undefined || isPlainEmptyObject(target[field])) {
+      target[field] = {};
+    }
+  }
+
+  if (target.mitarbeit_settings === undefined) {
+    target.mitarbeit_settings = JSON.parse(JSON.stringify(DEFAULT_MITARBEIT_SETTINGS));
+  }
+  if (target.stundenbilderMigriert === undefined) target.stundenbilderMigriert = true;
+  if (target.vertretungHinweise === undefined) target.vertretungHinweise = '';
+
+  // Historische Builds legten auf manchen Geräten eine lokale Demo-Notiz mit
+  // Zeitstempel an. Sie ist kein Nutzinhalt und darf weder Geräte unterscheiden
+  // noch beim Import alter JSON-Dateien eine künstliche Sync-Revision erzeugen.
+  const denkzettelNotes = target.denkzettelNotes;
+  if (
+    denkzettelNotes === undefined
+    || (
+      Array.isArray(denkzettelNotes)
+      && denkzettelNotes.length === 1
+      && denkzettelNotes[0]?.id === 'welcome-1'
+    )
+  ) {
+    target.denkzettelNotes = [];
+  }
+
+  if (Array.isArray(target.classes)) {
+    target.classes = target.classes.map((room: any) => ({
+      ...room,
+      klassenglas_missions:
+        room?.klassenglas_missions === undefined
+        || (Array.isArray(room.klassenglas_missions) && room.klassenglas_missions.length === 0)
+          ? []
+          : room.klassenglas_missions,
+    }));
+  }
+
+  return state;
+}
+
 export function accountSyncState(state: AppState): AppState {
-  const clone = JSON.parse(JSON.stringify(state)) as AppState;
+  const clone = canonicalizeSyncDefaults(JSON.parse(JSON.stringify(state)) as AppState);
 
   // Reine Geräte-/Navigationszustände dürfen weder Serverrevisionen erzeugen
   // noch auf einem zweiten Gerät die aktuelle Ansicht umschalten.
