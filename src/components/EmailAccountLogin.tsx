@@ -177,13 +177,16 @@ export default function EmailAccountLogin({ compact = false, onSuccess }: EmailA
         <div>
           <h3 className="text-base font-black text-slate-950">E-Mail & Schulidentität</h3>
           <p className="mt-1 text-xs font-medium leading-relaxed text-slate-500">
-            Melde dich mit deiner E-Mail an. Dein entsperrter Datentresor wird damit verschlüsselt zwischen deinen Geräten synchronisiert; eine verifizierte Schulmail schaltet zusätzlich Klassenteam und Lehrerzimmer frei.
+            Deine E-Mail ist dein persönliches KLASSIO-Konto. Ein eigenes KLASSIO-Kontopasswort brauchst du nicht: Du bestätigst die Anmeldung mit einem 6-stelligen Code per E-Mail. Auf einem neuen PC wird danach dein verschlüsselter Datentresor gefunden; zum Entschlüsseln gibst du einmal dein bestehendes Tresor-Passwort ein.
           </p>
         </div>
       </div>
 
       {step === 'email' ? (
         <form onSubmit={requestCode} className="space-y-3">
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50 px-3.5 py-3 text-xs font-semibold leading-relaxed text-indigo-800">
+            <strong>Geräte-Sync:</strong> Mit derselben E-Mail kannst du dich auf einem anderen PC anmelden und deinen vorhandenen verschlüsselten Datenstand automatisch laden.
+          </div>
           <input
             type="email"
             value={email}
@@ -229,7 +232,7 @@ export default function EmailAccountLogin({ compact = false, onSuccess }: EmailA
               disabled={loading || !/^\d{6}$/.test(code)}
               className="flex-1 rounded-xl bg-indigo-600 px-4 py-3 text-xs font-black text-white disabled:opacity-50"
             >
-              {loading ? 'Prüfen …' : 'Anmelden'}
+              {loading ? 'Prüfen …' : 'Anmelden & Sync starten'}
             </button>
           </div>
         </form>
