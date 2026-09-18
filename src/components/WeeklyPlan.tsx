@@ -280,8 +280,6 @@ export default function WeeklyPlan() {
   const [showWeekPicker, setShowWeekPicker] = useState(false);
   const [dateStatusMenu, setDateStatusMenu] = useState<string | null>(null); // date string
   const [viewMode, setViewMode] = useState<'grid' | 'klassenbuch'>('grid');
-  const [subjectFilter, setSubjectFilter] = useState<string | null>(null);
-  const [showSubjectFilterMenu, setShowSubjectFilterMenu] = useState(false);
   const [showWeekMenu, setShowWeekMenu] = useState(false);
   const [showSyncSettingsModal, setShowSyncSettingsModal] = useState(false);
   const [showDenkzettelDraw, setShowDenkzettelDraw] = useState(false);
@@ -707,8 +705,6 @@ export default function WeeklyPlan() {
   friday.setDate(monday.getDate() + 4);
 
   const [showStatsMenu, setShowStatsMenu] = useState(false);
-  const [densityMode, setDensityMode] = useState<'kompakt' | 'normal' | 'detail'>(app.weeklyDensityMode || 'normal');
-  const [filterOnlyOffen, setFilterOnlyOffen] = useState<boolean>(false);
   const [showQuickPlanModal, setShowQuickPlanModal] = useState<boolean>(false);
   const [quickPlanType, setQuickPlanType] = useState<'stunde' | 'termin' | 'test' | 'ausflug'>('stunde');
   const [quickPlanTag, setQuickPlanTag] = useState<string>('Montag');
@@ -2226,9 +2222,9 @@ export default function WeeklyPlan() {
               </div>
             </div>
 
-            {/* Row 2: Secondary Toolbar (View Mode, Density Mode, Filters & Status Counters) */}
+            {/* Row 2: Secondary Toolbar (View Mode & Status Counters) */}
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
-              {/* View Mode & Density */}
+              {/* View Mode */}
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
                   <button
@@ -2248,64 +2244,6 @@ export default function WeeklyPlan() {
                     <span>Klassenbuch</span>
                   </button>
                 </div>
-
-                {/* Density Switcher */}
-                <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
-                  {(['kompakt', 'normal', 'detail'] as const).map(mode => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => {
-                        setDensityMode(mode);
-                        setApp(p => ({ ...p, weeklyDensityMode: mode }));
-                      }}
-                      className={`px-2 py-1 rounded-lg font-extrabold text-[0.625rem] uppercase tracking-wider transition-all cursor-pointer ${densityMode === mode ? 'bg-white text-emerald-800 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
-                    >
-                      {mode === 'kompakt' ? 'Kompakt' : mode === 'normal' ? 'Normal' : 'Detail'}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Subject Filter */}
-                <div className="relative z-[210]">
-                  <button 
-                    onClick={() => setShowSubjectFilterMenu(!showSubjectFilterMenu)}
-                    className={`px-2.5 py-1 rounded-xl transition-all font-bold text-xs flex items-center gap-1 cursor-pointer border ${subjectFilter ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                  >
-                    <Filter size={12} />
-                    <span>{subjectFilter ? subjectFilter : 'Fach-Filter'}</span>
-                    {subjectFilter && (
-                      <div onClick={(e) => { e.stopPropagation(); setSubjectFilter(null); }} className="ml-1 hover:text-white/80 p-0.5"><X size={10} /></div>
-                    )}
-                  </button>
-                  {showSubjectFilterMenu && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowSubjectFilterMenu(false)} />
-                      <div className="absolute left-0 top-full mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left max-h-[300px] overflow-y-auto">
-                        <button onClick={() => { setSubjectFilter(null); setShowSubjectFilterMenu(false); }} className={`btn !bg-white !justify-start !text-left text-[0.75rem] leading-tight gap-3 ${!subjectFilter ? '!text-indigo-600 bg-indigo-50/50' : '!text-slate-700 hover:!bg-slate-50'}`}>
-                          <div className="w-4 flex justify-center">{!subjectFilter && <Check size={14} />}</div> Alle anzeigen
-                        </button>
-                        <hr className="my-1 border-slate-100" />
-                        <div className="px-3 py-1 text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider">Nach Fach</div>
-                        {yearlySubjects.map((sub: any) => (
-                          <button key={sub.id} onClick={() => { setSubjectFilter(sub.label); setShowSubjectFilterMenu(false); }} className={`btn !bg-white !justify-start !text-left text-[0.75rem] leading-tight gap-3 ${subjectFilter === sub.label ? '!text-indigo-600 bg-indigo-50/50' : '!text-slate-700 hover:!bg-slate-50'}`}>
-                            <div className="w-4 flex justify-center">{subjectFilter === sub.label && <Check size={14} />}</div> {sub.label}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Filter Only Open */}
-                <button
-                  onClick={() => setFilterOnlyOffen(!filterOnlyOffen)}
-                  className={`px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${filterOnlyOffen ? 'bg-amber-500 text-white border-amber-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                  title="Hebt unvorbereitete Stunden in der Woche hervor"
-                >
-                  <Filter size={12} />
-                  <span>Nur Offene ({weekMetrics.open})</span>
-                </button>
               </div>
 
               {/* Progress Counters */}
@@ -2904,24 +2842,10 @@ export default function WeeklyPlan() {
                          optimizationSuggestion = scheduleAnalysisForWeek.updates.find((u: any) => u.tag === tag && u.stunde === zIdx);
                       }
                       
-                      const isFilteredOut = subjectFilter ? (() => {
-                        if (isFree) return true; // Filter out free days when filtering
-                        if (!item && !displayFach) return true;
-                        
-                        if (subjectFilter.startsWith('Deutsch (')) {
-                          const spLower = subjectFilter.toLowerCase();
-                          return !(item?.schwerpunkte?.some((sp: string) => sp.toLowerCase() === spLower || `deutsch (${sp.toLowerCase()})` === spLower || spLower.includes(sp.toLowerCase())));
-                        } else {
-                          return displayFach !== subjectFilter;
-                        }
-                      })() : false;
-
                       const isNowLive = isCurrentHour(tag, zIdx) && activeKW === actualKW;
                       const isSelectedStunde = isNowLive;
 
                       const isDraggedOver = draggedOverCell && draggedOverCell.tag === tag && draggedOverCell.idx === zIdx;
-
-                      const isFilteredOutByOffen = filterOnlyOffen && item?.erledigt;
 
                       return (
                         <div 
@@ -2934,7 +2858,7 @@ export default function WeeklyPlan() {
                           onDrop={(e) => { handleDropPlan(e, tag, zIdx); setDraggedOverCell(null); }}
                           onClick={() => !isFree && openWeeklyCell(tag, zIdx)}
                           style={{ gridColumn: tIdx + 2, gridRow: `${gridRowStart} / span ${spanValue}`, zIndex: isSelectedStunde ? 90 : (crossesLunch ? 80 : 1) }}
-                          className={`min-h-[5.3125rem] border-b border-slate-100 p-1.5 relative group/cell cursor-pointer transition-all duration-300 ${isFree ? 'bg-slate-50/30' : isToday ? 'bg-emerald-50/10' : 'bg-white'} hover:bg-slate-100/30 ${isToday ? 'ring-inset ring-1 ring-emerald-200' : ''} ${isSelectedStunde ? 'ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/25 bg-indigo-50/5' : ''} ${isNowLive ? 'ring-2 ring-amber-400 shadow-lg shadow-amber-500/25 bg-amber-50/5' : ''} ${isDraggedOver ? 'ring-2 ring-dashed ring-emerald-500 bg-emerald-50/40 scale-[0.98] z-40' : ''} ${optimizationSuggestion ? 'ring-inset ring-2 ring-emerald-400/50 bg-emerald-50/30' : ''} ${isFilteredOut || isFilteredOutByOffen ? 'opacity-20 grayscale' : filterOnlyOffen && !item?.erledigt && (item?.fach || item?.thema) ? 'ring-2 ring-amber-400 bg-amber-50/20' : ''}`}
+                          className={`min-h-[5.3125rem] border-b border-slate-100 p-1.5 relative group/cell cursor-pointer transition-all duration-300 ${isFree ? 'bg-slate-50/30' : isToday ? 'bg-emerald-50/10' : 'bg-white'} hover:bg-slate-100/30 ${isToday ? 'ring-inset ring-1 ring-emerald-200' : ''} ${isSelectedStunde ? 'ring-2 ring-indigo-500 shadow-lg shadow-indigo-500/25 bg-indigo-50/5' : ''} ${isNowLive ? 'ring-2 ring-amber-400 shadow-lg shadow-amber-500/25 bg-amber-50/5' : ''} ${isDraggedOver ? 'ring-2 ring-dashed ring-emerald-500 bg-emerald-50/40 scale-[0.98] z-40' : ''} ${optimizationSuggestion ? 'ring-inset ring-2 ring-emerald-400/50 bg-emerald-50/30' : ''}`}
                         >
                           {isSelectedStunde && (
                             <div className="absolute top-1 left-1.5 z-30 flex items-center gap-1 bg-indigo-600 text-white text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md shadow-md">

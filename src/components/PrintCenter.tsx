@@ -49,6 +49,7 @@ import { exportSchuelerPDF } from '../lib/exportService';
 import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySubjects, getSchulstartKW, getSemester, getCurrentSchuljahr, formatLocalDateKey } from '../lib/utils';
 import { getFachCfg, berechne, getNotenLabel, getAssessmentMode } from '../lib/GradeUtils';
 import { DEFAULT_YEARLY_SUBJECTS, FAECHER_ALLE } from '../constants';
+import { downloadKlassenbuchPdf } from '../lib/klassenbuchPdf';
 
 const STANDARD_KEL_BEREICHE = [
   { id: 'zuzuhoeren', label: 'Zuhören & Verstehen', kategorie: 'Arbeitsverhalten' },
@@ -728,10 +729,16 @@ export default function PrintCenter() {
     const data: Record<string, string[]> = {
       'Deutsch - Rechtschreiben': [],
       'Deutsch - Sprachbetrachtung': [],
+      'Deutsch - Sprechen & Hören': [],
       'Deutsch - Texte verfassen': [],
       'Deutsch - Lesen': [],
-      'Deutsch - D- FÖ': [],
-      'Mathematik': [],
+      'Deutsch - D-FÖ': [],
+      'Mathematik - Ebene & Raum': [],
+      'Mathematik - Zahlen & Daten': [],
+      'Mathematik - Größen': [],
+      'Mathematik - Operationen': [],
+      'Mathematik - Nicht zugeordnet': [],
+      'Förderung (FÖ)': [],
       'Sachunterricht': [],
       'BSP': [],
       'Werken': [],
@@ -739,125 +746,128 @@ export default function PrintCenter() {
       'Englisch': [],
       'Zeichnen': [],
       'Religion': [],
-      'Besondere Vorkommnisse': []
+      'Besondere Vorkommnisse': [],
     };
 
     const plan = (app?.wochenplanung || {})[targetKW];
     if (!plan) return data;
 
-    // Robust subject match helpers for Austrian/VS abbreviations (case-insensitive)
-    const isDeutsch = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'd' || norm === 'de' || norm === 'deutsch' || norm.includes('deutsch');
+    const norm = (value: string) => String(value || '').trim().toLocaleLowerCase('de-AT');
+    const isDeutsch = (value: string) => {
+      const v = norm(value);
+      return v === 'd' || v === 'de' || v === 'deutsch' || v.includes('deutsch');
     };
-    const isMathe = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'm' || norm === 'ma' || norm === 'mathe' || norm === 'mathematik' || norm.includes('mathe') || norm.includes('rechnen');
+    const isMathe = (value: string) => {
+      const v = norm(value);
+      return v === 'm' || v === 'ma' || v === 'mathe' || v === 'mathematik' || v.includes('mathe') || v.includes('rechnen');
     };
-    const isSU = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'su' || norm === 'sachunterricht' || norm.includes('sach') || norm.includes('su');
+    const isFoerderung = (value: string) => {
+      const v = norm(value).replace(/\s+/g, '');
+      return v === 'fö' || v === 'foe' || v === 'förderung' || v === 'foerderung' || v.includes('(förderung)') || v.includes('(foerderung)');
     };
-    const isBSP = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'bsp' || norm === 'bs' || norm === 'b&s' || norm === 'sport' || norm === 'turnen' || norm.includes('sport') || norm.includes('turnen') || norm.includes('bewegung') || norm.includes('bsp');
+    const isSU = (value: string) => {
+      const v = norm(value);
+      return v === 'su' || v === 'sachunterricht' || v.includes('sach');
     };
-    const isWerken = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'we' || norm === 'tew' || norm === 'txw' || norm === 'werken' || norm.includes('werk') || norm.includes('technisch') || norm.includes('textil');
+    const isBSP = (value: string) => {
+      const v = norm(value);
+      return v === 'bsp' || v === 'bs' || v === 'b&s' || v === 'sport' || v === 'turnen' || v.includes('sport') || v.includes('turnen') || v.includes('bewegung');
     };
-    const isMusik = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'me' || norm === 'mu' || norm === 'musik' || norm === 'musikerziehung' || norm.includes('musik') || norm.includes('singen');
+    const isWerken = (value: string) => {
+      const v = norm(value);
+      return v === 'we' || v === 'tew' || v === 'txw' || v === 'werken' || v.includes('werk') || v.includes('technisch') || v.includes('textil');
     };
-    const isEnglisch = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'e' || norm === 'eng' || norm === 'englisch' || norm.includes('engl') || norm.includes('english');
+    const isMusik = (value: string) => {
+      const v = norm(value);
+      return v === 'me' || v === 'mu' || v === 'musik' || v === 'musikerziehung' || v.includes('musik') || v.includes('singen');
     };
-    const isZeichnen = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'be' || norm === 'ze' || norm === 'zeichnen' || norm === 'bildnerische' || norm.includes('zeichn') || norm.includes('kunst') || norm.includes('bildnerisch');
+    const isEnglisch = (value: string) => {
+      const v = norm(value);
+      return v === 'e' || v === 'eng' || v === 'englisch' || v.includes('engl') || v.includes('english');
     };
-    const isReligion = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'r' || norm === 'rel' || norm === 'religion' || norm.includes('rel') || norm.includes('religion');
+    const isZeichnen = (value: string) => {
+      const v = norm(value);
+      return v === 'be' || v === 'ze' || v === 'zeichnen' || v === 'bildnerische' || v.includes('zeichn') || v.includes('kunst') || v.includes('bildnerisch');
+    };
+    const isReligion = (value: string) => {
+      const v = norm(value);
+      return v === 'r' || v === 'rel' || v === 'religion' || v.includes('religion');
+    };
+
+    const pushEntry = (fachRaw: string, themaRaw: string, schwerpunkteRaw: string[] = [], prefix = '') => {
+      const fach = String(fachRaw || '');
+      const schwerpunkte = Array.isArray(schwerpunkteRaw) ? schwerpunkteRaw.filter(Boolean) : [];
+      const thema = String(themaRaw || '').trim();
+      if (!fach && !thema) return;
+
+      const textToPush = `${prefix}${thema || fach}`.trim();
+      const fachLower = norm(fach);
+      const focus = schwerpunkte.map(norm);
+
+      if (isDeutsch(fach) || schwerpunkte.some(isDeutsch)) {
+        let matched = false;
+        const hasRS = focus.some(value => value.includes('rechtschreib')) || fachLower.includes('rechtschreib') || fachLower === 'rs';
+        const hasSP = focus.some(value => value.includes('sprachbetracht') || value === 'deutsch (sprache)') || fachLower.includes('sprachbetracht') || fachLower === 'sp';
+        const hasSH = focus.some(value => value.includes('sprechen & hören') || value.includes('sprechen und hören')) || fachLower.includes('sprechen & hören') || fachLower.includes('sprechen und hören');
+        const hasVT = focus.some(value => value.includes('verfassen') || value.includes('texte')) || fachLower.includes('verfassen') || fachLower.includes('aufsatz') || fachLower === 'vt';
+        const hasL = focus.some(value => value.includes('lesen')) || fachLower.includes('lesen') || fachLower === 'l';
+        const hasDFO = fachLower.includes('d-fö') || focus.some(value => value.includes('deutsch (förderung)') || value === 'förderung' || value === 'd-fö');
+
+        if (hasRS) { data['Deutsch - Rechtschreiben'].push(textToPush); matched = true; }
+        if (hasSP) { data['Deutsch - Sprachbetrachtung'].push(textToPush); matched = true; }
+        if (hasSH) { data['Deutsch - Sprechen & Hören'].push(textToPush); matched = true; }
+        if (hasVT) { data['Deutsch - Texte verfassen'].push(textToPush); matched = true; }
+        if (hasL) { data['Deutsch - Lesen'].push(textToPush); matched = true; }
+        if (hasDFO) { data['Deutsch - D-FÖ'].push(textToPush); matched = true; }
+        if (!matched) data['Deutsch - Sprachbetrachtung'].push(textToPush);
+        return;
+      }
+
+      const mathFocus = [fach, ...schwerpunkte].map(norm);
+      if (isMathe(fach) || mathFocus.some(value => value.includes('mathematik'))) {
+        if (mathFocus.some(value => value.includes('ebene & raum'))) data['Mathematik - Ebene & Raum'].push(textToPush);
+        else if (mathFocus.some(value => value.includes('zahlen & daten'))) data['Mathematik - Zahlen & Daten'].push(textToPush);
+        else if (mathFocus.some(value => value.includes('größen') || value.includes('groessen'))) data['Mathematik - Größen'].push(textToPush);
+        else if (mathFocus.some(value => value.includes('operationen'))) data['Mathematik - Operationen'].push(textToPush);
+        else data['Mathematik - Nicht zugeordnet'].push(textToPush);
+        return;
+      }
+
+      if (isFoerderung(fach) || schwerpunkte.some(isFoerderung)) data['Förderung (FÖ)'].push(textToPush);
+      else if (isSU(fach)) data['Sachunterricht'].push(textToPush);
+      else if (isBSP(fach)) data['BSP'].push(textToPush);
+      else if (isWerken(fach)) data['Werken'].push(textToPush);
+      else if (isMusik(fach)) data['Musik'].push(textToPush);
+      else if (isEnglisch(fach)) data['Englisch'].push(textToPush);
+      else if (isZeichnen(fach)) data['Zeichnen'].push(textToPush);
+      else if (isReligion(fach)) data['Religion'].push(textToPush);
+      else data['Besondere Vorkommnisse'].push(fach ? `${fach}: ${textToPush}` : textToPush);
     };
 
     Object.keys(plan).forEach(tag => {
       if (!['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].includes(tag)) return;
       Object.keys(plan[tag] || {}).forEach(idx => {
         const numericIdx = parseInt(idx, 10);
-        if (isNaN(numericIdx)) return;
-
+        if (!Number.isInteger(numericIdx)) return;
         const item = plan[tag][idx];
-        if (!item || (!item.fach && !item.thema)) return;
+        if (!item) return;
 
-        const fach = item.fach || '';
-        const thema = [item.thema, item.reflexion].filter(Boolean).join(' - ');
-        if (!thema && !fach) return;
-        const textToPush = thema || fach;
-
-        const schwerpunkte = item.schwerpunkte || [];
-
-        if (isDeutsch(fach) || schwerpunkte.some((s: string) => isDeutsch(s))) {
-          let matchedDeutsch = false;
-          const hasRS = schwerpunkte.includes('Deutsch (Rechtschreibung)') || fach.toLowerCase().includes('rechtschreib') || fach.toLowerCase().includes('rs') || fach.toLowerCase() === 'rs';
-          const hasSP = schwerpunkte.includes('Deutsch (Sprache)') || fach.toLowerCase().includes('sprach') || fach.toLowerCase().includes('sp') || fach.toLowerCase() === 'sp';
-          const hasVT = schwerpunkte.includes('Deutsch (Verfassen von Texten)') || fach.toLowerCase().includes('verfassen') || fach.toLowerCase().includes('texte') || fach.toLowerCase().includes('aufsatz') || fach.toLowerCase().includes('vt') || fach.toLowerCase() === 'vt';
-          const hasL  = schwerpunkte.includes('Deutsch (Lesen)') || fach.toLowerCase().includes('lesen') || fach.toLowerCase().includes('l') || fach.toLowerCase() === 'l';
-          const hasFO = fach.includes('D-FÖ') || fach.toLowerCase() === 'd-fö' || fach.includes('Förder') || schwerpunkte.includes('Förderung') || fach.toLowerCase() === 'd- fö' || fach.toLowerCase() === 'd-fö';
-
-          if (hasRS) {
-             data['Deutsch - Rechtschreiben'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasSP) {
-             data['Deutsch - Sprachbetrachtung'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasVT) {
-             data['Deutsch - Texte verfassen'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasL) {
-             data['Deutsch - Lesen'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasFO) {
-             data['Deutsch - D- FÖ'].push(textToPush);
-             matchedDeutsch = true;
-          }
-
-          if (!matchedDeutsch) {
-             data['Deutsch - Sprachbetrachtung'].push(textToPush);
-          }
-        } else if (isMathe(fach)) {
-          data['Mathematik'].push(textToPush);
-        } else if (isSU(fach)) {
-          data['Sachunterricht'].push(textToPush);
-        } else if (isBSP(fach)) {
-          data['BSP'].push(textToPush);
-        } else if (isWerken(fach)) {
-          data['Werken'].push(textToPush);
-        } else if (isMusik(fach)) {
-          data['Musik'].push(textToPush);
-        } else if (isEnglisch(fach)) {
-          data['Englisch'].push(textToPush);
-        } else if (isZeichnen(fach)) {
-          data['Zeichnen'].push(textToPush);
-        } else if (isReligion(fach)) {
-          data['Religion'].push(textToPush);
-        } else {
-          const entryStr = fach ? `${fach}: ${textToPush}` : textToPush;
-          data['Besondere Vorkommnisse'].push(entryStr);
+        if (item.halves?.enabled) {
+          const first = item.halves.first || {};
+          const second = item.halves.second || {};
+          pushEntry(first.fach || item.fach || '', first.thema || '', first.unterbereich ? [first.unterbereich] : [], '1. Hälfte: ');
+          pushEntry(second.fach || item.fach || '', second.thema || '', second.unterbereich ? [second.unterbereich] : [], '2. Hälfte: ');
+          if (item.reflexion) data['Besondere Vorkommnisse'].push(`${tag}, ${numericIdx + 1}. Stunde – Reflexion: ${item.reflexion}`);
+          return;
         }
+
+        pushEntry(item.fach || '', [item.thema, item.reflexion].filter(Boolean).join(' - '), item.schwerpunkte || []);
       });
     });
 
-    Object.keys(data).forEach(k => {
-      data[k] = Array.from(new Set(data[k].filter(Boolean))).map(s => s.trim());
+    Object.keys(data).forEach(key => {
+      data[key] = Array.from(new Set(data[key].map(value => value.trim()).filter(Boolean)));
     });
-
     return data;
   };
 
@@ -1100,7 +1110,7 @@ export default function PrintCenter() {
           }
           @page {
             size: ${printOrientation === 'landscape' ? 'landscape' : 'portrait'} ${printPaperSize};
-            margin: ${printMargin}mm;
+            margin: 0;
           }
           * {
             -webkit-print-color-adjust: exact !important;
@@ -1109,6 +1119,10 @@ export default function PrintCenter() {
           .page-break {
             page-break-after: always !important;
             break-after: page !important;
+          }
+          .page-break:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
           }
           .avoid-break {
             page-break-inside: avoid !important;
@@ -2464,6 +2478,20 @@ export default function PrintCenter() {
                         );
                       })}
                     </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-3.5 space-y-2">
+                    <p className="text-[0.6875rem] font-bold leading-relaxed text-indigo-900">
+                      PDF erstellt ein sauberes A4-Klassenbuch direkt aus denselben Wochen wie die Vorschau. Für einen Papierausdruck kannst du weiterhin „Drucken“ verwenden.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleDownloadKlassenbuchPdf}
+                      className="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-[0.6875rem] uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-sm"
+                    >
+                      <Download size={15} />
+                      Klassenbuch als PDF herunterladen
+                    </button>
                   </div>
                 </div>
               )}
@@ -4273,6 +4301,58 @@ export default function PrintCenter() {
     return weeks;
   }
 
+  function handleDownloadKlassenbuchPdf() {
+    const weeks = getKbWeeksToRender();
+    const teacherName = [app?.anrede, app?.vorname, app?.nachname]
+      .filter(Boolean)
+      .join(' ')
+      || app?.lehrerName
+      || app?.lehrerProfil?.name
+      || '';
+
+    const pdfWeeks = weeks.map((kw) => {
+      const dates = kwToDates(kw);
+      const dateRange = `${dates.monday.toLocaleDateString('de-AT')} – ${dates.friday.toLocaleDateString('de-AT')}`;
+      const categories = compileKlassenbuchData(kw);
+
+      if (!kbIncludeOccurrences) {
+        categories['Besondere Vorkommnisse'] = [];
+      }
+
+      return {
+        kw,
+        sw: dates.sw,
+        dateRange,
+        categories,
+        absentees: getAbsenteesForWeek(kw),
+        notes: kbCustomNotesValue.trim() || undefined,
+      };
+    });
+
+    const safeClass = String(app?.klassenbezeichnung || 'Klasse')
+      .normalize('NFKD')
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'Klasse';
+    const rangeLabel = kbMode === 'single'
+      ? `KW_${kbKW}`
+      : kbMode === 'all'
+        ? 'Gesamt'
+        : `KW_${kbStartKW}_bis_${kbEndKW}`;
+
+    downloadKlassenbuchPdf(
+      `Klassio_Klassenbuch_${safeClass}_${rangeLabel}.pdf`,
+      {
+        className: app?.klassenbezeichnung || '',
+        schoolYear: app?.schuljahr || '',
+        teacherName,
+        weeks: pdfWeeks,
+        includeAbsentees: kbIncludeAbsentees,
+        includeOccurrences: kbIncludeOccurrences,
+        signatures: kbSignatures,
+      },
+    );
+  }
+
   function renderSingleKlassenbuchPage(targetKW: number) {
     const pageKbData = compileKlassenbuchData(targetKW);
     const pageAbsenteesList = getAbsenteesForWeek(targetKW);
@@ -4282,162 +4362,40 @@ export default function PrintCenter() {
     const friStr = `${pageDates.friday.getDate()}.${pageDates.friday.getMonth() + 1}.${pageDates.friday.getFullYear()}`;
     const kbHeaderDateStr = `(${monStr}-${friStr})`;
 
+    const printableCategories = Object.entries(pageKbData).filter(([category]) =>
+      kbIncludeOccurrences || category !== 'Besondere Vorkommnisse'
+    );
+
     return (
       <div className="space-y-4 print:space-y-3 font-sans">
         {/* Scanned-document replica table */}
-        <table className="w-full border-collapse border-[2.5px] border-black text-black">
+        <table className="w-full border-collapse border-2 border-slate-900 text-black">
           <thead>
             <tr>
-              <th colSpan={3} className="bg-[#e4e4e7] border-b-[2.5px] border-black p-3 text-center text-[0.875rem] leading-snug md:text-[1rem] leading-normal font-black tracking-wide text-black uppercase">
+              <th colSpan={2} className="bg-slate-900 border-b-2 border-slate-900 p-3 text-center text-[0.875rem] font-black tracking-wide text-white uppercase">
                 {pageDates.sw}. Schulwoche {kbHeaderDateStr}
+              </th>
+            </tr>
+            <tr className="bg-slate-100 border-b border-slate-400">
+              <th className="w-[34%] border-r border-slate-400 px-3 py-2 text-left text-[0.625rem] font-black uppercase tracking-wider text-slate-600">
+                Bereich
+              </th>
+              <th className="px-3 py-2 text-left text-[0.625rem] font-black uppercase tracking-wider text-slate-600">
+                Unterricht / Inhalt
               </th>
             </tr>
           </thead>
           <tbody>
-            {/* Deutsch Rechtschreiben */}
-            <tr className="border-b-[1.5px] border-black">
-              <td rowSpan={5} className="bg-[#f4f4f5] border-r-[2px] border-black p-2 font-black text-center w-[12%] align-middle">
-                <div className="font-extrabold text-[0.75rem] uppercase tracking-[0.14em]" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', margin: 'auto' }}>
-                  Deutsch
-                </div>
-              </td>
-              <td className="bg-white border-r border-b border-zinc-300 p-2 font-bold text-left text-[0.65625rem] text-zinc-900 w-[20%] leading-tight">
-                Recht-<br/>schreiben
-              </td>
-              <td className="border-b border-zinc-300 p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap">
-                {pageKbData['Deutsch - Rechtschreiben']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Deutsch Sprachbetrachtung */}
-            <tr className="border-b-[1.5px] border-black">
-              <td className="bg-white border-r border-b border-zinc-300 p-2 font-bold text-left text-[0.65625rem] text-zinc-900 leading-tight">
-                Sprach-<br/>betrachtung
-              </td>
-              <td className="border-b border-zinc-300 p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap">
-                {pageKbData['Deutsch - Sprachbetrachtung']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Deutsch Texte verfassen */}
-            <tr className="border-b-[1.5px] border-black">
-              <td className="bg-white border-r border-b border-zinc-300 p-2 font-bold text-left text-[0.65625rem] text-zinc-900 leading-tight">
-                Texte<br/>verfassen
-              </td>
-              <td className="border-b border-zinc-300 p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap">
-                {pageKbData['Deutsch - Texte verfassen']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Deutsch Lesen */}
-            <tr className="border-b-[1.5px] border-black">
-              <td className="bg-white border-r border-b border-zinc-300 p-2 font-bold text-left text-[0.65625rem] text-zinc-900 leading-tight">
-                Lesen
-              </td>
-              <td className="border-b border-zinc-300 p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap">
-                {pageKbData['Deutsch - Lesen']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Deutsch D- FÖ */}
-            <tr className="border-b-[2px] border-black">
-              <td className="bg-white border-r border-black p-2 font-bold text-left text-[0.65625rem] text-zinc-900 leading-tight">
-                D- FÖ
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap">
-                {pageKbData['Deutsch - D- FÖ']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Mathematik */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Mathematik
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Mathematik']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Sachunterricht */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Sachunterricht
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Sachunterricht']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* BSP */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                BSP
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['BSP']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Werken */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Werken
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Werken']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Musik */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Musik
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Musik']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Englisch */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Englisch
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Englisch']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Zeichnen */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Zeichnen
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Zeichnen']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Religion */}
-            <tr className="border-b-[1.5px] border-black">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%]">
-                Religion
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3rem]">
-                {pageKbData['Religion']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
-
-            {/* Besondere Vorkommnisse */}
-            <tr className="avoid-break">
-              <td colSpan={2} className="bg-[#f4f4f5] border-r-[2px] border-black p-3.5 font-bold text-center text-[0.71875rem] text-zinc-900 w-[32%] leading-tight">
-                Besondere<br/>Vorkommnisse
-              </td>
-              <td className="p-2.5 text-[0.6875rem] font-semibold text-zinc-800 leading-normal align-middle whitespace-pre-wrap min-h-[3.5rem]">
-                {pageKbData['Besondere Vorkommnisse']?.join(', ') || <span className="text-zinc-300">—</span>}
-              </td>
-            </tr>
+            {printableCategories.map(([category, entries]) => (
+              <tr key={category} className="avoid-break border-b border-slate-300 last:border-b-0">
+                <td className="border-r border-slate-300 bg-slate-50 px-3 py-2 text-[0.65625rem] font-black leading-tight text-slate-800">
+                  {category}
+                </td>
+                <td className="px-3 py-2 text-[0.6875rem] font-semibold leading-relaxed text-slate-800 whitespace-pre-wrap">
+                  {entries.length > 0 ? entries.join(' · ') : <span className="text-slate-300">—</span>}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
 
