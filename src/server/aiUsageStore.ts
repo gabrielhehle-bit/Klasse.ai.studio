@@ -134,7 +134,10 @@ export class AiUsageStore {
       day.actors[actorId] = Number(day.actors[actorId] || 0) + 1;
       day.total += 1;
       await this.write(data);
-      return this.snapshot(data, actorId, perUserLimit, globalLimit, today);
+      const after = this.snapshot(data, actorId, perUserLimit, globalLimit, today);
+      // Die aktuelle Anfrage wurde bereits innerhalb des Limits reserviert.
+      // remaining=0 bedeutet: Diese Anfrage darf noch laufen, die nächste wird blockiert.
+      return { ...after, allowed: true, reason: undefined };
     });
 
     this.queue = task.then(() => undefined, () => undefined);
