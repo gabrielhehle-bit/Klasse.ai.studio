@@ -157,6 +157,28 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const [sizeInputWidth, setSizeInputWidth] = useState("");
   const [sizeInputHeight, setSizeInputHeight] = useState("");
   const [isMaximized, setIsMaximized] = useState(false);
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const updateStageSize = () => {
+      const rect = stage.getBoundingClientRect();
+      setStageSize({ width: rect.width, height: rect.height });
+    };
+
+    updateStageSize();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(updateStageSize);
+      observer.observe(stage);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", updateStageSize);
+    return () => window.removeEventListener("resize", updateStageSize);
+  }, [stageRef]);
 
   // Sync inputs with widget dimensions when config opens or dims change externally
   useEffect(() => {
@@ -430,10 +452,17 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   };
 
   const opt = OPTIMAL_WIDGET_SIZES[widget.type] || { w: 35, h: 45 };
-  const scaleX = isMaximized ? 96 / opt.w : widget.w / opt.w;
-  const scaleY = isMaximized ? 96 / opt.h : widget.h / opt.h;
-  const contentScale = Math.min(4, Math.min(scaleX, scaleY));
   const isDirect = !!widget.settings?.isDirectMode;
+  const safeMinSize = getWidgetMinSizeConfig(widget.type);
+  const minWPercent = stageSize.width > 0 ? Math.min(100, (safeMinSize.minW / stageSize.width) * 100) : 0;
+  const minHPercent = stageSize.height > 0 ? Math.min(100, (safeMinSize.minH / stageSize.height) * 100) : 0;
+  const renderedW = isDirect ? 100 : isMaximized ? 96 : Math.max(5, widget.w, minWPercent);
+  const renderedH = isDirect ? 100 : isMaximized ? 96 : Math.max(5, widget.h, minHPercent);
+  const renderedX = isDirect ? 0 : isMaximized ? 2 : Math.max(0, Math.min(widget.x, 100 - renderedW));
+  const renderedY = isDirect ? 0 : isMaximized ? 2 : Math.max(0, Math.min(widget.y, 100 - renderedH));
+  const scaleX = renderedW / opt.w;
+  const scaleY = renderedH / opt.h;
+  const contentScale = Math.min(4, Math.min(scaleX, scaleY));
 
   return (
     <div
@@ -454,10 +483,10 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       }`}
       style={{
         containerType: "inline-size",
-        left: isDirect ? "0" : isMaximized ? "2%" : `${widget.x}%`,
-        top: isDirect ? "0" : isMaximized ? "2%" : `${widget.y}%`,
-        width: isDirect ? "100%" : isMaximized ? "96%" : `${Math.max(5, widget.w)}%`,
-        height: isDirect ? "100%" : isMaximized ? "96%" : `${Math.max(5, widget.h)}%`,
+        left: `${renderedX}%`,
+        top: `${renderedY}%`,
+        width: `${renderedW}%`,
+        height: `${renderedH}%`,
         zIndex: isDirect ? 0 : isMaximized ? 9999 : zIndex,
         touchAction: isDirect || layoutLocked ? "auto" : "none",
       }}
