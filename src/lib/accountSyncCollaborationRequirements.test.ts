@@ -7,7 +7,7 @@ import path from 'node:path';
 import { AccountSyncStore } from '../server/accountSyncStore';
 import { mentionAliasesForTeacher } from '../server/teacherIdentity';
 import { resolveMentionUserIds, type LehrerzimmerUser } from '../server/lehrerzimmerStore';
-import { accountSyncState, mergeAccountSyncState } from './accountSyncService';
+import { accountSyncState, hasEmailAccountSession, mergeAccountSyncState } from './accountSyncService';
 
 const root = process.cwd();
 const read = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
@@ -54,6 +54,39 @@ test('Konto-Sync wird an die E-Mail-Identität gebunden und speichert nur Chiffr
     assert.equal(loaded?.revision, 1);
   } finally {
     await fsp.rm(temp, { recursive: true, force: true });
+  }
+});
+
+test('E-Mail-Kontostatus behandelt Netzwerkfehler nicht als Abmeldung', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    throw new Error('offline');
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      () => hasEmailAccountSession(),
+      (error: any) => error?.code === 'SESSION_STATUS_UNAVAILABLE',
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('E-Mail-Kontostatus unterscheidet echte Abmeldung von Verbindungsfehlern', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    authenticated: true,
+    account: null,
+  }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })) as typeof fetch;
+
+  try {
+    assert.equal(await hasEmailAccountSession(), false);
+  } finally {
+    globalThis.fetch = previousFetch;
   }
 });
 
@@ -189,4 +222,17 @@ test('Mehrdeutige Kurz-Erwähnungen markieren nicht versehentlich die falsche Le
 
   assert.deepEqual(resolveMentionUserIds(users, 'Hallo @anna'), []);
   assert.deepEqual(resolveMentionUserIds(users, 'Hallo @annamuster'), ['u1']);
+});
+
+
+test('Konto-Einstellungen zeigen Sync-Zustand, Fehlerhinweis und manuellen Neuversuch', () => {
+  const context = read('src/context/AppContext.tsx');
+  const accountSettings = read('src/components/settings/AccountSettings.tsx');
+
+  assert.match(context, /accountSyncMessage/);
+  assert.match(context, /retryAccountSync/);
+  assert.match(context, /document\.visibilityState === 'visible'/);
+  assert.match(accountSettings, /data-testid="account-sync-status"/);
+  assert.match(accountSettings, /Erneut versuchen/);
+  assert.match(accountSettings, /Sync-Konflikt – nichts überschrieben/);
 });
