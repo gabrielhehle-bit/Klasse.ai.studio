@@ -590,6 +590,24 @@ export default function AIAssistant() {
               ))}
             </div>
           </div>
+          <div className="w-full mt-5 pt-4 border-t border-slate-100">
+            {!isSidebarCollapsed && (
+              <div className="mb-2 px-2"><span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-300 whitespace-nowrap">Direkt in KLASSIO</span></div>
+            )}
+            <div className={"space-y-1 " + (isSidebarCollapsed ? 'w-full flex flex-col items-center' : '')}>
+              {[
+                { id: 'arbeitsblatt', label: 'Arbeitsblätter', icon: <FileText size={16} /> },
+                { id: 'wochenplanung', label: 'Wochenplanung', icon: <ClipboardList size={16} /> },
+                { id: 'stationenbetrieb', label: 'Lernwerkstätten', icon: <LayoutGrid size={16} /> },
+              ].map(item => (
+                <button key={item.id} type="button" onClick={() => setPage(item.id)} title={isSidebarCollapsed ? item.label : undefined}
+                  className={"group flex items-center rounded-xl border border-transparent bg-slate-50/70 text-slate-500 transition hover:border-slate-200 hover:bg-white hover:text-slate-800 " + (isSidebarCollapsed ? 'h-11 w-11 justify-center' : 'w-full gap-3 px-3 py-2.5')}>
+                  <span className="shrink-0 text-slate-400">{item.icon}</span>
+                  {!isSidebarCollapsed && (<><span className="text-[0.625rem] font-black uppercase tracking-tight">{item.label}</span><ArrowRight size={11} className="ml-auto text-slate-300 transition group-hover:translate-x-0.5" /></>)}
+                </button>
+              ))}
+            </div>
+          </div>
         </nav>
 
         <div className={`mt-8 pt-6 border-t border-slate-100 w-full ${isSidebarCollapsed ? 'flex justify-center' : 'space-y-4'}`}>
@@ -825,24 +843,6 @@ export default function AIAssistant() {
                                    <div className={`${isCompact ? 'mt-3 pt-3' : 'mt-5 pt-4'} flex items-center gap-1.5 border-t border-white/10 justify-end`}>
                                       <span className="text-[9px] text-slate-400 mr-auto font-black uppercase tracking-wider select-none">Speichern:</span>
                                       <AISaveButton content={m.content} type="notiz" />
-                                      {(activeTab === 'ki-arbeitsblatt' || activeTab === 'ki-wochenplan') && (
-                                        <button 
-                                          type="button"
-                                          onClick={() => {
-                                            const printWindow = window.open('', '_blank');
-                                            if (printWindow) {
-                                              printWindow.document.write(`<html><head><title>Drucken</title><style>body { font-family: sans-serif; white-space: pre-wrap; padding: 20px; }</style></head><body>${m.content}</body></html>`);
-                                              printWindow.document.close();
-                                              printWindow.print();
-                                            }
-                                          }}
-                                          className="p-2 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-                                          title="Drucken"
-                                        >
-                                          <FileText size={12} />
-                                          <span className="hidden sm:inline text-[9px] tracking-wider uppercase">Drucken</span>
-                                        </button>
-                                      )}
                                       <button 
                                         type="button"
                                         onClick={() => { navigator.clipboard.writeText(m.content); showToast('In die Zwischenablage kopiert', 'success'); }}
@@ -924,100 +924,14 @@ export default function AIAssistant() {
                 <div className="absolute bottom-0 inset-x-0 p-4 lg:p-6 bg-gradient-to-t from-white via-white/98 to-transparent pointer-events-none">
                   <div className="max-w-3xl mx-auto w-full pointer-events-auto flex flex-col gap-2.5">
                     
-                    {/* Arbeitsblatt Form with Elegant Segmented Containers */}
-                    {activeTab === 'ki-arbeitsblatt' && (
-                      <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xl">
-                        <div className="text-[0.625rem] font-black uppercase text-slate-400 mb-4 ml-1 flex items-center gap-2 tracking-widest"><FileText size={14} className="text-cyan-500" /> Arbeitsblatt Konfigurator</div>
-                        <div className="grid grid-cols-2 gap-3.5 mb-3.5">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Fach</span>
-                            <select value={abFach} onChange={e => setAbFach(e.target.value)} className="p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none hover:bg-slate-100 transition-colors cursor-pointer">
-                              <option>Deutsch</option><option>Mathematik</option><option>Sachunterricht</option><option>Englisch</option>
-                            </select>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Klasse</span>
-                            <select value={abStufe} onChange={e => setAbStufe(Number(e.target.value))} className="p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none hover:bg-slate-100 transition-colors cursor-pointer">
-                              {[1,2,3,4].map(s => <option key={s} value={s}>{s}. Stufe</option>)}
-                            </select>
-                          </div>
-                        </div>
-                        <div className="mb-3.5 flex flex-col gap-1">
-                          <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Arbeitsblatt-Typ</span>
-                          <select value={abTyp} onChange={e => setAbTyp(e.target.value)} className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none hover:bg-slate-100 transition-colors cursor-pointer">
-                            {abFach === 'Deutsch' && <><option>Lückentext</option><option>Lernwörter-Übung</option><option>Satzglieder</option><option>Wortarten bestimmen</option><option>Leseverständnis mit Fragen</option></>}
-                            {abFach === 'Mathematik' && <><option>Diagnostischer Kurztest</option><option>Rechenpäckchen</option><option>Sachaufgaben</option><option>Zahlenrätsel</option><option>Geometrie-Aufgaben</option><option>gemischte Übung</option></>}
-                            {abFach === 'Sachunterricht' && <><option>Wissensfragen</option><option>Zuordnungsaufgabe</option><option>Lückentext</option></>}
-                            {abFach === 'Englisch' && <><option>Vokabel-Übung</option><option>einfache Sätze</option><option>Bild-Wort-Zuordnung (als Textbeschreibung)</option></>}
-                          </select>
-                        </div>
-                        <div className="mb-3.5 relative flex flex-col gap-1">
-                          <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Thema</span>
-                          {availableLehrplanTopics.length > 0 ? (
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <select 
-                                value={abThema} 
-                                onChange={e => setAbThema(e.target.value)} 
-                                className="flex-1 p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none hover:bg-slate-100 transition-colors cursor-pointer"
-                              >
-                                <option value="">Lehrplanthema wählen...</option>
-                                {availableLehrplanTopics.map((thema, idx) => (
-                                  <option key={idx} value={thema}>{thema}</option>
-                                ))}
-                              </select>
-                              <input 
-                                type="text" 
-                                value={abThema} 
-                                onChange={e => setAbThema(e.target.value)} 
-                                placeholder="oder eigenes Thema..." 
-                                className="flex-1 p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none" 
-                              />
-                            </div>
-                          ) : (
-                            <input 
-                              type="text" 
-                              value={abThema} 
-                              onChange={e => setAbThema(e.target.value)} 
-                              placeholder="Thema (z.B. Wald und Waldtiere)" 
-                              className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none" 
-                            />
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-3.5 mb-4">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Schwierigkeit</span>
-                            <select value={abSchwierigkeit} onChange={e => setAbSchwierigkeit(e.target.value)} className="p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none hover:bg-slate-100 transition-colors cursor-pointer">
-                              <option>Leicht</option><option>Mittel</option><option>Fördernd</option>
-                            </select>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Aufgaben-Anzahl</span>
-                            <select value={abAnzahl} onChange={e => setAbAnzahl(Number(e.target.value))} className="p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none hover:bg-slate-100 transition-colors cursor-pointer">
-                              <option value={5}>5 Aufgaben</option><option value={10}>10 Aufgaben</option><option value={15}>15 Aufgaben</option>
-                            </select>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => {
-                            const prompt = `Erstelle ein Arbeitsblatt. Fach: ${abFach}, ${abStufe}. Stufe. Typ: ${abTyp}. Thema: "${abThema}". Schwierigkeit: ${abSchwierigkeit}, Anzahl: ${abAnzahl} Aufgaben.`;
-                            handleSend(prompt);
-                          }} 
-                          disabled={!abThema.trim() || isLoading} 
-                          className="w-full py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:shadow-cyan-500/20 transition-all active:scale-[0.99] disabled:bg-slate-200 cursor-pointer"
-                        >
-                          Arbeitsblatt erstellen
-                        </button>
-                      </div>
-                    )}
- 
                     {/* Foto-Korrektur Form */}
                     {activeTab === 'ki-foto-korrektur' && (
                       <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xl">
-                        <div className="text-[0.625rem] font-black uppercase text-slate-400 mb-3 ml-1 flex items-center gap-2 tracking-widest"><Camera size={14} className="text-red-500" /> Schülertext-Korrektur</div>
+                        <div className="text-[0.625rem] font-black uppercase text-slate-400 mb-3 ml-1 flex items-center gap-2 tracking-widest"><Camera size={14} className="text-red-500" /> Foto-Feedback für Schülertexte</div>
                         
                         <div className="bg-rose-50/50 border border-rose-100 rounded-2xl p-3.5 flex items-start gap-3 mb-4">
                           <Shield size={16} className="text-rose-500 shrink-0 mt-0.5" />
-                          <p className="text-[0.6875rem] font-bold text-rose-700 leading-normal">Datenschutz: Vor dem Hochladen müssen Name, Adresse und andere personenbezogene Angaben im Foto unkenntlich gemacht werden. Das Bild wird erst nach deiner Bestätigung an die KI gesendet.</p>
+                          <p className="text-[0.6875rem] font-bold text-rose-700 leading-normal">Datenschutz: Vor dem Hochladen müssen Name, Adresse und andere personenbezogene Angaben unkenntlich gemacht werden. KLASSIO sendet das Bild erst nach deiner Bestätigung an Gemini. Die Rückmeldung ist pädagogisches Feedback – keine automatische Note.</p>
                         </div>
  
                         <div className="mb-4">
@@ -1107,61 +1021,10 @@ export default function AIAssistant() {
                             const prompt = `Analysiere diesen Schülertext der ${fkStufe}. Stufe. Fokus auf: ${foki}.`;
                             handleSend(prompt, fkImageBase64, fkPrivacyConfirmed);
                           }} 
-                          disabled={!fkImageBase64 || !fkPrivacyConfirmed || isLoading || aiAvailability === 'missing'} 
+                          disabled={!fkImageBase64 || !fkPrivacyConfirmed || isLoading || aiAvailability === 'missing' || aiUsage?.blocked || aiUsage?.remaining === 0} 
                           className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:shadow-red-500/20 transition-all active:scale-[0.99] disabled:bg-slate-200 cursor-pointer"
                         >
-                          Text analysieren
-                        </button>
-                      </div>
-                    )}
- 
-                    {/* Wochenplan Form */}
-                    {activeTab === 'ki-wochenplan' && (
-                      <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xl">
-                        <div className="text-[0.625rem] font-black uppercase text-slate-400 mb-4 ml-1 flex items-center gap-2 tracking-widest"><ClipboardList size={14} className="text-purple-500" /> Wochenplan Generator</div>
-                        <div className="grid grid-cols-2 gap-3.5 mb-3.5">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Zeitraum</span>
-                            <input type="text" value={wpZeitraum} onChange={e => setWpZeitraum(e.target.value)} placeholder="z.B. KW 23" className="p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none w-full" />
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Schulstufe</span>
-                            <select value={wpStufe} onChange={e => setWpStufe(Number(e.target.value))} className="p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none w-full cursor-pointer hover:bg-slate-100 transition-colors">
-                              {[1,2,3,4].map(s => <option key={s} value={s}>{s}. Stufe</option>)}
-                            </select>
-                          </div>
-                        </div>
-                        <div className="space-y-3 mb-3.5">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Pflichtaufgaben</span>
-                            <textarea value={wpPflicht} onChange={e => setWpPflicht(e.target.value)} placeholder="Mathe S.45, Deutsch Leseübung..." className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none resize-none h-16" />
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Wahlaufgaben (Optional)</span>
-                            <textarea value={wpWahl} onChange={e => setWpWahl(e.target.value)} placeholder="Wahlaufgaben-Ideen (die KI ergänzt diese kreativ)" className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none resize-none h-16" />
-                          </div>
-                        </div>
-                        <div className="mb-4 space-y-1.5">
-                          <div className="text-[0.625rem] font-black uppercase text-slate-400 ml-1 tracking-wider">Differenzierung</div>
-                          <div className="flex flex-wrap gap-2">
-                             {Object.keys(wpDiff).map((key) => (
-                               <label key={key} className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 cursor-pointer hover:bg-slate-100 transition-colors">
-                                  <input type="checkbox" checked={(wpDiff as any)[key]} onChange={e => setWpDiff(prev => ({...prev, [key]: e.target.checked}))} className="rounded text-indigo-600 focus:ring-0" />
-                                  <span className="text-[0.6875rem] font-bold text-slate-700 capitalize">{key}-Plan</span>
-                               </label>
-                             ))}
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => {
-                            const diffs = Object.entries(wpDiff).filter(([_,v]) => v).map(([k]) => `${k}-Plan`).join(', ');
-                            const prompt = `Erstelle Wochenpläne (${diffs}) für die ${wpStufe}. Stufe. Zeitraum: ${wpZeitraum}. Pflicht: ${wpPflicht}. Wahl: ${wpWahl}`;
-                            handleSend(prompt);
-                          }} 
-                          disabled={!wpPflicht.trim() || isLoading} 
-                          className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:shadow-purple-500/20 transition-all active:scale-[0.99] disabled:bg-slate-200 cursor-pointer"
-                        >
-                          Wochenpläne erstellen
+                          Foto-Feedback erstellen
                         </button>
                       </div>
                     )}
@@ -1239,22 +1102,19 @@ export default function AIAssistant() {
                            <p className="text-[0.625rem] font-bold text-slate-400 leading-none">Interaktiver Assistent</p>
                         </div>
                      </div>
-                     <button 
-                       onClick={() => setShowGuidedTool(false)} 
-                       className="px-5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full text-[0.5625rem] font-black uppercase tracking-widest flex items-center gap-2 border border-slate-200 shadow-sm"
-                     >
-                        <MessageSquare size={12} className="text-indigo-400" />
-                        Chat-Beratung
-                     </button>
+                     <div className="flex items-center gap-2">
+                       {aiUsage && (<span className={"rounded-full border px-2.5 py-1.5 text-[0.5625rem] font-black " + ((aiUsage.blocked || aiUsage.remaining === 0) ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-slate-200 bg-slate-50 text-slate-500')}>{aiUsage.remaining}/{aiUsage.limit} KI-Anfragen</span>)}
+                       <button onClick={() => setShowGuidedTool(false)} className="px-5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full text-[0.5625rem] font-black uppercase tracking-widest flex items-center gap-2 border border-slate-200 shadow-sm">
+                          <MessageSquare size={12} className="text-indigo-400" /> Freie Frage
+                       </button>
+                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto no-scrollbar">
-                     <div className={`${activeTab === 'ki-stationenbetrieb' ? 'w-full' : 'max-w-4xl mx-auto'} w-full h-full`}>
+                     <div className="max-w-4xl mx-auto w-full h-full">
                         {activeTab === 'ki-elternbrief' && <EmailAssistant />}
                         {activeTab === 'ki-differenzierung' && <Differentiation />}
                         {activeTab === 'ki-beurteilung' && <VerbalAssessment />}
                         {activeTab === 'ki-korrektur' && <MaterialOptimizer />}
-                        {activeTab === 'ki-stundenplan-check' && <ScheduleOptimizer />}
-                        {activeTab === 'ki-stationenbetrieb' && <StationenbetriebManager />}
                      </div>
                   </div>
               </motion.div>
