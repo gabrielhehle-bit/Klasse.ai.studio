@@ -129,3 +129,22 @@ test('Datensicherung: Einstellungen lesen den echten savedAt-Zeitpunkt der Notfa
   assert.doesNotMatch(settingsComponent, /parsed\.lastBackupDate/);
   assert.match(settingsComponent, /hehle_v3_notfallkopie_time/);
 });
+
+
+test('Datensicherung: alte JSON-Backups bleiben sichtbar unterstützt', () => {
+  assert.match(backupComponent, /ältere JSON-Backups aus Klasse\.ai\.studio \/ früheren Klassio-Versionen/);
+  assert.match(backupComponent, /accept="\.json,\.js,\.lehrerapp,\.lehrerapp-backup/);
+  assert.match(backupComponent, /parseBackupText/);
+  assert.match(backupComponent, /prepareBackupRestore/);
+});
+
+test('Datensicherung: importierter Altstand wird kontrolliert in den Konto-Sync übernommen', () => {
+  assert.match(appContext, /accountSyncBusyRef\.current = true;/);
+  assert.match(appContext, /await restoreEncryptedAppState\(currentAppRef\.current, next, key\)/);
+  assert.match(appContext, /const reconciledAfterImport = await reconcileAccountState\(next, key, true\)/);
+  assert.ok(
+    appContext.indexOf('await restoreEncryptedAppState(currentAppRef.current, next, key)') <
+      appContext.indexOf('const reconciledAfterImport = await reconcileAccountState(next, key, true)'),
+    'Der lokale Import muss zuerst sicher geschrieben werden, bevor der Konto-Abgleich startet'
+  );
+});
