@@ -729,10 +729,16 @@ export default function PrintCenter() {
     const data: Record<string, string[]> = {
       'Deutsch - Rechtschreiben': [],
       'Deutsch - Sprachbetrachtung': [],
+      'Deutsch - Sprechen & Hören': [],
       'Deutsch - Texte verfassen': [],
       'Deutsch - Lesen': [],
-      'Deutsch - D- FÖ': [],
-      'Mathematik': [],
+      'Deutsch - D-FÖ': [],
+      'Mathematik - Ebene & Raum': [],
+      'Mathematik - Zahlen & Daten': [],
+      'Mathematik - Größen': [],
+      'Mathematik - Operationen': [],
+      'Mathematik - Nicht zugeordnet': [],
+      'Förderung (FÖ)': [],
       'Sachunterricht': [],
       'BSP': [],
       'Werken': [],
@@ -740,125 +746,128 @@ export default function PrintCenter() {
       'Englisch': [],
       'Zeichnen': [],
       'Religion': [],
-      'Besondere Vorkommnisse': []
+      'Besondere Vorkommnisse': [],
     };
 
     const plan = (app?.wochenplanung || {})[targetKW];
     if (!plan) return data;
 
-    // Robust subject match helpers for Austrian/VS abbreviations (case-insensitive)
-    const isDeutsch = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'd' || norm === 'de' || norm === 'deutsch' || norm.includes('deutsch');
+    const norm = (value: string) => String(value || '').trim().toLocaleLowerCase('de-AT');
+    const isDeutsch = (value: string) => {
+      const v = norm(value);
+      return v === 'd' || v === 'de' || v === 'deutsch' || v.includes('deutsch');
     };
-    const isMathe = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'm' || norm === 'ma' || norm === 'mathe' || norm === 'mathematik' || norm.includes('mathe') || norm.includes('rechnen');
+    const isMathe = (value: string) => {
+      const v = norm(value);
+      return v === 'm' || v === 'ma' || v === 'mathe' || v === 'mathematik' || v.includes('mathe') || v.includes('rechnen');
     };
-    const isSU = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'su' || norm === 'sachunterricht' || norm.includes('sach') || norm.includes('su');
+    const isFoerderung = (value: string) => {
+      const v = norm(value).replace(/\s+/g, '');
+      return v === 'fö' || v === 'foe' || v === 'förderung' || v === 'foerderung' || v.includes('(förderung)') || v.includes('(foerderung)');
     };
-    const isBSP = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'bsp' || norm === 'bs' || norm === 'b&s' || norm === 'sport' || norm === 'turnen' || norm.includes('sport') || norm.includes('turnen') || norm.includes('bewegung') || norm.includes('bsp');
+    const isSU = (value: string) => {
+      const v = norm(value);
+      return v === 'su' || v === 'sachunterricht' || v.includes('sach');
     };
-    const isWerken = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'we' || norm === 'tew' || norm === 'txw' || norm === 'werken' || norm.includes('werk') || norm.includes('technisch') || norm.includes('textil');
+    const isBSP = (value: string) => {
+      const v = norm(value);
+      return v === 'bsp' || v === 'bs' || v === 'b&s' || v === 'sport' || v === 'turnen' || v.includes('sport') || v.includes('turnen') || v.includes('bewegung');
     };
-    const isMusik = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'me' || norm === 'mu' || norm === 'musik' || norm === 'musikerziehung' || norm.includes('musik') || norm.includes('singen');
+    const isWerken = (value: string) => {
+      const v = norm(value);
+      return v === 'we' || v === 'tew' || v === 'txw' || v === 'werken' || v.includes('werk') || v.includes('technisch') || v.includes('textil');
     };
-    const isEnglisch = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'e' || norm === 'eng' || norm === 'englisch' || norm.includes('engl') || norm.includes('english');
+    const isMusik = (value: string) => {
+      const v = norm(value);
+      return v === 'me' || v === 'mu' || v === 'musik' || v === 'musikerziehung' || v.includes('musik') || v.includes('singen');
     };
-    const isZeichnen = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'be' || norm === 'ze' || norm === 'zeichnen' || norm === 'bildnerische' || norm.includes('zeichn') || norm.includes('kunst') || norm.includes('bildnerisch');
+    const isEnglisch = (value: string) => {
+      const v = norm(value);
+      return v === 'e' || v === 'eng' || v === 'englisch' || v.includes('engl') || v.includes('english');
     };
-    const isReligion = (f: string) => {
-      const norm = (f || '').trim().toLowerCase();
-      return norm === 'r' || norm === 'rel' || norm === 'religion' || norm.includes('rel') || norm.includes('religion');
+    const isZeichnen = (value: string) => {
+      const v = norm(value);
+      return v === 'be' || v === 'ze' || v === 'zeichnen' || v === 'bildnerische' || v.includes('zeichn') || v.includes('kunst') || v.includes('bildnerisch');
+    };
+    const isReligion = (value: string) => {
+      const v = norm(value);
+      return v === 'r' || v === 'rel' || v === 'religion' || v.includes('religion');
+    };
+
+    const pushEntry = (fachRaw: string, themaRaw: string, schwerpunkteRaw: string[] = [], prefix = '') => {
+      const fach = String(fachRaw || '');
+      const schwerpunkte = Array.isArray(schwerpunkteRaw) ? schwerpunkteRaw.filter(Boolean) : [];
+      const thema = String(themaRaw || '').trim();
+      if (!fach && !thema) return;
+
+      const textToPush = `${prefix}${thema || fach}`.trim();
+      const fachLower = norm(fach);
+      const focus = schwerpunkte.map(norm);
+
+      if (isDeutsch(fach) || schwerpunkte.some(isDeutsch)) {
+        let matched = false;
+        const hasRS = focus.some(value => value.includes('rechtschreib')) || fachLower.includes('rechtschreib') || fachLower === 'rs';
+        const hasSP = focus.some(value => value.includes('sprachbetracht') || value === 'deutsch (sprache)') || fachLower.includes('sprachbetracht') || fachLower === 'sp';
+        const hasSH = focus.some(value => value.includes('sprechen & hören') || value.includes('sprechen und hören')) || fachLower.includes('sprechen & hören') || fachLower.includes('sprechen und hören');
+        const hasVT = focus.some(value => value.includes('verfassen') || value.includes('texte')) || fachLower.includes('verfassen') || fachLower.includes('aufsatz') || fachLower === 'vt';
+        const hasL = focus.some(value => value.includes('lesen')) || fachLower.includes('lesen') || fachLower === 'l';
+        const hasDFO = fachLower.includes('d-fö') || focus.some(value => value.includes('deutsch (förderung)') || value === 'förderung' || value === 'd-fö');
+
+        if (hasRS) { data['Deutsch - Rechtschreiben'].push(textToPush); matched = true; }
+        if (hasSP) { data['Deutsch - Sprachbetrachtung'].push(textToPush); matched = true; }
+        if (hasSH) { data['Deutsch - Sprechen & Hören'].push(textToPush); matched = true; }
+        if (hasVT) { data['Deutsch - Texte verfassen'].push(textToPush); matched = true; }
+        if (hasL) { data['Deutsch - Lesen'].push(textToPush); matched = true; }
+        if (hasDFO) { data['Deutsch - D-FÖ'].push(textToPush); matched = true; }
+        if (!matched) data['Deutsch - Sprachbetrachtung'].push(textToPush);
+        return;
+      }
+
+      const mathFocus = [fach, ...schwerpunkte].map(norm);
+      if (isMathe(fach) || mathFocus.some(value => value.includes('mathematik'))) {
+        if (mathFocus.some(value => value.includes('ebene & raum'))) data['Mathematik - Ebene & Raum'].push(textToPush);
+        else if (mathFocus.some(value => value.includes('zahlen & daten'))) data['Mathematik - Zahlen & Daten'].push(textToPush);
+        else if (mathFocus.some(value => value.includes('größen') || value.includes('groessen'))) data['Mathematik - Größen'].push(textToPush);
+        else if (mathFocus.some(value => value.includes('operationen'))) data['Mathematik - Operationen'].push(textToPush);
+        else data['Mathematik - Nicht zugeordnet'].push(textToPush);
+        return;
+      }
+
+      if (isFoerderung(fach) || schwerpunkte.some(isFoerderung)) data['Förderung (FÖ)'].push(textToPush);
+      else if (isSU(fach)) data['Sachunterricht'].push(textToPush);
+      else if (isBSP(fach)) data['BSP'].push(textToPush);
+      else if (isWerken(fach)) data['Werken'].push(textToPush);
+      else if (isMusik(fach)) data['Musik'].push(textToPush);
+      else if (isEnglisch(fach)) data['Englisch'].push(textToPush);
+      else if (isZeichnen(fach)) data['Zeichnen'].push(textToPush);
+      else if (isReligion(fach)) data['Religion'].push(textToPush);
+      else data['Besondere Vorkommnisse'].push(fach ? `${fach}: ${textToPush}` : textToPush);
     };
 
     Object.keys(plan).forEach(tag => {
       if (!['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].includes(tag)) return;
       Object.keys(plan[tag] || {}).forEach(idx => {
         const numericIdx = parseInt(idx, 10);
-        if (isNaN(numericIdx)) return;
-
+        if (!Number.isInteger(numericIdx)) return;
         const item = plan[tag][idx];
-        if (!item || (!item.fach && !item.thema)) return;
+        if (!item) return;
 
-        const fach = item.fach || '';
-        const thema = [item.thema, item.reflexion].filter(Boolean).join(' - ');
-        if (!thema && !fach) return;
-        const textToPush = thema || fach;
-
-        const schwerpunkte = item.schwerpunkte || [];
-
-        if (isDeutsch(fach) || schwerpunkte.some((s: string) => isDeutsch(s))) {
-          let matchedDeutsch = false;
-          const hasRS = schwerpunkte.includes('Deutsch (Rechtschreibung)') || fach.toLowerCase().includes('rechtschreib') || fach.toLowerCase().includes('rs') || fach.toLowerCase() === 'rs';
-          const hasSP = schwerpunkte.includes('Deutsch (Sprache)') || fach.toLowerCase().includes('sprach') || fach.toLowerCase().includes('sp') || fach.toLowerCase() === 'sp';
-          const hasVT = schwerpunkte.includes('Deutsch (Verfassen von Texten)') || fach.toLowerCase().includes('verfassen') || fach.toLowerCase().includes('texte') || fach.toLowerCase().includes('aufsatz') || fach.toLowerCase().includes('vt') || fach.toLowerCase() === 'vt';
-          const hasL  = schwerpunkte.includes('Deutsch (Lesen)') || fach.toLowerCase().includes('lesen') || fach.toLowerCase().includes('l') || fach.toLowerCase() === 'l';
-          const hasFO = fach.includes('D-FÖ') || fach.toLowerCase() === 'd-fö' || fach.includes('Förder') || schwerpunkte.includes('Förderung') || fach.toLowerCase() === 'd- fö' || fach.toLowerCase() === 'd-fö';
-
-          if (hasRS) {
-             data['Deutsch - Rechtschreiben'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasSP) {
-             data['Deutsch - Sprachbetrachtung'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasVT) {
-             data['Deutsch - Texte verfassen'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasL) {
-             data['Deutsch - Lesen'].push(textToPush);
-             matchedDeutsch = true;
-          }
-          if (hasFO) {
-             data['Deutsch - D- FÖ'].push(textToPush);
-             matchedDeutsch = true;
-          }
-
-          if (!matchedDeutsch) {
-             data['Deutsch - Sprachbetrachtung'].push(textToPush);
-          }
-        } else if (isMathe(fach)) {
-          data['Mathematik'].push(textToPush);
-        } else if (isSU(fach)) {
-          data['Sachunterricht'].push(textToPush);
-        } else if (isBSP(fach)) {
-          data['BSP'].push(textToPush);
-        } else if (isWerken(fach)) {
-          data['Werken'].push(textToPush);
-        } else if (isMusik(fach)) {
-          data['Musik'].push(textToPush);
-        } else if (isEnglisch(fach)) {
-          data['Englisch'].push(textToPush);
-        } else if (isZeichnen(fach)) {
-          data['Zeichnen'].push(textToPush);
-        } else if (isReligion(fach)) {
-          data['Religion'].push(textToPush);
-        } else {
-          const entryStr = fach ? `${fach}: ${textToPush}` : textToPush;
-          data['Besondere Vorkommnisse'].push(entryStr);
+        if (item.halves?.enabled) {
+          const first = item.halves.first || {};
+          const second = item.halves.second || {};
+          pushEntry(first.fach || item.fach || '', first.thema || '', first.unterbereich ? [first.unterbereich] : [], '1. Hälfte: ');
+          pushEntry(second.fach || item.fach || '', second.thema || '', second.unterbereich ? [second.unterbereich] : [], '2. Hälfte: ');
+          if (item.reflexion) data['Besondere Vorkommnisse'].push(`${tag}, ${numericIdx + 1}. Stunde – Reflexion: ${item.reflexion}`);
+          return;
         }
+
+        pushEntry(item.fach || '', [item.thema, item.reflexion].filter(Boolean).join(' - '), item.schwerpunkte || []);
       });
     });
 
-    Object.keys(data).forEach(k => {
-      data[k] = Array.from(new Set(data[k].filter(Boolean))).map(s => s.trim());
+    Object.keys(data).forEach(key => {
+      data[key] = Array.from(new Set(data[key].map(value => value.trim()).filter(Boolean)));
     });
-
     return data;
   };
 
