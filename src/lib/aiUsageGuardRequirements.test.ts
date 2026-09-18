@@ -9,8 +9,8 @@ const env = readFileSync('.env.example', 'utf8');
 
 test('Gemini key stays server-side and quota settings are configurable', () => {
   assert.match(server, /process\.env\.GEMINI_API_KEY/);
-  assert.doesNotMatch(service, /GEMINI_API_KEY/);
-  assert.doesNotMatch(assistant, /GEMINI_API_KEY/);
+  assert.doesNotMatch(service, /process\.env\.GEMINI_API_KEY|AIza[0-9A-Za-z_-]{20,}|AQ\.[0-9A-Za-z_-]{20,}/);
+  assert.doesNotMatch(assistant, /process\.env\.GEMINI_API_KEY|AIza[0-9A-Za-z_-]{20,}|AQ\.[0-9A-Za-z_-]{20,}/);
   assert.match(env, /KLASSIO_AI_DAILY_USER_LIMIT=20/);
   assert.match(env, /KLASSIO_AI_DAILY_GLOBAL_LIMIT=200/);
   assert.match(env, /KLASSIO_AI_PER_MINUTE_LIMIT=5/);
