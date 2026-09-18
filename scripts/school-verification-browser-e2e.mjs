@@ -278,6 +278,23 @@ async function createClassInUi(client, className) {
   await waitFor(client, 'class setup retained', 'document.body?.innerText.includes(' + q(className) + ')', 30000);
 }
 
+async function addStudentInUi(client, firstName, lastName) {
+  await clickSidebar(client, 'Klassenliste');
+  await waitFor(client, 'student list', 'document.body?.innerText.includes("Schüler hinzufügen")', 20000);
+  await clickButton(client, 'Schüler hinzufügen');
+  await waitFor(client, 'new student form', 'document.body?.innerText.includes("Neuer Schüler")', 20000);
+  await setInputByLabel(client, 'Vorname', firstName);
+  await setInputByLabel(client, 'Nachname', lastName);
+  await clickButton(client, 'Anlegen');
+  await waitFor(
+    client,
+    'new student saved',
+    'document.body?.innerText.includes(' + q(lastName + ' ' + firstName) + ') || document.body?.innerText.includes(' + q(firstName + ' ' + lastName) + ')',
+    20000,
+  );
+  console.log('✓ Student creation button saves a new student');
+}
+
 async function openAccountSettings(client) {
   await clickSidebar(client, 'Einstellungen');
   await waitFor(client, 'settings page', 'document.body?.innerText.includes("Was möchtest du in Klassio anpassen?")', 20000);
@@ -300,6 +317,7 @@ async function main() {
   try {
     await loginWithMail(teacher, TEACHER_EMAIL, TEACHER_VAULT);
     await createClassInUi(teacher, 'Heute eingerichtet 1A');
+    await addStudentInUi(teacher, 'Browser', 'Kind');
     await openAccountSettings(teacher);
 
     await waitFor(teacher, 'unknown school can be connected', 'document.body?.innerText.includes("Schule verbinden")', 20000);
@@ -318,6 +336,8 @@ async function main() {
     await clickButton(teacher, 'Status aktualisieren');
     await waitFor(teacher, 'school identity becomes verified', 'document.body?.innerText.includes("Schule verifiziert") && document.body?.innerText.includes("Volksschule Neu")', 20000);
     await waitFor(teacher, 'existing class remains after school approval', 'document.body?.innerText.includes("Heute eingerichtet 1A")', 20000);
+    await clickSidebar(teacher, 'Klassenliste');
+    await waitFor(teacher, 'new student remains after school approval', 'document.body?.innerText.includes("Kind Browser") || document.body?.innerText.includes("Browser Kind")', 20000);
 
     const identityActive = await evaluate(teacher,
       'fetch("/api/access/status",{cache:"no-store"}).then(r=>r.json()).then(data=>Boolean(data.identity&&data.identity.schoolName==="Volksschule Neu"))'
