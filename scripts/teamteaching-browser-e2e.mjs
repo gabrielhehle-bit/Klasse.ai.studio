@@ -329,6 +329,11 @@ async function main() {
 
   try {
     const recoveryCodeA = await loginWithSchoolMail(anna, EMAIL_A, VAULT_A);
+    const initialAccountRevisionA = await evaluate(
+      anna,
+      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(data=>Number(data.snapshot?.revision||0))',
+    );
+    if (!initialAccountRevisionA) throw new Error('Lehrkraft A: initial account sync revision missing.');
     await createClassInUi(anna, 'E2E 1A');
     await openClassTeam(anna);
     await clickButton(anna, 'Gemeinsame Klasse aktivieren');
@@ -337,8 +342,8 @@ async function main() {
 
     await waitFor(
       anna,
-      'encrypted account snapshot available',
-      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(data=>Number(data.snapshot?.revision||0)>=1)',
+      'encrypted account snapshot includes post-setup app changes',
+      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(data=>Number(data.snapshot?.revision||0)>' + Number(initialAccountRevisionA) + ')',
       30000,
     );
 
