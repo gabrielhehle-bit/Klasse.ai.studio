@@ -34,6 +34,13 @@ export class AccountSyncError extends Error {
 
 const META_KEY = 'klassio_account_sync_meta_v1';
 const HEALTH_KEY = 'klassio_account_sync_healthy_v1';
+export const ACCOUNT_SESSION_CHANGED_EVENT = 'klassio-account-session-changed';
+
+export function notifyAccountSessionChanged(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(ACCOUNT_SESSION_CHANGED_EVENT));
+  }
+}
 
 function storage(): Storage | null {
   try {
