@@ -683,12 +683,7 @@ Antworte NUR mit einem gültigen JSON-Array von Strings, das die IDs der passend
 
 export async function askAI(modusId: string, userMessage: string, history: { role: 'user' | 'ai', content: string }[] = [], imageBase64?: { data: string, mimeType: string }, imagePrivacyConfirmed: boolean = false): Promise<string | null> {
   if (userMessage.trim().length < 2) return "Bitte gib eine längere Nachricht ein.";
-
-  try {
-    return await callServerAI("askAI", { modusId, userMessage, history, imageBase64, imagePrivacyConfirmed });
-  } catch (error: any) {
-    return error.message;
-  }
+  return await callServerAI("askAI", { modusId, userMessage, history, imageBase64, imagePrivacyConfirmed });
 }
 
 

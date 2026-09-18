@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { Sparkles, User, RefreshCw, Copy, Check, FileText, BookOpen, Archive, Info, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { askAI } from '../services/aiService';
@@ -24,13 +25,13 @@ function AISaveButton({ content, studentName }: { content: string; studentName: 
     if (isStorageFull) return;
 
     addMaterialFromAI({
-      titel: `Beurteilung: ${studentName}`,
+      titel: `Leistungsfeedback: ${studentName}`,
       beschreibung: `Generiert am ${new Date().toLocaleDateString('de-DE')} via KI-Helfer.`,
       typ: 'beurteilung',
       inhaltText: content,
       faecher: fach ? [fach] : [],
       schulstufen: [stufe],
-      tags: ['KI', 'Beurteilung', studentName],
+      tags: ['KI', 'Leistungsfeedback', studentName],
       kiGeneriert: true,
       erstelltAm: new Date().toISOString()
     }, 'KI-Helfer');
@@ -122,6 +123,7 @@ function AISaveButton({ content, studentName }: { content: string; studentName: 
 
 export default function VerbalAssessment() {
   const { app } = useApp();
+  const { showToast } = useToast();
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [subjects, setSubjects] = useState('Deutsch, Mathematik, Sachunterricht');
   const [focus, setFocus] = useState('Besonderes Engagement, Lernfortschritt, Sozialverhalten');
@@ -134,37 +136,46 @@ export default function VerbalAssessment() {
   const generate = async () => {
     if (!selectedStudentId) return;
     setLoading(true);
-    
-    // Gather some context about the student
-    let gradeValues: number[] = [];
-    FAECHER_ALLE.forEach(fach => {
-      ['1', '2'].forEach(sem => {
-        const grade = berechne(app, selectedStudentId, fach, sem);
-        if (grade !== null) gradeValues.push(grade);
-      });
+    setResult('');
+
+    const requestedSubjects = subjects
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean);
+
+    const performanceLines = requestedSubjects.map((fach) => {
+      const sem1 = berechne(app, selectedStudentId, fach, '1');
+      const sem2 = berechne(app, selectedStudentId, fach, '2');
+      const sem1Text = sem1 === null ? 'keine Daten' : sem1.toFixed(2);
+      const sem2Text = sem2 === null ? 'keine Daten' : sem2.toFixed(2);
+      return `- ${fach}: 1. Semester ${sem1Text}; 2. Semester ${sem2Text}`;
     });
 
-    const avgGrade = gradeValues.length > 0 
-      ? (gradeValues.reduce((acc, curr) => acc + curr, 0) / gradeValues.length).toFixed(1)
-      : 'Keine Noten';
-      
-    const studentInfo = `${student?.vorname} ${student?.nachname}, ${app.stufe}. Schulstufe. Durchschnittsnote: ${avgGrade}.`;
-    
-    const userPrompt = `
-SCHÜLER: ${studentInfo}
-FÄCHER/BEREICHE: ${subjects}
-FOKUS/SCHWERPUNKTE: ${focus}
+    const hasAnyPerformance = requestedSubjects.some((fach) =>
+      ['1', '2'].some((semester) => berechne(app, selectedStudentId, fach, semester) !== null),
+    );
 
-Bitte erstelle eine wertschätzende verbale Beurteilung.
+    const userPrompt = `
+KIND-ALIAS: Kind A
+SCHULSTUFE: ${app.stufe || 'nicht angegeben'}
+
+FACHBEZOGENE LEISTUNGSDATEN:
+${hasAnyPerformance ? performanceLines.join('\n') : '- Keine fachbezogenen Leistungsdaten vorhanden.'}
+
+BEOBACHTUNGEN / GEWÜNSCHTER FOKUS DER LEHRPERSON:
+${focus.trim() || 'Keine zusätzlichen Beobachtungen angegeben.'}
+
+AUFGABE:
+Formuliere daraus einen kurzen, wertschätzenden Entwurf für ein Lernfeedback.
+Keine Note vorschlagen. Kein fachübergreifendes Gesamturteil bilden. Keine Daten ergänzen, die nicht oben stehen.
 `.trim();
 
     try {
       const text = await askAI('ki-beurteilung', userPrompt);
-      if (text) {
-        setResult(text);
-      }
+      if (text) setResult(text);
     } catch (err) {
       console.error(err);
+      showToast(err instanceof Error ? err.message : 'Leistungsfeedback konnte nicht erstellt werden.', 'error');
     } finally {
       setLoading(false);
     }
@@ -182,10 +193,10 @@ Bitte erstelle eine wertschätzende verbale Beurteilung.
       <div className="space-y-1">
         <div className="flex items-center gap-3">
           <BookOpen className="text-emerald-600 shrink-0" size={28} />
-          <h2 className="text-[1.5rem] leading-normal md:text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Verbale Beurteilung KI</h2>
+          <h2 className="text-[1.5rem] leading-normal md:text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Leistungsfeedback</h2>
         </div>
         <p className="text-slate-500 font-medium tracking-tight whitespace-pre-line text-[0.8125rem] md:text-[0.9375rem]">
-          Erstelle wertschätzende und differenzierte Zeugnistexte auf Basis deiner Schülerdaten.
+          Formuliere aus fachbezogenen Leistungsdaten und deinen Beobachtungen einen prüfbaren Entwurf – ohne automatische Notenentscheidung.
         </p>
       </div>
 
@@ -208,7 +219,7 @@ Bitte erstelle eine wertschätzende verbale Beurteilung.
             </div>
 
             <div className="space-y-2">
-              <label className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Fächer / Bereiche</label>
+              <label className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Fächer für das Feedback</label>
               <input 
                 type="text"
                 className="input-field h-14"
@@ -219,12 +230,12 @@ Bitte erstelle eine wertschätzende verbale Beurteilung.
             </div>
 
             <div className="space-y-2">
-              <label className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Fokus / Schwerpunkte</label>
+              <label className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Beobachtungen / gewünschter Fokus</label>
               <textarea 
                 className="input-field h-32 py-4 resize-none"
                 value={focus}
                 onChange={e => setFocus(e.target.value)}
-                placeholder="z.B. Besondere Stärken in der Rechtschreibung, Verbesserungsbedarf beim Kopfrechnen..."
+                placeholder="z.B. liest zunehmend flüssig; braucht bei Sachaufgaben noch Strukturhilfe. Keine Namen oder Kontaktdaten eingeben."
               />
             </div>
 
@@ -241,7 +252,7 @@ Bitte erstelle eine wertschätzende verbale Beurteilung.
               ) : (
                 <>
                   <Sparkles size={20} />
-                  Beurteilung generieren
+                  Feedback formulieren
                 </>
               )}
             </button>
@@ -250,7 +261,7 @@ Bitte erstelle eine wertschätzende verbale Beurteilung.
           <div className="p-6 bg-emerald-50/50 rounded-[2rem] border border-emerald-100/50 flex gap-4">
              <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 shrink-0"><Sparkles size={20} /></div>
              <p className="text-[0.75rem] text-emerald-800/70 font-medium leading-relaxed italic">
-               Die KI nutzt vorhandene Noten und Verhaltensnotizen (falls vorhanden), um ein stimmiges Gesamtbild zu entwerfen.
+               Der ausgewählte Name bleibt in KLASSIO. An Gemini wird nur „Kind A“ sowie die fachbezogenen Leistungsdaten und dein eingegebener Fokus gesendet. Verhaltensnotizen werden nicht automatisch übertragen.
              </p>
           </div>
         </div>
@@ -261,7 +272,7 @@ Bitte erstelle eine wertschätzende verbale Beurteilung.
             <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/20">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center"><FileText size={16} /></div>
-                <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400">Vorschlagtext</span>
+                <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400">Entwurf</span>
               </div>
               <div className="flex gap-2">
                 <AISaveButton content={result} studentName={student ? `${student.vorname} ${student.nachname}` : 'Schüler'} />
@@ -275,12 +286,12 @@ Bitte erstelle eine wertschätzende verbale Beurteilung.
               </div>
             </div>
             <div className="flex-1 p-10 text-[1rem] leading-[1.8] text-slate-800 whitespace-pre-wrap font-serif select-all scrollbar-hide overflow-y-auto max-h-[500px] markdown-body">
-                {result ? <Markdown>{result}</Markdown> : 'Wähle einen Schüler aus und klicke auf "Beurteilung generieren"...'}
+                {result ? <Markdown>{result}</Markdown> : 'Wähle ein Kind aus und klicke auf "Feedback formulieren"...'}
             </div>
             {result && (
                <div className="p-6 border-t border-slate-50 bg-slate-50/30">
                   <p className="text-[0.625rem] font-bold text-slate-300 uppercase tracking-widest text-center">
-                    Dieser Text dient als Entwurf und sollte pädagogisch geprüft werden.
+                    Dieser Text ist nur ein Formulierungsentwurf. Die pädagogische und rechtliche Beurteilung bleibt bei der Lehrperson.
                   </p>
                </div>
             )}

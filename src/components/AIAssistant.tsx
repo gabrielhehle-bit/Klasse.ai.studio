@@ -7,8 +7,8 @@ import { ChatEntry, Message } from '../types';
 import { 
   Send, Bot, Sparkles, User, RefreshCw, X, 
   Mail, Layers, FileEdit, ClipboardList, 
-  MessageSquare, ChevronRight, Wand2, Copy, Check, RotateCcw,
-  Layout, Target, Save, PenTool, BookOpen, Scale, Info, Archive,
+  MessageSquare, ChevronRight, Wand2, Copy, Check,
+  Layout, Target, Save, BookOpen, Info, Archive,
   Shield, Clock, Search, Zap, Waves, ArrowRight, Heart, Camera, UploadCloud, FileText, Activity, LayoutGrid
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -16,94 +16,59 @@ import EmailAssistant from './EmailAssistant';
 import Differentiation from './Differentiation';
 import VerbalAssessment from './VerbalAssessment';
 import MaterialOptimizer from './MaterialOptimizer';
-import WorksheetGenerator from './WorksheetGenerator';
-import ScheduleOptimizer from './ScheduleOptimizer';
-import { StationenbetriebManager } from './StationenbetriebManager';
 import { askAI, type AiUsageStatus } from '../services/aiService';
-import { KI_SYSTEM_PROMPTS } from '../kiSystemPrompts';
 import { useMaterialLibrary, calculateStorageSize } from './Materialbibliothek';
 import { FAECHER_ALLE } from '../constants';
-import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import Markdown from 'react-markdown';
 
 const EXAMPLE_PROMPTS: Record<string, { text: string; icon: any }[]> = {
   'ki-helfer': [
-    { text: "Methode für Einstieg in den Wasserkreislauf für 4. Klasse", icon: BookOpen },
-    { text: "Wie differenziere ich eine Lesestunde für DaZ-Kinder?", icon: Layers },
-    { text: "Spielerische Übung für die Stille-Wiederholung", icon: MessageSquare },
-    { text: "Gruppenarbeit mit klaren Rollen für eine 4. Klasse", icon: Target },
-    { text: "5-Minuten-Aktivierungsspiel für regnerische Pausen", icon: Activity },
-    { text: "Unterrichtsidee zum Thema 'Demokratie & Klassensprecher'", icon: User },
-    { text: "Einstiegs-Rätsel für eine Geometrie-Stunde (Körper & Formen)", icon: Sparkles },
-    { text: "Fördertipps für Kinder mit Rechenschwierigkeiten (Zehnerübergang)", icon: Zap },
-    { text: "Kreative Schreibaufgabe für die 3. Klasse: Abenteuergeschichte", icon: PenTool },
-    { text: "Wie erkläre ich den Unterschied zwischen Nadel- & Laubwald?", icon: Waves },
-  ],
-  'ki-lernziele': [
-    { text: "Welche Ziele aus dem Deutsch-Lehrplan fehlen uns noch in der 3. Klasse?", icon: Target },
-    { text: "Schlage mir Stationen vor, um die offenen Lese-Ziele zu erarbeiten.", icon: Layers },
-    { text: "Was sind sinnvolle Lernziele für ein Kind mit SPF nächste Woche?", icon: Target },
-    { text: "Bitte analysiere den aktuellen Klassen-Fortschritt in Sachunterricht.", icon: Sparkles },
+    { text: "Gib mir einen 10-Minuten-Einstieg zum Wasserkreislauf für die 4. Klasse.", icon: BookOpen },
+    { text: "Wie bekomme ich nach der Pause schnell wieder Ruhe in die Klasse?", icon: Activity },
+    { text: "Plane eine kooperative Übung, bei der wirklich jedes Kind beteiligt ist.", icon: Target },
+    { text: "Welche einfache Methode eignet sich für eine kurze Lernstandsabfrage?", icon: Sparkles },
   ],
   'ki-wissen': [
-    { text: "Was sind die Bildungsstandards für Mathematik 4. Klasse?", icon: BookOpen },
-    { text: "Wie funktioniert die Beurteilung mit MIKA-D?", icon: Scale },
-    { text: "Was ist der Unterschied zwischen formativer und summativer Bewertung?", icon: Info },
-    { text: "Welche Methoden zur Lese-Diagnostik gibt es?", icon: Search },
-  ],
-  'ki-recht': [
-    { text: "Was muss ich bei einer schriftlichen Mitteilung beachten?", icon: Scale },
-    { text: "Welche Regeln gelten für die Aufsichtspflicht im Pausenhof?", icon: Shield },
-    { text: "Was sind die rechtlichen Vorgaben für KEL-Gespräche?", icon: Scale },
-    { text: "Wer entscheidet bei einem Förderbedarf-Wechsel?", icon: User },
+    { text: "Erkläre den Zehnerübergang fachlich korrekt und anschließend kindgerecht.", icon: BookOpen },
+    { text: "Wie kann ich Kindern den Wasserkreislauf mit einer guten Analogie erklären?", icon: Waves },
+    { text: "Erkläre den Unterschied zwischen Fläche und Umfang für die Volksschule.", icon: Info },
+    { text: "Was bedeutet formative Rückmeldung im Unterricht?", icon: Search },
   ],
   'ki-reflexion': [
-    { text: "Hilf mir, eine schwierige Stunde von heute zu reflektieren", icon: MessageSquare },
-    { text: "Wie kann ich mit einem konflikthaften Elterngespräch umgehen?", icon: User },
-    { text: "Was sollte ich diese Woche anders machen?", icon: Target },
-    { text: "Selbstreflexion zu meiner Unterrichtssprache", icon: Wand2 },
+    { text: "Hilf mir, eine unruhige Unterrichtsstunde strukturiert zu reflektieren.", icon: MessageSquare },
+    { text: "Welche Fragen helfen mir nach einem schwierigen Elterngespräch bei der Reflexion?", icon: User },
+    { text: "Ich habe heute zu viel selbst gesprochen. Hilf mir, einen kleinen nächsten Schritt zu finden.", icon: Target },
+  ],
+  'ki-lernziele': [
+    { text: "Welche offenen Lernziele sollten wir als Nächstes priorisieren?", icon: Target },
+    { text: "Schlage kleine Unterrichtsschritte für die noch offenen Ziele vor.", icon: Layers },
+    { text: "Wie kann ich die erreichten Lernziele sinnvoll sichern und wiederholen?", icon: Sparkles },
   ],
   'ki-elternbrief': [
-    { text: "Information für Eltern über den Wald-Ausflug", icon: Mail },
-    { text: "Rückmeldung an Eltern zu Verhalten im Unterricht", icon: Mail },
-    { text: "Elternbrief zur Ankündigung der nächsten Schularbeit", icon: Mail },
-    { text: "Tipps für Eltern zur Förderung des Kindes zuhause", icon: Mail },
+    { text: "Information für Eltern über einen Ausflug.", icon: Mail },
+    { text: "Kurze, freundliche Erinnerung an einen Termin.", icon: Mail },
+    { text: "Sachliche Mitteilung zu einem Unterrichtsthema.", icon: Mail },
   ],
   'ki-differenzierung': [
-    { text: "Sachtext über den Wasserkreislauf für DaZ-Schüler vereinfachen", icon: Layers },
-    { text: "Matheaufgabe für Kinder mit erhöhtem Förderbedarf (SPF) anpassen", icon: Target },
-    { text: "Transferaufgaben zur Begabtenförderung erstellen", icon: Layers },
-    { text: "Visuelle Lösungs-Schritte für lese-schwache Kinder generieren", icon: Zap },
+    { text: "Vereinfache eine Leseaufgabe für DaZ, ohne das Lernziel zu verändern.", icon: Layers },
+    { text: "Erstelle drei Niveaustufen für eine Mathematikaufgabe.", icon: Target },
+    { text: "Gib mir eine Transferaufgabe für besonders schnelle Kinder.", icon: Zap },
   ],
   'ki-beurteilung': [
-    { text: "Verbale Beurteilung für ein Kind mit Lernfortschritt in Lesen", icon: FileEdit },
-    { text: "Wie formuliere ich Förderhinweise in einem Zeugnis?", icon: Save },
-    { text: "Bewertung einer Projektarbeit in Sachunterricht", icon: ClipboardList },
-    { text: "Kommentar zur Mitarbeit eines stillen Kindes", icon: MessageSquare },
+    { text: "Formuliere aus fachbezogenen Leistungsdaten ein neutrales Lernfeedback.", icon: FileEdit },
+    { text: "Formuliere einen konkreten nächsten Lernschritt ohne eine Note vorzuschlagen.", icon: Target },
   ],
   'ki-korrektur': [
-    { text: "Korrektur eines Aufsatzes zum Wasserkreislauf", icon: Check },
-    { text: "Hilf mir, einen Mathematik-Test zu erstellen", icon: ClipboardList },
-    { text: "Bewertungsraster für eine Buchpräsentation", icon: Layout },
-    { text: "Häufige Rechtschreibfehler in 4. Klasse", icon: Search },
-  ],
-  'ki-arbeitsblatt': [
-    { text: "Rechenpäckchen Einmaleins mit 6, Stufe 2, 10 Aufgaben", icon: FileEdit },
-    { text: "Lückentext zum Thema Waldtiere, Sachunterricht", icon: Layers },
-    { text: "Satzglieder bestimmen, Deutsch 4. Klasse, mittel", icon: Target },
+    { text: "Prüfe diesen Text nur auf Rechtschreibung und Grammatik.", icon: Check },
+    { text: "Kürze diesen Text, ohne wichtige Informationen zu verlieren.", icon: FileEdit },
+    { text: "Formuliere diesen Text kindgerechter.", icon: Wand2 },
   ],
   'ki-foto-korrektur': [
-    { text: "Fokus auf Rechtschreibung und Grammatik", icon: Search },
-    { text: "Stärkenorientiertes Feedback zum Textaufbau", icon: Heart },
-    { text: "Fördertipp für Ausdruck und Stil", icon: Wand2 },
-  ],
-  'ki-wochenplan': [
-    { text: "Wochenplan KW 23, Mathe S.45 und Deutsch Lernwörter", icon: ClipboardList },
-    { text: "Freiarbeitsplan mit Basis und Fordernd Differenzierung", icon: Layers },
-    { text: "Stationenbetrieb zum Thema Bauernhof, 2. Stufe", icon: BookOpen },
+    { text: "Fokus auf Rechtschreibung und Grammatik.", icon: Search },
+    { text: "Stärkenorientiertes Feedback zum Textaufbau.", icon: Heart },
+    { text: "Ein konkreter Fördertipp für Ausdruck und Stil.", icon: Wand2 },
   ],
 };
-
 const getRelativeTime = (timestamp: number) => {
   const diff = Date.now() - timestamp;
   const mins = Math.floor(diff / (1000 * 60));
@@ -254,7 +219,7 @@ function AISaveButton({ content, userPrompt, type, onSave }: AISaveButtonProps) 
   );
 }
 
-type AiTab = 'ki-helfer' | 'ki-paedagogik' | 'ki-wissen' | 'ki-recht' | 'ki-elternbrief' | 'ki-differenzierung' | 'ki-beurteilung' | 'ki-korrektur' | 'ki-reflexion' | 'ki-arbeitsblatt' | 'ki-foto-korrektur' | 'ki-wochenplan' | 'ki-stundenplan-check' | 'ki-lernziele' | 'ki-stationenbetrieb';
+type AiTab = 'ki-helfer' | 'ki-wissen' | 'ki-elternbrief' | 'ki-differenzierung' | 'ki-beurteilung' | 'ki-korrektur' | 'ki-reflexion' | 'ki-foto-korrektur' | 'ki-lernziele';
 
 export default function AIAssistant() {
   const { app, setApp, setPage } = useApp();
@@ -295,48 +260,12 @@ export default function AIAssistant() {
     return () => window.removeEventListener('klassio:ai-usage', onUsage);
   }, []);
 
-  // Form States for new modes
-  const [abFach, setAbFach] = useState('Deutsch');
-  const [abStufe, setAbStufe] = useState(app.stufe || 1);
-  const [abTyp, setAbTyp] = useState('Lückentext');
-  const [abThema, setAbThema] = useState('');
-  const [abSchwierigkeit, setAbSchwierigkeit] = useState('Mittel');
-  const [abAnzahl, setAbAnzahl] = useState(10);
-  
-  // Update available types when subject changes
-  useEffect(() => {
-    if (abFach === 'Deutsch') {
-      setAbTyp('Lückentext');
-    } else if (abFach === 'Mathematik') {
-      setAbTyp('Diagnostischer Kurztest');
-    } else {
-      setAbTyp('Wissensfragen');
-    }
-    setAbThema('');
-  }, [abFach]);
-
-  // Derived available lehrplan topics
-  const availableLehrplanTopics = React.useMemo(() => {
-    try {
-      const kompetenzen = LEHRPLAN_VS_2023[abFach]?.[abStufe] || [];
-      return kompetenzen.flatMap((k: any) => k.anwendungsbereiche.map((a: any) => a.titel));
-    } catch {
-      return [];
-    }
-  }, [abFach, abStufe]);
-
+  // Foto-Feedback stays intentionally lightweight: one image + school level + selected feedback focus.
   const [fkStufe, setFkStufe] = useState(app.stufe || 1);
   const [fkImageBase64, setFkImageBase64] = useState<{data: string, mimeType: string} | null>(null);
   const [fkImagePreview, setFkImagePreview] = useState<string | null>(null);
   const [fkPrivacyConfirmed, setFkPrivacyConfirmed] = useState(false);
   const [fkFokus, setFkFokus] = useState({rechtschreibung: true, grammatik: true, ausdruck: true, aufbau: true, inhalt: true});
-
-  const [wpStufe, setWpStufe] = useState(app.stufe || 1);
-  const [wpZeitraum, setWpZeitraum] = useState('');
-  const [wpPflicht, setWpPflicht] = useState('');
-  const [wpWahl, setWpWahl] = useState('');
-  const [wpDiff, setWpDiff] = useState({basis: true, standard: true, fordernd: true});
-  
   // Local messages for the current session - we'll sync this with app.aiChats on send/load
   const [activeMessages, setActiveMessages] = useState<Message[]>([]);
   
@@ -344,26 +273,33 @@ export default function AIAssistant() {
   const [showGuidedTool, setShowGuidedTool] = useState(false);
 
   useEffect(() => {
-    if (app.currentPage.startsWith('ki-')) {
-      const tab = app.currentPage === 'ki-paedagogik' ? 'ki-helfer' : app.currentPage as AiTab;
-      setActiveTab(tab);
-      // Reset chat for now when switching tabs via page navigation
-      setActiveMessages([]);
-      setActiveChatId(null);
-      // Decide if we should show guided tool by default (original behavior)
-      const isSpecialized = ['ki-elternbrief', 'ki-differenzierung', 'ki-beurteilung', 'ki-korrektur', 'ki-stundenplan-check', 'ki-stationenbetrieb'].includes(tab);
-      setShowGuidedTool(isSpecialized);
+    if (!app.currentPage.startsWith('ki-')) return;
+
+    const legacyMap: Record<string, AiTab> = {
+      'ki-paedagogik': 'ki-helfer',
+      'ki-recht': 'ki-helfer',
+    };
+    if (app.currentPage === 'ki-recht') {
+      showToast('Schulrecht wurde aus dem freien KI-Helfer entfernt, weil Antworten ohne verifizierte offizielle Quellen nicht zuverlässig genug sind.', 'info');
     }
+    const candidate = legacyMap[app.currentPage] || app.currentPage;
+    const allowedTabs: AiTab[] = [
+      'ki-helfer', 'ki-wissen', 'ki-reflexion', 'ki-lernziele',
+      'ki-elternbrief', 'ki-differenzierung', 'ki-beurteilung',
+      'ki-korrektur', 'ki-foto-korrektur',
+    ];
+    const tab = allowedTabs.includes(candidate as AiTab) ? candidate as AiTab : 'ki-helfer';
+    setActiveTab(tab);
+    setActiveMessages([]);
+    setActiveChatId(null);
+    setShowGuidedTool(['ki-elternbrief', 'ki-differenzierung', 'ki-beurteilung', 'ki-korrektur'].includes(tab));
   }, [app.currentPage]);
   
-  // Also reset when activeTab changes manually
   useEffect(() => {
     setActiveMessages([]);
     setActiveChatId(null);
-    const isSpecialized = ['ki-elternbrief', 'ki-differenzierung', 'ki-beurteilung', 'ki-korrektur', 'ki-stundenplan-check', 'ki-stationenbetrieb'].includes(activeTab);
-    setShowGuidedTool(isSpecialized);
+    setShowGuidedTool(['ki-elternbrief', 'ki-differenzierung', 'ki-beurteilung', 'ki-korrektur'].includes(activeTab));
   }, [activeTab]);
-
   // A conversation must never remain open when the active class changes.
   useEffect(() => {
     setActiveMessages([]);
@@ -461,7 +397,8 @@ export default function AIAssistant() {
     
     if (!manualText) setInp('');
     
-    let contextStr = useClassContext ? buildAiClassContext(app) : '';
+    const allowClassContext = useClassContext && modusId !== 'ki-foto-korrektur';
+    let contextStr = allowClassContext ? buildAiClassContext(app) : '';
     if (useClassContext && modusId === 'ki-lernziele' && activeMessages.length === 0) {
       contextStr += buildAiLearningGoalContext(app);
     }
@@ -519,20 +456,15 @@ export default function AIAssistant() {
   };
 
   const tabs: { id: AiTab, label: string, icon: React.ReactNode, color: string, colorClass: string, bgClass: string, buttonColor: string, description: string, chat: boolean, category: 'advisor' | 'tool' }[] = [
-    { id: 'ki-helfer', label: 'Pädagogik', icon: <Bot size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#059669', description: 'Methoden & Planung', chat: true, category: 'advisor' },
-    { id: 'ki-wissen', label: 'Wissen', icon: <BookOpen size={20} />, color: 'amber', colorClass: 'text-amber-500/70', bgClass: 'bg-amber-600', buttonColor: '#d97706', description: 'Fachwissen & Sachkunde', chat: true, category: 'advisor' },
-    { id: 'ki-recht', label: 'Schulrecht', icon: <Scale size={20} />, color: 'slate', colorClass: 'text-slate-500/70', bgClass: 'bg-slate-600', buttonColor: '#475569', description: 'Gesetze & Regeln', chat: true, category: 'advisor' },
-    { id: 'ki-reflexion', label: 'Reflexion', icon: <MessageSquare size={20} />, color: 'teal', colorClass: 'text-teal-500/70', bgClass: 'bg-teal-600', buttonColor: '#0d9488', description: 'Feedback & Coaching', chat: true, category: 'advisor' },
-    { id: 'ki-elternbrief', label: 'Elternkommunikation', icon: <Mail size={20} />, color: 'indigo', colorClass: 'text-indigo-500/70', bgClass: 'bg-indigo-600', buttonColor: '#4f46e5', description: 'Information & Förderung', chat: true, category: 'tool' },
-    { id: 'ki-differenzierung', label: 'Differenzierung', icon: <Layers size={20} />, color: 'sky', colorClass: 'text-sky-500/70', bgClass: 'bg-sky-600', buttonColor: '#0284c7', description: 'DaZ & Förderbedarf', chat: true, category: 'tool' },
-    { id: 'ki-beurteilung', label: 'Leistungsbeurteilung', icon: <FileEdit size={20} />, color: 'orange', colorClass: 'text-orange-500/70', bgClass: 'bg-orange-600', buttonColor: '#ea580c', description: 'Noten & KEL', chat: true, category: 'tool' },
-    { id: 'ki-korrektur', label: 'Text prüfen', icon: <Check size={20} />, color: 'rose', colorClass: 'text-rose-500/70', bgClass: 'bg-rose-600', buttonColor: '#e11d48', description: 'Korrekturlesen', chat: true, category: 'tool' },
-    { id: 'ki-arbeitsblatt', label: 'Arbeitsblätter', icon: <FileText size={20} />, color: 'cyan', colorClass: 'text-cyan-500/70', bgClass: 'bg-cyan-600', buttonColor: '#0891b2', description: 'Fördern & Talente', chat: true, category: 'tool' },
-    { id: 'ki-foto-korrektur', label: 'Text-Korrektur (Foto)', icon: <Camera size={20} />, color: 'red', colorClass: 'text-red-500/70', bgClass: 'bg-red-500', buttonColor: '#ef4444', description: 'Schülertexte korrigieren', chat: true, category: 'tool' },
-    { id: 'ki-wochenplan', label: 'Wochenplan-Arbeit', icon: <ClipboardList size={20} />, color: 'purple', colorClass: 'text-purple-500/70', bgClass: 'bg-purple-600', buttonColor: '#9333ea', description: 'Pläne & Freiarbeit', chat: true, category: 'tool' },
-    { id: 'ki-lernziele', label: 'Lernziele', icon: <Target size={20} />, color: 'blue', colorClass: 'text-blue-500/70', bgClass: 'bg-blue-600', buttonColor: '#2563eb', description: 'Planung & Empfehlungen', chat: true, category: 'tool' },
-    { id: 'ki-stundenplan-check', label: 'Wochenplan prüfen', icon: <Activity size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#10b981', description: 'Wochenplanung prüfen', chat: false, category: 'tool' },
-    { id: 'ki-stationenbetrieb', label: 'Lernwerkstätten', icon: <LayoutGrid size={20} />, color: 'indigo', colorClass: 'text-indigo-500/70', bgClass: 'bg-indigo-600', buttonColor: '#4f46e5', description: 'Lernwerkstatt & Stationenbetrieb', chat: false, category: 'tool' },
+    { id: 'ki-helfer', label: 'Pädagogik', icon: <Bot size={20} />, color: 'emerald', colorClass: 'text-emerald-500/70', bgClass: 'bg-emerald-600', buttonColor: '#059669', description: 'Methoden & Klassenführung', chat: true, category: 'advisor' },
+    { id: 'ki-wissen', label: 'Fachwissen', icon: <BookOpen size={20} />, color: 'amber', colorClass: 'text-amber-500/70', bgClass: 'bg-amber-600', buttonColor: '#d97706', description: 'Erklären & didaktisch reduzieren', chat: true, category: 'advisor' },
+    { id: 'ki-reflexion', label: 'Reflexion', icon: <MessageSquare size={20} />, color: 'teal', colorClass: 'text-teal-500/70', bgClass: 'bg-teal-600', buttonColor: '#0d9488', description: 'Unterricht reflektieren', chat: true, category: 'advisor' },
+    { id: 'ki-lernziele', label: 'Lernziele', icon: <Target size={20} />, color: 'blue', colorClass: 'text-blue-500/70', bgClass: 'bg-blue-600', buttonColor: '#2563eb', description: 'Aggregierte Lernzielanalyse', chat: true, category: 'advisor' },
+    { id: 'ki-elternbrief', label: 'Elternkommunikation', icon: <Mail size={20} />, color: 'indigo', colorClass: 'text-indigo-500/70', bgClass: 'bg-indigo-600', buttonColor: '#4f46e5', description: 'Mitteilungen & Elternbriefe', chat: true, category: 'tool' },
+    { id: 'ki-differenzierung', label: 'Differenzierung', icon: <Layers size={20} />, color: 'sky', colorClass: 'text-sky-500/70', bgClass: 'bg-sky-600', buttonColor: '#0284c7', description: 'DaZ, Förderung & Begabung', chat: true, category: 'tool' },
+    { id: 'ki-beurteilung', label: 'Leistungsfeedback', icon: <FileEdit size={20} />, color: 'orange', colorClass: 'text-orange-500/70', bgClass: 'bg-orange-600', buttonColor: '#ea580c', description: 'Formulieren statt benoten', chat: true, category: 'tool' },
+    { id: 'ki-korrektur', label: 'Text prüfen', icon: <Check size={20} />, color: 'rose', colorClass: 'text-rose-500/70', bgClass: 'bg-rose-600', buttonColor: '#e11d48', description: 'Korrigieren & vereinfachen', chat: true, category: 'tool' },
+    { id: 'ki-foto-korrektur', label: 'Foto-Feedback', icon: <Camera size={20} />, color: 'red', colorClass: 'text-red-500/70', bgClass: 'bg-red-500', buttonColor: '#ef4444', description: 'Handschriftliche Texte', chat: true, category: 'tool' },
   ];
 
   const activeTabData = tabs.find(t => t.id === activeTab) || tabs[0];
@@ -557,10 +489,10 @@ export default function AIAssistant() {
             </div>
             {!isSidebarCollapsed && (
               <div className="">
-                <h2 className="text-[1.125rem] leading-normal font-black text-slate-900 tracking-tight whitespace-nowrap">ExpertISE-KI</h2>
+                <h2 className="text-[1.125rem] leading-normal font-black text-slate-900 tracking-tight whitespace-nowrap">KI-Helfer</h2>
                 <div className="flex items-center gap-1.5 opacity-50 whitespace-nowrap">
                   <Sparkles size={10} className="text-indigo-500" />
-                  <span className="text-[0.5rem] font-black uppercase tracking-widest text-slate-400 leading-none">Vernetzte Intelligenz</span>
+                  <span className="text-[0.5rem] font-black uppercase tracking-widest text-slate-400 leading-none">Schnelle Hilfe für den Lehreralltag</span>
                 </div>
               </div>
             )}
@@ -655,6 +587,24 @@ export default function AIAssistant() {
                       )}
                     </>
                   )}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="w-full mt-5 pt-4 border-t border-slate-100">
+            {!isSidebarCollapsed && (
+              <div className="mb-2 px-2"><span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-300 whitespace-nowrap">Direkt in KLASSIO</span></div>
+            )}
+            <div className={"space-y-1 " + (isSidebarCollapsed ? 'w-full flex flex-col items-center' : '')}>
+              {[
+                { id: 'arbeitsblatt', label: 'Arbeitsblätter', icon: <FileText size={16} /> },
+                { id: 'wochenplanung', label: 'Wochenplanung', icon: <ClipboardList size={16} /> },
+                { id: 'stationenbetrieb', label: 'Lernwerkstätten', icon: <LayoutGrid size={16} /> },
+              ].map(item => (
+                <button key={item.id} type="button" onClick={() => setPage(item.id)} title={isSidebarCollapsed ? item.label : undefined}
+                  className={"group flex items-center rounded-xl border border-transparent bg-slate-50/70 text-slate-500 transition hover:border-slate-200 hover:bg-white hover:text-slate-800 " + (isSidebarCollapsed ? 'h-11 w-11 justify-center' : 'w-full gap-3 px-3 py-2.5')}>
+                  <span className="shrink-0 text-slate-400">{item.icon}</span>
+                  {!isSidebarCollapsed && (<><span className="text-[0.625rem] font-black uppercase tracking-tight">{item.label}</span><ArrowRight size={11} className="ml-auto text-slate-300 transition group-hover:translate-x-0.5" /></>)}
                 </button>
               ))}
             </div>
@@ -894,24 +844,6 @@ export default function AIAssistant() {
                                    <div className={`${isCompact ? 'mt-3 pt-3' : 'mt-5 pt-4'} flex items-center gap-1.5 border-t border-white/10 justify-end`}>
                                       <span className="text-[9px] text-slate-400 mr-auto font-black uppercase tracking-wider select-none">Speichern:</span>
                                       <AISaveButton content={m.content} type="notiz" />
-                                      {(activeTab === 'ki-arbeitsblatt' || activeTab === 'ki-wochenplan') && (
-                                        <button 
-                                          type="button"
-                                          onClick={() => {
-                                            const printWindow = window.open('', '_blank');
-                                            if (printWindow) {
-                                              printWindow.document.write(`<html><head><title>Drucken</title><style>body { font-family: sans-serif; white-space: pre-wrap; padding: 20px; }</style></head><body>${m.content}</body></html>`);
-                                              printWindow.document.close();
-                                              printWindow.print();
-                                            }
-                                          }}
-                                          className="p-2 bg-white/10 hover:bg-white/20 text-white/70 hover:text-white rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-                                          title="Drucken"
-                                        >
-                                          <FileText size={12} />
-                                          <span className="hidden sm:inline text-[9px] tracking-wider uppercase">Drucken</span>
-                                        </button>
-                                      )}
                                       <button 
                                         type="button"
                                         onClick={() => { navigator.clipboard.writeText(m.content); showToast('In die Zwischenablage kopiert', 'success'); }}
@@ -993,100 +925,14 @@ export default function AIAssistant() {
                 <div className="absolute bottom-0 inset-x-0 p-4 lg:p-6 bg-gradient-to-t from-white via-white/98 to-transparent pointer-events-none">
                   <div className="max-w-3xl mx-auto w-full pointer-events-auto flex flex-col gap-2.5">
                     
-                    {/* Arbeitsblatt Form with Elegant Segmented Containers */}
-                    {activeTab === 'ki-arbeitsblatt' && (
-                      <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xl">
-                        <div className="text-[0.625rem] font-black uppercase text-slate-400 mb-4 ml-1 flex items-center gap-2 tracking-widest"><FileText size={14} className="text-cyan-500" /> Arbeitsblatt Konfigurator</div>
-                        <div className="grid grid-cols-2 gap-3.5 mb-3.5">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Fach</span>
-                            <select value={abFach} onChange={e => setAbFach(e.target.value)} className="p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none hover:bg-slate-100 transition-colors cursor-pointer">
-                              <option>Deutsch</option><option>Mathematik</option><option>Sachunterricht</option><option>Englisch</option>
-                            </select>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Klasse</span>
-                            <select value={abStufe} onChange={e => setAbStufe(Number(e.target.value))} className="p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none hover:bg-slate-100 transition-colors cursor-pointer">
-                              {[1,2,3,4].map(s => <option key={s} value={s}>{s}. Stufe</option>)}
-                            </select>
-                          </div>
-                        </div>
-                        <div className="mb-3.5 flex flex-col gap-1">
-                          <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Arbeitsblatt-Typ</span>
-                          <select value={abTyp} onChange={e => setAbTyp(e.target.value)} className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none hover:bg-slate-100 transition-colors cursor-pointer">
-                            {abFach === 'Deutsch' && <><option>Lückentext</option><option>Lernwörter-Übung</option><option>Satzglieder</option><option>Wortarten bestimmen</option><option>Leseverständnis mit Fragen</option></>}
-                            {abFach === 'Mathematik' && <><option>Diagnostischer Kurztest</option><option>Rechenpäckchen</option><option>Sachaufgaben</option><option>Zahlenrätsel</option><option>Geometrie-Aufgaben</option><option>gemischte Übung</option></>}
-                            {abFach === 'Sachunterricht' && <><option>Wissensfragen</option><option>Zuordnungsaufgabe</option><option>Lückentext</option></>}
-                            {abFach === 'Englisch' && <><option>Vokabel-Übung</option><option>einfache Sätze</option><option>Bild-Wort-Zuordnung (als Textbeschreibung)</option></>}
-                          </select>
-                        </div>
-                        <div className="mb-3.5 relative flex flex-col gap-1">
-                          <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Thema</span>
-                          {availableLehrplanTopics.length > 0 ? (
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <select 
-                                value={abThema} 
-                                onChange={e => setAbThema(e.target.value)} 
-                                className="flex-1 p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none hover:bg-slate-100 transition-colors cursor-pointer"
-                              >
-                                <option value="">Lehrplanthema wählen...</option>
-                                {availableLehrplanTopics.map((thema, idx) => (
-                                  <option key={idx} value={thema}>{thema}</option>
-                                ))}
-                              </select>
-                              <input 
-                                type="text" 
-                                value={abThema} 
-                                onChange={e => setAbThema(e.target.value)} 
-                                placeholder="oder eigenes Thema..." 
-                                className="flex-1 p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none" 
-                              />
-                            </div>
-                          ) : (
-                            <input 
-                              type="text" 
-                              value={abThema} 
-                              onChange={e => setAbThema(e.target.value)} 
-                              placeholder="Thema (z.B. Wald und Waldtiere)" 
-                              className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none" 
-                            />
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-3.5 mb-4">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Schwierigkeit</span>
-                            <select value={abSchwierigkeit} onChange={e => setAbSchwierigkeit(e.target.value)} className="p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none hover:bg-slate-100 transition-colors cursor-pointer">
-                              <option>Leicht</option><option>Mittel</option><option>Fördernd</option>
-                            </select>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Aufgaben-Anzahl</span>
-                            <select value={abAnzahl} onChange={e => setAbAnzahl(Number(e.target.value))} className="p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none hover:bg-slate-100 transition-colors cursor-pointer">
-                              <option value={5}>5 Aufgaben</option><option value={10}>10 Aufgaben</option><option value={15}>15 Aufgaben</option>
-                            </select>
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => {
-                            const prompt = `Erstelle ein Arbeitsblatt. Fach: ${abFach}, ${abStufe}. Stufe. Typ: ${abTyp}. Thema: "${abThema}". Schwierigkeit: ${abSchwierigkeit}, Anzahl: ${abAnzahl} Aufgaben.`;
-                            handleSend(prompt);
-                          }} 
-                          disabled={!abThema.trim() || isLoading} 
-                          className="w-full py-3 bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:shadow-cyan-500/20 transition-all active:scale-[0.99] disabled:bg-slate-200 cursor-pointer"
-                        >
-                          Arbeitsblatt erstellen
-                        </button>
-                      </div>
-                    )}
- 
                     {/* Foto-Korrektur Form */}
                     {activeTab === 'ki-foto-korrektur' && (
                       <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xl">
-                        <div className="text-[0.625rem] font-black uppercase text-slate-400 mb-3 ml-1 flex items-center gap-2 tracking-widest"><Camera size={14} className="text-red-500" /> Schülertext-Korrektur</div>
+                        <div className="text-[0.625rem] font-black uppercase text-slate-400 mb-3 ml-1 flex items-center gap-2 tracking-widest"><Camera size={14} className="text-red-500" /> Foto-Feedback für Schülertexte</div>
                         
                         <div className="bg-rose-50/50 border border-rose-100 rounded-2xl p-3.5 flex items-start gap-3 mb-4">
                           <Shield size={16} className="text-rose-500 shrink-0 mt-0.5" />
-                          <p className="text-[0.6875rem] font-bold text-rose-700 leading-normal">Datenschutz: Vor dem Hochladen müssen Name, Adresse und andere personenbezogene Angaben im Foto unkenntlich gemacht werden. Das Bild wird erst nach deiner Bestätigung an die KI gesendet.</p>
+                          <p className="text-[0.6875rem] font-bold text-rose-700 leading-normal">Datenschutz: Vor dem Hochladen müssen Name, Adresse und andere personenbezogene Angaben unkenntlich gemacht werden. KLASSIO sendet das Bild erst nach deiner Bestätigung an Gemini. Die Rückmeldung ist pädagogisches Feedback – keine automatische Note.</p>
                         </div>
  
                         <div className="mb-4">
@@ -1176,61 +1022,10 @@ export default function AIAssistant() {
                             const prompt = `Analysiere diesen Schülertext der ${fkStufe}. Stufe. Fokus auf: ${foki}.`;
                             handleSend(prompt, fkImageBase64, fkPrivacyConfirmed);
                           }} 
-                          disabled={!fkImageBase64 || !fkPrivacyConfirmed || isLoading || aiAvailability === 'missing'} 
+                          disabled={!fkImageBase64 || !fkPrivacyConfirmed || isLoading || aiAvailability === 'missing' || aiUsage?.blocked || aiUsage?.remaining === 0} 
                           className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:shadow-red-500/20 transition-all active:scale-[0.99] disabled:bg-slate-200 cursor-pointer"
                         >
-                          Text analysieren
-                        </button>
-                      </div>
-                    )}
- 
-                    {/* Wochenplan Form */}
-                    {activeTab === 'ki-wochenplan' && (
-                      <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xl">
-                        <div className="text-[0.625rem] font-black uppercase text-slate-400 mb-4 ml-1 flex items-center gap-2 tracking-widest"><ClipboardList size={14} className="text-purple-500" /> Wochenplan Generator</div>
-                        <div className="grid grid-cols-2 gap-3.5 mb-3.5">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Zeitraum</span>
-                            <input type="text" value={wpZeitraum} onChange={e => setWpZeitraum(e.target.value)} placeholder="z.B. KW 23" className="p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none w-full" />
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Schulstufe</span>
-                            <select value={wpStufe} onChange={e => setWpStufe(Number(e.target.value))} className="p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none w-full cursor-pointer hover:bg-slate-100 transition-colors">
-                              {[1,2,3,4].map(s => <option key={s} value={s}>{s}. Stufe</option>)}
-                            </select>
-                          </div>
-                        </div>
-                        <div className="space-y-3 mb-3.5">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Pflichtaufgaben</span>
-                            <textarea value={wpPflicht} onChange={e => setWpPflicht(e.target.value)} placeholder="Mathe S.45, Deutsch Leseübung..." className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none resize-none h-16" />
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-[9px] font-black uppercase text-slate-400 ml-1">Wahlaufgaben (Optional)</span>
-                            <textarea value={wpWahl} onChange={e => setWpWahl(e.target.value)} placeholder="Wahlaufgaben-Ideen (die KI ergänzt diese kreativ)" className="w-full p-3 bg-slate-50 rounded-xl text-xs font-bold border border-slate-100 outline-none resize-none h-16" />
-                          </div>
-                        </div>
-                        <div className="mb-4 space-y-1.5">
-                          <div className="text-[0.625rem] font-black uppercase text-slate-400 ml-1 tracking-wider">Differenzierung</div>
-                          <div className="flex flex-wrap gap-2">
-                             {Object.keys(wpDiff).map((key) => (
-                               <label key={key} className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 cursor-pointer hover:bg-slate-100 transition-colors">
-                                  <input type="checkbox" checked={(wpDiff as any)[key]} onChange={e => setWpDiff(prev => ({...prev, [key]: e.target.checked}))} className="rounded text-indigo-600 focus:ring-0" />
-                                  <span className="text-[0.6875rem] font-bold text-slate-700 capitalize">{key}-Plan</span>
-                               </label>
-                             ))}
-                          </div>
-                        </div>
-                        <button 
-                          onClick={() => {
-                            const diffs = Object.entries(wpDiff).filter(([_,v]) => v).map(([k]) => `${k}-Plan`).join(', ');
-                            const prompt = `Erstelle Wochenpläne (${diffs}) für die ${wpStufe}. Stufe. Zeitraum: ${wpZeitraum}. Pflicht: ${wpPflicht}. Wahl: ${wpWahl}`;
-                            handleSend(prompt);
-                          }} 
-                          disabled={!wpPflicht.trim() || isLoading} 
-                          className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:shadow-purple-500/20 transition-all active:scale-[0.99] disabled:bg-slate-200 cursor-pointer"
-                        >
-                          Wochenpläne erstellen
+                          Foto-Feedback erstellen
                         </button>
                       </div>
                     )}
@@ -1266,6 +1061,7 @@ export default function AIAssistant() {
                        <span>
                          <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Enter</kbd> senden · <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Shift+Enter</kbd> Zeilenumbruch
                        </span>
+                       <span className="text-slate-400">Keine Namen, Adressen oder Kontaktdaten eingeben.</span>
                        {aiUsage && (
                          <span className={`rounded-full border px-2 py-1 ${
                            aiUsage.blocked || aiUsage.remaining === 0
@@ -1308,22 +1104,19 @@ export default function AIAssistant() {
                            <p className="text-[0.625rem] font-bold text-slate-400 leading-none">Interaktiver Assistent</p>
                         </div>
                      </div>
-                     <button 
-                       onClick={() => setShowGuidedTool(false)} 
-                       className="px-5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full text-[0.5625rem] font-black uppercase tracking-widest flex items-center gap-2 border border-slate-200 shadow-sm"
-                     >
-                        <MessageSquare size={12} className="text-indigo-400" />
-                        Chat-Beratung
-                     </button>
+                     <div className="flex items-center gap-2">
+                       {aiUsage && (<span className={"rounded-full border px-2.5 py-1.5 text-[0.5625rem] font-black " + ((aiUsage.blocked || aiUsage.remaining === 0) ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-slate-200 bg-slate-50 text-slate-500')}>{aiUsage.remaining}/{aiUsage.limit} KI-Anfragen</span>)}
+                       <button onClick={() => setShowGuidedTool(false)} className="px-5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full text-[0.5625rem] font-black uppercase tracking-widest flex items-center gap-2 border border-slate-200 shadow-sm">
+                          <MessageSquare size={12} className="text-indigo-400" /> Freie Frage
+                       </button>
+                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto no-scrollbar">
-                     <div className={`${activeTab === 'ki-stationenbetrieb' ? 'w-full' : 'max-w-4xl mx-auto'} w-full h-full`}>
+                     <div className="max-w-4xl mx-auto w-full h-full">
                         {activeTab === 'ki-elternbrief' && <EmailAssistant />}
                         {activeTab === 'ki-differenzierung' && <Differentiation />}
                         {activeTab === 'ki-beurteilung' && <VerbalAssessment />}
                         {activeTab === 'ki-korrektur' && <MaterialOptimizer />}
-                        {activeTab === 'ki-stundenplan-check' && <ScheduleOptimizer />}
-                        {activeTab === 'ki-stationenbetrieb' && <StationenbetriebManager />}
                      </div>
                   </div>
               </motion.div>

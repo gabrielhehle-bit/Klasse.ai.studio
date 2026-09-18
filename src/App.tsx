@@ -631,8 +631,13 @@ function AppContent() {
       case 'ki-beurteilung':
       case 'ki-korrektur':
       case 'ki-lernziele':
-      case 'ki-stationenbetrieb':
         return <AIAssistant />;
+      case 'ki-arbeitsblatt': return <WorksheetGenerator />;
+      case 'ki-wochenplan':
+      case 'ki-stundenplan-check':
+        return <WeeklyPlan />;
+      case 'ki-stationenbetrieb':
+        return <StationenbetriebManager />;
       case 'anwesenheit': return <Attendance />;
       case 'verhalten': return <Behavior />;
       case 'jahresplanung': return <YearlyPlan />;
@@ -700,8 +705,12 @@ function AppContent() {
       case 'ki-paedagogik':
       case 'ki-wissen':
       case 'ki-recht':
-      case 'ki-stationenbetrieb':
         return 'KI Helfer';
+      case 'ki-arbeitsblatt': return 'Arbeitsblatt-Generator';
+      case 'ki-wochenplan':
+      case 'ki-stundenplan-check':
+        return 'Wochenplanung';
+      case 'ki-stationenbetrieb': return 'Lernwerkstatt & Stationen';
       case 'cockpit': return 'Lehrercockpit';
       case 'sitzplan': return 'Sitzplan';
       case 'anwesenheit': return 'Anwesenheit';
