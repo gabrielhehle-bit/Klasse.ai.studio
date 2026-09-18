@@ -12,6 +12,9 @@ export type SupportInfo = {
     oneTime: string | null;
     monthly: string | null;
     yearly: string | null;
+    clientId: string | null;
+    monthlyPlanId: string | null;
+    yearlyPlanId: string | null;
   };
   supporters: PublicSupporter[];
   privacy: string;
@@ -23,6 +26,9 @@ export const EMPTY_SUPPORT_INFO: SupportInfo = {
     oneTime: 'https://paypal.me/gabrielhehle',
     monthly: null,
     yearly: null,
+    clientId: null,
+    monthlyPlanId: null,
+    yearlyPlanId: null,
   },
   supporters: [],
   privacy: 'Auf der öffentlichen Dankesliste erscheinen nur Namen, deren Veröffentlichung ausdrücklich erlaubt wurde. Beträge und Zahlungsdaten werden nicht angezeigt.',
