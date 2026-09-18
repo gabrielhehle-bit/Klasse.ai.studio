@@ -13,7 +13,7 @@ test('persönliches E-Mail-Konto braucht kein separates KLASSIO-Kontopasswort', 
   assert.match(access, /Deine E-Mail ist dein KLASSIO-Konto/);
   assert.match(access, /kein eigenes Kontopasswort/);
   assert.match(access, /6-stelligen Code/);
-  assert.match(emailLogin, /kein eigenes KLASSIO-Kontopasswort/);
+  assert.match(emailLogin, /Ein eigenes KLASSIO-Kontopasswort brauchst du nicht/);
   assert.match(emailLogin, /6-stelligen Code per E-Mail/);
 });
 
