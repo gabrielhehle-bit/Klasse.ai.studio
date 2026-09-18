@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { Mail, Sparkles, Send, Copy, RotateCcw, FileText, Check, Archive, Info, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { askAI } from '../services/aiService';
@@ -120,6 +121,7 @@ function AISaveButton({ content, topic }: { content: string; topic: string }) {
 }
 
 export default function EmailAssistant() {
+  const { showToast } = useToast();
   const [topic, setTopic] = useState('');
   const [points, setPoints] = useState('');
   const [tonality, setTonality] = useState('freundlich');
@@ -150,6 +152,7 @@ Der Text sollte dabei helfen, Eltern optimal zu informieren oder das Kind zuhaus
       }
     } catch (err) {
       console.error(err);
+      showToast(err instanceof Error ? err.message : 'Elternkommunikation konnte nicht erstellt werden.', 'error');
     } finally {
       setLoading(false);
     }
