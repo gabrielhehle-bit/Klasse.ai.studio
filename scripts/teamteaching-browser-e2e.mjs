@@ -368,7 +368,15 @@ async function main() {
     await clickButton(recovery, 'Mit Code entsperren');
     await waitFor(recovery, 'fresh device restored dashboard', 'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").trim()==="Heute")', 30000);
     await waitFor(recovery, 'fresh device restored synced class', 'document.body?.innerText.includes("E2E 1A")', 30000);
-    console.log('✓ Konto-Sync: fresh device recovered existing encrypted vault and app state via recovery code');
+    await sleep(1800);
+    const revisionAfterRecovery = await evaluate(
+      recovery,
+      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(data=>Number(data.snapshot?.revision||0))',
+    );
+    if (revisionAfterRecovery !== postSetupRevisionA) {
+      throw new Error('Recovery-Gerät: Wiederherstellung hat unerwartet eine neue Konto-Revision erzeugt.');
+    }
+    console.log('✓ Konto-Sync: fresh device restored encrypted state without creating a no-op revision');
 
     await loginWithSchoolMail(berta, EMAIL_B, VAULT_B);
     console.log('✓ Lehrkraft B: separate school-mail login and vault/device identity ready');
