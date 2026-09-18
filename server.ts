@@ -106,16 +106,17 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     // E3.6 Content-Security-Policy
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.paypal.com https://*.paypal.com https://www.paypalobjects.com https://*.paypalobjects.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com",
-      "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://photon.komoot.io https://login.microsoftonline.com https://graph.microsoft.com",
+      "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com https://www.paypal.com https://*.paypal.com https://www.paypalobjects.com https://*.paypalobjects.com",
+      "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://photon.komoot.io https://login.microsoftonline.com https://graph.microsoft.com https://www.paypal.com https://*.paypal.com",
+      "frame-src 'self' https://www.paypal.com https://*.paypal.com",
       "worker-src 'self' blob:",
       "media-src 'self' blob: data:",
       "object-src 'none'",
       "base-uri 'self'",
-      "form-action 'self' https://login.microsoftonline.com",
+      "form-action 'self' https://login.microsoftonline.com https://www.paypal.com https://*.paypal.com",
       "frame-ancestors 'self' https://ai.studio https://*.google.com https://*.run.app"
     ].join('; ');
     res.setHeader('Content-Security-Policy', csp);
@@ -236,6 +237,24 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   );
   const SUPPORT_PAYPAL_MONTHLY_URL = safePayPalUrl(process.env.KLASSIO_PAYPAL_MONTHLY_URL);
   const SUPPORT_PAYPAL_YEARLY_URL = safePayPalUrl(process.env.KLASSIO_PAYPAL_YEARLY_URL);
+
+  function safePayPalClientId(value: string | undefined): string {
+    const raw = (value || '').trim();
+    return /^[A-Za-z0-9_-]{20,200}$/.test(raw) ? raw : '';
+  }
+
+  function safePayPalPlanId(value: string | undefined): string {
+    const raw = (value || '').trim().toUpperCase();
+    return /^P-[A-Z0-9]{10,40}$/.test(raw) ? raw : '';
+  }
+
+  const SUPPORT_PAYPAL_CLIENT_ID = safePayPalClientId(
+    process.env.KLASSIO_PAYPAL_CLIENT_ID,
+  ) || 'BAAbpNLXm9phiq123NHxZM_jrMeNsEkrLvxz9dYVwRnG2oVK0DDl7G3JoBCO3eHIRJslTGAE_jHr4xRBa0';
+  const SUPPORT_PAYPAL_MONTHLY_PLAN_ID =
+    safePayPalPlanId(process.env.KLASSIO_PAYPAL_MONTHLY_PLAN_ID) || 'P-39527139B4457294RNKVOWJQ';
+  const SUPPORT_PAYPAL_YEARLY_PLAN_ID =
+    safePayPalPlanId(process.env.KLASSIO_PAYPAL_YEARLY_PLAN_ID) || 'P-82J97339KC156492WNKVOZGA';
 
   type EmailAccessChallenge = {
     codeHash: string;
@@ -970,6 +989,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
           oneTime: SUPPORT_PAYPAL_ONE_TIME_URL || null,
           monthly: SUPPORT_PAYPAL_MONTHLY_URL || null,
           yearly: SUPPORT_PAYPAL_YEARLY_URL || null,
+          clientId: SUPPORT_PAYPAL_CLIENT_ID || null,
+          monthlyPlanId: SUPPORT_PAYPAL_MONTHLY_PLAN_ID || null,
+          yearlyPlanId: SUPPORT_PAYPAL_YEARLY_PLAN_ID || null,
         },
         supporters,
         privacy: 'Auf der öffentlichen Dankesliste erscheinen nur Namen, deren Veröffentlichung ausdrücklich erlaubt wurde. Beträge und Zahlungsdaten werden nicht angezeigt.',
