@@ -9385,10 +9385,6 @@ ${content}
                             <span className="md:hidden">Vorlage</span>
                           </button>
 
-                          <div className="hidden sm:flex items-center px-3 text-xs font-semibold text-slate-500">
-                            Weiße Smartboard-Fläche
-                          </div>
-
                           {/* Secondary Actions: Dropdown Menu (••• Optionen) */}
                           <div className="relative">
                             <button
