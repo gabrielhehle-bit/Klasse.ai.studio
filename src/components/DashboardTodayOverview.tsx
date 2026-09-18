@@ -70,11 +70,6 @@ export interface DashboardTodayOverviewProps {
   simpleMode: boolean;
   onSimpleModeToggle: () => void;
   onNavigate: (page: string) => void;
-  onOpenRemoteSetup: () => void;
-  onOpenBackup: () => void;
-  onOpenPrint: () => void;
-  onOpenSettings: () => void;
-  onOpenCustomize: () => void;
 
   // Anwesenheit Card
   totalStudents: number;
@@ -118,11 +113,6 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
   simpleMode,
   onSimpleModeToggle,
   onNavigate,
-  onOpenRemoteSetup,
-  onOpenBackup,
-  onOpenPrint,
-  onOpenSettings,
-  onOpenCustomize,
 
   totalStudents,
   absentCount,
