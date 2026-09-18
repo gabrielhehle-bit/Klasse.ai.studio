@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import type { TeacherIdentity } from './teacherIdentity';
+import { mentionAliasesForTeacher, normalizeMentionAlias, type TeacherIdentity } from './teacherIdentity';
 
 export type LehrerzimmerCategory = 'organisation' | 'unterricht' | 'info';
 export type LehrerzimmerKind = 'beitrag' | 'frage';
@@ -10,6 +10,7 @@ export interface LehrerzimmerUser {
   userId: string;
   displayName: string;
   handle: string;
+  mentionAliases?: string[];
   schoolId: string;
   joinedAt: string;
   lastSeenAt: string;
@@ -67,12 +68,36 @@ function isKind(value: unknown): value is LehrerzimmerKind {
 
 function mentionHandles(text: string): string[] {
   const handles = new Set<string>();
-  const re = /(^|\s)@([a-z0-9._-]{2,48})\b/gi;
+  // Punkte, Bindestriche und Unterstriche sind Teil gültiger KLASSIO-Handles.
+  // Satzzeichen am Ende der Erwähnung werden dagegen nicht als Alias gewertet.
+  const re = /(^|[\s([{])@([^\s@,!?;:]{2,64})/gu;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
-    handles.add(match[2].toLowerCase());
+    const raw = match[2].replace(/[.]+$/g, '');
+    const normalized = normalizeMentionAlias(raw);
+    if (normalized.length >= 2) handles.add(normalized);
   }
   return [...handles];
+}
+
+function withMentionAliases(user: LehrerzimmerUser): LehrerzimmerUser {
+  return {
+    ...user,
+    mentionAliases: mentionAliasesForTeacher(user.displayName, user.handle),
+  };
+}
+
+export function resolveMentionUserIds(users: LehrerzimmerUser[], text: string): string[] {
+  const ids = new Set<string>();
+  for (const token of mentionHandles(text)) {
+    const matches = users.filter(user =>
+      mentionAliasesForTeacher(user.displayName, user.handle).includes(token)
+    );
+    // Kurze Namen wie @anna können doppelt vorkommen. In diesem Fall wird bewusst
+    // niemand automatisch markiert; die Oberfläche bietet den eindeutigen Namen an.
+    if (matches.length === 1) ids.add(matches[0].userId);
+  }
+  return [...ids];
 }
 
 function cloneEmptyStore(): StoreData {
@@ -133,14 +158,16 @@ export class LehrerzimmerStore {
       if (existing) {
         existing.displayName = identity.displayName;
         existing.handle = identity.handle;
+        existing.mentionAliases = mentionAliasesForTeacher(identity.displayName, identity.handle);
         existing.lastSeenAt = now;
-        return existing;
+        return withMentionAliases(existing);
       }
 
       const created: LehrerzimmerUser = {
         userId: identity.userId,
         displayName: identity.displayName,
         handle: identity.handle,
+        mentionAliases: mentionAliasesForTeacher(identity.displayName, identity.handle),
         schoolId: identity.schoolId,
         joinedAt: now,
         lastSeenAt: now,
@@ -154,6 +181,7 @@ export class LehrerzimmerStore {
     await this.ensureUser(identity);
     const data = await this.read();
     return [...(data.users[identity.schoolId] || [])]
+      .map(withMentionAliases)
       .sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'));
   }
 
@@ -187,6 +215,7 @@ export class LehrerzimmerStore {
           userId: identity.userId,
           displayName: identity.displayName,
           handle: identity.handle,
+          mentionAliases: mentionAliasesForTeacher(identity.displayName, identity.handle),
           schoolId: identity.schoolId,
           joinedAt: now,
           lastSeenAt: now,
@@ -196,10 +225,7 @@ export class LehrerzimmerStore {
         user.lastSeenAt = now;
       }
 
-      const mentionedHandles = mentionHandles(title + '\n' + body);
-      const mentionIds = users
-        .filter(item => mentionedHandles.includes(item.handle.toLowerCase()))
-        .map(item => item.userId);
+      const mentionIds = resolveMentionUserIds(users, title + '\n' + body);
 
       const post: LehrerzimmerPost = {
         id: crypto.randomUUID(),
@@ -242,10 +268,7 @@ export class LehrerzimmerStore {
       if (post.authorId !== identity.userId) throw new Error('FORBIDDEN');
 
       const users = data.users[identity.schoolId] || [];
-      const mentionedHandles = mentionHandles(title + '\n' + body);
-      const mentionIds = users
-        .filter(item => mentionedHandles.includes(item.handle.toLowerCase()))
-        .map(item => item.userId);
+      const mentionIds = resolveMentionUserIds(users, title + '\n' + body);
 
       post.category = category;
       post.kind = kind;
@@ -293,6 +316,7 @@ export class LehrerzimmerStore {
           userId: identity.userId,
           displayName: identity.displayName,
           handle: identity.handle,
+          mentionAliases: mentionAliasesForTeacher(identity.displayName, identity.handle),
           schoolId: identity.schoolId,
           joinedAt: now,
           lastSeenAt: now,
@@ -305,10 +329,7 @@ export class LehrerzimmerStore {
       const post = (data.posts[identity.schoolId] || []).find(item => item.id === postId);
       if (!post) throw new Error('POST_NOT_FOUND');
 
-      const mentionedHandles = mentionHandles(body);
-      const mentionIds = users
-        .filter(item => mentionedHandles.includes(item.handle.toLowerCase()))
-        .map(item => item.userId);
+      const mentionIds = resolveMentionUserIds(users, body);
 
       const reply: LehrerzimmerReply = {
         id: crypto.randomUUID(),

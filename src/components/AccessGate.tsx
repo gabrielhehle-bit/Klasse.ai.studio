@@ -12,6 +12,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { notifyAccountSessionChanged } from '../lib/accountSyncService';
 
 interface AccessGateProps {
   onSuccess: () => void;
@@ -116,6 +117,7 @@ export default function AccessGate({ onSuccess }: AccessGateProps) {
       const data = await response.json();
 
       if (response.ok && data?.success === true) {
+        notifyAccountSessionChanged();
         onSuccess();
         return;
       }

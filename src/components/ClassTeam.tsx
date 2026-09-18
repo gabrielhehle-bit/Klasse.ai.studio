@@ -391,12 +391,25 @@ export default function ClassTeam() {
             <div className="border-t border-[var(--border)] pt-4">
               <h3 className="text-sm font-black">Kolleg:in hinzufügen</h3>
               {available.length === 0 ? (
-                <p className="mt-2 text-sm text-[var(--text2)]">Keine weitere bereits registrierte Lehrperson dieser Schule verfügbar.</p>
+                <p className="mt-2 text-sm text-[var(--text2)]">Keine weitere KLASSIO-Lehrperson dieser Schule verfügbar.</p>
               ) : (
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {available.map(colleague => (
-                    <button key={colleague.userId} onClick={() => void addMember(colleague)} disabled={Boolean(busy)} className="flex items-center justify-between rounded-xl border border-[var(--border)] p-3 text-left hover:border-[var(--accent)]/40">
-                      <span><span className="block font-bold">{colleague.displayName}</span><span className="text-xs text-[var(--text3)]">{colleague.devices.length ? `${colleague.devices.length} Gerät(e) bereit` : 'Geräteschlüssel noch nicht eingerichtet'}</span></span>
+                    <button
+                      key={colleague.userId}
+                      onClick={() => void addMember(colleague)}
+                      disabled={Boolean(busy) || colleague.devices.length === 0}
+                      title={colleague.devices.length ? 'Als bearbeitende Lehrperson hinzufügen' : 'Diese Lehrperson muss KLASSIO einmal mit ihrer Schulmail öffnen.'}
+                      className="flex items-center justify-between rounded-xl border border-[var(--border)] p-3 text-left hover:border-[var(--accent)]/40 disabled:cursor-not-allowed disabled:opacity-55"
+                    >
+                      <span>
+                        <span className="block font-bold">{colleague.displayName}</span>
+                        <span className="text-xs text-[var(--text3)]">
+                          {colleague.devices.length
+                            ? `${colleague.devices.length} Gerät(e) bereit · kann Klasse bearbeiten`
+                            : 'Im Kollegium registriert · muss KLASSIO einmal öffnen'}
+                        </span>
+                      </span>
                       <UserPlus size={17} />
                     </button>
                   ))}
@@ -430,7 +443,7 @@ export default function ClassTeam() {
 
       <section className="flex gap-3 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 text-sm text-[var(--text2)]">
         <ShieldCheck className="shrink-0 text-[var(--accent)]" size={20} />
-        <p><strong className="text-[var(--text)]">Zero-Knowledge:</strong> Der Server verwaltet Schulzugehörigkeit, Rollen und verschlüsselte Daten. Der Klassenschlüssel wird nur für berechtigte Geräte verpackt; Schülerdaten werden erst lokal im Browser entschlüsselt.</p>
+        <p><strong className="text-[var(--text)]">Zero-Knowledge:</strong> Zwei oder mehr berechtigte Lehrpersonen können dieselbe Klasse bearbeiten. Der Server verwaltet Schulzugehörigkeit, Rollen und ausschließlich verschlüsselte Klassendaten; entschlüsselt wird erst lokal auf den freigegebenen Geräten.</p>
       </section>
     </div>
   );

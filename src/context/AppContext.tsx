@@ -31,8 +31,22 @@ import {
   getActiveVaultKey,
   clearActiveVaultSession,
   hasVault,
+  loadVaultRecord,
   subscribeVaultSession,
 } from '../lib/vaultStorage';
+import {
+  ACCOUNT_SESSION_CHANGED_EVENT,
+  appStateFingerprint,
+  decryptAccountSyncSnapshot,
+  fetchAccountSyncSnapshot,
+  hasEmailAccountSession,
+  loadAccountSyncMetadata,
+  mergeAccountSyncState,
+  pushAccountSyncSnapshot,
+  saveAccountSyncMetadata,
+  setAccountSyncHealthy,
+  type AccountSyncStatus,
+} from '../lib/accountSyncService';
 import { registerActiveAppStateGetter } from '../services/aiService';
 import { ensureRegisteredTeamTeachingDevice, pullSharedClass, pushSharedClass } from '../lib/teamTeachingService';
 import { classRoomFingerprint } from '../lib/teamTeachingCrypto';
@@ -64,6 +78,8 @@ interface AppContextType {
   isVaultUnlocked: boolean;
   lockAppVault: () => void;
   unlockAppVault: (key: CryptoKey) => Promise<boolean>;
+  accountSyncStatus: AccountSyncStatus;
+  accountSyncLastAt: string | null;
 }
 
 const STORAGE_KEY = 'hehle_v3';
@@ -91,6 +107,215 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [screenLocked, setScreenLocked] = useState(false);
   const [isVaultUnlocked, setIsVaultUnlocked] = useState<boolean>(() => getActiveVaultKey() !== null);
+  const [accountSyncStatus, setAccountSyncStatus] = useState<AccountSyncStatus>('idle');
+  const [accountSyncLastAt, setAccountSyncLastAt] = useState<string | null>(null);
+  const accountSyncReadyRef = useRef(false);
+  const accountSyncBusyRef = useRef(false);
+  const accountSyncRevisionRef = useRef(0);
+
+  const markAccountSynced = React.useCallback((snapshot: any, state: AppState) => {
+    saveAccountSyncMetadata(snapshot, state);
+    accountSyncRevisionRef.current = snapshot.revision;
+    accountSyncReadyRef.current = true;
+    setAccountSyncLastAt(snapshot.updatedAt || new Date().toISOString());
+    setAccountSyncHealthy(true);
+    setAccountSyncStatus('synced');
+  }, []);
+
+  const reconcileAccountState = React.useCallback(async (
+    localState: AppState | null,
+    vaultKey: CryptoKey,
+    hadLocalState: boolean,
+  ): Promise<AppState> => {
+    // Einen wirklich neuen Tresor nicht vorschnell durch die Legacy-/Klassenmigration
+    // schicken: Der bestehende First-Run muss weiterhin mit leerer Klasse starten.
+    const current = localState ? normalizeAppState(localState) : initialAppState;
+    const vaultRecord = await loadVaultRecord();
+    if (!vaultRecord) {
+      accountSyncReadyRef.current = false;
+      setAccountSyncStatus('idle');
+      return current;
+    }
+
+    const hasAccount = await hasEmailAccountSession();
+    if (!hasAccount) {
+      accountSyncReadyRef.current = false;
+      setAccountSyncHealthy(false);
+      setAccountSyncStatus('disabled');
+      return current;
+    }
+
+    setAccountSyncStatus('syncing');
+    try {
+      const remote = await fetchAccountSyncSnapshot();
+
+      if (!remote) {
+        const created = await pushAccountSyncSnapshot(current, vaultKey, vaultRecord, 0);
+        markAccountSynced(created, current);
+        return current;
+      }
+
+      if (remote.vaultRecord.id !== vaultRecord.id) {
+        accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
+        setAccountSyncStatus('conflict');
+        console.warn('[AccountSync] Remote-Tresor stimmt nicht mit dem lokalen Tresor überein. Kein Stand wurde überschrieben.');
+        return current;
+      }
+
+      const decryptedRemote = await decryptAccountSyncSnapshot(remote, vaultKey);
+      assertRestorableAppState(decryptedRemote);
+      const normalizedRemoteState = normalizeAppState(decryptedRemote);
+      const remoteState = mergeAccountSyncState(normalizedRemoteState, current);
+      const localFingerprint = appStateFingerprint(current);
+      const remoteFingerprint = appStateFingerprint(remoteState);
+      const baseline = loadAccountSyncMetadata(vaultRecord.id);
+
+      if (!hadLocalState) {
+        await saveEncryptedAppState(remoteState, vaultKey);
+        markAccountSynced(remote, remoteState);
+        return remoteState;
+      }
+
+      if (!baseline) {
+        if (localFingerprint === remoteFingerprint) {
+          markAccountSynced(remote, current);
+          return current;
+        }
+        accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
+        setAccountSyncStatus('conflict');
+        console.warn('[AccountSync] Lokaler und serverseitiger Erststand unterscheiden sich. Automatisches Überschreiben wurde verhindert.');
+        return current;
+      }
+
+      if (remote.revision > baseline.revision) {
+        if (localFingerprint === baseline.fingerprint) {
+          await saveEncryptedAppState(remoteState, vaultKey);
+          markAccountSynced(remote, remoteState);
+          return remoteState;
+        }
+        if (localFingerprint === remoteFingerprint) {
+          markAccountSynced(remote, current);
+          return current;
+        }
+        accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
+        setAccountSyncStatus('conflict');
+        console.warn('[AccountSync] Änderungen auf mehreren Geräten erkannt. Kein Stand wurde überschrieben.');
+        return current;
+      }
+
+      if (remote.revision === baseline.revision) {
+        if (localFingerprint === baseline.fingerprint) {
+          markAccountSynced(remote, current);
+          return current;
+        }
+        const pushed = await pushAccountSyncSnapshot(current, vaultKey, vaultRecord, remote.revision);
+        markAccountSynced(pushed, current);
+        return current;
+      }
+
+      // Ein lokaler Baseline-Stand darf niemals weiter sein als der Server. Fail closed.
+      accountSyncReadyRef.current = false;
+      setAccountSyncHealthy(false);
+      setAccountSyncStatus('error');
+      console.warn('[AccountSync] Serverrevision ist älter als der lokal bekannte Sync-Stand.');
+      return current;
+    } catch (error: any) {
+      accountSyncReadyRef.current = false;
+      if (error?.status === 401 || error?.status === 403) {
+        setAccountSyncHealthy(false);
+      setAccountSyncStatus('disabled');
+        return current;
+      }
+      setAccountSyncHealthy(false);
+      setAccountSyncStatus(error?.code === 'REVISION_CONFLICT' || error?.code === 'VAULT_MISMATCH' ? 'conflict' : 'error');
+      console.error('[AccountSync] Kontostand konnte nicht abgeglichen werden:', error);
+      if (!hadLocalState) throw error;
+      return current;
+    }
+  }, [markAccountSynced]);
+
+  const pushAccountStateIfReady = React.useCallback(async (state: AppState, vaultKey: CryptoKey) => {
+    if (!accountSyncReadyRef.current || accountSyncBusyRef.current) return;
+    const vaultRecord = await loadVaultRecord();
+    if (!vaultRecord) return;
+
+    const baseline = loadAccountSyncMetadata(vaultRecord.id);
+    const expectedRevision = accountSyncRevisionRef.current || baseline?.revision || 0;
+    if (baseline && appStateFingerprint(state) === baseline.fingerprint && expectedRevision === baseline.revision) {
+      return;
+    }
+
+    accountSyncBusyRef.current = true;
+    setAccountSyncStatus('syncing');
+    try {
+      const snapshot = await pushAccountSyncSnapshot(state, vaultKey, vaultRecord, expectedRevision);
+      markAccountSynced(snapshot, state);
+    } catch (error: any) {
+      if (error?.status === 401 || error?.status === 403) {
+        accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
+      setAccountSyncStatus('disabled');
+      } else if (error?.status === 409 || error?.code === 'REVISION_CONFLICT' || error?.code === 'VAULT_MISMATCH') {
+        accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
+        setAccountSyncStatus('conflict');
+      } else {
+        setAccountSyncHealthy(false);
+      setAccountSyncStatus('error');
+      }
+      console.error('[AccountSync] Automatisches Speichern auf dem Server fehlgeschlagen:', error);
+    } finally {
+      accountSyncBusyRef.current = false;
+    }
+  }, [markAccountSynced]);
+
+  const refreshAccountState = React.useCallback(async () => {
+    if (!isVaultUnlocked || restoringRef.current || accountSyncBusyRef.current) return;
+    const vaultKey = getActiveVaultKey();
+    if (!vaultKey) return;
+
+    accountSyncBusyRef.current = true;
+    try {
+      const before = currentAppRef.current;
+      const reconciled = await reconcileAccountState(before, vaultKey, true);
+      if (appStateFingerprint(reconciled) !== appStateFingerprint(before)) {
+        setApp(reconciled);
+      }
+    } catch (error) {
+      console.error('[AccountSync] Hintergrundabgleich fehlgeschlagen:', error);
+    } finally {
+      accountSyncBusyRef.current = false;
+    }
+  }, [isVaultUnlocked, reconcileAccountState, setApp]);
+
+
+  // E-Mail-Konto wird auch dann aktiv, wenn die Anmeldung erst in den Einstellungen erfolgt.
+  // Sichtbare/aktive Geräte gleichen zusätzlich regelmäßig den verschlüsselten Serverstand ab.
+  useEffect(() => {
+    if (!isLoaded || !isVaultUnlocked) return;
+
+    const refresh = () => { void refreshAccountState(); };
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    const interval = window.setInterval(() => {
+      if (accountSyncReadyRef.current) refresh();
+    }, 15_000);
+
+    window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, refresh);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener(ACCOUNT_SESSION_CHANGED_EVENT, refresh);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+    };
+  }, [isLoaded, isVaultUnlocked, refreshAccountState]);
 
   // In-Memory Getter für AI-Pseudonymisierung registrieren (kein Namenscache im localStorage)
   useEffect(() => {
@@ -116,22 +341,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (vaultExists && activeKey) {
           try {
             const decrypted = await loadEncryptedAppState(activeKey);
-            if (decrypted && isMounted) {
-              setApp(normalizeAppState(decrypted));
+            const reconciled = await reconcileAccountState(
+              decrypted ? normalizeAppState(decrypted) : null,
+              activeKey,
+              Boolean(decrypted),
+            );
+            if (isMounted) {
+              setApp(reconciled);
               setIsVaultUnlocked(true);
               setIsLoaded(true);
               return;
             }
           } catch (decErr) {
-            console.error('[Datenschutz] Entschlüsselung beim App-Start fehlgeschlagen:', decErr);
+            console.error('[Datenschutz] Entschlüsselung oder Konto-Sync beim App-Start fehlgeschlagen:', decErr);
             clearActiveVaultSession();
             if (isMounted) { setIsVaultUnlocked(false); setIsLoaded(true); }
-            return;
-          }
-          // Falls noch keine verschlüsselten Daten vorliegen, aber Schlüssel im RAM aktiv ist
-          if (isMounted) {
-            setIsVaultUnlocked(true);
-            setIsLoaded(true);
             return;
           }
         }
@@ -153,7 +377,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false;
     };
-  }, [setApp]);
+  }, [setApp, reconcileAccountState]);
 
   // Autosave: Verschlüsselt den AppState debounced mit dem aktiven VaultKey im RAM
   useEffect(() => {
@@ -186,13 +410,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } catch (e) {
           console.warn('[Datenschutz] Fehler beim Erstellen der Notfallkopie:', e);
         }
+
+        // 4. Bei E-Mail-Konto denselben Stand zusätzlich Ende-zu-Ende-verschlüsselt
+        // auf dem Klassio-Server halten. Fehler blockieren die lokale Speicherung nie.
+        await pushAccountStateIfReady(app, vaultKey);
       } catch (e) {
         console.error('[Datenschutz] Fehler beim verschlüsselten Autosave:', e);
       }
     }, 1000);
 
     return () => clearTimeout(timeout);
-  }, [app, isLoaded, isVaultUnlocked]);
+  }, [app, isLoaded, isVaultUnlocked, pushAccountStateIfReady]);
 
   // Teamteaching: school account device key registration stays separate from local pupil data.
   useEffect(() => {
@@ -727,24 +955,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const unlockAppVault = React.useCallback(async (key: CryptoKey): Promise<boolean> => {
     try {
       const decrypted = await loadEncryptedAppState(key);
-      if (decrypted) {
-        setApp(normalizeAppState(decrypted));
-        setIsVaultUnlocked(true);
-        return true;
-      } else {
-        // Vault ist neu eingerichtet / leer
-        setApp(initialAppState);
-        setIsVaultUnlocked(true);
-        await saveEncryptedAppState(initialAppState, key);
-        return true;
+      const reconciled = await reconcileAccountState(
+        decrypted ? normalizeAppState(decrypted) : null,
+        key,
+        Boolean(decrypted),
+      );
+      setApp(reconciled);
+      setIsVaultUnlocked(true);
+      if (!decrypted) {
+        await saveEncryptedAppState(reconciled, key);
       }
+      return true;
     } catch (err) {
       console.error('[Datenschutz] Entsperren des Tresors fehlgeschlagen:', err);
       return false;
     }
-  }, [setApp]);
+  }, [setApp, reconcileAccountState]);
 
   const lockAppVault = React.useCallback(() => {
+    accountSyncReadyRef.current = false;
+    accountSyncRevisionRef.current = 0;
     clearActiveVaultSession();
     currentAppRef.current = initialAppState;
     setAppInternal(initialAppState);
@@ -815,10 +1045,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       await saveEncryptedAppState(currentAppRef.current, vaultKey);
       await saveEncryptedSessionBackup(currentAppRef.current, vaultKey);
+      await pushAccountStateIfReady(currentAppRef.current, vaultKey);
     } catch (e) {
       console.error('[Datenschutz] Fehler beim manuellen Speichern:', e);
     }
-  }, []);
+  }, [pushAccountStateIfReady]);
 
   const updateStudent = React.useCallback((student: Student) => {
     setApp(prev => {
@@ -1253,8 +1484,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setScreenLocked,
     isVaultUnlocked,
     lockAppVault,
-    unlockAppVault
-  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, lockAppVault, unlockAppVault]);
+    unlockAppVault,
+    accountSyncStatus,
+    accountSyncLastAt
+  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, lockAppVault, unlockAppVault, accountSyncStatus, accountSyncLastAt]);
 
   if (!isLoaded) {
     return (

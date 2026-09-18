@@ -14,6 +14,7 @@ import { createLehrerzimmerStore, type LehrerzimmerCategory } from "./src/server
 import { createClassCollaborationStore, type SharedClassRecord } from "./src/server/classCollaborationStore.ts";
 import { createSchoolRegistryStore, type AustrianFederalState, type SchoolVerificationRequest, type SchoolRecord } from "./src/server/schoolRegistry.ts";
 import { createSupporterStore } from "./src/server/supporterStore.ts";
+import { createAccountSyncStore } from "./src/server/accountSyncStore.ts";
 import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from "./src/data/austrianSchoolRegistry.seed.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
@@ -156,6 +157,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   // E3.12 Differentiierte Request-Größenlimits
   app.use('/api/ai', express.json({ limit: '35mb' }));
   app.use('/api/sync', express.json({ limit: '16mb' }));
+  app.use('/api/account-sync', express.json({ limit: '20mb' }));
   app.use('/api/teamteaching', express.json({ limit: '16mb' }));
   app.use('/api/onedrive/upload', express.json({ limit: '20mb' }));
   app.use(express.urlencoded({ limit: '1mb', extended: true }));
@@ -197,6 +199,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const classCollaborationStore = createClassCollaborationStore(KLASSIO_DATA_DIR);
   const schoolRegistryStore = createSchoolRegistryStore(KLASSIO_DATA_DIR);
   const supporterStore = createSupporterStore(KLASSIO_DATA_DIR);
+  const accountSyncStore = createAccountSyncStore(KLASSIO_DATA_DIR);
   if (!options.isTest) {
     await schoolRegistryStore.ensureSeedSchools(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS);
     await schoolRegistryStore.ensureLegacyDomains(ALLOWED_EMAIL_DOMAINS);
@@ -725,6 +728,53 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
   const getEmailAccount = (req: express.Request): EmailAccountIdentity =>
     (req as AccountRequest).klassioAccount as EmailAccountIdentity;
+
+  // Persönlicher Konto-Sync: Der Server speichert ausschließlich Vault-Wrappings
+  // und AES-GCM-Chiffretext. Schüler-, Noten- und Planungsdaten werden hier nie entschlüsselt.
+  app.get('/api/account-sync', requireEmailAccount, async (req, res) => {
+    try {
+      const account = getEmailAccount(req);
+      const snapshot = await accountSyncStore.get(account.userId);
+      res.json({ snapshot });
+    } catch (error) {
+      console.error('[AccountSync] Verschlüsselter Kontostand konnte nicht geladen werden:', error);
+      res.status(500).json({ code: 'SYNC_READ_FAILED', error: 'Dein verschlüsselter Kontostand konnte nicht geladen werden.' });
+    }
+  });
+
+  app.put('/api/account-sync', requireEmailAccount, async (req, res) => {
+    try {
+      const account = getEmailAccount(req);
+      const snapshot = await accountSyncStore.put(account.userId, {
+        vaultRecord: req.body?.vaultRecord,
+        encryptedState: req.body?.encryptedState,
+        expectedRevision: req.body?.expectedRevision,
+      });
+      res.json({ snapshot });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : '';
+      if (code === 'REVISION_CONFLICT') {
+        return res.status(409).json({
+          code,
+          error: 'Der Kontostand wurde auf einem anderen Gerät geändert. Nichts wurde überschrieben.',
+        });
+      }
+      if (code === 'VAULT_MISMATCH') {
+        return res.status(409).json({
+          code,
+          error: 'Dieser Kontostand gehört zu einem anderen Datentresor. Automatisches Überschreiben wurde verhindert.',
+        });
+      }
+      if (code === 'PAYLOAD_TOO_LARGE') {
+        return res.status(413).json({ code, error: 'Der verschlüsselte Kontostand überschreitet 20 MB.' });
+      }
+      if (code === 'INVALID_PAYLOAD' || code === 'INVALID_REVISION' || code === 'INVALID_ACCOUNT') {
+        return res.status(400).json({ code, error: 'Ungültiger verschlüsselter Kontostand.' });
+      }
+      console.error('[AccountSync] Verschlüsselter Kontostand konnte nicht gespeichert werden:', error);
+      return res.status(500).json({ code: 'SYNC_WRITE_FAILED', error: 'Dein verschlüsselter Kontostand konnte nicht gespeichert werden.' });
+    }
+  });
 
   app.get('/api/schools/me', requireEmailAccount, async (req, res) => {
     try {
