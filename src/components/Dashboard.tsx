@@ -1737,17 +1737,9 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const hour = new Date().getHours();
     return hour < 10 ? "morning" : hour < 14 ? "teaching" : "review";
   });
-  const [dashboardPrivacyMode, setDashboardPrivacyMode] = useState(
-    () => localStorage.getItem("dashboard_privacy_mode_v1") === "true",
-  );
-
   useEffect(() => {
     localStorage.setItem("dashboard_day_mode_v1", dashboardDayMode);
   }, [dashboardDayMode]);
-
-  useEffect(() => {
-    localStorage.setItem("dashboard_privacy_mode_v1", String(dashboardPrivacyMode));
-  }, [dashboardPrivacyMode]);
 
   useEffect(() => {
     const handleOpenCustomize = () => setShowCustomizePanel(true);
@@ -4579,8 +4571,8 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         klasseLabel={app?.klassenbezeichnung || "Deine Klasse"}
         manualDateOffset={manualDateOffset}
         onDateOffsetChange={setManualDateOffset}
-        privacyMode={dashboardPrivacyMode}
-        onPrivacyModeChange={setDashboardPrivacyMode}
+        privacyMode={false}
+        onPrivacyModeChange={() => {}}
         simpleMode={simpleDashboardMode}
         onSimpleModeToggle={() => setSimpleDashboardMode(!simpleDashboardMode)}
         onNavigate={setPage}
