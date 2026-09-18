@@ -396,6 +396,56 @@ async function main() {
     await saveScreenshot(anna, SCREENSHOT_A);
     await saveScreenshot(berta, SCREENSHOT_B);
 
+    // Konto-Sync: dieselbe E-Mail auf einem vollständig geleerten zweiten Browserprofil.
+    // Der zweite Browser muss den serverseitigen, verschlüsselten Tresor finden und nach
+    // Eingabe desselben Tresor-Passworts den vollständigen Stand (inkl. Klasse) laden.
+    await waitFor(
+      anna,
+      'account sync has a persisted encrypted revision',
+      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(data=>Number(data.snapshot?.revision||0)>=2)',
+      30000,
+    );
+
+    await berta.send('Storage.clearDataForOrigin', {
+      origin: new URL(BASE_URL).origin,
+      storageTypes: 'all',
+    });
+    await berta.send('Page.navigate', { url: 'about:blank' });
+    await sleep(500);
+    await berta.send('Page.navigate', { url: BASE_URL });
+
+    await waitFor(berta, 'fresh-device email login field', 'Boolean(document.querySelector("input[type=email]"))', 30000);
+    await setInputByLabel(berta, 'E-Mail', EMAIL_A);
+    await clickButton(berta, 'Anmeldecode senden');
+    await waitFor(berta, 'fresh-device login code field', 'document.body?.innerText.toLowerCase().includes("6-stelliger anmeldecode")', 20000);
+    const sameAccountCode = await waitForMailCode(EMAIL_A);
+    await setInputByLabel(berta, '6-stelliger Anmeldecode', sameAccountCode);
+    await clickButton(berta, 'Klassio öffnen');
+
+    await waitFor(berta, 'remote vault discovered instead of creating a new vault', 'document.body?.innerText.includes("Lokaler Datentresor gesperrt")', 30000);
+    const offeredNewVault = await evaluate(berta, 'document.body?.innerText.includes("Lokalen Datentresor einrichten")');
+    if (offeredNewVault) throw new Error('Fresh device incorrectly offered a new vault although the account already has one.');
+
+    await setInputByLabel(berta, 'Tresor-Passwort', VAULT_A);
+    await clickButton(berta, 'Tresor entsperren');
+    await waitFor(
+      berta,
+      'same-account encrypted state restored on fresh device',
+      'document.body?.innerText.includes("E2E 1A") && Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").trim()==="Heute")',
+      30000,
+    );
+    console.log('✓ Konto-Sync: fresh browser restored the existing encrypted vault and class through the same E-Mail account');
+
+    const accountSyncDir = '/tmp/klassio-e2e-data/account-sync';
+    const accountFiles = await fs.readdir(accountSyncDir);
+    if (!accountFiles.length) throw new Error('Account sync server store is empty.');
+    const accountRaw = (await Promise.all(accountFiles.map(name => fs.readFile(accountSyncDir + '/' + name, 'utf8')))).join('\n');
+    if (!accountRaw.includes('"ciphertext"')) throw new Error('Account sync server store has no ciphertext.');
+    if (accountRaw.includes('"schueler"') || accountRaw.includes('"noten"') || accountRaw.includes('"E2E 1A"')) {
+      throw new Error('Account sync server store unexpectedly contains application plaintext.');
+    }
+    console.log('✓ Konto-Sync: server persistence contains ciphertext only, not class/pupil payload plaintext');
+
     if (uncaught.length) throw new Error('Uncaught browser exceptions:\n' + uncaught.join('\n---\n'));
 
     console.log('Klassio Teamteaching browser E2E passed: two school-mail accounts -> separate vaults/devices -> encrypted share -> editor adoption/write -> owner pull.');
