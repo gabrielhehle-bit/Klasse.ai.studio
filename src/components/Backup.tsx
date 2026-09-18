@@ -188,7 +188,9 @@ export default function Backup() {
         if (!targetData) { setImportStatus('idle'); return; }
 
         const shouldReplace = confirm(
-          'Diese Sicherung ersetzt den aktuellen lokalen Datenbestand vollständig. Nicht gesicherte Änderungen gehen verloren. Möchten Sie den Import wirklich fortsetzen?'
+          accountSyncHealthy
+            ? 'Diese Sicherung ersetzt den aktuellen Datenstand auf diesem Gerät. Danach wird der importierte Stand auch mit deinem Klassio-Konto abgeglichen. Nicht gesicherte Änderungen gehen verloren. Möchtest du den Import wirklich fortsetzen?'
+            : 'Diese Sicherung ersetzt den aktuellen lokalen Datenbestand vollständig. Nicht gesicherte Änderungen gehen verloren. Möchtest du den Import wirklich fortsetzen?'
         );
         if (!shouldReplace) {
           setImportStatus('idle');
@@ -1158,7 +1160,8 @@ export default function Backup() {
             <div className="space-y-2">
               <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 leading-none">Backup wiederherstellen</h3>
               <p className="text-[0.8125rem] text-slate-500 font-medium leading-relaxed">
-                Wähle eine vorhandene Klassio-Sicherung aus. Vor dem Ersetzen deiner aktuellen Daten fragt Klassio nochmals nach.
+                Wähle eine vorhandene Sicherung aus. Auch ältere JSON-Backups aus Klasse.ai.studio / früheren Klassio-Versionen werden weiterhin unterstützt.
+                {accountSyncHealthy ? ' Nach dem Import wird dieser Stand auch für deine anderen Geräte übernommen.' : ''}
               </p>
             </div>
           </div>
