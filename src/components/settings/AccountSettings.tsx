@@ -7,8 +7,16 @@ import { useApp } from '../../context/AppContext';
 
 export default function AccountSettings() {
   const [refreshKey, setRefreshKey] = React.useState(0);
-  const { accountSyncStatus, accountSyncLastAt, accountSyncMessage, retryAccountSync } = useApp();
+  const {
+    accountSyncStatus,
+    accountSyncLastAt,
+    accountSyncMessage,
+    accountSyncConflictResolvable,
+    retryAccountSync,
+    resolveAccountSyncConflict,
+  } = useApp();
   const [retryingSync, setRetryingSync] = React.useState(false);
+  const [resolvingSync, setResolvingSync] = React.useState<'local' | 'remote' | null>(null);
 
   const retrySync = async () => {
     if (retryingSync) return;
@@ -17,6 +25,23 @@ export default function AccountSettings() {
       await retryAccountSync();
     } finally {
       setRetryingSync(false);
+    }
+  };
+
+  const resolveSync = async (source: 'local' | 'remote') => {
+    if (resolvingSync) return;
+    const confirmed = window.confirm(
+      source === 'local'
+        ? 'Soll der vollständige Stand dieses Geräts den Konto-Stand ersetzen? Vorher erstellt Klassio auf diesem Gerät eine verschlüsselte Notfallkopie.'
+        : 'Soll der vollständige Konto-Stand auf dieses Gerät geladen werden? Lokale Änderungen werden ersetzt; vorher erstellt Klassio eine verschlüsselte Notfallkopie.'
+    );
+    if (!confirmed) return;
+
+    setResolvingSync(source);
+    try {
+      await resolveAccountSyncConflict(source);
+    } finally {
+      setResolvingSync(null);
     }
   };
 
@@ -68,7 +93,7 @@ export default function AccountSettings() {
               <div className="text-sm font-black">{syncMeta.title}</div>
               <p className="mt-1 text-xs font-semibold leading-relaxed opacity-85">{syncMeta.detail}</p>
             </div>
-            {(accountSyncStatus === 'error' || accountSyncStatus === 'conflict') && (
+            {(accountSyncStatus === 'error' || (accountSyncStatus === 'conflict' && !accountSyncConflictResolvable)) && (
               <button
                 type="button"
                 onClick={() => void retrySync()}
@@ -80,6 +105,37 @@ export default function AccountSettings() {
               </button>
             )}
           </div>
+
+          {accountSyncStatus === 'conflict' && accountSyncConflictResolvable && (
+            <div
+              className="mt-4 rounded-xl border border-amber-300/70 bg-white/70 p-3"
+              data-testid="account-sync-conflict-actions"
+            >
+              <p className="text-xs font-bold leading-relaxed">
+                Beide Stände bleiben unverändert, bis du bewusst entscheidest. Vor der Auflösung legt Klassio eine verschlüsselte Notfallkopie des aktuellen Geräte-Stands an.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void resolveSync('remote')}
+                  disabled={Boolean(resolvingSync)}
+                  className="rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-black text-amber-950 disabled:opacity-50"
+                >
+                  {resolvingSync === 'remote' ? <Loader2 size={13} className="mr-1.5 inline animate-spin" /> : <Cloud size={13} className="mr-1.5 inline" />}
+                  Konto-Stand laden
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void resolveSync('local')}
+                  disabled={Boolean(resolvingSync)}
+                  className="rounded-xl bg-amber-900 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
+                >
+                  {resolvingSync === 'local' ? <Loader2 size={13} className="mr-1.5 inline animate-spin" /> : <Database size={13} className="mr-1.5 inline" />}
+                  Diesen Geräte-Stand verwenden
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
