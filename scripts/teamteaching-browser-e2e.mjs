@@ -259,7 +259,7 @@ async function loginWithSchoolMail(client, email, password) {
   await waitFor(client, 'six digit login code field', 'document.body?.innerText.toLowerCase().includes("6-stelliger anmeldecode")', 20000);
   const code = await waitForMailCode(email);
   await setInputByLabel(client, '6-stelliger Anmeldecode', code);
-  await clickButton(client, 'Klassio öffnen');
+  await clickButton(client, 'Anmelden & Daten laden');
   await finishVaultSetup(client, password);
 }
 
