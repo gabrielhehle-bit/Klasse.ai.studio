@@ -60,6 +60,17 @@ export function accountSyncState(state: AppState): AppState {
   clone.unterrichtsmodus_sidebar_open = false;
   clone.tempQrValue = '';
 
+  // Teamteaching-Metadaten sind bewusst gerätelokal. Sie enthalten die
+  // gerätespezifische Sync-Baseline und dürfen weder Konto-Revisionen erzeugen
+  // noch von einem anderen Gerät übernommen werden.
+  if (Array.isArray(clone.classes)) {
+    clone.classes = clone.classes.map(room => {
+      if (!room.teamTeaching) return room;
+      const { teamTeaching: _deviceLocalTeamTeaching, ...accountRoom } = room;
+      return accountRoom;
+    });
+  }
+
   if (clone.boardSettings) {
     clone.boardSettings = {
       ...clone.boardSettings,
@@ -74,8 +85,22 @@ export function accountSyncState(state: AppState): AppState {
 }
 
 export function mergeAccountSyncState(remote: AppState, local: AppState): AppState {
+  const localTeamTeaching = new Map(
+    (local.classes || [])
+      .filter(room => room.teamTeaching)
+      .map(room => [room.id, room.teamTeaching] as const),
+  );
+  const classes = (remote.classes || []).map(room => {
+    const { teamTeaching: _remoteTeamTeaching, ...accountRoom } = room;
+    const deviceLocalTeamTeaching = localTeamTeaching.get(room.id);
+    return deviceLocalTeamTeaching
+      ? { ...accountRoom, teamTeaching: deviceLocalTeamTeaching }
+      : accountRoom;
+  });
+
   return {
     ...remote,
+    classes,
     currentPage: local.currentPage,
     previousPage: local.previousPage,
     unterrichtsmodus_sidebar_open: local.unterrichtsmodus_sidebar_open,
