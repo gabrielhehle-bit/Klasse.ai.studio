@@ -230,6 +230,10 @@ WICHTIGSTE REGELN FÜR DIE AUSGABE:
               />
             </div>
 
+            <p className="rounded-2xl border border-sky-100 bg-sky-50/70 px-4 py-3 text-[0.6875rem] font-semibold leading-relaxed text-sky-800">
+              Beschreibe nur Lernziel, Material und Unterstützungsbedarf. Keine Namen oder identifizierenden Angaben zu Kindern eingeben.
+            </p>
+
             <div className="space-y-3">
               <label className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Zielgruppe auswählen</label>
               <div className="grid grid-cols-1 gap-2">
