@@ -610,6 +610,8 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                     <span>
                       Klasse: <strong className="font-black text-slate-700">{[app.stufe ? `${app.stufe}.` : '', app.klassenbezeichnung].filter(Boolean).join(' ') || 'nicht erfasst'}</strong>
                     </span>
+                    <span className="text-slate-300">·</span>
+                    <span>Geschlecht: {getStudentGenderLabel(student.geschlecht)}</span>
                     {student.besuchsjahr && (
                       <>
                         <span className="text-slate-300">·</span>
