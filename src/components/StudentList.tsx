@@ -82,6 +82,7 @@ export default function StudentList() {
   const schueler = app?.schueler || [];
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [studentFormSection, setStudentFormSection] = useState<'basis' | 'paedagogik' | 'kontakte'>('basis');
   const [isKlassenlistImportOpen, setIsKlassenlistImportOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Partial<Student> | null>(null);
   const [timelineStudent, setTimelineStudent] = useState<string | null>(null);
@@ -104,6 +105,10 @@ export default function StudentList() {
   useEffect(() => {
     setVisibleLimit(15);
   }, [searchTerm, activeFilter, sortBy, sortOrder]);
+
+  useEffect(() => {
+    if (isModalOpen) setStudentFormSection('basis');
+  }, [isModalOpen]);
 
   useEffect(() => {
     // A class change must never keep an old child, editor or interaction open.
@@ -197,7 +202,10 @@ export default function StudentList() {
     e.preventDefault();
     const vorname = editingStudent?.vorname?.trim() || '';
     const nachname = editingStudent?.nachname?.trim() || '';
-    if (!editingStudent || !vorname || !nachname) return;
+    if (!editingStudent || !vorname || !nachname) {
+      setStudentFormSection('basis');
+      return;
+    }
 
     const student = {
       ...editingStudent,
@@ -1411,9 +1419,43 @@ export default function StudentList() {
             
             <div className="flex-1 overflow-y-auto p-3 sm:p-4 sm:p-6 custom-scrollbar">
               <form id="student-form" onSubmit={handleSave} className="space-y-6">
-                
+                <nav aria-label="Schülerformular Bereiche" className="grid grid-cols-3 gap-2 rounded-2xl bg-slate-100 p-1.5">
+                  {[
+                    { id: 'basis', label: 'Basisdaten', hint: 'Person & Schule' },
+                    { id: 'paedagogik', label: 'Pädagogik', hint: 'Förderung & Sitzplatz' },
+                    { id: 'kontakte', label: 'Kontakte', hint: 'Adresse & Freigaben' },
+                  ].map((section, index) => {
+                    const active = studentFormSection === section.id;
+                    return (
+                      <button
+                        key={section.id}
+                        type="button"
+                        aria-current={active ? 'step' : undefined}
+                        onClick={() => setStudentFormSection(section.id as 'basis' | 'paedagogik' | 'kontakte')}
+                        className={`min-w-0 rounded-xl px-2 py-2.5 text-left transition-all ${
+                          active
+                            ? 'bg-white text-slate-900 shadow-sm ring-1 ring-slate-200'
+                            : 'text-slate-500 hover:bg-white/70 hover:text-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-black ${
+                            active ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'
+                          }`}>
+                            {index + 1}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="truncate text-[0.6875rem] font-black">{section.label}</div>
+                            <div className="hidden sm:block truncate text-[0.5625rem] font-semibold text-slate-400">{section.hint}</div>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </nav>
+
                 {/* Stammdaten */}
-                <div className="space-y-4">
+                <div className={studentFormSection === 'basis' ? 'space-y-4' : 'hidden'}>
                   <div className="flex items-center gap-2 px-1">
                     <div className="w-1 h-4 bg-accent rounded-full" />
                     <h4 className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-900">Stammdaten</h4>
@@ -1564,8 +1606,9 @@ export default function StudentList() {
                   </div>
                 </div>
 
+                <div className={studentFormSection === 'paedagogik' ? 'space-y-6' : 'hidden'}>
                 {/* Förderung & Sprache */}
-                <div className="space-y-4 pt-4 border-t border-slate-100">
+                <div className="space-y-4 pt-1">
                   <div className="flex items-center gap-2 px-1">
                     <div className="w-1 h-4 bg-emerald-500 rounded-full" />
                     <h4 className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-900">Förderung & Sprache</h4>
@@ -1992,8 +2035,11 @@ export default function StudentList() {
                   </div>
                 </div>
 
+                </div>
+
+                <div className={studentFormSection === 'kontakte' ? 'space-y-6' : 'hidden'}>
                 {/* Kontakt */}
-                <div className="space-y-4 pt-4 border-t border-slate-100">
+                <div className="space-y-4 pt-1">
                   <div className="flex items-center gap-2 px-1">
                     <div className="w-1 h-4 bg-blue-500 rounded-full" />
                     <h4 className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-900">Kontakt & Adresse</h4>
@@ -2173,25 +2219,46 @@ export default function StudentList() {
                     />
                   </div>
                 </div>
+                </div>
               </form>
             </div>
 
-            <div className="p-3 sm:p-4 sm:p-8 border-t border-slate-100 bg-slate-50/50 shrink-0 flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <div className="p-3 sm:p-4 sm:p-6 border-t border-slate-100 bg-slate-50/50 shrink-0 flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button 
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="btn btn-ghost flex-1 py-3 sm:py-4 order-2 sm:order-1"
+                className="btn btn-ghost sm:flex-1 py-3 sm:py-4 order-3 sm:order-1"
               >
                 Abbrechen
               </button>
-              <button 
-                type="submit"
-                form="student-form"
-                disabled={!editingStudent?.vorname?.trim() || !editingStudent?.nachname?.trim()}
-                className="btn btn-accent flex-1 py-3 sm:py-4 shadow-xl shadow-accent/20 order-1 sm:order-2 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {editingStudent?.id ? 'Speichern' : 'Anlegen'}
-              </button>
+              {studentFormSection !== 'basis' && (
+                <button
+                  type="button"
+                  onClick={() => setStudentFormSection(studentFormSection === 'kontakte' ? 'paedagogik' : 'basis')}
+                  className="btn btn-ghost sm:flex-1 py-3 sm:py-4 order-2"
+                >
+                  Zurück
+                </button>
+              )}
+              {studentFormSection !== 'kontakte' ? (
+                <button
+                  type="button"
+                  onClick={() => setStudentFormSection(studentFormSection === 'basis' ? 'paedagogik' : 'kontakte')}
+                  disabled={studentFormSection === 'basis' && (!editingStudent?.vorname?.trim() || !editingStudent?.nachname?.trim())}
+                  className="btn btn-accent sm:flex-1 py-3 sm:py-4 order-1 sm:order-3 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Weiter
+                </button>
+              ) : (
+                <button 
+                  type="submit"
+                  form="student-form"
+                  disabled={!editingStudent?.vorname?.trim() || !editingStudent?.nachname?.trim()}
+                  className="btn btn-accent sm:flex-1 py-3 sm:py-4 shadow-xl shadow-accent/20 order-1 sm:order-3 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {editingStudent?.id ? 'Speichern' : 'Anlegen'}
+                </button>
+              )}
             </div>
           </motion.div>
         </div>
