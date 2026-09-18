@@ -23,6 +23,7 @@ import {
   migrateLegacyStorageToEncrypted,
   isEncryptedLocalState,
 } from '../lib/secureStorageService';
+import { fetchAccountSyncSnapshot, hasEmailAccountSession } from '../lib/accountSyncService';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Shield,
@@ -97,6 +98,33 @@ export default function VaultGate({ children }: VaultGateProps) {
         setHasLegacyData(legacyExists);
 
         if (!record) {
+          // Auf einem neuen Gerät zuerst prüfen, ob zum angemeldeten E-Mail-Konto
+          // bereits ein verschlüsselter Tresor auf dem Klassio-Server liegt.
+          const hasAccount = await hasEmailAccountSession();
+          if (hasAccount) {
+            try {
+              const remote = await fetchAccountSyncSnapshot();
+              if (remote?.vaultRecord) {
+                await saveVaultRecord(remote.vaultRecord);
+                if (isMounted) {
+                  setErrorMessage(null);
+                  setGateState('locked');
+                }
+                return;
+              }
+            } catch (cloudError) {
+              console.error('[AccountSync] Remote-Tresor konnte nicht geprüft werden:', cloudError);
+              if (isMounted) {
+                setErrorMessage(
+                  'Dein verschlüsselter Kontostand konnte gerade nicht vom Server geladen werden. ' +
+                  'Zur Sicherheit wird kein neuer Tresor angelegt. Bitte Verbindung prüfen und erneut versuchen.'
+                );
+                setGateState('checking');
+              }
+              return;
+            }
+          }
+
           setGateState('needs_setup');
           return;
         }
@@ -338,11 +366,23 @@ export default function VaultGate({ children }: VaultGateProps) {
   // Ladezustand
   if (gateState === 'checking') {
     return (
-      <div className="min-h-screen w-full bg-[var(--surface-bg,var(--surface))] flex flex-col items-center justify-center gap-4 text-[var(--text-primary)]">
-        <div className="w-10 h-10 border-4 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen w-full bg-[var(--surface-bg,var(--surface))] flex flex-col items-center justify-center gap-4 px-6 text-center text-[var(--text-primary)]">
+        {!errorMessage && <div className="w-10 h-10 border-4 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />}
         <div className="text-[var(--text-secondary)] font-mono text-xs uppercase tracking-widest font-semibold">
-          Prüfe Datentresor...
+          {errorMessage ? 'Kontostand nicht erreichbar' : 'Prüfe Datentresor...'}
         </div>
+        {errorMessage && (
+          <>
+            <p className="max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">{errorMessage}</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-bold text-white"
+            >
+              Erneut versuchen
+            </button>
+          </>
+        )}
       </div>
     );
   }
