@@ -45,6 +45,14 @@ function storage(): Storage | null {
 
 export function accountSyncState(state: AppState): AppState {
   const clone = JSON.parse(JSON.stringify(state)) as AppState;
+
+  // Reine Geräte-/Navigationszustände dürfen weder Serverrevisionen erzeugen
+  // noch auf einem zweiten Gerät die aktuelle Ansicht umschalten.
+  clone.currentPage = 'cockpit';
+  clone.previousPage = 'wochenplanung';
+  clone.unterrichtsmodus_sidebar_open = false;
+  clone.tempQrValue = '';
+
   if (clone.boardSettings) {
     clone.boardSettings = {
       ...clone.boardSettings,
@@ -52,9 +60,28 @@ export function accountSyncState(state: AppState): AppState {
       isRemoteController: undefined,
       gabicRole: undefined,
       remoteLastActiveTs: undefined,
+      isTafelOpen: false,
     };
   }
   return clone;
+}
+
+export function mergeAccountSyncState(remote: AppState, local: AppState): AppState {
+  return {
+    ...remote,
+    currentPage: local.currentPage,
+    previousPage: local.previousPage,
+    unterrichtsmodus_sidebar_open: local.unterrichtsmodus_sidebar_open,
+    tempQrValue: local.tempQrValue,
+    boardSettings: {
+      ...remote.boardSettings,
+      activeSyncCode: local.boardSettings?.activeSyncCode,
+      isRemoteController: local.boardSettings?.isRemoteController,
+      gabicRole: local.boardSettings?.gabicRole,
+      remoteLastActiveTs: local.boardSettings?.remoteLastActiveTs,
+      isTafelOpen: local.boardSettings?.isTafelOpen ?? false,
+    },
+  };
 }
 
 export function appStateFingerprint(state: AppState): string {
