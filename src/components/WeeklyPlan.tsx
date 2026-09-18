@@ -2224,7 +2224,7 @@ export default function WeeklyPlan() {
 
             {/* Row 2: Secondary Toolbar (View Mode & Status Counters) */}
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1">
-              {/* View Mode & Density */}
+              {/* View Mode */}
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="flex bg-slate-100 p-0.5 rounded-xl border border-slate-200">
                   <button
@@ -2244,6 +2244,7 @@ export default function WeeklyPlan() {
                     <span>Klassenbuch</span>
                   </button>
                 </div>
+              </div>
 
               {/* Progress Counters */}
               <div className="flex items-center gap-2">
