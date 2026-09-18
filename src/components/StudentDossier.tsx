@@ -297,7 +297,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
     } animate-in fade-in slide-in-from-bottom-4 duration-500`}>
       {/* SIDEBAR NAVIGATION */}
       {!app.dossierFocusMode && (
-        <div className="lg:w-64 xl:w-72 flex flex-col gap-5 shrink-0 min-w-0 print:hidden">
+        <div className="lg:w-56 xl:w-60 flex flex-col gap-5 shrink-0 min-w-0 print:hidden">
         {/* Profile Navigator Mini Card */}
         <div className="bg-white p-4 sm:p-5 lg:p-6 rounded-[2.5rem] border border-slate-205/65 shadow-2xl shadow-slate-900/5 space-y-5 min-w-0">
           <div className="flex items-center gap-3.5">
@@ -375,174 +375,8 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
             )}
           </div>
 
-          {/* Main Area Navigation */}
-          <div className="hidden lg:block border-t border-slate-100 pt-4.5 space-y-2.5" role="tablist" aria-label="Schülerdossier-Hauptbereiche">
-            <div className="flex items-center justify-between px-1 mb-1">
-              <span className="text-[0.5625rem] font-black uppercase tracking-[0.18em] text-slate-400 block">
-                Hauptbereiche
-              </span>
-            </div>
-            <div className="flex flex-col gap-2">
-              {getFilteredMainAreas().map((area) => {
-                const isAreaActive = activeMainArea === area.id;
-                const AreaIcon = area.icon;
-                
-                // Determine badge/metric to display on each main area
-                let badgeNode = null;
-                if (area.id === 'lernen_leistungen' && summaryGrade !== null) {
-                  badgeNode = (
-                    <span className="text-[0.5625rem] font-black px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0">
-                      ∅ {summaryGrade.toFixed(1)}
-                    </span>
-                  );
-                } else if (area.id === 'entwicklung_diagnostik') {
-                  if (criticalCount > 0) {
-                    badgeNode = (
-                      <span className="text-[0.5625rem] font-black px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-800 shrink-0">
-                        {criticalCount} Bed.
-                      </span>
-                    );
-                  } else if (totalDiagnosticCount > 0) {
-                    badgeNode = (
-                      <span className="text-[0.5625rem] font-black px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-800 shrink-0">
-                        {totalDiagnosticCount}
-                      </span>
-                    );
-                  }
-                } else if (area.id === 'stammdaten_organisation' && totalOpen > 0) {
-                  badgeNode = (
-                    <span className="text-[0.5625rem] font-black px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-100 shrink-0">
-                      {totalOpen.toFixed(0)} €
-                    </span>
-                  );
-                }
-
-                const subTabs = getFilteredSubTabs(area.id);
-                const hasMultipleSubTabs = subTabs.length > 1;
-
-                return (
-                  <div key={area.id} className={`border rounded-2xl overflow-hidden transition-all ${
-                    isAreaActive ? 'border-indigo-200/80 bg-indigo-50/15 shadow-2xs' : 'border-slate-100 bg-slate-50/20 hover:border-slate-200 hover:bg-slate-50/40'
-                  }`}>
-                    {/* Area Header Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleSelectArea(area.id)}
-                      className={`w-full flex items-center justify-between p-3 text-left transition-all select-none cursor-pointer group/header focus:outline-none focus:ring-1 focus:ring-indigo-500/30 ${
-                        isAreaActive ? 'bg-indigo-50/30' : ''
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className={`p-2 rounded-xl shrink-0 transition-colors ${
-                          isAreaActive ? 'bg-indigo-600 text-white shadow-xs' : 'bg-slate-100 text-slate-500 group-hover/header:bg-slate-200'
-                        }`}>
-                          <AreaIcon size={14} />
-                        </div>
-                        <div className="min-w-0">
-                          <div className={`text-[0.75rem] font-black tracking-tight leading-tight mb-0.5 ${isAreaActive ? 'text-indigo-950' : 'text-slate-800'}`}>
-                            {area.label}
-                          </div>
-                          <div className="text-[0.5625rem] font-semibold leading-none text-slate-400">
-                            {area.subtitle}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0 pl-1">
-                        {badgeNode}
-                        {hasMultipleSubTabs && (
-                          <div className={`text-slate-450 transition-transform duration-200 ${isAreaActive ? 'rotate-90 text-indigo-600' : ''}`}>
-                            <ChevronRight size={13} />
-                          </div>
-                        )}
-                      </div>
-                    </button>
-
-                    {/* Subtabs list (shown progressively when area is active and has multiple subtabs) */}
-                    {isAreaActive && hasMultipleSubTabs && (
-                      <div className="p-1.5 bg-white/60 space-y-1 border-t border-indigo-100/40">
-                        {subTabs.map((subTab) => {
-                          const isSubActive = activeTab === subTab.id ||
-                            (subTab.id === 'foerderung' && activeTab === 'foerderprofil') ||
-                            (subTab.id === 'beobachtungen_verlauf' && (activeTab === 'stats' || activeTab === 'kel_reflexion' || activeTab === 'notizen')) ||
-                            (subTab.id === 'berichte' && (activeTab === 'ki_summary' || activeTab === 'eltern_report')) ||
-                            (subTab.id === 'beurteilung_gespraeche' && activeTab === 'erlaeuterung') ||
-                            (subTab.id === 'materialien' && activeTab === 'arbeitsblatt');
-                          const SubIcon = subTab.icon;
-
-                          // Count subtab-specific indicators
-                          let subBadge = null;
-                          if (subTab.id === 'diagnostik' && totalDiagnosticCount > 0) {
-                            subBadge = <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-white/20 text-white' : (criticalCount > 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-700')}`}>{totalDiagnosticCount}</span>;
-                          } else if (subTab.id === 'foerderung' && (student.foerderprofil?.foerderziele || []).length > 0) {
-                            const openCount = (student.foerderprofil?.foerderziele || []).filter(g => g.status === 'offen' || g.status === 'in Arbeit').length;
-                            if (openCount > 0) {
-                              subBadge = <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-700'}`}>{openCount}</span>;
-                            }
-                          } else if (subTab.id === 'beobachtungen_verlauf' && (notesCount + behaviorLogsCount > 0)) {
-                            subBadge = <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>{notesCount + behaviorLogsCount}</span>;
-                          } else if (subTab.id === 'notizen' && notesCount > 0) {
-                            subBadge = <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>{notesCount}</span>;
-                          } else if (subTab.id === 'stats' && behaviorLogsCount > 0) {
-                            subBadge = <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'}`}>{behaviorLogsCount}</span>;
-                          } else if (subTab.id === 'finanzen' && totalOpen > 0) {
-                            subBadge = <span className={`text-[0.5625rem] font-bold px-1.5 py-0.5 rounded-full ${isSubActive ? 'bg-white/20 text-white' : 'bg-orange-50 text-orange-600'}`}>{totalOpen.toFixed(0)} €</span>;
-                          }
-
-                          return (
-                            <button
-                              key={subTab.id}
-                              type="button"
-                              onClick={() => setActiveTab(subTab.id)}
-                              className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all cursor-pointer select-none focus:outline-none ${
-                                isSubActive
-                                  ? 'bg-slate-900 text-white font-extrabold shadow-sm'
-                                  : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <SubIcon size={12} className={isSubActive ? 'text-accent animate-pulse' : 'text-slate-405'} />
-                                <span className={`text-[0.6875rem] font-bold truncate leading-tight ${isSubActive ? 'text-white' : 'text-slate-650'}`}>{subTab.label}</span>
-                              </div>
-                              {subBadge}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         </div>
 
-        {/* Action Button Suite */}
-        <div className="hidden lg:block bg-gradient-to-br from-slate-900 to-slate-800 p-6 rounded-[2rem] shadow-xl text-white space-y-4">
-          <div className="flex items-center gap-3.5">
-             {student.foto ? (
-               <img src={student.foto} alt="" className="w-12 h-12 rounded-xl object-cover ring-2 ring-white/10 shadow-md" referrerPolicy="no-referrer" />
-             ) : (
-               <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center text-[1rem] leading-normal font-black shrink-0 shadow-inner">
-                 {student.vorname.charAt(0)}{student.nachname.charAt(0)}
-               </div>
-             )}
-             <div className="min-w-0">
-                <div className="text-[0.5625rem] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Dossier</div>
-                <div className="text-[0.875rem] font-black leading-tight text-white text-wrap break-words">{student.vorname} {student.nachname}</div>
-                <div className="mt-1 text-[0.625rem] font-bold text-slate-300">Geschlecht: {getStudentGenderLabel(student.geschlecht)}</div>
-             </div>
-          </div>
-          
-          <button 
-            type="button"
-            onClick={() => exportSchuelerPDF(student.id, app)}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-white/10 rounded-xl hover:bg-white/15 transition-all border border-white/5 active:scale-95 cursor-pointer text-[0.75rem] leading-tight font-black tracking-widest uppercase text-white shadow-3xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-            title="Vollständiges Dossier als internes PDF exportieren"
-          >
-            <Download size={14} className="text-emerald-400" />
-            <span>Interner Export (PDF)</span>
-          </button>
-        </div>
       </div>
     )}
 
@@ -553,61 +387,69 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
           : 'bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-900/5 p-4 sm:p-5 md:p-6 lg:p-6 xl:p-8'
       } min-h-[70vh] flex flex-col justify-between print:p-0 print:border-none print:shadow-none print:rounded-none`}>
         <div>
-          {/* Mobile High-Level Category Tabs */}
+          {/* Unified dossier area navigation */}
           {!app.dossierFocusMode && (
-            <>
-              {/* Mobile 5 Main Areas Navigation */}
-              <div className="lg:hidden flex overflow-x-auto gap-2 pb-2.5 mb-3 scrollbar-none border-b border-slate-100" role="tablist" aria-label="Mobile Hauptbereiche">
+            <div className="mb-5 border-b border-slate-100 pb-5 print:hidden">
+              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-[0.6rem] font-black uppercase tracking-[0.18em] text-slate-400">Dossierbereiche</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                    Wähle zuerst den Bereich – danach nur noch den passenden Unterpunkt.
+                  </p>
+                </div>
+                <span className="text-[0.65rem] font-bold text-slate-400">
+                  5 Bereiche
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5" role="tablist" aria-label="Schülerdossier-Hauptbereiche">
                 {getFilteredMainAreas().map((area) => {
                   const isActive = activeMainArea === area.id;
                   const AreaIcon = area.icon;
+
+                  let badgeNode = null;
+                  if (area.id === 'lernen_leistungen' && summaryGrade !== null) {
+                    badgeNode = <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[0.55rem] font-black text-slate-700">∅ {summaryGrade.toFixed(1)}</span>;
+                  } else if (area.id === 'entwicklung_diagnostik' && criticalCount > 0) {
+                    badgeNode = <span className="rounded-full bg-rose-100 px-1.5 py-0.5 text-[0.55rem] font-black text-rose-800">{criticalCount} Bed.</span>;
+                  } else if (area.id === 'entwicklung_diagnostik' && totalDiagnosticCount > 0) {
+                    badgeNode = <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[0.55rem] font-black text-indigo-800">{totalDiagnosticCount}</span>;
+                  } else if (area.id === 'stammdaten_organisation' && totalOpen > 0) {
+                    badgeNode = <span className="rounded-full border border-orange-100 bg-orange-50 px-1.5 py-0.5 text-[0.55rem] font-black text-orange-700">{totalOpen.toFixed(0)} €</span>;
+                  }
+
                   return (
                     <button
                       key={area.id}
+                      type="button"
                       role="tab"
                       aria-selected={isActive}
-                      id={`dossier-mobile-main-tab-${area.id}`}
                       onClick={() => handleSelectArea(area.id)}
-                      className={`flex items-center gap-1.5 py-2 px-3 rounded-xl text-[0.7rem] leading-tight font-black whitespace-nowrap transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0 ${
+                      className={`min-w-0 rounded-2xl border p-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                         isActive
-                          ? 'bg-slate-900 text-white shadow-xs'
-                          : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+                          : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
-                      <AreaIcon size={12} className={isActive ? 'text-indigo-400' : 'text-slate-400'} />
-                      <span>{area.label}</span>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+                          isActive ? 'bg-white/10 text-indigo-300' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          <AreaIcon size={14} />
+                        </div>
+                        {badgeNode}
+                      </div>
+                      <div className={`mt-2 text-[0.72rem] font-black leading-tight ${isActive ? 'text-white' : 'text-slate-900'}`}>
+                        {area.label}
+                      </div>
+                      <div className={`mt-1 hidden text-[0.55rem] font-semibold leading-snug sm:block ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
+                        {area.subtitle}
+                      </div>
                     </button>
                   );
                 })}
               </div>
-
-              {/* Mobile Sub-category Tabs (only when the active area has more than 1 tab) */}
-              {getFilteredSubTabs(activeMainArea).length > 1 && (
-                <div className="lg:hidden flex overflow-x-auto gap-1.5 pb-3 mb-6 scrollbar-none border-b border-slate-100" role="tablist" aria-label="Mobile Registerkarten">
-                  {getFilteredSubTabs(activeMainArea).map((subTab) => {
-                    const isActive = activeTab === subTab.id;
-                    const SubIcon = subTab.icon;
-                    return (
-                      <button
-                        key={subTab.id}
-                        role="tab"
-                        aria-selected={isActive}
-                        id={`dossier-mobile-sub-tab-${subTab.id}`}
-                        onClick={() => setActiveTab(subTab.id)}
-                        className={`flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-[0.6875rem] leading-tight font-bold whitespace-nowrap transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0 ${
-                          isActive
-                            ? 'bg-indigo-600 text-white shadow-3xs'
-                            : 'bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                      >
-                        <SubIcon size={11} className={isActive ? 'text-white' : 'text-slate-400'} />
-                        <span>{subTab.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </>
+            </div>
           )}
 
           {/* Interactive Focus Mode Header Bar */}
@@ -768,6 +610,8 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                     <span>
                       Klasse: <strong className="font-black text-slate-700">{[app.stufe ? `${app.stufe}.` : '', app.klassenbezeichnung].filter(Boolean).join(' ') || 'nicht erfasst'}</strong>
                     </span>
+                    <span className="text-slate-300">·</span>
+                    <span>Geschlecht: {getStudentGenderLabel(student.geschlecht)}</span>
                     {student.besuchsjahr && (
                       <>
                         <span className="text-slate-300">·</span>
@@ -874,9 +718,9 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
             </div>
           )}
 
-          {/* Desktop Sub-Tabs horizontal bar (visible on large screens only when area has multiple sub-tabs) */}
+          {/* Unterbereiche des gewählten Dossierbereichs */}
           {!app.dossierFocusMode && getFilteredSubTabs(activeMainArea).length > 1 && (
-            <div className="hidden lg:flex flex-wrap items-center gap-2 mb-8 bg-slate-50/70 border border-slate-200/80 p-2 rounded-[1.25rem] print:hidden">
+            <div className="mb-8 flex items-center gap-2 overflow-x-auto rounded-[1.25rem] border border-slate-200/80 bg-slate-50/70 p-2 scrollbar-none lg:flex-wrap print:hidden" role="tablist" aria-label="Dossier-Unterbereiche">
               {getFilteredSubTabs(activeMainArea).map((subTab) => {
                 const isSubActive = activeTab === subTab.id ||
                   (subTab.id === 'foerderung' && activeTab === 'foerderprofil') ||
@@ -888,6 +732,9 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                 return (
                   <button
                     key={subTab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isSubActive}
                     onClick={() => setActiveTab(subTab.id)}
                     className={`flex items-center gap-2 py-2 px-3.5 rounded-xl text-[0.75rem] leading-tight font-black transition-all cursor-pointer border ${
                       isSubActive
