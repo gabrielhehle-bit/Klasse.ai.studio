@@ -50,6 +50,12 @@ import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySu
 import { getFachCfg, berechne, getNotenLabel, getAssessmentMode } from '../lib/GradeUtils';
 import { DEFAULT_YEARLY_SUBJECTS, FAECHER_ALLE } from '../constants';
 import { downloadKlassenbuchPdf } from '../lib/klassenbuchPdf';
+import {
+  classifyKlassenbuchEntry,
+  getKlassenbuchBaseCategories,
+  orderKlassenbuchCategoryKeys,
+  splitKlassenbuchCategoryKey,
+} from '../lib/klassenbuchSubjects';
 
 const STANDARD_KEL_BEREICHE = [
   { id: 'zuzuhoeren', label: 'Zuhören & Verstehen', kategorie: 'Arbeitsverhalten' },
@@ -626,6 +632,12 @@ export default function PrintCenter() {
 
   // Automatically update orientation default based on selected template
   useEffect(() => {
+    if (activeTemplate === 'klassenbuch') {
+      setPrintOrientation('portrait');
+      setPrintMargin(8.5);
+      setPrintFontSize('base');
+      return;
+    }
     if (bypassOrientationAutoSet) {
       setBypassOrientationAutoSet(false);
       return;
@@ -725,150 +737,117 @@ export default function PrintCenter() {
   const selectedKbDates = useMemo(() => kwToDates(kbKW), [kbKW, startYear, app?.schuljahr]);
 
   // C. Klassenbuch Weekly Lesson Plan Processor
+  // Verwendet exakt dieselbe Fächer-/Unterbereichs-Struktur wie die Wochenplanung.
   const compileKlassenbuchData = (targetKW: number) => {
-    const data: Record<string, string[]> = {
-      'Deutsch - Rechtschreiben': [],
-      'Deutsch - Sprachbetrachtung': [],
-      'Deutsch - Sprechen & Hören': [],
-      'Deutsch - Texte verfassen': [],
-      'Deutsch - Lesen': [],
-      'Deutsch - D-FÖ': [],
-      'Mathematik - Ebene & Raum': [],
-      'Mathematik - Zahlen & Daten': [],
-      'Mathematik - Größen': [],
-      'Mathematik - Operationen': [],
-      'Mathematik - Nicht zugeordnet': [],
-      'Förderung (FÖ)': [],
-      'Sachunterricht': [],
-      'BSP': [],
-      'Werken': [],
-      'Musik': [],
-      'Englisch': [],
-      'Zeichnen': [],
-      'Religion': [],
-      'Besondere Vorkommnisse': [],
-    };
+    const baseCategories = getKlassenbuchBaseCategories(app?.faecher);
+    const data: Record<string, string[]> = Object.fromEntries(
+      baseCategories.map((category) => [category.key, []]),
+    );
+    data['Besondere Vorkommnisse'] = [];
 
     const plan = (app?.wochenplanung || {})[targetKW];
     if (!plan) return data;
 
-    const norm = (value: string) => String(value || '').trim().toLocaleLowerCase('de-AT');
-    const isDeutsch = (value: string) => {
-      const v = norm(value);
-      return v === 'd' || v === 'de' || v === 'deutsch' || v.includes('deutsch');
-    };
-    const isMathe = (value: string) => {
-      const v = norm(value);
-      return v === 'm' || v === 'ma' || v === 'mathe' || v === 'mathematik' || v.includes('mathe') || v.includes('rechnen');
-    };
-    const isFoerderung = (value: string) => {
-      const v = norm(value).replace(/\s+/g, '');
-      return v === 'fö' || v === 'foe' || v === 'förderung' || v === 'foerderung' || v.includes('(förderung)') || v.includes('(foerderung)');
-    };
-    const isSU = (value: string) => {
-      const v = norm(value);
-      return v === 'su' || v === 'sachunterricht' || v.includes('sach');
-    };
-    const isBSP = (value: string) => {
-      const v = norm(value);
-      return v === 'bsp' || v === 'bs' || v === 'b&s' || v === 'sport' || v === 'turnen' || v.includes('sport') || v.includes('turnen') || v.includes('bewegung');
-    };
-    const isWerken = (value: string) => {
-      const v = norm(value);
-      return v === 'we' || v === 'tew' || v === 'txw' || v === 'werken' || v.includes('werk') || v.includes('technisch') || v.includes('textil');
-    };
-    const isMusik = (value: string) => {
-      const v = norm(value);
-      return v === 'me' || v === 'mu' || v === 'musik' || v === 'musikerziehung' || v.includes('musik') || v.includes('singen');
-    };
-    const isEnglisch = (value: string) => {
-      const v = norm(value);
-      return v === 'e' || v === 'eng' || v === 'englisch' || v.includes('engl') || v.includes('english');
-    };
-    const isZeichnen = (value: string) => {
-      const v = norm(value);
-      return v === 'be' || v === 'ze' || v === 'zeichnen' || v === 'bildnerische' || v.includes('zeichn') || v.includes('kunst') || v.includes('bildnerisch');
-    };
-    const isReligion = (value: string) => {
-      const v = norm(value);
-      return v === 'r' || v === 'rel' || v === 'religion' || v.includes('religion');
+    const ensureCategory = (key: string) => {
+      if (!data[key]) data[key] = [];
+      return data[key];
     };
 
-    const pushEntry = (fachRaw: string, themaRaw: string, schwerpunkteRaw: string[] = [], prefix = '') => {
-      const fach = String(fachRaw || '');
-      const schwerpunkte = Array.isArray(schwerpunkteRaw) ? schwerpunkteRaw.filter(Boolean) : [];
+    const pushEntry = (
+      fachRaw: string,
+      themaRaw: string,
+      schwerpunkteRaw: string[] = [],
+      prefix = '',
+    ) => {
+      const fach = String(fachRaw || '').trim();
+      const schwerpunkte = Array.isArray(schwerpunkteRaw)
+        ? schwerpunkteRaw.map((value) => String(value || '').trim()).filter(Boolean)
+        : [];
       const thema = String(themaRaw || '').trim();
       if (!fach && !thema) return;
 
       const textToPush = `${prefix}${thema || fach}`.trim();
-      const fachLower = norm(fach);
-      const focus = schwerpunkte.map(norm);
+      const categories = classifyKlassenbuchEntry(fach, schwerpunkte);
 
-      if (isDeutsch(fach) || schwerpunkte.some(isDeutsch)) {
-        let matched = false;
-        const hasRS = focus.some(value => value.includes('rechtschreib')) || fachLower.includes('rechtschreib') || fachLower === 'rs';
-        const hasSP = focus.some(value => value.includes('sprachbetracht') || value === 'deutsch (sprache)') || fachLower.includes('sprachbetracht') || fachLower === 'sp';
-        const hasSH = focus.some(value => value.includes('sprechen & hören') || value.includes('sprechen und hören')) || fachLower.includes('sprechen & hören') || fachLower.includes('sprechen und hören');
-        const hasVT = focus.some(value => value.includes('verfassen') || value.includes('texte')) || fachLower.includes('verfassen') || fachLower.includes('aufsatz') || fachLower === 'vt';
-        const hasL = focus.some(value => value.includes('lesen')) || fachLower.includes('lesen') || fachLower === 'l';
-        const hasDFO = fachLower.includes('d-fö') || focus.some(value => value.includes('deutsch (förderung)') || value === 'förderung' || value === 'd-fö');
-
-        if (hasRS) { data['Deutsch - Rechtschreiben'].push(textToPush); matched = true; }
-        if (hasSP) { data['Deutsch - Sprachbetrachtung'].push(textToPush); matched = true; }
-        if (hasSH) { data['Deutsch - Sprechen & Hören'].push(textToPush); matched = true; }
-        if (hasVT) { data['Deutsch - Texte verfassen'].push(textToPush); matched = true; }
-        if (hasL) { data['Deutsch - Lesen'].push(textToPush); matched = true; }
-        if (hasDFO) { data['Deutsch - D-FÖ'].push(textToPush); matched = true; }
-        if (!matched) data['Deutsch - Sprachbetrachtung'].push(textToPush);
+      if (categories.length === 0) {
+        ensureCategory('Besondere Vorkommnisse').push(
+          fach && thema ? `${fach}: ${textToPush}` : textToPush,
+        );
         return;
       }
 
-      const mathFocus = [fach, ...schwerpunkte].map(norm);
-      if (isMathe(fach) || mathFocus.some(value => value.includes('mathematik'))) {
-        if (mathFocus.some(value => value.includes('ebene & raum'))) data['Mathematik - Ebene & Raum'].push(textToPush);
-        else if (mathFocus.some(value => value.includes('zahlen & daten'))) data['Mathematik - Zahlen & Daten'].push(textToPush);
-        else if (mathFocus.some(value => value.includes('größen') || value.includes('groessen'))) data['Mathematik - Größen'].push(textToPush);
-        else if (mathFocus.some(value => value.includes('operationen'))) data['Mathematik - Operationen'].push(textToPush);
-        else data['Mathematik - Nicht zugeordnet'].push(textToPush);
-        return;
-      }
-
-      if (isFoerderung(fach) || schwerpunkte.some(isFoerderung)) data['Förderung (FÖ)'].push(textToPush);
-      else if (isSU(fach)) data['Sachunterricht'].push(textToPush);
-      else if (isBSP(fach)) data['BSP'].push(textToPush);
-      else if (isWerken(fach)) data['Werken'].push(textToPush);
-      else if (isMusik(fach)) data['Musik'].push(textToPush);
-      else if (isEnglisch(fach)) data['Englisch'].push(textToPush);
-      else if (isZeichnen(fach)) data['Zeichnen'].push(textToPush);
-      else if (isReligion(fach)) data['Religion'].push(textToPush);
-      else data['Besondere Vorkommnisse'].push(fach ? `${fach}: ${textToPush}` : textToPush);
+      categories.forEach((category) => {
+        ensureCategory(category.key).push(textToPush);
+      });
     };
 
-    Object.keys(plan).forEach(tag => {
-      if (!['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].includes(tag)) return;
-      Object.keys(plan[tag] || {}).forEach(idx => {
-        const numericIdx = parseInt(idx, 10);
+    const weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
+    weekdays.forEach((tag) => {
+      const dayPlan: any = plan[tag] || {};
+
+      Object.keys(dayPlan).forEach((idx) => {
+        const numericIdx = Number.parseInt(idx, 10);
         if (!Number.isInteger(numericIdx)) return;
-        const item = plan[tag][idx];
+        const item = dayPlan[idx];
         if (!item) return;
 
         if (item.halves?.enabled) {
           const first = item.halves.first || {};
           const second = item.halves.second || {};
-          pushEntry(first.fach || item.fach || '', first.thema || '', first.unterbereich ? [first.unterbereich] : [], '1. Hälfte: ');
-          pushEntry(second.fach || item.fach || '', second.thema || '', second.unterbereich ? [second.unterbereich] : [], '2. Hälfte: ');
-          if (item.reflexion) data['Besondere Vorkommnisse'].push(`${tag}, ${numericIdx + 1}. Stunde – Reflexion: ${item.reflexion}`);
+
+          pushEntry(
+            first.fach || item.fach || '',
+            first.thema || '',
+            first.unterbereich ? [first.unterbereich] : (first.schwerpunkte || []),
+            '1. Hälfte: ',
+          );
+          pushEntry(
+            second.fach || item.fach || '',
+            second.thema || '',
+            second.unterbereich ? [second.unterbereich] : (second.schwerpunkte || []),
+            '2. Hälfte: ',
+          );
+
+          if (wpShowReflexion && item.reflexion) {
+            ensureCategory('Besondere Vorkommnisse').push(
+              `${tag}, ${numericIdx + 1}. Stunde – Reflexion: ${item.reflexion}`,
+            );
+          }
           return;
         }
 
-        pushEntry(item.fach || '', [item.thema, item.reflexion].filter(Boolean).join(' - '), item.schwerpunkte || []);
+        const content = wpShowReflexion
+          ? [item.thema, item.reflexion].filter(Boolean).join(' – ')
+          : String(item.thema || '');
+        pushEntry(item.fach || '', content, item.schwerpunkte || []);
+      });
+
+      // Zeitunabhängige Einträge (Ausflug, Termin, Konferenz …) sind keine Unterrichtsfächer.
+      const allDayItems = Array.isArray(dayPlan.zeitunabhaengig) ? dayPlan.zeitunabhaengig : [];
+      allDayItems.forEach((item: any) => {
+        if (!item || item.erledigt) return;
+        const text = String(item.thema || item.text || '').trim();
+        if (!text) return;
+        ensureCategory('Besondere Vorkommnisse').push(`${tag}: ${text}`);
       });
     });
 
-    Object.keys(data).forEach(key => {
-      data[key] = Array.from(new Set(data[key].map(value => value.trim()).filter(Boolean)));
+    Object.keys(data).forEach((key) => {
+      data[key] = Array.from(
+        new Set(data[key].map((value) => value.trim()).filter(Boolean)),
+      );
     });
-    return data;
+
+    const orderedKeys = orderKlassenbuchCategoryKeys(
+      Object.keys(data).filter((key) => key !== 'Besondere Vorkommnisse'),
+      app?.faecher,
+    );
+    const ordered: Record<string, string[]> = {};
+    orderedKeys.forEach((key) => {
+      ordered[key] = data[key] || [];
+    });
+    ordered['Besondere Vorkommnisse'] = data['Besondere Vorkommnisse'] || [];
+    return ordered;
   };
 
   const compiledKbData = useMemo(() => compileKlassenbuchData(kbKW), [kbKW, app?.wochenplanung, wpShowReflexion]);
@@ -1109,8 +1088,21 @@ export default function PrintCenter() {
             height: auto !important;
           }
           @page {
-            size: ${printOrientation === 'landscape' ? 'landscape' : 'portrait'} ${printPaperSize};
+            size: ${activeTemplate === 'klassenbuch' ? 'A4 portrait' : `${printOrientation === 'landscape' ? 'landscape' : 'portrait'} ${printPaperSize}`};
             margin: 0;
+          }
+          body.print-center-active .klassenbuch-a4-page {
+            width: 210mm !important;
+            min-width: 210mm !important;
+            max-width: 210mm !important;
+            height: 297mm !important;
+            min-height: 297mm !important;
+            max-height: 297mm !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            padding: 8.5mm !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid-page !important;
           }
           * {
             -webkit-print-color-adjust: exact !important;
@@ -3953,7 +3945,7 @@ export default function PrintCenter() {
                     className={`bg-white font-sans text-black select-none shrink-0 single-sheet-preview ${getFontSizeClass()}`}
                   >
                     {/* 1. Dynamic Print Header */}
-                    {showMainHeader && (
+                    {showMainHeader && activeTemplate !== 'klassenbuch' && (
                       <PrintHeader title={customHeaderTitle || undefined} />
                     )}
 
@@ -3977,8 +3969,8 @@ export default function PrintCenter() {
               {activeTemplate === 'klassenbuch' && kbMode !== 'single' ? (
                 // Multi-page batch printing for Klassenbuch
                 getKbWeeksToRender().map((kw) => (
-                  <div key={kw} className="page-break bg-white animate-none opacity-100 visible h-auto" style={{ padding: `${printMargin}mm` }}>
-                    {showMainHeader && <PrintHeader title={customHeaderTitle || undefined} />}
+                  <div key={kw} className="page-break klassenbuch-a4-page bg-white animate-none opacity-100 visible">
+                    {showMainHeader && activeTemplate !== 'klassenbuch' && <PrintHeader title={customHeaderTitle || undefined} />}
                     {renderSingleKlassenbuchPage(kw)}
                   </div>
                 ))
@@ -4016,8 +4008,11 @@ export default function PrintCenter() {
                 ))
               ) : (
                 // Regular single page printing
-                <div style={{ padding: `${printMargin}mm` }}>
-                  {showMainHeader && <PrintHeader title={customHeaderTitle || undefined} />}
+                <div
+                  className={activeTemplate === 'klassenbuch' ? 'klassenbuch-a4-page' : undefined}
+                  style={activeTemplate === 'klassenbuch' ? undefined : { padding: `${printMargin}mm` }}
+                >
+                  {showMainHeader && activeTemplate !== 'klassenbuch' && <PrintHeader title={customHeaderTitle || undefined} />}
                   {renderPreviewTemplate()}
                 </div>
               )}
@@ -4366,9 +4361,29 @@ export default function PrintCenter() {
       kbIncludeOccurrences || category !== 'Besondere Vorkommnisse'
     );
 
+    const classTeacherName = [app?.anrede, app?.vorname, app?.nachname]
+      .filter(Boolean)
+      .join(' ')
+      || app?.lehrerName
+      || app?.lehrerProfil?.name
+      || '';
+
     return (
-      <div className="space-y-4 print:space-y-3 font-sans">
-        {/* Scanned-document replica table */}
+      <div className="space-y-2.5 print:space-y-2 font-sans">
+        <div className="flex items-end justify-between gap-4 border-b border-slate-300 pb-1.5">
+          <div>
+            <p className="text-[0.5625rem] font-black uppercase tracking-[0.16em] text-slate-400">KLASSENBUCH</p>
+            <p className="text-[0.8125rem] font-black leading-tight text-slate-900">
+              {app?.klassenbezeichnung || 'Klasse'}
+            </p>
+          </div>
+          <div className="text-right text-[0.5625rem] font-semibold leading-tight text-slate-500">
+            {app?.schuljahr && <div>Schuljahr {app.schuljahr}</div>}
+            {classTeacherName && <div>{classTeacherName}</div>}
+          </div>
+        </div>
+
+        {/* A4-Wochenblatt */}
         <table className="w-full border-collapse border-2 border-slate-900 text-black">
           <thead>
             <tr>
@@ -4378,7 +4393,7 @@ export default function PrintCenter() {
             </tr>
             <tr className="bg-slate-100 border-b border-slate-400">
               <th className="w-[34%] border-r border-slate-400 px-3 py-2 text-left text-[0.625rem] font-black uppercase tracking-wider text-slate-600">
-                Bereich
+                Fach / Unterbereich
               </th>
               <th className="px-3 py-2 text-left text-[0.625rem] font-black uppercase tracking-wider text-slate-600">
                 Unterricht / Inhalt
@@ -4386,32 +4401,42 @@ export default function PrintCenter() {
             </tr>
           </thead>
           <tbody>
-            {printableCategories.map(([category, entries]) => (
-              <tr key={category} className="avoid-break border-b border-slate-300 last:border-b-0">
-                <td className="border-r border-slate-300 bg-slate-50 px-3 py-2 text-[0.65625rem] font-black leading-tight text-slate-800">
-                  {category}
-                </td>
-                <td className="px-3 py-2 text-[0.6875rem] font-semibold leading-relaxed text-slate-800 whitespace-pre-wrap">
-                  {entries.length > 0 ? entries.join(' · ') : <span className="text-slate-300">—</span>}
-                </td>
-              </tr>
-            ))}
+            {printableCategories.map(([category, entries]) => {
+              const parsedCategory = splitKlassenbuchCategoryKey(category);
+              return (
+                <tr key={category} className="avoid-break border-b border-slate-300 last:border-b-0">
+                  <td className="border-r border-slate-300 bg-slate-50 px-3 py-1.5 text-slate-800">
+                    <span className="block text-[0.65625rem] font-black leading-tight">
+                      {parsedCategory.subject}
+                    </span>
+                    {parsedCategory.subarea && (
+                      <span className="mt-0.5 block text-[0.5625rem] font-bold leading-tight text-slate-500">
+                        {parsedCategory.subarea}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-1.5 text-[0.65625rem] font-semibold leading-snug text-slate-800 whitespace-pre-wrap">
+                    {entries.length > 0 ? entries.join(' · ') : <span className="text-slate-300">—</span>}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
         {/* Absences / Fehlstunden section */}
         {kbIncludeAbsentees && (
-          <div className="space-y-1.5 pt-3 avoid-break">
+          <div className="space-y-1 pt-1.5 avoid-break">
             <h4 className="text-[0.71875rem] font-black uppercase tracking-wider text-zinc-500 border-b border-[#000000]/10 pb-0.5 flex items-center gap-1.5">
               <Clock size={12} className="text-zinc-500" />
               <span>Erfasste Fehlstunden & Abwesenheiten</span>
             </h4>
             {pageAbsenteesList.length > 0 ? (
-              <div className="border border-zinc-300 rounded-2xl bg-zinc-50 overflow-hidden divide-y divide-zinc-200">
+              <div className="border border-zinc-300 bg-zinc-50 divide-y divide-zinc-200">
                 {pageAbsenteesList.map((abs, idx) => (
-                  <div key={idx} className="p-2.5 px-3.5 flex justify-between items-center text-[0.6875rem] font-semibold">
+                  <div key={idx} className="px-2.5 py-1 flex justify-between items-center gap-3 text-[0.625rem] font-semibold">
                     <span className="text-zinc-900 font-bold">{abs.name}</span>
-                    <span className="text-zinc-650 bg-white border border-zinc-200 px-2.5 py-0.5 rounded-lg text-[0.625rem]">{abs.info}</span>
+                    <span className="text-zinc-600 text-right">{abs.info}</span>
                   </div>
                 ))}
               </div>
@@ -4423,9 +4448,9 @@ export default function PrintCenter() {
 
         {/* Special Vorkommnisse text block */}
         {kbIncludeOccurrences && kbCustomNotesValue.trim() && (
-          <div className="space-y-1.5 pt-3 avoid-break">
-            <h4 className="text-[0.71875rem] font-black uppercase tracking-wider text-zinc-500 border-b border-[#000000]/10 pb-0.5">Pädagogische Zusatznotizen & Ereignisse</h4>
-            <div className="border border-zinc-300 p-3 rounded-2xl bg-zinc-50 text-[0.6875rem] font-semibold text-zinc-700 whitespace-pre-wrap leading-relaxed">
+          <div className="space-y-1 pt-1.5 avoid-break">
+            <h4 className="text-[0.65625rem] font-black uppercase tracking-wider text-zinc-500 border-b border-[#000000]/10 pb-0.5">Pädagogische Zusatznotizen & Ereignisse</h4>
+            <div className="border border-zinc-300 p-2 bg-zinc-50 text-[0.625rem] font-semibold text-zinc-700 whitespace-pre-wrap leading-snug">
               {kbCustomNotesValue}
             </div>
           </div>
@@ -4433,10 +4458,10 @@ export default function PrintCenter() {
 
         {/* Signatures sections */}
         {kbSignatures.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-8 avoid-break text-center">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-3 avoid-break text-center">
             {kbSignatures.map(sigName => (
               <div key={sigName} className="space-y-1 inline-block">
-                <div className="border-b border-black w-36 mx-auto pb-6"></div>
+                <div className="border-b border-black w-32 mx-auto pb-3"></div>
                 <span className="text-[0.5625rem] uppercase font-black tracking-widest text-[#000000]/50">{sigName}</span>
               </div>
             ))}
