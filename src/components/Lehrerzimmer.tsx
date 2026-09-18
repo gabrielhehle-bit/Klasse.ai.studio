@@ -25,6 +25,7 @@ type LehrerzimmerUser = {
   userId: string;
   displayName: string;
   handle: string;
+  mentionAliases?: string[];
   schoolId: string;
   joinedAt: string;
   lastSeenAt: string;
@@ -117,11 +118,11 @@ function formatDate(value: string): string {
 }
 
 function MentionText({ text }: { text: string }) {
-  const parts = text.split(/(@[a-z0-9._-]{2,48})/gi);
+  const parts = text.split(/(@[^\s@.,!?;:]{2,64})/gu);
   return (
     <>
       {parts.map((part, index) =>
-        /^@[a-z0-9._-]{2,48}$/i.test(part) ? (
+        /^@[^\s@.,!?;:]{2,64}$/u.test(part) ? (
           <span key={index} className="font-bold text-[var(--accent)]">
             {part}
           </span>
@@ -609,8 +610,8 @@ export default function Lehrerzimmer() {
               value={body}
               onChange={event => setBody(event.target.value)}
               maxLength={4000}
-              placeholder="Schreib deine Nachricht … Mit @name kannst du Kolleg:innen erwähnen."
-              helperText="@Erwähnungen werden im Beitrag und in Antworten erkannt."
+              placeholder="Schreib deine Nachricht … z. B. @anna, @muster oder @annamuster"
+              helperText="Erwähnungen funktionieren mit @Vorname, @Nachname, @VornameNachname oder dem vollständigen @Handle."
             />
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -815,7 +816,7 @@ export default function Lehrerzimmer() {
                           value={replyDrafts[post.id] || ''}
                           onChange={event => setReplyDrafts(previous => ({ ...previous, [post.id]: event.target.value }))}
                           maxLength={2500}
-                          placeholder="Antworten … @name für Erwähnungen"
+                          placeholder="Antworten … @vorname, @nachname oder @vornamenachname"
                           className="min-h-[72px]"
                         />
                         <Button
@@ -857,12 +858,17 @@ export default function Lehrerzimmer() {
                 >
                   <div className="text-sm font-bold">{person.displayName}</div>
                   <div className="text-xs text-[var(--accent)]">@{person.handle}</div>
+                  {person.mentionAliases && person.mentionAliases.length > 1 && (
+                    <div className="mt-1 text-[0.68rem] leading-4 text-[var(--text-muted)]">
+                      auch {person.mentionAliases.filter(alias => alias !== person.handle).slice(0, 3).map(alias => '@' + alias).join(' · ')}
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
 
             <p className="mt-4 pt-4 border-t border-[var(--border-subtle,var(--border))] text-xs leading-5 text-[var(--text-muted)]">
-              Klick auf eine Person, um sie im neuen Beitrag mit @ zu erwähnen.
+              Alle registrierten KLASSIO-Kolleg:innen dieser verifizierten Schule erscheinen hier. Du kannst sie mit @Vorname, @Nachname oder @VornameNachname erwähnen.
             </p>
           </div>
 
