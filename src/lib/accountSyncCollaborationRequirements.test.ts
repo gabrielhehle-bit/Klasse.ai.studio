@@ -7,6 +7,7 @@ import path from 'node:path';
 import { AccountSyncStore } from '../server/accountSyncStore';
 import { mentionAliasesForTeacher } from '../server/teacherIdentity';
 import { resolveMentionUserIds, type LehrerzimmerUser } from '../server/lehrerzimmerStore';
+import { accountSyncState, mergeAccountSyncState } from './accountSyncService';
 
 const root = process.cwd();
 const read = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
@@ -87,6 +88,51 @@ test('E-Mail-Konto synchronisiert den AppState Ende-zu-Ende statt Klartext serve
   assert.match(vaultGate, /fetchAccountSyncSnapshot/);
   assert.match(vaultGate, /saveVaultRecord\(remote\.vaultRecord\)/);
   assert.match(backupUtils, /isAccountSyncHealthy\(\)/);
+});
+
+test('Konto-Sync überträgt keine gerätespezifische Navigation und reagiert auf spätere E-Mail-Anmeldung', () => {
+  const local = {
+    currentPage: 'notenmappe',
+    previousPage: 'schueler',
+    unterrichtsmodus_sidebar_open: true,
+    tempQrValue: 'local-only',
+    boardSettings: {
+      activeSyncCode: 'ABC123',
+      isRemoteController: true,
+      gabicRole: 'teacher',
+      remoteLastActiveTs: 123,
+      isTafelOpen: true,
+      showAmpel: true,
+    },
+  } as any;
+
+  const sanitized = accountSyncState(local);
+  assert.equal(sanitized.currentPage, 'cockpit');
+  assert.equal(sanitized.previousPage, 'wochenplanung');
+  assert.equal(sanitized.unterrichtsmodus_sidebar_open, false);
+  assert.equal(sanitized.tempQrValue, '');
+  assert.equal(sanitized.boardSettings.activeSyncCode, undefined);
+  assert.equal(sanitized.boardSettings.isTafelOpen, false);
+
+  const remote = {
+    ...local,
+    currentPage: 'dashboard',
+    previousPage: 'cockpit',
+    unterrichtsmodus_sidebar_open: false,
+    tempQrValue: '',
+    boardSettings: { ...local.boardSettings, activeSyncCode: undefined, isTafelOpen: false },
+  } as any;
+  const merged = mergeAccountSyncState(remote, local);
+  assert.equal(merged.currentPage, 'notenmappe');
+  assert.equal(merged.previousPage, 'schueler');
+  assert.equal(merged.boardSettings.activeSyncCode, 'ABC123');
+  assert.equal(merged.boardSettings.isTafelOpen, true);
+
+  const context = read('src/context/AppContext.tsx');
+  const emailLogin = read('src/components/EmailAccountLogin.tsx');
+  assert.match(context, /ACCOUNT_SESSION_CHANGED_EVENT/);
+  assert.match(context, /15_000/);
+  assert.match(emailLogin, /notifyAccountSessionChanged\(\)/);
 });
 
 test('Lehrerzimmer unterstützt @vorname, @nachname und @vornamenachname eindeutig', () => {
