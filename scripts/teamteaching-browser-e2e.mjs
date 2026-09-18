@@ -491,15 +491,15 @@ async function main() {
     await waitFor(
       recovery,
       'multi-device account conflict is shown without overwriting',
-      'Boolean(document.querySelector("[data-testid=account-sync-conflict-actions]")) && document.body?.innerText.includes("Sync-Konflikt")',
+      'Boolean(document.querySelector("[data-testid=account-sync-conflict-actions]")) && document.body?.innerText.includes("Änderungen auf zwei Geräten")',
       30000,
     );
     await evaluate(recovery, 'window.confirm=()=>true');
-    await clickButton(recovery, 'Diesen Geräte-Stand verwenden');
+    await clickButton(recovery, 'Stand dieses Geräts verwenden');
     await waitFor(
       recovery,
       'explicit local conflict choice becomes synced',
-      'document.body?.innerText.includes("Konto-Sync aktuell")',
+      'document.body?.innerText.includes("Daten aktuell")',
       30000,
     );
     const resolvedRevision = await evaluate(
