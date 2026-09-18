@@ -7,8 +7,8 @@ import { ChatEntry, Message } from '../types';
 import { 
   Send, Bot, Sparkles, User, RefreshCw, X, 
   Mail, Layers, FileEdit, ClipboardList, 
-  MessageSquare, ChevronRight, Wand2, Copy, Check, RotateCcw,
-  Layout, Target, Save, PenTool, BookOpen, Scale, Info, Archive,
+  MessageSquare, ChevronRight, Wand2, Copy, Check,
+  Layout, Target, Save, BookOpen, Info, Archive,
   Shield, Clock, Search, Zap, Waves, ArrowRight, Heart, Camera, UploadCloud, FileText, Activity, LayoutGrid
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -17,10 +17,8 @@ import Differentiation from './Differentiation';
 import VerbalAssessment from './VerbalAssessment';
 import MaterialOptimizer from './MaterialOptimizer';
 import { askAI, type AiUsageStatus } from '../services/aiService';
-import { KI_SYSTEM_PROMPTS } from '../kiSystemPrompts';
 import { useMaterialLibrary, calculateStorageSize } from './Materialbibliothek';
 import { FAECHER_ALLE } from '../constants';
-import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import Markdown from 'react-markdown';
 
 const EXAMPLE_PROMPTS: Record<string, { text: string; icon: any }[]> = {
