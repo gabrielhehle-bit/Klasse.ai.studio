@@ -128,13 +128,15 @@ export class AccountSyncStore {
     if (!isAccountSyncVaultRecord(input.vaultRecord) || !isAccountSyncEncryptedPayload(input.encryptedState)) {
       throw new Error('INVALID_PAYLOAD');
     }
+    const vaultRecord = input.vaultRecord;
+    const encryptedState = input.encryptedState;
     if (!Number.isInteger(input.expectedRevision) || Number(input.expectedRevision) < 0) {
       throw new Error('INVALID_REVISION');
     }
 
     const serializedCandidate = JSON.stringify({
-      vaultRecord: input.vaultRecord,
-      encryptedState: input.encryptedState,
+      vaultRecord,
+      encryptedState,
     });
     if (Buffer.byteLength(serializedCandidate, 'utf8') > MAX_RECORD_BYTES) {
       throw new Error('PAYLOAD_TOO_LARGE');
@@ -149,14 +151,14 @@ export class AccountSyncStore {
         if (expectedRevision !== 0) throw new Error('REVISION_CONFLICT');
       } else {
         if (expectedRevision !== existing.revision) throw new Error('REVISION_CONFLICT');
-        if (existing.vaultRecord.id !== input.vaultRecord.id) throw new Error('VAULT_MISMATCH');
+        if (existing.vaultRecord.id !== vaultRecord.id) throw new Error('VAULT_MISMATCH');
       }
 
       const next: AccountSyncRecord = {
         version: 1,
         userId,
-        vaultRecord: JSON.parse(JSON.stringify(input.vaultRecord)),
-        encryptedState: JSON.parse(JSON.stringify(input.encryptedState)),
+        vaultRecord: JSON.parse(JSON.stringify(vaultRecord)),
+        encryptedState: JSON.parse(JSON.stringify(encryptedState)),
         revision: (existing?.revision || 0) + 1,
         updatedAt: new Date().toISOString(),
       };
