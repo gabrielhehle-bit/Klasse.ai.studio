@@ -346,6 +346,10 @@ async function main() {
       'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(data=>Number(data.snapshot?.revision||0)>' + Number(initialAccountRevisionA) + ')',
       30000,
     );
+    const postSetupRevisionA = await evaluate(
+      anna,
+      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(data=>Number(data.snapshot?.revision||0))',
+    );
 
     const annaCookies = (await anna.send('Network.getAllCookies')).cookies || [];
     if (!annaCookies.some(cookie => cookie.name === 'klassio_email_account')) {
