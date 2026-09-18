@@ -4294,13 +4294,12 @@ export default function PrintCenter() {
 
   function handleDownloadKlassenbuchPdf() {
     const weeks = getKbWeeksToRender();
-    const teacherName = [
-      app?.anrede,
-      app?.vorname,
-      app?.nachname,
-      app?.lehrerName,
-      app?.lehrerProfil?.name,
-    ].filter(Boolean)[0] || '';
+    const teacherName = [app?.anrede, app?.vorname, app?.nachname]
+      .filter(Boolean)
+      .join(' ')
+      || app?.lehrerName
+      || app?.lehrerProfil?.name
+      || '';
 
     const pdfWeeks = weeks.map((kw) => {
       const dates = kwToDates(kw);
