@@ -42,8 +42,22 @@ function storage(): Storage | null {
   }
 }
 
+export function accountSyncState(state: AppState): AppState {
+  const clone = JSON.parse(JSON.stringify(state)) as AppState;
+  if (clone.boardSettings) {
+    clone.boardSettings = {
+      ...clone.boardSettings,
+      activeSyncCode: undefined,
+      isRemoteController: undefined,
+      gabicRole: undefined,
+      remoteLastActiveTs: undefined,
+    };
+  }
+  return clone;
+}
+
 export function appStateFingerprint(state: AppState): string {
-  const json = JSON.stringify(state);
+  const json = JSON.stringify(accountSyncState(state));
   let hash = 2166136261;
   for (let i = 0; i < json.length; i++) {
     hash ^= json.charCodeAt(i);
@@ -124,7 +138,8 @@ export async function pushAccountSyncSnapshot(
   vaultRecord: VaultRecordV1,
   expectedRevision: number,
 ): Promise<AccountSyncSnapshot> {
-  const encryptedState = await encryptData(state, vaultKey);
+  const syncState = accountSyncState(state);
+  const encryptedState = await encryptData(syncState, vaultKey);
   const response = await fetch('/api/account-sync', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
