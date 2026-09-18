@@ -68,10 +68,13 @@ function isKind(value: unknown): value is LehrerzimmerKind {
 
 function mentionHandles(text: string): string[] {
   const handles = new Set<string>();
-  const re = /(^|\s)@([^\s@.,!?;:]{2,64})/gu;
+  // Punkte, Bindestriche und Unterstriche sind Teil gültiger KLASSIO-Handles.
+  // Satzzeichen am Ende der Erwähnung werden dagegen nicht als Alias gewertet.
+  const re = /(^|[\s([{])@([^\s@,!?;:]{2,64})/gu;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
-    const normalized = normalizeMentionAlias(match[2]);
+    const raw = match[2].replace(/[.]+$/g, '');
+    const normalized = normalizeMentionAlias(raw);
     if (normalized.length >= 2) handles.add(normalized);
   }
   return [...handles];
