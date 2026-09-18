@@ -89,7 +89,7 @@ test('alte JSON-Datei wird migriert und anschließend verschlüsselt im Konto-Sy
     assert.equal(roundtrip.classes.length, 2);
     assert.equal(roundtrip.schueler[0].vorname, 'Emma');
     assert.equal(roundtrip.wochenplanung['38'].Mittwoch[1].thema, 'Zahlenraum 10');
-    assert.equal(switchClassState(roundtrip, 'legacy-2b').jahresplanung.Deutsch[0].thema, 'Lesen');
+    assert.equal((switchClassState(roundtrip, 'legacy-2b').jahresplanung as any).Deutsch[0].thema, 'Lesen');
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
