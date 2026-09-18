@@ -303,6 +303,6 @@ test('Konto-Einstellungen zeigen Sync-Zustand, Fehlerhinweis und manuellen Neuve
 
   const vaultGate = read('src/components/VaultGate.tsx');
   assert.match(vaultGate, /SESSION_STATUS_UNAVAILABLE/);
-  assert.match(vaultGate, /kein neuer Tresor angelegt/);
+  assert.match(vaultGate, /Zur Sicherheit wird auf diesem Gerät nichts neu eingerichtet/);
   assert.match(vaultGate, /setGateState\('checking'\)/);
 });
