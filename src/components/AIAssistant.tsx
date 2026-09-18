@@ -19,7 +19,7 @@ import MaterialOptimizer from './MaterialOptimizer';
 import WorksheetGenerator from './WorksheetGenerator';
 import ScheduleOptimizer from './ScheduleOptimizer';
 import { StationenbetriebManager } from './StationenbetriebManager';
-import { askAI } from '../services/aiService';
+import { askAI, type AiUsageStatus } from '../services/aiService';
 import { KI_SYSTEM_PROMPTS } from '../kiSystemPrompts';
 import { useMaterialLibrary, calculateStorageSize } from './Materialbibliothek';
 import { FAECHER_ALLE } from '../constants';
@@ -265,6 +265,7 @@ export default function AIAssistant() {
   const [activeTab, setActiveTab] = useState<AiTab>('ki-helfer');
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [aiAvailability, setAiAvailability] = useState<'checking' | 'ready' | 'missing' | 'offline'>('checking');
+  const [aiUsage, setAiUsage] = useState<AiUsageStatus | null>(null);
   const [useClassContext, setUseClassContext] = useState(true);
   const processedPromptTimestampRef = useRef<number>(0);
 
@@ -274,12 +275,24 @@ export default function AIAssistant() {
       .then(async (response) => {
         if (!response.ok) throw new Error('status unavailable');
         const data = await response.json();
-        if (!cancelled) setAiAvailability(data?.available ? 'ready' : 'missing');
+        if (!cancelled) {
+          setAiAvailability(data?.available ? 'ready' : 'missing');
+          if (data?.usage) setAiUsage(data.usage as AiUsageStatus);
+        }
       })
       .catch(() => {
         if (!cancelled) setAiAvailability('offline');
       });
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    const onUsage = (event: Event) => {
+      const detail = (event as CustomEvent<AiUsageStatus>).detail;
+      if (detail) setAiUsage(detail);
+    };
+    window.addEventListener('klassio:ai-usage', onUsage);
+    return () => window.removeEventListener('klassio:ai-usage', onUsage);
   }, []);
 
   // Form States for new modes
@@ -436,6 +449,10 @@ export default function AIAssistant() {
     if (!userMsg || isLoading) return;
     if (aiAvailability === 'missing') {
       showToast('Der KI-Helfer ist serverseitig noch nicht eingerichtet.', 'error');
+      return;
+    }
+    if (aiUsage?.blocked || aiUsage?.remaining === 0) {
+      showToast(`Dein tägliches KI-Limit von ${aiUsage?.limit || 0} Anfragen ist erreicht. Morgen ist die KI wieder verfügbar.`, 'error');
       return;
     }
     
@@ -1231,7 +1248,7 @@ export default function AIAssistant() {
                           onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
                         />
                         <button 
-                          disabled={isLoading || !input.trim()}
+                          disabled={isLoading || !input.trim() || aiUsage?.blocked || aiUsage?.remaining === 0}
                           onClick={() => handleSend()}
                           className={`flex items-center justify-center text-white transition-all shadow-md hover:shadow-indigo-500/10 active:scale-95 shrink-0 ml-1 mb-1 cursor-pointer ${
                             isCompact ? 'w-10 h-10 rounded-xl' : 'w-12 h-12 rounded-2xl'
@@ -1249,6 +1266,17 @@ export default function AIAssistant() {
                        <span>
                          <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Enter</kbd> senden · <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Shift+Enter</kbd> Zeilenumbruch
                        </span>
+                       {aiUsage && (
+                         <span className={`rounded-full border px-2 py-1 ${
+                           aiUsage.blocked || aiUsage.remaining === 0
+                             ? 'border-rose-200 bg-rose-50 text-rose-700'
+                             : aiUsage.remaining <= Math.max(3, Math.ceil(aiUsage.limit * 0.2))
+                               ? 'border-amber-200 bg-amber-50 text-amber-700'
+                               : 'border-slate-200 bg-slate-50 text-slate-500'
+                         }`}>
+                           KI heute: {aiUsage.remaining} von {aiUsage.limit} Anfragen übrig
+                         </span>
+                       )}
                      </div>
                   </div>
                 </div>
