@@ -1082,8 +1082,21 @@ export default function PrintCenter() {
             height: auto !important;
           }
           @page {
-            size: ${printOrientation === 'landscape' ? 'landscape' : 'portrait'} ${printPaperSize};
+            size: ${activeTemplate === 'klassenbuch' ? 'portrait A4' : `${printOrientation === 'landscape' ? 'landscape' : 'portrait'} ${printPaperSize}`};
             margin: 0;
+          }
+          body.print-center-active .klassenbuch-a4-page {
+            width: 210mm !important;
+            min-width: 210mm !important;
+            max-width: 210mm !important;
+            height: 297mm !important;
+            min-height: 297mm !important;
+            max-height: 297mm !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            padding: 8.5mm !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid-page !important;
           }
           * {
             -webkit-print-color-adjust: exact !important;
@@ -3950,7 +3963,7 @@ export default function PrintCenter() {
               {activeTemplate === 'klassenbuch' && kbMode !== 'single' ? (
                 // Multi-page batch printing for Klassenbuch
                 getKbWeeksToRender().map((kw) => (
-                  <div key={kw} className="page-break bg-white animate-none opacity-100 visible h-auto" style={{ padding: `${printMargin}mm` }}>
+                  <div key={kw} className="page-break klassenbuch-a4-page bg-white animate-none opacity-100 visible">
                     {showMainHeader && <PrintHeader title={customHeaderTitle || undefined} />}
                     {renderSingleKlassenbuchPage(kw)}
                   </div>
@@ -3989,7 +4002,10 @@ export default function PrintCenter() {
                 ))
               ) : (
                 // Regular single page printing
-                <div style={{ padding: `${printMargin}mm` }}>
+                <div
+                  className={activeTemplate === 'klassenbuch' ? 'klassenbuch-a4-page' : undefined}
+                  style={activeTemplate === 'klassenbuch' ? undefined : { padding: `${printMargin}mm` }}
+                >
                   {showMainHeader && <PrintHeader title={customHeaderTitle || undefined} />}
                   {renderPreviewTemplate()}
                 </div>
@@ -4359,16 +4375,26 @@ export default function PrintCenter() {
             </tr>
           </thead>
           <tbody>
-            {printableCategories.map(([category, entries]) => (
-              <tr key={category} className="avoid-break border-b border-slate-300 last:border-b-0">
-                <td className="border-r border-slate-300 bg-slate-50 px-3 py-2 text-[0.65625rem] font-black leading-tight text-slate-800">
-                  {category}
-                </td>
-                <td className="px-3 py-2 text-[0.6875rem] font-semibold leading-relaxed text-slate-800 whitespace-pre-wrap">
-                  {entries.length > 0 ? entries.join(' · ') : <span className="text-slate-300">—</span>}
-                </td>
-              </tr>
-            ))}
+            {printableCategories.map(([category, entries]) => {
+              const parsedCategory = splitKlassenbuchCategoryKey(category);
+              return (
+                <tr key={category} className="avoid-break border-b border-slate-300 last:border-b-0">
+                  <td className="border-r border-slate-300 bg-slate-50 px-3 py-1.5 text-slate-800">
+                    <span className="block text-[0.65625rem] font-black leading-tight">
+                      {parsedCategory.subject}
+                    </span>
+                    {parsedCategory.subarea && (
+                      <span className="mt-0.5 block text-[0.5625rem] font-bold leading-tight text-slate-500">
+                        {parsedCategory.subarea}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-3 py-1.5 text-[0.65625rem] font-semibold leading-snug text-slate-800 whitespace-pre-wrap">
+                    {entries.length > 0 ? entries.join(' · ') : <span className="text-slate-300">—</span>}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
