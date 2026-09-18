@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 const BASE_URL = process.env.KLASSIO_E2E_BASE_URL || 'http://localhost:3100';
 const DEBUG_A = process.env.KLASSIO_CHROME_DEBUG_A || 'http://127.0.0.1:9222';
 const DEBUG_B = process.env.KLASSIO_CHROME_DEBUG_B || 'http://127.0.0.1:9223';
+const DEBUG_RECOVERY = process.env.KLASSIO_CHROME_DEBUG_RECOVERY || 'http://127.0.0.1:9224';
 const EMAIL_A = process.env.KLASSIO_E2E_EMAIL_A || 'anna.e2e@vsfoa.vobs.at';
 const EMAIL_B = process.env.KLASSIO_E2E_EMAIL_B || 'berta.e2e@vsfoa.vobs.at';
 const VAULT_A = process.env.KLASSIO_E2E_VAULT_A || 'Klassio-E2E-Anna-2026!';
@@ -10,6 +11,7 @@ const VAULT_B = process.env.KLASSIO_E2E_VAULT_B || 'Klassio-E2E-Berta-2026!';
 const SMTP_CODES = process.env.KLASSIO_E2E_SMTP_CODES || '/tmp/klassio-e2e-mail-codes.json';
 const SCREENSHOT_A = process.env.KLASSIO_E2E_SCREENSHOT_A || '/tmp/klassio-team-a.png';
 const SCREENSHOT_B = process.env.KLASSIO_E2E_SCREENSHOT_B || '/tmp/klassio-team-b.png';
+const SCREENSHOT_RECOVERY = process.env.KLASSIO_E2E_SCREENSHOT_RECOVERY || '/tmp/klassio-account-recovery.png';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const q = value => JSON.stringify(value);
@@ -219,6 +221,15 @@ async function saveScreenshot(client, path) {
   await fs.writeFile(path, Buffer.from(screenshot.data, 'base64'));
 }
 
+async function setOffline(client, offline) {
+  await client.send('Network.emulateNetworkConditions', {
+    offline,
+    latency: 0,
+    downloadThroughput: offline ? 0 : -1,
+    uploadThroughput: offline ? 0 : -1,
+  });
+}
+
 async function waitForMailCode(email) {
   const deadline = Date.now() + 15000;
   while (Date.now() < deadline) {
@@ -249,6 +260,7 @@ async function finishVaultSetup(client, password) {
   await waitFor(client, 'first-run intro', 'document.body?.innerText.toLowerCase().includes("klassio passt sich dir an")', 30000);
   await clickButton(client, 'Überspringen');
   await waitFor(client, 'daily dashboard', 'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").trim()==="Heute")', 30000);
+  return recoveryCode;
 }
 
 async function loginWithSchoolMail(client, email, password) {
@@ -260,14 +272,14 @@ async function loginWithSchoolMail(client, email, password) {
   const code = await waitForMailCode(email);
   await setInputByLabel(client, '6-stelliger Anmeldecode', code);
   await clickButton(client, 'Klassio öffnen');
-  await finishVaultSetup(client, password);
+  return finishVaultSetup(client, password);
 }
 
-async function createClassInUi(client, className) {
+async function createClassInUi(client, className, currentClassName = 'Klasse Ohne Namen') {
   const opened = await evaluate(client,
     '(() => {' +
     'const norm=v=>String(v||"").replace(/\\s+/g," ").trim();' +
-    'const candidates=Array.from(document.querySelectorAll("div")).filter(el=>norm(el.textContent).includes("Klasse Ohne Namen"));' +
+    'const candidates=Array.from(document.querySelectorAll("div")).filter(el=>norm(el.textContent).includes(' + q(currentClassName) + '));' +
     'const node=candidates.sort((a,b)=>a.getBoundingClientRect().width-b.getBoundingClientRect().width).find(el=>{' +
       'const style=getComputedStyle(el); const rect=el.getBoundingClientRect();' +
       'return style.visibility!=="hidden"&&style.display!=="none"&&rect.width>0&&rect.height>0&&style.cursor==="pointer";' +
@@ -305,9 +317,10 @@ async function main() {
 
   const anna = await createClient(DEBUG_A, 'Lehrkraft A');
   const berta = await createClient(DEBUG_B, 'Lehrkraft B');
+  const recovery = await createClient(DEBUG_RECOVERY, 'Recovery-Gerät');
   const uncaught = [];
 
-  for (const client of [anna, berta]) {
+  for (const client of [anna, berta, recovery]) {
     client.on('Runtime.exceptionThrown', params => {
       const details = params.exceptionDetails || {};
       uncaught.push(client.name + ': ' + (details.exception?.description || details.text || 'Unknown browser exception'));
@@ -315,12 +328,38 @@ async function main() {
   }
 
   try {
-    await loginWithSchoolMail(anna, EMAIL_A, VAULT_A);
+    const recoveryCodeA = await loginWithSchoolMail(anna, EMAIL_A, VAULT_A);
     await createClassInUi(anna, 'E2E 1A');
     await openClassTeam(anna);
     await clickButton(anna, 'Gemeinsame Klasse aktivieren');
     await waitFor(anna, 'encrypted shared class active', 'document.body?.innerText.includes("Teamteaching aktiv")', 30000);
     console.log('✓ Lehrkraft A: class encrypted and shared');
+
+    await waitFor(
+      anna,
+      'encrypted account snapshot available',
+      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(data=>Number(data.snapshot?.revision||0)>=1)',
+      30000,
+    );
+
+    const annaCookies = (await anna.send('Network.getAllCookies')).cookies || [];
+    if (!annaCookies.some(cookie => cookie.name === 'klassio_email_account')) {
+      throw new Error('Lehrkraft A: account session cookie missing for fresh-device recovery test.');
+    }
+    await recovery.send('Network.setCookies', { cookies: annaCookies });
+    await recovery.send('Page.navigate', { url: BASE_URL });
+    await waitFor(
+      recovery,
+      'fresh device fetches existing remote vault instead of offering a new vault',
+      'document.body?.innerText.includes("Tresor entsperren") && !document.body?.innerText.toLowerCase().includes("lokalen datentresor einrichten")',
+      30000,
+    );
+    await clickButton(recovery, 'Passwort vergessen? Mit Wiederherstellungscode entsperren');
+    await setInputByLabel(recovery, 'Wiederherstellungscode', recoveryCodeA);
+    await clickButton(recovery, 'Mit Code entsperren');
+    await waitFor(recovery, 'fresh device restored dashboard', 'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").trim()==="Heute")', 30000);
+    await waitFor(recovery, 'fresh device restored synced class', 'document.body?.innerText.includes("E2E 1A")', 30000);
+    console.log('✓ Konto-Sync: fresh device recovered existing encrypted vault and app state via recovery code');
 
     await loginWithSchoolMail(berta, EMAIL_B, VAULT_B);
     console.log('✓ Lehrkraft B: separate school-mail login and vault/device identity ready');
@@ -386,6 +425,58 @@ async function main() {
     await waitFor(anna, 'owner pulls second teacher revision', 'document.body?.innerText.includes("Neuester verschlüsselter Stand wurde geladen")', 30000);
     console.log('✓ Lehrkraft A: pulled newest encrypted revision');
 
+    // Konto-Sync: echter Offline-/Mehrgeräte-Konflikt. Das Recovery-Gerät bleibt
+    // auf einer bekannten Baseline offline, während Gerät A serverseitig weiterarbeitet.
+    const baselineRevision = await evaluate(
+      recovery,
+      'JSON.parse(localStorage.getItem("klassio_account_sync_meta_v1")||"null")?.revision || 0',
+    );
+    if (!baselineRevision) throw new Error('Recovery-Gerät: account sync baseline missing before conflict test.');
+
+    await setOffline(recovery, true);
+    await createClassInUi(anna, 'E2E Konflikt A', 'E2E 1A');
+    await waitFor(
+      anna,
+      'device A pushed a newer account revision',
+      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(data=>Number(data.snapshot?.revision||0)>' + Number(baselineRevision) + ')',
+      30000,
+    );
+
+    await createClassInUi(recovery, 'E2E Konflikt B', 'E2E 1A');
+    await sleep(1800);
+    await setOffline(recovery, false);
+
+    await clickSidebar(recovery, 'Einstellungen');
+    await clickButton(recovery, 'Konto', true);
+    await waitFor(recovery, 'account settings opened', 'document.body?.innerText.includes("Konto & Schulmail")', 20000);
+
+    const retryVisible = await evaluate(
+      recovery,
+      'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").includes("Erneut versuchen")&&!button.disabled)',
+    );
+    if (retryVisible) await clickButton(recovery, 'Erneut versuchen');
+
+    await waitFor(
+      recovery,
+      'multi-device account conflict is shown without overwriting',
+      'Boolean(document.querySelector("[data-testid=account-sync-conflict-actions]")) && document.body?.innerText.includes("Sync-Konflikt")',
+      30000,
+    );
+    await evaluate(recovery, 'window.confirm=()=>true');
+    await clickButton(recovery, 'Diesen Geräte-Stand verwenden');
+    await waitFor(
+      recovery,
+      'explicit local conflict choice becomes synced',
+      'document.body?.innerText.includes("Konto-Sync aktuell")',
+      30000,
+    );
+    const resolvedRevision = await evaluate(
+      recovery,
+      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(data=>Number(data.snapshot?.revision||0))',
+    );
+    if (!(resolvedRevision > baselineRevision)) throw new Error('Recovery-Gerät: conflict resolution did not advance server revision.');
+    console.log('✓ Konto-Sync: offline local change -> multi-device conflict -> explicit local resolution succeeded');
+
     const teamFileHasCiphertext = await fs.readFile('/tmp/klassio-e2e-data/teamteaching.json', 'utf8');
     if (!teamFileHasCiphertext.includes('"ciphertext"')) throw new Error('Server teamteaching store has no encrypted snapshot.');
     if (teamFileHasCiphertext.includes('"schueler"') || teamFileHasCiphertext.includes('"noten"')) {
@@ -395,6 +486,7 @@ async function main() {
 
     await saveScreenshot(anna, SCREENSHOT_A);
     await saveScreenshot(berta, SCREENSHOT_B);
+    await saveScreenshot(recovery, SCREENSHOT_RECOVERY);
 
     if (uncaught.length) throw new Error('Uncaught browser exceptions:\n' + uncaught.join('\n---\n'));
 
@@ -402,10 +494,12 @@ async function main() {
   } catch (error) {
     try { await saveScreenshot(anna, SCREENSHOT_A); } catch {}
     try { await saveScreenshot(berta, SCREENSHOT_B); } catch {}
+    try { await saveScreenshot(recovery, SCREENSHOT_RECOVERY); } catch {}
     throw error;
   } finally {
     anna.close();
     berta.close();
+    recovery.close();
   }
 }
 
