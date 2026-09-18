@@ -82,7 +82,9 @@ interface AppContextType {
   accountSyncStatus: AccountSyncStatus;
   accountSyncLastAt: string | null;
   accountSyncMessage: string | null;
+  accountSyncConflictResolvable: boolean;
   retryAccountSync: () => Promise<void>;
+  resolveAccountSyncConflict: (source: 'local' | 'remote') => Promise<void>;
 }
 
 const STORAGE_KEY = 'hehle_v3';
@@ -113,6 +115,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [accountSyncStatus, setAccountSyncStatus] = useState<AccountSyncStatus>('idle');
   const [accountSyncLastAt, setAccountSyncLastAt] = useState<string | null>(null);
   const [accountSyncMessage, setAccountSyncMessage] = useState<string | null>(null);
+  const [accountSyncConflictResolvable, setAccountSyncConflictResolvable] = useState(false);
   const accountSyncReadyRef = useRef(false);
   const accountSyncBusyRef = useRef(false);
   const accountSyncRevisionRef = useRef(0);
@@ -124,6 +127,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAccountSyncLastAt(snapshot.updatedAt || new Date().toISOString());
     setAccountSyncHealthy(true);
     setAccountSyncMessage(null);
+    setAccountSyncConflictResolvable(false);
     setAccountSyncStatus('synced');
   }, []);
 
@@ -144,6 +148,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     setAccountSyncStatus('syncing');
     setAccountSyncMessage(null);
+    setAccountSyncConflictResolvable(false);
     try {
       const hasAccount = await hasEmailAccountSession();
       if (!hasAccount) {
@@ -192,7 +197,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         accountSyncReadyRef.current = false;
         setAccountSyncHealthy(false);
-        setAccountSyncMessage('Auf diesem Gerät und im E-Mail-Konto liegen unterschiedliche Ausgangsstände. Nichts wurde automatisch überschrieben. Erstelle zur Sicherheit eine Datei-Sicherung und öffne den aktuellsten Stand.');
+        setAccountSyncMessage('Auf diesem Gerät und im E-Mail-Konto liegen unterschiedliche Ausgangsstände. Nichts wurde automatisch überschrieben. Wähle bewusst, welcher Stand weitergeführt werden soll.');
+        setAccountSyncConflictResolvable(true);
         setAccountSyncStatus('conflict');
         console.warn('[AccountSync] Lokaler und serverseitiger Erststand unterscheiden sich. Automatisches Überschreiben wurde verhindert.');
         return current;
@@ -210,7 +216,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         accountSyncReadyRef.current = false;
         setAccountSyncHealthy(false);
-        setAccountSyncMessage('Auf mehreren Geräten wurden Änderungen erkannt. Zur Sicherheit wurde nichts überschrieben. Öffne zuerst das Gerät mit dem aktuellsten vollständigen Stand und starte dort den Abgleich erneut.');
+        setAccountSyncMessage('Auf mehreren Geräten wurden Änderungen erkannt. Zur Sicherheit wurde nichts überschrieben. Wähle bewusst den vollständigen Stand, mit dem du weiterarbeiten möchtest.');
+        setAccountSyncConflictResolvable(true);
         setAccountSyncStatus('conflict');
         console.warn('[AccountSync] Änderungen auf mehreren Geräten erkannt. Kein Stand wurde überschrieben.');
         return current;
@@ -244,6 +251,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       setAccountSyncHealthy(false);
       setAccountSyncMessage(accountSyncErrorMessage(error));
+      setAccountSyncConflictResolvable(Boolean(
+        (error?.status === 409 || error?.code === 'REVISION_CONFLICT')
+        && error?.code !== 'VAULT_MISMATCH'
+      ));
       setAccountSyncStatus(error?.code === 'REVISION_CONFLICT' || error?.code === 'VAULT_MISMATCH' ? 'conflict' : 'error');
       console.error('[AccountSync] Kontostand konnte nicht abgeglichen werden:', error);
       if (!hadLocalState) throw error;
@@ -277,6 +288,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         accountSyncReadyRef.current = false;
         setAccountSyncHealthy(false);
         setAccountSyncMessage(accountSyncErrorMessage(error));
+        setAccountSyncConflictResolvable(error?.code !== 'VAULT_MISMATCH');
         setAccountSyncStatus('conflict');
       } else {
         setAccountSyncHealthy(false);
@@ -312,6 +324,84 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAccountSyncMessage(null);
     await refreshAccountState();
   }, [refreshAccountState]);
+
+  const resolveAccountSyncConflict = React.useCallback(async (source: 'local' | 'remote') => {
+    if (!isVaultUnlocked || accountSyncBusyRef.current) return;
+    const vaultKey = getActiveVaultKey();
+    const vaultRecord = await loadVaultRecord();
+    if (!vaultKey || !vaultRecord) return;
+
+    accountSyncBusyRef.current = true;
+    setAccountSyncStatus('syncing');
+    setAccountSyncMessage(null);
+    setAccountSyncConflictResolvable(false);
+
+    try {
+      const hasAccount = await hasEmailAccountSession();
+      if (!hasAccount) {
+        accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
+        setAccountSyncMessage('Die E-Mail-Anmeldung ist nicht mehr aktiv. Melde dich erneut an, bevor du einen Sync-Konflikt auflöst.');
+        setAccountSyncStatus('disabled');
+        return;
+      }
+
+      const remote = await fetchAccountSyncSnapshot();
+      const localState = currentAppRef.current;
+
+      // Vor einer bewussten Konfliktentscheidung bleibt der aktuelle lokale Stand
+      // als verschlüsselte Notfallkopie auf diesem Gerät erhalten.
+      await saveEncryptedEmergencyBackup(localState, vaultKey);
+
+      if (!remote) {
+        const pushed = await pushAccountSyncSnapshot(localState, vaultKey, vaultRecord, 0);
+        markAccountSynced(pushed, localState);
+        return;
+      }
+
+      if (remote.vaultRecord.id !== vaultRecord.id) {
+        accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
+        setAccountSyncMessage('Das E-Mail-Konto enthält einen anderen Datentresor. Dieser Konflikt kann nicht durch Überschreiben gelöst werden. Prüfe Konto und Tresor.');
+        setAccountSyncConflictResolvable(false);
+        setAccountSyncStatus('conflict');
+        return;
+      }
+
+      if (source === 'local') {
+        const pushed = await pushAccountSyncSnapshot(localState, vaultKey, vaultRecord, remote.revision);
+        markAccountSynced(pushed, localState);
+        return;
+      }
+
+      const decryptedRemote = await decryptAccountSyncSnapshot(remote, vaultKey);
+      assertRestorableAppState(decryptedRemote);
+      const normalizedRemote = normalizeAppState(decryptedRemote);
+      const remoteState = mergeAccountSyncState(normalizedRemote, localState);
+      await saveEncryptedAppState(remoteState, vaultKey);
+      currentAppRef.current = remoteState;
+      setApp(remoteState);
+      markAccountSynced(remote, remoteState);
+    } catch (error: any) {
+      accountSyncReadyRef.current = false;
+      setAccountSyncHealthy(false);
+      if (error?.status === 401 || error?.status === 403) {
+        setAccountSyncMessage('Die E-Mail-Anmeldung ist nicht mehr aktiv. Melde dich erneut an, damit der verschlüsselte Konto-Abgleich weiterläuft.');
+        setAccountSyncStatus('disabled');
+        return;
+      }
+      setAccountSyncMessage(accountSyncErrorMessage(error));
+      const resolvable = Boolean(
+        (error?.status === 409 || error?.code === 'REVISION_CONFLICT')
+        && error?.code !== 'VAULT_MISMATCH'
+      );
+      setAccountSyncConflictResolvable(resolvable);
+      setAccountSyncStatus(resolvable || error?.code === 'VAULT_MISMATCH' ? 'conflict' : 'error');
+      console.error('[AccountSync] Sync-Konflikt konnte nicht aufgelöst werden:', error);
+    } finally {
+      accountSyncBusyRef.current = false;
+    }
+  }, [isVaultUnlocked, markAccountSynced, setApp]);
 
 
   // E-Mail-Konto wird auch dann aktiv, wenn die Anmeldung erst in den Einstellungen erfolgt.
@@ -998,6 +1088,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     accountSyncReadyRef.current = false;
     accountSyncRevisionRef.current = 0;
     setAccountSyncMessage(null);
+    setAccountSyncConflictResolvable(false);
     setAccountSyncStatus('idle');
     clearActiveVaultSession();
     currentAppRef.current = initialAppState;
@@ -1512,8 +1603,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     accountSyncStatus,
     accountSyncLastAt,
     accountSyncMessage,
-    retryAccountSync
-  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, lockAppVault, unlockAppVault, accountSyncStatus, accountSyncLastAt, accountSyncMessage, retryAccountSync]);
+    accountSyncConflictResolvable,
+    retryAccountSync,
+    resolveAccountSyncConflict
+  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, lockAppVault, unlockAppVault, accountSyncStatus, accountSyncLastAt, accountSyncMessage, accountSyncConflictResolvable, retryAccountSync, resolveAccountSyncConflict]);
 
   if (!isLoaded) {
     return (
