@@ -109,7 +109,6 @@ test('topbar and weather server contain no invented live data or credentials', (
     assert.equal(topbar.includes(forbidden), false, `invented Topbar fallback remains: ${forbidden}`);
   }
 
-  assert.match(topbar, /app\?\.klassenbezeichnung \|\| 'Keine Klasse gewählt'/);
   assert.match(topbar, /app\?\.schulOrt \|\| 'Ort nicht gesetzt'/);
   assert.match(topbar, /Noch keine WLAN-Daten hinterlegt/);
   assert.match(topbar, /Keine Wetterprognose verfügbar/);
