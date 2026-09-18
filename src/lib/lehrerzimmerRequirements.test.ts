@@ -278,6 +278,8 @@ test('Lehrerzimmer ist fest unter Tools sichtbar und signalisiert ungelesene Nac
 
   assert.match(sidebar, /'tools',[\s\S]*'lehrerzimmer'/);
   assert.match(sidebar, /id: 'lehrerzimmer'.*section: 'Tools'/);
+  assert.match(sidebar, /item\.id === 'lehrerzimmer'/);
+  assert.match(sidebar, /toolsIndex/);
   assert.match(sidebar, /lehrerzimmerUnread\.count > 0/);
   assert.match(dashboard, /data-testid="dashboard-lehrerzimmer-unread"/);
   assert.match(dashboard, /setPage\("lehrerzimmer"\)/);
