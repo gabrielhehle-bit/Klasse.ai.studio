@@ -145,9 +145,17 @@ export default function VaultGate({ children }: VaultGateProps) {
         }
 
         if (isMounted) setGateState('locked');
-      } catch (err) {
+      } catch (err: any) {
         console.error('Fehler bei Vault-Status-Prüfung:', err);
-        if (isMounted) setGateState('locked');
+        if (!isMounted) return;
+        if (err?.code === 'SESSION_STATUS_UNAVAILABLE' || err?.code === 'SESSION_STATUS_INVALID') {
+          setErrorMessage(
+            'Klassio kann dein E-Mail-Konto gerade nicht erreichen. Zur Sicherheit wird auf diesem Gerät kein neuer Tresor angelegt. Bitte Verbindung prüfen und erneut versuchen.'
+          );
+          setGateState('checking');
+          return;
+        }
+        setGateState('locked');
       }
     }
 
