@@ -194,8 +194,19 @@ function AppContent() {
   const [showDiagnostikAnleitung, setShowDiagnostikAnleitung] = useState(false);
   const [showConsistencyModal, setShowConsistencyModal] = useState(false);
   const [isPending, startTransition] = React.useTransition();
+  const [remotePairingRequested] = useState(() => Boolean(parseSyncHash(window.location.hash)));
+  const [remotePairingTimedOut, setRemotePairingTimedOut] = useState(false);
   const pageScrollRef = React.useRef<HTMLDivElement>(null);
   const prevPageRef = React.useRef<string>(currentPage);
+
+  React.useEffect(() => {
+    if (!remotePairingRequested || app?.boardSettings?.isRemoteController) {
+      setRemotePairingTimedOut(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setRemotePairingTimedOut(true), 10000);
+    return () => window.clearTimeout(timer);
+  }, [remotePairingRequested, app?.boardSettings?.isRemoteController]);
 
   React.useEffect(() => {
     if (prevPageRef.current !== currentPage) {
@@ -549,6 +560,38 @@ function AppContent() {
       return "Unterricht";
     }
   };
+
+  if (remotePairingRequested && !app?.boardSettings?.isRemoteController) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white">
+        <div className="w-full max-w-sm rounded-3xl border border-white/10 bg-white/5 p-6 text-center shadow-2xl backdrop-blur-xl">
+          {!remotePairingTimedOut ? (
+            <>
+              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-indigo-400 border-t-transparent" />
+              <h1 className="mt-5 text-lg font-black">Handy wird verbunden …</h1>
+              <p className="mt-2 text-sm font-medium leading-relaxed text-slate-300">
+                Die Unterrichtsansicht wird sicher geladen.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-lg font-black">Verbindung nicht möglich</h1>
+              <p className="mt-2 text-sm font-medium leading-relaxed text-slate-300">
+                Die Unterrichtssitzung ist nicht mehr verfügbar oder der QR-Code ist abgelaufen.
+              </p>
+              <button
+                type="button"
+                onClick={() => window.location.replace(window.location.pathname)}
+                className="mt-5 h-11 rounded-xl bg-white px-5 text-sm font-black text-slate-900"
+              >
+                Zur Anmeldung
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // If this device is a remote controller (mobile phone), ALWAYS render the MobileRemoteController interface!
   if (app?.boardSettings?.gabicRole === 'child') {
