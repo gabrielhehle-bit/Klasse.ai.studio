@@ -50,6 +50,12 @@ import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySu
 import { getFachCfg, berechne, getNotenLabel, getAssessmentMode } from '../lib/GradeUtils';
 import { DEFAULT_YEARLY_SUBJECTS, FAECHER_ALLE } from '../constants';
 import { downloadKlassenbuchPdf } from '../lib/klassenbuchPdf';
+import {
+  classifyKlassenbuchEntry,
+  getKlassenbuchBaseCategories,
+  orderKlassenbuchCategoryKeys,
+  splitKlassenbuchCategoryKey,
+} from '../lib/klassenbuchSubjects';
 
 const STANDARD_KEL_BEREICHE = [
   { id: 'zuzuhoeren', label: 'Zuhören & Verstehen', kategorie: 'Arbeitsverhalten' },
@@ -725,150 +731,117 @@ export default function PrintCenter() {
   const selectedKbDates = useMemo(() => kwToDates(kbKW), [kbKW, startYear, app?.schuljahr]);
 
   // C. Klassenbuch Weekly Lesson Plan Processor
+  // Verwendet exakt dieselbe Fächer-/Unterbereichs-Struktur wie die Wochenplanung.
   const compileKlassenbuchData = (targetKW: number) => {
-    const data: Record<string, string[]> = {
-      'Deutsch - Rechtschreiben': [],
-      'Deutsch - Sprachbetrachtung': [],
-      'Deutsch - Sprechen & Hören': [],
-      'Deutsch - Texte verfassen': [],
-      'Deutsch - Lesen': [],
-      'Deutsch - D-FÖ': [],
-      'Mathematik - Ebene & Raum': [],
-      'Mathematik - Zahlen & Daten': [],
-      'Mathematik - Größen': [],
-      'Mathematik - Operationen': [],
-      'Mathematik - Nicht zugeordnet': [],
-      'Förderung (FÖ)': [],
-      'Sachunterricht': [],
-      'BSP': [],
-      'Werken': [],
-      'Musik': [],
-      'Englisch': [],
-      'Zeichnen': [],
-      'Religion': [],
-      'Besondere Vorkommnisse': [],
-    };
+    const baseCategories = getKlassenbuchBaseCategories(app?.faecher);
+    const data: Record<string, string[]> = Object.fromEntries(
+      baseCategories.map((category) => [category.key, []]),
+    );
+    data['Besondere Vorkommnisse'] = [];
 
     const plan = (app?.wochenplanung || {})[targetKW];
     if (!plan) return data;
 
-    const norm = (value: string) => String(value || '').trim().toLocaleLowerCase('de-AT');
-    const isDeutsch = (value: string) => {
-      const v = norm(value);
-      return v === 'd' || v === 'de' || v === 'deutsch' || v.includes('deutsch');
-    };
-    const isMathe = (value: string) => {
-      const v = norm(value);
-      return v === 'm' || v === 'ma' || v === 'mathe' || v === 'mathematik' || v.includes('mathe') || v.includes('rechnen');
-    };
-    const isFoerderung = (value: string) => {
-      const v = norm(value).replace(/\s+/g, '');
-      return v === 'fö' || v === 'foe' || v === 'förderung' || v === 'foerderung' || v.includes('(förderung)') || v.includes('(foerderung)');
-    };
-    const isSU = (value: string) => {
-      const v = norm(value);
-      return v === 'su' || v === 'sachunterricht' || v.includes('sach');
-    };
-    const isBSP = (value: string) => {
-      const v = norm(value);
-      return v === 'bsp' || v === 'bs' || v === 'b&s' || v === 'sport' || v === 'turnen' || v.includes('sport') || v.includes('turnen') || v.includes('bewegung');
-    };
-    const isWerken = (value: string) => {
-      const v = norm(value);
-      return v === 'we' || v === 'tew' || v === 'txw' || v === 'werken' || v.includes('werk') || v.includes('technisch') || v.includes('textil');
-    };
-    const isMusik = (value: string) => {
-      const v = norm(value);
-      return v === 'me' || v === 'mu' || v === 'musik' || v === 'musikerziehung' || v.includes('musik') || v.includes('singen');
-    };
-    const isEnglisch = (value: string) => {
-      const v = norm(value);
-      return v === 'e' || v === 'eng' || v === 'englisch' || v.includes('engl') || v.includes('english');
-    };
-    const isZeichnen = (value: string) => {
-      const v = norm(value);
-      return v === 'be' || v === 'ze' || v === 'zeichnen' || v === 'bildnerische' || v.includes('zeichn') || v.includes('kunst') || v.includes('bildnerisch');
-    };
-    const isReligion = (value: string) => {
-      const v = norm(value);
-      return v === 'r' || v === 'rel' || v === 'religion' || v.includes('religion');
+    const ensureCategory = (key: string) => {
+      if (!data[key]) data[key] = [];
+      return data[key];
     };
 
-    const pushEntry = (fachRaw: string, themaRaw: string, schwerpunkteRaw: string[] = [], prefix = '') => {
-      const fach = String(fachRaw || '');
-      const schwerpunkte = Array.isArray(schwerpunkteRaw) ? schwerpunkteRaw.filter(Boolean) : [];
+    const pushEntry = (
+      fachRaw: string,
+      themaRaw: string,
+      schwerpunkteRaw: string[] = [],
+      prefix = '',
+    ) => {
+      const fach = String(fachRaw || '').trim();
+      const schwerpunkte = Array.isArray(schwerpunkteRaw)
+        ? schwerpunkteRaw.map((value) => String(value || '').trim()).filter(Boolean)
+        : [];
       const thema = String(themaRaw || '').trim();
       if (!fach && !thema) return;
 
       const textToPush = `${prefix}${thema || fach}`.trim();
-      const fachLower = norm(fach);
-      const focus = schwerpunkte.map(norm);
+      const categories = classifyKlassenbuchEntry(fach, schwerpunkte);
 
-      if (isDeutsch(fach) || schwerpunkte.some(isDeutsch)) {
-        let matched = false;
-        const hasRS = focus.some(value => value.includes('rechtschreib')) || fachLower.includes('rechtschreib') || fachLower === 'rs';
-        const hasSP = focus.some(value => value.includes('sprachbetracht') || value === 'deutsch (sprache)') || fachLower.includes('sprachbetracht') || fachLower === 'sp';
-        const hasSH = focus.some(value => value.includes('sprechen & hören') || value.includes('sprechen und hören')) || fachLower.includes('sprechen & hören') || fachLower.includes('sprechen und hören');
-        const hasVT = focus.some(value => value.includes('verfassen') || value.includes('texte')) || fachLower.includes('verfassen') || fachLower.includes('aufsatz') || fachLower === 'vt';
-        const hasL = focus.some(value => value.includes('lesen')) || fachLower.includes('lesen') || fachLower === 'l';
-        const hasDFO = fachLower.includes('d-fö') || focus.some(value => value.includes('deutsch (förderung)') || value === 'förderung' || value === 'd-fö');
-
-        if (hasRS) { data['Deutsch - Rechtschreiben'].push(textToPush); matched = true; }
-        if (hasSP) { data['Deutsch - Sprachbetrachtung'].push(textToPush); matched = true; }
-        if (hasSH) { data['Deutsch - Sprechen & Hören'].push(textToPush); matched = true; }
-        if (hasVT) { data['Deutsch - Texte verfassen'].push(textToPush); matched = true; }
-        if (hasL) { data['Deutsch - Lesen'].push(textToPush); matched = true; }
-        if (hasDFO) { data['Deutsch - D-FÖ'].push(textToPush); matched = true; }
-        if (!matched) data['Deutsch - Sprachbetrachtung'].push(textToPush);
+      if (categories.length === 0) {
+        ensureCategory('Besondere Vorkommnisse').push(
+          fach && thema ? `${fach}: ${textToPush}` : textToPush,
+        );
         return;
       }
 
-      const mathFocus = [fach, ...schwerpunkte].map(norm);
-      if (isMathe(fach) || mathFocus.some(value => value.includes('mathematik'))) {
-        if (mathFocus.some(value => value.includes('ebene & raum'))) data['Mathematik - Ebene & Raum'].push(textToPush);
-        else if (mathFocus.some(value => value.includes('zahlen & daten'))) data['Mathematik - Zahlen & Daten'].push(textToPush);
-        else if (mathFocus.some(value => value.includes('größen') || value.includes('groessen'))) data['Mathematik - Größen'].push(textToPush);
-        else if (mathFocus.some(value => value.includes('operationen'))) data['Mathematik - Operationen'].push(textToPush);
-        else data['Mathematik - Nicht zugeordnet'].push(textToPush);
-        return;
-      }
-
-      if (isFoerderung(fach) || schwerpunkte.some(isFoerderung)) data['Förderung (FÖ)'].push(textToPush);
-      else if (isSU(fach)) data['Sachunterricht'].push(textToPush);
-      else if (isBSP(fach)) data['BSP'].push(textToPush);
-      else if (isWerken(fach)) data['Werken'].push(textToPush);
-      else if (isMusik(fach)) data['Musik'].push(textToPush);
-      else if (isEnglisch(fach)) data['Englisch'].push(textToPush);
-      else if (isZeichnen(fach)) data['Zeichnen'].push(textToPush);
-      else if (isReligion(fach)) data['Religion'].push(textToPush);
-      else data['Besondere Vorkommnisse'].push(fach ? `${fach}: ${textToPush}` : textToPush);
+      categories.forEach((category) => {
+        ensureCategory(category.key).push(textToPush);
+      });
     };
 
-    Object.keys(plan).forEach(tag => {
-      if (!['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].includes(tag)) return;
-      Object.keys(plan[tag] || {}).forEach(idx => {
-        const numericIdx = parseInt(idx, 10);
+    const weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
+    weekdays.forEach((tag) => {
+      const dayPlan: any = plan[tag] || {};
+
+      Object.keys(dayPlan).forEach((idx) => {
+        const numericIdx = Number.parseInt(idx, 10);
         if (!Number.isInteger(numericIdx)) return;
-        const item = plan[tag][idx];
+        const item = dayPlan[idx];
         if (!item) return;
 
         if (item.halves?.enabled) {
           const first = item.halves.first || {};
           const second = item.halves.second || {};
-          pushEntry(first.fach || item.fach || '', first.thema || '', first.unterbereich ? [first.unterbereich] : [], '1. Hälfte: ');
-          pushEntry(second.fach || item.fach || '', second.thema || '', second.unterbereich ? [second.unterbereich] : [], '2. Hälfte: ');
-          if (item.reflexion) data['Besondere Vorkommnisse'].push(`${tag}, ${numericIdx + 1}. Stunde – Reflexion: ${item.reflexion}`);
+
+          pushEntry(
+            first.fach || item.fach || '',
+            first.thema || '',
+            first.unterbereich ? [first.unterbereich] : (first.schwerpunkte || []),
+            '1. Hälfte: ',
+          );
+          pushEntry(
+            second.fach || item.fach || '',
+            second.thema || '',
+            second.unterbereich ? [second.unterbereich] : (second.schwerpunkte || []),
+            '2. Hälfte: ',
+          );
+
+          if (wpShowReflexion && item.reflexion) {
+            ensureCategory('Besondere Vorkommnisse').push(
+              `${tag}, ${numericIdx + 1}. Stunde – Reflexion: ${item.reflexion}`,
+            );
+          }
           return;
         }
 
-        pushEntry(item.fach || '', [item.thema, item.reflexion].filter(Boolean).join(' - '), item.schwerpunkte || []);
+        const content = wpShowReflexion
+          ? [item.thema, item.reflexion].filter(Boolean).join(' – ')
+          : String(item.thema || '');
+        pushEntry(item.fach || '', content, item.schwerpunkte || []);
+      });
+
+      // Zeitunabhängige Einträge (Ausflug, Termin, Konferenz …) sind keine Unterrichtsfächer.
+      const allDayItems = Array.isArray(dayPlan.zeitunabhaengig) ? dayPlan.zeitunabhaengig : [];
+      allDayItems.forEach((item: any) => {
+        if (!item || item.erledigt) return;
+        const text = String(item.thema || item.text || '').trim();
+        if (!text) return;
+        ensureCategory('Besondere Vorkommnisse').push(`${tag}: ${text}`);
       });
     });
 
-    Object.keys(data).forEach(key => {
-      data[key] = Array.from(new Set(data[key].map(value => value.trim()).filter(Boolean)));
+    Object.keys(data).forEach((key) => {
+      data[key] = Array.from(
+        new Set(data[key].map((value) => value.trim()).filter(Boolean)),
+      );
     });
-    return data;
+
+    const orderedKeys = orderKlassenbuchCategoryKeys(
+      Object.keys(data).filter((key) => key !== 'Besondere Vorkommnisse'),
+      app?.faecher,
+    );
+    const ordered: Record<string, string[]> = {};
+    orderedKeys.forEach((key) => {
+      ordered[key] = data[key] || [];
+    });
+    ordered['Besondere Vorkommnisse'] = data['Besondere Vorkommnisse'] || [];
+    return ordered;
   };
 
   const compiledKbData = useMemo(() => compileKlassenbuchData(kbKW), [kbKW, app?.wochenplanung, wpShowReflexion]);
