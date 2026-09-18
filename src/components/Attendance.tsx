@@ -1035,13 +1035,13 @@ export default function Attendance() {
 
                   <button
                     onClick={() => {
-                      window.print();
+                      setApp(prev => ({ ...prev, currentPage: 'drucken', activePrintTemplate: 'fehlstunden' }));
                       setShowMehrMenu(false);
                     }}
                     className="w-full px-4 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 font-medium cursor-pointer"
                   >
                     <Printer size={15} className="text-slate-500" />
-                    <span>Drucken / PDF Export</span>
+                    <span>Im Druckzentrum öffnen</span>
                   </button>
                 </motion.div>
               )}
