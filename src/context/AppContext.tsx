@@ -125,7 +125,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     vaultKey: CryptoKey,
     hadLocalState: boolean,
   ): Promise<AppState> => {
-    const current = normalizeAppState(localState || initialAppState);
+    // Einen wirklich neuen Tresor nicht vorschnell durch die Legacy-/Klassenmigration
+    // schicken: Der bestehende First-Run muss weiterhin mit leerer Klasse starten.
+    const current = localState ? normalizeAppState(localState) : initialAppState;
     const vaultRecord = await loadVaultRecord();
     if (!vaultRecord) {
       accountSyncReadyRef.current = false;
@@ -297,7 +299,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               Boolean(decrypted),
             );
             if (isMounted) {
-              setApp(normalizeAppState(reconciled));
+              setApp(reconciled);
               setIsVaultUnlocked(true);
               setIsLoaded(true);
               return;
@@ -910,7 +912,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         key,
         Boolean(decrypted),
       );
-      setApp(normalizeAppState(reconciled));
+      setApp(reconciled);
       setIsVaultUnlocked(true);
       if (!decrypted) {
         await saveEncryptedAppState(reconciled, key);
