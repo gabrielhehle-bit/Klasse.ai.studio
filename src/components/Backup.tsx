@@ -588,16 +588,19 @@ export default function Backup() {
         }`}>
           {accountSyncHealthy ? <Cloud size={16} className="text-emerald-600" /> : <Clock size={16} className="text-amber-600" />}
           <div>
-            <p className={`text-[0.5625rem] font-black uppercase tracking-wider leading-none ${
-              accountSyncHealthy ? 'text-emerald-700' : 'text-amber-700'
-            }`}>
-              {accountSyncHealthy ? 'Konto-Sync aktiv' : 'Letzte Sicherung'}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className={`text-[0.5625rem] font-black uppercase tracking-wider leading-none ${
+                accountSyncHealthy ? 'text-emerald-700' : 'text-amber-700'
+              }`}>Letzte Sicherung</p>
+              {accountSyncHealthy && (
+                <span className="text-[0.5625rem] font-black uppercase tracking-wide text-emerald-700">Konto-Sync aktiv</span>
+              )}
+            </div>
             <p className="text-[0.75rem] font-black text-slate-900 mt-1 leading-tight">
               {accountSyncHealthy
                 ? accountSyncLastAt
-                  ? 'Synchronisiert: ' + new Date(accountSyncLastAt).toLocaleString('de-AT')
-                  : 'Automatisch synchronisiert'
+                  ? 'Automatisch synchronisiert: ' + new Date(accountSyncLastAt).toLocaleString('de-AT')
+                  : 'Automatisch synchronisiert · Datei-Backup optional'
                 : lastBackupStr}
             </p>
           </div>
