@@ -234,8 +234,14 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     process.env.KLASSIO_PAYPAL_ONE_TIME_URL,
     'https://paypal.me/gabrielhehle'
   );
-  const SUPPORT_PAYPAL_MONTHLY_URL = safePayPalUrl(process.env.KLASSIO_PAYPAL_MONTHLY_URL);
-  const SUPPORT_PAYPAL_YEARLY_URL = safePayPalUrl(process.env.KLASSIO_PAYPAL_YEARLY_URL);
+  const SUPPORT_PAYPAL_MONTHLY_URL = safePayPalUrl(
+    process.env.KLASSIO_PAYPAL_MONTHLY_URL,
+    'https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-39527139B4457294RNKVOWJQ'
+  );
+  const SUPPORT_PAYPAL_YEARLY_URL = safePayPalUrl(
+    process.env.KLASSIO_PAYPAL_YEARLY_URL,
+    'https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-82J97339KC156492WNKVOZGA'
+  );
 
   type EmailAccessChallenge = {
     codeHash: string;
