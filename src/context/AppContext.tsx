@@ -902,35 +902,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!key) throw new Error('Bitte zuerst den lokalen Tresor entsperren.');
     const persistedSyncCode = currentAppRef.current.boardSettings?.activeSyncCode;
     if (persistedSyncCode) {
-      let syncSessionStillExists = true;
+      // Eine Wiederherstellung ist selbst ein expliziter Wechsel des lokalen Datenstands.
+      // Deshalb beendet Klassio eine noch gespeicherte Smartboard-/Geräte-Sitzung automatisch,
+      // statt den Import durch einen (möglicherweise verwaisten) Sync-Code zu blockieren.
       try {
-        const response = await fetch('/api/sync/' + encodeURIComponent(persistedSyncCode), { cache: 'no-store' });
-        if (response.status === 404) syncSessionStillExists = false;
+        const response = await fetch('/api/sync/' + encodeURIComponent(persistedSyncCode), {
+          method: 'DELETE',
+          cache: 'no-store',
+        });
+        if (!response.ok && response.status !== 404) {
+          throw new Error('Sync-Sitzung konnte serverseitig nicht beendet werden.');
+        }
       } catch {
         throw new Error(
-          'Die gespeicherte Geräteverbindung konnte gerade nicht geprüft werden. Bitte Internetverbindung prüfen und den Import erneut versuchen.'
+          'Die Geräteverbindung konnte vor der Wiederherstellung nicht sicher beendet werden. Bitte Internetverbindung prüfen und den Import erneut versuchen.'
         );
       }
 
-      if (syncSessionStillExists) {
-        throw new Error('Bitte zuerst die aktive Geräteverbindung beenden und das Backup danach erneut einlesen.');
-      }
-
-      // Alte Builds konnten einen abgelaufenen Sync-Code lokal behalten. Eine serverseitig
-      // nicht mehr vorhandene Sitzung darf deshalb keinen Backup-Import dauerhaft blockieren.
       clearActiveSessionKey();
       activeSessionKeyRef.current = null;
-      const withoutStaleSync: AppState = {
+      lastSeenTimestampRef.current = 0;
+      lastSeenStateRef.current = null;
+      isPendingPushRef.current = false;
+
+      const withoutDeviceSync: AppState = {
         ...currentAppRef.current,
         boardSettings: {
           ...currentAppRef.current.boardSettings,
           activeSyncCode: undefined,
           isRemoteController: undefined,
           gabicRole: undefined,
+          remoteLastActiveTs: undefined,
         },
       };
-      currentAppRef.current = withoutStaleSync;
-      setAppInternal(withoutStaleSync);
+      currentAppRef.current = withoutDeviceSync;
+      setAppInternal(withoutDeviceSync);
     }
     assertRestorableAppState(data);
     const next = syncActiveClass(normalizeAppState({
