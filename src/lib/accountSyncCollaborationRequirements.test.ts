@@ -164,6 +164,7 @@ test('Lehrerzimmer unterstützt @vorname, @nachname und @vornamenachname eindeut
   assert.deepEqual(resolveMentionUserIds(users, 'Hallo @anna'), ['u1']);
   assert.deepEqual(resolveMentionUserIds(users, 'Hallo @muster'), ['u1']);
   assert.deepEqual(resolveMentionUserIds(users, 'Hallo @annamuster'), ['u1']);
+  assert.deepEqual(resolveMentionUserIds(users, 'Hallo @anna.muster.'), ['u1']);
 });
 
 test('Mehrdeutige Kurz-Erwähnungen markieren nicht versehentlich die falsche Lehrperson', () => {
