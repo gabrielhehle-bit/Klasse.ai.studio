@@ -27,7 +27,7 @@ export default function AccountSettings() {
           <div className="flex items-start gap-3">
             <Database size={17} className="mt-0.5 shrink-0 text-emerald-700" />
             <p className="text-xs font-semibold leading-relaxed text-emerald-900">
-              Klassen, Planungen, Noten und Einstellungen bleiben lokal verschlüsselt und werden mit aktivem E-Mail-Konto zusätzlich verschlüsselt auf dem KLASSIO-Server gespeichert. Der Server erhält keinen lesbaren Schülerbestand und keinen unverschlüsselten Tresorschlüssel. Datei- oder OneDrive-Backups bleiben als freiwillige Zusatzsicherung möglich.
+              Bereits eingerichtete Klassen, Planungen, Noten und Tresordaten bleiben auf diesem Gerät erhalten und lokal verschlüsselt. Mit aktivem E-Mail-Konto wird derselbe KLASSIO-Stand zusätzlich Ende-zu-Ende-verschlüsselt auf dem Server gespeichert. Der Server erhält keinen lesbaren Schülerbestand und keinen unverschlüsselten Tresorschlüssel. Datei- oder OneDrive-Backups bleiben als freiwillige Zusatzsicherung möglich.
             </p>
           </div>
         </div>
