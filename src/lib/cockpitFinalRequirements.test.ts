@@ -6,6 +6,7 @@ const teachingSurface = readFileSync("src/components/Unterrichtsmodus.tsx", "utf
 const cockpitWidget = readFileSync("src/components/cockpit/CockpitWidget.tsx", "utf8");
 const templatesModal = readFileSync("src/components/cockpit/CockpitVorlagenModal.tsx", "utf8");
 const kidAttendance = readFileSync("src/components/cockpit/widgets/KidAttendanceWidget.tsx", "utf8");
+const boardTextEditor = readFileSync("src/components/cockpit/BoardTextEditor.tsx", "utf8");
 
 const widgetTypes = (source: string) =>
   [...new Set([...source.matchAll(/type:\s*"([^"]+)"/g)].map((match) => match[1]))];
@@ -19,8 +20,12 @@ test("Cockpit: freie Unterrichtsfläche bleibt weiß und ohne Startkarte", () =>
   assert.doesNotMatch(teachingSurface, /cockpit-empty-state-hint/);
 });
 
-test("Cockpit: Widgetauswahl startet ohne vorgegebene Schnellkategorie", () => {
-  assert.match(teachingSurface, /useState<string>\("all"\)/);
+test("Cockpit: Widgetauswahl startet ruhig mit Kategorien statt mit 108 Karten", () => {
+  assert.match(teachingSurface, /useState<string>\("categories"\)/);
+  assert.match(teachingSurface, /\{ id: "categories", label: "Kategorien" \}/);
+  assert.doesNotMatch(teachingSurface, /Alle Hilfen/);
+  assert.match(teachingSurface, /Wähle oben eine Kategorie/);
+  assert.match(teachingSurface, /durchsucht Klassio automatisch den gesamten Widget-Katalog/);
   assert.doesNotMatch(teachingSurface, /Für den Unterricht/);
   assert.doesNotMatch(teachingSurface, /activeWidgetCategory === "everyday"/);
   assert.doesNotMatch(teachingSurface, /DEFAULT_QUICK_WIDGETS/);
@@ -114,6 +119,32 @@ test("Cockpit: aktive Unterrichtsfläche ist nur eine weiße Smartboard-Fläche 
   assert.doesNotMatch(teachingSurface, /setIsBoardWriting/);
 });
 
+
+test("Cockpit: TEXT macht die weiße Fläche zu einem klassenlokalen Rich-Text-Dokument", () => {
+  assert.match(teachingSurface, />\s*TEXT\s*</);
+  assert.match(teachingSurface, /<BoardTextEditor/);
+  assert.match(teachingSurface, /cockpitTextByClass/);
+  assert.match(teachingSurface, /boardTextClassKey = app\.activeClassId \|\| "unassigned"/);
+  assert.match(boardTextEditor, /contentEditable=\{active\}/);
+  assert.match(boardTextEditor, /aria-label="Text formatieren"/);
+  for (const command of [
+    "bold",
+    "italic",
+    "underline",
+    "justifyLeft",
+    "justifyCenter",
+    "justifyRight",
+    "insertUnorderedList",
+    "insertOrderedList",
+    "undo",
+    "redo",
+  ]) {
+    assert.ok(boardTextEditor.includes(`runCommand("${command}"`), `Textbefehl fehlt: ${command}`);
+  }
+  assert.match(boardTextEditor, /clipboardData\.getData\("text\/plain"\)/);
+  assert.doesNotMatch(boardTextEditor, /canvas/i);
+  assert.doesNotMatch(boardTextEditor, /pointerType/);
+});
 
 test("Cockpit: nutzt die konfigurierten zehn Stunden-Slots statt acht fest verdrahteter Einheiten", () => {
   assert.match(teachingSurface, /lessonTimeSlots\.map\(\(\{ slot \}\) =>/);
