@@ -93,26 +93,42 @@ import AccessGate from './components/AccessGate';
 import { AnimatePresence, motion } from 'motion/react';
 import { Settings2, X, Mic, Sparkles, HelpCircle, Loader2 } from 'lucide-react';
 import { getKW, getTodayName, getAccentTextColor } from './lib/utils';
+import { parseSyncHash } from './lib/syncService';
 const DiagnostikAnleitung = lazyRetry(() => import('./components/DiagnostikAnleitung'));
 const DataConsistencyModal = lazyRetry(() => import('./components/DataConsistencyModal'));
 
 function AccessGuard({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [remotePairing] = useState(() => parseSyncHash(window.location.hash));
 
   React.useEffect(() => {
     let isMounted = true;
-    fetch('/api/access/status')
-      .then((res) => res.json())
-      .then((data) => {
-        if (isMounted) {
-          setIsAuthenticated(data?.authenticated === true);
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setIsAuthenticated(false);
-        }
-      });
+
+    const checkNormalAccess = () =>
+      fetch('/api/access/status')
+        .then((res) => res.json())
+        .then((data) => {
+          if (isMounted) setIsAuthenticated(data?.authenticated === true);
+        })
+        .catch(() => {
+          if (isMounted) setIsAuthenticated(false);
+        });
+
+    if (remotePairing) {
+      // A phone pairing link may enter only if the temporary server session exists.
+      // The encryption key remains in the URL fragment and is never sent here.
+      fetch(`/api/sync/${encodeURIComponent(remotePairing.code)}`, { cache: 'no-store' })
+        .then((res) => {
+          if (res.ok) {
+            if (isMounted) setIsAuthenticated(true);
+            return;
+          }
+          return checkNormalAccess();
+        })
+        .catch(() => checkNormalAccess());
+    } else {
+      void checkNormalAccess();
+    }
 
     const handleLogout = () => {
       fetch('/api/access/logout', { method: 'POST' }).finally(() => {
@@ -125,7 +141,7 @@ function AccessGuard({ children }: { children: React.ReactNode }) {
       isMounted = false;
       window.removeEventListener('lehrerapp-logout', handleLogout);
     };
-  }, []);
+  }, [remotePairing]);
 
   if (isAuthenticated === null) {
     return (
@@ -573,14 +589,9 @@ function AppContent() {
         }>
           <MobileRemoteController 
             onClose={() => {
-              setApp((prev: any) => ({
-                ...prev,
-                boardSettings: {
-                  ...prev.boardSettings,
-                  activeSyncCode: undefined,
-                  isRemoteController: undefined
-                }
-              }));
+              // The phone controller never persists the teacher state locally.
+              // Leaving the temporary session reloads into the normal login gate.
+              window.location.replace(window.location.pathname);
             }} 
             getActiveSubject={getActiveSubject} 
           />
