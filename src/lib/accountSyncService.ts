@@ -50,8 +50,86 @@ function storage(): Storage | null {
   }
 }
 
+const DEFAULT_MITARBEIT_SETTINGS = {
+  thresholds: { 1: 13, 2: 10, 3: 7, 4: 4, 5: 0 },
+  mode: 'absolute',
+};
+
+function isPlainEmptyObject(value: unknown): boolean {
+  return !!value
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && Object.keys(value as Record<string, unknown>).length === 0;
+}
+
+function canonicalizeSyncDefaults(state: AppState): AppState {
+  const target = state as any;
+
+  // Alte Backups und frisch normalisierte App-Stände können dieselben leeren
+  // Felder unterschiedlich darstellen (fehlend vs. [] / {}). Für den Konto-
+  // Fingerprint ist das semantisch identisch und darf keine neue Revision erzeugen.
+  const emptyArrayFields = [
+    'differenzierungsGruppen',
+    'kelGespraeche',
+    'klassenglas_missions',
+    'notes',
+  ];
+  for (const field of emptyArrayFields) {
+    if (target[field] === undefined || (Array.isArray(target[field]) && target[field].length === 0)) {
+      target[field] = [];
+    }
+  }
+
+  const emptyObjectFields = [
+    'kiPortfolioSummaries',
+    'oberauData',
+    'portfolioEntries',
+    'studentLernzielBewertungen',
+    'studentLernzielSemesterBewertungen',
+  ];
+  for (const field of emptyObjectFields) {
+    if (target[field] === undefined || isPlainEmptyObject(target[field])) {
+      target[field] = {};
+    }
+  }
+
+  if (target.mitarbeit_settings === undefined) {
+    target.mitarbeit_settings = JSON.parse(JSON.stringify(DEFAULT_MITARBEIT_SETTINGS));
+  }
+  if (target.stundenbilderMigriert === undefined) target.stundenbilderMigriert = true;
+  if (target.vertretungHinweise === undefined) target.vertretungHinweise = '';
+
+  // Historische Builds legten auf manchen Geräten eine lokale Demo-Notiz mit
+  // Zeitstempel an. Sie ist kein Nutzinhalt und darf weder Geräte unterscheiden
+  // noch beim Import alter JSON-Dateien eine künstliche Sync-Revision erzeugen.
+  const denkzettelNotes = target.denkzettelNotes;
+  if (
+    denkzettelNotes === undefined
+    || (
+      Array.isArray(denkzettelNotes)
+      && denkzettelNotes.length === 1
+      && denkzettelNotes[0]?.id === 'welcome-1'
+    )
+  ) {
+    target.denkzettelNotes = [];
+  }
+
+  if (Array.isArray(target.classes)) {
+    target.classes = target.classes.map((room: any) => ({
+      ...room,
+      klassenglas_missions:
+        room?.klassenglas_missions === undefined
+        || (Array.isArray(room.klassenglas_missions) && room.klassenglas_missions.length === 0)
+          ? []
+          : room.klassenglas_missions,
+    }));
+  }
+
+  return state;
+}
+
 export function accountSyncState(state: AppState): AppState {
-  const clone = JSON.parse(JSON.stringify(state)) as AppState;
+  const clone = canonicalizeSyncDefaults(JSON.parse(JSON.stringify(state)) as AppState);
 
   // Reine Geräte-/Navigationszustände dürfen weder Serverrevisionen erzeugen
   // noch auf einem zweiten Gerät die aktuelle Ansicht umschalten.
@@ -60,9 +138,21 @@ export function accountSyncState(state: AppState): AppState {
   clone.unterrichtsmodus_sidebar_open = false;
   clone.tempQrValue = '';
 
+  // Teamteaching-Metadaten sind bewusst gerätelokal. Sie enthalten die
+  // gerätespezifische Sync-Baseline und dürfen weder Konto-Revisionen erzeugen
+  // noch von einem anderen Gerät übernommen werden.
+  if (Array.isArray(clone.classes)) {
+    clone.classes = clone.classes.map(room => {
+      if (!room.teamTeaching) return room;
+      const { teamTeaching: _deviceLocalTeamTeaching, ...accountRoom } = room;
+      return accountRoom;
+    });
+  }
+
   if (clone.boardSettings) {
     clone.boardSettings = {
       ...clone.boardSettings,
+      activeFont: clone.boardSettings.activeFont || 'font-standard',
       activeSyncCode: undefined,
       isRemoteController: undefined,
       gabicRole: undefined,
@@ -74,8 +164,22 @@ export function accountSyncState(state: AppState): AppState {
 }
 
 export function mergeAccountSyncState(remote: AppState, local: AppState): AppState {
+  const localTeamTeaching = new Map(
+    (local.classes || [])
+      .filter(room => room.teamTeaching)
+      .map(room => [room.id, room.teamTeaching] as const),
+  );
+  const classes = (remote.classes || []).map(room => {
+    const { teamTeaching: _remoteTeamTeaching, ...accountRoom } = room;
+    const deviceLocalTeamTeaching = localTeamTeaching.get(room.id);
+    return deviceLocalTeamTeaching
+      ? { ...accountRoom, teamTeaching: deviceLocalTeamTeaching }
+      : accountRoom;
+  });
+
   return {
     ...remote,
+    classes,
     currentPage: local.currentPage,
     previousPage: local.previousPage,
     unterrichtsmodus_sidebar_open: local.unterrichtsmodus_sidebar_open,
@@ -91,8 +195,19 @@ export function mergeAccountSyncState(remote: AppState, local: AppState): AppSta
   };
 }
 
+function stableSerialize(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return '[' + value.map(item => stableSerialize(item)).join(',') + ']';
+
+  const record = value as Record<string, unknown>;
+  return '{' + Object.keys(record)
+    .sort()
+    .map(key => JSON.stringify(key) + ':' + stableSerialize(record[key]))
+    .join(',') + '}';
+}
+
 export function appStateFingerprint(state: AppState): string {
-  const json = JSON.stringify(accountSyncState(state));
+  const json = stableSerialize(accountSyncState(state));
   let hash = 2166136261;
   for (let i = 0; i < json.length; i++) {
     hash ^= json.charCodeAt(i);
@@ -207,12 +322,52 @@ export async function pushAccountSyncSnapshot(
 }
 
 export async function hasEmailAccountSession(): Promise<boolean> {
+  let response: Response;
   try {
-    const response = await fetch('/api/access/status', { cache: 'no-store' });
-    if (!response.ok) return false;
-    const data = await response.json();
-    return Boolean(data?.authenticated && data?.account?.email);
-  } catch {
-    return false;
+    response = await fetch('/api/access/status', { cache: 'no-store' });
+  } catch (cause) {
+    throw new AccountSyncError(
+      'Klassio kann den E-Mail-Kontostatus gerade nicht prüfen. Bitte Internetverbindung prüfen und erneut versuchen.',
+      undefined,
+      'SESSION_STATUS_UNAVAILABLE',
+    );
   }
+
+  if (!response.ok) {
+    throw new AccountSyncError(
+      'Klassio kann den E-Mail-Kontostatus gerade nicht prüfen.',
+      response.status,
+      'SESSION_STATUS_UNAVAILABLE',
+    );
+  }
+
+  const data = await response.json().catch(() => {
+    throw new AccountSyncError(
+      'Der E-Mail-Kontostatus konnte nicht gelesen werden.',
+      response.status,
+      'SESSION_STATUS_INVALID',
+    );
+  });
+  return Boolean(data?.authenticated && data?.account?.email);
+}
+
+export function accountSyncErrorMessage(error: unknown): string {
+  const syncError = error as Partial<AccountSyncError> | null;
+  if (syncError?.code === 'REVISION_CONFLICT') {
+    return 'Auf einem anderen Gerät wurde ebenfalls geändert. Zur Sicherheit wurde nichts überschrieben. Öffne Klassio auf dem aktuellsten Gerät und starte den Abgleich danach erneut.';
+  }
+  if (syncError?.code === 'VAULT_MISMATCH') {
+    return 'Das E-Mail-Konto enthält einen anderen Datentresor. Zur Sicherheit wurde nichts überschrieben. Prüfe, ob du das richtige Konto und den richtigen Tresor verwendest.';
+  }
+  if (syncError?.code === 'SESSION_STATUS_UNAVAILABLE' || syncError?.code === 'SYNC_READ_FAILED') {
+    return 'Der verschlüsselte Kontostand ist gerade nicht erreichbar. Deine lokalen Daten bleiben erhalten. Prüfe die Verbindung und versuche den Abgleich erneut.';
+  }
+  if (syncError?.code === 'SYNC_WRITE_FAILED') {
+    return 'Klassio konnte den verschlüsselten Stand gerade nicht auf dem Server sichern. Lokal ist weiter gespeichert; der Konto-Abgleich wird erneut versucht.';
+  }
+  if (syncError?.status === 413 || syncError?.code === 'PAYLOAD_TOO_LARGE') {
+    return 'Der verschlüsselte Kontostand ist zu groß für den Konto-Sync. Lokale Daten wurden nicht gelöscht. Bitte zusätzlich eine verschlüsselte Datei-Sicherung erstellen.';
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return 'Der verschlüsselte Konto-Abgleich ist fehlgeschlagen. Deine lokalen Daten bleiben erhalten.';
 }
