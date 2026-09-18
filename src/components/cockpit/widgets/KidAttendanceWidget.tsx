@@ -278,12 +278,12 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
     // Touch-Target-Größen je nach Modus
     const cardHeight = size.isXL
-      ? 'h-20 min-h-[72px] px-4'
+      ? 'min-h-[80px] px-4 py-3'
       : size.isLarge
-      ? 'h-16 min-h-[58px] px-3.5'
+      ? 'min-h-[64px] px-3.5 py-2.5'
       : size.isStandard
-      ? 'h-14 min-h-[50px] px-3'
-      : 'h-13 min-h-[48px] px-2.5';
+      ? 'min-h-[56px] px-3 py-2.5'
+      : 'min-h-[52px] px-2.5 py-2';
 
     const initial = (student.vorname || '?')[0].toUpperCase();
 
@@ -322,7 +322,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
           <div className="min-w-0 flex-1">
             <span
-              className={`block truncate font-black leading-tight ${
+              className={`block whitespace-normal break-words font-black leading-tight ${
                 size.isXL
                   ? 'text-lg sm:text-xl tracking-tight'
                   : size.isLarge
@@ -358,7 +358,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           }`}
         >
           {statusIcon}
-          <span className="truncate">{statusLabel}</span>
+          <span className="whitespace-nowrap">{statusLabel}</span>
         </div>
       </button>
     );
@@ -421,7 +421,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
                   }`}
                 >
-                  <span className="min-w-0 flex-1 truncate text-[11px] font-black">{displayName}</span>
+                  <span className="min-w-0 flex-1 whitespace-normal break-words text-[11px] font-black leading-tight">{displayName}</span>
                   {delayMinutes > 0 && <span className="text-[9px] font-bold text-amber-600">+{delayMinutes}m</span>}
                   <span className={`shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded ${
                     status === 'present'
@@ -485,12 +485,14 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   // STANDARD (380-549px), LARGE (550-799px), FULLSCREEN (≥ 800px)
   // und COMPACT-Overlay (wenn geöffnet)
   // ==========================================
+  // Kinderkarten bekommen bewusst mehr Breite: Namen dürfen niemals zugunsten
+  // einer möglichst hohen Spaltenzahl abgeschnitten werden.
   const gridColumnsClass = size.isXL
-    ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'
+    ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4'
     : size.isLarge
-    ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
+    ? 'grid-cols-2 md:grid-cols-3'
     : size.isStandard
-    ? 'grid-cols-2 sm:grid-cols-3'
+    ? 'grid-cols-2'
     : 'grid-cols-1 sm:grid-cols-2'; // Für aufgeklapptes Compact
 
   return (
@@ -716,7 +718,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-bold text-sm truncate">
+                      <span className="font-bold text-sm whitespace-normal break-words leading-tight">
                         {displayName}
                       </span>
                       <span
@@ -1025,7 +1027,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                         key={student.id}
                         className="p-2.5 flex items-center justify-between gap-2 bg-white dark:bg-zinc-800/40"
                       >
-                        <span className="font-bold text-sm truncate">
+                        <span className="font-bold text-sm whitespace-normal break-words leading-tight">
                           {displayName}
                         </span>
 

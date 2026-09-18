@@ -73,6 +73,22 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   storyemojis: { minW: 280, minH: 220, prefW: 420, prefH: 340 },
 };
 
+export const DEFAULT_WIDGET_MIN_SIZE: WidgetMinSizeConfig = {
+  minW: 260,
+  minH: 180,
+  prefW: 420,
+  prefH: 340,
+};
+
+/**
+ * Liefert für jeden Widgettyp eine sichere Mindestgröße.
+ * Auch ältere/seltene Widgets dürfen dadurch nicht mehr auf unlesbar kleine
+ * Fenster geschrumpft werden.
+ */
+export function getWidgetMinSizeConfig(widgetType: string): WidgetMinSizeConfig {
+  return WIDGET_MIN_SIZES[widgetType] || DEFAULT_WIDGET_MIN_SIZE;
+}
+
 export const TOUCH_TARGET_MIN = 44; // min 44px gemäß UI-Standard
 
 /**
