@@ -218,7 +218,8 @@ export class LehrerzimmerStore {
   }
 
   async getUnreadSummary(identity: TeacherIdentity): Promise<LehrerzimmerUnreadSummary> {
-    await this.ensureUser(identity);
+    // Dieser Endpoint wird für Sidebar/Dashboard regelmäßig abgefragt. Nur lesen:
+    // ein Poll darf nicht alle paar Sekunden die Lehrerzimmer-Datei neu schreiben.
     const data = await this.read();
     const unread = (data.posts[identity.schoolId] || [])
       .filter(post => isUnread(data, identity, post))
