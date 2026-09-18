@@ -119,10 +119,22 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
 
   const availableModules = ALL_MODULES.filter(item =>
     (app.klassenvorstand || !restrictedForSubjectTeachers.has(item.id)) &&
-    !disabledModules.includes(item.id)
+    (!disabledModules.includes(item.id) || item.id === 'lehrerzimmer')
   );
 
-  const orderedModules = orderSidebarItems(availableModules);
+  const orderedModulesBase = orderSidebarItems(availableModules);
+  const orderedModules = (() => {
+    const room = orderedModulesBase.find(item => item.id === 'lehrerzimmer');
+    const withoutRoom = orderedModulesBase.filter(item => item.id !== 'lehrerzimmer');
+    if (!room) return withoutRoom;
+    const toolsIndex = withoutRoom.findIndex(item => item.id === 'tools');
+    if (toolsIndex < 0) return [...withoutRoom, room];
+    return [
+      ...withoutRoom.slice(0, toolsIndex + 1),
+      room,
+      ...withoutRoom.slice(toolsIndex + 1),
+    ];
+  })();
   const utilityModules = orderedModules.filter(item => utilityIds.has(item.id));
   const mainModules = orderedModules.filter(item => !utilityIds.has(item.id));
   const defaultPrimaryModules = mainModules.filter(
