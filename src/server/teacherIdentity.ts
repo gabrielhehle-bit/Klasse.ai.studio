@@ -51,6 +51,41 @@ export function handleFromEmail(email: string): string {
   return cleaned || 'lehrperson';
 }
 
+export function normalizeMentionAlias(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/ä/g, 'ae')
+    .replace(/ö/g, 'oe')
+    .replace(/ü/g, 'ue')
+    .replace(/ß/g, 'ss')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9._-]+/g, '')
+    .slice(0, 48);
+}
+
+export function mentionAliasesForTeacher(displayName: string, handle: string): string[] {
+  const parts = displayName
+    .split(/\s+/)
+    .map(normalizeMentionAlias)
+    .filter(Boolean);
+  const first = parts[0] || '';
+  const last = parts.length > 1 ? parts[parts.length - 1] : '';
+  const aliases = new Set<string>();
+
+  const normalizedHandle = normalizeMentionAlias(handle);
+  if (normalizedHandle) aliases.add(normalizedHandle);
+  if (first) aliases.add(first);
+  if (last) aliases.add(last);
+  if (first && last) {
+    aliases.add(first + last);
+    aliases.add(first + '.' + last);
+  }
+
+  return [...aliases].filter(alias => alias.length >= 2);
+}
+
 export function createTeacherIdentity(email: string, allowedDomains: string[]): TeacherIdentity | null {
   const normalizedEmail = email.trim().toLowerCase();
   const schoolDomain = resolveSchoolDomain(normalizedEmail, allowedDomains);
