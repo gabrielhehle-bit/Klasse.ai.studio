@@ -35,6 +35,7 @@ import {
   subscribeVaultSession,
 } from '../lib/vaultStorage';
 import {
+  ACCOUNT_SESSION_CHANGED_EVENT,
   appStateFingerprint,
   decryptAccountSyncSnapshot,
   fetchAccountSyncSnapshot,
@@ -270,6 +271,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
       accountSyncBusyRef.current = false;
     }
   }, [markAccountSynced]);
+
+  const refreshAccountState = React.useCallback(async () => {
+    if (!isVaultUnlocked || restoringRef.current || accountSyncBusyRef.current) return;
+    const vaultKey = getActiveVaultKey();
+    if (!vaultKey) return;
+
+    accountSyncBusyRef.current = true;
+    try {
+      const before = currentAppRef.current;
+      const reconciled = await reconcileAccountState(before, vaultKey, true);
+      if (appStateFingerprint(reconciled) !== appStateFingerprint(before)) {
+        setApp(reconciled);
+      }
+    } catch (error) {
+      console.error('[AccountSync] Hintergrundabgleich fehlgeschlagen:', error);
+    } finally {
+      accountSyncBusyRef.current = false;
+    }
+  }, [isVaultUnlocked, reconcileAccountState, setApp]);
+
+
+  // E-Mail-Konto wird auch dann aktiv, wenn die Anmeldung erst in den Einstellungen erfolgt.
+  // Sichtbare/aktive Geräte gleichen zusätzlich regelmäßig den verschlüsselten Serverstand ab.
+  useEffect(() => {
+    if (!isLoaded || !isVaultUnlocked) return;
+
+    const refresh = () => { void refreshAccountState(); };
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    const interval = window.setInterval(() => {
+      if (accountSyncReadyRef.current) refresh();
+    }, 15_000);
+
+    window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, refresh);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refreshIfVisible);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener(ACCOUNT_SESSION_CHANGED_EVENT, refresh);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refreshIfVisible);
+    };
+  }, [isLoaded, isVaultUnlocked, refreshAccountState]);
 
   // In-Memory Getter für AI-Pseudonymisierung registrieren (kein Namenscache im localStorage)
   useEffect(() => {
@@ -927,6 +973,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [setApp, reconcileAccountState]);
 
   const lockAppVault = React.useCallback(() => {
+    accountSyncReadyRef.current = false;
+    accountSyncRevisionRef.current = 0;
     clearActiveVaultSession();
     currentAppRef.current = initialAppState;
     setAppInternal(initialAppState);
