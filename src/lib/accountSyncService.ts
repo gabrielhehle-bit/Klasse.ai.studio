@@ -33,6 +33,7 @@ export class AccountSyncError extends Error {
 }
 
 const META_KEY = 'klassio_account_sync_meta_v1';
+const HEALTH_KEY = 'klassio_account_sync_healthy_v1';
 
 function storage(): Storage | null {
   try {
@@ -105,8 +106,26 @@ export function saveAccountSyncMetadata(snapshot: Pick<AccountSyncSnapshot, 'vau
 export function clearAccountSyncMetadata(): void {
   try {
     storage()?.removeItem(META_KEY);
+    storage()?.removeItem(HEALTH_KEY);
   } catch {
     // Best effort.
+  }
+}
+
+export function setAccountSyncHealthy(healthy: boolean): void {
+  try {
+    if (healthy) storage()?.setItem(HEALTH_KEY, '1');
+    else storage()?.removeItem(HEALTH_KEY);
+  } catch {
+    // Best effort.
+  }
+}
+
+export function isAccountSyncHealthy(): boolean {
+  try {
+    return storage()?.getItem(HEALTH_KEY) === '1';
+  } catch {
+    return false;
   }
 }
 
