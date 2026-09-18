@@ -293,41 +293,49 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
     <div className={`${
       app.dossierFocusMode 
         ? 'max-w-none w-full flex flex-col gap-0 min-h-screen pb-10' 
-        : 'max-w-none w-full flex flex-col lg:flex-row gap-4 lg:gap-5 xl:gap-6 min-h-[85vh] pb-20 px-2 sm:px-4 lg:px-6 xl:px-8'
+        : 'mx-auto w-full max-w-7xl flex flex-col gap-4 min-h-[85vh] pb-20 px-3 sm:px-5 lg:px-7'
     } animate-in fade-in slide-in-from-bottom-4 duration-500`}>
-      {/* SIDEBAR NAVIGATION */}
+      {/* COMPACT STUDENT NAVIGATION */}
       {!app.dossierFocusMode && (
-        <div className="lg:w-56 xl:w-60 flex flex-col gap-5 shrink-0 min-w-0 print:hidden">
-        {/* Profile Navigator Mini Card */}
-        <div className="bg-white p-4 sm:p-5 lg:p-6 rounded-[2.5rem] border border-slate-205/65 shadow-2xl shadow-slate-900/5 space-y-5 min-w-0">
-          <div className="flex items-center gap-3.5">
+        <div className="print:hidden flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
             {onBack && (
-              <button 
+              <button
+                type="button"
                 onClick={onBack}
-                className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-550 hover:text-slate-900 transition-all border border-slate-200 shadow-3xs hover:bg-slate-100"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                title="Zur Schülerauswahl"
               >
-                <ArrowLeft size={16} />
+                <ArrowLeft size={15} />
               </button>
             )}
-            <h2 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">Schüler-Dossier</h2>
+            <div className="min-w-0">
+              <p className="text-[0.58rem] font-black uppercase tracking-[0.18em] text-slate-400">Schülerdossier</p>
+              <p className="truncate text-sm font-black text-slate-900">
+                {student.vorname} {student.nachname}
+              </p>
+            </div>
           </div>
 
-          {/* Quick switcher select dropdown */}
-          <div className="space-y-1.5 pt-1">
-            <div className="flex items-center justify-between gap-2 px-1">
-              <label htmlFor="student-switcher" className="text-[0.5625rem] font-black uppercase tracking-[0.2em] text-slate-400">
-                Schüler/in wechseln
-              </label>
-              <span className="text-[0.6rem] font-black tabular-nums text-slate-400">
-                {currentStudentIndex + 1} von {app.schueler.length}
-              </span>
-            </div>
-            <div className="relative">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-xl sm:justify-end">
+            <button
+              type="button"
+              onClick={() => switchStudent(previousStudent?.id)}
+              disabled={!previousStudent}
+              aria-label={previousStudent
+                ? `Vorheriges Kind: ${previousStudent.vorname} ${previousStudent.nachname}`
+                : 'Kein vorheriges Kind'}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              <ArrowLeft size={14} />
+            </button>
+
+            <div className="relative min-w-0 flex-1 sm:max-w-sm">
               <select
                 id="student-switcher"
                 value={student.id}
                 onChange={(e) => onStudentChange && onStudentChange(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-3 text-[0.75rem] leading-tight font-black text-slate-800 shadow-3xs focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:bg-slate-100 transition-all cursor-pointer appearance-none"
+                className="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 pr-9 text-xs font-black text-slate-800 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                 disabled={!onStudentChange}
               >
                 {app.schueler.map((s) => (
@@ -336,77 +344,50 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                   </option>
                 ))}
               </select>
-              <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-450">
-                <ChevronRight size={14} className="rotate-90" />
-              </div>
+              <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
             </div>
-            {onStudentChange && (
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => switchStudent(previousStudent?.id)}
-                  disabled={!previousStudent}
-                  aria-label={previousStudent
-                    ? `Vorheriges Kind: ${previousStudent.vorname} ${previousStudent.nachname}`
-                    : 'Kein vorheriges Kind'}
-                  className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-left text-[0.65rem] font-black text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  <ArrowLeft size={13} className="shrink-0" />
-                  <span className="truncate">{previousStudent?.vorname || 'Anfang'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchStudent(nextStudent?.id)}
-                  disabled={!nextStudent}
-                  aria-label={nextStudent
-                    ? `Nächstes Kind: ${nextStudent.vorname} ${nextStudent.nachname}`
-                    : 'Kein nächstes Kind'}
-                  className="flex min-w-0 items-center justify-end gap-2 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-right text-[0.65rem] font-black text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35"
-                >
-                  <span className="truncate">{nextStudent?.vorname || 'Ende'}</span>
-                  <ChevronRight size={13} className="shrink-0" />
-                </button>
-              </div>
-            )}
-            {!onStudentChange && (
-              <p className="text-[0.5625rem] text-slate-400 pl-1 leading-normal">
-                Navigation über Registerkarten oder Gesamtschülerliste.
-              </p>
-            )}
+
+            <span className="hidden text-[0.65rem] font-black tabular-nums text-slate-400 sm:inline">
+              {currentStudentIndex + 1}/{app.schueler.length}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => switchStudent(nextStudent?.id)}
+              disabled={!nextStudent}
+              aria-label={nextStudent
+                ? `Nächstes Kind: ${nextStudent.vorname} ${nextStudent.nachname}`
+                : 'Kein nächstes Kind'}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              <ChevronRight size={14} />
+            </button>
           </div>
-
         </div>
-
-      </div>
-    )}
+      )}
 
       {/* MAIN CONTENT AREA */}
       <div className={`flex-1 min-w-0 overflow-hidden lg:overflow-visible ${
         app.dossierFocusMode 
           ? 'bg-white rounded-none border-0 shadow-none p-4 md:p-8' 
-          : 'bg-white rounded-[2.5rem] border border-slate-200 shadow-2xl shadow-slate-900/5 p-4 sm:p-5 md:p-6 lg:p-6 xl:p-8'
+          : 'bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 md:p-6'
       } min-h-[70vh] flex flex-col justify-between print:p-0 print:border-none print:shadow-none print:rounded-none`}>
         <div>
-          {/* Unified dossier area navigation */}
+          {/* Dossierbereiche: one compact navigation level */}
           {!app.dossierFocusMode && (
-            <div className="mb-5 border-b border-slate-100 pb-5 print:hidden">
-              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-[0.6rem] font-black uppercase tracking-[0.18em] text-slate-400">Dossierbereiche</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">
-                    Wähle zuerst den Bereich – danach nur noch den passenden Unterpunkt.
-                  </p>
-                </div>
-                <span className="text-[0.65rem] font-bold text-slate-400">
-                  5 Bereiche
-                </span>
+            <div className="mb-5 border-b border-slate-100 pb-4 print:hidden">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-[0.6rem] font-black uppercase tracking-[0.18em] text-slate-400">Dossierbereiche</p>
+                <span className="text-[0.62rem] font-bold text-slate-400">5 Bereiche</span>
               </div>
-
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5" role="tablist" aria-label="Schülerdossier-Hauptbereiche">
+              <div
+                className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+                role="tablist"
+                aria-label="Schülerdossier-Hauptbereiche"
+              >
                 {getFilteredMainAreas().map((area) => {
                   const isActive = activeMainArea === area.id;
                   const AreaIcon = area.icon;
-
                   let badgeNode = null;
                   if (area.id === 'lernen_leistungen' && summaryGrade !== null) {
                     badgeNode = <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[0.55rem] font-black text-slate-700">∅ {summaryGrade.toFixed(1)}</span>;
@@ -425,26 +406,15 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                       role="tab"
                       aria-selected={isActive}
                       onClick={() => handleSelectArea(area.id)}
-                      className={`min-w-0 rounded-2xl border p-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      className={`flex shrink-0 items-center gap-2 rounded-xl border px-3 py-2 text-xs font-black transition focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
                         isActive
                           ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
-                          : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
-                          isActive ? 'bg-white/10 text-indigo-300' : 'bg-slate-100 text-slate-500'
-                        }`}>
-                          <AreaIcon size={14} />
-                        </div>
-                        {badgeNode}
-                      </div>
-                      <div className={`mt-2 text-[0.72rem] font-black leading-tight ${isActive ? 'text-white' : 'text-slate-900'}`}>
-                        {area.label}
-                      </div>
-                      <div className={`mt-1 hidden text-[0.55rem] font-semibold leading-snug sm:block ${isActive ? 'text-slate-300' : 'text-slate-400'}`}>
-                        {area.subtitle}
-                      </div>
+                      <AreaIcon size={14} className={isActive ? 'text-indigo-300' : 'text-slate-400'} />
+                      <span>{area.label}</span>
+                      {badgeNode}
                     </button>
                   );
                 })}
@@ -561,7 +531,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
 
           {/* Profile Hero Header Card */}
           {!app.dossierFocusMode && (
-            <div className={`mb-6 p-5 sm:p-6 bg-white border ${isBirthdayToday ? 'border-pink-200 shadow-sm' : 'border-slate-200/90 shadow-sm'} rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-5 transition-all relative`}>
+            <div className={`mb-5 px-4 py-4 sm:px-5 bg-slate-50/70 border ${isBirthdayToday ? 'border-pink-200' : 'border-slate-200'} rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 transition-all relative`}>
               
               {isBirthdayToday && (
                 <div className="absolute top-0 right-0 w-28 h-28 bg-pink-500/5 rounded-full blur-2xl pointer-events-none select-none" />
@@ -569,7 +539,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
 
               <div className="flex items-center gap-4 sm:gap-5">
                 {student.foto ? (
-                  <img src={student.foto} alt="" className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover ring-2 ${isBirthdayToday ? 'ring-pink-300' : 'ring-slate-200'} shadow-sm object-top`} referrerPolicy="no-referrer" />
+                  <img src={student.foto} alt="" className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover ring-2 ${isBirthdayToday ? 'ring-pink-300' : 'ring-slate-200'} shadow-sm object-top`} referrerPolicy="no-referrer" />
                 ) : (
                   <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 border border-slate-200/80 text-slate-700 flex items-center justify-center text-xl font-black shadow-inner`}>
                     {student.vorname.charAt(0)}{student.nachname.charAt(0)}
@@ -577,7 +547,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                 )}
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-2">
+                    <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-2">
                       <span>{student.vorname} {student.nachname}</span>
                       {isBirthdayToday && (
                         <span className="inline-block text-lg" title="Geburtstagskind!">🎉</span>
@@ -655,7 +625,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 self-stretch md:self-auto justify-end flex-wrap sm:flex-nowrap">
+              <div className="flex items-center gap-2 self-stretch lg:self-auto justify-start lg:justify-end flex-wrap">
                 {/* primary action: KEL Presentation */}
                 <button
                   type="button"
@@ -720,7 +690,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
 
           {/* Unterbereiche des gewählten Dossierbereichs */}
           {!app.dossierFocusMode && getFilteredSubTabs(activeMainArea).length > 1 && (
-            <div className="mb-8 flex items-center gap-2 overflow-x-auto rounded-[1.25rem] border border-slate-200/80 bg-slate-50/70 p-2 scrollbar-none lg:flex-wrap print:hidden" role="tablist" aria-label="Dossier-Unterbereiche">
+            <div className="mb-5 flex items-center gap-1.5 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1.5 scrollbar-none lg:flex-wrap print:hidden" role="tablist" aria-label="Dossier-Unterbereiche">
               {getFilteredSubTabs(activeMainArea).map((subTab) => {
                 const isSubActive = activeTab === subTab.id ||
                   (subTab.id === 'foerderung' && activeTab === 'foerderprofil') ||
@@ -736,7 +706,8 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                     role="tab"
                     aria-selected={isSubActive}
                     onClick={() => setActiveTab(subTab.id)}
-                    className={`flex items-center gap-2 py-2 px-3.5 rounded-xl text-[0.75rem] leading-tight font-black transition-all cursor-pointer border ${
+                    className={`flex items-center gap-1.5 py-2 px-3 rounded-lg text-[0.72rem] leading-tight font-black transition-all cursor-pointer border ${
+
                       isSubActive
                         ? 'bg-white text-slate-900 shadow-2xs border-slate-200/90'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/50 border-transparent'

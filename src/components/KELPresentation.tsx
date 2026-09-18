@@ -2305,135 +2305,175 @@ Antworte ausschließlich als JSON:
         }
       ` }} />
 
-      {/* TOPBAR HEADER - Hidden in Fullscreen */}
+      {/* CLEAN KEL COMMAND BAR - Hidden in Fullscreen */}
       {!isFullscreen && (
-        <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between z-50 shadow-xs no-print">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={onClose}
-              className="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 text-slate-600 transition-all hover:scale-105 active:scale-95"
-              title="Präsentation beenden (ESC)"
-            >
-              <X size={18} />
-            </button>
-            <div className="text-left">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                <h2 className="text-[0.75rem] leading-tight font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1.5">
-                  <GraduationCap size={16} /> KEL-Präsentation • {student.vorname} {student.nachname}
-                </h2>
-                <span className="inline-flex items-center gap-1 text-[0.5625rem] font-black text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200" title="Aktueller Stand der präsentierten Noten und Daten">
-                  <Clock size={10} /> Datenstand: {lastDataUpdate.toLocaleDateString('de-DE')} {lastDataUpdate.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-              <p className="text-[0.625rem] text-slate-500 font-bold mt-0.5">Gemeinsames Eltern-Schüler-Lehrer Gespräch</p>
-            </div>
-          </div>
-
-          {/* HYBRID VIEW SWITCHER */}
-          <div className="flex bg-slate-100 p-1 rounded-xl items-center self-center shrink-0">
-            <button
-              onClick={() => setPresentationView('slides')}
-              className={`px-3.5 py-1.5 rounded-lg text-[0.75rem] leading-tight font-black leading-none uppercase tracking-wider transition-all cursor-pointer ${
-                presentationView === 'slides' 
-                  ? 'bg-white text-indigo-700 shadow-xs border border-indigo-50' 
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              📋 PPT Folien
-            </button>
-            <button
-              onClick={() => setPresentationView('dossier')}
-              className={`px-3.5 py-1.5 rounded-lg text-[0.75rem] leading-tight font-black leading-none uppercase tracking-wider transition-all cursor-pointer ${
-                presentationView === 'dossier' 
-                  ? 'bg-white text-indigo-700 shadow-xs border border-indigo-50' 
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              📊 Gesamt-Dossier
-            </button>
-          </div>
-
-          {/* KEL PRESENTATION SCOPE SWITCHER */}
-          <div className="flex bg-slate-100 p-1 rounded-xl items-center self-center shrink-0">
-            <button
-              onClick={() => {
-                setKelMode('einfach');
-                localStorage.setItem('kel_presentation_mode', 'einfach');
-              }}
-              className={`px-3 py-1.5 rounded-lg text-[0.75rem] leading-tight font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                kelMode === 'einfach' 
-                  ? 'bg-white text-emerald-700 shadow-xs border border-emerald-50' 
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-              title="Einfach-Modus: Zeigt nur die wesentlichen Kernfolien"
-            >
-              🌱 Einfach
-            </button>
-            <button
-              onClick={() => {
-                setKelMode('experte');
-                localStorage.setItem('kel_presentation_mode', 'experte');
-              }}
-              className={`px-3 py-1.5 rounded-lg text-[0.75rem] leading-tight font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 ${
-                kelMode === 'experte' 
-                  ? 'bg-white text-indigo-700 shadow-xs border border-indigo-50' 
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-              title="Experten-Modus: Zeigt alle Details und zusätzliche Seiten"
-            >
-              ⚡ Experte
-            </button>
-            <button
-              onClick={() => setShowConfigDrawer(true)}
-              className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 ml-1 transition-all cursor-pointer flex items-center justify-center"
-              title="Foliensichtbarkeit individuell anpassen"
-            >
-              ⚙️
-            </button>
-          </div>
-
-          {/* Presenting language switcher for DAZ children */}
-          <div className="flex flex-wrap items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl p-1 shadow-2xs max-w-full">
-            <span className="text-[0.625rem] font-black uppercase text-slate-400 pl-1.5 pr-1 flex items-center gap-1">
-              🌐 <span className="hidden md:inline">SPRACHE / LANGUAGE:</span>
-            </span>
-            {getSuggestedLanguages().map((langObj) => (
+        <div className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 px-4 py-3 shadow-xs backdrop-blur-md no-print">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
               <button
-                key={langObj.id}
-                onClick={() => setSelectedLang(langObj.id)}
-                className={`px-2 py-1 rounded-lg text-[0.75rem] leading-tight font-bold transition-all flex items-center gap-1 cursor-pointer hover:scale-105 ${
-                  selectedLang === langObj.id
-                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                }`}
-                title={langObj.label}
+                type="button"
+                onClick={onClose}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100"
+                title="Präsentation beenden (ESC)"
               >
-                <span>{langObj.flag}</span>
-                <span className="text-[0.625rem] font-black">{langObj.num}</span>
+                <X size={16} />
               </button>
-            ))}
-            {isTranslating && (
-              <span className="inline-flex items-center gap-1 text-[0.625rem] text-indigo-600 animate-pulse font-bold px-2">
-                <RefreshCw size={10} className="animate-spin" /> KI übersetzt...
-              </span>
-            )}
-          </div>
+              <div className="min-w-0 text-left">
+                <p className="text-[0.58rem] font-black uppercase tracking-[0.18em] text-indigo-600">KEL-Gespräch</p>
+                <div className="flex min-w-0 items-center gap-2">
+                  <h2 className="truncate text-sm font-black text-slate-900">
+                    {student.vorname} {student.nachname}
+                  </h2>
+                  <span className="hidden text-[0.6rem] font-bold text-slate-400 sm:inline">
+                    Stand {lastDataUpdate.toLocaleDateString('de-AT')}
+                  </span>
+                </div>
+              </div>
+            </div>
 
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            <button
-              onClick={() => setIsFullscreen(true)}
-              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[0.625rem] uppercase tracking-wider rounded-xl border border-slate-200 transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95 shadow-xs"
-              title="Auf Vollbild vergrößern"
-            >
-              <Maximize2 size={13} /> <span>Vollbild</span>
-            </button>
-            
-            <button
-              onClick={onClose}
-              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[0.625rem] uppercase tracking-wider rounded-xl transition-all"
-            >
-              Beenden
-            </button>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <div className="flex rounded-xl border border-slate-200 bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() => setPresentationView('slides')}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${
+                    presentationView === 'slides' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Folien
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPresentationView('dossier')}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-black transition ${
+                    presentationView === 'dossier' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Gesamtübersicht
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowConfigDrawer(true)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                title="Folien auswählen"
+              >
+                Folien auswählen
+              </button>
+
+              {presentationView === 'slides' && (
+                <button
+                  type="button"
+                  onClick={() => setIsFullscreen(true)}
+                  className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white transition hover:bg-indigo-700"
+                  title="Präsentation im Vollbild starten"
+                >
+                  <Maximize2 size={13} />
+                  Präsentieren
+                </button>
+              )}
+
+              <details className="group relative">
+                <summary className="cursor-pointer list-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 transition hover:bg-slate-50">
+                  Mehr
+                </summary>
+                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-[80] w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-2xl">
+                  <div className="space-y-4">
+                    <div>
+                      <p className="mb-2 text-[0.6rem] font-black uppercase tracking-wider text-slate-400">Umfang</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setKelMode('einfach');
+                            localStorage.setItem('kel_presentation_mode', 'einfach');
+                          }}
+                          className={`rounded-xl border px-3 py-2 text-xs font-black ${
+                            kelMode === 'einfach'
+                              ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                              : 'border-slate-200 bg-white text-slate-600'
+                          }`}
+                        >
+                          Kernfolien
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setKelMode('experte');
+                            localStorage.setItem('kel_presentation_mode', 'experte');
+                          }}
+                          className={`rounded-xl border px-3 py-2 text-xs font-black ${
+                            kelMode === 'experte'
+                              ? 'border-indigo-300 bg-indigo-50 text-indigo-800'
+                              : 'border-slate-200 bg-white text-slate-600'
+                          }`}
+                        >
+                          Alle Folien
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-[0.6rem] font-black uppercase tracking-wider text-slate-400">Sprache</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {getSuggestedLanguages().map((langObj) => (
+                          <button
+                            key={langObj.id}
+                            type="button"
+                            onClick={() => setSelectedLang(langObj.id)}
+                            className={`rounded-lg border px-2.5 py-1.5 text-xs font-bold transition ${
+                              selectedLang === langObj.id
+                                ? 'border-indigo-300 bg-indigo-50 text-indigo-800'
+                                : 'border-slate-200 bg-white text-slate-600'
+                            }`}
+                            title={langObj.label}
+                          >
+                            {langObj.flag} {langObj.num}
+                          </button>
+                        ))}
+                        {isTranslating && (
+                          <span className="inline-flex items-center gap-1 px-2 text-[0.65rem] font-bold text-indigo-600">
+                            <RefreshCw size={10} className="animate-spin" /> Übersetzt …
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-[0.6rem] font-black uppercase tracking-wider text-slate-400">Export</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={exportPowerPoint}
+                          disabled={isExportingPptx || slides.length === 0}
+                          className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
+                        >
+                          {isExportingPptx ? <Loader2 size={12} className="mr-1 inline animate-spin" /> : <FileText size={12} className="mr-1 inline" />}
+                          PowerPoint
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => exportSchuelerPDF(student.id, app)}
+                          className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-black text-white"
+                        >
+                          <Printer size={12} className="mr-1 inline" />
+                          PDF-Handout
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700"
+                    >
+                      KEL schließen
+                    </button>
+                  </div>
+                </div>
+              </details>
+            </div>
           </div>
         </div>
       )}
@@ -2451,184 +2491,91 @@ Antworte ausschließlich als JSON:
           }`}
         >
           
-          {/* Progress Indicators / Floating Ribbon in Fullscreen */}
-          <div className="flex items-center justify-between text-[0.6875rem] font-black tracking-widest text-slate-500 uppercase pb-2 flex-wrap gap-2">
-            <div className="flex items-center gap-3">
-              <span>{isFullscreen ? '📺 VOLLBILD-PRÄSENTATION' : 'KEL MODERATIONS-MODUS'}</span>
-              
-              {/* PRESENTATION MODE CONTROLLER */}
-              <div className="flex bg-slate-900 border border-slate-800 p-0.5 rounded-lg items-center shrink-0">
-                <button
-                  onClick={() => {
-                    setKelMode('einfach');
-                    localStorage.setItem('kel_presentation_mode', 'einfach');
-                  }}
-                  className={`px-2 py-0.5 rounded text-[0.5625rem] font-black transition-all cursor-pointer ${
-                    kelMode === 'einfach' 
-                      ? 'bg-emerald-600 text-white' 
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                  title="Einfach-Modus: Nur Kernfolien anzeigen"
-                >
-                  🌱 Einfach
-                </button>
-                <button
-                  onClick={() => {
-                    setKelMode('experte');
-                    localStorage.setItem('kel_presentation_mode', 'experte');
-                  }}
-                  className={`px-2 py-0.5 rounded text-[0.5625rem] font-black transition-all cursor-pointer ${
-                    kelMode === 'experte' 
-                      ? 'bg-indigo-600 text-white' 
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                  title="Experten-Modus: Alle Bereiche anzeigen"
-                >
-                  ⚡ Experte
-                </button>
-                <button
-                  onClick={() => setShowConfigDrawer(true)}
-                  className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white ml-0.5 transition-all text-[0.5625rem] cursor-pointer"
-                  title="Foliensichtbarkeit individuell anpassen"
-                >
-                  ⚙️
-                </button>
-              </div>
-            </div>
-
-            {/* INTERAKTIVER REDEZEIT-TIMER */}
-            <div className="flex items-center bg-slate-900/90 border border-slate-800 text-slate-300 px-3 py-1 rounded-full gap-2 shadow-xs shrink-0 self-center">
-              <div className="flex items-center gap-1.5 pr-1 border-r border-slate-800 mr-1">
-                <span className={`font-mono text-[0.75rem] leading-tight font-black tracking-normal transition-colors leading-none flex items-center gap-1 ${
-                  timerSeconds === 0 
-                    ? 'text-rose-500 animate-bounce' 
-                    : timerSeconds < 125 
-                      ? 'text-amber-500 animate-pulse' 
-                      : 'text-emerald-400'
-                }`}>
-                  <span className={`${timerActive ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }}>⏱️</span> {formatTimerTime(timerSeconds)}
-                </span>
-                
-                {timerSeconds === 0 && (
-                  <span className="text-[0.5rem] bg-rose-500 text-white font-black px-1 py-0.5 rounded animate-pulse">ZEIT UM!</span>
-                )}
-              </div>
-
-              {/* Presets */}
-              <div className="hidden sm:flex items-center gap-1">
-                {[10, 15, 20].map(mins => (
-                  <button
-                    key={mins}
-                    onClick={() => {
-                      setTimerSeconds(mins * 60);
-                      setTimerInitial(mins * 60);
-                      setTimerActive(false);
-                    }}
-                    className={`px-1.5 py-0.5 rounded text-[0.5rem] font-black transition-all cursor-pointer ${
-                      timerInitial === mins * 60 
-                        ? 'bg-indigo-600 text-white border border-indigo-500' 
-                        : 'bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-705 border border-transparent'
-                    }`}
-                  >
-                    {mins}m
-                  </button>
-                ))}
-                
-                <button
-                  onClick={() => setTimerSeconds(prev => prev + 60)}
-                  className="px-1.5 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[0.5rem] font-black cursor-pointer"
-                  title="+1 Minute"
-                >
-                  +1m
-                </button>
-              </div>
-
-              {/* Controls */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setTimerActive(!timerActive)}
-                  className={`p-1 rounded-full transition-all cursor-pointer ${
-                    timerActive 
-                      ? 'bg-amber-600/20 text-amber-400 hover:bg-amber-600/30' 
-                      : 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30'
-                  }`}
-                  title={timerActive ? 'Pause' : 'Start'}
-                >
-                  {timerActive ? <span className="text-[0.625rem] px-1 font-black leading-none">⏸</span> : <span className="text-[0.625rem] px-1 font-black leading-none">▶</span>}
-                </button>
-                
-                <button
-                  onClick={() => {
-                    setTimerSeconds(timerInitial);
-                    setTimerActive(false);
-                  }}
-                  className="p-1 bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded-full cursor-pointer transition-all"
-                  title="Zurücksetzen"
-                >
-                  <span className="text-[0.625rem] px-1 font-black leading-none">🔄</span>
-                </button>
-              </div>
-            </div>
-            
-            {/* Dark themed presenting language switcher for slides/fullscreen */}
-            <div className="flex flex-wrap items-center gap-1 bg-slate-900 border border-slate-800 rounded-full p-0.5 shadow-sm max-w-[280px] sm:max-w-none">
-              {getSuggestedLanguages().map((langObj) => (
-                <button
-                  key={langObj.id}
-                  onClick={() => setSelectedLang(langObj.id)}
-                  className={`px-1.5 py-0.5 rounded-full text-[0.625rem] font-bold transition-all flex items-center gap-0.5 cursor-pointer ${
-                    selectedLang === langObj.id
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                  }`}
-                  title={langObj.label}
-                >
-                  <span>{langObj.flag}</span>
-                  <span className="text-[0.5rem] font-black">{langObj.num}</span>
-                </button>
-              ))}
-              {isTranslating && (
-                <span className="inline-flex items-center gap-0.5 text-[0.5rem] text-indigo-400 animate-pulse font-bold px-1.5">
-                  <RefreshCw size={8} className="animate-spin" /> KI...
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2.5">
-              <span className="hidden md:flex items-center gap-1.5 text-slate-500 text-[0.625rem] font-bold border border-slate-800 rounded-full px-3 py-1 mr-2" title="Aktueller Stand der Daten">
-                <Clock size={10} /> Datenstand: {lastDataUpdate.toLocaleDateString('de-DE')}
-              </span>
-              <button
-                onClick={exportPowerPoint}
-                disabled={isExportingPptx || slides.length === 0}
-                className="hidden sm:flex px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed border border-emerald-500 text-white rounded-full text-[0.625rem] font-bold transition-all uppercase items-center gap-1.5 cursor-pointer shadow-md mr-1"
-                title="Ausgewählte KEL-Folien als echte PowerPoint-Datei mit editierbaren Diagrammen exportieren"
-              >
-                {isExportingPptx ? <Loader2 size={11} className="animate-spin" /> : <FileText size={11} />}
-                <span>{isExportingPptx ? 'Erstelle PPTX…' : 'PowerPoint'}</span>
-              </button>
-              <button
-                onClick={() => exportSchuelerPDF(student.id, app)}
-                className="hidden sm:flex px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 text-white rounded-full text-[0.625rem] font-bold transition-all uppercase items-center gap-1.5 cursor-pointer shadow-md mr-1"
-                title="Dossier als PDF exportieren (Handout)"
-              >
-                <Printer size={11} />
-                <span>Handout PDF</span>
-              </button>
-              <span className="bg-slate-900 text-slate-300 border border-slate-850 px-3.5 py-1 rounded-full text-[0.625rem] font-bold">
+          {/* ONE compact presentation status line */}
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-slate-300">
+            <div className="min-w-0">
+              <p className="text-[0.58rem] font-black uppercase tracking-[0.16em] text-slate-500">
                 Folie {slideIndex + 1} von {slides.length}
-              </span>
-              
+              </p>
+              <p className="max-w-[60vw] truncate text-sm font-black text-white">
+                {(currentSlide as any)?.title || `Folie ${slideIndex + 1}`}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
               {isFullscreen && (
                 <button
+                  type="button"
                   onClick={() => setIsFullscreen(false)}
-                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white rounded-full text-[0.625rem] font-bold transition-all uppercase flex items-center gap-1 cursor-pointer shadow-md"
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-black text-slate-300 hover:text-white"
                   title="Vollbild beenden (ESC)"
                 >
-                  <Minimize2 size={11} />
-                  <span>Vollbild beenden</span>
+                  <Minimize2 size={12} />
+                  Vollbild beenden
                 </button>
               )}
+
+              <details className="group relative">
+                <summary className="cursor-pointer list-none rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-xs font-black text-slate-300 hover:text-white">
+                  Moderation
+                </summary>
+                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-[90] w-72 rounded-2xl border border-slate-700 bg-slate-900 p-4 text-left shadow-2xl">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[0.6rem] font-black uppercase tracking-wider text-slate-500">Redezeit</span>
+                    <span className={`font-mono text-sm font-black ${
+                      timerSeconds === 0 ? 'text-rose-400' : timerSeconds < 125 ? 'text-amber-400' : 'text-emerald-400'
+                    }`}>
+                      {formatTimerTime(timerSeconds)}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-1.5">
+                    {[10, 15, 20].map(mins => (
+                      <button
+                        key={mins}
+                        type="button"
+                        onClick={() => {
+                          setTimerSeconds(mins * 60);
+                          setTimerInitial(mins * 60);
+                          setTimerActive(false);
+                        }}
+                        className={`rounded-lg border px-2 py-1.5 text-[0.65rem] font-black ${
+                          timerInitial === mins * 60
+                            ? 'border-indigo-500 bg-indigo-600 text-white'
+                            : 'border-slate-700 bg-slate-800 text-slate-300'
+                        }`}
+                      >
+                        {mins} min
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setTimerActive(!timerActive)}
+                      className="rounded-lg bg-emerald-600 px-2 py-1.5 text-[0.65rem] font-black text-white"
+                    >
+                      {timerActive ? 'Pause' : 'Start'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTimerSeconds(prev => prev + 60)}
+                      className="rounded-lg bg-slate-800 px-2 py-1.5 text-[0.65rem] font-black text-slate-200"
+                    >
+                      +1 min
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTimerSeconds(timerInitial);
+                        setTimerActive(false);
+                      }}
+                      className="rounded-lg bg-slate-800 px-2 py-1.5 text-[0.65rem] font-black text-slate-200"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+              </details>
             </div>
           </div>
 
@@ -2636,7 +2583,7 @@ Antworte ausschließlich als JSON:
           <div className={`bg-white border border-slate-100 rounded-[2rem] p-6 lg:p-8 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.5)] relative flex flex-col justify-between w-full mx-auto shrink-0 transition-all duration-300 ${
             isFullscreen 
               ? 'h-[calc(100vh-110px)] max-h-[92vh] overflow-y-auto custom-scrollbar' 
-              : 'h-[680px] md:h-[725px] lg:h-[765px] overflow-y-auto custom-scrollbar'
+              : 'min-h-[620px] max-h-[calc(100vh-190px)] overflow-y-auto custom-scrollbar'
           }`}>
               <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-indigo-500/5 to-purple-500/0 blur-[60px] pointer-events-none rounded-full" />
               
@@ -2879,10 +2826,15 @@ Antworte ausschließlich als JSON:
                       </div>
 
                       {/* Subject Presentation Grid */}
+                      {kelMode === 'einfach' && (
+                        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 px-4 py-2.5 text-left text-xs font-bold text-indigo-800">
+                          Im Gesprächsmodus stehen die Leistungen von {student.vorname} im Mittelpunkt. Klassenvergleich und Diagrammvarianten findest du unter „Mehr → Alle Folien“.
+                        </div>
+                      )}
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 flex-1 items-stretch">
                         
                         {/* LEFT COLUMN: GRADES PROFILE */}
-                        <div className="md:col-span-5 flex flex-col justify-between bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-4 text-left">
+                        <div className={`${kelMode === 'einfach' ? 'md:col-span-12' : 'md:col-span-5'} flex flex-col justify-between bg-slate-50/50 p-4 rounded-2xl border border-slate-100 space-y-4 text-left`}>
                           
                           {/* Grade chips grouped */}
                           <div className="space-y-4">
@@ -3043,7 +2995,7 @@ Antworte ausschließlich als JSON:
                         </div>
 
                         {/* RIGHT COLUMN: COMPARATIVE DIAGRAM WITH OPTIONS */}
-                        <div className="md:col-span-7 flex flex-col justify-between space-y-3 text-left">
+                        <div className={`${kelMode === 'einfach' ? 'hidden' : 'md:col-span-7'} flex flex-col justify-between space-y-3 text-left`}>
                           
                           {/* Diagram Format Selector tabs */}
                           <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
@@ -4393,37 +4345,41 @@ Antworte ausschließlich als JSON:
             </AnimatePresence>
           </div>
 
-          {/* PRESENTER REMOTE BAR (Slide Controls at bottom) */}
-          <div className="flex items-center justify-between pt-5 no-print">
+          {/* SIMPLE SLIDE NAVIGATION */}
+          <div className="flex items-center gap-2 pt-4 no-print">
             <button
+              type="button"
               onClick={() => setSlideIndex(prev => Math.max(0, prev - 1))}
               disabled={slideIndex === 0}
-              className={`px-5 py-2.5 bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 transition-all flex items-center gap-1.5 font-black text-[0.75rem] leading-tight uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95 shadow-xl ${slideIndex === 0 ? 'opacity-20 pointer-events-none' : 'rounded-xl'}`}
+              className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-4 text-xs font-black text-slate-300 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
             >
-              <ChevronLeft size={16} /> Zurück
+              <ChevronLeft size={15} />
+              Zurück
             </button>
 
-            {/* Pagination Bullet Indicators */}
-            <div className="flex items-center gap-2.5 max-w-[200px] overflow-x-auto py-1">
-              {slides.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setSlideIndex(idx)}
-                  className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${idx === slideIndex ? 'bg-indigo-500 w-6' : 'bg-slate-800 hover:bg-slate-700'}`}
-                  title={`Gehe zu Folie ${idx + 1}`}
-                />
+            <select
+              value={slideIndex}
+              onChange={(event) => setSlideIndex(Number(event.target.value))}
+              className="min-w-0 flex-1 rounded-xl border border-slate-800 bg-slate-900 px-3 py-2.5 text-xs font-black text-slate-200 outline-none focus:border-indigo-500"
+              aria-label="KEL-Folie auswählen"
+            >
+              {slides.map((slide, idx) => (
+                <option key={idx} value={idx}>
+                  {idx + 1}. {String((slide as any).title || `Folie ${idx + 1}`)}
+                </option>
               ))}
-            </div>
+            </select>
 
             <button
+              type="button"
               onClick={() => setSlideIndex(prev => Math.min(slides.length - 1, prev + 1))}
               disabled={slideIndex === slides.length - 1}
-              className={`px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all flex items-center gap-1.5 font-black text-[0.75rem] leading-tight uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95 shadow-xl ${slideIndex === slides.length - 1 ? 'opacity-20 pointer-events-none' : ''}`}
+              className="flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-indigo-600 px-4 text-xs font-black text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-30"
             >
-              Weiter <ChevronRight size={16} />
+              Weiter
+              <ChevronRight size={15} />
             </button>
           </div>
-
         </div>
       )}
 
@@ -4788,10 +4744,10 @@ Antworte ausschließlich als JSON:
                 <div className="p-6 md:p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                   <div className="space-y-1">
                     <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight flex items-center gap-2">
-                      <span>⚙️ KEL-Foliensichtbarkeit</span>
+                      <span>Folien auswählen</span>
                     </h3>
                     <p className="text-[0.75rem] text-slate-500 font-bold leading-normal">
-                      Wählen Sie genau aus, welche Folien in der Präsentation für {student.vorname} angezeigt werden sollen.
+                      Wähle, welche Inhalte du im Gespräch mit {student.vorname} zeigen möchtest.
                     </p>
                   </div>
                   <button 
@@ -4806,7 +4762,7 @@ Antworte ausschließlich als JSON:
                 <div className="p-6 md:p-8 overflow-y-auto space-y-6 flex-1">
                   {/* Scope Selector in Modal too! */}
                   <div className="bg-indigo-50/40 border border-indigo-100/50 p-4.5 rounded-2xl space-y-3">
-                    <span className="text-[0.625rem] font-black uppercase tracking-widest text-indigo-900 block">Umfang-Voreinstellung</span>
+                    <span className="text-[0.625rem] font-black uppercase tracking-widest text-indigo-900 block">Schnellauswahl</span>
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -4831,7 +4787,7 @@ Antworte ausschließlich als JSON:
                             : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
                         }`}
                       >
-                        🌱 Einfach-Modus (Kernbereiche)
+                        Kernfolien
                       </button>
                       <button
                         type="button"
@@ -4852,7 +4808,7 @@ Antworte ausschließlich als JSON:
                             : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
                         }`}
                       >
-                        ⚡ Experten-Modus (Vollständig)
+                        Alle Folien
                       </button>
                     </div>
                   </div>
@@ -4860,7 +4816,7 @@ Antworte ausschließlich als JSON:
                   {/* List of custom slides checkable */}
                   <div className="space-y-4">
                     <h4 className="text-[0.6875rem] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 pb-1">
-                      Einzelseiten-Sichtbarkeit ({kelMode === 'einfach' ? 'Einfach-Modus schränkt Sichtbarkeit ein' : 'Freie Auswahl'})
+                      Einzelne Folien ({kelMode === 'einfach' ? 'Kernauswahl aktiv' : 'freie Auswahl'})
                     </h4>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -4913,7 +4869,7 @@ Antworte ausschließlich als JSON:
                             {isRequired ? (
                               <span className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-400 bg-slate-250 px-1.5 py-0.5 rounded">Erforderlich</span>
                             ) : isExcludedBySimple ? (
-                              <span className="text-[0.5625rem] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">In "Einfach" aus</span>
+                              <span className="text-[0.5625rem] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Nur bei „Alle Folien“</span>
                             ) : (
                               <input 
                                 type="checkbox"
@@ -4943,7 +4899,7 @@ Antworte ausschließlich als JSON:
                     onClick={() => setShowConfigDrawer(false)}
                     className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-[0.75rem] leading-tight uppercase tracking-widest rounded-xl shadow-md transition-all active:scale-95 cursor-pointer"
                   >
-                    Anwenden & Schließen
+                    Fertig
                   </button>
                 </div>
               </div>

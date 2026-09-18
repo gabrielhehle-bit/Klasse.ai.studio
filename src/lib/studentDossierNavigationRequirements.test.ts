@@ -8,7 +8,7 @@ test("Schülerdossier: fünf Hauptbereiche sind als eine einheitliche Navigation
   assert.match(dossier, /Dossierbereiche/);
   assert.match(dossier, /5 Bereiche/);
   assert.match(dossier, /aria-label="Schülerdossier-Hauptbereiche"/);
-  assert.match(dossier, /grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5/);
+  assert.match(dossier, /flex gap-2 overflow-x-auto pb-1 scrollbar-none/);
   for (const label of [
     "Übersicht",
     "Lernen & Leistungen",
@@ -20,7 +20,9 @@ test("Schülerdossier: fünf Hauptbereiche sind als eine einheitliche Navigation
   }
 });
 
-test("Schülerdossier: verschachtelte Desktop-Navigation und doppelte Seitenkarten sind entfernt", () => {
+test("Schülerdossier: interne Seitenleiste, verschachtelte Desktop-Navigation und doppelte Seitenkarten sind entfernt", () => {
+  assert.doesNotMatch(dossier, /SIDEBAR NAVIGATION/);
+  assert.match(dossier, /COMPACT STUDENT NAVIGATION/);
   assert.doesNotMatch(dossier, /Main Area Navigation/);
   assert.doesNotMatch(dossier, /Mobile 5 Main Areas Navigation/);
   assert.doesNotMatch(dossier, /Action Button Suite/);

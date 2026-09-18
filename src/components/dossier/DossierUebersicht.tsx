@@ -703,7 +703,7 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
   }, [newDiagnosticResults, diagnostics, app.diagnostikTests, rawSupportGoals, notes, app.kelGespraeche, student.id]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* 1. SEKTION: AUF EINEN BLICK (4-6 Information Cards) */}
       <section>
         <div className="mb-3.5 flex items-end justify-between gap-3">
@@ -718,7 +718,7 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
           {quickCards.map(card => {
             const Icon = card.icon;
             return (
@@ -726,27 +726,22 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
                 key={card.id}
                 type="button"
                 onClick={() => onTabChange(card.tab)}
-                className="group p-4 bg-white border border-slate-200/90 hover:border-indigo-300 rounded-2xl shadow-2xs hover:shadow-sm transition-all text-left flex flex-col justify-between cursor-pointer"
+                className="group flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-left transition hover:border-indigo-200 hover:bg-indigo-50/30"
                 aria-label={`${card.label}: ${card.value}`}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[0.65rem] font-bold uppercase tracking-wider text-slate-400 truncate">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition-colors group-hover:bg-indigo-100 group-hover:text-indigo-700">
+                  <Icon size={15} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate text-[0.6rem] font-black uppercase tracking-wider text-slate-400">
                     {card.label}
                   </span>
-                  <div className="p-1.5 rounded-lg bg-slate-50 text-slate-600 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors shrink-0">
-                    <Icon size={14} />
+                  <div className="mt-0.5 flex min-w-0 items-baseline gap-2">
+                    <span className="truncate text-sm font-black text-slate-900">{card.value}</span>
+                    <span className="truncate text-[0.7rem] font-semibold text-slate-500">{card.detail}</span>
                   </div>
                 </div>
-
-                <div className="mt-3">
-                  <div className="text-sm font-black text-slate-900 leading-snug truncate">
-                    {card.value}
-                  </div>
-                  <div className="mt-1 text-[0.72rem] font-medium text-slate-500 line-clamp-1 group-hover:text-indigo-600 transition-colors flex items-center justify-between">
-                    <span className="truncate">{card.detail}</span>
-                    <ArrowRight size={12} className="shrink-0 text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-transform ml-1" />
-                  </div>
-                </div>
+                <ArrowRight size={13} className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-indigo-600" />
               </button>
             );
           })}
@@ -754,9 +749,9 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
       </section>
 
       {/* HAUPTBEREICH (2-Spaltiges Layout auf Desktop, 1 Spalte Mobil) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] items-start">
         {/* LINKE SPALTE: Stärken, Weiter beobachten, Nächste Schritte */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* 2. STÄRKEN */}
           <section className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3.5">
             <div className="flex items-center justify-between gap-3">
@@ -917,7 +912,7 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
         </div>
 
         {/* RECHTE SPALTE: Aktuelle Leistungen, Letzte Entwicklungen */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* 5. AKTUELLE LEISTUNGEN */}
           <section className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3.5">
             <div className="flex items-center justify-between gap-3 flex-wrap">
