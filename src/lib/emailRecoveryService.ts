@@ -1,5 +1,5 @@
 import type { AppState } from '../types';
-import { rotateRecoveryCode } from './vaultService';
+import { rotateRecoveryCode, type VaultRecordV1 } from './vaultService';
 import {
   getActiveVaultKey,
   loadVaultRecord,
@@ -15,6 +15,8 @@ export interface PreparedRecoveryEmail {
   email: string;
   recoveryCode: string;
   mailto: string;
+  baseRevision: number;
+  updatedRecord: VaultRecordV1;
 }
 
 export function buildRecoveryMailto(email: string, recoveryCode: string): string {
@@ -52,16 +54,20 @@ async function getSignedInEmail(): Promise<string> {
   return email;
 }
 
+function sameRecoveryWrapper(a: VaultRecordV1, b: VaultRecordV1): boolean {
+  return a.recoverySalt === b.recoverySalt
+    && a.recoveryKdfIterations === b.recoveryKdfIterations
+    && JSON.stringify(a.recoveryWrappedVaultKey) === JSON.stringify(b.recoveryWrappedVaultKey);
+}
+
 /**
- * Rotiert den Recovery-Code bewusst und synchronisiert den neuen, weiterhin nur
- * verschlüsselt gespeicherten VaultRecord mit dem E-Mail-Konto.
+ * Bereitet einen neuen Recovery-Code ausschließlich im Browser vor.
  *
- * Der Recovery-Code selbst wird niemals an den Klassio-Server gesendet.
- * Stattdessen liefert die Funktion einen mailto:-Entwurf zurück, den die
- * Lehrperson mit ihrem eigenen Mailprogramm an sich selbst senden kann.
+ * Noch wird weder der lokale VaultRecord verändert noch etwas zum Klassio-Server
+ * geschrieben. Die Lehrperson kann den neuen Code daher zuerst sicher kopieren
+ * oder mit dem eigenen Mailprogramm an sich selbst senden.
  */
 export async function prepareRecoveryEmail(
-  appState: AppState,
   currentVaultPassword: string,
 ): Promise<PreparedRecoveryEmail> {
   if (!currentVaultPassword) {
@@ -76,33 +82,66 @@ export async function prepareRecoveryEmail(
   }
 
   const remote = await fetchAccountSyncSnapshot();
-  if (remote && remote.vaultRecord.id !== vaultRecord.id) {
+  if (!remote) {
+    throw new Error('Der verschlüsselte Kontostand ist noch nicht auf dem Server gespeichert. Starte zuerst den Konto-Abgleich.');
+  }
+  if (remote.vaultRecord.id !== vaultRecord.id) {
     throw new Error('Das E-Mail-Konto enthält einen anderen Datentresor. Recovery wurde nicht geändert.');
   }
 
   const rotated = await rotateRecoveryCode(vaultRecord, currentVaultPassword);
-
-  // Zuerst lokal aktualisieren. Falls der Konto-Sync fehlschlägt, wird der alte
-  // VaultRecord sofort zurückgesetzt, damit kein halb fertiger Recovery-Zustand bleibt.
-  await saveVaultRecord(rotated.updatedRecord);
-  setActiveVaultSession(vaultKey, rotated.updatedRecord);
-
-  try {
-    await pushAccountSyncSnapshot(
-      appState,
-      vaultKey,
-      rotated.updatedRecord,
-      remote?.revision || 0,
-    );
-  } catch (error) {
-    await saveVaultRecord(vaultRecord);
-    setActiveVaultSession(vaultKey, vaultRecord);
-    throw error;
-  }
-
   return {
     email,
     recoveryCode: rotated.newRecoveryCode,
     mailto: buildRecoveryMailto(email, rotated.newRecoveryCode),
+    baseRevision: remote.revision,
+    updatedRecord: rotated.updatedRecord,
   };
+}
+
+/**
+ * Aktiviert einen zuvor gesicherten Recovery-Code.
+ *
+ * Der neue VaultRecord wird erst jetzt mit einer revisionsgeschützten
+ * Konto-Synchronisierung übernommen und danach lokal gespeichert. Geht die
+ * Netzwerkantwort nach erfolgreicher Serverspeicherung verloren, erkennt ein
+ * erneuter Versuch denselben Recovery-Wrapper und schließt die lokale Übernahme
+ * sicher ab.
+ *
+ * Der Recovery-Code selbst wird niemals an den Klassio-Server gesendet.
+ */
+export async function activatePreparedRecoveryEmail(
+  appState: AppState,
+  prepared: PreparedRecoveryEmail,
+): Promise<void> {
+  const localRecord = await loadVaultRecord();
+  const vaultKey = getActiveVaultKey();
+  if (!localRecord || !vaultKey) {
+    throw new Error('Der Datentresor muss auf diesem Gerät entsperrt sein.');
+  }
+  if (localRecord.id !== prepared.updatedRecord.id) {
+    throw new Error('Der vorbereitete Recovery-Code gehört nicht zu diesem Datentresor.');
+  }
+
+  const remote = await fetchAccountSyncSnapshot();
+  if (!remote || remote.vaultRecord.id !== localRecord.id) {
+    throw new Error('Der passende verschlüsselte Kontostand konnte nicht bestätigt werden.');
+  }
+
+  // Retry-Sicherheit: Der Server kann den neuen Wrapper bereits angenommen haben,
+  // obwohl die vorige Netzwerkantwort das Gerät nicht erreicht hat.
+  if (!sameRecoveryWrapper(remote.vaultRecord, prepared.updatedRecord)) {
+    if (remote.revision !== prepared.baseRevision) {
+      throw new Error('Der Konto-Stand hat sich inzwischen geändert. Bitte den Recovery-Code neu vorbereiten, damit nichts überschrieben wird.');
+    }
+    await pushAccountSyncSnapshot(
+      appState,
+      vaultKey,
+      prepared.updatedRecord,
+      remote.revision,
+    );
+  }
+
+  await saveVaultRecord(prepared.updatedRecord);
+  setActiveVaultSession(vaultKey, prepared.updatedRecord);
 }
