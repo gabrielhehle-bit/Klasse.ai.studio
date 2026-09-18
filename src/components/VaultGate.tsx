@@ -57,6 +57,7 @@ export default function VaultGate({ children }: VaultGateProps) {
     return 'checking';
   });
   const [hasLegacyData, setHasLegacyData] = useState<boolean>(false);
+  const [loadedVaultFromAccount, setLoadedVaultFromAccount] = useState(false);
 
   // Setup Form State
   const [setupStep, setSetupStep] = useState<'password' | 'recovery_code'>('password');
@@ -109,6 +110,7 @@ export default function VaultGate({ children }: VaultGateProps) {
               if (remote?.vaultRecord) {
                 await saveVaultRecord(remote.vaultRecord);
                 if (isMounted) {
+                  setLoadedVaultFromAccount(true);
                   setErrorMessage(null);
                   setGateState('locked');
                 }
@@ -414,10 +416,18 @@ export default function VaultGate({ children }: VaultGateProps) {
             )}
           </div>
           <h1 className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
-            {gateState === 'needs_setup' ? 'Lokalen Datentresor einrichten' : 'Lokaler Datentresor gesperrt'}
+            {gateState === 'needs_setup'
+              ? 'Lokalen Datentresor einrichten'
+              : loadedVaultFromAccount
+                ? 'Willkommen zurück'
+                : 'Datentresor gesperrt'}
           </h1>
           <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-xs leading-relaxed">
-            Lokale Schülerdaten werden verschlüsselt gespeichert.
+            {loadedVaultFromAccount
+              ? 'Dein verschlüsselter KLASSIO-Datenstand wurde über dein E-Mail-Konto gefunden.'
+              : gateState === 'needs_setup'
+                ? 'Deine Klassendaten werden Ende-zu-Ende-verschlüsselt gespeichert.'
+                : 'Deine Klassendaten sind verschlüsselt und müssen lokal entsperrt werden.'}
           </p>
         </div>
 
@@ -593,6 +603,11 @@ export default function VaultGate({ children }: VaultGateProps) {
         {/* ==================================================== */}
         {gateState === 'locked' && !useRecoveryMode && (
           <form onSubmit={handleUnlockWithPassword} className="space-y-4">
+            {loadedVaultFromAccount && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3.5 text-xs leading-relaxed text-emerald-900">
+                <strong>Deine Daten sind da.</strong> Gib auf diesem neuen Gerät einmal dein bestehendes Tresor-Passwort ein. Danach lädt KLASSIO automatisch deine Klassen, Schüler:innen, Planungen, Noten und Einstellungen. Eine Backup-Datei ist dafür nicht nötig.
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Tresor-Passwort
@@ -625,8 +640,8 @@ export default function VaultGate({ children }: VaultGateProps) {
                 className="mt-0.5 rounded border-[var(--border)] bg-[var(--surface-subtle)] text-[var(--accent)] focus:ring-[var(--accent)] cursor-pointer"
               />
               <span className="text-xs leading-snug text-[var(--text-secondary)]">
-                <strong className="text-[var(--text-primary)]">Auf diesem persönlichen Gerät 30 Tage entsperrt bleiben.</strong>
-                {' '}Der Vault-Key wird nur verschlüsselt und mit einem nicht exportierbaren Geräteschlüssel im Browser gespeichert.
+                <strong className="text-[var(--text-primary)]">Diesem persönlichen Gerät 30 Tage vertrauen.</strong>
+                {' '}Dann musst du dein Tresor-Passwort hier nicht bei jedem Neustart erneut eingeben. Der Schlüssel bleibt verschlüsselt an dieses Gerät gebunden.
               </span>
             </label>
 
@@ -640,7 +655,7 @@ export default function VaultGate({ children }: VaultGateProps) {
               ) : (
                 <>
                   <Unlock size={16} />
-                  <span>Tresor entsperren</span>
+                  <span>{loadedVaultFromAccount ? 'Daten laden & KLASSIO öffnen' : 'Tresor entsperren'}</span>
                 </>
               )}
             </button>
@@ -654,7 +669,7 @@ export default function VaultGate({ children }: VaultGateProps) {
                 }}
                 className="text-xs text-[var(--accent)] hover:underline underline-offset-4 cursor-pointer"
               >
-                Passwort vergessen? Mit Wiederherstellungscode entsperren
+                Tresor-Passwort vergessen? Wiederherstellungscode verwenden
               </button>
             </div>
           </form>
