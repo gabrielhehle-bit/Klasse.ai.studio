@@ -141,6 +141,7 @@ import DashboardKlassenglasWidget from "./DashboardKlassenglasWidget";
 import FlowerPuzzleWidget from "./FlowerPuzzleWidget";
 import { DashboardInteractionWidget } from "./DashboardInteractionWidget";
 import DashboardTodayOverview, { DashboardDayMode } from "./DashboardTodayOverview";
+import { useLehrerzimmerUnread } from "../hooks/useLehrerzimmerUnread";
 
 // Memoized widgets
 const MemoizedClassPetWidget = memo(ClassPetWidget);
@@ -1189,6 +1190,7 @@ const MemoizedLehrplanWidget = React.memo(ClosedLehrplanWidget);
 export default function Dashboard() {
   const { app, setApp, updateStudent, notenUpdateTrigger } = useApp();
   const { showToast } = useToast();
+  const { summary: lehrerzimmerUnread } = useLehrerzimmerUnread();
   const disabledModules = app?.settings?.disabledModules || [];
   const setPage = React.useCallback(
     (page: string) => setApp((prev) => ({ ...prev, currentPage: page })),
@@ -4482,6 +4484,40 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
           </motion.div>
         )}
       </AnimatePresence>
+
+      {lehrerzimmerUnread.count > 0 && (
+        <button
+          type="button"
+          data-testid="dashboard-lehrerzimmer-unread"
+          onClick={() => setPage("lehrerzimmer")}
+          className="w-full rounded-2xl border border-[var(--accent)]/25 bg-[var(--accent-soft)]/70 px-4 py-4 text-left shadow-sm transition hover:border-[var(--accent)]/45 hover:shadow-md"
+        >
+          <div className="flex items-start gap-3">
+            <div className="relative mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-white">
+              <MessageSquare size={18} />
+              <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full bg-rose-500 px-1.5 py-0.5 text-center text-[10px] font-black text-white">
+                {lehrerzimmerUnread.count}
+              </span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-black text-[var(--text-primary)]">
+                Neue Nachricht{lehrerzimmerUnread.count === 1 ? '' : 'en'} im Lehrerzimmer
+              </div>
+              {lehrerzimmerUnread.items[0] && (
+                <>
+                  <div className="mt-1 text-xs font-bold text-[var(--text-secondary)]">
+                    {lehrerzimmerUnread.items[0].authorName}
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-sm leading-5 text-[var(--text-secondary)]">
+                    {lehrerzimmerUnread.items[0].body}
+                  </p>
+                </>
+              )}
+            </div>
+            <ChevronRight size={18} className="mt-2 shrink-0 text-[var(--accent)]" />
+          </div>
+        </button>
+      )}
 
       {/* GEBURTSTAG HEUTE: TOP LEVEL BANNER */}
       <AnimatePresence>
