@@ -172,6 +172,18 @@ test('Konto-Sync überträgt keine gerätespezifische Navigation und reagiert au
       isTafelOpen: true,
       showAmpel: true,
     },
+    classes: [{
+      id: 'class-1',
+      name: '1A',
+      teamTeaching: {
+        sharedClassId: 'shared-1',
+        role: 'owner',
+        revision: 7,
+        lastSyncedHash: 'local-hash',
+        lastSyncedAt: '2026-09-18T10:00:00.000Z',
+        syncStatus: 'synced',
+      },
+    }],
   } as any;
 
   const sanitized = accountSyncState(local);
@@ -181,6 +193,7 @@ test('Konto-Sync überträgt keine gerätespezifische Navigation und reagiert au
   assert.equal(sanitized.tempQrValue, '');
   assert.equal(sanitized.boardSettings.activeSyncCode, undefined);
   assert.equal(sanitized.boardSettings.isTafelOpen, false);
+  assert.equal(sanitized.classes[0].teamTeaching, undefined);
 
   const remote = {
     ...local,
@@ -189,12 +202,23 @@ test('Konto-Sync überträgt keine gerätespezifische Navigation und reagiert au
     unterrichtsmodus_sidebar_open: false,
     tempQrValue: '',
     boardSettings: { ...local.boardSettings, activeSyncCode: undefined, isTafelOpen: false },
+    classes: [{
+      ...local.classes[0],
+      teamTeaching: {
+        sharedClassId: 'shared-1',
+        role: 'owner',
+        revision: 99,
+        lastSyncedHash: 'remote-device-hash',
+        syncStatus: 'error',
+      },
+    }],
   } as any;
   const merged = mergeAccountSyncState(remote, local);
   assert.equal(merged.currentPage, 'notenmappe');
   assert.equal(merged.previousPage, 'schueler');
   assert.equal(merged.boardSettings.activeSyncCode, 'ABC123');
   assert.equal(merged.boardSettings.isTafelOpen, true);
+  assert.deepEqual(merged.classes[0].teamTeaching, local.classes[0].teamTeaching);
 
   const context = read('src/context/AppContext.tsx');
   const emailLogin = read('src/components/EmailAccountLogin.tsx');
