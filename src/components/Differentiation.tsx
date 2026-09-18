@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../context/ToastContext';
 import { Wand2, Sparkles, Target, Layers, Copy, RotateCcw, PenTool, Check, Save, Archive, Info, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { askAI } from '../services/aiService';
@@ -123,6 +124,7 @@ function AISaveButton({ content, topic }: { content: string; topic: string }) {
 }
 
 export default function Differentiation() {
+  const { showToast } = useToast();
   const [topic, setTopic] = useState('');
   const [targetGroup, setTargetGroup] = useState('DaZ');
   const [result, setResult] = useState('');
@@ -172,6 +174,7 @@ WICHTIGSTE REGELN FÜR DIE AUSGABE:
       }
     } catch (err) {
       console.error(err);
+      showToast(err instanceof Error ? err.message : 'Differenzierung konnte nicht erstellt werden.', 'error');
     } finally {
       setLoading(false);
     }
