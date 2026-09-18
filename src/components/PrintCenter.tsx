@@ -49,6 +49,7 @@ import { exportSchuelerPDF } from '../lib/exportService';
 import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySubjects, getSchulstartKW, getSemester, getCurrentSchuljahr, formatLocalDateKey } from '../lib/utils';
 import { getFachCfg, berechne, getNotenLabel, getAssessmentMode } from '../lib/GradeUtils';
 import { DEFAULT_YEARLY_SUBJECTS, FAECHER_ALLE } from '../constants';
+import { downloadKlassenbuchPdf } from '../lib/klassenbuchPdf';
 
 const STANDARD_KEL_BEREICHE = [
   { id: 'zuzuhoeren', label: 'Zuhören & Verstehen', kategorie: 'Arbeitsverhalten' },
@@ -1100,7 +1101,7 @@ export default function PrintCenter() {
           }
           @page {
             size: ${printOrientation === 'landscape' ? 'landscape' : 'portrait'} ${printPaperSize};
-            margin: ${printMargin}mm;
+            margin: 0;
           }
           * {
             -webkit-print-color-adjust: exact !important;
@@ -1109,6 +1110,10 @@ export default function PrintCenter() {
           .page-break {
             page-break-after: always !important;
             break-after: page !important;
+          }
+          .page-break:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
           }
           .avoid-break {
             page-break-inside: avoid !important;
@@ -2464,6 +2469,20 @@ export default function PrintCenter() {
                         );
                       })}
                     </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-3.5 space-y-2">
+                    <p className="text-[0.6875rem] font-bold leading-relaxed text-indigo-900">
+                      PDF erstellt ein sauberes A4-Klassenbuch direkt aus denselben Wochen wie die Vorschau. Für einen Papierausdruck kannst du weiterhin „Drucken“ verwenden.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleDownloadKlassenbuchPdf}
+                      className="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-[0.6875rem] uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-sm"
+                    >
+                      <Download size={15} />
+                      Klassenbuch als PDF herunterladen
+                    </button>
                   </div>
                 </div>
               )}
@@ -4271,6 +4290,59 @@ export default function PrintCenter() {
       }
     }
     return weeks;
+  }
+
+  function handleDownloadKlassenbuchPdf() {
+    const weeks = getKbWeeksToRender();
+    const teacherName = [
+      app?.anrede,
+      app?.vorname,
+      app?.nachname,
+      app?.lehrerName,
+      app?.lehrerProfil?.name,
+    ].filter(Boolean)[0] || '';
+
+    const pdfWeeks = weeks.map((kw) => {
+      const dates = kwToDates(kw);
+      const dateRange = `${dates.monday.toLocaleDateString('de-AT')} – ${dates.friday.toLocaleDateString('de-AT')}`;
+      const categories = compileKlassenbuchData(kw);
+
+      if (!kbIncludeOccurrences) {
+        categories['Besondere Vorkommnisse'] = [];
+      }
+
+      return {
+        kw,
+        sw: dates.sw,
+        dateRange,
+        categories,
+        absentees: getAbsenteesForWeek(kw),
+        notes: kbCustomNotesValue.trim() || undefined,
+      };
+    });
+
+    const safeClass = String(app?.klassenbezeichnung || 'Klasse')
+      .normalize('NFKD')
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'Klasse';
+    const rangeLabel = kbMode === 'single'
+      ? `KW_${kbKW}`
+      : kbMode === 'all'
+        ? 'Gesamt'
+        : `KW_${kbStartKW}_bis_${kbEndKW}`;
+
+    downloadKlassenbuchPdf(
+      `Klassio_Klassenbuch_${safeClass}_${rangeLabel}.pdf`,
+      {
+        className: app?.klassenbezeichnung || '',
+        schoolYear: app?.schuljahr || '',
+        teacherName,
+        weeks: pdfWeeks,
+        includeAbsentees: kbIncludeAbsentees,
+        includeOccurrences: kbIncludeOccurrences,
+        signatures: kbSignatures,
+      },
+    );
   }
 
   function renderSingleKlassenbuchPage(targetKW: number) {
