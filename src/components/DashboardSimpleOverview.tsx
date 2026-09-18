@@ -153,25 +153,6 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             </h2>
           </div>
 
-          <button
-            type="button"
-            onClick={() => p.onNavigate(p.totalStudents ? 'anwesenheit' : 'schueler')}
-            className={`w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
-              p.attendanceRequired && !p.attendanceRecorded && p.totalStudents > 0
-                ? 'border-amber-200 bg-amber-50'
-                : 'border-slate-200 bg-slate-50 hover:bg-white'
-            }`}
-          >
-            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-              <Users size={15} />
-              Anwesenheit
-            </span>
-            <strong className="mt-1.5 block text-sm text-slate-900">{attendanceValue}</strong>
-            {!p.privacyMode && p.attendanceRecorded && p.absentCount > 0 && (
-              <span className="mt-1 block text-xs text-slate-600">{p.absentCount} abwesend</span>
-            )}
-          </button>
-
           <div>
             <div className="mb-2 flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-slate-800">Hinweise</p>
@@ -189,8 +170,10 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
                       className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left text-sm leading-relaxed transition hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
                       onClick={() => p.onNavigate(item.linkPage || 'orga')}
                     >
-                      {item.urgent && (
-                        <span className="mb-1 block text-xs font-semibold text-amber-800">Heute beachten</span>
+                      {item.category && (
+                        <span className={`mb-1 block text-xs font-semibold ${item.type === 'birthday' ? 'text-amber-800' : item.urgent ? 'text-rose-700' : 'text-slate-500'}`}>
+                          {item.category}
+                        </span>
                       )}
                       {p.privacyMode ? 'Privater Eintrag – zum Öffnen auswählen' : item.text}
                     </button>
@@ -215,6 +198,25 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
               {showAllTasks ? 'Weniger Hinweise' : `Alle ${p.actionItems.length} Hinweise`}
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => p.onNavigate(p.totalStudents ? 'anwesenheit' : 'schueler')}
+            className={`w-full rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+              p.attendanceRequired && !p.attendanceRecorded && p.totalStudents > 0
+                ? 'border-amber-200 bg-amber-50'
+                : 'border-slate-200 bg-slate-50 hover:bg-white'
+            }`}
+          >
+            <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+              <Users size={15} />
+              Anwesenheit
+            </span>
+            <strong className="mt-1.5 block text-sm text-slate-900">{attendanceValue}</strong>
+            {!p.privacyMode && p.attendanceRecorded && p.absentCount > 0 && (
+              <span className="mt-1 block text-xs text-slate-600">{p.absentCount} abwesend</span>
+            )}
+          </button>
         </section>
       </div>
 
