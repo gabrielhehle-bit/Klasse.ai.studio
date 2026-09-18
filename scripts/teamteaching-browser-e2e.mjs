@@ -346,9 +346,15 @@ async function main() {
       'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(data=>Number(data.snapshot?.revision||0)>' + Number(initialAccountRevisionA) + ')',
       30000,
     );
-    const postSetupRevisionA = await evaluate(
+    const preRecoveryAccount = await evaluate(
       anna,
-      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(data=>Number(data.snapshot?.revision||0))',
+      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json())',
+    );
+    const postSetupRevisionA = Number(preRecoveryAccount?.snapshot?.revision || 0);
+    await fs.writeFile(
+      '/tmp/klassio-account-before-recovery.json',
+      JSON.stringify(preRecoveryAccount?.snapshot || null, null, 2),
+      'utf8',
     );
 
     const annaCookies = (await anna.send('Network.getAllCookies')).cookies || [];
@@ -369,12 +375,21 @@ async function main() {
     await waitFor(recovery, 'fresh device restored dashboard', 'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").trim()==="Heute")', 30000);
     await waitFor(recovery, 'fresh device restored synced class', 'document.body?.innerText.includes("E2E 1A")', 30000);
     await sleep(1800);
-    const revisionAfterRecovery = await evaluate(
+    const postRecoveryAccount = await evaluate(
       recovery,
-      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json()).then(data=>Number(data.snapshot?.revision||0))',
+      'fetch("/api/account-sync",{cache:"no-store"}).then(r=>r.json())',
+    );
+    const revisionAfterRecovery = Number(postRecoveryAccount?.snapshot?.revision || 0);
+    await fs.writeFile(
+      '/tmp/klassio-account-after-recovery.json',
+      JSON.stringify(postRecoveryAccount?.snapshot || null, null, 2),
+      'utf8',
     );
     if (revisionAfterRecovery !== postSetupRevisionA) {
-      throw new Error('Recovery-Gerät: Wiederherstellung hat unerwartet eine neue Konto-Revision erzeugt.');
+      throw new Error(
+        'Recovery-Gerät: Wiederherstellung hat Konto-Revision '
+        + postSetupRevisionA + ' -> ' + revisionAfterRecovery + ' verändert.'
+      );
     }
     console.log('✓ Konto-Sync: fresh device restored encrypted state without creating a no-op revision');
 
