@@ -2190,25 +2190,24 @@ export default function StudentList() {
                   Zurück
                 </button>
               )}
-              {studentFormSection !== 'kontakte' ? (
+              {studentFormSection !== 'kontakte' && (
                 <button
                   type="button"
                   onClick={() => setStudentFormSection(studentFormSection === 'basis' ? 'paedagogik' : 'kontakte')}
                   disabled={studentFormSection === 'basis' && (!editingStudent?.vorname?.trim() || !editingStudent?.nachname?.trim())}
-                  className="btn btn-accent sm:flex-1 py-3 sm:py-4 order-1 sm:order-3 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="btn btn-ghost sm:flex-1 py-3 sm:py-4 order-2 sm:order-3 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Weiter
                 </button>
-              ) : (
-                <button 
-                  type="button"
-                  onClick={saveEditingStudent}
-                  disabled={!editingStudent?.vorname?.trim() || !editingStudent?.nachname?.trim()}
-                  className="btn btn-accent sm:flex-1 py-3 sm:py-4 shadow-xl shadow-accent/20 order-1 sm:order-3 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {editingStudent?.id ? 'Speichern' : 'Anlegen'}
-                </button>
               )}
+              <button 
+                type="button"
+                onClick={saveEditingStudent}
+                disabled={!editingStudent?.vorname?.trim() || !editingStudent?.nachname?.trim()}
+                className="btn btn-accent sm:flex-1 py-3 sm:py-4 shadow-xl shadow-accent/20 order-1 sm:order-4 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {editingStudent?.id ? 'Speichern' : 'Anlegen'}
+              </button>
             </div>
           </motion.div>
         </div>
