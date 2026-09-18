@@ -198,8 +198,7 @@ export default function StudentList() {
     return sortStudentsForList(filtered, sortBy, sortOrder);
   }, [schueler, searchTerm, activeFilter, sortBy, sortOrder]);
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
+  const saveEditingStudent = () => {
     const vorname = editingStudent?.vorname?.trim() || '';
     const nachname = editingStudent?.nachname?.trim() || '';
     if (!editingStudent || !vorname || !nachname) {
@@ -218,6 +217,12 @@ export default function StudentList() {
     updateStudent(student);
     setIsModalOpen(false);
     setEditingStudent(null);
+    setStudentFormSection('basis');
+  };
+
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    saveEditingStudent();
   };
 
   const handleDeleteStudent = (student: Student) => {
@@ -2251,8 +2256,8 @@ export default function StudentList() {
                 </button>
               ) : (
                 <button 
-                  type="submit"
-                  form="student-form"
+                  type="button"
+                  onClick={saveEditingStudent}
                   disabled={!editingStudent?.vorname?.trim() || !editingStudent?.nachname?.trim()}
                   className="btn btn-accent sm:flex-1 py-3 sm:py-4 shadow-xl shadow-accent/20 order-1 sm:order-3 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
