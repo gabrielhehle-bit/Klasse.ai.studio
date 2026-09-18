@@ -133,7 +133,7 @@ export default function AccountSettings() {
           <div>
             <h2 className="text-lg font-black text-slate-950">Konto & Schulmail</h2>
             <p className="mt-1 text-sm font-medium leading-relaxed text-slate-600">
-              Mit deiner E-Mail-Adresse meldest du dich bei Klassio an. Deine Daten können dadurch automatisch auf deinen Geräten aktuell gehalten werden. Eine verifizierte Schulmail schaltet zusätzlich schulinterne Funktionen frei.
+              Deine E-Mail-Adresse ist dein persönliches KLASSIO-Konto. Die Anmeldung läuft ohne separates Kontopasswort über einen 6-stelligen E-Mail-Code. Danach hält KLASSIO deinen verschlüsselten Datenstand automatisch auf deinen Geräten aktuell. Eine verifizierte Schulmail schaltet zusätzlich schulinterne Funktionen frei.
             </p>
           </div>
         </div>
@@ -198,7 +198,7 @@ export default function AccountSettings() {
           <div className="flex items-start gap-3">
             <Database size={17} className="mt-0.5 shrink-0 text-emerald-700" />
             <p className="text-xs font-semibold leading-relaxed text-emerald-900">
-              Klassen, Planungen und Noten bleiben auf diesem Gerät verfügbar. Mit aktivem Konto hält Klassio denselben Datenstand zusätzlich für deine anderen Geräte bereit. Datei- oder OneDrive-Backups kannst du weiterhin freiwillig als zusätzliche Sicherung verwenden.
+              Auf einem neuen PC genügt dieselbe E-Mail-Adresse, der Anmeldecode und einmal dein bestehendes Tresor-Passwort. KLASSIO lädt dann automatisch deinen verschlüsselten Kontostand. Datei- oder OneDrive-Backups sind nur eine freiwillige zusätzliche Sicherung und für einen Gerätewechsel nicht erforderlich.
             </p>
           </div>
         </div>
