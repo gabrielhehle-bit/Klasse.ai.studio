@@ -235,4 +235,9 @@ test('Konto-Einstellungen zeigen Sync-Zustand, Fehlerhinweis und manuellen Neuve
   assert.match(accountSettings, /data-testid="account-sync-status"/);
   assert.match(accountSettings, /Erneut versuchen/);
   assert.match(accountSettings, /Sync-Konflikt – nichts überschrieben/);
+
+  const vaultGate = read('src/components/VaultGate.tsx');
+  assert.match(vaultGate, /SESSION_STATUS_UNAVAILABLE/);
+  assert.match(vaultGate, /kein neuer Tresor angelegt/);
+  assert.match(vaultGate, /setGateState\('checking'\)/);
 });
