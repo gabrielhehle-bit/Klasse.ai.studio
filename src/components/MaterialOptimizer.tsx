@@ -174,10 +174,10 @@ Bitte optimiere den Text entsprechend den oben genannten System-Instruktionen f�
       <div className="space-y-1">
         <div className="flex items-center gap-3">
           <ClipboardList className="text-slate-600 shrink-0" size={28} />
-          <h2 className="text-[1.5rem] leading-normal md:text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight uppercase">Material-Optimierung</h2>
+          <h2 className="text-[1.5rem] leading-normal md:text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight uppercase">Text prüfen & überarbeiten</h2>
         </div>
         <p className="text-slate-500 font-medium tracking-tight whitespace-pre-line font-serif italic text-[1rem] leading-normal md:text-[1.125rem] leading-normal">
-          "Poliere deine Unterrichtsmaterialien, Aufgabenstellungen oder Eltern-Infos auf Knopfdruck."
+          Korrigiere, kürze oder vereinfache Texte gezielt – ohne unnötige Neuerfindung.
         </p>
       </div>
 
@@ -229,12 +229,12 @@ Bitte optimiere den Text entsprechend den oben genannten System-Instruktionen f�
               {loading ? (
                 <>
                   <RotateCcw className="animate-spin" size={20} />
-                  KI analysiert Text...
+                  Text wird geprüft...
                 </>
               ) : (
                 <>
                   <Wand2 size={20} />
-                  Text jetzt optimieren
+                  Text prüfen
                 </>
               )}
             </button>
@@ -243,7 +243,7 @@ Bitte optimiere den Text entsprechend den oben genannten System-Instruktionen f�
           <div className="p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100 flex gap-4">
              <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 shrink-0"><Info size={20} /></div>
              <p className="text-[0.75rem] text-slate-500 font-medium leading-relaxed italic">
-               Die KI prüft den Text nicht nur auf Fehler, sondern achtet auch auf didaktische Sinnhaftigkeit und eine zielgruppengerechte Ansprache.
+               Die gewählte Prüfung verändert nur das, was zum gewählten Fokus gehört. Das Ergebnis bleibt ein Entwurf und sollte vor der Verwendung kurz kontrolliert werden.
              </p>
           </div>
         </div>
@@ -254,7 +254,7 @@ Bitte optimiere den Text entsprechend den oben genannten System-Instruktionen f�
             <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-900 text-white">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-md"><Sparkles size={16} /></div>
-                <span className="text-[0.625rem] font-black uppercase tracking-widest text-emerald-400">Optimierte Version</span>
+                <span className="text-[0.625rem] font-black uppercase tracking-widest text-emerald-400">Überarbeitete Fassung</span>
               </div>
               <div className="flex gap-2">
                 <AISaveButton content={result} context={text} />
@@ -273,7 +273,7 @@ Bitte optimiere den Text entsprechend den oben genannten System-Instruktionen f�
             {result && (
                <div className="p-6 border-t border-slate-50 bg-slate-50/30 flex items-center justify-center">
                   <div className="flex items-center gap-2 text-[0.625rem] font-bold text-slate-300 uppercase tracking-widest">
-                    <Check size={12} className="text-emerald-500" /> KI-Check abgeschlossen
+                    <Check size={12} className="text-emerald-500" /> Prüfung abgeschlossen
                   </div>
                </div>
             )}
