@@ -175,6 +175,7 @@ import { generateStudentGroups } from "../lib/groupsAlgorithm";
 import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSelectionUtils";
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
+import { BoardTextEditor } from "./cockpit/BoardTextEditor";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
   LärmWidgetContent,
@@ -2909,8 +2910,32 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [vorlagenStartTab, setVorlagenStartTab] = useState<"browse" | "create">("browse");
   const [activeWidgetCategory, setActiveWidgetCategory] =
-    useState<string>("all");
+    useState<string>("categories");
   const [widgetSearch, setWidgetSearch] = useState<string>("");
+  const [isBoardTextEditing, setIsBoardTextEditing] = useState(false);
+  const boardTextClassKey = app.activeClassId || "unassigned";
+  const boardTextHtml =
+    ((app.boardSettings as any)?.cockpitTextByClass?.[boardTextClassKey] as string | undefined) || "";
+
+  const saveBoardTextHtml = useCallback(
+    (html: string) => {
+      setApp((prev: any) => ({
+        ...prev,
+        boardSettings: {
+          ...(prev.boardSettings || {}),
+          cockpitTextByClass: {
+            ...(prev.boardSettings?.cockpitTextByClass || {}),
+            [boardTextClassKey]: html,
+          },
+        },
+      }));
+    },
+    [boardTextClassKey, setApp],
+  );
+
+  useEffect(() => {
+    setIsBoardTextEditing(false);
+  }, [boardTextClassKey]);
 
   useEffect(() => {
     if (isLayoutLocked) {
@@ -8116,7 +8141,7 @@ ${content}
                                 {/* Category Switcher Tab Bar */}
                                 <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
                                   {[
-                                    { id: "all", label: "Alle Hilfen" },
+                                    { id: "categories", label: "Kategorien" },
                                     { id: "favorites", label: "★ Favoriten" },
                                     { id: "struct", label: "🗂️ Ablauf & Organisation" },
                                     {
@@ -8401,8 +8426,10 @@ ${content}
                                     ];
 
                                     let count = 0;
-                                    if (cat.id === "all") {
-                                      count = allAvailableWidgets.length;
+                                    if (cat.id === "categories") {
+                                      count = new Set(
+                                        allAvailableWidgets.map((item) => item.category),
+                                      ).size;
                                     } else if (cat.id === "favorites") {
                                       count = (
                                         favoritesBySubject[
@@ -9049,9 +9076,8 @@ ${content}
                                         }
 
                                         let matchesCategory = false;
-                                        if (activeWidgetCategory === "all") {
-                                          matchesCategory =
-                                            true;
+                                        if (activeWidgetCategory === "categories") {
+                                          matchesCategory = false;
                                         } else if (
                                           activeWidgetCategory === "favorites"
                                         ) {
@@ -9070,6 +9096,25 @@ ${content}
 
                                         return matchesCategory;
                                       });
+
+                                    if (
+                                      activeWidgetCategory === "categories" &&
+                                      !query
+                                    ) {
+                                      return (
+                                        <div className="col-span-1 sm:col-span-2 lg:col-span-3 rounded-2xl border border-dashed border-slate-300 dark:border-white/15 bg-slate-50/80 dark:bg-white/[0.03] px-6 py-10 text-center">
+                                          <div className="mx-auto mb-3 w-11 h-11 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center">
+                                            <Grid3X3 size={20} />
+                                          </div>
+                                          <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                                            Wähle oben eine Kategorie
+                                          </p>
+                                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                            Oder tippe einen Begriff in die Suche. Dann durchsucht Klassio automatisch den gesamten Widget-Katalog.
+                                          </p>
+                                        </div>
+                                      );
+                                    }
 
                                     if (
                                       activeWidgetCategory === "favorites" &&
@@ -9300,6 +9345,27 @@ ${content}
                               </div>
                             )}
                           </div>
+
+                          <button
+                            type="button"
+                            aria-pressed={isBoardTextEditing}
+                            onClick={() => {
+                              setIsBoardTextEditing((value) => !value);
+                              setIsAddWidgetMenuOpen(false);
+                              setIsMoreOptionsMenuOpen(false);
+                            }}
+                            className={`min-h-11 px-4 rounded-xl border text-sm font-black tracking-wide flex items-center gap-1.5 transition-all cursor-pointer ${
+                              isBoardTextEditing
+                                ? "bg-indigo-600 border-indigo-600 text-white shadow-sm"
+                                : currentIsLight
+                                  ? "bg-white border-slate-200 text-slate-800 hover:bg-slate-50"
+                                  : "bg-zinc-900 border-white/10 text-white hover:bg-zinc-800"
+                            }`}
+                            title="Weiße Tafel als Textdokument verwenden"
+                          >
+                            <Type size={15} />
+                            <span>TEXT</span>
+                          </button>
 
                           <button
                             type="button"
@@ -9724,15 +9790,19 @@ ${content}
                       {/* Widget Board (classroomscreen.com style) */}
                       <div
                         ref={boardRef}
-                        className={`flex-1 relative group rounded-2xl border overflow-hidden pointer-events-auto h-full w-full min-h-[460px] select-none ${
+                        className={`flex-1 relative group rounded-2xl border overflow-hidden pointer-events-auto h-full w-full min-h-[460px] ${isBoardTextEditing ? "select-text" : "select-none"} ${
                           currentIsLight
                             ? "bg-white border-slate-200 shadow-sm"
                             : "bg-white border-slate-200 shadow-inner"
                         }`}
                         id="widget-board-stage"
                       >
-                        {/* Bewusst leer: Schreiben/Zeichnen übernimmt das Smartboard selbst.
-                            Klassio stellt nur die weiße Projektionsfläche und die Widgets bereit. */}
+                        <BoardTextEditor
+                          value={boardTextHtml}
+                          active={isBoardTextEditing}
+                          onChange={saveBoardTextHtml}
+                          onDone={() => setIsBoardTextEditing(false)}
+                        />
                         {/* Centered Confirm Dialog inside stage instead of native popup */}
                         {timerToCloseId && (
                           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-[99999] no-print">
