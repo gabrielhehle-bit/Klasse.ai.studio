@@ -12,6 +12,7 @@ const settings = readFileSync('src/components/Settings.tsx', 'utf8');
 const settingsHeader = readFileSync('src/components/settings/SettingsHeader.tsx', 'utf8');
 const supportSettings = readFileSync('src/components/settings/SupportSettings.tsx', 'utf8');
 const server = readFileSync('server.ts', 'utf8');
+const supportApi = readFileSync('src/lib/supportApi.ts', 'utf8');
 
 test('Support: Herz öffnet zuerst einen Klassio-Dialog statt direkt PayPal', () => {
   assert.match(topbar, /setShowSupportModal\(true\)/);
@@ -29,6 +30,16 @@ test('Support: einmalige, monatliche und jährliche PayPal-Optionen sind getrenn
   assert.match(modal, /Monatlich unterstützen/);
   assert.match(modal, /Jährlich unterstützen/);
   assert.match(modal, /PayPal-Link wird eingerichtet/);
+});
+
+test('Support: monatliche und jährliche PayPal-Pläne sind sofort aktiv und serverseitig abgesichert', () => {
+  const monthlyPlan = 'P-39527139B4457294RNKVOWJQ';
+  const yearlyPlan = 'P-82J97339KC156492WNKVOZGA';
+  assert.match(supportApi, new RegExp(monthlyPlan));
+  assert.match(supportApi, new RegExp(yearlyPlan));
+  assert.match(server, new RegExp(monthlyPlan));
+  assert.match(server, new RegExp(yearlyPlan));
+  assert.match(server, /safePayPalUrl/);
 });
 
 test('Support: Einstellungen enthalten freiwillige Unterstützung und Dankesliste', () => {
