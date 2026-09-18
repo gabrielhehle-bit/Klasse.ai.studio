@@ -362,8 +362,8 @@ async function createClassInUi(client, className) {
 
 async function addStudentInUi(client, firstName, lastName) {
   await clickSidebar(client, 'Klassenliste');
-  await waitFor(client, 'student list', 'document.body?.innerText.includes("Schüler hinzufügen")', 20000);
-  await clickButton(client, 'Schüler hinzufügen');
+  await waitFor(client, 'student list', 'document.body?.innerText.includes("Schüler:in hinzufügen") || document.body?.innerText.includes("Schüler hinzufügen")', 20000);
+  await clickButton(client, 'Schüler');
   await waitFor(client, 'new student form', 'document.body?.innerText.includes("Neuer Schüler")', 20000);
   await setInputByLabel(client, 'Vorname', firstName);
   await setInputByLabel(client, 'Nachname', lastName);
