@@ -4,8 +4,6 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardList,
-  Eye,
-  EyeOff,
   Grid,
   Play,
   StickyNote,
@@ -49,25 +47,13 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
   return (
     <section aria-label="Heute" className="space-y-5 text-slate-900">
       <header className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start gap-4">
           <div>
             <p className="text-sm font-medium text-slate-600">{p.klasseLabel || 'Deine Klasse'}</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{p.greeting}</h1>
             <p className="mt-1 text-sm font-medium text-slate-500">{p.dateLabel}</p>
-            <p className="mt-2 max-w-2xl text-sm text-slate-600">
-              Das Wichtigste für deinen Schultag – ohne unnötige Zusatzinformationen.
-            </p>
           </div>
 
-          <button
-            type="button"
-            className={button + ' flex items-center gap-2'}
-            aria-pressed={p.privacyMode}
-            onClick={() => p.onPrivacyModeChange(!p.privacyMode)}
-          >
-            {p.privacyMode ? <EyeOff size={18} /> : <Eye size={18} />}
-            {p.privacyMode ? 'Private Angaben verborgen' : 'Private Angaben verbergen'}
-          </button>
         </div>
 
         <div className="mt-6">
