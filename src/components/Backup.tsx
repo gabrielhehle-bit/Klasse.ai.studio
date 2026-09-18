@@ -25,7 +25,8 @@ function formatBackupMoment(timestamp: number, label = 'Zuletzt gesichert'): str
 }
 
 export default function Backup() {
-  const { app, setApp, restoreAppData } = useApp();
+  const { app, setApp, restoreAppData, accountSyncStatus, accountSyncLastAt } = useApp();
+  const accountSyncHealthy = accountSyncStatus === 'synced';
 
   const handleRetireActiveClass = () => {
     const activeClasses = app.classes || [];
@@ -574,15 +575,31 @@ export default function Backup() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border border-stone-200/60 shadow-sm shrink-0">
         <div>
           <h2 className="text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Datensicherung</h2>
-          <p className="text-slate-500 font-medium tracking-tight">Sichere deine Klassio-Daten oder stelle eine vorhandene Sicherung wieder her.</p>
+          <p className="text-slate-500 font-medium tracking-tight">
+            {accountSyncHealthy
+              ? 'Deine Daten werden automatisch verschlüsselt mit deinem E-Mail-Konto synchronisiert. Datei- und OneDrive-Backups sind optional.'
+              : 'Sichere deine Klassio-Daten oder stelle eine vorhandene Sicherung wieder her.'}
+          </p>
         </div>
         
-        {/* Dynamic Timestamp Panel - Typografisch überlegen abgesetzt */}
-        <div className="flex items-center gap-2.5 bg-amber-50/50 border border-amber-200/50 px-4 py-2.5 rounded-2xl shrink-0 w-full md:w-auto">
-          <Clock size={16} className="text-amber-600" />
+        {/* Dynamic Sync / Backup Status */}
+        <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl shrink-0 w-full md:w-auto border ${
+          accountSyncHealthy ? 'bg-emerald-50/70 border-emerald-200/70' : 'bg-amber-50/50 border-amber-200/50'
+        }`}>
+          {accountSyncHealthy ? <Cloud size={16} className="text-emerald-600" /> : <Clock size={16} className="text-amber-600" />}
           <div>
-            <p className="text-[0.5625rem] font-black uppercase tracking-wider text-amber-700 leading-none">Letzte Sicherung</p>
-            <p className="text-[0.75rem] font-black text-slate-900 mt-1 leading-tight">{lastBackupStr}</p>
+            <p className={`text-[0.5625rem] font-black uppercase tracking-wider leading-none ${
+              accountSyncHealthy ? 'text-emerald-700' : 'text-amber-700'
+            }`}>
+              {accountSyncHealthy ? 'Konto-Sync aktiv' : 'Letzte Sicherung'}
+            </p>
+            <p className="text-[0.75rem] font-black text-slate-900 mt-1 leading-tight">
+              {accountSyncHealthy
+                ? accountSyncLastAt
+                  ? 'Synchronisiert: ' + new Date(accountSyncLastAt).toLocaleString('de-AT')
+                  : 'Automatisch synchronisiert'
+                : lastBackupStr}
+            </p>
           </div>
         </div>
       </div>
@@ -1060,9 +1077,13 @@ export default function Backup() {
               <Download size={28} />
             </div>
             <div className="space-y-2">
-              <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 leading-none">Jetzt sichern</h3>
+              <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 leading-none">
+                {accountSyncHealthy ? 'Optionale Sicherungsdatei' : 'Jetzt sichern'}
+              </h3>
               <p className="text-[0.8125rem] text-slate-500 font-medium leading-relaxed">
-                Erstellt eine verschlüsselte Sicherungsdatei mit deinen Klassio-Daten. Bewahre sie an einem geschützten Ort auf.
+                {accountSyncHealthy
+                  ? 'Dein Kontostand liegt bereits verschlüsselt auf dem Klassio-Server. Hier kannst du zusätzlich eine portable, ebenfalls verschlüsselte Sicherungsdatei erstellen.'
+                  : 'Erstellt eine verschlüsselte Sicherungsdatei mit deinen Klassio-Daten. Bewahre sie an einem geschützten Ort auf.'}
               </p>
             </div>
           </div>
