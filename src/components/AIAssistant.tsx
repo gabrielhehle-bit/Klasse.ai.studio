@@ -277,8 +277,11 @@ export default function AIAssistant() {
 
     const legacyMap: Record<string, AiTab> = {
       'ki-paedagogik': 'ki-helfer',
-      'ki-recht': 'ki-wissen',
+      'ki-recht': 'ki-helfer',
     };
+    if (app.currentPage === 'ki-recht') {
+      showToast('Schulrecht wurde aus dem freien KI-Helfer entfernt, weil Antworten ohne verifizierte offizielle Quellen nicht zuverlässig genug sind.', 'info');
+    }
     const candidate = legacyMap[app.currentPage] || app.currentPage;
     const allowedTabs: AiTab[] = [
       'ki-helfer', 'ki-wissen', 'ki-reflexion', 'ki-lernziele',
@@ -1058,6 +1061,7 @@ export default function AIAssistant() {
                        <span>
                          <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Enter</kbd> senden · <kbd className="bg-slate-100 px-1 py-0.5 rounded border border-slate-200">Shift+Enter</kbd> Zeilenumbruch
                        </span>
+                       <span className="text-slate-400">Keine Namen, Adressen oder Kontaktdaten eingeben.</span>
                        {aiUsage && (
                          <span className={`rounded-full border px-2 py-1 ${
                            aiUsage.blocked || aiUsage.remaining === 0
