@@ -42,6 +42,7 @@ import {
   loadAccountSyncMetadata,
   pushAccountSyncSnapshot,
   saveAccountSyncMetadata,
+  setAccountSyncHealthy,
   type AccountSyncStatus,
 } from '../lib/accountSyncService';
 import { registerActiveAppStateGetter } from '../services/aiService';
@@ -115,6 +116,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     accountSyncRevisionRef.current = snapshot.revision;
     accountSyncReadyRef.current = true;
     setAccountSyncLastAt(snapshot.updatedAt || new Date().toISOString());
+    setAccountSyncHealthy(true);
     setAccountSyncStatus('synced');
   }, []);
 
@@ -134,6 +136,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const hasAccount = await hasEmailAccountSession();
     if (!hasAccount) {
       accountSyncReadyRef.current = false;
+      setAccountSyncHealthy(false);
       setAccountSyncStatus('disabled');
       return current;
     }
@@ -150,6 +153,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (remote.vaultRecord.id !== vaultRecord.id) {
         accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
         setAccountSyncStatus('conflict');
         console.warn('[AccountSync] Remote-Tresor stimmt nicht mit dem lokalen Tresor überein. Kein Stand wurde überschrieben.');
         return current;
@@ -174,6 +178,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return current;
         }
         accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
         setAccountSyncStatus('conflict');
         console.warn('[AccountSync] Lokaler und serverseitiger Erststand unterscheiden sich. Automatisches Überschreiben wurde verhindert.');
         return current;
@@ -190,6 +195,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           return current;
         }
         accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
         setAccountSyncStatus('conflict');
         console.warn('[AccountSync] Änderungen auf mehreren Geräten erkannt. Kein Stand wurde überschrieben.');
         return current;
@@ -207,15 +213,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // Ein lokaler Baseline-Stand darf niemals weiter sein als der Server. Fail closed.
       accountSyncReadyRef.current = false;
+      setAccountSyncHealthy(false);
       setAccountSyncStatus('error');
       console.warn('[AccountSync] Serverrevision ist älter als der lokal bekannte Sync-Stand.');
       return current;
     } catch (error: any) {
       accountSyncReadyRef.current = false;
       if (error?.status === 401 || error?.status === 403) {
-        setAccountSyncStatus('disabled');
+        setAccountSyncHealthy(false);
+      setAccountSyncStatus('disabled');
         return current;
       }
+      setAccountSyncHealthy(false);
       setAccountSyncStatus(error?.code === 'REVISION_CONFLICT' || error?.code === 'VAULT_MISMATCH' ? 'conflict' : 'error');
       console.error('[AccountSync] Kontostand konnte nicht abgeglichen werden:', error);
       if (!hadLocalState) throw error;
@@ -242,12 +251,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       if (error?.status === 401 || error?.status === 403) {
         accountSyncReadyRef.current = false;
-        setAccountSyncStatus('disabled');
+        setAccountSyncHealthy(false);
+      setAccountSyncStatus('disabled');
       } else if (error?.status === 409 || error?.code === 'REVISION_CONFLICT' || error?.code === 'VAULT_MISMATCH') {
         accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
         setAccountSyncStatus('conflict');
       } else {
-        setAccountSyncStatus('error');
+        setAccountSyncHealthy(false);
+      setAccountSyncStatus('error');
       }
       console.error('[AccountSync] Automatisches Speichern auf dem Server fehlgeschlagen:', error);
     } finally {
