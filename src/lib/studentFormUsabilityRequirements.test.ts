@@ -73,6 +73,8 @@ test("Schülerformular: Kontakt-, Freigabe- und Hinweisfelder bleiben erhalten",
 test("Schülerformular: Navigation schützt Pflichtnamen und speichert unverändert über updateStudent", () => {
   assert.match(studentList, /if \(!editingStudent \|\| !vorname \|\| !nachname\) \{\s*setStudentFormSection\('basis'\);/);
   assert.match(studentList, /updateStudent\(student\)/);
+  assert.match(studentList, /const saveEditingStudent = \(\) =>/);
+  assert.match(studentList, /type="button"\s+onClick=\{saveEditingStudent\}/);
   assert.match(studentList, /disabled=\{studentFormSection === 'basis' && \(!editingStudent\?\.vorname\?\.trim\(\) \|\| !editingStudent\?\.nachname\?\.trim\(\)\)\}/);
   assert.match(studentList, /studentFormSection !== 'kontakte'/);
   assert.match(studentList, />\s*Weiter\s*</);
