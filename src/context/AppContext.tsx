@@ -36,6 +36,7 @@ import {
 } from '../lib/vaultStorage';
 import {
   ACCOUNT_SESSION_CHANGED_EVENT,
+  accountSyncErrorMessage,
   appStateFingerprint,
   decryptAccountSyncSnapshot,
   fetchAccountSyncSnapshot,
@@ -80,6 +81,8 @@ interface AppContextType {
   unlockAppVault: (key: CryptoKey) => Promise<boolean>;
   accountSyncStatus: AccountSyncStatus;
   accountSyncLastAt: string | null;
+  accountSyncMessage: string | null;
+  retryAccountSync: () => Promise<void>;
 }
 
 const STORAGE_KEY = 'hehle_v3';
@@ -109,6 +112,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isVaultUnlocked, setIsVaultUnlocked] = useState<boolean>(() => getActiveVaultKey() !== null);
   const [accountSyncStatus, setAccountSyncStatus] = useState<AccountSyncStatus>('idle');
   const [accountSyncLastAt, setAccountSyncLastAt] = useState<string | null>(null);
+  const [accountSyncMessage, setAccountSyncMessage] = useState<string | null>(null);
   const accountSyncReadyRef = useRef(false);
   const accountSyncBusyRef = useRef(false);
   const accountSyncRevisionRef = useRef(0);
@@ -119,6 +123,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     accountSyncReadyRef.current = true;
     setAccountSyncLastAt(snapshot.updatedAt || new Date().toISOString());
     setAccountSyncHealthy(true);
+    setAccountSyncMessage(null);
     setAccountSyncStatus('synced');
   }, []);
 
@@ -137,16 +142,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return current;
     }
 
-    const hasAccount = await hasEmailAccountSession();
-    if (!hasAccount) {
-      accountSyncReadyRef.current = false;
-      setAccountSyncHealthy(false);
-      setAccountSyncStatus('disabled');
-      return current;
-    }
-
     setAccountSyncStatus('syncing');
+    setAccountSyncMessage(null);
     try {
+      const hasAccount = await hasEmailAccountSession();
+      if (!hasAccount) {
+        accountSyncReadyRef.current = false;
+        setAccountSyncHealthy(false);
+        setAccountSyncMessage(null);
+        setAccountSyncStatus('disabled');
+        return current;
+      }
+
       const remote = await fetchAccountSyncSnapshot();
 
       if (!remote) {
@@ -158,6 +165,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (remote.vaultRecord.id !== vaultRecord.id) {
         accountSyncReadyRef.current = false;
         setAccountSyncHealthy(false);
+        setAccountSyncMessage('Das E-Mail-Konto enthält einen anderen Datentresor. Zur Sicherheit wurde nichts überschrieben. Prüfe Konto und Tresor, bevor du weiter synchronisierst.');
         setAccountSyncStatus('conflict');
         console.warn('[AccountSync] Remote-Tresor stimmt nicht mit dem lokalen Tresor überein. Kein Stand wurde überschrieben.');
         return current;
@@ -184,6 +192,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         accountSyncReadyRef.current = false;
         setAccountSyncHealthy(false);
+        setAccountSyncMessage('Auf diesem Gerät und im E-Mail-Konto liegen unterschiedliche Ausgangsstände. Nichts wurde automatisch überschrieben. Erstelle zur Sicherheit eine Datei-Sicherung und öffne den aktuellsten Stand.');
         setAccountSyncStatus('conflict');
         console.warn('[AccountSync] Lokaler und serverseitiger Erststand unterscheiden sich. Automatisches Überschreiben wurde verhindert.');
         return current;
@@ -201,6 +210,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         accountSyncReadyRef.current = false;
         setAccountSyncHealthy(false);
+        setAccountSyncMessage('Auf mehreren Geräten wurden Änderungen erkannt. Zur Sicherheit wurde nichts überschrieben. Öffne zuerst das Gerät mit dem aktuellsten vollständigen Stand und starte dort den Abgleich erneut.');
         setAccountSyncStatus('conflict');
         console.warn('[AccountSync] Änderungen auf mehreren Geräten erkannt. Kein Stand wurde überschrieben.');
         return current;
@@ -219,6 +229,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Ein lokaler Baseline-Stand darf niemals weiter sein als der Server. Fail closed.
       accountSyncReadyRef.current = false;
       setAccountSyncHealthy(false);
+      setAccountSyncMessage('Der Server meldet einen älteren Stand als dieses Gerät bereits kennt. Klassio hat deshalb nichts überschrieben. Bitte den Konto-Abgleich erneut versuchen.');
       setAccountSyncStatus('error');
       console.warn('[AccountSync] Serverrevision ist älter als der lokal bekannte Sync-Stand.');
       return current;
@@ -226,10 +237,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       accountSyncReadyRef.current = false;
       if (error?.status === 401 || error?.status === 403) {
         setAccountSyncHealthy(false);
-      setAccountSyncStatus('disabled');
+        setAccountSyncMessage('Die E-Mail-Anmeldung ist nicht mehr aktiv. Melde dich erneut an, damit der verschlüsselte Konto-Abgleich weiterläuft.');
+        setAccountSyncStatus('disabled');
+        if (!hadLocalState) throw error;
         return current;
       }
       setAccountSyncHealthy(false);
+      setAccountSyncMessage(accountSyncErrorMessage(error));
       setAccountSyncStatus(error?.code === 'REVISION_CONFLICT' || error?.code === 'VAULT_MISMATCH' ? 'conflict' : 'error');
       console.error('[AccountSync] Kontostand konnte nicht abgeglichen werden:', error);
       if (!hadLocalState) throw error;
@@ -257,14 +271,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (error?.status === 401 || error?.status === 403) {
         accountSyncReadyRef.current = false;
         setAccountSyncHealthy(false);
-      setAccountSyncStatus('disabled');
+        setAccountSyncMessage('Die E-Mail-Anmeldung ist nicht mehr aktiv. Melde dich erneut an, damit der verschlüsselte Konto-Abgleich weiterläuft.');
+        setAccountSyncStatus('disabled');
       } else if (error?.status === 409 || error?.code === 'REVISION_CONFLICT' || error?.code === 'VAULT_MISMATCH') {
         accountSyncReadyRef.current = false;
         setAccountSyncHealthy(false);
+        setAccountSyncMessage(accountSyncErrorMessage(error));
         setAccountSyncStatus('conflict');
       } else {
         setAccountSyncHealthy(false);
-      setAccountSyncStatus('error');
+        setAccountSyncMessage(accountSyncErrorMessage(error));
+        setAccountSyncStatus('error');
       }
       console.error('[AccountSync] Automatisches Speichern auf dem Server fehlgeschlagen:', error);
     } finally {
@@ -291,6 +308,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [isVaultUnlocked, reconcileAccountState, setApp]);
 
+  const retryAccountSync = React.useCallback(async () => {
+    setAccountSyncMessage(null);
+    await refreshAccountState();
+  }, [refreshAccountState]);
+
 
   // E-Mail-Konto wird auch dann aktiv, wenn die Anmeldung erst in den Einstellungen erfolgt.
   // Sichtbare/aktive Geräte gleichen zusätzlich regelmäßig den verschlüsselten Serverstand ab.
@@ -302,7 +324,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (document.visibilityState === 'visible') refresh();
     };
     const interval = window.setInterval(() => {
-      if (accountSyncReadyRef.current) refresh();
+      if (document.visibilityState === 'visible') refresh();
     }, 15_000);
 
     window.addEventListener(ACCOUNT_SESSION_CHANGED_EVENT, refresh);
@@ -975,6 +997,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const lockAppVault = React.useCallback(() => {
     accountSyncReadyRef.current = false;
     accountSyncRevisionRef.current = 0;
+    setAccountSyncMessage(null);
+    setAccountSyncStatus('idle');
     clearActiveVaultSession();
     currentAppRef.current = initialAppState;
     setAppInternal(initialAppState);
@@ -1486,8 +1510,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     lockAppVault,
     unlockAppVault,
     accountSyncStatus,
-    accountSyncLastAt
-  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, lockAppVault, unlockAppVault, accountSyncStatus, accountSyncLastAt]);
+    accountSyncLastAt,
+    accountSyncMessage,
+    retryAccountSync
+  }), [app, notenUpdateTrigger, calculateWidgetFontSize, screenLocked, updateApp, deleteClass, switchClass, addClass, removeClass, updateStudent, deleteStudent, setPage, saveApp, restoreAppData, isVaultUnlocked, lockAppVault, unlockAppVault, accountSyncStatus, accountSyncLastAt, accountSyncMessage, retryAccountSync]);
 
   if (!isLoaded) {
     return (
