@@ -297,9 +297,9 @@ test('Konto-Einstellungen zeigen Sync-Zustand, Fehlerhinweis und manuellen Neuve
   assert.match(accountSettings, /data-testid="account-sync-status"/);
   assert.match(accountSettings, /data-testid="account-sync-conflict-actions"/);
   assert.match(accountSettings, /Konto-Stand laden/);
-  assert.match(accountSettings, /Diesen Geräte-Stand verwenden/);
+  assert.match(accountSettings, /Stand dieses Geräts verwenden/);
   assert.match(accountSettings, /Erneut versuchen/);
-  assert.match(accountSettings, /Sync-Konflikt – nichts überschrieben/);
+  assert.match(accountSettings, /Änderungen auf zwei Geräten/);
 
   const vaultGate = read('src/components/VaultGate.tsx');
   assert.match(vaultGate, /SESSION_STATUS_UNAVAILABLE/);
