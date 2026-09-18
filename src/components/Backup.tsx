@@ -1077,9 +1077,14 @@ export default function Backup() {
               <Download size={28} />
             </div>
             <div className="space-y-2">
-              <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 leading-none">
-                {accountSyncHealthy ? 'Optionale Sicherungsdatei' : 'Jetzt sichern'}
-              </h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-[1.25rem] leading-normal font-black text-slate-900 leading-none">Jetzt sichern</h3>
+                {accountSyncHealthy && (
+                  <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[0.625rem] font-black uppercase tracking-wide text-emerald-700">
+                    optional
+                  </span>
+                )}
+              </div>
               <p className="text-[0.8125rem] text-slate-500 font-medium leading-relaxed">
                 {accountSyncHealthy
                   ? 'Dein Kontostand liegt bereits verschlüsselt auf dem Klassio-Server. Hier kannst du zusätzlich eine portable, ebenfalls verschlüsselte Sicherungsdatei erstellen.'
