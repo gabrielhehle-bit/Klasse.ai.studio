@@ -198,6 +198,10 @@ Der Text sollte dabei helfen, Eltern optimal zu informieren oder das Kind zuhaus
               />
             </div>
 
+            <div className="rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-3 text-[0.6875rem] font-semibold leading-relaxed text-amber-800">
+              Keine Namen, E-Mail-Adressen, Telefonnummern oder andere personenbezogene Angaben eingeben. Personalisierung erst nach dem KI-Entwurf lokal ergänzen.
+            </div>
+
             <div className="space-y-3">
               <label className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Tonalität</label>
               <div className="flex flex-wrap gap-2">
