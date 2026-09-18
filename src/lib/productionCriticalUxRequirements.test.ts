@@ -35,7 +35,7 @@ test('E-Mail-Anmeldung ist innerhalb der laufenden App erreichbar', () => {
 });
 
 test('Bestehende Einrichtung bleibt beim E-Mail- und Schul-Onboarding unangetastet', () => {
-  assert.match(accountSettings, /Klassen, Planungen und Noten bleiben auf diesem Gerät verfügbar/);
+  assert.match(accountSettings, /Auf einem neuen PC genügt dieselbe E-Mail-Adresse, der Anmeldecode und einmal dein bestehendes Tresor-Passwort/);
   assert.match(schoolIdentity, /Du musst nichts neu einrichten/);
   assert.match(schoolIdentity, /Bestehende Klassio-Daten werden dabei nicht verschoben, gelöscht oder neu angelegt/);
   assert.doesNotMatch(emailLogin, /factoryReset|Werksreset|clearAppData/);

@@ -116,8 +116,8 @@ export default function BackupSettings({
             <Download size={20} />
           </div>
           <div>
-            <h2 className="text-base font-black text-slate-900">Sicherung erstellen & einlesen</h2>
-            <p className="text-xs text-slate-500 font-medium">Lade deinen gesamten App-Stand als Datei herunter oder spiele ein Backup ein.</p>
+            <h2 className="text-base font-black text-slate-900">Zusätzliche Sicherung (optional)</h2>
+            <p className="text-xs text-slate-500 font-medium">Datei-Backups sind eine freiwillige Zusatzsicherung. Für den Wechsel auf einen anderen PC reicht dein E-Mail-Konto.</p>
           </div>
         </div>
 
@@ -125,9 +125,9 @@ export default function BackupSettings({
           <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200 text-emerald-900 text-xs font-semibold leading-relaxed flex items-start gap-2.5">
             <ShieldCheck size={18} className="text-emerald-600 shrink-0 mt-0.5" />
             <span>
-              <strong>Automatisch gesichert:</strong> Dein kompletter KLASSIO-Stand wird mit deinem E-Mail-Konto Ende-zu-Ende-verschlüsselt auf dem Server synchronisiert.
+              <strong>Automatisch synchronisiert:</strong> Dein kompletter KLASSIO-Stand wird mit deinem E-Mail-Konto Ende-zu-Ende-verschlüsselt auf dem Server aktuell gehalten.
               {accountSyncLastAt ? ' Letzte Synchronisierung: ' + new Date(accountSyncLastAt).toLocaleString('de-AT') + '.' : ''}
-              {' '}Eine Sicherungsdatei ist nur noch eine optionale zusätzliche Rückfallebene.
+              {' '}Auf einem neuen PC meldest du dich mit derselben E-Mail an und entsperrst einmal deinen Tresor. Eine Sicherungsdatei ist nur eine optionale zusätzliche Rückfallebene.
             </span>
           </div>
         ) : (
@@ -205,7 +205,7 @@ export default function BackupSettings({
       <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-4 shadow-sm">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-sm font-black text-slate-900">Backup-Erinnerungen</h2>
+            <h2 className="text-sm font-black text-slate-900">Zusätzliche Backup-Erinnerungen</h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
               {accountSyncHealthy
                 ? 'Solange dein E-Mail-Konto synchronisiert ist, erinnert KLASSIO dich nicht mehr an Datei-Backups. Diese bleiben freiwillig.'
