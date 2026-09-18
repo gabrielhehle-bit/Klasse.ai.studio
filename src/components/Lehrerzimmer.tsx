@@ -118,11 +118,11 @@ function formatDate(value: string): string {
 }
 
 function MentionText({ text }: { text: string }) {
-  const parts = text.split(/(@[^\s@.,!?;:]{2,64})/gu);
+  const parts = text.split(/(@[^\s@,!?;:]{2,64})/gu);
   return (
     <>
       {parts.map((part, index) =>
-        /^@[^\s@.,!?;:]{2,64}$/u.test(part) ? (
+        /^@[^\s@,!?;:]{2,64}$/u.test(part) ? (
           <span key={index} className="font-bold text-[var(--accent)]">
             {part}
           </span>
