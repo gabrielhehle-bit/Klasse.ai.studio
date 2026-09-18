@@ -4,8 +4,6 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardList,
-  Eye,
-  EyeOff,
   Grid,
   Play,
   StickyNote,
@@ -36,15 +34,13 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
           : 'Unterricht starten';
 
   const attendanceValue =
-    p.privacyMode
-      ? '••'
-      : p.totalStudents === 0
-        ? 'Keine Kinder angelegt'
-        : !p.attendanceRequired
-          ? 'Heute nicht erforderlich'
-          : p.attendanceRecorded
-            ? `${p.presentCount} / ${p.totalStudents} anwesend`
-            : 'Noch nicht geprüft';
+    p.totalStudents === 0
+      ? 'Keine Kinder angelegt'
+      : !p.attendanceRequired
+        ? 'Heute nicht erforderlich'
+        : p.attendanceRecorded
+          ? `${p.presentCount} / ${p.totalStudents} anwesend`
+          : 'Noch nicht geprüft';
 
   return (
     <section aria-label="Heute" className="space-y-5 text-slate-900">
@@ -58,16 +54,6 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
               Das Wichtigste für deinen Schultag – ohne unnötige Zusatzinformationen.
             </p>
           </div>
-
-          <button
-            type="button"
-            className={button + ' flex items-center gap-2'}
-            aria-pressed={p.privacyMode}
-            onClick={() => p.onPrivacyModeChange(!p.privacyMode)}
-          >
-            {p.privacyMode ? <EyeOff size={18} /> : <Eye size={18} />}
-            {p.privacyMode ? 'Private Angaben verborgen' : 'Private Angaben verbergen'}
-          </button>
         </div>
 
         <div className="mt-6">
@@ -125,7 +111,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
                         </p>
                         {lesson.thema && (
                           <p className="mt-1 break-words text-sm text-slate-600">
-                            {p.privacyMode ? 'Thema verborgen' : lesson.thema}
+                            {lesson.thema}
                           </p>
                         )}
                       </div>
@@ -181,7 +167,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
               Anwesenheit
             </span>
             <strong className="mt-1.5 block text-sm text-slate-900">{attendanceValue}</strong>
-            {!p.privacyMode && p.attendanceRecorded && p.absentCount > 0 && (
+            {p.attendanceRecorded && p.absentCount > 0 && (
               <span className="mt-1 block text-xs text-slate-600">{p.absentCount} abwesend</span>
             )}
           </button>
@@ -206,7 +192,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
                       {item.urgent && (
                         <span className="mb-1 block text-xs font-semibold text-amber-800">Heute beachten</span>
                       )}
-                      {p.privacyMode ? 'Privater Eintrag – zum Öffnen auswählen' : item.text}
+                      {item.text}
                     </button>
                   </li>
                 ))}
