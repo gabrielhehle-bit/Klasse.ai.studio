@@ -10,6 +10,7 @@ const ADMIN_VAULT = process.env.KLASSIO_E2E_ADMIN_VAULT || 'Klassio-E2E-Admin-20
 const SMTP_CODES = process.env.KLASSIO_E2E_SMTP_CODES || '/tmp/klassio-school-mail.json';
 const SCREENSHOT_TEACHER = process.env.KLASSIO_E2E_SCREENSHOT_TEACHER || '/tmp/klassio-school-teacher.png';
 const SCREENSHOT_ADMIN = process.env.KLASSIO_E2E_SCREENSHOT_ADMIN || '/tmp/klassio-school-admin.png';
+const LEGACY_IMPORT_FILE = '/tmp/klassio-legacy-import.json';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const q = value => JSON.stringify(value);
@@ -226,6 +227,87 @@ async function waitForAdminNotification() {
   throw new Error('No captured school verification notification for ' + ADMIN_EMAIL);
 }
 
+async function setFileInput(client, selector, filePath) {
+  const document = await client.send('DOM.getDocument', { depth: -1, pierce: true });
+  const match = await client.send('DOM.querySelector', {
+    nodeId: document.root.nodeId,
+    selector,
+  });
+  if (!match.nodeId) throw new Error(client.name + ': file input not found for ' + selector);
+  await client.send('DOM.setFileInputFiles', {
+    nodeId: match.nodeId,
+    files: [filePath],
+  });
+}
+
+async function accountRevision(client) {
+  return Number(await evaluate(
+    client,
+    'fetch("/api/account-sync",{cache:"no-store"}).then(async r=>r.status===404?0:Number((await r.json()).revision||0))'
+  )) || 0;
+}
+
+async function importLegacyJsonAndVerifySync(client) {
+  const legacy = {
+    version: 2,
+    activeClassId: 'legacy-browser-3a',
+    schuljahr: '2025/26',
+    klassen: [
+      {
+        id: 'legacy-browser-3a',
+        name: 'Legacy 3A',
+        stufe: 3,
+        schuljahr: '2025/26',
+        schueler: [
+          { id: 'legacy-emma', vorname: 'Emma', nachname: 'Altbestand' },
+          { id: 'legacy-ben', vorname: 'Ben', nachname: 'Altbestand' },
+        ],
+        wochenplanung: {
+          '38': {
+            Mittwoch: {
+              1: { fach: 'Mathematik', thema: 'Zahlenraum 100' },
+            },
+          },
+        },
+        noten: {
+          Mathematik: {
+            'legacy-emma': [{ id: 'legacy-note-1', wert: 2, titel: 'Kopfrechnen' }],
+          },
+        },
+      },
+    ],
+  };
+  await fs.writeFile(LEGACY_IMPORT_FILE, JSON.stringify(legacy), 'utf8');
+
+  const beforeRevision = await accountRevision(client);
+  await clickSidebar(client, 'Datensicherung');
+  await waitFor(client, 'backup page', 'document.body?.innerText.includes("Backup wiederherstellen")', 20000);
+  await evaluate(client, 'window.confirm=()=>true');
+  await setFileInput(
+    client,
+    'input[aria-label="Klassio-Sicherungsdatei auswählen (.json / Legacy .lehrerapp)"]',
+    LEGACY_IMPORT_FILE,
+  );
+
+  await waitFor(client, 'legacy backup restored', 'document.body?.innerText.includes("Wiederhergestellt")', 30000);
+  await waitFor(
+    client,
+    'legacy import pushed to account sync',
+    'fetch("/api/account-sync",{cache:"no-store"}).then(async r=>r.ok&&Number((await r.json()).revision||0)>' + beforeRevision + ')',
+    30000,
+  );
+
+  await clickSidebar(client, 'Klassenliste');
+  await waitFor(
+    client,
+    'legacy JSON student visible',
+    'document.body?.innerText.includes("Altbestand Emma") || document.body?.innerText.includes("Emma Altbestand")',
+    20000,
+  );
+  await waitFor(client, 'legacy JSON class visible', 'document.body?.innerText.includes("Legacy 3A")', 20000);
+  console.log('✓ Legacy JSON import restored old data and advanced encrypted account sync revision');
+}
+
 async function finishVaultSetup(client, password) {
   await waitFor(client, 'local vault setup', 'document.body?.innerText.toLowerCase().includes("lokalen datentresor einrichten")', 30000);
   await setInputByLabel(client, 'Tresor-Passwort vergeben', password);
@@ -278,6 +360,23 @@ async function createClassInUi(client, className) {
   await waitFor(client, 'class setup retained', 'document.body?.innerText.includes(' + q(className) + ')', 30000);
 }
 
+async function addStudentInUi(client, firstName, lastName) {
+  await clickSidebar(client, 'Klassenliste');
+  await waitFor(client, 'student list', 'document.body?.innerText.toLowerCase().includes("schüler:in hinzufügen") || document.body?.innerText.toLowerCase().includes("schüler hinzufügen")', 20000);
+  await clickButton(client, 'Schüler');
+  await waitFor(client, 'new student form', 'document.body?.innerText.includes("Neuer Schüler")', 20000);
+  await setInputByLabel(client, 'Vorname', firstName);
+  await setInputByLabel(client, 'Nachname', lastName);
+  await clickButton(client, 'Anlegen');
+  await waitFor(
+    client,
+    'new student saved',
+    'document.body?.innerText.includes(' + q(lastName + ' ' + firstName) + ') || document.body?.innerText.includes(' + q(firstName + ' ' + lastName) + ')',
+    20000,
+  );
+  console.log('✓ Student creation button saves a new student');
+}
+
 async function openAccountSettings(client) {
   await clickSidebar(client, 'Einstellungen');
   await waitFor(client, 'settings page', 'document.body?.innerText.includes("Was möchtest du in Klassio anpassen?")', 20000);
@@ -300,6 +399,8 @@ async function main() {
   try {
     await loginWithMail(teacher, TEACHER_EMAIL, TEACHER_VAULT);
     await createClassInUi(teacher, 'Heute eingerichtet 1A');
+    await addStudentInUi(teacher, 'Browser', 'Kind');
+    await importLegacyJsonAndVerifySync(teacher);
     await openAccountSettings(teacher);
 
     await waitFor(teacher, 'unknown school can be connected', 'document.body?.innerText.includes("Schule verbinden")', 20000);
@@ -317,7 +418,9 @@ async function main() {
 
     await clickButton(teacher, 'Status aktualisieren');
     await waitFor(teacher, 'school identity becomes verified', 'document.body?.innerText.includes("Schule verifiziert") && document.body?.innerText.includes("Volksschule Neu")', 20000);
-    await waitFor(teacher, 'existing class remains after school approval', 'document.body?.innerText.includes("Heute eingerichtet 1A")', 20000);
+    await waitFor(teacher, 'imported class remains after school approval', 'document.body?.innerText.includes("Legacy 3A")', 20000);
+    await clickSidebar(teacher, 'Klassenliste');
+    await waitFor(teacher, 'legacy student remains after school approval', 'document.body?.innerText.includes("Altbestand Emma") || document.body?.innerText.includes("Emma Altbestand")', 20000);
 
     const identityActive = await evaluate(teacher,
       'fetch("/api/access/status",{cache:"no-store"}).then(r=>r.json()).then(data=>Boolean(data.identity&&data.identity.schoolName==="Volksschule Neu"))'

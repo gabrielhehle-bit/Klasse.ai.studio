@@ -30,7 +30,7 @@ test('E-Mail-Anmeldung ist innerhalb der laufenden App erreichbar', () => {
 });
 
 test('Bestehende Einrichtung bleibt beim E-Mail- und Schul-Onboarding unangetastet', () => {
-  assert.match(accountSettings, /Bereits eingerichtete Klassen, Planungen, Noten und Tresordaten bleiben/);
+  assert.match(accountSettings, /Klassen, Planungen und Noten bleiben auf diesem Gerät verfügbar/);
   assert.match(schoolIdentity, /Du musst nichts neu einrichten/);
   assert.match(schoolIdentity, /Bestehende Klassio-Daten werden dabei nicht verschoben, gelöscht oder neu angelegt/);
   assert.doesNotMatch(emailLogin, /factoryReset|Werksreset|clearAppData/);

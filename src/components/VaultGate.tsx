@@ -24,6 +24,7 @@ import {
   isEncryptedLocalState,
 } from '../lib/secureStorageService';
 import { fetchAccountSyncSnapshot, hasEmailAccountSession } from '../lib/accountSyncService';
+import { parseSyncHash } from '../lib/syncService';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Shield,
@@ -47,7 +48,8 @@ interface VaultGateProps {
 }
 
 export default function VaultGate({ children }: VaultGateProps) {
-  const { isVaultUnlocked, unlockAppVault } = useApp();
+  const { app, isVaultUnlocked, unlockAppVault } = useApp();
+  const [remotePairingRequested] = useState(() => Boolean(parseSyncHash(window.location.hash)));
   const { showToast } = useToast();
 
   const [gateState, setGateState] = useState<'checking' | 'needs_setup' | 'locked' | 'unlocked'>(() => {
@@ -81,6 +83,7 @@ export default function VaultGate({ children }: VaultGateProps) {
   useEffect(() => {
     let isMounted = true;
     async function checkVaultStatus() {
+      if (remotePairingRequested) return;
       try {
         const activeKey = getActiveVaultKey();
         if (activeKey) {
@@ -116,8 +119,8 @@ export default function VaultGate({ children }: VaultGateProps) {
               console.error('[AccountSync] Remote-Tresor konnte nicht geprüft werden:', cloudError);
               if (isMounted) {
                 setErrorMessage(
-                  'Dein verschlüsselter Kontostand konnte gerade nicht vom Server geladen werden. ' +
-                  'Zur Sicherheit wird kein neuer Tresor angelegt. Bitte Verbindung prüfen und erneut versuchen.'
+                  'Deine gespeicherten Daten konnten gerade nicht geladen werden. ' +
+                  'Zur Sicherheit wird auf diesem Gerät nichts neu eingerichtet. Bitte Verbindung prüfen und erneut versuchen.'
                 );
                 setGateState('checking');
               }
@@ -145,9 +148,17 @@ export default function VaultGate({ children }: VaultGateProps) {
         }
 
         if (isMounted) setGateState('locked');
-      } catch (err) {
+      } catch (err: any) {
         console.error('Fehler bei Vault-Status-Prüfung:', err);
-        if (isMounted) setGateState('locked');
+        if (!isMounted) return;
+        if (err?.code === 'SESSION_STATUS_UNAVAILABLE' || err?.code === 'SESSION_STATUS_INVALID') {
+          setErrorMessage(
+            'Klassio kann dein Konto gerade nicht erreichen. Zur Sicherheit wird auf diesem Gerät nichts neu eingerichtet. Bitte Verbindung prüfen und erneut versuchen.'
+          );
+          setGateState('checking');
+          return;
+        }
+        setGateState('locked');
       }
     }
 
@@ -155,7 +166,7 @@ export default function VaultGate({ children }: VaultGateProps) {
     return () => {
       isMounted = false;
     };
-  }, [isVaultUnlocked, unlockAppVault]);
+  }, [isVaultUnlocked, unlockAppVault, remotePairingRequested]);
 
   const triggerShake = () => {
     setShake(true);
@@ -306,7 +317,7 @@ export default function VaultGate({ children }: VaultGateProps) {
     setErrorMessage(null);
 
     if (!recoveryCodeInput.trim()) {
-      setErrorMessage('Bitte gib deinen 128-Bit Wiederherstellungscode ein.');
+      setErrorMessage('Bitte gib deinen Wiederherstellungscode ein.');
       triggerShake();
       return;
     }
@@ -339,7 +350,7 @@ export default function VaultGate({ children }: VaultGateProps) {
       showToast('Tresor mit Wiederherstellungscode entsperrt.', 'success');
     } catch (err: any) {
       console.warn('Recovery fehlgeschlagen:', err);
-      setErrorMessage('Ungültiger Wiederherstellungscode oder Authentifizierungsfehler.');
+      setErrorMessage('Der Wiederherstellungscode ist ungültig oder konnte nicht geprüft werden.');
       triggerShake();
     } finally {
       setIsProcessing(false);
@@ -359,7 +370,7 @@ export default function VaultGate({ children }: VaultGateProps) {
   };
 
   // Wenn der Tresor entsperrt ist, rendern wir die App normal
-  if (gateState === 'unlocked') {
+  if (remotePairingRequested || app.boardSettings?.isRemoteController || gateState === 'unlocked') {
     return <>{children}</>;
   }
 
@@ -428,7 +439,7 @@ export default function VaultGate({ children }: VaultGateProps) {
               <div className="p-3 bg-[var(--accent-soft)] border border-[var(--accent)]/25 rounded-xl flex items-start gap-2.5 text-[var(--text-primary)] text-xs">
                 <FileCheck2 className="w-4 h-4 flex-shrink-0 mt-0.5 text-[var(--accent)]" />
                 <p className="leading-snug">
-                  Bestehende lokale Daten gefunden. Sie werden nach der Tresor-Erstellung atomar verschlüsselt.
+                  Bestehende Daten gefunden. Sie werden beim Einrichten sicher übernommen.
                 </p>
               </div>
             )}
@@ -506,7 +517,7 @@ export default function VaultGate({ children }: VaultGateProps) {
             <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5 text-amber-600 dark:text-amber-200 text-xs">
               <KeyRound className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />
               <p className="leading-snug">
-                Notiere diesen 128-Bit Wiederherstellungscode sorgfältig. Solltest du dein Passwort vergessen, ist dieser Code der einzige Weg, deinen Tresor wiederherzustellen.
+                Notiere diesen Wiederherstellungscode sorgfältig. Wenn du dein Passwort vergisst, kannst du damit wieder auf deine Daten zugreifen.
               </p>
             </div>
 
@@ -606,7 +617,7 @@ export default function VaultGate({ children }: VaultGateProps) {
               />
               <span className="text-xs leading-snug text-[var(--text-secondary)]">
                 <strong className="text-[var(--text-primary)]">Auf diesem persönlichen Gerät 30 Tage entsperrt bleiben.</strong>
-                {' '}Der Vault-Key wird nur verschlüsselt und mit einem nicht exportierbaren Geräteschlüssel im Browser gespeichert.
+                {' '}Klassio merkt sich die Freigabe geschützt auf diesem persönlichen Gerät.
               </span>
             </label>
 
@@ -703,7 +714,7 @@ export default function VaultGate({ children }: VaultGateProps) {
         <div className="mt-6 pt-4 border-t border-[var(--border)] text-center">
           <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] font-mono">
             <Shield size={12} className="text-[var(--text-muted)]" />
-            AES-GCM-256 · optionales Gerätevertrauen speichert keinen Klartext-Schlüssel
+            Deine Daten bleiben geschützt auf diesem Gerät
           </span>
         </div>
       </motion.div>

@@ -175,7 +175,6 @@ export default function YearlyPlan() {
   const [viewingCell, setViewingCell] = useState<{ kw: number, subjectId: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [editValue, setEditValue] = useState<{ thema: string, buch: string, type: string, subCategory: string, subCategories?: string[], items?: any[], completed?: boolean }>({ thema: '', buch: '', type: 'standard', subCategory: '', subCategories: [], items: [], completed: false });
-  const [isPrintMode, setIsPrintMode] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'months'>('table');
   const hasYearPlanEntries = useMemo(() => (
     Object.values(app.jahresplanung || {}).some((week: any) => {
@@ -1077,112 +1076,6 @@ export default function YearlyPlan() {
     link.click();
   };
 
-  const printPlan = () => {
-    window.print();
-  };
-
-  if (isPrintMode) {
-    return (
-      <div className="bg-white p-8 min-h-screen font-sans text-black">
-        <div className="flex justify-between items-end mb-8 border-b-2 border-black pb-4 print:hidden">
-          <div>
-            <h1 className="text-[1.5rem] leading-normal font-black uppercase">Jahresplanung {app.schuljahr}</h1>
-            <p className="text-[0.875rem] leading-snug text-stone-500">Druckansicht für die gesamte Jahresübersicht</p>
-          </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setIsPrintMode(false)} 
-              className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl font-black text-[0.75rem] leading-tight uppercase tracking-wider transition-all cursor-pointer"
-            >
-              Zurück
-            </button>
-            <button 
-              onClick={printPlan} 
-              className="px-6 py-3.5 bg-slate-900 border border-slate-900 hover:bg-slate-800 text-white rounded-2xl text-[0.75rem] leading-tight font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer"
-            >
-              <Printer size={16} /> <span>Drucken</span>
-            </button>
-          </div>
-        </div>
-
-        <table className="w-full border-collapse border-[1.5px] border-black text-[0.625rem]">
-          <thead className="sticky top-0 bg-white z-10">
-            <tr>
-              <th className="border border-black p-1 w-8 bg-stone-100">SW</th>
-              <th className="border border-black p-1 w-8 bg-stone-100">KW</th>
-              {subjects.map(s => (
-                <th key={s.id} className="border border-black p-1 text-center font-black uppercase leading-tight bg-stone-50">
-                  {s.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {weeks.map(({ sw, kw, year }) => {
-              const monday = kwToMonday(kw, year);
-              const holiday = isHoliday(monday, app.calendarSettings?.disabledHolidays, app.bundesland || 'VBG');
-              const plannedWeek = app.jahresplanung[kw] || {};
-
-              if (holiday && (holiday.includes('ferien') || holiday.includes('Schluss') || holiday.includes('Beginn'))) {
-                 return (
-                   <tr key={sw}>
-                     <td className="border border-black p-1 text-center font-bold bg-stone-50">{sw}</td>
-                     <td className="border border-black p-1 text-center bg-stone-50">{kw}</td>
-                     <td colSpan={subjects.length} className="border border-black p-2 text-center font-black uppercase bg-stone-100 tracking-[0.2em]">
-                       {holiday}
-                     </td>
-                   </tr>
-                 );
-              }
-
-              return (
-                <tr key={sw}>
-                  <td className="border border-black p-1 text-center font-bold bg-stone-50">{sw}</td>
-                  <td className="border border-black p-1 text-center bg-stone-50">{kw}</td>
-                  {subjects.map(s => {
-                    const data = plannedWeek[s.id];
-                    return (
-                      <td key={s.id} className={`border border-black p-1 align-top min-h-[40px] cursor-pointer hover:bg-black/5 transition-colors ${data?.completed ? 'bg-emerald-50/40' : ''}`} onClick={() => handleCellClick(kw, s.id)}>
-                        {data?.items && data.items.length > 0 ? (
-                          <div className="flex flex-col gap-1.5">
-                            {data.items.map((it: any) => (
-                              <div key={it.id} className="leading-tight border-b border-black/5 pb-1 mb-1 last:border-0 last:pb-0 last:mb-0">
-                                {it.subCategories && it.subCategories.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1 mb-0.5">
-                                    {it.subCategories.map((sc: string) => (
-                                      <div key={sc} className="text-[0.5rem] font-black uppercase text-blue-600 px-1 bg-blue-50 rounded border border-blue-100">{sc.replace('Deutsch ', '')}</div>
-                                    ))}
-                                  </div>
-                                ) : it.subCategory && <div className="text-[0.5rem] font-black uppercase text-blue-600 mb-0.5">{it.subCategory.replace('Deutsch ', '')}</div>}
-                                <div className={`font-bold ${data?.completed || it.completed ? 'line-through text-stone-400 font-medium' : ''} flex items-center gap-1`}>
-                                  {(data?.completed || it.completed) && <span className="text-emerald-500 font-black">✓</span>}
-                                  <span>{it.thema}</span>
-                                </div>
-                                {it.buch && <div className="text-[0.5rem] text-stone-600 italic leading-none">{it.buch}</div>}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <>
-                            <div className={`font-bold mb-0.5 ${data?.completed ? 'line-through text-stone-400 font-medium' : ''} flex items-center gap-1`}>
-                              {data?.completed && <span className="text-emerald-500 font-black">✓</span>}
-                              <span>{data?.thema}</span>
-                            </div>
-                            <div className="text-[0.5625rem] text-stone-600 italic leading-none">{data?.buch}</div>
-                          </>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
   const activeTab = app.settings?.planTab || 'jahresplan';
 
   return (
@@ -1335,10 +1228,10 @@ export default function YearlyPlan() {
             <Settings size={11} className="sm:w-[15px] sm:h-[15px]" /> Fächer
           </button>
           <button 
-            onClick={() => setIsPrintMode(true)}
+            onClick={() => setApp(prev => ({ ...prev, currentPage: 'drucken', activePrintTemplate: 'jahresplanung' }))}
             className="inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border border-slate-200 active:scale-95 cursor-pointer"
           >
-            <Printer size={11} className="sm:w-[15px] sm:h-[15px]" /> Drucken
+            <Printer size={11} className="sm:w-[15px] sm:h-[15px]" /> Druckzentrum
           </button>
           
           {/* Excel Dropdown Button */}

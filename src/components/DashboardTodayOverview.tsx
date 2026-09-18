@@ -10,8 +10,6 @@ import {
   Wallet,
   CheckCircle2,
   AlertCircle,
-  Eye,
-  EyeOff,
   ChevronRight,
   ChevronLeft,
   ChevronsLeft,
@@ -69,16 +67,9 @@ export interface DashboardTodayOverviewProps {
   klasseLabel: string;
   manualDateOffset: number;
   onDateOffsetChange: (offset: number) => void;
-  privacyMode: boolean;
-  onPrivacyModeChange: (value: boolean) => void;
   simpleMode: boolean;
   onSimpleModeToggle: () => void;
   onNavigate: (page: string) => void;
-  onOpenRemoteSetup: () => void;
-  onOpenBackup: () => void;
-  onOpenPrint: () => void;
-  onOpenSettings: () => void;
-  onOpenCustomize: () => void;
 
   // Anwesenheit Card
   totalStudents: number;
@@ -119,16 +110,9 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
   klasseLabel,
   manualDateOffset,
   onDateOffsetChange,
-  privacyMode,
-  onPrivacyModeChange,
   simpleMode,
   onSimpleModeToggle,
   onNavigate,
-  onOpenRemoteSetup,
-  onOpenBackup,
-  onOpenPrint,
-  onOpenSettings,
-  onOpenCustomize,
 
   totalStudents,
   absentCount,
@@ -262,28 +246,24 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
 
             <div>
               <div className="text-2xl font-black text-slate-900 tracking-tight">
-                {privacyMode
-                  ? "••"
-                  : totalStudents === 0
-                    ? "0"
-                    : !attendanceRequired
-                      ? "—"
-                      : attendanceRecorded
-                        ? `${presentCount} / ${totalStudents}`
-                        : "Offen"}
+                {totalStudents === 0
+                  ? "0"
+                  : !attendanceRequired
+                    ? "—"
+                    : attendanceRecorded
+                      ? `${presentCount} / ${totalStudents}`
+                      : "Offen"}
               </div>
               <p className="text-xs font-bold text-slate-500 mt-0.5">
-                {privacyMode
-                  ? attendanceRecorded ? "Geprüft" : !attendanceRequired ? "Nicht erforderlich" : "Noch nicht geprüft"
-                  : totalStudents === 0
-                    ? "Noch keine Kinder angelegt"
-                    : !attendanceRequired
-                      ? "Für diesen Tag keine Prüfung geplant"
-                      : !attendanceRecorded
-                        ? "Noch nicht geprüft"
-                        : absentCount === 0
-                          ? "Alle anwesend"
-                          : `${absentCount} abwesend`}
+                {totalStudents === 0
+                  ? "Noch keine Kinder angelegt"
+                  : !attendanceRequired
+                    ? "Für diesen Tag keine Prüfung geplant"
+                    : !attendanceRecorded
+                      ? "Noch nicht geprüft"
+                      : absentCount === 0
+                        ? "Alle anwesend"
+                        : `${absentCount} abwesend`}
               </p>
             </div>
           </div>
@@ -495,7 +475,7 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-black text-slate-800 truncate group-hover:text-indigo-900">
-                        {privacyMode ? "Sensibler Eintrag" : item.text}
+                        {item.text}
                       </p>
                     </div>
                   </div>
@@ -530,15 +510,11 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
               <div className="bg-white border border-indigo-100 rounded-2xl p-3 space-y-1.5">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white font-black flex items-center justify-center text-xs shrink-0">
-                    {privacyMode
-                      ? `${focusStudent.vorname?.[0] || ""}.`
-                      : `${focusStudent.vorname?.[0] || ""}${focusStudent.nachname?.[0] || ""}`}
+                    {`${focusStudent.vorname?.[0] || ""}${focusStudent.nachname?.[0] || ""}`}
                   </div>
                   <div>
                     <h3 className="text-xs font-black text-slate-900">
-                      {privacyMode
-                        ? `${focusStudent.vorname} ${focusStudent.nachname?.[0] || ""}.`
-                        : `${focusStudent.vorname} ${focusStudent.nachname}`}
+                      {`${focusStudent.vorname} ${focusStudent.nachname}`}
                     </h3>
                     <p className="text-[0.625rem] font-bold text-slate-500">
                       Tagesfokus

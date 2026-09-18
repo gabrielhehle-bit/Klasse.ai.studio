@@ -12,6 +12,7 @@ import {
   MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown, Flag, GraduationCap, Wrench, FileSearch, UserPlus
 } from 'lucide-react';
 import { Button, IconButton, Badge, Chip } from './ui';
+import { useLehrerzimmerUnread } from '../hooks/useLehrerzimmerUnread';
 
 interface SidebarProps {
   currentPage: string;
@@ -29,11 +30,13 @@ const CORE_MODULE_IDS = new Set([
   'leistungen',
   'unterricht',
   'tools',
+  'lehrerzimmer',
 ]);
 
 const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: SidebarProps) => {
   const { app, setApp } = useApp();
   const { showToast } = useToast();
+  const { summary: lehrerzimmerUnread } = useLehrerzimmerUnread();
   const isCollapsed = app?.settings?.sidebarCollapsed || false;
 
   const toggleCollapse = React.useCallback(() => {
@@ -77,7 +80,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'textanalyse', label: 'Textanalyse', icon: <FileSearch size={18} />, section: 'Tools' },
     { id: 'cockpit', label: 'Lehrercockpit', icon: <Play size={18} />, section: 'Unterricht' },
     { id: 'ki-helfer', label: 'KI-Helfer', icon: <Bot size={18} />, section: 'Unterricht' },
-    { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={18} />, section: 'Unterricht' },
+    { id: 'lehrerzimmer', label: 'Lehrerzimmer', icon: <MessagesSquare size={18} />, section: 'Tools' },
     { id: 'arbeitsblatt', label: 'Arbeitsblatt-Generator', icon: <FileEdit size={18} />, section: 'Unterricht' },
     { id: 'stationenbetrieb', label: 'Stationenbetrieb', icon: <LayoutGrid size={18} />, section: 'Unterricht' },
     { id: 'differenzierung', label: 'Differenzierung', icon: <Target size={18} />, section: 'Unterricht' },
@@ -116,10 +119,22 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
 
   const availableModules = ALL_MODULES.filter(item =>
     (app.klassenvorstand || !restrictedForSubjectTeachers.has(item.id)) &&
-    !disabledModules.includes(item.id)
+    (!disabledModules.includes(item.id) || item.id === 'lehrerzimmer')
   );
 
-  const orderedModules = orderSidebarItems(availableModules);
+  const orderedModulesBase = orderSidebarItems(availableModules);
+  const orderedModules = (() => {
+    const room = orderedModulesBase.find(item => item.id === 'lehrerzimmer');
+    const withoutRoom = orderedModulesBase.filter(item => item.id !== 'lehrerzimmer');
+    if (!room) return withoutRoom;
+    const toolsIndex = withoutRoom.findIndex(item => item.id === 'tools');
+    if (toolsIndex < 0) return [...withoutRoom, room];
+    return [
+      ...withoutRoom.slice(0, toolsIndex + 1),
+      room,
+      ...withoutRoom.slice(toolsIndex + 1),
+    ];
+  })();
   const utilityModules = orderedModules.filter(item => utilityIds.has(item.id));
   const mainModules = orderedModules.filter(item => !utilityIds.has(item.id));
   const defaultPrimaryModules = mainModules.filter(
@@ -377,10 +392,17 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                     />
                   )}
                   <span
-                    className={currentPage === item.id ? '' : 'text-text-muted group-hover:text-accent transition-colors'}
+                    className={`relative shrink-0 ${currentPage === item.id ? '' : 'text-text-muted group-hover:text-accent transition-colors'}`}
                     style={currentPage === item.id ? { color: 'var(--btn-text, #ffffff)' } : {}}
                   >
                     {item.icon}
+                    {item.id === 'lehrerzimmer' && lehrerzimmerUnread.count > 0 && (
+                      <span
+                        className={`absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 ${currentPage === item.id ? 'border-[var(--accent)] bg-white' : 'border-[var(--surface)] bg-rose-500'}`}
+                        aria-label={`${lehrerzimmerUnread.count} ungelesene Lehrerzimmer-Nachrichten`}
+                        title={`${lehrerzimmerUnread.count} ungelesene Nachricht${lehrerzimmerUnread.count === 1 ? '' : 'en'}`}
+                      />
+                    )}
                   </span>
                   {!isCollapsed && (
                     <>

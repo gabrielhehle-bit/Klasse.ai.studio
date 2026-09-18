@@ -1024,7 +1024,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const code = error instanceof Error ? error.message : '';
     if (code === 'INVALID_CATEGORY') return res.status(400).json({ error: 'Ungültige Kategorie.' });
     if (code === 'INVALID_KIND') return res.status(400).json({ error: 'Ungültige Beitragsart.' });
-    if (code === 'INVALID_CONTENT') return res.status(400).json({ error: 'Titel und Inhalt dürfen nicht leer sein.' });
+    if (code === 'INVALID_CONTENT') return res.status(400).json({ error: 'Die Nachricht darf nicht leer sein.' });
+    if (code === 'INVALID_READ_REQUEST') return res.status(400).json({ error: 'Ungültige Lesebestätigung.' });
     if (code === 'POST_NOT_FOUND') return res.status(404).json({ error: 'Dieser Beitrag wurde nicht gefunden.' });
     if (code === 'REPLY_NOT_FOUND') return res.status(404).json({ error: 'Diese Antwort wurde nicht gefunden.' });
     if (code === 'FORBIDDEN') return res.status(403).json({ error: 'Du kannst nur eigene Lehrerzimmer-Beiträge und eigene Antworten ändern oder löschen.' });
@@ -1071,6 +1072,26 @@ export async function createApp(options: { isTest?: boolean } = {}) {
           : undefined;
       const posts = await lehrerzimmerStore.listPosts(identity, category);
       res.json({ posts });
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.get('/api/lehrerzimmer/unread', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const summary = await lehrerzimmerStore.getUnreadSummary(identity);
+      res.json(summary);
+    } catch (error) {
+      handleLehrerzimmerError(res, error);
+    }
+  });
+
+  app.post('/api/lehrerzimmer/read', requireTeacherIdentity, async (req, res) => {
+    try {
+      const identity = getTeacherIdentity(req);
+      const marked = await lehrerzimmerStore.markPostsRead(identity, req.body?.postIds);
+      res.json({ success: true, marked });
     } catch (error) {
       handleLehrerzimmerError(res, error);
     }

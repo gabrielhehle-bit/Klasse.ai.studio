@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { FileText, X, Plus, Trash2, Copy, Check, Info, Search, Zap } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -46,24 +46,6 @@ export default function DenkzettelWidget() {
   const [channelingNoteId, setChannelingNoteId] = useState<string | null>(null);
   const [assignStudentId, setAssignStudentId] = useState<string>('');
   const [successMsg, setSuccessMsg] = useState<string>('');
-
-  // LocalStorage sync is now handled by the global AppContext provider, 
-  // but we keep the friendly initial note seeding if empty
-  useEffect(() => {
-    if (notes.length === 0 && !localStorage.getItem('denkzettel_seeded')) {
-      setNotes([
-        {
-          id: 'welcome-1',
-          text: '📝 Willkommen im Denkzettel! Hier kannst du spontane Ideen, Elterngesprächs-Notizen oder To-Dos während des Unterrichts festhalten.',
-          color: 'yellow',
-          completed: false,
-          category: 'allgemein',
-          createdAt: Date.now()
-        }
-      ]);
-      localStorage.setItem('denkzettel_seeded', 'true');
-    }
-  }, []);
 
   const saveNotes = (updatedNotes: QuickNote[]) => {
     setNotes(updatedNotes);

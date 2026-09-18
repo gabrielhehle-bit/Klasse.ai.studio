@@ -1833,8 +1833,20 @@ export default function Gradebook() {
                             }}
                             className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
                           >
-                            <span>🖨️</span>
-                            <span>Export / Drucken</span>
+                            <Download size={15} />
+                            <span>CSV exportieren</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setApp(prev => ({ ...prev, activePrintTemplate: 'zeugnis_noten' }));
+                              setPage('drucken');
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-slate-50 font-semibold text-slate-700 flex items-center gap-2.5 transition-colors cursor-pointer"
+                          >
+                            <Printer size={15} />
+                            <span>Im Druckzentrum öffnen</span>
                           </button>
 
                           <div className="my-1 border-t border-slate-100" />

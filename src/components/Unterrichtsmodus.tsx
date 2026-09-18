@@ -51,7 +51,6 @@ import {
   MessageSquare,
   Send,
   RefreshCw,
-  ExternalLink,
   Activity,
   Map as MapIcon,
   BarChart3,
@@ -107,7 +106,6 @@ import {
   Maximize,
   Minimize,
   Grid,
-  Wifi,
   Watch,
   GlassWater,
   Ear,
@@ -148,6 +146,12 @@ import {
 } from "../lib/unterrichtsmodusThemes";
 import { RichTextEditor } from "./RichTextEditor";
 import { useToast } from "../context/ToastContext";
+import {
+  createSyncUrl,
+  getActiveEncodedSessionKey,
+  startSyncSession,
+  stopSyncSession,
+} from "../lib/syncService";
 import { PET_BREEDS, AVAILABLE_ACCESSORIES } from "./ClassPetWidget";
 import { MobileRemoteController } from "./MobileRemoteController";
 import { UnterrichtsmodusThemePicker } from "./UnterrichtsmodusThemePicker";
@@ -3891,7 +3895,62 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     localStorage.setItem(cockpitAutoSaveStorageKey, dateStr);
   };
   const [showSyncInfo, setShowSyncInfo] = useState(false);
-  const [syncModalTab, setSyncModalTab] = useState<'remote' | 'wifi'>('remote');
+  const [isPhonePairingBusy, setIsPhonePairingBusy] = useState(false);
+
+  const handleOpenPhonePairing = useCallback(async () => {
+    if (isPhonePairingBusy) return;
+    const existingCode = app.boardSettings?.activeSyncCode;
+    const existingKey = getActiveEncodedSessionKey();
+
+    if (existingCode && existingKey && !app.boardSettings?.isRemoteController) {
+      setShowSyncInfo(true);
+      return;
+    }
+
+    setIsPhonePairingBusy(true);
+    try {
+      if (existingCode) {
+        await stopSyncSession(existingCode).catch(() => undefined);
+      }
+      const { code } = await startSyncSession(app);
+      setApp((prev: any) => ({
+        ...prev,
+        boardSettings: {
+          ...prev.boardSettings,
+          activeSyncCode: code,
+          isRemoteController: false,
+        },
+      }));
+      setShowSyncInfo(true);
+      showToast("Handy-Verbindung ist bereit. Scanne den QR-Code.", "success");
+    } catch (error) {
+      console.error("Handy-Verbindung konnte nicht gestartet werden:", error);
+      showToast("Handy-Verbindung konnte nicht gestartet werden.", "error");
+    } finally {
+      setIsPhonePairingBusy(false);
+    }
+  }, [app, isPhonePairingBusy, setApp, showToast]);
+
+  const handleEndPhonePairing = useCallback(async () => {
+    const code = app.boardSettings?.activeSyncCode;
+    if (code) await stopSyncSession(code).catch(() => undefined);
+    setApp((prev: any) => ({
+      ...prev,
+      boardSettings: {
+        ...prev.boardSettings,
+        activeSyncCode: undefined,
+        isRemoteController: undefined,
+        remoteLastActiveTs: undefined,
+      },
+    }));
+    setShowSyncInfo(false);
+    showToast("Handy-Verbindung beendet.", "info");
+  }, [app.boardSettings?.activeSyncCode, setApp, showToast]);
+
+  const phonePairingKey = getActiveEncodedSessionKey() || "";
+  const phonePairingUrl = app.boardSettings?.activeSyncCode && phonePairingKey
+    ? createSyncUrl(app.boardSettings.activeSyncCode, phonePairingKey)
+    : "";
   const [isTafelOpen, setTafelOpenLocal] = useState(false);
   const setIsTafelOpen = useCallback((open: boolean) => {
     setTafelOpenLocal(open);
@@ -7711,6 +7770,31 @@ ${content}
             <div
               className={`w-px h-6 shrink-0 hidden sm:block ${currentIsLight ? "bg-black/10" : "bg-white/10"}`}
             />
+          )}
+
+          {!isSmartboardOnly && (
+            <button
+              type="button"
+              onClick={handleOpenPhonePairing}
+              disabled={isPhonePairingBusy}
+              className={`relative h-8 px-2 sm:px-2.5 rounded-lg border font-black text-[9px] uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:scale-95 ${
+                app.boardSettings?.activeSyncCode && phonePairingKey
+                  ? currentIsLight
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                    : "bg-emerald-500/15 border-emerald-400/30 text-emerald-300 hover:bg-emerald-500/25"
+                  : currentIsLight
+                    ? "bg-black/5 border-black/10 text-slate-700 hover:bg-black/10"
+                    : "bg-white/10 border-white/10 text-white hover:bg-white/20"
+              } ${isPhonePairingBusy ? "opacity-60 cursor-wait" : "cursor-pointer"}`}
+              title="Handy verbinden"
+              aria-label="Handy verbinden"
+            >
+              <Smartphone size={13} />
+              <span className="hidden xl:inline">Handy</span>
+              {app.boardSettings?.activeSyncCode && phonePairingKey && (
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              )}
+            </button>
           )}
 
           {/* Time & Design Section */}
@@ -16361,139 +16445,94 @@ ${content}
         )}
       </AnimatePresence>
 
-      {/* QR Code Kopplungs-Info Card */}
+      {/* Handy verbinden */}
       <AnimatePresence>
-        {app.boardSettings?.activeSyncCode &&
-          showSyncInfo &&
+        {showSyncInfo &&
+          app.boardSettings?.activeSyncCode &&
           !app.boardSettings?.isRemoteController && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed inset-0 z-[3000] flex items-center justify-center pointer-events-none p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/55 backdrop-blur-sm p-4"
+              onClick={() => setShowSyncInfo(false)}
             >
-              <div className="w-[360px] bg-black/95 backdrop-blur-3xl p-6 rounded-3xl border border-indigo-500/30 shadow-[0_20px_100px_rgba(0,0,0,0.85)] pointer-events-auto select-none flex flex-col gap-3">
-                {/* Header & Tabs */}
-                <div className="flex justify-between items-center">
-                  {/* Mode Tabs */}
-                  <div className="flex bg-white/10 p-0.5 rounded-xl gap-0.5">
-                    <button
-                      onClick={() => setSyncModalTab('remote')}
-                      className={`px-2.5 py-1 rounded-lg text-[0.625rem] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer ${
-                        syncModalTab === 'remote' ? 'bg-indigo-600 text-white shadow' : 'text-stone-400 hover:text-white'
-                      }`}
-                    >
-                      <Smartphone size={12} /> Remote
-                    </button>
-                    <button
-                      onClick={() => setSyncModalTab('wifi')}
-                      className={`px-2.5 py-1 rounded-lg text-[0.625rem] font-black uppercase tracking-wider flex items-center gap-1 transition-all cursor-pointer ${
-                        syncModalTab === 'wifi' ? 'bg-emerald-600 text-white shadow' : 'text-stone-400 hover:text-white'
-                      }`}
-                    >
-                      <Wifi size={12} /> WLAN
-                    </button>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                onClick={(event) => event.stopPropagation()}
+                className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 text-slate-900 shadow-2xl"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                      <Smartphone size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black">Handy verbinden</h3>
+                      <p className="mt-0.5 text-xs font-medium text-slate-500">
+                        QR-Code mit der Handy-Kamera scannen.
+                      </p>
+                    </div>
                   </div>
-
                   <button
+                    type="button"
                     onClick={() => setShowSyncInfo(false)}
-                    className="text-stone-400 hover:text-white p-1 hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+                    className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                    aria-label="Schließen"
                   >
-                    <X size={14} strokeWidth={2.5} />
+                    <X size={16} />
                   </button>
                 </div>
 
-                {syncModalTab === 'remote' ? (
+                {phonePairingUrl ? (
                   <>
-                    <div className="flex justify-between items-center">
-                      <div className="text-indigo-400 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5">
-                        <Smartphone size={13} /> Handy-Fernbedienung
+                    <div className="mt-5 flex justify-center rounded-2xl border border-slate-200 bg-white p-4">
+                      <QRCodeCanvas value={phonePairingUrl} size={190} level="M" />
+                    </div>
+                    <div className="mt-4 flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">Verbindungscode</div>
+                        <div className="mt-0.5 font-mono text-lg font-black tracking-[0.18em] text-slate-900">
+                          {app.boardSettings.activeSyncCode}
+                        </div>
                       </div>
-                      {(() => {
-                        const lastActive = app.boardSettings?.remoteLastActiveTs;
-                        const isRecentlyActive = lastActive && (Date.now() - lastActive < 30000);
-                        return (
-                          <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[0.5625rem] font-black uppercase ${
-                            isRecentlyActive ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'
-                          }`}>
-                            <span>{isRecentlyActive ? '🟢 VERBUNDEN' : '🟡 WARTE SCAN'}</span>
-                          </div>
-                        );
-                      })()}
+                      <div className="text-right text-[11px] font-bold text-slate-500">
+                        {app.boardSettings?.remoteLastActiveTs && Date.now() - app.boardSettings.remoteLastActiveTs < 30_000
+                          ? "Handy verbunden"
+                          : "Bereit zum Scannen"}
+                      </div>
                     </div>
-
-                    <div className="flex flex-col items-center justify-center bg-white p-3.5 rounded-2xl shadow-inner">
-                      <QRCodeCanvas
-                        value={`${window.location.protocol}//${window.location.host}${window.location.pathname}?sync=${app.boardSettings.activeSyncCode}`}
-                        size={150}
-                        level={"Q"}
-                      />
-                    </div>
-
-                    <div className="text-center bg-white/5 border border-white/10 rounded-2xl p-2 font-mono">
-                      <div className="text-[8px] text-indigo-300 font-bold uppercase tracking-wider mb-0.5">Kopplungscode</div>
-                      <div className="text-lg font-black text-white tracking-widest">{app.boardSettings.activeSyncCode}</div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
+                    <p className="mt-3 text-xs leading-relaxed text-slate-500">
+                      Nach dem Scan öffnet sich die Fernbedienung automatisch. Die Verbindung gilt nur für diese Unterrichtssitzung.
+                    </p>
+                    <div className="mt-5 grid grid-cols-2 gap-2">
                       <button
+                        type="button"
                         onClick={() => {
-                          const syncUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?sync=${app.boardSettings?.activeSyncCode}`;
-                          navigator.clipboard.writeText(syncUrl);
-                          showToast("Kopplungs-Link kopiert!", "success");
+                          navigator.clipboard.writeText(phonePairingUrl);
+                          showToast("Handy-Link kopiert.", "success");
                         }}
-                        className="py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[0.625rem] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-md"
+                        className="flex h-10 items-center justify-center gap-1.5 rounded-xl bg-indigo-50 text-xs font-black text-indigo-700 hover:bg-indigo-100"
                       >
-                        <Copy size={11} /> Link kopieren
+                        <Copy size={13} /> Link kopieren
                       </button>
-
                       <button
-                        onClick={() => {
-                          const syncUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?sync=${app.boardSettings?.activeSyncCode}`;
-                          window.open(syncUrl, '_blank', 'width=420,height=800,resizable=yes');
-                        }}
-                        className="py-2 bg-white/10 hover:bg-white/20 text-stone-200 rounded-xl text-[0.625rem] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 border border-white/10"
+                        type="button"
+                        onClick={handleEndPhonePairing}
+                        className="h-10 rounded-xl bg-slate-100 text-xs font-black text-slate-700 hover:bg-slate-200"
                       >
-                        <ExternalLink size={11} /> In neuem Tab
+                        Verbindung beenden
                       </button>
                     </div>
                   </>
                 ) : (
-                  <>
-                    <div className="flex justify-between items-center">
-                      <div className="text-emerald-400 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5">
-                        <Wifi size={13} /> WLAN-Kopplungscode
-                      </div>
-                      <span className="text-[0.5625rem] font-extrabold text-emerald-300 uppercase tracking-wider bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                        Netzwerk-QR
-                      </span>
-                    </div>
-
-                    <div className="flex flex-col items-center justify-center bg-white p-3.5 rounded-2xl shadow-inner">
-                      <QRCodeCanvas
-                        value={app.boardSettings?.wifiSettings?.security === 'nopass'
-                          ? `WIFI:S:${app.boardSettings?.wifiSettings?.ssid || 'Schul-WLAN-Klasse'};T:nopass;;`
-                          : `WIFI:S:${app.boardSettings?.wifiSettings?.ssid || 'Schul-WLAN-Klasse'};T:WPA;P:${app.boardSettings?.wifiSettings?.password || 'Schule2026!'};;`
-                        }
-                        size={150}
-                        level={"Q"}
-                      />
-                    </div>
-
-                    <div className="text-center bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-2 font-mono">
-                      <div className="text-[8px] text-emerald-300 font-bold uppercase tracking-wider mb-0.5">WLAN-Netzwerk (SSID)</div>
-                      <div className="text-sm font-black text-white tracking-wider">{app.boardSettings?.wifiSettings?.ssid || 'Schul-WLAN-Klasse'}</div>
-                      <div className="text-[10px] text-emerald-200 font-mono mt-0.5">
-                        PW: <span className="text-white font-bold">{app.boardSettings?.wifiSettings?.password || 'Schule2026!'}</span>
-                      </div>
-                    </div>
-
-                    <p className="text-[8.5px] leading-relaxed text-stone-300 font-sans text-center">
-                      📱 Halte deine Handy-Kamera auf diesen Code, um direkt mit dem Schul-WLAN verbunden zu werden.
-                    </p>
-                  </>
+                  <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
+                    Die Verbindung wird neu vorbereitet. Schließe dieses Fenster und tippe erneut auf „Handy“.
+                  </div>
                 )}
-              </div>
+              </motion.div>
             </motion.div>
           )}
       </AnimatePresence>

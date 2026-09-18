@@ -157,7 +157,7 @@ test('Schulverwaltung ist für Admin-Konten in den Konto-Einstellungen integrier
 
   assert.match(account, /SchoolIdentitySettings/);
   assert.match(account, /SchoolVerificationAdmin/);
-  assert.match(account, /Bereits eingerichtete Klassen, Planungen, Noten und Tresordaten bleiben/);
+  assert.match(account, /Klassen, Planungen und Noten bleiben auf diesem Gerät verfügbar/);
   assert.match(admin, /Schulverwaltung/);
   assert.match(admin, /\/api\/admin\/schools\/verification-requests/);
   assert.match(admin, /Freigeben/);
