@@ -1,23 +1,20 @@
 import React, { useState, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  Menu, Sun, Moon, Leaf, Type, Palette, Check, Clock, Cloud, CloudSun, CloudRain, 
-  CloudSnow, CloudLightning, Wind, ChevronDown, ChevronRight, FlagTriangleLeft, 
-  Wifi, WifiOff, Sparkles, Smartphone, X, Copy, Search, Maximize, Minimize, 
-  Lock, ShieldAlert, ShieldCheck, ExternalLink, RefreshCw, MoreHorizontal, User, Settings,
-  Users, Plus, ToggleLeft, ToggleRight, Info, Eye, CalendarDays, LogOut, Heart, Bug,
-  Bold, Italic, Save, Sliders, ArrowLeft
+  Menu, Sun, Cloud, CloudSun, CloudRain, CloudSnow, CloudLightning, Wind,
+  ChevronDown, ChevronRight, FlagTriangleLeft, Wifi, Smartphone, X, Copy, Search,
+  Maximize, Minimize, Lock, ShieldAlert, ShieldCheck, ExternalLink, RefreshCw,
+  MoreHorizontal, Settings, LogOut, Heart, Bug, ArrowLeft
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { getStartYear, getSchulstartKW, kwToMonday, getCurrentSchuljahr, getKW, getSW } from '../lib/utils';
+import { getStartYear, getSchulstartKW, kwToMonday, getCurrentSchuljahr } from '../lib/utils';
 import { getFerien } from '../lib/ferienOesterreich';
-import { AESTHETIC_THEMES, FONTS, DASHBOARD_CURATED_FONTS, DASHBOARD_FONT_SIZES } from '../constants';
 import { QRCodeCanvas } from 'qrcode.react';
 import { scanDataConsistency } from '../lib/DataConsistencyService';
 import { startSyncSession, createSyncUrl, getActiveEncodedSessionKey } from '../lib/syncService';
 import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
-import { Button, IconButton, Badge, Input } from './ui';
+import { Button, IconButton, Badge } from './ui';
 import SupportModal from './SupportModal';
 import { getNavigationParent } from '../lib/navigationHierarchy';
 
@@ -29,7 +26,7 @@ interface TopbarProps {
 }
 
 const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) => {
-  const { app, setApp, setScreenLocked, setPage, switchClass, lockAppVault } = useApp();
+  const { app, setApp, setScreenLocked, setPage, lockAppVault } = useApp();
   const { showToast } = useToast();
   const consistencyIssues = React.useMemo(() => scanDataConsistency(app), [app]);
   const currentPage = app.currentPage || 'dashboard';
@@ -246,33 +243,6 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
     }));
   }, [forecast]);
 
-  const setAestheticTheme = React.useCallback((themeId: any) => {
-    setApp(prev => ({ ...prev, theme: themeId }));
-  }, [setApp]);
-
-  const setFontFamily = React.useCallback((fontId: string) => {
-    setApp(prev => ({ 
-      ...prev, 
-      settings: { ...prev.settings, fontFamily: fontId }
-    }));
-  }, [setApp]);
-
-  const toggleZoom = React.useCallback(() => {
-    const levels: ('compact' | 'standard' | 'large')[] = ['compact', 'standard', 'large'];
-    const current = app?.settings?.zoomLevel || 'standard';
-    const nextIdx = (levels.indexOf(current) + 1) % levels.length;
-    setApp(prev => ({ 
-      ...prev, 
-      settings: { ...prev.settings, zoomLevel: levels[nextIdx] } 
-    }));
-  }, [setApp, app?.settings?.zoomLevel]);
-
-  // Active Class & Teachers Info
-  const currentClassName = app?.klassenbezeichnung || 'Keine Klasse gewählt';
-  const availableClasses = app?.classes || [];
-  const lehrerVorname = app?.lehrerProfil?.name || app?.lehrerName || 'Lehrperson';
-  const lehrerInitial = lehrerVorname.charAt(0).toUpperCase();
-
   const handleGlobalSearch = () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
   };
@@ -359,7 +329,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                   setShowWeatherDetails(!showWeatherDetails);
                   setShowSchoolYearDetails(false);
                   setShowMehrMenu(false);
-                          }}
+                }}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-2xl font-bold text-xs shrink-0 shadow-2xs transition-all cursor-pointer active:scale-95 ${
                   showWeatherDetails 
                     ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-xs'
@@ -447,7 +417,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                   setShowSchoolYearDetails(!showSchoolYearDetails);
                   setShowWeatherDetails(false);
                   setShowMehrMenu(false);
-                          }}
+                }}
                 className={`flex items-center gap-2 px-3 py-1.5 border rounded-2xl font-bold text-xs shrink-0 shadow-2xs transition-all cursor-pointer active:scale-95 ${
                   showSchoolYearDetails
                     ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-xs'
@@ -534,6 +504,12 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
               )}
             </div>
 
+            {actions && (
+              <div className="flex items-center gap-2 shrink-0">
+                {actions}
+              </div>
+            )}
+
             {/* Menü „Mehr“ */}
             <div className="relative">
               <Button
@@ -541,7 +517,7 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
                 size="sm"
                 onClick={() => {
                   setShowMehrMenu(!showMehrMenu);
-                          }}
+                }}
                 leftIcon={<MoreHorizontal size={18} />}
                 rightIcon={<ChevronDown size={14} className={`transition-transform ${showMehrMenu ? 'rotate-180' : ''}`} />}
                 title="Weitere Optionen & Werkzeuge"
