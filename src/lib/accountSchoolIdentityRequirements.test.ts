@@ -60,8 +60,9 @@ test('Lehrerzimmer bleibt an verifizierte Schulidentität gebunden', () => {
 test('Login-Oberfläche erklärt Konto und Schulverifizierung getrennt', () => {
   const gate = read('src/components/AccessGate.tsx');
 
-  assert.match(gate, /Mit deiner E-Mail-Adresse anmelden\./);
-  assert.match(gate, /Private E-Mail-Adressen funktionieren für dein persönliches Klassio-Konto/);
-  assert.match(gate, /Schul-E-Mail wird zusätzlich deine Schule verifiziert und das Lehrerzimmer freigeschaltet/);
+  assert.match(gate, /Mit deiner E-Mail anmelden und deine verschlüsselten KLASSIO-Daten auf diesem Gerät laden/);
+  assert.match(gate, /Deine E-Mail ist dein KLASSIO-Konto/);
+  assert.match(gate, /Auch private E-Mail-Adressen funktionieren für deinen persönlichen Geräte-Sync/);
+  assert.match(gate, /verifizierte Schul-E-Mail schaltet zusätzlich schulinterne Funktionen wie das Lehrerzimmer frei/);
   assert.doesNotMatch(gate, /Es funktionieren nur die auf diesem Klassio-Server freigegebenen Schul-Domains/);
 });
