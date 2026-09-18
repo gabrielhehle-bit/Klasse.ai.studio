@@ -275,6 +275,10 @@ test('Lehrerzimmer ist fest unter Tools sichtbar und signalisiert ungelesene Nac
   const dashboard = read('src/components/Dashboard.tsx');
   const component = read('src/components/Lehrerzimmer.tsx');
   const server = read('server.ts');
+  const unreadHook = read('src/hooks/useLehrerzimmerUnread.ts');
+
+  assert.match(unreadHook, /window\.setInterval\(\(\) => \{[\s\S]*void refresh\(\);[\s\S]*\}, pollMs\)/);
+  assert.doesNotMatch(unreadHook, /visibilityState === 'visible'\) void refresh/);
 
   assert.match(sidebar, /'tools',[\s\S]*'lehrerzimmer'/);
   assert.match(sidebar, /id: 'lehrerzimmer'.*section: 'Tools'/);
