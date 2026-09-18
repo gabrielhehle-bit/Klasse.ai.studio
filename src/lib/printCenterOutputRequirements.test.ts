@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 const printCenter = readFileSync('src/components/PrintCenter.tsx', 'utf8');
 const weekly = readFileSync('src/components/WeeklyPlan.tsx', 'utf8');
 const klassenbuchPdf = readFileSync('src/lib/klassenbuchPdf.ts', 'utf8');
+const klassenbuchSubjects = readFileSync('src/lib/klassenbuchSubjects.ts', 'utf8');
 
 test('Druckzentrum: jede auswählbare Vorlage besitzt einen Render-Pfad', () => {
   const ids = Array.from(printCenter.matchAll(/\{ id: '([^']+)', icon:/g)).map(match => match[1]);
@@ -32,26 +33,42 @@ test('Klassenbuch: direkte PDF-Ausgabe ist mit Woche, Bereich und Gesamt verbund
   assert.match(printCenter, /signatures: kbSignatures/);
 
   assert.match(klassenbuchPdf, /pageSize: 'A4'/);
+  assert.match(klassenbuchPdf, /pageOrientation: 'portrait'/);
+  assert.match(klassenbuchPdf, /unbreakable: true/);
+  assert.match(klassenbuchPdf, /dontBreakRows: true/);
+  assert.match(klassenbuchPdf, /Fach \/ Unterbereich/);
   assert.match(klassenbuchPdf, /Dokumentierter Unterricht \/ Inhalt/);
   assert.match(klassenbuchPdf, /Abwesenheiten \/ Fehlstunden/);
   assert.match(klassenbuchPdf, /Seite \$\{currentPage\} von \$\{pageCount\}/);
 });
 
-test('Klassenbuch: Druckzentrum übernimmt die differenzierten Fachbereiche aus der Wochenplanung', () => {
+test('Klassenbuch: Fächer und Unterbereiche stammen aus der kanonischen Wochenplan-Struktur', () => {
+  assert.match(printCenter, /getKlassenbuchBaseCategories\(app\?\.faecher\)/);
+  assert.match(printCenter, /classifyKlassenbuchEntry/);
+  assert.match(printCenter, /orderKlassenbuchCategoryKeys/);
+  assert.match(printCenter, /splitKlassenbuchCategoryKey/);
+
   for (const label of [
-    'Deutsch - Sprechen & Hören',
-    'Deutsch - D-FÖ',
-    'Mathematik - Ebene & Raum',
-    'Mathematik - Zahlen & Daten',
-    'Mathematik - Größen',
-    'Mathematik - Operationen',
-    'Förderung (FÖ)',
+    'DEUTSCH_UNTERFAECHER',
+    'MATHEMATIK_UNTERFAECHER',
+    'Sprachbetrachtung',
+    'Sprechen & Hören',
+    'Lesen',
+    'Rechtschreibung',
+    'Verfassen von Texten',
+    'Förderung',
+    'Ebene & Raum',
+    'Zahlen & Daten',
+    'Größen',
+    'Operationen',
   ]) {
-    assert.ok(printCenter.includes(label), `Klassenbuch-Bereich fehlt: ${label}`);
+    assert.ok(klassenbuchSubjects.includes(label), `Klassenbuch-Struktur fehlt: ${label}`);
   }
+
   assert.match(printCenter, /item\.halves\?\.enabled/);
   assert.match(printCenter, /1\. Hälfte:/);
   assert.match(printCenter, /2\. Hälfte:/);
+  assert.match(printCenter, /zeitunabhaengig/);
 });
 
 test('Wochenplanung: obsolete Größen- und Filterleiste ist entfernt', () => {
@@ -63,4 +80,16 @@ test('Wochenplanung: obsolete Größen- und Filterleiste ist entfernt', () => {
   assert.doesNotMatch(weekly, /filterOnlyOffen/);
   assert.match(weekly, /Wochenplan<\/span>/);
   assert.match(weekly, /Klassenbuch<\/span>/);
+});
+
+
+test('Klassenbuch: Browserdruck ist eine feste A4-Hochformatseite pro Woche', () => {
+  assert.match(printCenter, /activeTemplate === 'klassenbuch' \? 'A4 portrait'/);
+  assert.match(printCenter, /\.klassenbuch-a4-page \{/);
+  assert.match(printCenter, /width: 210mm !important/);
+  assert.match(printCenter, /height: 297mm !important/);
+  assert.match(printCenter, /padding: 8\.5mm !important/);
+  assert.match(printCenter, /page-break-inside: avoid !important/);
+  assert.match(printCenter, /setPrintOrientation\('portrait'\)/);
+  assert.match(printCenter, /setPrintMargin\(8\.5\)/);
 });
