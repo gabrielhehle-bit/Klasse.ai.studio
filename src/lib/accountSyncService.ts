@@ -207,12 +207,52 @@ export async function pushAccountSyncSnapshot(
 }
 
 export async function hasEmailAccountSession(): Promise<boolean> {
+  let response: Response;
   try {
-    const response = await fetch('/api/access/status', { cache: 'no-store' });
-    if (!response.ok) return false;
-    const data = await response.json();
-    return Boolean(data?.authenticated && data?.account?.email);
-  } catch {
-    return false;
+    response = await fetch('/api/access/status', { cache: 'no-store' });
+  } catch (cause) {
+    throw new AccountSyncError(
+      'Klassio kann den E-Mail-Kontostatus gerade nicht prüfen. Bitte Internetverbindung prüfen und erneut versuchen.',
+      undefined,
+      'SESSION_STATUS_UNAVAILABLE',
+    );
   }
+
+  if (!response.ok) {
+    throw new AccountSyncError(
+      'Klassio kann den E-Mail-Kontostatus gerade nicht prüfen.',
+      response.status,
+      'SESSION_STATUS_UNAVAILABLE',
+    );
+  }
+
+  const data = await response.json().catch(() => {
+    throw new AccountSyncError(
+      'Der E-Mail-Kontostatus konnte nicht gelesen werden.',
+      response.status,
+      'SESSION_STATUS_INVALID',
+    );
+  });
+  return Boolean(data?.authenticated && data?.account?.email);
+}
+
+export function accountSyncErrorMessage(error: unknown): string {
+  const syncError = error as Partial<AccountSyncError> | null;
+  if (syncError?.code === 'REVISION_CONFLICT') {
+    return 'Auf einem anderen Gerät wurde ebenfalls geändert. Zur Sicherheit wurde nichts überschrieben. Öffne Klassio auf dem aktuellsten Gerät und starte den Abgleich danach erneut.';
+  }
+  if (syncError?.code === 'VAULT_MISMATCH') {
+    return 'Das E-Mail-Konto enthält einen anderen Datentresor. Zur Sicherheit wurde nichts überschrieben. Prüfe, ob du das richtige Konto und den richtigen Tresor verwendest.';
+  }
+  if (syncError?.code === 'SESSION_STATUS_UNAVAILABLE' || syncError?.code === 'SYNC_READ_FAILED') {
+    return 'Der verschlüsselte Kontostand ist gerade nicht erreichbar. Deine lokalen Daten bleiben erhalten. Prüfe die Verbindung und versuche den Abgleich erneut.';
+  }
+  if (syncError?.code === 'SYNC_WRITE_FAILED') {
+    return 'Klassio konnte den verschlüsselten Stand gerade nicht auf dem Server sichern. Lokal ist weiter gespeichert; der Konto-Abgleich wird erneut versucht.';
+  }
+  if (syncError?.status === 413 || syncError?.code === 'PAYLOAD_TOO_LARGE') {
+    return 'Der verschlüsselte Kontostand ist zu groß für den Konto-Sync. Lokale Daten wurden nicht gelöscht. Bitte zusätzlich eine verschlüsselte Datei-Sicherung erstellen.';
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return 'Der verschlüsselte Konto-Abgleich ist fehlgeschlagen. Deine lokalen Daten bleiben erhalten.';
 }
