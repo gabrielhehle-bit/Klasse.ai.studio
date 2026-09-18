@@ -28,6 +28,7 @@ export interface LehrerzimmerReply {
 
 export interface LehrerzimmerPost {
   id: string;
+  quick?: boolean;
   category: LehrerzimmerCategory;
   kind: LehrerzimmerKind;
   title: string;
@@ -45,12 +46,21 @@ type StoreData = {
   version: 1;
   users: Record<string, LehrerzimmerUser[]>;
   posts: Record<string, LehrerzimmerPost[]>;
+  reads: Record<string, Record<string, Record<string, string>>>;
 };
+
+export type LehrerzimmerPostView = LehrerzimmerPost & { unread: boolean };
+
+export interface LehrerzimmerUnreadSummary {
+  count: number;
+  items: Array<Pick<LehrerzimmerPost, 'id' | 'title' | 'body' | 'authorName' | 'updatedAt'>>;
+}
 
 const EMPTY_STORE: StoreData = {
   version: 1,
   users: {},
   posts: {},
+  reads: {},
 };
 
 function cleanText(value: unknown, maxLength: number): string {
@@ -101,7 +111,18 @@ export function resolveMentionUserIds(users: LehrerzimmerUser[], text: string): 
 }
 
 function cloneEmptyStore(): StoreData {
-  return { version: 1, users: {}, posts: {} };
+  return { version: 1, users: {}, posts: {}, reads: {} };
+}
+
+function markRead(data: StoreData, identity: TeacherIdentity, post: LehrerzimmerPost): void {
+  const schoolReads = data.reads[identity.schoolId] || (data.reads[identity.schoolId] = {});
+  const userReads = schoolReads[identity.userId] || (schoolReads[identity.userId] = {});
+  userReads[post.id] = post.updatedAt;
+}
+
+function isUnread(data: StoreData, identity: TeacherIdentity, post: LehrerzimmerPost): boolean {
+  if (post.authorId === identity.userId) return false;
+  return data.reads[identity.schoolId]?.[identity.userId]?.[post.id] !== post.updatedAt;
 }
 
 export class LehrerzimmerStore {
@@ -123,6 +144,7 @@ export class LehrerzimmerStore {
         version: 1,
         users: parsed.users || {},
         posts: parsed.posts || {},
+        reads: parsed.reads && typeof parsed.reads === 'object' ? parsed.reads : {},
       };
     } catch (error: any) {
       if (error?.code === 'ENOENT') return cloneEmptyStore();
@@ -185,26 +207,65 @@ export class LehrerzimmerStore {
       .sort((a, b) => a.displayName.localeCompare(b.displayName, 'de'));
   }
 
-  async listPosts(identity: TeacherIdentity, category?: LehrerzimmerCategory): Promise<LehrerzimmerPost[]> {
+  async listPosts(identity: TeacherIdentity, category?: LehrerzimmerCategory): Promise<LehrerzimmerPostView[]> {
     await this.ensureUser(identity);
     const data = await this.read();
     const posts = data.posts[identity.schoolId] || [];
     return posts
       .filter(post => !category || post.category === category)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map(post => ({ ...post, unread: isUnread(data, identity, post) }));
+  }
+
+  async getUnreadSummary(identity: TeacherIdentity): Promise<LehrerzimmerUnreadSummary> {
+    await this.ensureUser(identity);
+    const data = await this.read();
+    const unread = (data.posts[identity.schoolId] || [])
+      .filter(post => isUnread(data, identity, post))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+    return {
+      count: unread.length,
+      items: unread.slice(0, 5).map(post => ({
+        id: post.id,
+        title: post.title,
+        body: post.body,
+        authorName: post.authorName,
+        updatedAt: post.updatedAt,
+      })),
+    };
+  }
+
+  async markPostsRead(identity: TeacherIdentity, rawPostIds: unknown): Promise<number> {
+    if (!Array.isArray(rawPostIds)) throw new Error('INVALID_READ_REQUEST');
+    const postIds = [...new Set(rawPostIds.filter((id): id is string => typeof id === 'string' && id.length > 0))].slice(0, 200);
+
+    return this.mutate(data => {
+      const posts = data.posts[identity.schoolId] || [];
+      let marked = 0;
+      for (const postId of postIds) {
+        const post = posts.find(item => item.id === postId);
+        if (!post) continue;
+        markRead(data, identity, post);
+        marked += 1;
+      }
+      return marked;
+    });
   }
 
   async createPost(
     identity: TeacherIdentity,
     input: { category: unknown; kind: unknown; title: unknown; body: unknown }
   ): Promise<LehrerzimmerPost> {
-    if (!isCategory(input.category)) throw new Error('INVALID_CATEGORY');
-    if (!isKind(input.kind)) throw new Error('INVALID_KIND');
-    const category: LehrerzimmerCategory = input.category;
-    const kind: LehrerzimmerKind = input.kind;
-    const title = cleanText(input.title, 140);
+    if (input.category !== undefined && !isCategory(input.category)) throw new Error('INVALID_CATEGORY');
+    if (input.kind !== undefined && !isKind(input.kind)) throw new Error('INVALID_KIND');
+    const category: LehrerzimmerCategory = isCategory(input.category) ? input.category : 'info';
+    const kind: LehrerzimmerKind = isKind(input.kind) ? input.kind : 'beitrag';
     const body = cleanText(input.body, 4000);
-    if (!title || !body) throw new Error('INVALID_CONTENT');
+    const suppliedTitle = cleanText(input.title, 140);
+    const quick = !suppliedTitle;
+    const title = suppliedTitle || cleanText(body.split('\n').find(line => line.trim()) || 'Nachricht', 100);
+    if (!body) throw new Error('INVALID_CONTENT');
 
     return this.mutate(data => {
       const now = new Date().toISOString();
@@ -229,6 +290,7 @@ export class LehrerzimmerStore {
 
       const post: LehrerzimmerPost = {
         id: crypto.randomUUID(),
+        quick,
         category,
         kind,
         title,
@@ -244,6 +306,7 @@ export class LehrerzimmerStore {
 
       const posts = data.posts[identity.schoolId] || (data.posts[identity.schoolId] = []);
       posts.unshift(post);
+      markRead(data, identity, post);
       return post;
     });
   }
@@ -276,6 +339,7 @@ export class LehrerzimmerStore {
       post.body = body;
       post.mentions = mentionIds;
       post.updatedAt = new Date().toISOString();
+      markRead(data, identity, post);
       return post;
     });
   }
@@ -343,6 +407,7 @@ export class LehrerzimmerStore {
 
       post.replies.push(reply);
       post.updatedAt = now;
+      markRead(data, identity, post);
       return reply;
     });
   }
