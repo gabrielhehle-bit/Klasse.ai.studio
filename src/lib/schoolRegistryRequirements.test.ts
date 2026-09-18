@@ -22,6 +22,13 @@ test('Schulregister ordnet nur die exakte konkrete Schul-Domain zu', async () =>
     assert.equal(oberau.id, 'at-vbg-vs-oberau');
     assert.equal(oberau.federalState, 'Vorarlberg');
 
+    const krumbach = await store.findVerifiedSchoolByEmail('lehrperson@vskr.vobs.at');
+    assert.ok(krumbach);
+    assert.equal(krumbach.id, 'at-vbg-vs-krumbach');
+    assert.equal(krumbach.name, 'Volksschule Krumbach');
+    assert.equal(krumbach.federalState, 'Vorarlberg');
+    assert.notEqual(krumbach.id, oberau.id, 'Krumbach und Oberau müssen getrennte Schulgruppen bleiben.');
+
     assert.equal(
       await store.findVerifiedSchoolByEmail('lehrperson@andere-schule.vobs.at'),
       null,
@@ -157,7 +164,7 @@ test('Schulverwaltung ist für Admin-Konten in den Konto-Einstellungen integrier
 
   assert.match(account, /SchoolIdentitySettings/);
   assert.match(account, /SchoolVerificationAdmin/);
-  assert.match(account, /Bereits eingerichtete Klassen, Planungen, Noten und Tresordaten bleiben/);
+  assert.match(account, /Klassen, Planungen und Noten bleiben auf diesem Gerät verfügbar/);
   assert.match(admin, /Schulverwaltung/);
   assert.match(admin, /\/api\/admin\/schools\/verification-requests/);
   assert.match(admin, /Freigeben/);

@@ -10,4 +10,13 @@ export const INITIAL_VERIFIED_AUSTRIAN_SCHOOLS: Array<Omit<SchoolRecord, 'create
     domains: ['vsfoa.vobs.at'],
     status: 'verified',
   },
+  {
+    id: 'at-vbg-vs-krumbach',
+    code: 'vskr',
+    name: 'Volksschule Krumbach',
+    country: 'AT',
+    federalState: 'Vorarlberg',
+    domains: ['vskr.vobs.at'],
+    status: 'verified',
+  },
 ];

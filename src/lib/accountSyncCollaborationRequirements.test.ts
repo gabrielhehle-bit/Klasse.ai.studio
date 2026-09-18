@@ -7,7 +7,7 @@ import path from 'node:path';
 import { AccountSyncStore } from '../server/accountSyncStore';
 import { mentionAliasesForTeacher } from '../server/teacherIdentity';
 import { resolveMentionUserIds, type LehrerzimmerUser } from '../server/lehrerzimmerStore';
-import { accountSyncState, mergeAccountSyncState } from './accountSyncService';
+import { accountSyncState, hasEmailAccountSession, mergeAccountSyncState } from './accountSyncService';
 
 const root = process.cwd();
 const read = (relativePath: string) => fs.readFileSync(path.join(root, relativePath), 'utf8');
@@ -57,6 +57,39 @@ test('Konto-Sync wird an die E-Mail-Identität gebunden und speichert nur Chiffr
   }
 });
 
+test('E-Mail-Kontostatus behandelt Netzwerkfehler nicht als Abmeldung', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    throw new Error('offline');
+  }) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      () => hasEmailAccountSession(),
+      (error: any) => error?.code === 'SESSION_STATUS_UNAVAILABLE',
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('E-Mail-Kontostatus unterscheidet echte Abmeldung von Verbindungsfehlern', async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({
+    authenticated: true,
+    account: null,
+  }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })) as typeof fetch;
+
+  try {
+    assert.equal(await hasEmailAccountSession(), false);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test('Konto-Sync verhindert stilles Überschreiben durch veraltete Geräte', async () => {
   const temp = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-account-sync-'));
   try {
@@ -73,6 +106,40 @@ test('Konto-Sync verhindert stilles Überschreiben durch veraltete Geräte', asy
   }
 });
 
+test('Konto-Sync-Konflikt kann nur mit der aktuell gelesenen Serverrevision bewusst überschrieben werden', async () => {
+  const temp = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-account-sync-resolve-'));
+  try {
+    const store = new AccountSyncStore(temp);
+    const userId = 'abcdefabcdefabcdefabcdef';
+    const first = await store.put(userId, {
+      vaultRecord,
+      encryptedState: encryptedPayload,
+      expectedRevision: 0,
+    });
+
+    await assert.rejects(
+      () => store.put(userId, {
+        vaultRecord,
+        encryptedState: encryptedPayload,
+        expectedRevision: 0,
+      }),
+      /REVISION_CONFLICT/,
+    );
+
+    const latest = await store.get(userId);
+    assert.equal(latest?.revision, first.revision);
+
+    const resolved = await store.put(userId, {
+      vaultRecord,
+      encryptedState: encryptedPayload,
+      expectedRevision: latest?.revision,
+    });
+    assert.equal(resolved.revision, first.revision + 1);
+  } finally {
+    await fsp.rm(temp, { recursive: true, force: true });
+  }
+});
+
 test('E-Mail-Konto synchronisiert den AppState Ende-zu-Ende statt Klartext serverseitig zu verarbeiten', () => {
   const server = read('server.ts');
   const context = read('src/context/AppContext.tsx');
@@ -84,6 +151,7 @@ test('E-Mail-Konto synchronisiert den AppState Ende-zu-Ende statt Klartext serve
   assert.match(server, /createAccountSyncStore/);
   assert.match(context, /pushAccountSyncSnapshot/);
   assert.match(context, /decryptAccountSyncSnapshot/);
+  assert.match(context, /syncActiveClass\(mergeAccountSyncState\(/);
   assert.match(context, /REVISION_CONFLICT/);
   assert.match(vaultGate, /fetchAccountSyncSnapshot/);
   assert.match(vaultGate, /saveVaultRecord\(remote\.vaultRecord\)/);
@@ -104,6 +172,18 @@ test('Konto-Sync überträgt keine gerätespezifische Navigation und reagiert au
       isTafelOpen: true,
       showAmpel: true,
     },
+    classes: [{
+      id: 'class-1',
+      name: '1A',
+      teamTeaching: {
+        sharedClassId: 'shared-1',
+        role: 'owner',
+        revision: 7,
+        lastSyncedHash: 'local-hash',
+        lastSyncedAt: '2026-09-18T10:00:00.000Z',
+        syncStatus: 'synced',
+      },
+    }],
   } as any;
 
   const sanitized = accountSyncState(local);
@@ -113,6 +193,7 @@ test('Konto-Sync überträgt keine gerätespezifische Navigation und reagiert au
   assert.equal(sanitized.tempQrValue, '');
   assert.equal(sanitized.boardSettings.activeSyncCode, undefined);
   assert.equal(sanitized.boardSettings.isTafelOpen, false);
+  assert.equal(sanitized.classes[0].teamTeaching, undefined);
 
   const remote = {
     ...local,
@@ -121,12 +202,23 @@ test('Konto-Sync überträgt keine gerätespezifische Navigation und reagiert au
     unterrichtsmodus_sidebar_open: false,
     tempQrValue: '',
     boardSettings: { ...local.boardSettings, activeSyncCode: undefined, isTafelOpen: false },
+    classes: [{
+      ...local.classes[0],
+      teamTeaching: {
+        sharedClassId: 'shared-1',
+        role: 'owner',
+        revision: 99,
+        lastSyncedHash: 'remote-device-hash',
+        syncStatus: 'error',
+      },
+    }],
   } as any;
   const merged = mergeAccountSyncState(remote, local);
   assert.equal(merged.currentPage, 'notenmappe');
   assert.equal(merged.previousPage, 'schueler');
   assert.equal(merged.boardSettings.activeSyncCode, 'ABC123');
   assert.equal(merged.boardSettings.isTafelOpen, true);
+  assert.deepEqual(merged.classes[0].teamTeaching, local.classes[0].teamTeaching);
 
   const context = read('src/context/AppContext.tsx');
   const emailLogin = read('src/components/EmailAccountLogin.tsx');
@@ -189,4 +281,28 @@ test('Mehrdeutige Kurz-Erwähnungen markieren nicht versehentlich die falsche Le
 
   assert.deepEqual(resolveMentionUserIds(users, 'Hallo @anna'), []);
   assert.deepEqual(resolveMentionUserIds(users, 'Hallo @annamuster'), ['u1']);
+});
+
+
+test('Konto-Einstellungen zeigen Sync-Zustand, Fehlerhinweis und manuellen Neuversuch', () => {
+  const context = read('src/context/AppContext.tsx');
+  const accountSettings = read('src/components/settings/AccountSettings.tsx');
+
+  assert.match(context, /accountSyncMessage/);
+  assert.match(context, /accountSyncConflictResolvable/);
+  assert.match(context, /retryAccountSync/);
+  assert.match(context, /resolveAccountSyncConflict/);
+  assert.match(context, /saveEncryptedEmergencyBackup\(localState, vaultKey\)/);
+  assert.match(context, /document\.visibilityState === 'visible'/);
+  assert.match(accountSettings, /data-testid="account-sync-status"/);
+  assert.match(accountSettings, /data-testid="account-sync-conflict-actions"/);
+  assert.match(accountSettings, /Konto-Stand laden/);
+  assert.match(accountSettings, /Stand dieses Geräts verwenden/);
+  assert.match(accountSettings, /Erneut versuchen/);
+  assert.match(accountSettings, /Änderungen auf zwei Geräten/);
+
+  const vaultGate = read('src/components/VaultGate.tsx');
+  assert.match(vaultGate, /SESSION_STATUS_UNAVAILABLE/);
+  assert.match(vaultGate, /Zur Sicherheit wird auf diesem Gerät nichts neu eingerichtet/);
+  assert.match(vaultGate, /setGateState\('checking'\)/);
 });

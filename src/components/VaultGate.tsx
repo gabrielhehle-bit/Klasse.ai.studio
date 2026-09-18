@@ -24,6 +24,7 @@ import {
   isEncryptedLocalState,
 } from '../lib/secureStorageService';
 import { fetchAccountSyncSnapshot, hasEmailAccountSession } from '../lib/accountSyncService';
+import { buildRecoveryMailto } from '../lib/emailRecoveryService';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Shield,
@@ -40,6 +41,7 @@ import {
   Info,
   RefreshCw,
   FileCheck2,
+  Mail,
 } from 'lucide-react';
 
 interface VaultGateProps {
@@ -145,9 +147,17 @@ export default function VaultGate({ children }: VaultGateProps) {
         }
 
         if (isMounted) setGateState('locked');
-      } catch (err) {
+      } catch (err: any) {
         console.error('Fehler bei Vault-Status-Prüfung:', err);
-        if (isMounted) setGateState('locked');
+        if (!isMounted) return;
+        if (err?.code === 'SESSION_STATUS_UNAVAILABLE' || err?.code === 'SESSION_STATUS_INVALID') {
+          setErrorMessage(
+            'Klassio kann dein Konto gerade nicht erreichen. Zur Sicherheit wird auf diesem Gerät nichts neu eingerichtet. Bitte Verbindung prüfen und erneut versuchen.'
+          );
+          setGateState('checking');
+          return;
+        }
+        setGateState('locked');
       }
     }
 
@@ -506,7 +516,7 @@ export default function VaultGate({ children }: VaultGateProps) {
             <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5 text-amber-600 dark:text-amber-200 text-xs">
               <KeyRound className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-500" />
               <p className="leading-snug">
-                Notiere diesen 128-Bit Wiederherstellungscode sorgfältig. Solltest du dein Passwort vergessen, ist dieser Code der einzige Weg, deinen Tresor wiederherzustellen.
+                Sichere diesen 128-Bit Wiederherstellungscode sorgfältig. Wenn du dein Passwort vergisst, kannst du damit deinen Tresor wiederherstellen. Optional kannst du den Code jetzt mit deinem eigenen Mailprogramm an dich selbst senden.
               </p>
             </div>
 
@@ -525,6 +535,16 @@ export default function VaultGate({ children }: VaultGateProps) {
                 {codeCopied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
                 <span>{codeCopied ? 'Code kopiert!' : 'In Zwischenablage kopieren'}</span>
               </button>
+              <a
+                href={buildRecoveryMailto('', generatedRecoveryCode)}
+                className="mt-2 w-full py-1.5 px-3 bg-[var(--surface-muted)] hover:bg-[var(--surface-subtle)] text-[var(--text-primary)] border border-[var(--border)] rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Mail size={14} />
+                <span>Per E-Mail sichern</span>
+              </a>
+              <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                Die E-Mail wird in deinem eigenen Mailprogramm vorbereitet. KLASSIO überträgt den Wiederherstellungscode nicht an den Server. Beachte: Wer Zugriff auf diese E-Mail hat, besitzt damit auch deinen Wiederherstellungscode.
+              </p>
             </div>
 
             <div className="pt-2">
@@ -647,6 +667,9 @@ export default function VaultGate({ children }: VaultGateProps) {
               <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Wiederherstellungscode
               </label>
+              <p className="mb-2 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                Falls du den Code per E-Mail gesichert hast, suche in deinem Postfach nach „KLASSIO – Wiederherstellungscode“.
+              </p>
               <input
                 type="text"
                 value={recoveryCodeInput}
