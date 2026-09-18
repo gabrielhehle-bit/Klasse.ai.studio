@@ -27,7 +27,7 @@ export function useLehrerzimmerUnread(pollMs = 10_000) {
     const onFocus = () => void refresh();
     const onChanged = () => void refresh();
     const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void refresh();
+      void refresh();
     }, pollMs);
 
     window.addEventListener('focus', onFocus);
