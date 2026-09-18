@@ -352,7 +352,7 @@ async function main() {
     );
     const postSetupRevisionA = Number(preRecoveryAccount?.snapshot?.revision || 0);
     await fs.writeFile(
-      '/tmp/klassio-account-before-recovery.json',
+      '/tmp/klassio-e2e-data/account-sync/_before-recovery.json',
       JSON.stringify(preRecoveryAccount?.snapshot || null, null, 2),
       'utf8',
     );
@@ -381,7 +381,7 @@ async function main() {
     );
     const revisionAfterRecovery = Number(postRecoveryAccount?.snapshot?.revision || 0);
     await fs.writeFile(
-      '/tmp/klassio-account-after-recovery.json',
+      '/tmp/klassio-e2e-data/account-sync/_after-recovery.json',
       JSON.stringify(postRecoveryAccount?.snapshot || null, null, 2),
       'utf8',
     );
