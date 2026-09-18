@@ -266,7 +266,11 @@ export default function Lehrerzimmer() {
         body: JSON.stringify({ body: message }),
       }).then(readJson);
       setBody('');
-      await load();
+      if (filter !== 'all') {
+        setFilter('all');
+      } else {
+        await load();
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Die Nachricht konnte nicht gespeichert werden.');
     } finally {
