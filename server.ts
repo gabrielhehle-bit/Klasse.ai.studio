@@ -15,6 +15,7 @@ import { createClassCollaborationStore, type SharedClassRecord } from "./src/ser
 import { createSchoolRegistryStore, type AustrianFederalState, type SchoolVerificationRequest, type SchoolRecord } from "./src/server/schoolRegistry.ts";
 import { createSupporterStore } from "./src/server/supporterStore.ts";
 import { createAccountSyncStore } from "./src/server/accountSyncStore.ts";
+import { createAiUsageStore, type AiUsageSnapshot } from "./src/server/aiUsageStore.ts";
 import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from "./src/data/austrianSchoolRegistry.seed.ts";
 
 // Fix: In tsx environments, global __dirname is injected as "." which breaks ESM packages
@@ -200,6 +201,15 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   const schoolRegistryStore = createSchoolRegistryStore(KLASSIO_DATA_DIR);
   const supporterStore = createSupporterStore(KLASSIO_DATA_DIR);
   const accountSyncStore = createAccountSyncStore(KLASSIO_DATA_DIR);
+  const aiUsageStore = createAiUsageStore(KLASSIO_DATA_DIR);
+
+  const readPositiveIntEnv = (name: string, fallback: number, max: number) => {
+    const parsed = Number.parseInt(process.env[name] || '', 10);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, max) : fallback;
+  };
+  const AI_DAILY_USER_LIMIT = readPositiveIntEnv('KLASSIO_AI_DAILY_USER_LIMIT', 20, 10_000);
+  const AI_DAILY_GLOBAL_LIMIT = readPositiveIntEnv('KLASSIO_AI_DAILY_GLOBAL_LIMIT', 200, 1_000_000);
+  const AI_PER_MINUTE_LIMIT = readPositiveIntEnv('KLASSIO_AI_PER_MINUTE_LIMIT', 5, 120);
   if (!options.isTest) {
     await schoolRegistryStore.ensureSeedSchools(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS);
     await schoolRegistryStore.ensureLegacyDomains(ALLOWED_EMAIL_DOMAINS);
@@ -1901,14 +1911,68 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     throw lastError;
   };
 
-  // E3.24 API Route for AI status (minimal status without secrets)
-  app.get("/api/ai/status", (req, res) => {
-    res.json({ available: !!process.env.GEMINI_API_KEY, hasKey: !!process.env.GEMINI_API_KEY });
+  function getAIActorId(req: express.Request): string {
+    const cookies = parseCookies(req);
+    const account = verifyAccountToken(cookies.klassio_email_account);
+    if (account?.userId) return 'account-' + account.userId;
+
+    const accessToken = cookies.lehrerapp_access_token || '';
+    if (accessToken) {
+      return 'session-' + crypto.createHash('sha256').update(accessToken).digest('hex').slice(0, 24);
+    }
+
+    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    return 'ip-' + crypto.createHash('sha256').update(ip).digest('hex').slice(0, 24);
+  }
+
+  function aiUsagePublicView(usage: AiUsageSnapshot) {
+    return {
+      used: usage.used,
+      remaining: usage.remaining,
+      limit: usage.limit,
+      date: usage.date,
+      blocked: !usage.allowed,
+      reason: usage.reason || null,
+    };
+  }
+
+  async function consumeAIQuota(req: express.Request, res: express.Response): Promise<AiUsageSnapshot | null> {
+    const usage = await aiUsageStore.consume(
+      getAIActorId(req),
+      AI_DAILY_USER_LIMIT,
+      AI_DAILY_GLOBAL_LIMIT,
+    );
+    if (!usage.allowed) {
+      const message = usage.reason === 'global'
+        ? 'Das heutige KLASSIO-KI-Gesamtkontingent ist erreicht. Morgen ist die KI wieder verfügbar.'
+        : `Dein tägliches KI-Limit von ${usage.limit} Anfragen ist erreicht. Morgen ist die KI wieder verfügbar.`;
+      res.status(429).json({
+        code: 'AI_DAILY_LIMIT_REACHED',
+        error: message,
+        usage: aiUsagePublicView(usage),
+      });
+      return null;
+    }
+    return usage;
+  }
+
+  // E3.24 API Route for AI status (minimal status without secrets + Kostenbremse)
+  app.get("/api/ai/status", async (req, res) => {
+    const usage = await aiUsageStore.get(
+      getAIActorId(req),
+      AI_DAILY_USER_LIMIT,
+      AI_DAILY_GLOBAL_LIMIT,
+    );
+    res.json({
+      available: !!process.env.GEMINI_API_KEY,
+      hasKey: !!process.env.GEMINI_API_KEY,
+      usage: aiUsagePublicView(usage),
+    });
   });
 
   // E3.13-14 KI-Rate-Limiting & Whitelist
   const aiRateLimits = new Map<string, { count: number; resetAt: number }>();
-  function checkAIRateLimit(ip: string, limit = 30): boolean {
+  function checkAIRateLimit(ip: string, limit = AI_PER_MINUTE_LIMIT): boolean {
     const now = Date.now();
     const entry = aiRateLimits.get(ip);
     if (!entry || now > entry.resetAt) {
@@ -1994,7 +2058,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   app.post("/api/ai", async (req, res) => {
     // E3.13 Rate Limit Prüfung
     const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
-    if (!checkAIRateLimit(ip, 30)) {
+    if (!checkAIRateLimit(ip, AI_PER_MINUTE_LIMIT)) {
       return res.status(429).json({ error: "Zu viele KI-Anfragen. Bitte warte einen Moment." });
     }
 
@@ -2028,6 +2092,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     if (privacyViolations.length > 0) {
       console.warn("[DATENSCHUTZ-WARNUNG] Sensibles Muster in KI-Request entfernt.");
     }
+
+    const aiUsage = await consumeAIQuota(req, res);
+    if (!aiUsage) return;
 
     try {
       const ai = getAIClient();
@@ -2546,7 +2613,7 @@ Antworte exakt im vorgegebenen JSON-Format.`;
           return res.status(400).json({ error: "Unknown AI action" });
       }
 
-      res.json({ text: responseText });
+      res.json({ text: responseText, usage: aiUsagePublicView(aiUsage) });
     } catch (error: any) {
       console.error(`[Server AI Error] ${error?.name || 'Error'}: ${error?.message?.slice(0, 150) || 'Unbekannt'}`);
       const isRateLimit = error.message?.includes("429") || error.status === 429;
@@ -2684,7 +2751,7 @@ Antworte exakt im vorgegebenen JSON-Format.`;
   app.post("/api/ai/analyze-ikm", async (req, res) => {
     // E3.13 Rate-Limiting für IKM-Analyse
     const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
-    if (!checkAIRateLimit(ip, 10)) {
+    if (!checkAIRateLimit(ip, AI_PER_MINUTE_LIMIT)) {
       return res.status(429).json({ error: "Zu viele IKM-Analyse-Anfragen. Bitte warte einen Moment." });
     }
 
@@ -2693,6 +2760,9 @@ Antworte exakt im vorgegebenen JSON-Format.`;
     if (!pdfBase64) {
       return res.status(400).json({ error: "Keine PDF-Daten übermittelt." });
     }
+
+    const aiUsage = await consumeAIQuota(req, res);
+    if (!aiUsage) return;
 
     try {
       // B1.5 Server-Schutznetz: Eingehende Schülerliste auf sensible Klartextdaten prüfen
@@ -2865,7 +2935,7 @@ Gib die Ergebnisse ausschließlich als JSON zurück.`;
   app.post("/api/ai/analyze-antolin", async (req, res) => {
     // E3.13 Rate-Limiting für Antolin-Analyse
     const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
-    if (!checkAIRateLimit(ip, 10)) {
+    if (!checkAIRateLimit(ip, AI_PER_MINUTE_LIMIT)) {
       return res.status(429).json({ error: "Zu viele Antolin-Analyse-Anfragen. Bitte warte einen Moment." });
     }
 
@@ -2874,6 +2944,9 @@ Gib die Ergebnisse ausschließlich als JSON zurück.`;
     if (!pdfBase64 && !rawText) {
       return res.status(400).json({ error: "Keine PDF-Daten oder Rohdaten übermittelt." });
     }
+
+    const aiUsage = await consumeAIQuota(req, res);
+    if (!aiUsage) return;
 
     try {
       // B1.5 Server-Schutznetz: Eingehende Antolin-Daten auf verbotene Klartextdaten prüfen & maskieren
