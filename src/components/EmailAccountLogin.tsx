@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle2, Loader2, Mail, School, ShieldCheck } from 'lucide-react';
+import { notifyAccountSessionChanged } from '../lib/accountSyncService';
 
 type AccessStatus = {
   authenticated: boolean;
@@ -94,6 +95,7 @@ export default function EmailAccountLogin({ compact = false, onSuccess }: EmailA
       if (!response.ok || data?.success !== true) {
         throw new Error(data?.error || 'Anmeldecode ist nicht gültig.');
       }
+      notifyAccountSessionChanged();
       await loadStatus();
       setStep('email');
       setCode('');
