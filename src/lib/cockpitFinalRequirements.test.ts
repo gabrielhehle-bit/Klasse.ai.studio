@@ -71,6 +71,24 @@ test("Cockpit: alle erhaltenen Standard-Widgettypen sind im Picker und in den Ka
   }
 });
 
+test("Cockpit: gespeicherte Layouts verlieren keinen Standard-Widgettyp", () => {
+  const defaultStart = teachingSurface.indexOf("const DEFAULT_COCKPIT_LAYOUT");
+  const defaultEnd = teachingSurface.indexOf("const DEFAULT_WORKSPACE_PROFILES", defaultStart);
+  const defaults = widgetTypes(teachingSurface.slice(defaultStart, defaultEnd));
+
+  const knownStart = teachingSurface.indexOf("const knownTypes = [");
+  const knownEnd = teachingSurface.indexOf("];", knownStart);
+  assert.ok(knownStart >= 0 && knownEnd > knownStart);
+  const known = [...new Set(
+    [...teachingSurface.slice(knownStart, knownEnd).matchAll(/"([^"]+)"/g)].map((match) => match[1])
+  )];
+
+  for (const type of defaults) {
+    assert.ok(known.includes(type), `Layout-Sanitizer würde ${type} entfernen`);
+  }
+  assert.ok(known.includes("zahlenraum"), "Zahlenraum muss beim Laden von Vorlagen/Layout-Slots erhalten bleiben");
+});
+
 test("Cockpit: Standardlayout öffnet keine Widgets und Beispielprofile sind leer", () => {
   const defaultStart = teachingSurface.indexOf("const DEFAULT_COCKPIT_LAYOUT");
   const defaultEnd = teachingSurface.indexOf("const DEFAULT_WORKSPACE_PROFILES", defaultStart);

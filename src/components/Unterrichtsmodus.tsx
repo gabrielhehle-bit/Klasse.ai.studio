@@ -2683,6 +2683,7 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
     "hangman",
     "timeline",
     "kopfrechnen",
+    "zahlenraum",
   ];
   if (!Array.isArray(layout) || layout.length === 0) {
     return DEFAULT_COCKPIT_LAYOUT;
