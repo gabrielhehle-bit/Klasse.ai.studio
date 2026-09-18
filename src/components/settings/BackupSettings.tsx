@@ -35,7 +35,8 @@ export default function BackupSettings({
   triggerInstall
 }: BackupSettingsProps) {
 
-  const { restoreAppData } = useApp();
+  const { restoreAppData, accountSyncStatus, accountSyncLastAt } = useApp();
+  const accountSyncHealthy = accountSyncStatus === 'synced';
 
   const restoreInput = async (input: unknown) => {
     const key = getActiveVaultKey();
@@ -120,12 +121,31 @@ export default function BackupSettings({
           </div>
         </div>
 
-        <div className="p-4 bg-blue-50/80 rounded-2xl border border-blue-100 text-blue-900 text-xs font-semibold leading-relaxed flex items-start gap-2.5">
-          <ShieldCheck size={18} className="text-blue-600 shrink-0 mt-0.5" />
-          <span>
-            <strong>Empfehlung für Lehrkräfte:</strong> Lade am Ende jeder Schulwoche eine Sicherungsdatei auf deinen Schul-Computer herunter. So hast du im Notfall immer ein vollständiges Backup parat.
-          </span>
-        </div>
+        {accountSyncHealthy ? (
+          <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200 text-emerald-900 text-xs font-semibold leading-relaxed flex items-start gap-2.5">
+            <ShieldCheck size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+            <span>
+              <strong>Automatisch gesichert:</strong> Dein kompletter KLASSIO-Stand wird mit deinem E-Mail-Konto Ende-zu-Ende-verschlüsselt auf dem Server synchronisiert.
+              {accountSyncLastAt ? ' Letzte Synchronisierung: ' + new Date(accountSyncLastAt).toLocaleString('de-AT') + '.' : ''}
+              {' '}Eine Sicherungsdatei ist nur noch eine optionale zusätzliche Rückfallebene.
+            </span>
+          </div>
+        ) : (
+          <div className={`p-4 rounded-2xl border text-xs font-semibold leading-relaxed flex items-start gap-2.5 ${
+            accountSyncStatus === 'conflict' || accountSyncStatus === 'error'
+              ? 'bg-amber-50/80 border-amber-200 text-amber-900'
+              : 'bg-blue-50/80 border-blue-100 text-blue-900'
+          }`}>
+            <ShieldCheck size={18} className="shrink-0 mt-0.5" />
+            <span>
+              {accountSyncStatus === 'conflict'
+                ? 'Der Konto-Sync wartet wegen unterschiedlicher Stände auf eine sichere Auflösung. Bis dahin empfehlen wir eine zusätzliche verschlüsselte Sicherungsdatei.'
+                : accountSyncStatus === 'error'
+                  ? 'Der Konto-Sync ist gerade nicht erreichbar. Deine Daten bleiben lokal verschlüsselt gespeichert; eine zusätzliche Sicherungsdatei ist vorübergehend sinnvoll.'
+                  : 'Ohne aktiven E-Mail-Konto-Sync bleibt eine regelmäßige verschlüsselte Sicherungsdatei empfohlen.'}
+            </span>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
           {/* Export Button */}
@@ -185,26 +205,30 @@ export default function BackupSettings({
       <div className="bg-white rounded-[2.5rem] border border-stone-200/80 p-6 md:p-8 space-y-4 shadow-sm">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-sm font-black text-slate-900">Automatische Backup-Erinnerungen</h2>
+            <h2 className="text-sm font-black text-slate-900">Backup-Erinnerungen</h2>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Erinnert dich alle 7 Tage dezent daran, eine Sicherungsdatei herunterzuladen.
+              {accountSyncHealthy
+                ? 'Solange dein E-Mail-Konto synchronisiert ist, erinnert KLASSIO dich nicht mehr an Datei-Backups. Diese bleiben freiwillig.'
+                : 'Ohne gesunden Konto-Sync kann KLASSIO dich alle 7 Tage dezent an eine zusätzliche Sicherungsdatei erinnern.'}
             </p>
           </div>
 
-          <button
-            type="button"
-            role="switch"
-            aria-checked={!app.settings?.disableBackupReminders}
-            aria-label="Backup-Erinnerungen"
-            onClick={toggleBackupReminders}
-            className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-0.5 cursor-pointer shrink-0 ${
-              !app.settings?.disableBackupReminders ? 'bg-emerald-500' : 'bg-slate-300'
-            }`}
-          >
-            <div className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
-              !app.settings?.disableBackupReminders ? 'translate-x-6' : 'translate-x-0'
-            }`} />
-          </button>
+          {!accountSyncHealthy && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!app.settings?.disableBackupReminders}
+              aria-label="Backup-Erinnerungen"
+              onClick={toggleBackupReminders}
+              className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-0.5 cursor-pointer shrink-0 ${
+                !app.settings?.disableBackupReminders ? 'bg-emerald-500' : 'bg-slate-300'
+              }`}
+            >
+              <div className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${
+                !app.settings?.disableBackupReminders ? 'translate-x-6' : 'translate-x-0'
+              }`} />
+            </button>
+          )}
         </div>
       </div>
 
