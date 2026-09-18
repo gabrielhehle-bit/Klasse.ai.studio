@@ -4,7 +4,7 @@ import EmailAccountLogin from '../EmailAccountLogin';
 import SchoolIdentitySettings from './SchoolIdentitySettings';
 import SchoolVerificationAdmin from './SchoolVerificationAdmin';
 import { useApp } from '../../context/AppContext';
-import { prepareRecoveryEmail, type PreparedRecoveryEmail } from '../../lib/emailRecoveryService';
+import { activatePreparedRecoveryEmail, prepareRecoveryEmail, type PreparedRecoveryEmail } from '../../lib/emailRecoveryService';
 
 export default function AccountSettings() {
   const [refreshKey, setRefreshKey] = React.useState(0);
@@ -23,8 +23,11 @@ export default function AccountSettings() {
   const [recoveryPassword, setRecoveryPassword] = React.useState('');
   const [showRecoveryPassword, setShowRecoveryPassword] = React.useState(false);
   const [preparingRecovery, setPreparingRecovery] = React.useState(false);
+  const [activatingRecovery, setActivatingRecovery] = React.useState(false);
   const [preparedRecovery, setPreparedRecovery] = React.useState<PreparedRecoveryEmail | null>(null);
+  const [recoverySaved, setRecoverySaved] = React.useState(false);
   const [recoveryError, setRecoveryError] = React.useState<string | null>(null);
+  const [recoverySuccess, setRecoverySuccess] = React.useState<string | null>(null);
 
   const retrySync = async () => {
     if (retryingSync) return;
@@ -57,16 +60,35 @@ export default function AccountSettings() {
     if (preparingRecovery || !recoveryPassword) return;
     setPreparingRecovery(true);
     setRecoveryError(null);
+    setRecoverySuccess(null);
     setPreparedRecovery(null);
+    setRecoverySaved(false);
     try {
-      const prepared = await prepareRecoveryEmail(app, recoveryPassword);
+      const prepared = await prepareRecoveryEmail(recoveryPassword);
       setPreparedRecovery(prepared);
       setRecoveryPassword('');
-      await retryAccountSync();
     } catch (cause) {
       setRecoveryError(cause instanceof Error ? cause.message : 'E-Mail-Recovery konnte nicht vorbereitet werden.');
     } finally {
       setPreparingRecovery(false);
+    }
+  };
+
+  const activateEmailRecovery = async () => {
+    if (!preparedRecovery || !recoverySaved || activatingRecovery) return;
+    setActivatingRecovery(true);
+    setRecoveryError(null);
+    setRecoverySuccess(null);
+    try {
+      await activatePreparedRecoveryEmail(app, preparedRecovery);
+      setRecoverySuccess('Der neue Wiederherstellungscode ist jetzt aktiv und mit deinem verschlüsselten Konto-Stand verknüpft.');
+      setPreparedRecovery(null);
+      setRecoverySaved(false);
+      await retryAccountSync();
+    } catch (cause) {
+      setRecoveryError(cause instanceof Error ? cause.message : 'Der neue Wiederherstellungscode konnte nicht aktiviert werden.');
+    } finally {
+      setActivatingRecovery(false);
     }
   };
 
@@ -200,7 +222,7 @@ export default function AccountSettings() {
         </div>
 
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold leading-relaxed text-amber-900">
-          Wichtig: Der bisherige Wiederherstellungscode wird beim Erzeugen eines neuen Codes ungültig. Außerdem kann jede Person mit Zugriff auf diese E-Mail deinen Datentresor wiederherstellen.
+          Wichtig: Der bisherige Wiederherstellungscode bleibt gültig, bis du den neuen Code unten ausdrücklich aktivierst. Danach wird der alte Code ungültig. Jede Person mit Zugriff auf die E-Mail mit dem neuen Code kann deinen Datentresor wiederherstellen.
         </div>
 
         {!isVaultUnlocked ? (
@@ -245,14 +267,20 @@ export default function AccountSettings() {
           <p className="mt-3 text-xs font-bold leading-relaxed text-rose-600">{recoveryError}</p>
         )}
 
+        {recoverySuccess && (
+          <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold leading-relaxed text-emerald-800">
+            {recoverySuccess}
+          </p>
+        )}
+
         {preparedRecovery && (
           <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4" data-testid="prepared-email-recovery">
-            <div className="text-xs font-black uppercase tracking-wider text-emerald-700">Neuer Wiederherstellungscode</div>
+            <div className="text-xs font-black uppercase tracking-wider text-emerald-700">Neuen Code zuerst sichern</div>
             <div className="mt-2 break-all rounded-xl border border-emerald-200 bg-white px-3 py-3 font-mono text-sm font-black text-emerald-950">
               {preparedRecovery.recoveryCode}
             </div>
             <p className="mt-2 text-xs font-semibold leading-relaxed text-emerald-900">
-              Der Code ist bereits mit deinem verschlüsselten Kontostand verknüpft. Sende ihn jetzt an <strong>{preparedRecovery.email}</strong> oder kopiere ihn an einen anderen sicheren Ort.
+              Dieser neue Code ist <strong>noch nicht aktiv</strong>. Sende ihn zuerst an <strong>{preparedRecovery.email}</strong> oder kopiere ihn an einen anderen sicheren Ort. Dein bisheriger Recovery-Code funktioniert bis zur Aktivierung weiter.
             </p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <a
@@ -271,8 +299,32 @@ export default function AccountSettings() {
                 Code kopieren
               </button>
             </div>
+
+            <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-xl border border-emerald-200 bg-white px-3 py-3 text-xs font-semibold text-emerald-950">
+              <input
+                type="checkbox"
+                checked={recoverySaved}
+                onChange={event => setRecoverySaved(event.target.checked)}
+                className="mt-0.5"
+              />
+              <span>Ich habe den neuen Wiederherstellungscode sicher gespeichert.</span>
+            </label>
+
+            <button
+              type="button"
+              onClick={() => void activateEmailRecovery()}
+              disabled={!recoverySaved || activatingRecovery}
+              className="mt-3 w-full rounded-xl bg-amber-600 px-4 py-3 text-xs font-black text-white disabled:opacity-50"
+            >
+              {activatingRecovery ? <Loader2 size={14} className="mr-2 inline animate-spin" /> : <KeyRound size={14} className="mr-2 inline" />}
+              Gesicherten Code jetzt aktivieren
+            </button>
+            <p className="mt-2 text-[11px] font-semibold leading-relaxed text-amber-800">
+              Erst mit diesem Schritt wird der bisherige Recovery-Code ungültig.
+            </p>
           </div>
         )}
+
       </section>
 
       <section className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
