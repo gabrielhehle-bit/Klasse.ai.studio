@@ -21,7 +21,6 @@ import { VM_ZEITEN, STUNDEN_INFO, FAECHER_ALLE, AESTHETIC_THEMES, DASHBOARD_CURA
 import { berechne } from "../lib/GradeUtils";
 import { isDiagnosticAlert } from "../lib/diagnosticData";
 import { isAttendanceCompleteForDay, isAttendanceRequiredForDay } from "../lib/dashboardAttendance";
-import { QRCodeCanvas } from "qrcode.react";
 import {
   Users,
   Calendar,
@@ -149,89 +148,6 @@ const MemoizedDashboardKlassenglasWidget = memo(DashboardKlassenglasWidget);
 const MemoizedFlowerPuzzleWidget = memo(FlowerPuzzleWidget);
 import { useToast } from "../context/ToastContext";
 import Markdown from "react-markdown";
-import {
-  isBackupDue,
-  triggerBackupDownload,
-  postponeBackup,
-} from "../utils/backupUtils";
-import {
-  startSyncSession,
-  stopSyncSession,
-  createSyncUrl,
-  getActiveEncodedSessionKey,
-} from "../lib/syncService";
-
-const playBirthdayJingleOnDashboard = () => {
-  const AudioContext =
-    window.AudioContext || (window as any).webkitAudioContext;
-  if (!AudioContext) return;
-  const ctx = new AudioContext();
-  const now = ctx.currentTime;
-
-  // Happy birthday notes
-  const notes = [
-    { freq: 261.63, delay: 0 },
-    { freq: 261.63, delay: 0.2 },
-    { freq: 293.66, delay: 0.4 },
-    { freq: 261.63, delay: 0.8 },
-    { freq: 349.23, delay: 1.2 },
-    { freq: 329.63, delay: 1.6 },
-  ];
-
-  notes.forEach((note) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(note.freq, now + note.delay);
-
-    gain.gain.setValueAtTime(0, now + note.delay);
-    gain.gain.linearRampToValueAtTime(0.18, now + note.delay + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + note.delay + 0.6);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(now + note.delay);
-    osc.stop(now + note.delay + 0.655);
-  });
-};
-
-const handleBirthdayCelebrateOnDashboard = async (studentNames: string) => {
-  try {
-    const confettiModule = await import("canvas-confetti");
-    const confetti = confettiModule.default;
-    confetti({
-      particleCount: 160,
-      spread: 90,
-      origin: { y: 0.5 },
-      zIndex: 99999,
-    });
-    // Side blasts for extra celebration
-    setTimeout(() => {
-      confetti({
-        particleCount: 60,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        zIndex: 99999,
-      });
-    }, 250);
-    setTimeout(() => {
-      confetti({
-        particleCount: 60,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        zIndex: 99999,
-      });
-    }, 400);
-  } catch (e) {
-    console.warn("Failed to load confetti module", e);
-  }
-
-  // playBirthdayJingleOnDashboard(); // Disabled to comply with "no autoplay sound on load" rule
-};
 
 // --- MEMOIZED BDAY WIDGET ---
 interface BirthdayWidgetProps {
@@ -241,7 +157,6 @@ interface BirthdayWidgetProps {
   setPage: (page: string) => void;
   getStatsWidgetSpan: (type: string) => string;
   renderEyeOffShortcut: (field: string) => React.ReactNode;
-  handleBirthdayCelebrateOnDashboard: (name: string) => void;
   handleResizeWidget: any;
   isEditMode?: boolean;
 }
@@ -253,7 +168,6 @@ const ClosedBirthdayWidget: React.FC<BirthdayWidgetProps> = ({
   setPage,
   getStatsWidgetSpan,
   renderEyeOffShortcut,
-  handleBirthdayCelebrateOnDashboard,
   handleResizeWidget,
   isEditMode,
 }) => {
@@ -382,21 +296,9 @@ const ClosedBirthdayWidget: React.FC<BirthdayWidgetProps> = ({
                   </div>
 
                   {isToday ? (
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-[0.875rem] font-black text-amber-500 animate-pulse">
-                        🎂 HEUTE!
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleBirthdayCelebrateOnDashboard(student.vorname);
-                        }}
-                        className="text-[0.5625rem] font-black uppercase bg-amber-500 text-amber-950 px-2 py-1 rounded-md hover:bg-amber-400 active:scale-95 transition-all shadow-sm"
-                      >
-                        Feiern!
-                      </button>
-                    </div>
+                    <span className="text-[0.75rem] font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                      🎂 Heute
+                    </span>
                   ) : days <= 3 ? (
                     <span className="text-[0.625rem] font-black uppercase tracking-wider text-rose-400 bg-rose-400/10 px-2 py-1 rounded-md border border-rose-400/20 shadow-[0_0_10px_rgba(251,113,133,0.15)]">
                       In {days} Tag{days > 1 ? "en" : ""}
@@ -1196,7 +1098,6 @@ export default function Dashboard() {
     (page: string) => setApp((prev) => ({ ...prev, currentPage: page })),
     [setApp],
   );
-  const [showRemoteSetup, setShowRemoteSetup] = useState(false);
   const [selectedRadarEvent, setSelectedRadarEvent] = React.useState<
     any | null
   >(null);
@@ -1597,15 +1498,6 @@ export default function Dashboard() {
     if (!dayData) return false;
     return Object.values(dayData).some((v) => v !== "a" && v !== "");
   }).length;
-
-  const [showBdayModal, setShowBdayModal] = useState(() => {
-    try {
-      const todayStr = new Date().toDateString();
-      return sessionStorage.getItem("bday_popup_shown_" + todayStr) !== "true";
-    } catch (e) {
-      return true;
-    }
-  });
 
   // Spaced Practice & Luuise Tracker States
   const [quizLoading, setQuizLoading] = useState<string | null>(null);
@@ -2438,30 +2330,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
   const birthdaysToday = (app?.schueler || []).filter((s) =>
     computeIsBirthdayDisplay(s.geburtstag, heute),
   );
-
-  useEffect(() => {
-    if (birthdaysToday.length > 0) {
-      const todayStr = new Date().toISOString().split("T")[0];
-      const hasShownToast = localStorage.getItem(`bday_toast_${todayStr}`);
-      if (!hasShownToast) {
-        setTimeout(() => {
-          birthdaysToday.forEach((s) => {
-            showToast(`🎂 Heute hat ${s.vorname} Geburtstag!`, "success");
-          });
-          localStorage.setItem(`bday_toast_${todayStr}`, "true");
-        }, 1000);
-      }
-    }
-
-    if (showBdayModal && birthdaysToday.length > 0) {
-      const t = setTimeout(() => {
-        handleBirthdayCelebrateOnDashboard(
-          birthdaysToday.map((s) => s.vorname).join(", "),
-        );
-      }, 700);
-      return () => clearTimeout(t);
-    }
-  }, [showBdayModal, birthdaysToday.length]);
 
   const getTodayLessonInfo = () => {
     if (vorschauTyp) {
@@ -4327,88 +4195,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
   };
   const visibleLayout = getVisibleLayout();
 
-  const [showBackupBanner, setShowBackupBanner] = useState(() => {
-    // Die erste Einführung soll ruhig bleiben. Eine Sicherungserinnerung
-    // erscheint nicht gleichzeitig mit dem First-Run-Onboarding.
-    if (app?.firstLogin) return false;
-
-    // If backup reminders are disabled in settings, do not show the banner
-    if (app?.settings?.disableBackupReminders) return false;
-
-    const backupSettings = app?.backupEinstellungen || {
-      letztesBackup: null,
-      erinnerungAktiv: true,
-    };
-    if (!backupSettings.erinnerungAktiv) return false;
-
-    // Check if postponed via localStorage flag (to persist "Später" click for 24h)
-    const postponedUntil = localStorage.getItem(
-      "backup_banner_postponed_until",
-    );
-    if (postponedUntil && Date.now() < parseInt(postponedUntil)) return false;
-
-    const lastBackupTime =
-      backupSettings.letztesBackup ||
-      localStorage.getItem("lehrkraft_last_backup_time");
-    if (!lastBackupTime) return true;
-    const diff = Date.now() - new Date(lastBackupTime).getTime();
-    return diff > 7 * 24 * 60 * 60 * 1000;
-  });
-
-  const handleDownloadBackup = async () => {
-    try {
-      await triggerBackupDownload(app);
-
-      const nowStr = new Date().toISOString();
-      localStorage.setItem("lehrkraft_last_backup_time", nowStr);
-      localStorage.setItem("lastBackupTimestamp", Date.now().toString()); // Sync with backupUtils keys
-
-      setApp((prev) => ({
-        ...prev,
-        backupEinstellungen: {
-          ...prev.backupEinstellungen,
-          letztesBackup: nowStr,
-          erinnerungAktiv: prev.backupEinstellungen?.erinnerungAktiv ?? true,
-        },
-      }));
-      setShowBackupBanner(false);
-      localStorage.removeItem("backup_banner_postponed_until");
-      localStorage.removeItem("backupRemindLater"); // Sync with backupUtils keys
-      showToast(
-        "Verschlüsseltes Backup wurde erfolgreich exportiert.",
-        "success",
-      );
-    } catch (error: any) {
-      console.error(error);
-      showToast(
-        error?.message || "Backup-Erstellung fehlgeschlagen. Bitte versuche es erneut.",
-        "error",
-      );
-    }
-  };
-
-  const handlePostponeBanner = () => {
-    postponeBackup(); // This sets backupRemindLater
-    const until = Date.now() + 24 * 60 * 60 * 1000;
-    localStorage.setItem("backup_banner_postponed_until", until.toString());
-    setShowBackupBanner(false);
-    showToast(
-      "Die Wochensicherung wurde für 24 Stunden zurückgestellt.",
-      "info",
-    );
-  };
-
-  const handleDisableBackupReminders = () => {
-    setApp((prev) => ({
-      ...prev,
-      settings: {
-        ...prev.settings,
-        disableBackupReminders: true,
-      },
-    }));
-    setShowBackupBanner(false);
-  };
-
   return (
     <div
       className={`${isCompact ? "space-y-4" : isLarge ? "space-y-7" : "space-y-5"} dashboard-shell pb-24 w-full max-w-[1600px] mx-auto overflow-x-hidden ${app?.settings?.fontWeight === 'bold' ? 'dashboard-bold-typography font-bold' : ''} ${app?.settings?.fontStyle === 'italic' ? 'dashboard-italic-typography italic' : ''}`}
@@ -4417,66 +4203,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
       data-font-weight={app?.settings?.fontWeight || 'normal'}
       data-font-style={app?.settings?.fontStyle || 'normal'}
     >
-      <AnimatePresence>
-        {showBackupBanner && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 relative z-20 pointer-events-auto shadow-sm mb-4"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="bg-emerald-500/20 p-2 rounded-xl text-emerald-400">
-                <Save size={20} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold text-emerald-400">
-                  Zeit für eine Wochensicherung!
-                </h4>
-                <p className="text-xs text-emerald-400/80 mt-0.5">
-                  {app?.backupEinstellungen?.letztesBackup
-                    ? `Letzte Sicherung: vor ${Math.floor((Date.now() - new Date(app.backupEinstellungen.letztesBackup).getTime()) / (1000 * 60 * 60 * 24))} Tagen`
-                    : "Es wurde noch kein Backup erstellt."}
-                </p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2 sm:justify-end">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDisableBackupReminders();
-                }}
-                className="px-3 py-1.5 text-xs font-semibold text-neutral-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer select-none"
-                title="Erinnerungen dauerhaft deaktivieren"
-              >
-                Deaktivieren
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePostponeBanner();
-                }}
-                className="px-3 py-1.5 text-xs font-semibold text-emerald-400/80 hover:bg-emerald-500/10 rounded-lg transition-colors cursor-pointer select-none"
-              >
-                Später
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDownloadBackup();
-                }}
-                className="px-3 py-1.5 text-xs font-bold bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20 rounded-lg transition-colors flex items-center gap-1 cursor-pointer active:scale-95 select-none"
-              >
-                <Download size={14} /> Jetzt sichern
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {lehrerzimmerUnread.count > 0 && (
         <button
           type="button"
@@ -4522,7 +4248,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
             <div className="bg-gradient-to-r from-pink-500/10 via-amber-500/10 to-violet-500/10 p-[1px] rounded-2xl sm:rounded-3xl border border-pink-500/20 shadow-[0_15px_30px_rgba(236,72,153,0.05)]">
               <div className="bg-white/95 backdrop-blur-md px-4 sm:px-6 py-4 rounded-[calc(1rem-1px)] sm:rounded-[calc(1.5rem-1px)] flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-4 text-center sm:text-left">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center animate-bounce shadow-xs border border-pink-100">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center shadow-xs border border-pink-100">
                     <PartyPopper size={20} className="sm:w-6 sm:h-6" />
                   </div>
                   <div>
@@ -4535,17 +4261,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                   </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleBirthdayCelebrateOnDashboard(
-                        birthdaysToday.map((s) => s.vorname).join(", "),
-                      );
-                    }}
-                    className="px-5 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl text-[0.6875rem] font-black uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all shadow-lg cursor-pointer flex items-center gap-2"
-                  >
-                    🎉 Party!
-                  </button>
                   <button
                     type="button"
                     onClick={() => setPage("schueler")}
@@ -4574,11 +4289,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         simpleMode={simpleDashboardMode}
         onSimpleModeToggle={() => setSimpleDashboardMode(!simpleDashboardMode)}
         onNavigate={setPage}
-        onOpenRemoteSetup={() => setShowRemoteSetup(true)}
-        onOpenBackup={handleDownloadBackup}
-        onOpenPrint={() => window.print()}
-        onOpenSettings={() => setPage("settings")}
-        onOpenCustomize={() => setShowCustomizePanel(true)}
 
         totalStudents={(app?.schueler || []).length}
         absentCount={missingToday.length}
@@ -4716,202 +4426,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                 {/* Header Actions removed per user request - moved to Topbar/Navigation */}
               </div>
 
-              {/* Start Remote Setup Panel */}
-              {showRemoteSetup && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="border border-slate-200 bg-slate-50 rounded-3xl p-5 md:p-6 space-y-4 mt-2 shadow-inner"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-150 flex items-center justify-center text-indigo-600">
-                        <Smartphone size={15} />
-                      </div>
-                      <div>
-                        <h3 className="text-[0.75rem] leading-tight font-black uppercase tracking-wider text-slate-800">
-                          Handy-Fernbedienung & Live-Kopplung
-                        </h3>
-                        <p className="text-[0.625rem] text-slate-500 font-medium">
-                          Bequeme Steuerung des Cockpits per Smartphone oder
-                          Tablet.
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => setShowRemoteSetup(false)}
-                      className="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
-                    >
-                      <X size={15} />
-                    </button>
-                  </div>
-
-                  {!app.boardSettings?.activeSyncCode && (
-                    <div className="space-y-4 pt-1">
-                      <p className="text-[0.6875rem] text-slate-600 font-medium leading-relaxed max-w-2xl">
-                        Möchtest du das Cockpit frei im Raum steuern? Erzeuge
-                        eine temporäre, sichere Live-Verbindung auf unserem
-                        Server. Scanne danach einfach den erzeugten QR-Code mit
-                        deinem Handy und du kannst die Anwesenheitsprüfung, die
-                        MIKA-D-Diagnostik, Timer, Reflexionen oder
-                        Schüler-Zufallsauswahl kabellos beim Gehen bedienen!
-                      </p>
-
-                      <button
-                        onClick={async () => {
-                          try {
-                            const { code } = await startSyncSession(app);
-                            setApp((p) => ({
-                              ...p,
-                              boardSettings: {
-                                ...p.boardSettings,
-                                activeSyncCode: code,
-                                isRemoteController: false,
-                              },
-                            }));
-                            showToast(
-                              "Zero-Knowledge Sitzung gestartet! Scanne den QR-Code.",
-                              "success",
-                            );
-                          } catch (e) {
-                            console.error("Failed to start sync session:", e);
-                            showToast(
-                              "Fehler beim Erzeugen der Verbindung. Bitte erneut versuchen.",
-                              "error",
-                            );
-                          }
-                        }}
-                        className="h-10 px-5 bg-indigo-600 hover:bg-indigo-550 text-white rounded-xl font-black text-[0.625rem] uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 self-start cursor-pointer"
-                      >
-                        <QrCode size={13} />
-                        <span>Kopplungscode & QR-Code generieren</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {app.boardSettings?.activeSyncCode &&
-                    app.boardSettings?.isRemoteController && (
-                      <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl space-y-2">
-                        <div className="flex items-center gap-1.5 text-emerald-800 font-extrabold text-[0.75rem] leading-tight">
-                          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                          <span>
-                            MODUS: AKTIVE FERNBEDIENUNG (
-                            {app.boardSettings.activeSyncCode})
-                          </span>
-                        </div>
-                        <p className="text-[0.6875rem] text-slate-600 font-medium leading-relaxed">
-                          Dieses Gerät ist aktuell als Fernbedienung gekoppelt.
-                          Alle Änderungen, die du hier vornimmst (wie z.B.
-                          Abwesenheiten markieren, Diagnosedaten eintragen)
-                          werden in Echtzeit auf das verbundene Smartboard oder
-                          den Hauptbildschirm übertragen!
-                        </p>
-                        <button
-                          onClick={async () => {
-                            await stopSyncSession(app.boardSettings?.activeSyncCode);
-                            setApp((p) => ({
-                              ...p,
-                              boardSettings: {
-                                ...p.boardSettings,
-                                activeSyncCode: undefined,
-                                isRemoteController: undefined,
-                              },
-                            }));
-                            showToast("Kopplung beendet", "info");
-                          }}
-                          className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-[0.5625rem] uppercase tracking-wider rounded-lg transition-all active:scale-95 cursor-pointer"
-                        >
-                          Kopplung trennen
-                        </button>
-                      </div>
-                    )}
-
-                  {app.boardSettings?.activeSyncCode &&
-                    !app.boardSettings?.isRemoteController && (
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-5 pt-1 items-stretch">
-                        <div className="md:col-span-8 flex flex-col justify-between gap-4">
-                          <div className="space-y-2">
-                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-black text-[0.5625rem] uppercase tracking-wider">
-                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                              <span>Live-Verbindung aktiv (Zero-Knowledge Host)</span>
-                            </div>
-
-                            <p className="text-[0.6875rem] text-slate-600 font-medium leading-relaxed">
-                              Dein Hauptbildschirm dient nun als Smartboard.
-                              Richtest du dein Smartphone auf den QR-Code
-                              rechts, wird das Dashboard auf deinem Handy
-                              geladen. Alle Daten werden Ende-zu-Ende verschlüsselt
-                              synchronisiert.
-                            </p>
-                          </div>
-
-                          <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2.5 shadow-3xs">
-                            <div className="flex justify-between items-center">
-                              <span className="text-[0.5625rem] text-slate-400 font-bold uppercase tracking-wider">
-                                Kopplungscode
-                              </span>
-                              <button
-                                onClick={() => {
-                                  const encodedKey = getActiveEncodedSessionKey() || '';
-                                  const syncUrl = createSyncUrl(app.boardSettings?.activeSyncCode, encodedKey);
-                                  navigator.clipboard.writeText(syncUrl);
-                                  showToast(
-                                    "Verschlüsselter Kopplungs-Link wurde kopiert!",
-                                    "success",
-                                  );
-                                }}
-                                className="text-[0.5625rem] text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-wider underline cursor-pointer"
-                              >
-                                Link kopieren
-                              </button>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <div className="px-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200 font-mono text-[1.25rem] leading-normal font-black text-slate-800 tracking-[0.2em] uppercase select-all shadow-inner">
-                                {app.boardSettings?.activeSyncCode}
-                              </div>
-                              <span className="text-[0.625rem] text-slate-500 font-medium leading-tight">
-                                Alternativ kannst du diesen 6-stelligen Code in
-                                den Einstellungen deines Handys unter
-                                "Smartboard & Fernbedienung" eingeben.
-                              </span>
-                            </div>
-                          </div>
-
-                          <button
-                            onClick={async () => {
-                              await stopSyncSession(app.boardSettings?.activeSyncCode);
-                              setApp((p) => ({
-                                ...p,
-                                boardSettings: {
-                                  ...p.boardSettings,
-                                  activeSyncCode: undefined,
-                                  isRemoteController: undefined,
-                                },
-                              }));
-                              showToast("Live-Kopplung beendet", "info");
-                            }}
-                            className="self-start px-4 h-9 bg-slate-100 hover:bg-slate-200 border border-slate-250 text-slate-600 hover:text-slate-900 rounded-lg font-black text-[0.5625rem] uppercase tracking-wider transition-all cursor-pointer"
-                          >
-                            Sitzung beenden
-                          </button>
-                        </div>
-
-                        <div className="md:col-span-4 flex flex-col items-center justify-center p-4 bg-white rounded-2xl shadow-sm border border-slate-200 self-start md:self-auto min-h-[160px]">
-                          <QRCodeCanvas
-                            value={createSyncUrl(app.boardSettings?.activeSyncCode, getActiveEncodedSessionKey() || '')}
-                            size={120}
-                            level="M"
-                          />
-                          <span className="text-[0.5625rem] text-slate-500 font-extrabold uppercase tracking-wider mt-3 text-center">
-                            Mit Handy scannen 📱
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                </motion.div>
-              )}
             </div>
           </div>
         </div>
@@ -5210,7 +4724,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
             setPage={setPage}
             getStatsWidgetSpan={getStatsWidgetSpan}
             renderEyeOffShortcut={renderEyeOffShortcut}
-            handleBirthdayCelebrateOnDashboard={handleBirthdayCelebrateOnDashboard}
             handleResizeWidget={handleResizeWidget}
             isEditMode={isEditMode}
           />
@@ -8549,113 +8062,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         )}
       </AnimatePresence>
 
-      {/* GEBURTSTAGS POPUP MODAL */}
-      {typeof document !== "undefined" &&
-        createPortal(
-          <AnimatePresence>
-            {showBdayModal && birthdaysToday.length > 0 && (
-              <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9, y: 30 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                  className="bg-neutral-900 border border-neutral-800 text-white rounded-[2.5rem] p-3 sm:p-5 md:p-6 w-full max-w-lg max-h-[90vh] flex flex-col shadow-[0_0_50px_rgba(236,72,153,0.2)] text-center relative"
-                >
-              {/* Confetti shooter lights */}
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-pink-500 via-amber-400 to-indigo-500" />
-
-              <div className="flex flex-col items-center justify-center w-full">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-full bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-500 flex items-center justify-center text-xl sm:text-2xl animate-bounce shadow-lg shadow-rose-500/20">
-                  🎂
-                </div>
-
-                <h3 className="text-lg sm:text-xl md:text-2xl font-display font-black bg-gradient-to-r from-pink-400 via-amber-300 to-indigo-400 bg-clip-text text-transparent leading-tight mt-2">
-                  Alles Gute zum Geburtstag!
-                </h3>
-
-                <p className="text-[9px] sm:text-[10px] text-neutral-400 font-bold max-w-xs uppercase tracking-widest leading-relaxed mt-1 mb-1">
-                  Heute gibt es an deiner Schule etwas Wunderbares zu feiern ✨
-                </p>
-
-                <div className="my-1 p-2 sm:p-3 bg-white/5 border border-white/10 rounded-2xl w-full flex flex-col items-center">
-                  <div className="text-[8px] uppercase tracking-widest font-black text-rose-400 mb-1">
-                    Geburtstagskind(er) heute:
-                  </div>
-
-                  <div className="space-y-1 w-full max-h-[20vh] overflow-y-auto scrollbar-thin">
-                    {birthdaysToday.map((s) => (
-                      <div
-                        key={s.id}
-                        className="text-base sm:text-lg md:text-xl font-black text-white tracking-tight drop-shadow"
-                      >
-                        🎉{" "}
-                        <span className="bg-gradient-to-r from-pink-400 via-amber-300 to-purple-400 bg-clip-text text-transparent">
-                          {s.vorname} {s.nachname}
-                        </span>{" "}
-                        🎈
-                      </div>
-                    ))}
-                  </div>
-
-                  <p className="text-[8px] text-neutral-400 italic mt-1">
-                    Die Namen wurden in der Schülerliste markiert!
-                  </p>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-2 w-full mt-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleBirthdayCelebrateOnDashboard(
-                        birthdaysToday.map((s) => s.vorname).join(", "),
-                      );
-                    }}
-                    className="flex-1 py-2 sm:py-2.5 bg-gradient-to-r from-pink-600 via-rose-500 to-amber-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider hover:opacity-90 active:scale-95 transition-all shadow-lg cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    🎉 Nochmal Feiern!
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      try {
-                        sessionStorage.setItem(
-                          "bday_popup_shown_" + new Date().toDateString(),
-                          "true",
-                        );
-                      } catch (e) {}
-                      setShowBdayModal(false);
-                      setPage("schueler");
-                    }}
-                    className="flex-1 py-2 sm:py-2.5 bg-neutral-800 hover:bg-neutral-750 text-neutral-200 border border-neutral-700 rounded-xl text-[9px] font-black uppercase tracking-wider active:scale-95 transition-all cursor-pointer"
-                  >
-                    Zur Schülerliste
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    try {
-                      sessionStorage.setItem(
-                        "bday_popup_shown_" + new Date().toDateString(),
-                        "true",
-                      );
-                    } catch (e) {}
-                    setShowBdayModal(false);
-                  }}
-                  className="mt-2 text-[9px] text-neutral-500 hover:text-neutral-300 uppercase tracking-widest font-black transition-colors cursor-pointer shrink-0"
-                >
-                  Schließen (Heute nicht mehr anzeigen)
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>,
-      document.body
-    )}
-
       {/* DETAILED RADAR EVENT POPUP */}
       <AnimatePresence>
         {selectedRadarEvent && (
@@ -8767,16 +8173,12 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                   selectedRadarEvent.student && (
                     <button
                       onClick={() => {
-                        if (selectedRadarEvent.student?.vorname) {
-                          handleBirthdayCelebrateOnDashboard(
-                            selectedRadarEvent.student.vorname,
-                          );
-                        }
                         setSelectedRadarEvent(null);
+                        setPage("schueler");
                       }}
-                      className="w-full py-3 bg-gradient-to-r from-pink-600 to-rose-500 text-white rounded-xl text-[0.6875rem] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                      className="w-full py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-xl text-[0.6875rem] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      🎉 Geburtstags-Konfetti!
+                      Schülerliste öffnen
                     </button>
                   )}
 
