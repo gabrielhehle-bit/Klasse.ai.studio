@@ -325,6 +325,45 @@ async function main() {
     await loginWithSchoolMail(berta, EMAIL_B, VAULT_B);
     console.log('✓ Lehrkraft B: separate school-mail login and vault/device identity ready');
 
+    // Lehrerzimmer: echte Zwei-Konten-Prüfung für Schnellnachricht, Dashboard-Hinweis,
+    // Sidebar-Punkt, erste Ungelesen-Hervorhebung und persistenten Gelesen-Status.
+    const roomMessage = 'Wer hat morgen Aufsicht? E2E Lehrerzimmer';
+    await clickSidebar(anna, 'Lehrerzimmer');
+    await waitFor(anna, 'quick Lehrerzimmer composer', 'Boolean(document.querySelector("[data-testid=lehrerzimmer-quick-message]"))', 20000);
+    await setInputByLabel(anna, 'Nachricht', roomMessage);
+    await clickButton(anna, 'Senden', true);
+    await waitFor(anna, 'Lehrerzimmer message published', 'document.body?.innerText.includes(' + q(roomMessage) + ')', 20000);
+    console.log('✓ Lehrerzimmer: Lehrkraft A published a quick message');
+
+    await waitFor(
+      berta,
+      'dashboard shows unread Lehrerzimmer message',
+      'Boolean(document.querySelector("[data-testid=dashboard-lehrerzimmer-unread]")) && document.body?.innerText.includes(' + q(roomMessage) + ')',
+      30000,
+    );
+    await waitFor(
+      berta,
+      'sidebar shows unread Lehrerzimmer dot',
+      'Boolean(document.querySelector("[aria-label*=\\\"ungelesene Lehrerzimmer-Nachrichten\\\"]"))',
+      15000,
+    );
+    console.log('✓ Lehrerzimmer: Lehrkraft B sees dashboard notification and sidebar dot');
+
+    await clickSidebar(berta, 'Lehrerzimmer');
+    await waitFor(
+      berta,
+      'first view highlights unread message',
+      'Array.from(document.querySelectorAll("[data-unread=true]")).some(node=>String(node.textContent||"").includes(' + q(roomMessage) + '))',
+      20000,
+    );
+    await waitFor(
+      berta,
+      'read state persisted on server',
+      'fetch("/api/lehrerzimmer/unread",{cache:"no-store"}).then(r=>r.json()).then(data=>data.count===0)',
+      15000,
+    );
+    console.log('✓ Lehrerzimmer: first view highlighted message and persisted read state');
+
     // Remount A's team page so the newly registered colleague/device appears.
     await openClassTeam(anna);
     await waitFor(anna, 'second teacher appears', 'document.body?.innerText.toLowerCase().includes("berta")', 30000);
