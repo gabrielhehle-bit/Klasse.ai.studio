@@ -46,6 +46,20 @@ let pseudonymizationWarningShown = false;
 
 let activeAppStateGetter: (() => Partial<AppState> | null) | null = null;
 
+export interface AiUsageStatus {
+  used: number;
+  remaining: number;
+  limit: number;
+  date: string;
+  blocked: boolean;
+  reason?: 'user' | 'global' | null;
+}
+
+function publishAiUsage(usage: unknown) {
+  if (typeof window === 'undefined' || !usage || typeof usage !== 'object') return;
+  window.dispatchEvent(new CustomEvent<AiUsageStatus>('klassio:ai-usage', { detail: usage as AiUsageStatus }));
+}
+
 export function registerActiveAppStateGetter(getter: () => Partial<AppState> | null) {
   activeAppStateGetter = getter;
 }
@@ -103,8 +117,12 @@ export async function callServerAI(action: string, params: any): Promise<string>
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      publishAiUsage(errorData?.usage);
       if (response.status === 429) {
-        throw new Error("Rate Limit überschritten: Die KI braucht eine kurze Pause. Bitte versuche es in 10-20 Sekunden erneut.");
+        if (errorData?.code === 'AI_DAILY_LIMIT_REACHED') {
+          throw new Error(errorData.error || "Das tägliche KI-Limit ist erreicht.");
+        }
+        throw new Error(errorData.error || "Rate Limit überschritten: Die KI braucht eine kurze Pause. Bitte versuche es in 10-20 Sekunden erneut.");
       }
       if (response.status === 401 || response.status === 403) {
         throw new Error("KI-Authentifizierungsfehler: Der serverseitige Gemini-Zugang ist nicht gültig oder nicht eingerichtet.");
@@ -113,6 +131,7 @@ export async function callServerAI(action: string, params: any): Promise<string>
     }
 
     const data = await response.json();
+    publishAiUsage(data?.usage);
     let resultText = data.text;
     if (Object.keys(map).length > 0) {
       resultText = depseudonymisiere(resultText, map);
