@@ -1,6 +1,7 @@
 import pdfMakeLib from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import type { TDocumentDefinitions } from 'pdfmake/interfaces';
+import { splitKlassenbuchCategoryKey } from './klassenbuchSubjects';
 
 const pdfMake = pdfMakeLib as any;
 pdfMake.vfs = (pdfFonts as any)?.pdfMake?.vfs || (pdfFonts as any)?.vfs;
@@ -44,99 +45,155 @@ export function buildKlassenbuchPdfDefinition(options: KlassenbuchPdfOptions): T
       options.includeOccurrences !== false || name !== 'Besondere Vorkommnisse'
     );
 
-    content.push({
+    const totalCharacters = categories.reduce(
+      (sum, [category, entries]) =>
+        sum + category.length + entries.reduce((entrySum, value) => entrySum + String(value || '').length, 0),
+      0,
+    ) + String(week.notes || '').length
+      + (week.absentees || []).reduce((sum, entry) => sum + entry.name.length + entry.info.length, 0);
+
+    // Eine Schulwoche soll auf genau einer A4-Seite bleiben.
+    // Je nach Datenmenge wird nur die Typografie verdichtet – Inhalte werden niemals abgeschnitten.
+    const dense = categories.length >= 15 || totalCharacters > 1800;
+    const veryDense = categories.length >= 19 || totalCharacters > 3000;
+    const rowFontSize = veryDense ? 5.7 : dense ? 6.4 : 7.1;
+    const subareaFontSize = veryDense ? 5.1 : dense ? 5.8 : 6.4;
+    const rowPadding = veryDense ? 1.6 : dense ? 2.3 : 3.1;
+    const bodyLineHeight = veryDense ? 1.05 : dense ? 1.08 : 1.14;
+    const sectionMargin = veryDense ? 5 : dense ? 7 : 9;
+
+    const rows = categories.map(([category, entries]) => {
+      const parsed = splitKlassenbuchCategoryKey(category);
+      const categoryCell = parsed.subarea
+        ? {
+            stack: [
+              { text: parsed.subject, bold: true, fontSize: rowFontSize, color: '#0f172a' },
+              { text: parsed.subarea, fontSize: subareaFontSize, color: '#64748b', margin: [0, 1, 0, 0] },
+            ],
+            fillColor: '#f8fafc',
+          }
+        : {
+            text: parsed.subject,
+            bold: true,
+            fontSize: rowFontSize,
+            color: '#0f172a',
+            fillColor: '#f8fafc',
+          };
+
+      return [
+        categoryCell,
+        {
+          text: textOrDash(entries),
+          fontSize: rowFontSize,
+          color: entries.length > 0 ? '#0f172a' : '#cbd5e1',
+          italics: entries.length === 0,
+          lineHeight: bodyLineHeight,
+        },
+      ];
+    });
+
+    const weekBlock: any = {
+      unbreakable: true,
       stack: [
         {
           columns: [
             {
               width: '*',
               stack: [
-                { text: 'KLASSENBUCH', style: 'eyebrow' },
-                { text: options.className || 'Klasse', style: 'title' },
+                { text: 'KLASSENBUCH', fontSize: 6.5, bold: true, color: '#475569', characterSpacing: 1.1 },
+                { text: options.className || 'Klasse', fontSize: 15, bold: true, color: '#0f172a', margin: [0, 1, 0, 1] },
                 {
                   text: [
                     week.sw ? `Schulwoche ${week.sw} · ` : '',
                     `KW ${week.kw}`,
                     week.dateRange ? ` · ${week.dateRange}` : '',
                   ],
-                  style: 'meta',
+                  fontSize: 7.4,
+                  color: '#475569',
                 },
               ],
             },
             {
               width: 'auto',
               stack: [
-                { text: options.schoolYear ? `Schuljahr ${options.schoolYear}` : '', style: 'metaRight' },
-                { text: options.teacherName || '', style: 'metaRight' },
+                { text: options.schoolYear ? `Schuljahr ${options.schoolYear}` : '', fontSize: 7, color: '#64748b', alignment: 'right' },
+                { text: options.teacherName || '', fontSize: 7, color: '#64748b', alignment: 'right', margin: [0, 1, 0, 0] },
               ],
             },
           ],
-          margin: [0, 0, 0, 12],
+          margin: [0, 0, 0, 7],
         },
         {
           table: {
             headerRows: 1,
-            widths: [150, '*'],
+            dontBreakRows: true,
+            keepWithHeaderRows: 1,
+            widths: [118, '*'],
             body: [
               [
-                { text: 'Bereich', style: 'th' },
-                { text: 'Dokumentierter Unterricht / Inhalt', style: 'th' },
+                { text: 'Fach / Unterbereich', fontSize: 6.8, bold: true, color: '#ffffff', fillColor: '#0f172a' },
+                { text: 'Dokumentierter Unterricht / Inhalt', fontSize: 6.8, bold: true, color: '#ffffff', fillColor: '#0f172a' },
               ],
-              ...categories.map(([category, entries]) => [
-                { text: category, style: 'category' },
-                { text: textOrDash(entries), style: entries.length > 0 ? 'cell' : 'emptyCell' },
-              ]),
+              ...rows,
             ],
           },
           layout: {
-            hLineWidth: (i: number, node: any) => (i === 0 || i === 1 || i === node.table.body.length ? 1 : 0.45),
-            vLineWidth: () => 0.6,
-            hLineColor: (i: number) => (i <= 1 ? '#0f172a' : '#cbd5e1'),
+            hLineWidth: (i: number, node: any) => (i === 0 || i === 1 || i === node.table.body.length ? 0.9 : 0.35),
+            vLineWidth: () => 0.45,
+            hLineColor: (i: number) => (i <= 1 ? '#0f172a' : '#d8dee8'),
             vLineColor: () => '#cbd5e1',
-            paddingLeft: () => 7,
-            paddingRight: () => 7,
-            paddingTop: () => 5,
-            paddingBottom: () => 5,
+            paddingLeft: () => 5,
+            paddingRight: () => 5,
+            paddingTop: () => rowPadding,
+            paddingBottom: () => rowPadding,
           },
         },
         ...(options.includeAbsentees === false ? [] : [{
           stack: [
-            { text: 'Abwesenheiten / Fehlstunden', style: 'sectionTitle' },
+            { text: 'Abwesenheiten / Fehlstunden', fontSize: 6.7, bold: true, color: '#334155', margin: [0, 0, 0, 2] },
             {
               text: week.absentees && week.absentees.length > 0
-                ? week.absentees.map(entry => `${entry.name}: ${entry.info}`).join('\n')
+                ? week.absentees.map(entry => `${entry.name}: ${entry.info}`).join(' · ')
                 : 'Keine Fehlstunden in dieser Woche erfasst.',
-              style: week.absentees && week.absentees.length > 0 ? 'body' : 'muted',
+              fontSize: veryDense ? 5.6 : 6.4,
+              color: week.absentees && week.absentees.length > 0 ? '#1e293b' : '#94a3b8',
+              italics: !(week.absentees && week.absentees.length > 0),
+              lineHeight: 1.08,
             },
           ],
-          margin: [0, 12, 0, 0],
+          margin: [0, sectionMargin, 0, 0],
         }]),
         ...(week.notes?.trim() ? [{
           stack: [
-            { text: 'Berichtsergänzungen', style: 'sectionTitle' },
-            { text: week.notes.trim(), style: 'body' },
+            { text: 'Berichtsergänzungen', fontSize: 6.7, bold: true, color: '#334155', margin: [0, 0, 0, 2] },
+            { text: week.notes.trim(), fontSize: veryDense ? 5.6 : 6.4, color: '#1e293b', lineHeight: 1.08 },
           ],
-          margin: [0, 10, 0, 0],
+          margin: [0, sectionMargin, 0, 0],
         }] : []),
         ...(signatures.length > 0 ? [{
           columns: signatures.map(label => ({
             width: '*',
             stack: [
-              { text: '\n\n____________________________', alignment: 'center', fontSize: 8 },
-              { text: label, alignment: 'center', fontSize: 7, color: '#64748b', bold: true },
+              { text: '\n____________________________', alignment: 'center', fontSize: 6.5 },
+              { text: label, alignment: 'center', fontSize: 6, color: '#64748b', bold: true },
             ],
           })),
-          columnGap: 12,
-          margin: [0, 10, 0, 0],
+          columnGap: 10,
+          margin: [0, sectionMargin, 0, 0],
         }] : []),
       ],
       pageBreak: index < weeks.length - 1 ? 'after' : undefined,
-    });
+    };
+
+    content.push(weekBlock);
   });
 
   return {
     pageSize: 'A4',
-    pageMargins: [34, 32, 34, 34],
+    pageOrientation: 'portrait',
+    // 24 pt ≈ 8,5 mm. Damit bleibt der Klassenbuch-Wochenbericht innerhalb der
+    // druckbaren A4-Fläche und hat zugleich ausreichend Sicherheitsrand.
+    pageMargins: [24, 22, 24, 28],
     info: {
       title: `KLASSIO Klassenbuch ${options.className || ''}`.trim(),
       subject: 'Klassenbuch / Lehrbericht',
@@ -144,29 +201,16 @@ export function buildKlassenbuchPdfDefinition(options: KlassenbuchPdfOptions): T
     },
     footer: (currentPage: number, pageCount: number) => ({
       columns: [
-        { text: 'KLASSIO · Klassenbuch', fontSize: 7, color: '#94a3b8' },
-        { text: `Seite ${currentPage} von ${pageCount}`, alignment: 'right', fontSize: 7, color: '#94a3b8' },
+        { text: 'KLASSIO · Klassenbuch', fontSize: 6.2, color: '#94a3b8' },
+        { text: `Seite ${currentPage} von ${pageCount}`, alignment: 'right', fontSize: 6.2, color: '#94a3b8' },
       ],
-      margin: [34, 0, 34, 12],
+      margin: [24, 0, 24, 9],
     }),
     content,
-    styles: {
-      eyebrow: { fontSize: 7, bold: true, color: '#475569', characterSpacing: 1.2 },
-      title: { fontSize: 17, bold: true, color: '#0f172a', margin: [0, 2, 0, 2] },
-      meta: { fontSize: 8.5, color: '#475569' },
-      metaRight: { fontSize: 8, color: '#64748b', alignment: 'right', margin: [0, 0, 0, 2] },
-      th: { fontSize: 8, bold: true, color: '#ffffff', fillColor: '#0f172a' },
-      category: { fontSize: 8, bold: true, color: '#1e293b', fillColor: '#f8fafc' },
-      cell: { fontSize: 8, color: '#0f172a', lineHeight: 1.25 },
-      emptyCell: { fontSize: 8, color: '#cbd5e1', italics: true },
-      sectionTitle: { fontSize: 8, bold: true, color: '#334155', margin: [0, 0, 0, 4] },
-      body: { fontSize: 8, color: '#1e293b', lineHeight: 1.25 },
-      muted: { fontSize: 8, color: '#94a3b8', italics: true },
-    },
     defaultStyle: {
       font: 'Roboto',
-      fontSize: 8,
-      lineHeight: 1.2,
+      fontSize: 7,
+      lineHeight: 1.1,
     },
   };
 }
