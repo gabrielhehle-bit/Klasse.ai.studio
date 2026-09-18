@@ -22,6 +22,13 @@ test('Schulregister ordnet nur die exakte konkrete Schul-Domain zu', async () =>
     assert.equal(oberau.id, 'at-vbg-vs-oberau');
     assert.equal(oberau.federalState, 'Vorarlberg');
 
+    const krumbach = await store.findVerifiedSchoolByEmail('lehrperson@vskr.vobs.at');
+    assert.ok(krumbach);
+    assert.equal(krumbach.id, 'at-vbg-vs-krumbach');
+    assert.equal(krumbach.name, 'Volksschule Krumbach');
+    assert.equal(krumbach.federalState, 'Vorarlberg');
+    assert.notEqual(krumbach.id, oberau.id, 'Krumbach und Oberau müssen getrennte Schulgruppen bleiben.');
+
     assert.equal(
       await store.findVerifiedSchoolByEmail('lehrperson@andere-schule.vobs.at'),
       null,
