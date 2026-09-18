@@ -1015,57 +1015,83 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (restoringRef.current) throw new Error('Eine Wiederherstellung läuft bereits.');
     const key = getActiveVaultKey();
     if (!key) throw new Error('Bitte zuerst den lokalen Tresor entsperren.');
-    const persistedSyncCode = currentAppRef.current.boardSettings?.activeSyncCode;
-    if (persistedSyncCode) {
-      let syncSessionStillExists = true;
-      try {
-        const response = await fetch('/api/sync/' + encodeURIComponent(persistedSyncCode), { cache: 'no-store' });
-        if (response.status === 404) syncSessionStillExists = false;
-      } catch {
-        throw new Error(
-          'Die gespeicherte Geräteverbindung konnte gerade nicht geprüft werden. Bitte Internetverbindung prüfen und den Import erneut versuchen.'
-        );
-      }
 
-      if (syncSessionStillExists) {
-        throw new Error('Bitte zuerst die aktive Geräteverbindung beenden und das Backup danach erneut einlesen.');
-      }
-
-      // Alte Builds konnten einen abgelaufenen Sync-Code lokal behalten. Eine serverseitig
-      // nicht mehr vorhandene Sitzung darf deshalb keinen Backup-Import dauerhaft blockieren.
-      clearActiveSessionKey();
-      activeSessionKeyRef.current = null;
-      const withoutStaleSync: AppState = {
-        ...currentAppRef.current,
-        boardSettings: {
-          ...currentAppRef.current.boardSettings,
-          activeSyncCode: undefined,
-          isRemoteController: undefined,
-          gabicRole: undefined,
-        },
-      };
-      currentAppRef.current = withoutStaleSync;
-      setAppInternal(withoutStaleSync);
+    // Import und Konto-Abgleich dürfen nicht gegeneinander laufen. Ein bereits gestarteter
+    // Abgleich bekommt kurz Zeit zum Abschluss; danach übernimmt der Import exklusiv.
+    for (let attempt = 0; accountSyncBusyRef.current && attempt < 50; attempt += 1) {
+      await new Promise(resolve => window.setTimeout(resolve, 100));
     }
-    assertRestorableAppState(data);
-    const next = syncActiveClass(normalizeAppState({
-      ...data, tourAbgeschlossen: true,
-      boardSettings: { ...data.boardSettings, activeSyncCode: undefined, isTafelOpen: false },
-    }));
+    if (accountSyncBusyRef.current) {
+      throw new Error('Der Datenabgleich läuft gerade noch. Bitte den Import gleich noch einmal starten.');
+    }
+
     restoringRef.current = true;
+    accountSyncBusyRef.current = true;
     setIsRestoring(true);
     try {
+      const persistedSyncCode = currentAppRef.current.boardSettings?.activeSyncCode;
+      if (persistedSyncCode) {
+        let syncSessionStillExists = true;
+        try {
+          const response = await fetch('/api/sync/' + encodeURIComponent(persistedSyncCode), { cache: 'no-store' });
+          if (response.status === 404) syncSessionStillExists = false;
+        } catch {
+          throw new Error(
+            'Die gespeicherte Handy-Verbindung konnte gerade nicht geprüft werden. Bitte Internetverbindung prüfen und den Import erneut versuchen.'
+          );
+        }
+
+        if (syncSessionStillExists) {
+          throw new Error('Bitte zuerst die aktive Handy-Verbindung beenden und das Backup danach erneut einlesen.');
+        }
+
+        // Alte Builds konnten einen abgelaufenen Sync-Code lokal behalten. Eine serverseitig
+        // nicht mehr vorhandene Sitzung darf deshalb keinen Backup-Import dauerhaft blockieren.
+        clearActiveSessionKey();
+        activeSessionKeyRef.current = null;
+        const withoutStaleSync: AppState = {
+          ...currentAppRef.current,
+          boardSettings: {
+            ...currentAppRef.current.boardSettings,
+            activeSyncCode: undefined,
+            isRemoteController: undefined,
+            gabicRole: undefined,
+          },
+        };
+        currentAppRef.current = withoutStaleSync;
+        setAppInternal(withoutStaleSync);
+      }
+
+      assertRestorableAppState(data);
+      const next = syncActiveClass(normalizeAppState({
+        ...data,
+        tourAbgeschlossen: true,
+        boardSettings: { ...data.boardSettings, activeSyncCode: undefined, isTafelOpen: false },
+      }));
+
       await restoreEncryptedAppState(currentAppRef.current, next, key);
+
       // A lock/logout during the write must not expose the restored data in RAM/UI.
-      if (getActiveVaultKey() === key) {
-        currentAppRef.current = next;
-        setAppInternal(next);
+      if (getActiveVaultKey() !== key) return;
+
+      currentAppRef.current = next;
+      setAppInternal(next);
+
+      // Ein bewusst importierter Altbestand ist ab jetzt der lokale Arbeitsstand.
+      // Bei aktivem Konto wird er über dieselbe Revisionserkennung in den Konto-Sync
+      // übernommen. Ist der Server inzwischen weiter, bleibt der Import lokal erhalten
+      // und Klassio zeigt stattdessen einen echten Konflikt, statt Daten zu überschreiben.
+      const reconciledAfterImport = await reconcileAccountState(next, key, true);
+      if (getActiveVaultKey() === key && appStateFingerprint(reconciledAfterImport) !== appStateFingerprint(next)) {
+        currentAppRef.current = reconciledAfterImport;
+        setAppInternal(reconciledAfterImport);
       }
     } finally {
+      accountSyncBusyRef.current = false;
       restoringRef.current = false;
       setIsRestoring(false);
     }
-  }, []);
+  }, [reconcileAccountState]);
 
   const unlockAppVault = React.useCallback(async (key: CryptoKey): Promise<boolean> => {
     try {
