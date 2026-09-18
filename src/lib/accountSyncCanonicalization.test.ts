@@ -13,6 +13,7 @@ test('Konto-Sync: alte sparse JSONs und nachgeladene Default-Felder haben densel
     classes: [{ id: 'class-1', name: '1A' }],
     currentPage: 'dashboard',
     previousPage: 'klasse',
+    boardSettings: {},
   } as any;
 
   const hydrated = {
@@ -32,6 +33,7 @@ test('Konto-Sync: alte sparse JSONs und nachgeladene Default-Felder haben densel
     stundenbilderMigriert: true,
     vertretungHinweise: '',
     denkzettelNotes: [],
+    boardSettings: { activeFont: 'font-standard' },
     classes: [{
       name: '1A',
       klassenglas_missions: [],
