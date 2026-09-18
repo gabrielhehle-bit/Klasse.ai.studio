@@ -632,6 +632,12 @@ export default function PrintCenter() {
 
   // Automatically update orientation default based on selected template
   useEffect(() => {
+    if (activeTemplate === 'klassenbuch') {
+      setPrintOrientation('portrait');
+      setPrintMargin(8.5);
+      setPrintFontSize('base');
+      return;
+    }
     if (bypassOrientationAutoSet) {
       setBypassOrientationAutoSet(false);
       return;
@@ -1082,7 +1088,7 @@ export default function PrintCenter() {
             height: auto !important;
           }
           @page {
-            size: ${activeTemplate === 'klassenbuch' ? 'portrait A4' : `${printOrientation === 'landscape' ? 'landscape' : 'portrait'} ${printPaperSize}`};
+            size: ${activeTemplate === 'klassenbuch' ? 'A4 portrait' : `${printOrientation === 'landscape' ? 'landscape' : 'portrait'} ${printPaperSize}`};
             margin: 0;
           }
           body.print-center-active .klassenbuch-a4-page {
@@ -3939,7 +3945,7 @@ export default function PrintCenter() {
                     className={`bg-white font-sans text-black select-none shrink-0 single-sheet-preview ${getFontSizeClass()}`}
                   >
                     {/* 1. Dynamic Print Header */}
-                    {showMainHeader && (
+                    {showMainHeader && activeTemplate !== 'klassenbuch' && (
                       <PrintHeader title={customHeaderTitle || undefined} />
                     )}
 
@@ -3964,7 +3970,7 @@ export default function PrintCenter() {
                 // Multi-page batch printing for Klassenbuch
                 getKbWeeksToRender().map((kw) => (
                   <div key={kw} className="page-break klassenbuch-a4-page bg-white animate-none opacity-100 visible">
-                    {showMainHeader && <PrintHeader title={customHeaderTitle || undefined} />}
+                    {showMainHeader && activeTemplate !== 'klassenbuch' && <PrintHeader title={customHeaderTitle || undefined} />}
                     {renderSingleKlassenbuchPage(kw)}
                   </div>
                 ))
@@ -4006,7 +4012,7 @@ export default function PrintCenter() {
                   className={activeTemplate === 'klassenbuch' ? 'klassenbuch-a4-page' : undefined}
                   style={activeTemplate === 'klassenbuch' ? undefined : { padding: `${printMargin}mm` }}
                 >
-                  {showMainHeader && <PrintHeader title={customHeaderTitle || undefined} />}
+                  {showMainHeader && activeTemplate !== 'klassenbuch' && <PrintHeader title={customHeaderTitle || undefined} />}
                   {renderPreviewTemplate()}
                 </div>
               )}
@@ -4355,9 +4361,29 @@ export default function PrintCenter() {
       kbIncludeOccurrences || category !== 'Besondere Vorkommnisse'
     );
 
+    const classTeacherName = [app?.anrede, app?.vorname, app?.nachname]
+      .filter(Boolean)
+      .join(' ')
+      || app?.lehrerName
+      || app?.lehrerProfil?.name
+      || '';
+
     return (
-      <div className="space-y-4 print:space-y-3 font-sans">
-        {/* Scanned-document replica table */}
+      <div className="space-y-2.5 print:space-y-2 font-sans">
+        <div className="flex items-end justify-between gap-4 border-b border-slate-300 pb-1.5">
+          <div>
+            <p className="text-[0.5625rem] font-black uppercase tracking-[0.16em] text-slate-400">KLASSENBUCH</p>
+            <p className="text-[0.8125rem] font-black leading-tight text-slate-900">
+              {app?.klassenbezeichnung || 'Klasse'}
+            </p>
+          </div>
+          <div className="text-right text-[0.5625rem] font-semibold leading-tight text-slate-500">
+            {app?.schuljahr && <div>Schuljahr {app.schuljahr}</div>}
+            {classTeacherName && <div>{classTeacherName}</div>}
+          </div>
+        </div>
+
+        {/* A4-Wochenblatt */}
         <table className="w-full border-collapse border-2 border-slate-900 text-black">
           <thead>
             <tr>
@@ -4367,7 +4393,7 @@ export default function PrintCenter() {
             </tr>
             <tr className="bg-slate-100 border-b border-slate-400">
               <th className="w-[34%] border-r border-slate-400 px-3 py-2 text-left text-[0.625rem] font-black uppercase tracking-wider text-slate-600">
-                Bereich
+                Fach / Unterbereich
               </th>
               <th className="px-3 py-2 text-left text-[0.625rem] font-black uppercase tracking-wider text-slate-600">
                 Unterricht / Inhalt
@@ -4400,17 +4426,17 @@ export default function PrintCenter() {
 
         {/* Absences / Fehlstunden section */}
         {kbIncludeAbsentees && (
-          <div className="space-y-1.5 pt-3 avoid-break">
+          <div className="space-y-1 pt-1.5 avoid-break">
             <h4 className="text-[0.71875rem] font-black uppercase tracking-wider text-zinc-500 border-b border-[#000000]/10 pb-0.5 flex items-center gap-1.5">
               <Clock size={12} className="text-zinc-500" />
               <span>Erfasste Fehlstunden & Abwesenheiten</span>
             </h4>
             {pageAbsenteesList.length > 0 ? (
-              <div className="border border-zinc-300 rounded-2xl bg-zinc-50 overflow-hidden divide-y divide-zinc-200">
+              <div className="border border-zinc-300 bg-zinc-50 divide-y divide-zinc-200">
                 {pageAbsenteesList.map((abs, idx) => (
-                  <div key={idx} className="p-2.5 px-3.5 flex justify-between items-center text-[0.6875rem] font-semibold">
+                  <div key={idx} className="px-2.5 py-1 flex justify-between items-center gap-3 text-[0.625rem] font-semibold">
                     <span className="text-zinc-900 font-bold">{abs.name}</span>
-                    <span className="text-zinc-650 bg-white border border-zinc-200 px-2.5 py-0.5 rounded-lg text-[0.625rem]">{abs.info}</span>
+                    <span className="text-zinc-600 text-right">{abs.info}</span>
                   </div>
                 ))}
               </div>
@@ -4422,9 +4448,9 @@ export default function PrintCenter() {
 
         {/* Special Vorkommnisse text block */}
         {kbIncludeOccurrences && kbCustomNotesValue.trim() && (
-          <div className="space-y-1.5 pt-3 avoid-break">
-            <h4 className="text-[0.71875rem] font-black uppercase tracking-wider text-zinc-500 border-b border-[#000000]/10 pb-0.5">Pädagogische Zusatznotizen & Ereignisse</h4>
-            <div className="border border-zinc-300 p-3 rounded-2xl bg-zinc-50 text-[0.6875rem] font-semibold text-zinc-700 whitespace-pre-wrap leading-relaxed">
+          <div className="space-y-1 pt-1.5 avoid-break">
+            <h4 className="text-[0.65625rem] font-black uppercase tracking-wider text-zinc-500 border-b border-[#000000]/10 pb-0.5">Pädagogische Zusatznotizen & Ereignisse</h4>
+            <div className="border border-zinc-300 p-2 bg-zinc-50 text-[0.625rem] font-semibold text-zinc-700 whitespace-pre-wrap leading-snug">
               {kbCustomNotesValue}
             </div>
           </div>
@@ -4432,10 +4458,10 @@ export default function PrintCenter() {
 
         {/* Signatures sections */}
         {kbSignatures.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 pt-8 avoid-break text-center">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-3 avoid-break text-center">
             {kbSignatures.map(sigName => (
               <div key={sigName} className="space-y-1 inline-block">
-                <div className="border-b border-black w-36 mx-auto pb-6"></div>
+                <div className="border-b border-black w-32 mx-auto pb-3"></div>
                 <span className="text-[0.5625rem] uppercase font-black tracking-widest text-[#000000]/50">{sigName}</span>
               </div>
             ))}
