@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { Button, IconButton, Badge, Chip } from './ui';
 import { useLehrerzimmerUnread } from '../hooks/useLehrerzimmerUnread';
+import { useVerifiedSchoolIdentity } from '../hooks/useVerifiedSchoolIdentity';
 
 interface SidebarProps {
   currentPage: string;
@@ -36,6 +37,7 @@ const CORE_MODULE_IDS = new Set([
 const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: SidebarProps) => {
   const { app, setApp } = useApp();
   const { showToast } = useToast();
+  const { verified: hasVerifiedSchoolIdentity } = useVerifiedSchoolIdentity();
   const { summary: lehrerzimmerUnread } = useLehrerzimmerUnread();
   const isCollapsed = app?.settings?.sidebarCollapsed || false;
 
@@ -119,6 +121,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
 
   const availableModules = ALL_MODULES.filter(item =>
     (app.klassenvorstand || !restrictedForSubjectTeachers.has(item.id)) &&
+    (item.id !== 'lehrerzimmer' || hasVerifiedSchoolIdentity) &&
     (!disabledModules.includes(item.id) || item.id === 'lehrerzimmer')
   );
 
