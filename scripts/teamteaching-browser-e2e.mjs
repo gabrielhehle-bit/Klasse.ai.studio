@@ -406,6 +406,7 @@ async function main() {
       30000,
     );
 
+    await fs.rm(SMTP_CODES, { force: true }).catch(() => {});
     await berta.send('Storage.clearDataForOrigin', {
       origin: new URL(BASE_URL).origin,
       storageTypes: 'all',
