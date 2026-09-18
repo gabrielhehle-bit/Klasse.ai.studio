@@ -19,6 +19,18 @@ test('Wochenplanung: großer Arbeitsbereich mit klaren Reitern statt Formularwan
   assert.match(weekly, /Einheit planen/);
 });
 
+test('Wochenplanung: Stunde halbieren ist direkt auf der ersten Seite Inhalt & Fach verfügbar', () => {
+  const firstPage = weekly.indexOf("plannerEditorTab === 'inhalt'");
+  const splitControl = weekly.indexOf('Unterrichtseinheit halbieren');
+  const secondPage = weekly.indexOf("plannerEditorTab === 'rahmen'");
+  assert.ok(firstPage >= 0);
+  assert.ok(splitControl > firstPage);
+  assert.ok(splitControl < secondPage);
+  assert.match(weekly, /Erste Hälfte/);
+  assert.match(weekly, /Zweite Hälfte/);
+  assert.match(weekly, /setTempSplitLesson/);
+});
+
 test('Wochenplanung: geplante Stunde öffnet Übersicht und wird erst bewusst bearbeitet', () => {
   assert.match(weekly, /viewingCell/);
   assert.match(weekly, /Geplante Einheit/);
