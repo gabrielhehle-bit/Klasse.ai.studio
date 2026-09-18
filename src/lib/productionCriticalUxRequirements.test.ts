@@ -12,12 +12,17 @@ const notes = readFileSync('src/components/Behavior.tsx', 'utf8');
 const voiceArchive = readFileSync('src/components/StimmNotizen.tsx', 'utf8');
 const sidebar = readFileSync('src/components/Sidebar.tsx', 'utf8');
 
-test('Backup-Restore: abgelaufene Geräte-Sitzung blockiert alte Backups nicht dauerhaft', () => {
+test('Backup-Restore beendet eine gespeicherte Geräte-Sitzung automatisch und setzt den lokalen Sync zurück', () => {
   assert.match(context, /persistedSyncCode/);
-  assert.match(context, /fetch\('\/api\/sync\/' \+ encodeURIComponent\(persistedSyncCode\)/);
-  assert.match(context, /response\.status === 404/);
+  assert.match(context, /fetch\('\/api\/sync\/' \+ encodeURIComponent\(persistedSyncCode\), \{/);
+  assert.match(context, /method: 'DELETE'/);
+  assert.doesNotMatch(context, /Bitte zuerst die aktive Geräteverbindung beenden und das Backup danach erneut einlesen/);
   assert.match(context, /clearActiveSessionKey\(\)/);
+  assert.match(context, /lastSeenTimestampRef\.current = 0/);
+  assert.match(context, /lastSeenStateRef\.current = null/);
+  assert.match(context, /isPendingPushRef\.current = false/);
   assert.match(context, /activeSyncCode: undefined/);
+  assert.match(context, /remoteLastActiveTs: undefined/);
   assert.match(context, /assertRestorableAppState\(data\)/);
 });
 
