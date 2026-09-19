@@ -760,10 +760,11 @@ export default function PrintCenter() {
   const compileKlassenbuchData = (targetKW: number) => projectWeeklyPlanToClassbook(
     (app?.wochenplanung || {})[targetKW],
     { activeSubjects: app?.faecher, stammplan: app?.stammplan, includeReflection: true,
+      includeEvents: kbIncludeOccurrences,
       materialTitlesById: Object.fromEntries((app?.materialien || []).map(material => [material.id, material.titel])) },
   );
 
-  const compiledKbData = useMemo(() => compileKlassenbuchData(kbKW), [kbKW, app?.wochenplanung, wpShowReflexion]);
+  const compiledKbData = useMemo(() => compileKlassenbuchData(kbKW), [kbKW, app?.wochenplanung, app?.stammplan, app?.faecher, app?.materialien, kbIncludeOccurrences]);
 
   // D. Absent Students helper
   const getAbsenteesForWeek = (targetKW: number) => {
