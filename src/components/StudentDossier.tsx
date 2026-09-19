@@ -63,6 +63,8 @@ interface StudentDossierProps {
   schuelerId: string;
   onBack?: () => void;
   onStudentChange?: (id: string) => void;
+  /** Optional deep link from class-year report management, no persisted navigation state. */
+  initialReportView?: boolean;
 }
 
 export type MainAreaId = 
@@ -177,7 +179,7 @@ export const MAIN_AREAS: MainAreaDef[] = [
     icon: FileText,
     defaultTab: 'berichte',
     tabs: [
-      { id: 'berichte', label: 'Berichte', shortLabel: 'Berichte', icon: FileText, description: 'KI-Zusammenfassung, Eltern-Report & Exporte' },
+      { id: 'berichte', label: 'Berichte', shortLabel: 'Berichte', icon: FileText, description: 'KI-Zusammenfassung, Eltern-Report, Jahresbericht & Exporte' },
       { id: 'beurteilung_gespraeche', label: 'Gespräche & Beurteilungen', shortLabel: 'Gespräche & Beurteilungen', icon: Award, description: 'Erläuterungsmatrix & Gesprächsvorbereitung' },
       { id: 'materialien', label: 'Materialien', shortLabel: 'Materialien', icon: BookOpen, description: 'Individuelles Fördermaterial & Arbeitsblätter' },
     ]
@@ -195,12 +197,12 @@ export const getActiveMainArea = (tab: DossierTab): MainAreaId => {
   return 'uebersicht';
 };
 
-export default function StudentDossier({ schuelerId, onBack, onStudentChange }: StudentDossierProps) {
+export default function StudentDossier({ schuelerId, onBack, onStudentChange, initialReportView = false }: StudentDossierProps) {
   const { app, setApp, setPage } = useApp();
   const student = app.schueler.find(s => s.id === schuelerId);
   
   // Always start with 'uebersicht'
-  const [activeTab, setActiveTab] = useState<DossierTab>('uebersicht');
+  const [activeTab, setActiveTab] = useState<DossierTab>(initialReportView ? 'berichte' : 'uebersicht');
   const [pendingQuickEntry, setPendingQuickEntry] = useState<'note' | 'strength' | 'parent' | 'goal' | null>(null);
 
   const openOverviewQuickEntry = (type: 'note' | 'strength' | 'parent' | 'goal') => {
@@ -208,11 +210,12 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
     setActiveTab(type === 'goal' || type === 'strength' ? 'foerderung' : 'beobachtungen_verlauf');
   };
 
-  // Reset activeTab to 'uebersicht' whenever student changes
+  // Respect the explicit class-year deep link; ordinary dossier visits still
+  // start at the overview and no navigation preference is persisted.
   useEffect(() => {
-    setActiveTab('uebersicht');
+    setActiveTab(initialReportView ? 'berichte' : 'uebersicht');
     setPendingQuickEntry(null);
-  }, [schuelerId]);
+  }, [schuelerId, initialReportView]);
 
   const activeMainArea = getActiveMainArea(activeTab);
 
@@ -835,7 +838,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                 {(activeTab === 'berichte' || activeTab === 'ki_summary' || activeTab === 'eltern_report') && (
                   <DossierBerichte 
                     student={student} 
-                    initialSubView={activeTab === 'eltern_report' ? 'eltern_report' : 'ki_summary'}
+                    initialSubView={activeTab === 'eltern_report' ? 'eltern_report' : initialReportView && activeTab === 'berichte' ? 'jahresbericht' : 'ki_summary'}
                     onStartPresentation={() => setPresentationModeActive(true)}
                     semester={sem}
                     onSemesterChange={changeSemester}
