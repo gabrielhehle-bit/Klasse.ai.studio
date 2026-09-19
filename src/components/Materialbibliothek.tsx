@@ -58,10 +58,6 @@ export default function Materialbibliothek() {
   const favoritesCount = useMemo(() => (app.materialien || []).filter(m => m.favorit).length, [app.materialien]);
   const totalCount = (app.materialien || []).length;
 
-  useEffect(() => {
-    setWeekPlanMaterial(null);
-  }, [app.activeClassId]);
-
   const activeFiltersCount = useMemo(() => {
     return (activeTab !== 'Alle' ? 1 : 0) + 
            (searchQuery ? 1 : 0) + 
@@ -1662,6 +1658,7 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
   const [hour, setHour] = useState(1);
   const [mode, setMode] = useState<'append' | 'replace'>('append');
   const [applyPreparation, setApplyPreparation] = useState(false);
+  const [openedForClass] = useState(app.activeClassId);
 
   const days = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
   const availableHours = LESSON_SLOT_NUMBERS;
@@ -1675,6 +1672,11 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
   const alreadyLinked = existingMaterialIds.includes(item.id);
 
   const save = () => {
+    if (openedForClass !== app.activeClassId) {
+      window.alert('Die aktive Klasse hat sich geändert. Öffne die Materialübernahme für die neue Klasse erneut.');
+      onClose();
+      return;
+    }
     const lessonDraft = item.typ === 'stundenentwurf' && applyPreparation ? lessonDraftFromMaterial(item) : null;
     if (lessonDraft && (existing.thema || existing.fach || existing.stundenentwurf || existing.method) &&
       !window.confirm('Diese Unterrichtsstunde enthält bereits eine Planung. Fach, Thema und ausführlichen Entwurf durch die ausgewählte Vorlage ersetzen?')) return;
