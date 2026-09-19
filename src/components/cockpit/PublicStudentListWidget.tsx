@@ -7,7 +7,6 @@ interface Props {
   getTodayPoints: (studentId: string) => number;
   addParticipation: (studentId: string, event?: React.MouseEvent) => void;
   removeParticipation: (studentId: string) => void;
-  currentIsLight: boolean;
 }
 
 /**
@@ -23,7 +22,6 @@ export function PublicStudentListWidget({
   getTodayPoints,
   addParticipation,
   removeParticipation,
-  currentIsLight,
 }: Props) {
   const students = app.schueler ?? [];
   const [compact, setCompact] = useState(false);
@@ -63,7 +61,7 @@ export function PublicStudentListWidget({
   }
 
   return (
-    <section aria-label="Öffentliche Schülerliste und Pluspunkte" className={`flex h-full min-h-0 flex-col gap-2 p-2 ${currentIsLight ? 'text-slate-900' : 'text-slate-900'}`}>
+    <section aria-label="Öffentliche Schülerliste und Pluspunkte" className="flex h-full min-h-0 flex-col gap-2 p-2 text-slate-900">
       <div className="flex shrink-0 items-center justify-between gap-2">
         <h3 className="text-sm font-bold">Unsere Pluspunkte</h3>
         <button
