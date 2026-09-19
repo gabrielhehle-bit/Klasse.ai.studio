@@ -1,4 +1,6 @@
 import { shouldApplyTafelCommand } from '../lib/tafelCommands';
+import { getTodayIsoDate } from '../lib/kidAttendanceAlgorithm';
+import { dailyBehaviorEntries } from '../lib/dailyBehaviorEntries';
 import React, {
   useEffect,
   useState,
@@ -6485,9 +6487,12 @@ ${content}
       const newEntries: any[] = [];
       const currentMitarbeit = prev.mitarbeit || {};
       const newMitarbeit = { ...currentMitarbeit };
-      const todayStr = new Date().toISOString().split("T")[0];
+      const todayStr = getTodayIsoDate();
 
       (prev.schueler || []).forEach((student: any) => {
+        // Ein Kind erhält maximal einen Tagesabschluss. Re-Render, manuelles Sichern,
+        // erneuter Cockpit-Aufruf und Automatik dürfen keine Duplikate erzeugen.
+        if (dailyBehaviorEntries(prev.statusLog || [], student.id, todayStr).length) return;
         const stageId = currentStatuses[student.id] || defaultStageId;
         newEntries.push({
           id: Math.random().toString(36).substr(2, 9),
@@ -6522,6 +6527,9 @@ ${content}
         }
       });
 
+      // Bei erneutem Aufruf denselben unveränderten Stand belassen; auch keine
+      // Mitarbeitspunkte doppelt buchen oder weitere Beobachtungen generieren.
+      if (newEntries.length === 0) return prev;
       return {
         ...prev,
         statusLog: [...newEntries, ...(prev.statusLog || [])],
@@ -6541,7 +6549,7 @@ ${content}
     }
 
     setSessionSuccessMessage(
-      `Verhalten für alle ${loggedCount} Schüler und alle Mitarbeitspunkte für "${currentSubject}" erfolgreich täglich gespeichert! 🌟✏️`,
+      `Tagesabschluss für ${loggedCount} Kinder gesichert. Bereits gespeicherte Tageswerte bleiben unverändert.`,
     );
     setTimeout(() => {
       setSessionSuccessMessage(null);
@@ -6559,11 +6567,16 @@ ${content}
     // Note: updateHasAutoSavedToday is derived from useState/localStorage, stable reference not strictly needed in deps
   ]);
 
+  const behaviorSavedToday = hasAutoSavedToday === getTodayIsoDate() ||
+    (app.schueler?.length > 0 && app.schueler.every(student =>
+      dailyBehaviorEntries(app.statusLog || [], student.id, getTodayIsoDate()).length > 0
+    ));
+
   // Automatic Behavior Auto-Save logic
   useEffect(() => {
     // Check if we already saved today (for this specific date)
-    const todayStr = new Date().toISOString().split("T")[0];
-    if (hasAutoSavedToday === todayStr) return;
+    const todayStr = getTodayIsoDate();
+    if (behaviorSavedToday) return;
 
     // We only auto-save if the last active lesson is truly over
     if (commitAllowance.allowed && commitAllowance.lastHourIdx !== -1) {
@@ -6581,13 +6594,13 @@ ${content}
         commitBehaviorToHistory(true);
       }
     }
-  }, [time, commitAllowance, commitBehaviorToHistory, hasAutoSavedToday, lessonTimeSlots]);
+  }, [time, commitAllowance, commitBehaviorToHistory, behaviorSavedToday, lessonTimeSlots]);
 
   const handleCloseCockpit = () => {
     // Nur dann beim Schließen sichern, wenn der Tagesabschluss bereits freigegeben ist.
     // Ein zu frühes Schließen darf den Tag niemals fälschlich als gespeichert markieren.
-    const todayStr = new Date().toISOString().split("T")[0];
-    if (hasAutoSavedToday !== todayStr && commitAllowance.allowed) {
+    const todayStr = getTodayIsoDate();
+    if (!behaviorSavedToday && commitAllowance.allowed) {
       console.log(
         "Auto-saving behavior & mitarbeit on closing classroom cockpit...",
       );
@@ -7543,7 +7556,7 @@ ${content}
             {/* 1. Auto-Save & Manual-Commit status indicator */}
             <div className="flex items-center gap-1 mt-0.5 select-none">
               <span className="relative flex h-1.5 w-1.5">
-                {hasAutoSavedToday === new Date().toISOString().split("T")[0] ? (
+                {behaviorSavedToday ? (
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" />
                 ) : (
                   <>
@@ -7552,8 +7565,8 @@ ${content}
                   </>
                 )}
               </span>
-              <span className={`text-[7.5px] font-black uppercase tracking-wider ${hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "text-emerald-500" : "text-amber-500"}`}>
-                {hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "Heute gesichert" : "Speichert beim Beenden"}
+              <span className={`text-[7.5px] font-black uppercase tracking-wider ${behaviorSavedToday ? "text-emerald-500" : "text-amber-500"}`}>
+                {behaviorSavedToday ? "Heute gesichert" : "Speichert beim Beenden"}
               </span>
             </div>
           </div>
@@ -7643,7 +7656,7 @@ ${content}
                   (app.behavior_default_stage_id || "3"),
               ).length;
               const todayStr = new Date().toISOString().split("T")[0];
-              const alreadySavedToday = hasAutoSavedToday === todayStr;
+              const alreadySavedToday = behaviorSavedToday;
               const isButtonDisabled =
                 !commitAllowance.allowed || alreadySavedToday;
 
