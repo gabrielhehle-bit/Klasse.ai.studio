@@ -21,8 +21,8 @@ export const EMPTY_SUPPORT_INFO: SupportInfo = {
   message: 'Klassio bleibt kostenlos und für alle frei zugänglich. Die laufenden Serverkosten werden durch freiwillige Unterstützung mitgetragen.',
   paypal: {
     oneTime: 'https://paypal.me/gabrielhehle',
-    monthly: null,
-    yearly: null,
+    monthly: 'https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-39527139B4457294RNKVOWJQ',
+    yearly: 'https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-82J97339KC156492WNKVOZGA',
   },
   supporters: [],
   privacy: 'Auf der öffentlichen Dankesliste erscheinen nur Namen, deren Veröffentlichung ausdrücklich erlaubt wurde. Beträge und Zahlungsdaten werden nicht angezeigt.',
