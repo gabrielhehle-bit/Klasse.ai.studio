@@ -641,7 +641,7 @@ export default function Behavior() {
                               <div className="flex items-center justify-between relative z-10">
                                  <div className="flex items-center gap-3">
                                     <div className={`px-2 py-1 rounded-full border text-xs font-bold ${appearance.badge}`}>
-                                       {appearance.label}
+                                       {['Notiz', 'Erfolg', 'Verhalten', 'Eltern', 'Journal'].includes(entry.kategorie) ? appearance.label : entry.kategorie}
                                     </div>
                                     <div className="text-[0.625rem] font-black text-slate-300 uppercase tracking-widest tabular-nums print:text-black">
                                        {new Date(entry.datum).toLocaleDateString('de-AT')}
