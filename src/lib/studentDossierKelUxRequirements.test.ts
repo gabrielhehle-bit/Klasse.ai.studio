@@ -43,7 +43,7 @@ test('KEL retains real presentation, per-student opt-in grades, PPTX, dossier PD
   ]) {
     assert.ok(kel.includes(needle), 'KEL-Funktion fehlt: ' + needle);
   }
-  assert.match(kel, /aria-label=\\{.*Folie/);
+  assert.match(kel, /aria-label=.*Folie/);
   assert.match(kel, /Zurück/);
   assert.match(kel, /Weiter/);
 });
