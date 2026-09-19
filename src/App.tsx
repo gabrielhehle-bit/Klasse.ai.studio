@@ -172,7 +172,13 @@ function AppContent() {
       return false;
     }
   });
-  const currentPage = landOnDashboardAfterLogin ? 'dashboard' : (app.currentPage || 'dashboard');
+  // AppContent mounts only after VaultGate unlocks the decrypted state. On every
+  // fresh app/tab start, land on Heute instead of restoring an old cockpit route.
+  // Never reset user navigation again during this mounted session.
+  const [initialLandingPending, setInitialLandingPending] = useState(true);
+  const currentPage = (initialLandingPending || landOnDashboardAfterLogin)
+    ? 'dashboard'
+    : (app.currentPage || 'dashboard');
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showDiagnostikAnleitung, setShowDiagnostikAnleitung] = useState(false);
@@ -227,6 +233,11 @@ function AppContent() {
       return newState;
     });
   };
+
+  React.useEffect(() => {
+    setPage('dashboard');
+    setInitialLandingPending(false);
+  }, [setPage]);
 
   // Anmeldung landet immer im Dashboard. Der Setup-Wizard öffnet sich nur
   // noch bewusst über "Setup" / "Klasse hinzufügen", nie automatisch nach Login.
