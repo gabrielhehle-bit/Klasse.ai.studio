@@ -679,12 +679,9 @@ export default function Behavior() {
                      </div>
                   </div>
                )}
-            </div>
+            </section>
           </motion.div>
         ) : null}
-      </AnimatePresence>
-          </motion.div>
-        )}
       </AnimatePresence>
 
       <style>{`
