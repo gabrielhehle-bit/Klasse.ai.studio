@@ -328,6 +328,13 @@ export default function StudentList() {
               >
                 <FileUp size={isCompact ? 11 : isLarge ? 17 : 14} />
               </button>
+              <button type="button"
+                onClick={() => setShowColumnOptions(open => !open)}
+                aria-expanded={showColumnOptions}
+                aria-controls="klassio-student-column-options"
+                className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                Spalten anpassen
+              </button>
               <button
                 type="button"
                 onClick={() => setPage('drucken')}
@@ -351,6 +358,34 @@ export default function StudentList() {
               </button>
             </div>
           </div>
+
+          {showColumnOptions && (
+            <div id="klassio-student-column-options"
+              className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3"
+              role="group" aria-label="Sichtbare Spalten in der Schülerliste">
+              <span className="text-xs font-semibold text-slate-600">Name immer sichtbar · zusätzlich anzeigen:</span>
+              {([
+                ['birthday', 'Geburtstag'], ['funding', 'Förderung'],
+                ['firstLanguage', 'Erstsprache'], ['secondLanguage', 'Zweitsprache'],
+                ['religion', 'Religion'], ['gender', 'Geschlecht'], ['level', 'Niveau'],
+              ] as const).map(([key, label]) => (
+                <label key={key} className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input type="checkbox" checked={visibleColumns[key]}
+                    onChange={event => setVisibleColumns(previous => ({ ...previous, [key]: event.target.checked }))}
+                    className="accent-indigo-600" />
+                  {label}
+                </label>
+              ))}
+              <button type="button"
+                onClick={() => setVisibleColumns({
+                  birthday: true, funding: true, firstLanguage: false, secondLanguage: false,
+                  religion: false, gender: false, level: false,
+                })}
+                className="text-xs font-bold text-indigo-700 hover:underline">
+                Standardansicht
+              </button>
+            </div>
+          )}
 
           {/* Middle row: Search, Sort, Filters */}
           <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
