@@ -30,6 +30,8 @@ interface DossierFoerderungProps {
   student: Student;
   onNavigateToDiagnostics?: () => void;
   onTabChange?: (tab: DossierTab) => void;
+  initialAddGoal?: boolean;
+  onQuickEntryConsumed?: () => void;
 }
 
 const BEREICHE = [
@@ -47,7 +49,9 @@ const BEREICHE = [
 export const DossierFoerderung: React.FC<DossierFoerderungProps> = ({
   student,
   onNavigateToDiagnostics,
-  onTabChange
+  onTabChange,
+  initialAddGoal,
+  onQuickEntryConsumed
 }) => {
   const { app, setApp } = useApp();
 
@@ -69,7 +73,8 @@ export const DossierFoerderung: React.FC<DossierFoerderungProps> = ({
   const [showCompletedGoals, setShowCompletedGoals] = useState(false);
 
   // New goal state
-  const [isAddingGoal, setIsAddingGoal] = useState(false);
+  const [isAddingGoal, setIsAddingGoal] = useState(Boolean(initialAddGoal));
+  React.useEffect(() => { if (initialAddGoal) onQuickEntryConsumed?.(); }, []);
   const [newGoalText, setNewGoalText] = useState('');
   const [newGoalArea, setNewGoalArea] = useState(BEREICHE[0]);
   const [newGoalStartDate, setNewGoalStartDate] = useState(new Date().toISOString().split('T')[0]);
