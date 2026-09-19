@@ -3916,7 +3916,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
         onClose={() => setShowAntolinImport(false)}
       />
 
-      {/* Real-time Sub Filter Controls: 3 Hauptbereiche */}
+      {/* Legacy screen: specialists only; the normal class, profile and Antolin views live in their new locations. */}
+      {initialTab !== 'tools' && (
       <div className="flex justify-center w-full pb-2">
         <div className="flex flex-wrap bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full md:w-auto gap-1">
           <button
@@ -3977,6 +3978,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
           </button>
         </div>
       </div>
+
+      )}
 
       <AnimatePresence mode="wait">
         {selectedStudentId !== null ? (
@@ -4122,7 +4125,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                   >
                     🛠️ Spezialwerkzeuge
                   </button>
-                  <button
+                  {initialTab !== 'tools' && <button
                     type="button"
                     onClick={() => setMehrSubTab('antolin')}
                     className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -4132,8 +4135,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                     }`}
                   >
                     <BookOpen size={13} className="text-amber-500" /> Antolin Lese-Statistik
-                  </button>
-                  <button
+                  </button>}
+                  {initialTab !== 'tools' && <button
                     type="button"
                     onClick={() => setMehrSubTab('lehrer')}
                     className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
@@ -4143,7 +4146,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                     }`}
                   >
                     👤 Lehrerprofil
-                  </button>
+                  </button>}
                 </div>
 
                 {mehrSubTab === 'tools' && (
