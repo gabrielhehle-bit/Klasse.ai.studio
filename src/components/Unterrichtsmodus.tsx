@@ -9112,7 +9112,7 @@ ${content}
                                               .filter((item): item is (typeof allAvailableWidgets)[number] => Boolean(item));
                                             const expanded = expandedCoreWidget === group.id;
                                             return (
-                                              <div key={group.id} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm dark:border-white/15 dark:bg-zinc-900 dark:text-white">
+                                              <div key={group.id} data-testid={`cockpit-core-group-${group.id}`} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm dark:border-white/15 dark:bg-zinc-900 dark:text-white">
                                                 <button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-left text-sm font-bold hover:bg-indigo-50 dark:hover:bg-white/10"
                                                   aria-expanded={variants.length > 1 ? expanded : undefined}
                                                   onClick={() => {
