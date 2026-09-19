@@ -57,6 +57,7 @@ export function useInlineDictation(onFinalText: (text: string) => void) {
   const [error, setError] = useState('');
   const recognitionRef = useRef<RecognitionInstance | null>(null);
   const activeRef = useRef(false);
+  const startedRef = useRef(false);
   const onFinalRef = useRef(onFinalText);
   const sessionRef = useRef(0);
   const committedIndicesRef = useRef(new Set<number>());
@@ -65,6 +66,19 @@ export function useInlineDictation(onFinalText: (text: string) => void) {
   const stop = useCallback(() => {
     activeRef.current = false;
     const recognition = recognitionRef.current;
+    if (recognition && !startedRef.current) {
+      // A class change can cancel language-package preparation before start().
+      // Do not let an old pending request start recording in the new class.
+      sessionRef.current += 1;
+      recognitionRef.current = null;
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      try { recognition.abort(); } catch { /* not started */ }
+      setStatus('idle');
+      setInterim('');
+      return;
+    }
     if (recognition) {
       // Do NOT detach onresult here: Chrome can still deliver the final phrase
       // after stop() and before onend. Saving stays disabled in this phase.
@@ -84,6 +98,7 @@ export function useInlineDictation(onFinalText: (text: string) => void) {
   useEffect(() => () => {
     sessionRef.current += 1;
     activeRef.current = false;
+    startedRef.current = false;
     const recognition = recognitionRef.current;
     recognitionRef.current = null;
     if (recognition) {
@@ -156,6 +171,7 @@ export function useInlineDictation(onFinalText: (text: string) => void) {
         if (session !== sessionRef.current) return;
         setError(errorMessage(event.error));
         activeRef.current = false;
+        startedRef.current = false;
         recognitionRef.current = null;
         setStatus('idle');
         setInterim('');
@@ -163,11 +179,13 @@ export function useInlineDictation(onFinalText: (text: string) => void) {
       recognition.onend = () => {
         if (session !== sessionRef.current) return;
         activeRef.current = false;
+        startedRef.current = false;
         recognitionRef.current = null;
         setStatus('idle');
         setInterim('');
       };
       recognition.start();
+      startedRef.current = true;
       setMode(speechMode);
       setStatus('recording');
     } catch (cause: any) {
