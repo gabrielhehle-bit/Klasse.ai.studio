@@ -1544,7 +1544,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
   // The overview is another view of this very same gradebook, not a second grade state.
   if (showOverview) {
-    return <GradeOverview embedded onBack={() => setShowOverview(false)} />;
+    return <GradeOverview embedded onBack={() => { if (app.currentPage === 'notenTabelle') setPage('noten'); else setShowOverview(false); }} />;
   }
 
   return (
