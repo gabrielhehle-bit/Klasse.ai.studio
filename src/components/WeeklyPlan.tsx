@@ -1305,7 +1305,7 @@ export default function WeeklyPlan() {
               reflexion: reflexion.trim(),
               stundenentwurf: hasLessonDraftContent(tempStundenentwurf)
                 ? { ...(kwPlan[tag][idx]?.stundenentwurf || {}), ...tempStundenentwurf }
-                : kwPlan[tag][idx]?.stundenentwurf,
+                : undefined,
               schwerpunkte,
               halves: tempSplitLesson
                 ? {
