@@ -427,7 +427,7 @@ export default function StudentLernziele({
                           type="button"
                           onClick={() => handleRatingChange(goal.id, reachedValue)}
                           className="rounded-lg border px-2 py-1 text-[0.625rem] font-bold transition hover:brightness-95"
-                          style={{ borderColor: reachedLevel.color, color: reachedLevel.color }}
+                          style={{ borderColor: reachedLevel.color, color: '#1f2937' }}
                           title={reachedLevel.label + ' markieren'}
                         >
                           {reachedLevel.symbol} {reachedLevel.label}
@@ -678,7 +678,7 @@ export default function StudentLernziele({
                                       className="rounded-lg border px-2 py-1 text-[0.625rem] font-bold transition hover:brightness-95"
                                       style={{ backgroundColor: currentRating === level.value ? level.color : 'white',
                                         borderColor: level.color,
-                                        color: currentRating === level.value ? getAccentTextColor(level.color) : level.color }}
+                                        color: currentRating === level.value ? getAccentTextColor(level.color) : '#1f2937' }}
                                       title={level.label}
                                     >{level.symbol} {level.label}</button>
                                   ))}
