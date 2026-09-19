@@ -479,8 +479,20 @@ export default function KELPresentation({
       if (index >= 0) {
         list[index] = { ...list[index], vereinbarungen: text };
       } else {
+        const newMeetingId = `kel-${Date.now()}`;
+        // A plan prepared before the first KEL protocol follows this explicitly
+        // created meeting; saving a preparation never creates a fake protocol.
+        const oldKey = JSON.stringify([previous.schuljahr || '', sem, 'vorbereitung']);
+        const newKey = JSON.stringify([previous.schuljahr || '', sem, newMeetingId]);
+        const pupils = previous.schueler.map(entry => {
+          if (entry.id !== student.id || !entry.kelPraesentationAuswahl?.[oldKey]) return entry;
+          const plans = { ...entry.kelPraesentationAuswahl };
+          plans[newKey] = plans[oldKey];
+          delete plans[oldKey];
+          return { ...entry, kelPraesentationAuswahl: plans };
+        });
         list.push({
-          id: `kel-${Date.now()}`,
+          id: newMeetingId,
           schuelerId: student.id,
           datum: new Date().toISOString().slice(0, 10),
           schuljahr: previous.schuljahr || '',
@@ -497,7 +509,8 @@ export default function KELPresentation({
           notiz: '',
         });
       }
-      return { ...previous, kelGespraeche: list };
+      return { ...previous, kelGespraeche: list,
+        schueler: index >= 0 ? previous.schueler : pupils };
     });
     setAgreementSaved(true);
     window.setTimeout(() => setAgreementSaved(false), 1800);
