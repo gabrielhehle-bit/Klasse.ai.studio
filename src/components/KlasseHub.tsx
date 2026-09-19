@@ -89,6 +89,13 @@ export default function KlasseHub() {
   ];
 
   const organizationItems: HubItem[] = [
+  {
+    id: 'jahresbericht',
+    title: 'Jahresabschluss',
+    description: 'Berichtstand der Klasse und Sammeldruck ausdrücklich freigegebener Jahresberichte.',
+    icon: FileText,
+    klassenvorstandOnly: true,
+  },
     {
       id: 'orga',
       title: 'Organisation',
