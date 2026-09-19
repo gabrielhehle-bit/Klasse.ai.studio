@@ -2916,7 +2916,7 @@ export default function SeatingPlan() {
       {/* Main Canvas Area */}
         <div 
           ref={planRef}
-          className="flex-1 relative bg-slate-50 border border-slate-200 rounded-2xl shadow-sm canvas-area min-h-[31.25rem]"
+          className="flex-1 relative overflow-hidden bg-slate-50 border border-slate-200 rounded-2xl shadow-sm canvas-area min-h-[31.25rem]"
           onClick={() => setSelectedObjId(null)}
         >
         <div className="absolute inset-0 grid-dots opacity-40 pointer-events-none" />
@@ -3009,7 +3009,7 @@ export default function SeatingPlan() {
           )}
         </AnimatePresence>
         
-        <div className="absolute inset-0 overflow-auto no-scrollbar canvas-zoom-container" style={{ transform: `translate3d(${viewOffset.x}px, ${viewOffset.y}px, 0) scale(${zoom})`, transformOrigin: 'top left', width: `${100/zoom}%`, height: `${100/zoom}%` }}>
+        <div className="absolute inset-0 overflow-visible no-scrollbar canvas-zoom-container" style={{ transform: `translate3d(${viewOffset.x}px, ${viewOffset.y}px, 0) scale(${zoom})`, transformOrigin: 'top left', width: `${100/zoom}%`, height: `${100/zoom}%` }}>
           {/* ROOM OBJECTS */}
           {sitzplan_objekte.map((obj) => (
             <motion.div
