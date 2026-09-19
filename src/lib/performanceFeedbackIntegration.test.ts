@@ -37,9 +37,10 @@ test('only explicitly selected subjects and manually reviewed notes enter AI pro
 });
 
 test('saving reviewed feedback is intentional and bound to the selected child', () => {
-  assert.match(editor, /if \(!result\.trim\(\) \|\| !student \|\| student\.id !== resultStudentId \|\| savedInDossier\) return/);
+  assert.match(editor, /if \(!result\.trim\(\) \|\| !student \|\| student\.id !== resultStudentId \|\| resultClassId !== app\.activeClassId \|\| savedInDossier\) return/);
   assert.match(editor, /logObservation\(setApp, student\.id, result\.trim\(\), 'Notiz'/);
   assert.match(editor, /Im Schülerdossier speichern/);
   assert.match(editor, /setSavedInDossier\(true\)/);
+  assert.match(editor, /setResultClassId\(classIdAtStart\)/);
   assert.doesNotMatch(editor, /setApp\([^)]*noten\s*:/);
 });
