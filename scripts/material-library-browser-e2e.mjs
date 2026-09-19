@@ -285,7 +285,7 @@ async function main() {
     await clickButton(client, 'Im Wochenplan verwenden', true);
     const afterClick = await evaluate(client, '({body:document.body?.innerText?.slice(-500),dialogs:document.querySelectorAll("[role=dialog]").length})');
     console.log('After card action:', JSON.stringify(afterClick));
-    await waitFor(client, 'selected material transfer modal', 'document.body?.innerText.includes("Material → Wochenplan")');
+    await waitFor(client, 'selected material transfer modal', 'document.body?.innerText.toLowerCase().includes("material → wochenplan")');
     await clickButton(client, 'In Wochenplan übernehmen');
     await waitFor(client, 'weekly plan after library action', 'document.body?.innerText.includes("WOCHENPLANUNG")', 30000);
     console.log('✓ material card links to a weekly lesson in the existing planner');
