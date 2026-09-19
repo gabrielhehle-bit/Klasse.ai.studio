@@ -48,3 +48,13 @@ test('KI lesson planner does not transfer individual student notes or grade data
   assert.doesNotMatch(ai, /app\.notenmappe \?/);
   assert.match(ai, /keine Namen, individuellen Beobachtungen, Notizen oder Leistungsdaten übertragen/);
 });
+
+test('library template reuse is opt-in and preserves unrelated weekly fields', () => {
+  const library = read('Materialbibliothek.tsx');
+  assert.match(library, /applyPreparation, setApplyPreparation/);
+  assert.match(library, /lessonDraftFromMaterial\(item\)/);
+  assert.match(library, /Unterrichtsstunde enthält bereits eine Planung/);
+  assert.match(library, /\.\.\.slot,/);
+  assert.match(library, /Ohne Häkchen wird nur das Material verknüpft/);
+  assert.match(library, /stundenentwurf: \{/);
+});
