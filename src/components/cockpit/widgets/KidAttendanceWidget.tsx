@@ -55,7 +55,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
   // Nur echte Kinder der aktiven Klasse. Während des Ladens bzw. bei leerer
   // Klasse niemals erfundene Namen anbieten oder Anwesenheit für sie buchen.
-  const students: Student[] = app.schueler ?? [];
+  const students: Student[] = app.activeClassId ? (app.schueler ?? []) : [];
 
   // Disambiguierte Namen nach Standard (Vorname; bei Doppelung Vorname + N.)
   const displayNames = useMemo(() => {
