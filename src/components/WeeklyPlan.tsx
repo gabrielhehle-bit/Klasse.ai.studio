@@ -19,6 +19,9 @@ import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
 import { getAttendanceSemester } from '../lib/attendanceData';
 import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
 import { splitKlassenbuchCategoryKey } from '../lib/klassenbuchSubjects';
+import { EMPTY_LESSON_DRAFT, hasLessonDraftContent, lessonDraftFromMaterial, lessonDraftToText, normalizeLessonDraft, type LessonDraftFields } from '../lib/lessonDrafts';
+import { useMaterialLibrary } from './Materialbibliothek';
+import LessonPlannerAI from './LessonPlannerAI';
 
 const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> = {
   'Deutsch': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -244,7 +247,7 @@ export default function WeeklyPlan() {
   };
 
   const [editingCell, setEditingCell] = useState<{ tag: string, idx: number } | null>(null);
-  const [plannerEditorTab, setPlannerEditorTab] = useState<'inhalt' | 'rahmen' | 'organisation' | 'optionen'>('inhalt');
+  const [plannerEditorTab, setPlannerEditorTab] = useState<'inhalt' | 'rahmen' | 'organisation' | 'optionen' | 'entwurf'>('inhalt');
   const [viewingCell, setViewingCell] = useState<{ tag: string, idx: number } | null>(null);
   const [yearPlanSyncNotice, setYearPlanSyncNotice] = useState<string | null>(null);
   const [editingZeitunabhaengig, setEditingZeitunabhaengig] = useState<{ tag: string; item?: any } | null>(null);
@@ -269,6 +272,13 @@ export default function WeeklyPlan() {
   const [tempDuration, setTempDuration] = useState<number | 'all'>(1);
   const [syncWpSubjects, setSyncWpSubjects] = useState(false);
   const [showDraftsSelector, setShowDraftsSelector] = useState(false);
+  const [showDetailedLessonAI, setShowDetailedLessonAI] = useState(false);
+  const [tempStundenentwurf, setTempStundenentwurf] = useState<LessonDraftFields>({ ...EMPTY_LESSON_DRAFT });
+  const { addMaterialFromAI } = useMaterialLibrary();
+  const savedLessonDrafts = useMemo(() => [
+    ...(app.stundenentwuerfe || []).map((draft: any) => normalizeLessonDraft(draft)),
+    ...(app.materialien || []).filter((material: any) => material.typ === 'stundenentwurf').map(lessonDraftFromMaterial),
+  ], [app.stundenentwuerfe, app.materialien]);
   const [showLehrplanModal, setShowLehrplanModal] = useState<any>(null); // { tag, idx }
   const [lehrplanStep, setLehrplanStep] = useState(1);
   const [lpFach, setLpFach] = useState('');
@@ -1162,6 +1172,7 @@ export default function WeeklyPlan() {
     setTempMaterialIds(Array.isArray(current.materialIds) ? current.materialIds : []);
     setTempHUE(current.housework || current.hue || '');
     setTempMethod(current.method || '');
+    setTempStundenentwurf({ ...EMPTY_LESSON_DRAFT, ...(current.stundenentwurf || {}) });
     setTempSocial(current.social || 'single');
     setTempReflexion(current.reflexion || '');
     setTempDuration(current.duration === 'all' || typeof current.duration === 'number' ? current.duration : 1);
@@ -1292,6 +1303,9 @@ export default function WeeklyPlan() {
               method: method.trim(),
               social,
               reflexion: reflexion.trim(),
+              stundenentwurf: hasLessonDraftContent(tempStundenentwurf)
+                ? { ...(kwPlan[tag][idx]?.stundenentwurf || {}), ...tempStundenentwurf }
+                : kwPlan[tag][idx]?.stundenentwurf,
               schwerpunkte,
               halves: tempSplitLesson
                 ? {
@@ -3354,12 +3368,13 @@ export default function WeeklyPlan() {
               </div>
 
               <div className="shrink-0 border-b border-slate-100 bg-white px-4 py-3 sm:px-6">
-                <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
                   {([
                     { id: 'inhalt', label: '1 · Inhalt & Fach', hint: 'Thema, Lernziel, Fach, Lehrplan' },
                     { id: 'rahmen', label: '2 · Unterrichtsrahmen', hint: 'Typ, Dauer, Sozialform' },
                     { id: 'organisation', label: '3 · Material & HÜ', hint: 'Materialien und Hausübung' },
                     { id: 'optionen', label: '4 · Ablauf & Optionen', hint: 'Methodik, Reflexion, Wiederholung' },
+                    { id: 'entwurf', label: '5 · Ausführlicher Entwurf', hint: 'Lernziele, Einstieg, Hauptteil, Schluss' },
                   ] as const).map(tab => (
                     <button
                       key={tab.id}
