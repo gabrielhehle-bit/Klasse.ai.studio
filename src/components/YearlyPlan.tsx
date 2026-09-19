@@ -11,6 +11,7 @@ import { callServerAI } from '../services/aiService';
 import JahresplanExcelModal from './JahresplanExcelModal';
 import { generateJahresplanTemplate, JahresplanImportRow } from '../lib/planerExcelService';
 import { applyYearPlanImportRows, shiftYearPlanSubjectForward, yearPlanCellDisplayText, yearPlanCellEntries } from '../lib/yearlyPlanData';
+import { occupiedYearPlanCell, plannedYearWeeks, conflictingYearWeeks } from '../lib/annualPlanSafety';
 
 const COLOR_PALETTES: Record<string, { name: string, desc: string, colors: Record<string, string> }> = {
   pastell: {
@@ -450,7 +451,16 @@ export default function YearlyPlan() {
     e.preventDefault();
     setDragOverCell(null);
     setDraggedSubjectData(null);
-    
+    // External drops can otherwise replace an entire existing year-plan cell.
+    // Internal swaps retain both entries and continue through the original code.
+    const raw = e.dataTransfer.getData('application/json');
+    let external = !raw;
+    try { external = !raw || JSON.parse(raw)?.type === 'lehrplan'; } catch { external = true; }
+    if (external && occupiedYearPlanCell(app.jahresplanung?.[targetKw]?.[targetSubjectId])) {
+      window.alert('Diese Woche und dieses Fach sind bereits geplant. Die vorhandenen Themen bleiben erhalten.');
+      return;
+    }
+
     try {
       const dataStr = e.dataTransfer.getData('application/json');
       if (!dataStr) {
@@ -556,11 +566,16 @@ export default function YearlyPlan() {
 
   const pasteTopic = (kw: number, subjectId: string) => {
     if (!copiedTopic) return;
+    if (occupiedYearPlanCell(app.jahresplanung?.[kw]?.[subjectId])) {
+      window.alert('Hier steht bereits eine Planung. Wähle eine leere Zelle, damit nichts überschrieben wird.');
+      return;
+    }
     setApp(prev => {
-      const jp = { ...(prev.jahresplanung || {}) };
-      if (!jp[kw]) jp[kw] = {};
-      jp[kw][subjectId] = { ...copiedTopic, completed: false };
-      return { ...prev, jahresplanung: jp };
+      if (occupiedYearPlanCell(prev.jahresplanung?.[kw]?.[subjectId])) return prev;
+      return { ...prev, jahresplanung: {
+        ...prev.jahresplanung,
+        [kw]: { ...(prev.jahresplanung[kw] || {}), [subjectId]: { ...copiedTopic, completed: false } },
+      }};
     });
   };
 
@@ -842,7 +857,24 @@ export default function YearlyPlan() {
   const handleSave = () => {
     if (!editingCell) return;
     const { kw, subjectId } = editingCell;
-    
+    const teachingWeek = (week: { kw: number; monday: Date }) => {
+      const holiday = isHoliday(week.monday, app.calendarSettings?.disabledHolidays, app.bundesland || 'VBG');
+      const text = (holiday || '').toLocaleLowerCase('de-AT');
+      return !holiday || !['ferien', 'schluss', 'beginn'].some(word => text.includes(word));
+    };
+    const targetKws = plannedYearWeeks(weeks, kw, planWeeksCount, teachingWeek);
+    if (planWeeksCount > 1) {
+      if (targetKws.length < planWeeksCount) {
+        window.alert('Für diesen Zeitraum sind nicht genügend Unterrichtswochen vorhanden. Es wurde nichts gespeichert.');
+        return;
+      }
+      const occupied = conflictingYearWeeks(app.jahresplanung || {}, targetKws, subjectId, kw);
+      if (occupied.length) {
+        window.alert(`Die folgenden Wochen enthalten bereits Einträge in diesem Fach: ${occupied.join(', ')}. Bitte wähle einen freien Zeitraum; bestehende Jahrespläne wurden nicht verändert.`);
+        return;
+      }
+    }
+
     let finalValue = { ...editValue };
     // If there is currently typed content and we have previous items, move current content to items as well
     if ((finalValue.thema.trim() || (finalValue.subCategories && finalValue.subCategories.length > 0)) && finalValue.items && finalValue.items.length > 0) {
@@ -863,65 +895,35 @@ export default function YearlyPlan() {
       finalValue.subCategory = '';
     }
     
-    if (planWeeksCount > 1) {
-      // Find start index of current kw
-      const startIdx = weeks.findIndex(w => w.kw === kw);
-      if (startIdx !== -1) {
-        setApp(prev => {
-          let updatedPlanning = { ...prev.jahresplanung };
-          let teachingWeeksAdded = 0;
-          let idx = startIdx;
-          
-          while (teachingWeeksAdded < planWeeksCount && idx < weeks.length) {
-            const w = weeks[idx];
-            const holiday = isHoliday(w.monday, app.calendarSettings?.disabledHolidays, app.bundesland || 'VBG');
-            const isSevereHoliday = holiday && (holiday.includes('ferien') || holiday.includes('Schluss') || holiday.includes('Beginn'));
-            
-            if (!isSevereHoliday) {
-              let kwThema = finalValue.thema;
-              let kwBuch = finalValue.buch;
-              
-              if (finalValue.thema.trim()) {
-                if (autoSuffix === 'part') {
-                  kwThema = `${finalValue.thema} (Teil ${teachingWeeksAdded + 1})`;
-                } else if (autoSuffix === 'fortsetzung') {
-                  kwThema = teachingWeeksAdded === 0 ? finalValue.thema : `${finalValue.thema} (Forts.)`;
-                }
-              }
-              
-              const nextValue = {
-                ...finalValue,
-                thema: kwThema,
-                buch: kwBuch,
-                items: teachingWeeksAdded === 0 ? (finalValue.items || []) : [] // Sub-items are typically kept in week 1
-              };
-              
-              updatedPlanning = {
-                ...updatedPlanning,
-                [w.kw]: {
-                  ...(updatedPlanning[w.kw] || {}),
-                  [subjectId]: nextValue
-                }
-              };
-              teachingWeeksAdded++;
-            }
-            idx++;
-          }
-          return { ...prev, jahresplanung: updatedPlanning };
-        });
+    setApp(prev => {
+      const current = prev.jahresplanung || {};
+      const existingConflicts = conflictingYearWeeks(current, targetKws, subjectId, kw);
+      // Recheck at update time to prevent clobbering an edit made in another module.
+      if (existingConflicts.length) return prev;
+      const updatedPlanning = { ...current };
+      for (let index = 0; index < targetKws.length; index++) {
+        const targetKw = targetKws[index];
+        const currentCell = current[targetKw]?.[subjectId] || {};
+        const nextTopic = finalValue.thema.trim()
+          ? autoSuffix === 'part' && planWeeksCount > 1
+            ? `${finalValue.thema} (Teil ${index + 1})`
+            : autoSuffix === 'fortsetzung' && index > 0
+              ? `${finalValue.thema} (Forts.)`
+              : finalValue.thema
+          : finalValue.thema;
+        updatedPlanning[targetKw] = {
+          ...(current[targetKw] || {}),
+          [subjectId]: {
+            ...currentCell,
+            ...finalValue,
+            thema: nextTopic,
+            // Sub-items of the original week stay with their week.
+            items: index === 0 ? (finalValue.items || []) : [],
+          },
+        };
       }
-    } else {
-      setApp(prev => ({
-        ...prev,
-        jahresplanung: {
-          ...prev.jahresplanung,
-          [kw]: {
-            ...(prev.jahresplanung[kw] || {}),
-            [subjectId]: finalValue
-          }
-        }
-      }));
-    }
+      return { ...prev, jahresplanung: updatedPlanning };
+    });
     closeEditingCell();
   };
 
@@ -998,46 +1000,42 @@ export default function YearlyPlan() {
 
   const handleApplySingleSuggestion = (suggestion: any) => {
     const { kw, subjectId, thema, buch } = suggestion;
-    setApp(prev => ({
-      ...prev,
-      jahresplanung: {
+    if (occupiedYearPlanCell(app.jahresplanung?.[kw]?.[subjectId])) {
+      window.alert('Diese Zelle enthält bereits eine Planung. Die KI hat nichts überschrieben.');
+      return;
+    }
+    setApp(prev => {
+      if (occupiedYearPlanCell(prev.jahresplanung?.[kw]?.[subjectId])) return prev;
+      return { ...prev, jahresplanung: {
         ...prev.jahresplanung,
         [kw]: {
           ...(prev.jahresplanung[kw] || {}),
-          [subjectId]: {
-            thema: thema,
-            buch: buch || '',
-            type: 'standard',
-            subCategory: '',
-            subCategories: [],
-            items: []
-          }
-        }
-      }
-    }));
-    setAiSuggestions(prev => prev.filter(s => !(s.kw === kw && s.subjectId === subjectId)));
+          [subjectId]: { thema, buch: buch || '', type: 'standard', subCategory: '', subCategories: [], items: [] },
+        },
+      }};
+    });
+    setAiSuggestions(prev => prev.filter(item => !(item.kw === kw && item.subjectId === subjectId)));
   };
 
   const handleApplyAllSuggestions = () => {
     setApp(prev => {
-      let updated = { ...prev.jahresplanung };
-      aiSuggestions.forEach(s => {
-        updated[s.kw] = {
-          ...(updated[s.kw] || {}),
-          [s.subjectId]: {
-            thema: s.thema,
-            buch: s.buch || '',
+      const original = prev.jahresplanung || {};
+      const updated = { ...original };
+      aiSuggestions.forEach(suggestion => {
+        if (occupiedYearPlanCell(original[suggestion.kw]?.[suggestion.subjectId])) return;
+        updated[suggestion.kw] = {
+          ...(updated[suggestion.kw] || {}),
+          [suggestion.subjectId]: {
+            thema: suggestion.thema,
+            buch: suggestion.buch || '',
             type: 'standard',
             subCategory: '',
             subCategories: [],
-            items: []
-          }
+            items: [],
+          },
         };
       });
-      return {
-        ...prev,
-        jahresplanung: updated
-      };
+      return { ...prev, jahresplanung: updated };
     });
     setAiSuggestions([]);
     setShowAiModal(false);
