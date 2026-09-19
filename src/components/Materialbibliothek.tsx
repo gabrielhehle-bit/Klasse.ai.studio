@@ -82,7 +82,7 @@ export default function Materialbibliothek() {
     if (activeTab === 'Favoriten') list = list.filter(m => m.favorit);
     else if (activeTab === 'Dateien') list = list.filter(m => m.typ === 'datei');
     else if (activeTab === 'Links') list = list.filter(m => m.typ === 'link');
-    else if (activeTab === 'Stundenentwürfe') list = list.filter(m => m.typ === 'stundenentwurf');
+    else if (activeTab === 'Unterrichtsvorbereitungen') list = list.filter(m => m.typ === 'stundenentwurf');
     else if (activeTab === 'Notfallpläne') list = list.filter(m => m.typ === 'notfallplan');
     else if (activeTab === 'Elternbriefe') list = list.filter(m => m.typ === 'elternbrief');
     else if (activeTab === 'Beurteilungen') list = list.filter(m => m.typ === 'beurteilung');
@@ -367,7 +367,7 @@ export default function Materialbibliothek() {
       }`}>
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 pb-1">
-          {['Alle', 'Dateien', 'Links', 'Stundenentwürfe', 'Notfallpläne', 'Elternbriefe', 'Beurteilungen', 'Reflexionen', 'Notizen', 'Favoriten'].map(tab => (
+          {['Alle', 'Dateien', 'Links', 'Unterrichtsvorbereitungen', 'Notfallpläne', 'Elternbriefe', 'Beurteilungen', 'Reflexionen', 'Notizen', 'Favoriten'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -1819,7 +1819,9 @@ export function useMaterialLibrary() {
       tags: item.tags || existing?.tags || [],
       erstelltAm: existing?.erstelltAm || new Date().toISOString(),
       favorit: existing?.favorit || false,
-      kiGeneriert: true,
+      kiGeneriert: item.kiGeneriert ?? existing?.kiGeneriert ?? true,
+      lernziel: item.lernziel ?? existing?.lernziel,
+      dauer: item.dauer ?? existing?.dauer,
       quelleModul,
       inhaltText: item.inhaltText,
       externerLink: item.externerLink,
