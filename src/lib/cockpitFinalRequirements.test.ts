@@ -111,7 +111,7 @@ test("Cockpit: Widgets schließen verändert die weiße Smartboard-Fläche nicht
   assert.match(teachingSurface, /Alle Widgets schließen/);
   assert.doesNotMatch(teachingSurface, /Unterrichtshilf/);
   assert.doesNotMatch(teachingSurface, /Tafel leeren \(Alle schließen\)/);
-  assert.doesNotMatch(teachingSurface, /cockpitInkByClass/);
+  assert.match(teachingSurface, /cockpitInkByClass/);
 });
 
 test("Cockpit: alte Tafel liegt ausschließlich im Archiv", () => {
@@ -129,17 +129,20 @@ test("Cockpit: Zeichenfeld und gemeinsame Zeichenebene sind sprachlich getrennt"
   assert.doesNotMatch(cockpitWidget, /drawing: "🖍️ Zeichentafel"/);
 });
 
-test("Cockpit: aktive Unterrichtsfläche bleibt weiß, aber ohne platzraubende Smartboard-Beschriftung", () => {
+test("Cockpit: weiße Unterrichtsfläche hat direkte Schreibebene und eine gemeinsame externe Werkzeugleiste", () => {
+  assert.match(teachingSurface, /<BoardInk/);
+  assert.match(teachingSurface, /cockpitInkByClass/);
+  assert.match(teachingSurface, /externalToolbar/);
+  assert.match(teachingSurface, /hideToolbar/);
+  assert.match(teachingSurface, /aria-label="Unterrichtsfläche: Auswählen, Zeichnen und Text"/);
+  assert.match(teachingSurface, /boardTool === 'pen'/);
+  assert.match(teachingSurface, /boardTool === 'erase'/);
+  assert.match(teachingSurface, /boardTool === 'text'/);
   assert.doesNotMatch(teachingSurface, /Weiße Smartboard-Fläche/);
-  assert.doesNotMatch(teachingSurface, /<BoardInk/);
-  assert.doesNotMatch(teachingSurface, /Schreiben & Zeichnen/);
-  assert.doesNotMatch(teachingSurface, /Widgets bedienen/);
-  assert.doesNotMatch(teachingSurface, /setIsBoardWriting/);
 });
 
-
 test("Cockpit: TEXT macht die weiße Fläche zu einem klassenlokalen Rich-Text-Dokument", () => {
-  assert.match(teachingSurface, />\s*TEXT\s*</);
+  assert.match(teachingSurface, /\[\x27text\x27, \x27TEXT\x27\]/);
   assert.match(teachingSurface, /<BoardTextEditor/);
   assert.match(teachingSurface, /cockpitTextByClass/);
   assert.match(teachingSurface, /boardTextClassKey = app\.activeClassId \|\| "unassigned"/);
