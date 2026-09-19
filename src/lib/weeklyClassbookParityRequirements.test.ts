@@ -1,0 +1,49 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const week = readFileSync('src/components/WeeklyPlan.tsx', 'utf8');
+const printing = readFileSync('src/components/PrintCenter.tsx', 'utf8');
+const projection = readFileSync('src/lib/weeklyClassbookProjection.ts', 'utf8');
+
+test('Wochenplan: Stunde anklicken statt redundantem Planen-Button; bisheriger Editor bleibt', () => {
+  assert.doesNotMatch(week, /<span>\+ Planen<\/span>/);
+  assert.match(week, /const openWeeklyCell =/);
+  assert.match(week, /handleEditCell\(tag, idx\)/);
+  assert.match(week, /saveCell\(/);
+  assert.match(week, /setTempSplitLesson/);
+});
+
+test('Materialfrei bedeutet weder fehlend noch unvorbereitet', () => {
+  assert.doesNotMatch(week, /weekMetrics\.missingMat|ohne Material<\/span>/);
+  assert.doesNotMatch(week, /let missingMat = 0/);
+  assert.match(week, /setTempMaterial\(current\.material \|\| ''\)/);
+  assert.match(projection, /add\('Material', lesson\.material/);
+});
+
+test('Wochenplan, Tagesansicht, Klassenbuch und Druckzentrum verwenden dieselben Klassen-Unterrichtseinträge', () => {
+  assert.match(week, /viewMode === 'day'/);
+  assert.match(week, /onClick=\{\(\) => openWeeklyCell\(selectedDay, idx\)\}/);
+  assert.match(week, /plan\[selectedDay\]\?\.\[idx\]/);
+  assert.match(week, /const getKlassenbuchData = \(\) => projectWeeklyPlanToClassbook/);
+  assert.match(printing, /const compileKlassenbuchData = \(targetKW: number\) => projectWeeklyPlanToClassbook/);
+  assert.match(projection, /const WEEKDAYS = \['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'\]/);
+  assert.match(projection, /Verknüpfte Materialien/);
+  assert.doesNotMatch(projection, /new Set\(data\[key\]/);
+});
+
+test('Wochenplan: nur Excel-Import und Vorlagen-Erstellung für Kinder im Planer, Ausgaben im Druckzentrum', () => {
+  assert.match(week, /<WochenplanExcelModal/);
+  assert.match(week, /setShowSchuelerWochenplanModal\(true\)/);
+  assert.doesNotMatch(week, /generateWochenplanTemplate\(/);
+  assert.doesNotMatch(week, /downloadKlassenbuchDocx/);
+  assert.match(printing, /generateWochenplanTemplate\(app, wpKW\)/);
+  assert.match(printing, /downloadKlassenbuchPdf/);
+  assert.match(printing, /downloadKlassenbuchDocx/);
+  for(const range of ['week', 'month', 'semester', 'schoolyear']) assert.ok(printing.includes(`['${range}',`));
+});
+
+test('Stundeneditor: importierte Lernziele, Erledigtstatus und Hausübungen überleben erneutes Speichern', () => {
+  assert.match(week, /\.\.\.\(kwPlan\[tag\]\[idx\] \|\| \{\}\)/);
+  assert.match(week, /setTempHUE\(current\.housework \|\| current\.hue \|\| ''\)/);
+});
