@@ -903,7 +903,7 @@ export default function YearlyPlan() {
         if (aiSubjectsOnly !== 'all' && s.id !== aiSubjectsOnly) return;
         
         const cellData = plannedWeek[s.id];
-        const isEmpty = !cellData || (!cellData.thema?.trim() && (!cellData.items || cellData.items.length === 0));
+        const isEmpty = !occupiedYearPlanCell(cellData);
         if (isEmpty) {
           emptySubjectIds.push(s.id);
         }
