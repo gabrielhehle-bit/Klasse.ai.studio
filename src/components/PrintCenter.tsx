@@ -55,6 +55,7 @@ import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
 import { buildSchoolYearWeekList } from '../lib/weeklyPlanData';
 import { getAttendanceSemester } from '../lib/attendanceData';
 import { generateWochenplanTemplate } from '../lib/planerExcelService';
+import { SchuelerWochenplanA4Sheet } from './wochenplan/SchuelerWochenplanA4Sheet';
 import {
   classifyKlassenbuchEntry,
   getKlassenbuchBaseCategories,
@@ -164,7 +165,7 @@ export default function PrintCenter() {
 
   // 1. Core Printing State
   const [activeTemplate, setActiveTemplate] = useState<
-    'schuelerliste' | 'checkliste' | 'zeugnis_noten' | 'wochenplan' | 'klassenbuch' | 'jahresplanung' | 'kel' | 'stundenplan' | 'schuelerprofil' | 'kel_presentation' | 'sitzplan' | 'uebergabemappe' | 'eltern_diagnostik' | 'pdf_export' | 'lob_druckkarte' | 'fehlstunden' | 'smart_tools' | 'kassenuebersicht'
+    'schuelerliste' | 'checkliste' | 'zeugnis_noten' | 'wochenplan' | 'schueler_wochenplan' | 'klassenbuch' | 'jahresplanung' | 'kel' | 'stundenplan' | 'schuelerprofil' | 'kel_presentation' | 'sitzplan' | 'uebergabemappe' | 'eltern_diagnostik' | 'pdf_export' | 'lob_druckkarte' | 'fehlstunden' | 'smart_tools' | 'kassenuebersicht'
   >('schuelerliste');
   
   const [printModeActive, setPrintModeActive] = useState(false);
@@ -181,6 +182,7 @@ export default function PrintCenter() {
     { id: 'fehlstunden', icon: Clock, label: 'Anwesenheitsliste', desc: 'Entschuldigt / Unentschuldigt', cat: 'listen', taskCat: 'klasse', badge: 'Absenzen', keywords: 'fehlstunden krankenstand absenzen entschuldigt' },
 
     { id: 'wochenplan', icon: Calendar, label: 'Wochenplan', desc: 'Unterrichts- & Wochenplan', cat: 'planung', taskCat: 'planung', badge: 'Unterricht', keywords: 'wochenplan kalender unterricht aufgaben stunden' },
+    { id: 'schueler_wochenplan', icon: CheckSquare, label: 'Wochenplan für Kinder', desc: 'Gespeicherte Aufgabenpläne für Kinder', cat: 'planung', taskCat: 'planung', badge: 'Aufgaben', keywords: 'kinder aufgaben wochenplan drucken pdf' },
     { id: 'stundenplan', icon: ClockIconFallback, label: 'Stundenplan', desc: 'Stammstundenplan der Klasse', cat: 'planung', taskCat: 'planung', badge: 'Stunden', keywords: 'stundenplan stunden zeiten fächer klassenraum' },
     { id: 'klassenbuch', icon: BookOpen, label: 'Klassenbuch', desc: 'Wochen- & Lehrbericht', cat: 'planung', taskCat: 'planung', badge: 'Lehrbericht', keywords: 'klassenbuch bericht woche unterricht ersatz' },
     { id: 'jahresplanung', icon: FileText, label: 'Jahresplan', desc: 'Syllabus & Kompetenzen', cat: 'planung', taskCat: 'planung', badge: 'Syllabus', keywords: 'jahresplan syllabus monate ziele kompetenzen' },
@@ -271,6 +273,12 @@ export default function PrintCenter() {
   const [wpShowReflexion, setWpShowReflexion] = useState(true);
   const [wpInkSaver, setWpInkSaver] = useState(true);
   const [wpShowEmptyNotesBox, setWpShowEmptyNotesBox] = useState(true);
+
+  const [childPlanId, setChildPlanId] = useState('');
+  const [childPrintColorMode, setChildPrintColorMode] = useState<'color' | 'mono'>('color');
+  const childPlans = Object.values(app?.schuelerWochenplaene || {});
+  const selectedChildPlan = childPlans.find(plan => plan.id === childPlanId)
+    || childPlans.find(plan => plan.kw === (app.currentKW || wpKW)) || childPlans[0];
 
   // D. Klassenbuch Wochenbericht Options
   const [kbKW, setKbKW] = useState<number>(fallbackPlanningKW);
@@ -2170,6 +2178,26 @@ export default function PrintCenter() {
                       />
                     </label>
                   </div>
+                </div>
+              )}
+
+              {/* Child-friendly weekly plans are authored in the planner but printed here. */}
+              {activeTemplate === 'schueler_wochenplan' && (
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-700" htmlFor="print-child-week-plan">Wochenplan für Kinder auswählen</label>
+                  <select id="print-child-week-plan" value={selectedChildPlan?.id || ''}
+                    onChange={event => setChildPlanId(event.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-800">
+                    {childPlans.length === 0 && <option value="">Noch keinen Wochenplan für Kinder gespeichert</option>}
+                    {childPlans.map(plan => <option key={plan.id} value={plan.id}>KW {plan.kw} · {plan.titel || plan.id}</option>)}
+                  </select>
+                  <label className="block text-xs font-bold text-slate-700">Druckfarbe
+                    <select value={childPrintColorMode} onChange={event => setChildPrintColorMode(event.target.value as 'color' | 'mono')}
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-800">
+                      <option value="color">Farbe</option><option value="mono">Schwarz-Weiß</option>
+                    </select>
+                  </label>
+                  <p className="text-xs text-slate-600">Aufgaben und Gestaltung werden ausschließlich in der Erstellung des Wochenplans geändert.</p>
                 </div>
               )}
 
@@ -4984,6 +5012,12 @@ export default function PrintCenter() {
           </div>
         );
       }
+
+      // Child plan is the same saved encrypted document as in the generator.
+      case 'schueler_wochenplan':
+        return selectedChildPlan
+          ? <SchuelerWochenplanA4Sheet plan={selectedChildPlan} previewOnly={false} colorMode={childPrintColorMode} />
+          : <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Noch keinen Wochenplan für Kinder gespeichert. Bitte zuerst im Wochenplan erstellen.</p>;
 
       // C. WOCHENPLAN
       case 'wochenplan':
