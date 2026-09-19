@@ -25,6 +25,8 @@ test('material library retains links, file contents, transfer and prior drafts',
   assert.match(source, /removeMaterialReferencesFromClasses/);
   assert.match(source, /setPage\('stunden'\)/);
   assert.match(source, /MaterialToWeekPlanModal/);
+  assert.match(source, /openedForClass !== app\.activeClassId/);
+  assert.doesNotMatch(source, /setWeekPlanMaterial\(null\);\s*\}, \[app\.activeClassId\]\)/);
   assert.match(source, /Sammlungen \(optional\)/);
   assert.match(source, /normalizeMaterialCollections\(collectionInput\.split\(','\)\)/);
   assert.match(source, /aria-label="Persönliche Sammlung auswählen"/);
