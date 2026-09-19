@@ -2120,6 +2120,10 @@ export default function PrintCenter() {
                       })}
                     </select>
                   </div>
+                  <button type="button" onClick={() => generateWochenplanTemplate(app, wpKW)}
+                    className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100">
+                    <Download size={14} className="mr-1.5 inline" />Excel-Vorlage für diese Woche herunterladen
+                  </button>
 
                   <div className="space-y-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
                     <span className="text-[0.59375rem] font-black uppercase text-slate-400 tracking-wider block">Spezifische Zeilenoptionen</span>
