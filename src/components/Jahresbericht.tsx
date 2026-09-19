@@ -836,6 +836,16 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                         Es wurde noch kein Abschlussbericht generiert. Der Generator verwendet Ihre konfigurierten Tonalitäts-, Struktur- und Daten-Auswahlkriterien auf der linken Seite.
                       </p>
 
+                      {berichte[selectedStudent]?.schuljahr !== currentTerm && berichte[selectedStudent] && (
+                        <details className="mb-4 w-full rounded-xl border border-slate-200 bg-white p-4 text-left">
+                          <summary className="cursor-pointer text-xs font-bold text-slate-700">
+                            Bestehenden Bericht aus {berichte[selectedStudent].schuljahr} ansehen (wird nicht überschrieben)
+                          </summary>
+                          <div className="prose prose-sm mt-3 max-w-none">
+                            <Markdown>{berichte[selectedStudent].inhalt}</Markdown>
+                          </div>
+                        </details>
+                      )}
                       {/* Personal Wish field prior to generating */}
                       <div className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl mb-6 text-left flex flex-col gap-2">
                         <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
@@ -930,6 +940,25 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                           )}
                        </div>
                     </div>
+
+                    {!!b.verlauf?.length && (
+                      <details className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3" data-testid="jahresbericht-versionen">
+                        <summary className="cursor-pointer text-xs font-bold text-slate-700">
+                          Frühere Fassungen ({b.verlauf.length}) · Nur ansehen
+                        </summary>
+                        <div className="mt-3 max-h-80 space-y-3 overflow-y-auto">
+                          {[...b.verlauf].reverse().map((version, index) => (
+                            <article key={index} className="rounded-lg border border-slate-200 bg-white p-3 text-xs">
+                              <p className="mb-2 font-bold text-slate-700">
+                                {version.schuljahr} · {new Date(version.generiert).toLocaleDateString('de-AT')}
+                                {version.reviewStatus === 'freigegeben' ? ' · damals freigegeben' : ' · Entwurf'}
+                              </p>
+                              <div className="prose prose-sm max-w-none"><Markdown>{version.inhalt}</Markdown></div>
+                            </article>
+                          ))}
+                        </div>
+                      </details>
+                    )}
 
                     {/* Navigation Tabs (Document vs. Competence Scorecard) */}
                     <div className="flex border-b border-slate-100 mb-6 gap-2">
