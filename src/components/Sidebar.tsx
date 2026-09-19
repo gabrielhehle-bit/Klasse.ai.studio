@@ -94,7 +94,6 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'teamteaching', label: 'Teamteaching', icon: <UserPlus size={18} />, section: 'Klasse & Kinder' },
     { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={18} />, section: 'Klasse & Kinder' },
     { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={18} />, section: 'Leistungen' },
-    { id: 'statistik', label: 'Statistik & Profile', icon: <LineChart size={18} />, section: 'Leistungen' },
     { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={18} />, section: 'Leistungen' },
     { id: 'portfolio', label: 'Lernziele & Portfolio', icon: <Briefcase size={18} />, section: 'Leistungen' },
     { id: 'verbal', label: 'Verbale Beurteilung', icon: <FileText size={18} />, section: 'Leistungen' },

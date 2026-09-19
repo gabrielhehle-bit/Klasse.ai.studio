@@ -9,6 +9,7 @@ import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
 import WeightSettings from './WeightSettings';
 import GradeOverview from './GradeOverview';
+import LeistungsAuswertungen from './LeistungsAuswertungen';
 import VerbalAssessment from './VerbalAssessment';
 import GradeCalculatorModal from './GradeCalculatorModal';
 import SchularbeitAssessment from './SchularbeitAssessment';
@@ -192,6 +193,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const [showWeights, setShowWeights] = useState(false);
   const [showOverview, setShowOverview] = useState(() => initialSection === 'overview');
   const [showFeedback, setShowFeedback] = useState(false);
+  const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
   const [showGradeCalculator, setShowGradeCalculator] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showClassAverage, setShowClassAverage] = useState(true);
@@ -1545,6 +1547,10 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     );
   };
 
+  if (showDetailedAnalysis) {
+    return <LeistungsAuswertungen initialSubject={activeFach} initialSemester={sem} onBack={() => setShowDetailedAnalysis(false)} />;
+  }
+
   // One feedback editor, reusing the existing grade and observation data.
   if (showFeedback) {
     return <VerbalAssessment mode="feedback" initialSubject={activeFach} initialSemester={sem} onBack={() => setShowFeedback(false)} />;
@@ -1626,6 +1632,13 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               }}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
                 <BarChart2 size={15} /> Notenübersicht
+              </button>
+              <button type="button" onClick={() => {
+                setShowDetailedAnalysis(true);
+                setShowFeedback(false); setShowOverview(false); setShowWeights(false);
+                setShowMoreMenu(false); setShowGradeCalculator(false);
+              }} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                <BarChart2 size={15} /> Auswertungen
               </button>
               <button type="button" onClick={() => {
                 setShowFeedback(true);

@@ -25,6 +25,7 @@ import DossierKontakteEinwilligungen from './dossier/DossierKontakteEinwilligung
 import DossierUebersicht from './dossier/DossierUebersicht';
 import DossierKIPortfolio from './dossier/DossierKIPortfolio';
 import DossierLeistungen from './dossier/DossierLeistungen';
+import AntolinBereich from './AntolinBereich';
 import VerbalAssessment from './VerbalAssessment';
 import DossierFoerderprofil from './dossier/DossierFoerderprofil';
 import DossierDiagnostik from './dossier/DossierDiagnostik';
@@ -82,6 +83,7 @@ export type DossierTab =
   | 'prep'
   | 'leistungen' 
   | 'leistungsfeedback'
+  | 'antolin'
   | 'foerderprofil' 
   | 'diagnostik' 
   | 'mika_d' 
@@ -133,6 +135,7 @@ export const MAIN_AREAS: MainAreaDef[] = [
       { id: 'leistungsfeedback', label: 'Leistungsfeedback erstellen', shortLabel: 'Feedback', icon: FileText, description: 'Ausgewählte Daten und Beobachtungen zu einer Rückmeldung formulieren' },
       { id: 'lernziele', label: 'Lernziele & Kompetenzen', shortLabel: 'Lernziele', icon: Target, description: 'Lehrplan-Kompetenzen und erreichte Teilziele' },
       { id: 'mika_d', label: 'Sprachstand', shortLabel: 'Sprachstand', icon: GraduationCap, description: 'MIKA-D Sprachstandsfeststellung' },
+      { id: 'antolin', label: 'Lesen & Antolin', shortLabel: 'Antolin', icon: BookOpen, description: 'Dokumentierte Antolin-Berichte und Leseentwicklung des Kindes' },
     ]
   },
   {
@@ -846,6 +849,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                 {activeTab === 'leistungsfeedback' && (
                   <VerbalAssessment mode="feedback" initialStudentId={student.id} initialSemester={sem} onBack={() => setActiveTab('leistungen')} />
                 )}
+                {activeTab === 'antolin' && <AntolinBereich studentId={student.id} />}
                 {activeTab === 'mika_d' && (
                   <DossierMikaD
                     student={student}

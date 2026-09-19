@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { BarChart3, Target, Activity, LineChart, MessagesSquare, FileText, MessageSquareText, ChevronRight } from 'lucide-react';
+import { BarChart3, Target, Activity, MessagesSquare, FileText, MessageSquareText, ChevronRight } from 'lucide-react';
 
 type PerformanceItem = {
   id: string;
@@ -35,15 +35,9 @@ const developmentItems: PerformanceItem[] = [
   {
     id: 'diagnostik',
     title: 'Diagnostik',
-    description: 'Einzelkind, Klasse, Ergebnisse, iKM Plus, Antolin, Förderziele, Live-Checks und weitere Werkzeuge.',
+    description: 'Diagnostische Ergebnisse, Kompetenzchecks und Förderung. Antolin-Berichte findest du im Schülerdossier unter Lesen & Antolin.',
     icon: Activity,
     klassenvorstandOnly: true,
-  },
-  {
-    id: 'statistik',
-    title: 'Statistik & Profile',
-    description: 'Auswertungen und grafische Übersichten auf Basis tatsächlich erfasster Daten.',
-    icon: LineChart,
   },
   {
     id: 'kel',

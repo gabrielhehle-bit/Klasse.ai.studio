@@ -41,7 +41,8 @@ test('Leistungsfeedback sendet keinen Schülernamen und bildet keinen fachüberg
   assert.match(assessment, /KIND-ALIAS: Kind A/);
   assert.match(assessment, /FACHBEZOGENE LEISTUNGSDATEN/);
   assert.match(assessment, /Keine Note vorschlagen/);
-  assert.match(assessment, /An Gemini wird nur „Kind A“/);
+  assert.match(assessment, /An die KI gehen nur „Kind A“/);
+  assert.match(assessment, /Inhalte dieses Feldes werden nicht automatisch anonymisiert/);
   assert.doesNotMatch(assessment, /Durchschnittsnote/);
   assert.doesNotMatch(assessment, /gradeValues/);
 });
