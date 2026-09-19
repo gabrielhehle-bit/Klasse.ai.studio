@@ -25,6 +25,7 @@ import DossierKontakteEinwilligungen from './dossier/DossierKontakteEinwilligung
 import DossierUebersicht from './dossier/DossierUebersicht';
 import DossierKIPortfolio from './dossier/DossierKIPortfolio';
 import DossierLeistungen from './dossier/DossierLeistungen';
+import VerbalAssessment from './VerbalAssessment';
 import DossierFoerderprofil from './dossier/DossierFoerderprofil';
 import DossierDiagnostik from './dossier/DossierDiagnostik';
 import DossierMikaD from './dossier/DossierMikaD';
@@ -80,6 +81,7 @@ export type DossierTab =
   | 'notizen'
   | 'prep'
   | 'leistungen' 
+  | 'leistungsfeedback'
   | 'foerderprofil' 
   | 'diagnostik' 
   | 'mika_d' 
@@ -128,6 +130,7 @@ export const MAIN_AREAS: MainAreaDef[] = [
     defaultTab: 'leistungen',
     tabs: [
       { id: 'leistungen', label: 'Leistungsübersicht', shortLabel: 'Leistungen', icon: BarChart3, description: 'Kompakte fachliche Gesamtschau und Leistungsdaten' },
+      { id: 'leistungsfeedback', label: 'Leistungsfeedback erstellen', shortLabel: 'Feedback', icon: FileText, description: 'Ausgewählte Daten und Beobachtungen zu einer Rückmeldung formulieren' },
       { id: 'lernziele', label: 'Lernziele & Kompetenzen', shortLabel: 'Lernziele', icon: Target, description: 'Lehrplan-Kompetenzen und erreichte Teilziele' },
       { id: 'mika_d', label: 'Sprachstand', shortLabel: 'Sprachstand', icon: GraduationCap, description: 'MIKA-D Sprachstandsfeststellung' },
     ]
@@ -839,6 +842,9 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                       setActiveTab(tab as DossierTab);
                     }}
                   />
+                )}
+                {activeTab === 'leistungsfeedback' && (
+                  <VerbalAssessment mode="feedback" initialStudentId={student.id} onBack={() => setActiveTab('leistungen')} />
                 )}
                 {activeTab === 'mika_d' && (
                   <DossierMikaD
