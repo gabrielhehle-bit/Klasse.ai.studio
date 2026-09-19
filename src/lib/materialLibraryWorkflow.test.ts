@@ -5,7 +5,7 @@ import { materialCollections, normalizeMaterialCollections } from './materialCol
 
 test('old JSON materials remain valid and gain an empty collection read projection', () => {
   const legacy = { id: 'old-pdf', titel: 'Bild', typ: 'datei', dateiInhalt: 'data:application/pdf;base64,AAAA', materialIds: ['old-pdf'] };
-  const roundtrip = JSON.parse(JSON.stringify(legacy));
+  const roundtrip: typeof legacy & { sammlungen?: string[] } = JSON.parse(JSON.stringify(legacy));
   assert.deepEqual(roundtrip, legacy);
   assert.deepEqual(normalizeMaterialCollections(roundtrip.sammlungen), []);
   assert.deepEqual(materialCollections([roundtrip]), []);
