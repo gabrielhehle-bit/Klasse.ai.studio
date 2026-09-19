@@ -60,6 +60,25 @@ test('Notizen: Lob grün, Verhalten gelb, Elternkontakte violett, Journal blau �
   assert.match(notes, /noteCategoryAppearance\(noteCategory\)\.field/);
 });
 
+test('Notiz bearbeiten und anheften verändert denselben gespeicherten Datensatz in notes und journal', () => {
+  assert.match(notes, /const togglePinNote =/);
+  assert.match(notes, /const saveEditedNote =/);
+  assert.match(notes, /notes: \(previous\.notes \|\| \[\]\)\.map\(note => note\.id === editingNoteId/);
+  assert.match(notes, /journal: \(previous\.journal \|\| \[\]\)\.map\(note => note\.id === editingNoteId/);
+  assert.match(notes, /aria-label="Notiz bearbeiten"/);
+  assert.match(notes, /Notiz anheften/);
+  assert.match(notes, /Boolean\(b\.pinned\)/);
+});
+
+test('Klassenwechsel verwirft laufende Spracheingabe, manuelles Stopp wartet auf Endergebnis', () => {
+  assert.match(notes, /dictation\.cancel\(\)/);
+  assert.match(hook, /const cancel = useCallback/);
+  assert.match(hook, /sessionRef\.current \+= 1/);
+  assert.match(hook, /recognition\.onresult = null/);
+  assert.match(hook, /recognition\.stop\(\)/);
+  assert.match(hook, /recognition\.onresult = event =>/);
+});
+
 test('Notizen: überflüssige Reiter verschwinden, Klasse und Schülerzuordnung bleiben', () => {
   assert.match(notes, /Notizen & Beobachtungen/);
   assert.doesNotMatch(notes, /id: 'config', label: 'Einstellungen'/);
