@@ -91,7 +91,7 @@ const Cockpit = lazyRetry(() => import('./components/Cockpit'));
 import PrintHeader from './components/PrintHeader';
 import AccessGate from './components/AccessGate';
 import { AnimatePresence, motion } from 'motion/react';
-import { Settings2, X, Mic, Sparkles, HelpCircle, Loader2 } from 'lucide-react';
+import { X, Mic, Sparkles, HelpCircle, Loader2 } from 'lucide-react';
 import { getKW, getTodayName, getAccentTextColor } from './lib/utils';
 const DiagnostikAnleitung = lazyRetry(() => import('./components/DiagnostikAnleitung'));
 const DataConsistencyModal = lazyRetry(() => import('./components/DataConsistencyModal'));
@@ -784,16 +784,6 @@ function AppContent() {
                   >
                     <HelpCircle size={14} className="text-indigo-500" />
                     <span className="hidden sm:inline">Anleitung</span>
-                  </button>
-                )}
-                {currentPage === 'dashboard' && (
-                  <button 
-                    onClick={() => window.dispatchEvent(new CustomEvent('open-dashboard-customize'))}
-                    className="flex items-center gap-1.5 p-2 px-3 rounded-xl bg-slate-50 border border-slate-200/65 text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all font-bold text-[0.75rem] shadow-sm active:scale-95 cursor-pointer"
-                    title="Dashboard-Layout anpassen"
-                  >
-                    <Settings2 size={14} className="text-accent" />
-                    <span className="hidden xl:inline">Anpassen</span>
                   </button>
                 )}
               </div>
