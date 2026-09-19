@@ -268,6 +268,24 @@ export default function Materialbibliothek() {
           Der einzelne Datei-Upload ist derzeit auf 3 MB begrenzt. Diese Grenzen bleiben bis zu einer geprüften
           Erweiterung der verschlüsselten Speicherung, Sicherung und Synchronisation bestehen.
         </p>
+        {totalCount > 0 && (
+          <button type="button" className="mt-3 rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50"
+            onClick={() => {
+              if (!window.confirm('Alle Materialien endgültig löschen? Die Verknüpfungen im Wochenplan werden ebenfalls entfernt. Erstelle vorher eine Sicherung.')) return;
+              setApp(prev => ({
+                ...prev,
+                materialien: [],
+                wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung),
+                classes: removeMaterialReferencesFromClasses(prev.classes),
+              }));
+              setSelectedItems([]);
+              setSelectedMaterial(null);
+              setFilterSammlung('');
+              clearAllFilters();
+            }}>
+            Alle Materialien löschen …
+          </button>
+        )}
       </details>
 
       {/* Sticky Filter Header */}
