@@ -444,84 +444,51 @@ export default function YearlyPlan() {
     e.preventDefault();
     setDragOverCell(null);
     setDraggedSubjectData(null);
-    // External drops can otherwise replace an entire existing year-plan cell.
-    // Internal swaps retain both entries and continue through the original code.
     const raw = e.dataTransfer.getData('application/json');
-    let external = !raw;
-    try { external = !raw || JSON.parse(raw)?.type === 'lehrplan'; } catch { external = true; }
-    if (external && occupiedYearPlanCell(app.jahresplanung?.[targetKw]?.[targetSubjectId])) {
-      window.alert('Diese Woche und dieses Fach sind bereits geplant. Die vorhandenen Themen bleiben erhalten.');
+    const plainText = e.dataTransfer.getData('text/plain').trim();
+    let payload: any = null;
+    try { if (raw) payload = JSON.parse(raw); } catch { return; }
+    if (!raw || payload?.type === 'lehrplan') {
+      const topic = String(payload?.type === 'lehrplan' ? payload.title || '' : plainText).trim();
+      if (!topic) return;
+      if (occupiedYearPlanCell(app.jahresplanung?.[targetKw]?.[targetSubjectId])) {
+        window.alert('In dieser Woche und diesem Fach ist schon etwas geplant. Bestehende Einträge bleiben erhalten.');
+        return;
+      }
+      setApp(previous => {
+        if (occupiedYearPlanCell(previous.jahresplanung?.[targetKw]?.[targetSubjectId])) return previous;
+        const plan = { ...(previous.jahresplanung || {}) };
+        plan[targetKw] = {
+          ...(plan[targetKw] || {}),
+          [targetSubjectId]: {
+            thema: topic, buch: '', type: 'standard', subCategory: '', subCategories: [], items: [],
+          },
+        };
+        return { ...previous, jahresplanung: plan };
+      });
       return;
     }
 
-    try {
-      const dataStr = e.dataTransfer.getData('application/json');
-      if (!dataStr) {
-        // Fallback to text transfer
-        const textStr = e.dataTransfer.getData('text/plain');
-        if (textStr) {
-          setApp(prev => {
-            const jp = { ...(prev.jahresplanung || {}) };
-            if (!jp[targetKw]) jp[targetKw] = {};
-            jp[targetKw][targetSubjectId] = {
-              thema: textStr,
-              buch: '',
-              type: 'standard',
-              subCategory: '',
-              subCategories: [],
-              items: []
-            };
-            return { ...prev, jahresplanung: jp };
-          });
-        }
-        return;
-      }
-      
-      const parsed = JSON.parse(dataStr);
-      if (parsed.type === 'lehrplan') {
-        setApp(prev => {
-          const jp = { ...(prev.jahresplanung || {}) };
-          if (!jp[targetKw]) jp[targetKw] = {};
-          jp[targetKw][targetSubjectId] = {
-            thema: parsed.title,
-            buch: '',
-            type: 'standard',
-            subCategory: '',
-            subCategories: [],
-            items: []
-          };
-          return { ...prev, jahresplanung: jp };
-        });
-        return;
-      }
-      
-      const { kw: sourceKw, subjectId: sourceSubjectId } = parsed;
-      if (sourceKw === targetKw && sourceSubjectId === targetSubjectId) return;
-      
-      setApp(prev => {
-        const jp = { ...(prev.jahresplanung || {}) };
-        
-        // Ensure objects exist
-        if (!jp[sourceKw]) jp[sourceKw] = {};
-        if (!jp[targetKw]) jp[targetKw] = {};
-        
-        const sourceData = jp[sourceKw][sourceSubjectId];
-        const targetData = jp[targetKw][targetSubjectId];
-        
-        // Swap or move
-        jp[targetKw][targetSubjectId] = sourceData;
-        
-        if (targetData) {
-           jp[sourceKw][sourceSubjectId] = targetData;
-        } else {
-           delete jp[sourceKw][sourceSubjectId];
-        }
-        
-        return { ...prev, jahresplanung: jp };
-      });
-    } catch (err) {
-      console.error("Invalid drag data", err);
-    }
+    const sourceKw = Number(payload?.kw);
+    const sourceSubjectId = String(payload?.subjectId || '');
+    if (!Number.isInteger(sourceKw) || !sourceSubjectId ||
+        (sourceKw === targetKw && sourceSubjectId === targetSubjectId)) return;
+
+    setApp(previous => {
+      const original = previous.jahresplanung || {};
+      const source = original[sourceKw]?.[sourceSubjectId];
+      if (!source) return previous;
+      const target = original[targetKw]?.[targetSubjectId];
+      const plan = { ...original };
+      const sourceWeek = { ...(original[sourceKw] || {}) };
+      const targetWeek = sourceKw === targetKw ? sourceWeek : { ...(original[targetKw] || {}) };
+      targetWeek[targetSubjectId] = source;
+      if (target) sourceWeek[sourceSubjectId] = target;
+      else delete sourceWeek[sourceSubjectId];
+      plan[sourceKw] = sourceWeek;
+      plan[targetKw] = targetWeek;
+      return { ...previous, jahresplanung: plan };
+    });
   };
 
   const toggleCompleted = (kw: number, subjectId: string) => {
