@@ -107,7 +107,7 @@ function calculateSubjectTrend(
 
 export default function DossierUebersicht({ student, onTabChange, semester, onQuickEntry }: DossierUebersichtProps) {
   const [showEntryActions, setShowEntryActions] = useState(false);
-  const { app } = useApp();
+  const { app, setApp } = useApp();
 
   const subjects = useMemo(() => {
     return FAECHER_ALLE.filter(subject => !app.faecher || app.faecher.includes(subject));
@@ -409,12 +409,14 @@ export default function DossierUebersicht({ student, onTabChange, semester, onQu
       detail: string;
       badge: string;
       tab: string;
+      goalId?: string;
     }> = [];
 
     // 1. Aktive Förderziele
     rawSupportGoals.forEach(goal => {
       list.push({
         id: `step-goal-${goal.id}`,
+        goalId: goal.id,
         title: `Förderziel: ${goal.ziel}`,
         detail: goal.zielDatum
           ? `Zieltermin: ${formatRelativeOrShortDate(goal.zielDatum)}`
@@ -558,350 +560,245 @@ export default function DossierUebersicht({ student, onTabChange, semester, onQu
       .slice(0, 5);
   }, [newDiagnosticResults, diagnostics, app.diagnostikTests, student.foerderprofil?.foerderziele, notes, app.kelGespraeche, student.id]);
 
+
+  const completeGoal = (goalId: string) => {
+    if (!window.confirm('Dieses Förderziel als erreicht markieren?')) return;
+    setApp(previous => ({
+      ...previous,
+      schueler: previous.schueler.map(item => item.id === student.id ? {
+        ...item,
+        foerderprofil: {
+          ...item.foerderprofil,
+          foerderziele: (item.foerderprofil?.foerderziele || []).map(goal =>
+            goal.id === goalId
+              ? { ...goal, status: 'erreicht' as const, abgeschlossenAm: new Date().toISOString().slice(0, 10) }
+              : goal
+          ),
+          letzteAktualisierung: new Date().toISOString()
+        }
+      } : item)
+    }));
+  };
+
   return (
-    <div className="space-y-5">
-      {/* 1. SEKTION: AUF EINEN BLICK (4-6 Information Cards) */}
-      <section>
-        <div className="mb-3.5 flex items-end justify-between gap-3">
+    <div className="space-y-4">
+      <section aria-label="Auf einen Blick">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-base font-black text-slate-900 flex items-center gap-2">
+            <h2 className="flex items-center gap-2 text-base font-extrabold text-slate-900">
               <Compass size={18} className="text-indigo-600" />
               Auf einen Blick
             </h2>
-            <p className="mt-0.5 text-xs font-semibold text-slate-500">
-              Kompakte pädagogische Orientierung aus aktuellen Unterrichts- und Entwicklungsdaten.
+            <p className="mt-0.5 text-xs text-slate-600">
+              Dokumentierte Informationen aus den bestehenden Bereichen.
             </p>
           </div>
+          <div className="relative print:hidden">
+            <button type="button" aria-expanded={showEntryActions} aria-controls="dossier-quick-actions"
+              onClick={() => setShowEntryActions(open => !open)}
+              className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+              + Eintrag
+            </button>
+            {showEntryActions && (
+              <div id="dossier-quick-actions" className="absolute right-0 top-full z-30 mt-1 min-w-52 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                {([
+                  ['note', 'Beobachtung / Notiz'],
+                  ['strength', 'Stärke / Ressource'],
+                  ['goal', 'Förderziel'],
+                  ['parent', 'Elternkontakt']
+                ] as const).map(([type, label]) => (
+                  <button key={type} type="button"
+                    onClick={() => {
+                      setShowEntryActions(false);
+                      if (onQuickEntry) onQuickEntry(type);
+                      else onTabChange(type === 'goal' || type === 'strength' ? 'foerderung' : 'beobachtungen_verlauf');
+                    }}
+                    className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-800 hover:bg-indigo-50">
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
           {quickCards.map(card => {
             const Icon = card.icon;
             return (
-              <button
-                key={card.id}
-                type="button"
-                onClick={() => onTabChange(card.tab)}
-                className="group flex min-w-0 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3.5 py-3 text-left transition hover:border-indigo-200 hover:bg-indigo-50/30"
-                aria-label={`${card.label}: ${card.value}`}
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 transition-colors group-hover:bg-indigo-100 group-hover:text-indigo-700">
-                  <Icon size={15} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <span className="block truncate text-[0.6rem] font-black uppercase tracking-wider text-slate-400">
-                    {card.label}
-                  </span>
-                  <div className="mt-0.5 flex min-w-0 items-baseline gap-2">
-                    <span className="truncate text-sm font-black text-slate-900">{card.value}</span>
-                    <span className="truncate text-[0.7rem] font-semibold text-slate-500">{card.detail}</span>
-                  </div>
-                </div>
-                <ArrowRight size={13} className="shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-indigo-600" />
+              <button key={card.id} type="button" onClick={() => onTabChange(card.tab)}
+                className="group min-w-0 rounded-xl border border-slate-200 bg-white p-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+                <span className="flex items-center gap-1.5 text-[0.6875rem] font-bold text-slate-600">
+                  <Icon size={15} aria-hidden="true" />
+                  {card.label}
+                </span>
+                <span className="mt-1 block text-sm font-extrabold leading-snug text-slate-900">{card.value}</span>
+                <span className="mt-0.5 block text-[0.6875rem] text-slate-500">{card.detail}</span>
               </button>
             );
           })}
         </div>
+        <button type="button" onClick={() => onTabChange('diagnostik')}
+          className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-700 hover:underline">
+          <Stethoscope size={13} />
+          Diagnostik: {newDiagnosticResults.length + diagnostics.length} dokumentierte Erhebungen
+          <ArrowRight size={13} />
+        </button>
       </section>
 
-      {/* HAUPTBEREICH (2-Spaltiges Layout auf Desktop, 1 Spalte Mobil) */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] items-start">
-        {/* LINKE SPALTE: Stärken, Weiter beobachten, Nächste Schritte */}
-        <div className="space-y-4">
-          {/* 2. STÄRKEN */}
-          <section className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3.5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
-                  <CheckCircle2 size={16} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 leading-tight">
-                    Stärken & Ressourcen
-                  </h3>
-                  <p className="text-[0.7rem] font-medium text-slate-500 mt-0.5">
-                    Gesicherte Kompetenzen und positive Beobachtungen
-                  </p>
-                </div>
-              </div>
-              <span className="text-[0.65rem] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                {studentStrengths.length} erfasst
-              </span>
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start">
+        <section className={`rounded-2xl border border-slate-200 bg-white shadow-2xs ${studentStrengths.length ? 'p-4' : 'px-4 py-3'}`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={17} className="text-emerald-600" />
+              <h3 className="text-sm font-extrabold text-slate-900">Stärken & Ressourcen</h3>
+              <span className="text-xs text-slate-500">{studentStrengths.length} erfasst</span>
             </div>
-
-            <div className="space-y-2">
-              {studentStrengths.length > 0 ? (
-                studentStrengths.map(strength => (
-                  <button
-                    key={strength.id}
-                    type="button"
-                    onClick={() => onTabChange(strength.tab)}
-                    className="w-full text-left p-3 rounded-xl bg-slate-50/80 hover:bg-emerald-50/40 border border-slate-100 hover:border-emerald-200 transition-all flex items-start justify-between gap-3 cursor-pointer group"
-                  >
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <span className="inline-block text-[0.62rem] font-extrabold uppercase tracking-wider text-emerald-700">
-                        {strength.context}
-                      </span>
-                      <p className="text-xs font-bold text-slate-800 leading-snug">
-                        {strength.title}
-                      </p>
-                    </div>
-                    <ArrowRight size={13} className="mt-1 text-slate-300 group-hover:text-emerald-700 group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </button>
-                ))
-              ) : (
-                <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center">
-                  <p className="text-xs font-medium text-slate-500">
-                    Noch keine ausreichenden Beobachtungen vorhanden.
-                  </p>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* 3. WEITER BEOBACHTEN */}
-          <section className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3.5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600">
-                  <AlertCircle size={16} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 leading-tight">
-                    Weiter beobachten
-                  </h3>
-                  <p className="text-[0.7rem] font-medium text-slate-500 mt-0.5">
-                    Entwicklungsfelder mit weiterem Übungs- oder Begleitbedarf
-                  </p>
-                </div>
-              </div>
-              <span className="text-[0.65rem] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                {observationFocusPoints.length} Hinweise
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              {observationFocusPoints.length > 0 ? (
-                observationFocusPoints.map(point => (
-                  <button
-                    key={point.id}
-                    type="button"
-                    onClick={() => onTabChange(point.tab)}
-                    className="w-full text-left p-3 rounded-xl bg-slate-50/80 hover:bg-amber-50/40 border border-slate-100 hover:border-amber-200 transition-all flex items-start justify-between gap-3 cursor-pointer group"
-                  >
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <span className="inline-block text-[0.62rem] font-extrabold uppercase tracking-wider text-slate-600">
-                        {point.context}
-                      </span>
-                      <p className="text-xs font-bold text-slate-800 leading-snug">
-                        {point.title}
-                      </p>
-                    </div>
-                    <ArrowRight size={13} className="mt-1 text-slate-300 group-hover:text-slate-700 group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </button>
-                ))
-              ) : (
-                <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center">
-                  <p className="text-xs font-medium text-slate-500">
-                    Aktuell keine Auffälligkeiten zur Beobachtung dokumentiert.
-                  </p>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* 4. NÄCHSTE SCHRITTE */}
-          <section className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3.5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
-                  <Target size={16} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 leading-tight">
-                    Nächste pädagogische Schritte
-                  </h3>
-                  <p className="text-[0.7rem] font-medium text-slate-500 mt-0.5">
-                    Priorisierte didaktische Vorhaben, Ziele und Maßnahmen
-                  </p>
-                </div>
-              </div>
-              <span className="text-[0.65rem] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                {nextSteps.length} Schritte
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              {nextSteps.length > 0 ? (
-                nextSteps.map(step => (
-                  <button
-                    key={step.id}
-                    type="button"
-                    onClick={() => onTabChange(step.tab)}
-                    className="w-full text-left p-3 rounded-xl bg-slate-50/80 hover:bg-indigo-50/40 border border-slate-100 hover:border-indigo-200 transition-all flex items-start justify-between gap-3 cursor-pointer group"
-                  >
-                    <div className="space-y-0.5 min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[0.6rem] font-extrabold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                          {step.badge}
-                        </span>
-                      </div>
-                      <div className="text-xs font-bold text-slate-900 leading-snug mt-1">
-                        {step.title}
-                      </div>
-                      <p className="text-[0.72rem] font-medium text-slate-500 leading-relaxed">
-                        {step.detail}
-                      </p>
-                    </div>
-                    <ArrowRight size={13} className="mt-1.5 text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </button>
-                ))
-              ) : (
-                <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center">
-                  <p className="text-xs font-medium text-slate-500">
-                    Aktuell keine konkreten Maßnahmen hinterlegt.
-                  </p>
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
-
-        {/* RECHTE SPALTE: Aktuelle Leistungen, Letzte Entwicklungen */}
-        <div className="space-y-4">
-          {/* 5. AKTUELLE LEISTUNGEN */}
-          <section className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3.5">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-slate-100 text-slate-700">
-                  <BarChart3 size={16} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 leading-tight">
-                    Aktuelle Leistungen
-                  </h3>
-                  <p className="text-[0.7rem] font-medium text-slate-500 mt-0.5">
-                    Fächerübersicht mit Bewertungsmodus und Entwicklungstrend
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => onTabChange('leistungen')}
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors cursor-pointer"
-              >
-                <span>Lernen & Leistungen</span>
-                <ArrowRight size={13} />
-              </button>
-            </div>
-
-            <div className="divide-y divide-slate-100 rounded-xl border border-slate-100 overflow-hidden">
-              {subjectPerformances.map(sp => (
-                <button
-                  key={sp.subject}
-                  type="button"
-                  onClick={() => onTabChange('leistungen')}
-                  className="w-full flex items-center justify-between p-3 bg-white hover:bg-slate-50/80 transition-colors text-left cursor-pointer group"
-                >
-                  <div className="space-y-0.5">
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">
-                      {sp.subject}
-                    </span>
-                    <span className="block text-[0.65rem] font-medium text-slate-400">
-                      {sp.mode === 'percent' ? 'Prozentwertung' : sp.mode === 'points' ? 'Punktewertung' : 'Notenskala'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-black text-slate-900">
-                      {sp.displayValue}
-                    </span>
-
-                    {/* Trend indicator */}
-                    {sp.trend.direction === 'up' && (
-                      <span className="flex items-center gap-0.5 text-[0.65rem] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded" title="Positive Entwicklung">
-                        <TrendingUp size={11} />
-                        <span className="hidden sm:inline">{sp.trend.label}</span>
-                      </span>
-                    )}
-                    {sp.trend.direction === 'stable' && (
-                      <span className="flex items-center gap-0.5 text-[0.65rem] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded" title="Stabiler Notenstand">
-                        <Minus size={11} />
-                        <span className="hidden sm:inline">{sp.trend.label}</span>
-                      </span>
-                    )}
-                    {sp.trend.direction === 'down' && (
-                      <span className="flex items-center gap-0.5 text-[0.65rem] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded" title="Zuletzt schwächer">
-                        <TrendingDown size={11} />
-                        <span className="hidden sm:inline">{sp.trend.label}</span>
-                      </span>
-                    )}
-                  </div>
+            <button type="button" onClick={() => onQuickEntry ? onQuickEntry('strength') : onTabChange('foerderung')}
+              className="rounded-lg px-2 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-50">
+              + Stärke erfassen
+            </button>
+          </div>
+          {studentStrengths.length ? (
+            <div className="mt-3 space-y-2">
+              {studentStrengths.map(strength => (
+                <button key={strength.id} type="button" onClick={() => onTabChange(strength.tab)}
+                  className="flex w-full items-start justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 text-left hover:bg-emerald-50/40">
+                  <span className="min-w-0">
+                    <span className="block text-xs font-bold text-slate-900">{strength.title}</span>
+                    <span className="text-[0.6875rem] text-slate-600">{strength.context}</span>
+                  </span>
+                  <ArrowRight size={14} className="mt-1 shrink-0 text-slate-400" />
                 </button>
               ))}
             </div>
-          </section>
+          ) : <p className="mt-1 text-xs text-slate-600">Noch keine Stärken dokumentiert.</p>}
+        </section>
 
-          {/* 6. LETZTE ENTWICKLUNGEN */}
-          <section className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-3.5">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-slate-100 text-slate-700">
-                  <Clock size={16} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 leading-tight">
-                    Letzte Entwicklungen
-                  </h3>
-                  <p className="text-[0.7rem] font-medium text-slate-500 mt-0.5">
-                    Pädagogische Chronologie der letzten Erhebungen und Einträge
-                  </p>
-                </div>
-              </div>
-              <span className="text-[0.65rem] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
-                {recentEvents.length} Einträge
-              </span>
+        <section className={`rounded-2xl border border-slate-200 bg-white shadow-2xs ${nextSteps.length ? 'p-4' : 'px-4 py-3'}`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Target size={17} className="text-indigo-600" />
+              <h3 className="text-sm font-extrabold text-slate-900">Nächste pädagogische Schritte</h3>
+              <span className="text-xs text-slate-500">{nextSteps.length} Einträge</span>
             </div>
-
-            <div className="space-y-2">
-              {recentEvents.length > 0 ? (
-                recentEvents.map(event => (
-                  <button
-                    key={event.id}
-                    type="button"
-                    onClick={() => onTabChange(event.tab)}
-                    className="w-full text-left p-3 rounded-xl bg-slate-50/80 hover:bg-slate-100/80 border border-slate-100 transition-all flex items-start justify-between gap-3 cursor-pointer group"
-                  >
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[0.62rem] font-extrabold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                          {event.type}
-                        </span>
-                        <span className="text-[0.68rem] font-bold text-slate-400">
-                          {formatRelativeOrShortDate(event.date)}
-                        </span>
-                      </div>
-                      <div className="text-xs font-bold text-slate-900 leading-snug">
-                        {event.title}
-                      </div>
-                      <p className="text-[0.72rem] font-medium text-slate-500 line-clamp-1">
-                        {event.detail}
-                      </p>
-                    </div>
-                    <ArrowRight size={13} className="mt-1 text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all shrink-0" />
+            <button type="button" onClick={() => onQuickEntry ? onQuickEntry('goal') : onTabChange('foerderung')}
+              className="rounded-lg px-2 py-1 text-xs font-bold text-indigo-700 hover:bg-indigo-50">
+              + Förderziel
+            </button>
+          </div>
+          {nextSteps.length ? (
+            <div className="mt-3 space-y-2">
+              {nextSteps.slice(0, 4).map(step => (
+                <div key={step.id} className="rounded-xl border border-slate-100 bg-slate-50 p-2.5">
+                  <button type="button" onClick={() => onTabChange(step.tab)}
+                    className="flex w-full items-start justify-between gap-2 text-left hover:text-indigo-700">
+                    <span>
+                      <span className="block text-[0.65rem] font-bold uppercase text-indigo-700">{step.badge}</span>
+                      <span className="block text-xs font-bold text-slate-900">{step.title}</span>
+                      <span className="mt-0.5 block text-[0.6875rem] text-slate-600">{step.detail}</span>
+                    </span>
+                    <ArrowRight size={14} className="mt-1 shrink-0 text-slate-400" />
                   </button>
-                ))
-              ) : (
-                <div className="p-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 text-center">
-                  <p className="text-xs font-medium text-slate-500">
-                    Noch keine pädagogischen Entwicklungen erfasst.
-                  </p>
+                  {step.goalId && (
+                    <button type="button" onClick={() => completeGoal(step.goalId!)}
+                      className="mt-1.5 rounded-lg border border-emerald-200 bg-white px-2 py-1 text-[0.6875rem] font-semibold text-emerald-800 hover:bg-emerald-50">
+                      Als erreicht markieren
+                    </button>
+                  )}
                 </div>
+              ))}
+              {nextSteps.length > 4 && (
+                <button type="button" onClick={() => onTabChange('foerderung')}
+                  className="text-xs font-semibold text-indigo-700 hover:underline">Weitere Ziele und Maßnahmen anzeigen</button>
               )}
             </div>
-          </section>
-        </div>
+          ) : <p className="mt-1 text-xs text-slate-600">Noch keine offenen Förderziele oder weiteren Schritte dokumentiert.</p>}
+        </section>
+      </div>
+
+      {observationFocusPoints.length > 0 && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4">
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-extrabold text-slate-900">
+            <AlertCircle size={16} className="text-amber-600" /> Weiter beobachten
+          </h3>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {observationFocusPoints.map(point => (
+              <button key={point.id} type="button" onClick={() => onTabChange(point.tab)}
+                className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-left hover:bg-amber-50/40">
+                <span className="block text-xs font-bold text-slate-900">{point.title}</span>
+                <span className="text-[0.6875rem] text-slate-600">{point.context}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
+              <BarChart3 size={17} className="text-indigo-600" /> Aktuelle Leistungen
+            </h3>
+            <button type="button" onClick={() => onTabChange('leistungen')}
+              className="inline-flex items-center gap-1 text-xs font-bold text-indigo-700 hover:underline">
+              Alle Fächer & Bewertungen <ArrowRight size={13} />
+            </button>
+          </div>
+          {assessedSubjects.length ? (
+            <div className="divide-y divide-slate-100 rounded-xl border border-slate-100">
+              {assessedSubjects.slice(0, 4).map(item => (
+                <button key={item.subject} type="button" onClick={() => onTabChange('leistungen')}
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-indigo-50/40">
+                  <span className="min-w-0">
+                    <span className="block text-xs font-bold text-slate-900">{item.subject}</span>
+                    <span className="block text-[0.6875rem] text-slate-500">
+                      {item.mode === 'percent' ? 'Prozentwertung' : item.mode === 'points' ? 'Punktewertung' : 'Notenskala'}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs font-extrabold text-slate-900">{item.displayValue}</span>
+                </button>
+              ))}
+              {assessedSubjects.length > 4 && (
+                <button type="button" onClick={() => onTabChange('leistungen')}
+                  className="w-full px-3 py-2 text-left text-xs font-bold text-indigo-700 hover:bg-indigo-50/40">
+                  Weitere {assessedSubjects.length - 4} bewertete Fächer anzeigen
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+              <span>Noch keine Bewertungen dokumentiert.</span>
+              <button type="button" onClick={() => onTabChange('leistungen')}
+                className="font-bold text-indigo-700 hover:underline">Zur Notenmappe</button>
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
+              <Clock size={17} className="text-indigo-600" /> Letzte Entwicklungen
+            </h3>
+            <span className="text-xs text-slate-500">{recentEvents.length} Einträge</span>
+          </div>
+          {recentEvents.length ? (
+            <div className="space-y-2">
+              {recentEvents.map(event => (
+                <button key={event.id} type="button" onClick={() => onTabChange(event.tab)}
+                  className="flex w-full items-start gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-left hover:bg-indigo-50/40">
+                  <span className="w-11 shrink-0 text-[0.6875rem] font-bold text-slate-500">{formatRelativeOrShortDate(event.date)}</span>
+                  <span className="min-w-0">
+                    <span className="block text-[0.65rem] font-bold uppercase text-indigo-700">{event.type}</span>
+                    <span className="block text-xs font-bold text-slate-900">{event.title}</span>
+                    <span className="block truncate text-[0.6875rem] text-slate-600">{event.detail}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : <p className="text-xs text-slate-600">Noch keine pädagogischen Ereignisse dokumentiert.</p>}
+        </section>
       </div>
     </div>
   );
+
 }
