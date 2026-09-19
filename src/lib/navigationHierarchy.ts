@@ -1,19 +1,18 @@
 export type NavigationParent = {
-  id: 'klasse' | 'verhalten' | 'planung' | 'leistungen' | 'unterricht' | 'tools';
+  id: 'klasse' | 'verhalten' | 'planung' | 'leistungen' | 'tools' | 'ki-helfer';
   label: string;
 };
 
 const PAGE_PARENTS: Record<string, NavigationParent> = {
   // Tools
   textanalyse: { id: 'tools', label: 'Tools' },
+  stationenbetrieb: { id: 'tools', label: 'Tools' },
 
-  // Unterricht
-  cockpit: { id: 'unterricht', label: 'Unterricht' },
-  arbeitsblatt: { id: 'unterricht', label: 'Unterricht' },
-  stationenbetrieb: { id: 'unterricht', label: 'Unterricht' },
+  // KI-gestützte Vorbereitung ist kein Unterbereich des Lehrercockpits.
+  arbeitsblatt: { id: 'ki-helfer', label: 'KI-Helfer' },
+  differenzierung: { id: 'ki-helfer', label: 'KI-Helfer' },
+  elternbrief: { id: 'ki-helfer', label: 'KI-Helfer' },
   stimmnotizen: { id: 'verhalten', label: 'Notizen' },
-  differenzierung: { id: 'unterricht', label: 'Unterricht' },
-  elternbrief: { id: 'unterricht', label: 'Unterricht' },
 
   // Klasse
   schueler: { id: 'klasse', label: 'Klasse' },
@@ -46,12 +45,12 @@ const PAGE_PARENTS: Record<string, NavigationParent> = {
   jahresbericht: { id: 'leistungen', label: 'Leistungen' },
 };
 
-const ROOT_PAGES = new Set(['dashboard', 'klasse', 'verhalten', 'planung', 'leistungen', 'unterricht', 'tools']);
+const ROOT_PAGES = new Set(['dashboard', 'klasse', 'verhalten', 'planung', 'leistungen', 'unterricht', 'cockpit', 'ki-helfer', 'tools']);
 
 export function getNavigationParent(page: string | undefined | null): NavigationParent | null {
   if (!page || ROOT_PAGES.has(page)) return null;
   if (page === 'ki-helfer' || page.startsWith('ki-')) {
-    return { id: 'unterricht', label: 'Unterricht' };
+    return { id: 'ki-helfer', label: 'KI-Helfer' };
   }
   return PAGE_PARENTS[page] || null;
 }
