@@ -12,6 +12,7 @@ import { SchuljahrWrapped } from './SchuljahrWrapped';
 import { STANDARD_KEL_BEREICHE } from '../types';
 import { berechne, getAssessmentMode } from '../lib/GradeUtils';
 import { getStudentNotes } from '../lib/studentMetrics';
+import StudentDossier from './StudentDossier';
 
 export default function Jahresbericht({ studentId }: { studentId?: string } = {}) {
   const { app, setApp } = useApp();
@@ -560,6 +561,43 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
   const reportsGeneratedCount = students.filter(s => Boolean(reportForTerm(s.id))).length;
   const reportsApprovedCount = students.filter(s => reportForTerm(s.id)?.reviewStatus === 'freigegeben').length;
   const progressPercent = totalStudentsCount > 0 ? Math.round((reportsGeneratedCount / totalStudentsCount) * 100) : 0;
+
+  if (!isDossierView) {
+    if (selectedStudent && students.some(child => child.id === selectedStudent)) {
+      return <StudentDossier key={selectedStudent} schuelerId={selectedStudent}
+        initialReportView onBack={() => setSelectedStudent(null)} />;
+    }
+    return <section className="mx-auto w-full max-w-6xl space-y-5 p-4 sm:p-6" data-testid="jahresabschluss-klassenverwaltung">
+      <header className="rounded-3xl border border-slate-200 bg-white p-6">
+        <h1 className="text-xl font-black text-slate-900">Jahresabschluss · {app.klassenbezeichnung || 'Klasse'}</h1>
+        <p className="mt-1 text-sm text-slate-600">Berichtsstand für {currentTerm}. Die Entwürfe bearbeitest du im Schülerdossier des jeweiligen Kindes.</p>
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-700">
+          <span className="rounded-xl bg-slate-100 px-3 py-2">Erstellt: {reportsGeneratedCount} / {totalStudentsCount}</span>
+          <span className="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-800">Freigegeben: {reportsApprovedCount}</span>
+          <button type="button" onClick={printAll} disabled={reportsApprovedCount === 0}
+            className="rounded-xl border border-slate-200 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-50">
+            <Printer size={14} className="mr-1 inline" /> Nur freigegebene Berichte drucken
+          </button>
+        </div>
+      </header>
+      {students.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+        Noch keine Kinder in dieser Klasse angelegt.
+      </p> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {[...students].sort((a, b) => a.nachname.localeCompare(b.nachname, 'de-AT')).map(child => {
+          const report = reportForTerm(child.id);
+          const label = !report ? 'Noch kein Bericht' :
+            report.reviewStatus === 'freigegeben' ? 'Freigegeben' :
+            report.reviewStatus === 'nacharbeiten' ? 'Nacharbeiten' : 'Entwurf vorhanden';
+          return <button key={child.id} type="button" onClick={() => setSelectedStudent(child.id)}
+            className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-indigo-300">
+            <strong className="block text-sm text-slate-900">{child.vorname} {child.nachname}</strong>
+            <span className="mt-2 block text-xs text-slate-600">{label}</span>
+            <span className="mt-3 block text-xs font-bold text-indigo-700">Im Schülerdossier öffnen →</span>
+          </button>;
+        })}
+      </div>}
+    </section>;
+  }
 
   return (
     <div className="year-report-shell h-full flex flex-col p-4 lg:p-6 space-y-4 bg-[#f4f7f3]">
