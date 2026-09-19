@@ -35,8 +35,8 @@ const coreItems: PlanningItem[] = [
   },
   {
     id: 'planungszentrale',
-    label: 'Planungsübersicht',
-    description: 'Aktuelle Woche, offene Planung und wichtige Planungswege kompakt zusammenführen.',
+    label: 'Wochen-Check',
+    description: 'Fehlende Themen in bereits eingetragenen Stunden erkennen. Geplant und bearbeitet wird ausschließlich im Wochenplan.',
     icon: LayoutDashboard,
   },
 ];
