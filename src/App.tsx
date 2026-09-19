@@ -57,6 +57,7 @@ const Drafts = lazyRetry(() => import('./components/Drafts'));
 const MeetingLogs = lazyRetry(() => import('./components/MeetingLogs'));
 const OrgaLists = lazyRetry(() => import('./components/OrgaLists'));
 const Statistics = lazyRetry(() => import('./components/Statistics'));
+const AntolinBereich = lazyRetry(() => import('./components/AntolinBereich'));
 const EmailAssistant = lazyRetry(() => import('./components/EmailAssistant'));
 const Differentiation = lazyRetry(() => import('./components/Differentiation'));
 const VerbalAssessment = lazyRetry(() => import('./components/VerbalAssessment'));
@@ -664,6 +665,7 @@ function AppContent() {
       case 'elternbrief': return <EmailAssistant />;
       case 'orga': return <OrgaLists />;
       case 'statistik': return <Statistics />;
+      case 'antolin': return <AntolinBereich />;
       // Old links remain valid; the same gradebook opens directly in its overview tab.
       case 'notenTabelle': return <Gradebook initialSection="overview" />;
       case 'differenzierung': return <Differentiation />;
@@ -739,7 +741,8 @@ function AppContent() {
       case 'elternbrief': return 'Elternbrief KI';
       case 'verbal': return 'Verbale Beurteilung';
       case 'orga': return 'Kasse & Orga';
-      case 'statistik': return 'Statistik';
+      case 'statistik': return 'Weitere Auswertungen';
+      case 'antolin': return 'Lesen & Antolin';
       case 'notenTabelle': return 'Notenmappe';
       case 'portfolio': return 'Portfolio';
       case 'differenzierung': return 'Differenzierung KI';
