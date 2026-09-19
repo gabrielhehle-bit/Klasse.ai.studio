@@ -42,7 +42,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   setApp: propSetApp,
   currentIsLight,
 }) => {
-  const { app: contextApp, setApp: contextSetApp, isLoaded } = useApp();
+  const { app: contextApp, setApp: contextSetApp } = useApp();
   const app = propApp || contextApp;
   const setApp = propSetApp || contextSetApp;
 
@@ -232,7 +232,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
       >
         <Users size={32} className="text-slate-400 mb-2 opacity-60" />
         <p className="font-bold text-sm text-slate-600 dark:text-neutral-300">
-          {!isLoaded ? 'Klasse wird geladen …' : !app.activeClassId ? 'Bitte zuerst eine Klasse auswählen' : 'Keine Kinder in dieser Klasse angelegt'}
+          {!app.activeClassId ? 'Bitte zuerst eine Klasse auswählen' : 'Keine Kinder in dieser Klasse angelegt'}
         </p>
       </div>
     );
