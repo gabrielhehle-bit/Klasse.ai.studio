@@ -189,10 +189,17 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
   
   // Always start with 'uebersicht'
   const [activeTab, setActiveTab] = useState<DossierTab>('uebersicht');
+  const [pendingQuickEntry, setPendingQuickEntry] = useState<'note' | 'strength' | 'parent' | 'goal' | null>(null);
+
+  const openOverviewQuickEntry = (type: 'note' | 'strength' | 'parent' | 'goal') => {
+    setPendingQuickEntry(type);
+    setActiveTab(type === 'goal' || type === 'strength' ? 'foerderung' : 'beobachtungen_verlauf');
+  };
 
   // Reset activeTab to 'uebersicht' whenever student changes
   useEffect(() => {
     setActiveTab('uebersicht');
+    setPendingQuickEntry(null);
   }, [schuelerId]);
 
   const activeMainArea = getActiveMainArea(activeTab);
@@ -233,6 +240,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
   const totalDiagnosticCount = studentErhebungen.length + newDiagnosticResults.length;
 
   const handleSelectArea = (areaId: MainAreaId) => {
+    setPendingQuickEntry(null);
     const targetArea = MAIN_AREAS.find(area => area.id === areaId);
     if (!targetArea) return;
     if (targetArea.tabs.some(tab => tab.id === activeTab)) return;
@@ -531,7 +539,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
 
           {/* Profile Hero Header Card */}
           {!app.dossierFocusMode && (
-            <div className={`mb-5 px-4 py-4 sm:px-5 bg-slate-50/70 border ${isBirthdayToday ? 'border-pink-200' : 'border-slate-200'} rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 transition-all relative`}>
+            <div className={`${activeTab === 'uebersicht' ? 'mb-4 px-3 py-3 sm:px-4' : 'mb-5 px-4 py-4 sm:px-5'} bg-slate-50/70 border ${isBirthdayToday ? 'border-pink-200' : 'border-slate-200'} rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 transition-all relative`}>
               
               {isBirthdayToday && (
                 <div className="absolute top-0 right-0 w-28 h-28 bg-pink-500/5 rounded-full blur-2xl pointer-events-none select-none" />
@@ -541,13 +549,13 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                 {student.foto ? (
                   <img src={student.foto} alt="" className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover ring-2 ${isBirthdayToday ? 'ring-pink-300' : 'ring-slate-200'} shadow-sm object-top`} referrerPolicy="no-referrer" />
                 ) : (
-                  <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 border border-slate-200/80 text-slate-700 flex items-center justify-center text-xl font-black shadow-inner`}>
+                  <div className={`${activeTab === 'uebersicht' ? 'w-10 h-10 sm:w-12 sm:h-12 text-base' : 'w-14 h-14 sm:w-16 sm:h-16'} rounded-2xl bg-slate-100 border border-slate-200/80 text-slate-700 flex items-center justify-center text-xl font-black shadow-inner`}>
                     {student.vorname.charAt(0)}{student.nachname.charAt(0)}
                   </div>
                 )}
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2.5">
-                    <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight flex items-center gap-2">
+                    <h1 className={`${activeTab === 'uebersicht' ? 'text-base sm:text-lg' : 'text-lg sm:text-xl'} font-black text-slate-900 tracking-tight leading-tight flex items-center gap-2`}>
                       <span>{student.vorname} {student.nachname}</span>
                       {isBirthdayToday && (
                         <span className="inline-block text-lg" title="Geburtstagskind!">🎉</span>
@@ -772,6 +780,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                     student={student}
                     onTabChange={setActiveTab}
                     semester={sem as '1' | '2'}
+                    onQuickEntry={openOverviewQuickEntry}
                   />
                 )}
                 {activeTab === 'entwicklungsuebersicht' && (
@@ -792,12 +801,17 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                     student={student}
                     onNavigateToDiagnostics={() => setActiveTab('diagnostik')}
                     onTabChange={setActiveTab}
+                    initialAddGoal={pendingQuickEntry === 'goal'}
+                    initialFocusStrength={pendingQuickEntry === 'strength'}
+                    onQuickEntryConsumed={() => setPendingQuickEntry(null)}
                   />
                 )}
                 {(activeTab === 'beobachtungen_verlauf' || activeTab === 'stats' || activeTab === 'kel_reflexion') && (
                   <DossierBeobachtungenVerlauf
                     student={student}
                     initialSubSection={activeTab === 'kel_reflexion' ? 'kel' : activeTab === 'stats' ? 'verhalten' : 'beobachtungen'}
+                    initialQuickNoteCategory={pendingQuickEntry === 'parent' ? 'Eltern' : pendingQuickEntry === 'note' ? 'Notiz' : undefined}
+                    onQuickEntryConsumed={() => setPendingQuickEntry(null)}
                   />
                 )}
                 {activeTab === 'entwicklungslisten' && (

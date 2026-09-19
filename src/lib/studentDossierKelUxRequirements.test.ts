@@ -15,9 +15,10 @@ test('Schülerdossier hat nur noch eine kompakte Schülernavigation und eine Hau
   assert.doesNotMatch(dossier, /grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5/);
 });
 
-test('Dossierübersicht verwendet scanbare Statuszeilen statt sechs enger Minikarten', () => {
-  assert.match(overview, /grid grid-cols-1 gap-2\.5 sm:grid-cols-2 xl:grid-cols-3/);
-  assert.match(overview, /group flex min-w-0 items-center gap-3 rounded-xl/);
+test('Dossierübersicht zeigt vier kompakte Arbeitskarten ohne überladene Fachliste', () => {
+  assert.match(overview, /grid grid-cols-2 gap-2 lg:grid-cols-4/);
+  assert.match(overview, /quickCards\.map\(card =>/);
+  assert.match(overview, /assessedSubjects\.slice\(0, 4\)/);
   assert.doesNotMatch(overview, /xl:grid-cols-6/);
 });
 

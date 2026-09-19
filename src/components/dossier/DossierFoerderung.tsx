@@ -30,6 +30,9 @@ interface DossierFoerderungProps {
   student: Student;
   onNavigateToDiagnostics?: () => void;
   onTabChange?: (tab: DossierTab) => void;
+  initialAddGoal?: boolean;
+  initialFocusStrength?: boolean;
+  onQuickEntryConsumed?: () => void;
 }
 
 const BEREICHE = [
@@ -47,7 +50,10 @@ const BEREICHE = [
 export const DossierFoerderung: React.FC<DossierFoerderungProps> = ({
   student,
   onNavigateToDiagnostics,
-  onTabChange
+  onTabChange,
+  initialAddGoal,
+  initialFocusStrength,
+  onQuickEntryConsumed
 }) => {
   const { app, setApp } = useApp();
 
@@ -58,18 +64,19 @@ export const DossierFoerderung: React.FC<DossierFoerderungProps> = ({
 
   // Active vs completed goals
   const activeGoals = useMemo(() => {
-    return allGoals.filter((g: any) => g.status === 'offen' || g.status === 'in_arbeit');
+    return allGoals.filter((g: any) => g.status === 'offen' || g.status === 'in_arbeit' || g.status === 'in Arbeit');
   }, [allGoals]);
 
   const completedGoals = useMemo(() => {
-    return allGoals.filter((g: any) => g.status === 'erreicht' || g.status === 'abgebrochen');
+    return allGoals.filter((g: any) => g.status === 'erreicht' || g.status === 'abgebrochen' || g.status === 'verworfen');
   }, [allGoals]);
 
   // Collapsible state for completed goals
   const [showCompletedGoals, setShowCompletedGoals] = useState(false);
 
   // New goal state
-  const [isAddingGoal, setIsAddingGoal] = useState(false);
+  const [isAddingGoal, setIsAddingGoal] = useState(Boolean(initialAddGoal));
+  React.useEffect(() => { if (initialAddGoal && !initialFocusStrength) onQuickEntryConsumed?.(); }, []);
   const [newGoalText, setNewGoalText] = useState('');
   const [newGoalArea, setNewGoalArea] = useState(BEREICHE[0]);
   const [newGoalStartDate, setNewGoalStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -86,6 +93,13 @@ export const DossierFoerderung: React.FC<DossierFoerderungProps> = ({
 
   // Strengths state
   const [newStrength, setNewStrength] = useState('');
+  const strengthInputRef = React.useRef<HTMLInputElement>(null);
+  React.useEffect(() => {
+    if (!initialFocusStrength) return;
+    strengthInputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    strengthInputRef.current?.focus({ preventScroll: true });
+    onQuickEntryConsumed?.();
+  }, []);
 
   // Profil Updater helper
   const updateProfil = (changes: any) => {
@@ -811,6 +825,7 @@ export const DossierFoerderung: React.FC<DossierFoerderungProps> = ({
         {/* Quick add strength input */}
         <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
           <input
+            ref={strengthInputRef}
             type="text"
             value={newStrength}
             onChange={e => setNewStrength(e.target.value)}
