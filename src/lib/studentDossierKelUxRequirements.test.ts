@@ -22,34 +22,28 @@ test('Dossierübersicht zeigt vier kompakte Arbeitskarten ohne überladene Fachl
   assert.doesNotMatch(overview, /xl:grid-cols-6/);
 });
 
-test('KEL hat eine einzige klare Kommandozeile und keine doppelte Modussteuerung im Präsentationsbereich', () => {
-  assert.match(kel, /CLEAN KEL COMMAND BAR/);
-  assert.match(kel, /\n\s*Folien\s*\n/);
-  assert.match(kel, /\n\s*Gesamtübersicht\s*\n/);
-  assert.match(kel, /Folien auswählen/);
+test('KEL shows one clear preparation/presentation switch with an explicit choice of visible content', () => {
+  assert.match(kel, /Ein Gespräch, keine Datenshow/);
+  assert.match(kel, /setView\('prepare'\)/);
+  assert.match(kel, /setView\('slides'\)/);
+  assert.match(kel, /Weitere Folien wählen/);
+  assert.match(kel, /Was soll im Gespräch sichtbar sein\?/);
   assert.match(kel, /Präsentieren/);
-  assert.match(kel, /<summary[^>]*>\s*Mehr\s*<\/summary>/s);
-  assert.match(kel, /ONE compact presentation status line/);
-  assert.doesNotMatch(kel, /KEL MODERATIONS-MODUS/);
-  assert.doesNotMatch(kel, /PRESENTATION MODE CONTROLLER/);
+  assert.match(kel, /Auswahl für dieses KEL-Gespräch speichern/);
+  assert.doesNotMatch(kel, /KEL MODERATIONS-MODUS|PRESENTATION MODE CONTROLLER/);
 });
 
-test('KEL behält alle wesentlichen Funktionen trotz vereinfachter Oberfläche', () => {
+test('KEL retains real presentation, per-student opt-in grades, PPTX, dossier PDF and timer', () => {
   for (const needle of [
-    "setKelMode('einfach')",
-    "setKelMode('experte')",
-    'setShowConfigDrawer(true)',
-    'exportPowerPoint',
-    'exportSchuelerPDF(student.id, app)',
-    'setSelectedLang',
-    'setTimerActive',
-    'setTimerSeconds',
-    'setIsFullscreen(true)',
-    "setPresentationView('dossier')",
+    'savePresentationSelection', 'individualGrades', 'chosenAssessments',
+    'exportPowerPoint', 'exportSchuelerPDF(student.id, app)',
+    'setSelectedLang', 'setTimerActive', 'setTimerSeconds',
+    'setIsFullscreen(true)', 'setShowConfig(true)',
+    'kelPraesentationAuswahl',
   ]) {
-    assert.ok(kel.includes(needle), `KEL-Funktion fehlt: ${needle}`);
+    assert.ok(kel.includes(needle), \`KEL-Funktion fehlt: \${needle}\`);
   }
-  assert.match(kel, /aria-label="KEL-Folie auswählen"/);
+  assert.match(kel, /aria-label={\`Folie \${index \+ 1}: \${slide.title}\`}/);
   assert.match(kel, /Zurück/);
   assert.match(kel, /Weiter/);
 });
