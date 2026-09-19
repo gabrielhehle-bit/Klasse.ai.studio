@@ -285,13 +285,22 @@ export const WochenplanGeneratorModal: React.FC<Props> = ({ activeKW, onClose })
     showToast('Schüler-Wochenplan sicher im Tresor gespeichert! 🔒');
   };
 
-  // Print function
+  // Prepare the existing saved plan; all document output happens in PrintCenter.
   const handlePrint = () => {
-    // Autosave first so user doesn't lose changes
-    handleSavePlan();
-    setTimeout(() => {
-      window.print();
-    }, 200);
+    const updatedPlan: SchuelerWochenplan = {
+      ...plan, aktualisiertAm: new Date().toISOString(),
+    };
+    setApp(previous => ({
+      ...previous,
+      schuelerWochenplaene: {
+        ...(previous.schuelerWochenplaene || {}),
+        [updatedPlan.id]: updatedPlan,
+      },
+      currentKW: updatedPlan.kw,
+      currentPage: 'drucken',
+      activePrintTemplate: 'schueler_wochenplan',
+    }));
+    onClose();
   };
 
   // Load an existing plan from storage
@@ -398,10 +407,10 @@ export const WochenplanGeneratorModal: React.FC<Props> = ({ activeKW, onClose })
             <button
               onClick={handlePrint}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-indigo-600/20 cursor-pointer active:scale-95"
-              title="A4 Wochenplan drucken oder als PDF speichern"
+              title="Gespeicherten Wochenplan im Druckzentrum öffnen"
             >
               <Printer size={15} />
-              <span>Drucken / PDF</span>
+              <span>Zum Druckzentrum</span>
             </button>
 
             <button
@@ -1021,7 +1030,7 @@ export const WochenplanGeneratorModal: React.FC<Props> = ({ activeKW, onClose })
                     onClick={() => setActiveTab('vorschau')}
                     className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-2 shadow-md shadow-indigo-600/20 cursor-pointer"
                   >
-                    <span>Zur A4-Vorschau & Drucken →</span>
+                    <span>Zur A4-Vorschau →</span>
                   </button>
                 </div>
               </div>
@@ -1057,7 +1066,7 @@ export const WochenplanGeneratorModal: React.FC<Props> = ({ activeKW, onClose })
                     className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-sm"
                   >
                     <Printer size={14} />
-                    <span>Jetzt drucken / PDF</span>
+                    <span>Im Druckzentrum öffnen</span>
                   </button>
                 </div>
               </div>
@@ -1153,15 +1162,6 @@ export const WochenplanGeneratorModal: React.FC<Props> = ({ activeKW, onClose })
         </div>
       </div>
 
-      {/* ================= 3. HIDDEN PRINT CONTAINER ================= */}
-      {/* This element is rendered outside the modal viewport and activates solely during @media print */}
-      <div className="hidden print:block schueler-wochenplan-print-sheet">
-        <SchuelerWochenplanA4Sheet
-          plan={plan}
-          previewOnly={false}
-          colorMode={colorMode}
-        />
-      </div>
     </div>,
     document.body
   );
