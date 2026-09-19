@@ -305,7 +305,9 @@ async function verifyDirectCockpitNavigation(client) {
     'if(!input||document.querySelector("button[aria-label=\\\"TEXT\\\"]")?.getAttribute("aria-pressed")!=="true")return false;' +
     'const r=input.getBoundingClientRect();return document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)===input;' +
     '})()', 20000);
-  await clickButton(client, 'Ablauf & Organisation');
+  const coreTimeOpen = await evaluate(client,
+    '(() => { const group=document.querySelector("[data-testid=\\\"cockpit-core-group-timer\\\"]"); const button=group?.querySelector("button"); if(!button)return false; button.click(); return true; })()');
+  if (!coreTimeOpen) throw new Error('20-widget cockpit overview did not expose Zeit group.');
   await clickButton(client, 'Timer / Sanduhr');
   await waitFor(client, 'Timer widget inserted while TEXT editing',
     'document.querySelector("#widget-board-stage [role=group][aria-label*=\\\"Timer\\\"]")!==null', 20000);
