@@ -248,10 +248,10 @@ Leistungsdaten:
 ${gradesStr}
 Optionale positive Rückmeldungen / Badges: ${badgesList}
 Pädagogische Förderziele:
-${fpZiele || 'Keine aktiven Förderziele hinterlegt'}
-KEL-Selbsteinschätzung des Kindes: ${kelSelfStr || 'Keine Angabe'}
+${fpZiele || (includeFoerder ? 'Keine aktiv ausgewiesenen Förderziele' : 'Nicht einbezogen')}
+KEL-Selbsteinschätzung des Kindes: ${kelSelfStr || (includeKel ? 'Keine dokumentierte Selbsteinschätzung' : 'Nicht einbezogen')}
 KEL vereinbarte Ziele:
-${kelGoalsStr || 'Keine KEL-Ziele vereinbart'}
+${kelGoalsStr || (includeKel ? 'Keine dokumentierten KEL-Ziele' : 'Nicht einbezogen')}
 Letzte dokumentierte Beobachtungen:
 ${obsStr}
 Zusätzlicher Wunsch der Lehrkraft: ${personalWish || 'Kein spezieller Wunsch'}
@@ -412,6 +412,10 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
   };
 
   const printSingle = (studentId: string) => {
+    const report = reportForTerm(studentId);
+    if (!report) return;
+    if (report.reviewStatus !== 'freigegeben' &&
+        !window.confirm('Dieser Bericht ist noch nicht freigegeben. Nur als ausdrücklich markierten Entwurf drucken?')) return;
     printDocs([studentId]);
   };
 
