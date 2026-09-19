@@ -6,6 +6,7 @@ import {
   FileEdit,
   FileSearch,
   LayoutGrid,
+  Palette,
   Printer,
   Sparkles,
   Wrench,
@@ -45,6 +46,13 @@ const tools = [
     title: 'KI-Helfer',
     description: 'Pädagogische KI-Hilfen bewusst und gezielt aufrufen.',
     icon: Bot,
+    featured: false,
+  },
+  {
+    id: 'canva',
+    title: 'Canva',
+    description: 'Unterrichtsmaterialien und Designs gestalten und exportieren.',
+    icon: Palette,
     featured: false,
   },
   {
