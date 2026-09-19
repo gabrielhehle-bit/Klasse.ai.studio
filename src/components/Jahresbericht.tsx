@@ -44,6 +44,8 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
   const [includeKel, setIncludeKel] = useState(false);
   const [includeFoerder, setIncludeFoerder] = useState(false);
   const [selectedObservationIds, setSelectedObservationIds] = useState<string[]>([]);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [selectedPortfolioIds, setSelectedPortfolioIds] = useState<string[]>([]);
   const [personalWish, setPersonalWish] = useState('');
   const [refinePrompt, setRefinePrompt] = useState('');
   const [isRefining, setIsRefining] = useState(false);
@@ -87,6 +89,8 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
     setIncludeKel(false);
     setIncludeFoerder(false);
     setSelectedObservationIds([]);
+    setSelectedSubjects([]);
+    setSelectedPortfolioIds([]);
     setPersonalWish('');
   }, [selectedStudent, app.activeClassId]);
 
@@ -133,7 +137,7 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
 
     // Both semesters are distinct evidence. A second-semester value must never
     // silently replace the first-semester development in an annual report.
-    return subjects.flatMap((fach) => {
+    return subjects.filter(fach => selectedSubjects.includes(fach)).flatMap((fach) => {
       const mode = getAssessmentMode(app, fach);
       return (['1', '2'] as const).flatMap(semester => {
         const semesterData: any = subjectRecords?.[fach]?.[semester];
@@ -207,6 +211,11 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
       .map((goal: any) => `- ${goal.ziel} (Status: ${goal.status || 'offen'})`)
       .join('\n') || '';
 
+    const selectedPortfolio = (s.portfolio || [])
+      .filter(entry => selectedPortfolioIds.includes(entry.id))
+      .map(entry => [entry.fach, entry.titel, entry.beschreibung].filter(Boolean).join(' · '))
+      .filter(Boolean);
+    const portfolioStr = selectedPortfolio.length ? selectedPortfolio.join('\n') : 'Nicht einbezogen';
     const studentObs = getStudentObservationEntries(studentId);
     const approvedObservations = includeObservations
       ? studentObs.filter((entry: any) => selectedObservationIds.includes(observationKey(entry)))
@@ -219,7 +228,8 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
       (includeBadges && sBadges.length > 0) ||
       (includeFoerder && Boolean(fpZiele)) ||
       (includeKel && Boolean(kelGoalsStr || kelSelfStr)) ||
-      approvedObservations.length > 0;
+      approvedObservations.length > 0 ||
+      selectedPortfolio.length > 0;
     if (!hasExplicitEvidence) {
       alert('Bitte wähle zuerst belegbare Daten für dieses Kind aus. Ohne freigegebene Daten wird kein Bericht erzeugt.');
       return;
@@ -276,6 +286,8 @@ ${fpZiele || (includeFoerder ? 'Keine aktiv ausgewiesenen Förderziele' : 'Nicht
 KEL-Selbsteinschätzung des Kindes: ${kelSelfStr || (includeKel ? 'Keine dokumentierte Selbsteinschätzung' : 'Nicht einbezogen')}
 KEL vereinbarte Ziele:
 ${kelGoalsStr || (includeKel ? 'Keine dokumentierten KEL-Ziele' : 'Nicht einbezogen')}
+Ausgewählte Portfolioarbeiten:
+${portfolioStr}
 Letzte dokumentierte Beobachtungen:
 ${obsStr}
 Zusätzlicher Wunsch der Lehrkraft: ${personalWish || 'Kein spezieller Wunsch'}
