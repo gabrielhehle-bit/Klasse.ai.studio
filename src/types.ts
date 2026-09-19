@@ -824,6 +824,8 @@ export interface MaterialItem {
   faecher: string[];
   schulstufen: number[];
   tags: string[];
+  /** Persönliche Sammlungen: Mehrfachzuordnung ohne Materialkopie. */
+  sammlungen?: string[];
   lehrplanZuordnung?: {
     fach: string;
     kompetenzbereichId: string;
