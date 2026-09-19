@@ -175,9 +175,9 @@ Schwache: ${plan.differenzierung.schwache}
     
     // Aggregate class context
     const classContext = `
-      Klasse: ${app.stufe}. Schulstufe, ${app.schueler.length} Schüler/innen.
-      Niveau (Notenmappe): ${app.notenmappe ? 'Detaillierte Noten vorhanden' : 'Keine Noten hinterlegt'}
-      Notizen zu Schülern: ${app.schueler.map(s => s.notiz).filter(Boolean).slice(0, 10).join('; ')}
+      Schulstufe: ${app.stufe || 'nicht angegeben'}.
+      Anzahl der Kinder: ${app.schueler.length}.
+      Es werden keine Namen, individuellen Beobachtungen, Notizen oder Leistungsdaten übertragen.
     `;
 
     const allMaterials = [...selectedCommon, eigenesMaterial].filter(Boolean).join(', ');
