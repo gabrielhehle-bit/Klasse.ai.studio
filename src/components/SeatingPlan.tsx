@@ -1367,6 +1367,7 @@ export default function SeatingPlan() {
   const [viewOffset, setViewOffset] = useState({ x: 0, y: 0 });
   const autoFitAllowed = useRef(true);
   const [showPrivateDetails, setShowPrivateDetails] = useState(false);
+  const [showMoreTools, setShowMoreTools] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
 
@@ -1420,6 +1421,7 @@ export default function SeatingPlan() {
     }
     setSelectedObjId(null);
     setShowPrivateDetails(false);
+    setShowMoreTools(false);
     setOverlayFilter('standard');
     setShowGenerator(false);
     setShowRulesModal(false);
@@ -1695,15 +1697,19 @@ export default function SeatingPlan() {
   const unplacedStudents = students.filter(s => !sitzplan_schueler[s.id]);
   const placedStudents = students.filter(s => sitzplan_schueler[s.id]);
   const isPlanEmpty = placedStudents.length === 0 && (app.sitzplan_objekte || []).length === 0;
+  const latestRoomRef = useRef({ placedStudents, sitzplan_schueler, sitzplan_objekte });
+  latestRoomRef.current = { placedStudents, sitzplan_schueler, sitzplan_objekte };
 
   // View transforms affect only the screen; student seats and room objects stay untouched.
   const fitRoomToScreen = () => {
     const viewport = planRef.current;
-    if (!viewport || isPlanEmpty) return;
+    if (!viewport) return;
+    const { placedStudents: visibleStudents, sitzplan_schueler: seats, sitzplan_objekte: objects } = latestRoomRef.current;
+    if (!visibleStudents.length && !objects.length) return;
     const view = fitSeatingPlanViewport(
       viewport.clientWidth, viewport.clientHeight,
-      placedStudents.map(student => sitzplan_schueler[student.id]),
-      sitzplan_objekte
+      visibleStudents.map(student => seats[student.id]),
+      objects
     );
     setZoom(view.zoom);
     setViewOffset({ x: view.offsetX, y: view.offsetY });
@@ -1738,6 +1744,15 @@ export default function SeatingPlan() {
   };
 
   const showNeutralRoom = () => {
+    // Leave editing and transient teacher-only panels before sharing this screen.
+    if (previewState.active && previewState.previousSitzplan) {
+      setApp(previous => ({ ...previous, sitzplan_schueler: previewState.previousSitzplan }));
+    }
+    setPreviewState({ active: false, previousSitzplan: null, violatedRules: [], history: [], historyIndex: -1 });
+    setEditMode(false);
+    setShowGenerator(false);
+    setShowPresetsMenu(false);
+    setShowMoreTools(false);
     setShowPrivateDetails(false);
     setOverlayFilter('standard');
     setShowFilterMenu(false);
@@ -2666,7 +2681,7 @@ export default function SeatingPlan() {
                 <Eye size={14} /> Alltag
               </button>
               <button 
-                onClick={() => { setEditMode(true); setPresentationMode(false); }}
+                onClick={() => { autoFitAllowed.current = false; setEditMode(true); setPresentationMode(false); }}
                 aria-pressed={editMode}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[0.6875rem] font-bold uppercase tracking-wider transition-all ${(editMode) ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
                 title="Sitzplan bearbeiten, Möbel verschieben, Schüler neu platzieren"
@@ -2674,6 +2689,18 @@ export default function SeatingPlan() {
                 <Move size={14} /> Planen
               </button>
             </div>
+
+            <button
+              type="button"
+              aria-pressed={showPrivateDetails}
+              onClick={() => showPrivateDetails ? showNeutralRoom() : setShowPrivateDetails(true)}
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold ${showPrivateDetails
+                ? 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'}`}
+              title={showPrivateDetails ? 'Für Smartboard und Bildschirmfreigabe: nur Namen anzeigen' : 'Pädagogische Zusatzangaben nur bei Bedarf einschalten'}>
+              {showPrivateDetails ? <EyeOff size={15} /> : <Eye size={15} />}
+              {showPrivateDetails ? 'Nur Namen' : 'Lehrpersonenansicht'}
+            </button>
 
           {/* Grid Snap Control */}
           {editMode && !isPlanEmpty && (
@@ -2707,7 +2734,7 @@ export default function SeatingPlan() {
 
           {/* Tools */}
           <div className={`${isPlanEmpty ? 'hidden' : 'flex'} flex-wrap gap-1.5 justify-center lg:justify-start`}>
-            <div className="relative">
+            {showPrivateDetails && <div className="relative">
               <button 
                 onClick={() => setShowFilterMenu(!showFilterMenu)} 
                 className={`px-3 py-2 rounded-xl border text-[0.6875rem] font-bold uppercase tracking-wider transition-all shadow-sm flex items-center gap-2 ${overlayFilter !== 'standard' ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-slate-200 text-slate-700 hover:text-indigo-700 hover:border-indigo-300'}`} 
@@ -2751,12 +2778,21 @@ export default function SeatingPlan() {
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
-            <button onClick={runLotto} disabled={isLottoRunning} className={`p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-amber-600 transition-all shadow-sm ${isLottoRunning ? 'animate-spin' : ''}`} title="Lotto">
+            </div>}
+            <button onClick={runLotto} aria-label="Zufälliges Kind auswählen" disabled={isLottoRunning} className={`p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-amber-600 transition-all shadow-sm ${isLottoRunning ? 'animate-spin' : ''}`} title="Lotto">
               <RefreshCw size={18} />
             </button>
 
-            <button 
+            <button type="button"
+              onClick={() => setShowMoreTools(value => !value)}
+              aria-expanded={showMoreTools}
+              aria-controls="seating-more-tools"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+              <Menu size={14} />
+              Weitere Werkzeuge
+            </button>
+            <div id="seating-more-tools" className={`${showMoreTools ? 'flex' : 'hidden'} flex-wrap items-center gap-1.5`}>
+            {editMode && <button 
               onClick={() => setShowRulesModal(true)} 
               className={`p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-indigo-600 transition-all shadow-sm relative`} 
               title="Sitzplan-Regeln"
@@ -2765,17 +2801,18 @@ export default function SeatingPlan() {
               {(app.sitzplanRegeln?.length || 0) > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 bg-indigo-600 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">{app.sitzplanRegeln?.length}</span>
               )}
-            </button>
+            </button>}
 
-            <button 
+            {showPrivateDetails && <button 
               onClick={() => setShowAnalysisPanel(!showAnalysisPanel)} 
               className={`p-2 rounded-xl border transition-all shadow-sm flex items-center justify-center relative ${showAnalysisPanel ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white border-slate-200 text-slate-650 hover:text-indigo-600 hover:border-indigo-150'}`} 
               title="Pädagogische Planungs-Analyse"
             >
               <TrendingUp size={18} />
-            </button>
+            </button>}
+            </div>
             {/* Raumvorlagen (Room Presets) Dropdown */}
-            <div className="relative">
+            {editMode && <div className="relative">
               <button 
                 onClick={() => {
                   setShowPresetsMenu(!showPresetsMenu);
@@ -2824,18 +2861,18 @@ export default function SeatingPlan() {
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
+            </div>}
 
-            <button 
+            {editMode && <button 
               onClick={handleShuffleRules} 
               className={`px-3 py-2 rounded-xl border transition-all shadow-sm flex items-center gap-1.5 text-[0.6875rem] font-bold uppercase tracking-wider bg-indigo-50 border-indigo-200 text-indigo-800 hover:bg-indigo-100 mx-1`} 
               title="Neue Sitzordnung"
             >
               <Shuffle size={14} className="text-indigo-600" />
               <span>Neue Sitzordnung</span>
-            </button>
+            </button>}
             
-            {showUndoShuffle && (
+            {editMode && showUndoShuffle && (
               <button 
                 onClick={() => {
                    setApp(prev => ({ ...prev, sitzplan_schueler: lastShuffleSitzplan }));
@@ -2849,23 +2886,23 @@ export default function SeatingPlan() {
               </button>
             )}
 
-            <button 
+            {showPrivateDetails && <button 
               onClick={toggleEmojis} 
               className={`px-3 py-1.5 rounded-xl border transition-all shadow-sm flex items-center gap-1.5 text-[0.6875rem] font-black uppercase ${showEmojis ? 'bg-indigo-50 border-indigo-200 text-indigo-650' : 'bg-white border-slate-200 text-slate-650 hover:text-indigo-600 hover:border-indigo-100'}`} 
               title={showEmojis ? "Emojis ausblenden" : "Emojis einblenden"}
             >
               <Smile size={14} className={showEmojis ? 'text-indigo-500' : 'text-slate-400'} />
               <span>Emojis</span>
-            </button>
+            </button>}
             
-            <button 
+            {editMode && <button 
               onClick={handleUndo} 
               disabled={history.length === 0} 
               className={`p-2 rounded-xl border transition-all shadow-sm flex items-center justify-center ${history.length === 0 ? 'bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed opacity-50' : 'bg-white border-slate-200 text-slate-700 hover:text-indigo-600 hover:border-indigo-200 active:scale-95'}`} 
               title="Rückgängig"
             >
               <Undo size={18} />
-            </button>
+            </button>}
           </div>
 
           <div className="w-px h-6 bg-slate-200 mx-1" />
@@ -3892,7 +3929,12 @@ export default function SeatingPlan() {
                </div>
              )}
              <div className="flex items-center gap-2">
-               <span>Zoom</span>
+               <button type="button" onClick={() => { autoFitAllowed.current = true; fitRoomToScreen(); }}
+                 aria-label="Gesamten Sitzplan einpassen" title="Tische und Kinder im Raum zentrieren, ohne ihre Positionen zu verändern"
+                 className="rounded-lg border border-slate-200 bg-white px-2 py-1 font-bold text-indigo-700 hover:bg-indigo-50">
+                 <Locate size={13} className="inline mr-1" /> Einpassen
+               </button>
+               <span>Zoom {Math.round(zoom * 100)} %</span>
                <input
                  type="range"
                  min="0.1"
