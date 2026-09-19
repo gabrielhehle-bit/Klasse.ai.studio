@@ -3,13 +3,12 @@ import React, { useState } from 'react';
 import { logObservation } from '../lib/utils';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { Sparkles, User, RefreshCw, Copy, Check, FileText, BookOpen, Archive, Info, Save } from 'lucide-react';
+import { Sparkles, RefreshCw, Check, BookOpen, Archive, Info, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { askAI } from '../services/aiService';
 import { FAECHER_ALLE } from '../constants';
 import { berechne } from '../lib/GradeUtils';
 import { useMaterialLibrary, calculateStorageSize } from './Materialbibliothek';
-import Markdown from 'react-markdown';
 
 function AISaveButton({ content, studentName }: { content: string; studentName: string }) {
   const { app } = useApp();
@@ -191,7 +190,10 @@ export default function VerbalAssessment({
   const copyObservationIntoEditor = (note: { datum: string; inhalt: string }) => {
     // The teacher sees and edits the original text before explicitly submitting it.
     // Never silently transmit journal entries or assume they are anonymised.
+    requestRef.current += 1;
+    setLoading(false);
     setFocus(previous => [previous.trim(), note.inhalt.trim()].filter(Boolean).join('\n'));
+    setResultStudentId('');
     setHasCopiedObservations(true);
     setReviewedObservations(false);
     setResult('');
@@ -199,6 +201,9 @@ export default function VerbalAssessment({
   };
 
   const toggleSubject = (fach: string) => {
+    requestRef.current += 1;
+    setLoading(false);
+    setResultStudentId('');
     setSelectedSubjects(previous => previous.includes(fach)
       ? previous.filter(entry => entry !== fach)
       : [...previous, fach]);
@@ -323,7 +328,7 @@ export default function VerbalAssessment({
             <div>
               <label htmlFor="feedback-observations" className="mb-2 block text-xs font-bold text-slate-600">Eigene Beobachtungen / gewünschter Fokus</label>
               <textarea id="feedback-observations" className="input-field min-h-32 w-full resize-y p-3" value={focus}
-                onChange={event => { setFocus(event.target.value); setReviewedObservations(false); setResult(''); setSavedInDossier(false); }}
+                onChange={event => { requestRef.current += 1; setLoading(false); setFocus(event.target.value); setReviewedObservations(false); setResult(''); setResultStudentId(''); setSavedInDossier(false); }}
                 placeholder="Konkrete Beobachtungen – keine Namen, Kontaktdaten oder Gesundheitsangaben eingeben." />
             </div>
             {hasCopiedObservations && <label className="flex items-start gap-2 text-xs text-slate-700">
