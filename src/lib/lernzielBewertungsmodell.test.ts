@@ -108,3 +108,16 @@ test('school rubric is separate: learning-goal explanation does not overwrite Ob
   assert.doesNotMatch(explanation, /erlaeuterungsmatrix\s*:/);
   assert.match(explanation, /Kein amtliches Zeugnis/);
 });
+
+
+test('weekly-goal checklist and class view share the editable ordinal model without fake percentages', () => {
+  const tracker = readFileSync('src/components/LernzielTracker.tsx', 'utf8');
+  const summary = readFileSync('src/components/dossier/DossierUebersicht.tsx', 'utf8');
+  assert.match(tracker, /goalModel\.levels\.map\(level =>/);
+  assert.match(tracker, /lernzielHaeufigkeiten\(goalIds, ratings, goalModel\)/);
+  assert.match(tracker, /Keine prozentuale Umrechnung oder automatische Förderdiagnose/);
+  assert.doesNotMatch(tracker, /rating === 1 \? 100/);
+  assert.doesNotMatch(tracker, /LernzielTrendChart/);
+  assert.match(summary, /rating === reachedValue/);
+  assert.match(summary, /goalModel\.levels\.some\(level =>/);
+});
