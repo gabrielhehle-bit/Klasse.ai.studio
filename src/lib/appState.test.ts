@@ -720,3 +720,37 @@ test('legacy root-only profile artifacts are assigned only to the active class',
   assert.deepEqual(loaded.classes[1].kiPortfolioSummaries, {});
   assert.deepEqual(loaded.classes[1].oberauData, {});
 });
+
+test('saved substitute preparation remains class-local after edit, switch and JSON reload', () => {
+  const initial = fixture();
+  const draft = {
+    rangeMode: 'single' as const,
+    singleDate: '2026-09-23', startDate: '', endDate: '', weekDate: '',
+    lessonNotes: { '2026-09-23-1': { fach: 'Mathematik', thema: 'A-only' } },
+    dayNotes: { '2026-09-23': 'Only in A' },
+    assignedStundenbilder: {},
+    emergencyChecklist: [{ id: 'material', text: 'Material', checked: true }],
+    printPages: { cover: true, overview: true, list: false, seating: false, feedback: false },
+  };
+  const savedA = syncActiveClass({ ...initial, vertretungsVorbereitung: draft });
+  assert.deepEqual(savedA.classes[0].vertretungsVorbereitung, draft);
+  const b = switchClassState(savedA, 'b');
+  assert.equal(b.vertretungsVorbereitung, undefined);
+  const savedB = syncActiveClass({ ...b, vertretungsVorbereitung: {
+    ...draft, singleDate: '2026-09-24', lessonNotes: {}, dayNotes: { '2026-09-24': 'Only in B' },
+  } });
+  const reloaded = normalizeAppState(JSON.parse(JSON.stringify(savedB)));
+  assert.equal(reloaded.vertretungsVorbereitung?.dayNotes['2026-09-24'], 'Only in B');
+  const restoredA = switchClassState(reloaded, 'a');
+  assert.equal(restoredA.vertretungsVorbereitung?.dayNotes['2026-09-23'], 'Only in A');
+  assert.equal(restoredA.vertretungsVorbereitung?.dayNotes['2026-09-24'], undefined);
+  assert.equal(restoredA.vertretungsVorbereitung?.lessonNotes['2026-09-23-1'].thema, 'A-only');
+});
+
+test('old JSON backups without substitute drafts preserve legacy handover notes', () => {
+  const old = normalizeAppState({
+    schueler: [], vertretungHinweise: 'Bestehende Klassenregeln',
+  });
+  assert.equal(old.vertretungHinweise, 'Bestehende Klassenregeln');
+  assert.equal(old.vertretungsVorbereitung, undefined);
+});
