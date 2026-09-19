@@ -41,9 +41,10 @@ export function buildKlassenbuchPdfDefinition(options: KlassenbuchPdfOptions): T
   const content: any[] = [];
 
   weeks.forEach((week, index) => {
-    const categories = Object.entries(week.categories).filter(([name]) =>
-      options.includeOccurrences !== false || name !== 'Besondere Vorkommnisse'
-    );
+    // The caller filters optional calendar events. The "Besondere
+    // Vorkommnisse" category may also contain actual lessons whose subject
+    // has not yet been configured, so it must never be removed wholesale.
+    const categories = Object.entries(week.categories);
 
     const totalCharacters = categories.reduce(
       (sum, [category, entries]) =>
