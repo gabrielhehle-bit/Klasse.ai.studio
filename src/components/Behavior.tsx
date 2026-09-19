@@ -647,12 +647,24 @@ export default function Behavior() {
                                        {new Date(entry.datum).toLocaleDateString('de-AT')}
                                     </div>
                                  </div>
+                                 <div className="flex items-center gap-1 print:hidden">
+                                   <button type="button" onClick={() => togglePinNote(entry.id)}
+                                     aria-label={entry.pinned ? 'Notiz lösen' : 'Notiz anheften'}
+                                     aria-pressed={Boolean(entry.pinned)}
+                                     className={`rounded-lg px-2 py-1 text-xs font-bold ${entry.pinned ? 'bg-indigo-100 text-indigo-800' : 'text-slate-600 hover:bg-white'}`}>
+                                     {entry.pinned ? '📌 Angeheftet' : 'Anheften'}
+                                   </button>
+                                   <button type="button"
+                                     onClick={() => { setEditingNoteId(entry.id); setEditingNoteText(entry.inhalt); }}
+                                     className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                                     aria-label="Notiz bearbeiten"><Edit2 size={14} /></button>
                                  <button 
                                    onClick={() => deleteJournalEntry(entry.id)}
                                    className="p-2 text-slate-600 hover:text-rose-700 hover:bg-rose-100 rounded-lg transition-all print:hidden" aria-label="Notiz löschen"
                                  >
                                     <Trash2 size={16} />
                                  </button>
+                                 </div>
                               </div>
 
                               {student && (
@@ -668,7 +680,22 @@ export default function Behavior() {
                               )}
 
                               <div className="relative z-10">
-                                 <p className="text-sm font-medium text-slate-800 leading-relaxed whitespace-pre-wrap print:text-black print:font-normal">{entry.inhalt}</p>
+                                {editingNoteId === entry.id ? (
+                                  <div className="space-y-2">
+                                    <textarea aria-label="Notiztext bearbeiten" value={editingNoteText}
+                                      onChange={event => setEditingNoteText(event.target.value)}
+                                      className="w-full min-h-24 rounded-lg border border-indigo-300 bg-white p-2 text-sm text-slate-900"
+                                      autoFocus />
+                                    <div className="flex gap-2">
+                                      <button type="button" onClick={saveEditedNote} disabled={!editingNoteText.trim()}
+                                        className="rounded-lg bg-indigo-700 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40">Änderungen speichern</button>
+                                      <button type="button" onClick={() => { setEditingNoteId(null); setEditingNoteText(''); }}
+                                        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700">Abbrechen</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm font-medium text-slate-800 leading-relaxed whitespace-pre-wrap print:text-black print:font-normal">{entry.inhalt}</p>
+                                )}
                               </div>
 
                               {!student && !entry.quelle?.includes('Direkt') && (
