@@ -61,11 +61,12 @@ export function getKelGradebookAssessments(
         const cleanRaw = String(raw).trim();
         // Missing markers (f/e/x/–), free text and malformed values are NOT marks.
         const validValue = mode === 'grades'
-          ? /^(?:[1-5](?:[+-])?)$/.test(cleanRaw)
+          ? /^(?:[1-5][+-]|[1-5](?:[.,]\\d+)?)$/.test(cleanRaw)
           : /^(?:\d+(?:[.,]\d+)?)$/.test(cleanRaw);
         if (!validValue) return;
         const numeric = Number(cleanRaw.replace(',', '.'));
-        if ((mode === 'percent' && numeric > 100) || numeric < 0) return;
+        if ((mode === 'percent' && numeric > 100) || numeric < 0 ||
+            (mode === 'grades' && Number.isFinite(numeric) && (numeric < 1 || numeric > 5))) return;
         const customTitle = meta?.colLabels?.[metaKey]?.[index];
         const titel = typeof customTitle === 'string' && customTitle.trim()
           ? customTitle.trim() : label + ' ' + (index + 1);
