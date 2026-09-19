@@ -132,9 +132,13 @@ export default function Portfolio() {
           <UserRound size={30} className="mx-auto text-slate-300" />
           <h1 className="mt-4 text-xl font-black text-slate-800">Noch keine Kinder in dieser Klasse</h1>
           <p className="mt-2 text-sm font-medium text-slate-500">
-            Lernziele und Portfolio stehen zur Verfügung, sobald mindestens ein Kind angelegt ist.
+            Beurteilungsmodell und schulische Vorlage kannst du bereits jetzt einrichten. Lernziele und Portfolio des Kindes stehen nach dem Anlegen einer Klasse mit Kindern zur Verfügung.
           </p>
+          <button type="button" onClick={() => setShowModelEditor(current => !current)} className="mt-4 rounded-xl bg-indigo-700 px-4 py-2 text-xs font-bold text-white">
+            {showModelEditor ? 'Modell schließen' : 'Beurteilungsmodell für diese Klasse einrichten'}
+          </button>
         </div>
+        {showModelEditor && <div className="mt-4"><LernzielModellEditor onClose={() => setShowModelEditor(false)} /></div>}
       </div>
     );
   }
