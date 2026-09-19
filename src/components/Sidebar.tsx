@@ -104,7 +104,6 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={18} />, section: 'Planung' },
     { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={18} />, section: 'Planung' },
     { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={18} />, section: 'Planung' },
-    { id: 'stunden', label: 'Stundenentwürfe', icon: <Notebook size={18} />, section: 'Planung' },
     { id: 'canva', label: 'Canva', icon: <LayoutGrid size={18} />, section: 'Planung' },
     { id: 'vertretung', label: 'Vertretung', icon: <Replace size={18} />, section: 'Planung' },
     { id: 'uebergabemappe', label: 'Übergabemappe', icon: <ClipboardList size={18} />, section: 'Planung' },

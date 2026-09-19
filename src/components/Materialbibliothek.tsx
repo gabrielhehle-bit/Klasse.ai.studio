@@ -15,6 +15,7 @@ import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { MaterialItem } from '../types';
 import { generateTeachingMaterial } from '../services/aiService';
 import { calculateMaterialStorageSize, MATERIAL_LIBRARY_MAX_MB, normalizeMaterialExternalLink, removeMaterialReferencesFromClasses, removeMaterialReferencesFromWeeklyPlan, sanitizeMaterialForType, upsertMaterial, validateMaterialFile } from '../lib/materialLibraryUtils';
+import { lessonDraftFromMaterial } from '../lib/lessonDrafts';
 export { calculateMaterialStorageSize as calculateStorageSize } from '../lib/materialLibraryUtils';
 
 const normalizeMaterialItem = (item: MaterialItem): MaterialItem => ({
@@ -82,7 +83,7 @@ export default function Materialbibliothek() {
     if (activeTab === 'Favoriten') list = list.filter(m => m.favorit);
     else if (activeTab === 'Dateien') list = list.filter(m => m.typ === 'datei');
     else if (activeTab === 'Links') list = list.filter(m => m.typ === 'link');
-    else if (activeTab === 'Stundenentwürfe') list = list.filter(m => m.typ === 'stundenentwurf');
+    else if (activeTab === 'Unterrichtsvorbereitungen') list = list.filter(m => m.typ === 'stundenentwurf');
     else if (activeTab === 'Notfallpläne') list = list.filter(m => m.typ === 'notfallplan');
     else if (activeTab === 'Elternbriefe') list = list.filter(m => m.typ === 'elternbrief');
     else if (activeTab === 'Beurteilungen') list = list.filter(m => m.typ === 'beurteilung');
@@ -220,6 +221,22 @@ export default function Materialbibliothek() {
 
   return (
     <div className={`material-library-shell ${isCompact ? "space-y-4" : isLarge ? "space-y-8" : "space-y-5"}`}>
+      {(app.stundenentwuerfe || []).length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+          <div>
+            <h2 className="text-sm font-black text-indigo-950">Bestehende Unterrichtsentwürfe</h2>
+            <p className="mt-1 text-xs text-indigo-800">
+              {(app.stundenentwuerfe || []).length} bisher gespeicherte Entwürfe bleiben unverändert und sind weiterhin bearbeitbar.
+              Neue Vorbereitungen erstellst du direkt im Wochenplan und speicherst sie hier als Vorlage.
+            </p>
+          </div>
+          <button type="button" onClick={() => setPage('stunden')}
+            className="rounded-xl bg-white px-4 py-2 text-xs font-black text-indigo-800 shadow-sm hover:bg-indigo-100">
+            Bisherige Entwürfe öffnen →
+          </button>
+        </div>
+      )}
+
       {/* Header & Stats Widget */}
       <div className={`flex flex-col md:flex-row md:items-start justify-between border-b border-slate-100 ${
         isCompact ? 'pb-4 gap-4' : isLarge ? 'pb-10 gap-8' : 'pb-6 gap-5'
@@ -367,7 +384,7 @@ export default function Materialbibliothek() {
       }`}>
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 pb-1">
-          {['Alle', 'Dateien', 'Links', 'Stundenentwürfe', 'Notfallpläne', 'Elternbriefe', 'Beurteilungen', 'Reflexionen', 'Notizen', 'Favoriten'].map(tab => (
+          {['Alle', 'Dateien', 'Links', 'Unterrichtsvorbereitungen', 'Notfallpläne', 'Elternbriefe', 'Beurteilungen', 'Reflexionen', 'Notizen', 'Favoriten'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -1669,6 +1686,7 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
   const [day, setDay] = useState('Montag');
   const [hour, setHour] = useState(1);
   const [mode, setMode] = useState<'append' | 'replace'>('append');
+  const [applyPreparation, setApplyPreparation] = useState(false);
 
   const days = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
   const availableHours = LESSON_SLOT_NUMBERS;
@@ -1682,6 +1700,9 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
   const alreadyLinked = existingMaterialIds.includes(item.id);
 
   const save = () => {
+    const lessonDraft = item.typ === 'stundenentwurf' && applyPreparation ? lessonDraftFromMaterial(item) : null;
+    if (lessonDraft && (existing.thema || existing.fach || existing.stundenentwurf || existing.method) &&
+      !window.confirm('Diese Unterrichtsstunde enthält bereits eine Planung. Fach, Thema und ausführlichen Entwurf durch die ausgewählte Vorlage ersetzen?')) return;
     setApp(prev => {
       const wochenplanung = { ...(prev.wochenplanung || {}) } as any;
       const week = { ...(wochenplanung[kw] || {}) } as any;
@@ -1698,6 +1719,15 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
         fach: slot.fach || (prev.stammplan as any)?.[day]?.[hour] || item.faecher?.[0] || '',
         material: mode === 'replace' ? '' : (slot.material || ''),
         materialIds,
+        ...(lessonDraft ? {
+          fach: lessonDraft.fach || slot.fach || '',
+          thema: lessonDraft.thema || slot.thema || '',
+          stundenentwurf: {
+            ...(slot.stundenentwurf || {}),
+            lernziele: lessonDraft.lernziele, einleitung: lessonDraft.einleitung,
+            hauptteil: lessonDraft.hauptteil, schluss: lessonDraft.schluss, material: lessonDraft.material,
+          },
+        } : {}),
       };
       week[day] = dayPlan;
       wochenplanung[kw] = week;
@@ -1773,6 +1803,19 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
             )}
           </div>
 
+          {item.typ === 'stundenentwurf' && (
+            <label className="flex cursor-pointer gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-3.5">
+              <input type="checkbox" checked={applyPreparation} onChange={event => setApplyPreparation(event.target.checked)} />
+              <span>
+                <strong className="block text-sm text-indigo-950">Unterrichtsvorbereitung übernehmen</strong>
+                <span className="mt-1 block text-xs text-indigo-800">
+                  Übernimmt Fach, Thema, Lernziele und Stundenablauf. Bereits vorhandene Unterrichtsinhalte werden vor dem Ersetzen bestätigt.
+                  Ohne Häkchen wird nur das Material verknüpft.
+                </span>
+              </span>
+            </label>
+          )}
+
           <fieldset className="space-y-2">
             <legend className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400 mb-2">Übernahme</legend>
             <label className="flex gap-3 p-3.5 rounded-2xl border border-slate-200 cursor-pointer">
@@ -1819,7 +1862,9 @@ export function useMaterialLibrary() {
       tags: item.tags || existing?.tags || [],
       erstelltAm: existing?.erstelltAm || new Date().toISOString(),
       favorit: existing?.favorit || false,
-      kiGeneriert: true,
+      kiGeneriert: item.kiGeneriert ?? existing?.kiGeneriert ?? true,
+      lernziel: item.lernziel ?? existing?.lernziel,
+      dauer: item.dauer ?? existing?.dauer,
       quelleModul,
       inhaltText: item.inhaltText,
       externerLink: item.externerLink,

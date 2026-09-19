@@ -11,7 +11,7 @@ test('Sidebar: vollständige moderne Klassio-Bereiche bleiben erreichbar', () =>
     'differenzierung', 'elternbrief',
     'schueler', 'sitzplan', 'anwesenheit', 'verhalten', 'teamteaching', 'orga',
     'noten', 'statistik', 'diagnostik', 'portfolio', 'notenTabelle', 'verbal', 'kel',
-    'planungszentrale', 'jahresplanung', 'wochenplanung', 'materialien', 'stunden',
+    'planungszentrale', 'jahresplanung', 'wochenplanung', 'materialien',
     'canva', 'vertretung', 'uebergabemappe', 'klassengemeinschaft', 'jahresbericht',
     'archiv', 'drucken', 'datensicherung', 'settings',
   ]) {
