@@ -176,6 +176,7 @@ import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSele
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
+import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
@@ -2914,6 +2915,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     useState<string>("categories");
   const [widgetSearch, setWidgetSearch] = useState<string>("");
   const [isBoardTextEditing, setIsBoardTextEditing] = useState(false);
+  const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
+  useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
   const boardTextClassKey = app.activeClassId || "unassigned";
   const boardTextHtml =
     ((app.boardSettings as any)?.cockpitTextByClass?.[boardTextClassKey] as string | undefined) || "";
@@ -9366,6 +9369,13 @@ ${content}
                           >
                             <Type size={15} />
                             <span>TEXT</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsBirthdayCelebrationOpen(true)}
+                            className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                          >
+                            🎂 Geburtstag
                           </button>
 
                           <button
@@ -18366,6 +18376,14 @@ ${content}
               }));
             }
           }}
+        />
+      )}
+
+      {isBirthdayCelebrationOpen && (
+        <BirthdayCelebration
+          students={app.schueler ?? []}
+          isBirthdayToday={(student) => checkIsAutoBirthday(student.geburtstag)}
+          onClose={() => setIsBirthdayCelebrationOpen(false)}
         />
       )}
 
