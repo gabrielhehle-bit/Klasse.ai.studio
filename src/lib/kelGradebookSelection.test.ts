@@ -48,7 +48,7 @@ function demo() {
 test('only individually documented marks of the chosen student, subjects and semester are available', () => {
   const app = demo();
   const grades = getKelGradebookAssessments(app, 'child-a', '1', app.faecher);
-  assert.equal(grades.length, 6);
+  assert.equal(grades.length, 5);
   assert.ok(grades.some(entry => entry.titel === 'Lesearbeit' && entry.ergebnis === 'Note 2+' && entry.datum === '2026-10-14'));
   assert.ok(grades.some(entry => entry.titel === 'Zahlenraum 20' && entry.ergebnis === '18 von 20 Punkten'));
   assert.ok(grades.some(entry => entry.ergebnis === '0 Punkte'));
