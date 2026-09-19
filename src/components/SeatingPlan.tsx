@@ -2299,6 +2299,87 @@ export default function SeatingPlan() {
     return '#ffffff';
   };
 
+  // Named arrangements belong to the encrypted active class, not localStorage.
+  const savedLayouts = Array.isArray(app.sitzplanLayouts)
+    ? app.sitzplanLayouts.filter(layout => layout && typeof layout.id === 'string' && typeof layout.name === 'string')
+    : [];
+  const selectedSavedLayout = savedLayouts.find(layout => layout.id === selectedSavedLayoutId);
+
+  const nextLayoutId = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID() : `seat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const saveCurrentArrangement = () => {
+    if (savedLayouts.length >= 20) {
+      window.alert('Es können höchstens 20 Sitzordnungen pro Klasse gespeichert werden.');
+      return;
+    }
+    const suggested = `Sitzordnung ${savedLayouts.length + 1}`;
+    const requested = window.prompt('Name der Sitzordnung:', suggested);
+    const name = requested?.trim();
+    if (!name) return;
+    const id = nextLayoutId();
+    const snapshot = createSeatingLayout(id, name, app.sitzplan_schueler || {},
+      app.sitzplan_objekte || [], app.sitzplanRegeln || []);
+    setApp(previous => ({ ...previous, sitzplanLayouts: [...(previous.sitzplanLayouts || []), snapshot] }));
+    setSelectedSavedLayoutId(id);
+    setShowSeatingComparison(false);
+  };
+
+  const loadSavedArrangement = () => {
+    if (!selectedSavedLayout) return;
+    const currentPositions = app.sitzplan_schueler || {};
+    const currentFurniture = app.sitzplan_objekte || [];
+    const currentRules = app.sitzplanRegeln || [];
+    if (!sameSeatingArrangement(selectedSavedLayout, currentPositions, currentFurniture, currentRules)
+      && !window.confirm('Die gespeicherte Sitzordnung ersetzt den aktuellen Raum. Nicht gespeicherte Änderungen können über Rückgängig wiederhergestellt werden. Fortfahren?')) return;
+    const resolved = resolveSeatingLayout(selectedSavedLayout, app.schueler.map(child => child.id));
+    pushState();
+    setApp(previous => ({
+      ...previous,
+      sitzplan_schueler: resolved.positions,
+      sitzplan_objekte: resolved.objects,
+      sitzplanRegeln: resolved.rules
+        ? sanitizeSeatingRules(resolved.rules, previous.schueler, resolved.positions)
+        : previous.sitzplanRegeln,
+    }));
+    setSelectedObjId(null);
+    setShowSeatingComparison(false);
+    setRefitSavedLayoutSignal(previous => previous + 1);
+  };
+
+  const duplicateSavedArrangement = () => {
+    if (!selectedSavedLayout) return;
+    if (savedLayouts.length >= 20) {
+      window.alert('Es können höchstens 20 Sitzordnungen pro Klasse gespeichert werden.');
+      return;
+    }
+    const requested = window.prompt('Name der neuen Kopie:', `${selectedSavedLayout.name} – Kopie`);
+    if (!requested?.trim()) return;
+    const copy = createSeatingLayout(nextLayoutId(), requested, selectedSavedLayout.positions,
+      selectedSavedLayout.objects, selectedSavedLayout.rules || []);
+    setApp(previous => ({ ...previous, sitzplanLayouts: [...(previous.sitzplanLayouts || []), copy] }));
+    setSelectedSavedLayoutId(copy.id);
+    setShowSeatingComparison(false);
+  };
+
+  const setDefaultSavedArrangement = () => {
+    if (!selectedSavedLayout) return;
+    setApp(previous => ({ ...previous, sitzplanDefaultLayoutId: selectedSavedLayout.id }));
+  };
+
+  const removeSavedArrangement = () => {
+    if (!selectedSavedLayout || !window.confirm(`Gespeicherte Sitzordnung „${selectedSavedLayout.name}“ löschen? Der aktuelle Sitzplan bleibt erhalten.`)) return;
+    const removedId = selectedSavedLayout.id;
+    setApp(previous => ({
+      ...previous,
+      sitzplanLayouts: (previous.sitzplanLayouts || []).filter(layout => layout.id !== removedId),
+      sitzplanDefaultLayoutId: previous.sitzplanDefaultLayoutId === removedId
+        ? undefined : previous.sitzplanDefaultLayoutId,
+    }));
+    setSelectedSavedLayoutId('');
+    setShowSeatingComparison(false);
+  };
+
   const addObject = (type: 'rectangle' | 'square' | 'triangle' | 'teacher_desk' | 'door' | 'window' | 'blackboard') => {
      pushState();
      let w = 80, h = 60;
