@@ -937,7 +937,8 @@ export default function WeeklyPlan() {
   // Klassenbuch-Ansicht und Druckzentrum nutzen dieselbe Projektion der gespeicherten Wochenplanung.
   const getKlassenbuchData = () => projectWeeklyPlanToClassbook(
     (app.wochenplanung || {})[activeKW],
-    { activeSubjects: app.faecher, stammplan: app.stammplan },
+    { activeSubjects: app.faecher, stammplan: app.stammplan,
+      materialTitlesById: Object.fromEntries((app.materialien || []).map(material => [material.id, material.titel])) },
   );
 
   const hasFreeDayInWeek = useMemo(() => {
