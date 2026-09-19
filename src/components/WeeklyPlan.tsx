@@ -14,7 +14,7 @@ import { WochenplanImportRow } from '../lib/planerExcelService';
 import { addWeeklyLessonToEmptyYearPlan, hasWeeklyPlanningDetails, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
-import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots } from '../lib/weeklyPlanData';
+import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
 import { getAttendanceSemester } from '../lib/attendanceData';
 import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
@@ -785,15 +785,6 @@ export default function WeeklyPlan() {
     });
   };
 
-  // "Vorbereitet" bedeutet eine in der Wochenplanung eingegebene Stunde, nicht "erledigt".
-  // Ein bloßes Fach aus dem Stammplan füllt den Nenner, aber nicht den Zähler.
-  const lessonHasPreparation = (item: any): boolean => Boolean(item && typeof item === 'object' && (
-    String(item.fach || '').trim() ||
-    hasWeeklyPlanningDetails(item) ||
-    ['lernziel', 'beschreibung', 'notiz', 'notizen', 'hue', 'buch'].some(key => String(item[key] || '').trim()) ||
-    (Array.isArray(item.schwerpunkte) && item.schwerpunkte.length > 0)
-  ));
-
   const weekMetrics = useMemo(() => {
     let total = 0;
     let prepared = 0;
@@ -804,7 +795,7 @@ export default function WeeklyPlan() {
         const stammFach = app.stammplan?.[tag]?.[idx + 1] || '';
         if (item?.fach || item?.thema || stammFach) {
           total++;
-          if (lessonHasPreparation(item)) prepared++;
+          if (isWeeklyLessonPrepared(item)) prepared++;
         }
       }
     });
@@ -1009,7 +1000,7 @@ export default function WeeklyPlan() {
       const displayFach = item?.fach || app.stammplan?.[tag]?.[idx + 1] || '';
       if (displayFach || item?.thema) {
         total++;
-        if (lessonHasPreparation(item)) prepared++;
+        if (isWeeklyLessonPrepared(item)) prepared++;
         if (item?.erledigt) completed++;
       }
     }
