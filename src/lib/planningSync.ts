@@ -83,3 +83,46 @@ export function addWeeklyLessonToEmptyYearPlan(input: {
 
   return { plan: next, status: 'added', subjectId };
 }
+
+/**
+ * A yearly topic can fill an empty lesson, but must not replace an existing
+ * teacher-written weekly plan. Returns original object on a conflict.
+ */
+export function mergeYearlySuggestionIntoEmptyWeeklySlot(
+  existing: Record<string, any> | undefined,
+  topic: {
+    thema?: string;
+    buch?: string;
+    type?: string;
+    subCategory?: string;
+    subCategories?: string[];
+    subjectId?: string;
+  },
+  suggestedSubject?: string,
+): { status: 'added' | 'occupied' | 'missing-topic'; lesson: Record<string, any> } {
+  const prior = existing || {};
+  const thema = String(topic?.thema || '').trim();
+  if (!thema) return { status: 'missing-topic', lesson: prior };
+  const fach = String(suggestedSubject || '').trim();
+  const hasDetails = hasWeeklyPlanningDetails(prior) ||
+    ['lernziel', 'beschreibung', 'notiz', 'notizen', 'hue', 'buch'].some(key =>
+      typeof prior[key] === 'string' && prior[key].trim()
+    ) ||
+    (Array.isArray(prior.schwerpunkte) && prior.schwerpunkte.length > 0);
+  const differentSubject = Boolean(fach && prior.fach && prior.fach !== fach);
+  if (hasDetails || differentSubject) return { status: 'occupied', lesson: prior };
+  const focuses = Array.isArray(topic.subCategories) && topic.subCategories.length
+    ? [...topic.subCategories]
+    : topic.subCategory ? [topic.subCategory] : [];
+  return {
+    status: 'added',
+    lesson: {
+      ...prior,
+      fach: prior.fach || fach,
+      thema,
+      ...(topic.buch ? { buch: topic.buch } : {}),
+      type: topic.type || prior.type || 'standard',
+      schwerpunkte: focuses.length ? focuses : prior.schwerpunkte || [],
+    },
+  };
+}
