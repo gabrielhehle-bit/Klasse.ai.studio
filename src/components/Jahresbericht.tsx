@@ -106,20 +106,11 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
       .filter((entry) => entry.schuelerId === studentId)
       .sort((a: any, b: any) => String(b.datum || '').localeCompare(String(a.datum || '')))[0];
 
-  const getStudentObservationEntries = (studentId: string) => {
-    const merged = [...(app.notes || []), ...((app.journal as any[]) || [])]
-      .filter((entry: any) => entry?.schuelerId === studentId);
+  const getStudentObservationEntries = (id: string) => getStudentNotes(app, id);
 
-    const seen = new Set<string>();
-    return merged
-      .filter((entry: any) => {
-        const key = entry.id || `${entry.datum || ''}|${entry.kategorie || ''}|${entry.inhalt || entry.content || ''}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .sort((a: any, b: any) => String(b.datum || '').localeCompare(String(a.datum || '')));
-  };
+  const observationKey = (entry: any) =>
+    String(entry.id || [entry.datum || entry.timestamp || '', entry.kategorie || '', entry.inhalt || entry.content || entry.notiz || ''].join('|'));
+
 
   const getAnnualGradeLines = (studentId: string): string[] => {
     const subjectRecords = app.noten?.[studentId] || {};
@@ -128,24 +119,23 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
       ...Object.keys(subjectRecords),
     ]));
 
+    // Both semesters are distinct evidence. A second-semester value must never
+    // silently replace the first-semester development in an annual report.
     return subjects.flatMap((fach) => {
       const mode = getAssessmentMode(app, fach);
-      for (const semester of ['2', '1']) {
+      return (['1', '2'] as const).flatMap(semester => {
         const semesterData: any = subjectRecords?.[fach]?.[semester];
         const explicitEndnote = semesterData?.endnote;
         if (explicitEndnote !== undefined && explicitEndnote !== null && String(explicitEndnote).trim() !== '') {
-          return [`- ${fach}: Endnote ${String(explicitEndnote).trim()} (Semester ${semester})`];
+          return [`- ${fach}: dokumentierte Endbeurteilung ${String(explicitEndnote).trim()} (Semester ${semester})`];
         }
-
         const calculated = berechne(app, studentId, fach, semester);
-        if (calculated !== null) {
-          const value = mode === 'grades'
-            ? `berechneter Stand ${Number(calculated).toFixed(1)}`
-            : `berechneter Stand ${Math.round(Number(calculated))}%`;
-          return [`- ${fach}: ${value} (Semester ${semester}, noch keine Endnote)`];
-        }
-      }
-      return [];
+        if (calculated === null || !Number.isFinite(Number(calculated))) return [];
+        const value = mode === 'grades'
+          ? `berechneter Stand ${Number(calculated).toFixed(1)} (Notenskala)`
+          : `berechneter Stand ${Math.round(Number(calculated))}% (${mode === 'points' ? 'aus Punkten berechnet' : 'Prozentskala'})`;
+        return [`- ${fach}: ${value} (Semester ${semester}, noch keine Endbeurteilung)`];
+      });
     });
   };
 
@@ -172,7 +162,7 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
       ? sBadges.map((badge: any) => `${badge.icon || ''} ${badge.name}`.trim()).join(', ')
       : 'Nicht einbezogen';
 
-    const latestKel = getLatestKelForStudent(studentId);
+    const latestKel = includeKel ? getLatestKelForStudent(studentId) : undefined;
     let kelGoalsStr = '';
     let kelSelfStr = '';
     if (latestKel) {
@@ -189,20 +179,28 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
     }
 
     // Förderziele sind pädagogische Arbeitsdaten. Diagnosefelder werden nicht automatisch an die KI übertragen.
-    const fpZiele = s.foerderprofil?.foerderziele
+    const fpZiele = (includeFoerder ? s.foerderprofil?.foerderziele : [])
       ?.filter((goal: any) => goal?.ziel)
       .map((goal: any) => `- ${goal.ziel} (Status: ${goal.status || 'offen'})`)
       .join('\n') || '';
 
     const studentObs = getStudentObservationEntries(studentId);
-    const obsStr = includeObservations && studentObs.length > 0
-      ? studentObs
-          .slice(0, 5)
-          .map((entry: any) => `[${entry.kategorie || 'Beobachtung'}]: ${entry.inhalt || entry.content || ''}`)
-          .join('\n')
-      : includeObservations
-        ? 'Keine spezifischen Beobachtungen vorhanden'
-        : 'Nicht einbezogen';
+    const approvedObservations = includeObservations
+      ? studentObs.filter((entry: any) => selectedObservationIds.includes(observationKey(entry)))
+      : [];
+    const obsStr = approvedObservations.length > 0
+      ? approvedObservations.map((entry: any) =>
+          `[${entry.kategorie || 'Beobachtung'}]: ${entry.inhalt || entry.content || entry.notiz || ''}`).join('\n')
+      : 'Nicht einbezogen';
+    const hasExplicitEvidence = annualGradeLines.length > 0 ||
+      (includeBadges && sBadges.length > 0) ||
+      (includeFoerder && Boolean(fpZiele)) ||
+      (includeKel && Boolean(kelGoalsStr || kelSelfStr)) ||
+      approvedObservations.length > 0;
+    if (!hasExplicitEvidence) {
+      alert('Bitte wähle zuerst belegbare Daten für dieses Kind aus. Ohne freigegebene Daten wird kein Bericht erzeugt.');
+      return;
+    }
 
     // 2. Map stylistic prompts
     let tonePrompt = '';
@@ -280,6 +278,7 @@ WICHTIGE ANWEISUNGEN:
 - Antworte direkt im Markdown-Format. Verwende keine einleitenden oder abschließenden Floskeln außerhalb des Berichts.`;
 
     try {
+      if (!window.confirm('Nur die ausgewählten schulischen Daten dieses Kindes werden für den Berichtsentwurf an den KI-Dienst gesendet. Fortfahren?')) return;
       const response = await askAI('ki-helfer', fullPrompt);
       if (!response?.trim()) throw new Error('Leere KI-Antwort');
       const inhalt = response.trim();
@@ -292,7 +291,18 @@ WICHTIGE ANWEISUNGEN:
             inhalt,
             generiert: new Date().toISOString(),
             schuljahr: currentTerm,
-            reviewStatus: 'offen'
+            reviewStatus: 'offen',
+            // No automatic overwrite of a manually approved or edited report.
+            verlauf: [
+              ...(prev.jahresberichte?.[studentId]?.verlauf || []),
+              ...(prev.jahresberichte?.[studentId]
+                ? [{
+                    inhalt: prev.jahresberichte[studentId].inhalt,
+                    generiert: prev.jahresberichte[studentId].generiert,
+                    schuljahr: prev.jahresberichte[studentId].schuljahr,
+                    reviewStatus: prev.jahresberichte[studentId].reviewStatus,
+                  }] : []),
+            ],
           }
         }
       }));
