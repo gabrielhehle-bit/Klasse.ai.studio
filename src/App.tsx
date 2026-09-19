@@ -664,7 +664,7 @@ function AppContent() {
       case 'kel': return <KELGespraeche />;
       case 'elternbrief': return <EmailAssistant />;
       case 'orga': return <OrgaLists />;
-      case 'statistik': return <Statistics />;
+      case 'statistik': return <Statistics initialTab="tools" />;
       case 'antolin': return <AntolinBereich />;
       // Old links remain valid; the same gradebook opens directly in its overview tab.
       case 'notenTabelle': return <Gradebook initialSection="overview" />;
