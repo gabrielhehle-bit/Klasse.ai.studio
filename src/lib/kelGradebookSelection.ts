@@ -21,6 +21,18 @@ const ASSESSMENT_TYPES: { key: KelAssessmentType; label: string; metaKey: string
   { key: 'aufgaben', label: 'Sonstige Leistung', metaKey: 'obj' },
 ];
 
+/** Non-reversible display-independent change fingerprint, not an access-control secret.
+ * The selected ID stores no copied grades, child names or assessment text.
+ */
+function assessmentFingerprint(data: string): string {
+  let hash = 0xcbf29ce484222325n;
+  for (let i = 0; i < data.length; i++) {
+    hash ^= BigInt(data.charCodeAt(i));
+    hash = (hash * 0x100000001b3n) & 0xffffffffffffffffn;
+  }
+  return hash.toString(16).padStart(16, '0');
+}
+
 function resultText(value: number | string, mode: AssessmentMode, configuredMax: unknown): string {
   const numberText = String(value);
   if (mode === 'grades') return 'Note ' + numberText;
@@ -74,7 +86,8 @@ export function getKelGradebookAssessments(
         const datum = typeof rawDate === 'string' ? rawDate : '';
         const maxPoints = meta?.maxPoints?.[metaKey]?.[index];
         const ergebnis = resultText(raw as number | string, mode, maxPoints);
-        const id = JSON.stringify([semester, fach, key, index, cleanRaw, titel, datum, maxPoints ?? null, mode]);
+        const digest = assessmentFingerprint(JSON.stringify([cleanRaw, titel, datum, maxPoints ?? null, mode]));
+        const id = JSON.stringify([semester, fach, key, index, digest]);
         items.push({ id, fach, typ: key, index, semester, titel, datum, ergebnis, mode });
       });
     }
