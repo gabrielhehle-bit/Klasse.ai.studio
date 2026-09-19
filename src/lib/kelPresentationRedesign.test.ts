@@ -46,8 +46,11 @@ test('PowerPoint export follows the same safe slide list as on-screen presentati
   assert.match(source, /for \(const slideData of slides\)/);
   assert.match(source, /slideData\.type === 'voices'/);
   assert.match(source, /slideData\.type === 'portfolio'/);
+  assert.match(source, /slideData\.type === 'individualGrades'/);
   assert.match(source, /slideData\.type === 'closing'/);
-  assert.doesNotMatch(source, /ChartType\.bar|ChartType\.pie|ChartType\.radar/);
+  assert.match(source, /sameScale &&/);
+  assert.match(source, /slide\.addChart\(pptx\.ChartType\.bar/);
+  assert.doesNotMatch(source, /ChartType\.pie|ChartType\.radar/);
 });
 
 test('parent presentation does not generate interpretations with AI', () => {
