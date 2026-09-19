@@ -44,11 +44,12 @@ test('meeting agreement is only persisted by an explicit save action', () => {
 
 test('PowerPoint export follows the same safe slide list as on-screen presentation', () => {
   assert.match(source, /for \(const slideData of slides\)/);
-  assert.match(source, /slide\.addChart\(pptx\.ChartType\.bar/);
+  assert.match(source, /slideData\.type === 'voices'/);
   assert.match(source, /slideData\.type === 'portfolio'/);
+  assert.match(source, /slideData\.type === 'individualGrades'/);
   assert.match(source, /slideData\.type === 'closing'/);
   assert.match(source, /sameScale &&/);
-  assert.match(source, /slide\\.addChart\\(pptx\\.ChartType\\.bar/);
+  assert.match(source, /slide\.addChart\(pptx\.ChartType\.bar/);
   assert.doesNotMatch(source, /ChartType\.pie|ChartType\.radar/);
 });
 
