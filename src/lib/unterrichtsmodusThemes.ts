@@ -249,7 +249,8 @@ export const UNTERRICHTSMODUS_HINTERGRUENDE: Record<UnterrichtsmodusHintergrundI
       backgroundRepeat: 'repeat'
     } 
   },
-  eigenes: { label: 'Eigenes', style: {} }
+  eigenes: { label: 'Eigenes', style: {} },
+  canva: { label: 'Canva', style: {} }
 };
 
 export interface ResolvedDesignTokens {
