@@ -149,6 +149,7 @@ export default function VerbalAssessment({
   const [reviewedObservations, setReviewedObservations] = useState(false);
   const [result, setResult] = useState('');
   const [resultStudentId, setResultStudentId] = useState('');
+  const [resultClassId, setResultClassId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [savedInDossier, setSavedInDossier] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -173,6 +174,7 @@ export default function VerbalAssessment({
     setHasCopiedObservations(false);
     setResult('');
     setResultStudentId('');
+    setResultClassId(undefined);
     setSavedInDossier(false);
     setLoading(false);
   }, [app.activeClassId, initialStudentId, initialSubject, initialSemester, mode]);
@@ -187,6 +189,7 @@ export default function VerbalAssessment({
     setReviewedObservations(false);
     setResult('');
     setResultStudentId('');
+    setResultClassId(undefined);
     setSavedInDossier(false);
     setLoading(false);
   };
@@ -223,6 +226,7 @@ export default function VerbalAssessment({
     }
     const requestId = ++requestRef.current;
     const studentIdAtStart = student.id;
+    const classIdAtStart = app.activeClassId;
     setLoading(true);
     setResult('');
     setSavedInDossier(false);
@@ -259,6 +263,7 @@ export default function VerbalAssessment({
       if (text) {
         setResult(text);
         setResultStudentId(studentIdAtStart);
+        setResultClassId(classIdAtStart);
       }
     } catch (err) {
       if (requestRef.current === requestId) {
@@ -270,7 +275,7 @@ export default function VerbalAssessment({
   };
 
   const saveToDossier = () => {
-    if (!result.trim() || !student || student.id !== resultStudentId || savedInDossier) return;
+    if (!result.trim() || !student || student.id !== resultStudentId || resultClassId !== app.activeClassId || savedInDossier) return;
     // logObservation uses existing encrypted, class-local notes/journal persistence.
     // Saved texts show up in this child's Dossier → Beobachtungen & Verlauf.
     logObservation(setApp, student.id, result.trim(), 'Notiz', isFormal ? 'Verbale Beurteilung' : 'Leistungsfeedback');
@@ -288,7 +293,7 @@ export default function VerbalAssessment({
     }
   };
 
-  const canSave = Boolean(result.trim() && student && resultStudentId === student.id);
+  const canSave = Boolean(result.trim() && student && resultStudentId === student.id && resultClassId === app.activeClassId);
   return (
     <div className="h-full w-full overflow-y-auto custom-scrollbar">
       <div className="mx-auto max-w-7xl space-y-6 px-3 py-6 md:px-6">
