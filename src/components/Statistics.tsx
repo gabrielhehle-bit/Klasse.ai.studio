@@ -3916,6 +3916,22 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
         onClose={() => setShowAntolinImport(false)}
       />
 
+      {initialTab === 'tools' && (
+        <details className="rounded-xl border border-slate-200 bg-white p-3 print:hidden">
+          <summary className="cursor-pointer text-xs font-bold text-slate-700">Weitere bisherige Sonderfunktionen (Übergangsansicht)</summary>
+          <p className="mt-2 text-xs text-slate-600">Diese selten verwendeten älteren Auswertungen bleiben erreichbar, bis die Umstellung vollständig geprüft ist.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" onClick={() => { setActiveTab('mehr'); setMehrSubTab('tools'); setSelectedStudentId(null); }}
+              className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">Spezialwerkzeuge</button>
+            <button type="button" onClick={() => { setActiveTab('mehr'); setMehrSubTab('charts'); setStatsSubTab('leistung'); setSelectedStudentId(null); }}
+              className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">Frühere Detaildiagramme</button>
+            <button type="button" onClick={() => { setActiveTab('profiles'); setProfilesSubTab('liste'); setSelectedStudentId(null); }}
+              className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">Frühere KEL-/Profil-Sonderansicht</button>
+            <button type="button" onClick={() => { setActiveTab('mehr'); setMehrSubTab('antolin'); setStatsSubTab('antolin'); setSelectedStudentId(null); }}
+              className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">Frühere Antolin-Timeline</button>
+          </div>
+        </details>
+      )}
       {/* Legacy screen: specialists only; the normal class, profile and Antolin views live in their new locations. */}
       {initialTab !== 'tools' && (
       <div className="flex justify-center w-full pb-2">
