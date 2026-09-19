@@ -129,11 +129,13 @@ function AISaveButton({ content, studentName }: { content: string; studentName: 
 export default function VerbalAssessment({
   initialStudentId,
   initialSubject,
+  initialSemester,
   mode = 'feedback',
   onBack,
 }: {
   initialStudentId?: string;
   initialSubject?: string;
+  initialSemester?: '1' | '2';
   mode?: 'feedback' | 'formal';
   onBack?: () => void;
 } = {}) {
@@ -141,6 +143,7 @@ export default function VerbalAssessment({
   const { showToast } = useToast();
   const [selectedStudentId, setSelectedStudentId] = useState(initialStudentId || '');
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(() => initialSubject ? [initialSubject] : []);
+  const [selectedSemester, setSelectedSemester] = useState<'1' | '2' | 'both'>(initialSemester || 'both');
   const [focus, setFocus] = useState('');
   const [hasCopiedObservations, setHasCopiedObservations] = useState(false);
   const [reviewedObservations, setReviewedObservations] = useState(false);
@@ -164,6 +167,7 @@ export default function VerbalAssessment({
     requestRef.current += 1;
     setSelectedStudentId(initialStudentId || '');
     setSelectedSubjects(initialSubject ? [initialSubject] : []);
+    setSelectedSemester(initialSemester || 'both');
     setFocus('');
     setReviewedObservations(false);
     setHasCopiedObservations(false);
@@ -171,7 +175,7 @@ export default function VerbalAssessment({
     setResultStudentId('');
     setSavedInDossier(false);
     setLoading(false);
-  }, [app.activeClassId, initialStudentId, initialSubject, mode]);
+  }, [app.activeClassId, initialStudentId, initialSubject, initialSemester, mode]);
 
   React.useEffect(() => () => { requestRef.current += 1; }, []);
 
@@ -231,11 +235,14 @@ export default function VerbalAssessment({
         const calculated = berechne(app, studentIdAtStart, fach, key);
         return calculated === null ? 'keine Daten' : 'berechneter Leistungswert ' + calculated.toFixed(2);
       };
-      return '- ' + fach + ': 1. Semester ' + semester('1') + '; 2. Semester ' + semester('2');
+      return '- ' + fach + ': ' + (selectedSemester === 'both'
+        ? '1. Semester ' + semester('1') + '; 2. Semester ' + semester('2')
+        : selectedSemester + '. Semester ' + semester(selectedSemester));
     });
     const prompt = [
       'KIND-ALIAS: Kind A',
       'SCHULSTUFE: ' + (app.stufe || 'nicht angegeben'),
+      'BEURTEILUNGSZEITRAUM: ' + (selectedSemester === 'both' ? 'Gesamtes Schuljahr' : selectedSemester + '. Semester'),
       'FACHBEZOGENE LEISTUNGSDATEN:',
       performanceLines.length ? performanceLines.join('\n') : '- Keine fachbezogenen Leistungsdaten ausgewählt.',
       'BEOBACHTUNGEN / GEWÜNSCHTER FOKUS DER LEHRPERSON:',
@@ -301,6 +308,17 @@ export default function VerbalAssessment({
                 {[...app.schueler].sort((a,b) => a.nachname.localeCompare(b.nachname, 'de')).map(s =>
                   <option key={s.id} value={s.id}>{s.nachname} {s.vorname}</option>
                 )}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="feedback-period" className="mb-2 block text-xs font-bold text-slate-600">Zeitraum</label>
+              <select id="feedback-period" value={selectedSemester} className="input-field w-full" onChange={event => {
+                requestRef.current += 1; setLoading(false); setResult(''); setResultStudentId(''); setSavedInDossier(false);
+                setSelectedSemester(event.target.value as '1' | '2' | 'both');
+              }}>
+                <option value="1">1. Semester</option>
+                <option value="2">2. Semester</option>
+                <option value="both">Gesamtes Schuljahr</option>
               </select>
             </div>
             <fieldset>
