@@ -844,7 +844,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                   />
                 )}
                 {activeTab === 'leistungsfeedback' && (
-                  <VerbalAssessment mode="feedback" initialStudentId={student.id} onBack={() => setActiveTab('leistungen')} />
+                  <VerbalAssessment mode="feedback" initialStudentId={student.id} initialSemester={sem} onBack={() => setActiveTab('leistungen')} />
                 )}
                 {activeTab === 'mika_d' && (
                   <DossierMikaD
