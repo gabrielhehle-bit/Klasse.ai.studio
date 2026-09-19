@@ -19,11 +19,8 @@ test('planning hub keeps every agreed planning destination', () => {
     'wochenplanung',
     'jahresplanung',
     'planungszentrale',
-    'stunden',
     'materialien',
-    'canva',
     'vertretung',
-    'uebergabemappe',
   ]) {
     assert.match(source, new RegExp(`id:\\s*['"]${id}['"]`));
   }

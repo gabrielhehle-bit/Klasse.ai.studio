@@ -1,14 +1,14 @@
 
 import React, { useState } from 'react';
+import { logObservation } from '../lib/utils';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { Sparkles, User, RefreshCw, Copy, Check, FileText, BookOpen, Archive, Info, Save } from 'lucide-react';
+import { Sparkles, RefreshCw, Check, BookOpen, Archive, Info, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { askAI } from '../services/aiService';
 import { FAECHER_ALLE } from '../constants';
 import { berechne } from '../lib/GradeUtils';
 import { useMaterialLibrary, calculateStorageSize } from './Materialbibliothek';
-import Markdown from 'react-markdown';
 
 function AISaveButton({ content, studentName }: { content: string; studentName: string }) {
   const { app } = useApp();
@@ -121,183 +121,267 @@ function AISaveButton({ content, studentName }: { content: string; studentName: 
   );
 }
 
-export default function VerbalAssessment() {
-  const { app } = useApp();
-  const { showToast } = useToast();
-  const [selectedStudentId, setSelectedStudentId] = useState('');
-  const [subjects, setSubjects] = useState('Deutsch, Mathematik, Sachunterricht');
-  const [focus, setFocus] = useState('Besonderes Engagement, Lernfortschritt, Sozialverhalten');
-  const [result, setResult] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [copySuccess, setCopySuccess] = useState(false);
 
+/** Shared editor: shorter learning feedback from Gradebook/Dossier, or a separate
+ * teacher-reviewed verbal-assessment draft on the legacy 'verbal' route.
+ * No student names or automatic behavioural records are included in AI input.
+ */
+export default function VerbalAssessment({
+  initialStudentId,
+  initialSubject,
+  initialSemester,
+  mode = 'feedback',
+  onBack,
+}: {
+  initialStudentId?: string;
+  initialSubject?: string;
+  initialSemester?: '1' | '2';
+  mode?: 'feedback' | 'formal';
+  onBack?: () => void;
+} = {}) {
+  const { app, setApp } = useApp();
+  const { showToast } = useToast();
+  const [selectedStudentId, setSelectedStudentId] = useState(initialStudentId || '');
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(() => initialSubject ? [initialSubject] : []);
+  const [selectedSemester, setSelectedSemester] = useState<'1' | '2' | 'both'>(initialSemester || 'both');
+  const [focus, setFocus] = useState('');
+  const [hasCopiedObservations, setHasCopiedObservations] = useState(false);
+  const [reviewedObservations, setReviewedObservations] = useState(false);
+  const [result, setResult] = useState('');
+  const [resultStudentId, setResultStudentId] = useState('');
+  const [resultClassId, setResultClassId] = useState<string | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
+  const [savedInDossier, setSavedInDossier] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const requestRef = React.useRef(0);
+  const isFormal = mode === 'formal';
   const student = app.schueler.find(s => s.id === selectedStudentId);
+  const subjectOptions = [...new Set([...(app.faecher?.length ? app.faecher : FAECHER_ALLE), ...(initialSubject ? [initialSubject] : [])])];
+  const observations = (app.notes || []).filter(n =>
+    n.schuelerId === selectedStudentId &&
+    n.quelle !== 'Leistungsfeedback' &&
+    n.quelle !== 'Verbale Beurteilung' &&
+    Boolean(n.inhalt?.trim())
+  ).slice(0, 30);
+
+  React.useEffect(() => {
+    requestRef.current += 1;
+    setSelectedStudentId(initialStudentId || '');
+    setSelectedSubjects(initialSubject ? [initialSubject] : []);
+    setSelectedSemester(initialSemester || 'both');
+    setFocus('');
+    setReviewedObservations(false);
+    setHasCopiedObservations(false);
+    setResult('');
+    setResultStudentId('');
+    setResultClassId(undefined);
+    setSavedInDossier(false);
+    setLoading(false);
+  }, [app.activeClassId, initialStudentId, initialSubject, initialSemester, mode]);
+
+  React.useEffect(() => () => { requestRef.current += 1; }, []);
+
+  const changeStudent = (id: string) => {
+    requestRef.current += 1;
+    setSelectedStudentId(id);
+    setFocus('');
+    setHasCopiedObservations(false);
+    setReviewedObservations(false);
+    setResult('');
+    setResultStudentId('');
+    setResultClassId(undefined);
+    setSavedInDossier(false);
+    setLoading(false);
+  };
+
+  const copyObservationIntoEditor = (note: { datum: string; inhalt: string }) => {
+    // The teacher sees and edits the original text before explicitly submitting it.
+    // Never silently transmit journal entries or assume they are anonymised.
+    requestRef.current += 1;
+    setLoading(false);
+    setFocus(previous => [previous.trim(), note.inhalt.trim()].filter(Boolean).join('\n'));
+    setResultStudentId('');
+    setHasCopiedObservations(true);
+    setReviewedObservations(false);
+    setResult('');
+    setSavedInDossier(false);
+  };
+
+  const toggleSubject = (fach: string) => {
+    requestRef.current += 1;
+    setLoading(false);
+    setResultStudentId('');
+    setSelectedSubjects(previous => previous.includes(fach)
+      ? previous.filter(entry => entry !== fach)
+      : [...previous, fach]);
+    setResult('');
+    setSavedInDossier(false);
+  };
 
   const generate = async () => {
-    if (!selectedStudentId) return;
+    if (!student || loading || (hasCopiedObservations && !reviewedObservations)) return;
+    if (!selectedSubjects.length && !focus.trim()) {
+      showToast('Bitte mindestens ein Fach oder eine eigene Beobachtung auswählen.', 'error');
+      return;
+    }
+    const requestId = ++requestRef.current;
+    const studentIdAtStart = student.id;
+    const classIdAtStart = app.activeClassId;
     setLoading(true);
     setResult('');
-
-    const requestedSubjects = subjects
-      .split(',')
-      .map(value => value.trim())
-      .filter(Boolean);
-
-    const performanceLines = requestedSubjects.map((fach) => {
-      const sem1 = berechne(app, selectedStudentId, fach, '1');
-      const sem2 = berechne(app, selectedStudentId, fach, '2');
-      const sem1Text = sem1 === null ? 'keine Daten' : sem1.toFixed(2);
-      const sem2Text = sem2 === null ? 'keine Daten' : sem2.toFixed(2);
-      return `- ${fach}: 1. Semester ${sem1Text}; 2. Semester ${sem2Text}`;
+    setSavedInDossier(false);
+    const performanceLines = selectedSubjects.map(fach => {
+      const semester = (key: '1' | '2') => {
+        const manual = app.noten?.[studentIdAtStart]?.[fach]?.[key]?.endnote;
+        if (manual !== undefined && manual !== null && String(manual).trim()) {
+          return 'manuell eingetragene Endnote ' + String(manual);
+        }
+        const calculated = berechne(app, studentIdAtStart, fach, key);
+        return calculated === null ? 'keine Daten' : 'berechneter Leistungswert ' + calculated.toFixed(2);
+      };
+      return '- ' + fach + ': ' + (selectedSemester === 'both'
+        ? '1. Semester ' + semester('1') + '; 2. Semester ' + semester('2')
+        : selectedSemester + '. Semester ' + semester(selectedSemester));
     });
-
-    const hasAnyPerformance = requestedSubjects.some((fach) =>
-      ['1', '2'].some((semester) => berechne(app, selectedStudentId, fach, semester) !== null),
-    );
-
-    const userPrompt = `
-KIND-ALIAS: Kind A
-SCHULSTUFE: ${app.stufe || 'nicht angegeben'}
-
-FACHBEZOGENE LEISTUNGSDATEN:
-${hasAnyPerformance ? performanceLines.join('\n') : '- Keine fachbezogenen Leistungsdaten vorhanden.'}
-
-BEOBACHTUNGEN / GEWÜNSCHTER FOKUS DER LEHRPERSON:
-${focus.trim() || 'Keine zusätzlichen Beobachtungen angegeben.'}
-
-AUFGABE:
-Formuliere daraus einen kurzen, wertschätzenden Entwurf für ein Lernfeedback.
-Keine Note vorschlagen. Kein fachübergreifendes Gesamturteil bilden. Keine Daten ergänzen, die nicht oben stehen.
-`.trim();
-
+    const prompt = [
+      'KIND-ALIAS: Kind A',
+      'SCHULSTUFE: ' + (app.stufe || 'nicht angegeben'),
+      'BEURTEILUNGSZEITRAUM: ' + (selectedSemester === 'both' ? 'Gesamtes Schuljahr' : selectedSemester + '. Semester'),
+      'FACHBEZOGENE LEISTUNGSDATEN:',
+      performanceLines.length ? performanceLines.join('\n') : '- Keine fachbezogenen Leistungsdaten ausgewählt.',
+      'BEOBACHTUNGEN / GEWÜNSCHTER FOKUS DER LEHRPERSON:',
+      focus.trim() || '- Keine Beobachtungen angegeben.',
+      'AUFGABE:',
+      isFormal
+        ? 'Formuliere einen sachlichen Entwurf für eine verbale Beurteilung für die Lehrperson. Keine rechtlich verbindliche Zeugnisbeurteilung oder automatische Notenentscheidung.'
+        : 'Formuliere ein kurzes, konkretes und wertschätzendes Leistungsfeedback für die Lehrperson.',
+      'Behaupte keine Fortschritte, Fähigkeiten, Eigenschaften oder Verhaltensweisen, die nicht aus den angegebenen Daten hervorgehen. Bei fehlender Datengrundlage benenne die Lücke statt sie zu füllen. Keine Note vorschlagen, kein fachübergreifendes Gesamturteil.',
+    ].join('\n\n');
     try {
-      const text = await askAI('ki-beurteilung', userPrompt);
-      if (text) setResult(text);
+      const text = await askAI('ki-beurteilung', prompt);
+      if (requestRef.current !== requestId) return;
+      if (text) {
+        setResult(text);
+        setResultStudentId(studentIdAtStart);
+        setResultClassId(classIdAtStart);
+      }
     } catch (err) {
-      console.error(err);
-      showToast(err instanceof Error ? err.message : 'Leistungsfeedback konnte nicht erstellt werden.', 'error');
+      if (requestRef.current === requestId) {
+        showToast(err instanceof Error ? err.message : 'Feedback konnte nicht erstellt werden.', 'error');
+      }
     } finally {
-      setLoading(false);
+      if (requestRef.current === requestId) setLoading(false);
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(result);
-    setCopySuccess(true);
-    setTimeout(() => setCopySuccess(false), 2000);
+  const saveToDossier = () => {
+    if (!result.trim() || !student || student.id !== resultStudentId || resultClassId !== app.activeClassId || savedInDossier) return;
+    // logObservation uses existing encrypted, class-local notes/journal persistence.
+    // Saved texts show up in this child's Dossier → Beobachtungen & Verlauf.
+    logObservation(setApp, student.id, result.trim(), 'Notiz', isFormal ? 'Verbale Beurteilung' : 'Leistungsfeedback');
+    setSavedInDossier(true);
+    showToast('Entwurf im Schülerdossier unter Beobachtungen & Verlauf gespeichert.', 'success');
   };
 
-  return (
-    <div className="h-full overflow-y-auto custom-scrollbar w-full">
-      <div className="px-3 md:px-6 py-6 md:py-8 space-y-6 md:space-y-8 max-w-full xl:max-w-7xl mx-auto">
-      <div className="space-y-1">
-        <div className="flex items-center gap-3">
-          <BookOpen className="text-emerald-600 shrink-0" size={28} />
-          <h2 className="text-[1.5rem] leading-normal md:text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Leistungsfeedback</h2>
-        </div>
-        <p className="text-slate-500 font-medium tracking-tight whitespace-pre-line text-[0.8125rem] md:text-[0.9375rem]">
-          Formuliere aus fachbezogenen Leistungsdaten und deinen Beobachtungen einen prüfbaren Entwurf – ohne automatische Notenentscheidung.
-        </p>
-      </div>
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(result);
+      setCopySuccess(true);
+      window.setTimeout(() => setCopySuccess(false), 2000);
+    } catch {
+      showToast('Kopieren nicht möglich. Bitte Text manuell markieren.', 'error');
+    }
+  };
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8 items-start">
-        {/* Settings Panel */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-xl shadow-slate-900/5 space-y-6">
-            <div className="space-y-2">
-              <label className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Schüler/in auswählen</label>
-              <select 
-                className="input-field h-14"
-                value={selectedStudentId}
-                onChange={e => setSelectedStudentId(e.target.value)}
-              >
-                <option value="">Bitte wählen...</option>
-                {[...app.schueler].sort((a,b) => a.nachname.localeCompare(b.nachname)).map(s => (
+  const canSave = Boolean(result.trim() && student && resultStudentId === student.id && resultClassId === app.activeClassId);
+  return (
+    <div className="h-full w-full overflow-y-auto custom-scrollbar">
+      <div className="mx-auto max-w-7xl space-y-6 px-3 py-6 md:px-6">
+        <header className="space-y-2">
+          {onBack && <button type="button" onClick={onBack} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700">← Zurück</button>}
+          <h2 className="flex items-center gap-2 text-2xl font-black text-slate-900"><BookOpen className="text-emerald-600" />{isFormal ? 'Verbale Beurteilung' : 'Leistungsfeedback'}</h2>
+          <p className="text-sm text-slate-600">{isFormal ? 'Entwurf für eine umfassendere verbale Beurteilung – du prüfst und entscheidest selbst.' : 'Kurze Rückmeldung aus ausgewählten Leistungsdaten und deinen Beobachtungen.'}</p>
+        </header>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <section className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+            <div>
+              <label htmlFor="feedback-student" className="mb-2 block text-xs font-bold text-slate-600">Kind</label>
+              <select id="feedback-student" className="input-field w-full" value={selectedStudentId}
+                disabled={Boolean(initialStudentId)}
+                onChange={event => changeStudent(event.target.value)}>
+                <option value="">Bitte wählen …</option>
+                {[...app.schueler].sort((a,b) => a.nachname.localeCompare(b.nachname, 'de')).map(s =>
                   <option key={s.id} value={s.id}>{s.nachname} {s.vorname}</option>
-                ))}
+                )}
               </select>
             </div>
-
-            <div className="space-y-2">
-              <label className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Fächer für das Feedback</label>
-              <input 
-                type="text"
-                className="input-field h-14"
-                value={subjects}
-                onChange={e => setSubjects(e.target.value)}
-                placeholder="z.B. Deutsch, Mathematik..."
-              />
+            <div>
+              <label htmlFor="feedback-period" className="mb-2 block text-xs font-bold text-slate-600">Zeitraum</label>
+              <select id="feedback-period" value={selectedSemester} className="input-field w-full" onChange={event => {
+                requestRef.current += 1; setLoading(false); setResult(''); setResultStudentId(''); setSavedInDossier(false);
+                setSelectedSemester(event.target.value as '1' | '2' | 'both');
+              }}>
+                <option value="1">1. Semester</option>
+                <option value="2">2. Semester</option>
+                <option value="both">Gesamtes Schuljahr</option>
+              </select>
             </div>
-
-            <div className="space-y-2">
-              <label className="text-[0.625rem] font-black uppercase tracking-[0.2em] text-slate-400 px-1">Beobachtungen / gewünschter Fokus</label>
-              <textarea 
-                className="input-field h-32 py-4 resize-none"
-                value={focus}
-                onChange={e => setFocus(e.target.value)}
-                placeholder="z.B. liest zunehmend flüssig; braucht bei Sachaufgaben noch Strukturhilfe. Keine Namen oder Kontaktdaten eingeben."
-              />
-            </div>
-
-            <button 
-              onClick={generate}
-              disabled={loading || !selectedStudentId}
-              className="btn btn-primary w-full h-16 text-[0.8125rem] shadow-xl shadow-emerald-500/20 bg-emerald-600 hover:bg-emerald-700"
-            >
-              {loading ? (
-                <>
-                  <RefreshCw className="animate-spin" size={20} />
-                  Text wird formuliert...
-                </>
-              ) : (
-                <>
-                  <Sparkles size={20} />
-                  Feedback formulieren
-                </>
-              )}
-            </button>
-          </div>
-
-          <div className="p-6 bg-emerald-50/50 rounded-[2rem] border border-emerald-100/50 flex gap-4">
-             <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 shrink-0"><Sparkles size={20} /></div>
-             <p className="text-[0.75rem] text-emerald-800/70 font-medium leading-relaxed italic">
-               Der ausgewählte Name bleibt in KLASSIO. An Gemini wird nur „Kind A“ sowie die fachbezogenen Leistungsdaten und dein eingegebener Fokus gesendet. Verhaltensnotizen werden nicht automatisch übertragen.
-             </p>
-          </div>
-        </div>
-
-        {/* Result Area */}
-        <div className={`transition-all duration-500 ${result ? 'opacity-100 scale-100' : 'opacity-40 scale-[0.98] pointer-events-none'}`}>
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl shadow-slate-900/5 flex flex-col min-h-[400px] lg:min-h-[500px]">
-            <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/20">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center"><FileText size={16} /></div>
-                <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400">Entwurf</span>
+            <fieldset>
+              <legend className="mb-2 text-xs font-bold text-slate-600">Fächer auswählen – nur angekreuzte Fächer werden verwendet</legend>
+              <div className="flex flex-wrap gap-2">
+                {subjectOptions.map(fach => <label key={fach} className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
+                  <input type="checkbox" checked={selectedSubjects.includes(fach)} onChange={() => toggleSubject(fach)} />
+                  {fach}
+                </label>)}
               </div>
-              <div className="flex gap-2">
-                <AISaveButton content={result} studentName={student ? `${student.vorname} ${student.nachname}` : 'Schüler'} />
-                <button 
-                  onClick={copyToClipboard}
-                  className={`btn btn-sm h-10 px-4 rounded-xl transition-all ${copySuccess ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-900 border border-slate-200'}`}
-                >
-                  {copySuccess ? <Check size={16} /> : <Copy size={16} />}
-                  {copySuccess ? 'Kopiert!' : 'Kopieren'}
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 p-10 text-[1rem] leading-[1.8] text-slate-800 whitespace-pre-wrap font-serif select-all scrollbar-hide overflow-y-auto max-h-[500px] markdown-body">
-                {result ? <Markdown>{result}</Markdown> : 'Wähle ein Kind aus und klicke auf "Feedback formulieren"...'}
-            </div>
-            {result && (
-               <div className="p-6 border-t border-slate-50 bg-slate-50/30">
-                  <p className="text-[0.625rem] font-bold text-slate-300 uppercase tracking-widest text-center">
-                    Dieser Text ist nur ein Formulierungsentwurf. Die pädagogische und rechtliche Beurteilung bleibt bei der Lehrperson.
-                  </p>
-               </div>
+            </fieldset>
+            {student && observations.length > 0 && (
+              <details className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <summary className="cursor-pointer text-sm font-bold text-slate-700">Vorhandene Beobachtungen ansehen und bewusst übernehmen</summary>
+                <p className="my-2 text-xs text-slate-600">Nur auf Klick wird der Text ins bearbeitbare Feld kopiert. Entferne andere Namen und sensible Angaben vor der KI-Anfrage.</p>
+                <div className="max-h-48 space-y-2 overflow-y-auto">
+                  {observations.map(note => <button key={note.id} type="button" onClick={() => copyObservationIntoEditor(note)}
+                    className="block w-full rounded-lg border border-slate-200 bg-white p-2 text-left text-xs text-slate-700">
+                    <span className="block font-bold">{note.datum?.slice(0, 10) || 'Beobachtung'} · Übernehmen</span>
+                    <span className="line-clamp-2">{note.inhalt}</span>
+                  </button>)}
+                </div>
+              </details>
             )}
-          </div>
+            <div>
+              <label htmlFor="feedback-observations" className="mb-2 block text-xs font-bold text-slate-600">Eigene Beobachtungen / gewünschter Fokus</label>
+              <textarea id="feedback-observations" className="input-field min-h-32 w-full resize-y p-3" value={focus}
+                onChange={event => { requestRef.current += 1; setLoading(false); setFocus(event.target.value); setReviewedObservations(false); setResult(''); setResultStudentId(''); setSavedInDossier(false); }}
+                placeholder="Konkrete Beobachtungen – keine Namen, Kontaktdaten oder Gesundheitsangaben eingeben." />
+            </div>
+            {hasCopiedObservations && <label className="flex items-start gap-2 text-xs text-slate-700">
+              <input type="checkbox" checked={reviewedObservations} onChange={event => setReviewedObservations(event.target.checked)} />
+              Ich habe den übernommenen Text geprüft und fremde Namen sowie sensible Angaben entfernt.
+            </label>}
+            <p className="text-xs text-amber-800">An die KI gehen nur „Kind A“, ausgewählte Fachwerte und der Text im Beobachtungsfeld. Inhalte dieses Feldes werden nicht automatisch anonymisiert; bitte vor dem Senden prüfen. Es wird keine Note festgelegt.</p>
+            <button type="button" onClick={generate}
+              disabled={!student || loading || (hasCopiedObservations && !reviewedObservations)}
+              className="btn btn-primary w-full bg-emerald-600 py-4 text-sm font-bold text-white disabled:opacity-50">
+              {loading ? <><RefreshCw size={17} className="animate-spin" /> Text wird formuliert …</> : <><Sparkles size={17} /> {isFormal ? 'Beurteilungsentwurf formulieren' : 'Feedback formulieren'}</>}
+            </button>
+          </section>
+          <section className="flex min-h-96 flex-col rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+            <h3 className="mb-2 text-sm font-black text-slate-900">Entwurf zum Bearbeiten</h3>
+            <p className="mb-4 text-xs text-slate-500">Erst nach deiner Prüfung ausdrücklich im Schülerdossier speichern.</p>
+            <textarea aria-label="Feedback-Entwurf bearbeiten" value={result} disabled={!canSave && !result}
+              onChange={event => { setResult(event.target.value); setSavedInDossier(false); }}
+              placeholder="Kind auswählen, Fächer ankreuzen oder konkrete Beobachtungen eingeben und Feedback formulieren."
+              className="min-h-72 w-full flex-1 resize-y rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" onClick={saveToDossier} disabled={!canSave || savedInDossier}
+                className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">{savedInDossier ? 'Im Dossier gespeichert' : 'Im Schülerdossier speichern'}</button>
+              <button type="button" onClick={copyToClipboard} disabled={!canSave}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">{copySuccess ? 'Kopiert' : 'Kopieren'}</button>
+              {canSave && <AISaveButton content={result} studentName={student ? student.vorname + ' ' + student.nachname : 'Kind'} />}
+            </div>
+            <p className="mt-4 text-xs text-slate-500">Dieser Text ist ein überprüfbarer Entwurf. Die pädagogische und rechtliche Beurteilung bleibt bei der Lehrperson.</p>
+          </section>
         </div>
-      </div>
       </div>
     </div>
   );

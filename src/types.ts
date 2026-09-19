@@ -1,5 +1,6 @@
 
 import { DiagnosticResult } from './types/diagnosticCore';
+import type { LernzielBewertungsmodell } from './lib/lernzielBewertungsmodell';
 export * from './types/diagnosticCore';
 
 export const COMMUNITY_MISSIONS_POOL = [
@@ -412,6 +413,20 @@ export interface Student {
   wunschpartner?: string[]; // student IDs
   sperrpartner?: string[];  // student IDs
   portfolio?: PortfolioEntry[];
+  /** Verschlüsselter, klassenlokaler KEL-Vorbereitungsplan je Schuljahr, Semester und Gespräch.
+   * Enthält nur Freigabeschalter und IDs, niemals kopierte Bewertungen.
+   */
+  kelPraesentationAuswahl?: Record<string, {
+    classId: string;
+    studentId: string;
+    semester: string;
+    visible: Record<string, boolean>;
+    selectedSubjects: string[];
+    selectedAssessmentIds: string[];
+    updatedAt: string;
+  }>;
+  /** Optional teacher-reviewed learning-goal explanation per semester; separate from Oberau matrix. */
+  lernzielErlaeuterungen?: Partial<Record<'1' | '2', { text: string; updatedAt: string; modellName: string }>>;
   geburtsdatum?: string; // Standardized name for birthday if needed
   warnThresholds?: Record<string, number>; // Individual warning threshold mapped by testId
   erlaeuterungsmatrix?: {
@@ -824,6 +839,8 @@ export interface MaterialItem {
   faecher: string[];
   schulstufen: number[];
   tags: string[];
+  /** Persönliche Sammlungen: Mehrfachzuordnung ohne Materialkopie. */
+  sammlungen?: string[];
   lehrplanZuordnung?: {
     fach: string;
     kompetenzbereichId: string;
@@ -962,6 +979,22 @@ export interface SavedSeatingLayout {
   createdAt: string;
 }
 
+export interface VertretungsVorbereitung {
+  rangeMode: 'single' | 'multi' | 'week';
+  singleDate: string;
+  startDate: string;
+  endDate: string;
+  weekDate: string;
+  /** Non-destructive overrides keyed by local YYYY-MM-DD + lesson number. */
+  lessonNotes: Record<string, { fach?: string; thema?: string; material?: string; hausuebung?: string; ablauf?: string }>;
+  dayNotes: Record<string, string>;
+  assignedStundenbilder: Record<string, string>;
+  emergencyChecklist: { id: string; text: string; checked: boolean }[];
+  printPages?: { cover: boolean; overview: boolean; list: boolean; seating: boolean; feedback: boolean };
+  printNotes?: string;
+  contacts?: { schulleitung: string; sekretariat: string; nachbarKlasse: string };
+}
+
 export interface ClassRoom {
   /** Zero-knowledge Teamteaching metadata. This metadata remains local and is stripped before class encryption. */
   teamTeaching?: {
@@ -990,6 +1023,8 @@ export interface ClassRoom {
   lernzielTracker?: AppState['lernzielTracker'];
   studentLernzielBewertungen?: AppState['studentLernzielBewertungen'];
   studentLernzielSemesterBewertungen?: AppState['studentLernzielSemesterBewertungen'];
+  /** Class-specific, editable learning-goal scale; not a school-grade scale. */
+  lernzielBewertungsmodell?: LernzielBewertungsmodell;
   /** Class-local diagnostic and student-development data. */
   diagnostikErgebnisse?: AppState['diagnostikErgebnisse'];
   diagnostikErhebungen?: AppState['diagnostikErhebungen'];
@@ -1055,6 +1090,8 @@ export interface ClassRoom {
   oberauData?: AppState['oberauData'];
   /** Class-local handover/coverage notes used by the Übergabemappe. */
   vertretungHinweise?: string;
+  /** Editable cover and substitute handover, isolated per class. */
+  vertretungsVorbereitung?: VertretungsVorbereitung;
   stundenZeiten?: Record<number, string>;
   mittagspauseNachStunde?: number;
   sue_kontrolle: Record<string, Record<string, string>>;
@@ -1288,6 +1325,13 @@ export interface AppState {
       generiert: string;
       schuljahr: string;
       reviewStatus?: 'freigegeben' | 'nacharbeiten' | 'offen';
+      /** Previous revisions remain in encrypted class state when a draft is replaced. */
+      verlauf?: {
+        inhalt: string;
+        generiert: string;
+        schuljahr: string;
+        reviewStatus?: 'freigegeben' | 'nacharbeiten' | 'offen';
+      }[];
     }
   };
   wochenrueckblick?: {
@@ -1509,12 +1553,15 @@ export interface AppState {
     relative_confirmed?: boolean;
   };
   vertretungHinweise?: string;
+  vertretungsVorbereitung?: VertretungsVorbereitung;
   stimmungsArchiv?: any[];
   stundenZeiten?: Record<number, string>;
   mittagspauseNachStunde?: number;
   lastGroups?: string[][];
   dashboardEditMode?: boolean;
   selectedStudentForPortfolio?: string;
+  /** Active-class learning-goal scale. Persisted encrypted through the class snapshot. */
+  lernzielBewertungsmodell?: LernzielBewertungsmodell;
   customWebLinks?: { url: string; title: string; desc?: string }[];
   quickLinks?: { id: string; label: string; url: string; icon: string; color?: string }[];
   wochenNotizen?: string;
@@ -1629,6 +1676,9 @@ export interface AppState {
   unterrichtsmodus_theme?: UnterrichtsmodusThemeId;
   unterrichtsmodus_hintergrund?: UnterrichtsmodusHintergrundId;
   unterrichtsmodus_eigenesBild?: string;
+  /** Imported Canva image; kept separate so an uploaded personal background is not overwritten. */
+  unterrichtsmodus_canvaBild?: string;
+  unterrichtsmodus_canvaTitel?: string;
   unterrichtsmodus_geburtstagskinder?: string[];
   spacedPractices?: {
     id: string;
@@ -1691,7 +1741,7 @@ export interface TafelVorlage {
 
 export type UnterrichtsmodusModus = "lehrperson" | "kinder";
 export type UnterrichtsmodusThemeId = "classic_light" | "deep_dark" | "soft_sage" | "ocean_breeze" | "warm_sand" | "lavender_field" | "cozy_mint" | "sakura_dream" | "candy" | "custom_theme";
-export type UnterrichtsmodusHintergrundId = "kein" | "sterne" | "tafel" | "wolken" | "wald" | "papier" | "candy" | "eigenes";
+export type UnterrichtsmodusHintergrundId = "kein" | "sterne" | "tafel" | "wolken" | "wald" | "papier" | "candy" | "eigenes" | "canva";
 
 export interface LehrplanZuordnung {
   fach: string;

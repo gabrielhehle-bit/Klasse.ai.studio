@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Student, PortfolioEntry } from '../types';
 import { Plus, Image as ImageIcon, Camera, Trash2, Calendar, Star, Info, Check, Map, Award, Wand2, Sparkles, Compass, Heart, BookOpen } from 'lucide-react';
@@ -7,6 +7,7 @@ import { de } from 'date-fns/locale';
 import { LERNZIELE_BY_STUFE } from './LernzielTracker';
 import { analyzePortfolioEntryForGoals } from '../services/aiService';
 import { formatLocalDateKey } from '../lib/utils';
+import { mergeLegacyPortfolioEntries, type LegacyPortfolioMap } from '../lib/portfolioMigration';
 
 const formatPortfolioDate = (value: string, pattern: string) => {
   const date = new Date(value);
@@ -44,6 +45,21 @@ export default function StudentPortfolio({ schuelerId }: { schuelerId: string })
   const { app, setApp } = useApp();
   const student = app.schueler.find(s => s.id === schuelerId);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Dossier can be the first entry point for this class. Use the same lossless
+  // legacy import as the class Portfolio overview before rendering the entries.
+  useEffect(() => {
+    setApp(previous => {
+      const legacy = (previous as any).portfolioEntries as LegacyPortfolioMap | undefined;
+      if (!legacy || !Array.isArray(legacy[schuelerId]) || legacy[schuelerId].length === 0) return previous;
+      const migrated = mergeLegacyPortfolioEntries(previous.schueler || [], legacy);
+      if (migrated.migratedCount === 0) return previous;
+      const next: any = { ...previous, schueler: migrated.students };
+      if (Object.keys(migrated.remaining).length) next.portfolioEntries = migrated.remaining;
+      else delete next.portfolioEntries;
+      return next;
+    });
+  }, [app.activeClassId, schuelerId, setApp]);
 
   const [isAdding, setIsAdding] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);

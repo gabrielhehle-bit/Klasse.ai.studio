@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -14,6 +14,8 @@ import { VertretungsStundenbild, VORLAGEN_VERTRETUNGSSTUNDEN } from '../types';
 import { createMaterialItemFromStundenbild, migrateStundenbilderToMaterialien } from '../utils/materialienUtils';
 import { askAI } from '../services/aiService';
 import { getSW } from '../lib/utils';
+import { DEFAULT_COVER_CHECKLIST, getCoverDates, getCoverLesson } from '../lib/coverHandover';
+import type { VertretungsVorbereitung } from '../types';
 import { berechne, getAssessmentMode } from '../lib/GradeUtils';
 import { getDiagnosticTestById } from '../lib/diagnosticCoreUtils';
 import { formatTransferGradeValue, getHandoverLessonPlans, getHandoverLessonTime, toLocalDateInputValue } from '../lib/handoverUtils';
@@ -39,14 +41,8 @@ function formatDate(date: Date) {
   return date.toLocaleDateString('de-AT', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-const DEFAULT_EMERGENCY_CHECKLIST = [
-  { id: '1', text: 'Klassenzimmer-Schlüssel beim Schulwart hinterlegt', checked: false },
-  { id: '2', text: 'Klassendienste (Tafeldienst etc.) zugeteilt', checked: false },
-  { id: '3', text: 'Allergie- & Notfallkontaktliste liegt sichtbar am Lehrertisch', checked: false },
-  { id: '4', text: 'Pausenregeln und Aufsichtszeiten kurz notiert', checked: false },
-  { id: '5', text: 'Arbeitsblätter & Handreichungen kopiert und bereitgelegt', checked: false },
-  { id: '6', text: 'Zugangsdaten / Logins für Schul-Tablets & WLAN vermerkt', checked: false },
-];
+const DEFAULT_EMERGENCY_CHECKLIST = DEFAULT_COVER_CHECKLIST;
+
 
 export default function Uebergabemappe() {
   const { app, setApp, setPage } = useApp();
@@ -87,21 +83,26 @@ export default function Uebergabemappe() {
   }, [app.openPrintModalOnLoad]);
 
   // --- TAB 1: Config & Assignment State ---
-  const [rangeMode, setRangeMode] = useState<'single' | 'multi' | 'week'>('single');
-  const [singleDate, setSingleDate] = useState(() => toLocalDateInputValue(new Date()));
-  const [startDate, setStartDate] = useState(() => toLocalDateInputValue(new Date()));
+  const [rangeMode, setRangeMode] = useState<'single' | 'multi' | 'week'>(app.vertretungsVorbereitung?.rangeMode || 'single');
+  const [singleDate, setSingleDate] = useState(() => app.vertretungsVorbereitung?.singleDate || toLocalDateInputValue(new Date()));
+  const [startDate, setStartDate] = useState(() => app.vertretungsVorbereitung?.startDate || toLocalDateInputValue(new Date()));
   const [endDate, setEndDate] = useState(() => {
+    if (app.vertretungsVorbereitung?.endDate) return app.vertretungsVorbereitung.endDate;
     const date = new Date();
     date.setDate(date.getDate() + 2);
     return toLocalDateInputValue(date);
   });
-  const [weekDate, setWeekDate] = useState(() => toLocalDateInputValue(new Date()));
+  const [weekDate, setWeekDate] = useState(() => app.vertretungsVorbereitung?.weekDate || toLocalDateInputValue(new Date()));
   
   // Assignments: Key is "YYYY-MM-DD-Std", Value is Stundenbild ID
-  const [assignedStundenbilder, setAssignedStundenbilder] = useState<Record<string, string>>({});
+  const [assignedStundenbilder, setAssignedStundenbilder] = useState<Record<string, string>>(() => app.vertretungsVorbereitung?.assignedStundenbilder || {});
+  const [lessonNotes, setLessonNotes] = useState<VertretungsVorbereitung['lessonNotes']>(() => app.vertretungsVorbereitung?.lessonNotes || {});
+  const [manualSlots, setManualSlots] = useState<Record<string, number[]>>({});
+  const [draftHydratedClass, setDraftHydratedClass] = useState(app.activeClassId || '__none__');
+  const previousClassIdRef = useRef(app.activeClassId);
 
   const [printLehrplan, setPrintLehrplan] = useState(false);
-  const [printNotes, setPrintNotes] = useState(app.vertretungHinweise || '');
+  const [printNotes, setPrintNotes] = useState(app.vertretungsVorbereitung?.printNotes ?? app.vertretungHinweise ?? '');
   
   // --- TAB 2: Management State ---
   const [searchQuery, setSearchQuery] = useState('');
@@ -123,7 +124,7 @@ export default function Uebergabemappe() {
   });
   
   const [emergencyChecklist, setEmergencyChecklist] = useState(() =>
-    DEFAULT_EMERGENCY_CHECKLIST.map(item => ({ ...item })),
+    app.vertretungsVorbereitung?.emergencyChecklist?.map(item => ({ ...item })) ?? DEFAULT_EMERGENCY_CHECKLIST.map(item => ({ ...item })),
   );
   const [newChecklistItem, setNewChecklistItem] = useState('');
 
@@ -349,74 +350,77 @@ export default function Uebergabemappe() {
       .slice(0, 5);
   }, [app.diagnosticResults, transferStudentId]);
   const [printColumns, setPrintColumns] = useState<Record<string, boolean>>({
-    geschlecht: true,
-    geburtstag: true,
+    geschlecht: false,
+    geburtstag: false,
     erstsprache: false,
-    daz: true,
-    spf: true,
+    daz: false,
+    spf: false,
     espf: false,
     religion: false,
-    telefon_mutter: true,
-    telefon_vater: true,
-    notiz: true
+    telefon_mutter: false,
+    telefon_vater: false,
+    notiz: false
   });
-  const [printPages, setPrintPages] = useState({
+  const [printPages, setPrintPages] = useState(() => app.vertretungsVorbereitung?.printPages || {
     cover: true,
     overview: true,
-    list: true,
-    seating: true,
-    feedback: true
+    list: false,
+    seating: false,
+    feedback: false
   });
   const [klassenlisteOrientation, setKlassenlisteOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [density, setDensity] = useState<'standard' | 'compact'>('standard');
-  const [schulleitungName, setSchulleitungName] = useState('');
-  const [sekretariatTel, setSekretariatTel] = useState('');
-  const [nachbarKlasse, setNachbarKlasse] = useState('');
-  const [dayNotes, setDayNotes] = useState<Record<string, string>>({});
+  const [schulleitungName, setSchulleitungName] = useState(app.vertretungsVorbereitung?.contacts?.schulleitung || '');
+  const [sekretariatTel, setSekretariatTel] = useState(app.vertretungsVorbereitung?.contacts?.sekretariat || '');
+  const [nachbarKlasse, setNachbarKlasse] = useState(app.vertretungsVorbereitung?.contacts?.nachbarKlasse || '');
+  const [dayNotes, setDayNotes] = useState<Record<string, string>>(() => app.vertretungsVorbereitung?.dayNotes || {});
   const [zoomLevel, setZoomLevel] = useState<number>(0.7);
 
+  // Rehydrate class-local preparation after switching classes; never write old-class notes into a new class.
   useEffect(() => {
-    setPrintNotes(app.vertretungHinweise || '');
-    setAssignedStundenbilder({});
-    setDayNotes({});
+    const saved = app.vertretungsVorbereitung;
+    setRangeMode(saved?.rangeMode || 'single');
+    setSingleDate(saved?.singleDate || toLocalDateInputValue(new Date()));
+    setStartDate(saved?.startDate || toLocalDateInputValue(new Date()));
+    setEndDate(saved?.endDate || toLocalDateInputValue(new Date()));
+    setWeekDate(saved?.weekDate || toLocalDateInputValue(new Date()));
+    setPrintNotes(saved?.printNotes ?? app.vertretungHinweise ?? '');
+    setAssignedStundenbilder(saved?.assignedStundenbilder || {});
+    setLessonNotes(saved?.lessonNotes || {});
+    setDayNotes(saved?.dayNotes || {});
+    setEmergencyChecklist(saved?.emergencyChecklist?.map(item => ({ ...item })) || DEFAULT_EMERGENCY_CHECKLIST.map(item => ({ ...item })));
+    setPrintPages(saved?.printPages || { cover: true, overview: true, list: false, seating: false, feedback: false });
+    setSchulleitungName(saved?.contacts?.schulleitung || '');
+    setSekretariatTel(saved?.contacts?.sekretariat || '');
+    setNachbarKlasse(saved?.contacts?.nachbarKlasse || '');
+    setManualSlots({});
+    setActiveTab('config');
+    if (previousClassIdRef.current !== app.activeClassId) setShowPrintModal(false);
+    previousClassIdRef.current = app.activeClassId;
     setTransferStudentId(null);
     setShowTransferPrint(false);
-    setEmergencyChecklist(DEFAULT_EMERGENCY_CHECKLIST.map(item => ({ ...item })));
     setNewChecklistItem('');
     setSelectedStundenbild(null);
     setShowDetailModal(false);
+    setDraftHydratedClass(app.activeClassId || '__none__');
   }, [app.activeClassId]);
 
-  // Generate list of dates to print
-  const getDaysToPrint = () => {
-    let dates: Date[] = [];
-    if (rangeMode === 'single') {
-      dates = [new Date(singleDate)];
-    } else if (rangeMode === 'multi') {
-      let current = new Date(startDate);
-      const end = new Date(endDate);
-      // Safety: max 14 days
-      let count = 0;
-      while (current <= end && count < 14) {
-        if (current.getDay() !== 0 && current.getDay() !== 6) { // Skip Sat/Sun
-          dates.push(new Date(current));
-        }
-        current.setDate(current.getDate() + 1);
-        count++;
-      }
-    } else if (rangeMode === 'week') {
-      const d = new Date(weekDate);
-      const day = d.getDay();
-      const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is sunday
-      const monday = new Date(d.setDate(diff));
-      for (let i = 0; i < 5; i++) {
-        const next = new Date(monday);
-        next.setDate(monday.getDate() + i);
-        dates.push(next);
-      }
-    }
-    return dates;
-  };
+  const getDaysToPrint = (): Date[] => getCoverDates({ rangeMode, singleDate, startDate, endDate, weekDate });
+
+  // All preparation is one encrypted, class-local draft. Print output is a view of this state.
+  useEffect(() => {
+    if (draftHydratedClass !== (app.activeClassId || '__none__')) return;
+    const draft: VertretungsVorbereitung = {
+      rangeMode, singleDate, startDate, endDate, weekDate,
+      lessonNotes, dayNotes, assignedStundenbilder, emergencyChecklist, printPages, printNotes,
+      contacts: { schulleitung: schulleitungName, sekretariat: sekretariatTel, nachbarKlasse },
+    };
+    setApp(prev => {
+      if (prev.activeClassId !== app.activeClassId) return prev;
+      if (JSON.stringify(prev.vertretungsVorbereitung) === JSON.stringify(draft)) return prev;
+      return { ...prev, vertretungsVorbereitung: draft };
+    });
+  }, [app.activeClassId, draftHydratedClass, rangeMode, singleDate, startDate, endDate, weekDate, lessonNotes, dayNotes, assignedStundenbilder, emergencyChecklist, printPages, printNotes, schulleitungName, sekretariatTel, nachbarKlasse, setApp]);
 
   const renderAllPages = (isPreview: boolean) => {
     const daysToPrint = getDaysToPrint();
@@ -542,13 +546,13 @@ export default function Uebergabemappe() {
                     <span>Tagespläne für {daysToPrint.length} ausgewählte Tage</span>
                   </div>
                 )}
-                {printPages.list && (
+                {printPages.list && app.klassenvorstand && (
                   <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-xl border border-slate-100">
                     <span className="text-indigo-600 font-bold">✓</span>
                     <span>Klassenliste mit Schüler-Besonderheiten</span>
                   </div>
                 )}
-                {printPages.seating && (
+                {printPages.seating && app.klassenvorstand && (
                   <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-xl border border-slate-100">
                     <span className="text-indigo-600 font-bold">✓</span>
                     <span>Sitzplan LEHRERCOCKPIT (Tafel/Vorne markiert)</span>
@@ -629,7 +633,7 @@ export default function Uebergabemappe() {
                 </div>
               </div>
 
-              {birthdaysToday.length > 0 && (
+              {printColumns.geburtstag && birthdaysToday.length > 0 && (
                 <div className="p-2.5 bg-amber-50 border border-amber-250 rounded-xl flex items-center gap-2 select-none">
                   <span className="text-[1rem] leading-normal">🎂</span>
                   <div className="text-[0.625rem]">
@@ -652,7 +656,10 @@ export default function Uebergabemappe() {
                   </tr>
                 </thead>
                 <tbody>
-                  {LESSON_SLOT_NUMBERS.map(std => {
+                  {LESSON_SLOT_NUMBERS.filter(std => {
+                    const original = getCoverLesson(app, currentDay, std);
+                    return Boolean(original.fach || original.thema || original.material || original.hausuebung || lessonNotes[`${dayStr}-${std}`] || assignedStundenbilder[`${dayStr}-${std}`]);
+                  }).map(std => {
                     const stammFach = app.stammplan[dayName]?.[std];
                     const wpItem = app.wochenplanung[kw]?.[dayName]?.[std - 1];
                     const lpKey = `${kw}-${dayName}-${std - 1}`;
@@ -661,11 +668,13 @@ export default function Uebergabemappe() {
                     const assignmentKey = `${dayStr}-${std}`;
                     const assignedId = assignedStundenbilder[assignmentKey];
                     const assignedSb = lessonPlans.find(m => m.id === assignedId);
+                    const note = lessonNotes[assignmentKey] || {};
+                    const base = getCoverLesson(app, currentDay, std);
+                    const effectiveFach = note.fach ?? assignedSb?.fach ?? base.fach ?? '—';
+                    const effectiveInhalt = note.thema ?? assignedSb?.titel ?? base.thema ?? '—';
+                    const effectiveMaterial = note.material ?? (assignedSb ? assignedSb.benoetigtesMaterial.join(', ') : base.material);
 
-                    const effectiveFach = assignedSb?.fach || wpItem?.fach || stammFach || '—';
-                    const effectiveInhalt = assignedSb?.titel || wpItem?.thema || '—';
-
-                    if (stammFach === 'frei' && !assignedSb && !wpItem) {
+                    if (stammFach === 'frei' && !assignedSb && !wpItem && !lessonNotes[assignmentKey]) {
                       return (
                         <tr key={std} className="border-b border-slate-250 bg-slate-50/50 italic text-slate-400 select-none">
                           <td className="border border-slate-300 p-2 text-center font-bold bg-slate-50">{std}.</td>
@@ -683,6 +692,8 @@ export default function Uebergabemappe() {
                         <td className="border border-slate-300 p-2 text-left">
                           <div>
                             <p className="font-extrabold text-[0.6875rem] text-slate-900 leading-tight">{effectiveInhalt}</p>
+                            {note.ablauf && <p className="mt-1 whitespace-pre-wrap text-[8pt] font-medium text-slate-700">{note.ablauf}</p>}
+                            {(note.hausuebung ?? base.hausuebung) && <p className="mt-1 text-[7pt] text-slate-600">HÜ: {note.hausuebung ?? base.hausuebung}</p>}
                             {assignedSb && (
                               <span className="text-[6.5pt] font-black bg-indigo-50 border border-indigo-200 text-indigo-700 uppercase px-1 rounded inline-block mt-0.5">
                                 Zugeordnetes Stundenbild
@@ -703,11 +714,7 @@ export default function Uebergabemappe() {
                           )}
                         </td>
                         <td className="border border-slate-300 p-2 text-[8pt] text-slate-600 italic">
-                          {assignedSb ? (
-                            <span>Benoetigt: {assignedSb.benoetigtesMaterial.join(', ') || 'Keines'}</span>
-                          ) : (
-                            wpItem?.material || '—'
-                          )}
+                          {effectiveMaterial || '—'}
                         </td>
                       </tr>
                     );
@@ -727,7 +734,7 @@ export default function Uebergabemappe() {
               <div className="mt-4 pt-3 border-t">
                 <h3 className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">⚠️ Allgemeine Klassenregeln, Rituale &amp; Hinweise:</h3>
                 <div className="p-3 border border-slate-200 rounded-xl text-[0.625rem] leading-relaxed text-slate-600 bg-slate-50/50 whitespace-pre-wrap max-h-36 ">
-                  <div dangerouslySetInnerHTML={{ __html: printNotes }} className="prose prose-sm font-semibold prose-p:my-0.5" />
+                  <div className="prose prose-sm font-semibold prose-p:my-0.5">{printNotes.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ')}</div>
                 </div>
               </div>
             )}
@@ -737,7 +744,7 @@ export default function Uebergabemappe() {
     }
 
     // PAGE 2: KLASSENLISTE
-    if (printPages.list) {
+    if (printPages.list && app.klassenvorstand) {
       const activeCols = Object.entries(printColumns).filter(([_, v]) => v).map(([k, _]) => k);
       const rowPadding = density === 'compact' ? 'p-1 text-[7.5pt]' : 'p-2.5 text-[9pt]';
 
@@ -769,8 +776,8 @@ export default function Uebergabemappe() {
               </thead>
               <tbody>
                 {studentsSorted.map((s, idx) => {
-                  const isBday = hasBirthdayInRange(s);
-                  const isMed = hasMedicalAlert(s);
+                  const isBday = printColumns.geburtstag && hasBirthdayInRange(s);
+                  const isMed = printColumns.notiz && hasMedicalAlert(s);
 
                   return (
                     <tr key={s.id} className={`${idx % 2 === 1 ? 'bg-slate-50/20' : 'bg-white'} border-b border-slate-200`}>
@@ -842,7 +849,7 @@ export default function Uebergabemappe() {
     }
 
     // PAGE 3: SITZPLAN
-    if (printPages.seating) {
+    if (printPages.seating && app.klassenvorstand) {
       pages.push(
         <div key="page-seating" className={`flex flex-col justify-between h-full bg-white text-slate-800 ${isPreview ? 'p-8' : 'p-10 printable-page'}`} style={{ pageBreakAfter: 'always' }}>
           <div className="space-y-4 flex-1 flex flex-col">
@@ -876,8 +883,8 @@ export default function Uebergabemappe() {
               >
                 {studentsSorted.filter(s => app.sitzplan_schueler[s.id]).map(s => {
                   const pos = app.sitzplan_schueler[s.id];
-                  const isBday = hasBirthdayInRange(s);
-                  const isMed = hasMedicalAlert(s);
+                  const isBday = printColumns.geburtstag && hasBirthdayInRange(s);
+                  const isMed = printColumns.notiz && hasMedicalAlert(s);
 
                   return (
                     <div 
@@ -1103,53 +1110,155 @@ export default function Uebergabemappe() {
             <BookOpen size={18} />
             Stundenbilder verwalten
           </button>
-          <button 
+          {app.klassenvorstand && <button 
             onClick={() => setActiveTab('transfer')}
             aria-pressed={activeTab === 'transfer'}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[0.75rem] leading-snug font-bold transition-all ${activeTab === 'transfer' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
             <History size={18} />
             Schulwechsel-Paket
-          </button>
+          </button>}
         </div>
       </div>
 
       {/* Main View */}
       {activeTab === 'config' ? (
         <div className="print:hidden">
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col items-center text-center max-w-5xl mx-auto print-hidden no-print">
-            <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4 ring-1 ring-indigo-100">
-              <ClipboardList size={28} />
+          <div className="mx-auto flex max-w-5xl flex-col items-center gap-5 rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm sm:p-6">
+            <div className="w-full space-y-1 text-left">
+              <h1 className="text-2xl font-black text-slate-900">Vertretung &amp; Übergabe</h1>
+              <p className="text-sm text-slate-600">Einmal vorbereiten, für einen Tag oder mehrere Tage. Deine Eingaben werden für diese Klasse gespeichert; die Wochenplanung bleibt unverändert.</p>
             </div>
-            <h1 className="text-[1.375rem] leading-tight font-black text-slate-900 tracking-tight mb-2">Vertretungs- &amp; Notfallmappe</h1>
-            <p className="text-slate-500 text-[0.875rem] leading-relaxed mb-5 max-w-3xl">
-              Bereite für einen kurzfristigen Ausfall eine vollständige <strong>Notfallmappe</strong> für deine Vertretung vor – mit Tagesablauf, ausgewählten Klasseninformationen, Sitzplan und wichtigen Kontakten.
-            </p>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full mb-5">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center gap-2">
-                    <Layout size={20} className="text-indigo-500" />
-                    <span className="text-[0.75rem] leading-tight font-bold text-slate-700 uppercase tracking-wider">Stundenplan &amp; Zeiten</span>
+            <section className="w-full space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left" aria-label="Zeitraum und Unterricht">
+              <h2 className="text-base font-black text-slate-900">1. Zeitraum und Unterricht</h2>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  ['single', 'Ein Tag'],
+                  ['multi', 'Mehrere Tage'],
+                  ['week', 'Eine Woche'],
+                ] as const).map(([mode, label]) => (
+                  <button key={mode} type="button" aria-pressed={rangeMode === mode}
+                    onClick={() => setRangeMode(mode)}
+                    className={`rounded-xl border px-4 py-2 text-sm font-bold ${rangeMode === mode ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-700'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {rangeMode === 'single' && (
+                <label className="block max-w-xs space-y-1 text-sm font-bold text-slate-700">Vertretungsdatum
+                  <input aria-label="Vertretungsdatum" type="date" value={singleDate} onChange={e => setSingleDate(e.target.value)}
+                    className="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900" />
+                </label>
+              )}
+              {rangeMode === 'multi' && (
+                <div className="flex flex-wrap gap-3">
+                  <label className="block space-y-1 text-sm font-bold text-slate-700">Von
+                    <input aria-label="Startdatum des Vertretungszeitraums" type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                      className="block h-11 rounded-xl border border-slate-300 bg-white px-3 text-slate-900" />
+                  </label>
+                  <label className="block space-y-1 text-sm font-bold text-slate-700">Bis
+                    <input aria-label="Enddatum des Vertretungszeitraums" type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                      className="block h-11 rounded-xl border border-slate-300 bg-white px-3 text-slate-900" />
+                  </label>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center gap-2">
-                    <Users size={20} className="text-emerald-500" />
-                    <span className="text-[0.75rem] leading-tight font-bold text-slate-700 uppercase tracking-wider">Besonderheiten-Liste</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center gap-2">
-                    <Book size={20} className="text-amber-500" />
-                    <span className="text-[0.75rem] leading-tight font-bold text-slate-700 uppercase tracking-wider">Sitzplan-Skizze</span>
-                </div>
-            </div>
-
-            <div className="bg-rose-50 border border-rose-100 text-rose-800 text-left p-4 rounded-xl w-full max-w-3xl mb-5 space-y-1.5">
-              <h4 className="text-[0.875rem] leading-snug font-black uppercase tracking-wider flex items-center gap-2 text-rose-700">
-                🤒 Wichtig bei Krankheitsausfall:
-              </h4>
-              <p className="text-[0.8125rem] leading-relaxed font-semibold text-rose-900">
-                Im Druckzentrum kannst du den <strong>Ausfallszeitraum</strong> sowie <strong>Aufgaben und Vertretungshinweise</strong> eintragen. Das Deckblatt wird anschließend automatisch für diesen Zeitraum zusammengestellt.
-              </p>
-            </div>
-
+              )}
+              {rangeMode === 'week' && (
+                <label className="block max-w-xs space-y-1 text-sm font-bold text-slate-700">Tag der Vertretungswoche
+                  <input aria-label="Tag der Vertretungswoche" type="date" value={weekDate} onChange={e => setWeekDate(e.target.value)}
+                    className="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900" />
+                </label>
+              )}
+              {getDaysToPrint().length === 0 && (
+                <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Bitte einen gültigen Zeitraum wählen (maximal 14 Unterrichtstage).</p>
+              )}
+              <div className="space-y-4">
+                {getDaysToPrint().map(date => {
+                  const dayStr = toLocalDateInputValue(date);
+                  const slots = LESSON_SLOT_NUMBERS.filter(std => {
+                    const base = getCoverLesson(app, date, std);
+                    return Boolean(base.fach || base.thema || base.material || base.hausuebung ||
+                      lessonNotes[`${dayStr}-${std}`] || assignedStundenbilder[`${dayStr}-${std}`] || manualSlots[dayStr]?.includes(std));
+                  });
+                  return (
+                    <div key={dayStr} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
+                      <h3 className="font-black text-slate-900">{formatDate(date)}</h3>
+                      {slots.length === 0 && <p className="text-sm text-slate-500">Für diesen Tag ist noch keine Unterrichtsstunde geplant.</p>}
+                      {slots.map(std => {
+                        const key = `${dayStr}-${std}`;
+                        const base = getCoverLesson(app, date, std);
+                        const note = lessonNotes[key] || {};
+                        const update = (field: keyof NonNullable<VertretungsVorbereitung['lessonNotes'][string]>, value: string) =>
+                          setLessonNotes(prev => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
+                        return (
+                          <div key={key} className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-xs font-black text-indigo-700">{std}. Stunde · {getHandoverLessonTime(app.stundenZeiten, STUNDEN_INFO, std)} · {base.fach || 'Fach nicht geplant'}</p>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <label className="text-xs font-bold text-slate-600">Fach
+                                <input aria-label={`${std}. Stunde ${dayStr} Fach`} value={note.fach ?? base.fach}
+                                  onChange={e => update('fach', e.target.value)}
+                                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900" />
+                              </label>
+                              <label className="text-xs font-bold text-slate-600">Thema
+                                <input aria-label={`${std}. Stunde ${dayStr} Thema`} value={note.thema ?? base.thema}
+                                  onChange={e => update('thema', e.target.value)}
+                                  placeholder="Was wird gemacht?"
+                                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900" />
+                              </label>
+                            </div>
+                            <label className="block text-xs font-bold text-slate-600">Auftrag und Ablauf für die Vertretung
+                              <textarea aria-label={`${std}. Stunde ${dayStr} Arbeitsauftrag`} value={note.ablauf || ''}
+                                onChange={e => update('ablauf', e.target.value)} rows={2}
+                                placeholder="Was sollen die Kinder tun? Wo liegen die Unterlagen?"
+                                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900" />
+                            </label>
+                            <details>
+                              <summary className="cursor-pointer text-xs font-bold text-indigo-700">Material und Hausübung ergänzen</summary>
+                              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                <label className="text-xs font-bold text-slate-600">Material
+                                  <input value={note.material ?? base.material} onChange={e => update('material', e.target.value)}
+                                    className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900" />
+                                </label>
+                                <label className="text-xs font-bold text-slate-600">Hausübung
+                                  <input value={note.hausuebung ?? base.hausuebung} onChange={e => update('hausuebung', e.target.value)}
+                                    className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900" />
+                                </label>
+                              </div>
+                            </details>
+                          </div>
+                        );
+                      })}
+                      <div className="flex flex-wrap gap-2">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">Weitere Stunde
+                          <select aria-label={`Weitere Stunde für ${dayStr}`} value="" onChange={e => {
+                            if (!e.target.value) return;
+                            const std = Number(e.target.value);
+                            setManualSlots(prev => ({ ...prev, [dayStr]: [...(prev[dayStr] || []), std] }));
+                            setLessonNotes(prev => ({ ...prev, [`${dayStr}-${std}`]: prev[`${dayStr}-${std}`] || {} }));
+                          }} className="rounded-lg border border-slate-300 bg-white px-2 py-1.5">
+                            <option value="">Stunde wählen …</option>
+                            {LESSON_SLOT_NUMBERS.filter(std => !slots.includes(std)).map(std => <option key={std} value={std}>{std}. Stunde</option>)}
+                          </select>
+                        </label>
+                      </div>
+                      <label className="block text-xs font-bold text-slate-600">Hinweise für diesen Tag
+                        <textarea aria-label={`Tageshinweise ${dayStr}`} value={dayNotes[dayStr] || ''}
+                          onChange={e => setDayNotes(prev => ({ ...prev, [dayStr]: e.target.value }))} rows={2}
+                          placeholder="Raum, Aufsicht, organisatorische Besonderheiten …"
+                          className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900" />
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+            <section className="w-full space-y-3 rounded-2xl border border-slate-200 bg-white p-4 text-left">
+              <h2 className="text-base font-black text-slate-900">2. Allgemeine Hinweise</h2>
+              <p className="text-xs text-slate-500">Nur für die Vertretung notwendige Angaben. Einzelne Schülerdaten werden nicht automatisch übernommen.</p>
+              <RichTextEditor value={printNotes} onChange={setPrintNotes}
+                placeholder="Regeln, Rituale, Pausenordnung und Ansprechpartner …"
+                className="min-h-28 rounded-xl border border-slate-200 p-3 text-sm text-slate-900" />
+            </section>
+            <h2 className="w-full text-left text-base font-black text-slate-900">3. Vorbereitung und Beilagen</h2>
             {/* Emergency Checklist Widget */}
             <div className="w-full max-w-3xl bg-slate-50 border border-slate-200 p-4 rounded-2xl text-left mb-5 space-y-3">
               <div className="flex items-center justify-between">
@@ -1252,12 +1361,12 @@ export default function Uebergabemappe() {
               className="btn btn-primary h-12 px-7 text-[0.875rem] leading-normal shadow-md flex items-center gap-2.5 bg-rose-600 hover:bg-rose-700 border-rose-600 hover:border-rose-700 active:scale-[0.99] transition-all rounded-xl"
             >
               <Printer size={19} />
-              Notfallmappe konfigurieren &amp; drucken
+              Vertretungsunterlagen ansehen &amp; drucken
             </button>
             
             <p className="mt-4 text-[0.625rem] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Du entscheidest vor dem Druck, welche Angaben enthalten sind
+                Vor dem Druck kannst du Deckblatt, Klassenliste, Sitzplan und Feedbackbogen auswählen.
             </p>
           </div>
         </div>
@@ -1812,7 +1921,7 @@ export default function Uebergabemappe() {
                       { key: 'list', label: 'Schülerstammdatenliste' },
                       { key: 'seating', label: 'Sitzplan-Anordnung' },
                       { key: 'feedback', label: 'Feedback-Rückmeldebogen' },
-                    ].map(({ key, label }) => (
+                    ].filter(({ key }) => app.klassenvorstand || (key !== 'list' && key !== 'seating')).map(({ key, label }) => (
                       <button
                         key={key}
                         onClick={() => setPrintPages(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))}

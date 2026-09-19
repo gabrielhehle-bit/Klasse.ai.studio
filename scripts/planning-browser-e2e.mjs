@@ -241,6 +241,13 @@ async function main() {
 
     await client.send('Page.navigate', { url: BASE_URL });
     await waitFor(client, 'Klassio access gate', 'document.body?.innerText.toLowerCase().includes("geschützter zugang")');
+    const accessCodeVisible = await evaluate(client,
+      'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))');
+    if (!accessCodeVisible) {
+      await clickButton(client, 'Nur Zugangscode verwenden (ohne Geräte-Sync)', true);
+      await waitFor(client, 'access code input',
+        'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))');
+    }
     await setInputByLabel(client, 'Zugangscode', ACCESS_CODE);
     await clickButton(client, 'Klassio öffnen');
 
@@ -261,13 +268,31 @@ async function main() {
     }
     await waitFor(client, 'daily dashboard', 'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").trim()==="Heute")', 30000);
 
+    await clickSidebar(client, 'Wochen-Check');
+    await waitFor(client, 'week check renders instead of duplicate daily editor',
+      'Array.from(document.querySelectorAll("h1")).some(h=>h.textContent?.trim()==="Wochen-Check")&&document.body?.innerText.includes("Eingetragene Unterrichtsstunden")&&document.body?.innerText.includes("Eingetragene Stunden ohne Thema")');
+    const truthfulWeekCheck = await evaluate(client,
+      '(() => {const t=document.body?.innerText||"";return t.includes("Leere Stundenplanfelder werden hier nicht automatisch als offene Vorbereitung gewertet")&&!t.includes("Was ist heute geplant?")&&!t.includes("Morgen stehen 6 Stunden an");})()'
+    );
+    if (!truthfulWeekCheck) throw new Error('Wochen-Check still contains duplicate planning UI or misleading preparation status.');
+    console.log('✓ week check uses the selected plan without invented daily status');
+    await clickButton(client, 'Wochenplan öffnen', true);
+    await waitFor(client, 'weekly plan after week check',
+      'document.body?.innerText.toLowerCase().includes("wochenplan")');
+    console.log('✓ week check links directly to the single weekly editing surface');
+
     await clickSidebar(client, 'Wochenplan');
     await waitFor(client, 'weekly plan', 'document.body?.innerText.toLowerCase().includes("wochenplan")||document.body?.innerText.toLowerCase().includes("wochenplanung")');
 
+    // A sidebar route can become active before the lazy-loaded weekly grid
+    // finishes rendering. Wait for a real editable cell instead of clicking
+    // immediately and misreporting missing planning functionality.
+    await waitFor(client, 'weekly editing grid with an empty, schedulable cell',
+      'Array.from(document.querySelectorAll("svg.lucide-plus")).some(svg=>{let n=svg.parentElement;while(n&&n!==document.body){if(String(n.className||"").includes("group/cell"))return true;n=n.parentElement;}return false;})', 30000);
     await clickFirstSchedulableWeeklyCell(client);
     await waitFor(client, 'large weekly editor', 'document.body?.innerText.includes("Einheit planen")');
     const weeklyLarge = await evaluate(client,
-      '(() => {const node=Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("max-w-[1500px]"));if(!node)return false;const r=node.getBoundingClientRect();return r.width>1000&&r.height>window.innerHeight*0.85;})()'
+      '(() => {const node=Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("max-w-none"));if(!node)return false;const r=node.getBoundingClientRect();return r.width>1000&&r.height>window.innerHeight*0.85;})()'
     );
     if (!weeklyLarge) throw new Error('Weekly editor did not open in the expected large layout.');
     console.log('✓ weekly editor uses the large planning workspace');
@@ -296,7 +321,7 @@ async function main() {
     await clickButton(client, 'Bearbeiten');
     await waitFor(client, 'editor reopened from overview', 'document.body?.innerText.includes("Einheit planen")');
     const reopenedLarge = await evaluate(client,
-      '(() => {const node=Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("max-w-[1500px]"));if(!node)return false;const r=node.getBoundingClientRect();return r.width>1000&&r.height>window.innerHeight*0.85;})()'
+      '(() => {const node=Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("max-w-none"));if(!node)return false;const r=node.getBoundingClientRect();return r.width>1000&&r.height>window.innerHeight*0.85;})()'
     );
     if (!reopenedLarge) throw new Error('Weekly editor was not large after overview → edit.');
     await clickButton(client, 'Einheit speichern');

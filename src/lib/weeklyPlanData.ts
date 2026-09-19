@@ -46,6 +46,20 @@ export function getPreviousCalendarWeekKw(
   return getKW(monday);
 }
 
+/** A timetable-only Stammplan is not a prepared lesson; a saved weekly entry is.
+ * "Erledigt" is deliberately independent from "vorbereitet".
+ */
+export function isWeeklyLessonPrepared(lesson: any): boolean {
+  if (!lesson || typeof lesson !== 'object') return false;
+  const detailFields = ['fach', 'thema', 'lernziel', 'beschreibung', 'material', 'housework', 'hue',
+    'method', 'reflexion', 'notiz', 'notizen', 'buch'];
+  return detailFields.some(key => typeof lesson[key] === 'string' && lesson[key].trim().length > 0) ||
+    (Array.isArray(lesson.materialIds) && lesson.materialIds.length > 0) ||
+    (Array.isArray(lesson.schwerpunkte) && lesson.schwerpunkte.length > 0) ||
+    lesson.halves?.enabled === true ||
+    (Boolean(lesson.type) && lesson.type !== 'standard');
+}
+
 export function configuredLessonTime(
   configured: Record<number, string> | undefined,
   fallback: Record<number, string>,

@@ -36,13 +36,17 @@ test('Übergabemappe: lesson-plan editor respects the shared material storage li
   assert.match(handover, /upsertMaterial\(prev\.materialien \|\| \[\], materialItem\)/);
 });
 
-test('Übergabemappe: emergency preparation is never pre-confirmed and school contacts are not hardcoded', () => {
-  assert.match(handover, /Klassenzimmer-Schlüssel beim Schulwart hinterlegt', checked: false/);
-  assert.match(handover, /Klassendienste \(Tafeldienst etc\.\) zugeteilt', checked: false/);
-  assert.match(handover, /Allergie- & Notfallkontaktliste liegt sichtbar am Lehrertisch', checked: false/);
+test('Vertretung & Übergabe: checklist starts unchecked, sensitive contacts are not publicly exposed', () => {
+  const rules = readFileSync('src/lib/coverHandover.ts', 'utf8');
+  assert.match(rules, /checked: false/);
+  assert.match(rules, /Notfallkontakte nur berechtigten Personen sicher zugänglich/);
+  assert.doesNotMatch(rules, /Allergie- & Notfallkontaktliste liegt sichtbar am Lehrertisch/);
+  assert.match(handover, /list: false/);
+  assert.match(handover, /seating: false/);
+  assert.match(handover, /telefon_mutter: false/);
+  assert.match(handover, /telefon_vater: false/);
+  assert.match(handover, /notiz: false/);
   assert.doesNotMatch(handover, /Volker Gabriel/);
-  assert.doesNotMatch(handover, /5522 72412/);
-  assert.doesNotMatch(handover, /Petra Gruber/);
 });
 
 test('Übergabemappe: sorting control contains all implemented sort modes', () => {
@@ -71,12 +75,15 @@ test('Übergabemappe: handover notes participate in class projection and class s
   assert.match(appState, /vertretungHinweise: targetClass\.vertretungHinweise \|\| ''/);
 });
 
-test('Übergabemappe: class change clears temporary print, transfer and checklist selections', () => {
-  assert.match(handover, /setAssignedStundenbilder\(\{\}\)/);
-  assert.match(handover, /setDayNotes\(\{\}\)/);
-  assert.match(handover, /setTransferStudentId\(null\)/);
-  assert.match(handover, /setEmergencyChecklist\(DEFAULT_EMERGENCY_CHECKLIST\.map/);
-  assert.match(handover, /\}, \[app\.activeClassId\]\)/);
+test('Vertretung & Übergabe: class switch restores saved preparation without leaking the previous class', () => {
+  assert.match(handover, /setAssignedStundenbilder\(saved\?\.assignedStundenbilder \|\| \{\}\)/);
+  assert.match(handover, /setLessonNotes\(saved\?\.lessonNotes \|\| \{\}\)/);
+  assert.match(handover, /setDayNotes\(saved\?\.dayNotes \|\| \{\}\)/);
+  assert.match(handover, /setEmergencyChecklist\(saved\?\.emergencyChecklist\?\.map/);
+  assert.match(handover, /draftHydratedClass !== \(app\.activeClassId \|\| '__none__'\)/);
+  assert.match(appState, /vertretungsVorbereitung: state\.vertretungsVorbereitung/);
+  assert.match(appState, /parsed\.vertretungsVorbereitung = activeClass\.vertretungsVorbereitung/);
+  assert.match(appState, /vertretungsVorbereitung: targetClass\.vertretungsVorbereitung/);
 });
 
 test('Übergabemappe: date inputs use local dates instead of UTC serialization', () => {

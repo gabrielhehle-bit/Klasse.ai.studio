@@ -475,59 +475,30 @@ export function syncNoteToPlanning(text: string, setApp: any, schuljahr: string)
  * - "Frau Martina Bitschnau" -> "Martina"
  * - "Dr. Gabriel Hehle" -> "Gabriel"
  */
+/** Ignore legacy placeholder strings instead of greeting the teacher as "Name fehlt". */
 export function getTeacherFirstName(source?: any): string {
   if (!source) return '';
 
-  let rawCandidate = '';
-  if (typeof source === 'string') {
-    rawCandidate = source;
-  } else if (typeof source === 'object') {
-    rawCandidate =
-      source.vorname ||
-      source.lehrerName ||
-      source.lehrerProfil?.vorname ||
-      source.lehrerProfil?.name ||
-      source.name ||
-      '';
-  }
+  const candidates: unknown[] = typeof source === 'string'
+    ? [source]
+    : typeof source === 'object'
+      ? [source.vorname, source.lehrerName, source.lehrerProfil?.vorname, source.lehrerProfil?.name, source.name]
+      : [];
 
-  if (!rawCandidate || typeof rawCandidate !== 'string') {
-    return '';
-  }
-
-  const trimmed = rawCandidate.trim();
-  if (!trimmed) return '';
-
-  const tokens = trimmed.split(/\s+/);
+  const invalid = /^(?:name fehlt|kein name|name nicht angegeben|nicht angegeben|unbekannt|undefined|null|n\/a|name)$/i;
   const titleTokens = new Set([
-    'frau',
-    'herr',
-    'dr.',
-    'dr',
-    'prof.',
-    'prof',
-    'mag.',
-    'mag',
-    'bed',
-    'med',
-    'dipl.-päd.',
-    'dipl.-paed.',
-    'dipl.',
-    'ing.',
-    'sr.',
-    'fr.',
-    'hr.',
+    'frau', 'herr', 'dr.', 'dr', 'prof.', 'prof', 'mag.', 'mag',
+    'bed', 'med', 'dipl.-päd.', 'dipl.-paed.', 'dipl.', 'ing.', 'sr.', 'fr.', 'hr.',
   ]);
 
-  const nonTitleTokens = tokens.filter(
-    (t) => !titleTokens.has(t.toLowerCase().replace(/[,:]/g, ''))
-  );
-
-  if (nonTitleTokens.length > 0) {
-    return nonTitleTokens[0];
+  for (const raw of candidates) {
+    if (typeof raw !== 'string' || !raw.trim() || invalid.test(raw.trim())) continue;
+    const tokens = raw.trim().split(/\s+/);
+    const firstName = tokens.find(token => !titleTokens.has(token.toLowerCase().replace(/[,:]/g, '')));
+    if (firstName && !invalid.test(firstName)) return firstName;
   }
 
-  return tokens[0] || '';
+  return '';
 }
 
 

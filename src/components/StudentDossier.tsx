@@ -25,6 +25,10 @@ import DossierKontakteEinwilligungen from './dossier/DossierKontakteEinwilligung
 import DossierUebersicht from './dossier/DossierUebersicht';
 import DossierKIPortfolio from './dossier/DossierKIPortfolio';
 import DossierLeistungen from './dossier/DossierLeistungen';
+import AntolinBereich from './AntolinBereich';
+import VerbalAssessment from './VerbalAssessment';
+import StudentPortfolio from './StudentPortfolio';
+import DossierLernzielErlaeuterung from './dossier/DossierLernzielErlaeuterung';
 import DossierFoerderprofil from './dossier/DossierFoerderprofil';
 import DossierDiagnostik from './dossier/DossierDiagnostik';
 import DossierMikaD from './dossier/DossierMikaD';
@@ -59,6 +63,8 @@ interface StudentDossierProps {
   schuelerId: string;
   onBack?: () => void;
   onStudentChange?: (id: string) => void;
+  /** Optional deep link from class-year report management, no persisted navigation state. */
+  initialReportView?: boolean;
 }
 
 export type MainAreaId = 
@@ -80,6 +86,10 @@ export type DossierTab =
   | 'notizen'
   | 'prep'
   | 'leistungen' 
+  | 'leistungsfeedback'
+  | 'antolin'
+  | 'portfolio'
+  | 'lernziel_erlaeuterung'
   | 'foerderprofil' 
   | 'diagnostik' 
   | 'mika_d' 
@@ -128,8 +138,12 @@ export const MAIN_AREAS: MainAreaDef[] = [
     defaultTab: 'leistungen',
     tabs: [
       { id: 'leistungen', label: 'Leistungsübersicht', shortLabel: 'Leistungen', icon: BarChart3, description: 'Kompakte fachliche Gesamtschau und Leistungsdaten' },
+      { id: 'leistungsfeedback', label: 'Leistungsfeedback erstellen', shortLabel: 'Feedback', icon: FileText, description: 'Ausgewählte Daten und Beobachtungen zu einer Rückmeldung formulieren' },
       { id: 'lernziele', label: 'Lernziele & Kompetenzen', shortLabel: 'Lernziele', icon: Target, description: 'Lehrplan-Kompetenzen und erreichte Teilziele' },
+      { id: 'portfolio', label: 'Portfolio', shortLabel: 'Portfolio', icon: BookOpen, description: 'Arbeiten, Fotos und echte individuelle Lernnachweise' },
+      { id: 'lernziel_erlaeuterung', label: 'Erläuterung', shortLabel: 'Erläuterung', icon: FileText, description: 'Schulinterne Lernziel-Rückmeldung mit eigenem Text, keine automatische Notenentscheidung' },
       { id: 'mika_d', label: 'Sprachstand', shortLabel: 'Sprachstand', icon: GraduationCap, description: 'MIKA-D Sprachstandsfeststellung' },
+      { id: 'antolin', label: 'Lesen & Antolin', shortLabel: 'Antolin', icon: BookOpen, description: 'Dokumentierte Antolin-Berichte und Leseentwicklung des Kindes' },
     ]
   },
   {
@@ -165,7 +179,7 @@ export const MAIN_AREAS: MainAreaDef[] = [
     icon: FileText,
     defaultTab: 'berichte',
     tabs: [
-      { id: 'berichte', label: 'Berichte', shortLabel: 'Berichte', icon: FileText, description: 'KI-Zusammenfassung, Eltern-Report & Exporte' },
+      { id: 'berichte', label: 'Berichte', shortLabel: 'Berichte', icon: FileText, description: 'KI-Zusammenfassung, Eltern-Report, Jahresbericht & Exporte' },
       { id: 'beurteilung_gespraeche', label: 'Gespräche & Beurteilungen', shortLabel: 'Gespräche & Beurteilungen', icon: Award, description: 'Erläuterungsmatrix & Gesprächsvorbereitung' },
       { id: 'materialien', label: 'Materialien', shortLabel: 'Materialien', icon: BookOpen, description: 'Individuelles Fördermaterial & Arbeitsblätter' },
     ]
@@ -183,12 +197,12 @@ export const getActiveMainArea = (tab: DossierTab): MainAreaId => {
   return 'uebersicht';
 };
 
-export default function StudentDossier({ schuelerId, onBack, onStudentChange }: StudentDossierProps) {
+export default function StudentDossier({ schuelerId, onBack, onStudentChange, initialReportView = false }: StudentDossierProps) {
   const { app, setApp, setPage } = useApp();
   const student = app.schueler.find(s => s.id === schuelerId);
   
   // Always start with 'uebersicht'
-  const [activeTab, setActiveTab] = useState<DossierTab>('uebersicht');
+  const [activeTab, setActiveTab] = useState<DossierTab>(initialReportView ? 'berichte' : 'uebersicht');
   const [pendingQuickEntry, setPendingQuickEntry] = useState<'note' | 'strength' | 'parent' | 'goal' | null>(null);
 
   const openOverviewQuickEntry = (type: 'note' | 'strength' | 'parent' | 'goal') => {
@@ -196,11 +210,12 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
     setActiveTab(type === 'goal' || type === 'strength' ? 'foerderung' : 'beobachtungen_verlauf');
   };
 
-  // Reset activeTab to 'uebersicht' whenever student changes
+  // Respect the explicit class-year deep link; ordinary dossier visits still
+  // start at the overview and no navigation preference is persisted.
   useEffect(() => {
-    setActiveTab('uebersicht');
+    setActiveTab(initialReportView ? 'berichte' : 'uebersicht');
     setPendingQuickEntry(null);
-  }, [schuelerId]);
+  }, [schuelerId, initialReportView]);
 
   const activeMainArea = getActiveMainArea(activeTab);
 
@@ -823,7 +838,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                 {(activeTab === 'berichte' || activeTab === 'ki_summary' || activeTab === 'eltern_report') && (
                   <DossierBerichte 
                     student={student} 
-                    initialSubView={activeTab === 'eltern_report' ? 'eltern_report' : 'ki_summary'}
+                    initialSubView={activeTab === 'eltern_report' ? 'eltern_report' : initialReportView && activeTab === 'berichte' ? 'jahresbericht' : 'ki_summary'}
                     onStartPresentation={() => setPresentationModeActive(true)}
                     semester={sem}
                     onSemesterChange={changeSemester}
@@ -839,6 +854,14 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                       setActiveTab(tab as DossierTab);
                     }}
                   />
+                )}
+                {activeTab === 'leistungsfeedback' && (
+                  <VerbalAssessment mode="feedback" initialStudentId={student.id} initialSemester={sem} onBack={() => setActiveTab('leistungen')} />
+                )}
+                {activeTab === 'antolin' && <AntolinBereich studentId={student.id} />}
+                {activeTab === 'portfolio' && <StudentPortfolio key={student.id} schuelerId={student.id} />}
+                {activeTab === 'lernziel_erlaeuterung' && (
+                  <DossierLernzielErlaeuterung student={student} semester={sem} onSemesterChange={changeSemester} />
                 )}
                 {activeTab === 'mika_d' && (
                   <DossierMikaD

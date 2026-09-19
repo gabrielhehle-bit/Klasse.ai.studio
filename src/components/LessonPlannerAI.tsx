@@ -26,18 +26,20 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { generateDetailedLessonPlan, DetailedLessonPlan } from '../services/aiService';
-import { TAGE_NAMEN, VM_ZEITEN, STUNDEN_INFO } from '../constants';
+import { TAGE_NAMEN, VM_ZEITEN, STUNDEN_INFO, LESSON_SLOT_NUMBERS } from '../constants';
 import { useMaterialLibrary } from './Materialbibliothek';
-import { getSW, kwToMonday, getStartYear } from '../lib/utils';
+import { getSW, kwToMonday, getStartYear, getKW } from '../lib/utils';
+import { normalizeLessonDraft } from '../lib/lessonDrafts';
 
 interface LessonPlannerAIProps {
   onClose: () => void;
   onApply: (plan: DetailedLessonPlan) => void;
   initialFach?: string;
   initialThema?: string;
+  embeddedInWeeklyEditor?: boolean;
 }
 
-export default function LessonPlannerAI({ onClose, onApply, initialFach, initialThema }: LessonPlannerAIProps) {
+export default function LessonPlannerAI({ onClose, onApply, initialFach, initialThema, embeddedInWeeklyEditor = false }: LessonPlannerAIProps) {
   const { app, setApp } = useApp();
   const [fach, setFach] = useState(initialFach || 'Mathematik');
   const [thema, setThema] = useState(initialThema || '');
@@ -98,17 +100,15 @@ Schwache: ${plan.differenzierung.schwache}
   const savePlan = () => {
     if (!plan) return;
     const newEntwurf = {
-      id: crypto.randomUUID(),
+      ...normalizeLessonDraft({ id: crypto.randomUUID(), date: new Date().toISOString(), fach, thema, plan }),
       date: new Date().toISOString(),
-      fach,
-      thema,
-      plan
+      plan,
     };
     setApp(prev => ({
       ...prev,
       stundenentwuerfe: [newEntwurf, ...(prev.stundenentwuerfe || [])]
     }));
-    alert('Stundenentwurf erfolgreich unter "Archiv" gespeichert!');
+    alert('Stundenentwurf in deiner bisherigen Entwurfssammlung gespeichert. Du findest ihn unter Unterrichtsvorbereitungen.');
   };
 
   const copyPlanToClipboard = () => {
@@ -175,9 +175,9 @@ Schwache: ${plan.differenzierung.schwache}
     
     // Aggregate class context
     const classContext = `
-      Klasse: ${app.stufe}. Schulstufe, ${app.schueler.length} Schüler/innen.
-      Niveau (Notenmappe): ${app.notenmappe ? 'Detaillierte Noten vorhanden' : 'Keine Noten hinterlegt'}
-      Notizen zu Schülern: ${app.schueler.map(s => s.notiz).filter(Boolean).slice(0, 10).join('; ')}
+      Schulstufe: ${app.stufe || 'nicht angegeben'}.
+      Anzahl der Kinder: ${app.schueler.length}.
+      Es werden keine Namen, individuellen Beobachtungen, Notizen oder Leistungsdaten übertragen.
     `;
 
     const allMaterials = [...selectedCommon, eigenesMaterial].filter(Boolean).join(', ');
@@ -206,7 +206,10 @@ Schwache: ${plan.differenzierung.schwache}
   const insertIntoWeeklyPlan = (tag: string, idx: number) => {
     if (!plan) return;
     
-    const activeKW = app.currentKW || 15; // fallback
+    const activeKW = app.currentKW || getKW(new Date());
+    const existing = app.wochenplanung?.[activeKW]?.[tag]?.[idx] || {};
+    if ((existing.fach || existing.thema || existing.stundenentwurf || existing.method) &&
+      !window.confirm('Diese Stunde enthält bereits Inhalte. Fach, Thema und Ablauf mit dem KI-Vorschlag ersetzen?')) return;
 
     setApp(prev => ({
       ...prev,
@@ -216,7 +219,8 @@ Schwache: ${plan.differenzierung.schwache}
           ...(prev.wochenplanung[activeKW] || {}),
           [tag]: {
             ...(prev.wochenplanung[activeKW]?.[tag] || {}),
-            [idx]: { 
+            [idx]: {
+              ...(prev.wochenplanung?.[activeKW]?.[tag]?.[idx] || {}),
               fach: fach, 
               thema: thema,
               type: 'standard',
@@ -430,12 +434,14 @@ Schwache: ${plan.differenzierung.schwache}
                     
                   </div>
 
-                  <button 
-                    onClick={() => setShowWeeklyPlanInsert(true)}
-                    className="btn btn-primary btn-sm h-12"
-                  >
-                    <CalendarPlus size={16} /> In Wochenplan einfügen
-                  </button>
+                  {!embeddedInWeeklyEditor && (
+                    <button
+                      onClick={() => setShowWeeklyPlanInsert(true)}
+                      className="btn btn-primary btn-sm h-12"
+                    >
+                      <CalendarPlus size={16} /> In Wochenplan einfügen
+                    </button>
+                  )}
                 </div>
 
                 {/* Lernziele */}
@@ -694,7 +700,7 @@ Schwache: ${plan.differenzierung.schwache}
 
       {/* WEEKLY PLAN INSERT MODAL */}
       <AnimatePresence>
-        {showWeeklyPlanInsert && (
+        {showWeeklyPlanInsert && !embeddedInWeeklyEditor && (
           <div className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
             <motion.div 
                initial={{ opacity: 0, scale: 0.9 }}
@@ -724,11 +730,11 @@ Schwache: ${plan.differenzierung.schwache}
                     <div key={tag} className="p-3 bg-slate-50 border-r border-b border-slate-200 text-[0.625rem] font-black text-slate-400 uppercase text-center">{tag}</div>
                   ))}
                   
-                  {[0,1,2,3,4,5].map(zIdx => (
+                  {LESSON_SLOT_NUMBERS.map(slot => { const zIdx = slot - 1; return (
                     <React.Fragment key={zIdx}>
                       <div className="p-3 border-r border-b border-slate-100 bg-slate-50/50 flex items-center justify-center font-black text-slate-400">{zIdx + 1}</div>
                       {TAGE_NAMEN.map(tag => {
-                        const existing = app.wochenplanung[app.currentKW || 0]?.[tag]?.[zIdx];
+                        const existing = app.wochenplanung[app.currentKW || getKW(new Date())]?.[tag]?.[zIdx];
                         return (
                           <button 
                             key={tag}
@@ -745,7 +751,7 @@ Schwache: ${plan.differenzierung.schwache}
                         );
                       })}
                     </React.Fragment>
-                  ))}
+                  ); })}
                 </div>
               </div>
             </motion.div>

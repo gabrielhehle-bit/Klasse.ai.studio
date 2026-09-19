@@ -1058,6 +1058,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     assertRestorableAppState(data);
     const next = syncActiveClass(normalizeAppState({
       ...data, tourAbgeschlossen: true,
+      // Restore learning data, not a potentially stale saved full-screen cockpit route.
+      currentPage: 'dashboard', previousPage: 'dashboard',
       boardSettings: { ...data.boardSettings, activeSyncCode: undefined, isTafelOpen: false },
     }));
     restoringRef.current = true;
@@ -1221,6 +1223,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         lernzielTracker: {},
         studentLernzielBewertungen: {},
         studentLernzielSemesterBewertungen: {},
+        lernzielBewertungsmodell: undefined,
         diagnostikErgebnisse: [],
         diagnostikErhebungen: [],
         diagnosticResults: [],
@@ -1292,6 +1295,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         lernzielTracker: {},
         studentLernzielBewertungen: {},
         studentLernzielSemesterBewertungen: {},
+        lernzielBewertungsmodell: undefined,
         diagnostikErgebnisse: [],
         diagnostikErhebungen: [],
         diagnosticResults: [],
@@ -1437,12 +1441,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         // The deleted class WAS the active class -> switch to first remaining class
         const nextClass = remainingClasses[0];
-        const currentLoc = prev.currentPage || 'cockpit';
-        const forceCockpit = !nextClass.klassenvorstand && ['orga', 'uebergabemappe', 'diagnostik', 'kel'].includes(currentLoc);
+        const currentLoc = prev.currentPage || 'dashboard';
+        const needsSafeLanding = !nextClass.klassenvorstand && ['orga', 'uebergabemappe', 'diagnostik', 'kel'].includes(currentLoc);
 
         return {
           ...prev,
-          currentPage: forceCockpit ? 'cockpit' : currentLoc,
+          currentPage: needsSafeLanding ? 'dashboard' : currentLoc,
           activeClassId: nextClass.id,
           classes: remainingClasses,
           klassenbezeichnung: nextClass.name,
@@ -1458,6 +1462,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           lernzielTracker: nextClass.lernzielTracker ? JSON.parse(JSON.stringify(nextClass.lernzielTracker)) : {},
           studentLernzielBewertungen: nextClass.studentLernzielBewertungen ? JSON.parse(JSON.stringify(nextClass.studentLernzielBewertungen)) : {},
           studentLernzielSemesterBewertungen: nextClass.studentLernzielSemesterBewertungen ? JSON.parse(JSON.stringify(nextClass.studentLernzielSemesterBewertungen)) : {},
+        lernzielBewertungsmodell: nextClass.lernzielBewertungsmodell ? JSON.parse(JSON.stringify(nextClass.lernzielBewertungsmodell)) : undefined,
           diagnostikErgebnisse: nextClass.diagnostikErgebnisse ? JSON.parse(JSON.stringify(nextClass.diagnostikErgebnisse)) : [],
           diagnostikErhebungen: nextClass.diagnostikErhebungen ? JSON.parse(JSON.stringify(nextClass.diagnostikErhebungen)) : [],
           diagnosticResults: nextClass.diagnosticResults ? JSON.parse(JSON.stringify(nextClass.diagnosticResults)) : [],
@@ -1533,6 +1538,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           lernzielTracker: {},
           studentLernzielBewertungen: {},
           studentLernzielSemesterBewertungen: {},
+        lernzielBewertungsmodell: undefined,
           diagnostikErgebnisse: [],
           diagnostikErhebungen: [],
           diagnosticResults: [],

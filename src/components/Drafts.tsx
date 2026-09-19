@@ -7,6 +7,8 @@ import LessonPlannerAI from './LessonPlannerAI';
 import { DetailedLessonPlan } from '../services/aiService';
 import { TAGE_NAMEN } from '../constants';
 import { formatLocalDateKey, getKW, getSW, kwToMonday, getStartYear } from '../lib/utils';
+import { normalizeLessonDraft } from '../lib/lessonDrafts';
+import { LESSON_SLOT_NUMBERS } from '../constants';
 
 export default function Drafts() {
   const { app, setApp, setPage } = useApp();
@@ -19,7 +21,8 @@ export default function Drafts() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  const drafts = [...(app.stundenentwuerfe || [])].sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime());
+  const drafts = [...(app.stundenentwuerfe || [])].map(d => ({ ...d, ...normalizeLessonDraft(d) }))
+    .sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime());
   const filteredDrafts = drafts.filter(d => {
     const matchesSearch = (d.thema || '').toLowerCase().includes(search.toLowerCase()) || (d.fach || '').toLowerCase().includes(search.toLowerCase());
     const matchesSubject = !selectedSubject || d.fach === selectedSubject;
@@ -147,6 +150,9 @@ ${selectedDraft.material}
     if (!selectedDraft) return;
     
     const activeKW = app.currentKW || getKW(new Date());
+    const existing = app.wochenplanung?.[activeKW]?.[tag]?.[idx] || {};
+    if ((existing.fach || existing.thema || existing.method || existing.stundenentwurf) &&
+      !window.confirm('Diese Stunde enthält bereits eine Planung. Fach, Thema, Material und Entwurf mit der ausgewählten Vorlage ersetzen?')) return;
 
     setApp(prev => {
       const currentWeek = prev.wochenplanung?.[activeKW] || {};
@@ -167,7 +173,11 @@ ${selectedDraft.material}
                 thema: selectedDraft.thema,
                 type: currentSlot.type || 'standard',
                 material: selectedDraft.material || currentSlot.material || '',
-                method: `Lernziele:\n${selectedDraft.lernziele}\n\nEinstieg:\n${selectedDraft.einleitung}\n\nHauptteil:\n${selectedDraft.hauptteil}\n\nSchluss:\n${selectedDraft.schluss}`,
+                stundenentwurf: {
+                  ...(currentSlot.stundenentwurf || {}),
+                  lernziele: selectedDraft.lernziele, einleitung: selectedDraft.einleitung,
+                  hauptteil: selectedDraft.hauptteil, schluss: selectedDraft.schluss, material: selectedDraft.material,
+                },
                 social: currentSlot.social || 'single',
                 reflexion: currentSlot.reflexion || ''
               }
@@ -648,7 +658,7 @@ ${selectedDraft.material}
                     <div key={tag} className="p-3 bg-slate-50 border-r border-b border-slate-200 text-[0.625rem] font-black text-slate-400 uppercase text-center">{tag}</div>
                   ))}
                   
-                  {[0,1,2,3,4,5].map(zIdx => (
+                  {LESSON_SLOT_NUMBERS.map(slot => { const zIdx = slot - 1; return (
                     <React.Fragment key={zIdx}>
                       <div className="p-3 border-r border-b border-slate-100 bg-slate-50/50 flex items-center justify-center font-black text-slate-400">{zIdx + 1}</div>
                       {TAGE_NAMEN.map(tag => {
@@ -669,7 +679,7 @@ ${selectedDraft.material}
                         );
                       })}
                     </React.Fragment>
-                  ))}
+                  ); })}
                 </div>
               </div>
             </motion.div>

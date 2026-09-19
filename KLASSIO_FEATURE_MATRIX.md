@@ -1,5 +1,7 @@
 # KLASSIO – Feature Matrix
 
+> **Aktualisierung 2026-09-19:** Die früheren ✅-Angaben unten gelten nur für den damaligen Prüfstand. Insbesondere #145–159 sind auf `main` nicht enthalten. Aktueller Integrationsstatus samt offenen Fehlern in [`docs/KLASSIO_REINTEGRATION_2026-09-19.md`](docs/KLASSIO_REINTEGRATION_2026-09-19.md). Kein Feature als live/fertig einstufen, bevor ein gemeinsamer geprüfter Release-Commit belegt ist.
+
 Stand: 2026-09-16 · aktive Integrationskette `feature/usability-widgets-tools-notes` → `main`; Teamteaching in PR #96
 
 Legende:
