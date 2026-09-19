@@ -203,7 +203,7 @@ async function clickFirstSchedulableWeeklyCell(client) {
       'if(!String(svg.getAttribute("class")||"").includes("lucide-plus"))continue;' +
       'let node=svg.parentElement;' +
       'while(node&&node!==document.body){' +
-        'if(String(node.className||"").includes("group/cell")){node.click();return true;}' +
+        'if(String(node.className||"").includes("group/cell")&&String(node.className||"").includes("min-h-[5.3125rem]")){node.click();return true;}' +
         'node=node.parentElement;' +
       '}' +
     '}' +
@@ -288,7 +288,7 @@ async function main() {
     // finishes rendering. Wait for a real editable cell instead of clicking
     // immediately and misreporting missing planning functionality.
     await waitFor(client, 'weekly editing grid with an empty, schedulable cell',
-      'Array.from(document.querySelectorAll("svg.lucide-plus")).some(svg=>{let n=svg.parentElement;while(n&&n!==document.body){if(String(n.className||"").includes("group/cell"))return true;n=n.parentElement;}return false;})', 30000);
+      'Array.from(document.querySelectorAll("svg.lucide-plus")).some(svg=>{let n=svg.parentElement;while(n&&n!==document.body){if(String(n.className||"").includes("group/cell")&&String(n.className||"").includes("min-h-[5.3125rem]"))return true;n=n.parentElement;}return false;})', 30000);
     await clickFirstSchedulableWeeklyCell(client);
     await waitFor(client, 'large weekly editor', 'document.body?.innerText.includes("Einheit planen")');
     const weeklyLarge = await evaluate(client,
