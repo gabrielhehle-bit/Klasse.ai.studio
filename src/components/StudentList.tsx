@@ -335,15 +335,6 @@ export default function StudentList() {
                 className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
                 Spalten anpassen
               </button>
-              <button
-                type="button"
-                onClick={() => setPage('drucken')}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
-                title="Schülerlisten-Vorlage mit wählbaren Druckfeldern im Druckzentrum öffnen"
-              >
-                <Printer size={15} />
-                <span>Liste drucken</span>
-              </button>
               <button 
                 onClick={() => { 
                   setEditingStudent({ plz: '', ort: '', niveau: 3 });

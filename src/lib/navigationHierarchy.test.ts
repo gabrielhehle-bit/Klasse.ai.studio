@@ -3,14 +3,17 @@ import assert from 'node:assert/strict';
 import { getNavigationParent } from './navigationHierarchy';
 
 test('core pages have no parent breadcrumb', () => {
-  for (const page of ['dashboard', 'klasse', 'verhalten', 'planung', 'leistungen', 'unterricht']) {
+  for (const page of ['dashboard', 'klasse', 'verhalten', 'planung', 'leistungen', 'unterricht', 'cockpit', 'ki-helfer']) {
     assert.equal(getNavigationParent(page), null);
   }
 });
 
-test('Unterricht tools return to Unterricht', () => {
-  for (const page of ['cockpit', 'ki-helfer', 'ki-paedagogik', 'arbeitsblatt', 'stationenbetrieb', 'differenzierung', 'elternbrief']) {
-    assert.deepEqual(getNavigationParent(page), { id: 'unterricht', label: 'Unterricht' });
+test('Unterrichts-Vorbereitung liegt in KI-Helfer oder Tools, nicht im Lehrercockpit', () => {
+  for (const page of ['ki-paedagogik', 'ki-elternbrief', 'ki-differenzierung', 'arbeitsblatt', 'differenzierung', 'elternbrief']) {
+    assert.deepEqual(getNavigationParent(page), { id: 'ki-helfer', label: 'KI-Helfer' });
+  }
+  for (const page of ['textanalyse', 'stationenbetrieb']) {
+    assert.deepEqual(getNavigationParent(page), { id: 'tools', label: 'Tools' });
   }
 });
 

@@ -14,7 +14,7 @@ import { WochenplanImportRow } from '../lib/planerExcelService';
 import { addWeeklyLessonToEmptyYearPlan, hasWeeklyPlanningDetails, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
-import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots } from '../lib/weeklyPlanData';
+import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
 import { getAttendanceSemester } from '../lib/attendanceData';
 import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
@@ -805,9 +805,7 @@ export default function WeeklyPlan() {
         const stammFach = app.stammplan?.[tag]?.[idx + 1] || '';
         if (item?.fach || item?.thema || stammFach) {
           total++;
-          if (item?.erledigt) {
-            prepared++;
-          }
+          if (isWeeklyLessonPrepared(item)) prepared++;
         }
       }
     });
@@ -1005,18 +1003,18 @@ export default function WeeklyPlan() {
   const getDayProgress = (tag: string) => {
     const dayData = plan[tag] || {};
     let total = 0;
+    let prepared = 0;
     let completed = 0;
     for (let idx = 0; idx < MAX_LESSON_SLOTS; idx++) {
       const item = dayData[idx];
       const displayFach = item?.fach || app.stammplan?.[tag]?.[idx + 1] || '';
       if (displayFach || item?.thema) {
         total++;
-        if (item?.erledigt) {
-          completed++;
-        }
+        if (isWeeklyLessonPrepared(item)) prepared++;
+        if (item?.erledigt) completed++;
       }
     }
-    return { total, completed, percent: total > 0 ? Math.round((completed / total) * 100) : 0 };
+    return { total, prepared, completed, percent: total > 0 ? Math.round((prepared / total) * 100) : 0 };
   };
 
   const pasteLessonBlock = (e: React.MouseEvent, tag: string, idx: number) => {
@@ -2416,7 +2414,7 @@ export default function WeeklyPlan() {
                                   />
                                 </div>
                                 <span className="text-[0.5rem] font-black uppercase text-slate-400 tracking-wider">
-                                  {progress.completed}/{progress.total} erledigt
+                                  {progress.prepared}/{progress.total} vorbereitet · {progress.completed} erledigt
                                 </span>
                               </div>
                             );
