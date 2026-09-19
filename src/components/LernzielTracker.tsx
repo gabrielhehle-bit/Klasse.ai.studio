@@ -11,7 +11,9 @@ import {
   Search,
 } from "lucide-react";
 import { motion } from "motion/react";
-import LernzielTrendChart from "./charts/LernzielTrendChart";
+import LernzielVisualisierung from './LernzielVisualisierung';
+import { getLernzielModell, lernzielHaeufigkeiten } from '../lib/lernzielBewertungsmodell';
+import { getAccentTextColor } from '../lib/utils';
 import { callServerAI } from "../services/aiService";
 
 export const LERNZIELE_BY_STUFE: Record<
@@ -1241,6 +1243,7 @@ function WizardModal({
   setPage,
 }: any) {
   const { app, setApp } = useApp();
+  const goalModel = getLernzielModell(app.lernzielBewertungsmodell);
   const [activeTab, setActiveTab] = useState<
     "auswahl" | "checkliste" | "zusammenfassung" | "klasse" | "ki"
   >("auswahl");
@@ -1251,11 +1254,6 @@ function WizardModal({
   const [studentProgress, setStudentProgress] = useState<any[]>([]);
   const [selectedStudentForTrend, setSelectedStudentForTrend] =
     useState<any>(null);
-  const [anomalyAlert, setAnomalyAlert] = useState<{
-    student: string;
-    type: "positive" | "negative";
-    message: string;
-  } | null>(null);
   const [expandedChecklistGoal, setExpandedChecklistGoal] = useState<
     string | null
   >(null);
@@ -1323,7 +1321,8 @@ function WizardModal({
   const getStudentRating = (studentId: string, goalId: string) => {
     const semesterRating = app.studentLernzielSemesterBewertungen?.[studentId]?.[selectedSemester]?.[goalId];
     if (semesterRating !== undefined) return semesterRating;
-    return app.studentLernzielBewertungen?.[studentId]?.[goalId] ?? null;
+    return !app.studentLernzielSemesterBewertungen?.[studentId] && selectedSemester === '1'
+      ? app.studentLernzielBewertungen?.[studentId]?.[goalId] ?? null : null;
   };
 
   const setStudentRating = (
@@ -1387,34 +1386,17 @@ function WizardModal({
 
   const getGoalComparison = () => {
     if (!compareStudentId || !compareGoalId) return null;
-
-    let totalScore = 0;
-    let ratedCount = 0;
-    let studentScore = null;
-
-    (students || []).forEach((s: any) => {
-      const rating = getStudentRating(s.id, compareGoalId);
-      if (rating !== null) {
-        // Transform 1(Erreicht)->100, 2(Im Wesentlichen)->66, 3(Minimal)->33
-        const score = rating === 1 ? 100 : rating === 2 ? 66 : 33;
-        totalScore += score;
-        ratedCount++;
-        if (s.id === compareStudentId) {
-          studentScore = score;
-        }
-      }
-    });
-
-    if (studentScore === null) return null; // No rating for this student
-
-    const classAverage = ratedCount > 0 ? totalScore / ratedCount : 0;
-    const diff = studentScore - classAverage;
-
+    const rating = getStudentRating(compareStudentId, compareGoalId);
+    if (rating === null || rating === undefined) return null;
+    const current = goalModel.levels.find(level => level.value === rating);
+    const ratings = (students || []).map((pupil: any) => getStudentRating(pupil.id, compareGoalId));
     return {
-      studentScore,
-      classAverage,
-      diff,
-      ratedCount,
+      studentLabel: current?.label || 'Frühere nicht zugeordnete Stufe ' + rating,
+      counts: goalModel.levels.map(level => ({
+        ...level, count: ratings.filter(value => value === level.value).length,
+      })),
+      other: ratings.filter(value => typeof value === 'number' && !goalModel.levels.some(level => level.value === value)).length,
+      ratedCount: ratings.filter(value => value !== null && value !== undefined).length,
     };
   };
 
@@ -1446,85 +1428,23 @@ function WizardModal({
     totalGoals > 0 ? Math.round((totalCovered / totalGoals) * 100) : 0;
 
   useEffect(() => {
-    if (activeTab === "klasse") {
-      const classTotalGoals = totalGoals;
-
-      const progress = (students || []).map((student: any) => {
-        const evaluationData: Record<string, number | null> =
-          app.studentLernzielSemesterBewertungen?.[student.id]?.[selectedSemester]
-          || app.studentLernzielBewertungen?.[student.id]
-          || {};
-
-        let count1 = 0;
-        let count2 = 0;
-        let count3 = 0;
-
-        FAECHER.forEach((fach) => {
-          (currentLernziele[fach] || []).forEach((goal: any) => {
-            const rating = evaluationData[goal.id];
-            if (rating === 1) count1++;
-            if (rating === 2) count2++;
-            if (rating === 3) count3++;
-          });
-        });
-
-        const totalRated = count1 + count2 + count3;
-
-        return {
-          id: student.id,
-          vorname: student.vorname,
-          nachname: student.nachname,
-          count1,
-          count2,
-          count3,
-          totalRated,
-          classTotalGoals,
-          pct1: classTotalGoals > 0 ? (count1 / classTotalGoals) * 100 : 0,
-          pct2: classTotalGoals > 0 ? (count2 / classTotalGoals) * 100 : 0,
-          pct3: classTotalGoals > 0 ? (count3 / classTotalGoals) * 100 : 0,
-        };
-      });
-
-      progress.sort((a: any, b: any) => b.totalRated - a.totalRated);
-      setStudentProgress(progress);
-
-      // Check for anomalies
-      if (progress.length > 0) {
-        let alert = null;
-        // Find someone with high minimal (count3) ratio
-        const struggling = progress.find(
-          (p) => p.totalRated > 3 && p.count3 / p.totalRated > 0.4,
-        );
-        if (struggling) {
-          alert = {
-            student: `${struggling.vorname} ${struggling.nachname}`,
-            type: "negative" as const,
-            message: `Auffälligkeit: ${struggling.vorname} hat in letzter Zeit überdurchschnittlich viele Ziele nur "minimal erreicht" (${Math.round((struggling.count3 / struggling.totalRated) * 100)}%). Ein förderndes Gespräch oder vereinfachte Aufgaben könnten helfen.`,
-          };
-        } else {
-          const excelling = progress.find(
-            (p) => p.totalRated > 3 && p.count1 / p.totalRated > 0.8,
-          );
-          if (excelling) {
-            alert = {
-              student: `${excelling.vorname} ${excelling.nachname}`,
-              type: "positive" as const,
-              message: `Fortschritt: ${excelling.vorname} hat ${Math.round((excelling.count1 / excelling.totalRated) * 100)}% der letzten Lernziele "voll erreicht". Eventuell wäre Zusatzmaterial (Forderung) angebracht.`,
-            };
-          }
-        }
-        setAnomalyAlert(alert);
-      }
-    }
-  }, [
-    activeTab,
-    students,
-    currentLernziele,
-    totalGoals,
-    selectedSemester,
-    app.studentLernzielBewertungen,
-    app.studentLernzielSemesterBewertungen,
-  ]);
+    if (activeTab !== "klasse") return;
+    const goalIds = FAECHER.flatMap(fach => (currentLernziele[fach] || []).map(goal => goal.id));
+    const progress = (students || []).map((student: any) => {
+      const ratings = app.studentLernzielSemesterBewertungen?.[student.id]?.[selectedSemester]
+        || (!app.studentLernzielSemesterBewertungen?.[student.id] && selectedSemester === '1'
+          ? app.studentLernzielBewertungen?.[student.id] : undefined) || {};
+      const summary = lernzielHaeufigkeiten(goalIds, ratings, goalModel);
+      return {
+        id: student.id, vorname: student.vorname, nachname: student.nachname,
+        ratings, goalIds, totalRated: summary.assessed, classTotalGoals: summary.total,
+      };
+    });
+    progress.sort((a: any, b: any) => b.totalRated - a.totalRated);
+    setStudentProgress(progress);
+    // Ordinal labels are not percentages or automated diagnoses.
+  }, [activeTab, students, currentLernziele, selectedSemester,
+    app.studentLernzielBewertungen, app.studentLernzielSemesterBewertungen, app.lernzielBewertungsmodell]);
 
   const handleGetRecommendations = async () => {
     setIsGenerating(true);
@@ -1964,43 +1884,24 @@ Antworte AUSSCHLIESSLICH im JSON-Format ohne Markdown Block:
                                     <div className="flex-1 font-bold text-slate-700">
                                       {student.vorname} {student.nachname}
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        onClick={() =>
-                                          setStudentRating(
-                                            student.id,
-                                            goalId,
-                                            rating === 1 ? null : 1,
-                                          )
-                                        }
-                                        className={`px-3 py-1.5 rounded-lg text-[0.6875rem] uppercase tracking-wider font-bold transition-all duration-300 border ${rating === 1 ? "bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-400 hover:border-emerald-400" : "bg-white text-slate-500 border-slate-200 hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-700 hover:shadow-sm"}`}
-                                      >
-                                        Erreicht
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          setStudentRating(
-                                            student.id,
-                                            goalId,
-                                            rating === 2 ? null : 2,
-                                          )
-                                        }
-                                        className={`px-3 py-1.5 rounded-lg text-[0.6875rem] uppercase tracking-wider font-bold transition-all duration-300 border ${rating === 2 ? "bg-lime-400 text-slate-800 border-lime-400 hover:bg-lime-300 hover:border-lime-300" : "bg-white text-slate-500 border-slate-200 hover:bg-lime-50 hover:border-lime-400 hover:text-lime-700 hover:shadow-sm"}`}
-                                      >
-                                        Im Wesentlichen
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          setStudentRating(
-                                            student.id,
-                                            goalId,
-                                            rating === 3 ? null : 3,
-                                          )
-                                        }
-                                        className={`px-3 py-1.5 rounded-lg text-[0.6875rem] uppercase tracking-wider font-bold transition-all duration-300 border ${rating === 3 ? "bg-amber-400 text-slate-800 border-amber-400 hover:bg-amber-300 hover:border-amber-300" : "bg-white text-slate-500 border-slate-200 hover:bg-amber-50 hover:border-amber-400 hover:text-amber-700 hover:shadow-sm"}`}
-                                      >
-                                        Minimal
-                                      </button>
+                                    <div className="flex max-w-full flex-wrap items-center gap-2">
+                                      <button type="button"
+                                        aria-pressed={rating === null || rating === undefined}
+                                        onClick={() => setStudentRating(student.id, goalId, null)}
+                                        className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700"
+                                      >{goalModel.emptyLabel}</button>
+                                      {goalModel.levels.map(level => (
+                                        <button type="button" key={level.value}
+                                          aria-pressed={rating === level.value}
+                                          onClick={() => setStudentRating(student.id, goalId, rating === level.value ? null : level.value)}
+                                          className="rounded-lg border px-2 py-1.5 text-xs font-bold hover:brightness-95"
+                                          style={{ backgroundColor: rating === level.value ? level.color : '#ffffff',
+                                            color: rating === level.value ? getAccentTextColor(level.color) : '#1f2937',
+                                            borderColor: level.color }}
+                                        >{level.symbol} {level.label}</button>
+                                      ))}
+                                      {typeof rating === 'number' && !goalModel.levels.some(level => level.value === rating) &&
+                                        <span className="text-xs text-rose-700">Alte Stufe {rating} (nicht zugeordnet)</span>}
                                     </div>
                                     <div className="flex-[1.5] relative">
                                       <input
@@ -2179,75 +2080,23 @@ Antworte AUSSCHLIESSLICH im JSON-Format ohne Markdown Block:
                         Individueller Lernfortschritt
                       </h3>
                       <p className="text-sm text-slate-500">
-                        Basierend auf der Kompetenzeinschätzung im
-                        Schülerdossier (Oberau-Skala).
+                        Basierend auf den dokumentierten Lernzielen und den für diese Klasse gewählten Beurteilungsstufen.
                       </p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {studentProgress.map((sp: any) => {
-                      const totalPct = sp.pct1 + sp.pct2 + sp.pct3;
-                      const emptyPct = Math.max(0, 100 - totalPct);
-
-                      return (
-                        <div
-                          key={sp.id}
-                          onClick={() => setSelectedStudentForTrend(sp)}
-                          className="bg-white p-5 border border-slate-200 rounded-2xl shadow-sm cursor-pointer hover:border-indigo-300 hover:shadow-md transition-all group"
-                        >
-                          <div className="flex justify-between items-center mb-3">
-                            <div className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                              {sp.vorname} {sp.nachname}
-                            </div>
-                            <div className="text-xs font-black text-slate-400 bg-slate-100 px-2 py-1 rounded-md">
-                              {sp.totalRated} / {sp.classTotalGoals} Ziele
-                            </div>
-                          </div>
-
-                          {/* Stacked Progress Bar */}
-                          <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex mb-3 group/progress cursor-crosshair">
-                            {sp.pct1 > 0 && (
-                              <div
-                                className="bg-emerald-500 hover:bg-emerald-400 h-full transition-all duration-300 ease-in-out hover:brightness-110"
-                                style={{ width: `${sp.pct1}%` }}
-                                title="Erreicht"
-                              />
-                            )}
-                            {sp.pct2 > 0 && (
-                              <div
-                                className="bg-lime-400 hover:bg-lime-300 h-full transition-all duration-300 ease-in-out hover:brightness-110"
-                                style={{ width: `${sp.pct2}%` }}
-                                title="Im Wesentlichen erreicht"
-                              />
-                            )}
-                            {sp.pct3 > 0 && (
-                              <div
-                                className="bg-amber-400 hover:bg-amber-300 h-full transition-all duration-300 ease-in-out hover:brightness-110"
-                                style={{ width: `${sp.pct3}%` }}
-                                title="Minimal erreicht"
-                              />
-                            )}
-                          </div>
-
-                          {/* Legend for this student */}
-                          <div className="flex justify-between text-[10px] uppercase font-bold tracking-wider">
-                            <div className="flex items-center gap-1 text-emerald-600">
-                              <div className="w-2 h-2 rounded-full bg-emerald-500" />{" "}
-                              {sp.count1} Erreicht
-                            </div>
-                            <div className="flex items-center gap-1 text-lime-600">
-                              <div className="w-2 h-2 rounded-full bg-lime-400" />{" "}
-                              {sp.count2} Im Wesentl.
-                            </div>
-                            <div className="flex items-center gap-1 text-amber-500">
-                              <div className="w-2 h-2 rounded-full bg-amber-400" />{" "}
-                              {sp.count3} Minimal
-                            </div>
-                          </div>
+                    {studentProgress.map((sp: any) => (
+                      <button type="button" key={sp.id} onClick={() => setSelectedStudentForTrend(sp)}
+                        className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-indigo-300">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <strong className="text-sm text-slate-900">{sp.vorname} {sp.nachname}</strong>
+                          <span className="text-xs text-slate-600">{sp.totalRated} / {sp.classTotalGoals} eingeschätzt</span>
                         </div>
-                      );
-                    })}
+                        <LernzielVisualisierung goalIds={sp.goalIds} ratings={sp.ratings}
+                          model={goalModel} mode={goalModel.views.teachers} />
+                      </button>
+                    ))}
                   </div>
 
                   {studentProgress.length === 0 && (
@@ -2266,13 +2115,12 @@ Antworte AUSSCHLIESSLICH im JSON-Format ohne Markdown Block:
                     Zurück zur Klassenübersicht
                   </button>
 
-                  <LernzielTrendChart
-                    studentId={selectedStudentForTrend.id}
-                    studentName={`${selectedStudentForTrend.vorname} ${selectedStudentForTrend.nachname}`}
-                    count1={selectedStudentForTrend.count1}
-                    count2={selectedStudentForTrend.count2}
-                    count3={selectedStudentForTrend.count3}
-                  />
+                  <LernzielVisualisierung goalIds={selectedStudentForTrend.goalIds}
+                    ratings={app.studentLernzielSemesterBewertungen?.[selectedStudentForTrend.id]?.[selectedSemester]
+                      || (selectedSemester === '1' && !app.studentLernzielSemesterBewertungen?.[selectedStudentForTrend.id]
+                        ? app.studentLernzielBewertungen?.[selectedStudentForTrend.id] : undefined)}
+                    model={goalModel} mode={goalModel.views.teachers}
+                    title={`Lernzielstatus: ${selectedStudentForTrend.vorname} ${selectedStudentForTrend.nachname}`} />
                 </div>
               )}
             </div>
@@ -2282,42 +2130,6 @@ Antworte AUSSCHLIESSLICH im JSON-Format ohne Markdown Block:
         {activeTab === "ki" && (
           <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
             <div className="max-w-2xl mx-auto space-y-6">
-              {anomalyAlert && (
-                <div
-                  className={`p-4 rounded-xl border-l-4 flex gap-4 items-start ${
-                    anomalyAlert.type === "negative"
-                      ? "bg-red-50 border-red-500 text-red-900"
-                      : "bg-emerald-50 border-emerald-500 text-emerald-900"
-                  }`}
-                >
-                  <div className="mt-1 flex-shrink-0">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M12 16v-4" />
-                      <path d="M12 8h.01" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm mb-1">
-                      {anomalyAlert.type === "negative"
-                        ? "⚠️ KI-Auffälligkeit erkannt"
-                        : "✨ KI-Fortschritt erkannt"}
-                    </h4>
-                    <p className="text-sm opacity-90">{anomalyAlert.message}</p>
-                  </div>
-                </div>
-              )}
-
               <div className="text-center space-y-4 mb-8">
                 <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg
@@ -2585,69 +2397,25 @@ Antworte AUSSCHLIESSLICH im JSON-Format ohne Markdown Block:
                       );
 
                     return (
-                      <div className="mt-4 p-5 rounded-xl border border-indigo-100 bg-indigo-50/50">
-                        <div className="flex flex-col md:flex-row items-center gap-6">
-                          <div className="flex-1 space-y-4 w-full">
-                            <div>
-                              <div className="flex justify-between text-xs font-bold mb-1">
-                                <span className="text-indigo-900">
-                                  Schüler-Niveau
-                                </span>
-                                <span className="text-indigo-600">
-                                  {Math.round(comparison.studentScore)}%
-                                </span>
-                              </div>
-                              <div className="w-full h-2 bg-indigo-100 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-indigo-500 transition-all duration-500"
-                                  style={{
-                                    width: `${comparison.studentScore}%`,
-                                  }}
-                                ></div>
-                              </div>
-                            </div>
-                            <div>
-                              <div className="flex justify-between text-xs font-bold mb-1">
-                                <span className="text-slate-600">
-                                  Klassendurchschnitt ({comparison.ratedCount}{" "}
-                                  bewertet)
-                                </span>
-                                <span className="text-slate-500">
-                                  {Math.round(comparison.classAverage)}%
-                                </span>
-                              </div>
-                              <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-slate-400 transition-all duration-500"
-                                  style={{
-                                    width: `${comparison.classAverage}%`,
-                                  }}
-                                ></div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="shrink-0 text-center min-w-[120px]">
-                            <div className="text-[0.6875rem] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                              Abweichung
-                            </div>
-                            <div
-                              className={`text-2xl font-black flex items-center justify-center gap-1 ${
-                                comparison.diff > 5
-                                  ? "text-emerald-500"
-                                  : comparison.diff < -5
-                                    ? "text-amber-500"
-                                    : "text-slate-600"
-                              }`}
-                            >
-                              {comparison.diff > 5
-                                ? "▲"
-                                : comparison.diff < -5
-                                  ? "▼"
-                                  : "≈"}
-                              {Math.abs(Math.round(comparison.diff))}%
-                            </div>
-                          </div>
+                      <div className="mt-4 space-y-3 rounded-xl border border-indigo-100 bg-indigo-50/50 p-5">
+                        <p className="text-sm font-bold text-slate-900">
+                          Individuelle Einschätzung: {comparison.studentLabel}
+                        </p>
+                        <p className="text-xs text-slate-600">
+                          Dokumentierte Einschätzungen für dasselbe Lernziel in der Klasse: {comparison.ratedCount}.
+                          Keine prozentuale Umrechnung oder automatische Förderdiagnose.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {comparison.counts.map(level => (
+                            <span key={level.value} className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold">
+                              <span className="mr-1" aria-hidden style={{ color: level.color }}>●</span>
+                              {level.label}: {level.count}
+                            </span>
+                          ))}
+                          {comparison.other > 0 &&
+                            <span className="rounded-lg border border-slate-200 px-2 py-1 text-xs">
+                              Frühere nicht zugeordnete Stufen: {comparison.other}
+                            </span>}
                         </div>
                       </div>
                     );

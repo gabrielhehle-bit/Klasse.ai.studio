@@ -193,6 +193,7 @@ export function syncActiveClass(state: AppState): AppState {
     lernzielTracker: state.lernzielTracker ? JSON.parse(JSON.stringify(state.lernzielTracker)) : {},
     studentLernzielBewertungen: state.studentLernzielBewertungen ? JSON.parse(JSON.stringify(state.studentLernzielBewertungen)) : {},
     studentLernzielSemesterBewertungen: state.studentLernzielSemesterBewertungen ? JSON.parse(JSON.stringify(state.studentLernzielSemesterBewertungen)) : {},
+    lernzielBewertungsmodell: state.lernzielBewertungsmodell ? JSON.parse(JSON.stringify(state.lernzielBewertungsmodell)) : undefined,
     diagnostikErgebnisse: state.diagnostikErgebnisse ? JSON.parse(JSON.stringify(state.diagnostikErgebnisse)) : [],
     diagnostikErhebungen: state.diagnostikErhebungen ? JSON.parse(JSON.stringify(state.diagnostikErhebungen)) : [],
     diagnosticResults: state.diagnosticResults ? JSON.parse(JSON.stringify(state.diagnosticResults)) : [],
@@ -347,6 +348,7 @@ export function normalizeAppState(raw: any): AppState {
       lernzielTracker: parsed.lernzielTracker || {},
       studentLernzielBewertungen: parsed.studentLernzielBewertungen || {},
       studentLernzielSemesterBewertungen: parsed.studentLernzielSemesterBewertungen || {},
+      lernzielBewertungsmodell: parsed.lernzielBewertungsmodell,
       diagnostikErgebnisse: parsed.diagnostikErgebnisse || [],
       diagnostikErhebungen: parsed.diagnostikErhebungen || [],
       diagnosticResults: parsed.diagnosticResults || [],
@@ -408,6 +410,7 @@ export function normalizeAppState(raw: any): AppState {
         lernzielTracker: c.lernzielTracker ?? (c.id === parsed.activeClassId ? parsed.lernzielTracker : undefined) ?? {},
         studentLernzielBewertungen: c.studentLernzielBewertungen ?? (c.id === parsed.activeClassId ? parsed.studentLernzielBewertungen : undefined) ?? {},
         studentLernzielSemesterBewertungen: c.studentLernzielSemesterBewertungen ?? (c.id === parsed.activeClassId ? parsed.studentLernzielSemesterBewertungen : undefined) ?? {},
+        lernzielBewertungsmodell: c.lernzielBewertungsmodell ?? (c.id === parsed.activeClassId ? parsed.lernzielBewertungsmodell : undefined),
         diagnostikErgebnisse: c.diagnostikErgebnisse ?? (c.id === parsed.activeClassId ? parsed.diagnostikErgebnisse : undefined) ?? [],
         diagnostikErhebungen: c.diagnostikErhebungen ?? (c.id === parsed.activeClassId ? parsed.diagnostikErhebungen : undefined) ?? [],
         diagnosticResults: c.diagnosticResults ?? (c.id === parsed.activeClassId ? parsed.diagnosticResults : undefined) ?? [],
@@ -569,6 +572,7 @@ export function normalizeAppState(raw: any): AppState {
     parsed.lernzielTracker = activeClass.lernzielTracker || {};
     parsed.studentLernzielBewertungen = activeClass.studentLernzielBewertungen || {};
     parsed.studentLernzielSemesterBewertungen = activeClass.studentLernzielSemesterBewertungen || {};
+    parsed.lernzielBewertungsmodell = activeClass.lernzielBewertungsmodell;
     parsed.diagnostikErgebnisse = activeClass.diagnostikErgebnisse || [];
     parsed.diagnostikErhebungen = activeClass.diagnostikErhebungen || [];
     parsed.diagnosticResults = activeClass.diagnosticResults || [];
@@ -822,6 +826,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     lernzielTracker: targetClass.lernzielTracker ? JSON.parse(JSON.stringify(targetClass.lernzielTracker)) : {},
     studentLernzielBewertungen: targetClass.studentLernzielBewertungen ? JSON.parse(JSON.stringify(targetClass.studentLernzielBewertungen)) : {},
     studentLernzielSemesterBewertungen: targetClass.studentLernzielSemesterBewertungen ? JSON.parse(JSON.stringify(targetClass.studentLernzielSemesterBewertungen)) : {},
+    lernzielBewertungsmodell: targetClass.lernzielBewertungsmodell ? JSON.parse(JSON.stringify(targetClass.lernzielBewertungsmodell)) : undefined,
     diagnostikErgebnisse: targetClass.diagnostikErgebnisse ? JSON.parse(JSON.stringify(targetClass.diagnostikErgebnisse)) : [],
     diagnostikErhebungen: targetClass.diagnostikErhebungen ? JSON.parse(JSON.stringify(targetClass.diagnostikErhebungen)) : [],
     diagnosticResults: targetClass.diagnosticResults ? JSON.parse(JSON.stringify(targetClass.diagnosticResults)) : [],

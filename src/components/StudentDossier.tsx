@@ -25,6 +25,8 @@ import DossierKontakteEinwilligungen from './dossier/DossierKontakteEinwilligung
 import DossierUebersicht from './dossier/DossierUebersicht';
 import DossierKIPortfolio from './dossier/DossierKIPortfolio';
 import DossierLeistungen from './dossier/DossierLeistungen';
+import StudentPortfolio from './StudentPortfolio';
+import DossierLernzielErlaeuterung from './dossier/DossierLernzielErlaeuterung';
 import DossierFoerderprofil from './dossier/DossierFoerderprofil';
 import DossierDiagnostik from './dossier/DossierDiagnostik';
 import DossierMikaD from './dossier/DossierMikaD';
@@ -80,6 +82,8 @@ export type DossierTab =
   | 'notizen'
   | 'prep'
   | 'leistungen' 
+  | 'portfolio'
+  | 'lernziel_erlaeuterung'
   | 'foerderprofil' 
   | 'diagnostik' 
   | 'mika_d' 
@@ -129,6 +133,8 @@ export const MAIN_AREAS: MainAreaDef[] = [
     tabs: [
       { id: 'leistungen', label: 'Leistungsübersicht', shortLabel: 'Leistungen', icon: BarChart3, description: 'Kompakte fachliche Gesamtschau und Leistungsdaten' },
       { id: 'lernziele', label: 'Lernziele & Kompetenzen', shortLabel: 'Lernziele', icon: Target, description: 'Lehrplan-Kompetenzen und erreichte Teilziele' },
+      { id: 'portfolio', label: 'Portfolio', shortLabel: 'Portfolio', icon: BookOpen, description: 'Arbeiten, Fotos und echte individuelle Lernnachweise' },
+      { id: 'lernziel_erlaeuterung', label: 'Erläuterung', shortLabel: 'Erläuterung', icon: FileText, description: 'Schulinterne Lernziel-Rückmeldung mit eigenem Text, keine automatische Notenentscheidung' },
       { id: 'mika_d', label: 'Sprachstand', shortLabel: 'Sprachstand', icon: GraduationCap, description: 'MIKA-D Sprachstandsfeststellung' },
     ]
   },
@@ -839,6 +845,10 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                       setActiveTab(tab as DossierTab);
                     }}
                   />
+                )}
+                {activeTab === 'portfolio' && <StudentPortfolio key={student.id} schuelerId={student.id} />}
+                {activeTab === 'lernziel_erlaeuterung' && (
+                  <DossierLernzielErlaeuterung student={student} semester={sem} onSemesterChange={changeSemester} />
                 )}
                 {activeTab === 'mika_d' && (
                   <DossierMikaD
