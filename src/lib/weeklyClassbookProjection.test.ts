@@ -71,3 +71,12 @@ test('Nicht zugeordnete Fächer, Stammplan-Fallback, Termin und optionale Reflex
   assert.equal(withoutEvents['Besondere Vorkommnisse'].length, 0);
   assert.doesNotMatch(withoutEvents.Sachunterricht[0], /Sehr gut/);
 });
+
+test('Verknüpfte Materialien werden mit dem bestehenden Titel statt bloßer IDs ins Klassenbuch übernommen', () => {
+  const output = projectWeeklyPlanToClassbook({
+    Mittwoch: {0: {fach:'Mathematik', thema:'Rechnen', material:'Bleistift',
+      materialIds:['heft','buch'], type:'test', dauer:2, zeit:'08:00–08:50'}}
+  }, {materialTitlesById: {heft:'Arbeitsheft', buch:'Schulbuch'}});
+  const entry = output['Mathematik › Ohne Unterbereich'][0];
+  for(const word of ['Bleistift','Arbeitsheft','Schulbuch','test','08:00–08:50']) assert.ok(entry.includes(word));
+});
