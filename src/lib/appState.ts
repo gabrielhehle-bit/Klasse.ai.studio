@@ -242,6 +242,7 @@ export function syncActiveClass(state: AppState): AppState {
     kiPortfolioSummaries: state.kiPortfolioSummaries ? JSON.parse(JSON.stringify(state.kiPortfolioSummaries)) : {},
     oberauData: state.oberauData ? JSON.parse(JSON.stringify(state.oberauData)) : {},
     vertretungHinweise: state.vertretungHinweise || '',
+    vertretungsVorbereitung: state.vertretungsVorbereitung ? JSON.parse(JSON.stringify(state.vertretungsVorbereitung)) : undefined,
     stundenZeiten: state.stundenZeiten ? { ...state.stundenZeiten } : {},
     sue_kontrolle: state.sue_kontrolle ? JSON.parse(JSON.stringify(state.sue_kontrolle)) : {},
     lastGroups: state.lastGroups,
@@ -613,6 +614,7 @@ export function normalizeAppState(raw: any): AppState {
     parsed.kiPortfolioSummaries = activeClass.kiPortfolioSummaries || {};
     parsed.oberauData = activeClass.oberauData || {};
     parsed.vertretungHinweise = activeClass.vertretungHinweise ?? parsed.vertretungHinweise ?? '';
+    parsed.vertretungsVorbereitung = activeClass.vertretungsVorbereitung;
     parsed.sue_kontrolle = activeClass.sue_kontrolle;
     parsed.sitzplan_schueler = activeClass.sitzplan_schueler;
     parsed.sitzplan_objekte = activeClass.sitzplan_objekte;
@@ -872,6 +874,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     kiPortfolioSummaries: targetClass.kiPortfolioSummaries ? JSON.parse(JSON.stringify(targetClass.kiPortfolioSummaries)) : {},
     oberauData: targetClass.oberauData ? JSON.parse(JSON.stringify(targetClass.oberauData)) : {},
     vertretungHinweise: targetClass.vertretungHinweise || '',
+    vertretungsVorbereitung: targetClass.vertretungsVorbereitung ? JSON.parse(JSON.stringify(targetClass.vertretungsVorbereitung)) : undefined,
     sue_kontrolle: targetClass.sue_kontrolle || {},
     sitzplan_schueler: targetClass.sitzplan_schueler || {},
     sitzplan_objekte: targetClass.sitzplan_objekte || [],
