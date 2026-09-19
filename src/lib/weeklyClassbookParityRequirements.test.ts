@@ -68,3 +68,13 @@ test('Klassenbuch-PDF behält eigene Fachinhalte auch bei ausgeschalteten Termin
   assert.match(pdf, /const categories = Object\.entries\(week\.categories\)/);
   assert.doesNotMatch(pdf, /options\.includeOccurrences !== false \|\| name !== 'Besondere Vorkommnisse'/);
 });
+
+test('Druckzentrum: gedruckter Wochenplan enthält alle zehn Stunden und lässt Sachunterricht bestehen', () => {
+  assert.match(printing, /const subInfoList = Array\.from\(\{ length: 10 \}, \(_, index\) => index \+ 1\)/);
+  const start = printing.indexOf("case 'wochenplan':");
+  const end = printing.indexOf('// D. KLASSENBUCH', start);
+  const weekTemplate = printing.slice(start, end);
+  assert.ok(weekTemplate.includes('displayFach'));
+  assert.doesNotMatch(weekTemplate, /\^sachunterricht\$\|\^su\$/);
+  assert.doesNotMatch(weekTemplate, /isExcludedEvent/);
+});
