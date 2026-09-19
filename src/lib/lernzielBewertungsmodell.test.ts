@@ -65,3 +65,46 @@ test('integration: active class, backup, print and student dossier preserve sele
   assert.doesNotMatch(goals, /rating === 1 \? 'Erreicht'/);
   assert.match(overview, /<LernzielModellEditor/);
 });
+
+
+test('changing classes retains separate scales, historic ratings and old JSON backup compatibility', async () => {
+  const { initialAppState, syncActiveClass, switchClassState, normalizeAppState } = await import('./appState');
+  const custom = parseLernzielModell({
+    ...STANDARD_LERNZIEL_MODELL, name: 'Klasse A',
+    levels: [
+      { value: 3, label: 'Start', kurz: 'Start', color: '#d97706', symbol: '🌱' },
+      { value: 2, label: 'Fast', kurz: 'Fast', color: '#4d7c0f', symbol: '🌿' },
+      { value: 1, label: 'Sicher', kurz: 'Sicher', color: '#047857', symbol: '🌸' },
+    ],
+  });
+  const firstClass = { id: 'a', name: 'A', stufe: 1, klassenvorstand: true, schueler: [], lernzielBewertungsmodell: custom };
+  const secondClass = { id: 'b', name: 'B', stufe: 2, klassenvorstand: true, schueler: [] };
+  const state = {
+    ...initialAppState,
+    activeClassId: 'a', klassenbezeichnung: 'A', stufe: 1, klassenvorstand: true,
+    lernzielBewertungsmodell: custom,
+    studentLernzielSemesterBewertungen: { pupilA: { '1': { goal1: 1 } } },
+    classes: [firstClass, secondClass],
+  } as any;
+  const switched = switchClassState(state, 'b');
+  assert.equal(switched.lernzielBewertungsmodell, undefined);
+  assert.deepEqual(switched.studentLernzielSemesterBewertungen, {});
+  const back = switchClassState(switched, 'a');
+  assert.equal(back.lernzielBewertungsmodell?.name, 'Klasse A');
+  assert.equal(back.studentLernzielSemesterBewertungen?.pupilA?.['1']?.goal1, 1);
+  const restored = normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(back))));
+  assert.equal(restored.lernzielBewertungsmodell?.name, 'Klasse A');
+  assert.equal(restored.classes.find(c => c.id === 'b')?.lernzielBewertungsmodell, undefined);
+  const oldBackup = normalizeAppState({ ...initialAppState, lernzielBewertungsmodell: undefined, classes: [] });
+  assert.deepEqual(getLernzielModell(oldBackup.lernzielBewertungsmodell).levels.map(l => l.value), [3, 2, 1]);
+});
+
+test('school rubric is separate: learning-goal explanation does not overwrite Oberau matrix', () => {
+  const dossier = readFileSync('src/components/StudentDossier.tsx', 'utf8');
+  const explanation = readFileSync('src/components/dossier/DossierLernzielErlaeuterung.tsx', 'utf8');
+  assert.match(dossier, /id: 'lernziel_erlaeuterung'/);
+  assert.match(dossier, /<DossierLernzielErlaeuterung student=\{student\} semester=\{sem\}/);
+  assert.match(explanation, /lernzielErlaeuterungen:/);
+  assert.doesNotMatch(explanation, /erlaeuterungsmatrix\s*:/);
+  assert.match(explanation, /Kein amtliches Zeugnis/);
+});
