@@ -35,7 +35,6 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
   { id: 'orga', label: 'Kasse & Orga', desc: 'Klassenkasse, Geldsammlungen und Organisation', category: 'Klasse & Kinder', condition: (app: any) => app.klassenvorstand },
 
   { id: 'noten', label: 'Notenmappe', desc: 'Noten, Prozent, Punkte, Gewichtungen und Notenübersicht', category: 'Leistungen' },
-  { id: 'statistik', label: 'Statistik & Profile', desc: 'Leistungsprofile und Klassenanalysen', category: 'Leistungen' },
   { id: 'diagnostik', label: 'Diagnostik', desc: 'Lese-, Rechen- und Beobachtungschecks', category: 'Leistungen', condition: (app: any) => app.klassenvorstand },
   { id: 'portfolio', label: 'Lernziele & Portfolio', desc: 'Lernziele und Portfolioeinträge begleiten', category: 'Leistungen' },
   { id: 'verbal', label: 'Verbale Beurteilung', desc: 'Verbale Rückmeldungen vorbereiten', category: 'Leistungen' },
