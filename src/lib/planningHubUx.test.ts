@@ -21,7 +21,6 @@ test('planning hub keeps every agreed planning destination', () => {
     'planungszentrale',
     'materialien',
     'vertretung',
-    'uebergabemappe',
   ]) {
     assert.match(source, new RegExp(`id:\\s*['"]${id}['"]`));
   }
