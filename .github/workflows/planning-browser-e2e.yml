@@ -1,0 +1,95 @@
+name: Planning Browser E2E
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/components/PlanungsZentrale.tsx'
+      - 'src/components/PlanungHub.tsx'
+      - 'src/components/Sidebar.tsx'
+      - 'scripts/planning-browser-e2e.mjs'
+      - '.github/workflows/planning-browser-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  planning-browser-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Production build
+        run: bun run build
+
+      - name: Run weekly planning and week-check journey in real Chrome
+        env:
+          NODE_ENV: production
+          PORT: 3100
+          APP_URL: http://localhost:3100
+          SESSION_SECRET: ci-planning-session-secret-2026-at-least-32-characters
+          LEHRERAPP_ACCESS_TEAM: ci-planning-access-code-2026
+          LEHRERAPP_ACCESS_EXTERNAL: ci-planning-external-code-2026
+          KLASSIO_DATA_DIR: /tmp/klassio-planning-e2e-data
+          KLASSIO_E2E_BASE_URL: http://localhost:3100
+          KLASSIO_E2E_ACCESS_CODE: ci-planning-access-code-2026
+          KLASSIO_CHROME_DEBUG_URL: http://127.0.0.1:9242
+          KLASSIO_E2E_SCREENSHOT: /tmp/klassio-planning-e2e.png
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/klassio-planning-e2e-data /tmp/klassio-planning-chrome
+          mkdir -p /tmp/klassio-planning-e2e-data
+
+          node dist/server.cjs > /tmp/klassio-planning-server.log 2>&1 &
+          SERVER_PID=$!
+
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME_BIN" ]; then
+            echo "No Chrome/Chromium binary found on runner."
+            exit 1
+          fi
+
+          "$CHROME_BIN" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
+            --remote-debugging-port=9242 --remote-allow-origins=* \
+            --user-data-dir=/tmp/klassio-planning-chrome about:blank \
+            > /tmp/klassio-planning-chrome.log 2>&1 &
+          CHROME_PID=$!
+
+          cleanup() {
+            kill "$CHROME_PID" 2>/dev/null || true
+            kill "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for i in {1..60}; do
+            if curl --fail --silent http://localhost:3100/api/health >/tmp/klassio-planning-health.json; then
+              break
+            fi
+            sleep 0.5
+          done
+          grep -q '"status":"ok"' /tmp/klassio-planning-health.json
+          bun scripts/planning-browser-e2e.mjs
+
+      - name: Upload browser screenshot and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: klassio-planning-browser-${{ github.sha }}
+          path: |
+            /tmp/klassio-planning-e2e.png
+            /tmp/klassio-planning-server.log
+            /tmp/klassio-planning-chrome.log
+          if-no-files-found: ignore
+          retention-days: 7

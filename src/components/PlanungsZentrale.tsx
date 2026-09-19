@@ -632,7 +632,7 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
         const defaultFach = app.stammplan?.[dayName]?.[hIdx + 1] || '';
 
         if (lesson && lesson.fach) {
-          if (!lesson.erledigt && (!lesson.thema || !lesson.thema.trim())) {
+          if (!lesson.thema || !lesson.thema.trim()) {
             list.push({
               dayIdx: dIdx,
               dayName,
@@ -777,12 +777,16 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
     return { count, completed };
   };
 
-  const formattedDateToday = currDate.toLocaleDateString('de-DE', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  });
+  // Der Wochen-Check zeigt immer die explizit gewählte Planungswoche, niemals
+  // einen als "heute" ausgegebenen Montag am Wochenende oder bei KW-Wechsel.
+  const selectedClass = app.classes?.find(c => c.id === app.activeClassId);
+  const rawClassLabel = (selectedClass?.name || app.klassenbezeichnung || '').trim();
+  const classLabel = rawClassLabel
+    ? (/^klasse\b/i.test(rawClassLabel) ? rawClassLabel : `Klasse ${rawClassLabel}`)
+    : (app.stufe !== undefined && app.stufe !== null ? `Schulstufe ${app.stufe}` : 'Keine Klasse ausgewählt');
+  const missingTopicLessons = openLessonsList.filter(item => item.thema === 'Kein Thema eingetragen');
+  const weekEnd = new Date(monday);
+  weekEnd.setDate(weekEnd.getDate() + 4);
 
   return (
     <ErrorBoundaryLogger componentName="PlanungsZentrale">
@@ -822,13 +826,13 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
             </div>
             <div>
               <div className="flex items-center gap-2.5">
-                <h1 className="text-lg font-black text-slate-900 tracking-tight">Planungs-Zentrale</h1>
+                <h1 className="text-lg font-black text-slate-900 tracking-tight">Wochen-Check</h1>
                 <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider">
-                  {app.klasse || 'Klasse 3a'}
+                  {classLabel}
                 </span>
               </div>
               <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                KW {nextKW} · Schulwoche {sw || '1'} · {formattedDateToday}
+                KW {nextKW} · Schulwoche {sw || '—'} · {monday.toLocaleDateString('de-DE')} – {weekEnd.toLocaleDateString('de-DE')}
               </p>
             </div>
           </div>
@@ -838,19 +842,16 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
             
             {/* Primary Action Button: + PLANEN */}
             <button
-              onClick={() => {
-                setQuickPlanType('lesson');
-                setQuickPlanOpen(true);
-              }}
+              onClick={() => setPage('wochenplanung')}
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-black text-xs flex items-center gap-1.5 shadow-md shadow-indigo-200 hover:shadow-indigo-300 transition active:scale-95 cursor-pointer"
             >
-              <Plus size={16} className="stroke-[3]" />
-              <span>+ Planen</span>
+              <CalendarDays size={16} />
+              <span>Wochenplan öffnen</span>
             </button>
 
             {/* Mode Selector Toggle: Einfachmodus vs. Erweiterter Modus */}
             <button
-              onClick={() => setIsEinfachModus(!isEinfachModus)}
+              onClick={() => { if (!isEinfachModus) setPlanningFocus('week'); setIsEinfachModus(!isEinfachModus); }}
               className={`px-3 py-2 rounded-xl text-xs font-extrabold transition cursor-pointer border flex items-center gap-1.5 ${
                 isEinfachModus 
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' 
@@ -1010,363 +1011,88 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
           {/* EBENE 1: EINFACHMODUS (STRICTLY TIME-HORIZON ORIENTED VIEW) */}
           {/* ========================================================= */}
           {isEinfachModus && planningFocus !== 'year' ? (
-            <div className="space-y-6">
-
-              {/* TOP GRID: HEUTE (PRIMARY FOCUS) & NOCH OFFEN WIDGET */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-
-                {/* HEUTE (8 COLS) */}
-                <section className="lg:col-span-8 bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
-                  
-                  {/* Section Title */}
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 flex items-center justify-center font-black">
-                        <Calendar size={18} />
-                      </div>
-                      <div>
-                        <h2 className="text-base font-black text-slate-900 tracking-tight">
-                          1. Was ist heute geplant? ({DAYS_DE[todayDayIdx]})
-                        </h2>
-                        <p className="text-xs text-slate-500 font-medium mt-0.5">
-                          Tagesablauf für den heutigen Schultag
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => openSlotForQuickPlan(todayDayIdx, 0)}
-                      className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1"
-                    >
-                      <Plus size={14} /> Stunde hinzufügen
-                    </button>
-                  </div>
-
-                  {/* List of Today's Scheduled Lessons */}
-                  <div className="space-y-2.5">
-                    {LESSON_SLOT_NUMBERS.map(slot => {
-                      const hourIdx = slot - 1;
-                      const dayName = DAYS_DE[todayDayIdx];
-                      const wp = app.wochenplanung?.[nextKW] || {};
-                      const useIdx = wp[todayDayIdx] !== undefined;
-                      const dayKey = useIdx ? todayDayIdx : dayName;
-                      const dayPlan = wp[dayKey] || {};
-                      const lesson = dayPlan[hourIdx];
-                      const defaultFach = app.stammplan?.[dayName]?.[hourIdx + 1] || '';
-
-                      if (lesson && lesson.fach) {
-                        const style = getLessonStyle(lesson.fach);
-                        return (
-                          <div
-                            key={hourIdx}
-                            onClick={() => openSlotForQuickPlan(todayDayIdx, hourIdx)}
-                            className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-start justify-between gap-3 ${style.bg} ${style.border} hover:shadow-md`}
-                          >
-                            <div className="space-y-1 min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black px-2 py-0.5 bg-black/5 rounded-md text-slate-700">
-                                  {hourIdx + 1}. Std.
-                                </span>
-                                <span className="text-xs font-black uppercase tracking-wider">
-                                  {lesson.fach}
-                                </span>
-
-                                {/* Status badge */}
-                                {lesson.erledigt ? (
-                                  <span className="text-[10px] font-extrabold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full flex items-center gap-1">
-                                    <CheckCircle2 size={12} /> Vorbereitet / Erledigt
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-extrabold px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full flex items-center gap-1">
-                                    <Clock size={12} /> Offen
-                                  </span>
-                                )}
-                              </div>
-
-                              <h3 className="font-extrabold text-sm text-slate-900 tracking-tight leading-snug">
-                                {lesson.thema || <span className="text-slate-400 italic">Noch kein Thema eingetragen</span>}
-                              </h3>
-
-                              {(lesson.art || lesson.sozialform || lesson.material || lesson.housework) && (
-                                <div className="text-[11px] text-slate-600 space-y-0.5 border-t border-black/5 pt-1.5 mt-1">
-                                  {lesson.art && (
-                                    <p>Setting: <strong>{lesson.art}</strong> ({lesson.sozialform || 'Einzelarbeit'})</p>
-                                  )}
-                                  {lesson.material && (
-                                    <p className="truncate">Material: <strong>{lesson.material}</strong></p>
-                                  )}
-                                  {lesson.housework && (
-                                    <p className="text-amber-900 font-bold">🏠 HÜ: {lesson.housework}</p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Quick Complete Toggle Button */}
-                            <button
-                              onClick={(e) => toggleCompleteSlot(todayDayIdx, hourIdx, e)}
-                              className={`p-2 rounded-xl border transition cursor-pointer shrink-0 ${
-                                lesson.erledigt 
-                                  ? 'bg-emerald-600 text-white border-emerald-600' 
-                                  : 'bg-white text-slate-400 border-slate-200 hover:text-emerald-600 hover:border-emerald-300'
-                              }`}
-                              title={lesson.erledigt ? "Als unvollständig markieren" : "Als vorbereitet/erledigt markieren"}
-                            >
-                              <CheckCircle2 size={18} />
-                            </button>
-                          </div>
-                        );
-                      } else {
-                        // Empty Slot
-                        return (
-                          <div
-                            key={hourIdx}
-                            onClick={() => openSlotForQuickPlan(todayDayIdx, hourIdx)}
-                            className="p-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 hover:bg-indigo-50/40 hover:border-indigo-300 text-slate-400 hover:text-indigo-700 transition cursor-pointer flex items-center justify-between text-xs"
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-200 text-slate-600 rounded-md">
-                                {hourIdx + 1}. Std.
-                              </span>
-                              <span>Freies Zeitfenster {defaultFach ? `(Soll-Fach: ${defaultFach})` : ''}</span>
-                            </div>
-                            <span className="font-bold flex items-center gap-1 text-[11px]">
-                              <Plus size={12} /> Planen
-                            </span>
-                          </div>
-                        );
-                      }
-                    })}
-                  </div>
-
-                  {/* Daily Notes / Reflexion Field */}
-                  <div className="pt-2 border-t border-slate-100">
-                    <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider block mb-1">
-                      Tagesnotiz & Reflexion ({DAYS_DE[todayDayIdx]})
-                    </label>
-                    <textarea
-                      value={app.wochenplanung?.[nextKW]?.reflexion?.[todayDayIdx] || ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setApp(prev => {
-                          const wp = { ...(prev.wochenplanung || {}) };
-                          const weekPlan = { ...(wp[nextKW] || {}) };
-                          const reflexions = { ...(weekPlan.reflexion || {}) };
-                          reflexions[todayDayIdx] = val;
-                          weekPlan.reflexion = reflexions;
-                          wp[nextKW] = weekPlan;
-                          return { ...prev, wochenplanung: wp };
-                        });
-                      }}
-                      placeholder="Notizen zum heutigen Schultag, Beobachtungen, Ausfälle..."
-                      className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 h-16 font-medium"
-                    />
-                  </div>
-
-                </section>
-
-                {/* NOCH OFFEN & UNVORBEREITET WIDGET (4 COLS) */}
-                <section className="lg:col-span-4 bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4 flex flex-col justify-between">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
-                          <AlertTriangle size={16} />
-                        </span>
-                        <div>
-                          <h3 className="text-sm font-black text-slate-900">Offene Vorbereitungen</h3>
-                          <p className="text-[11px] text-slate-500 font-medium">In dieser Schulwoche</p>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black px-2 py-0.5 bg-amber-100 text-amber-900 rounded-full">
-                        {openLessonsList.length}
-                      </span>
-                    </div>
-
-                    {openLessonsList.length > 0 ? (
-                      <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
-                        {openLessonsList.slice(0, 6).map((item, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => openSlotForQuickPlan(item.dayIdx, item.hourIdx)}
-                            className="p-3 bg-amber-50/50 hover:bg-amber-100/60 border border-amber-200/80 rounded-2xl transition cursor-pointer space-y-1 text-xs"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-extrabold text-amber-900">
-                                {item.dayName}, {item.hourIdx + 1}. Stunde
-                              </span>
-                              <span className="text-[10px] font-black uppercase px-1.5 py-0.5 bg-amber-200 text-amber-950 rounded">
-                                {item.fach}
-                              </span>
-                            </div>
-                            <p className="text-slate-600 font-medium">{item.thema}</p>
-                            <div className="text-[10px] font-black text-indigo-700 flex items-center justify-end gap-1 pt-1">
-                              <span>Jetzt vorbereiten →</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-6 text-center bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-900 space-y-1">
-                        <CheckCircle2 size={24} className="mx-auto text-emerald-600" />
-                        <h4 className="font-black text-xs">Alles perfekt vorbereitet!</h4>
-                        <p className="text-[11px] text-emerald-700 font-medium">Alle Einheiten dieser Woche sind aktuell ausgefüllt.</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Carrying forward unfinished from previous week */}
-                  <div className="pt-3 border-t border-slate-100">
-                    <button
-                      onClick={handleCarryOverUnfinished}
-                      className="w-full py-2.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <RotateCcw size={14} /> Offenes aus Vorwoche herüberziehen
-                    </button>
-                  </div>
-                </section>
-
-              </div>
-
-              {/* SECOND ROW: MORGEN & DIESE WOCHE ÜBERSICHT */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-
-                {/* MORGEN SUMMARY CARD (4 COLS) */}
-                <div className="md:col-span-4 bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                      <span className="text-xs font-black uppercase tracking-wider text-slate-500">
-                        2. Morgen ({DAYS_DE[tomorrowDayIdx]})
-                      </span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 rounded-md text-slate-600">
-                        Vorschau
-                      </span>
-                    </div>
-
-                    <h3 className="text-sm font-black text-slate-900">
-                      Morgen stehen 6 Stunden an
-                    </h3>
-
-                    <p className="text-xs text-slate-500 font-medium">
-                      Klicke unten, um den morgigen Tag im Detail anzusehen oder vorzubereiten.
+            <div className="space-y-5">
+              <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs font-black uppercase tracking-wide text-indigo-700">Kontrollblick · KW {nextKW}</p>
+                    <h2 className="text-xl font-black text-slate-900">Was braucht diese Woche noch Aufmerksamkeit?</h2>
+                    <p className="max-w-2xl text-sm text-slate-600">
+                      Die Unterrichtsstunden bearbeitest du ausschließlich im Wochenplan. Hier siehst du nur, welche
+                      deiner bereits eingetragenen Stunden noch kein Thema haben.
                     </p>
                   </div>
-
-                  <button
-                    onClick={() => {
-                      setSelectedDayIdx(tomorrowDayIdx);
-                      openSlotForQuickPlan(tomorrowDayIdx, 0);
-                    }}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
-                  >
-                    <Calendar size={14} /> Morgen öffnen & planen
+                  <button type="button" onClick={() => setPage('wochenplanung')}
+                    className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-extrabold text-white hover:bg-indigo-700">
+                    Wochenplan bearbeiten →
                   </button>
                 </div>
-
-                {/* DIESE WOCHE 5-TAGE ÜBERSICHT (8 COLS) */}
-                <div className="md:col-span-8 bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-3">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <div>
-                      <h3 className="text-sm font-black text-slate-900">3. Was ist diese Woche geplant? (KW {nextKW})</h3>
-                      <p className="text-xs text-slate-500 font-medium">Übersicht der 5 Schultage</p>
-                    </div>
-
-                    <span className="text-xs font-black text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
-                      {weekStats.completed} / {weekStats.total} Std. erledigt
-                    </span>
+                <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <span className="text-3xl font-black text-slate-900">{weekStats.total}</span>
+                    <p className="mt-1 text-sm font-bold text-slate-700">Eingetragene Unterrichtsstunden</p>
+                    <p className="mt-1 text-xs text-slate-500">Aus dem gespeicherten Wochenplan dieser Klasse</p>
                   </div>
-
-                  {/* 5 Day Cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-1">
-                    {DAYS_DE.map((dName, dIdx) => {
-                      const wp = app.wochenplanung?.[nextKW] || {};
-                      const useIdx = wp[dIdx] !== undefined;
-                      const dayKey = useIdx ? dIdx : dName;
-                      const dayPlan = wp[dayKey] || {};
-                      const plannedCount = Object.values(dayPlan).filter((l: any) => l?.fach).length;
-                      const isToday = dIdx === todayDayIdx;
-
-                      return (
-                        <button
-                          key={dName}
-                          onClick={() => {
-                            setSelectedDayIdx(dIdx);
-                            openSlotForQuickPlan(dIdx, 0);
-                          }}
-                          className={`p-3 rounded-2xl border text-left transition cursor-pointer flex flex-col justify-between h-28 ${
-                            isToday 
-                              ? 'bg-indigo-50/80 border-indigo-300 ring-2 ring-indigo-200' 
-                              : 'bg-slate-50/60 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          <div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black text-slate-900 uppercase tracking-tight">{dName.substring(0, 2)}</span>
-                              {isToday && <span className="text-[8px] font-black px-1.5 py-0.5 bg-indigo-600 text-white rounded">Heute</span>}
-                            </div>
-                            <span className="text-[10px] text-slate-400 font-bold block mt-0.5">{dName}</span>
-                          </div>
-
-                          <div className="border-t border-slate-200/60 pt-1.5">
-                            <span className="text-[11px] font-extrabold text-slate-700 block">
-                              {plannedCount > 0 ? `${plannedCount} Std. geplant` : 'Keine Stunden'}
-                            </span>
-                            <span className="text-[10px] text-indigo-600 font-bold block">Öffnen →</span>
-                          </div>
-                        </button>
-                      );
-                    })}
+                  <div className={`rounded-2xl border p-4 ${missingTopicLessons.length ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'}`}>
+                    <span className="text-3xl font-black text-slate-900">{missingTopicLessons.length}</span>
+                    <p className="mt-1 text-sm font-bold text-slate-700">Eingetragene Stunden ohne Thema</p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      {missingTopicLessons.length ? 'Hier fehlt noch ein Thema im Wochenplan.' : 'Bei den eingetragenen Stunden fehlt kein Thema.'}
+                    </p>
                   </div>
                 </div>
-
-              </div>
-
-              {/* THIRD ROW: TERMINE, AUSFLÜGE & BESONDERE EREIGNISSE */}
-              <section className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-purple-50 border border-purple-100 text-purple-700 flex items-center justify-center font-black">
-                      <CalendarDays size={18} />
-                    </div>
-                    <div>
-                      <h2 className="text-sm font-black text-slate-900">5. Termine, Ausflüge & besondere Ereignisse</h2>
-                      <p className="text-xs text-slate-500 font-medium">Kalender-Highlights für diese Schulwoche</p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setQuickPlanType('event');
-                      setQuickPlanOpen(true);
-                    }}
-                    className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-xl text-xs font-black transition cursor-pointer flex items-center gap-1"
-                  >
-                    <Plus size={14} /> Termin eintragen
-                  </button>
-                </div>
-
-                {/* List of Termine */}
-                {app.termine && app.termine.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {app.termine.map((t: any) => (
-                      <div key={t.id} className="p-3 bg-purple-50/40 border border-purple-100 rounded-2xl flex items-start justify-between gap-2 text-xs">
-                        <div>
-                          <span className="text-[10px] font-black uppercase text-purple-700 px-1.5 py-0.5 bg-purple-100 rounded">
-                            {t.kategorie || 'Termin'}
-                          </span>
-                          <h3 className="font-extrabold text-slate-900 mt-1">{t.titel}</h3>
-                          <p className="text-[10px] font-bold text-slate-500 mt-0.5">{t.datum}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-500 font-medium">
-                    Keine besonderen Termine oder Ausflüge für diese Woche eingetragen.
-                  </div>
-                )}
+                <p className="mt-3 text-xs text-slate-500">
+                  Hinweis: Ein eingetragenes Thema bestätigt weder fertiges Material noch eine abgeschlossene Unterrichtsstunde.
+                  Leere Stundenplanfelder werden hier nicht automatisch als offene Vorbereitung gewertet.
+                </p>
               </section>
 
+              {weekStats.total === 0 ? (
+                <section className="rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+                  Für diese Klasse ist in KW {nextKW} noch keine Unterrichtsstunde im Wochenplan eingetragen.
+                  <button type="button" onClick={() => setPage('wochenplanung')}
+                    className="ml-2 font-extrabold text-indigo-700 hover:underline">Zum Wochenplan →</button>
+                </section>
+              ) : missingTopicLessons.length > 0 ? (
+                <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+                  <h3 className="text-base font-black text-slate-900">Themen ergänzen</h3>
+                  <p className="mt-1 text-sm text-slate-600">Direkt im Wochenplan nachtragen – keine zweite Bearbeitungsmaske.</p>
+                  <div className="mt-4 grid gap-2 md:grid-cols-2">
+                    {missingTopicLessons.map(item => (
+                      <button type="button" key={`${item.dayIdx}-${item.hourIdx}`}
+                        onClick={() => setPage('wochenplanung')}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left hover:bg-amber-100">
+                        <span className="min-w-0">
+                          <strong className="block text-sm text-slate-900">{item.dayName}, {item.hourIdx + 1}. Stunde · {item.fach}</strong>
+                          <span className="text-xs text-slate-600">Thema noch nicht eingetragen</span>
+                        </span>
+                        <ArrowRight size={16} className="shrink-0 text-indigo-700" />
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="grid gap-3 md:grid-cols-3">
+                <button type="button" onClick={() => setPage('wochenplanung')}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 text-left hover:border-indigo-300 hover:bg-indigo-50">
+                  <CalendarDays size={22} className="mb-3 text-indigo-600" />
+                  <strong className="block text-sm text-slate-900">Wochenplan</strong>
+                  <span className="mt-1 block text-xs text-slate-600">Stunden planen und Details eintragen →</span>
+                </button>
+                <button type="button" onClick={() => setPage('jahresplanung')}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 text-left hover:border-indigo-300 hover:bg-indigo-50">
+                  <CalendarRange size={22} className="mb-3 text-indigo-600" />
+                  <strong className="block text-sm text-slate-900">Jahresplanung</strong>
+                  <span className="mt-1 block text-xs text-slate-600">Themen und Stoffverteilung ansehen →</span>
+                </button>
+                <button type="button" onClick={() => setPage('materialien')}
+                  className="rounded-2xl border border-slate-200 bg-white p-5 text-left hover:border-indigo-300 hover:bg-indigo-50">
+                  <BookOpen size={22} className="mb-3 text-indigo-600" />
+                  <strong className="block text-sm text-slate-900">Materialbibliothek</strong>
+                  <span className="mt-1 block text-xs text-slate-600">Vorhandenes Material für die Stunde finden →</span>
+                </button>
+              </section>
             </div>
           ) : (
             /* ========================================================= */
