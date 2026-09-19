@@ -1254,11 +1254,6 @@ function WizardModal({
   const [studentProgress, setStudentProgress] = useState<any[]>([]);
   const [selectedStudentForTrend, setSelectedStudentForTrend] =
     useState<any>(null);
-  const [anomalyAlert, setAnomalyAlert] = useState<{
-    student: string;
-    type: "positive" | "negative";
-    message: string;
-  } | null>(null);
   const [expandedChecklistGoal, setExpandedChecklistGoal] = useState<
     string | null
   >(null);
@@ -1448,7 +1443,6 @@ function WizardModal({
     progress.sort((a: any, b: any) => b.totalRated - a.totalRated);
     setStudentProgress(progress);
     // Ordinal labels are not percentages or automated diagnoses.
-    setAnomalyAlert(null);
   }, [activeTab, students, currentLernziele, selectedSemester,
     app.studentLernzielBewertungen, app.studentLernzielSemesterBewertungen, app.lernzielBewertungsmodell]);
 
@@ -2086,8 +2080,7 @@ Antworte AUSSCHLIESSLICH im JSON-Format ohne Markdown Block:
                         Individueller Lernfortschritt
                       </h3>
                       <p className="text-sm text-slate-500">
-                        Basierend auf der Kompetenzeinschätzung im
-                        Schülerdossier (Oberau-Skala).
+                        Basierend auf den dokumentierten Lernzielen und den für diese Klasse gewählten Beurteilungsstufen.
                       </p>
                     </div>
                   </div>
@@ -2137,42 +2130,6 @@ Antworte AUSSCHLIESSLICH im JSON-Format ohne Markdown Block:
         {activeTab === "ki" && (
           <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
             <div className="max-w-2xl mx-auto space-y-6">
-              {anomalyAlert && (
-                <div
-                  className={`p-4 rounded-xl border-l-4 flex gap-4 items-start ${
-                    anomalyAlert.type === "negative"
-                      ? "bg-red-50 border-red-500 text-red-900"
-                      : "bg-emerald-50 border-emerald-500 text-emerald-900"
-                  }`}
-                >
-                  <div className="mt-1 flex-shrink-0">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="M12 16v-4" />
-                      <path d="M12 8h.01" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-sm mb-1">
-                      {anomalyAlert.type === "negative"
-                        ? "⚠️ KI-Auffälligkeit erkannt"
-                        : "✨ KI-Fortschritt erkannt"}
-                    </h4>
-                    <p className="text-sm opacity-90">{anomalyAlert.message}</p>
-                  </div>
-                </div>
-              )}
-
               <div className="text-center space-y-4 mb-8">
                 <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg
