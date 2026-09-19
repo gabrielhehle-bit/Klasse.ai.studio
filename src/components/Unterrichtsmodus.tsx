@@ -176,6 +176,7 @@ import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSele
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
+import { BoardInk, type BoardInkHandle, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
@@ -2915,9 +2916,30 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     useState<string>("categories");
   const [widgetSearch, setWidgetSearch] = useState<string>("");
   const [isBoardTextEditing, setIsBoardTextEditing] = useState(false);
+  const [boardTool, setBoardTool] = useState<'select' | 'pen' | 'erase' | 'text'>('select');
+  const [boardPenColor, setBoardPenColor] = useState('#172554');
+  const [boardPenWidth, setBoardPenWidth] = useState(4);
+  const boardInkRef = useRef<BoardInkHandle | null>(null);
+  const boardTextCommandRef = useRef<((command: string, argument?: string) => void) | null>(null);
   const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
   useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
   const boardTextClassKey = app.activeClassId || "unassigned";
+  const boardInkItems: InkItem[] = Array.isArray((app.boardSettings as any)?.cockpitInkByClass?.[boardTextClassKey])
+    ? ((app.boardSettings as any).cockpitInkByClass[boardTextClassKey] as InkItem[])
+    : [];
+  const saveBoardInkItems = useCallback((items: InkItem[]) => {
+    if (!app.activeClassId) return;
+    setApp((prev: any) => ({
+      ...prev,
+      boardSettings: {
+        ...(prev.boardSettings || {}),
+        cockpitInkByClass: {
+          ...(prev.boardSettings?.cockpitInkByClass || {}),
+          [boardTextClassKey]: items,
+        },
+      },
+    }));
+  }, [app.activeClassId, boardTextClassKey, setApp]);
   const boardTextHtml =
     ((app.boardSettings as any)?.cockpitTextByClass?.[boardTextClassKey] as string | undefined) || "";
 
@@ -2939,6 +2961,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     setIsBoardTextEditing(false);
+    setBoardTool('select');
   }, [boardTextClassKey]);
 
   useEffect(() => {
