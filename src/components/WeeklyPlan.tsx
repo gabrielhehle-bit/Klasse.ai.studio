@@ -1146,7 +1146,7 @@ export default function WeeklyPlan() {
     setTempType(current.type || 'standard');
     setTempMaterial(current.material || '');
     setTempMaterialIds(Array.isArray(current.materialIds) ? current.materialIds : []);
-    setTempHUE(current.housework || '');
+    setTempHUE(current.housework || current.hue || '');
     setTempMethod(current.method || '');
     setTempSocial(current.social || 'single');
     setTempReflexion(current.reflexion || '');
@@ -1266,7 +1266,9 @@ export default function WeeklyPlan() {
         } else {
           kwPlan[tag] = {
             ...kwPlan[tag],
-            [idx]: { 
+            [idx]: {
+              // Keep imported goals, lesson IDs, preparation status and any legacy fields.
+              ...(kwPlan[tag][idx] || {}),
               fach: trimmedFach, 
               thema: thema.trim(),
               type,
