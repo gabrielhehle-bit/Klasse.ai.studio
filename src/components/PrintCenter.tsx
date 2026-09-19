@@ -3891,7 +3891,7 @@ export default function PrintCenter() {
                     className={`bg-white font-sans text-black select-none shrink-0 single-sheet-preview ${getFontSizeClass()}`}
                   >
                     {/* 1. Dynamic Print Header */}
-                    {showMainHeader && activeTemplate !== 'klassenbuch' && (
+                    {showMainHeader && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan' && (
                       <PrintHeader title={customHeaderTitle || undefined} />
                     )}
 
@@ -3901,10 +3901,10 @@ export default function PrintCenter() {
                     </div>
                     
                     {/* Simulated Footer */}
-                    <div className="mt-8 pt-4 border-t border-slate-200/80 flex justify-between items-center text-[0.5625rem] text-slate-400 font-bold uppercase tracking-widest leading-none">
+                    {activeTemplate !== 'schueler_wochenplan' && <div className="mt-8 pt-4 border-t border-slate-200/80 flex justify-between items-center text-[0.5625rem] text-slate-400 font-bold uppercase tracking-widest leading-none">
                       <span>Dokument gedruckt im Schul-Druckzentrum</span>
                       <span>Seite 1 / 1</span>
-                    </div>
+                    </div>}
                   </div>
                 </div>
               )}
@@ -3955,10 +3955,12 @@ export default function PrintCenter() {
               ) : (
                 // Regular single page printing
                 <div
-                  className={activeTemplate === 'klassenbuch' ? 'klassenbuch-a4-page' : undefined}
-                  style={activeTemplate === 'klassenbuch' ? undefined : { padding: `${printMargin}mm` }}
+                  className={activeTemplate === 'klassenbuch' ? 'klassenbuch-a4-page' : activeTemplate === 'schueler_wochenplan' ? 'schueler-wochenplan-a4-page' : undefined}
+                  style={activeTemplate === 'klassenbuch' || activeTemplate === 'schueler_wochenplan'
+                    ? undefined : { padding: `${printMargin}mm` }}
                 >
-                  {showMainHeader && activeTemplate !== 'klassenbuch' && <PrintHeader title={customHeaderTitle || undefined} />}
+                  {showMainHeader && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan'
+                    && <PrintHeader title={customHeaderTitle || undefined} />}
                   {renderPreviewTemplate()}
                 </div>
               )}
