@@ -1,3 +1,4 @@
+import KlassenUeberblick from './KlassenUeberblick';
 import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useApp } from "../context/AppContext";
@@ -4749,6 +4750,8 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         weekEvents={weekEventsList}
         monthEvents={monthEventsList}
       />
+
+      <KlassenUeberblick />
 
       {/* Smart Status Dashboard */}
       {!simpleDashboardMode && (
