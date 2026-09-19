@@ -862,7 +862,7 @@ export default function YearlyPlan() {
       const text = (holiday || '').toLocaleLowerCase('de-AT');
       return !holiday || !['ferien', 'schluss', 'beginn'].some(word => text.includes(word));
     };
-    const targetKws = plannedYearWeeks(weeks, kw, planWeeksCount, teachingWeek);
+    const targetKws = planWeeksCount === 1 ? [kw] : plannedYearWeeks(weeks, kw, planWeeksCount, teachingWeek);
     if (planWeeksCount > 1) {
       if (targetKws.length < planWeeksCount) {
         window.alert('Für diesen Zeitraum sind nicht genügend Unterrichtswochen vorhanden. Es wurde nichts gespeichert.');
