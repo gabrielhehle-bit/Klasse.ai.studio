@@ -13,7 +13,7 @@ test('Klasse hub separates daily work from organization and community', () => {
   const source = read('KlasseHub.tsx');
   assert.match(source, /Kinder & Alltag/);
   assert.match(source, /Organisation & Gemeinschaft/);
-  for (const id of ['schueler', 'anwesenheit', 'sitzplan', 'verhalten', 'orga', 'kel', 'klassengemeinschaft']) {
+  for (const id of ['schueler', 'anwesenheit', 'sitzplan', 'verhalten', 'orga', 'kel', 'klassengemeinschaft', 'jahresbericht']) {
     assert.match(source, new RegExp(`id:\\s*['"]${id}['"]`));
   }
 });
@@ -22,7 +22,7 @@ test('Leistungen hub separates assessment from learning development', () => {
   const source = read('LeistungenHub.tsx');
   assert.match(source, /Bewerten & Beurteilen/);
   assert.match(source, /Lernentwicklung & Gespräche/);
-  for (const id of ['noten', 'verbal', 'portfolio', 'diagnostik', 'kel', 'jahresbericht']) {
+  for (const id of ['noten', 'verbal', 'portfolio', 'diagnostik', 'kel']) {
     assert.match(source, new RegExp(`id:\\s*['"]${id}['"]`));
   }
 });
