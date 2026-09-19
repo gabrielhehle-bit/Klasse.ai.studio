@@ -14,6 +14,8 @@ import { VertretungsStundenbild, VORLAGEN_VERTRETUNGSSTUNDEN } from '../types';
 import { createMaterialItemFromStundenbild, migrateStundenbilderToMaterialien } from '../utils/materialienUtils';
 import { askAI } from '../services/aiService';
 import { getSW } from '../lib/utils';
+import { DEFAULT_COVER_CHECKLIST, getCoverDates, getCoverLesson } from '../lib/coverHandover';
+import type { VertretungsVorbereitung } from '../types';
 import { berechne, getAssessmentMode } from '../lib/GradeUtils';
 import { getDiagnosticTestById } from '../lib/diagnosticCoreUtils';
 import { formatTransferGradeValue, getHandoverLessonPlans, getHandoverLessonTime, toLocalDateInputValue } from '../lib/handoverUtils';
@@ -39,14 +41,8 @@ function formatDate(date: Date) {
   return date.toLocaleDateString('de-AT', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-const DEFAULT_EMERGENCY_CHECKLIST = [
-  { id: '1', text: 'Klassenzimmer-Schlüssel beim Schulwart hinterlegt', checked: false },
-  { id: '2', text: 'Klassendienste (Tafeldienst etc.) zugeteilt', checked: false },
-  { id: '3', text: 'Allergie- & Notfallkontaktliste liegt sichtbar am Lehrertisch', checked: false },
-  { id: '4', text: 'Pausenregeln und Aufsichtszeiten kurz notiert', checked: false },
-  { id: '5', text: 'Arbeitsblätter & Handreichungen kopiert und bereitgelegt', checked: false },
-  { id: '6', text: 'Zugangsdaten / Logins für Schul-Tablets & WLAN vermerkt', checked: false },
-];
+const DEFAULT_EMERGENCY_CHECKLIST = DEFAULT_COVER_CHECKLIST;
+
 
 export default function Uebergabemappe() {
   const { app, setApp, setPage } = useApp();
@@ -87,21 +83,25 @@ export default function Uebergabemappe() {
   }, [app.openPrintModalOnLoad]);
 
   // --- TAB 1: Config & Assignment State ---
-  const [rangeMode, setRangeMode] = useState<'single' | 'multi' | 'week'>('single');
-  const [singleDate, setSingleDate] = useState(() => toLocalDateInputValue(new Date()));
-  const [startDate, setStartDate] = useState(() => toLocalDateInputValue(new Date()));
+  const [rangeMode, setRangeMode] = useState<'single' | 'multi' | 'week'>(app.vertretungsVorbereitung?.rangeMode || 'single');
+  const [singleDate, setSingleDate] = useState(() => app.vertretungsVorbereitung?.singleDate || toLocalDateInputValue(new Date()));
+  const [startDate, setStartDate] = useState(() => app.vertretungsVorbereitung?.startDate || toLocalDateInputValue(new Date()));
   const [endDate, setEndDate] = useState(() => {
+    if (app.vertretungsVorbereitung?.endDate) return app.vertretungsVorbereitung.endDate;
     const date = new Date();
     date.setDate(date.getDate() + 2);
     return toLocalDateInputValue(date);
   });
-  const [weekDate, setWeekDate] = useState(() => toLocalDateInputValue(new Date()));
+  const [weekDate, setWeekDate] = useState(() => app.vertretungsVorbereitung?.weekDate || toLocalDateInputValue(new Date()));
   
   // Assignments: Key is "YYYY-MM-DD-Std", Value is Stundenbild ID
-  const [assignedStundenbilder, setAssignedStundenbilder] = useState<Record<string, string>>({});
+  const [assignedStundenbilder, setAssignedStundenbilder] = useState<Record<string, string>>(() => app.vertretungsVorbereitung?.assignedStundenbilder || {});
+  const [lessonNotes, setLessonNotes] = useState<VertretungsVorbereitung['lessonNotes']>(() => app.vertretungsVorbereitung?.lessonNotes || {});
+  const [manualSlots, setManualSlots] = useState<Record<string, number[]>>({});
+  const [draftHydratedClass, setDraftHydratedClass] = useState(app.activeClassId || '__none__');
 
   const [printLehrplan, setPrintLehrplan] = useState(false);
-  const [printNotes, setPrintNotes] = useState(app.vertretungHinweise || '');
+  const [printNotes, setPrintNotes] = useState(app.vertretungsVorbereitung?.printNotes ?? app.vertretungHinweise ?? '');
   
   // --- TAB 2: Management State ---
   const [searchQuery, setSearchQuery] = useState('');
@@ -123,7 +123,7 @@ export default function Uebergabemappe() {
   });
   
   const [emergencyChecklist, setEmergencyChecklist] = useState(() =>
-    DEFAULT_EMERGENCY_CHECKLIST.map(item => ({ ...item })),
+    app.vertretungsVorbereitung?.emergencyChecklist?.map(item => ({ ...item })) ?? DEFAULT_EMERGENCY_CHECKLIST.map(item => ({ ...item })),
   );
   const [newChecklistItem, setNewChecklistItem] = useState('');
 
@@ -350,73 +350,73 @@ export default function Uebergabemappe() {
   }, [app.diagnosticResults, transferStudentId]);
   const [printColumns, setPrintColumns] = useState<Record<string, boolean>>({
     geschlecht: true,
-    geburtstag: true,
+    geburtstag: false,
     erstsprache: false,
-    daz: true,
-    spf: true,
+    daz: false,
+    spf: false,
     espf: false,
     religion: false,
-    telefon_mutter: true,
-    telefon_vater: true,
-    notiz: true
+    telefon_mutter: false,
+    telefon_vater: false,
+    notiz: false
   });
-  const [printPages, setPrintPages] = useState({
+  const [printPages, setPrintPages] = useState(() => app.vertretungsVorbereitung?.printPages || {
     cover: true,
     overview: true,
-    list: true,
-    seating: true,
-    feedback: true
+    list: false,
+    seating: false,
+    feedback: false
   });
   const [klassenlisteOrientation, setKlassenlisteOrientation] = useState<'portrait' | 'landscape'>('portrait');
   const [density, setDensity] = useState<'standard' | 'compact'>('standard');
-  const [schulleitungName, setSchulleitungName] = useState('');
-  const [sekretariatTel, setSekretariatTel] = useState('');
-  const [nachbarKlasse, setNachbarKlasse] = useState('');
-  const [dayNotes, setDayNotes] = useState<Record<string, string>>({});
+  const [schulleitungName, setSchulleitungName] = useState(app.vertretungsVorbereitung?.contacts?.schulleitung || '');
+  const [sekretariatTel, setSekretariatTel] = useState(app.vertretungsVorbereitung?.contacts?.sekretariat || '');
+  const [nachbarKlasse, setNachbarKlasse] = useState(app.vertretungsVorbereitung?.contacts?.nachbarKlasse || '');
+  const [dayNotes, setDayNotes] = useState<Record<string, string>>(() => app.vertretungsVorbereitung?.dayNotes || {});
   const [zoomLevel, setZoomLevel] = useState<number>(0.7);
 
+  // Rehydrate class-local preparation after switching classes; never write old-class notes into a new class.
   useEffect(() => {
-    setPrintNotes(app.vertretungHinweise || '');
-    setAssignedStundenbilder({});
-    setDayNotes({});
+    const saved = app.vertretungsVorbereitung;
+    setRangeMode(saved?.rangeMode || 'single');
+    setSingleDate(saved?.singleDate || toLocalDateInputValue(new Date()));
+    setStartDate(saved?.startDate || toLocalDateInputValue(new Date()));
+    setEndDate(saved?.endDate || toLocalDateInputValue(new Date()));
+    setWeekDate(saved?.weekDate || toLocalDateInputValue(new Date()));
+    setPrintNotes(saved?.printNotes ?? app.vertretungHinweise ?? '');
+    setAssignedStundenbilder(saved?.assignedStundenbilder || {});
+    setLessonNotes(saved?.lessonNotes || {});
+    setDayNotes(saved?.dayNotes || {});
+    setEmergencyChecklist(saved?.emergencyChecklist?.map(item => ({ ...item })) || DEFAULT_EMERGENCY_CHECKLIST.map(item => ({ ...item })));
+    setPrintPages(saved?.printPages || { cover: true, overview: true, list: false, seating: false, feedback: false });
+    setSchulleitungName(saved?.contacts?.schulleitung || '');
+    setSekretariatTel(saved?.contacts?.sekretariat || '');
+    setNachbarKlasse(saved?.contacts?.nachbarKlasse || '');
+    setManualSlots({});
     setTransferStudentId(null);
     setShowTransferPrint(false);
-    setEmergencyChecklist(DEFAULT_EMERGENCY_CHECKLIST.map(item => ({ ...item })));
     setNewChecklistItem('');
     setSelectedStundenbild(null);
     setShowDetailModal(false);
+    setDraftHydratedClass(app.activeClassId || '__none__');
   }, [app.activeClassId]);
 
-  // Generate list of dates to print
-  const getDaysToPrint = () => {
-    let dates: Date[] = [];
-    if (rangeMode === 'single') {
-      dates = [new Date(singleDate)];
-    } else if (rangeMode === 'multi') {
-      let current = new Date(startDate);
-      const end = new Date(endDate);
-      // Safety: max 14 days
-      let count = 0;
-      while (current <= end && count < 14) {
-        if (current.getDay() !== 0 && current.getDay() !== 6) { // Skip Sat/Sun
-          dates.push(new Date(current));
-        }
-        current.setDate(current.getDate() + 1);
-        count++;
-      }
-    } else if (rangeMode === 'week') {
-      const d = new Date(weekDate);
-      const day = d.getDay();
-      const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is sunday
-      const monday = new Date(d.setDate(diff));
-      for (let i = 0; i < 5; i++) {
-        const next = new Date(monday);
-        next.setDate(monday.getDate() + i);
-        dates.push(next);
-      }
-    }
-    return dates;
-  };
+  const getDaysToPrint = (): Date[] => getCoverDates({ rangeMode, singleDate, startDate, endDate, weekDate });
+
+  // All preparation is one encrypted, class-local draft. Print output is a view of this state.
+  useEffect(() => {
+    if (draftHydratedClass !== (app.activeClassId || '__none__')) return;
+    const draft: VertretungsVorbereitung = {
+      rangeMode, singleDate, startDate, endDate, weekDate,
+      lessonNotes, dayNotes, assignedStundenbilder, emergencyChecklist, printPages, printNotes,
+      contacts: { schulleitung: schulleitungName, sekretariat: sekretariatTel, nachbarKlasse },
+    };
+    setApp(prev => {
+      if (prev.activeClassId !== app.activeClassId) return prev;
+      if (JSON.stringify(prev.vertretungsVorbereitung) === JSON.stringify(draft)) return prev;
+      return { ...prev, vertretungsVorbereitung: draft };
+    });
+  }, [app.activeClassId, draftHydratedClass, rangeMode, singleDate, startDate, endDate, weekDate, lessonNotes, dayNotes, assignedStundenbilder, emergencyChecklist, printPages, printNotes, schulleitungName, sekretariatTel, nachbarKlasse, setApp]);
 
   const renderAllPages = (isPreview: boolean) => {
     const daysToPrint = getDaysToPrint();
