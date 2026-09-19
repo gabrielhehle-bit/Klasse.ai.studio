@@ -29,15 +29,17 @@ import { generateDetailedLessonPlan, DetailedLessonPlan } from '../services/aiSe
 import { TAGE_NAMEN, VM_ZEITEN, STUNDEN_INFO } from '../constants';
 import { useMaterialLibrary } from './Materialbibliothek';
 import { getSW, kwToMonday, getStartYear } from '../lib/utils';
+import { normalizeLessonDraft } from '../lib/lessonDrafts';
 
 interface LessonPlannerAIProps {
   onClose: () => void;
   onApply: (plan: DetailedLessonPlan) => void;
   initialFach?: string;
   initialThema?: string;
+  embeddedInWeeklyEditor?: boolean;
 }
 
-export default function LessonPlannerAI({ onClose, onApply, initialFach, initialThema }: LessonPlannerAIProps) {
+export default function LessonPlannerAI({ onClose, onApply, initialFach, initialThema, embeddedInWeeklyEditor = false }: LessonPlannerAIProps) {
   const { app, setApp } = useApp();
   const [fach, setFach] = useState(initialFach || 'Mathematik');
   const [thema, setThema] = useState(initialThema || '');
@@ -98,17 +100,15 @@ Schwache: ${plan.differenzierung.schwache}
   const savePlan = () => {
     if (!plan) return;
     const newEntwurf = {
-      id: crypto.randomUUID(),
+      ...normalizeLessonDraft({ id: crypto.randomUUID(), date: new Date().toISOString(), fach, thema, plan }),
       date: new Date().toISOString(),
-      fach,
-      thema,
-      plan
+      plan,
     };
     setApp(prev => ({
       ...prev,
       stundenentwuerfe: [newEntwurf, ...(prev.stundenentwuerfe || [])]
     }));
-    alert('Stundenentwurf erfolgreich unter "Archiv" gespeichert!');
+    alert('Stundenentwurf in deiner bisherigen Entwurfssammlung gespeichert. Du findest ihn unter Unterrichtsvorbereitungen.');
   };
 
   const copyPlanToClipboard = () => {
@@ -430,12 +430,14 @@ Schwache: ${plan.differenzierung.schwache}
                     
                   </div>
 
-                  <button 
-                    onClick={() => setShowWeeklyPlanInsert(true)}
-                    className="btn btn-primary btn-sm h-12"
-                  >
-                    <CalendarPlus size={16} /> In Wochenplan einfügen
-                  </button>
+                  {!embeddedInWeeklyEditor && (
+                    <button
+                      onClick={() => setShowWeeklyPlanInsert(true)}
+                      className="btn btn-primary btn-sm h-12"
+                    >
+                      <CalendarPlus size={16} /> In Wochenplan einfügen
+                    </button>
+                  )}
                 </div>
 
                 {/* Lernziele */}
@@ -694,7 +696,7 @@ Schwache: ${plan.differenzierung.schwache}
 
       {/* WEEKLY PLAN INSERT MODAL */}
       <AnimatePresence>
-        {showWeeklyPlanInsert && (
+        {showWeeklyPlanInsert && !embeddedInWeeklyEditor && (
           <div className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
             <motion.div 
                initial={{ opacity: 0, scale: 0.9 }}
