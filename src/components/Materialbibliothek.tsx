@@ -15,6 +15,7 @@ import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { MaterialItem } from '../types';
 import { generateTeachingMaterial } from '../services/aiService';
 import { calculateMaterialStorageSize, MATERIAL_LIBRARY_MAX_MB, normalizeMaterialExternalLink, removeMaterialReferencesFromClasses, removeMaterialReferencesFromWeeklyPlan, sanitizeMaterialForType, upsertMaterial, validateMaterialFile } from '../lib/materialLibraryUtils';
+import { lessonDraftFromMaterial } from '../lib/lessonDrafts';
 export { calculateMaterialStorageSize as calculateStorageSize } from '../lib/materialLibraryUtils';
 
 const normalizeMaterialItem = (item: MaterialItem): MaterialItem => ({
@@ -1685,6 +1686,7 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
   const [day, setDay] = useState('Montag');
   const [hour, setHour] = useState(1);
   const [mode, setMode] = useState<'append' | 'replace'>('append');
+  const [applyPreparation, setApplyPreparation] = useState(false);
 
   const days = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
   const availableHours = LESSON_SLOT_NUMBERS;
@@ -1698,6 +1700,9 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
   const alreadyLinked = existingMaterialIds.includes(item.id);
 
   const save = () => {
+    const lessonDraft = item.typ === 'stundenentwurf' && applyPreparation ? lessonDraftFromMaterial(item) : null;
+    if (lessonDraft && (existing.thema || existing.fach || existing.stundenentwurf || existing.method) &&
+      !window.confirm('Diese Unterrichtsstunde enthält bereits eine Planung. Fach, Thema und ausführlichen Entwurf durch die ausgewählte Vorlage ersetzen?')) return;
     setApp(prev => {
       const wochenplanung = { ...(prev.wochenplanung || {}) } as any;
       const week = { ...(wochenplanung[kw] || {}) } as any;
@@ -1714,6 +1719,15 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
         fach: slot.fach || (prev.stammplan as any)?.[day]?.[hour] || item.faecher?.[0] || '',
         material: mode === 'replace' ? '' : (slot.material || ''),
         materialIds,
+        ...(lessonDraft ? {
+          fach: lessonDraft.fach || slot.fach || '',
+          thema: lessonDraft.thema || slot.thema || '',
+          stundenentwurf: {
+            ...(slot.stundenentwurf || {}),
+            lernziele: lessonDraft.lernziele, einleitung: lessonDraft.einleitung,
+            hauptteil: lessonDraft.hauptteil, schluss: lessonDraft.schluss, material: lessonDraft.material,
+          },
+        } : {}),
       };
       week[day] = dayPlan;
       wochenplanung[kw] = week;
@@ -1788,6 +1802,19 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
               </div>
             )}
           </div>
+
+          {item.typ === 'stundenentwurf' && (
+            <label className="flex cursor-pointer gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-3.5">
+              <input type="checkbox" checked={applyPreparation} onChange={event => setApplyPreparation(event.target.checked)} />
+              <span>
+                <strong className="block text-sm text-indigo-950">Unterrichtsvorbereitung übernehmen</strong>
+                <span className="mt-1 block text-xs text-indigo-800">
+                  Übernimmt Fach, Thema, Lernziele und Stundenablauf. Bereits vorhandene Unterrichtsinhalte werden vor dem Ersetzen bestätigt.
+                  Ohne Häkchen wird nur das Material verknüpft.
+                </span>
+              </span>
+            </label>
+          )}
 
           <fieldset className="space-y-2">
             <legend className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400 mb-2">Übernahme</legend>
