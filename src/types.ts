@@ -413,6 +413,8 @@ export interface Student {
   wunschpartner?: string[]; // student IDs
   sperrpartner?: string[];  // student IDs
   portfolio?: PortfolioEntry[];
+  /** Optional teacher-reviewed learning-goal explanation per semester; separate from Oberau matrix. */
+  lernzielErlaeuterungen?: Partial<Record<'1' | '2', { text: string; updatedAt: string; modellName: string }>>;
   geburtsdatum?: string; // Standardized name for birthday if needed
   warnThresholds?: Record<string, number>; // Individual warning threshold mapped by testId
   erlaeuterungsmatrix?: {
