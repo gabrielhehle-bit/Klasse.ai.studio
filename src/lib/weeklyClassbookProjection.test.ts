@@ -80,3 +80,28 @@ test('Verknüpfte Materialien werden mit dem bestehenden Titel statt bloßer IDs
   const entry = output['Mathematik › Ohne Unterbereich'][0];
   for(const word of ['Bleistift','Arbeitsheft','Schulbuch','test','08:00–08:50']) assert.ok(entry.includes(word));
 });
+
+test('Fachwechsel in geteilter Stunde erbt keine fachfremden Unterbereiche aus dem Elternslot', () => {
+  const output = projectWeeklyPlanToClassbook({
+    Mittwoch: { 0: {
+      fach: 'Deutsch', schwerpunkte: ['Deutsch (Lesen)'], thema: 'Gemeinsam',
+      halves: {enabled: true,
+        first: {fach: 'Deutsch', thema: 'Lesen'},
+        second: {fach: 'Mathematik', thema: 'Rechnen'},
+      }
+    }}
+  }, {activeSubjects: subjects});
+  assert.equal(output['Deutsch › Lesen'].length, 1);
+  assert.match(output['Deutsch › Lesen'][0], /1\. Hälfte/);
+  assert.equal(output['Mathematik › Ohne Unterbereich'].length, 1);
+  assert.match(output['Mathematik › Ohne Unterbereich'][0], /2\. Hälfte.*Rechnen/);
+  assert.doesNotMatch(output['Mathematik › Ohne Unterbereich'][0], /Lesen/);
+});
+
+test('Widersprüchliche gemischte Unterbereichs-Tags ordnen einen Mathematikslot nicht Deutsch zu', () => {
+  const output = projectWeeklyPlanToClassbook({
+    Dienstag: { 1: { fach: 'Mathematik', schwerpunkte: ['Deutsch (Lesen)', 'Mathematik (Operationen)'], thema: 'Addieren' } }
+  }, {activeSubjects: subjects});
+  assert.equal(output['Deutsch › Lesen'].length, 0);
+  assert.match(output['Mathematik › Operationen'][0], /Addieren/);
+});
