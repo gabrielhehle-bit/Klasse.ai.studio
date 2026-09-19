@@ -198,11 +198,12 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange, in
     setActiveTab(type === 'goal' || type === 'strength' ? 'foerderung' : 'beobachtungen_verlauf');
   };
 
-  // Reset activeTab to 'uebersicht' whenever student changes
+  // Respect the explicit class-year deep link; ordinary dossier visits still
+  // start at the overview and no navigation preference is persisted.
   useEffect(() => {
-    setActiveTab('uebersicht');
+    setActiveTab(initialReportView ? 'berichte' : 'uebersicht');
     setPendingQuickEntry(null);
-  }, [schuelerId]);
+  }, [schuelerId, initialReportView]);
 
   const activeMainArea = getActiveMainArea(activeTab);
 
