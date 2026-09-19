@@ -3279,6 +3279,24 @@ export default function WeeklyPlan() {
                     <p className="mt-2 whitespace-pre-wrap text-sm font-medium text-slate-700">{lesson.method || 'Keine Methodik-Notiz'}</p>
                   </section>
 
+                  {lesson.stundenentwurf && hasLessonDraftContent({ ...EMPTY_LESSON_DRAFT, ...lesson.stundenentwurf }) && (
+                    <section className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-5 lg:col-span-3">
+                      <h4 className="text-sm font-black text-indigo-900">Ausführlicher Unterrichtsentwurf</h4>
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        {([
+                          ['lernziele', 'Lernziele'], ['einleitung', 'Einstieg'],
+                          ['hauptteil', 'Hauptteil & Differenzierung'], ['schluss', 'Schluss & Sicherung'],
+                          ['material', 'Materialbedarf'],
+                        ] as const).map(([field, label]) => lesson.stundenentwurf[field] && (
+                          <div key={field}>
+                            <strong className="block text-xs text-indigo-900">{label}</strong>
+                            <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{lesson.stundenentwurf[field]}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
                   {lesson.reflexion && (
                     <section className="rounded-2xl border border-amber-100 bg-amber-50/50 p-5 lg:col-span-2">
                       <div className="text-[0.625rem] font-black uppercase tracking-wider text-amber-700">Reflexion</div>
