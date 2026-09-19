@@ -15,6 +15,8 @@ import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { MaterialItem } from '../types';
 import { generateTeachingMaterial } from '../services/aiService';
 import { calculateMaterialStorageSize, MATERIAL_LIBRARY_MAX_MB, normalizeMaterialExternalLink, removeMaterialReferencesFromClasses, removeMaterialReferencesFromWeeklyPlan, sanitizeMaterialForType, upsertMaterial, validateMaterialFile } from '../lib/materialLibraryUtils';
+import { lessonDraftFromMaterial } from '../lib/lessonDrafts';
+import { materialCollections, normalizeMaterialCollections } from '../lib/materialCollections';
 export { calculateMaterialStorageSize as calculateStorageSize } from '../lib/materialLibraryUtils';
 
 const normalizeMaterialItem = (item: MaterialItem): MaterialItem => ({
@@ -25,6 +27,7 @@ const normalizeMaterialItem = (item: MaterialItem): MaterialItem => ({
   faecher: Array.isArray(item.faecher) ? item.faecher : [],
   schulstufen: Array.isArray(item.schulstufen) ? item.schulstufen : [],
   tags: Array.isArray(item.tags) ? item.tags : [],
+  sammlungen: normalizeMaterialCollections(item.sammlungen),
   erstelltAm: item.erstelltAm || '',
 });
 
@@ -37,6 +40,9 @@ export default function Materialbibliothek() {
   const [sortBy, setSortBy] = useState<'used' | 'date' | 'title'>('date');
   const [onlyAi, setOnlyAi] = useState(false);
   const [filterTag, setFilterTag] = useState<string | null>(null);
+  const [filterSammlung, setFilterSammlung] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const sammlungen = useMemo(() => materialCollections(app.materialien || []), [app.materialien]);
   
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -52,18 +58,15 @@ export default function Materialbibliothek() {
   const favoritesCount = useMemo(() => (app.materialien || []).filter(m => m.favorit).length, [app.materialien]);
   const totalCount = (app.materialien || []).length;
 
-  useEffect(() => {
-    setWeekPlanMaterial(null);
-  }, [app.activeClassId]);
-
   const activeFiltersCount = useMemo(() => {
     return (activeTab !== 'Alle' ? 1 : 0) + 
            (searchQuery ? 1 : 0) + 
            (filterFach ? 1 : 0) + 
            (filterStufe ? 1 : 0) + 
            (onlyAi ? 1 : 0) + 
-           (filterTag ? 1 : 0);
-  }, [activeTab, searchQuery, filterFach, filterStufe, onlyAi, filterTag]);
+           (filterTag ? 1 : 0) +
+           (filterSammlung ? 1 : 0);
+  }, [activeTab, searchQuery, filterFach, filterStufe, onlyAi, filterTag, filterSammlung]);
 
   const clearAllFilters = () => {
     setActiveTab('Alle');
@@ -72,6 +75,7 @@ export default function Materialbibliothek() {
     setFilterStufe('');
     setOnlyAi(false);
     setFilterTag(null);
+    setFilterSammlung('');
   };
 
   // Filtered & Sorted list
@@ -80,9 +84,9 @@ export default function Materialbibliothek() {
     
     // Tab filter
     if (activeTab === 'Favoriten') list = list.filter(m => m.favorit);
-    else if (activeTab === 'Dateien') list = list.filter(m => m.typ === 'datei');
-    else if (activeTab === 'Links') list = list.filter(m => m.typ === 'link');
-    else if (activeTab === 'Stundenentwürfe') list = list.filter(m => m.typ === 'stundenentwurf');
+    else if (activeTab === 'Arbeitsblätter & Dateien') list = list.filter(m => m.typ === 'datei');
+    else if (activeTab === 'Links & Medien') list = list.filter(m => m.typ === 'link');
+    else if (activeTab === 'Unterrichtsvorbereitungen') list = list.filter(m => m.typ === 'stundenentwurf');
     else if (activeTab === 'Notfallpläne') list = list.filter(m => m.typ === 'notfallplan');
     else if (activeTab === 'Elternbriefe') list = list.filter(m => m.typ === 'elternbrief');
     else if (activeTab === 'Beurteilungen') list = list.filter(m => m.typ === 'beurteilung');
@@ -96,6 +100,8 @@ export default function Materialbibliothek() {
         m.titel.toLowerCase().includes(q) ||
         m.beschreibung.toLowerCase().includes(q) ||
         m.tags.some(t => t.toLowerCase().includes(q)) ||
+        m.faecher.some(f => f.toLowerCase().includes(q)) ||
+        m.sammlungen?.some(collection => collection.toLowerCase().includes(q)) ||
         (m.inhaltText && m.inhaltText.toLowerCase().includes(q))
       );
     }
@@ -104,6 +110,7 @@ export default function Materialbibliothek() {
     if (filterTag) {
       list = list.filter(m => m.tags.includes(filterTag));
     }
+    if (filterSammlung) list = list.filter(m => m.sammlungen?.includes(filterSammlung));
 
     // AI filter
     if (onlyAi) list = list.filter(m => m.kiGeneriert);
@@ -125,7 +132,7 @@ export default function Materialbibliothek() {
     });
 
     return list;
-  }, [app.materialien, activeTab, searchQuery, onlyAi, filterFach, filterStufe, sortBy, filterTag]);
+  }, [app.materialien, activeTab, searchQuery, onlyAi, filterFach, filterStufe, sortBy, filterTag, filterSammlung]);
 
   useEffect(() => {
     const visibleIds = new Set(filteredMaterials.map(material => material.id));
@@ -220,145 +227,62 @@ export default function Materialbibliothek() {
 
   return (
     <div className={`material-library-shell ${isCompact ? "space-y-4" : isLarge ? "space-y-8" : "space-y-5"}`}>
-      {/* Header & Stats Widget */}
-      <div className={`flex flex-col md:flex-row md:items-start justify-between border-b border-slate-100 ${
-        isCompact ? 'pb-4 gap-4' : isLarge ? 'pb-10 gap-8' : 'pb-6 gap-5'
-      }`}>
-        <div className={`flex-1 ${isCompact ? 'space-y-2' : isLarge ? 'space-y-6' : 'space-y-4'}`}>
-           <div className={`leading-snug font-medium text-slate-500 ${
-             isCompact ? 'text-[0.75rem]' : isLarge ? 'text-[1rem]' : 'text-[0.875rem]'
-           }`}>
-              Unterrichtsmaterialien, Arbeitsblätter und Vorlagen organisieren
-           </div>
-           
-           <div className={`grid grid-cols-2 md:grid-cols-4 ${isCompact ? 'gap-2.5' : isLarge ? 'gap-6' : 'gap-4'}`}>
-              <div className={`bg-slate-50 border border-slate-100 flex flex-col ${
-                isCompact ? 'p-2.5 rounded-xl gap-0.5' : isLarge ? 'p-5 rounded-[2rem] gap-1.5' : 'p-4 rounded-2xl gap-1'
-              }`}>
-                 <div className="flex items-center gap-2 text-slate-500 mb-0.5">
-                   <Folder size={isCompact ? 14 : isLarge ? 20 : 16} />
-                   <span className={`${isCompact ? 'text-[0.5625rem]' : isLarge ? 'text-[0.75rem]' : 'text-[0.625rem]'} font-black uppercase tracking-wider`}>Gesamt</span>
-                 </div>
-                 <span className={`leading-normal font-black text-slate-800 ${
-                   isCompact ? 'text-[1.125rem]' : isLarge ? 'text-[2rem]' : 'text-[1.5rem]'
-                 }`}>{totalCount}</span>
-              </div>
-              
-              <div className={`bg-rose-50 border border-rose-100 flex flex-col ${
-                isCompact ? 'p-2.5 rounded-xl gap-0.5' : isLarge ? 'p-5 rounded-[2rem] gap-1.5' : 'p-4 rounded-2xl gap-1'
-              }`}>
-                 <div className="flex items-center gap-2 text-rose-500 mb-0.5">
-                   <Heart size={isCompact ? 14 : isLarge ? 20 : 16} fill="currentColor" />
-                   <span className={`${isCompact ? 'text-[0.5625rem]' : isLarge ? 'text-[0.75rem]' : 'text-[0.625rem]'} font-black uppercase tracking-wider`}>Favoriten</span>
-                 </div>
-                 <span className={`leading-normal font-black text-rose-700 ${
-                   isCompact ? 'text-[1.125rem]' : isLarge ? 'text-[2rem]' : 'text-[1.5rem]'
-                 }`}>{favoritesCount}</span>
-              </div>
-
-              <div className={`bg-fuchsia-50 border border-fuchsia-100 flex flex-col ${
-                isCompact ? 'p-2.5 rounded-xl gap-0.5' : isLarge ? 'p-5 rounded-[2rem] gap-1.5' : 'p-4 rounded-2xl gap-1'
-              }`}>
-                 <div className="flex items-center gap-2 text-fuchsia-500 mb-0.5">
-                   <Sparkles size={isCompact ? 14 : isLarge ? 20 : 16} fill="currentColor" />
-                   <span className={`${isCompact ? 'text-[0.5625rem]' : isLarge ? 'text-[0.75rem]' : 'text-[0.625rem]'} font-black uppercase tracking-wider`}>KI-Inhalte</span>
-                 </div>
-                 <span className={`leading-normal font-black text-fuchsia-700 ${
-                   isCompact ? 'text-[1.125rem]' : isLarge ? 'text-[2rem]' : 'text-[1.5rem]'
-                 }`}>{(app.materialien || []).filter(m => m.kiGeneriert).length}</span>
-              </div>
-
-              <div className={`border transition-all flex flex-col ${
-                isCompact ? 'p-2.5 rounded-xl gap-1' : isLarge ? 'p-5 rounded-[2rem] gap-2' : 'p-4 rounded-2xl gap-1.5'
-              } ${storageMB > 4 ? 'bg-rose-50 border-rose-100 animate-pulse' : 'bg-indigo-50 border-indigo-100'}`}>
-                 <div className="flex items-center justify-between">
-                   <div className={`flex items-center gap-2 ${storageMB > 4 ? 'text-rose-500 font-bold' : 'text-indigo-500'}`}>
-                     <Database size={isCompact ? 14 : isLarge ? 20 : 16} />
-                     <span className={`${isCompact ? 'text-[0.5625rem]' : isLarge ? 'text-[0.75rem]' : 'text-[0.625rem]'} font-black uppercase tracking-wider`}>Speicher</span>
-                   </div>
-                   {storageMB > 0 && (
-                     <button
-                       onClick={(e) => {
-                         e.stopPropagation();
-                         if (confirm("Möchtest du den gesamten Speicher zurücksetzen? Das löscht alle deine hochgeladenen und generierten Materialien.")) {
-                           setApp(prev => ({
-                             ...prev,
-                             materialien: [],
-                             wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung),
-                             classes: removeMaterialReferencesFromClasses(prev.classes),
-                           }));
-                           setSelectedItems([]);
-                         }
-                       }}
-                       title="Speicher zurücksetzen"
-                       className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition-colors pointer-events-auto animate-in fade-in"
-                     >
-                       <Trash size={isCompact ? 10 : isLarge ? 14 : 12} />
-                     </button>
-                   )}
-                 </div>
-                 <div className={`flex flex-col mt-0.5 ${isCompact ? 'gap-0.5' : isLarge ? 'gap-2' : 'gap-1'}`}>
-                   <span className={`leading-none font-black ${
-                     isCompact ? 'text-[1rem]' : isLarge ? 'text-[1.625rem]' : 'text-[1.25rem]'
-                   } ${storageMB > 4 ? 'text-rose-700' : 'text-indigo-800'}`}>
-                      {storageMB.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      <span className={`${isCompact ? 'text-[0.625rem]' : isLarge ? 'text-[0.875rem]' : 'text-[0.75rem]'} font-bold text-slate-400`}> MB von {MATERIAL_LIBRARY_MAX_MB} MB</span>
-                   </span>
-                   {/* Storage Progress Bar */}
-                   <div className={`w-full bg-slate-200/70 rounded-full overflow-hidden ${isCompact ? 'h-1 mt-0.5' : isLarge ? 'h-2 mt-2' : 'h-1.5 mt-1'}`}>
-                     <div 
-                       className={`h-full rounded-full transition-all duration-500 ${
-                         storageMB > 4 ? 'bg-rose-600' : storageMB > 2.5 ? 'bg-amber-500' : 'bg-indigo-600'
-                       }`}
-                       style={{ width: `${Math.min(100, (storageMB / MATERIAL_LIBRARY_MAX_MB) * 100)}%` }}
-                     />
-                   </div>
-                 </div>
-              </div>
-           </div>
-        </div>
-        
-        <div className={`flex shrink-0 flex-col gap-2 sm:flex-row ${isCompact ? 'mt-1 md:mt-4' : isLarge ? 'mt-3 md:mt-10' : 'mt-2 md:mt-8'}`}>
-          <button
-            type="button"
-            onClick={() => setPage('canva')}
-            className={`flex items-center justify-center gap-2 rounded-xl border border-[var(--accent)]/25 bg-[var(--accent-soft)] px-5 font-black text-[var(--accent)] transition hover:border-[var(--accent)]/45 hover:bg-[var(--surface)] ${isCompact ? 'h-11 text-xs' : isLarge ? 'h-16 text-lg' : 'h-14 text-sm'}`}
-          >
-            <Palette size={isCompact ? 18 : isLarge ? 28 : 22} />
-            <span>Mit Canva gestalten</span>
+      {(app.stundenentwuerfe || []).length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+          <div>
+            <h2 className="text-sm font-black text-indigo-950">Bestehende Unterrichtsentwürfe</h2>
+            <p className="mt-1 text-xs text-indigo-800">
+              {(app.stundenentwuerfe || []).length} bisher gespeicherte Entwürfe bleiben unverändert und sind weiterhin bearbeitbar.
+              Neue Vorbereitungen erstellst du direkt im Wochenplan und speicherst sie hier als Vorlage.
+            </p>
+          </div>
+          <button type="button" onClick={() => setPage('stunden')}
+            className="rounded-xl bg-white px-4 py-2 text-xs font-black text-indigo-800 shadow-sm hover:bg-indigo-100">
+            Bisherige Entwürfe öffnen →
           </button>
-          <button 
-            onClick={() => {
-              setSelectedMaterial(null);
-              setIsAdding(true);
-            }}
-            className={`btn btn-primary flex shrink-0 items-center gap-2 shadow-xl hover:scale-[1.02] transition-transform ${isCompact ? 'h-11 px-5 rounded-xl text-xs' : isLarge ? 'h-16 px-10 rounded-[1.5rem] text-lg' : 'h-14 px-8'}`}
-          >
-            <Plus size={isCompact ? 18 : isLarge ? 28 : 24} />
-            <span>Neues Material</span>
-          </button>
-        </div>
-      </div>
-
-      {storageMB > 4 && (
-        <div className={`bg-rose-50 border border-rose-100 flex items-center gap-3 text-rose-700 leading-snug font-bold animate-in slide-in-from-top duration-300 ${
-          isCompact ? 'p-2 rounded-xl text-[0.75rem]' : isLarge ? 'p-4 rounded-2xl text-[1rem]' : 'p-3 rounded-2xl text-[0.875rem]'
-        }`}>
-          <AlertTriangle size={isCompact ? 16 : isLarge ? 22 : 18} className="shrink-0" />
-          Achtung: Speicher zu 80% gefüllt. Lösche nicht mehr benötigte Materialien.
         </div>
       )}
 
-      <div className={`bg-white border border-slate-100 shadow-sm ${
-        isCompact ? 'p-2.5 rounded-2xl' : isLarge ? 'p-5 rounded-[3rem]' : 'p-3 rounded-2xl'
-      }`}>
-        <p className={`font-bold text-slate-400 flex items-center gap-2 px-4 ${
-          isCompact ? 'text-[0.5625rem]' : isLarge ? 'text-[0.75rem]' : 'text-[0.625rem]'
-        }`}>
-          <Info size={isCompact ? 10 : isLarge ? 14 : 12} />
-          Deine Materialien bleiben auf diesem Gerät gespeichert. Verfügbar sind insgesamt 5 MB; einzelne Dateien sollten möglichst kleiner als 1 MB sein.
+      <header className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
+        <div className="min-w-0">
+          <h1 className="text-xl font-black text-slate-900 sm:text-2xl">Meine Materialbibliothek</h1>
+          <p className="mt-1 text-sm text-slate-600">Unterrichtsmaterialien und Vorbereitungen sammeln, wiederfinden und im Wochenplan verwenden.</p>
+          <p className="mt-2 text-xs font-semibold text-slate-500">
+            {totalCount} {totalCount === 1 ? 'Material' : 'Materialien'} · {favoritesCount} Favoriten
+          </p>
+        </div>
+        <button type="button" onClick={() => { setSelectedMaterial(null); setIsAdding(true); }}
+          className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-emerald-700">
+          <Plus size={18} /> Material hinzufügen
+        </button>
+      </header>
+      <details className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600">
+        <summary className="cursor-pointer font-bold">Speicher & Dateigrößen</summary>
+        <p className="mt-2">
+          Für diese Bibliothek gilt derzeit eine App-interne Grenze von {MATERIAL_LIBRARY_MAX_MB} MB;
+          das ist nicht die Speicherkapazität deines Geräts. Belegt: {storageMB.toLocaleString('de-AT', { maximumFractionDigits: 2 })} MB.
+          Der einzelne Datei-Upload ist derzeit auf 3 MB begrenzt. Diese Grenzen bleiben bis zu einer geprüften
+          Erweiterung der verschlüsselten Speicherung, Sicherung und Synchronisation bestehen.
         </p>
-      </div>
+        {totalCount > 0 && (
+          <button type="button" className="mt-3 rounded-lg border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50"
+            onClick={() => {
+              if (!window.confirm('Alle Materialien endgültig löschen? Die Verknüpfungen im Wochenplan werden ebenfalls entfernt. Erstelle vorher eine Sicherung.')) return;
+              setApp(prev => ({
+                ...prev,
+                materialien: [],
+                wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung),
+                classes: removeMaterialReferencesFromClasses(prev.classes),
+              }));
+              setSelectedItems([]);
+              setSelectedMaterial(null);
+              setFilterSammlung('');
+              clearAllFilters();
+            }}>
+            Alle Materialien löschen …
+          </button>
+        )}
+      </details>
 
       {/* Sticky Filter Header */}
       {totalCount > 0 && (
@@ -367,7 +291,7 @@ export default function Materialbibliothek() {
       }`}>
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 pb-1">
-          {['Alle', 'Dateien', 'Links', 'Stundenentwürfe', 'Notfallpläne', 'Elternbriefe', 'Beurteilungen', 'Reflexionen', 'Notizen', 'Favoriten'].map(tab => (
+          {['Alle', 'Unterrichtsvorbereitungen', 'Arbeitsblätter & Dateien', 'Links & Medien', 'Favoriten'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -379,6 +303,19 @@ export default function Materialbibliothek() {
               {tab}
             </button>
           ))}
+          <select aria-label="Weitere Materialarten" value={['Notfallpläne', 'Elternbriefe', 'Beurteilungen', 'Reflexionen', 'Notizen'].includes(activeTab) ? activeTab : ''}
+            onChange={event => setActiveTab(event.target.value || 'Alle')}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+            <option value="">Weitere Arten …</option>
+            {['Notfallpläne', 'Elternbriefe', 'Beurteilungen', 'Reflexionen', 'Notizen'].map(tab => <option key={tab} value={tab}>{tab}</option>)}
+          </select>
+          {sammlungen.length > 0 && (
+            <select aria-label="Persönliche Sammlung auswählen" value={filterSammlung} onChange={event => setFilterSammlung(event.target.value)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+              <option value="">Alle Sammlungen</option>
+              {sammlungen.map(name => <option key={name} value={name}>{name}</option>)}
+            </select>
+          )}
         </div>
 
         {/* Search & Filter */}
@@ -392,7 +329,7 @@ export default function Materialbibliothek() {
               }`} size={isCompact ? 14 : isLarge ? 22 : 18} />
               <input 
                 type="text" 
-                placeholder="Suchen nach Titel, Beschreibung, Tags..." 
+                placeholder="Materialien, Themen, Fächer oder Sammlungen suchen …" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 transition-all outline-none font-medium ${
@@ -400,6 +337,13 @@ export default function Materialbibliothek() {
                 }`}
               />
             </div>
+            <button type="button" aria-expanded={showAdvancedFilters} onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+              <Filter size={15} /> {showAdvancedFilters ? 'Filter schließen' : 'Filter & Ansicht'}
+              {activeFiltersCount > 0 && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-indigo-700">{activeFiltersCount}</span>}
+            </button>
+          </div>
+          {showAdvancedFilters && (
             <div className={`flex flex-wrap items-center ${isCompact ? 'gap-2' : isLarge ? 'gap-4' : 'gap-3'}`}>
               <div className={`flex items-center bg-slate-50 border border-slate-100 ${
                 isCompact ? 'px-2 py-1.5 rounded-lg gap-1.5' : isLarge ? 'px-4 py-3 rounded-[1.25rem] gap-3' : 'px-3 py-2 rounded-xl gap-2'
@@ -461,9 +405,10 @@ export default function Materialbibliothek() {
                 Nur KI
               </button>
             </div>
-          </div>
+          )}
 
           {/* Additional Filter Tools & View Settings */}
+          {showAdvancedFilters && (
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-3 border-t border-slate-100">
              <div className="flex flex-wrap items-center gap-2">
                  {allTags.length > 0 && (
@@ -507,6 +452,7 @@ export default function Materialbibliothek() {
                 <button onClick={() => setViewMode('list')} aria-label="Listenansicht" aria-pressed={viewMode === 'list'} title="Listenansicht" className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}><List size={16} /></button>
              </div>
           </div>
+          )}
 
           {/* Active Filter Chips */}
           {activeFiltersCount > 0 && (
@@ -548,6 +494,12 @@ export default function Materialbibliothek() {
                 </span>
               )}
 
+              {filterSammlung && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
+                  Sammlung: {filterSammlung}
+                  <button type="button" onClick={() => setFilterSammlung('')} aria-label="Sammlungsfilter entfernen">×</button>
+                </span>
+              )}
               {onlyAi && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[0.6875rem] font-bold border border-emerald-100/50">
                   Nur KI-Inhalte
@@ -624,6 +576,7 @@ export default function Materialbibliothek() {
                     isSelected={selectedItems.includes(m.id)}
                     onToggleSelection={() => toggleSelection(m.id)}
                     onDelete={() => handleDelete(m.id)}
+                    onSendToWeekPlan={() => { setShowDetail(false); setWeekPlanMaterial(m); }}
                     viewMode="grid"
                   />
                 ))}
@@ -642,6 +595,7 @@ export default function Materialbibliothek() {
                     isSelected={selectedItems.includes(m.id)}
                     onToggleSelection={() => toggleSelection(m.id)}
                     onDelete={() => handleDelete(m.id)}
+                    onSendToWeekPlan={() => { setShowDetail(false); setWeekPlanMaterial(m); }}
                     viewMode="list"
                   />
                 ))}
@@ -650,12 +604,16 @@ export default function Materialbibliothek() {
           </div>
         ))}
         {filteredMaterials.length === 0 && (
-          <div className="col-span-full py-14 px-6 flex flex-col items-center text-slate-350 bg-white border border-dashed border-slate-200 rounded-2xl">
+          <div className="col-span-full flex flex-col items-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-slate-500">
             <span className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center mb-4">
               <Folder size={26} />
             </span>
-            <p className="text-[1.125rem] leading-normal font-bold text-slate-700 mb-1">Keine Materialien gefunden</p>
-            <p className="text-[0.875rem] leading-snug font-medium text-slate-500 text-center max-w-md">Lege Arbeitsblätter, Links, Stundenentwürfe oder Vorlagen zentral ab – dann findest du sie später über Suche und Filter sofort wieder.</p>
+            <p className="mb-1 text-lg font-black text-slate-800">{totalCount === 0 ? 'Deine persönliche Unterrichtsbibliothek ist noch leer' : 'Keine passenden Materialien gefunden'}</p>
+            <p className="max-w-md text-center text-sm text-slate-600">
+              {totalCount === 0
+                ? 'Speichere dein erstes Arbeitsblatt, einen Link oder eine Vorbereitung. Danach kannst du die Inhalte direkt im Wochenplan wiederverwenden.'
+                : 'Versuche einen anderen Suchbegriff oder setze die gewählten Filter zurück.'}
+            </p>
             {activeFiltersCount > 0 && (
               <button 
                 onClick={clearAllFilters}
@@ -664,17 +622,7 @@ export default function Materialbibliothek() {
                 <X size={14} /> Filter zurücksetzen
               </button>
             )}
-            {activeFiltersCount === 0 && (
-              <button
-                onClick={() => {
-                  setSelectedMaterial(null);
-                  setIsAdding(true);
-                }}
-                className="mt-6 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[0.8125rem] shadow-sm flex items-center gap-2 transition-all active:scale-95"
-              >
-                <Plus size={15} /> Erstes Material anlegen
-              </button>
-            )}
+            {totalCount === 0 && <p className="mt-3 text-xs text-slate-500">Über „Material hinzufügen“ startest du oben rechts.</p>}
           </div>
         )}
       </div>
@@ -729,7 +677,7 @@ export default function Materialbibliothek() {
   );
 }
 
-function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSelection, onDelete, viewMode }: { item: MaterialItem; onClick: () => void; onToggleFavorit: (e: React.MouseEvent, id: string) => void; isSelected?: boolean; onToggleSelection?: () => void; onDelete?: () => void; viewMode?: 'grid' | 'list' }) {
+function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSelection, onDelete, onSendToWeekPlan, viewMode }: { item: MaterialItem; onClick: () => void; onToggleFavorit: (e: React.MouseEvent, id: string) => void; isSelected?: boolean; onToggleSelection?: () => void; onDelete?: () => void; onSendToWeekPlan?: () => void; viewMode?: 'grid' | 'list' }) {
   const { app } = useApp();
   const zoomLevel = app.settings?.zoomLevel || 'standard';
   const isCompact = zoomLevel === 'compact';
@@ -806,8 +754,14 @@ function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSele
                
                {item.kiGeneriert && <Sparkles size={isCompact ? 12 : isLarge ? 18 : 14} className="text-emerald-500" />}
 
+               {onSendToWeekPlan && (
+                 <button type="button" onClick={event => { event.stopPropagation(); onSendToWeekPlan(); }}
+                   className="rounded-xl border border-indigo-200 px-3 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-50">
+                   Im Wochenplan verwenden
+                 </button>
+               )}
                {onDelete && (
-                 <button 
+                 <button
                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
                    className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-all opacity-0 group-hover:opacity-100 duration-200"
                    title="Löschen"
@@ -885,12 +839,24 @@ function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSele
         } ${isDarkHover ? 'text-slate-400 group-hover:text-zinc-350' : 'text-slate-400'}`}>{item.beschreibung}</p>
       </div>
 
+      {item.typ === 'datei' && item.dateiTyp === 'application/pdf' && (
+        <div className="flex aspect-video items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-black text-slate-600">
+          <FileText size={26} /> PDF · Vorschau öffnen
+        </div>
+      )}
       {item.typ === 'datei' && item.dateiTyp?.startsWith('image/') && item.dateiInhalt && (
         <div className={`aspect-video w-full rounded-2xl bg-slate-50 border border-slate-100`}>
           <img src={item.dateiInhalt} alt={item.titel} className="w-full h-full object-cover" />
         </div>
       )}
 
+      {(item.sammlungen || []).length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {item.sammlungen?.slice(0, 2).map(name => (
+            <span key={name} className="rounded-lg bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-800">{name}</span>
+          ))}
+        </div>
+      )}
       <div className={`mt-auto pt-3 border-t transition-colors ${isDarkHover ? 'border-slate-50 group-hover:border-zinc-700' : 'border-slate-50'} space-y-3`}>
         <div className="flex flex-wrap gap-1.5">
           {item.faecher.slice(0, 2).map(f => (
@@ -910,6 +876,18 @@ function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSele
            </div>
            {item.kiGeneriert && <Sparkles size={isCompact ? 10 : isLarge ? 14 : 12} className="text-emerald-500" />}
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={event => { event.stopPropagation(); onClick(); }}
+            className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800 hover:bg-slate-50">
+            Vorschau
+          </button>
+          {onSendToWeekPlan && (
+            <button type="button" onClick={event => { event.stopPropagation(); onSendToWeekPlan(); }}
+              className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white hover:bg-indigo-700">
+              Im Wochenplan verwenden
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );
@@ -919,6 +897,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
   const { app } = useApp();
   const [step, setStep] = useState(initialData ? 'details' : 'type');
   const [typ, setTyp] = useState<MaterialItem['typ']>(initialData?.typ || 'datei');
+  const [collectionInput, setCollectionInput] = useState((initialData?.sammlungen || []).join(', '));
   const [formData, setFormData] = useState<Partial<MaterialItem>>(initialData || {
     titel: '',
     beschreibung: '',
@@ -1042,6 +1021,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
       faecher: formData.faecher || [],
       schulstufen: formData.schulstufen || [],
       tags: formData.tags || [],
+      sammlungen: normalizeMaterialCollections(collectionInput.split(',')),
       favorit: !!formData.favorit,
       kiGeneriert: !!formData.kiGeneriert,
       // Ensure inhaltText contains summary for stundenentwurf if fields are present
@@ -1089,14 +1069,14 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
               />
               <TypeSelectionCard 
                 icon={<FileText size={24} />} 
-                label="Eigene Notiz oder Inhalt" 
-                desc="Text / Entwürfe" 
+                label="Eigene Vorlage oder Notiz" 
+                desc="Text, Unterrichtsidee oder Vorbereitung" 
                 color="bg-indigo-50 text-indigo-600"
                 onClick={() => { setTyp('notiz'); setStep('details'); }} 
               />
               <TypeSelectionCard 
                 icon={<Wand2 size={24} />} 
-                label="Von KI generieren" 
+                label="Material mit KI erstellen" 
                 desc="Lesetexte, Übungen..." 
                 color="bg-fuchsia-50 text-fuchsia-600"
                 onClick={() => { setStep('ai-generator'); }} 
@@ -1350,6 +1330,14 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
                   value={formData.beschreibung || ''}
                   onChange={e => setFormData(prev => ({ ...prev, beschreibung: e.target.value }))}
                 />
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="material-collections" className="text-xs font-black text-slate-700">Meine Sammlungen (optional)</label>
+                <input id="material-collections" value={collectionInput} onChange={event => setCollectionInput(event.target.value)}
+                  placeholder="z. B. Mathematik 1, MINT, Vertretung"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none" />
+                <p className="text-xs text-slate-500">Mit Komma trennen. Eine Vorbereitung darf in mehreren Sammlungen stehen, ohne mehrfach gespeichert zu werden.</p>
               </div>
 
               {/* Lehrplanbezug (Optional) */}
@@ -1669,6 +1657,9 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
   const [day, setDay] = useState('Montag');
   const [hour, setHour] = useState(1);
   const [mode, setMode] = useState<'append' | 'replace'>('append');
+  const [applyPreparation, setApplyPreparation] = useState(false);
+  const [openedForClass] = useState(app.activeClassId);
+  const [chosenSubject, setChosenSubject] = useState(item.faecher?.[0] || '');
 
   const days = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
   const availableHours = LESSON_SLOT_NUMBERS;
@@ -1682,6 +1673,19 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
   const alreadyLinked = existingMaterialIds.includes(item.id);
 
   const save = () => {
+    if (openedForClass !== app.activeClassId) {
+      window.alert('Die aktive Klasse hat sich geändert. Öffne die Materialübernahme für die neue Klasse erneut.');
+      onClose();
+      return;
+    }
+    const lessonDraft = item.typ === 'stundenentwurf' && applyPreparation ? lessonDraftFromMaterial(item) : null;
+    const subjectForSlot = existing.fach || (app.stammplan as any)?.[day]?.[hour] || item.faecher?.[0] || chosenSubject;
+    if (!subjectForSlot && !lessonDraft?.fach) {
+      window.alert('Wähle für diese bisher leere Unterrichtsstunde zuerst ein Fach.');
+      return;
+    }
+    if (lessonDraft && (existing.thema || existing.fach || existing.stundenentwurf || existing.method) &&
+      !window.confirm('Diese Unterrichtsstunde enthält bereits eine Planung. Fach, Thema und ausführlichen Entwurf durch die ausgewählte Vorlage ersetzen?')) return;
     setApp(prev => {
       const wochenplanung = { ...(prev.wochenplanung || {}) } as any;
       const week = { ...(wochenplanung[kw] || {}) } as any;
@@ -1695,9 +1699,18 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
 
       dayPlan[index] = {
         ...slot,
-        fach: slot.fach || (prev.stammplan as any)?.[day]?.[hour] || item.faecher?.[0] || '',
+        fach: slot.fach || (prev.stammplan as any)?.[day]?.[hour] || item.faecher?.[0] || chosenSubject || '',
         material: mode === 'replace' ? '' : (slot.material || ''),
         materialIds,
+        ...(lessonDraft ? {
+          fach: lessonDraft.fach || slot.fach || '',
+          thema: lessonDraft.thema || slot.thema || '',
+          stundenentwurf: {
+            ...(slot.stundenentwurf || {}),
+            lernziele: lessonDraft.lernziele, einleitung: lessonDraft.einleitung,
+            hauptteil: lessonDraft.hauptteil, schluss: lessonDraft.schluss, material: lessonDraft.material,
+          },
+        } : {}),
       };
       week[day] = dayPlan;
       wochenplanung[kw] = week;
@@ -1766,12 +1779,35 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
             <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Zielstunde</div>
             <div className="mt-1 text-sm font-black text-slate-800">{existing.fach || (app.stammplan as any)?.[day]?.[hour] || 'Noch kein Fach eingetragen'}</div>
             <div className="mt-1 text-xs text-slate-500">{existing.thema || 'Noch kein Thema eingetragen'}</div>
+            {!existing.fach && !(app.stammplan as any)?.[day]?.[hour] && !item.faecher?.[0] && (
+              <label className="mt-3 block space-y-1">
+                <span className="text-xs font-bold text-slate-700">Fach für diese Stunde</span>
+                <select value={chosenSubject} onChange={event => setChosenSubject(event.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800">
+                  <option value="">Fach auswählen …</option>
+                  {FAECHER_ALLE.map(fach => <option key={fach} value={fach}>{fach}</option>)}
+                </select>
+              </label>
+            )}
             {alreadyLinked && (
               <div className="mt-2 inline-flex items-center gap-1.5 text-[0.6875rem] font-bold text-emerald-700">
                 <Check size={13} /> Dieses Material ist bereits verknüpft – es wird nicht doppelt gespeichert.
               </div>
             )}
           </div>
+
+          {item.typ === 'stundenentwurf' && (
+            <label className="flex cursor-pointer gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-3.5">
+              <input type="checkbox" checked={applyPreparation} onChange={event => setApplyPreparation(event.target.checked)} />
+              <span>
+                <strong className="block text-sm text-indigo-950">Unterrichtsvorbereitung übernehmen</strong>
+                <span className="mt-1 block text-xs text-indigo-800">
+                  Übernimmt Fach, Thema, Lernziele und Stundenablauf. Bereits vorhandene Unterrichtsinhalte werden vor dem Ersetzen bestätigt.
+                  Ohne Häkchen wird nur das Material verknüpft.
+                </span>
+              </span>
+            </label>
+          )}
 
           <fieldset className="space-y-2">
             <legend className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400 mb-2">Übernahme</legend>
@@ -1819,7 +1855,9 @@ export function useMaterialLibrary() {
       tags: item.tags || existing?.tags || [],
       erstelltAm: existing?.erstelltAm || new Date().toISOString(),
       favorit: existing?.favorit || false,
-      kiGeneriert: true,
+      kiGeneriert: item.kiGeneriert ?? existing?.kiGeneriert ?? true,
+      lernziel: item.lernziel ?? existing?.lernziel,
+      dauer: item.dauer ?? existing?.dauer,
       quelleModul,
       inhaltText: item.inhaltText,
       externerLink: item.externerLink,

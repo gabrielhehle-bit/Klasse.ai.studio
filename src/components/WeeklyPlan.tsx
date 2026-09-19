@@ -19,6 +19,9 @@ import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
 import { getAttendanceSemester } from '../lib/attendanceData';
 import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
 import { splitKlassenbuchCategoryKey } from '../lib/klassenbuchSubjects';
+import { EMPTY_LESSON_DRAFT, hasLessonDraftContent, lessonDraftFromMaterial, lessonDraftToText, normalizeLessonDraft, type LessonDraftFields } from '../lib/lessonDrafts';
+import { useMaterialLibrary } from './Materialbibliothek';
+import LessonPlannerAI from './LessonPlannerAI';
 
 const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> = {
   'Deutsch': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -244,7 +247,7 @@ export default function WeeklyPlan() {
   };
 
   const [editingCell, setEditingCell] = useState<{ tag: string, idx: number } | null>(null);
-  const [plannerEditorTab, setPlannerEditorTab] = useState<'inhalt' | 'rahmen' | 'organisation' | 'optionen'>('inhalt');
+  const [plannerEditorTab, setPlannerEditorTab] = useState<'inhalt' | 'rahmen' | 'organisation' | 'optionen' | 'entwurf'>('inhalt');
   const [viewingCell, setViewingCell] = useState<{ tag: string, idx: number } | null>(null);
   const [yearPlanSyncNotice, setYearPlanSyncNotice] = useState<string | null>(null);
   const [editingZeitunabhaengig, setEditingZeitunabhaengig] = useState<{ tag: string; item?: any } | null>(null);
@@ -269,6 +272,13 @@ export default function WeeklyPlan() {
   const [tempDuration, setTempDuration] = useState<number | 'all'>(1);
   const [syncWpSubjects, setSyncWpSubjects] = useState(false);
   const [showDraftsSelector, setShowDraftsSelector] = useState(false);
+  const [showDetailedLessonAI, setShowDetailedLessonAI] = useState(false);
+  const [tempStundenentwurf, setTempStundenentwurf] = useState<LessonDraftFields>({ ...EMPTY_LESSON_DRAFT });
+  const { addMaterialFromAI } = useMaterialLibrary();
+  const savedLessonDrafts = useMemo(() => [
+    ...(app.stundenentwuerfe || []).map((draft: any) => normalizeLessonDraft(draft)),
+    ...(app.materialien || []).filter((material: any) => material.typ === 'stundenentwurf').map(lessonDraftFromMaterial),
+  ], [app.stundenentwuerfe, app.materialien]);
   const [showLehrplanModal, setShowLehrplanModal] = useState<any>(null); // { tag, idx }
   const [lehrplanStep, setLehrplanStep] = useState(1);
   const [lpFach, setLpFach] = useState('');
@@ -1162,6 +1172,7 @@ export default function WeeklyPlan() {
     setTempMaterialIds(Array.isArray(current.materialIds) ? current.materialIds : []);
     setTempHUE(current.housework || current.hue || '');
     setTempMethod(current.method || '');
+    setTempStundenentwurf({ ...EMPTY_LESSON_DRAFT, ...(current.stundenentwurf || {}) });
     setTempSocial(current.social || 'single');
     setTempReflexion(current.reflexion || '');
     setTempDuration(current.duration === 'all' || typeof current.duration === 'number' ? current.duration : 1);
@@ -1292,6 +1303,9 @@ export default function WeeklyPlan() {
               method: method.trim(),
               social,
               reflexion: reflexion.trim(),
+              stundenentwurf: hasLessonDraftContent(tempStundenentwurf)
+                ? { ...(kwPlan[tag][idx]?.stundenentwurf || {}), ...tempStundenentwurf }
+                : undefined,
               schwerpunkte,
               halves: tempSplitLesson
                 ? {
@@ -3265,6 +3279,24 @@ export default function WeeklyPlan() {
                     <p className="mt-2 whitespace-pre-wrap text-sm font-medium text-slate-700">{lesson.method || 'Keine Methodik-Notiz'}</p>
                   </section>
 
+                  {lesson.stundenentwurf && hasLessonDraftContent({ ...EMPTY_LESSON_DRAFT, ...lesson.stundenentwurf }) && (
+                    <section className="rounded-2xl border border-indigo-100 bg-indigo-50/30 p-5 lg:col-span-3">
+                      <h4 className="text-sm font-black text-indigo-900">Ausführlicher Unterrichtsentwurf</h4>
+                      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        {([
+                          ['lernziele', 'Lernziele'], ['einleitung', 'Einstieg'],
+                          ['hauptteil', 'Hauptteil & Differenzierung'], ['schluss', 'Schluss & Sicherung'],
+                          ['material', 'Materialbedarf'],
+                        ] as const).map(([field, label]) => lesson.stundenentwurf[field] && (
+                          <div key={field}>
+                            <strong className="block text-xs text-indigo-900">{label}</strong>
+                            <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{lesson.stundenentwurf[field]}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
                   {lesson.reflexion && (
                     <section className="rounded-2xl border border-amber-100 bg-amber-50/50 p-5 lg:col-span-2">
                       <div className="text-[0.625rem] font-black uppercase tracking-wider text-amber-700">Reflexion</div>
@@ -3354,12 +3386,13 @@ export default function WeeklyPlan() {
               </div>
 
               <div className="shrink-0 border-b border-slate-100 bg-white px-4 py-3 sm:px-6">
-                <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
                   {([
                     { id: 'inhalt', label: '1 · Inhalt & Fach', hint: 'Thema, Lernziel, Fach, Lehrplan' },
                     { id: 'rahmen', label: '2 · Unterrichtsrahmen', hint: 'Typ, Dauer, Sozialform' },
                     { id: 'organisation', label: '3 · Material & HÜ', hint: 'Materialien und Hausübung' },
                     { id: 'optionen', label: '4 · Ablauf & Optionen', hint: 'Methodik, Reflexion, Wiederholung' },
+                    { id: 'entwurf', label: '5 · Ausführlicher Entwurf', hint: 'Lernziele, Einstieg, Hauptteil, Schluss' },
                   ] as const).map(tab => (
                     <button
                       key={tab.id}
@@ -3390,6 +3423,55 @@ export default function WeeklyPlan() {
 
               <div key={`${editingCell.tag}-${editingCell.idx}`} className="p-4 sm:p-5 lg:p-6 overflow-y-auto no-scrollbar scroll-smooth flex-1 min-h-0">
                  
+                 {plannerEditorTab === 'entwurf' && (
+                   <section className="mx-auto max-w-5xl space-y-5 rounded-3xl border border-slate-200 bg-white p-5 sm:p-8">
+                     <header className="flex flex-wrap items-start justify-between gap-4">
+                       <div>
+                         <h4 className="text-lg font-black text-slate-900">Ausführlicher Stundenentwurf</h4>
+                         <p className="mt-1 text-sm text-slate-600">Gehört zur ausgewählten Stunde. Alle Änderungen werden erst mit „Einheit speichern“ übernommen.</p>
+                       </div>
+                       <div className="flex flex-wrap gap-2">
+                         <button type="button" onClick={() => setShowDraftsSelector(true)}
+                           className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50">Vorlage auswählen</button>
+                         <button type="button" onClick={() => setShowDetailedLessonAI(true)}
+                           className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700">Mit KI ausarbeiten</button>
+                       </div>
+                     </header>
+                     {([
+                       ['lernziele', 'Lernziele', 'Was sollen die Kinder am Ende können?'],
+                       ['einleitung', 'Einstieg', 'Wie beginnt die Stunde?'],
+                       ['hauptteil', 'Hauptteil und Differenzierung', 'Unterrichtsschritte, Sozialform, Unterstützung …'],
+                       ['schluss', 'Schluss und Sicherung', 'Wie wird das Gelernte gesichert?'],
+                       ['material', 'Materialbedarf', 'Was muss vorbereitet werden?'],
+                     ] as const).map(([field, title, placeholder]) => (
+                       <label key={field} className="block space-y-2">
+                         <span className="block text-xs font-black text-slate-800">{title}</span>
+                         <textarea value={tempStundenentwurf[field]}
+                           onChange={event => setTempStundenentwurf(prev => ({ ...prev, [field]: event.target.value }))}
+                           placeholder={placeholder}
+                           rows={field === 'hauptteil' ? 6 : 3}
+                           className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none" />
+                       </label>
+                     ))}
+                     <button type="button"
+                       disabled={!hasLessonDraftContent(tempStundenentwurf) || !searchFach.trim() || !tempThema.trim()}
+                       onClick={() => {
+                         const saved = addMaterialFromAI({
+                           titel: tempThema.trim(), beschreibung: 'Wiederverwendbare Unterrichtsvorbereitung aus dem Wochenplan',
+                           typ: 'stundenentwurf', faecher: [searchFach], schulstufen: app.stufe ? [app.stufe] : [],
+                           inhaltText: lessonDraftToText(tempStundenentwurf),
+                           lernziel: tempStundenentwurf.lernziele,
+                           tags: ['Unterrichtsvorbereitung', searchFach],
+                           kiGeneriert: false,
+                         }, 'wochenplanung');
+                         if (saved) alert('Vorlage in der Materialbibliothek gespeichert. Den aktuellen Wochenplan bitte separat mit „Einheit speichern“ sichern.');
+                       }}
+                       className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-xs font-black text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
+                       Als wiederverwendbare Vorlage speichern
+                     </button>
+                   </section>
+                 )}
+
                  {plannerEditorTab === 'inhalt' && (
                    <div className="space-y-6">
                  {/* SECTION 1: WAS & WER */}
@@ -4125,6 +4207,28 @@ export default function WeeklyPlan() {
          document.body
       )}
 
+      {showDetailedLessonAI && createPortal(
+        <div className="fixed inset-0 z-[12000]">
+          <LessonPlannerAI
+            onClose={() => setShowDetailedLessonAI(false)}
+            initialFach={searchFach}
+            initialThema={tempThema}
+            embeddedInWeeklyEditor
+            onApply={plan => {
+              if (hasLessonDraftContent(tempStundenentwurf) && !window.confirm('Vorhandene Eingaben im ausführlichen Stundenentwurf durch den KI-Vorschlag ersetzen?')) return;
+              const suggested = normalizeLessonDraft({ fach: searchFach, thema: tempThema, plan });
+              setTempStundenentwurf({
+                lernziele: suggested.lernziele, einleitung: suggested.einleitung, hauptteil: suggested.hauptteil,
+                schluss: suggested.schluss, material: suggested.material,
+              });
+              setShowDetailedLessonAI(false);
+              setPlannerEditorTab('entwurf');
+            }}
+          />
+        </div>,
+        document.body
+      )}
+
       {/* DRAFTS SELECTOR MODAL */}
       {showDraftsSelector && createPortal(
         <div className="fixed inset-0 z-[11000] flex items-center justify-center p-6">
@@ -4135,22 +4239,28 @@ export default function WeeklyPlan() {
           >
             <div className="p-8 border-b border-slate-100 flex justify-between items-center">
               <div>
-                <h3 className="text-[1.5rem] leading-normal font-black text-slate-900 tracking-tighter">Stundenentwürfe</h3>
-                <p className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-widest mt-1">Wähle einen Entwurf zum Übernehmen</p>
+                <h3 className="text-[1.5rem] leading-normal font-black text-slate-900 tracking-tighter">Unterrichtsvorbereitung auswählen</h3>
+                <p className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-widest mt-1">Gespeicherte Entwürfe und Vorlagen aus der Materialbibliothek · vorhandene Eingaben werden nur nach Bestätigung ersetzt</p>
               </div>
               <button onClick={() => setShowDraftsSelector(false)} className="p-3 hover:bg-slate-100 rounded-full transition-all"><X size={24} /></button>
             </div>
             
             <div className="p-8 overflow-y-auto custom-scrollbar bg-slate-50/30">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {(app.stundenentwuerfe || []).map(draft => (
+                {savedLessonDrafts.map(draft => (
                   <button
                     key={draft.id}
                     onClick={() => {
+                      const existingContent = Boolean(searchFach.trim() || tempThema.trim() || tempMethod.trim() || hasLessonDraftContent(tempStundenentwurf));
+                      if (existingContent && !window.confirm('Vorlage in die aktuelle Stunde übernehmen? Fach, Thema und der bisherige Entwurf im noch nicht gespeicherten Editor werden ersetzt.')) return;
                       setSearchFach(draft.fach);
                       setTempThema(draft.thema);
                       setTempMaterial(draft.material);
-                      setTempMethod(`Lernziele:\n${draft.lernziele}\n\nEinstieg:\n${draft.einleitung}\n\nHauptteil:\n${draft.hauptteil}\n\nSchluss:\n${draft.schluss}`);
+                      setTempStundenentwurf({
+                        lernziele: draft.lernziele, einleitung: draft.einleitung, hauptteil: draft.hauptteil,
+                        schluss: draft.schluss, material: draft.material,
+                      });
+                      setPlannerEditorTab('entwurf');
                       setShowDraftsSelector(false);
                     }}
                     className="p-6 bg-white border border-slate-200 rounded-3xl text-left hover:border-emerald-500 hover:shadow-xl hover:-translate-y-1 transition-all group"
@@ -4162,7 +4272,7 @@ export default function WeeklyPlan() {
                     </div>
                   </button>
                 ))}
-                {(app.stundenentwuerfe || []).length === 0 && (
+                {savedLessonDrafts.length === 0 && (
                   <div className="col-span-full py-20 text-center">
                     <BookOpen size={48} className="mx-auto text-slate-200 mb-4" />
                     <p className="text-slate-400 font-bold uppercase tracking-widest">Noch keine Entwürfe vorhanden</p>
