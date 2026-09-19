@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { occupiedYearPlanCell, plannedYearWeeks, conflictingYearWeeks } from './annualPlanSafety';
 import { normalizeAppState, syncActiveClass, switchClassState } from './appState';
-import type { YearPlanCell } from './yearlyPlanData';
+import { shiftYearPlanSubjectForward, type YearPlanCell } from './yearlyPlanData';
 
 test('Jahresplan: auch alte Unterthemen, Bucheinträge und Metadaten zählen als vorhandene Planung', () => {
   assert.equal(occupiedYearPlanCell({thema:'',items:[{thema:'Lesen',buch:'Buch'}]}),true);
@@ -34,4 +34,11 @@ test('Vorhandene Klassen-Jahres- und Wochenplanung überleben Wechsel und JSON-R
   assert.equal((b.jahresplanung as any)[38].mathematik.thema,'Zahlenraum');
   const restored=normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(switchClassState(b,'klasse-A')))));
   assert.equal(JSON.stringify({year:restored.jahresplanung,week:restored.wochenplanung}),before);
+});
+
+test('Verschieben bei voll belegtem Schuljahresende bewahrt alle vorhandenen Themen', () => {
+ const original={38:{deutsch:{thema:'A'}},39:{deutsch:{thema:'B'}},40:{deutsch:{thema:'C'}}};
+ const shifted=shiftYearPlanSubjectForward(original,'deutsch',38,[38,39,40]);
+ assert.deepEqual(shifted,original);
+ assert.equal(JSON.stringify(original),JSON.stringify(shifted));
 });
