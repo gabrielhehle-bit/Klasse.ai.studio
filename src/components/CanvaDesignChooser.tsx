@@ -53,7 +53,7 @@ export function CanvaDesignChooser({ onChoose, onClose, busy = false }: Props) {
   ), [designs, query]);
 
   return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/60 p-4"
+    <div className="fixed inset-0 z-[11000] flex items-center justify-center bg-black/60 p-4"
       role="dialog" aria-modal="true" aria-label="Canva-Design auswählen"
       onMouseDown={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
       <div className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5 text-[var(--text)] shadow-2xl">
