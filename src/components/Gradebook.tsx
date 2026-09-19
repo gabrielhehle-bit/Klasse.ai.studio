@@ -664,6 +664,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   useEffect(() => {
     // Offene Notenmappe-Dialoge oder Schülerbezüge dürfen nie in die nächste Klasse mitwandern.
     setShowWeights(false);
+    setShowFeedback(false);
     setShowGradeCalculator(false);
     setShowStats(false);
     setShowHueSettings(false);
@@ -1546,7 +1547,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
   // One feedback editor, reusing the existing grade and observation data.
   if (showFeedback) {
-    return <VerbalAssessment mode="feedback" initialSubject={activeFach} onBack={() => setShowFeedback(false)} />;
+    return <VerbalAssessment mode="feedback" initialSubject={activeFach} initialSemester={sem} onBack={() => setShowFeedback(false)} />;
   }
 
   // The overview is another view of this very same gradebook, not a second grade state.
