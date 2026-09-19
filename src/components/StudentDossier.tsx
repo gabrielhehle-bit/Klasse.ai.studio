@@ -25,6 +25,7 @@ import DossierKontakteEinwilligungen from './dossier/DossierKontakteEinwilligung
 import DossierUebersicht from './dossier/DossierUebersicht';
 import DossierKIPortfolio from './dossier/DossierKIPortfolio';
 import DossierLeistungen from './dossier/DossierLeistungen';
+import AntolinBereich from './AntolinBereich';
 import VerbalAssessment from './VerbalAssessment';
 import StudentPortfolio from './StudentPortfolio';
 import DossierLernzielErlaeuterung from './dossier/DossierLernzielErlaeuterung';
@@ -84,6 +85,7 @@ export type DossierTab =
   | 'prep'
   | 'leistungen' 
   | 'leistungsfeedback'
+  | 'antolin'
   | 'portfolio'
   | 'lernziel_erlaeuterung'
   | 'foerderprofil' 
@@ -139,6 +141,7 @@ export const MAIN_AREAS: MainAreaDef[] = [
       { id: 'portfolio', label: 'Portfolio', shortLabel: 'Portfolio', icon: BookOpen, description: 'Arbeiten, Fotos und echte individuelle Lernnachweise' },
       { id: 'lernziel_erlaeuterung', label: 'Erläuterung', shortLabel: 'Erläuterung', icon: FileText, description: 'Schulinterne Lernziel-Rückmeldung mit eigenem Text, keine automatische Notenentscheidung' },
       { id: 'mika_d', label: 'Sprachstand', shortLabel: 'Sprachstand', icon: GraduationCap, description: 'MIKA-D Sprachstandsfeststellung' },
+      { id: 'antolin', label: 'Lesen & Antolin', shortLabel: 'Antolin', icon: BookOpen, description: 'Dokumentierte Antolin-Berichte und Leseentwicklung des Kindes' },
     ]
   },
   {
@@ -852,6 +855,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                 {activeTab === 'leistungsfeedback' && (
                   <VerbalAssessment mode="feedback" initialStudentId={student.id} initialSemester={sem} onBack={() => setActiveTab('leistungen')} />
                 )}
+                {activeTab === 'antolin' && <AntolinBereich studentId={student.id} />}
                 {activeTab === 'portfolio' && <StudentPortfolio key={student.id} schuelerId={student.id} />}
                 {activeTab === 'lernziel_erlaeuterung' && (
                   <DossierLernzielErlaeuterung student={student} semester={sem} onSemesterChange={changeSemester} />
