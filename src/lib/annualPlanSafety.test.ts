@@ -17,6 +17,7 @@ test('Mehrwochenthemen überspringen Ferien und blockieren belegte Folgewochen, 
   const before=JSON.stringify(plan);
   const requested=plannedYearWeeks(weeks,38,3,w=>w.kw!==39);
   assert.deepEqual(requested,[38,40,41]);
+  assert.deepEqual(plannedYearWeeks(weeks,38,2,w=>w.kw!==38&&w.kw!==39),[38,40], 'clicked start week is kept even if marked school-start');
   assert.deepEqual(conflictingYearWeeks(plan,requested,'deutsch',38),[40]);
   assert.equal(JSON.stringify(plan),before);
 });
