@@ -8,7 +8,6 @@ import { useApp } from '../../../context/AppContext';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
 import {
   getDisplayStudentName,
-  DEFAULT_MOCK_STUDENTS,
   CockpitStudent,
 } from '../studentSelectionUtils';
 import {
@@ -54,14 +53,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   // Heutiges Datum
   const todayStr = useMemo(() => getTodayIsoDate(), []);
 
-  // Schülerliste in stabiler Reihenfolge
-  const students: Student[] = useMemo(() => {
-    if (app.schueler && app.schueler.length > 0) {
-      return app.schueler;
-    }
-    // Fallback für Demo/Vorschau ohne importierte Klasse
-    return DEFAULT_MOCK_STUDENTS as unknown as Student[];
-  }, [app.schueler]);
+  // Nur echte Kinder der aktiven Klasse. Während des Ladens bzw. bei leerer
+  // Klasse niemals erfundene Namen anbieten oder Anwesenheit für sie buchen.
+  const students: Student[] = app.schueler ?? [];
 
   // Disambiguierte Namen nach Standard (Vorname; bei Doppelung Vorname + N.)
   const displayNames = useMemo(() => {
