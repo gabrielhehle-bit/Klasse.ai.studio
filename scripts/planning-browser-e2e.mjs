@@ -203,7 +203,7 @@ async function clickFirstSchedulableWeeklyCell(client) {
       'if(!String(svg.getAttribute("class")||"").includes("lucide-plus"))continue;' +
       'let node=svg.parentElement;' +
       'while(node&&node!==document.body){' +
-        'if(String(node.className||"").includes("group/cell")){node.click();return true;}' +
+        'if(String(node.className||"").includes("group/cell")&&String(node.className||"").includes("min-h-[5.3125rem]")){node.click();return true;}' +
         'node=node.parentElement;' +
       '}' +
     '}' +
@@ -241,6 +241,17 @@ async function main() {
 
     await client.send('Page.navigate', { url: BASE_URL });
     await waitFor(client, 'Klassio access gate', 'document.body?.innerText.toLowerCase().includes("geschützter zugang")');
+    // The access-gate heading appears before the async login choices settle.
+    // Wait for either valid choice rather than racing the first render.
+    await waitFor(client, 'access-code login option',
+      'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))||Array.from(document.querySelectorAll("button")).some(el=>String(el.textContent||"").includes("Nur Zugangscode verwenden"))');
+    const accessCodeVisible = await evaluate(client,
+      'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))');
+    if (!accessCodeVisible) {
+      await clickButton(client, 'Nur Zugangscode verwenden');
+      await waitFor(client, 'access code input',
+        'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))');
+    }
     await setInputByLabel(client, 'Zugangscode', ACCESS_CODE);
     await clickButton(client, 'Klassio öffnen');
 
@@ -261,25 +272,57 @@ async function main() {
     }
     await waitFor(client, 'daily dashboard', 'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").trim()==="Heute")', 30000);
 
+    await clickSidebar(client, 'Wochen-Check');
+    await waitFor(client, 'week check renders instead of duplicate daily editor',
+      'Array.from(document.querySelectorAll("h1")).some(h=>h.textContent?.trim()==="Wochen-Check")&&document.body?.innerText.includes("Eingetragene Unterrichtsstunden")&&document.body?.innerText.includes("Eingetragene Stunden ohne Thema")');
+    const truthfulWeekCheck = await evaluate(client,
+      '(() => {const t=document.body?.innerText||"";return t.includes("Leere Stundenplanfelder werden hier nicht automatisch als offene Vorbereitung gewertet")&&!t.includes("Was ist heute geplant?")&&!t.includes("Morgen stehen 6 Stunden an");})()'
+    );
+    if (!truthfulWeekCheck) throw new Error('Wochen-Check still contains duplicate planning UI or misleading preparation status.');
+    console.log('✓ week check uses the selected plan without invented daily status');
+    await clickButton(client, 'Wochenplan öffnen', true);
+    await waitFor(client, 'weekly plan after week check',
+      'document.body?.innerText.toLowerCase().includes("wochenplan")');
+    console.log('✓ week check links directly to the single weekly editing surface');
+
     await clickSidebar(client, 'Wochenplan');
     await waitFor(client, 'weekly plan', 'document.body?.innerText.toLowerCase().includes("wochenplan")||document.body?.innerText.toLowerCase().includes("wochenplanung")');
 
+    // A sidebar route can become active before the lazy-loaded weekly grid
+    // finishes rendering. Wait for a real editable cell instead of clicking
+    // immediately and misreporting missing planning functionality.
+    await waitFor(client, 'weekly editing grid with an empty, schedulable cell',
+      'Array.from(document.querySelectorAll("svg.lucide-plus")).some(svg=>{let n=svg.parentElement;while(n&&n!==document.body){if(String(n.className||"").includes("group/cell")&&String(n.className||"").includes("min-h-[5.3125rem]"))return true;n=n.parentElement;}return false;})', 30000);
     await clickFirstSchedulableWeeklyCell(client);
     await waitFor(client, 'large weekly editor', 'document.body?.innerText.includes("Einheit planen")');
     const weeklyLarge = await evaluate(client,
-      '(() => {const node=Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("max-w-[1500px]"));if(!node)return false;const r=node.getBoundingClientRect();return r.width>1000&&r.height>window.innerHeight*0.85;})()'
+      '(() => {const heading=Array.from(document.querySelectorAll("h3")).find(el=>el.textContent?.trim()==="Einheit planen");const node=heading?.closest(".max-w-none");if(!node)return false;const r=node.getBoundingClientRect();return r.width>1000&&r.height>window.innerHeight*0.85;})()'
     );
-    if (!weeklyLarge) throw new Error('Weekly editor did not open in the expected large layout.');
+    if (!weeklyLarge) {
+      const diagnostic = await evaluate(client,
+        '(() => ({viewport: [innerWidth,innerHeight], headings: Array.from(document.querySelectorAll("h3")).filter(e=>String(e.textContent).includes("Einheit planen")).map(e=>({text:e.textContent,classes:e.parentElement?.className,outer:e.closest(".max-w-none")?.className,rect:(()=>{const r=e.closest(".max-w-none")?.getBoundingClientRect();return r?[r.width,r.height]:null;})()})), largeCandidates:Array.from(document.querySelectorAll("div.max-w-none")).slice(0,5).map(e=>({classes:e.className,rect:[e.getBoundingClientRect().width,e.getBoundingClientRect().height]}))}))()'
+      );
+      throw new Error('Weekly editor did not open in the expected large layout: ' + JSON.stringify(diagnostic));
+    }
     console.log('✓ weekly editor uses the large planning workspace');
 
     await setInputByPlaceholder(client, 'Was wird gelernt?', topic);
     const religionVisible = await evaluate(client, 'Array.from(document.querySelectorAll("button")).some(b=>String(b.textContent||"").replace(/\\s+/g," ").trim()==="Religion"&&!b.disabled)');
     if (religionVisible) await clickButton(client, 'Religion', true);
     await clickButton(client, 'Einheit speichern');
-    await waitFor(client, 'weekly topic saved', 'document.body?.innerText.includes(' + q(topic) + ')', 20000);
-
-    await clickText(client, topic);
-    await waitFor(client, 'planned lesson overview', 'document.body?.innerText.includes("Geplante Einheit")&&document.body?.innerText.includes("Bearbeiten")');
+    await waitFor(client, 'weekly editor closed after save',
+      '!Array.from(document.querySelectorAll("h3")).some(e=>e.textContent?.trim()==="Einheit planen")');
+    const savedHourlyCell =
+      'Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("group/cell")&&String(el.className||"").includes("min-h-[5.3125rem]")&&String(el.textContent||"").includes(' + q(topic) + '))';
+    await waitFor(client, 'saved topic visible in the actual hourly weekly grid', 'Boolean(' + savedHourlyCell + ')', 20000);
+    if (!await evaluate(client, '(() => {const cell=' + savedHourlyCell + ';if(!cell)return false;cell.click();return true;})()'))
+      throw new Error('Could not open the saved hourly lesson.');
+    try {
+      await waitFor(client, 'planned lesson overview', 'document.body?.innerText.toLocaleLowerCase("de").includes("geplante einheit")&&document.body?.innerText.includes("Bearbeiten")', 6000);
+    } catch (error) {
+      const details = await evaluate(client, '(() => ({overview:document.body?.innerText.includes("Geplante Einheit"),editor:Array.from(document.querySelectorAll("h3")).some(e=>e.textContent?.trim()==="Einheit planen"),savedCells:Array.from(document.querySelectorAll("div")).filter(el=>String(el.className||"").includes("group/cell")&&String(el.className||"").includes("min-h-[5.3125rem]")&&String(el.textContent||"").includes(' + q(topic) + ')).map(el=>({text:el.textContent?.slice(0,140),class:el.className,rect:[el.getBoundingClientRect().width,el.getBoundingClientRect().height]})),visibleDialogs:Array.from(document.querySelectorAll("[role=dialog]")).map(el=>el.getAttribute("aria-label")),bodyTail:document.body?.innerText.slice(-650)}))()');
+      throw new Error('Planned lesson overview not available after clicking saved hourly card: ' + JSON.stringify(details) + ' / ' + String(error));
+    }
     const syncState = await evaluate(client,
       '(() => {const text=document.body?.innerText||"";if(text.includes("In Jahresplan übernehmen"))return "available";if(text.includes("bereits belegt"))return "occupied";return "missing";})()'
     );
@@ -296,7 +339,7 @@ async function main() {
     await clickButton(client, 'Bearbeiten');
     await waitFor(client, 'editor reopened from overview', 'document.body?.innerText.includes("Einheit planen")');
     const reopenedLarge = await evaluate(client,
-      '(() => {const node=Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("max-w-[1500px]"));if(!node)return false;const r=node.getBoundingClientRect();return r.width>1000&&r.height>window.innerHeight*0.85;})()'
+      '(() => {const heading=Array.from(document.querySelectorAll("h3")).find(el=>el.textContent?.trim()==="Einheit planen");const node=heading?.closest(".max-w-none");if(!node)return false;const r=node.getBoundingClientRect();return r.width>1000&&r.height>window.innerHeight*0.85;})()'
     );
     if (!reopenedLarge) throw new Error('Weekly editor was not large after overview → edit.');
     await clickButton(client, 'Einheit speichern');
@@ -304,13 +347,18 @@ async function main() {
     await clickSidebar(client, 'Jahresplanung');
     await waitFor(client, 'yearly plan', 'document.body?.innerText.toLowerCase().includes("jahresplan")||document.body?.innerText.toLowerCase().includes("jahresplanung")');
     if (syncState === 'available') {
-      await waitFor(client, 'synced topic visible in yearly plan', 'document.body?.innerText.includes(' + q(topic) + ')', 20000);
-      await clickText(client, topic);
-      await waitFor(client, 'yearly overview', 'document.body?.innerText.includes("Jahresplanung · Übersicht")&&document.body?.innerText.includes("Bearbeiten")');
+      // The toast may also contain the saved topic; only the actual year-plan
+      // table cell may be used to open a saved lesson.
+      const syncedYearCell = 'Array.from(document.querySelectorAll("td[role=button][aria-label]")).find(el=>String(el.getAttribute("aria-label")||"").includes(' + q(topic) + '))';
+      await waitFor(client, 'synced topic visible in actual yearly table', 'Boolean(' + syncedYearCell + ')', 20000);
+      if (!await evaluate(client, '(() => {const cell=' + syncedYearCell + ';if(!cell)return false;cell.click();return true;})()')) {
+        throw new Error('Could not open the saved lesson in the yearly table.');
+      }
+      await waitFor(client, 'yearly overview', 'document.body?.innerText.toLocaleLowerCase("de").includes("jahresplanung · übersicht")&&document.body?.innerText.includes("Bearbeiten")');
       await clickButton(client, 'Bearbeiten');
-      await waitFor(client, 'large yearly editor', 'Array.from(document.querySelectorAll("div")).some(el=>String(el.className||"").includes("max-w-[1400px]"))');
+      await waitFor(client, 'large yearly editor', 'Array.from(document.querySelectorAll("h3")).some(el=>el.textContent?.trim()==="Jahresplanung bearbeiten"&&el.closest(".max-w-none"))');
       const yearlyLarge = await evaluate(client,
-        '(() => {const node=Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("max-w-[1400px]"));if(!node)return false;const r=node.getBoundingClientRect();return r.width>950&&r.height>window.innerHeight*0.82;})()'
+        '(() => {const heading=Array.from(document.querySelectorAll("h3")).find(el=>el.textContent?.trim()==="Jahresplanung bearbeiten");const node=heading?.closest(".max-w-none");if(!node)return false;const r=node.getBoundingClientRect();return r.width>950&&r.height>window.innerHeight*0.82;})()'
       );
       if (!yearlyLarge) throw new Error('Yearly editor did not open in the expected large layout.');
       console.log('✓ yearly overview → edit opens the large yearly workspace');

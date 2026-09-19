@@ -21,11 +21,12 @@ import {
 } from 'lucide-react';
 import DossierKIPortfolio from './DossierKIPortfolio';
 import DossierElternReport from './DossierElternReport';
+const Jahresbericht = React.lazy(() => import('../Jahresbericht'));
 import { exportSchuelerPDF } from '../../lib/exportService';
 
 interface DossierBerichteProps {
   student: Student;
-  initialSubView?: 'ki_summary' | 'eltern_report' | 'export';
+  initialSubView?: 'ki_summary' | 'eltern_report' | 'jahresbericht' | 'export';
   semester?: '1' | '2';
   onSemesterChange?: (semester: '1' | '2') => void;
   onStartPresentation?: () => void;
@@ -39,7 +40,7 @@ export default function DossierBerichte({
   onStartPresentation
 }: DossierBerichteProps) {
   const { app } = useApp();
-  const [activeSubView, setActiveSubView] = useState<'ki_summary' | 'eltern_report' | 'export'>(
+  const [activeSubView, setActiveSubView] = useState<'ki_summary' | 'eltern_report' | 'jahresbericht' | 'export'>(
     initialSubView
   );
 
@@ -94,6 +95,15 @@ export default function DossierBerichte({
             <span>Eltern-Report</span>
           </button>
 
+          {app.klassenvorstand && <button
+            type="button"
+            onClick={() => setActiveSubView('jahresbericht')}
+            aria-pressed={activeSubView === 'jahresbericht'}
+            className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeSubView === 'jahresbericht' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-white/50'}`}
+          >
+            <FileText size={13} /> Jahresbericht
+          </button>}
+
           <button
             type="button"
             onClick={() => setActiveSubView('export')}
@@ -128,7 +138,14 @@ export default function DossierBerichte({
         </div>
       )}
 
-      {/* 3. SUBVIEW: DRUCK & EXPORT */}
+      {/* 3. SUBVIEW: INDIVIDUAL ANNUAL REPORT */}
+      {app.klassenvorstand && activeSubView === 'jahresbericht' && (
+        <React.Suspense fallback={<p className="p-4 text-sm text-slate-600">Jahresbericht wird geladen …</p>}>
+          <Jahresbericht key={student.id} studentId={student.id} />
+        </React.Suspense>
+      )}
+
+      {/* 4. SUBVIEW: DRUCK & EXPORT */}
       {activeSubView === 'export' && (
         <div className="space-y-5">
           <div className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-3xs">

@@ -64,8 +64,8 @@ export const initialAppState: AppState = {
   wochenplanung: {},
   firstLogin: true,
   tourAbgeschlossen: false,
-  currentPage: 'cockpit',
-  previousPage: 'wochenplanung',
+  currentPage: 'dashboard',
+  previousPage: 'dashboard',
   currentKW: getKW(new Date()),
   parkgarage: [],
   savedWeekTemplates: {},
@@ -193,6 +193,7 @@ export function syncActiveClass(state: AppState): AppState {
     lernzielTracker: state.lernzielTracker ? JSON.parse(JSON.stringify(state.lernzielTracker)) : {},
     studentLernzielBewertungen: state.studentLernzielBewertungen ? JSON.parse(JSON.stringify(state.studentLernzielBewertungen)) : {},
     studentLernzielSemesterBewertungen: state.studentLernzielSemesterBewertungen ? JSON.parse(JSON.stringify(state.studentLernzielSemesterBewertungen)) : {},
+    lernzielBewertungsmodell: state.lernzielBewertungsmodell ? JSON.parse(JSON.stringify(state.lernzielBewertungsmodell)) : undefined,
     diagnostikErgebnisse: state.diagnostikErgebnisse ? JSON.parse(JSON.stringify(state.diagnostikErgebnisse)) : [],
     diagnostikErhebungen: state.diagnostikErhebungen ? JSON.parse(JSON.stringify(state.diagnostikErhebungen)) : [],
     diagnosticResults: state.diagnosticResults ? JSON.parse(JSON.stringify(state.diagnosticResults)) : [],
@@ -242,6 +243,7 @@ export function syncActiveClass(state: AppState): AppState {
     kiPortfolioSummaries: state.kiPortfolioSummaries ? JSON.parse(JSON.stringify(state.kiPortfolioSummaries)) : {},
     oberauData: state.oberauData ? JSON.parse(JSON.stringify(state.oberauData)) : {},
     vertretungHinweise: state.vertretungHinweise || '',
+    vertretungsVorbereitung: state.vertretungsVorbereitung ? JSON.parse(JSON.stringify(state.vertretungsVorbereitung)) : undefined,
     stundenZeiten: state.stundenZeiten ? { ...state.stundenZeiten } : {},
     sue_kontrolle: state.sue_kontrolle ? JSON.parse(JSON.stringify(state.sue_kontrolle)) : {},
     lastGroups: state.lastGroups,
@@ -347,6 +349,7 @@ export function normalizeAppState(raw: any): AppState {
       lernzielTracker: parsed.lernzielTracker || {},
       studentLernzielBewertungen: parsed.studentLernzielBewertungen || {},
       studentLernzielSemesterBewertungen: parsed.studentLernzielSemesterBewertungen || {},
+      lernzielBewertungsmodell: parsed.lernzielBewertungsmodell,
       diagnostikErgebnisse: parsed.diagnostikErgebnisse || [],
       diagnostikErhebungen: parsed.diagnostikErhebungen || [],
       diagnosticResults: parsed.diagnosticResults || [],
@@ -408,6 +411,7 @@ export function normalizeAppState(raw: any): AppState {
         lernzielTracker: c.lernzielTracker ?? (c.id === parsed.activeClassId ? parsed.lernzielTracker : undefined) ?? {},
         studentLernzielBewertungen: c.studentLernzielBewertungen ?? (c.id === parsed.activeClassId ? parsed.studentLernzielBewertungen : undefined) ?? {},
         studentLernzielSemesterBewertungen: c.studentLernzielSemesterBewertungen ?? (c.id === parsed.activeClassId ? parsed.studentLernzielSemesterBewertungen : undefined) ?? {},
+        lernzielBewertungsmodell: c.lernzielBewertungsmodell ?? (c.id === parsed.activeClassId ? parsed.lernzielBewertungsmodell : undefined),
         diagnostikErgebnisse: c.diagnostikErgebnisse ?? (c.id === parsed.activeClassId ? parsed.diagnostikErgebnisse : undefined) ?? [],
         diagnostikErhebungen: c.diagnostikErhebungen ?? (c.id === parsed.activeClassId ? parsed.diagnostikErhebungen : undefined) ?? [],
         diagnosticResults: c.diagnosticResults ?? (c.id === parsed.activeClassId ? parsed.diagnosticResults : undefined) ?? [],
@@ -569,6 +573,7 @@ export function normalizeAppState(raw: any): AppState {
     parsed.lernzielTracker = activeClass.lernzielTracker || {};
     parsed.studentLernzielBewertungen = activeClass.studentLernzielBewertungen || {};
     parsed.studentLernzielSemesterBewertungen = activeClass.studentLernzielSemesterBewertungen || {};
+    parsed.lernzielBewertungsmodell = activeClass.lernzielBewertungsmodell;
     parsed.diagnostikErgebnisse = activeClass.diagnostikErgebnisse || [];
     parsed.diagnostikErhebungen = activeClass.diagnostikErhebungen || [];
     parsed.diagnosticResults = activeClass.diagnosticResults || [];
@@ -613,6 +618,7 @@ export function normalizeAppState(raw: any): AppState {
     parsed.kiPortfolioSummaries = activeClass.kiPortfolioSummaries || {};
     parsed.oberauData = activeClass.oberauData || {};
     parsed.vertretungHinweise = activeClass.vertretungHinweise ?? parsed.vertretungHinweise ?? '';
+    parsed.vertretungsVorbereitung = activeClass.vertretungsVorbereitung;
     parsed.sue_kontrolle = activeClass.sue_kontrolle;
     parsed.sitzplan_schueler = activeClass.sitzplan_schueler;
     parsed.sitzplan_objekte = activeClass.sitzplan_objekte;
@@ -801,12 +807,12 @@ export function switchClassState(prev: AppState, id: string): AppState {
   if (!targetClass) return prev;
 
   // 3. Set target class data to root level
-  const currentLoc = prev.currentPage || 'cockpit';
-  const forceCockpit = !targetClass.klassenvorstand && ['orga', 'uebergabemappe', 'diagnostik', 'kel'].includes(currentLoc);
+  const currentLoc = prev.currentPage || 'dashboard';
+  const needsSafeLanding = !targetClass.klassenvorstand && ['orga', 'uebergabemappe', 'diagnostik', 'kel'].includes(currentLoc);
 
   return {
     ...prev,
-    currentPage: forceCockpit ? 'cockpit' : currentLoc,
+    currentPage: needsSafeLanding ? 'dashboard' : currentLoc,
     activeClassId: id,
     classes,
     klassenbezeichnung: targetClass.name,
@@ -822,6 +828,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     lernzielTracker: targetClass.lernzielTracker ? JSON.parse(JSON.stringify(targetClass.lernzielTracker)) : {},
     studentLernzielBewertungen: targetClass.studentLernzielBewertungen ? JSON.parse(JSON.stringify(targetClass.studentLernzielBewertungen)) : {},
     studentLernzielSemesterBewertungen: targetClass.studentLernzielSemesterBewertungen ? JSON.parse(JSON.stringify(targetClass.studentLernzielSemesterBewertungen)) : {},
+    lernzielBewertungsmodell: targetClass.lernzielBewertungsmodell ? JSON.parse(JSON.stringify(targetClass.lernzielBewertungsmodell)) : undefined,
     diagnostikErgebnisse: targetClass.diagnostikErgebnisse ? JSON.parse(JSON.stringify(targetClass.diagnostikErgebnisse)) : [],
     diagnostikErhebungen: targetClass.diagnostikErhebungen ? JSON.parse(JSON.stringify(targetClass.diagnostikErhebungen)) : [],
     diagnosticResults: targetClass.diagnosticResults ? JSON.parse(JSON.stringify(targetClass.diagnosticResults)) : [],
@@ -872,6 +879,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     kiPortfolioSummaries: targetClass.kiPortfolioSummaries ? JSON.parse(JSON.stringify(targetClass.kiPortfolioSummaries)) : {},
     oberauData: targetClass.oberauData ? JSON.parse(JSON.stringify(targetClass.oberauData)) : {},
     vertretungHinweise: targetClass.vertretungHinweise || '',
+    vertretungsVorbereitung: targetClass.vertretungsVorbereitung ? JSON.parse(JSON.stringify(targetClass.vertretungsVorbereitung)) : undefined,
     sue_kontrolle: targetClass.sue_kontrolle || {},
     sitzplan_schueler: targetClass.sitzplan_schueler || {},
     sitzplan_objekte: targetClass.sitzplan_objekte || [],

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Users, UserCheck, Armchair, Wallet, MessagesSquare, Heart, Notebook, ChevronRight, UserPlus } from 'lucide-react';
+import { Users, UserCheck, Armchair, Wallet, MessagesSquare, Heart, Notebook, ChevronRight, UserPlus, FileText } from 'lucide-react';
 import { toLocalDateKey } from '../lib/localDate';
 
 type HubItem = {
@@ -89,6 +89,13 @@ export default function KlasseHub() {
   ];
 
   const organizationItems: HubItem[] = [
+  {
+    id: 'jahresbericht',
+    title: 'Jahresabschluss',
+    description: 'Berichtstand der Klasse und Sammeldruck ausdrücklich freigegebener Jahresberichte.',
+    icon: FileText,
+    klassenvorstandOnly: true,
+  },
     {
       id: 'orga',
       title: 'Organisation',

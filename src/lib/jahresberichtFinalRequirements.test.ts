@@ -51,6 +51,6 @@ test('Jahresbericht: Druck ist lokal, escaped und behauptet keine Amtlichkeit', 
 });
 
 test('Jahresbericht: Sammeldruck enthält nur freigegebene Berichte', () => {
-  assert.match(report, /berichte\[id\]\?\.reviewStatus === 'freigegeben'/);
+  assert.match(report, /reportForTerm\(id\)\?\.reviewStatus === 'freigegeben'/);
   assert.match(report, /Freigegebene drucken/);
 });

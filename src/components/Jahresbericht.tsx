@@ -11,12 +11,15 @@ import Markdown from 'react-markdown';
 import { SchuljahrWrapped } from './SchuljahrWrapped';
 import { STANDARD_KEL_BEREICHE } from '../types';
 import { berechne, getAssessmentMode } from '../lib/GradeUtils';
+import { getStudentNotes } from '../lib/studentMetrics';
+import StudentDossier from './StudentDossier';
 
-export default function Jahresbericht() {
+export default function Jahresbericht({ studentId }: { studentId?: string } = {}) {
   const { app, setApp } = useApp();
   const currentTerm = app.schuljahr || 'Schuljahr nicht angegeben';
   
-  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(studentId || null);
+  const isDossierView = Boolean(studentId);
   const [activeTab, setActiveTab] = useState<'bericht' | 'datenbasis'>('bericht');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingAllStatus, setGeneratingAllStatus] = useState<{ total: number, current: number } | null>(null);
@@ -36,17 +39,24 @@ export default function Jahresbericht() {
   });
 
   const [includeBadges, setIncludeBadges] = useState(false);
-  const [includeObservations, setIncludeObservations] = useState(true);
-  const [includeGrades, setIncludeGrades] = useState(true);
+  const [includeObservations, setIncludeObservations] = useState(false);
+  const [includeGrades, setIncludeGrades] = useState(false);
+  const [includeKel, setIncludeKel] = useState(false);
+  const [includeFoerder, setIncludeFoerder] = useState(false);
+  const [selectedObservationIds, setSelectedObservationIds] = useState<string[]>([]);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [selectedPortfolioIds, setSelectedPortfolioIds] = useState<string[]>([]);
   const [personalWish, setPersonalWish] = useState('');
   const [refinePrompt, setRefinePrompt] = useState('');
   const [isRefining, setIsRefining] = useState(false);
 
   const berichte = app.jahresberichte || {};
   const students = app.schueler || [];
+  const reportForTerm = (id: string) => berichte[id]?.schuljahr === currentTerm ? berichte[id] : undefined;
+  const scopedStudents = isDossierView ? students.filter(s => s.id === studentId) : students;
 
   const getReviewStatus = (studentId: string): 'freigegeben' | 'nacharbeiten' | 'offen' =>
-    berichte[studentId]?.reviewStatus || 'offen';
+    reportForTerm(studentId)?.reviewStatus || 'offen';
 
   // Persist options
   useEffect(() => {
@@ -62,12 +72,27 @@ export default function Jahresbericht() {
   }, [pronounForm]);
 
   useEffect(() => {
-    setSelectedStudent(null);
+    setSelectedStudent(studentId || null);
+    setSelectedObservationIds([]);
     setEditMode(null);
     setEditContent('');
     setShowWrapped(null);
     setActiveTab('bericht');
-  }, [app.activeClassId]);
+  }, [app.activeClassId, studentId]);
+
+  // A new pupil or class always requires a NEW deliberate source selection.
+  // Style settings may persist, but permission to use confidential pupil data may not.
+  useEffect(() => {
+    setIncludeGrades(false);
+    setIncludeBadges(false);
+    setIncludeObservations(false);
+    setIncludeKel(false);
+    setIncludeFoerder(false);
+    setSelectedObservationIds([]);
+    setSelectedSubjects([]);
+    setSelectedPortfolioIds([]);
+    setPersonalWish('');
+  }, [selectedStudent, app.activeClassId, app.schuljahr]);
 
   useEffect(() => {
     try {
@@ -97,20 +122,11 @@ export default function Jahresbericht() {
       .filter((entry) => entry.schuelerId === studentId)
       .sort((a: any, b: any) => String(b.datum || '').localeCompare(String(a.datum || '')))[0];
 
-  const getStudentObservationEntries = (studentId: string) => {
-    const merged = [...(app.notes || []), ...((app.journal as any[]) || [])]
-      .filter((entry: any) => entry?.schuelerId === studentId);
+  const getStudentObservationEntries = (id: string) => getStudentNotes(app, id);
 
-    const seen = new Set<string>();
-    return merged
-      .filter((entry: any) => {
-        const key = entry.id || `${entry.datum || ''}|${entry.kategorie || ''}|${entry.inhalt || entry.content || ''}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .sort((a: any, b: any) => String(b.datum || '').localeCompare(String(a.datum || '')));
-  };
+  const observationKey = (entry: any) =>
+    String(entry.id || [entry.datum || entry.timestamp || '', entry.kategorie || '', entry.inhalt || entry.content || entry.notiz || ''].join('|'));
+
 
   const getAnnualGradeLines = (studentId: string): string[] => {
     const subjectRecords = app.noten?.[studentId] || {};
@@ -119,36 +135,46 @@ export default function Jahresbericht() {
       ...Object.keys(subjectRecords),
     ]));
 
-    return subjects.flatMap((fach) => {
+    // Both semesters are distinct evidence. A second-semester value must never
+    // silently replace the first-semester development in an annual report.
+    return subjects.filter(fach => selectedSubjects.includes(fach)).flatMap((fach) => {
       const mode = getAssessmentMode(app, fach);
-      for (const semester of ['2', '1']) {
+      return (['1', '2'] as const).flatMap(semester => {
         const semesterData: any = subjectRecords?.[fach]?.[semester];
         const explicitEndnote = semesterData?.endnote;
         if (explicitEndnote !== undefined && explicitEndnote !== null && String(explicitEndnote).trim() !== '') {
-          return [`- ${fach}: Endnote ${String(explicitEndnote).trim()} (Semester ${semester})`];
+          return [`- ${fach}: dokumentierte Endbeurteilung ${String(explicitEndnote).trim()} (Semester ${semester})`];
         }
-
         const calculated = berechne(app, studentId, fach, semester);
-        if (calculated !== null) {
-          const value = mode === 'grades'
-            ? `berechneter Stand ${Number(calculated).toFixed(1)}`
-            : `berechneter Stand ${Math.round(Number(calculated))}%`;
-          return [`- ${fach}: ${value} (Semester ${semester}, noch keine Endnote)`];
-        }
-      }
-      return [];
+        if (calculated === null || !Number.isFinite(Number(calculated))) return [];
+        const value = mode === 'grades'
+          ? `berechneter Stand ${Number(calculated).toFixed(1)} (Notenskala)`
+          : `berechneter Stand ${Math.round(Number(calculated))}% (${mode === 'points' ? 'aus Punkten berechnet' : 'Prozentskala'})`;
+        return [`- ${fach}: ${value} (Semester ${semester}, noch keine Endbeurteilung)`];
+      });
     });
   };
 
   const triggerSingleGeneration = async (studentId: string) => {
+    const previous = reportForTerm(studentId);
+    if (previous && !window.confirm(
+      previous.reviewStatus === 'freigegeben'
+        ? 'Dieser Jahresbericht ist bereits freigegeben. Einen neuen Entwurf erstellen? Der bisherige Bericht bleibt als frühere Fassung erhalten; die Freigabe des neuen Entwurfs wird zurückgesetzt.'
+        : 'Einen neuen Entwurf erstellen? Der bisherige Text bleibt als frühere Fassung erhalten.'
+    )) return;
     setIsGenerating(true);
-    await generateReport(studentId);
-    setIsGenerating(false);
+    try {
+      await generateReport(studentId);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const generateReport = async (studentId: string) => {
     const s = students.find(x => x.id === studentId);
     if (!s) return;
+    const requestedClassId = app.activeClassId;
+    const requestedSchoolYear = app.schuljahr;
     
     // 1. Nur nachvollziehbare schulische Daten zusammenstellen.
     const annualGradeLines = includeGrades ? getAnnualGradeLines(studentId) : [];
@@ -163,7 +189,7 @@ export default function Jahresbericht() {
       ? sBadges.map((badge: any) => `${badge.icon || ''} ${badge.name}`.trim()).join(', ')
       : 'Nicht einbezogen';
 
-    const latestKel = getLatestKelForStudent(studentId);
+    const latestKel = includeKel ? getLatestKelForStudent(studentId) : undefined;
     let kelGoalsStr = '';
     let kelSelfStr = '';
     if (latestKel) {
@@ -180,20 +206,34 @@ export default function Jahresbericht() {
     }
 
     // Förderziele sind pädagogische Arbeitsdaten. Diagnosefelder werden nicht automatisch an die KI übertragen.
-    const fpZiele = s.foerderprofil?.foerderziele
+    const fpZiele = (includeFoerder ? s.foerderprofil?.foerderziele : [])
       ?.filter((goal: any) => goal?.ziel)
       .map((goal: any) => `- ${goal.ziel} (Status: ${goal.status || 'offen'})`)
       .join('\n') || '';
 
+    const selectedPortfolio = (s.portfolio || [])
+      .filter(entry => selectedPortfolioIds.includes(entry.id))
+      .map(entry => [entry.fach, entry.titel, entry.beschreibung].filter(Boolean).join(' · '))
+      .filter(Boolean);
+    const portfolioStr = selectedPortfolio.length ? selectedPortfolio.join('\n') : 'Nicht einbezogen';
     const studentObs = getStudentObservationEntries(studentId);
-    const obsStr = includeObservations && studentObs.length > 0
-      ? studentObs
-          .slice(0, 5)
-          .map((entry: any) => `[${entry.kategorie || 'Beobachtung'}]: ${entry.inhalt || entry.content || ''}`)
-          .join('\n')
-      : includeObservations
-        ? 'Keine spezifischen Beobachtungen vorhanden'
-        : 'Nicht einbezogen';
+    const approvedObservations = includeObservations
+      ? studentObs.filter((entry: any) => selectedObservationIds.includes(observationKey(entry)))
+      : [];
+    const obsStr = approvedObservations.length > 0
+      ? approvedObservations.map((entry: any) =>
+          `[${entry.kategorie || 'Beobachtung'}]: ${entry.inhalt || entry.content || entry.notiz || ''}`).join('\n')
+      : 'Nicht einbezogen';
+    const hasExplicitEvidence = annualGradeLines.length > 0 ||
+      (includeBadges && sBadges.length > 0) ||
+      (includeFoerder && Boolean(fpZiele)) ||
+      (includeKel && Boolean(kelGoalsStr || kelSelfStr)) ||
+      approvedObservations.length > 0 ||
+      selectedPortfolio.length > 0;
+    if (!hasExplicitEvidence) {
+      alert('Bitte wähle zuerst belegbare Daten für dieses Kind aus. Ohne freigegebene Daten wird kein Bericht erzeugt.');
+      return;
+    }
 
     // 2. Map stylistic prompts
     let tonePrompt = '';
@@ -209,7 +249,11 @@ export default function Jahresbericht() {
 
     let pronounPrompt = '';
     if (pronounForm === 'sie_er') {
-      pronounPrompt = `Formuliere den Bericht in der 3. Person Singular (er bzw. sie), passend für ein Kind mit dem Geschlecht ${s.geschlecht === 'w' ? 'weiblich (sie/ihr)' : 'männlich (er/ihm)'}.`;
+      pronounPrompt = s.geschlecht === 'w'
+        ? 'Formuliere den Bericht in der 3. Person (sie/ihr).'
+        : s.geschlecht === 'm'
+          ? 'Formuliere den Bericht in der 3. Person (er/ihm).'
+          : 'Verwende die neutrale Formulierung „das Kind“, ohne Geschlecht oder Pronomen zu erraten.';
     } else if (pronounForm === 'du_direkt') {
       pronounPrompt = 'Formuliere den Bericht als direkte Ansprache in der Du-Form. Verwende keinen Namen.';
     } else if (pronounForm === 'formal_eltern') {
@@ -242,10 +286,12 @@ Leistungsdaten:
 ${gradesStr}
 Optionale positive Rückmeldungen / Badges: ${badgesList}
 Pädagogische Förderziele:
-${fpZiele || 'Keine aktiven Förderziele hinterlegt'}
-KEL-Selbsteinschätzung des Kindes: ${kelSelfStr || 'Keine Angabe'}
+${fpZiele || (includeFoerder ? 'Keine aktiv ausgewiesenen Förderziele' : 'Nicht einbezogen')}
+KEL-Selbsteinschätzung des Kindes: ${kelSelfStr || (includeKel ? 'Keine dokumentierte Selbsteinschätzung' : 'Nicht einbezogen')}
 KEL vereinbarte Ziele:
-${kelGoalsStr || 'Keine KEL-Ziele vereinbart'}
+${kelGoalsStr || (includeKel ? 'Keine dokumentierten KEL-Ziele' : 'Nicht einbezogen')}
+Ausgewählte Portfolioarbeiten:
+${portfolioStr}
 Letzte dokumentierte Beobachtungen:
 ${obsStr}
 Zusätzlicher Wunsch der Lehrkraft: ${personalWish || 'Kein spezieller Wunsch'}
@@ -271,11 +317,16 @@ WICHTIGE ANWEISUNGEN:
 - Antworte direkt im Markdown-Format. Verwende keine einleitenden oder abschließenden Floskeln außerhalb des Berichts.`;
 
     try {
+      if (!window.confirm('Nur die ausgewählten schulischen Daten dieses Kindes werden für den Berichtsentwurf an den KI-Dienst gesendet. Fortfahren?')) return;
       const response = await askAI('ki-helfer', fullPrompt);
       if (!response?.trim()) throw new Error('Leere KI-Antwort');
       const inhalt = response.trim();
       
-      setApp(prev => ({
+      setApp(prev => {
+        if (prev.activeClassId !== requestedClassId ||
+            prev.schuljahr !== requestedSchoolYear ||
+            !prev.schueler.some(child => child.id === studentId)) return prev;
+        return {
         ...prev,
         jahresberichte: {
           ...(prev.jahresberichte || {}),
@@ -283,36 +334,48 @@ WICHTIGE ANWEISUNGEN:
             inhalt,
             generiert: new Date().toISOString(),
             schuljahr: currentTerm,
-            reviewStatus: 'offen'
+            reviewStatus: 'offen',
+            // No automatic overwrite of a manually approved or edited report.
+            verlauf: [
+              ...(prev.jahresberichte?.[studentId]?.verlauf || []),
+              ...(prev.jahresberichte?.[studentId]
+                ? [{
+                    inhalt: prev.jahresberichte[studentId].inhalt,
+                    generiert: prev.jahresberichte[studentId].generiert,
+                    schuljahr: prev.jahresberichte[studentId].schuljahr,
+                    reviewStatus: prev.jahresberichte[studentId].reviewStatus,
+                  }] : []),
+            ],
           }
         }
-      }));
+      };
+      });
     } catch (e) {
       console.error(e);
       alert('Fehler bei der KI-Generierung für ' + s.vorname);
     }
   };
 
-  const triggerAllGenerations = async () => {
-    if (!confirm('Für alle Schüler:innen ohne Bericht einen Jahresbericht generieren? (Das kann eine Weile dauern)')) return;
-    
-    const missing = students.filter(s => !berichte[s.id] || berichte[s.id].schuljahr !== currentTerm);
-    setGeneratingAllStatus({ total: missing.length, current: 0 });
-    
-    for (let i = 0; i < missing.length; i++) {
-        setGeneratingAllStatus({ total: missing.length, current: i + 1 });
-        await generateReport(missing[i].id);
-        await new Promise(r => setTimeout(r, 1000));
+  // Reports are created from individually reviewed source selections in each
+  // child's dossier. There is no unattended, class-wide AI generation.
+  const openNextUnfinishedReport = () => {
+    const next = students.find(s => !reportForTerm(s.id));
+    if (next) {
+      setSelectedStudent(next.id);
+      setSelectedObservationIds([]);
+      setPersonalWish('');
+      setActiveTab('bericht');
     }
-    
-    setGeneratingAllStatus(null);
   };
 
   const handleRefine = async (studentId: string, customPrompt?: string) => {
     const promptToUse = customPrompt || refinePrompt;
     if (!promptToUse.trim()) return;
-    const b = berichte[studentId];
+    const b = reportForTerm(studentId);
     if (!b) return;
+    const requestedClassId = app.activeClassId;
+    const requestedSchoolYear = app.schuljahr;
+    if (!window.confirm('Den vorhandenen Entwurf mit KI überarbeiten? Die vorherige Fassung bleibt erhalten und die Freigabe wird zurückgesetzt.')) return;
     setIsRefining(true);
 
     try {
@@ -331,18 +394,35 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
       );
 
       if (response) {
-        setApp(prev => ({
+        setApp(prev => {
+          const previous = prev.jahresberichte?.[studentId];
+          if (prev.activeClassId !== requestedClassId ||
+              prev.schuljahr !== requestedSchoolYear ||
+              !prev.schueler.some(child => child.id === studentId) ||
+              !previous || previous.inhalt !== b.inhalt ||
+              previous.generiert !== b.generiert) return prev;
+          return {
           ...prev,
           jahresberichte: {
             ...(prev.jahresberichte || {}),
             [studentId]: {
-              ...prev.jahresberichte[studentId],
+              ...previous,
               inhalt: response,
               generiert: new Date().toISOString(),
-              reviewStatus: 'offen'
+              reviewStatus: 'offen',
+              verlauf: [
+                ...(prev.jahresberichte[studentId]?.verlauf || []),
+                {
+                  inhalt: prev.jahresberichte[studentId].inhalt,
+                  generiert: prev.jahresberichte[studentId].generiert,
+                  schuljahr: prev.jahresberichte[studentId].schuljahr,
+                  reviewStatus: prev.jahresberichte[studentId].reviewStatus,
+                },
+              ]
             }
           }
-        }));
+        };
+        });
         if (!customPrompt) setRefinePrompt('');
       }
     } catch (e) {
@@ -360,6 +440,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
 
   const saveEdit = () => {
     if (!editMode) return;
+    if (!editContent.trim()) { alert('Ein Bericht darf nicht leer sein.'); return; }
     setApp(prev => ({
       ...prev,
       jahresberichte: {
@@ -367,7 +448,18 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
         [editMode]: {
           ...(prev.jahresberichte?.[editMode] || { generiert: new Date().toISOString(), schuljahr: currentTerm }),
           inhalt: editContent,
-          reviewStatus: 'offen'
+          generiert: new Date().toISOString(),
+          schuljahr: currentTerm,
+          reviewStatus: 'offen',
+          verlauf: [
+            ...(prev.jahresberichte?.[editMode]?.verlauf || []),
+            ...(prev.jahresberichte?.[editMode] ? [{
+              inhalt: prev.jahresberichte[editMode].inhalt,
+              generiert: prev.jahresberichte[editMode].generiert,
+              schuljahr: prev.jahresberichte[editMode].schuljahr,
+              reviewStatus: prev.jahresberichte[editMode].reviewStatus,
+            }] : []),
+          ]
         }
       }
     }));
@@ -375,12 +467,16 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
   };
 
   const printSingle = (studentId: string) => {
+    const report = reportForTerm(studentId);
+    if (!report) return;
+    if (report.reviewStatus !== 'freigegeben' &&
+        !window.confirm('Dieser Bericht ist noch nicht freigegeben. Nur als ausdrücklich markierten Entwurf drucken?')) return;
     printDocs([studentId]);
   };
 
   const printAll = () => {
     const approvedIds = Object.keys(berichte).filter(
-      (id) => berichte[id]?.reviewStatus === 'freigegeben' && students.some((student) => student.id === id)
+      (id) => reportForTerm(id)?.reviewStatus === 'freigegeben' && students.some((student) => student.id === id)
     );
     if (approvedIds.length === 0) {
       alert('Es gibt noch keine freigegebenen Jahresberichte zum Sammeldruck.');
@@ -504,28 +600,71 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
 
   // General statistics for progress panel
   const totalStudentsCount = students.length;
-  const reportsGeneratedCount = Object.keys(berichte).filter(id => students.some(s => s.id === id)).length;
-  const reportsApprovedCount = Object.entries(berichte).filter(([id, report]) => report.reviewStatus === 'freigegeben' && students.some(s => s.id === id)).length;
+  const reportsGeneratedCount = students.filter(s => Boolean(reportForTerm(s.id))).length;
+  const reportsApprovedCount = students.filter(s => reportForTerm(s.id)?.reviewStatus === 'freigegeben').length;
   const progressPercent = totalStudentsCount > 0 ? Math.round((reportsGeneratedCount / totalStudentsCount) * 100) : 0;
+
+  if (!app.klassenvorstand) {
+    return <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-700">
+      Die Jahresberichte stehen der zuständigen Klassenlehrperson zur Verfügung.
+    </p>;
+  }
+
+  if (!isDossierView) {
+    if (selectedStudent && students.some(child => child.id === selectedStudent)) {
+      return <StudentDossier key={selectedStudent} schuelerId={selectedStudent}
+        initialReportView onBack={() => setSelectedStudent(null)} />;
+    }
+    return <section className="mx-auto w-full max-w-6xl space-y-5 p-4 sm:p-6" data-testid="jahresabschluss-klassenverwaltung">
+      <header className="rounded-3xl border border-slate-200 bg-white p-6">
+        <h1 className="text-xl font-black text-slate-900">Jahresabschluss · {app.klassenbezeichnung || 'Klasse'}</h1>
+        <p className="mt-1 text-sm text-slate-600">Berichtsstand für {currentTerm}. Die Entwürfe bearbeitest du im Schülerdossier des jeweiligen Kindes.</p>
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-xs font-bold text-slate-700">
+          <span className="rounded-xl bg-slate-100 px-3 py-2">Erstellt: {reportsGeneratedCount} / {totalStudentsCount}</span>
+          <span className="rounded-xl bg-emerald-50 px-3 py-2 text-emerald-800">Freigegeben: {reportsApprovedCount}</span>
+          <button type="button" onClick={printAll} disabled={reportsApprovedCount === 0}
+            className="rounded-xl border border-slate-200 px-3 py-2 disabled:cursor-not-allowed disabled:opacity-50">
+            <Printer size={14} className="mr-1 inline" /> Nur freigegebene Berichte drucken
+          </button>
+        </div>
+      </header>
+      {students.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+        Noch keine Kinder in dieser Klasse angelegt.
+      </p> : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {[...students].sort((a, b) => a.nachname.localeCompare(b.nachname, 'de-AT')).map(child => {
+          const report = reportForTerm(child.id);
+          const label = !report ? 'Noch kein Bericht' :
+            report.reviewStatus === 'freigegeben' ? 'Freigegeben' :
+            report.reviewStatus === 'nacharbeiten' ? 'Nacharbeiten' : 'Entwurf vorhanden';
+          return <button key={child.id} type="button" onClick={() => setSelectedStudent(child.id)}
+            className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-indigo-300">
+            <strong className="block text-sm text-slate-900">{child.vorname} {child.nachname}</strong>
+            <span className="mt-2 block text-xs text-slate-600">{label}</span>
+            <span className="mt-3 block text-xs font-bold text-indigo-700">Im Schülerdossier öffnen →</span>
+          </button>;
+        })}
+      </div>}
+    </section>;
+  }
 
   return (
     <div className="year-report-shell h-full flex flex-col p-4 lg:p-6 space-y-4 bg-[#f4f7f3]">
       
       {/* Header Panel */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+      {!isDossierView && <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-md">
             <FileText size={24} />
           </div>
           <div>
             <h1 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-              Abschluss- & Jahresberichte
+              Jahresabschluss · Klassenübersicht
               <span className="text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
                 Berichts-Assistent
               </span>
             </h1>
             <p className="text-sm font-semibold text-slate-500 mt-1">
-              Erstellen Sie individuelle Berichtsentwürfe auf Basis der ausgewählten schulischen Daten.
+              Berichtstand für diese Klasse. Wähle ein Kind zur individuellen Bearbeitung.
             </p>
           </div>
         </div>
@@ -555,12 +694,12 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
           <div className="flex gap-2 w-full sm:w-auto">
              <button 
                type="button"
-               onClick={triggerAllGenerations}
+               onClick={openNextUnfinishedReport}
                disabled={!!generatingAllStatus}
                className="px-4 py-3 bg-slate-900 border border-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black tracking-widest uppercase transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 cursor-pointer"
              >
-               {generatingAllStatus ? <Loader2 className="animate-spin" size={14} /> : <Wand2 size={14} />} 
-               {generatingAllStatus ? `Erstelle (${generatingAllStatus.current}/${generatingAllStatus.total})` : 'Fehlende Entwürfe erstellen'}
+               <Wand2 size={14} /> 
+               Nächstes Kind bearbeiten
              </button>
              <button 
                type="button"
@@ -571,7 +710,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
              </button>
           </div>
         </div>
-      </div>
+      </div>}
 
       <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950">
         <AlertCircle size={17} className="mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
@@ -580,19 +719,23 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
         </p>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-6">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4">
          
          {/* Left Column: Config Panel & Student List */}
-         <div className="w-full lg:w-80 shrink-0 flex flex-col gap-6">
+         <div className="w-full lg:w-80 shrink-0 flex flex-col gap-4">
             
             {/* Global Generator Settings */}
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 flex flex-col gap-4">
               <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
                 <Sliders size={14} />
-                Generator-Konfiguration
+                Bericht vorbereiten
               </h3>
               
               <div className="space-y-3.5">
+                <p className="text-xs font-semibold text-slate-700">1. Daten wählen · 2. Entwurf erstellen · 3. Prüfen & freigeben</p>
+                <details className="rounded-xl border border-slate-200 p-3">
+                  <summary className="cursor-pointer text-xs font-bold text-slate-700">Weitere Optionen: Stil, Aufbau & Anrede</summary>
+                <div className="mt-3 space-y-3">
                 {/* Tonalität */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[0.6875rem] font-black uppercase tracking-widest text-slate-500">Tonalität</label>
@@ -639,6 +782,8 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                   </select>
                 </div>
 
+                </div>
+                </details>
                 {/* Data Switches */}
                 <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
                   <span className="text-[0.6875rem] font-black uppercase tracking-widest text-slate-400 block mb-1">Datenquellen einbeziehen</span>
@@ -650,8 +795,23 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                       onChange={e => setIncludeGrades(e.target.checked)} 
                       className="rounded border-slate-300 text-slate-900 focus:ring-slate-500"
                     />
-                    Noten & fachliche Leistungen
+                    Noten & fachliche Leistungen (Fächer selbst auswählen)
                   </label>
+                  {includeGrades && selectedStudent && <fieldset className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <legend className="px-1 text-xs font-bold text-slate-700">Fächer für den Jahresbericht</legend>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {Object.keys(app.noten?.[selectedStudent] || {}).map(fach =>
+                        <label key={fach} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs font-semibold text-slate-700">
+                          <input type="checkbox" checked={selectedSubjects.includes(fach)}
+                            onChange={event => setSelectedSubjects(previous => event.target.checked
+                              ? [...new Set([...previous, fach])] : previous.filter(item => item !== fach))} />
+                          {fach}
+                        </label>
+                      )}
+                    </div>
+                    {!Object.keys(app.noten?.[selectedStudent] || {}).length &&
+                      <p className="text-xs text-slate-500">Noch keine Bewertungen aus der Notenmappe für dieses Kind vorhanden.</p>}
+                  </fieldset>}
 
                   <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer hover:text-slate-900 transition-colors">
                     <input 
@@ -670,20 +830,60 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                       onChange={e => setIncludeObservations(e.target.checked)} 
                       className="rounded border-slate-300 text-slate-900 focus:ring-slate-500"
                     />
-                    Einträge aus dem Schülerjournal
+                    Ausgewählte Einträge aus dem Schülerjournal
                   </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                    <input type="checkbox" checked={includeKel} onChange={event => setIncludeKel(event.target.checked)} />
+                    KEL-Selbsteinschätzung und vereinbarte Ziele
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                    <input type="checkbox" checked={includeFoerder} onChange={event => setIncludeFoerder(event.target.checked)} />
+                    Pädagogische Förderziele
+                  </label>
+                  {includeObservations && selectedStudent && (
+                    <fieldset className="mt-2 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <legend className="px-1 text-xs font-bold text-slate-700">Einzelne Beobachtungen ausdrücklich auswählen</legend>
+                      {getStudentObservationEntries(selectedStudent).slice(0, 20).map((entry: any) => {
+                        const key = observationKey(entry);
+                        return <label key={key} className="flex items-start gap-2 rounded-lg border border-slate-100 bg-white p-2 text-xs text-slate-700">
+                          <input type="checkbox" className="mt-0.5" checked={selectedObservationIds.includes(key)}
+                            onChange={event => setSelectedObservationIds(previous => event.target.checked
+                              ? [...new Set([...previous, key])] : previous.filter(id => id !== key))} />
+                          <span>{String(entry.datum || entry.timestamp || '').slice(0, 10)} · {String(entry.kategorie || 'Beobachtung')}:
+                            <span className="block font-normal">{String(entry.inhalt || entry.content || entry.notiz || '').slice(0, 180)}</span>
+                          </span>
+                        </label>;
+                      })}
+                      {!getStudentObservationEntries(selectedStudent).length &&
+                        <p className="text-xs text-slate-500">Keine Beobachtungen für dieses Kind vorhanden.</p>}
+                    </fieldset>
+                  )}
+                  {selectedStudent && !!students.find(child => child.id === selectedStudent)?.portfolio?.length && (
+                    <fieldset className="mt-2 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <legend className="px-1 text-xs font-bold text-slate-700">Portfolioarbeiten (optional)</legend>
+                      {students.find(child => child.id === selectedStudent)?.portfolio?.map(entry =>
+                        <label key={entry.id} className="flex items-start gap-2 rounded-lg border border-slate-100 bg-white p-2 text-xs text-slate-700">
+                          <input type="checkbox" className="mt-0.5" checked={selectedPortfolioIds.includes(entry.id)}
+                            onChange={event => setSelectedPortfolioIds(previous => event.target.checked
+                              ? [...new Set([...previous, entry.id])] : previous.filter(id => id !== entry.id))} />
+                          <span>{entry.titel}{entry.fach ? ' · ' + entry.fach : ''}</span>
+                        </label>
+                      )}
+                      <p className="text-[11px] text-slate-500">Nur Titel und Beschreibung ausgewählter Arbeiten werden verwendet. Fotos und Bilddateien gehen nicht an die KI.</p>
+                    </fieldset>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Student List */}
-            <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            {!isDossierView && <div className="flex-1 min-h-[300px] flex flex-col bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
                <div className="p-4 border-b border-slate-100 font-black uppercase text-[0.75rem] leading-tight tracking-widest text-slate-400 bg-slate-50">
                   Schülerinnen & Schüler
                </div>
                <div className="flex-1 overflow-y-auto no-scrollbar p-2 space-y-1">
                   {students.map(s => {
-                     const hasReport = !!berichte[s.id];
+                     const hasReport = Boolean(reportForTerm(s.id));
                      const isSelected = selectedStudent === s.id;
                      const status = getReviewStatus(s.id);
                      
@@ -696,6 +896,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                            setSelectedStudent(s.id);
                            setActiveTab('bericht');
                            setPersonalWish('');
+                           setSelectedObservationIds([]);
                          }}
                          className={`w-full text-left p-3 rounded-2xl transition-all flex items-center justify-between ${
                            isSelected 
@@ -729,17 +930,19 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                      );
                   })}
                </div>
-            </div>
+            </div>}
          </div>
 
          {/* Right Side: Report View & Visualizers */}
          <div className="flex-1 bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col p-6 lg:p-8 relative min-w-0">
             {selectedStudent ? (() => {
                const s = students.find(x => x.id === selectedStudent)!;
-               const b = berichte[selectedStudent];
-               const selectedGradeLines = getAnnualGradeLines(selectedStudent);
-               const selectedKel = getLatestKelForStudent(selectedStudent);
-               const selectedObservations = getStudentObservationEntries(selectedStudent).slice(0, 5);
+               const b = reportForTerm(selectedStudent);
+               const selectedGradeLines = includeGrades ? getAnnualGradeLines(selectedStudent) : [];
+               const selectedKel = includeKel ? getLatestKelForStudent(selectedStudent) : undefined;
+               const selectedObservations = includeObservations
+                 ? getStudentObservationEntries(selectedStudent).filter((entry: any) => selectedObservationIds.includes(observationKey(entry)))
+                 : [];
 
                if (isGenerating) {
                   return (
@@ -764,6 +967,16 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                         Es wurde noch kein Abschlussbericht generiert. Der Generator verwendet Ihre konfigurierten Tonalitäts-, Struktur- und Daten-Auswahlkriterien auf der linken Seite.
                       </p>
 
+                      {berichte[selectedStudent]?.schuljahr !== currentTerm && berichte[selectedStudent] && (
+                        <details className="mb-4 w-full rounded-xl border border-slate-200 bg-white p-4 text-left">
+                          <summary className="cursor-pointer text-xs font-bold text-slate-700">
+                            Bestehenden Bericht aus {berichte[selectedStudent].schuljahr} ansehen (wird nicht überschrieben)
+                          </summary>
+                          <div className="prose prose-sm mt-3 max-w-none">
+                            <Markdown>{berichte[selectedStudent].inhalt}</Markdown>
+                          </div>
+                        </details>
+                      )}
                       {/* Personal Wish field prior to generating */}
                       <div className="w-full bg-slate-50 border border-slate-200 p-4 rounded-2xl mb-6 text-left flex flex-col gap-2">
                         <span className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
@@ -858,6 +1071,25 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                           )}
                        </div>
                     </div>
+
+                    {!!b.verlauf?.length && (
+                      <details className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-3" data-testid="jahresbericht-versionen">
+                        <summary className="cursor-pointer text-xs font-bold text-slate-700">
+                          Frühere Fassungen ({b.verlauf.length}) · Nur ansehen
+                        </summary>
+                        <div className="mt-3 max-h-80 space-y-3 overflow-y-auto">
+                          {[...b.verlauf].reverse().map((version, index) => (
+                            <article key={index} className="rounded-lg border border-slate-200 bg-white p-3 text-xs">
+                              <p className="mb-2 font-bold text-slate-700">
+                                {version.schuljahr} · {new Date(version.generiert).toLocaleDateString('de-AT')}
+                                {version.reviewStatus === 'freigegeben' ? ' · damals freigegeben' : ' · Entwurf'}
+                              </p>
+                              <div className="prose prose-sm max-w-none"><Markdown>{version.inhalt}</Markdown></div>
+                            </article>
+                          ))}
+                        </div>
+                      </details>
+                    )}
 
                     {/* Navigation Tabs (Document vs. Competence Scorecard) */}
                     <div className="flex border-b border-slate-100 mb-6 gap-2">
@@ -1025,7 +1257,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                             <div className="space-y-2">
                               {selectedGradeLines.map((line) => (
                                 <div key={line} className="text-xs font-semibold text-slate-700 p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                                  {line.replace(/^-s*/, '')}
+                                  {line.replace(/^-\\s*/, '')}
                                 </div>
                               ))}
                             </div>

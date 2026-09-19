@@ -5,6 +5,8 @@ type BoardTextEditorProps = {
   active: boolean;
   onChange: (html: string) => void;
   onDone: () => void;
+  externalToolbar?: boolean;
+  commandRef?: React.MutableRefObject<((command: string, argument?: string) => void) | null>;
 };
 
 const ALLOWED_TAGS = new Set([
@@ -30,7 +32,7 @@ const sanitizeStyle = (value: string) =>
   value
     .split(";")
     .map((part) => part.trim())
-    .filter((part) => /^text-align\s*:\s*(left|center|right|justify)$/i.test(part))
+    .filter((part) => /^text-align\s*:\s*(left|center|right|justify)$/i.test(part) || /^color\s*:\s*(#[0-9a-f]{3,8}|rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\))$/i.test(part))
     .join("; ");
 
 export function sanitizeBoardTextHtml(html: string): string {
@@ -77,6 +79,8 @@ export function BoardTextEditor({
   active,
   onChange,
   onDone,
+  externalToolbar = false,
+  commandRef,
 }: BoardTextEditorProps) {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const pendingSave = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -124,9 +128,16 @@ export function BoardTextEditor({
 
   const runCommand = (command: string, argument?: string) => {
     editorRef.current?.focus();
+    if (command === "foreColor") document.execCommand("styleWithCSS", false, "true");
     document.execCommand(command, false, argument);
     if (editorRef.current) scheduleSave(editorRef.current.innerHTML);
   };
+
+  useEffect(() => {
+    if (!commandRef) return;
+    commandRef.current = runCommand;
+    return () => { commandRef.current = null; };
+  }, [commandRef, runCommand]);
 
   const buttonClass =
     "min-h-10 px-3 rounded-lg border border-slate-200 bg-white text-slate-800 text-sm font-semibold hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600";
@@ -155,16 +166,16 @@ export function BoardTextEditor({
           [&_h2]:text-3xl [&_h2]:font-bold [&_h2]:mb-3
           [&_h3]:text-2xl [&_h3]:font-semibold [&_h3]:mb-2
           [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-7 [&_ol]:list-decimal [&_ol]:pl-7
-          ${active ? "z-[20000] pointer-events-auto cursor-text select-text" : "z-[1] pointer-events-none select-text"}`}
+          ${active ? "z-[5] pointer-events-auto cursor-text select-text" : "z-[1] pointer-events-none select-text"}`}
       />
 
       {active && isEmpty && (
-        <div className="absolute left-[7%] top-[6%] z-[20001] pointer-events-none text-slate-300 text-2xl font-medium">
+        <div className="absolute left-[7%] top-[6%] z-[6] pointer-events-none text-slate-300 text-2xl font-medium">
           Hier schreiben …
         </div>
       )}
 
-      {active && (
+      {active && !externalToolbar && (
         <div
           className="absolute left-1/2 top-3 z-[21000] -translate-x-1/2 max-w-[calc(100%-1.5rem)] flex flex-wrap items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur"
           role="toolbar"

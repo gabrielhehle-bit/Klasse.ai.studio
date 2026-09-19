@@ -1,3 +1,4 @@
+import KlassenUeberblick from './KlassenUeberblick';
 import React, { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useApp } from "../context/AppContext";
@@ -2170,7 +2171,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
       };
 
       const insight = await getDailyInsight(
-        `${app?.anrede || ""} ${app?.nachname || ""}`,
+        getTeacherFirstName(app) || 'Lehrkraft',
         app?.stufe || 1,
         (app?.schueler || []).length,
         contextData,
@@ -2433,6 +2434,16 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     const teil = h < 11 ? "Guten Morgen" : h < 16 ? "Hallo" : "Guten Abend";
     const firstName = getTeacherFirstName(app);
     return firstName ? `${teil}, ${firstName}!` : `${teil}!`;
+  };
+
+  // AI-generated mentor headings are untrusted: never show a missing-name
+  // placeholder instead of a personal greeting, even from an older response.
+  const getSafeInsightGreeting = (greeting: unknown) => {
+    if (typeof greeting !== 'string' || !greeting.trim() ||
+        /\b(?:name\s+fehlt|kein\s+name|name\s+nicht\s+angegeben|undefined|null)\b/i.test(greeting)) {
+      return getGreeting();
+    }
+    return greeting.trim();
   };
 
   const birthdaysToday = (app?.schueler || []).filter((s) =>
@@ -4740,6 +4751,8 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         monthEvents={monthEventsList}
       />
 
+      <KlassenUeberblick />
+
       {/* Smart Status Dashboard */}
       {!simpleDashboardMode && (
       <section>
@@ -6965,7 +6978,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                                         <div className="flex items-center gap-3">
                                           <div className="w-1 h-6 bg-accent rounded-full" />
                                           <h2 className="text-[0.875rem] leading-snug font-black text-white tracking-tight uppercase">
-                                            {aiInsight.greeting}
+                                            {getSafeInsightGreeting(aiInsight.greeting)}
                                           </h2>
                                         </div>
 

@@ -35,43 +35,24 @@ const coreItems: PlanningItem[] = [
   },
   {
     id: 'planungszentrale',
-    label: 'Planungsübersicht',
-    description: 'Aktuelle Woche, offene Planung und wichtige Planungswege kompakt zusammenführen.',
+    label: 'Wochen-Check',
+    description: 'Fehlende Themen in bereits eingetragenen Stunden erkennen. Geplant und bearbeitet wird ausschließlich im Wochenplan.',
     icon: LayoutDashboard,
   },
 ];
 
 const preparationItems: PlanningItem[] = [
   {
-    id: 'stunden',
-    label: 'Stundenentwürfe',
-    description: 'Einzelne Unterrichtsstunden und vorbereitete Abläufe ausarbeiten und wiederverwenden.',
-    icon: BookOpen,
-  },
-  {
     id: 'materialien',
     label: 'Materialbibliothek',
-    description: 'Material sammeln, ordnen und direkt in den Wochenplan übernehmen.',
+    description: 'Material und wiederverwendbare Unterrichtsvorbereitungen sammeln, ordnen und im Wochenplan einsetzen.',
     icon: Folder,
   },
   {
-    id: 'canva',
-    label: 'Canva',
-    description: 'Designs suchen, erstellen, in Canva bearbeiten und in passenden Formaten exportieren.',
-    icon: Palette,
-  },
-  {
     id: 'vertretung',
-    label: 'Vertretung vorbereiten',
-    description: 'Stundenplan-, Wochenplan- und Materialdaten für eine Vertretung zusammenstellen.',
+    label: 'Vertretung & Übergabe',
+    description: 'Tages- oder Mehrtagesvertretung einmal vorbereiten, mit Wochenplan, Checkliste und gezielter Druckausgabe.',
     icon: Replace,
-  },
-  {
-    id: 'uebergabemappe',
-    label: 'Übergabemappe',
-    description: 'Wichtige Informationen und Unterlagen für eine Klassenübergabe bündeln.',
-    icon: ClipboardList,
-    klassenvorstandOnly: true,
   },
 ];
 
@@ -122,7 +103,7 @@ export default function PlanungHub() {
           Vom Schuljahr bis zur nächsten Stunde
         </h1>
         <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-[var(--text2)]">
-          Plane zuerst Woche oder Jahr. Materialien, Stundenentwürfe und Übergaben findest du gesammelt darunter – jedes Werkzeug genau einmal.
+          Plane zuerst Woche oder Jahr. Ausführliche Unterrichtsentwürfe bearbeitest du im Wochenplan; wiederverwendbare Vorlagen findest du in der Materialbibliothek.
         </p>
       </header>
 

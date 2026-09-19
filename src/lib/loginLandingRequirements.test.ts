@@ -6,7 +6,11 @@ const app = readFileSync('src/App.tsx', 'utf8');
 
 test('Login: erfolgreiche Anmeldung landet immer auf dem Dashboard', () => {
   assert.match(app, /sessionStorage\.setItem\('klassio_after_login', 'dashboard'\)/);
-  assert.match(app, /const currentPage = landOnDashboardAfterLogin \? 'dashboard'/);
+
+
+
+  assert.match(app, /landOnDashboardAfterLogin \? 'dashboard'/);
+  assert.match(app, /sessionStorage\.removeItem\('klassio_after_login'\)/);
   assert.match(app, /setPage\('dashboard'\);/);
 });
 

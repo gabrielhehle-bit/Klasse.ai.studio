@@ -1,4 +1,6 @@
 import { shouldApplyTafelCommand } from '../lib/tafelCommands';
+import { getTodayIsoDate } from '../lib/kidAttendanceAlgorithm';
+import { dailyBehaviorEntries } from '../lib/dailyBehaviorEntries';
 import React, {
   useEffect,
   useState,
@@ -176,11 +178,15 @@ import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSele
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
+import { BoardInk, type BoardInkHandle, type InkItem } from "./cockpit/BoardInk";
+import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
+import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
+import { COCKPIT_PAPERS, getCockpitPaperStyle, type CockpitPaper } from "../lib/cockpitPaper";
+import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
   LärmWidgetContent,
   LernwoerterWidgetContent,
-  StudentListWidgetContent,
   GroupsWidgetContent,
   QrCodeWidgetContent,
   ImageWidgetContent,
@@ -2911,10 +2917,45 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [vorlagenStartTab, setVorlagenStartTab] = useState<"browse" | "create">("browse");
   const [activeWidgetCategory, setActiveWidgetCategory] =
-    useState<string>("categories");
+    useState<string>("core");
+  const [expandedCoreWidget, setExpandedCoreWidget] = useState<string | null>(null);
   const [widgetSearch, setWidgetSearch] = useState<string>("");
   const [isBoardTextEditing, setIsBoardTextEditing] = useState(false);
+  const [boardTool, setBoardTool] = useState<'select' | 'pen' | 'erase' | 'text'>('select');
+  const [boardPenColor, setBoardPenColor] = useState('#172554');
+  const [boardPenWidth, setBoardPenWidth] = useState(4);
+  const boardInkRef = useRef<BoardInkHandle | null>(null);
+  const boardTextCommandRef = useRef<((command: string, argument?: string) => void) | null>(null);
+  const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
+  useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
   const boardTextClassKey = app.activeClassId || "unassigned";
+  const cockpitPaper = ((app.boardSettings as any)?.cockpitPaperByClass?.[boardTextClassKey] || "blank") as CockpitPaper;
+  const setCockpitPaper = (paper: CockpitPaper) => setApp((prev: any) => ({
+    ...prev,
+    boardSettings: {
+      ...(prev.boardSettings || {}),
+      cockpitPaperByClass: {
+        ...(prev.boardSettings?.cockpitPaperByClass || {}),
+        [boardTextClassKey]: paper,
+      },
+    },
+  }));
+  const boardInkItems: InkItem[] = Array.isArray((app.boardSettings as any)?.cockpitInkByClass?.[boardTextClassKey])
+    ? ((app.boardSettings as any).cockpitInkByClass[boardTextClassKey] as InkItem[])
+    : [];
+  const saveBoardInkItems = useCallback((items: InkItem[]) => {
+    if (!app.activeClassId) return;
+    setApp((prev: any) => ({
+      ...prev,
+      boardSettings: {
+        ...(prev.boardSettings || {}),
+        cockpitInkByClass: {
+          ...(prev.boardSettings?.cockpitInkByClass || {}),
+          [boardTextClassKey]: items,
+        },
+      },
+    }));
+  }, [app.activeClassId, boardTextClassKey, setApp]);
   const boardTextHtml =
     ((app.boardSettings as any)?.cockpitTextByClass?.[boardTextClassKey] as string | undefined) || "";
 
@@ -2936,6 +2977,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     setIsBoardTextEditing(false);
+    setBoardTool('select');
   }, [boardTextClassKey]);
 
   useEffect(() => {
@@ -5264,6 +5306,7 @@ ${content}
   const customImg =
     app.unterrichtsmodus_eigenesBild ||
     app.unterrichtsmodus_eigenesBildProModus?.[currentModus];
+  const canvaBackground = app.unterrichtsmodus_canvaBild;
 
   const sidebarOpen = app.unterrichtsmodus_sidebar_open ?? false;
   const setSidebarOpen = (open: boolean) =>
@@ -6479,9 +6522,12 @@ ${content}
       const newEntries: any[] = [];
       const currentMitarbeit = prev.mitarbeit || {};
       const newMitarbeit = { ...currentMitarbeit };
-      const todayStr = new Date().toISOString().split("T")[0];
+      const todayStr = getTodayIsoDate();
 
       (prev.schueler || []).forEach((student: any) => {
+        // Ein Kind erhält maximal einen Tagesabschluss. Re-Render, manuelles Sichern,
+        // erneuter Cockpit-Aufruf und Automatik dürfen keine Duplikate erzeugen.
+        if (dailyBehaviorEntries(prev.statusLog || [], student.id, todayStr).length) return;
         const stageId = currentStatuses[student.id] || defaultStageId;
         newEntries.push({
           id: Math.random().toString(36).substr(2, 9),
@@ -6516,6 +6562,9 @@ ${content}
         }
       });
 
+      // Bei erneutem Aufruf denselben unveränderten Stand belassen; auch keine
+      // Mitarbeitspunkte doppelt buchen oder weitere Beobachtungen generieren.
+      if (newEntries.length === 0) return prev;
       return {
         ...prev,
         statusLog: [...newEntries, ...(prev.statusLog || [])],
@@ -6535,7 +6584,7 @@ ${content}
     }
 
     setSessionSuccessMessage(
-      `Verhalten für alle ${loggedCount} Schüler und alle Mitarbeitspunkte für "${currentSubject}" erfolgreich täglich gespeichert! 🌟✏️`,
+      `Tagesabschluss für ${loggedCount} Kinder gesichert. Bereits gespeicherte Tageswerte bleiben unverändert.`,
     );
     setTimeout(() => {
       setSessionSuccessMessage(null);
@@ -6553,11 +6602,16 @@ ${content}
     // Note: updateHasAutoSavedToday is derived from useState/localStorage, stable reference not strictly needed in deps
   ]);
 
+  const behaviorSavedToday = hasAutoSavedToday === getTodayIsoDate() ||
+    (app.schueler?.length > 0 && app.schueler.every(student =>
+      dailyBehaviorEntries(app.statusLog || [], student.id, getTodayIsoDate()).length > 0
+    ));
+
   // Automatic Behavior Auto-Save logic
   useEffect(() => {
     // Check if we already saved today (for this specific date)
-    const todayStr = new Date().toISOString().split("T")[0];
-    if (hasAutoSavedToday === todayStr) return;
+    const todayStr = getTodayIsoDate();
+    if (behaviorSavedToday) return;
 
     // We only auto-save if the last active lesson is truly over
     if (commitAllowance.allowed && commitAllowance.lastHourIdx !== -1) {
@@ -6575,13 +6629,12 @@ ${content}
         commitBehaviorToHistory(true);
       }
     }
-  }, [time, commitAllowance, commitBehaviorToHistory, hasAutoSavedToday, lessonTimeSlots]);
+  }, [time, commitAllowance, commitBehaviorToHistory, behaviorSavedToday, lessonTimeSlots]);
 
   const handleCloseCockpit = () => {
     // Nur dann beim Schließen sichern, wenn der Tagesabschluss bereits freigegeben ist.
     // Ein zu frühes Schließen darf den Tag niemals fälschlich als gespeichert markieren.
-    const todayStr = new Date().toISOString().split("T")[0];
-    if (hasAutoSavedToday !== todayStr && commitAllowance.allowed) {
+    if (!behaviorSavedToday && commitAllowance.allowed) {
       console.log(
         "Auto-saving behavior & mitarbeit on closing classroom cockpit...",
       );
@@ -7473,15 +7526,15 @@ ${content}
           className="absolute inset-0 pointer-events-none transition-all duration-700"
           style={{
             ...currentBg.style,
-            ...(currentBgId === "eigenes" && customImg
+            ...((currentBgId === "eigenes" && customImg) || (currentBgId === "canva" && canvaBackground)
               ? {
-                  backgroundImage: `url(${customImg})`,
-                  backgroundSize: "cover",
+                  backgroundImage: `url("${currentBgId === "canva" ? canvaBackground : customImg}")`,
+                  backgroundSize: "contain",
                   backgroundPosition: "center",
                   backgroundRepeat: "no-repeat",
                 }
               : {}),
-            opacity: currentBgId === "eigenes" ? 0.35 : 0.25,
+            opacity: currentBgId === "canva" ? 0.82 : currentBgId === "eigenes" ? 0.35 : 0.25,
           }}
         />
       )}
@@ -7514,8 +7567,8 @@ ${content}
           <button
             onClick={handleCloseCockpit}
             className={`p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer border shadow-md hover:scale-105 active:scale-95 ${currentIsLight ? "bg-black/5 border-black/10 text-slate-700 hover:bg-black/10 hover:text-black" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/15 hover:text-white"}`}
-            title="Zurück zu Unterricht"
-            aria-label="Zurück zu Unterricht"
+            title="Lehrercockpit schließen · Zurück zu Heute"
+            aria-label="Lehrercockpit schließen · Zurück zu Heute"
           >
             <ArrowLeft size={16} strokeWidth={2.5} />
           </button>
@@ -7537,7 +7590,7 @@ ${content}
             {/* 1. Auto-Save & Manual-Commit status indicator */}
             <div className="flex items-center gap-1 mt-0.5 select-none">
               <span className="relative flex h-1.5 w-1.5">
-                {hasAutoSavedToday === new Date().toISOString().split("T")[0] ? (
+                {behaviorSavedToday ? (
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" />
                 ) : (
                   <>
@@ -7546,8 +7599,8 @@ ${content}
                   </>
                 )}
               </span>
-              <span className={`text-[7.5px] font-black uppercase tracking-wider ${hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "text-emerald-500" : "text-amber-500"}`}>
-                {hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "Heute gesichert" : "Speichert beim Beenden"}
+              <span className={`text-[7.5px] font-black uppercase tracking-wider ${behaviorSavedToday ? "text-emerald-500" : "text-amber-500"}`}>
+                {behaviorSavedToday ? "Heute gesichert" : "Speichert beim Beenden"}
               </span>
             </div>
           </div>
@@ -7637,7 +7690,7 @@ ${content}
                   (app.behavior_default_stage_id || "3"),
               ).length;
               const todayStr = new Date().toISOString().split("T")[0];
-              const alreadySavedToday = hasAutoSavedToday === todayStr;
+              const alreadySavedToday = behaviorSavedToday;
               const isButtonDisabled =
                 !commitAllowance.allowed || alreadySavedToday;
 
@@ -8142,7 +8195,8 @@ ${content}
                                 {/* Category Switcher Tab Bar */}
                                 <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
                                   {[
-                                    { id: "categories", label: "Kategorien" },
+                                    { id: "core", label: "20 Kernwidgets" },
+                                    { id: "categories", label: "Weitere Widgets" },
                                     { id: "favorites", label: "★ Favoriten" },
                                     { id: "struct", label: "🗂️ Ablauf & Organisation" },
                                     {
@@ -8427,7 +8481,9 @@ ${content}
                                     ];
 
                                     let count = 0;
-                                    if (cat.id === "categories") {
+                                    if (cat.id === "core") {
+                                      count = PLANNED_COCKPIT_WIDGETS.length;
+                                    } else if (cat.id === "categories") {
                                       count = new Set(
                                         allAvailableWidgets.map((item) => item.category),
                                       ).size;
@@ -9064,6 +9120,53 @@ ${content}
                                     const query = widgetSearch
                                       .toLowerCase()
                                       .trim();
+                                    if (activeWidgetCategory === "core" && !query) {
+                                      return (
+                                        <>
+                                          <p className="col-span-full text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                            20 übersichtliche Einstiege. Wähle bei Bedarf eine Variante; deine bisherigen Widgets und gespeicherten Layouts bleiben unter „Weitere Widgets“ erhalten.
+                                          </p>
+                                          {PLANNED_COCKPIT_WIDGETS.map((group) => {
+                                            const variants = group.sources
+                                              .map((type) => allAvailableWidgets.find((item) => item.type === type))
+                                              .filter((item): item is (typeof allAvailableWidgets)[number] => Boolean(item));
+                                            const expanded = expandedCoreWidget === group.id;
+                                            return (
+                                              <div key={group.id} data-testid={`cockpit-core-group-${group.id}`} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm dark:border-white/15 dark:bg-zinc-900 dark:text-white">
+                                                <button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-left text-sm font-bold hover:bg-indigo-50 dark:hover:bg-white/10"
+                                                  aria-expanded={variants.length > 1 ? expanded : undefined}
+                                                  onClick={() => {
+                                                    if (variants.length === 1) {
+                                                      handleOpenWidgetInCockpitLayout(variants[0].type as CockpitWidgetConfig["type"]);
+                                                      setIsAddWidgetMenuOpen(false);
+                                                    } else {
+                                                      setExpandedCoreWidget(expanded ? null : group.id);
+                                                    }
+                                                  }}>
+                                                  <span>{group.label}</span>
+                                                  <span aria-hidden="true" className="text-indigo-600 dark:text-indigo-300">{variants.length > 1 ? (expanded ? "−" : "+") : "＋"}</span>
+                                                </button>
+                                                {variants.length > 1 && expanded && (
+                                                  <div className="mt-2 flex flex-col gap-1 border-t border-slate-200 pt-2 dark:border-white/15">
+                                                    {variants.map((variant) => (
+                                                      <button type="button" key={variant.type}
+                                                        className="min-h-11 rounded-lg px-3 text-left text-sm hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:hover:bg-white/10"
+                                                        onClick={() => {
+                                                          handleOpenWidgetInCockpitLayout(variant.type as CockpitWidgetConfig["type"]);
+                                                          setIsAddWidgetMenuOpen(false);
+                                                        }}>
+                                                        {variant.label}
+                                                      </button>
+                                                    ))}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </>
+                                      );
+                                    }
+
                                     const filteredList =
                                       allAvailableWidgets.filter((item) => {
                                         if (query) {
@@ -9347,25 +9450,13 @@ ${content}
                             )}
                           </div>
 
+
                           <button
                             type="button"
-                            aria-pressed={isBoardTextEditing}
-                            onClick={() => {
-                              setIsBoardTextEditing((value) => !value);
-                              setIsAddWidgetMenuOpen(false);
-                              setIsMoreOptionsMenuOpen(false);
-                            }}
-                            className={`min-h-11 px-4 rounded-xl border text-sm font-black tracking-wide flex items-center gap-1.5 transition-all cursor-pointer ${
-                              isBoardTextEditing
-                                ? "bg-indigo-600 border-indigo-600 text-white shadow-sm"
-                                : currentIsLight
-                                  ? "bg-white border-slate-200 text-slate-800 hover:bg-slate-50"
-                                  : "bg-zinc-900 border-white/10 text-white hover:bg-zinc-800"
-                            }`}
-                            title="Weiße Tafel als Textdokument verwenden"
+                            onClick={() => setIsBirthdayCelebrationOpen(true)}
+                            className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
                           >
-                            <Type size={15} />
-                            <span>TEXT</span>
+                            🎂 Geburtstag
                           </button>
 
                           <button
@@ -9784,6 +9875,97 @@ ${content}
                         </div>
                       </div>
 
+                      {/* A single shared toolbar, outside the white teaching surface. */}
+                      <div
+                        role="toolbar"
+                        aria-label="Unterrichtsfläche: Auswählen, Zeichnen und Text"
+                        className="flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-sm"
+                      >
+                        {([
+                          ['select', 'Auswählen'],
+                          ['pen', 'Stift'],
+                          ['erase', 'Radierer'],
+                          ['text', 'TEXT'],
+                        ] as const).map(([id, label]) => (
+                          <button
+                            type="button"
+                            key={id}
+                            aria-pressed={boardTool === id}
+                            onClick={() => {
+                              setBoardTool(id);
+                              setIsBoardTextEditing(id === 'text');
+                            }}
+                            className={`min-h-11 rounded-lg border px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${boardTool === id ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
+                          >{label}</button>
+                        ))}
+                        <label className="flex min-h-11 items-center gap-2 text-xs font-semibold">
+                          Papier
+                          <select aria-label="Papierart der Unterrichtsfläche" value={cockpitPaper}
+                            onChange={event => setCockpitPaper(event.target.value as CockpitPaper)}
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm">
+                            {COCKPIT_PAPERS.map(paper => <option key={paper.id} value={paper.id}>{paper.label}</option>)}
+                          </select>
+                        </label>
+                        {(boardTool === 'pen' || boardTool === 'erase') && (
+                          <>
+                            <label className="flex min-h-11 items-center gap-1.5 text-xs font-semibold">
+                              Farbe
+                              <input type="color" aria-label="Stiftfarbe" value={boardPenColor}
+                                onChange={event => setBoardPenColor(event.target.value)}
+                                className="h-10 w-11 rounded border border-slate-300" />
+                            </label>
+                            <label className="flex min-h-11 items-center gap-1.5 text-xs font-semibold">
+                              Strich
+                              <select aria-label="Strichstärke" value={boardPenWidth}
+                                onChange={event => setBoardPenWidth(Number(event.target.value))}
+                                className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm">
+                                <option value={2}>Fein</option>
+                                <option value={4}>Normal</option>
+                                <option value={8}>Breit</option>
+                              </select>
+                            </label>
+                          </>
+                        )}
+                        {boardTool === 'text' && (
+                          <>
+                            <select aria-label="Textgröße" defaultValue="p"
+                              onChange={event => boardTextCommandRef.current?.('formatBlock', event.target.value)}
+                              className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm">
+                              <option value="p">Normal</option>
+                              <option value="h2">Groß</option>
+                              <option value="h1">Sehr groß</option>
+                            </select>
+                            <button type="button" onMouseDown={event => event.preventDefault()}
+                              onClick={() => boardTextCommandRef.current?.('bold')}
+                              className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-black">Fett</button>
+                            <label className="flex min-h-11 items-center gap-1.5 text-xs font-semibold">Textfarbe
+                              <input type="color" aria-label="Textfarbe auswählen" defaultValue="#172554"
+                                onChange={event => boardTextCommandRef.current?.('foreColor', event.target.value)}
+                                className="h-10 w-11 rounded border border-slate-300" />
+                            </label>
+                            <button type="button" onMouseDown={event => event.preventDefault()}
+                              onClick={() => boardTextCommandRef.current?.('justifyLeft')}
+                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Links</button>
+                            <button type="button" onMouseDown={event => event.preventDefault()}
+                              onClick={() => boardTextCommandRef.current?.('justifyCenter')}
+                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Mitte</button>
+                            <button type="button" onMouseDown={event => event.preventDefault()}
+                              onClick={() => boardTextCommandRef.current?.('justifyRight')}
+                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Rechts</button>
+                          </>
+                        )}
+                        <button type="button" onMouseDown={event => { if (boardTool === 'text') event.preventDefault(); }}
+                          onClick={() => boardTool === 'text'
+                            ? boardTextCommandRef.current?.('undo')
+                            : boardInkRef.current?.undo()}
+                          className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↶ Rückgängig</button>
+                        <button type="button" onMouseDown={event => { if (boardTool === 'text') event.preventDefault(); }}
+                          onClick={() => boardTool === 'text'
+                            ? boardTextCommandRef.current?.('redo')
+                            : boardInkRef.current?.redo()}
+                          className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↷ Wiederholen</button>
+                      </div>
+
                       {/* Widget Board (classroomscreen.com style) */}
                       <div
                         ref={boardRef}
@@ -9793,12 +9975,30 @@ ${content}
                             : "bg-white border-slate-200 shadow-inner"
                         }`}
                         id="widget-board-stage"
+                        style={getCockpitPaperStyle(cockpitPaper, currentBgId === "canva" ? canvaBackground : null)}
                       >
                         <BoardTextEditor
                           value={boardTextHtml}
                           active={isBoardTextEditing}
                           onChange={saveBoardTextHtml}
-                          onDone={() => setIsBoardTextEditing(false)}
+                          externalToolbar
+                          commandRef={boardTextCommandRef}
+                          onDone={() => {
+                            setIsBoardTextEditing(false);
+                            setBoardTool('select');
+                          }}
+                        />
+                        <BoardInk
+                          key={boardTextClassKey}
+                          ref={boardInkRef}
+                          items={boardInkItems}
+                          active={!!app.activeClassId && (boardTool === 'pen' || boardTool === 'erase')}
+                          externalTool={boardTool === 'erase' ? 'erase' : 'pen'}
+                          externalColor={boardPenColor}
+                          externalWidth={boardPenWidth}
+                          hideToolbar
+                          onChange={saveBoardInkItems}
+                          onDone={() => setBoardTool('select')}
                         />
                         {/* Centered Confirm Dialog inside stage instead of native popup */}
                         {timerToCloseId && (
@@ -11133,14 +11333,9 @@ ${content}
                                       return (
                                         <StudentListWidgetContent
                                           app={app}
-                                          setApp={setApp}
-                                          getBehaviorSymbol={getBehaviorSymbol}
                                           getTodayPoints={getTodayPoints}
                                           addParticipation={addParticipation}
-                                          removeParticipation={
-                                            removeParticipation
-                                          }
-                                          currentIsLight={currentIsLight}
+                                          removeParticipation={removeParticipation}
                                         />
                                       );
 
@@ -11570,7 +11765,7 @@ ${content}
                       ref={sidebarRef}
                       initial={{ width: 0, opacity: 0, x: 24 }}
                       animate={{
-                        width: sidebarMode === "mini" ? 96 : 335,
+                        width: sidebarMode === "mini" ? 240 : 335,
                         opacity: 1,
                         x: 0,
                       }}
@@ -11659,418 +11854,16 @@ ${content}
                         )}
                       </div>
 
-                      {/* Student List */}
-                      {sidebarMode === "expanded" && (
-                        <div className="px-2.5 pt-1 flex flex-col gap-1.5 bg-black/10 dark:bg-[#111]/30 py-1.5 border-b border-white/5 shrink-0 select-none">
-                          <div className="flex gap-1">
-                            <button
-                            type="button"
-                            onClick={() => {
-                              if (
-                                confirm(
-                                  "Möchtest du wirklich alle gesammelten Mitarbeit-Sterne zurücksetzen und mit 0 neu starten?",
-                                )
-                              ) {
-                                clearAllParticipation();
-                              }
-                            }}
-                            className="flex-1 py-1 px-1 bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white rounded-lg text-[8.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer"
-                            title="Alle gesammelten Sterne entfernen"
-                          >
-                            🗑️ Sterne nullen
-                            </button>
-                            <button
-                            type="button"
-                            onClick={() => {
-                              setApp((prev: any) => ({
-                                ...prev,
-                                boardSettings: {
-                                  ...prev.boardSettings,
-                                  hideStudentStars:
-                                    !prev.boardSettings?.hideStudentStars,
-                                },
-                              }));
-                            }}
-                            className={`flex-1 py-1 px-1 rounded-lg text-[8.5px] font-black uppercase tracking-wider flex items-center justify-center gap-1 transition-all cursor-pointer border ${
-                              app.boardSettings?.hideStudentStars
-                                ? "bg-amber-500 border-amber-400 text-amber-955 shadow-sm"
-                                : currentIsLight
-                                  ? "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                                  : "bg-white/5 border-white/10 text-white hover:bg-white/10"
-                            }`}
-                            title="Sterne auf dem Smartboard ein- oder ausblenden"
-                          >
-                            {app.boardSettings?.hideStudentStars
-                              ? "👁️ Sterne zeigen"
-                              : "🙈 Sterne verbergen"}
-                            </button>
-                          </div>
-
-                          <div className={`flex items-center gap-2 rounded-lg border px-2 py-1 ${currentIsLight ? "bg-white/70 border-slate-200" : "bg-white/5 border-white/10"}`}>
-                            <label htmlFor="cockpit-name-display" className={`text-[8px] font-black uppercase tracking-wider shrink-0 ${currentIsLight ? "text-slate-500" : "text-white/50"}`}>
-                              Namen
-                            </label>
-                            <select
-                              id="cockpit-name-display"
-                              value={app.boardSettings?.studentNameStyle || "vorname_nachname"}
-                              onChange={(event) => {
-                                const studentNameStyle = event.target.value;
-                                setApp((prev: any) => ({
-                                  ...prev,
-                                  boardSettings: {
-                                    ...prev.boardSettings,
-                                    studentNameStyle,
-                                  },
-                                }));
-                              }}
-                              className={`min-w-0 flex-1 bg-transparent text-[9px] font-bold outline-none cursor-pointer ${currentIsLight ? "text-slate-700" : "text-white"}`}
-                              title="Anzeige der Schülernamen auswählen"
-                            >
-                              <option value="nur_vorname">Nur Vorname</option>
-                              <option value="nur_nachname">Nur Nachname</option>
-                              <option value="vorname_nachname">Vor- und Nachname</option>
-                            </select>
-                          </div>
-                        </div>
-                      )}
-
                       <div
                         className={`flex-1 overflow-y-auto no-scrollbar py-3 ${sidebarMode === "mini" ? "px-1 space-y-3.5" : "px-2.5 space-y-2"}`}
                       >
-                        {(() => {
-                          const isSmartboardOnly =
-                            app.boardSettings?.splitSmartboardMode &&
-                            !app.boardSettings?.isRemoteController;
-                          return (app.schueler || []).map((student) => {
-                            const points = getTodayPoints(student.id);
-
-                            if (sidebarMode === "mini") {
-                              return (
-                                <div
-                                  key={student.id}
-                                  className="flex flex-col items-center gap-1.5 py-2 rounded-2xl border border-transparent hover:bg-black/10 dark:hover:bg-white/5 transition-all duration-150"
-                                  title={student.vorname}
-                                >
-                                  {/* Avatar/Emoji - Smaller */}
-                                  <button
-                                    onClick={() => {
-                                      if (isSmartboardOnly) return;
-                                      cycleBehavior(student.id);
-                                    }}
-                                    onPointerDown={() => {
-                                      if (isSmartboardOnly) return;
-                                      startPress(student.id);
-                                    }}
-                                    onPointerUp={() => {
-                                      if (isSmartboardOnly) return;
-                                      endPress(student.id);
-                                    }}
-                                    onPointerLeave={() => {
-                                      if (isSmartboardOnly) return;
-                                      endPress(student.id);
-                                    }}
-                                    onPointerCancel={() => {
-                                      if (isSmartboardOnly) return;
-                                      endPress(student.id);
-                                    }}
-                                    onContextMenu={(e) => {
-                                      e.preventDefault();
-                                      if (isSmartboardOnly) return;
-                                      setActiveStudentSettingsId(student.id);
-                                    }}
-                                    className={`relative w-10 h-10 rounded-xl bg-black/20 hover:bg-black/35 flex items-center justify-center text-xl shadow-xs border border-neutral-700/10 ${isSmartboardOnly ? "" : "cursor-pointer active:scale-95 transition-all"}`}
-                                    title={
-                                      isSmartboardOnly
-                                        ? undefined
-                                        : `${student.vorname} (Lange gedrückt halten für Details)`
-                                    }
-                                    disabled={isSmartboardOnly}
-                                  >
-                                    <motion.span
-                                      key={getBehaviorSymbol(student.id).label}
-                                      initial={{ scale: 0.8 }}
-                                      animate={{ scale: [1, 1.3, 1] }}
-                                      transition={{ duration: 0.3 }}
-                                      className="text-xl drop-shadow-sm"
-                                    >
-                                      {getBehaviorSymbol(student.id).icon}
-                                    </motion.span>
-                                  </button>
-
-                                  {/* Points indicator in mini mode */}
-                                  {points !== 0 &&
-                                    !app.boardSettings?.hideStudentStars && (
-                                      <span
-                                        className={`text-[8px] font-black px-1 py-0.2 rounded-full ${points > 0 ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"}`}
-                                      >
-                                        {points > 0 ? `+${points}` : points}
-                                      </span>
-                                    )}
-
-                                  {/* Badges - Very Small */}
-                                  {student.badges &&
-                                    student.badges.length > 0 && (
-                                      <div className="flex gap-0.5 justify-center opacity-60 scale-75">
-                                        {student.badges.slice(0, 2).map((b) => (
-                                          <span key={b.id} title={b.name}>
-                                            {b.icon}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-
-                                  {/* Fast Touch add/remove buttons - Larger & Discrete */}
-                                  {!isSmartboardOnly && (
-                                    <div className="flex gap-2 mt-1 px-1 w-full justify-center">
-                                      <button
-                                        onClick={() =>
-                                          removeParticipation(student.id)
-                                        }
-                                        title="Abziehen"
-                                        className="flex-1 max-w-[34px] h-9 flex items-center justify-center bg-black/30 text-rose-450 hover:bg-rose-500 hover:text-white rounded-xl border border-white/5 text-lg font-black cursor-pointer active:scale-90 transition-all shadow-lg"
-                                      >
-                                        -
-                                      </button>
-                                      <button
-                                        onClick={(e) =>
-                                          addParticipation(student.id, e)
-                                        }
-                                        title="Hinzufügen"
-                                        className="flex-1 max-w-[34px] h-9 flex items-center justify-center bg-black/30 text-emerald-450 hover:bg-emerald-500 hover:text-white rounded-xl border border-white/5 text-lg font-black cursor-pointer active:scale-95 transition-all shadow-lg"
-                                      >
-                                        +
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            }
-
-                            {
-                              /* Expanded Mode List Item */
-                            }
-                            return (
-                              <div
-                                key={student.id}
-                                className={`flex items-center justify-between py-2 px-2.5 bg-transparent rounded-xl border border-transparent ${isSmartboardOnly ? "" : activePultThemeVars.hover} transition-all group`}
-                              >
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <button
-                                    onClick={() => {
-                                      if (isSmartboardOnly) return;
-                                      cycleBehavior(student.id);
-                                    }}
-                                    className={`relative w-11 h-11 bg-black/20 rounded-2xl flex items-center justify-center text-2xl shrink-0 border border-transparent ${activePultThemeVars.inactiveObj} transition-all ${isSmartboardOnly ? "" : "active:scale-95 cursor-pointer"} shadow-sm`}
-                                    title={
-                                      isSmartboardOnly
-                                        ? undefined
-                                        : "Verhalten ändern (Klicken)"
-                                    }
-                                    disabled={isSmartboardOnly}
-                                  >
-                                    <motion.span
-                                      key={getBehaviorSymbol(student.id).label}
-                                      initial={{ scale: 0.8 }}
-                                      animate={{ scale: [1, 1.3, 1] }}
-                                      transition={{ duration: 0.3 }}
-                                      className="drop-shadow-sm"
-                                    >
-                                      {getBehaviorSymbol(student.id).icon}
-                                    </motion.span>
-                                  </button>
-                                  <div
-                                    onPointerDown={() => {
-                                      if (isSmartboardOnly) return;
-                                      startPress(student.id);
-                                    }}
-                                    onPointerUp={() => {
-                                      if (isSmartboardOnly) return;
-                                      endPress(student.id);
-                                    }}
-                                    onPointerLeave={() => {
-                                      if (isSmartboardOnly) return;
-                                      endPress(student.id);
-                                    }}
-                                    onPointerCancel={() => {
-                                      if (isSmartboardOnly) return;
-                                      endPress(student.id);
-                                    }}
-                                    onContextMenu={(e) => {
-                                      e.preventDefault();
-                                      if (isSmartboardOnly) return;
-                                      setActiveStudentSettingsId(student.id);
-                                    }}
-                                    className={`font-extrabold text-[15px] md:text-[16px] transition-all flex items-center justify-between gap-2 select-none w-full flex-1 min-w-0 ${isSmartboardOnly ? "" : "cursor-pointer hover:opacity-85 active:scale-98"}`}
-                                    style={{
-                                      color: customTextColor || undefined,
-                                    }}
-                                    title={
-                                      isSmartboardOnly
-                                        ? undefined
-                                        : `${student.vorname} ${student.nachname || ""} (Lange gedrückt halten für Abzeichen, Notizen & mehr)`
-                                    }
-                                  >
-                                    {(() => {
-                                      const nameStyle =
-                                        app.boardSettings?.studentNameStyle ||
-                                        "vorname_nachname";
-                                      const vorname = student.vorname || "";
-                                      const nachname = student.nachname || "";
-
-                                      let renderedEmoji: string | null =
-                                        student.emoji || "🧑‍🎓";
-                                      let renderedNameText = `${vorname} ${nachname}`;
-
-                                      if (nameStyle === "nur_vorname") {
-                                        renderedNameText = vorname;
-                                        renderedEmoji = null;
-                                      } else if (nameStyle === "nur_nachname") {
-                                        renderedNameText = nachname;
-                                        renderedEmoji = null;
-                                      } else if (
-                                        nameStyle === "vorname_initiale"
-                                      ) {
-                                        renderedNameText = `${vorname} ${nachname.charAt(0)}.`;
-                                      } else if (
-                                        nameStyle === "nur_initialen"
-                                      ) {
-                                        renderedNameText = `${vorname.charAt(0)}.${nachname.charAt(0)}.`;
-                                        renderedEmoji = null;
-                                      } else if (
-                                        nameStyle === "nachname_vorname"
-                                      ) {
-                                        renderedNameText = `${nachname} ${vorname}`;
-                                      } else if (nameStyle === "nur_emoji") {
-                                        renderedNameText = "";
-                                      } else if (
-                                        nameStyle === "emoji_vorname"
-                                      ) {
-                                        renderedNameText = vorname;
-                                      }
-
-                                      const isBirthday =
-                                        (
-                                          app.unterrichtsmodus_geburtstagskinder ||
-                                          []
-                                        ).includes(student.id) ||
-                                        checkIsAutoBirthday(student.geburtstag);
-
-                                      return (
-                                        <>
-                                          <div className="flex items-center gap-2 min-w-0 flex-1 truncate">
-                                            {renderedEmoji && !isBirthday && (
-                                              <span className="text-xl shrink-0 leading-none drop-shadow-sm">
-                                                {renderedEmoji}
-                                              </span>
-                                            )}
-                                            {isBirthday && (
-                                              <span
-                                                className="text-xl shrink-0 leading-none drop-shadow-sm animate-bounce"
-                                                title="Geburtstagskind!"
-                                              >
-                                                🎁
-                                              </span>
-                                            )}
-                                            {renderedNameText && (
-                                              <span
-                                                className={`truncate flex-1 min-w-0 ${isBirthday ? "bg-clip-text text-transparent bg-gradient-to-r from-pink-500 via-amber-500 to-emerald-500 font-extrabold drop-shadow-[0_0_12px_rgba(236,72,153,0.3)] animate-pulse" : ""}`}
-                                                style={
-                                                  !isBirthday
-                                                    ? {
-                                                        color:
-                                                          customTextColor ||
-                                                          (currentIsLight
-                                                            ? "#0f172a"
-                                                            : "#f8fafc"),
-                                                      }
-                                                    : {}
-                                                }
-                                              >
-                                                {renderedNameText}
-                                              </span>
-                                            )}
-                                          </div>
-                                        </>
-                                      );
-                                    })()}
-                                    <div className="flex items-center gap-1.5 shrink-0 ml-auto justify-end">
-                                      {points !== 0 &&
-                                        !app.boardSettings
-                                          ?.hideStudentStars && (
-                                          <span
-                                            className={`text-[9.5px] font-black tracking-wide px-1.5 py-0.5 rounded-full shrink-0 border transition-all ${
-                                              points > 0
-                                                ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-sm"
-                                                : "bg-rose-500/15 text-rose-400 border-rose-500/30 shadow-sm"
-                                            }`}
-                                            title={`${points} Gläser heute`}
-                                          >
-                                            {points > 0 ? `+${points}` : points}
-                                          </span>
-                                        )}
-
-                                      {/* Badges inline display in cockpit list */}
-                                      {student.badges &&
-                                        student.badges.length > 0 && (
-                                          <div className="flex gap-1 select-none items-center shrink-0">
-                                            {student.badges
-                                              .slice(0, 3)
-                                              .map((b) => (
-                                                <span
-                                                  key={b.id}
-                                                  className="text-[15px] filter drop-shadow-[#000_1px_1px_1px] hover:scale-110 duration-150 transition-all"
-                                                  title={b.name}
-                                                >
-                                                  {b.icon}
-                                                </span>
-                                              ))}
-                                            {student.badges.length > 3 && (
-                                              <span
-                                                className="text-[8.5px] font-black opacity-60 bg-white/5 px-1.5 py-0.2 rounded-full"
-                                                title={`${student.badges.length} Abzeichen`}
-                                              >
-                                                +{student.badges.length - 3}
-                                              </span>
-                                            )}
-                                          </div>
-                                        )}
-                                    </div>
-                                  </div>
-                                </div>
-                                {!isSmartboardOnly && (
-                                  <div className="flex items-center gap-1.5 shrink-0">
-                                    <button
-                                      onClick={() =>
-                                        removeParticipation(student.id)
-                                      }
-                                      title="Punkt abziehen"
-                                      className={`w-10 h-10 flex items-center justify-center border rounded-xl transition-all duration-200 active:scale-90 shadow-sm cursor-pointer ${
-                                        currentIsLight
-                                          ? "bg-rose-50/90 border-rose-200 text-rose-600 hover:bg-rose-100"
-                                          : "bg-rose-950 border-rose-500/25 text-rose-400 hover:bg-rose-900/80 hover:text-rose-300"
-                                      }`}
-                                    >
-                                      <Minus size={15} strokeWidth={3.5} />
-                                    </button>
-                                    <button
-                                      onClick={(e) =>
-                                        addParticipation(student.id, e)
-                                      }
-                                      title="Punkt hinzufügen"
-                                      className={`w-10 h-10 flex items-center justify-center border rounded-xl transition-all duration-200 active:scale-95 shadow-sm cursor-pointer ${
-                                        currentIsLight
-                                          ? "bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100 hover:scale-105"
-                                          : "bg-emerald-950 border-emerald-500/25 text-emerald-400 hover:bg-emerald-900/80 hover:text-emerald-300 hover:scale-105"
-                                      }`}
-                                    >
-                                      <Plus size={15} strokeWidth={3.5} />
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          });
-                        })()}
+                        <StudentListWidgetContent
+                          key={app.activeClassId || 'no-class'}
+                          app={app}
+                          getTodayPoints={getTodayPoints}
+                          addParticipation={addParticipation}
+                          removeParticipation={removeParticipation}
+                        />
                       </div>
                     </motion.div>
                   )}
@@ -18371,6 +18164,14 @@ ${content}
               }));
             }
           }}
+        />
+      )}
+
+      {isBirthdayCelebrationOpen && (
+        <BirthdayCelebration
+          students={app.schueler ?? []}
+          isBirthdayToday={(student) => checkIsAutoBirthday(student.geburtstag)}
+          onClose={() => setIsBirthdayCelebrationOpen(false)}
         />
       )}
 

@@ -510,6 +510,33 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
               </div>
             )}
 
+            {/* Direkt erreichbar auf jeder Seite: Rückmeldung und freiwillige Unterstützung. */}
+            <a
+              href="https://docs.google.com/spreadsheets/d/15bWUTQyXcJnVKkR9VlIR-h2CMJ3a8ua5GO68JT7vmDc/edit?gid=1159556393#gid=1159556393"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[var(--border-default,var(--border))] bg-[var(--surface-subtle,var(--surface2))] px-2.5 py-2 text-xs font-bold text-[var(--text-primary)] transition-colors hover:bg-[var(--surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring,var(--accent))]"
+              aria-label="Fehler oder Verbesserung melden"
+              title="Fehler oder Verbesserung melden"
+            >
+              <Bug size={16} className="text-amber-600" aria-hidden="true" />
+              <span className="hidden 2xl:inline">Fehler / Verbesserung melden</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowMehrMenu(false);
+                setShowSupportModal(true);
+              }}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-2 text-xs font-bold text-rose-700 transition-colors hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+              aria-label="Klassio freiwillig über PayPal unterstützen"
+              title="Klassio freiwillig über PayPal unterstützen"
+            >
+              <Heart size={16} className="fill-rose-500/20" aria-hidden="true" />
+              <span className="hidden 2xl:inline">Unterstützen</span>
+            </button>
+
             {/* Menü „Mehr“ */}
             <div className="relative">
               <Button
