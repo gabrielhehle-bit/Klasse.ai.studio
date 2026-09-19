@@ -6,7 +6,7 @@ export async function importCanvaImage(designId: string): Promise<string> {
   const start = await fetch('/api/canva/exports', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ design_id: designId, format: 'png' }),
+    body: JSON.stringify({ design_id: designId, format: 'png', first_page_only: true }),
   });
   const created = await start.json().catch(() => ({}));
   if (!start.ok) throw new Error(created.error || 'Canva konnte das Bild nicht exportieren.');
