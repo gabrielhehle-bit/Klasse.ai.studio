@@ -9,7 +9,7 @@ import {
   Languages, ShieldAlert, MonitorPlay, Undo, Notebook, Sparkles, Smile, ChevronLeft, ChevronRight,
   Calendar, Camera, Upload, Copy, Layers, Sliders, Paintbrush, TrendingUp, AlertTriangle, Locate
 } from 'lucide-react';
-import { berechne } from '../lib/GradeUtils';
+import { berechne, getAssessmentMode } from '../lib/GradeUtils';
 import { fitSeatingPlanViewport } from '../lib/seatingPlanViewport';
 import SeatingPlanAnalysis from './SeatingPlanAnalysis';
 import { areSeatingNeighbors, classifySeatPositions, findSeatingRuleViolations, sanitizeSeatingRules, sameSeat } from '../lib/seatingPlanRules';
@@ -167,6 +167,8 @@ const StudentCard = React.memo(({
     let count = 0;
     const faecher = app.faecher || [];
     faecher.forEach(f => {
+      // A point or percentage is never a school grade; do not mix the scales.
+      if (getAssessmentMode(app, f) !== 'grades') return;
       const g = berechne(app, s.id, f, '1');
       if (g !== null && !isNaN(g)) {
         sum += g;
@@ -326,7 +328,7 @@ const StudentCard = React.memo(({
              {/* Header */}
              <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
                 <span className="font-extrabold text-[0.6875rem] text-wrap leading-tight break-words pr-2 text-slate-100">{s.vorname} {s.nachname}</span>
-                <span className="bg-slate-800 px-1.5 py-0.5 rounded text-emerald-400 font-bold tabular-nums shrink-0">∅ {getStudentAverage()}</span>
+                <span className="bg-slate-800 px-1.5 py-0.5 rounded text-emerald-400 font-bold tabular-nums shrink-0" title="Nur Fächer mit Notenskala">Ø Note {getStudentAverage()}</span>
              </div>
              
              {/* Core Traits & Properties Grid */}
@@ -337,7 +339,7 @@ const StudentCard = React.memo(({
                   {s.daz && <span className="bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider text-[0.5rem]">DaZ</span>}
                   {(s.spf || s.espf) && <span className="bg-rose-500/20 text-rose-300 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider text-[0.5rem]">SPF</span>}
                   <span className="text-slate-400 ml-auto whitespace-nowrap text-[0.5625rem]">
-                    Status: <span className={isTodayAbsent() ? 'text-rose-450 font-extrabold animate-pulse' : 'text-emerald-400 font-extrabold'}>{isTodayAbsent() ? 'Ist Abwesend' : 'Anwesend'}</span>
+                    Status: <span className={isTodayAbsent() ? 'text-rose-450 font-extrabold animate-pulse' : 'text-emerald-400 font-extrabold'}>{isTodayAbsent() ? 'Als abwesend erfasst' : 'Keine Abwesenheit markiert'}</span>
                   </span>
                 </div>
 
@@ -1499,6 +1501,8 @@ export default function SeatingPlan() {
   };
 
   const applyRoomPreset = (type: 'rows' | 'u_shape' | 'groups' | 'exam') => {
+    if (((app.sitzplan_objekte || []).length > 0 || Object.keys(app.sitzplan_schueler || {}).length > 0)
+      && !window.confirm('Die Raumvorlage ersetzt die aktuelle Sitzordnung. Vorherige Anordnung bleibt über Rückgängig erreichbar. Fortfahren?')) return;
     pushState();
     
     const allStudents = [...app.schueler];
@@ -2203,6 +2207,7 @@ export default function SeatingPlan() {
       let sum = 0;
       let count = 0;
       subjects.forEach(f => {
+        if (getAssessmentMode(app, f) !== 'grades') return;
         const note = berechne(app, s.id, f, '1');
         if (note) {
           sum += note;
