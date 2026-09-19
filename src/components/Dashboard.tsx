@@ -2439,7 +2439,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
   // placeholder instead of a personal greeting, even from an older response.
   const getSafeInsightGreeting = (greeting: unknown) => {
     if (typeof greeting !== 'string' || !greeting.trim() ||
-        /\\b(?:name\\s+fehlt|kein\\s+name|name\\s+nicht\\s+angegeben|undefined|null)\\b/i.test(greeting)) {
+        /\b(?:name\s+fehlt|kein\s+name|name\s+nicht\s+angegeben|undefined|null)\b/i.test(greeting)) {
       return getGreeting();
     }
     return greeting.trim();
