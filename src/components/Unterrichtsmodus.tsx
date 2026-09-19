@@ -5264,6 +5264,7 @@ ${content}
   const customImg =
     app.unterrichtsmodus_eigenesBild ||
     app.unterrichtsmodus_eigenesBildProModus?.[currentModus];
+  const canvaBackground = app.unterrichtsmodus_canvaBild;
 
   const sidebarOpen = app.unterrichtsmodus_sidebar_open ?? false;
   const setSidebarOpen = (open: boolean) =>
@@ -7473,15 +7474,15 @@ ${content}
           className="absolute inset-0 pointer-events-none transition-all duration-700"
           style={{
             ...currentBg.style,
-            ...(currentBgId === "eigenes" && customImg
+            ...((currentBgId === "eigenes" && customImg) || (currentBgId === "canva" && canvaBackground)
               ? {
-                  backgroundImage: `url(${customImg})`,
-                  backgroundSize: "cover",
+                  backgroundImage: `url("${currentBgId === "canva" ? canvaBackground : customImg}")`,
+                  backgroundSize: "contain",
                   backgroundPosition: "center",
                   backgroundRepeat: "no-repeat",
                 }
               : {}),
-            opacity: currentBgId === "eigenes" ? 0.35 : 0.25,
+            opacity: currentBgId === "canva" ? 0.82 : currentBgId === "eigenes" ? 0.35 : 0.25,
           }}
         />
       )}
