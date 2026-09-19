@@ -1254,7 +1254,7 @@ const KATEGORIE_LABELS = {
 
 
 interface StatisticsProps {
-  initialTab?: 'stats' | 'profiles' | 'lehrer';
+  initialTab?: 'stats' | 'profiles' | 'lehrer' | 'tools';
 }
 
 export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
@@ -1262,11 +1262,11 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   const students = app.schueler;
 
   const [activeTab, setActiveTab] = useState<'stats' | 'profiles' | 'mehr' | 'lehrer'>(
-    initialTab === 'lehrer' ? 'mehr' : initialTab
+    initialTab === 'lehrer' || initialTab === 'tools' ? 'mehr' : initialTab
   );
   const [statsSubTab, setStatsSubTab] = useState<'leistung' | 'antolin'>('leistung');
   const [mehrSubTab, setMehrSubTab] = useState<'charts' | 'tools' | 'antolin' | 'lehrer'>(
-    initialTab === 'lehrer' ? 'lehrer' : 'charts'
+    initialTab === 'lehrer' ? 'lehrer' : initialTab === 'tools' ? 'tools' : 'charts'
   );
   const [profilesSubTab, setProfilesSubTab] = useState<'liste' | 'antolin'>('liste');
   const [activeFach, setActiveFach] = useState<string>('Gesamt');
