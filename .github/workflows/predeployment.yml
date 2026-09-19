@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/cockpit-overhaul-safe-foundation
       - feature/usability-widgets-tools-notes
       - fix/pre-deployment-blockers
       - reconcile/klassio-source-of-truth

@@ -184,7 +184,7 @@ export default function DisplaySettings({
           <div>
             <h2 className="text-base font-black text-slate-900">Weiße Arbeitsfläche im Lehrercockpit</h2>
             <p className="text-xs text-slate-500 font-medium leading-relaxed">
-              Das Lehrercockpit stellt eine bewusst leere weiße Fläche und die gewünschten Widgets bereit. Schreiben und Zeichnen übernimmt das Smartboard selbst.
+              Das Lehrercockpit öffnet sofort eine weiße Arbeitsfläche. Texte, Stiftzeichnungen und Widgets werden direkt in Klassio auf derselben Fläche verwendet und bleiben klassenbezogen gespeichert.
             </p>
           </div>
         </div>

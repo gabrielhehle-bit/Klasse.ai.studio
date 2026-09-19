@@ -54,7 +54,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
 
   // Automatisch ermittelte anwesende Schüler
   const presentStudents = useMemo(() => {
-    return getPresentStudents(app?.schueler, app);
+    return app?.activeClassId ? getPresentStudents(app.schueler, app) : [];
   }, [app?.schueler, app]);
 
   // Stabile Schülerliste der Klasse oder Fallback
