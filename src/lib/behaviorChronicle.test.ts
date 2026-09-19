@@ -48,9 +48,13 @@ test('chronicle search includes linked student names', () => {
   );
 });
 
-test('journal filter remains limited to journal entries', () => {
+test('Allgemein filter includes class-level notes regardless of category', () => {
   assert.deepEqual(
     filterChronicleEntries(entries, 'journal', '', students).map(entry => entry.id),
     ['journal']
   );
+  assert.deepEqual(filterChronicleEntries([
+    ...entries,
+    { id: 'general-note', datum: '2026-09-14', kategorie: 'Notiz', inhalt: 'Material bestellen' }
+  ], 'journal', '', students).map(entry => entry.id), ['journal', 'general-note']);
 });
