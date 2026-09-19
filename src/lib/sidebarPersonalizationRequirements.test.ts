@@ -12,11 +12,12 @@ test('Sidebar: vollständige moderne Klassio-Bereiche bleiben erreichbar', () =>
     'schueler', 'sitzplan', 'anwesenheit', 'verhalten', 'teamteaching', 'orga',
     'noten', 'statistik', 'diagnostik', 'portfolio', 'notenTabelle', 'verbal', 'kel',
     'planungszentrale', 'jahresplanung', 'wochenplanung', 'materialien', 'stunden',
-    'canva', 'vertretung', 'uebergabemappe', 'klassengemeinschaft', 'jahresbericht',
+    'canva', 'vertretung', 'klassengemeinschaft', 'jahresbericht',
     'archiv', 'drucken', 'datensicherung', 'settings',
   ]) {
     assert.match(sidebar, new RegExp(`id:\\s*['"]${id}['"]`), `Sidebar-Modul fehlt: ${id}`);
   }
+  assert.doesNotMatch(sidebar, /id:\\s*['"]uebergabemappe['"]/);
 });
 
 test('Sidebar: persönliche Reihenfolge ist global statt auf Bereiche begrenzt', () => {
