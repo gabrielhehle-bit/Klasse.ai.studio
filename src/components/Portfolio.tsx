@@ -3,6 +3,9 @@ import { BookOpen, Search, Target, UserRound } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import StudentLernziele from './StudentLernziele';
 import StudentPortfolio from './StudentPortfolio';
+import LernzielModellEditor from './LernzielModellEditor';
+import { LERNZIELE_BY_STUFE } from './LernzielTracker';
+import { getLernzielModell } from '../lib/lernzielBewertungsmodell';
 import { mergeLegacyPortfolioEntries, type LegacyPortfolioMap } from '../lib/portfolioMigration';
 import {
   loadEncryptedStorageItem,
@@ -31,6 +34,13 @@ export default function Portfolio() {
   const [activeTab, setActiveTab] = useState<'lernziele' | 'portfolio'>('lernziele');
   const [semester, setSemester] = useState<'1' | '2'>('1');
   const [search, setSearch] = useState('');
+  const [showModelEditor, setShowModelEditor] = useState(false);
+  const model = getLernzielModell(app.lernzielBewertungsmodell);
+  const visibleGoalTotal = Object.values(LERNZIELE_BY_STUFE[Number(app.stufe) || 1] || LERNZIELE_BY_STUFE[1]).reduce((sum, goals) => sum + goals.length, 0);
+
+  useEffect(() => {
+    setShowModelEditor(false);
+  }, [app.activeClassId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -137,9 +147,12 @@ export default function Portfolio() {
           <div>
             <h1 className="text-2xl font-black tracking-tight text-[var(--text)] sm:text-3xl">Lernziele & Portfolio</h1>
             <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-[var(--text2)]">
-              Lernfortschritte je Semester dokumentieren und echte Arbeiten, Fotos und Meilensteine im Portfolio sammeln.
+              Lernziele im jeweiligen Schulmodell einschätzen, schulische Erläuterung getrennt führen und echte Arbeiten im Portfolio sammeln.
             </p>
           </div>
+          <button type="button" onClick={() => setShowModelEditor(current => !current)} className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-xs font-black text-indigo-800">
+            {showModelEditor ? 'Beurteilungsmodell schließen' : 'Beurteilungsmodell anpassen'}
+          </button>
           {selectedStudent && (
             <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface2)] px-4 py-3">
               <span className="block text-[0.625rem] font-black uppercase tracking-wider text-[var(--text3)]">Ausgewählt</span>
@@ -151,6 +164,8 @@ export default function Portfolio() {
         </div>
       </header>
 
+      {showModelEditor && <LernzielModellEditor onClose={() => setShowModelEditor(false)} />}
+      <p className="text-xs text-[var(--text2)]">Aktives Modell: <strong>{model.name}</strong> · Jede Klasse kann eine eigene Vorlage verwenden. Schulinterne Erläuterungsformulare bleiben davon getrennt.</p>
       <div className="grid gap-5 xl:grid-cols-[17rem_minmax(0,1fr)]">
         <aside className="self-start rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-4 shadow-sm xl:sticky xl:top-4">
           <label className="relative block">
@@ -189,7 +204,7 @@ export default function Portfolio() {
                     {student.nachname} {student.vorname}
                   </span>
                   <span className="mt-1 flex items-center gap-2 text-[0.6875rem] font-bold text-[var(--text3)]">
-                    <span>{ratedCount} Lernziele</span>
+                    <span>{ratedCount} von {visibleGoalTotal} eingeschätzt</span>
                     <span>·</span>
                     <span>{portfolioCount} Portfolio</span>
                   </span>
