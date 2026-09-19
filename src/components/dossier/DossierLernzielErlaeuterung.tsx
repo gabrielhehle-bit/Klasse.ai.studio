@@ -32,7 +32,8 @@ export default function DossierLernzielErlaeuterung({
       .flat().map(goal => goal.id);
   }, [app.stufe]);
   const ratings = app.studentLernzielSemesterBewertungen?.[student.id]?.[semester]
-    || (semester === '1' ? app.studentLernzielBewertungen?.[student.id] : undefined);
+    || (semester === '1' && !app.studentLernzielSemesterBewertungen?.[student.id]
+      ? app.studentLernzielBewertungen?.[student.id] : undefined);
   const summary = lernzielHaeufigkeiten(goals, ratings, model);
   const save = () => {
     const text = comment.trim();
