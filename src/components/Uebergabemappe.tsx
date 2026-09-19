@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -99,6 +99,7 @@ export default function Uebergabemappe() {
   const [lessonNotes, setLessonNotes] = useState<VertretungsVorbereitung['lessonNotes']>(() => app.vertretungsVorbereitung?.lessonNotes || {});
   const [manualSlots, setManualSlots] = useState<Record<string, number[]>>({});
   const [draftHydratedClass, setDraftHydratedClass] = useState(app.activeClassId || '__none__');
+  const previousClassIdRef = useRef(app.activeClassId);
 
   const [printLehrplan, setPrintLehrplan] = useState(false);
   const [printNotes, setPrintNotes] = useState(app.vertretungsVorbereitung?.printNotes ?? app.vertretungHinweise ?? '');
@@ -394,7 +395,8 @@ export default function Uebergabemappe() {
     setNachbarKlasse(saved?.contacts?.nachbarKlasse || '');
     setManualSlots({});
     setActiveTab('config');
-    setShowPrintModal(false);
+    if (previousClassIdRef.current !== app.activeClassId) setShowPrintModal(false);
+    previousClassIdRef.current = app.activeClassId;
     setTransferStudentId(null);
     setShowTransferPrint(false);
     setNewChecklistItem('');
