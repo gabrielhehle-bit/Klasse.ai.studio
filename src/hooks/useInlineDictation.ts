@@ -17,6 +17,25 @@ type RecognitionConstructor = {
   available?: (args: { langs: string[]; processLocally: boolean }) => Promise<string>;
   install?: (args: { langs: string[]; processLocally: boolean }) => Promise<boolean>;
 };
+export function extractSpeechResults(event: any, committedIndices: Set<number>) {
+  let finalText = '';
+  let interimText = '';
+  for (let i = event.resultIndex ?? 0; i < event.results.length; i++) {
+    const result = event.results[i];
+    const spokenText = String(result?.[0]?.transcript || '').trim();
+    if (!spokenText) continue;
+    if (result.isFinal) {
+      if (!committedIndices.has(i)) {
+        committedIndices.add(i);
+        finalText = [finalText, spokenText].filter(Boolean).join(' ');
+      }
+    } else {
+      interimText = [interimText, spokenText].filter(Boolean).join(' ');
+    }
+  }
+  return { finalText, interimText };
+}
+
 const errorMessage = (code: string): string => {
   switch (code) {
     case 'not-allowed': case 'service-not-allowed':
@@ -32,7 +51,7 @@ const errorMessage = (code: string): string => {
 
 /** Dictation is a text input, never a separate persisted note. The caller saves once via its usual workflow. */
 export function useInlineDictation(onFinalText: (text: string) => void) {
-  const [status, setStatus] = useState<'idle' | 'preparing' | 'recording'>('idle');
+  const [status, setStatus] = useState<'idle' | 'preparing' | 'recording' | 'stopping'>('idle');
   const [mode, setMode] = useState<'local' | 'browser' | null>(null);
   const [interim, setInterim] = useState('');
   const [error, setError] = useState('');
@@ -40,21 +59,26 @@ export function useInlineDictation(onFinalText: (text: string) => void) {
   const activeRef = useRef(false);
   const onFinalRef = useRef(onFinalText);
   const sessionRef = useRef(0);
+  const committedIndicesRef = useRef(new Set<number>());
   onFinalRef.current = onFinalText;
 
   const stop = useCallback(() => {
-    sessionRef.current += 1;
     activeRef.current = false;
     const recognition = recognitionRef.current;
-    recognitionRef.current = null;
     if (recognition) {
-      recognition.onresult = null;
-      recognition.onerror = null;
-      recognition.onend = null;
-      try { recognition.stop(); } catch { /* already stopped */ }
+      // Do NOT detach onresult here: Chrome can still deliver the final phrase
+      // after stop() and before onend. Saving stays disabled in this phase.
+      setStatus('stopping');
+      try { recognition.stop(); } catch {
+        recognitionRef.current = null;
+        setStatus('idle');
+        setInterim('');
+      }
+    } else {
+      sessionRef.current += 1; // cancel pending availability / language downloads
+      setStatus('idle');
+      setInterim('');
     }
-    setStatus('idle');
-    setInterim('');
   }, []);
 
   useEffect(() => () => {
@@ -80,6 +104,7 @@ export function useInlineDictation(onFinalText: (text: string) => void) {
     }
     const session = ++sessionRef.current;
     activeRef.current = true;
+    committedIndicesRef.current = new Set<number>();
     setStatus('preparing');
     setError('');
     setInterim('');
@@ -123,15 +148,8 @@ export function useInlineDictation(onFinalText: (text: string) => void) {
       recognition.interimResults = true;
       recognition.onresult = event => {
         if (session !== sessionRef.current) return;
-        let finalText = '';
-        let interimText = '';
-        // Process only the changed results to avoid repeating earlier finalized words.
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const result = event.results[i];
-          if (result.isFinal) finalText += result[0].transcript;
-          else interimText += result[0].transcript;
-        }
-        if (finalText.trim()) onFinalRef.current(finalText.trim());
+        const { finalText, interimText } = extractSpeechResults(event, committedIndicesRef.current);
+        if (finalText) onFinalRef.current(finalText);
         setInterim(interimText);
       };
       recognition.onerror = event => {
