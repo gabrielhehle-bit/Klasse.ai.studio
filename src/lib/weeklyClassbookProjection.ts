@@ -1,5 +1,6 @@
 import {
   classifyKlassenbuchEntry,
+  canonicalKlassenbuchSubject,
   getKlassenbuchBaseCategories,
   orderKlassenbuchCategoryKeys,
 } from './klassenbuchSubjects';
@@ -79,11 +80,21 @@ export function projectWeeklyPlanToClassbook(
   const addLesson = (lesson: Lesson, day: string, hour: number, part?: '1. Hälfte' | '2. Hälfte', parent?: Lesson) => {
     const subject = text(lesson.fach) || text(parent?.fach)
       || text(options.stammplan?.[day]?.[hour]) || '';
-    const focuses = lesson.unterbereich
+    // A split lesson may switch subjects: never inherit the parent's German
+    // subareas into a Mathematics half (or vice versa). Explicit half-subareas
+    // and half-specific emphases take precedence over the parent.
+    const subjectFamily = canonicalKlassenbuchSubject(subject);
+    const changedSubject = Boolean(part && text(lesson.fach) && text(parent?.fach)
+      && subjectFamily !== canonicalKlassenbuchSubject(parent?.fach));
+    const rawFocuses: unknown[] = lesson.unterbereich
       ? [lesson.unterbereich]
       : (Array.isArray(lesson.schwerpunkte) && lesson.schwerpunkte.length
         ? lesson.schwerpunkte
-        : Array.isArray(parent?.schwerpunkte) ? parent.schwerpunkte : []);
+        : changedSubject ? [] : Array.isArray(parent?.schwerpunkte) ? parent.schwerpunkte : []);
+    const focuses = rawFocuses.filter(value => {
+      const family = canonicalKlassenbuchSubject(value);
+      return (family !== 'Deutsch' && family !== 'Mathematik') || family === subjectFamily;
+    });
     // Every typed free-text field is preserved, even if no subject was selected.
     const summary = formattedLesson(lesson, day, hour, part, parent, options.includeReflection !== false, options.materialTitlesById);
     const hasContent = [lesson.thema, lesson.lernziel, lesson.beschreibung,
