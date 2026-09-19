@@ -16,7 +16,8 @@ import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal'
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots } from '../lib/weeklyPlanData';
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
 import { getAttendanceSemester } from '../lib/attendanceData';
-import { downloadKlassenbuchDocx } from '../lib/klassenbuchDocx';
+import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
+import { splitKlassenbuchCategoryKey } from '../lib/klassenbuchSubjects';
 
 const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> = {
   'Deutsch': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
@@ -775,7 +776,6 @@ export default function WeeklyPlan() {
   const weekMetrics = useMemo(() => {
     let total = 0;
     let prepared = 0;
-    let missingMat = 0;
     const currentWeekPlan = app.wochenplanung?.[activeKW] || {};
     TAGE_NAMEN.forEach(tag => {
       for (let idx = 0; idx < MAX_LESSON_SLOTS; idx++) {
@@ -786,17 +786,13 @@ export default function WeeklyPlan() {
           if (item?.erledigt) {
             prepared++;
           }
-          if ((item?.fach || item?.thema) && !item?.material && (!item?.materialIds || item?.materialIds.length === 0) && (item?.type === 'standard' || !item?.type)) {
-            missingMat++;
-          }
         }
       }
     });
     return {
       total,
       prepared,
-      open: Math.max(0, total - prepared),
-      missingMat
+      open: Math.max(0, total - prepared)
     };
   }, [app.wochenplanung, app.stammplan, activeKW]);
 
@@ -935,224 +931,11 @@ export default function WeeklyPlan() {
     return { status: (holiday ? 'free' : 'school') as 'school' | 'free', isOverride: false, holidayName: holiday };
   };
 
-  const getKlassenbuchDataForKW = (targetKW: number) => {
-    const data: Record<string, string[]> = {
-      'Deutsch - Rechtschreiben': [],
-      'Deutsch - Sprachbetrachtung': [],
-      'Deutsch - Sprechen & Hören': [],
-      'Deutsch - Texte verfassen': [],
-      'Deutsch - Lesen': [],
-      'Deutsch - D-FÖ': [],
-      'Mathematik - Ebene & Raum': [],
-      'Mathematik - Zahlen & Daten': [],
-      'Mathematik - Größen': [],
-      'Mathematik - Operationen': [],
-      'Mathematik - Nicht zugeordnet': [],
-      'Förderung (FÖ)': [],
-      'Sachunterricht': [],
-      'BSP': [],
-      'Werken': [],
-      'Musik': [],
-      'Englisch': [],
-      'Zeichnen': [],
-      'Religion': [],
-      'Besondere Vorkommnisse': []
-    };
-
-    const weekPlan = (app.wochenplanung || {})[targetKW];
-    if (!weekPlan) return data;
-
-    const norm = (value: string) => (value || '').trim().toLocaleLowerCase('de-AT');
-    const isDeutsch = (f: string) => {
-      const value = norm(f);
-      return value === 'd' || value === 'de' || value === 'deutsch' || value.includes('deutsch');
-    };
-    const isMathe = (f: string) => {
-      const value = norm(f);
-      return value === 'm' || value === 'ma' || value === 'mathe' || value === 'mathematik' || value.includes('mathe') || value.includes('rechnen');
-    };
-    const isSU = (f: string) => {
-      const value = norm(f);
-      return value === 'su' || value === 'sachunterricht' || value.includes('sach');
-    };
-    const isBSP = (f: string) => {
-      const value = norm(f);
-      return value === 'bsp' || value === 'bs' || value === 'b&s' || value === 'sport' || value === 'turnen' || value.includes('sport') || value.includes('turnen') || value.includes('bewegung');
-    };
-    const isWerken = (f: string) => {
-      const value = norm(f);
-      return value === 'we' || value === 'tew' || value === 'txw' || value === 'werken' || value.includes('werk') || value.includes('technisch') || value.includes('textil');
-    };
-    const isMusik = (f: string) => {
-      const value = norm(f);
-      return value === 'me' || value === 'mu' || value === 'musik' || value === 'musikerziehung' || value.includes('musik') || value.includes('singen');
-    };
-    const isEnglisch = (f: string) => {
-      const value = norm(f);
-      return value === 'e' || value === 'eng' || value === 'englisch' || value.includes('engl') || value.includes('english');
-    };
-    const isZeichnen = (f: string) => {
-      const value = norm(f);
-      return value === 'be' || value === 'ze' || value === 'zeichnen' || value === 'bildnerische' || value.includes('zeichn') || value.includes('kunst') || value.includes('bildnerisch');
-    };
-    const isReligion = (f: string) => {
-      const value = norm(f);
-      return value === 'r' || value === 'rel' || value === 'religion' || value.includes('religion');
-    };
-    const isFoerderung = (f: string) => {
-      const value = norm(f).replace(/\s+/g, '');
-      return value === 'fö' || value === 'foe' || value === 'förderung' || value === 'foerderung' || value.includes('(förderung)') || value.includes('(foerderung)');
-    };
-
-    const pushEntry = (fachRaw: string, themaRaw: string, schwerpunkteRaw: string[] = [], prefix = '') => {
-      const fach = fachRaw || '';
-      const schwerpunkte = Array.isArray(schwerpunkteRaw) ? schwerpunkteRaw.filter(Boolean) : [];
-      const thema = String(themaRaw || '').trim();
-      if (!fach && !thema) return;
-      const textToPush = `${prefix}${thema || fach}`.trim();
-
-      if (isDeutsch(fach) || schwerpunkte.some(isDeutsch)) {
-        let matchedDeutsch = false;
-        const fachLower = norm(fach);
-        const focus = schwerpunkte.map(norm);
-        const hasRS = focus.some(value => value.includes('rechtschreib')) || fachLower.includes('rechtschreib') || fachLower === 'rs';
-        const hasSP = focus.some(value => value.includes('sprachbetracht') || value === 'deutsch (sprache)') || fachLower.includes('sprachbetracht') || fachLower === 'sp';
-        const hasSH = focus.some(value => value.includes('sprechen & hören') || value.includes('sprechen und hören')) || fachLower.includes('sprechen & hören') || fachLower.includes('sprechen und hören');
-        const hasVT = focus.some(value => value.includes('verfassen') || value.includes('texte')) || fachLower.includes('verfassen') || fachLower.includes('aufsatz') || fachLower === 'vt';
-        const hasL = focus.some(value => value.includes('lesen')) || fachLower.includes('lesen') || fachLower === 'l';
-        const hasDFO = fachLower.includes('d-fö') || fachLower.includes('d-fö') || focus.some(value => value.includes('deutsch (förderung)') || value === 'förderung' || value === 'd-fö');
-
-        if (hasRS) { data['Deutsch - Rechtschreiben'].push(textToPush); matchedDeutsch = true; }
-        if (hasSP) { data['Deutsch - Sprachbetrachtung'].push(textToPush); matchedDeutsch = true; }
-        if (hasSH) { data['Deutsch - Sprechen & Hören'].push(textToPush); matchedDeutsch = true; }
-        if (hasVT) { data['Deutsch - Texte verfassen'].push(textToPush); matchedDeutsch = true; }
-        if (hasL) { data['Deutsch - Lesen'].push(textToPush); matchedDeutsch = true; }
-        if (hasDFO) { data['Deutsch - D-FÖ'].push(textToPush); matchedDeutsch = true; }
-        if (!matchedDeutsch) data['Deutsch - Sprachbetrachtung'].push(textToPush);
-        return;
-      }
-
-      if (isMathe(fach) || schwerpunkte.some(value => isMathe(value) || isMatheSubSubject(value))) {
-        const focus = [fach, ...schwerpunkte].map(norm);
-        if (focus.some(value => value.includes('ebene & raum'))) data['Mathematik - Ebene & Raum'].push(textToPush);
-        else if (focus.some(value => value.includes('zahlen & daten'))) data['Mathematik - Zahlen & Daten'].push(textToPush);
-        else if (focus.some(value => value.includes('größen') || value.includes('groessen'))) data['Mathematik - Größen'].push(textToPush);
-        else if (focus.some(value => value.includes('operationen'))) data['Mathematik - Operationen'].push(textToPush);
-        else data['Mathematik - Nicht zugeordnet'].push(textToPush);
-        return;
-      }
-
-      if (isFoerderung(fach) || schwerpunkte.some(isFoerderung)) data['Förderung (FÖ)'].push(textToPush);
-      else if (isSU(fach)) data['Sachunterricht'].push(textToPush);
-      else if (isBSP(fach)) data['BSP'].push(textToPush);
-      else if (isWerken(fach)) data['Werken'].push(textToPush);
-      else if (isMusik(fach)) data['Musik'].push(textToPush);
-      else if (isEnglisch(fach)) data['Englisch'].push(textToPush);
-      else if (isZeichnen(fach)) data['Zeichnen'].push(textToPush);
-      else if (isReligion(fach)) data['Religion'].push(textToPush);
-      else data['Besondere Vorkommnisse'].push(fach ? `${fach}: ${textToPush}` : textToPush);
-    };
-
-    Object.keys(weekPlan).forEach(tag => {
-      if (!['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'].includes(tag)) return;
-      Object.keys(weekPlan[tag] || {}).forEach(idx => {
-        const numericIdx = parseInt(idx, 10);
-        if (!Number.isInteger(numericIdx)) return;
-        const item = weekPlan[tag][idx];
-        if (!item) return;
-
-        if (item.halves?.enabled) {
-          const first = item.halves.first || {};
-          const second = item.halves.second || {};
-          pushEntry(first.fach || item.fach || '', first.thema || '', first.unterbereich ? [first.unterbereich] : [], '1. Hälfte: ');
-          pushEntry(second.fach || item.fach || '', second.thema || '', second.unterbereich ? [second.unterbereich] : [], '2. Hälfte: ');
-          if (item.reflexion) data['Besondere Vorkommnisse'].push(`${tag}, ${numericIdx + 1}. Stunde – Reflexion: ${item.reflexion}`);
-          return;
-        }
-
-        const thema = [item.thema, item.reflexion].filter(Boolean).join(' - ');
-        pushEntry(item.fach || '', thema, item.schwerpunkte || []);
-      });
-    });
-
-    Object.keys(data).forEach(key => {
-      data[key] = Array.from(new Set(data[key].map(value => value.trim()).filter(Boolean)));
-    });
-
-    return data;
-  };
-
-  const getKlassenbuchData = () => getKlassenbuchDataForKW(activeKW);
-
-  const exportKlassenbuchDocx = async (range: 'week' | 'month' | 'semester' | 'schoolyear') => {
-    const allWeeks = buildSchoolYearWeekList(app.schuljahr, app.bundesland || 'VBG');
-    const activeSemester = getAttendanceSemester(
-      formatLocalDateKey(monday),
-      app.schuljahr || '',
-      app.bundesland || 'VBG',
-    );
-
-    let selectedWeeks = allWeeks.filter(week => week.kw === activeKW);
-    let rangeLabel = `KW ${activeKW}`;
-
-    if (range === 'month') {
-      selectedWeeks = allWeeks.filter(week =>
-        week.monday.getFullYear() === monday.getFullYear() &&
-        week.monday.getMonth() === monday.getMonth()
-      );
-      rangeLabel = monday.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
-    } else if (range === 'semester') {
-      selectedWeeks = allWeeks.filter(week =>
-        getAttendanceSemester(
-          formatLocalDateKey(week.monday),
-          app.schuljahr || '',
-          app.bundesland || 'VBG',
-        ) === activeSemester
-      );
-      rangeLabel = `${activeSemester}. Semester`;
-    } else if (range === 'schoolyear') {
-      selectedWeeks = allWeeks;
-      rangeLabel = `Schuljahr ${app.schuljahr || ''}`.trim();
-    }
-
-    const weeksWithContent = selectedWeeks.filter(week => Boolean((app.wochenplanung || {})[week.kw]));
-    const weeksToExport = weeksWithContent.length > 0
-      ? weeksWithContent
-      : selectedWeeks.slice(0, 1);
-
-    const sections = weeksToExport.map(week => {
-      const weekFriday = new Date(week.monday);
-      weekFriday.setDate(week.monday.getDate() + 4);
-      const from = week.monday.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      const to = weekFriday.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      return {
-        title: `KW ${week.kw} · ${from} – ${to}`,
-        subtitle: week.sw ? `Schulwoche ${week.sw}` : undefined,
-        categories: getKlassenbuchDataForKW(week.kw),
-      };
-    });
-
-    const teacherName = [app.anrede, app.vorname, app.nachname].filter(Boolean).join(' ');
-    const safeRange = rangeLabel
-      .normalize('NFKD')
-      .replace(/[^a-zA-Z0-9_-]+/g, '_')
-      .replace(/^_+|_+$/g, '');
-    const safeClass = (app.klassenbezeichnung || 'Klasse')
-      .normalize('NFKD')
-      .replace(/[^a-zA-Z0-9_-]+/g, '_')
-      .replace(/^_+|_+$/g, '');
-
-    await downloadKlassenbuchDocx(
-      `Klassio_Klassenbuch_${safeClass}_${safeRange || 'Export'}.docx`,
-      {
-        title: `Klassenbuch · ${rangeLabel}`,
-        className: app.klassenbezeichnung || '',
-        schoolYear: app.schuljahr || '',
-        teacherName,
-        sections,
-      },
-    );
-  };
+  // Klassenbuch-Ansicht und Druckzentrum nutzen dieselbe Projektion der gespeicherten Wochenplanung.
+  const getKlassenbuchData = () => projectWeeklyPlanToClassbook(
+    (app.wochenplanung || {})[activeKW],
+    { activeSubjects: app.faecher, stammplan: app.stammplan },
+  );
 
   const hasFreeDayInWeek = useMemo(() => {
     return [0, 1, 2, 3, 4].some(i => {
@@ -2073,16 +1856,6 @@ export default function WeeklyPlan() {
                   </button>
                 </div>
 
-                {/* Primary Action Button: + Planen */}
-                <button
-                  onClick={() => setShowQuickPlanModal(true)}
-                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
-                  title="Schnell neue Stunde oder Termin planen"
-                >
-                  <Plus size={16} strokeWidth={2.5} />
-                  <span>+ Planen</span>
-                </button>
-
                 {/* Primary Action Button: Wochenplan für Kinder erstellen */}
                 <button
                   onClick={() => setShowSchuelerWochenplanModal(true)}
@@ -2252,12 +2025,6 @@ export default function WeeklyPlan() {
                   <Check size={12} />
                   <span>{weekMetrics.prepared}/{weekMetrics.total} vorbereitet</span>
                 </span>
-                {weekMetrics.missingMat > 0 && (
-                  <span className="px-2.5 py-1 bg-rose-50 text-rose-800 border border-rose-200/80 rounded-xl font-bold text-[0.6875rem] flex items-center gap-1">
-                    <AlertTriangle size={12} />
-                    <span>{weekMetrics.missingMat} ohne Material</span>
-                  </span>
-                )}
               </div>
             </div>
 
@@ -2427,25 +2194,6 @@ export default function WeeklyPlan() {
                   <span>Im Druckzentrum öffnen</span>
                 </button>
 
-                <div className="flex flex-wrap justify-start gap-1.5 sm:justify-end" aria-label="Klassenbuch als Word-Dokument exportieren">
-                  {([
-                    ['week', 'Woche'],
-                    ['month', 'Monat'],
-                    ['semester', 'Semester'],
-                    ['schoolyear', 'Gesamt'],
-                  ] as const).map(([range, label]) => (
-                    <button
-                      key={range}
-                      type="button"
-                      onClick={() => void exportKlassenbuchDocx(range)}
-                      className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-[0.6875rem] font-black text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
-                      title={`Klassenbuch ${label} als echte DOCX-Datei exportieren`}
-                    >
-                      <Download size={13} />
-                      DOCX {label}
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-100/50 text-[0.75rem] leading-tight font-bold text-slate-700">
@@ -2472,27 +2220,10 @@ export default function WeeklyPlan() {
               <div className="divide-y divide-slate-100">
                 {(() => {
                   const kData = getKlassenbuchData();
-                  const subjectsToShow = [
-                    { key: 'Deutsch - Rechtschreiben', label: 'Deutsch - Rechtschreiben', sub: 'Rechtschreiben' },
-                    { key: 'Deutsch - Sprachbetrachtung', label: 'Deutsch - Sprachbetrachtung', sub: 'Sprache untersuchen und reflektieren' },
-                    { key: 'Deutsch - Sprechen & Hören', label: 'Deutsch - Sprechen & Hören', sub: 'Sprechen, Zuhören und Gespräche' },
-                    { key: 'Deutsch - Texte verfassen', label: 'Deutsch - Texte verfassen', sub: 'Texte verfassen' },
-                    { key: 'Deutsch - Lesen', label: 'Deutsch - Lesen', sub: 'Lesen' },
-                    { key: 'Deutsch - D-FÖ', label: 'Deutsch - D-FÖ', sub: 'Förderung' },
-                    { key: 'Mathematik - Ebene & Raum', label: 'Mathematik - Ebene & Raum', sub: 'Geometrie, Lagebeziehungen und Raumvorstellung' },
-                    { key: 'Mathematik - Zahlen & Daten', label: 'Mathematik - Zahlen & Daten', sub: 'Zahlenräume, Darstellungen und Daten' },
-                    { key: 'Mathematik - Größen', label: 'Mathematik - Größen', sub: 'Größen, Maße und Sachbezüge' },
-                    { key: 'Mathematik - Operationen', label: 'Mathematik - Operationen', sub: 'Rechenoperationen und Strategien' },
-                    { key: 'Mathematik - Nicht zugeordnet', label: 'Mathematik - nicht zugeordnet', sub: 'Historische Einträge ohne Unterbereich' },
-                    { key: 'Sachunterricht', label: 'Sachunterricht', sub: 'Natur, Gemeinschaft, Raum, Zeit, Wirtschaft, Technik' },
-                    { key: 'BSP', label: 'Bewegung und Sport (BSP)', sub: 'Spiel, Turnen, Bewegung und Sport' },
-                    { key: 'Werken', label: 'Werken (TEC/TEX)', sub: 'Technik und Textiles Gestalten' },
-                    { key: 'Musik', label: 'Musikerziehung (ME)', sub: 'Singen, Musizieren, Instrumente' },
-                    { key: 'Englisch', label: 'Fremdsprache Englisch', sub: 'Fremdsprachliche Begegnung' },
-                    { key: 'Zeichnen', label: 'Bildnerische Erziehung (BE)', sub: 'Zeichnen, Malen, Gestalten' },
-                    { key: 'Religion', label: 'Religionsunterricht (Rel)', sub: 'Konfessioneller Unterricht' },
-                    { key: 'Besondere Vorkommnisse', label: 'Besondere Vorkommnisse', sub: 'Supplierungen, Feste, Bemerkungen, Sonstiges' }
-                  ];
+                  const subjectsToShow = Object.keys(kData).map(key => {
+                    const { subject, subarea } = splitKlassenbuchCategoryKey(key);
+                    return { key, label: subject, sub: subarea || 'Unterrichtsinhalt' };
+                  });
 
                   return subjectsToShow.map(({ key, label, sub }) => {
                     const entries = kData[key] || [];
