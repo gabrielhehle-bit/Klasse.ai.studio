@@ -249,7 +249,11 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
 
     let pronounPrompt = '';
     if (pronounForm === 'sie_er') {
-      pronounPrompt = `Formuliere den Bericht in der 3. Person Singular (er bzw. sie), passend für ein Kind mit dem Geschlecht ${s.geschlecht === 'w' ? 'weiblich (sie/ihr)' : 'männlich (er/ihm)'}.`;
+      pronounPrompt = s.geschlecht === 'w'
+        ? 'Formuliere den Bericht in der 3. Person (sie/ihr).'
+        : s.geschlecht === 'm'
+          ? 'Formuliere den Bericht in der 3. Person (er/ihm).'
+          : 'Verwende die neutrale Formulierung „das Kind“, ohne Geschlecht oder Pronomen zu erraten.';
     } else if (pronounForm === 'du_direkt') {
       pronounPrompt = 'Formuliere den Bericht als direkte Ansprache in der Du-Form. Verwende keinen Namen.';
     } else if (pronounForm === 'formal_eltern') {
