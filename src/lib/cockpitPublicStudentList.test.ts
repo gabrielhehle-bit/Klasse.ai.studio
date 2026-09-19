@@ -12,7 +12,7 @@ test('öffentliche Schülerliste zeigt keine privaten Dossier-/Verhaltensangaben
     assert.doesNotMatch(source, new RegExp('(?:app\\.|student\\.|prev\\.|\\{)\\s*' + hiddenField));
   }
   assert.doesNotMatch(source, /student\.nachname/);
-  assert.doesNotMatch(source, /removeParticipation\(student\.id\)[\s\S]*?[-−]1/);
+  assert.doesNotMatch(source, /aria-label=.{0,80}(?:Minuspunkt|negatives Verhalten|Notiz vorhanden)/);
 });
 
 test('öffentliche Schülerliste korrigiert nur ein in dieser Ansicht bewusst vergebenes Plus', () => {
