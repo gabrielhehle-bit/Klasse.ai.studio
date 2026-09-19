@@ -55,14 +55,13 @@ const Materialbibliothek = lazyRetry(() => import('./components/Materialbiblioth
 const CanvaIntegration = lazyRetry(() => import('./components/CanvaIntegration'));
 const Drafts = lazyRetry(() => import('./components/Drafts'));
 const MeetingLogs = lazyRetry(() => import('./components/MeetingLogs'));
-const GradeOverview = lazyRetry(() => import('./components/GradeOverview'));
 const OrgaLists = lazyRetry(() => import('./components/OrgaLists'));
 const Statistics = lazyRetry(() => import('./components/Statistics'));
+const AntolinBereich = lazyRetry(() => import('./components/AntolinBereich'));
 const EmailAssistant = lazyRetry(() => import('./components/EmailAssistant'));
 const Differentiation = lazyRetry(() => import('./components/Differentiation'));
 const VerbalAssessment = lazyRetry(() => import('./components/VerbalAssessment'));
 const Portfolio = lazyRetry(() => import('./components/Portfolio'));
-const SubstitutionPlan = lazyRetry(() => import('./components/SubstitutionPlan'));
 const Archive = lazyRetry(() => import('./components/Archive'));
 const Backup = lazyRetry(() => import('./components/Backup'));
 const Settings = lazyRetry(() => import('./components/Settings'));
@@ -91,7 +90,7 @@ const Cockpit = lazyRetry(() => import('./components/Cockpit'));
 import PrintHeader from './components/PrintHeader';
 import AccessGate from './components/AccessGate';
 import { AnimatePresence, motion } from 'motion/react';
-import { Settings2, X, Mic, Sparkles, HelpCircle, Loader2 } from 'lucide-react';
+import { X, Mic, Sparkles, HelpCircle, Loader2 } from 'lucide-react';
 import { getKW, getTodayName, getAccentTextColor } from './lib/utils';
 const DiagnostikAnleitung = lazyRetry(() => import('./components/DiagnostikAnleitung'));
 const DataConsistencyModal = lazyRetry(() => import('./components/DataConsistencyModal'));
@@ -654,17 +653,19 @@ function AppContent() {
       case 'kel': return <KELGespraeche />;
       case 'elternbrief': return <EmailAssistant />;
       case 'orga': return <OrgaLists />;
-      case 'statistik': return <Statistics />;
-      case 'notenTabelle': return <GradeOverview />;
+      case 'statistik': return <Statistics initialTab="tools" />;
+      case 'antolin': return <AntolinBereich />;
+      // Old links remain valid; the same gradebook opens directly in its overview tab.
+      case 'notenTabelle': return <Gradebook initialSection="overview" />;
       case 'differenzierung': return <Differentiation />;
       case 'archiv': return <Archive />;
       case 'datensicherung': return <Backup />;
       case 'settings': return <Settings />;
       case 'arbeitsblatt': return <WorksheetGenerator />;
       case 'drucken': return <PrintCenter />;
-      case 'verbal': return <VerbalAssessment />;
+      case 'verbal': return <VerbalAssessment mode="formal" />;
       case 'portfolio': return <Portfolio />;
-      case 'vertretung': return <SubstitutionPlan />;
+      case 'vertretung': return <Uebergabemappe />;
       case 'jahresbericht': return <Jahresbericht />;
       case 'stimmnotizen': return <StimmNotizen />;
       case 'stationenbetrieb': return <StationenbetriebManager />;
@@ -718,7 +719,7 @@ function AppContent() {
       case 'verhalten': return 'Notizen';
       case 'jahresplanung': return 'Jahresplanung';
       case 'wochenplanung': return 'Wochenplanung';
-      case 'uebergabemappe': return 'Übergabemappe';
+      case 'uebergabemappe': return 'Vertretung & Übergabe';
       case 'materialien': return 'Materialbibliothek';
       case 'canva': return 'Canva';
       case 'stunden': return 'Stundenentwürfe';
@@ -729,11 +730,12 @@ function AppContent() {
       case 'elternbrief': return 'Elternbrief KI';
       case 'verbal': return 'Verbale Beurteilung';
       case 'orga': return 'Kasse & Orga';
-      case 'statistik': return 'Statistik';
-      case 'notenTabelle': return 'Notenübersicht';
+      case 'statistik': return 'Weitere Auswertungen';
+      case 'antolin': return 'Lesen & Antolin';
+      case 'notenTabelle': return 'Notenmappe';
       case 'portfolio': return 'Portfolio';
       case 'differenzierung': return 'Differenzierung KI';
-      case 'vertretung': return 'Vertretungsplan';
+      case 'vertretung': return 'Vertretung & Übergabe';
       case 'jahresbericht': return 'Jahresbericht';
       case 'stimmnotizen': return 'Stimm-Notizen';
       case 'stationenbetrieb': return 'Stationenbetrieb';
@@ -785,16 +787,6 @@ function AppContent() {
                   >
                     <HelpCircle size={14} className="text-indigo-500" />
                     <span className="hidden sm:inline">Anleitung</span>
-                  </button>
-                )}
-                {currentPage === 'dashboard' && (
-                  <button 
-                    onClick={() => window.dispatchEvent(new CustomEvent('open-dashboard-customize'))}
-                    className="flex items-center gap-1.5 p-2 px-3 rounded-xl bg-slate-50 border border-slate-200/65 text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 transition-all font-bold text-[0.75rem] shadow-sm active:scale-95 cursor-pointer"
-                    title="Dashboard-Layout anpassen"
-                  >
-                    <Settings2 size={14} className="text-accent" />
-                    <span className="hidden xl:inline">Anpassen</span>
                   </button>
                 )}
               </div>
