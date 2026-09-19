@@ -176,6 +176,8 @@ export default function Behavior() {
   const [chronikFilter, setChronikFilter] = useState<'all' | 'journal' | 'student'>('all');
   const [chronikSearch, setChronikSearch] = useState('');
   const [newEntryText, setNewEntryText] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week'>('all');
   const appendDictation = useCallback((text: string) => {
@@ -192,6 +194,8 @@ export default function Behavior() {
     dictation.stop();
     setSelectedStudentId('');
     setNewEntryText('');
+    setEditingNoteId(null);
+    setEditingNoteText('');
     setChronikSearch('');
     setCategoryFilter('');
     setDateFilter('all');
@@ -211,7 +215,7 @@ export default function Behavior() {
         if (dateFilter === 'today') return formatLocalDateKey(date) === todayKey;
         return date >= weekStart && date <= now;
       })
-      .sort((a, b) => new Date(b.datum).getTime() - new Date(a.datum).getTime());
+      .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || new Date(b.datum).getTime() - new Date(a.datum).getTime());
   }, [app.notes, app.schueler, chronikFilter, chronikSearch, categoryFilter, dateFilter]);
 
   const [showIconPicker, setShowIconPicker] = useState<number | null>(null);
@@ -370,8 +374,29 @@ export default function Behavior() {
     }));
   };
 
+  const togglePinNote = (id: string) => {
+    setApp(previous => ({
+      ...previous,
+      notes: (previous.notes || []).map(note => note.id === id ? { ...note, pinned: !note.pinned } : note),
+      journal: (previous.journal || []).map(note => note.id === id ? { ...note, pinned: !note.pinned } : note),
+    }));
+  };
+
+  const saveEditedNote = () => {
+    if (!editingNoteId || !editingNoteText.trim()) return;
+    const text = editingNoteText.trim();
+    setApp(previous => ({
+      ...previous,
+      notes: (previous.notes || []).map(note => note.id === editingNoteId ? { ...note, inhalt: text } : note),
+      journal: (previous.journal || []).map(note => note.id === editingNoteId ? { ...note, inhalt: text } : note),
+    }));
+    setEditingNoteId(null);
+    setEditingNoteText('');
+  };
+
   const deleteJournalEntry = (id: string) => {
     if (confirm('Eintrag wirklich löschen?')) {
+      if (editingNoteId === id) { setEditingNoteId(null); setEditingNoteText(''); }
       setApp(prev => ({ 
         ...prev, 
         notes: (prev.notes || []).filter(j => j.id !== id),
