@@ -284,6 +284,11 @@ async function main() {
     await clickSidebar(client, 'Wochenplan');
     await waitFor(client, 'weekly plan', 'document.body?.innerText.toLowerCase().includes("wochenplan")||document.body?.innerText.toLowerCase().includes("wochenplanung")');
 
+    // A sidebar route can become active before the lazy-loaded weekly grid
+    // finishes rendering. Wait for a real editable cell instead of clicking
+    // immediately and misreporting missing planning functionality.
+    await waitFor(client, 'weekly editing grid with an empty, schedulable cell',
+      'Array.from(document.querySelectorAll("svg.lucide-plus")).some(svg=>{let n=svg.parentElement;while(n&&n!==document.body){if(String(n.className||"").includes("group/cell"))return true;n=n.parentElement;}return false;})', 30000);
     await clickFirstSchedulableWeeklyCell(client);
     await waitFor(client, 'large weekly editor', 'document.body?.innerText.includes("Einheit planen")');
     const weeklyLarge = await evaluate(client,
