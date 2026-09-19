@@ -7,7 +7,7 @@ import { FAECHER_ALLE } from '../constants';
 import { Download, ArrowLeft, Users } from 'lucide-react';
 
 export default function GradeOverview({ embedded = false, onBack }: { embedded?: boolean; onBack?: () => void } = {}) {
-  const { app, setApp, setPage } = useApp();
+  const { app, setApp, setPage, switchClass } = useApp();
   const students = [...app.schueler].sort((a, b) => a.nachname.localeCompare(b.nachname, 'de'));
   const activeFaecher = (app.faecher && app.faecher.length > 0) ? app.faecher : FAECHER_ALLE;
 
@@ -195,6 +195,16 @@ export default function GradeOverview({ embedded = false, onBack }: { embedded?:
                       <Users size={28} aria-hidden="true" />
                       <strong className="text-base text-slate-900">In der aktuell ausgewählten Klasse sind keine Kinder vorhanden.</strong>
                       <span className="text-sm">Bitte prüfe oben die aktive Klasse. Falls du hier eigentlich eine Klasse mit Kindern erwartest, prüfe vor neuen Eingaben den geladenen Datenstand und die Datensicherung.</span>
+                      {app.classes?.filter(room => room.id !== app.activeClassId && (room.schueler?.length || 0) > 0).length > 0 && (
+                        <div className="flex flex-wrap justify-center gap-2 print:hidden" aria-label="Andere Klassen mit Kindern">
+                          {app.classes.filter(room => room.id !== app.activeClassId && (room.schueler?.length || 0) > 0).map(room => (
+                            <button key={room.id} type="button" onClick={() => switchClass(room.id)}
+                              className="rounded-xl border border-emerald-700 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900 hover:bg-emerald-100">
+                              {room.name} ({room.schueler.length} Kinder) öffnen
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       <button type="button" onClick={() => setPage('klasse')} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white print:hidden">Zur Klassenauswahl</button>
                     </div>
                   </td>
