@@ -45,3 +45,13 @@ test('old unstructured library content is never dropped', () => {
   const old = { titel: 'Notizen', inhaltText: 'Ganz ursprünglicher, freier Text' };
   assert.equal(lessonDraftFromMaterial(old).hauptteil, old.inhaltText);
 });
+
+test('saved detailed lesson is plain JSON and roundtrips without dropping additional legacy fields', () => {
+  const original = { fach: 'Mathematik', thema: 'Zehnerübergang', method: 'Vorhandener Ablauf',
+    housework: 'Seite 7', legacyAnnotation: 'Bitte erhalten',
+    stundenentwurf: { lernziele: 'Rechnen', einleitung: 'Würfel', hauptteil: 'Rechnen', schluss: 'Rückblick', material: 'Plättchen' } };
+  const restored = JSON.parse(JSON.stringify(original));
+  assert.deepEqual(restored, original);
+  assert.equal(restored.legacyAnnotation, 'Bitte erhalten');
+  assert.equal(restored.stundenentwurf.material, 'Plättchen');
+});
