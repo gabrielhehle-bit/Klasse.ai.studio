@@ -547,6 +547,7 @@ export default function Materialbibliothek() {
                     isSelected={selectedItems.includes(m.id)}
                     onToggleSelection={() => toggleSelection(m.id)}
                     onDelete={() => handleDelete(m.id)}
+                    onSendToWeekPlan={() => { setShowDetail(false); setWeekPlanMaterial(m); }}
                     viewMode="grid"
                   />
                 ))}
@@ -565,6 +566,7 @@ export default function Materialbibliothek() {
                     isSelected={selectedItems.includes(m.id)}
                     onToggleSelection={() => toggleSelection(m.id)}
                     onDelete={() => handleDelete(m.id)}
+                    onSendToWeekPlan={() => { setShowDetail(false); setWeekPlanMaterial(m); }}
                     viewMode="list"
                   />
                 ))}
@@ -652,7 +654,7 @@ export default function Materialbibliothek() {
   );
 }
 
-function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSelection, onDelete, viewMode }: { item: MaterialItem; onClick: () => void; onToggleFavorit: (e: React.MouseEvent, id: string) => void; isSelected?: boolean; onToggleSelection?: () => void; onDelete?: () => void; viewMode?: 'grid' | 'list' }) {
+function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSelection, onDelete, onSendToWeekPlan, viewMode }: { item: MaterialItem; onClick: () => void; onToggleFavorit: (e: React.MouseEvent, id: string) => void; isSelected?: boolean; onToggleSelection?: () => void; onDelete?: () => void; onSendToWeekPlan?: () => void; viewMode?: 'grid' | 'list' }) {
   const { app } = useApp();
   const zoomLevel = app.settings?.zoomLevel || 'standard';
   const isCompact = zoomLevel === 'compact';
@@ -729,8 +731,14 @@ function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSele
                
                {item.kiGeneriert && <Sparkles size={isCompact ? 12 : isLarge ? 18 : 14} className="text-emerald-500" />}
 
+               {onSendToWeekPlan && (
+                 <button type="button" onClick={event => { event.stopPropagation(); onSendToWeekPlan(); }}
+                   className="rounded-xl border border-indigo-200 px-3 py-2 text-xs font-black text-indigo-700 hover:bg-indigo-50">
+                   Im Wochenplan verwenden
+                 </button>
+               )}
                {onDelete && (
-                 <button 
+                 <button
                    onClick={(e) => { e.stopPropagation(); onDelete(); }}
                    className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-full transition-all opacity-0 group-hover:opacity-100 duration-200"
                    title="Löschen"
@@ -808,12 +816,24 @@ function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSele
         } ${isDarkHover ? 'text-slate-400 group-hover:text-zinc-350' : 'text-slate-400'}`}>{item.beschreibung}</p>
       </div>
 
+      {item.typ === 'datei' && item.dateiTyp === 'application/pdf' && (
+        <div className="flex aspect-video items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 text-sm font-black text-slate-600">
+          <FileText size={26} /> PDF · Vorschau öffnen
+        </div>
+      )}
       {item.typ === 'datei' && item.dateiTyp?.startsWith('image/') && item.dateiInhalt && (
         <div className={`aspect-video w-full rounded-2xl bg-slate-50 border border-slate-100`}>
           <img src={item.dateiInhalt} alt={item.titel} className="w-full h-full object-cover" />
         </div>
       )}
 
+      {(item.sammlungen || []).length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {item.sammlungen?.slice(0, 2).map(name => (
+            <span key={name} className="rounded-lg bg-indigo-50 px-2 py-1 text-xs font-semibold text-indigo-800">{name}</span>
+          ))}
+        </div>
+      )}
       <div className={`mt-auto pt-3 border-t transition-colors ${isDarkHover ? 'border-slate-50 group-hover:border-zinc-700' : 'border-slate-50'} space-y-3`}>
         <div className="flex flex-wrap gap-1.5">
           {item.faecher.slice(0, 2).map(f => (
@@ -832,6 +852,18 @@ function MaterialCard({ item, onClick, onToggleFavorit, isSelected, onToggleSele
               }`}>{s}</span>)}
            </div>
            {item.kiGeneriert && <Sparkles size={isCompact ? 10 : isLarge ? 14 : 12} className="text-emerald-500" />}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={event => { event.stopPropagation(); onClick(); }}
+            className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800 hover:bg-slate-50">
+            Vorschau
+          </button>
+          {onSendToWeekPlan && (
+            <button type="button" onClick={event => { event.stopPropagation(); onSendToWeekPlan(); }}
+              className="flex-1 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white hover:bg-indigo-700">
+              Im Wochenplan verwenden
+            </button>
+          )}
         </div>
       </div>
     </motion.div>
