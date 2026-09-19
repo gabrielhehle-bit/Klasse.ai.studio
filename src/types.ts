@@ -1288,6 +1288,13 @@ export interface AppState {
       generiert: string;
       schuljahr: string;
       reviewStatus?: 'freigegeben' | 'nacharbeiten' | 'offen';
+      /** Previous revisions remain in encrypted class state when a draft is replaced. */
+      verlauf?: {
+        inhalt: string;
+        generiert: string;
+        schuljahr: string;
+        reviewStatus?: 'freigegeben' | 'nacharbeiten' | 'offen';
+      }[];
     }
   };
   wochenrueckblick?: {
