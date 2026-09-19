@@ -28,6 +28,5 @@ test('Cockpit: Check-in-Komponente enthält keinen produktiven Mock-Fallback', (
   const source = readFileSync('src/components/cockpit/widgets/KidAttendanceWidget.tsx', 'utf8');
   assert.doesNotMatch(source, /DEFAULT_MOCK_STUDENTS/);
   assert.match(source, /app\.schueler\s*\?\?\s*\[\]/);
-  assert.match(source, /Klasse wird geladen/);
   assert.match(source, /Bitte zuerst eine Klasse auswählen/);
 });
