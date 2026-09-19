@@ -64,11 +64,11 @@ export const DossierFoerderung: React.FC<DossierFoerderungProps> = ({
 
   // Active vs completed goals
   const activeGoals = useMemo(() => {
-    return allGoals.filter((g: any) => g.status === 'offen' || g.status === 'in_arbeit');
+    return allGoals.filter((g: any) => g.status === 'offen' || g.status === 'in_arbeit' || g.status === 'in Arbeit');
   }, [allGoals]);
 
   const completedGoals = useMemo(() => {
-    return allGoals.filter((g: any) => g.status === 'erreicht' || g.status === 'abgebrochen');
+    return allGoals.filter((g: any) => g.status === 'erreicht' || g.status === 'abgebrochen' || g.status === 'verworfen');
   }, [allGoals]);
 
   // Collapsible state for completed goals
