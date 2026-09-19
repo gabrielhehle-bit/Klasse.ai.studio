@@ -278,7 +278,9 @@ export default function PrintCenter() {
   const [childPrintColorMode, setChildPrintColorMode] = useState<'color' | 'mono'>('color');
   const childPlans = Object.values(app?.schuelerWochenplaene || {});
   const selectedChildPlan = childPlans.find(plan => plan.id === childPlanId)
-    || childPlans.find(plan => plan.kw === (app.currentKW || wpKW)) || childPlans[0];
+    || childPlans.filter(plan => plan.kw === (app.currentKW || wpKW))
+      .sort((a, b) => String(b.aktualisiertAm).localeCompare(String(a.aktualisiertAm)))[0]
+    || childPlans[0];
 
   // D. Klassenbuch Wochenbericht Options
   const [kbKW, setKbKW] = useState<number>(fallbackPlanningKW);
@@ -645,6 +647,10 @@ export default function PrintCenter() {
 
   // Automatically update orientation default based on selected template
   useEffect(() => {
+    if (activeTemplate === 'schueler_wochenplan') {
+      setPrintOrientation(selectedChildPlan?.orientierung === 'landscape' ? 'landscape' : 'portrait');
+      return;
+    }
     if (activeTemplate === 'klassenbuch') {
       setPrintOrientation('portrait');
       setPrintMargin(8.5);
@@ -669,7 +675,7 @@ export default function PrintCenter() {
     } else {
       setPrintOrientation('portrait');
     }
-  }, [activeTemplate, bypassOrientationAutoSet]);
+  }, [activeTemplate, bypassOrientationAutoSet, selectedChildPlan?.orientierung]);
 
   // Automatically adjust zoom when orientation changes, ensuring standard default fits nicely
   useEffect(() => {
