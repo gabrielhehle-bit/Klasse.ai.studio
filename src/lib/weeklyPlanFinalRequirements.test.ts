@@ -96,8 +96,9 @@ test('Wochenplanung: eine Unterrichtseinheit kann in zwei gleich große Hälften
   assert.match(weekly, /Erste Hälfte/);
   assert.match(weekly, /Zweite Hälfte/);
   assert.match(weekly, /halves: tempSplitLesson/);
-  assert.match(weekly, /1\. Hälfte:/);
-  assert.match(weekly, /2\. Hälfte:/);
+  const projection = readFileSync('src/lib/weeklyClassbookProjection.ts', 'utf8');
+  assert.match(projection, /'1\\. Hälfte'/);
+  assert.match(projection, /'2\\. Hälfte'/);
 });
 
 test('Klassenbuch: DOCX-Ausgabe erfolgt im Druckzentrum, nicht in der Planungsansicht', () => {
