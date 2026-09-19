@@ -13,9 +13,11 @@ const globalActions = readFileSync('src/components/GlobalActions.tsx', 'utf8');
 
 test('new or reopened app starts on Heute exactly once; existing cockpit may be opened deliberately', () => {
   assert.match(state, /currentPage: 'dashboard',\s*previousPage: 'dashboard'/);
-  assert.match(app, /const \[initialLandingPending, setInitialLandingPending\] = useState\(true\)/);
-  assert.match(app, /\(initialLandingPending \|\| landOnDashboardAfterLogin\)/);
-  assert.match(app, /setInitialLandingPending\(false\)/);
+
+
+
+  assert.match(app, /landOnDashboardAfterLogin \? 'dashboard'/);
+  assert.match(app, /sessionStorage\.removeItem\('klassio_after_login'\)/);
   assert.match(app, /case 'cockpit': return null/);
   assert.match(app, /currentPage === 'cockpit' &&/);
   assert.doesNotMatch(state, /forceCockpit/);
