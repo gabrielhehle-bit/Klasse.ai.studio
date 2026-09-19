@@ -13,6 +13,7 @@ export type ClassbookProjectionOptions = {
   stammplan?: Record<string, Record<number, string>>;
   includeReflection?: boolean;
   includeEvents?: boolean;
+  materialTitlesById?: Record<string, string>;
 };
 const WEEKDAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
 const text = (value: unknown): string => typeof value === 'string' ? value.trim() : '';
@@ -24,6 +25,7 @@ function formattedLesson(
   part?: '1. Hälfte' | '2. Hälfte',
   parent?: Lesson,
   includeReflection = true,
+  materialTitlesById: Record<string, string> = {},
 ): string {
   const common = parent || lesson;
   const content: string[] = [];
@@ -34,7 +36,11 @@ function formattedLesson(
   // The hour and optional half are part of each entry: two identical lessons
   // on different days/hours must not collapse into one.
   const slotLabel = `${day}, ${hour}. Stunde${part ? ` · ${part}` : ''}`;
-  add('Unterricht', lesson.thema);
+  add('Unterricht', lesson.thema || (parent && part ? parent.thema : ''));
+  add('Zeit', lesson.zeit || common.zeit);
+  const lessonType = text(lesson.type || common.type);
+  if (lessonType && lessonType !== 'standard') add('Art', lessonType);
+  if (!part && Number(common.duration) > 1) add('Dauer', `${common.duration} Stunden`);
   // These fields are present in the legacy, imported and current editors.
   add('Lernziel', lesson.lernziel || common.lernziel);
   add('Beschreibung', lesson.beschreibung || common.beschreibung);
@@ -47,8 +53,9 @@ function formattedLesson(
   if (includeReflection) add('Reflexion', lesson.reflexion || common.reflexion);
   const ids = Array.isArray(lesson.materialIds) ? lesson.materialIds
     : Array.isArray(common.materialIds) ? common.materialIds : [];
-  if (ids.length && !text(lesson.material || common.material)) {
-    content.push(`Verknüpfte Materialien: ${ids.length}`);
+  if (ids.length) {
+    const names = ids.map(id => materialTitlesById[id]).filter(Boolean);
+    content.push(`Verknüpfte Materialien: ${names.length ? names.join(', ') : ids.length}`);
   }
   if (!content.length) content.push('Kein Unterrichtsinhalt eingetragen');
   return `${slotLabel} · ${content.join(' · ')}`;
@@ -78,11 +85,12 @@ export function projectWeeklyPlanToClassbook(
         ? lesson.schwerpunkte
         : Array.isArray(parent?.schwerpunkte) ? parent.schwerpunkte : []);
     // Every typed free-text field is preserved, even if no subject was selected.
-    const summary = formattedLesson(lesson, day, hour, part, parent, options.includeReflection !== false);
+    const summary = formattedLesson(lesson, day, hour, part, parent, options.includeReflection !== false, options.materialTitlesById);
     const hasContent = [lesson.thema, lesson.lernziel, lesson.beschreibung,
       lesson.material, lesson.housework, lesson.hue, lesson.method, lesson.notiz,
-      lesson.notizen, lesson.reflexion, parent?.thema, parent?.material, parent?.housework].some(v => text(v))
-      || (Array.isArray(lesson.materialIds) && lesson.materialIds.length > 0);
+      lesson.notizen, lesson.reflexion, lesson.zeit, parent?.thema, parent?.material, parent?.housework].some(v => text(v))
+      || (Array.isArray(lesson.materialIds) && lesson.materialIds.length > 0)
+      || (Array.isArray(parent?.materialIds) && parent.materialIds.length > 0);
     if (!subject && !hasContent) return;
     const matched = classifyKlassenbuchEntry(subject, focuses);
     if (!matched.length) {
