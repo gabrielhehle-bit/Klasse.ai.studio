@@ -948,6 +948,18 @@ export interface StatusHistory {
   comment?: string;
 }
 
+/** A named, encrypted-with-the-app snapshot of one class's room arrangement.
+ * References only student IDs; never embeds duplicate personal records.
+ */
+export interface SavedSeatingLayout {
+  id: string;
+  name: string;
+  positions: Record<string, { x: number; y: number }>;
+  objects: any[];
+  rules?: SitzplanRegel[];
+  createdAt: string;
+}
+
 export interface ClassRoom {
   /** Zero-knowledge Teamteaching metadata. This metadata remains local and is stripped before class encryption. */
   teamTeaching?: {
@@ -1047,6 +1059,8 @@ export interface ClassRoom {
   lastGroups?: string[][];
   sitzplan_schueler: Record<string, { x: number; y: number }>;
   sitzplan_objekte: any[];
+  sitzplanLayouts?: SavedSeatingLayout[];
+  sitzplanDefaultLayoutId?: string;
   sitzplanRegeln?: SitzplanRegel[];
   tageplan?: Record<string, any>;
   faecher?: string[];
@@ -1332,6 +1346,8 @@ export interface AppState {
   stammplan: Record<string, Record<number, string>>;
   sitzplan_schueler: Record<string, { x: number; y: number }>;
   sitzplan_objekte: any[];
+  sitzplanLayouts?: SavedSeatingLayout[];
+  sitzplanDefaultLayoutId?: string;
   orga_listen: any[];
   sue_kontrolle: Record<string, Record<string, string>>;
   gruppen: string[];

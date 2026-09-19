@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { berechne, getAssessmentMode } from '../lib/GradeUtils';
 import { fitSeatingPlanViewport } from '../lib/seatingPlanViewport';
+import { createSeatingLayout, resolveSeatingLayout, sameSeatingArrangement } from '../lib/seatingPlanLayouts';
 import SeatingPlanAnalysis from './SeatingPlanAnalysis';
 import { areSeatingNeighbors, classifySeatPositions, findSeatingRuleViolations, sanitizeSeatingRules, sameSeat } from '../lib/seatingPlanRules';
 import { getLocalDateKey, getSeatingPlanAbsentStudents, isStudentAbsentOnDate, orderStudentsByComplementaryLevels } from '../lib/seatingPlanData';
@@ -1353,6 +1354,60 @@ const getStudentsOnTable = (obj: any, studentPositions: Record<string, { x: numb
   return studentsOnTable;
 };
 
+function SeatingMiniPreview({
+  title, positions, objects, students
+}: {
+  title: string;
+  positions: Record<string, { x: number; y: number }>;
+  objects: any[];
+  students: Array<{ id: string; vorname: string }>;
+}) {
+  const visible = students.filter(child => positions[child.id]);
+  const rectangles = [
+    ...visible.map(child => ({ ...positions[child.id], w: 112, h: 72 })),
+    ...objects.map(object => ({
+      x: Number(object.x) || 0, y: Number(object.y) || 0,
+      w: Number(object.w) || 100, h: Number(object.h) || 60,
+    })),
+  ];
+  const left = Math.min(0, ...rectangles.map(rect => rect.x)) - 20;
+  const top = Math.min(0, ...rectangles.map(rect => rect.y)) - 20;
+  const right = Math.max(600, ...rectangles.map(rect => rect.x + rect.w)) + 20;
+  const bottom = Math.max(400, ...rectangles.map(rect => rect.y + rect.h)) + 20;
+
+  return (
+    <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-2">
+      <p className="mb-1 text-xs font-bold text-slate-700">
+        {title} · {visible.length} Kinder · {objects.length} Raumobjekte
+      </p>
+      <svg role="img" aria-label={`Vorschau: ${title}`}
+        viewBox={`${left} ${top} ${right - left} ${bottom - top}`}
+        className="h-36 w-full rounded-lg border border-slate-100 bg-slate-50">
+        {objects.map((object, index) => (
+          <rect key={object.id || index}
+            x={Number(object.x) || 0} y={Number(object.y) || 0}
+            width={Math.max(2, Number(object.w) || 100)}
+            height={Math.max(2, Number(object.h) || 60)}
+            rx="5" fill="#e2e8f0" stroke="#64748b" strokeWidth="1.5" />
+        ))}
+        {visible.map(child => {
+          const pos = positions[child.id];
+          return (
+            <g key={child.id}>
+              <rect x={pos.x} y={pos.y} width="112" height="72" rx="12"
+                fill="#fff" stroke="#6366f1" strokeWidth="1.5" />
+              <text x={pos.x + 56} y={pos.y + 40} textAnchor="middle"
+                fill="#1e293b" fontSize="12" fontWeight="700">
+                {child.vorname.length > 12 ? child.vorname.slice(0, 11) + '…' : child.vorname}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 export default function SeatingPlan() {
   const { app, setApp, setPage } = useApp();
   const [selectedObjId, setSelectedObjId] = useState<string | null>(null);
@@ -1370,6 +1425,9 @@ export default function SeatingPlan() {
   const autoFitAllowed = useRef(true);
   const [showPrivateDetails, setShowPrivateDetails] = useState(false);
   const [showMoreTools, setShowMoreTools] = useState(false);
+  const [selectedSavedLayoutId, setSelectedSavedLayoutId] = useState('');
+  const [showSeatingComparison, setShowSeatingComparison] = useState(false);
+  const [refitSavedLayoutSignal, setRefitSavedLayoutSignal] = useState(0);
   const [editMode, setEditMode] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
 
@@ -1424,6 +1482,8 @@ export default function SeatingPlan() {
     setSelectedObjId(null);
     setShowPrivateDetails(false);
     setShowMoreTools(false);
+    setSelectedSavedLayoutId(app.sitzplanDefaultLayoutId || '');
+    setShowSeatingComparison(false);
     setOverlayFilter('standard');
     setShowGenerator(false);
     setShowRulesModal(false);
@@ -1461,12 +1521,14 @@ export default function SeatingPlan() {
   const [history, setHistory] = useState<{
     sitzplan_schueler: Record<string, { x: number; y: number }>;
     sitzplan_objekte: any[];
+    sitzplanRegeln: typeof app.sitzplanRegeln;
   }[]>([]);
 
   const pushState = () => {
     setHistory(prev => {
       const currentSchueler = { ...(app.sitzplan_schueler || {}) };
       const currentObjekte = (app.sitzplan_objekte || []).map(obj => ({ ...obj }));
+      const currentRules = JSON.parse(JSON.stringify(app.sitzplanRegeln || []));
       
       const last = prev[prev.length - 1];
       if (last) {
@@ -1475,7 +1537,7 @@ export default function SeatingPlan() {
         const currentSchuelerStr = JSON.stringify(currentSchueler);
         const currentObjekteStr = JSON.stringify(currentObjekte);
         
-        if (lastSchuelerStr === currentSchuelerStr && lastObjekteStr === currentObjekteStr) {
+        if (lastSchuelerStr === currentSchuelerStr && lastObjekteStr === currentObjekteStr && JSON.stringify(last.sitzplanRegeln || []) === JSON.stringify(currentRules)) {
           return prev;
         }
       }
@@ -1483,7 +1545,8 @@ export default function SeatingPlan() {
         ...prev,
         {
           sitzplan_schueler: currentSchueler,
-          sitzplan_objekte: currentObjekte
+          sitzplan_objekte: currentObjekte,
+          sitzplanRegeln: currentRules
         }
       ].slice(-40); // Keep last 40 states
     });
@@ -1496,7 +1559,8 @@ export default function SeatingPlan() {
     setApp(prev => ({
       ...prev,
       sitzplan_schueler: previous.sitzplan_schueler,
-      sitzplan_objekte: previous.sitzplan_objekte
+      sitzplan_objekte: previous.sitzplan_objekte,
+      sitzplanRegeln: previous.sitzplanRegeln ?? prev.sitzplanRegeln
     }));
   };
 
@@ -1732,6 +1796,13 @@ export default function SeatingPlan() {
     if (viewport) observer?.observe(viewport);
     return () => { cancelAnimationFrame(frame); observer?.disconnect(); };
   }, [app.activeClassId, isPlanEmpty]);
+
+  React.useEffect(() => {
+    if (refitSavedLayoutSignal === 0) return;
+    autoFitAllowed.current = true;
+    const frame = requestAnimationFrame(() => fitRoomToScreen());
+    return () => cancelAnimationFrame(frame);
+  }, [refitSavedLayoutSignal]);
 
   const updateViewZoom = (next: number) => {
     const viewport = planRef.current;
@@ -2226,6 +2297,87 @@ export default function SeatingPlan() {
     }
 
     return '#ffffff';
+  };
+
+  // Named arrangements belong to the encrypted active class, not localStorage.
+  const savedLayouts = Array.isArray(app.sitzplanLayouts)
+    ? app.sitzplanLayouts.filter(layout => layout && typeof layout.id === 'string' && typeof layout.name === 'string')
+    : [];
+  const selectedSavedLayout = savedLayouts.find(layout => layout.id === selectedSavedLayoutId);
+
+  const nextLayoutId = () => typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID() : `seat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const saveCurrentArrangement = () => {
+    if (savedLayouts.length >= 20) {
+      window.alert('Es können höchstens 20 Sitzordnungen pro Klasse gespeichert werden.');
+      return;
+    }
+    const suggested = `Sitzordnung ${savedLayouts.length + 1}`;
+    const requested = window.prompt('Name der Sitzordnung:', suggested);
+    const name = requested?.trim();
+    if (!name) return;
+    const id = nextLayoutId();
+    const snapshot = createSeatingLayout(id, name, app.sitzplan_schueler || {},
+      app.sitzplan_objekte || [], app.sitzplanRegeln || []);
+    setApp(previous => ({ ...previous, sitzplanLayouts: [...(previous.sitzplanLayouts || []), snapshot] }));
+    setSelectedSavedLayoutId(id);
+    setShowSeatingComparison(false);
+  };
+
+  const loadSavedArrangement = () => {
+    if (!selectedSavedLayout) return;
+    const currentPositions = app.sitzplan_schueler || {};
+    const currentFurniture = app.sitzplan_objekte || [];
+    const currentRules = app.sitzplanRegeln || [];
+    if (!sameSeatingArrangement(selectedSavedLayout, currentPositions, currentFurniture, currentRules)
+      && !window.confirm('Die gespeicherte Sitzordnung ersetzt den aktuellen Raum. Nicht gespeicherte Änderungen können über Rückgängig wiederhergestellt werden. Fortfahren?')) return;
+    const resolved = resolveSeatingLayout(selectedSavedLayout, app.schueler.map(child => child.id));
+    pushState();
+    setApp(previous => ({
+      ...previous,
+      sitzplan_schueler: resolved.positions,
+      sitzplan_objekte: resolved.objects,
+      sitzplanRegeln: resolved.rules
+        ? sanitizeSeatingRules(resolved.rules, previous.schueler, resolved.positions)
+        : previous.sitzplanRegeln,
+    }));
+    setSelectedObjId(null);
+    setShowSeatingComparison(false);
+    setRefitSavedLayoutSignal(previous => previous + 1);
+  };
+
+  const duplicateSavedArrangement = () => {
+    if (!selectedSavedLayout) return;
+    if (savedLayouts.length >= 20) {
+      window.alert('Es können höchstens 20 Sitzordnungen pro Klasse gespeichert werden.');
+      return;
+    }
+    const requested = window.prompt('Name der neuen Kopie:', `${selectedSavedLayout.name} – Kopie`);
+    if (!requested?.trim()) return;
+    const copy = createSeatingLayout(nextLayoutId(), requested, selectedSavedLayout.positions,
+      selectedSavedLayout.objects, selectedSavedLayout.rules || []);
+    setApp(previous => ({ ...previous, sitzplanLayouts: [...(previous.sitzplanLayouts || []), copy] }));
+    setSelectedSavedLayoutId(copy.id);
+    setShowSeatingComparison(false);
+  };
+
+  const setDefaultSavedArrangement = () => {
+    if (!selectedSavedLayout) return;
+    setApp(previous => ({ ...previous, sitzplanDefaultLayoutId: selectedSavedLayout.id }));
+  };
+
+  const removeSavedArrangement = () => {
+    if (!selectedSavedLayout || !window.confirm(`Gespeicherte Sitzordnung „${selectedSavedLayout.name}“ löschen? Der aktuelle Sitzplan bleibt erhalten.`)) return;
+    const removedId = selectedSavedLayout.id;
+    setApp(previous => ({
+      ...previous,
+      sitzplanLayouts: (previous.sitzplanLayouts || []).filter(layout => layout.id !== removedId),
+      sitzplanDefaultLayoutId: previous.sitzplanDefaultLayoutId === removedId
+        ? undefined : previous.sitzplanDefaultLayoutId,
+    }));
+    setSelectedSavedLayoutId('');
+    setShowSeatingComparison(false);
   };
 
   const addObject = (type: 'rectangle' | 'square' | 'triangle' | 'teacher_desk' | 'door' | 'window' | 'blackboard') => {
@@ -2916,6 +3068,71 @@ export default function SeatingPlan() {
           <div className="w-px h-6 bg-slate-200 mx-1" />
         </div>
       </div>
+      )}
+
+      {/* Named layouts – only the planning view may replace working seat positions. */}
+      {editMode && !presentationMode && (
+        <section className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm print:hidden"
+          aria-label="Gespeicherte Sitzordnungen">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-extrabold text-slate-800">Gespeicherte Sitzordnungen</span>
+            <select value={selectedSavedLayoutId}
+              aria-label="Gespeicherte Sitzordnung auswählen"
+              onChange={event => { setSelectedSavedLayoutId(event.target.value); setShowSeatingComparison(false); }}
+              className="min-w-48 max-w-full flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-semibold text-slate-800">
+              <option value="">Sitzordnung auswählen ({savedLayouts.length})</option>
+              {savedLayouts.map(layout => (
+                <option key={layout.id} value={layout.id}>
+                  {layout.name}{layout.id === app.sitzplanDefaultLayoutId ? ' ★ Standard' : ''}
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={saveCurrentArrangement}
+              className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700">
+              + Aktuelle speichern
+            </button>
+            {selectedSavedLayout && (
+              <>
+                <button type="button" onClick={() => setShowSeatingComparison(open => !open)}
+                  aria-expanded={showSeatingComparison}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                  {showSeatingComparison ? 'Vergleich schließen' : 'Vergleichen'}
+                </button>
+                <button type="button" onClick={loadSavedArrangement}
+                  className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+                  Sitzordnung laden
+                </button>
+                <button type="button" onClick={setDefaultSavedArrangement}
+                  aria-pressed={app.sitzplanDefaultLayoutId === selectedSavedLayout.id}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                  {app.sitzplanDefaultLayoutId === selectedSavedLayout.id ? '★ Standard' : 'Als Standard'}
+                </button>
+                <button type="button" onClick={duplicateSavedArrangement}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                  Duplizieren
+                </button>
+                <button type="button" onClick={removeSavedArrangement}
+                  className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50">
+                  Gespeicherte löschen
+                </button>
+              </>
+            )}
+          </div>
+          <p className="mt-1 text-[0.6875rem] text-slate-500">
+            Das Laden ersetzt den aktuellen Raum erst nach Bestätigung. Gespeicherte Varianten bleiben beim Klassenwechsel und im verschlüsselten Backup erhalten.
+          </p>
+          {showSeatingComparison && selectedSavedLayout && (
+            <div className="mt-3 grid grid-cols-1 gap-3 rounded-xl bg-slate-50 p-2 sm:grid-cols-2"
+              aria-label="Aktuelle und gespeicherte Sitzordnung vergleichen">
+              <SeatingMiniPreview title="Aktueller Sitzplan"
+                positions={app.sitzplan_schueler || {}} objects={app.sitzplan_objekte || []}
+                students={app.schueler} />
+              <SeatingMiniPreview title={selectedSavedLayout.name}
+                positions={selectedSavedLayout.positions || {}} objects={selectedSavedLayout.objects || []}
+                students={app.schueler} />
+            </div>
+          )}
+        </section>
       )}
 
       {/* Main Canvas Area */}

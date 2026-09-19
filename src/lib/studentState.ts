@@ -1,3 +1,4 @@
+import { omitStudentFromSeatingLayouts } from './seatingPlanLayouts';
 import type { AppState } from '../types';
 
 function omitKey<T extends Record<string, any> | undefined>(record: T, key: string): T {
@@ -35,6 +36,7 @@ export function removeStudentFromAppState(state: AppState, studentId: string): A
     behavior_notes: omitKey(state.behavior_notes, studentId),
     sue_kontrolle: omitKey(state.sue_kontrolle, studentId) || {},
     sitzplan_schueler: omitKey(state.sitzplan_schueler, studentId) || {},
+    sitzplanLayouts: omitStudentFromSeatingLayouts(state.sitzplanLayouts, studentId),
     studentLernzielBewertungen: omitKey(state.studentLernzielBewertungen, studentId),
     studentLernzielSemesterBewertungen: omitKey(state.studentLernzielSemesterBewertungen, studentId),
     schuelerNotizen: omitKey(state.schuelerNotizen, studentId),

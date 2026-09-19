@@ -29,6 +29,7 @@ export const initialAppState: AppState = {
   stammplan: {},
   sitzplan_schueler: {},
   sitzplan_objekte: [],
+  sitzplanLayouts: [],
   orga_listen: [],
   customLists: [],
   studentDevelopmentLists: [],
@@ -246,6 +247,8 @@ export function syncActiveClass(state: AppState): AppState {
     lastGroups: state.lastGroups,
     sitzplan_schueler: state.sitzplan_schueler ? JSON.parse(JSON.stringify(state.sitzplan_schueler)) : {},
     sitzplan_objekte: state.sitzplan_objekte ? JSON.parse(JSON.stringify(state.sitzplan_objekte)) : [],
+    sitzplanLayouts: state.sitzplanLayouts ? JSON.parse(JSON.stringify(state.sitzplanLayouts)) : [],
+    sitzplanDefaultLayoutId: state.sitzplanDefaultLayoutId,
     sitzplanRegeln: state.sitzplanRegeln ? JSON.parse(JSON.stringify(state.sitzplanRegeln)) : [],
     tageplan: state.tageplan ? JSON.parse(JSON.stringify(state.tageplan)) : undefined,
     faecher: state.faecher ? [...state.faecher] : undefined,
@@ -376,6 +379,8 @@ export function normalizeAppState(raw: any): AppState {
       sue_kontrolle: parsed.sue_kontrolle || {},
       sitzplan_schueler: parsed.sitzplan_schueler || {},
       sitzplan_objekte: parsed.sitzplan_objekte || [],
+      sitzplanLayouts: Array.isArray(parsed.sitzplanLayouts) ? parsed.sitzplanLayouts : [],
+      sitzplanDefaultLayoutId: parsed.sitzplanDefaultLayoutId,
       sitzplanRegeln: parsed.sitzplanRegeln || [],
       tageplan: parsed.tageplan || DEFAULT_TAGEPLAN,
       faecher: parsed.faecher || FAECHER_ALLE,
@@ -480,6 +485,12 @@ export function normalizeAppState(raw: any): AppState {
         sue_kontrolle: c.sue_kontrolle || {},
         sitzplan_schueler: c.sitzplan_schueler || {},
         sitzplan_objekte: c.sitzplan_objekte || [],
+        sitzplanLayouts: Array.isArray(c.sitzplanLayouts)
+          ? c.sitzplanLayouts
+          : c.id === parsed.activeClassId && Array.isArray(parsed.sitzplanLayouts)
+            ? parsed.sitzplanLayouts : [],
+        sitzplanDefaultLayoutId: c.sitzplanDefaultLayoutId ??
+          (c.id === parsed.activeClassId ? parsed.sitzplanDefaultLayoutId : undefined),
         sitzplanRegeln: c.sitzplanRegeln,
         tageplan: c.tageplan || DEFAULT_TAGEPLAN,
         faecher: c.faecher || FAECHER_ALLE,
@@ -605,6 +616,8 @@ export function normalizeAppState(raw: any): AppState {
     parsed.sue_kontrolle = activeClass.sue_kontrolle;
     parsed.sitzplan_schueler = activeClass.sitzplan_schueler;
     parsed.sitzplan_objekte = activeClass.sitzplan_objekte;
+    parsed.sitzplanLayouts = activeClass.sitzplanLayouts || [];
+    parsed.sitzplanDefaultLayoutId = activeClass.sitzplanDefaultLayoutId;
     parsed.sitzplanRegeln = activeClass.sitzplanRegeln || [];
     parsed.tageplan = activeClass.tageplan;
     parsed.faecher = activeClass.faecher;
@@ -862,6 +875,8 @@ export function switchClassState(prev: AppState, id: string): AppState {
     sue_kontrolle: targetClass.sue_kontrolle || {},
     sitzplan_schueler: targetClass.sitzplan_schueler || {},
     sitzplan_objekte: targetClass.sitzplan_objekte || [],
+    sitzplanLayouts: targetClass.sitzplanLayouts ? JSON.parse(JSON.stringify(targetClass.sitzplanLayouts)) : [],
+    sitzplanDefaultLayoutId: targetClass.sitzplanDefaultLayoutId,
     sitzplanRegeln: targetClass.sitzplanRegeln || [],
     lastGroups: targetClass.lastGroups,
     stundenZeiten: targetClass.stundenZeiten || STUNDEN_INFO,
