@@ -9,6 +9,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { exportSchuelerPDF } from '../lib/exportService';
 import { getAssessmentMode } from '../lib/GradeUtils';
+import { getKelGradebookAssessments, pickKelAssessments } from '../lib/kelGradebookSelection';
 import { getStudentAttendanceSummary } from '../lib/studentMetrics';
 
 interface KELPresentationProps {
@@ -28,6 +29,7 @@ type SlideType =
   | 'strengths'
   | 'voices'
   | 'learning'
+  | 'individualGrades'
   | 'assessment'
   | 'portfolio'
   | 'attendance'
@@ -46,6 +48,7 @@ type VisibleConfig = {
   strengths: boolean;
   voices: boolean;
   learning: boolean;
+  individualGrades: boolean;
   assessment: boolean;
   portfolio: boolean;
   attendance: boolean;
@@ -57,7 +60,8 @@ type VisibleConfig = {
 const DEFAULT_CONFIG: VisibleConfig = {
   strengths: true,
   voices: true,
-  learning: true,
+  learning: false,
+  individualGrades: false,
   assessment: true,
   portfolio: true,
   attendance: false,
@@ -192,7 +196,7 @@ export default function KELPresentation({
   STANDARD_KEL_BEREICHE,
 }: KELPresentationProps) {
   const { app, setApp } = useApp();
-  const [view, setView] = useState<'slides' | 'prepare'>('slides');
+  const [view, setView] = useState<'slides' | 'prepare'>('prepare');
   const [slideIndex, setSlideIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [selectedLang, setSelectedLang] = useState('de');
@@ -200,15 +204,6 @@ export default function KELPresentation({
   const [isExporting, setIsExporting] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(15 * 60);
   const [timerActive, setTimerActive] = useState(false);
-  const [visible, setVisible] = useState<VisibleConfig>(() => {
-    try {
-      const stored = localStorage.getItem('klassio_kel_presentation_v2');
-      if (!stored) return DEFAULT_CONFIG;
-      return { ...DEFAULT_CONFIG, ...JSON.parse(stored) };
-    } catch {
-      return DEFAULT_CONFIG;
-    }
-  });
   const [agreementDraft, setAgreementDraft] = useState('');
   const [agreementSaved, setAgreementSaved] = useState(false);
   const slideContainerRef = useRef<HTMLDivElement>(null);
@@ -225,14 +220,37 @@ export default function KELPresentation({
     return matches[0] || null;
   }, [app.kelGespraeche, app.schuljahr, student.id]);
 
+  // The presentation plan is per child + meeting + class + semester. Never reuse
+  // a global localStorage switch from another child or an earlier meeting.
+  const savedPlan = latestKel?.praesentationAuswahl;
+  const matchingSavedPlan = savedPlan?.classId === app.activeClassId &&
+    savedPlan?.studentId === student.id && savedPlan?.semester === sem ? savedPlan : null;
+  const [visible, setVisible] = useState<VisibleConfig>(() => ({
+    ...DEFAULT_CONFIG, ...(matchingSavedPlan?.visible || {}),
+  }));
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>(() =>
+    Array.isArray(matchingSavedPlan?.selectedSubjects) ? matchingSavedPlan.selectedSubjects : []);
+  const [selectedAssessmentIds, setSelectedAssessmentIds] = useState<string[]>(() =>
+    Array.isArray(matchingSavedPlan?.selectedAssessmentIds) ? matchingSavedPlan.selectedAssessmentIds : []);
+  const [selectionSaved, setSelectionSaved] = useState(Boolean(matchingSavedPlan));
+  const selectionScope = app.activeClassId + ':' + student.id + ':' + sem;
+
+  useEffect(() => {
+    setVisible({ ...DEFAULT_CONFIG, ...(matchingSavedPlan?.visible || {}) });
+    setSelectedSubjects(Array.isArray(matchingSavedPlan?.selectedSubjects) ? matchingSavedPlan.selectedSubjects : []);
+    setSelectedAssessmentIds(Array.isArray(matchingSavedPlan?.selectedAssessmentIds) ? matchingSavedPlan.selectedAssessmentIds : []);
+    setSelectionSaved(Boolean(matchingSavedPlan));
+    setView('prepare');
+    setSlideIndex(0);
+  // A fresh meeting/selection created by pressing Save must NOT reset the edited
+  // form. Only changing the child, class or semester resets the disclosure scope.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionScope]);
+
   useEffect(() => {
     setAgreementDraft(latestKel?.vereinbarungen || '');
     setAgreementSaved(false);
   }, [latestKel?.id, latestKel?.vereinbarungen]);
-
-  useEffect(() => {
-    localStorage.setItem('klassio_kel_presentation_v2', JSON.stringify(visible));
-  }, [visible]);
 
   useEffect(() => {
     if (!timerActive) return;
