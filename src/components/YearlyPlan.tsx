@@ -503,11 +503,12 @@ export default function YearlyPlan() {
   };
 
   const clearCell = (kw: number, subjectId: string) => {
+    if (!window.confirm('Dieses Jahresthema wirklich löschen? Die vorhandene Wochenplanung bleibt dabei erhalten.')) return;
     setApp(prev => {
       const jp = { ...(prev.jahresplanung || {}) };
-      if (jp[kw]) {
-        delete jp[kw][subjectId];
-      }
+      if (!jp[kw]?.[subjectId]) return prev;
+      jp[kw] = { ...jp[kw] };
+      delete jp[kw][subjectId];
       return { ...prev, jahresplanung: jp };
     });
   };
@@ -2569,15 +2570,14 @@ export default function YearlyPlan() {
                         key={idx}
                         onClick={() => {
                           setApp(prev => {
+                            if (occupiedYearPlanCell(prev.jahresplanung?.[suggestingCell.kw]?.[suggestingCell.subjectId])) return prev;
                             const jp = { ...(prev.jahresplanung || {}) };
-                            if (!jp[suggestingCell.kw]) jp[suggestingCell.kw] = {};
-                            jp[suggestingCell.kw][suggestingCell.subjectId] = {
-                              thema,
-                              buch: '',
-                              type: 'standard',
-                              subCategory: '',
-                              subCategories: [],
-                              items: []
+                            jp[suggestingCell.kw] = {
+                              ...(jp[suggestingCell.kw] || {}),
+                              [suggestingCell.subjectId]: {
+                                thema, buch: '', type: 'standard',
+                                subCategory: '', subCategories: [], items: [],
+                              },
                             };
                             return { ...prev, jahresplanung: jp };
                           });
