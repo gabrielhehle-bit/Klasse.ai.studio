@@ -9,6 +9,7 @@ import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
 import WeightSettings from './WeightSettings';
 import GradeOverview from './GradeOverview';
+import VerbalAssessment from './VerbalAssessment';
 import GradeCalculatorModal from './GradeCalculatorModal';
 import SchularbeitAssessment from './SchularbeitAssessment';
 import { Calculator, Settings, AlertCircle, Plus, Minus, Filter, Sparkles, ChevronDown, User, FileText, BarChart2, Info, ArrowUpRight, Download, RotateCcw, Trash2, Printer, MessageSquare, Brain, TrendingUp, Check } from 'lucide-react';
@@ -190,6 +191,7 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
   const [sem, setSem] = useState<'1' | '2'>('1');
   const [showWeights, setShowWeights] = useState(false);
   const [showOverview, setShowOverview] = useState(() => initialSection === 'overview');
+  const [showFeedback, setShowFeedback] = useState(false);
   const [showGradeCalculator, setShowGradeCalculator] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showClassAverage, setShowClassAverage] = useState(true);
@@ -1542,6 +1544,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
     );
   };
 
+  // One feedback editor, reusing the existing grade and observation data.
+  if (showFeedback) {
+    return <VerbalAssessment mode="feedback" initialSubject={activeFach} onBack={() => setShowFeedback(false)} />;
+  }
+
   // The overview is another view of this very same gradebook, not a second grade state.
   if (showOverview) {
     return <GradeOverview embedded onBack={() => { if (app.currentPage === 'notenTabelle') setPage('noten'); else setShowOverview(false); }} />;
@@ -1618,6 +1625,15 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
               }}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
                 <BarChart2 size={15} /> Notenübersicht
+              </button>
+              <button type="button" onClick={() => {
+                setShowFeedback(true);
+                setShowOverview(false);
+                setShowGradeCalculator(false);
+                setShowWeights(false);
+                setShowMoreMenu(false);
+              }} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                <MessageSquare size={15} /> Leistungsfeedback
               </button>
               <button type="button" onClick={() => { setShowWeights(!showWeights); setShowGradeCalculator(false); }}
                 aria-pressed={showWeights}
