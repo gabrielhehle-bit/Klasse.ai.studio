@@ -228,7 +228,7 @@ test("Cockpit: Schließen markiert einen nicht gespeicherten Tag nicht fälschli
   const closeEnd = teachingSurface.indexOf("const cycleBehavior", closeStart);
   assert.ok(closeStart >= 0 && closeEnd > closeStart);
   const closeHandler = teachingSurface.slice(closeStart, closeEnd);
-  assert.match(closeHandler, /hasAutoSavedToday !== todayStr && commitAllowance\.allowed/);
+  assert.match(closeHandler, /!behaviorSavedToday && commitAllowance\.allowed/);
   assert.doesNotMatch(closeHandler, /updateHasAutoSavedToday/);
 });
 
