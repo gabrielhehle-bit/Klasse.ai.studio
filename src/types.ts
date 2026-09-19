@@ -1631,6 +1631,9 @@ export interface AppState {
   unterrichtsmodus_theme?: UnterrichtsmodusThemeId;
   unterrichtsmodus_hintergrund?: UnterrichtsmodusHintergrundId;
   unterrichtsmodus_eigenesBild?: string;
+  /** Imported Canva image; kept separate so an uploaded personal background is not overwritten. */
+  unterrichtsmodus_canvaBild?: string;
+  unterrichtsmodus_canvaTitel?: string;
   unterrichtsmodus_geburtstagskinder?: string[];
   spacedPractices?: {
     id: string;
@@ -1693,7 +1696,7 @@ export interface TafelVorlage {
 
 export type UnterrichtsmodusModus = "lehrperson" | "kinder";
 export type UnterrichtsmodusThemeId = "classic_light" | "deep_dark" | "soft_sage" | "ocean_breeze" | "warm_sand" | "lavender_field" | "cozy_mint" | "sakura_dream" | "candy" | "custom_theme";
-export type UnterrichtsmodusHintergrundId = "kein" | "sterne" | "tafel" | "wolken" | "wald" | "papier" | "candy" | "eigenes";
+export type UnterrichtsmodusHintergrundId = "kein" | "sterne" | "tafel" | "wolken" | "wald" | "papier" | "candy" | "eigenes" | "canva";
 
 export interface LehrplanZuordnung {
   fach: string;
