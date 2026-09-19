@@ -4159,8 +4159,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
 
                 {(mehrSubTab === 'charts' || mehrSubTab === 'antolin') && (
                   <div className="space-y-6">
-                {/* Sub Tab Switcher */}
-                <div className="flex border-b border-slate-200 gap-6 mb-2">
+                {/* Only detailed charts stay here; Antolin moved to Lesen & Antolin. */}
+                {initialTab !== 'tools' && <div className="flex border-b border-slate-200 gap-6 mb-2">
                   <button
                     type="button"
                     aria-pressed={statsSubTab === 'leistung'}
@@ -4185,7 +4185,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                   >
                     <BookOpen size={13} className="text-amber-500" /> Antolin Lese-Statistik
                   </button>
-                </div>
+                </div>}
 
                 {statsSubTab === 'leistung' && (
                   <div className="space-y-6 animate-fade-in">
