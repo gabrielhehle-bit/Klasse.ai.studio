@@ -485,169 +485,107 @@ export default function StudentList() {
           </button>
         </div>
       ) : viewMode === 'list' ? (
-        <div className={`bg-white border border-slate-200 shadow-sm overflow-x-auto flex flex-col ${
-          isCompact ? 'rounded-xl' : isLarge ? 'rounded-3xl' : 'rounded-2xl'
-        }`}>
-          <div className="lg:min-w-[1024px]">
-            {/* Header row */}
-            <div className={`hidden lg:grid grid-cols-12 gap-4 bg-slate-50/50 border-b border-slate-100 font-black uppercase tracking-[0.2em] text-slate-400 ${
-              isCompact ? 'p-2.5 text-[0.65rem]' : isLarge ? 'p-5 text-[0.8rem]' : 'p-4 text-[0.75rem]'
-            }`}>
-               <div className="col-span-1 pl-2">#</div>
-               <div className="col-span-3">Schüler/in</div>
-               <div className="col-span-3">Geburtstag & Religion</div>
-               <div className="col-span-3">Sprache & Status</div>
-               <div className="col-span-2 text-right pr-2">Aktionen</div>
-            </div>
-            <motion.div 
-               variants={{
-                 animate: { transition: { staggerChildren: 0.03 } }
-               }}
-               initial="initial"
-               animate="animate"
-               className="flex flex-col divide-y divide-slate-100"
-            >
-               {filteredStudents.map((s, i) => {
-                 const bday = isBirthdayToday(s.geburtstag);
-                 return (
-                   <motion.div 
-                      key={s.id} 
-                      variants={{
-                        initial: { opacity: 0, y: 10 },
-                        animate: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 25 } }
-                      }}
-                      onClick={() => setSelectedFolderStudent(s.id)}
-                      className={`grid grid-cols-1 lg:grid-cols-12 gap-y-3 lg:gap-4 items-center hover:bg-indigo-50/30 transition-all cursor-pointer group ${
-                        isCompact ? 'p-2.5' : isLarge ? 'p-5' : 'p-4'
-                      } ${
-                        bday 
-                          ? 'bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-indigo-500/10 border-l-4 border-l-amber-500/80 animate-pulse' 
-                          : s.spf 
-                            ? 'bg-purple-50/10' 
-                            : s.espf 
-                              ? 'bg-emerald-50/10' 
-                              : ''
-                      }`}
-                   >
-                    {/* # and Name */}
-                    <div className="col-span-1 lg:col-span-4 flex items-center gap-4">
-                       <div className="hidden lg:flex flex-col items-center w-8 text-slate-300 font-black tabular-nums text-[0.875rem] leading-snug">
-                          <span>{i+1}</span>
-                       </div>
-                       <div className="flex items-center gap-3 w-full">
-                          <div className="lg:hidden flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-400 font-black text-[0.75rem] leading-tight shrink-0">
-                             {i+1}
-                          </div>
-                          <div className="flex flex-col">
-                             <div className="flex flex-wrap items-center gap-2">
-                                <span className={`font-black ${
-                                  isCompact ? 'text-[0.85rem]' : isLarge ? 'text-[1.125rem]' : 'text-[0.9375rem] sm:text-[1.0625rem]'
-                                } ${bday ? 'bg-gradient-to-r from-pink-500 via-amber-500 to-indigo-500 bg-clip-text text-transparent animate-bounce pr-1 font-extrabold' : 'text-slate-900'}`}>
-                                   {s.nachname} {s.vorname}
-                                </span>
-                                {bday && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleBirthdayCelebrate(s.vorname);
-                                    }}
-                                    className="p-1 bg-amber-100 hover:bg-amber-200 text-rose-500 rounded-full cursor-pointer animate-bounce border border-amber-200/50 shadow-3xs flex items-center justify-center text-[0.75rem]"
-                                    title="Geburtstag feiern! 🎉"
-                                  >
-                                    <Gift size={12} className="animate-spin duration-[3000ms]" />
-                                  </button>
-                                )}
-                             </div>
-                             <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[0.5625rem] font-bold uppercase text-slate-500 bg-slate-100/80 px-1.5 py-0.5 rounded border border-slate-200/50">Niveau {s.niveau || 3}</span>
-                                {s.ikmNummer && (
-                                  <span className="text-[0.5625rem] font-black text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shadow-3xs">
-                                    #{s.ikmNummer}
-                                  </span>
-                                )}
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-
-                    {/* Geburtstag & Religion */}
-                    <div className="col-span-1 lg:col-span-3 flex flex-col gap-1 pl-12 lg:pl-0">
-                       <div className="flex items-center gap-1.5 text-slate-600 text-[0.8125rem]">
-                         <span className="text-slate-400 text-[0.9rem]" title="Geschlecht">⚧</span>
-                         <span className="font-semibold text-slate-700">{getStudentGenderLabel(s.geschlecht)}</span>
-                       </div>
-                       {s.geburtstag ? (
-                         <div className="flex items-center gap-1.5 text-slate-600 text-[0.8125rem]">
-                            <span className="text-slate-400 text-[0.9rem]" title="Geburtstag">📅</span>
-                            <span className="font-semibold text-slate-700">
-                               {s.geburtstag.includes('-') ? s.geburtstag.split('-').reverse().join('.') : s.geburtstag}
-                            </span>
-                         </div>
-                       ) : (
-                         <span className="text-slate-350 text-[0.75rem] italic pl-5">Kein Geburtstag</span>
-                       )}
-                       {s.religion ? (
-                         <div className="flex items-center gap-1.5 text-slate-500 text-[0.75rem]">
-                            <span className="text-slate-400 text-[0.85rem]" title="Religion">⛪</span>
-                            <span className="font-medium">{s.religion}</span>
-                         </div>
-                       ) : (
-                         <span className="text-slate-350 text-[0.75rem] italic pl-5">Keine Religion</span>
-                       )}
-                    </div>
-
-                    {/* Sprache & Status */}
-                    <div className="col-span-1 lg:col-span-3 flex flex-col gap-1.5 pl-12 lg:pl-0">
-                       {s.erstsprache ? (
-                         <div className="flex items-center gap-1.5 text-slate-600 text-[0.8125rem]">
-                            <span className="text-slate-400 text-[0.9rem]" title="Muttersprache / Erstsprache">🗣️</span>
-                            <span className="font-semibold text-slate-700">
-                               {s.erstsprache} {s.zweitsprache ? `/ ${s.zweitsprache}` : ''}
-                            </span>
-                         </div>
-                       ) : (
-                         <span className="text-slate-350 text-[0.75rem] italic pl-5">Keine Erstsprache</span>
-                       )}
-                       <div className="flex flex-wrap gap-1 items-center">
-                          <button
-                             onClick={(e) => { e.stopPropagation(); updateStudent({ ...s, daz: !s.daz }); }}
-                             className={`font-black uppercase border tracking-tight transition-all active:scale-95 cursor-pointer px-1.5 py-0.5 rounded text-[0.6rem] ${
-                               s.daz 
-                                 ? 'bg-amber-100 text-amber-700 border-amber-250 shadow-3xs' 
-                                 : 'bg-slate-50 text-slate-350 border-slate-150 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200'
-                             }`}
-                             title="Deutsch als Zweitsprache (DaZ) umschalten"
-                          >DAZ</button>
-                          <button
-                             onClick={(e) => { e.stopPropagation(); updateStudent({ ...s, spf: !s.spf }); }}
-                             className={`font-black uppercase border tracking-tight transition-all active:scale-95 cursor-pointer px-1.5 py-0.5 rounded text-[0.6rem] ${
-                               s.spf 
-                                 ? 'bg-purple-100 text-purple-700 border-purple-250 shadow-3xs' 
-                                 : 'bg-slate-50 text-slate-400 border-slate-150 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200'
-                             }`}
-                             title="Sonderpädagogischer Förderbedarf (SPF) umschalten"
-                          >SPF</button>
-                          {s.espf && (
-                            <span className="bg-emerald-100 text-emerald-700 border-emerald-250 px-1.5 py-0.5 rounded text-[0.6rem] font-black uppercase tracking-tight">ESPF</span>
+        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl print:hidden">
+          <div className="overflow-x-auto rounded-2xl">
+            <table className="w-full min-w-[620px] text-left text-sm text-slate-700">
+              <thead className="bg-slate-50 border-b border-slate-200 text-xs font-extrabold text-slate-600">
+                <tr>
+                  <th scope="col" className="w-10 px-3 py-2.5">#</th>
+                  <th scope="col" className="px-3 py-2.5">Schüler/in</th>
+                  {visibleColumns.birthday && <th scope="col" className="px-3 py-2.5 whitespace-nowrap">Geburtstag</th>}
+                  {visibleColumns.funding && <th scope="col" className="px-3 py-2.5">Förderung</th>}
+                  {visibleColumns.firstLanguage && <th scope="col" className="px-3 py-2.5">Erstsprache</th>}
+                  {visibleColumns.secondLanguage && <th scope="col" className="px-3 py-2.5">Zweitsprache</th>}
+                  {visibleColumns.religion && <th scope="col" className="px-3 py-2.5">Religion</th>}
+                  {visibleColumns.gender && <th scope="col" className="px-3 py-2.5">Geschlecht</th>}
+                  {visibleColumns.level && <th scope="col" className="px-3 py-2.5">Niveau</th>}
+                  <th scope="col" className="px-3 py-2.5 text-right">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredStudents.map((student, index) => {
+                  const birthday = isBirthdayToday(student.geburtstag);
+                  return (
+                    <tr key={student.id} className={`hover:bg-indigo-50/40 ${birthday ? 'bg-amber-50/40' : ''}`}>
+                      <td className="px-3 py-2 text-slate-500 tabular-nums">{index + 1}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <button type="button" onClick={() => setSelectedFolderStudent(student.id)}
+                            className="text-left font-bold text-slate-900 hover:text-indigo-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                            title="Schülerdossier öffnen">
+                            {student.nachname} {student.vorname}
+                          </button>
+                          {birthday && (
+                            <button type="button" onClick={() => handleBirthdayCelebrate(student.vorname)}
+                              aria-label={`Geburtstag von ${student.vorname} feiern`} title="Geburtstag feiern" className="text-amber-600">
+                              <Gift size={16} />
+                            </button>
                           )}
-                          {app.differenzierungsGruppen?.filter(g => g.schuelerIds.includes(s.id)).map(g => (
-                             <span key={g.id} className={`flex items-center text-white shadow-3xs ${g.farbe} px-1.5 py-0.5 rounded text-[0.6rem]`} title={g.name || 'Gruppe'}>
-                                {g.emoji}
-                             </span>
-                          ))}
-                       </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="col-span-1 lg:col-span-2 flex justify-start lg:justify-end items-center gap-1.5 flex-nowrap pl-11 lg:pl-0">
-                       <button onClick={e => { e.stopPropagation(); setSelectedFolderStudent(s.id); }} aria-label={`Dossier von ${s.vorname} ${s.nachname} öffnen`} className={`text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Dossier öffnen"><GraduationCap size={isCompact ? 14 : isLarge ? 18 : 16} strokeWidth={2.5} /></button>
-                       <button onClick={e => { e.stopPropagation(); setEditingStudent(s); setIsModalOpen(true); }} aria-label={`${s.vorname} ${s.nachname} bearbeiten`} className={`text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Bearbeiten"><Edit2 size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
-                       <button onClick={e => { e.stopPropagation(); handleDeleteStudent(s); }} aria-label={`${s.vorname} ${s.nachname} löschen`} className={`text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Löschen"><Trash2 size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
-                    </div>
-                 </motion.div>
-                 );
-               })}
-            </motion.div>
+                        </div>
+                      </td>
+                      {visibleColumns.birthday && (
+                        <td className="px-3 py-2 whitespace-nowrap tabular-nums">
+                          {student.geburtstag ? (student.geburtstag.includes('-')
+                            ? student.geburtstag.split('-').reverse().join('.') : student.geburtstag) : '–'}
+                        </td>
+                      )}
+                      {visibleColumns.funding && (
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap items-center gap-1">
+                            <button type="button" onClick={() => updateStudent({ ...student, daz: !student.daz })}
+                              aria-pressed={Boolean(student.daz)} aria-label={`DaZ bei ${student.vorname} ${student.nachname} umschalten`}
+                              title="DaZ-Kennzeichen umschalten"
+                              className={`rounded border px-1.5 py-0.5 text-[0.6875rem] font-bold ${student.daz ? 'bg-amber-50 text-amber-800 border-amber-300' : 'bg-slate-50 text-slate-400 border-slate-200 hover:text-amber-700'}`}>
+                              DaZ
+                            </button>
+                            <button type="button" onClick={() => updateStudent({ ...student, spf: !student.spf })}
+                              aria-pressed={Boolean(student.spf)} aria-label={`SPF bei ${student.vorname} ${student.nachname} umschalten`}
+                              title="SPF-Kennzeichen umschalten"
+                              className={`rounded border px-1.5 py-0.5 text-[0.6875rem] font-bold ${student.spf ? 'bg-violet-50 text-violet-800 border-violet-300' : 'bg-slate-50 text-slate-400 border-slate-200 hover:text-violet-700'}`}>
+                              SPF
+                            </button>
+                            {student.espf && <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[0.6875rem] font-bold text-emerald-800">ESPF</span>}
+                            {app.differenzierungsGruppen?.filter(group => group.schuelerIds.includes(student.id)).map(group => (
+                              <span key={group.id} className={`rounded px-1.5 py-0.5 text-xs text-white ${group.farbe}`} title={group.name || 'Gruppe'}>
+                                {group.emoji}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                      )}
+                      {visibleColumns.firstLanguage && <td className="px-3 py-2">{student.erstsprache || '–'}</td>}
+                      {visibleColumns.secondLanguage && <td className="px-3 py-2">{student.zweitsprache || '–'}</td>}
+                      {visibleColumns.religion && <td className="px-3 py-2">{student.religion || '–'}</td>}
+                      {visibleColumns.gender && <td className="px-3 py-2">{getStudentGenderLabel(student.geschlecht)}</td>}
+                      {visibleColumns.level && <td className="px-3 py-2">{student.niveau || '–'}</td>}
+                      <td className="px-3 py-2">
+                        <div className="flex justify-end items-center gap-1.5">
+                          <button type="button" onClick={() => { setEditingStudent(student); setIsModalOpen(true); }}
+                            className="rounded-lg p-2 text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                            aria-label={`${student.vorname} ${student.nachname} bearbeiten`} title="Bearbeiten">
+                            <Edit2 size={16} />
+                          </button>
+                          <button type="button" onClick={() => setMenuStudentId(old => old === student.id ? null : student.id)}
+                            aria-expanded={menuStudentId === student.id}
+                            aria-label={`Weitere Aktionen für ${student.vorname} ${student.nachname}`}
+                            className="rounded-lg border border-slate-200 px-2 py-1.5 text-slate-600 hover:bg-slate-100" title="Weitere Aktionen">
+                            ⋯
+                          </button>
+                          {menuStudentId === student.id && (
+                            <button type="button"
+                              onClick={() => { setMenuStudentId(null); handleDeleteStudent(student); }}
+                              className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100"
+                              aria-label={`${student.vorname} ${student.nachname} aus der Klasse entfernen`}>
+                              Entfernen
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       ) : false ? (
