@@ -41,3 +41,10 @@ test('existing plans are still reachable from the library; no duplicate main men
   assert.doesNotMatch(hub, /id: 'stunden'/);
   assert.doesNotMatch(nav, /id: 'stunden'/);
 });
+
+test('KI lesson planner does not transfer individual student notes or grade data', () => {
+  const ai = read('LessonPlannerAI.tsx');
+  assert.doesNotMatch(ai, /app\.schueler\.map\(s => s\.notiz\)/);
+  assert.doesNotMatch(ai, /app\.notenmappe \?/);
+  assert.match(ai, /keine Namen, individuellen Beobachtungen, Notizen oder Leistungsdaten übertragen/);
+});
