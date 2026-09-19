@@ -85,6 +85,7 @@ export function useInlineDictation(onFinalText: (text: string) => void) {
       setStatus('stopping');
       try { recognition.stop(); } catch {
         recognitionRef.current = null;
+        startedRef.current = false;
         setStatus('idle');
         setInterim('');
       }
@@ -93,6 +94,24 @@ export function useInlineDictation(onFinalText: (text: string) => void) {
       setStatus('idle');
       setInterim('');
     }
+  }, []);
+
+  const cancel = useCallback(() => {
+    // Unlike manual Stop, a class switch must never append the old class's
+    // transcript to the currently visible new class.
+    sessionRef.current += 1;
+    activeRef.current = false;
+    startedRef.current = false;
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    if (recognition) {
+      recognition.onresult = null;
+      recognition.onerror = null;
+      recognition.onend = null;
+      try { recognition.abort(); } catch { /* already ended */ }
+    }
+    setStatus('idle');
+    setInterim('');
   }, []);
 
   useEffect(() => () => {
@@ -191,6 +210,7 @@ export function useInlineDictation(onFinalText: (text: string) => void) {
     } catch (cause: any) {
       if (session !== sessionRef.current) return;
       activeRef.current = false;
+      startedRef.current = false;
       recognitionRef.current = null;
       setStatus('idle');
       setError(cause?.name === 'NotAllowedError'
@@ -199,5 +219,5 @@ export function useInlineDictation(onFinalText: (text: string) => void) {
     }
   }, []);
 
-  return { start, stop, status, mode, interim, error };
+  return { start, stop, cancel, status, mode, interim, error };
 }
