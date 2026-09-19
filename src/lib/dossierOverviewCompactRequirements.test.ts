@@ -27,7 +27,7 @@ test('Dossierübersicht: Notenpunkte und Prozentwerte bleiben je Fach getrennt',
 });
 
 test('Dossierübersicht: aktive Ziele mit beiden vorhandenen Statusschreibweisen; Abschluss im Originaldatensatz', () => {
-  assert.match(overview, /goal\.status === 'in_arbeit'/);
+  assert.match(overview, /String\(goal\.status\) === 'in_arbeit'/);
   assert.match(overview, /goal\.status === 'in Arbeit'/);
   assert.match(overview, /goal\.id === goalId/);
   assert.match(overview, /status: 'erreicht'/);
