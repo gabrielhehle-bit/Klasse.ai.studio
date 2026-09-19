@@ -1391,34 +1391,17 @@ function WizardModal({
 
   const getGoalComparison = () => {
     if (!compareStudentId || !compareGoalId) return null;
-
-    let totalScore = 0;
-    let ratedCount = 0;
-    let studentScore = null;
-
-    (students || []).forEach((s: any) => {
-      const rating = getStudentRating(s.id, compareGoalId);
-      if (rating !== null) {
-        // Transform 1(Erreicht)->100, 2(Im Wesentlichen)->66, 3(Minimal)->33
-        const score = rating === 1 ? 100 : rating === 2 ? 66 : 33;
-        totalScore += score;
-        ratedCount++;
-        if (s.id === compareStudentId) {
-          studentScore = score;
-        }
-      }
-    });
-
-    if (studentScore === null) return null; // No rating for this student
-
-    const classAverage = ratedCount > 0 ? totalScore / ratedCount : 0;
-    const diff = studentScore - classAverage;
-
+    const rating = getStudentRating(compareStudentId, compareGoalId);
+    if (rating === null || rating === undefined) return null;
+    const current = goalModel.levels.find(level => level.value === rating);
+    const ratings = (students || []).map((pupil: any) => getStudentRating(pupil.id, compareGoalId));
     return {
-      studentScore,
-      classAverage,
-      diff,
-      ratedCount,
+      studentLabel: current?.label || 'Frühere nicht zugeordnete Stufe ' + rating,
+      counts: goalModel.levels.map(level => ({
+        ...level, count: ratings.filter(value => value === level.value).length,
+      })),
+      other: ratings.filter(value => typeof value === 'number' && !goalModel.levels.some(level => level.value === value)).length,
+      ratedCount: ratings.filter(value => value !== null && value !== undefined).length,
     };
   };
 
@@ -1450,85 +1433,24 @@ function WizardModal({
     totalGoals > 0 ? Math.round((totalCovered / totalGoals) * 100) : 0;
 
   useEffect(() => {
-    if (activeTab === "klasse") {
-      const classTotalGoals = totalGoals;
-
-      const progress = (students || []).map((student: any) => {
-        const evaluationData: Record<string, number | null> =
-          app.studentLernzielSemesterBewertungen?.[student.id]?.[selectedSemester]
-          || app.studentLernzielBewertungen?.[student.id]
-          || {};
-
-        let count1 = 0;
-        let count2 = 0;
-        let count3 = 0;
-
-        FAECHER.forEach((fach) => {
-          (currentLernziele[fach] || []).forEach((goal: any) => {
-            const rating = evaluationData[goal.id];
-            if (rating === 1) count1++;
-            if (rating === 2) count2++;
-            if (rating === 3) count3++;
-          });
-        });
-
-        const totalRated = count1 + count2 + count3;
-
-        return {
-          id: student.id,
-          vorname: student.vorname,
-          nachname: student.nachname,
-          count1,
-          count2,
-          count3,
-          totalRated,
-          classTotalGoals,
-          pct1: classTotalGoals > 0 ? (count1 / classTotalGoals) * 100 : 0,
-          pct2: classTotalGoals > 0 ? (count2 / classTotalGoals) * 100 : 0,
-          pct3: classTotalGoals > 0 ? (count3 / classTotalGoals) * 100 : 0,
-        };
-      });
-
-      progress.sort((a: any, b: any) => b.totalRated - a.totalRated);
-      setStudentProgress(progress);
-
-      // Check for anomalies
-      if (progress.length > 0) {
-        let alert = null;
-        // Find someone with high minimal (count3) ratio
-        const struggling = progress.find(
-          (p) => p.totalRated > 3 && p.count3 / p.totalRated > 0.4,
-        );
-        if (struggling) {
-          alert = {
-            student: `${struggling.vorname} ${struggling.nachname}`,
-            type: "negative" as const,
-            message: `Auffälligkeit: ${struggling.vorname} hat in letzter Zeit überdurchschnittlich viele Ziele nur "minimal erreicht" (${Math.round((struggling.count3 / struggling.totalRated) * 100)}%). Ein förderndes Gespräch oder vereinfachte Aufgaben könnten helfen.`,
-          };
-        } else {
-          const excelling = progress.find(
-            (p) => p.totalRated > 3 && p.count1 / p.totalRated > 0.8,
-          );
-          if (excelling) {
-            alert = {
-              student: `${excelling.vorname} ${excelling.nachname}`,
-              type: "positive" as const,
-              message: `Fortschritt: ${excelling.vorname} hat ${Math.round((excelling.count1 / excelling.totalRated) * 100)}% der letzten Lernziele "voll erreicht". Eventuell wäre Zusatzmaterial (Forderung) angebracht.`,
-            };
-          }
-        }
-        setAnomalyAlert(alert);
-      }
-    }
-  }, [
-    activeTab,
-    students,
-    currentLernziele,
-    totalGoals,
-    selectedSemester,
-    app.studentLernzielBewertungen,
-    app.studentLernzielSemesterBewertungen,
-  ]);
+    if (activeTab !== "klasse") return;
+    const goalIds = FAECHER.flatMap(fach => (currentLernziele[fach] || []).map(goal => goal.id));
+    const progress = (students || []).map((student: any) => {
+      const ratings = app.studentLernzielSemesterBewertungen?.[student.id]?.[selectedSemester]
+        || (!app.studentLernzielSemesterBewertungen?.[student.id] && selectedSemester === '1'
+          ? app.studentLernzielBewertungen?.[student.id] : undefined) || {};
+      const summary = lernzielHaeufigkeiten(goalIds, ratings, goalModel);
+      return {
+        id: student.id, vorname: student.vorname, nachname: student.nachname,
+        ratings, goalIds, totalRated: summary.assessed, classTotalGoals: summary.total,
+      };
+    });
+    progress.sort((a: any, b: any) => b.totalRated - a.totalRated);
+    setStudentProgress(progress);
+    // Ordinal labels are not percentages or automated diagnoses.
+    setAnomalyAlert(null);
+  }, [activeTab, students, currentLernziele, selectedSemester,
+    app.studentLernzielBewertungen, app.studentLernzielSemesterBewertungen, app.lernzielBewertungsmodell]);
 
   const handleGetRecommendations = async () => {
     setIsGenerating(true);
