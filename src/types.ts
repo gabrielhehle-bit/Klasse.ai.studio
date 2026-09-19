@@ -1,5 +1,6 @@
 
 import { DiagnosticResult } from './types/diagnosticCore';
+import type { LernzielBewertungsmodell } from './lib/lernzielBewertungsmodell';
 export * from './types/diagnosticCore';
 
 export const COMMUNITY_MISSIONS_POOL = [
@@ -412,6 +413,8 @@ export interface Student {
   wunschpartner?: string[]; // student IDs
   sperrpartner?: string[];  // student IDs
   portfolio?: PortfolioEntry[];
+  /** Optional teacher-reviewed learning-goal explanation per semester; separate from Oberau matrix. */
+  lernzielErlaeuterungen?: Partial<Record<'1' | '2', { text: string; updatedAt: string; modellName: string }>>;
   geburtsdatum?: string; // Standardized name for birthday if needed
   warnThresholds?: Record<string, number>; // Individual warning threshold mapped by testId
   erlaeuterungsmatrix?: {
@@ -990,6 +993,8 @@ export interface ClassRoom {
   lernzielTracker?: AppState['lernzielTracker'];
   studentLernzielBewertungen?: AppState['studentLernzielBewertungen'];
   studentLernzielSemesterBewertungen?: AppState['studentLernzielSemesterBewertungen'];
+  /** Class-specific, editable learning-goal scale; not a school-grade scale. */
+  lernzielBewertungsmodell?: LernzielBewertungsmodell;
   /** Class-local diagnostic and student-development data. */
   diagnostikErgebnisse?: AppState['diagnostikErgebnisse'];
   diagnostikErhebungen?: AppState['diagnostikErhebungen'];
@@ -1515,6 +1520,8 @@ export interface AppState {
   lastGroups?: string[][];
   dashboardEditMode?: boolean;
   selectedStudentForPortfolio?: string;
+  /** Active-class learning-goal scale. Persisted encrypted through the class snapshot. */
+  lernzielBewertungsmodell?: LernzielBewertungsmodell;
   customWebLinks?: { url: string; title: string; desc?: string }[];
   quickLinks?: { id: string; label: string; url: string; icon: string; color?: string }[];
   wochenNotizen?: string;
