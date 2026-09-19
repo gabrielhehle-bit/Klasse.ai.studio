@@ -154,7 +154,7 @@ export default function DossierUebersicht({ student, onTabChange, semester, onQu
   // Raw Support Goals & Measures
   const rawSupportGoals = useMemo(() => {
     return (student.foerderprofil?.foerderziele || []).filter(
-      goal => goal.status === 'offen' || goal.status === 'in_arbeit' || goal.status === 'in Arbeit'
+      goal => goal.status === 'offen' || String(goal.status) === 'in_arbeit' || goal.status === 'in Arbeit'
     );
   }, [student.foerderprofil?.foerderziele]);
 
