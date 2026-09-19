@@ -50,6 +50,7 @@ import { filterChronicleEntries } from '../lib/behaviorChronicle';
 import { NoteEntry } from '../types';
 import { useInlineDictation } from '../hooks/useInlineDictation';
 import { noteCategoryAppearance } from '../lib/noteCategoryAppearance';
+import StimmNotizen from './StimmNotizen';
 
 export default function Behavior() {
   const { app, setApp } = useApp();
@@ -725,6 +726,14 @@ export default function Behavior() {
                   </div>
                )}
             </section>
+            {(app.stimmNotizen || []).length > 0 && (
+              <details className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm print:hidden">
+                <summary className="cursor-pointer text-xs font-bold text-slate-700">
+                  Frühere Sprachnotizen · {(app.stimmNotizen || []).length} Transkripte
+                </summary>
+                <StimmNotizen archiveOnly />
+              </details>
+            )}
           </motion.div>
         ) : null}
       </AnimatePresence>
