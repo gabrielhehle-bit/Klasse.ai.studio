@@ -1,4 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { CanvaDesignChooser, CanvaDesignChoice } from './CanvaDesignChooser';
+import { importCanvaImage } from '../lib/canvaImageImport';
+import { useToast } from '../context/ToastContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Palette, Image as ImageIcon, Upload, Trash2, CheckCircle2, Type, Sparkles, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { AppState, UnterrichtsmodusModus, UnterrichtsmodusThemeId, UnterrichtsmodusHintergrundId } from '../types';
@@ -18,6 +22,28 @@ export const UnterrichtsmodusThemePicker: React.FC<ThemePickerProps> = ({ app, s
     const currentBgId = app.unterrichtsmodus_hintergrund || app.unterrichtsmodus_hintergrundProModus?.lehrperson || 'kein';
     const currentCustomImg = app.unterrichtsmodus_eigenesBild || app.unterrichtsmodus_eigenesBildProModus?.lehrperson;
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [canvaPickerOpen, setCanvaPickerOpen] = useState(false);
+    const [canvaBusy, setCanvaBusy] = useState(false);
+    const { showToast } = useToast();
+
+    const handleCanvaBackground = async (design: CanvaDesignChoice) => {
+        setCanvaBusy(true);
+        try {
+            const image = await importCanvaImage(design.id);
+            setApp(prev => ({
+                ...prev,
+                unterrichtsmodus_canvaBild: image,
+                unterrichtsmodus_canvaTitel: design.title || 'Canva-Design',
+                unterrichtsmodus_hintergrund: 'canva'
+            }));
+            setCanvaPickerOpen(false);
+            showToast('Canva-Hintergrund übernommen. Widgets und Zeichnungen bleiben erhalten.', 'success');
+        } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Canva-Bild konnte nicht importiert werden.', 'error');
+        } finally {
+            setCanvaBusy(false);
+        }
+    };
 
     const handleThemeSelect = (themeId: UnterrichtsmodusThemeId) => {
         setApp(prev => ({
@@ -65,6 +91,7 @@ export const UnterrichtsmodusThemePicker: React.FC<ThemePickerProps> = ({ app, s
     if (!isOpen) return null;
 
     return (
+        <>
         <div className="fixed inset-0 z-[100] flex items-center justify-end p-4 pointer-events-none">
             <motion.div 
                 initial={{ opacity: 0 }}
@@ -412,6 +439,33 @@ export const UnterrichtsmodusThemePicker: React.FC<ThemePickerProps> = ({ app, s
                                 </div>
                             ))}
                         </div>
+                        <div className="space-y-2 rounded-2xl border p-3" style={{ borderColor: currentTheme.colors.border }}>
+                            <button type="button" onClick={() => setCanvaPickerOpen(true)}
+                                className="flex w-full items-center justify-center gap-2 rounded-xl border px-3 py-3 text-xs font-bold"
+                                style={{ borderColor: currentTheme.colors.accent, color: currentTheme.colors.textPrimary }}>
+                                <ImageIcon size={16} /> Aus Canva wählen
+                            </button>
+                            {app.unterrichtsmodus_canvaBild && (
+                                <div className="flex items-center gap-3">
+                                    <img src={app.unterrichtsmodus_canvaBild} alt="" className="h-16 w-20 rounded-lg border object-contain" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-xs font-bold" style={{ color: currentTheme.colors.textPrimary }}>{app.unterrichtsmodus_canvaTitel || 'Canva-Hintergrund'}</p>
+                                        <button type="button" onClick={() => handleBgSelect('canva')}
+                                            className="mt-1 rounded-lg px-3 py-1 text-xs font-bold text-white"
+                                            style={{ backgroundColor: currentTheme.colors.accent }}>
+                                            {currentBgId === 'canva' ? 'Aktiv' : 'Als Hintergrund verwenden'}
+                                        </button>
+                                    </div>
+                                    <button type="button" aria-label="Canva-Hintergrund entfernen" title="Canva-Hintergrund entfernen"
+                                        onClick={() => setApp(prev => ({
+                                            ...prev,
+                                            unterrichtsmodus_canvaBild: undefined,
+                                            unterrichtsmodus_canvaTitel: undefined,
+                                            unterrichtsmodus_hintergrund: prev.unterrichtsmodus_hintergrund === 'canva' ? 'kein' : prev.unterrichtsmodus_hintergrund,
+                                        }))} className="rounded-lg p-2 text-rose-500"><Trash2 size={16} /></button>
+                                </div>
+                            )}
+                        </div>
                         <input 
                             type="file"
                             ref={fileInputRef}
@@ -643,5 +697,10 @@ export const UnterrichtsmodusThemePicker: React.FC<ThemePickerProps> = ({ app, s
                 </div>
             </motion.div>
         </div>
+        {canvaPickerOpen && createPortal(
+            <CanvaDesignChooser onChoose={handleCanvaBackground} onClose={() => setCanvaPickerOpen(false)} busy={canvaBusy} />,
+            document.body
+        )}
+        </>
     );
 };
