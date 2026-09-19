@@ -2606,10 +2606,6 @@ export default function SeatingPlan() {
 
 
       <style dangerouslySetInnerHTML={{ __html: `
-          .grid-dots { display: none !important; }
-            .indicator-icon { opacity: 1 !important; }
-            @page { size: A4 landscape !important; margin: 8mm 10mm 10mm 10mm !important; }
-          }
           .grid-dots {
             background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px);
             background-size: ${GRID_SIZE}px ${GRID_SIZE}px;
