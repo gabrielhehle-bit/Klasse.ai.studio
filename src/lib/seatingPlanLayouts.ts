@@ -49,3 +49,22 @@ export function sameSeatingArrangement(
     && JSON.stringify(layout.objects) === JSON.stringify(objects)
     && JSON.stringify(layout.rules || []) === JSON.stringify(rules);
 }
+
+/** Removing a student must erase their seat and rule references from every saved layout. */
+export function omitStudentFromSeatingLayouts(
+  layouts: SavedSeatingLayout[] | undefined,
+  studentId: string
+): SavedSeatingLayout[] {
+  return (layouts || []).map(layout => ({
+    ...layout,
+    positions: Object.fromEntries(
+      Object.entries(layout.positions || {}).filter(([id]) => id !== studentId)
+    ),
+    rules: layout.rules?.map(rule => ({
+      ...rule,
+      schuelerIds: (rule.schuelerIds || []).filter(id => id !== studentId)
+    })).filter(rule => rule.schuelerIds.length >=
+      (rule.typ === 'nebeneinander' || rule.typ === 'nicht_nebeneinander' ? 2 : 1)
+    )
+  }));
+}
