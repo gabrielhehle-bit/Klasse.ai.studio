@@ -120,7 +120,8 @@ export default function StudentList() {
 
   const [sortBy, setSortBy] = useState<'nachname' | 'vorname' | 'alter'>('nachname');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'daz' | 'spf' | 'espf'>('all');
+  type FundingFilter = 'daz' | 'spf' | 'espf';
+  const [activeFilters, setActiveFilters] = useState<FundingFilter[]>([]);
   const [inlineEditingNiveau, setInlineEditingNiveau] = useState<string | null>(null);
   
   const [visibleLimit, setVisibleLimit] = useState(15);
@@ -128,7 +129,7 @@ export default function StudentList() {
 
   useEffect(() => {
     setVisibleLimit(15);
-  }, [searchTerm, activeFilter, sortBy, sortOrder]);
+  }, [searchTerm, activeFilters, sortBy, sortOrder]);
 
   useEffect(() => {
     if (isModalOpen) setStudentFormSection('basis');
@@ -144,7 +145,7 @@ export default function StudentList() {
     setInlineEditingNiveau(null);
     setFolderQuickNote('');
     setSearchTerm('');
-    setActiveFilter('all');
+    setActiveFilters([]);
     setViewMode('list');
     setShowClassStatistics(false);
     setShowColumnOptions(false);
@@ -216,14 +217,12 @@ export default function StudentList() {
       ].some((value) => String(value || '').toLowerCase().includes(normalizedSearch));
 
       if (!matchesSearch) return false;
-      if (activeFilter === 'daz') return s.daz;
-      if (activeFilter === 'spf') return s.spf;
-      if (activeFilter === 'espf') return s.espf;
-      return true;
+      // Selecting multiple badges narrows the list to children matching all of them.
+      return activeFilters.every(filter => Boolean(s[filter]));
     });
 
     return sortStudentsForList(filtered, sortBy, sortOrder);
-  }, [schueler, searchTerm, activeFilter, sortBy, sortOrder]);
+  }, [schueler, searchTerm, activeFilters, sortBy, sortOrder]);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -315,7 +314,7 @@ export default function StudentList() {
               <div>
                 <h3 className={`${isCompact ? 'text-[0.55rem]' : isLarge ? 'text-[0.7rem]' : 'text-[0.55rem] sm:text-[0.65rem]'} font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-slate-400 leading-none`}>Klassenliste</h3>
                 <p className={`${isCompact ? 'text-[0.7rem]' : isLarge ? 'text-[0.95rem]' : 'text-[0.7rem] sm:text-[0.8rem]'} text-slate-900 font-black mt-0.5 sm:mt-1`}>
-                  {filteredStudents.length} {activeFilter !== 'all' ? `von ${app?.schueler?.length || 0}` : ''} Schüler/innen
+                  {filteredStudents.length} {activeFilters.length > 0 || searchTerm ? `von ${schueler.length}` : ''} Schüler/innen
                 </p>
               </div>
             </div>
@@ -400,40 +399,25 @@ export default function StudentList() {
               </button>
             </div>
 
-            <div className={`flex flex-wrap items-center bg-slate-50 rounded-lg border border-slate-200 w-full lg:w-auto ${
-              isCompact ? 'p-0.5 gap-0.5' : isLarge ? 'p-1.5 gap-1.5' : 'p-1 gap-1'
-            }`}>
-              {[
-                { id: 'all', label: 'Alle', count: schueler.length },
-                { id: 'daz', label: 'DaZ', count: dazCount },
-                { id: 'spf', label: 'SPF', count: spfCount },
-                { id: 'espf', label: 'ESPF', count: espfCount }
-              ].map(chip => (
-                <button
-                  key={chip.id}
-                  onClick={() => setActiveFilter(chip.id as any)}
-                  className={`rounded-md font-black uppercase tracking-wider transition-all flex-1 text-center whitespace-nowrap flex items-center justify-center ${
-                    isCompact 
-                      ? 'px-2 py-1 text-[0.5rem] gap-0.5' 
-                      : isLarge 
-                        ? 'px-4 py-2.5 text-[0.6875rem] gap-1.5 rounded-lg' 
-                        : 'px-3 py-1.5 text-[0.5625rem] gap-1'
-                  } ${
-                    activeFilter === chip.id 
-                      ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/50 font-black' 
-                      : 'text-slate-500 hover:text-slate-850 hover:bg-white/50'
-                  }`}
-                >
-                  <span>{chip.label}</span>
-                  <span className={`font-extrabold rounded ${
-                    isCompact 
-                      ? 'px-0.5 py-0.1 text-[0.45rem]' 
-                      : isLarge 
-                        ? 'px-1.5 py-0.5 text-[0.575rem]' 
-                        : 'px-1 py-0.2 text-[0.5rem]'
-                  } ${
-                    activeFilter === chip.id ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-200/60 text-slate-500'
-                  }`}>{chip.count}</span>
+            <div className="flex flex-wrap items-center gap-1 rounded-xl bg-slate-50 border border-slate-200 px-2 py-1.5" aria-label="Förderkennzeichen kombinierbar filtern">
+              <button type="button" onClick={() => setActiveFilters([])}
+                aria-pressed={activeFilters.length === 0}
+                className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${activeFilters.length === 0 ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-white'}`}>
+                Alle {schueler.length}
+              </button>
+              {([
+                ['daz', 'DaZ', dazCount],
+                ['spf', 'SPF', spfCount],
+                ['espf', 'ESPF', espfCount],
+              ] as const).map(([filter, label, count]) => (
+                <button type="button" key={filter}
+                  aria-pressed={activeFilters.includes(filter)}
+                  title={`${label}-Kennzeichen filtern; mehrere Kennzeichen kombinierbar`}
+                  onClick={() => setActiveFilters(previous => previous.includes(filter)
+                    ? previous.filter(item => item !== filter)
+                    : [...previous, filter])}
+                  className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${activeFilters.includes(filter) ? 'bg-white text-indigo-700 shadow-sm ring-1 ring-indigo-200' : 'text-slate-600 hover:bg-white'}`}>
+                  {label} {count}
                 </button>
               ))}
             </div>
@@ -494,7 +478,7 @@ export default function StudentList() {
           <p className="text-sm text-slate-500 mt-1">Passe die Suche oder den Filter an.</p>
           <button
             type="button"
-            onClick={() => { setSearchTerm(''); setActiveFilter('all'); }}
+            onClick={() => { setSearchTerm(''); setActiveFilters([]); }}
             className="mt-4 px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-wider hover:bg-slate-800 transition-colors"
           >
             Suche & Filter zurücksetzen
@@ -2243,7 +2227,7 @@ export default function StudentList() {
         <div className="mb-4 print:break-after-avoid">
           <h1 className="text-[1.5rem] leading-normal font-black text-slate-900 print:text-[1.25rem] leading-normal print:break-after-avoid">Schülerliste</h1>
           <p className="text-[0.75rem] leading-tight text-slate-500 font-bold uppercase tracking-widest mt-1 print:break-after-avoid">
-            Sortiert nach: {sortBy === 'nachname' ? 'Nachname' : sortBy === 'vorname' ? 'Vorname' : 'Alter/Geburtsdatum'} • Filter: {activeFilter === 'all' ? 'Alle Schüler' : activeFilter === 'daz' ? 'Nur DaZ' : activeFilter === 'spf' ? 'Nur SPF' : activeFilter === 'espf' ? 'Nur ESPF' : 'Gefiltert'}
+            Sortiert nach: {sortBy === 'nachname' ? 'Nachname' : sortBy === 'vorname' ? 'Vorname' : 'Alter/Geburtsdatum'} • Filter: {activeFilters.length ? activeFilters.map(value => value.toUpperCase()).join(' + ') : 'Alle Schüler'}
           </p>
         </div>
         <table className="w-full print:w-full print:border-collapse print:text-[0.75rem] leading-tight">
