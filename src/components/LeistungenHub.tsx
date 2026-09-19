@@ -115,7 +115,7 @@ export default function LeistungenHub() {
             Leistungen erfassen und zusammenfassen
           </h2>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {assessmentItems.map(item => (
             <PerformanceCard key={item.id} item={item} onOpen={setPage} />
           ))}
