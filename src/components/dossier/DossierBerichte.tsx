@@ -95,14 +95,14 @@ export default function DossierBerichte({
             <span>Eltern-Report</span>
           </button>
 
-          <button
+          {app.klassenvorstand && <button
             type="button"
             onClick={() => setActiveSubView('jahresbericht')}
             aria-pressed={activeSubView === 'jahresbericht'}
             className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${activeSubView === 'jahresbericht' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:bg-white/50'}`}
           >
             <FileText size={13} /> Jahresbericht
-          </button>
+          </button>}
 
           <button
             type="button"
@@ -139,7 +139,7 @@ export default function DossierBerichte({
       )}
 
       {/* 3. SUBVIEW: INDIVIDUAL ANNUAL REPORT */}
-      {activeSubView === 'jahresbericht' && (
+      {app.klassenvorstand && activeSubView === 'jahresbericht' && (
         <React.Suspense fallback={<p className="p-4 text-sm text-slate-600">Jahresbericht wird geladen …</p>}>
           <Jahresbericht key={student.id} studentId={student.id} />
         </React.Suspense>
