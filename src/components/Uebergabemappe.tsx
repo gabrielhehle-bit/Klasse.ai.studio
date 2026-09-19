@@ -349,7 +349,7 @@ export default function Uebergabemappe() {
       .slice(0, 5);
   }, [app.diagnosticResults, transferStudentId]);
   const [printColumns, setPrintColumns] = useState<Record<string, boolean>>({
-    geschlecht: true,
+    geschlecht: false,
     geburtstag: false,
     erstsprache: false,
     daz: false,
@@ -393,6 +393,8 @@ export default function Uebergabemappe() {
     setSekretariatTel(saved?.contacts?.sekretariat || '');
     setNachbarKlasse(saved?.contacts?.nachbarKlasse || '');
     setManualSlots({});
+    setActiveTab('config');
+    setShowPrintModal(false);
     setTransferStudentId(null);
     setShowTransferPrint(false);
     setNewChecklistItem('');
