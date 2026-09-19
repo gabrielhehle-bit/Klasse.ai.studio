@@ -52,6 +52,14 @@ Es sind **49** derzeitige Typ-IDs auf 20 Einstiegskategorien vorgemerkt. Die ver
 - PR #151 betrifft u. a. Cockpit-Autostart, aber andere Module; #149, #150, #152–#158 und ältere PRs behandeln fachlich andere Bereiche und sind kein Bestandteil dieses Cockpit-Branches.
 - PR #83 enthält Staging-Preview-Infrastruktur, ist noch nicht in `main`; ein funktionierender, erreichbarer Cockpit-Vorschau-Link ist hier **nicht** nachgewiesen.
 
+## Navigationsänderung und vorsichtige Vorschau (2026-09-19)
+
+- Haupt-Sidebar hat jetzt **Lehrercockpit** als direktes Kernziel, ohne „Unterricht“-Zwischenseite. Auch historisch gespeicherte `currentPage: 'unterricht'`-Werte werden beim Rendern ins Cockpit geführt. Der Zurück-Pfeil bringt zur Tagesübersicht „Heute“.
+- „KI-Helfer“ bleibt als eigenständiges Hauptziel direkt erreichbar. Arbeitsblatt-Generator, Differenzierung und Elternbrief bleiben als spezialisierte KI-Einstiege verfügbar; „Stationenbetrieb“ ist in „Tools“. Keine Fachfunktion wurde bei dieser Umordnung aus dem Router entfernt.
+- Auf dem Feature-Branch wird ein vollständiges World4You-**Staging-Release-Artefakt** über den `Pre-Deployment Audit` erzeugt. Das ist nur ein vorbereiteter Release; es aktualisiert `klassio.at` nicht.
+- Zusätzlich überprüft das vorhandene Chrome-E2E des Schulverifizierungsablaufs nach Anmeldung und Einrichtung einer **synthetischen** Klasse den Ein-Klick-Zugang ins Cockpit, die weiße Fläche, Werkzeugleiste und die Rückkehr zu „Heute“. Das dabei erstellte Screenshot-Artefakt enthält nur Testdaten.
+- Produktion läuft laut Betreiberkontext noch auf `151a4bdd7e119f15d17712b1f0e1496a393cb1c7`. Der aktuelle `main`-Stand ist bereits 298 GitHub-Commits weiter. Vor einem echten Live-Deployment sind deshalb eine Server-Sicherung, ein Backup-/Restore-Test bestehender verschlüsselter Klassendaten, Staging-Sichtprüfung mit anonymen Daten und ein sicherer Rollback zu prüfen. Dieses Branch-Audit kann die Server-Sicherung **nicht** ersetzen. Ohne SSH-Zugriff wurde noch nichts auf World4You installiert.
+
 ## Verbindliche weitere Schritte vor Freigabe
 
 1. Lade-/Klassenauswahlzustände in der echten App mit leerer, echter und gewechselter Klasse reproduzieren; fehlende Namensdaten ggf. in Klasse/Hydration korrigieren. Keine echten Schülerdaten in Screenshots, Logs, Issues oder Tests.
