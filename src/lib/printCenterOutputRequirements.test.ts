@@ -34,41 +34,31 @@ test('Klassenbuch: direkte PDF-Ausgabe ist mit Woche, Bereich und Gesamt verbund
 
   assert.match(klassenbuchPdf, /pageSize: 'A4'/);
   assert.match(klassenbuchPdf, /pageOrientation: 'portrait'/);
-  assert.match(klassenbuchPdf, /unbreakable: true/);
-  assert.match(klassenbuchPdf, /dontBreakRows: true/);
+  assert.match(klassenbuchPdf, /unbreakable: fitsOnePage/);
+  assert.match(klassenbuchPdf, /dontBreakRows: fitsOnePage/);
+  assert.match(klassenbuchPdf, /const longestEntry =/);
   assert.match(klassenbuchPdf, /Fach \/ Unterbereich/);
   assert.match(klassenbuchPdf, /Dokumentierter Unterricht \/ Inhalt/);
   assert.match(klassenbuchPdf, /Abwesenheiten \/ Fehlstunden/);
   assert.match(klassenbuchPdf, /Seite \$\{currentPage\} von \$\{pageCount\}/);
 });
 
-test('Klassenbuch: Fächer und Unterbereiche stammen aus der kanonischen Wochenplan-Struktur', () => {
-  assert.match(printCenter, /getKlassenbuchBaseCategories\(app\?\.faecher\)/);
-  assert.match(printCenter, /classifyKlassenbuchEntry/);
-  assert.match(printCenter, /orderKlassenbuchCategoryKeys/);
-  assert.match(printCenter, /splitKlassenbuchCategoryKey/);
-
-  for (const label of [
-    'DEUTSCH_UNTERFAECHER',
-    'MATHEMATIK_UNTERFAECHER',
-    'Sprachbetrachtung',
-    'Sprechen & Hören',
-    'Lesen',
-    'Rechtschreibung',
-    'Verfassen von Texten',
-    'Förderung',
-    'Ebene & Raum',
-    'Zahlen & Daten',
-    'Größen',
-    'Operationen',
-  ]) {
+test('Klassenbuch: Druckzentrum und Wochenplan verwenden die gleiche kanonische Zuordnung einschließlich halbierter Stunden', () => {
+  const projection = readFileSync('src/lib/weeklyClassbookProjection.ts', 'utf8');
+  assert.match(printCenter, /projectWeeklyPlanToClassbook\(/);
+  assert.match(weekly, /projectWeeklyPlanToClassbook\(/);
+  assert.match(projection, /getKlassenbuchBaseCategories/);
+  assert.match(projection, /classifyKlassenbuchEntry/);
+  assert.match(projection, /orderKlassenbuchCategoryKeys/);
+  assert.match(projection, /lesson\.halves\?\.enabled/);
+  assert.match(projection, /'1\. Hälfte'/);
+  assert.match(projection, /'2\. Hälfte'/);
+  assert.match(projection, /zeitunabhaengig/);
+  for (const label of ['DEUTSCH_UNTERFAECHER','MATHEMATIK_UNTERFAECHER','Sprachbetrachtung','Sprechen & Hören',
+    'Lesen','Rechtschreibung','Verfassen von Texten','Förderung','Ebene & Raum','Zahlen & Daten',
+    'Größen','Operationen']) {
     assert.ok(klassenbuchSubjects.includes(label), `Klassenbuch-Struktur fehlt: ${label}`);
   }
-
-  assert.match(printCenter, /item\.halves\?\.enabled/);
-  assert.match(printCenter, /1\. Hälfte:/);
-  assert.match(printCenter, /2\. Hälfte:/);
-  assert.match(printCenter, /zeitunabhaengig/);
 });
 
 test('Wochenplanung: obsolete Größen- und Filterleiste ist entfernt', () => {

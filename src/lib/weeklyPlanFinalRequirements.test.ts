@@ -85,20 +85,10 @@ test('Wochenplanung: Mittagspause und Mehrstundenblöcke folgen der Klassenkonfi
 });
 
 
-test('Klassenbuch: Deutsch, Mathematik und Förderung sind eindeutig strukturiert', () => {
-  for (const label of [
-    'Deutsch - Sprachbetrachtung',
-    'Deutsch - Sprechen & Hören',
-    'Deutsch - D-FÖ',
-    'Mathematik - Ebene & Raum',
-    'Mathematik - Zahlen & Daten',
-    'Mathematik - Größen',
-    'Mathematik - Operationen',
-    'Förderung (FÖ)',
-  ]) {
-    assert.ok(weekly.includes(label), `Klassenbuch-Bereich fehlt: ${label}`);
-  }
-  assert.doesNotMatch(weekly, /label: 'Sprache'/);
+test('Klassenbuch: die Wochenansicht nutzt dieselbe Fach-/Unterbereichs-Projektion wie das Druckzentrum', () => {
+  assert.match(weekly, /projectWeeklyPlanToClassbook\(/);
+  assert.match(weekly, /splitKlassenbuchCategoryKey/);
+  assert.doesNotMatch(weekly, /const subjectsToShow = \[\s*\{ key: 'Deutsch -/);
 });
 
 test('Wochenplanung: eine Unterrichtseinheit kann in zwei gleich große Hälften geteilt werden', () => {
@@ -106,15 +96,15 @@ test('Wochenplanung: eine Unterrichtseinheit kann in zwei gleich große Hälften
   assert.match(weekly, /Erste Hälfte/);
   assert.match(weekly, /Zweite Hälfte/);
   assert.match(weekly, /halves: tempSplitLesson/);
-  assert.match(weekly, /1\. Hälfte:/);
-  assert.match(weekly, /2\. Hälfte:/);
+  const projection = readFileSync('src/lib/weeklyClassbookProjection.ts', 'utf8');
+  assert.ok(projection.includes("'1. Hälfte'"));
+  assert.ok(projection.includes("'2. Hälfte'"));
 });
 
-test('Klassenbuch: echter DOCX-Export ist für Woche, Monat, Semester und Gesamt verfügbar', () => {
-  assert.match(weekly, /downloadKlassenbuchDocx/);
-  assert.match(weekly, /\['week', 'Woche'\]/);
-  assert.match(weekly, /\['month', 'Monat'\]/);
-  assert.match(weekly, /\['semester', 'Semester'\]/);
-  assert.match(weekly, /\['schoolyear', 'Gesamt'\]/);
-  assert.match(weekly, /getAttendanceSemester/);
+test('Klassenbuch: DOCX-Ausgabe erfolgt im Druckzentrum, nicht in der Planungsansicht', () => {
+  const printing = readFileSync('src/components/PrintCenter.tsx', 'utf8');
+  assert.match(printing, /downloadKlassenbuchDocx/);
+  assert.match(printing, /handleDownloadKlassenbuchDocx/);
+  assert.doesNotMatch(weekly, /exportKlassenbuchDocx/);
+  assert.doesNotMatch(weekly, /Klassenbuch als Word-Dokument exportieren/);
 });

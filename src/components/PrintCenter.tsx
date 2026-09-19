@@ -50,6 +50,12 @@ import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySu
 import { getFachCfg, berechne, getNotenLabel, getAssessmentMode } from '../lib/GradeUtils';
 import { DEFAULT_YEARLY_SUBJECTS, FAECHER_ALLE } from '../constants';
 import { downloadKlassenbuchPdf } from '../lib/klassenbuchPdf';
+import { downloadKlassenbuchDocx } from '../lib/klassenbuchDocx';
+import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
+import { buildSchoolYearWeekList } from '../lib/weeklyPlanData';
+import { getAttendanceSemester } from '../lib/attendanceData';
+import { generateWochenplanTemplate } from '../lib/planerExcelService';
+import { SchuelerWochenplanA4Sheet } from './wochenplan/SchuelerWochenplanA4Sheet';
 import {
   classifyKlassenbuchEntry,
   getKlassenbuchBaseCategories,
@@ -159,7 +165,7 @@ export default function PrintCenter() {
 
   // 1. Core Printing State
   const [activeTemplate, setActiveTemplate] = useState<
-    'schuelerliste' | 'checkliste' | 'zeugnis_noten' | 'wochenplan' | 'klassenbuch' | 'jahresplanung' | 'kel' | 'stundenplan' | 'schuelerprofil' | 'kel_presentation' | 'sitzplan' | 'uebergabemappe' | 'eltern_diagnostik' | 'pdf_export' | 'lob_druckkarte' | 'fehlstunden' | 'smart_tools' | 'kassenuebersicht'
+    'schuelerliste' | 'checkliste' | 'zeugnis_noten' | 'wochenplan' | 'schueler_wochenplan' | 'klassenbuch' | 'jahresplanung' | 'kel' | 'stundenplan' | 'schuelerprofil' | 'kel_presentation' | 'sitzplan' | 'uebergabemappe' | 'eltern_diagnostik' | 'pdf_export' | 'lob_druckkarte' | 'fehlstunden' | 'smart_tools' | 'kassenuebersicht'
   >('schuelerliste');
   
   const [printModeActive, setPrintModeActive] = useState(false);
@@ -176,6 +182,7 @@ export default function PrintCenter() {
     { id: 'fehlstunden', icon: Clock, label: 'Anwesenheitsliste', desc: 'Entschuldigt / Unentschuldigt', cat: 'listen', taskCat: 'klasse', badge: 'Absenzen', keywords: 'fehlstunden krankenstand absenzen entschuldigt' },
 
     { id: 'wochenplan', icon: Calendar, label: 'Wochenplan', desc: 'Unterrichts- & Wochenplan', cat: 'planung', taskCat: 'planung', badge: 'Unterricht', keywords: 'wochenplan kalender unterricht aufgaben stunden' },
+    { id: 'schueler_wochenplan', icon: CheckSquare, label: 'Wochenplan für Kinder', desc: 'Gespeicherte Aufgabenpläne für Kinder', cat: 'planung', taskCat: 'planung', badge: 'Aufgaben', keywords: 'kinder aufgaben wochenplan drucken pdf' },
     { id: 'stundenplan', icon: ClockIconFallback, label: 'Stundenplan', desc: 'Stammstundenplan der Klasse', cat: 'planung', taskCat: 'planung', badge: 'Stunden', keywords: 'stundenplan stunden zeiten fächer klassenraum' },
     { id: 'klassenbuch', icon: BookOpen, label: 'Klassenbuch', desc: 'Wochen- & Lehrbericht', cat: 'planung', taskCat: 'planung', badge: 'Lehrbericht', keywords: 'klassenbuch bericht woche unterricht ersatz' },
     { id: 'jahresplanung', icon: FileText, label: 'Jahresplan', desc: 'Syllabus & Kompetenzen', cat: 'planung', taskCat: 'planung', badge: 'Syllabus', keywords: 'jahresplan syllabus monate ziele kompetenzen' },
@@ -266,6 +273,14 @@ export default function PrintCenter() {
   const [wpShowReflexion, setWpShowReflexion] = useState(true);
   const [wpInkSaver, setWpInkSaver] = useState(true);
   const [wpShowEmptyNotesBox, setWpShowEmptyNotesBox] = useState(true);
+
+  const [childPlanId, setChildPlanId] = useState('');
+  const [childPrintColorMode, setChildPrintColorMode] = useState<'color' | 'mono'>('color');
+  const childPlans = Object.values(app?.schuelerWochenplaene || {});
+  const selectedChildPlan = childPlans.find(plan => plan.id === childPlanId)
+    || childPlans.filter(plan => plan.kw === (app.currentKW || wpKW))
+      .sort((a, b) => String(b.aktualisiertAm).localeCompare(String(a.aktualisiertAm)))[0]
+    || childPlans[0];
 
   // D. Klassenbuch Wochenbericht Options
   const [kbKW, setKbKW] = useState<number>(fallbackPlanningKW);
@@ -632,6 +647,10 @@ export default function PrintCenter() {
 
   // Automatically update orientation default based on selected template
   useEffect(() => {
+    if (activeTemplate === 'schueler_wochenplan') {
+      setPrintOrientation(selectedChildPlan?.orientierung === 'landscape' ? 'landscape' : 'portrait');
+      return;
+    }
     if (activeTemplate === 'klassenbuch') {
       setPrintOrientation('portrait');
       setPrintMargin(8.5);
@@ -656,7 +675,7 @@ export default function PrintCenter() {
     } else {
       setPrintOrientation('portrait');
     }
-  }, [activeTemplate, bypassOrientationAutoSet]);
+  }, [activeTemplate, bypassOrientationAutoSet, selectedChildPlan?.orientierung]);
 
   // Automatically adjust zoom when orientation changes, ensuring standard default fits nicely
   useEffect(() => {
@@ -738,119 +757,14 @@ export default function PrintCenter() {
 
   // C. Klassenbuch Weekly Lesson Plan Processor
   // Verwendet exakt dieselbe Fächer-/Unterbereichs-Struktur wie die Wochenplanung.
-  const compileKlassenbuchData = (targetKW: number) => {
-    const baseCategories = getKlassenbuchBaseCategories(app?.faecher);
-    const data: Record<string, string[]> = Object.fromEntries(
-      baseCategories.map((category) => [category.key, []]),
-    );
-    data['Besondere Vorkommnisse'] = [];
+  const compileKlassenbuchData = (targetKW: number) => projectWeeklyPlanToClassbook(
+    (app?.wochenplanung || {})[targetKW],
+    { activeSubjects: app?.faecher, stammplan: app?.stammplan, includeReflection: true,
+      includeEvents: kbIncludeOccurrences,
+      materialTitlesById: Object.fromEntries((app?.materialien || []).map(material => [material.id, material.titel])) },
+  );
 
-    const plan = (app?.wochenplanung || {})[targetKW];
-    if (!plan) return data;
-
-    const ensureCategory = (key: string) => {
-      if (!data[key]) data[key] = [];
-      return data[key];
-    };
-
-    const pushEntry = (
-      fachRaw: string,
-      themaRaw: string,
-      schwerpunkteRaw: string[] = [],
-      prefix = '',
-    ) => {
-      const fach = String(fachRaw || '').trim();
-      const schwerpunkte = Array.isArray(schwerpunkteRaw)
-        ? schwerpunkteRaw.map((value) => String(value || '').trim()).filter(Boolean)
-        : [];
-      const thema = String(themaRaw || '').trim();
-      if (!fach && !thema) return;
-
-      const textToPush = `${prefix}${thema || fach}`.trim();
-      const categories = classifyKlassenbuchEntry(fach, schwerpunkte);
-
-      if (categories.length === 0) {
-        ensureCategory('Besondere Vorkommnisse').push(
-          fach && thema ? `${fach}: ${textToPush}` : textToPush,
-        );
-        return;
-      }
-
-      categories.forEach((category) => {
-        ensureCategory(category.key).push(textToPush);
-      });
-    };
-
-    const weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
-    weekdays.forEach((tag) => {
-      const dayPlan: any = plan[tag] || {};
-
-      Object.keys(dayPlan).forEach((idx) => {
-        const numericIdx = Number.parseInt(idx, 10);
-        if (!Number.isInteger(numericIdx)) return;
-        const item = dayPlan[idx];
-        if (!item) return;
-
-        if (item.halves?.enabled) {
-          const first = item.halves.first || {};
-          const second = item.halves.second || {};
-
-          pushEntry(
-            first.fach || item.fach || '',
-            first.thema || '',
-            first.unterbereich ? [first.unterbereich] : (first.schwerpunkte || []),
-            '1. Hälfte: ',
-          );
-          pushEntry(
-            second.fach || item.fach || '',
-            second.thema || '',
-            second.unterbereich ? [second.unterbereich] : (second.schwerpunkte || []),
-            '2. Hälfte: ',
-          );
-
-          if (wpShowReflexion && item.reflexion) {
-            ensureCategory('Besondere Vorkommnisse').push(
-              `${tag}, ${numericIdx + 1}. Stunde – Reflexion: ${item.reflexion}`,
-            );
-          }
-          return;
-        }
-
-        const content = wpShowReflexion
-          ? [item.thema, item.reflexion].filter(Boolean).join(' – ')
-          : String(item.thema || '');
-        pushEntry(item.fach || '', content, item.schwerpunkte || []);
-      });
-
-      // Zeitunabhängige Einträge (Ausflug, Termin, Konferenz …) sind keine Unterrichtsfächer.
-      const allDayItems = Array.isArray(dayPlan.zeitunabhaengig) ? dayPlan.zeitunabhaengig : [];
-      allDayItems.forEach((item: any) => {
-        if (!item || item.erledigt) return;
-        const text = String(item.thema || item.text || '').trim();
-        if (!text) return;
-        ensureCategory('Besondere Vorkommnisse').push(`${tag}: ${text}`);
-      });
-    });
-
-    Object.keys(data).forEach((key) => {
-      data[key] = Array.from(
-        new Set(data[key].map((value) => value.trim()).filter(Boolean)),
-      );
-    });
-
-    const orderedKeys = orderKlassenbuchCategoryKeys(
-      Object.keys(data).filter((key) => key !== 'Besondere Vorkommnisse'),
-      app?.faecher,
-    );
-    const ordered: Record<string, string[]> = {};
-    orderedKeys.forEach((key) => {
-      ordered[key] = data[key] || [];
-    });
-    ordered['Besondere Vorkommnisse'] = data['Besondere Vorkommnisse'] || [];
-    return ordered;
-  };
-
-  const compiledKbData = useMemo(() => compileKlassenbuchData(kbKW), [kbKW, app?.wochenplanung, wpShowReflexion]);
+  const compiledKbData = useMemo(() => compileKlassenbuchData(kbKW), [kbKW, app?.wochenplanung, app?.stammplan, app?.faecher, app?.materialien, kbIncludeOccurrences]);
 
   // D. Absent Students helper
   const getAbsenteesForWeek = (targetKW: number) => {
@@ -2224,6 +2138,10 @@ export default function PrintCenter() {
                       })}
                     </select>
                   </div>
+                  <button type="button" onClick={() => generateWochenplanTemplate(app, wpKW)}
+                    className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100">
+                    <Download size={14} className="mr-1.5 inline" />Excel-Vorlage für diese Woche herunterladen
+                  </button>
 
                   <div className="space-y-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
                     <span className="text-[0.59375rem] font-black uppercase text-slate-400 tracking-wider block">Spezifische Zeilenoptionen</span>
@@ -2268,6 +2186,26 @@ export default function PrintCenter() {
                       />
                     </label>
                   </div>
+                </div>
+              )}
+
+              {/* Child-friendly weekly plans are authored in the planner but printed here. */}
+              {activeTemplate === 'schueler_wochenplan' && (
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold text-slate-700" htmlFor="print-child-week-plan">Wochenplan für Kinder auswählen</label>
+                  <select id="print-child-week-plan" value={selectedChildPlan?.id || ''}
+                    onChange={event => setChildPlanId(event.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-800">
+                    {childPlans.length === 0 && <option value="">Noch keinen Wochenplan für Kinder gespeichert</option>}
+                    {childPlans.map(plan => <option key={plan.id} value={plan.id}>KW {plan.kw} · {plan.titel || plan.id}</option>)}
+                  </select>
+                  <label className="block text-xs font-bold text-slate-700">Druckfarbe
+                    <select value={childPrintColorMode} onChange={event => setChildPrintColorMode(event.target.value as 'color' | 'mono')}
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-slate-800">
+                      <option value="color">Farbe</option><option value="mono">Schwarz-Weiß</option>
+                    </select>
+                  </label>
+                  <p className="text-xs text-slate-600">Aufgaben und Gestaltung werden ausschließlich in der Erstellung des Wochenplans geändert.</p>
                 </div>
               )}
 
@@ -2484,6 +2422,16 @@ export default function PrintCenter() {
                       <Download size={15} />
                       Klassenbuch als PDF herunterladen
                     </button>
+                    <div aria-label="Klassenbuch DOCX exportieren" className="grid grid-cols-2 gap-2">
+                      {([
+                        ['week', 'Woche'], ['month', 'Monat'], ['semester', 'Semester'], ['schoolyear', 'Gesamt'],
+                      ] as const).map(([range, label]) => (
+                        <button key={range} type="button" onClick={() => void handleDownloadKlassenbuchDocx(range)}
+                          className="rounded-xl border border-indigo-300 bg-white px-3 py-2.5 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+                          <Download size={13} className="mr-1 inline" /> DOCX {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -3945,7 +3893,7 @@ export default function PrintCenter() {
                     className={`bg-white font-sans text-black select-none shrink-0 single-sheet-preview ${getFontSizeClass()}`}
                   >
                     {/* 1. Dynamic Print Header */}
-                    {showMainHeader && activeTemplate !== 'klassenbuch' && (
+                    {showMainHeader && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan' && (
                       <PrintHeader title={customHeaderTitle || undefined} />
                     )}
 
@@ -3955,10 +3903,10 @@ export default function PrintCenter() {
                     </div>
                     
                     {/* Simulated Footer */}
-                    <div className="mt-8 pt-4 border-t border-slate-200/80 flex justify-between items-center text-[0.5625rem] text-slate-400 font-bold uppercase tracking-widest leading-none">
+                    {activeTemplate !== 'schueler_wochenplan' && <div className="mt-8 pt-4 border-t border-slate-200/80 flex justify-between items-center text-[0.5625rem] text-slate-400 font-bold uppercase tracking-widest leading-none">
                       <span>Dokument gedruckt im Schul-Druckzentrum</span>
                       <span>Seite 1 / 1</span>
-                    </div>
+                    </div>}
                   </div>
                 </div>
               )}
@@ -4009,10 +3957,12 @@ export default function PrintCenter() {
               ) : (
                 // Regular single page printing
                 <div
-                  className={activeTemplate === 'klassenbuch' ? 'klassenbuch-a4-page' : undefined}
-                  style={activeTemplate === 'klassenbuch' ? undefined : { padding: `${printMargin}mm` }}
+                  className={activeTemplate === 'klassenbuch' ? 'klassenbuch-a4-page' : activeTemplate === 'schueler_wochenplan' ? 'schueler-wochenplan-a4-page' : undefined}
+                  style={activeTemplate === 'klassenbuch' || activeTemplate === 'schueler_wochenplan'
+                    ? undefined : { padding: `${printMargin}mm` }}
                 >
-                  {showMainHeader && activeTemplate !== 'klassenbuch' && <PrintHeader title={customHeaderTitle || undefined} />}
+                  {showMainHeader && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan'
+                    && <PrintHeader title={customHeaderTitle || undefined} />}
                   {renderPreviewTemplate()}
                 </div>
               )}
@@ -4296,6 +4246,50 @@ export default function PrintCenter() {
     return weeks;
   }
 
+  async function handleDownloadKlassenbuchDocx(range: 'week' | 'month' | 'semester' | 'schoolyear') {
+    const allWeeks = buildSchoolYearWeekList(app?.schuljahr || getCurrentSchuljahr(), app?.bundesland || 'VBG');
+    const selectedDate = kwToDates(kbKW).monday;
+    const semester = getAttendanceSemester(
+      formatLocalDateKey(selectedDate), app?.schuljahr || '', app?.bundesland || 'VBG'
+    );
+    let selected = allWeeks.filter(week => week.kw === kbKW);
+    let rangeLabel = `KW ${kbKW}`;
+    if (range === 'month') {
+      selected = allWeeks.filter(week => week.monday.getFullYear() === selectedDate.getFullYear()
+        && week.monday.getMonth() === selectedDate.getMonth());
+      rangeLabel = selectedDate.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
+    } else if (range === 'semester') {
+      selected = allWeeks.filter(week => getAttendanceSemester(
+        formatLocalDateKey(week.monday), app?.schuljahr || '', app?.bundesland || 'VBG'
+      ) === semester);
+      rangeLabel = `${semester}. Semester`;
+    } else if (range === 'schoolyear') {
+      selected = allWeeks;
+      rangeLabel = `Schuljahr ${app?.schuljahr || ''}`.trim();
+    }
+    const included = selected.filter(week => Boolean((app?.wochenplanung || {})[week.kw]));
+    const weeks = included.length ? included : selected.slice(0, 1);
+    const sections = weeks.map(week => {
+      const dates = kwToDates(week.kw);
+      return {
+        title: `KW ${week.kw} · ${dates.monday.toLocaleDateString('de-AT')} – ${dates.friday.toLocaleDateString('de-AT')}`,
+        subtitle: dates.sw ? `Schulwoche ${dates.sw}` : undefined,
+        categories: compileKlassenbuchData(week.kw),
+      };
+    });
+    const name = [app?.anrede, app?.vorname, app?.nachname].filter(Boolean).join(' ')
+      || app?.lehrerName || app?.lehrerProfil?.name || '';
+    const safeClass = String(app?.klassenbezeichnung || 'Klasse').replace(/[^a-zA-Z0-9_-]+/g, '_');
+    const safeRange = rangeLabel.normalize('NFKD').replace(/[^a-zA-Z0-9_-]+/g, '_');
+    await downloadKlassenbuchDocx(`Klassio_Klassenbuch_${safeClass}_${safeRange}.docx`, {
+      title: `Klassenbuch · ${rangeLabel}`,
+      className: app?.klassenbezeichnung || '',
+      schoolYear: app?.schuljahr || '',
+      teacherName: name,
+      sections,
+    });
+  }
+
   function handleDownloadKlassenbuchPdf() {
     const weeks = getKbWeeksToRender();
     const teacherName = [app?.anrede, app?.vorname, app?.nachname]
@@ -4311,7 +4305,8 @@ export default function PrintCenter() {
       const categories = compileKlassenbuchData(kw);
 
       if (!kbIncludeOccurrences) {
-        categories['Besondere Vorkommnisse'] = [];
+        categories['Besondere Vorkommnisse'] = categories['Besondere Vorkommnisse']
+          .filter(entry => !entry.includes(' · Termin: '));
       }
 
       return {
@@ -5028,10 +5023,16 @@ export default function PrintCenter() {
         );
       }
 
+      // Child plan is the same saved encrypted document as in the generator.
+      case 'schueler_wochenplan':
+        return selectedChildPlan
+          ? <SchuelerWochenplanA4Sheet plan={selectedChildPlan} previewOnly={false} colorMode={childPrintColorMode} />
+          : <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Noch keinen Wochenplan für Kinder gespeichert. Bitte zuerst im Wochenplan erstellen.</p>;
+
       // C. WOCHENPLAN
       case 'wochenplan':
         const daysWp = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
-        const subInfoList = [1, 2, 3, 4, 5, 6, 7, 8];
+        const subInfoList = Array.from({ length: 10 }, (_, index) => index + 1);
         const lessonsData = (app?.wochenplanung || {})[wpKW] || {};
 
         return (
@@ -5059,7 +5060,7 @@ export default function PrintCenter() {
                   return (
                     <tr key={h} className="border-b border-zinc-200 min-h-[50px]">
                       {/* Hour cell */}
-                      <td className="py-3 px-2 text-center border-r-[1.5pt] border-black bg-zinc-50/50">
+                      <td className="py-2 px-2 text-center border-r-[1.5pt] border-black bg-zinc-50/50">
                         <div className="font-black text-black">{h}.</div>
                         {wpShowTimes && app?.stundenZeiten?.[h] && (
                           <div className="text-[0.5rem] font-bold text-zinc-400 mt-1">{app.stundenZeiten[h]}</div>
@@ -5075,28 +5076,12 @@ export default function PrintCenter() {
                         let displayFach = cellItem?.fach || stammplanFach || '';
                         let displayThema = cellItem?.thema || '';
 
-                        const isExcludedEvent = (cellItem && (
-                          cellItem.type === 'sa' || 
-                          cellItem.type === 'test' || 
-                          cellItem.type === 'lzk' || 
-                          cellItem.type === 'event' || 
-                          cellItem.type === 'spielefest' || 
-                          cellItem.type === 'konferenz' || 
-                          cellItem.type === 'gespraech' || 
-                          cellItem.type === 'sonstiges'
-                        )) || /^sachunterricht$|^su$/i.test(displayFach);
-
-                        if (isExcludedEvent) {
-                          displayFach = '';
-                          displayThema = '';
-                        }
-                        
                         const isEmpty = !displayFach && !displayThema;
 
                         return (
                           <td 
                             key={d} 
-                            className={`p-2.5 border-l border-zinc-300 align-top text-left w-1/5 ${
+                            className={`p-2 border-l border-zinc-300 align-top text-left w-1/5 ${
                               isEmpty && !wpInkSaver ? 'bg-zinc-50/30' : ''
                             }`}
                           >
