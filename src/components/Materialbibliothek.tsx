@@ -104,6 +104,8 @@ export default function Materialbibliothek() {
         m.titel.toLowerCase().includes(q) ||
         m.beschreibung.toLowerCase().includes(q) ||
         m.tags.some(t => t.toLowerCase().includes(q)) ||
+        m.faecher.some(f => f.toLowerCase().includes(q)) ||
+        m.sammlungen?.some(collection => collection.toLowerCase().includes(q)) ||
         (m.inhaltText && m.inhaltText.toLowerCase().includes(q))
       );
     }
@@ -275,7 +277,7 @@ export default function Materialbibliothek() {
       }`}>
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 pb-1">
-          {['Alle', 'Dateien', 'Links', 'Unterrichtsvorbereitungen', 'Notfallpläne', 'Elternbriefe', 'Beurteilungen', 'Reflexionen', 'Notizen', 'Favoriten'].map(tab => (
+          {['Alle', 'Unterrichtsvorbereitungen', 'Arbeitsblätter & Dateien', 'Links & Medien', 'Favoriten'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -287,6 +289,19 @@ export default function Materialbibliothek() {
               {tab}
             </button>
           ))}
+          <select aria-label="Weitere Materialarten" value={['Notfallpläne', 'Elternbriefe', 'Beurteilungen', 'Reflexionen', 'Notizen'].includes(activeTab) ? activeTab : ''}
+            onChange={event => setActiveTab(event.target.value || 'Alle')}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+            <option value="">Weitere Arten …</option>
+            {['Notfallpläne', 'Elternbriefe', 'Beurteilungen', 'Reflexionen', 'Notizen'].map(tab => <option key={tab} value={tab}>{tab}</option>)}
+          </select>
+          {sammlungen.length > 0 && (
+            <select aria-label="Persönliche Sammlung auswählen" value={filterSammlung} onChange={event => setFilterSammlung(event.target.value)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+              <option value="">Alle Sammlungen</option>
+              {sammlungen.map(name => <option key={name} value={name}>{name}</option>)}
+            </select>
+          )}
         </div>
 
         {/* Search & Filter */}
@@ -300,7 +315,7 @@ export default function Materialbibliothek() {
               }`} size={isCompact ? 14 : isLarge ? 22 : 18} />
               <input 
                 type="text" 
-                placeholder="Suchen nach Titel, Beschreibung, Tags..." 
+                placeholder="Materialien, Themen, Fächer oder Sammlungen suchen …" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full bg-slate-50 border-none focus:ring-2 focus:ring-indigo-500 transition-all outline-none font-medium ${
