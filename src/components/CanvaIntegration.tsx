@@ -202,24 +202,24 @@ export default function CanvaIntegration() {
         }));
         showToast('Canva-Hintergrund übernommen. Die Tafelfläche bleibt beschreibbar.', 'success');
         setPage('cockpit');
+      } else if (destination === 'widget') {
+        // Do not create a second full-size library copy merely to display a widget.
+        setApp(prev => ({
+          ...prev,
+          cockpitLayout: addCanvaImageWidget(prev.cockpitLayout, image, title),
+        }));
+        showToast('Canva-Bild im Lehrercockpit eingefügt.', 'success');
+        setPage('cockpit');
       } else {
         const material = createCanvaMaterial(title, image);
         if (!canSaveCanvaMaterial(app.materialien || [], material)) {
           throw new Error('Die Materialbibliothek ist voll (maximal 5 MB). Bitte zuerst alte Dateien entfernen.');
         }
-        setApp(prev => {
-          // Recheck against the freshest state; never silently exceed the storage limit.
-          if (!canSaveCanvaMaterial(prev.materialien || [], material)) return prev;
-          return {
-            ...prev,
-            materialien: [...(prev.materialien || []), material],
-            cockpitLayout: destination === 'widget'
-              ? addCanvaImageWidget(prev.cockpitLayout, image, title, material.id)
-              : prev.cockpitLayout,
-          };
-        });
-        showToast(destination === 'widget' ? 'Canva-Bild im Lehrercockpit eingefügt.' : 'Canva-Bild in der Materialbibliothek gespeichert.', 'success');
-        if (destination === 'widget') setPage('cockpit');
+        setApp(prev => ({
+          ...prev,
+          materialien: [...(prev.materialien || []), material],
+        }));
+        showToast('Canva-Bild in der Materialbibliothek gespeichert.', 'success');
       }
     } catch (error: any) {
       showToast(error?.message || 'Canva-Bild konnte nicht importiert werden.', 'error');
