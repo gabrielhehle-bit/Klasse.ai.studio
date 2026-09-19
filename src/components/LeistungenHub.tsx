@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { BarChart3, Target, Activity, LineChart, MessagesSquare, Table2, FileText, MessageSquareText, ChevronRight } from 'lucide-react';
+import { BarChart3, Target, Activity, LineChart, MessagesSquare, FileText, MessageSquareText, ChevronRight } from 'lucide-react';
 
 type PerformanceItem = {
   id: string;
@@ -14,14 +14,8 @@ const assessmentItems: PerformanceItem[] = [
   {
     id: 'noten',
     title: 'Notenmappe',
-    description: 'Noten, Prozent, Punkte, Gewichtungen, Schularbeiten, LZK, WOPL und sonstige Leistungen.',
+    description: 'Bewertungen und Zeugnisnoten samt Notenübersicht, Gewichtung und Auswertungen in einem Bereich.',
     icon: BarChart3,
-  },
-  {
-    id: 'notenTabelle',
-    title: 'Notenübersicht',
-    description: 'Kompakte tabellarische Übersicht über vorhandene Leistungsdaten.',
-    icon: Table2,
   },
   {
     id: 'verbal',
@@ -121,7 +115,7 @@ export default function LeistungenHub() {
             Leistungen erfassen und zusammenfassen
           </h2>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {assessmentItems.map(item => (
             <PerformanceCard key={item.id} item={item} onOpen={setPage} />
           ))}

@@ -55,7 +55,6 @@ const Materialbibliothek = lazyRetry(() => import('./components/Materialbiblioth
 const CanvaIntegration = lazyRetry(() => import('./components/CanvaIntegration'));
 const Drafts = lazyRetry(() => import('./components/Drafts'));
 const MeetingLogs = lazyRetry(() => import('./components/MeetingLogs'));
-const GradeOverview = lazyRetry(() => import('./components/GradeOverview'));
 const OrgaLists = lazyRetry(() => import('./components/OrgaLists'));
 const Statistics = lazyRetry(() => import('./components/Statistics'));
 const EmailAssistant = lazyRetry(() => import('./components/EmailAssistant'));
@@ -172,7 +171,13 @@ function AppContent() {
       return false;
     }
   });
-  const currentPage = landOnDashboardAfterLogin ? 'dashboard' : (app.currentPage || 'dashboard');
+  // AppContent mounts only after VaultGate unlocks the decrypted state. On every
+  // fresh app/tab start, land on Heute instead of restoring an old cockpit route.
+  // Never reset user navigation again during this mounted session.
+  const [initialLandingPending, setInitialLandingPending] = useState(true);
+  const currentPage = (initialLandingPending || landOnDashboardAfterLogin)
+    ? 'dashboard'
+    : (app.currentPage || 'dashboard');
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showDiagnostikAnleitung, setShowDiagnostikAnleitung] = useState(false);
@@ -227,6 +232,11 @@ function AppContent() {
       return newState;
     });
   };
+
+  React.useEffect(() => {
+    setPage('dashboard');
+    setInitialLandingPending(false);
+  }, [setPage]);
 
   // Anmeldung landet immer im Dashboard. Der Setup-Wizard öffnet sich nur
   // noch bewusst über "Setup" / "Klasse hinzufügen", nie automatisch nach Login.
@@ -654,7 +664,8 @@ function AppContent() {
       case 'elternbrief': return <EmailAssistant />;
       case 'orga': return <OrgaLists />;
       case 'statistik': return <Statistics />;
-      case 'notenTabelle': return <GradeOverview />;
+      // Old links remain valid; the same gradebook opens directly in its overview tab.
+      case 'notenTabelle': return <Gradebook initialSection="overview" />;
       case 'differenzierung': return <Differentiation />;
       case 'archiv': return <Archive />;
       case 'datensicherung': return <Backup />;
@@ -729,7 +740,7 @@ function AppContent() {
       case 'verbal': return 'Verbale Beurteilung';
       case 'orga': return 'Kasse & Orga';
       case 'statistik': return 'Statistik';
-      case 'notenTabelle': return 'Notenübersicht';
+      case 'notenTabelle': return 'Notenmappe';
       case 'portfolio': return 'Portfolio';
       case 'differenzierung': return 'Differenzierung KI';
       case 'vertretung': return 'Vertretungsplan';

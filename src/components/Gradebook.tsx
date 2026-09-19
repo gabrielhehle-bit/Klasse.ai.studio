@@ -8,6 +8,7 @@ import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPer
 import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
 import WeightSettings from './WeightSettings';
+import GradeOverview from './GradeOverview';
 import GradeCalculatorModal from './GradeCalculatorModal';
 import SchularbeitAssessment from './SchularbeitAssessment';
 import { Calculator, Settings, AlertCircle, Plus, Minus, Filter, Sparkles, ChevronDown, User, FileText, BarChart2, Info, ArrowUpRight, Download, RotateCcw, Trash2, Printer, MessageSquare, Brain, TrendingUp, Check } from 'lucide-react';
@@ -117,7 +118,7 @@ const getCurrentSubject = (app: any) => {
   return null;
 };
 
-export default function Gradebook() {
+export default function Gradebook({ initialSection = 'grades' }: { initialSection?: 'grades' | 'overview' } = {}) {
   const { app, setApp, setPage } = useApp();
   const [activeFach, setActiveFach] = useState<string>(() => {
     const currentSubject = getCurrentSubject(app);
@@ -188,6 +189,7 @@ export default function Gradebook() {
   const commonIcons = ['🌟', '😊', '😐', '⚠️', '🚫', '🔥', '❤️', '👍', '👎', '👏', '🙌', '🤝', '💎', '🏆', '👑', '✨', '🚀', '⭐', '🎈', '🎉', '📝', '💬', '📖', '💡', '🍎', '🎒', '🎨', '🧩', '⚽', '💻', '🦁', '🐘', '🦎', '🦉', '🐝'];
   const [sem, setSem] = useState<'1' | '2'>('1');
   const [showWeights, setShowWeights] = useState(false);
+  const [showOverview, setShowOverview] = useState(() => initialSection === 'overview');
   const [showGradeCalculator, setShowGradeCalculator] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showClassAverage, setShowClassAverage] = useState(true);
@@ -1540,6 +1542,11 @@ export default function Gradebook() {
     );
   };
 
+  // The overview is another view of this very same gradebook, not a second grade state.
+  if (showOverview) {
+    return <GradeOverview embedded onBack={() => { if (app.currentPage === 'notenTabelle') setPage('noten'); else setShowOverview(false); }} />;
+  }
+
   return (
     <div className="space-y-3 pb-20">
       <style dangerouslySetInnerHTML={{ __html: `
@@ -1602,6 +1609,15 @@ export default function Gradebook() {
                 aria-pressed={showGradeCalculator}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
                 <Calculator size={15} /> Notenrechner
+              </button>
+              <button type="button" onClick={() => {
+                setShowOverview(true);
+                setShowGradeCalculator(false);
+                setShowWeights(false);
+                setShowMoreMenu(false);
+              }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                <BarChart2 size={15} /> Notenübersicht
               </button>
               <button type="button" onClick={() => { setShowWeights(!showWeights); setShowGradeCalculator(false); }}
                 aria-pressed={showWeights}
