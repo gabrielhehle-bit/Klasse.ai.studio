@@ -237,145 +237,28 @@ export default function Materialbibliothek() {
         </div>
       )}
 
-      {/* Header & Stats Widget */}
-      <div className={`flex flex-col md:flex-row md:items-start justify-between border-b border-slate-100 ${
-        isCompact ? 'pb-4 gap-4' : isLarge ? 'pb-10 gap-8' : 'pb-6 gap-5'
-      }`}>
-        <div className={`flex-1 ${isCompact ? 'space-y-2' : isLarge ? 'space-y-6' : 'space-y-4'}`}>
-           <div className={`leading-snug font-medium text-slate-500 ${
-             isCompact ? 'text-[0.75rem]' : isLarge ? 'text-[1rem]' : 'text-[0.875rem]'
-           }`}>
-              Unterrichtsmaterialien, Arbeitsblätter und Vorlagen organisieren
-           </div>
-           
-           <div className={`grid grid-cols-2 md:grid-cols-4 ${isCompact ? 'gap-2.5' : isLarge ? 'gap-6' : 'gap-4'}`}>
-              <div className={`bg-slate-50 border border-slate-100 flex flex-col ${
-                isCompact ? 'p-2.5 rounded-xl gap-0.5' : isLarge ? 'p-5 rounded-[2rem] gap-1.5' : 'p-4 rounded-2xl gap-1'
-              }`}>
-                 <div className="flex items-center gap-2 text-slate-500 mb-0.5">
-                   <Folder size={isCompact ? 14 : isLarge ? 20 : 16} />
-                   <span className={`${isCompact ? 'text-[0.5625rem]' : isLarge ? 'text-[0.75rem]' : 'text-[0.625rem]'} font-black uppercase tracking-wider`}>Gesamt</span>
-                 </div>
-                 <span className={`leading-normal font-black text-slate-800 ${
-                   isCompact ? 'text-[1.125rem]' : isLarge ? 'text-[2rem]' : 'text-[1.5rem]'
-                 }`}>{totalCount}</span>
-              </div>
-              
-              <div className={`bg-rose-50 border border-rose-100 flex flex-col ${
-                isCompact ? 'p-2.5 rounded-xl gap-0.5' : isLarge ? 'p-5 rounded-[2rem] gap-1.5' : 'p-4 rounded-2xl gap-1'
-              }`}>
-                 <div className="flex items-center gap-2 text-rose-500 mb-0.5">
-                   <Heart size={isCompact ? 14 : isLarge ? 20 : 16} fill="currentColor" />
-                   <span className={`${isCompact ? 'text-[0.5625rem]' : isLarge ? 'text-[0.75rem]' : 'text-[0.625rem]'} font-black uppercase tracking-wider`}>Favoriten</span>
-                 </div>
-                 <span className={`leading-normal font-black text-rose-700 ${
-                   isCompact ? 'text-[1.125rem]' : isLarge ? 'text-[2rem]' : 'text-[1.5rem]'
-                 }`}>{favoritesCount}</span>
-              </div>
-
-              <div className={`bg-fuchsia-50 border border-fuchsia-100 flex flex-col ${
-                isCompact ? 'p-2.5 rounded-xl gap-0.5' : isLarge ? 'p-5 rounded-[2rem] gap-1.5' : 'p-4 rounded-2xl gap-1'
-              }`}>
-                 <div className="flex items-center gap-2 text-fuchsia-500 mb-0.5">
-                   <Sparkles size={isCompact ? 14 : isLarge ? 20 : 16} fill="currentColor" />
-                   <span className={`${isCompact ? 'text-[0.5625rem]' : isLarge ? 'text-[0.75rem]' : 'text-[0.625rem]'} font-black uppercase tracking-wider`}>KI-Inhalte</span>
-                 </div>
-                 <span className={`leading-normal font-black text-fuchsia-700 ${
-                   isCompact ? 'text-[1.125rem]' : isLarge ? 'text-[2rem]' : 'text-[1.5rem]'
-                 }`}>{(app.materialien || []).filter(m => m.kiGeneriert).length}</span>
-              </div>
-
-              <div className={`border transition-all flex flex-col ${
-                isCompact ? 'p-2.5 rounded-xl gap-1' : isLarge ? 'p-5 rounded-[2rem] gap-2' : 'p-4 rounded-2xl gap-1.5'
-              } ${storageMB > 4 ? 'bg-rose-50 border-rose-100 animate-pulse' : 'bg-indigo-50 border-indigo-100'}`}>
-                 <div className="flex items-center justify-between">
-                   <div className={`flex items-center gap-2 ${storageMB > 4 ? 'text-rose-500 font-bold' : 'text-indigo-500'}`}>
-                     <Database size={isCompact ? 14 : isLarge ? 20 : 16} />
-                     <span className={`${isCompact ? 'text-[0.5625rem]' : isLarge ? 'text-[0.75rem]' : 'text-[0.625rem]'} font-black uppercase tracking-wider`}>Speicher</span>
-                   </div>
-                   {storageMB > 0 && (
-                     <button
-                       onClick={(e) => {
-                         e.stopPropagation();
-                         if (confirm("Möchtest du den gesamten Speicher zurücksetzen? Das löscht alle deine hochgeladenen und generierten Materialien.")) {
-                           setApp(prev => ({
-                             ...prev,
-                             materialien: [],
-                             wochenplanung: removeMaterialReferencesFromWeeklyPlan(prev.wochenplanung),
-                             classes: removeMaterialReferencesFromClasses(prev.classes),
-                           }));
-                           setSelectedItems([]);
-                         }
-                       }}
-                       title="Speicher zurücksetzen"
-                       className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition-colors pointer-events-auto animate-in fade-in"
-                     >
-                       <Trash size={isCompact ? 10 : isLarge ? 14 : 12} />
-                     </button>
-                   )}
-                 </div>
-                 <div className={`flex flex-col mt-0.5 ${isCompact ? 'gap-0.5' : isLarge ? 'gap-2' : 'gap-1'}`}>
-                   <span className={`leading-none font-black ${
-                     isCompact ? 'text-[1rem]' : isLarge ? 'text-[1.625rem]' : 'text-[1.25rem]'
-                   } ${storageMB > 4 ? 'text-rose-700' : 'text-indigo-800'}`}>
-                      {storageMB.toLocaleString('de-AT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      <span className={`${isCompact ? 'text-[0.625rem]' : isLarge ? 'text-[0.875rem]' : 'text-[0.75rem]'} font-bold text-slate-400`}> MB von {MATERIAL_LIBRARY_MAX_MB} MB</span>
-                   </span>
-                   {/* Storage Progress Bar */}
-                   <div className={`w-full bg-slate-200/70 rounded-full overflow-hidden ${isCompact ? 'h-1 mt-0.5' : isLarge ? 'h-2 mt-2' : 'h-1.5 mt-1'}`}>
-                     <div 
-                       className={`h-full rounded-full transition-all duration-500 ${
-                         storageMB > 4 ? 'bg-rose-600' : storageMB > 2.5 ? 'bg-amber-500' : 'bg-indigo-600'
-                       }`}
-                       style={{ width: `${Math.min(100, (storageMB / MATERIAL_LIBRARY_MAX_MB) * 100)}%` }}
-                     />
-                   </div>
-                 </div>
-              </div>
-           </div>
+      <header className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
+        <div className="min-w-0">
+          <h1 className="text-xl font-black text-slate-900 sm:text-2xl">Meine Materialbibliothek</h1>
+          <p className="mt-1 text-sm text-slate-600">Unterrichtsmaterialien und Vorbereitungen sammeln, wiederfinden und im Wochenplan verwenden.</p>
+          <p className="mt-2 text-xs font-semibold text-slate-500">
+            {totalCount} {totalCount === 1 ? 'Material' : 'Materialien'} · {favoritesCount} Favoriten
+          </p>
         </div>
-        
-        <div className={`flex shrink-0 flex-col gap-2 sm:flex-row ${isCompact ? 'mt-1 md:mt-4' : isLarge ? 'mt-3 md:mt-10' : 'mt-2 md:mt-8'}`}>
-          <button
-            type="button"
-            onClick={() => setPage('canva')}
-            className={`flex items-center justify-center gap-2 rounded-xl border border-[var(--accent)]/25 bg-[var(--accent-soft)] px-5 font-black text-[var(--accent)] transition hover:border-[var(--accent)]/45 hover:bg-[var(--surface)] ${isCompact ? 'h-11 text-xs' : isLarge ? 'h-16 text-lg' : 'h-14 text-sm'}`}
-          >
-            <Palette size={isCompact ? 18 : isLarge ? 28 : 22} />
-            <span>Mit Canva gestalten</span>
-          </button>
-          <button 
-            onClick={() => {
-              setSelectedMaterial(null);
-              setIsAdding(true);
-            }}
-            className={`btn btn-primary flex shrink-0 items-center gap-2 shadow-xl hover:scale-[1.02] transition-transform ${isCompact ? 'h-11 px-5 rounded-xl text-xs' : isLarge ? 'h-16 px-10 rounded-[1.5rem] text-lg' : 'h-14 px-8'}`}
-          >
-            <Plus size={isCompact ? 18 : isLarge ? 28 : 24} />
-            <span>Neues Material</span>
-          </button>
-        </div>
-      </div>
-
-      {storageMB > 4 && (
-        <div className={`bg-rose-50 border border-rose-100 flex items-center gap-3 text-rose-700 leading-snug font-bold animate-in slide-in-from-top duration-300 ${
-          isCompact ? 'p-2 rounded-xl text-[0.75rem]' : isLarge ? 'p-4 rounded-2xl text-[1rem]' : 'p-3 rounded-2xl text-[0.875rem]'
-        }`}>
-          <AlertTriangle size={isCompact ? 16 : isLarge ? 22 : 18} className="shrink-0" />
-          Achtung: Speicher zu 80% gefüllt. Lösche nicht mehr benötigte Materialien.
-        </div>
-      )}
-
-      <div className={`bg-white border border-slate-100 shadow-sm ${
-        isCompact ? 'p-2.5 rounded-2xl' : isLarge ? 'p-5 rounded-[3rem]' : 'p-3 rounded-2xl'
-      }`}>
-        <p className={`font-bold text-slate-400 flex items-center gap-2 px-4 ${
-          isCompact ? 'text-[0.5625rem]' : isLarge ? 'text-[0.75rem]' : 'text-[0.625rem]'
-        }`}>
-          <Info size={isCompact ? 10 : isLarge ? 14 : 12} />
-          Deine Materialien bleiben auf diesem Gerät gespeichert. Verfügbar sind insgesamt 5 MB; einzelne Dateien sollten möglichst kleiner als 1 MB sein.
+        <button type="button" onClick={() => { setSelectedMaterial(null); setIsAdding(true); }}
+          className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-emerald-700">
+          <Plus size={18} /> Material hinzufügen
+        </button>
+      </header>
+      <details className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600">
+        <summary className="cursor-pointer font-bold">Speicher & Dateigrößen</summary>
+        <p className="mt-2">
+          Für diese Bibliothek gilt derzeit eine App-interne Grenze von {MATERIAL_LIBRARY_MAX_MB} MB;
+          das ist nicht die Speicherkapazität deines Geräts. Belegt: {storageMB.toLocaleString('de-AT', { maximumFractionDigits: 2 })} MB.
+          Der einzelne Datei-Upload ist derzeit auf 3 MB begrenzt. Diese Grenzen bleiben bis zu einer geprüften
+          Erweiterung der verschlüsselten Speicherung, Sicherung und Synchronisation bestehen.
         </p>
-      </div>
+      </details>
 
       {/* Sticky Filter Header */}
       {totalCount > 0 && (
