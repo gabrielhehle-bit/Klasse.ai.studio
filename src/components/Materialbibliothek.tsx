@@ -590,12 +590,16 @@ export default function Materialbibliothek() {
           </div>
         ))}
         {filteredMaterials.length === 0 && (
-          <div className="col-span-full py-14 px-6 flex flex-col items-center text-slate-350 bg-white border border-dashed border-slate-200 rounded-2xl">
+          <div className="col-span-full flex flex-col items-center rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-slate-500">
             <span className="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center mb-4">
               <Folder size={26} />
             </span>
-            <p className="text-[1.125rem] leading-normal font-bold text-slate-700 mb-1">Keine Materialien gefunden</p>
-            <p className="text-[0.875rem] leading-snug font-medium text-slate-500 text-center max-w-md">Lege Arbeitsblätter, Links, Stundenentwürfe oder Vorlagen zentral ab – dann findest du sie später über Suche und Filter sofort wieder.</p>
+            <p className="mb-1 text-lg font-black text-slate-800">{totalCount === 0 ? 'Deine persönliche Unterrichtsbibliothek ist noch leer' : 'Keine passenden Materialien gefunden'}</p>
+            <p className="max-w-md text-center text-sm text-slate-600">
+              {totalCount === 0
+                ? 'Speichere dein erstes Arbeitsblatt, einen Link oder eine Vorbereitung. Danach kannst du die Inhalte direkt im Wochenplan wiederverwenden.'
+                : 'Versuche einen anderen Suchbegriff oder setze die gewählten Filter zurück.'}
+            </p>
             {activeFiltersCount > 0 && (
               <button 
                 onClick={clearAllFilters}
@@ -604,17 +608,7 @@ export default function Materialbibliothek() {
                 <X size={14} /> Filter zurücksetzen
               </button>
             )}
-            {activeFiltersCount === 0 && (
-              <button
-                onClick={() => {
-                  setSelectedMaterial(null);
-                  setIsAdding(true);
-                }}
-                className="mt-6 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-[0.8125rem] shadow-sm flex items-center gap-2 transition-all active:scale-95"
-              >
-                <Plus size={15} /> Erstes Material anlegen
-              </button>
-            )}
+            {totalCount === 0 && <p className="mt-3 text-xs text-slate-500">Über „Material hinzufügen“ startest du oben rechts.</p>}
           </div>
         )}
       </div>
