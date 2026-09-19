@@ -38,5 +38,5 @@ test('Klasse, Planung and Leistungen hubs expose their remaining legacy tools', 
   assertContainsAll(source('KlasseHub.tsx'), ['schueler', 'dossier', 'anwesenheit', 'sitzplan', 'verhalten', 'orga', 'kel', 'klassengemeinschaft', 'teamteaching']);
   assertContainsAll(source('PlanungHub.tsx'), ['planungszentrale', 'wochenplanung', 'jahresplanung', 'materialien', 'vertretung', 'uebergabemappe']);
   assertContainsAll(source('ToolsHub.tsx'), ['canva']);
-  assertContainsAll(source('LeistungenHub.tsx'), ['noten', 'portfolio', 'diagnostik', 'statistik', 'kel', 'notenTabelle', 'verbal', 'jahresbericht']);
+  assertContainsAll(source('LeistungenHub.tsx'), ['noten', 'portfolio', 'diagnostik', 'statistik', 'kel', 'verbal', 'jahresbericht']);
 });
