@@ -1743,6 +1743,60 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     } catch (error) { next(error); }
   });
 
+  // The browser must never fetch ephemeral Canva export URLs itself: they can be
+  // cross-origin, expire quickly, or include signed query parameters.
+  // The job ID is resolved via the current user's Canva OAuth session. No URL
+  // from a browser request is ever accepted as a fetch destination.
+  app.get('/api/canva/exports/:id/image', async (req, res, next) => {
+    try {
+      const rawId = String(req.params.id || '');
+      if (!/^[A-Za-z0-9_-]{1,200}$/.test(rawId)) {
+        return res.status(400).json({ error: 'Ungültige Canva-Export-ID.' });
+      }
+      const data: any = await canvaApi(req, `https://api.canva.com/rest/v1/exports/${encodeURIComponent(rawId)}`);
+      const job = data?.job || data;
+      if (job?.status !== 'success' || !Array.isArray(job?.urls) || !job.urls[0]) {
+        return res.status(409).json({ error: 'Der Bildexport ist noch nicht fertig.' });
+      }
+      const imageUrl = new URL(String(job.urls[0]));
+      // Canva's signed export-download host; never follow redirects to another origin.
+      if (imageUrl.protocol !== 'https:' || !/^(?:[a-z0-9-]+\\.)*canva\\.com$/i.test(imageUrl.hostname)) {
+        return res.status(502).json({ error: 'Canva hat eine unerwartete Download-Adresse geliefert. Bitte Bild manuell herunterladen und importieren.' });
+      }
+      const response = await fetch(imageUrl, {
+        redirect: 'error',
+        signal: AbortSignal.timeout(20_000),
+        headers: { Accept: 'image/png' },
+      });
+      if (!response.ok) throw Object.assign(new Error('Canva-Bild konnte nicht heruntergeladen werden.'), { status: 502 });
+      const maxBytes = 12 * 1024 * 1024;
+      if (Number(response.headers.get('content-length') || 0) > maxBytes) {
+        return res.status(413).json({ error: 'Das Canva-Bild ist zu groß. Bitte in Canva verkleinern.' });
+      }
+      const chunks: Uint8Array[] = [];
+      let total = 0;
+      const reader = response.body?.getReader();
+      if (!reader) throw Object.assign(new Error('Canva hat kein Bild geliefert.'), { status: 502 });
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > maxBytes) {
+          await reader.cancel();
+          return res.status(413).json({ error: 'Das Canva-Bild ist zu groß. Bitte in Canva verkleinern.' });
+        }
+        chunks.push(value);
+      }
+      const buffer = Buffer.concat(chunks.map(chunk => Buffer.from(chunk)));
+      // Verify actual PNG magic, not just a remote Content-Type.
+      if (buffer.length < 8 || buffer.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') {
+        return res.status(502).json({ error: 'Canva hat kein gültiges PNG-Bild geliefert.' });
+      }
+      res.setHeader('Cache-Control', 'no-store');
+      res.type('image/png').send(buffer);
+    } catch (error) { next(error); }
+  });
+
   const canvaCleanupTimer = setInterval(() => {
     const now = Date.now();
     for (const [id, flow] of canvaOauthFlows.entries()) {
