@@ -234,9 +234,12 @@ export default function KELPresentation({
   const [selectedAssessmentIds, setSelectedAssessmentIds] = useState<string[]>(() =>
     Array.isArray(matchingSavedPlan?.selectedAssessmentIds) ? matchingSavedPlan.selectedAssessmentIds : []);
   const [selectionSaved, setSelectionSaved] = useState(Boolean(matchingSavedPlan));
-  const selectionScope = app.activeClassId + ':' + student.id + ':' + sem;
+  const selectionScope = JSON.stringify([app.activeClassId, student.id, app.schuljahr, sem]);
+  const scopeRef = useRef(selectionScope);
+  const scopeMatches = scopeRef.current === selectionScope;
 
   useEffect(() => {
+    scopeRef.current = selectionScope;
     setVisible({ ...DEFAULT_CONFIG, ...(matchingSavedPlan?.visible || {}) });
     setSelectedSubjects(Array.isArray(matchingSavedPlan?.selectedSubjects) ? matchingSavedPlan.selectedSubjects : []);
     setSelectedAssessmentIds(Array.isArray(matchingSavedPlan?.selectedAssessmentIds) ? matchingSavedPlan.selectedAssessmentIds : []);
@@ -333,6 +336,54 @@ export default function KELPresentation({
     }).slice(0, 8);
   }, [activeFaecher, app, berechne, sem, student.id]);
 
+  // Read-only material from the REAL Notenmappe, limited to this child and semester.
+  const availableAssessments = useMemo(() =>
+    sem === '1' || sem === '2'
+      ? getKelGradebookAssessments(app, student.id, sem, activeFaecher)
+      : [],
+    [app, student.id, sem, activeFaecher]);
+  const chosenLearningSubjects = scopeMatches
+    ? learningSubjects.filter(entry => selectedSubjects.includes(entry.fach)) : [];
+  const chosenAssessments = scopeMatches
+    ? pickKelAssessments(availableAssessments, selectedAssessmentIds) : [];
+  const toggleSubject = (fach: string) => {
+    setSelectedSubjects(previous => previous.includes(fach)
+      ? previous.filter(item => item !== fach) : [...previous, fach]);
+    setVisible(previous => ({ ...previous, learning: true }));
+    setSelectionSaved(false);
+  };
+  const toggleAssessment = (id: string) => {
+    setSelectedAssessmentIds(previous => previous.includes(id)
+      ? previous.filter(item => item !== id) : [...previous, id]);
+    setVisible(previous => ({ ...previous, individualGrades: true }));
+    setSelectionSaved(false);
+  };
+  const savePresentationSelection = () => {
+    if (!scopeMatches || !app.schueler.some(entry => entry.id === student.id)) return;
+    const nextPlan = {
+      classId: app.activeClassId, studentId: student.id, semester: sem,
+      visible: { ...visible },
+      selectedSubjects: chosenLearningSubjects.map(item => item.fach),
+      selectedAssessmentIds: chosenAssessments.map(item => item.id),
+      updatedAt: new Date().toISOString(),
+    };
+    setApp(previous => {
+      if (previous.activeClassId !== app.activeClassId ||
+          !previous.schueler.some(entry => entry.id === student.id)) return previous;
+      return {
+        ...previous,
+        schueler: previous.schueler.map(entry => entry.id !== student.id ? entry : {
+          ...entry,
+          kelPraesentationAuswahl: {
+            ...(entry.kelPraesentationAuswahl || {}),
+            [planKey]: nextPlan,
+          },
+        }),
+      };
+    });
+    setSelectionSaved(true);
+  };
+
   const kelAreas = useMemo(() => {
     const map = new Map<string, any>();
     for (const area of STANDARD_KEL_BEREICHE || []) map.set(area.id, area);
@@ -381,7 +432,8 @@ export default function KELPresentation({
     ];
     if (visible.strengths && strengths.length) list.push({ id: 'strengths', type: 'strengths', title: t.strengths });
     if (visible.voices && (childVoice.length || parentVoice || teacherVoice.length)) list.push({ id: 'voices', type: 'voices', title: t.voices });
-    if (visible.learning && learningSubjects.length) list.push({ id: 'learning', type: 'learning', title: t.learning, subtitle: 'Nur eigene dokumentierte Lernstände – kein Klassenvergleich' });
+    if (visible.learning && chosenLearningSubjects.length) list.push({ id: 'learning', type: 'learning', title: t.learning, subtitle: 'Nur eigene dokumentierte Lernstände – kein Klassenvergleich' });
+    if (visible.individualGrades && chosenAssessments.length) list.push({ id: 'individualGrades', type: 'individualGrades', title: 'Meine ausgewählten Arbeiten', subtitle: 'Nur einzeln freigegebene Bewertungen aus der Notenmappe' });
     if (visible.assessment && kelAreas.length) list.push({ id: 'assessment', type: 'assessment', title: t.assessment });
     if (visible.portfolio && selectedPortfolio.length) list.push({ id: 'portfolio', type: 'portfolio', title: t.portfolio });
     if (visible.attendance && attendance.hasData) list.push({ id: 'attendance', type: 'attendance', title: t.attendance, subtitle: 'Optionaler organisatorischer Gesprächspunkt' });
@@ -389,7 +441,7 @@ export default function KELPresentation({
     if (visible.goals) list.push({ id: 'goals', type: 'goals', title: t.goals, subtitle: 'Gemeinsam konkret und überprüfbar vereinbaren' });
     if (visible.closing) list.push({ id: 'closing', type: 'closing', title: t.closing });
     return list;
-  }, [student.vorname, student.nachname, t, visible, strengths.length, childVoice.length, parentVoice, teacherVoice.length, learningSubjects.length, kelAreas.length, selectedPortfolio.length, attendance.hasData, ikmRecord]);
+  }, [student.vorname, student.nachname, t, visible, strengths.length, childVoice.length, parentVoice, teacherVoice.length, chosenLearningSubjects.length, chosenAssessments.length, kelAreas.length, selectedPortfolio.length, attendance.hasData, ikmRecord]);
 
   useEffect(() => {
     if (slideIndex >= slides.length) setSlideIndex(Math.max(0, slides.length - 1));
@@ -495,8 +547,12 @@ export default function KELPresentation({
           continue;
         }
         if (slideData.type === 'learning') {
-          const rows = learningSubjects.map(item => `${item.fach}: ${item.label}${item.evidence ? ` · ${item.evidence} dokumentierte Leistungsnachweise` : ''}`);
+          const rows = chosenLearningSubjects.map(item => `${item.fach}: ${item.label}${item.evidence ? ` · ${item.evidence} dokumentierte Leistungsnachweise` : ''}`);
           addBullets(slide, rows, 0.95, 1.55, 11.5, 5.0);
+          continue;
+        }
+        if (slideData.type === 'individualGrades') {
+          addBullets(slide, chosenAssessments.map(item => `${item.fach} · ${item.titel}${item.datum ? ' · ' + item.datum : ''}: ${item.ergebnis}`), 0.9, 1.5, 11.6, 5.2);
           continue;
         }
         if (slideData.type === 'assessment') {
@@ -547,7 +603,8 @@ export default function KELPresentation({
   const slideOptions: Array<{ key: keyof VisibleConfig; label: string; help: string; available: boolean }> = [
     { key: 'strengths', label: 'Stärken', help: 'Dokumentierte Stärken und Badges', available: strengths.length > 0 },
     { key: 'voices', label: 'Sichtweisen', help: 'Aussagen von Kind, Eltern und Lehrperson aus dem KEL-Protokoll', available: Boolean(childVoice.length || parentVoice || teacherVoice.length) },
-    { key: 'learning', label: 'Lernstand', help: 'Eigene Fachstände ohne Klassenvergleich', available: learningSubjects.length > 0 },
+    { key: 'learning', label: 'Lernstand', help: 'Nur die unten ausdrücklich ausgewählten Fächer', available: learningSubjects.length > 0 },
+    { key: 'individualGrades', label: 'Einzelne Bewertungen', help: 'Nur die unten einzeln ausgewählten Leistungsnachweise', available: availableAssessments.length > 0 },
     { key: 'assessment', label: 'Selbst- & Fremdeinschätzung', help: 'Nur ausdrücklich erfasste KEL-Einschätzungen', available: kelAreas.length > 0 },
     { key: 'portfolio', label: 'Portfolio', help: 'Nur Einträge, die ausdrücklich „für KEL“ markiert sind', available: selectedPortfolio.length > 0 },
     { key: 'attendance', label: 'Anwesenheit', help: 'Optional; organisatorischer Punkt, standardmäßig ausgeblendet', available: attendance.hasData },
@@ -610,13 +667,23 @@ export default function KELPresentation({
 
     if (currentSlide.type === 'learning') return <SlideShell title={currentSlide.title} subtitle={currentSlide.subtitle}>
       <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {learningSubjects.map(item => <div key={item.fach} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm">
+        {chosenLearningSubjects.map(item => <div key={item.fach} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm">
           <p className="text-xs font-black uppercase tracking-wider text-slate-500">{item.fach}</p>
           <p className="mt-2 text-2xl font-black text-slate-950">{item.label}</p>
           <p className="mt-2 text-xs font-semibold text-slate-500">{item.evidence ? `${item.evidence} dokumentierte Leistungsnachweise` : 'Gesamtstand aus der Notenmappe'}{item.hasParticipation ? ' · Mitarbeit dokumentiert' : ''}</p>
         </div>)}
       </div>
       <p className="mt-5 text-center text-xs font-semibold text-slate-500">Keine Rangliste und kein Klassenvergleich. Punktebewertungen werden als berechneter Prozentstand gezeigt.</p>
+    </SlideShell>;
+
+    if (currentSlide.type === 'individualGrades') return <SlideShell title={currentSlide.title} subtitle={currentSlide.subtitle}>
+      <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
+        {chosenAssessments.map(item => <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm">
+          <p className="text-xs font-black uppercase tracking-wider text-slate-500">{item.fach}{item.datum ? ' · ' + item.datum : ''}</p>
+          <h3 className="mt-2 text-base font-bold text-slate-900">{item.titel}</h3>
+          <p className="mt-2 text-2xl font-black text-slate-950">{item.ergebnis}</p>
+        </article>)}
+      </div>
     </SlideShell>;
 
     if (currentSlide.type === 'assessment') return <SlideShell title={currentSlide.title} subtitle="Unterschiede sind Gesprächsanlässe, keine Fehler.">
