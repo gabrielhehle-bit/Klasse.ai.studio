@@ -166,11 +166,11 @@ export function BoardTextEditor({
           [&_h2]:text-3xl [&_h2]:font-bold [&_h2]:mb-3
           [&_h3]:text-2xl [&_h3]:font-semibold [&_h3]:mb-2
           [&_p]:mb-3 [&_ul]:list-disc [&_ul]:pl-7 [&_ol]:list-decimal [&_ol]:pl-7
-          ${active ? "z-[20000] pointer-events-auto cursor-text select-text" : "z-[1] pointer-events-none select-text"}`}
+          ${active ? "z-[5] pointer-events-auto cursor-text select-text" : "z-[1] pointer-events-none select-text"}`}
       />
 
       {active && isEmpty && (
-        <div className="absolute left-[7%] top-[6%] z-[20001] pointer-events-none text-slate-300 text-2xl font-medium">
+        <div className="absolute left-[7%] top-[6%] z-[6] pointer-events-none text-slate-300 text-2xl font-medium">
           Hier schreiben …
         </div>
       )}
