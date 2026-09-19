@@ -791,7 +791,7 @@ export default function KELPresentation({
       <div className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-3xl bg-white p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-3"><div><h3 className="text-lg font-black text-slate-950">Was soll im Gespräch sichtbar sein?</h3><p className="mt-1 text-xs text-slate-600">Standardmäßig werden nur kind- und elterngeeignete Kerninhalte gezeigt.</p></div><button onClick={() => setShowConfig(false)} className="rounded-xl border border-slate-200 p-2"><X size={15} /></button></div>
         <div className="mt-4 space-y-2">{slideOptions.map(option => <label key={option.key} className={`flex items-start gap-3 rounded-2xl border p-3 ${option.available ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50 opacity-60'}`}>
-          <input type="checkbox" checked={visible[option.key]} disabled={!option.available} onChange={event => setVisible(previous => ({ ...previous, [option.key]: event.target.checked }))} className="mt-1" />
+          <input type="checkbox" checked={visible[option.key]} disabled={!option.available} onChange={event => { setVisible(previous => ({ ...previous, [option.key]: event.target.checked })); setSelectionSaved(false); }} className="mt-1" />
           <div className="flex-1"><p className="text-sm font-black text-slate-900">{option.label}</p><p className="mt-0.5 text-xs text-slate-500">{option.help}</p></div>
           {visible[option.key] && option.available ? <Eye size={16} className="text-emerald-600" /> : <EyeOff size={16} className="text-slate-400" />}
         </label>)}</div>
@@ -806,7 +806,7 @@ export default function KELPresentation({
         </section>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <PrepCard icon={<Heart size={18} />} title="Kind im Mittelpunkt" value={`${strengths.length} Stärken · ${childVoice.length} Kind-Aussagen`} text="Die Präsentation beginnt nicht mit Noten oder Fehlzeiten." />
-          <PrepCard icon={<BookOpen size={18} />} title="Ausgewählte Lernnachweise" value={`${learningSubjects.length} Fächer · ${selectedPortfolio.length} Portfolioeinträge`} text="Portfolio wird nur gezeigt, wenn ein Eintrag ausdrücklich für KEL markiert wurde." />
+          <PrepCard icon={<BookOpen size={18} />} title="Ausgewählte Lernnachweise" value={`${chosenLearningSubjects.length} Fächer · ${chosenAssessments.length} Einzelbewertungen · ${selectedPortfolio.length} Portfolioeinträge`} text="Portfolio wird nur gezeigt, wenn ein Eintrag ausdrücklich für KEL markiert wurde." />
           <PrepCard icon={<ShieldCheck size={18} />} title="Geschützte Informationen" value="Keine Klassenvergleiche" text="Interne Notizen, Klassenkasse und sensible Hintergrunddaten bleiben außerhalb der Elternansicht." />
         </div>
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -817,6 +817,67 @@ export default function KELPresentation({
             <DataBadge label="Lernstand" available={learningSubjects.length > 0} detail={`${learningSubjects.length} Fächer`} />
             <DataBadge label="Diagnostik" available={Boolean(ikmRecord)} detail={ikmRecord ? 'vorhanden, standardmäßig verborgen' : 'nicht vorhanden'} />
           </div>
+        </section>
+        <section className="space-y-4 rounded-3xl border border-indigo-200 bg-white p-5 shadow-sm" data-testid="kel-gradebook-preparation">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-black text-slate-950">Notenmappe für dieses Gespräch auswählen</h2>
+              <p className="mt-1 text-xs text-slate-600">Nur für {student.vorname} · {sem}. Semester. Fächer und einzelne Bewertungen erscheinen erst, wenn du sie selbst auswählst. Es werden keine anderen Kinder oder Klassenvergleiche gezeigt.</p>
+            </div>
+            <button type="button" onClick={() => setShowConfig(true)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">Weitere Folien wählen</button>
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-sm font-bold text-slate-800">Fachstände (optional)</h3>
+            <div className="flex flex-wrap gap-2">
+              {learningSubjects.length ? learningSubjects.map(item =>
+                <label key={item.fach} className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
+                  <input type="checkbox" checked={selectedSubjects.includes(item.fach)} onChange={() => toggleSubject(item.fach)} />
+                  {item.fach}: {item.label}
+                </label>
+              ) : <p className="text-xs text-slate-500">Noch keine dokumentierten Fachstände im gewählten Semester.</p>}
+            </div>
+            {chosenLearningSubjects.length > 0 && !visible.learning &&
+              <p className="text-xs text-amber-800">Die Fachstand-Folie ist derzeit ausgeblendet. Du kannst sie unter „Weitere Folien wählen“ wieder einschalten.</p>}
+          </div>
+          <div className="space-y-3">
+            <h3 className="text-sm font-bold text-slate-800">Einzelne Leistungsnachweise (optional)</h3>
+            {availableAssessments.length ? [...new Set(availableAssessments.map(item => item.fach))].map(fach =>
+              <details key={fach} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <summary className="cursor-pointer text-xs font-black text-slate-800">
+                  {fach} · {availableAssessments.filter(item => item.fach === fach && selectedAssessmentIds.includes(item.id)).length}
+                  /{availableAssessments.filter(item => item.fach === fach).length} ausgewählt
+                </summary>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {availableAssessments.filter(item => item.fach === fach).map(item =>
+                    <label key={item.id} className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700">
+                      <input type="checkbox" className="mt-0.5" checked={selectedAssessmentIds.includes(item.id)}
+                        onChange={() => toggleAssessment(item.id)} />
+                      <span className="min-w-0">
+                        <span className="block font-black text-slate-900">{item.titel}</span>
+                        <span className="mt-1 block">{item.ergebnis}{item.datum ? ' · ' + item.datum : ''}</span>
+                      </span>
+                    </label>
+                  )}
+                </div>
+              </details>
+            ) : <p className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">Noch keine auswertbaren Einzelbewertungen aus der Notenmappe für dieses Kind und Semester vorhanden.</p>}
+            {selectedAssessmentIds.length > chosenAssessments.length &&
+              <p role="status" className="text-xs font-semibold text-amber-800">Ein zuvor ausgewählter Leistungsnachweis wurde verändert oder entfernt und wird deshalb nicht mehr gezeigt. Bitte Auswahl überprüfen und erneut speichern.</p>}
+            {chosenAssessments.length > 0 && !visible.individualGrades &&
+              <p className="text-xs text-amber-800">Die Einzelleistungs-Folie ist momentan ausgeblendet. Unter „Weitere Folien wählen“ kannst du sie wieder einschalten.</p>}
+          </div>
+          <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+            <button type="button" onClick={savePresentationSelection}
+              className="rounded-xl bg-indigo-700 px-4 py-2 text-xs font-black text-white">
+              <Save size={14} className="mr-1 inline-block" /> Auswahl für dieses KEL-Gespräch speichern
+            </button>
+            <span role="status" className={selectionSaved ? 'text-xs font-bold text-emerald-700' : 'text-xs font-semibold text-amber-800'}>
+              {selectionSaved ? 'Auswahl für dieses Kind und Semester gespeichert.' : 'Änderungen noch nicht gespeichert.'}
+            </span>
+            <button type="button" onClick={() => { setShowConfig(false); setView('slides'); setSlideIndex(0); }}
+              className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold">Vorschau ansehen</button>
+          </div>
+          <p className="text-xs text-slate-500">Die Auswahl wird in den verschlüsselten Kinddaten gespeichert, nicht als Kopie der Bewertungen. Wenn sich eine Bewertung oder ihre Bezeichnung ändert, wird sie zur Sicherheit erst nach erneuter Auswahl sichtbar. Bildschirm und PowerPoint nutzen dieselbe Freigabe.</p>
         </section>
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-base font-black text-slate-950">Vereinbarung vorbereiten</h2>
