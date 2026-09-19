@@ -11135,10 +11135,7 @@ ${content}
                                           app={app}
                                           getTodayPoints={getTodayPoints}
                                           addParticipation={addParticipation}
-                                          removeParticipation={
-                                            removeParticipation
-                                          }
-                                          currentIsLight={currentIsLight}
+                                          removeParticipation={removeParticipation}
                                         />
                                       );
 
