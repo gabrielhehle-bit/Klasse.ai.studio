@@ -652,7 +652,10 @@ export default function Uebergabemappe() {
                   </tr>
                 </thead>
                 <tbody>
-                  {LESSON_SLOT_NUMBERS.map(std => {
+                  {LESSON_SLOT_NUMBERS.filter(std => {
+                    const original = getCoverLesson(app, currentDay, std);
+                    return Boolean(original.fach || original.thema || original.material || original.hausuebung || lessonNotes[`${dayStr}-${std}`] || assignedStundenbilder[`${dayStr}-${std}`]);
+                  }).map(std => {
                     const stammFach = app.stammplan[dayName]?.[std];
                     const wpItem = app.wochenplanung[kw]?.[dayName]?.[std - 1];
                     const lpKey = `${kw}-${dayName}-${std - 1}`;
@@ -661,11 +664,13 @@ export default function Uebergabemappe() {
                     const assignmentKey = `${dayStr}-${std}`;
                     const assignedId = assignedStundenbilder[assignmentKey];
                     const assignedSb = lessonPlans.find(m => m.id === assignedId);
+                    const note = lessonNotes[assignmentKey] || {};
+                    const base = getCoverLesson(app, currentDay, std);
+                    const effectiveFach = note.fach ?? assignedSb?.fach ?? base.fach ?? '—';
+                    const effectiveInhalt = note.thema ?? assignedSb?.titel ?? base.thema ?? '—';
+                    const effectiveMaterial = note.material ?? (assignedSb ? assignedSb.benoetigtesMaterial.join(', ') : base.material);
 
-                    const effectiveFach = assignedSb?.fach || wpItem?.fach || stammFach || '—';
-                    const effectiveInhalt = assignedSb?.titel || wpItem?.thema || '—';
-
-                    if (stammFach === 'frei' && !assignedSb && !wpItem) {
+                    if (stammFach === 'frei' && !assignedSb && !wpItem && !lessonNotes[assignmentKey]) {
                       return (
                         <tr key={std} className="border-b border-slate-250 bg-slate-50/50 italic text-slate-400 select-none">
                           <td className="border border-slate-300 p-2 text-center font-bold bg-slate-50">{std}.</td>
@@ -683,6 +688,8 @@ export default function Uebergabemappe() {
                         <td className="border border-slate-300 p-2 text-left">
                           <div>
                             <p className="font-extrabold text-[0.6875rem] text-slate-900 leading-tight">{effectiveInhalt}</p>
+                            {note.ablauf && <p className="mt-1 whitespace-pre-wrap text-[8pt] font-medium text-slate-700">{note.ablauf}</p>}
+                            {(note.hausuebung ?? base.hausuebung) && <p className="mt-1 text-[7pt] text-slate-600">HÜ: {note.hausuebung ?? base.hausuebung}</p>}
                             {assignedSb && (
                               <span className="text-[6.5pt] font-black bg-indigo-50 border border-indigo-200 text-indigo-700 uppercase px-1 rounded inline-block mt-0.5">
                                 Zugeordnetes Stundenbild
@@ -703,11 +710,7 @@ export default function Uebergabemappe() {
                           )}
                         </td>
                         <td className="border border-slate-300 p-2 text-[8pt] text-slate-600 italic">
-                          {assignedSb ? (
-                            <span>Benoetigt: {assignedSb.benoetigtesMaterial.join(', ') || 'Keines'}</span>
-                          ) : (
-                            wpItem?.material || '—'
-                          )}
+                          {effectiveMaterial || '—'}
                         </td>
                       </tr>
                     );
@@ -727,7 +730,7 @@ export default function Uebergabemappe() {
               <div className="mt-4 pt-3 border-t">
                 <h3 className="text-[0.625rem] font-black uppercase tracking-widest text-slate-400 mb-1 leading-none">⚠️ Allgemeine Klassenregeln, Rituale &amp; Hinweise:</h3>
                 <div className="p-3 border border-slate-200 rounded-xl text-[0.625rem] leading-relaxed text-slate-600 bg-slate-50/50 whitespace-pre-wrap max-h-36 ">
-                  <div dangerouslySetInnerHTML={{ __html: printNotes }} className="prose prose-sm font-semibold prose-p:my-0.5" />
+                  <div className="prose prose-sm font-semibold prose-p:my-0.5">{printNotes.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ')}</div>
                 </div>
               </div>
             )}
@@ -769,8 +772,8 @@ export default function Uebergabemappe() {
               </thead>
               <tbody>
                 {studentsSorted.map((s, idx) => {
-                  const isBday = hasBirthdayInRange(s);
-                  const isMed = hasMedicalAlert(s);
+                  const isBday = printColumns.geburtstag && hasBirthdayInRange(s);
+                  const isMed = printColumns.notiz && hasMedicalAlert(s);
 
                   return (
                     <tr key={s.id} className={`${idx % 2 === 1 ? 'bg-slate-50/20' : 'bg-white'} border-b border-slate-200`}>
@@ -876,8 +879,8 @@ export default function Uebergabemappe() {
               >
                 {studentsSorted.filter(s => app.sitzplan_schueler[s.id]).map(s => {
                   const pos = app.sitzplan_schueler[s.id];
-                  const isBday = hasBirthdayInRange(s);
-                  const isMed = hasMedicalAlert(s);
+                  const isBday = printColumns.geburtstag && hasBirthdayInRange(s);
+                  const isMed = printColumns.notiz && hasMedicalAlert(s);
 
                   return (
                     <div 
