@@ -6599,7 +6599,6 @@ ${content}
   const handleCloseCockpit = () => {
     // Nur dann beim Schließen sichern, wenn der Tagesabschluss bereits freigegeben ist.
     // Ein zu frühes Schließen darf den Tag niemals fälschlich als gespeichert markieren.
-    const todayStr = getTodayIsoDate();
     if (!behaviorSavedToday && commitAllowance.allowed) {
       console.log(
         "Auto-saving behavior & mitarbeit on closing classroom cockpit...",
