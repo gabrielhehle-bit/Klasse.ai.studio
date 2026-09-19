@@ -2609,7 +2609,7 @@ export default function SeatingPlan() {
           .grid-dots {
             background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px);
             background-size: ${GRID_SIZE}px ${GRID_SIZE}px;
-            display: ${gridSnapType === 'none' ? 'none' : 'block'};
+            display: ${editMode && gridSnapType !== 'none' ? 'block' : 'none'};
           }
           .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
           .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
@@ -3889,7 +3889,7 @@ export default function SeatingPlan() {
               <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]" />
               <span>{editMode ? 'Bearbeitungs-Modus aktiv' : 'Ansichts-Modus: Bewegen gesperrt'}</span>
             </div>
-            {!editMode && <span>Hovere über Kinder für Details</span>}
+            {!editMode && <span>{showPrivateDetails ? 'Kind auswählen für Details' : 'Neutrale Ansicht: nur Namen und Sitzplätze'}</span>}
             {editMode && <span>Tausche: Kinder aufeinander ziehen</span>}
           </div>
           <div className="flex items-center gap-4">
