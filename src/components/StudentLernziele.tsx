@@ -279,7 +279,6 @@ export default function StudentLernziele({
     .slice(0, 5);
 
   // Statistics
-  const ratedCount = allParsedGoals.filter(g => evaluationData[g.id] !== null && evaluationData[g.id] !== undefined).length;
   const reachedCount = allParsedGoals.filter(g => evaluationData[g.id] === reachedValue).length;
   const inWorkCount = allParsedGoals.filter(g => goalModel.levels.some(level => level.value !== reachedValue && evaluationData[g.id] === level.value)).length;
 
@@ -649,7 +648,7 @@ export default function StudentLernziele({
                       {!isCollapsed && (
                         <div className="space-y-2 mt-2">
                           {goalsInKb.map(goal => {
-                            const currentRating = evaluationData[goal.id]; // 1 = erreicht, 2 = im wesentlichen, 3 = minimal, null = offen
+                            const currentRating = evaluationData[goal.id]; // Stored numeric values are stable per-class assessment IDs, never school grades
 
                             return (
                               <div
@@ -724,7 +723,7 @@ export default function StudentLernziele({
               <div className="space-y-1">
                 {ziele.map(g => {
                   const rating = evaluationData[g.id];
-                  const ratingLabel = rating === 1 ? 'Erreicht' : rating === 2 ? 'Im Wesentlichen' : rating === 3 ? 'In Entwicklung' : 'Offen';
+                  const ratingLabel = rating === null || rating === undefined ? goalModel.emptyLabel : goalModel.levels.find(level => level.value === rating)?.label || `Frühere unbekannte Stufe ${rating}`;
                   return (
                     <div key={g.id} className="flex items-center justify-between text-xs py-1 border-b border-black/10">
                       <span><strong>{g.kompetenzbereich}:</strong> {g.zielText}</span>
