@@ -35,6 +35,8 @@ test('overview is selected inside gradebook and previous bookmarked route still 
 
 test('overview signals an empty active class and export uses the same manual/calculated grade values', () => {
   assert.match(overview, /students\.length === 0/);
+  assert.match(overview, /room\.id !== app\.activeClassId/);
+  assert.match(overview, /switchClass\(room\.id\)/);
   assert.match(overview, /aktuell ausgewählten Klasse sind keine Kinder vorhanden/);
   assert.match(overview, /getOverviewNote\(app, student\.id, fach, selectedSemester\)/);
   assert.match(overview, /getOverviewNote\(app, s\.id, f, selectedSemester\)/);
