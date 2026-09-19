@@ -313,7 +313,12 @@ async function main() {
     await waitFor(client, 'saved topic visible in the actual hourly weekly grid', 'Boolean(' + savedHourlyCell + ')', 20000);
     if (!await evaluate(client, '(() => {const cell=' + savedHourlyCell + ';if(!cell)return false;cell.click();return true;})()'))
       throw new Error('Could not open the saved hourly lesson.');
-    await waitFor(client, 'planned lesson overview', 'document.body?.innerText.includes("Geplante Einheit")&&document.body?.innerText.includes("Bearbeiten")');
+    try {
+      await waitFor(client, 'planned lesson overview', 'document.body?.innerText.includes("Geplante Einheit")&&document.body?.innerText.includes("Bearbeiten")', 6000);
+    } catch (error) {
+      const details = await evaluate(client, '(() => ({overview:document.body?.innerText.includes("Geplante Einheit"),editor:Array.from(document.querySelectorAll("h3")).some(e=>e.textContent?.trim()==="Einheit planen"),savedCells:Array.from(document.querySelectorAll("div")).filter(el=>String(el.className||"").includes("group/cell")&&String(el.className||"").includes("min-h-[5.3125rem]")&&String(el.textContent||"").includes(' + q(topic) + ')).map(el=>({text:el.textContent?.slice(0,140),class:el.className,rect:[el.getBoundingClientRect().width,el.getBoundingClientRect().height]})),visibleDialogs:Array.from(document.querySelectorAll("[role=dialog]")).map(el=>el.getAttribute("aria-label")),bodyTail:document.body?.innerText.slice(-650)}))()');
+      throw new Error('Planned lesson overview not available after clicking saved hourly card: ' + JSON.stringify(details) + ' / ' + String(error));
+    }
     const syncState = await evaluate(client,
       '(() => {const text=document.body?.innerText||"";if(text.includes("In Jahresplan übernehmen"))return "available";if(text.includes("bereits belegt"))return "occupied";return "missing";})()'
     );
