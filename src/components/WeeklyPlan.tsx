@@ -4239,7 +4239,7 @@ export default function WeeklyPlan() {
           >
             <div className="p-8 border-b border-slate-100 flex justify-between items-center">
               <div>
-                <h3 className="text-[1.5rem] leading-normal font-black text-slate-900 tracking-tighter">Stundenentwürfe</h3>
+                <h3 className="text-[1.5rem] leading-normal font-black text-slate-900 tracking-tighter">Unterrichtsvorbereitung auswählen</h3>
                 <p className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-widest mt-1">Gespeicherte Entwürfe und Vorlagen aus der Materialbibliothek · vorhandene Eingaben werden nur nach Bestätigung ersetzt</p>
               </div>
               <button onClick={() => setShowDraftsSelector(false)} className="p-3 hover:bg-slate-100 rounded-full transition-all"><X size={24} /></button>
