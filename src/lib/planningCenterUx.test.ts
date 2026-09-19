@@ -47,3 +47,27 @@ test('Planungszentrale zeigt echte KI-Vorschläge und erfindet bei Fehlern keine
   assert.doesNotMatch(source, /Volksschulklasse 3/);
   assert.doesNotMatch(source, /Schulstufe \$\{app\.stufe \|\| 3\}/);
 });
+
+test('Wochen-Check verwendet die aktive Klasse statt einer erfundenen 3a', () => {
+  assert.match(source, /app\.classes\?\.find\(c => c\.id === app\.activeClassId\)/);
+  assert.match(source, /app\.klassenbezeichnung/);
+  assert.match(source, /Keine Klasse ausgewählt/);
+  assert.doesNotMatch(source, /app\.klasse \|\| 'Klasse 3a'/);
+  assert.doesNotMatch(source, /'Klasse 3a'/);
+});
+
+test('Wochen-Check nennt die gewählte Woche und bezeichnet Wochenend-Montag nicht als heute', () => {
+  assert.match(source, /monday\.toLocaleDateString\('de-DE'\)/);
+  assert.match(source, /weekEnd\.toLocaleDateString\('de-DE'\)/);
+  assert.doesNotMatch(source, /Was ist heute geplant\?/);
+  assert.doesNotMatch(source, /Morgen stehen 6 Stunden an/);
+  assert.doesNotMatch(source, /Schulwoche \{sw \|\| '1'\}/);
+});
+
+test('Wochen-Check plant nicht doppelt und wertet offene Stundenplanfelder nicht als unvorbereitete Stunden', () => {
+  assert.match(source, /missingTopicLessons = openLessonsList\.filter\(item => item\.thema === 'Kein Thema eingetragen'\)/);
+  assert.match(source, /onClick=\{\(\) => setPage\('wochenplanung'\)\}/);
+  assert.match(source, /Leere Stundenplanfelder werden hier nicht automatisch als offene Vorbereitung gewertet/);
+  assert.doesNotMatch(source, /Offene Vorbereitungen/);
+  assert.doesNotMatch(source, /Alles perfekt vorbereitet!/);
+});
