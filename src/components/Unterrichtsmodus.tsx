@@ -179,6 +179,7 @@ import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
+import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
@@ -2914,7 +2915,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [vorlagenStartTab, setVorlagenStartTab] = useState<"browse" | "create">("browse");
   const [activeWidgetCategory, setActiveWidgetCategory] =
-    useState<string>("categories");
+    useState<string>("core");
+  const [expandedCoreWidget, setExpandedCoreWidget] = useState<string | null>(null);
   const [widgetSearch, setWidgetSearch] = useState<string>("");
   const [isBoardTextEditing, setIsBoardTextEditing] = useState(false);
   const boardTextCommandRef = useRef<((command: string, argument?: string) => void) | null>(null);
@@ -8161,7 +8163,8 @@ ${content}
                                 {/* Category Switcher Tab Bar */}
                                 <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
                                   {[
-                                    { id: "categories", label: "Kategorien" },
+                                    { id: "core", label: "20 Kernwidgets" },
+                                    { id: "categories", label: "Weitere Widgets" },
                                     { id: "favorites", label: "★ Favoriten" },
                                     { id: "struct", label: "🗂️ Ablauf & Organisation" },
                                     {
@@ -8446,7 +8449,9 @@ ${content}
                                     ];
 
                                     let count = 0;
-                                    if (cat.id === "categories") {
+                                    if (cat.id === "core") {
+                                      count = PLANNED_COCKPIT_WIDGETS.length;
+                                    } else if (cat.id === "categories") {
                                       count = new Set(
                                         allAvailableWidgets.map((item) => item.category),
                                       ).size;
@@ -9083,6 +9088,53 @@ ${content}
                                     const query = widgetSearch
                                       .toLowerCase()
                                       .trim();
+                                    if (activeWidgetCategory === "core" && !query) {
+                                      return (
+                                        <>
+                                          <p className="col-span-full text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                            20 übersichtliche Einstiege. Wähle bei Bedarf eine Variante; deine bisherigen Widgets und gespeicherten Layouts bleiben unter „Weitere Widgets“ erhalten.
+                                          </p>
+                                          {PLANNED_COCKPIT_WIDGETS.map((group) => {
+                                            const variants = group.sources
+                                              .map((type) => allAvailableWidgets.find((item) => item.type === type))
+                                              .filter((item): item is (typeof allAvailableWidgets)[number] => Boolean(item));
+                                            const expanded = expandedCoreWidget === group.id;
+                                            return (
+                                              <div key={group.id} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm dark:border-white/15 dark:bg-zinc-900 dark:text-white">
+                                                <button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-left text-sm font-bold hover:bg-indigo-50 dark:hover:bg-white/10"
+                                                  aria-expanded={variants.length > 1 ? expanded : undefined}
+                                                  onClick={() => {
+                                                    if (variants.length === 1) {
+                                                      handleOpenWidgetInCockpitLayout(variants[0].type as CockpitWidgetConfig["type"]);
+                                                      setIsAddWidgetMenuOpen(false);
+                                                    } else {
+                                                      setExpandedCoreWidget(expanded ? null : group.id);
+                                                    }
+                                                  }}>
+                                                  <span>{group.label}</span>
+                                                  <span aria-hidden="true" className="text-indigo-600 dark:text-indigo-300">{variants.length > 1 ? (expanded ? "−" : "+") : "＋"}</span>
+                                                </button>
+                                                {variants.length > 1 && expanded && (
+                                                  <div className="mt-2 flex flex-col gap-1 border-t border-slate-200 pt-2 dark:border-white/15">
+                                                    {variants.map((variant) => (
+                                                      <button type="button" key={variant.type}
+                                                        className="min-h-11 rounded-lg px-3 text-left text-sm hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:hover:bg-white/10"
+                                                        onClick={() => {
+                                                          handleOpenWidgetInCockpitLayout(variant.type as CockpitWidgetConfig["type"]);
+                                                          setIsAddWidgetMenuOpen(false);
+                                                        }}>
+                                                        {variant.label}
+                                                      </button>
+                                                    ))}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </>
+                                      );
+                                    }
+
                                     const filteredList =
                                       allAvailableWidgets.filter((item) => {
                                         if (query) {
