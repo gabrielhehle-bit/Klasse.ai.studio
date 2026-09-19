@@ -43,15 +43,9 @@ const coreItems: PlanningItem[] = [
 
 const preparationItems: PlanningItem[] = [
   {
-    id: 'stunden',
-    label: 'Stundenentwürfe',
-    description: 'Einzelne Unterrichtsstunden und vorbereitete Abläufe ausarbeiten und wiederverwenden.',
-    icon: BookOpen,
-  },
-  {
     id: 'materialien',
     label: 'Materialbibliothek',
-    description: 'Material sammeln, ordnen und direkt in den Wochenplan übernehmen.',
+    description: 'Material und wiederverwendbare Unterrichtsvorbereitungen sammeln, ordnen und im Wochenplan einsetzen.',
     icon: Folder,
   },
   {
@@ -122,7 +116,7 @@ export default function PlanungHub() {
           Vom Schuljahr bis zur nächsten Stunde
         </h1>
         <p className="mt-2 max-w-2xl text-sm font-medium leading-relaxed text-[var(--text2)]">
-          Plane zuerst Woche oder Jahr. Materialien, Stundenentwürfe und Übergaben findest du gesammelt darunter – jedes Werkzeug genau einmal.
+          Plane zuerst Woche oder Jahr. Ausführliche Unterrichtsentwürfe bearbeitest du im Wochenplan; wiederverwendbare Vorlagen findest du in der Materialbibliothek.
         </p>
       </header>
 
