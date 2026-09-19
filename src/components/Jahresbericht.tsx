@@ -785,8 +785,23 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                       onChange={e => setIncludeGrades(e.target.checked)} 
                       className="rounded border-slate-300 text-slate-900 focus:ring-slate-500"
                     />
-                    Noten & fachliche Leistungen
+                    Noten & fachliche Leistungen (Fächer selbst auswählen)
                   </label>
+                  {includeGrades && selectedStudent && <fieldset className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <legend className="px-1 text-xs font-bold text-slate-700">Fächer für den Jahresbericht</legend>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {Object.keys(app.noten?.[selectedStudent] || {}).map(fach =>
+                        <label key={fach} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-2 text-xs font-semibold text-slate-700">
+                          <input type="checkbox" checked={selectedSubjects.includes(fach)}
+                            onChange={event => setSelectedSubjects(previous => event.target.checked
+                              ? [...new Set([...previous, fach])] : previous.filter(item => item !== fach))} />
+                          {fach}
+                        </label>
+                      )}
+                    </div>
+                    {!Object.keys(app.noten?.[selectedStudent] || {}).length &&
+                      <p className="text-xs text-slate-500">Noch keine Bewertungen aus der Notenmappe für dieses Kind vorhanden.</p>}
+                  </fieldset>}
 
                   <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer hover:text-slate-900 transition-colors">
                     <input 
@@ -831,6 +846,20 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                       })}
                       {!getStudentObservationEntries(selectedStudent).length &&
                         <p className="text-xs text-slate-500">Keine Beobachtungen für dieses Kind vorhanden.</p>}
+                    </fieldset>
+                  )}
+                  {selectedStudent && !!students.find(child => child.id === selectedStudent)?.portfolio?.length && (
+                    <fieldset className="mt-2 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <legend className="px-1 text-xs font-bold text-slate-700">Portfolioarbeiten (optional)</legend>
+                      {students.find(child => child.id === selectedStudent)?.portfolio?.map(entry =>
+                        <label key={entry.id} className="flex items-start gap-2 rounded-lg border border-slate-100 bg-white p-2 text-xs text-slate-700">
+                          <input type="checkbox" className="mt-0.5" checked={selectedPortfolioIds.includes(entry.id)}
+                            onChange={event => setSelectedPortfolioIds(previous => event.target.checked
+                              ? [...new Set([...previous, entry.id])] : previous.filter(id => id !== entry.id))} />
+                          <span>{entry.titel}{entry.fach ? ' · ' + entry.fach : ''}</span>
+                        </label>
+                      )}
+                      <p className="text-[11px] text-slate-500">Nur Titel und Beschreibung ausgewählter Arbeiten werden verwendet. Fotos und Bilddateien gehen nicht an die KI.</p>
                     </fieldset>
                   )}
                 </div>
