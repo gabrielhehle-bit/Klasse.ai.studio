@@ -12,6 +12,7 @@ import { KlassenlistenImport } from './KlassenlistenImport';
 import { DebouncedInput } from './DebouncedInput';
 import { motion, AnimatePresence } from 'motion/react';
 import StudentDossier from './StudentDossier';
+import ClassOverviewStats from './ClassOverviewStats';
 import StudentPortfolio from './StudentPortfolio';
 const StudentMap = React.lazy(() => import('./StudentMap'));
 import { EmptyState } from './EmptyState';
@@ -87,6 +88,29 @@ export default function StudentList() {
   const [editingStudent, setEditingStudent] = useState<Partial<Student> | null>(null);
   const [timelineStudent, setTimelineStudent] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'map'>('list');
+  const [showClassStatistics, setShowClassStatistics] = useState(false);
+  const [showColumnOptions, setShowColumnOptions] = useState(false);
+  const [menuStudentId, setMenuStudentId] = useState<string | null>(null);
+  type OptionalColumn = 'birthday' | 'funding' | 'firstLanguage' | 'secondLanguage' | 'religion' | 'gender' | 'level';
+  const [visibleColumns, setVisibleColumns] = useState<Record<OptionalColumn, boolean>>(() => {
+    const defaults: Record<OptionalColumn, boolean> = {
+      birthday: true, funding: true, firstLanguage: false, secondLanguage: false,
+      religion: false, gender: false, level: false,
+    };
+    try {
+      const saved = JSON.parse(localStorage.getItem('klassio_student_list_columns_v1') || 'null');
+      if (saved && typeof saved === 'object') {
+        for (const key of Object.keys(defaults) as OptionalColumn[]) {
+          if (typeof saved[key] === 'boolean') defaults[key] = saved[key];
+        }
+      }
+    } catch { /* local settings unavailable: use defaults */ }
+    return defaults;
+  });
+  useEffect(() => {
+    try { localStorage.setItem('klassio_student_list_columns_v1', JSON.stringify(visibleColumns)); }
+    catch { /* optional device preference; do not interrupt class work */ }
+  }, [visibleColumns]);
   const [selectedFolderStudent, setSelectedFolderStudent] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [folderQuickNote, setFolderQuickNote] = useState('');
@@ -122,6 +146,9 @@ export default function StudentList() {
     setSearchTerm('');
     setActiveFilter('all');
     setViewMode('list');
+    setShowClassStatistics(false);
+    setShowColumnOptions(false);
+    setMenuStudentId(null);
   }, [app.activeClassId]);
 
   useEffect(() => {
@@ -261,100 +288,17 @@ export default function StudentList() {
       ) : (
         <>
           <div className={`${isCompact ? "space-y-4" : isLarge ? "space-y-8" : "space-y-6"} print:hidden`}>
-          <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm print:hidden ${
-            isCompact ? 'p-2.5' : isLarge ? 'p-5' : 'p-4'
-          }`}>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {/* Klasse */}
-              <div className={`flex items-center gap-3 bg-slate-50 rounded-xl border border-slate-200 ${isCompact ? 'p-2' : 'p-3'}`}>
-                <div className={`bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black shadow-sm shrink-0 ${
-                  isCompact ? 'w-8 h-8 text-[0.875rem]' : 'w-10 h-10 text-[1.125rem]'
-                }`}>
-                  {schueler.length}
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Klasse</span>
-                  <span className="text-[0.75rem] leading-tight font-black text-slate-900 truncate">Personen</span>
-                </div>
-              </div>
-              
-              {/* Personen (M/W) */}
-              <div className={`flex flex-col justify-between bg-slate-50 rounded-xl border border-slate-200 ${isCompact ? 'p-2' : 'p-3'}`}>
-                <div className="flex justify-between items-center w-full mb-1 gap-2">
-                  <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none">Geschlecht</span>
-                  <span className="text-[0.5625rem] font-black text-slate-600 text-right">
-                    {maleCount} M · {femaleCount} W{diverseCount > 0 ? ` · ${diverseCount} D` : ''}{unknownGenderCount > 0 ? ` · ${unknownGenderCount} offen` : ''}
-                  </span>
-                </div>
-                <div className="w-full bg-slate-200/60 rounded-full h-1.5 flex overflow-hidden">
-                  <div className="bg-blue-500 transition-all duration-500" style={{ width: `${schueler.length ? (maleCount / schueler.length) * 100 : 0}%` }} />
-                  <div className="bg-rose-500 transition-all duration-500" style={{ width: `${schueler.length ? (femaleCount / schueler.length) * 100 : 0}%` }} />
-                  <div className="bg-violet-500 transition-all duration-500" style={{ width: `${schueler.length ? (diverseCount / schueler.length) * 100 : 0}%` }} />
-                </div>
-              </div>
-
-              {/* Förderung (DAZ/ESPF/SPF) */}
-              <div className={`flex flex-col justify-center bg-slate-50/70 rounded-xl border border-slate-150/40 ${isCompact ? 'p-2' : 'p-3'}`}>
-                 <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Förderung</span>
-                 <div className="flex items-center gap-1 flex-wrap">
-                  {dazCount > 0 && (
-                    <div className="px-1.5 py-0.5 bg-amber-50 rounded select-none border border-amber-200 flex items-center shrink-0">
-                      <span className="text-[0.5rem] font-black text-amber-700">DaZ {dazCount}</span>
-                    </div>
-                  )}
-                  {espfCount > 0 && (
-                    <div className="px-1.5 py-0.5 bg-emerald-50 rounded select-none border border-emerald-200 flex items-center shrink-0">
-                      <span className="text-[0.5rem] font-black text-emerald-700">ESPF {espfCount}</span>
-                    </div>
-                  )}
-                  {spfCount > 0 && (
-                    <div className="px-1.5 py-0.5 bg-indigo-50 rounded select-none border border-indigo-200 flex items-center shrink-0">
-                      <span className="text-[0.5rem] font-black text-indigo-700">SPF {spfCount}</span>
-                    </div>
-                  )}
-                  {dazCount === 0 && espfCount === 0 && spfCount === 0 && (
-                    <span className="text-[0.625rem] text-slate-400 italic">Keine</span>
-                  )}
-                 </div>
-              </div>
-
-              {/* Alter */}
-              <div className={`flex items-center justify-between gap-2 bg-slate-50 rounded-xl border border-slate-200 ${isCompact ? 'p-2' : 'p-3'}`}>
-                <div className="flex flex-col">
-                  <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Ø Alter</span>
-                  <div className="flex items-baseline gap-0.5">
-                    <span className="text-[1.125rem] font-black text-slate-900 leading-none">{avgAge}</span>
-                    <span className="text-[0.5rem] font-bold text-slate-400 uppercase">J.</span>
-                  </div>
-                </div>
-                <div className="flex flex-col border-l border-slate-200 pl-2">
-                  <div className="flex items-center justify-between gap-1.5 text-[0.5rem] font-black uppercase text-slate-400">
-                    <span className="opacity-50">Min</span> <span className="text-slate-700 font-extrabold">{minAge}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1.5 text-[0.5rem] font-black uppercase text-slate-400 mt-0.5">
-                    <span className="opacity-50">Max</span> <span className="text-slate-700 font-extrabold">{maxAge}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Religionen - compact display */}
-              <div className={`flex flex-col bg-slate-50 rounded-xl border border-slate-200 col-span-2 md:col-span-1 ${isCompact ? 'p-2' : 'p-3'}`}>
-                <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Religionen</span>
-                <div className="flex flex-wrap gap-1 max-h-[38px] overflow-y-auto no-scrollbar">
-                  {Object.entries(religionCounts).length > 0 ? (
-                    Object.entries(religionCounts).sort((a,b) => b[1] - a[1]).map(([rel, count]) => (
-                      <div key={rel} className="flex items-center gap-1 bg-white border border-slate-200 px-1 py-0.5 rounded-md shrink-0 shadow-3xs">
-                        <span className="text-[0.5rem] font-bold text-slate-600 text-wrap leading-tight break-words max-w-[45px]">{rel}</span>
-                        <span className="text-[0.5rem] font-black text-slate-900">{count}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <span className="text-[0.5625rem] text-slate-300 italic">Keine Daten</span>
-                  )}
-                </div>
-              </div>
-            </div>
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-3 py-2.5 sm:px-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-700">
+            <span className="font-extrabold text-slate-900">{schueler.length} Kinder</span>
+            <span>{maleCount} Jungen · {femaleCount} Mädchen{diverseCount ? ` · ${diverseCount} divers` : ''}{unknownGenderCount ? ` · ${unknownGenderCount} offen` : ''}</span>
+            <span>DaZ {dazCount} · SPF {spfCount} · ESPF {espfCount}</span>
+            <button type="button" aria-expanded={showClassStatistics} aria-controls="klassio-class-statistics"
+              onClick={() => setShowClassStatistics(open => !open)}
+              className="ml-auto rounded-lg border border-indigo-200 px-3 py-1.5 text-indigo-700 font-bold hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+              {showClassStatistics ? 'Statistik ausblenden' : 'Klassenstatistik anzeigen'}
+            </button>
           </div>
+          {showClassStatistics && <div id="klassio-class-statistics"><ClassOverviewStats students={schueler} /></div>}
         </div>
 
         <div className={`flex flex-col gap-3 bg-white border border-slate-200 shadow-sm print:hidden ${
@@ -384,6 +328,15 @@ export default function StudentList() {
                 }`}
               >
                 <FileUp size={isCompact ? 11 : isLarge ? 17 : 14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage('drucken')}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                title="Schülerlisten-Vorlage mit wählbaren Druckfeldern im Druckzentrum öffnen"
+              >
+                <Printer size={15} />
+                <span>Liste drucken</span>
               </button>
               <button 
                 onClick={() => { 
