@@ -4,6 +4,8 @@ import {
   Plus, Presentation, RefreshCw, Search, ShieldCheck, Sparkles
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { useApp } from '../context/AppContext';
+import { addCanvaImageWidget, canSaveCanvaMaterial, createCanvaMaterial, importCanvaImage } from '../lib/canvaImageImport';
 import { isTrustedOAuthPopupMessage } from '../lib/oauthPopupSecurity';
 
 type CanvaDesign = {
@@ -36,6 +38,7 @@ const apiJson = async (url: string, init?: RequestInit) => {
 
 export default function CanvaIntegration() {
   const { showToast } = useToast();
+  const { app, setApp, setPage } = useApp();
   const [status, setStatus] = useState<CanvaStatus>({ configured: false, connected: false });
   const [designs, setDesigns] = useState<CanvaDesign[]>([]);
   const [query, setQuery] = useState('');
@@ -184,6 +187,47 @@ export default function CanvaIntegration() {
     }
   };
 
+  const useDesignInKlassio = async (design: CanvaDesign, destination: 'background' | 'widget' | 'library') => {
+    const key = 'import-' + design.id + '-' + destination;
+    setActionLoading(key);
+    try {
+      const image = await importCanvaImage(design.id);
+      const title = design.title || 'Canva-Design';
+      if (destination === 'background') {
+        setApp(prev => ({
+          ...prev,
+          unterrichtsmodus_canvaBild: image,
+          unterrichtsmodus_canvaTitel: title,
+          unterrichtsmodus_hintergrund: 'canva',
+        }));
+        showToast('Canva-Hintergrund übernommen. Die Tafelfläche bleibt beschreibbar.', 'success');
+        setPage('cockpit');
+      } else {
+        const material = createCanvaMaterial(title, image);
+        if (!canSaveCanvaMaterial(app.materialien || [], material)) {
+          throw new Error('Die Materialbibliothek ist voll (maximal 5 MB). Bitte zuerst alte Dateien entfernen.');
+        }
+        setApp(prev => {
+          // Recheck against the freshest state; never silently exceed the storage limit.
+          if (!canSaveCanvaMaterial(prev.materialien || [], material)) return prev;
+          return {
+            ...prev,
+            materialien: [...(prev.materialien || []), material],
+            cockpitLayout: destination === 'widget'
+              ? addCanvaImageWidget(prev.cockpitLayout, image, title, material.id)
+              : prev.cockpitLayout,
+          };
+        });
+        showToast(destination === 'widget' ? 'Canva-Bild im Lehrercockpit eingefügt.' : 'Canva-Bild in der Materialbibliothek gespeichert.', 'success');
+        if (destination === 'widget') setPage('cockpit');
+      }
+    } catch (error: any) {
+      showToast(error?.message || 'Canva-Bild konnte nicht importiert werden.', 'error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const visibleDesigns = useMemo(() => designs, [designs]);
 
   if (loading) {
@@ -274,6 +318,19 @@ export default function CanvaIntegration() {
                     <div className="p-4">
                       <h3 className="truncate font-black text-[var(--text)]">{design.title || 'Unbenanntes Design'}</h3>
                       <div className="mt-4 flex flex-wrap gap-2">
+                        {([
+                          ['background', 'Als Cockpit-Hintergrund'],
+                          ['widget', 'Als Bild-Widget'],
+                          ['library', 'In Materialbibliothek']
+                        ] as const).map(([destination, label]) => (
+                          <button key={destination} type="button"
+                            onClick={() => void useDesignInKlassio(design, destination)}
+                            disabled={Boolean(actionLoading)}
+                            className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-[var(--accent)] px-2.5 text-xs font-bold text-[var(--text)] hover:bg-[var(--surface3)] disabled:opacity-50">
+                            {actionLoading === 'import-' + design.id + '-' + destination ? <Loader2 size={12} className="animate-spin" /> : <Image size={12} />}
+                            {label}
+                          </button>
+                        ))}
                         {design.urls?.edit_url ? (
                           <a href={design.urls.edit_url} target="_blank" rel="noreferrer"
                             className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-[var(--accent)] px-3 text-xs font-black text-white">
