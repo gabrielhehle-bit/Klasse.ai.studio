@@ -19,7 +19,7 @@ test('Klassio core navigation includes Notizen as a direct main area', () => {
 
 test('custom visibility is preserved but an already open page remains discoverable', () => {
   const result = groupSidebarItems(items, ['diagnostik', 'settings', 'datensicherung'], 'diagnostik', false);
-  assert.equal(result.daily.map(i => i.id).join(','), 'dashboard,klasse,verhalten,planung,leistungen,unterricht');
+  assert.equal(result.daily.map(i => i.id).join(','), 'dashboard,klasse,verhalten,planung,leistungen,cockpit,ki-helfer');
   assert.equal(result.extra.some(i => i.id === 'diagnostik'), true);
   assert.deepEqual(result.utilities.map(i => i.id), ['datensicherung', 'settings']);
   assert.equal(result.expanded, false);
