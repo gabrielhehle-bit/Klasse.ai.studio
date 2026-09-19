@@ -7540,8 +7540,8 @@ ${content}
           <button
             onClick={handleCloseCockpit}
             className={`p-1.5 sm:p-2 rounded-lg transition-all cursor-pointer border shadow-md hover:scale-105 active:scale-95 ${currentIsLight ? "bg-black/5 border-black/10 text-slate-700 hover:bg-black/10 hover:text-black" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/15 hover:text-white"}`}
-            title="Zurück zu Unterricht"
-            aria-label="Zurück zu Unterricht"
+            title="Lehrercockpit schließen · Zurück zu Heute"
+            aria-label="Lehrercockpit schließen · Zurück zu Heute"
           >
             <ArrowLeft size={16} strokeWidth={2.5} />
           </button>
