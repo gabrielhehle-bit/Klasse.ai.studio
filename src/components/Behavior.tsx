@@ -431,6 +431,7 @@ export default function Behavior() {
                     <button
                       type="button"
                       onClick={() => setEntryMode('note')}
+                      disabled={dictation.status !== 'idle'}
                       className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${entryMode === 'note' ? 'bg-indigo-50 text-indigo-800 border border-indigo-200' : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'}`}
                     >
                       <Notebook size={15} /> Notiz
@@ -441,6 +442,7 @@ export default function Behavior() {
                         setEntryMode('todo');
                         setSelectedStudentId('');
                       }}
+                      disabled={dictation.status !== 'idle'}
                       className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${entryMode === 'todo' ? 'bg-amber-50 text-amber-900 border border-amber-300' : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'}`}
                     >
                       <ListTodo size={15} /> To-Do
@@ -454,6 +456,7 @@ export default function Behavior() {
                         <select
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-11 pr-10 py-2.5 text-slate-800 text-sm font-semibold outline-none focus:border-indigo-400 appearance-none cursor-pointer"
                           value={selectedStudentId}
+                          disabled={dictation.status !== 'idle'}
                           onChange={e => setSelectedStudentId(e.target.value)}
                         >
                            <option value="" className="bg-white text-slate-900">Allgemeine Notiz</option>
@@ -471,8 +474,9 @@ export default function Behavior() {
                      <div className="relative">
                         <Notebook className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                         <select
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl pl-11 pr-10 py-4 text-white text-[0.875rem] font-black outline-none focus:border-accent/40 appearance-none transition-all cursor-pointer"
+                          className={`w-full rounded-xl border bg-slate-50 pl-11 pr-10 py-2.5 text-sm font-semibold text-slate-800 outline-none appearance-none cursor-pointer ${noteCategoryAppearance(noteCategory).field}`}
                           aria-label="Notizkategorie"
+                          disabled={dictation.status !== 'idle'}
                           value={noteCategory}
                           onChange={e => setNoteCategory(e.target.value as typeof noteCategory)}
                         >
@@ -501,11 +505,11 @@ export default function Behavior() {
                     <div className="absolute bottom-2 right-2 flex flex-wrap items-center justify-end gap-1.5">
                       {entryMode === 'note' && <>
                         <button type="button" onClick={() => dictation.status === 'recording' ? dictation.stop() : void dictation.start()}
-                          disabled={dictation.status === 'preparing'}
+                          disabled={dictation.status === 'preparing' || dictation.status === 'stopping'}
                           aria-label={dictation.status === 'recording' ? 'Diktieren beenden' : 'Notiz diktieren'}
                           aria-pressed={dictation.status === 'recording'}
                           className={`flex items-center gap-1 rounded-lg border px-2.5 py-2 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${dictation.status === 'recording' ? 'border-rose-300 bg-rose-100 text-rose-800' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100'}`}>
-                          <Mic size={16} /> {dictation.status === 'recording' ? 'Stopp' : dictation.status === 'preparing' ? 'Vorbereitung…' : 'Diktieren'}
+                          <Mic size={16} /> {dictation.status === 'recording' ? 'Stopp' : dictation.status === 'preparing' ? 'Vorbereitung…' : dictation.status === 'stopping' ? 'Wird beendet…' : 'Diktieren'}
                         </button>
                         <button type="button" onClick={polishNewEntry} disabled={aiLoading || dictation.status !== 'idle' || !newEntryText.trim()}
                           aria-label="Notiztext mit KI überarbeiten"
@@ -522,8 +526,8 @@ export default function Behavior() {
                   </div>
                   {entryMode === 'note' && (
                     <div className="space-y-1" aria-live="polite">
-                      {dictation.status === 'recording' && <p className="text-xs font-semibold text-rose-700">
-                        ● Aufnahme läuft ({dictation.mode === 'local' ? 'lokal' : 'Browser-Spracherkennung'}) · Zum Speichern zuerst Stopp drücken.
+                      {(dictation.status === 'recording' || dictation.status === 'stopping') && <p className="text-xs font-semibold text-rose-700">
+                        {dictation.status === 'stopping' ? 'Spracherkennung wird beendet; letztes Ergebnis wird übernommen…' : `● Aufnahme läuft (${dictation.mode === 'local' ? 'lokal' : 'Browser-Spracherkennung'}) · Zum Speichern zuerst Stopp drücken.`}
                       </p>}
                       {dictation.interim && <p className="rounded-lg bg-slate-50 px-3 py-1.5 text-xs italic text-slate-600">Erkannt: {dictation.interim}</p>}
                       {dictation.error && <p role="alert" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">{dictation.error}</p>}
