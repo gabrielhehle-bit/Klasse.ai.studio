@@ -209,6 +209,12 @@ export function shiftYearPlanSubjectForward(
     .filter(kw => next[kw]?.[subjectId])
     .reverse();
 
+  // An occupied final week cannot be shifted further. Do not overwrite the
+  // last entry with the previous week's topic or delete the original.
+  if (sourceKws.some(kw => orderedTeachingKws.indexOf(kw) + 1 >= orderedTeachingKws.length)) {
+    return next;
+  }
+
   for (const currentKw of sourceKws) {
     const index = orderedTeachingKws.indexOf(currentKw);
     const nextKw = orderedTeachingKws[index + 1];
