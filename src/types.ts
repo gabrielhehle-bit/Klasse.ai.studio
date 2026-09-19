@@ -346,6 +346,8 @@ export interface AppNote {
   schuelerId?: string;
   quelle?: string;
   icon?: string;
+  /** Optional class-local pinned status. Legacy notes default to unpinned. */
+  pinned?: boolean;
 }
 
 export interface NoteEntry extends AppNote {}

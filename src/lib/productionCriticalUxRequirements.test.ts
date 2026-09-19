@@ -52,9 +52,10 @@ test('Teamteaching ist direkt in der Sidebar sichtbar', () => {
   assert.match(sidebar, /id: 'teamteaching', label: 'Teamteaching'/);
 });
 
-test('Sprachnotizen liegen sichtbar in Notizen und starten die Transkription', () => {
-  assert.match(notes, /id: 'voice', label: 'Diktieren'/);
-  assert.match(notes, /<StimmNotizen \/>/);
+test('Sprachnotizen sind direkt im Notiztextfeld erreichbar; andere Sprachaufnahmewege bleiben erhalten', () => {
+  assert.match(notes, /useInlineDictation\(appendDictation\)/);
+  assert.match(notes, /Notiz diktieren/);
+  assert.doesNotMatch(notes, /id: 'voice', label: 'Diktieren'/);
   assert.match(voiceArchive, /Aufnahme starten/);
   assert.match(voiceArchive, /stimmNotizModal: true/);
   assert.doesNotMatch(sidebar, /id: 'stimmnotizen'/);

@@ -24,19 +24,21 @@ test('Notizen: eigener Hauptbereich ist in der Sidebar sichtbar', () => {
   assert.match(app, /case 'verhalten': return 'Notizen'/);
 });
 
-test('Notizen: Hauptbereich öffnet direkt die fertige Notizerfassung', () => {
-  assert.match(behavior, /useState<'verhalten' \| 'config' \| 'chronik' \| 'voice'>\('chronik'\)/);
-  assert.match(behavior, /id: 'chronik', label: 'Notizen'/);
+test('Notizen: Hauptbereich zeigt ohne überflüssige Reiter direkt die kompakte Erfassung', () => {
+  assert.match(behavior, /Notizen & Beobachtungen/);
   assert.match(behavior, /Allgemeine Notiz/);
   assert.match(behavior, /Notiz zu diesem Kind eingeben/);
   assert.match(behavior, /Allgemeine Notiz für die Klasse eingeben/);
+  assert.doesNotMatch(behavior, /id: 'config', label: 'Einstellungen'/);
+  assert.doesNotMatch(behavior, /id: 'verhalten', label: 'Beobachtungsstatus'/);
+  assert.doesNotMatch(behavior, /id: 'voice', label: 'Diktieren'/);
 });
 
 test('Notizen: Einträge können direkt kategorisiert werden', () => {
   assert.match(behavior, /noteCategory/);
   assert.match(behavior, />Notiz<\/option>/);
   assert.match(behavior, />Beobachtung \/ Verhalten<\/option>/);
-  assert.match(behavior, />Erfolg \/ Stärke<\/option>/);
+  assert.match(behavior, />Lob \/ Stärke<\/option>/);
   assert.match(behavior, />Elternkontakt<\/option>/);
   assert.match(behavior, />Klassenjournal<\/option>/);
   assert.match(behavior, /'Notizen-Hauptbereich'/);
@@ -51,18 +53,16 @@ test('Notizen: Dossier und Hauptbereich schreiben über denselben zentralen note
   assert.match(dossierNotes, /journal: \(prev\.journal \|\| \[\]\)\.filter/);
 });
 
-test('Notizen: Diktat führt über Transkript und Korrektur in den zentralen Hub', () => {
-  assert.match(behavior, /aria-label="Notiz diktieren"/);
-  assert.match(behavior, /id: 'voice', label: 'Diktieren'/);
-  assert.match(behavior, /<StimmNotizen \/>/);
+test('Notizen: Diktat schreibt direkt in die Eingabe; Speichern nutzt einen zentralen Datenweg', () => {
+  assert.match(behavior, /useInlineDictation\(appendDictation\)/);
+  assert.match(behavior, /aria-label=\{dictation\.status === 'recording' \? 'Diktieren beenden' : 'Notiz diktieren'\}/);
+  assert.match(behavior, /setNewEntryText\(previous =>/);
+  assert.match(behavior, /logObservation\(/);
+  assert.match(behavior, /Notizen-Hauptbereich/);
+  assert.doesNotMatch(behavior, /stimmNotizModal: selectedStudentId \|\| true/);
   assert.match(voiceArchive, /Aufnahme starten/);
-  assert.match(voiceArchive, /stimmNotizModal: true/);
   assert.match(voiceNote, /SpeechRecognition/);
-  assert.match(voiceNote, /Transkription erscheint hier und kann vor dem Speichern korrigiert werden/);
-  assert.match(voiceNote, /KI-Verbesserung/);
   assert.match(voiceNote, /logObservation\(/);
-  assert.match(voiceNote, /'Sprachnotiz \/ Transkription'/);
-  assert.match(voiceNote, /gespeichertAls: 'Notizen-Hauptbereich'/);
 });
 
 test('Stationenbetrieb: Schülernotizen verwenden denselben Diktat- und Notizenpfad', () => {

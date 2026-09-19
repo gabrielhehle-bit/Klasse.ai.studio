@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Mic, Trash2, Search, Filter, Calendar, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
+import { noteCategoryAppearance } from '../lib/noteCategoryAppearance';
 
-export default function StimmNotizen() {
+export default function StimmNotizen({ archiveOnly = false }: { archiveOnly?: boolean } = {}) {
   const { app, setApp } = useApp();
   const [filter, setFilter] = useState('Alle');
   const [search, setSearch] = useState('');
@@ -25,26 +26,26 @@ export default function StimmNotizen() {
   };
 
   return (
-    <div className="h-full flex flex-col p-4 lg:p-8 space-y-6">
+    <div className={archiveOnly ? "space-y-3 p-2" : "h-full flex flex-col p-4 lg:p-8 space-y-6"}>
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <h1 className="text-[1.5rem] leading-normal lg:text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
               <Mic size={20} />
             </div>
-            Diktieren & Transkripte
+            {archiveOnly ? "Frühere Transkripte" : "Diktieren & Transkripte"}
           </h1>
-          <p className="text-[0.875rem] leading-snug font-bold text-slate-500 mt-2">Sprachnotiz aufnehmen, automatisch transkribieren, korrigieren und in Notizen speichern.</p>
+          <p className="text-[0.875rem] leading-snug font-bold text-slate-500 mt-2">{archiveOnly ? "Bereits gespeicherte Sprachnotizen aus früheren Versionen." : "Sprachnotiz aufnehmen, automatisch transkribieren, korrigieren und in Notizen speichern."}</p>
         </div>
 
-        <button
+        {!archiveOnly && <button
           type="button"
           onClick={() => setApp(prev => ({ ...prev, stimmNotizModal: true }))}
           className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg transition hover:bg-slate-800 active:scale-95"
         >
           <Mic size={16} />
           Aufnahme starten
-        </button>
+        </button>}
         
         <div className="flex gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-64">
@@ -81,7 +82,7 @@ export default function StimmNotizen() {
              <Mic className="text-slate-300 w-12 h-12 mb-4" />
              <h3 className="text-[1.125rem] leading-normal font-black text-slate-800">Keine Notizen gefunden</h3>
              <p className="text-[0.875rem] leading-snug font-medium text-slate-500 max-w-sm mx-auto mt-2">
-               Noch keine Transkripte vorhanden. Starte oben eine Aufnahme; der erkannte Text kann vor dem Speichern korrigiert werden.
+               {archiveOnly ? 'Keine passenden früheren Transkripte gefunden.' : 'Noch keine Transkripte vorhanden. Starte oben eine Aufnahme; der erkannte Text kann vor dem Speichern korrigiert werden.'}
              </p>
            </div>
         ) : (
@@ -94,7 +95,7 @@ export default function StimmNotizen() {
                    key={note.id}
                    initial={{ opacity: 0, y: 10 }}
                    animate={{ opacity: 1, y: 0 }}
-                   className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex flex-col group relative"
+                   className={`p-4 rounded-xl border shadow-sm flex flex-col group relative ${noteCategoryAppearance(note.kategorie).card}`}
                  >
                    <button 
                      onClick={() => deleteNote(note.id)}
@@ -104,7 +105,7 @@ export default function StimmNotizen() {
                    </button>
                    
                    <div className="flex items-center gap-2 mb-4">
-                     <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[0.625rem] font-black uppercase tracking-widest border border-slate-200/50">
+                     <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${noteCategoryAppearance(note.kategorie).badge}`}>
                        {note.kategorie || 'Sonstiges'}
                      </span>
                      {student && (
