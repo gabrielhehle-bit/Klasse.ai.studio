@@ -13,7 +13,11 @@ test('Jahresplanung: Vollbild und Excel-Roundtrip bleiben vorhanden', () => {
   assert.match(yearly, /setIsFullscreen/);
   assert.match(yearly, /Vollbild/);
   assert.match(yearly, /JahresplanExcelModal/);
-  assert.match(yearly, /generateJahresplanTemplate/);
+  const printCenter = readFileSync(join(src, 'components', 'PrintCenter.tsx'), 'utf8');
+  assert.match(printCenter, /generateJahresplanTemplate/);
+  assert.match(printCenter, /downloadYearlyPlanCsv/);
+  assert.match(yearly, /activePrintTemplate: 'jahresplanung'/);
+  assert.doesNotMatch(yearly, /window\.print\(\)|generateJahresplanTemplate\(/);
 });
 
 test('Jahresplanung: Import nutzt verlustfreie Mehrfachthemen-Logik', () => {

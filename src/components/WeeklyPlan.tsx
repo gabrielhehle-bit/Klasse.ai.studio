@@ -11,7 +11,8 @@ import { LehrplanZuordnung } from '../types';
 import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
 import WochenplanExcelModal from './WochenplanExcelModal';
 import { WochenplanImportRow } from '../lib/planerExcelService';
-import { addWeeklyLessonToEmptyYearPlan, hasWeeklyPlanningDetails } from '../lib/planningSync';
+import { addWeeklyLessonToEmptyYearPlan, hasWeeklyPlanningDetails, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
+import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots } from '../lib/weeklyPlanData';
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
@@ -595,26 +596,29 @@ export default function WeeklyPlan() {
     } else if (yearlyItemStr) {
        const yearlyData = safeJsonParse(yearlyItemStr, null);
        if (!yearlyData) return;
-       
+       const sourceSubject = sortYearlySubjects(app.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS)
+         .find(subject => subject.id === yearlyData.subjectId);
+       const suggestedSubject = sourceSubject?.label === 'SU' ? 'Sachunterricht'
+         : sourceSubject?.label === 'Checks/SA' ? ''
+         : sourceSubject?.label || '';
+       const currentSlot = app.wochenplanung?.[activeKW]?.[targetTag]?.[targetIdx];
+       const preview = mergeYearlySuggestionIntoEmptyWeeklySlot(currentSlot, yearlyData, suggestedSubject);
+       if (preview.status !== 'added') {
+         window.alert(preview.status === 'occupied'
+           ? 'Diese Unterrichtsstunde enthält bereits eine Planung. Bitte wähle einen freien Platz; es wurde nichts überschrieben.'
+           : 'Für diese Übernahme fehlt ein Jahresthema.');
+         return;
+       }
        setApp(prev => {
          const wp = { ...(prev.wochenplanung || {}) };
-         const currentWeekObj = { ...wp[activeKW] };
-         if (!currentWeekObj[targetTag]) currentWeekObj[targetTag] = {};
-         
-         const newSchwerpunkte = [];
-         if (yearlyData.subCategories && yearlyData.subCategories.length > 0) {
-           newSchwerpunkte.push(...yearlyData.subCategories);
-         } else if (yearlyData.subCategory) {
-           newSchwerpunkte.push(yearlyData.subCategory);
-         }
-
-         currentWeekObj[targetTag][targetIdx] = {
-           ...(currentWeekObj[targetTag][targetIdx] || {}),
-           thema: yearlyData.thema,
-           buch: yearlyData.buch || '',
-           schwerpunkte: newSchwerpunkte.length > 0 ? newSchwerpunkte : currentWeekObj[targetTag][targetIdx]?.schwerpunkte || []
-         };
-         
+         const currentWeekObj = { ...(wp[activeKW] || {}) };
+         const currentDay = { ...(currentWeekObj[targetTag] || {}) };
+         const safeResult = mergeYearlySuggestionIntoEmptyWeeklySlot(
+           currentDay[targetIdx], yearlyData, suggestedSubject,
+         );
+         if (safeResult.status !== 'added') return prev;
+         currentDay[targetIdx] = safeResult.lesson;
+         currentWeekObj[targetTag] = currentDay;
          wp[activeKW] = currentWeekObj;
          return { ...prev, wochenplanung: wp };
        });
@@ -651,17 +655,22 @@ export default function WeeklyPlan() {
          return { ...prev, wochenplanung: wp, parkgarage: parked };
        });
     } else if (textData) {
-       // Fallback from YearlyPlan Sidebar
+       // A plain-text drop can contain a yearly theme, but is never allowed to
+       // replace existing text, homework or a differently assigned subject.
+       const current = app.wochenplanung?.[activeKW]?.[targetTag]?.[targetIdx];
+       const preview = mergeYearlySuggestionIntoEmptyWeeklySlot(current, { thema: textData });
+       if (preview.status !== 'added') {
+         window.alert('Diese Unterrichtsstunde ist bereits geplant. Der Inhalt wurde nicht überschrieben.');
+         return;
+       }
        setApp(prev => {
          const wp = { ...(prev.wochenplanung || {}) };
-         const currentWeekObj = { ...wp[activeKW] };
-         if (!currentWeekObj[targetTag]) currentWeekObj[targetTag] = {};
-         
-         currentWeekObj[targetTag][targetIdx] = {
-           ...(currentWeekObj[targetTag][targetIdx] || {}),
-           thema: textData
-         };
-         
+         const currentWeekObj = { ...(wp[activeKW] || {}) };
+         const currentDay = { ...(currentWeekObj[targetTag] || {}) };
+         const result = mergeYearlySuggestionIntoEmptyWeeklySlot(currentDay[targetIdx], { thema: textData });
+         if (result.status !== 'added') return prev;
+         currentDay[targetIdx] = result.lesson;
+         currentWeekObj[targetTag] = currentDay;
          wp[activeKW] = currentWeekObj;
          return { ...prev, wochenplanung: wp };
        });
@@ -1729,14 +1738,13 @@ export default function WeeklyPlan() {
   const yearlyPlanItems = yearlySubjects.flatMap(s => {
     const data = yearlyPlanForKW[s.id];
     if (!data) return [];
-    const items = (data.items && data.items.length > 0) 
-       ? data.items 
-       : data.thema ? [{ thema: data.thema, subCategory: data.subCategory, subCategories: data.subCategories, buch: data.buch, subjectId: s.id }] : [];
+    const items = yearPlanCellEntries(data);
+    const hasRootEntry = Boolean(String(data.thema || '').trim() || String(data.buch || '').trim());
     return items.map((it: any, index: number) => ({
       ...it,
       subjectId: s.id,
-      itemIndex: data.items && data.items.length > 0 ? index : null,
-      completed: !!(data.completed || it.completed)
+      itemIndex: hasRootEntry ? (index === 0 ? null : index - 1) : index,
+      completed: !!(data.completed || it.completed),
     }));
   });
   

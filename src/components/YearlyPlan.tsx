@@ -9,8 +9,9 @@ import LernzielTracker from './LernzielTracker';
 import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { callServerAI } from '../services/aiService';
 import JahresplanExcelModal from './JahresplanExcelModal';
-import { generateJahresplanTemplate, JahresplanImportRow } from '../lib/planerExcelService';
+import { JahresplanImportRow } from '../lib/planerExcelService';
 import { applyYearPlanImportRows, shiftYearPlanSubjectForward, yearPlanCellDisplayText, yearPlanCellEntries } from '../lib/yearlyPlanData';
+import { occupiedYearPlanCell, plannedYearWeeks, conflictingYearWeeks } from '../lib/annualPlanSafety';
 
 const COLOR_PALETTES: Record<string, { name: string, desc: string, colors: Record<string, string> }> = {
   pastell: {
@@ -174,8 +175,8 @@ export default function YearlyPlan() {
   const [yearPlannerTab, setYearPlannerTab] = useState<'inhalt' | 'rahmen' | 'weitere'>('inhalt');
   const [viewingCell, setViewingCell] = useState<{ kw: number, subjectId: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showMoreTools, setShowMoreTools] = useState(false);
   const [editValue, setEditValue] = useState<{ thema: string, buch: string, type: string, subCategory: string, subCategories?: string[], items?: any[], completed?: boolean }>({ thema: '', buch: '', type: 'standard', subCategory: '', subCategories: [], items: [], completed: false });
-  const [isPrintMode, setIsPrintMode] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'months'>('table');
   const hasYearPlanEntries = useMemo(() => (
     Object.values(app.jahresplanung || {}).some((week: any) => {
@@ -193,20 +194,8 @@ export default function YearlyPlan() {
   const [dragOverCell, setDragOverCell] = useState<{kw: number, subjectId: string} | null>(null);
   const [planWeeksCount, setPlanWeeksCount] = useState<number>(1);
   const [autoSuffix, setAutoSuffix] = useState<'none' | 'part' | 'fortsetzung'>('part');
-  const [densityMode, setDensityMode] = useState<'kompakt' | 'normal' | 'detail'>(
-    ((app.settings as any)?.yearlyDensityMode as any) || 'normal'
-  );
-
-  const changeDensityMode = (mode: 'kompakt' | 'normal' | 'detail') => {
-    setDensityMode(mode);
-    setApp(prev => ({
-      ...prev,
-      settings: {
-        ...(prev.settings as any),
-        yearlyDensityMode: mode
-      }
-    }));
-  };
+  // A single readable display density; old preference and stored plans are untouched.
+  const [densityMode] = useState<'kompakt' | 'normal' | 'detail'>('normal');
 
   // NEW INTERACTIVE & USABILITY STATES
   const [copiedTopic, setCopiedTopic] = useState<any | null>(null);
@@ -265,7 +254,6 @@ export default function YearlyPlan() {
   }, [editingCell, editValue.thema]);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showExcelMenu, setShowExcelMenu] = useState(false);
   const [showExcelModal, setShowExcelModal] = useState(false);
 
   useEffect(() => {
@@ -280,6 +268,7 @@ export default function YearlyPlan() {
   }, [isFullscreen]);
 
   const handleJahresplanImport = (importedRows: JahresplanImportRow[], mode: 'merge' | 'overwrite') => {
+    // The import modal confirms destructive overwrites exactly once.
     setApp(prev => ({
       ...prev,
       jahresplanung: applyYearPlanImportRows(
@@ -450,75 +439,51 @@ export default function YearlyPlan() {
     e.preventDefault();
     setDragOverCell(null);
     setDraggedSubjectData(null);
-    
-    try {
-      const dataStr = e.dataTransfer.getData('application/json');
-      if (!dataStr) {
-        // Fallback to text transfer
-        const textStr = e.dataTransfer.getData('text/plain');
-        if (textStr) {
-          setApp(prev => {
-            const jp = { ...(prev.jahresplanung || {}) };
-            if (!jp[targetKw]) jp[targetKw] = {};
-            jp[targetKw][targetSubjectId] = {
-              thema: textStr,
-              buch: '',
-              type: 'standard',
-              subCategory: '',
-              subCategories: [],
-              items: []
-            };
-            return { ...prev, jahresplanung: jp };
-          });
-        }
+    const raw = e.dataTransfer.getData('application/json');
+    const plainText = e.dataTransfer.getData('text/plain').trim();
+    let payload: any = null;
+    try { if (raw) payload = JSON.parse(raw); } catch { return; }
+    if (!raw || payload?.type === 'lehrplan') {
+      const topic = String(payload?.type === 'lehrplan' ? payload.title || '' : plainText).trim();
+      if (!topic) return;
+      if (occupiedYearPlanCell(app.jahresplanung?.[targetKw]?.[targetSubjectId])) {
+        window.alert('In dieser Woche und diesem Fach ist schon etwas geplant. Bestehende Einträge bleiben erhalten.');
         return;
       }
-      
-      const parsed = JSON.parse(dataStr);
-      if (parsed.type === 'lehrplan') {
-        setApp(prev => {
-          const jp = { ...(prev.jahresplanung || {}) };
-          if (!jp[targetKw]) jp[targetKw] = {};
-          jp[targetKw][targetSubjectId] = {
-            thema: parsed.title,
-            buch: '',
-            type: 'standard',
-            subCategory: '',
-            subCategories: [],
-            items: []
-          };
-          return { ...prev, jahresplanung: jp };
-        });
-        return;
-      }
-      
-      const { kw: sourceKw, subjectId: sourceSubjectId } = parsed;
-      if (sourceKw === targetKw && sourceSubjectId === targetSubjectId) return;
-      
-      setApp(prev => {
-        const jp = { ...(prev.jahresplanung || {}) };
-        
-        // Ensure objects exist
-        if (!jp[sourceKw]) jp[sourceKw] = {};
-        if (!jp[targetKw]) jp[targetKw] = {};
-        
-        const sourceData = jp[sourceKw][sourceSubjectId];
-        const targetData = jp[targetKw][targetSubjectId];
-        
-        // Swap or move
-        jp[targetKw][targetSubjectId] = sourceData;
-        
-        if (targetData) {
-           jp[sourceKw][sourceSubjectId] = targetData;
-        } else {
-           delete jp[sourceKw][sourceSubjectId];
-        }
-        
-        return { ...prev, jahresplanung: jp };
+      setApp(previous => {
+        if (occupiedYearPlanCell(previous.jahresplanung?.[targetKw]?.[targetSubjectId])) return previous;
+        const plan = { ...(previous.jahresplanung || {}) };
+        plan[targetKw] = {
+          ...(plan[targetKw] || {}),
+          [targetSubjectId]: {
+            thema: topic, buch: '', type: 'standard', subCategory: '', subCategories: [], items: [],
+          },
+        };
+        return { ...previous, jahresplanung: plan };
       });
-    } catch (err) {
-      console.error("Invalid drag data", err);
+      return;
     }
+
+    const sourceKw = Number(payload?.kw);
+    const sourceSubjectId = String(payload?.subjectId || '');
+    if (!Number.isInteger(sourceKw) || !sourceSubjectId ||
+        (sourceKw === targetKw && sourceSubjectId === targetSubjectId)) return;
+
+    setApp(previous => {
+      const original = previous.jahresplanung || {};
+      const source = original[sourceKw]?.[sourceSubjectId];
+      if (!source) return previous;
+      const target = original[targetKw]?.[targetSubjectId];
+      const plan = { ...original };
+      const sourceWeek = { ...(original[sourceKw] || {}) };
+      const targetWeek = sourceKw === targetKw ? sourceWeek : { ...(original[targetKw] || {}) };
+      targetWeek[targetSubjectId] = source;
+      if (target) sourceWeek[sourceSubjectId] = target;
+      else delete sourceWeek[sourceSubjectId];
+      plan[sourceKw] = sourceWeek;
+      plan[targetKw] = targetWeek;
+      return { ...previous, jahresplanung: plan };
+    });
   };
 
   const toggleCompleted = (kw: number, subjectId: string) => {
@@ -532,11 +497,12 @@ export default function YearlyPlan() {
   };
 
   const clearCell = (kw: number, subjectId: string) => {
+    if (!window.confirm('Dieses Jahresthema wirklich löschen? Die vorhandene Wochenplanung bleibt dabei erhalten.')) return;
     setApp(prev => {
       const jp = { ...(prev.jahresplanung || {}) };
-      if (jp[kw]) {
-        delete jp[kw][subjectId];
-      }
+      if (!jp[kw]?.[subjectId]) return prev;
+      jp[kw] = { ...jp[kw] };
+      delete jp[kw][subjectId];
       return { ...prev, jahresplanung: jp };
     });
   };
@@ -556,11 +522,16 @@ export default function YearlyPlan() {
 
   const pasteTopic = (kw: number, subjectId: string) => {
     if (!copiedTopic) return;
+    if (occupiedYearPlanCell(app.jahresplanung?.[kw]?.[subjectId])) {
+      window.alert('Hier steht bereits eine Planung. Wähle eine leere Zelle, damit nichts überschrieben wird.');
+      return;
+    }
     setApp(prev => {
-      const jp = { ...(prev.jahresplanung || {}) };
-      if (!jp[kw]) jp[kw] = {};
-      jp[kw][subjectId] = { ...copiedTopic, completed: false };
-      return { ...prev, jahresplanung: jp };
+      if (occupiedYearPlanCell(prev.jahresplanung?.[kw]?.[subjectId])) return prev;
+      return { ...prev, jahresplanung: {
+        ...prev.jahresplanung,
+        [kw]: { ...(prev.jahresplanung[kw] || {}), [subjectId]: { ...copiedTopic, completed: false } },
+      }};
     });
   };
 
@@ -598,9 +569,10 @@ export default function YearlyPlan() {
   const renderCellContent = (data: any, s: any, kw: number) => {
     const isDraggable = !!data && !!(data?.items?.length > 0 || data?.thema || data?.buch || (data?.type && data.type !== 'standard'));
     const isCompleted = !!data?.completed;
-    const hasMultipleItems = data?.items && data.items.length > 0;
-    const displayTitle = hasMultipleItems 
-      ? (data.items.map((it: any) => it.thema).filter(Boolean).join(', ') || data?.thema) 
+    const cellEntries = yearPlanCellEntries(data);
+    const hasMultipleItems = Array.isArray(data?.items) && data.items.length > 0;
+    const displayTitle = hasMultipleItems
+      ? (cellEntries.map(entry => entry.thema).filter(Boolean).join(', ') || data?.thema)
       : data?.thema;
 
     return (
@@ -756,8 +728,8 @@ export default function YearlyPlan() {
             /* DETAIL MODE */
             hasMultipleItems ? (
               <div className={`flex flex-col gap-2 min-h-full p-2 rounded-xl transition-all shadow-sm select-none ${isCompleted ? 'bg-emerald-50/50 opacity-70 line-through' : 'bg-white/80'}`}>
-                {data.items.map((it: any) => (
-                  <div key={it.id} className="leading-tight border-b border-stone-100 pb-2 mb-1 last:border-0 last:pb-0 last:mb-0">
+                {cellEntries.map((it: any, index: number) => (
+                  <div key={it.id || index} className="leading-tight border-b border-stone-100 pb-2 mb-1 last:border-0 last:pb-0 last:mb-0">
                     {(it.subCategories && it.subCategories.length > 0) ? (
                       <div className="flex flex-wrap gap-1 mb-1">
                         {it.subCategories.map((sc: string) => (
@@ -842,86 +814,58 @@ export default function YearlyPlan() {
   const handleSave = () => {
     if (!editingCell) return;
     const { kw, subjectId } = editingCell;
-    
-    let finalValue = { ...editValue };
-    // If there is currently typed content and we have previous items, move current content to items as well
-    if ((finalValue.thema.trim() || (finalValue.subCategories && finalValue.subCategories.length > 0)) && finalValue.items && finalValue.items.length > 0) {
-      finalValue.items = [
-        ...finalValue.items, 
-        { 
-          id: crypto.randomUUID(), 
-          thema: finalValue.thema, 
-          buch: finalValue.buch, 
-          subCategory: finalValue.subCategory, 
-          subCategories: finalValue.subCategories || [], 
-          type: finalValue.type 
-        }
-      ];
-      finalValue.thema = '';
-      finalValue.buch = '';
-      finalValue.subCategories = [];
-      finalValue.subCategory = '';
-    }
-    
+    const teachingWeek = (week: { kw: number; monday: Date }) => {
+      const holiday = isHoliday(week.monday, app.calendarSettings?.disabledHolidays, app.bundesland || 'VBG');
+      const text = (holiday || '').toLocaleLowerCase('de-AT');
+      return !holiday || !['ferien', 'schluss', 'beginn'].some(word => text.includes(word));
+    };
+    const targetKws = planWeeksCount === 1 ? [kw] : plannedYearWeeks(weeks, kw, planWeeksCount, teachingWeek);
     if (planWeeksCount > 1) {
-      // Find start index of current kw
-      const startIdx = weeks.findIndex(w => w.kw === kw);
-      if (startIdx !== -1) {
-        setApp(prev => {
-          let updatedPlanning = { ...prev.jahresplanung };
-          let teachingWeeksAdded = 0;
-          let idx = startIdx;
-          
-          while (teachingWeeksAdded < planWeeksCount && idx < weeks.length) {
-            const w = weeks[idx];
-            const holiday = isHoliday(w.monday, app.calendarSettings?.disabledHolidays, app.bundesland || 'VBG');
-            const isSevereHoliday = holiday && (holiday.includes('ferien') || holiday.includes('Schluss') || holiday.includes('Beginn'));
-            
-            if (!isSevereHoliday) {
-              let kwThema = finalValue.thema;
-              let kwBuch = finalValue.buch;
-              
-              if (finalValue.thema.trim()) {
-                if (autoSuffix === 'part') {
-                  kwThema = `${finalValue.thema} (Teil ${teachingWeeksAdded + 1})`;
-                } else if (autoSuffix === 'fortsetzung') {
-                  kwThema = teachingWeeksAdded === 0 ? finalValue.thema : `${finalValue.thema} (Forts.)`;
-                }
-              }
-              
-              const nextValue = {
-                ...finalValue,
-                thema: kwThema,
-                buch: kwBuch,
-                items: teachingWeeksAdded === 0 ? (finalValue.items || []) : [] // Sub-items are typically kept in week 1
-              };
-              
-              updatedPlanning = {
-                ...updatedPlanning,
-                [w.kw]: {
-                  ...(updatedPlanning[w.kw] || {}),
-                  [subjectId]: nextValue
-                }
-              };
-              teachingWeeksAdded++;
-            }
-            idx++;
-          }
-          return { ...prev, jahresplanung: updatedPlanning };
-        });
+      if (targetKws.length < planWeeksCount) {
+        window.alert('Für diesen Zeitraum sind nicht genügend Unterrichtswochen vorhanden. Es wurde nichts gespeichert.');
+        return;
       }
-    } else {
-      setApp(prev => ({
-        ...prev,
-        jahresplanung: {
-          ...prev.jahresplanung,
-          [kw]: {
-            ...(prev.jahresplanung[kw] || {}),
-            [subjectId]: finalValue
-          }
-        }
-      }));
+      const occupied = conflictingYearWeeks(app.jahresplanung || {}, targetKws, subjectId, kw);
+      if (occupied.length) {
+        window.alert(`Die folgenden Wochen enthalten bereits Einträge in diesem Fach: ${occupied.join(', ')}. Bitte wähle einen freien Zeitraum; bestehende Jahrespläne wurden nicht verändert.`);
+        return;
+      }
     }
+
+    // Keep the original root entry and every existing extra item in their
+    // recorded order. The explicit "weiteren Eintrag übernehmen" control is
+    // responsible for moving a newly typed topic into items.
+    const finalValue = { ...editValue, items: [...(editValue.items || [])] };
+
+    setApp(prev => {
+      const current = prev.jahresplanung || {};
+      const existingConflicts = conflictingYearWeeks(current, targetKws, subjectId, kw);
+      // Recheck at update time to prevent clobbering an edit made in another module.
+      if (existingConflicts.length) return prev;
+      const updatedPlanning = { ...current };
+      for (let index = 0; index < targetKws.length; index++) {
+        const targetKw = targetKws[index];
+        const currentCell = current[targetKw]?.[subjectId] || {};
+        const nextTopic = finalValue.thema.trim()
+          ? autoSuffix === 'part' && planWeeksCount > 1
+            ? `${finalValue.thema} (Teil ${index + 1})`
+            : autoSuffix === 'fortsetzung' && index > 0
+              ? `${finalValue.thema} (Forts.)`
+              : finalValue.thema
+          : finalValue.thema;
+        updatedPlanning[targetKw] = {
+          ...(current[targetKw] || {}),
+          [subjectId]: {
+            ...currentCell,
+            ...finalValue,
+            thema: nextTopic,
+            // Sub-items of the original week stay with their week.
+            items: index === 0 ? (finalValue.items || []) : [],
+          },
+        };
+      }
+      return { ...prev, jahresplanung: updatedPlanning };
+    });
     closeEditingCell();
   };
 
@@ -941,7 +885,7 @@ export default function YearlyPlan() {
         if (aiSubjectsOnly !== 'all' && s.id !== aiSubjectsOnly) return;
         
         const cellData = plannedWeek[s.id];
-        const isEmpty = !cellData || (!cellData.thema?.trim() && (!cellData.items || cellData.items.length === 0));
+        const isEmpty = !occupiedYearPlanCell(cellData);
         if (isEmpty) {
           emptySubjectIds.push(s.id);
         }
@@ -998,197 +942,54 @@ export default function YearlyPlan() {
 
   const handleApplySingleSuggestion = (suggestion: any) => {
     const { kw, subjectId, thema, buch } = suggestion;
-    setApp(prev => ({
-      ...prev,
-      jahresplanung: {
+    if (occupiedYearPlanCell(app.jahresplanung?.[kw]?.[subjectId])) {
+      window.alert('Diese Zelle enthält bereits eine Planung. Die KI hat nichts überschrieben.');
+      return;
+    }
+    setApp(prev => {
+      if (occupiedYearPlanCell(prev.jahresplanung?.[kw]?.[subjectId])) return prev;
+      return { ...prev, jahresplanung: {
         ...prev.jahresplanung,
         [kw]: {
           ...(prev.jahresplanung[kw] || {}),
-          [subjectId]: {
-            thema: thema,
-            buch: buch || '',
-            type: 'standard',
-            subCategory: '',
-            subCategories: [],
-            items: []
-          }
-        }
-      }
-    }));
-    setAiSuggestions(prev => prev.filter(s => !(s.kw === kw && s.subjectId === subjectId)));
+          [subjectId]: { thema, buch: buch || '', type: 'standard', subCategory: '', subCategories: [], items: [] },
+        },
+      }};
+    });
+    setAiSuggestions(prev => prev.filter(item => !(item.kw === kw && item.subjectId === subjectId)));
   };
 
   const handleApplyAllSuggestions = () => {
     setApp(prev => {
-      let updated = { ...prev.jahresplanung };
-      aiSuggestions.forEach(s => {
-        updated[s.kw] = {
-          ...(updated[s.kw] || {}),
-          [s.subjectId]: {
-            thema: s.thema,
-            buch: s.buch || '',
+      const original = prev.jahresplanung || {};
+      const updated = { ...original };
+      aiSuggestions.forEach(suggestion => {
+        // Also protect an earlier suggestion placed by this same batch.
+        if (occupiedYearPlanCell(updated[suggestion.kw]?.[suggestion.subjectId])) return;
+        updated[suggestion.kw] = {
+          ...(updated[suggestion.kw] || {}),
+          [suggestion.subjectId]: {
+            thema: suggestion.thema,
+            buch: suggestion.buch || '',
             type: 'standard',
             subCategory: '',
             subCategories: [],
-            items: []
-          }
+            items: [],
+          },
         };
       });
-      return {
-        ...prev,
-        jahresplanung: updated
-      };
+      return { ...prev, jahresplanung: updated };
     });
     setAiSuggestions([]);
     setShowAiModal(false);
   };
-
-  const downloadCSV = () => {
-    const sanitizeCsvCell = (value: unknown): string => {
-      const text = String(value ?? '').replace(/"/g, '""');
-      // Spreadsheet formula injection protection for exported teacher content.
-      const protectedText = /^[\s\t\r\n]*[=+\-@]/.test(text) ? `'${text}` : text;
-      return `"${protectedText}"`;
-    };
-    const headers = ['SW', 'KW', ...subjects.map(s => s.label)];
-    const rows = weeks.map(({ sw, kw, year }) => {
-      const plannedWeek = app.jahresplanung[kw] || {};
-      const holiday = isHoliday(kwToMonday(kw, year), app.calendarSettings?.disabledHolidays, app.bundesland || 'VBG');
-      if (holiday && (holiday.includes('ferien') || holiday.includes('Schluss') || holiday.includes('Beginn'))) {
-        return [sw, kw, ...subjects.map(() => holiday)];
-      }
-      return [
-        sw,
-        kw,
-        ...subjects.map(s => {
-          const item = plannedWeek[s.id];
-          return item ? yearPlanCellDisplayText(item).replace(/,/g, ';') : '';
-        })
-      ];
-    });
-
-    const csvContent = [headers, ...rows]
-      .map(r => r.map(sanitizeCsvCell).join(','))
-      .join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `Jahresplanung_${app.schuljahr}.csv`;
-    link.click();
-  };
-
-  const printPlan = () => {
-    window.print();
-  };
-
-  if (isPrintMode) {
-    return (
-      <div className="bg-white p-8 min-h-screen font-sans text-black">
-        <div className="flex justify-between items-end mb-8 border-b-2 border-black pb-4 print:hidden">
-          <div>
-            <h1 className="text-[1.5rem] leading-normal font-black uppercase">Jahresplanung {app.schuljahr}</h1>
-            <p className="text-[0.875rem] leading-snug text-stone-500">Druckansicht für die gesamte Jahresübersicht</p>
-          </div>
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setIsPrintMode(false)} 
-              className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-2xl font-black text-[0.75rem] leading-tight uppercase tracking-wider transition-all cursor-pointer"
-            >
-              Zurück
-            </button>
-            <button 
-              onClick={printPlan} 
-              className="px-6 py-3.5 bg-slate-900 border border-slate-900 hover:bg-slate-800 text-white rounded-2xl text-[0.75rem] leading-tight font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer"
-            >
-              <Printer size={16} /> <span>Drucken</span>
-            </button>
-          </div>
-        </div>
-
-        <table className="w-full border-collapse border-[1.5px] border-black text-[0.625rem]">
-          <thead className="sticky top-0 bg-white z-10">
-            <tr>
-              <th className="border border-black p-1 w-8 bg-stone-100">SW</th>
-              <th className="border border-black p-1 w-8 bg-stone-100">KW</th>
-              {subjects.map(s => (
-                <th key={s.id} className="border border-black p-1 text-center font-black uppercase leading-tight bg-stone-50">
-                  {s.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {weeks.map(({ sw, kw, year }) => {
-              const monday = kwToMonday(kw, year);
-              const holiday = isHoliday(monday, app.calendarSettings?.disabledHolidays, app.bundesland || 'VBG');
-              const plannedWeek = app.jahresplanung[kw] || {};
-
-              if (holiday && (holiday.includes('ferien') || holiday.includes('Schluss') || holiday.includes('Beginn'))) {
-                 return (
-                   <tr key={sw}>
-                     <td className="border border-black p-1 text-center font-bold bg-stone-50">{sw}</td>
-                     <td className="border border-black p-1 text-center bg-stone-50">{kw}</td>
-                     <td colSpan={subjects.length} className="border border-black p-2 text-center font-black uppercase bg-stone-100 tracking-[0.2em]">
-                       {holiday}
-                     </td>
-                   </tr>
-                 );
-              }
-
-              return (
-                <tr key={sw}>
-                  <td className="border border-black p-1 text-center font-bold bg-stone-50">{sw}</td>
-                  <td className="border border-black p-1 text-center bg-stone-50">{kw}</td>
-                  {subjects.map(s => {
-                    const data = plannedWeek[s.id];
-                    return (
-                      <td key={s.id} className={`border border-black p-1 align-top min-h-[40px] cursor-pointer hover:bg-black/5 transition-colors ${data?.completed ? 'bg-emerald-50/40' : ''}`} onClick={() => handleCellClick(kw, s.id)}>
-                        {data?.items && data.items.length > 0 ? (
-                          <div className="flex flex-col gap-1.5">
-                            {data.items.map((it: any) => (
-                              <div key={it.id} className="leading-tight border-b border-black/5 pb-1 mb-1 last:border-0 last:pb-0 last:mb-0">
-                                {it.subCategories && it.subCategories.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1 mb-0.5">
-                                    {it.subCategories.map((sc: string) => (
-                                      <div key={sc} className="text-[0.5rem] font-black uppercase text-blue-600 px-1 bg-blue-50 rounded border border-blue-100">{sc.replace('Deutsch ', '')}</div>
-                                    ))}
-                                  </div>
-                                ) : it.subCategory && <div className="text-[0.5rem] font-black uppercase text-blue-600 mb-0.5">{it.subCategory.replace('Deutsch ', '')}</div>}
-                                <div className={`font-bold ${data?.completed || it.completed ? 'line-through text-stone-400 font-medium' : ''} flex items-center gap-1`}>
-                                  {(data?.completed || it.completed) && <span className="text-emerald-500 font-black">✓</span>}
-                                  <span>{it.thema}</span>
-                                </div>
-                                {it.buch && <div className="text-[0.5rem] text-stone-600 italic leading-none">{it.buch}</div>}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <>
-                            <div className={`font-bold mb-0.5 ${data?.completed ? 'line-through text-stone-400 font-medium' : ''} flex items-center gap-1`}>
-                              {data?.completed && <span className="text-emerald-500 font-black">✓</span>}
-                              <span>{data?.thema}</span>
-                            </div>
-                            <div className="text-[0.5625rem] text-stone-600 italic leading-none">{data?.buch}</div>
-                          </>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
 
   const activeTab = app.settings?.planTab || 'jahresplan';
 
   return (
     <div className={`yearly-plan-shell flex flex-col space-y-4 bg-[#f4f7f3] ${isFullscreen ? 'fixed inset-0 z-[450] w-screen h-screen overflow-y-auto p-3 sm:p-5' : 'h-full px-4 lg:px-6'}`}>
       {/* Header toolbar */}
-      <div className="flex flex-col gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm shrink-0">
+      <div className="flex flex-col gap-2 bg-white p-2 sm:p-3 rounded-2xl border border-slate-200 shadow-sm shrink-0">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full justify-start min-w-0">
           <div className="flex items-center gap-2 mr-auto min-w-[190px]">
             <span className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
@@ -1236,28 +1037,19 @@ export default function YearlyPlan() {
                 </button>
               </div>
 
-              {viewMode === 'table' && (
-                <div className="flex bg-stone-100 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl border border-stone-200 shrink-0 shadow-inner items-center">
-                  <span className="text-[0.5625rem] font-black text-stone-400 uppercase tracking-wider px-2 hidden sm:inline">Dichte:</span>
-                  {(['kompakt', 'normal', 'detail'] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => changeDensityMode(m)}
-                      aria-pressed={densityMode === m}
-                      className={`px-2 sm:px-3 py-1 sm:py-1 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-black uppercase tracking-wider transition-all duration-200 ${densityMode === m ? 'bg-white text-emerald-700 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
-                    >
-                      {m === 'kompakt' ? 'Kompakt' : m === 'normal' ? 'Normal' : 'Detail'}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>
         
         {activeTab === 'jahresplan' && (
-        <div className="flex flex-wrap items-center gap-1.5 md:gap-2 w-full justify-start min-w-0 border-t border-slate-100 pt-3">
-          <button 
+        <div className="flex flex-wrap items-center gap-1.5 w-full justify-start min-w-0 border-t border-slate-100 pt-2">
+          <button type="button" aria-expanded={showMoreTools} aria-controls="yearly-tools"
+            onClick={() => setShowMoreTools(open => !open)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-800 hover:bg-stone-100">
+            <Settings size={14} /> {showMoreTools ? 'Werkzeuge schließen' : 'Weitere Werkzeuge'}
+          </button>
+          <div id="yearly-tools" className={`${showMoreTools ? 'flex' : 'hidden'} flex-wrap items-center gap-1.5`}>
+          <button
             onClick={() => {
               setAiSuggestions([]);
               setAiGeneratingError(null);
@@ -1312,7 +1104,8 @@ export default function YearlyPlan() {
             </div>
           </div>
 
-          <button 
+          </div>
+          <button
             onClick={() => {
               const todayKW = getKW(new Date());
               const weekIdx = weeks.findIndex(w => w.kw === todayKW);
@@ -1328,69 +1121,20 @@ export default function YearlyPlan() {
           >
             <Calendar size={11} className="sm:w-[15px] sm:h-[15px]" /> Heute
           </button>
-          <button 
+          {showMoreTools && <button
             onClick={() => setShowSettings(true)}
-            className="inline-flex items-center justify-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border border-stone-200 active:scale-95 cursor-pointer"
-          >
-            <Settings size={11} className="sm:w-[15px] sm:h-[15px]" /> Fächer
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-700 hover:bg-stone-100">
+            <Settings size={14} /> Fächer
+          </button>}
+          <button type="button" onClick={() => setShowExcelModal(true)}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-800 hover:bg-stone-100">
+            <Upload size={14} /> Excel importieren
           </button>
-          <button 
-            onClick={() => setIsPrintMode(true)}
-            className="inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border border-slate-200 active:scale-95 cursor-pointer"
-          >
-            <Printer size={11} className="sm:w-[15px] sm:h-[15px]" /> Drucken
+          <button type="button"
+            onClick={() => setApp(previous => ({ ...previous, currentPage: 'drucken', activePrintTemplate: 'jahresplanung' }))}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+            <FileText size={14} /> Zum Druckzentrum
           </button>
-          
-          {/* Excel Dropdown Button */}
-          <div className="relative z-[210]">
-            <button 
-              onClick={() => setShowExcelMenu(!showExcelMenu)}
-              className="inline-flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border border-emerald-200 active:scale-95 cursor-pointer shadow-xs"
-              title="Excel-Vorlage oder Import"
-            >
-              <FileSpreadsheet size={13} className="sm:w-[15px] sm:h-[15px]" />
-              <span>Excel</span>
-              <ChevronDown size={11} />
-            </button>
-            {showExcelMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowExcelMenu(false)} />
-                <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left">
-                  <button
-                    onClick={() => {
-                      setShowExcelMenu(false);
-                      generateJahresplanTemplate(app);
-                    }}
-                    className="btn !bg-white !text-emerald-700 hover:!bg-emerald-50 !justify-start !text-left text-xs gap-2.5 w-full"
-                  >
-                    <Download size={14} />
-                    <span>Excel-Vorlage herunterladen</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowExcelMenu(false);
-                      setShowExcelModal(true);
-                    }}
-                    className="btn !bg-white !text-slate-700 hover:!bg-slate-50 !justify-start !text-left text-xs gap-2.5 w-full"
-                  >
-                    <Upload size={14} />
-                    <span>Excel importieren...</span>
-                  </button>
-                  <hr className="my-1 border-slate-100" />
-                  <button
-                    onClick={() => {
-                      setShowExcelMenu(false);
-                      downloadCSV();
-                    }}
-                    className="btn !bg-white !text-slate-600 hover:!bg-slate-50 !justify-start !text-left text-xs gap-2.5 w-full"
-                  >
-                    <FileText size={14} />
-                    <span>CSV exportieren</span>
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
 
           {/* Fullscreen Button */}
           <button 
@@ -1487,7 +1231,7 @@ export default function YearlyPlan() {
                       if (!isSevereHoliday) {
                         totalTeachingWeeks++;
                         const val = app.jahresplanung[w.kw]?.[s.id];
-                        if (val && (val.thema || val.items?.length > 0)) {
+                        if (yearPlanCellEntries(val).length > 0) {
                           plannedCount++;
                         }
                       }
@@ -1526,8 +1270,8 @@ export default function YearlyPlan() {
                             />
                           </div>
                           <div className="text-[0.55rem] font-black text-neutral-400 mt-1 uppercase tracking-wider flex items-center justify-between">
-                            <span>Abdeckung</span>
-                            <span className="text-neutral-200">{progress}%</span>
+                            <span>Wochen geplant</span>
+                            <span className="text-neutral-200" title={`${plannedCount} von ${totalTeachingWeeks} Unterrichtswochen`}>{plannedCount}/{totalTeachingWeeks}</span>
                           </div>
                         </div>
                       </th>
@@ -2052,6 +1796,16 @@ export default function YearlyPlan() {
                 </div>
 
                 <div className="flex flex-col-reverse gap-2 border-t border-stone-100 bg-stone-50/80 px-6 py-4 sm:flex-row sm:justify-end">
+                  <button type="button"
+                    onClick={() => {
+                      const targetKw = viewingCell.kw;
+                      setViewingCell(null);
+                      // Navigate without copying or altering a single existing lesson.
+                      setApp(previous => ({ ...previous, currentKW: targetKw, currentPage: 'wochenplanung' }));
+                    }}
+                    className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+                    <Calendar size={14} className="mr-1.5 inline" /> Im Wochenplan dieser Woche öffnen
+                  </button>
                   <button
                     type="button"
                     onClick={() => setViewingCell(null)}
@@ -2797,15 +2551,14 @@ export default function YearlyPlan() {
                         key={idx}
                         onClick={() => {
                           setApp(prev => {
+                            if (occupiedYearPlanCell(prev.jahresplanung?.[suggestingCell.kw]?.[suggestingCell.subjectId])) return prev;
                             const jp = { ...(prev.jahresplanung || {}) };
-                            if (!jp[suggestingCell.kw]) jp[suggestingCell.kw] = {};
-                            jp[suggestingCell.kw][suggestingCell.subjectId] = {
-                              thema,
-                              buch: '',
-                              type: 'standard',
-                              subCategory: '',
-                              subCategories: [],
-                              items: []
+                            jp[suggestingCell.kw] = {
+                              ...(jp[suggestingCell.kw] || {}),
+                              [suggestingCell.subjectId]: {
+                                thema, buch: '', type: 'standard',
+                                subCategory: '', subCategories: [], items: [],
+                              },
                             };
                             return { ...prev, jahresplanung: jp };
                           });
@@ -2839,7 +2592,7 @@ export default function YearlyPlan() {
           <Info size={18} />
         </div>
         <p className="text-[0.75rem] text-blue-800 leading-snug">
-          <strong>Tipp:</strong> Tragen Sie hier die Grobplanung für das gesamte Schuljahr ein. Diese Themen können Sie später direkt in die Wochenplanung übernehmen. Die Druckansicht ist für den A4-Querformat-Druck optimiert.
+          <strong>Tipp:</strong> Hier planst du Themen und Ziele für das Schuljahr. Die vorhandenen Themen kannst du im Wochenplan gezielt einer freien Unterrichtsstunde zuordnen. Drucken und Exportieren findest du im Druckzentrum.
         </p>
       </div>
 

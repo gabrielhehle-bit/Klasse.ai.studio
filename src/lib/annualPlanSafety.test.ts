@@ -1,0 +1,68 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { occupiedYearPlanCell, plannedYearWeeks, conflictingYearWeeks } from './annualPlanSafety';
+import { normalizeAppState, syncActiveClass, switchClassState } from './appState';
+import { shiftYearPlanSubjectForward, type YearPlanCell } from './yearlyPlanData';
+import { yearPlanCellEntries } from './yearlyPlanData';
+import { readFileSync } from 'node:fs';
+const requireSource = (path: string) => readFileSync(path, 'utf8');
+
+test('Jahresplan: auch alte Unterthemen, Bucheinträge und Metadaten zählen als vorhandene Planung', () => {
+  assert.equal(occupiedYearPlanCell({thema:'',items:[{thema:'Lesen',buch:'Buch'}]}),true);
+  assert.equal(occupiedYearPlanCell({thema:'',buch:'Arbeitsheft 1'}),true);
+  assert.equal(occupiedYearPlanCell({type:'event'}),true);
+  assert.equal(occupiedYearPlanCell({completed:true}),true);
+  assert.equal(occupiedYearPlanCell({thema:'',items:[],type:'standard',completed:false}),false);
+});
+test('Mehrwochenthemen überspringen Ferien und blockieren belegte Folgewochen, ohne irgendetwas zu ändern', () => {
+  const weeks=[{kw:38,monday:new Date(2026,8,14)},{kw:39,monday:new Date(2026,8,21)},{kw:40,monday:new Date(2026,8,28)},{kw:41,monday:new Date(2026,9,5)}];
+  const plan:Record<number,Record<string,YearPlanCell>>={38:{deutsch:{thema:'Start',items:[]}},40:{deutsch:{items:[{thema:'Bestand'}]}}};
+  const before=JSON.stringify(plan);
+  const requested=plannedYearWeeks(weeks,38,3,w=>w.kw!==39);
+  assert.deepEqual(requested,[38,40,41]);
+  assert.deepEqual(plannedYearWeeks(weeks,38,2,w=>w.kw!==38&&w.kw!==39),[38,40], 'clicked start week is kept even if marked school-start');
+  assert.deepEqual(conflictingYearWeeks(plan,requested,'deutsch',38),[40]);
+  assert.equal(JSON.stringify(plan),before);
+});
+test('Vorhandene Klassen-Jahres- und Wochenplanung überleben Wechsel und JSON-Roundtrip', () => {
+  const base=normalizeAppState({
+    activeClassId:'klasse-A', schuljahr:'2026/27',
+    classes:[
+      {id:'klasse-A',name:'A',schueler:[],jahresplanung:{38:{deutsch:{thema:'Leseprojekt',items:[{thema:'Zweite Einheit'}]}}},wochenplanung:{38:{Montag:{0:{fach:'Deutsch',thema:'Lesen',housework:'S. 2'}}}}},
+      {id:'klasse-B',name:'B',schueler:[],jahresplanung:{38:{mathematik:{thema:'Zahlenraum'}}},wochenplanung:{38:{Dienstag:{0:{fach:'Mathematik',thema:'Addieren'}}}}}
+    ]
+  });
+  const a=switchClassState(base,'klasse-A');
+  const before=JSON.stringify({year:a.jahresplanung,week:a.wochenplanung});
+  const b=switchClassState(a,'klasse-B');
+  assert.equal((b.jahresplanung as any)[38].mathematik.thema,'Zahlenraum');
+  const restored=normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(switchClassState(b,'klasse-A')))));
+  assert.equal(JSON.stringify({year:restored.jahresplanung,week:restored.wochenplanung}),before);
+});
+
+test('Verschieben bei voll belegtem Schuljahresende bewahrt alle vorhandenen Themen', () => {
+ const original={38:{deutsch:{thema:'A'}},39:{deutsch:{thema:'B'}},40:{deutsch:{thema:'C'}}};
+ const shifted=shiftYearPlanSubjectForward(original,'deutsch',38,[38,39,40]);
+ assert.deepEqual(shifted,original);
+ assert.equal(JSON.stringify(original),JSON.stringify(shifted));
+});
+
+test('Jahresplan: Hauptthema und Zusatzthemen bleiben beim erneuten Speichern sichtbar und in derselben Reihenfolge', () => {
+  const yearlyComponent = requireSource('src/components/YearlyPlan.tsx');
+  const root = {thema:'A',buch:'Heft S. 2',items:[{id:'topic-2',thema:'B',buch:'Heft S. 3'}],completed:false};
+  assert.deepEqual(
+    yearPlanCellEntries(root).map(item => item.thema), ['A','B']
+  );
+  assert.match(yearlyComponent, /const finalValue = \{ \.\.\.editValue, items: \[\.\.\.\(editValue\.items \|\| \[\]\)\] \}/);
+  assert.match(yearlyComponent, /const cellEntries = yearPlanCellEntries\(data\)/);
+  assert.match(yearlyComponent, /\{cellEntries\.map\(/);
+  assert.doesNotMatch(yearlyComponent, /finalValue\.items = \[\s*\.\.\.finalValue\.items/);
+});
+
+test('Import in Überschreiben-Modus benötigt Bestätigung, wenn vorhandene Jahresplanung betroffen ist', () => {
+  const source = requireSource('src/components/JahresplanExcelModal.tsx');
+  assert.match(source, /importMode === 'overwrite'/);
+  assert.match(source, /occupiedYearPlanCell\(app\.jahresplanung/);
+  assert.match(source, /!window\.confirm\(/);
+  assert.match(source, /onImport\(actualRows, importMode\)/);
+});

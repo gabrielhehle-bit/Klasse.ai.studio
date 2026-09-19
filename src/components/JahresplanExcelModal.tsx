@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { X, Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
+import { X, Upload, FileSpreadsheet, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
-import { JahresplanImportRow, JahresplanImportResult, parseJahresplanExcel, generateJahresplanTemplate } from '../lib/planerExcelService';
+import { JahresplanImportRow, JahresplanImportResult, parseJahresplanExcel } from '../lib/planerExcelService';
 import { AppState } from '../types';
+import { occupiedYearPlanCell } from '../lib/annualPlanSafety';
 
 interface JahresplanExcelModalProps {
   isOpen: boolean;
@@ -72,6 +73,16 @@ export default function JahresplanExcelModal({
   const handleConfirmImport = () => {
     if (!parseResult || !parseResult.success) return;
     const actualRows = parseResult.rows.filter(r => !r.isExample);
+    if (importMode === 'overwrite') {
+      const subjectsByLabel = new Map(availableSubjects.map(subject => [subject.label.toLocaleLowerCase('de-AT'), subject.id]));
+      const conflicts = actualRows.filter(row => {
+        const subject = row.subjectId || subjectsByLabel.get(String(row.fach || '').toLocaleLowerCase('de-AT'));
+        return Boolean(subject && occupiedYearPlanCell(app.jahresplanung?.[row.kw]?.[subject]));
+      });
+      if (conflicts.length && !window.confirm(`ACHTUNG: ${conflicts.length} importierte Zeilen betreffen bereits eingetragene Jahrespläne. Diese vorhandenen Einträge werden durch den Excel-Import überschrieben. Möchtest du das wirklich?`)) {
+        return;
+      }
+    }
     onImport(actualRows, importMode);
     onClose();
   };
@@ -107,23 +118,9 @@ export default function JahresplanExcelModal({
 
         {/* Modal Body */}
         <div className="p-5 overflow-y-auto space-y-4 flex-1">
-          {/* Download Template Bar */}
-          <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start sm:items-center gap-2.5">
-              <Download size={18} className="text-emerald-700 shrink-0 mt-0.5 sm:mt-0" />
-              <div>
-                <span className="text-xs font-bold text-emerald-950 block sm:inline">Passende Jahresplan-Vorlage herunterladen:</span>
-                <span className="text-xs text-emerald-800/80 sm:ml-1.5 font-medium">Enthält alle Kalenderwochen, Schulwochen und Fächer für {app.schuljahr}.</span>
-              </div>
-            </div>
-            <button
-              onClick={() => generateJahresplanTemplate(app)}
-              className="inline-flex items-center justify-center gap-2 px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 active:scale-95 text-white text-xs font-bold rounded-lg shadow-xs transition-all cursor-pointer shrink-0"
-            >
-              <Download size={14} />
-              <span>Excel-Vorlage herunterladen</span>
-            </button>
-          </div>
+          <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
+            Die Excel-Vorlage und alle Dokumentenausgaben findest du im Druckzentrum unter „Jahresplanung“.
+          </p>
 
           {/* Upload Area */}
           {!parseResult && (
@@ -187,12 +184,7 @@ export default function JahresplanExcelModal({
                   >
                     Andere Datei wählen
                   </button>
-                  <button
-                    onClick={() => generateJahresplanTemplate(app)}
-                    className="px-3 py-1.5 bg-rose-600 text-white text-xs font-bold rounded-lg hover:bg-rose-700 transition-all cursor-pointer"
-                  >
-                    Offizielle Vorlage herunterladen
-                  </button>
+                  <p className="text-xs text-rose-900">Die offizielle Vorlage kannst du im Druckzentrum unter „Jahresplanung“ herunterladen.</p>
                 </div>
               </div>
             </div>
