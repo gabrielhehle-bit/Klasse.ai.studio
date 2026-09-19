@@ -292,7 +292,7 @@ async function main() {
     await clickFirstSchedulableWeeklyCell(client);
     await waitFor(client, 'large weekly editor', 'document.body?.innerText.includes("Einheit planen")');
     const weeklyLarge = await evaluate(client,
-      '(() => {const node=Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("max-w-none"));if(!node)return false;const r=node.getBoundingClientRect();return r.width>1000&&r.height>window.innerHeight*0.85;})()'
+      '(() => {const heading=Array.from(document.querySelectorAll("h3")).find(el=>el.textContent?.trim()==="Einheit planen");const node=heading?.closest(".max-w-none");if(!node)return false;const r=node.getBoundingClientRect();return r.width>1000&&r.height>window.innerHeight*0.85;})()'
     );
     if (!weeklyLarge) throw new Error('Weekly editor did not open in the expected large layout.');
     console.log('✓ weekly editor uses the large planning workspace');
@@ -321,7 +321,7 @@ async function main() {
     await clickButton(client, 'Bearbeiten');
     await waitFor(client, 'editor reopened from overview', 'document.body?.innerText.includes("Einheit planen")');
     const reopenedLarge = await evaluate(client,
-      '(() => {const node=Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("max-w-none"));if(!node)return false;const r=node.getBoundingClientRect();return r.width>1000&&r.height>window.innerHeight*0.85;})()'
+      '(() => {const heading=Array.from(document.querySelectorAll("h3")).find(el=>el.textContent?.trim()==="Einheit planen");const node=heading?.closest(".max-w-none");if(!node)return false;const r=node.getBoundingClientRect();return r.width>1000&&r.height>window.innerHeight*0.85;})()'
     );
     if (!reopenedLarge) throw new Error('Weekly editor was not large after overview → edit.');
     await clickButton(client, 'Einheit speichern');
