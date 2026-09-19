@@ -312,26 +312,24 @@ WICHTIGE ANWEISUNGEN:
     }
   };
 
-  const triggerAllGenerations = async () => {
-    if (!confirm('Für alle Schüler:innen ohne Bericht einen Jahresbericht generieren? (Das kann eine Weile dauern)')) return;
-    
-    const missing = students.filter(s => !berichte[s.id] || berichte[s.id].schuljahr !== currentTerm);
-    setGeneratingAllStatus({ total: missing.length, current: 0 });
-    
-    for (let i = 0; i < missing.length; i++) {
-        setGeneratingAllStatus({ total: missing.length, current: i + 1 });
-        await generateReport(missing[i].id);
-        await new Promise(r => setTimeout(r, 1000));
+  // Reports are created from individually reviewed source selections in each
+  // child's dossier. There is no unattended, class-wide AI generation.
+  const openNextUnfinishedReport = () => {
+    const next = students.find(s => !reportForTerm(s.id));
+    if (next) {
+      setSelectedStudent(next.id);
+      setSelectedObservationIds([]);
+      setPersonalWish('');
+      setActiveTab('bericht');
     }
-    
-    setGeneratingAllStatus(null);
   };
 
   const handleRefine = async (studentId: string, customPrompt?: string) => {
     const promptToUse = customPrompt || refinePrompt;
     if (!promptToUse.trim()) return;
-    const b = berichte[studentId];
+    const b = reportForTerm(studentId);
     if (!b) return;
+    if (!window.confirm('Den vorhandenen Entwurf mit KI überarbeiten? Die vorherige Fassung bleibt erhalten und die Freigabe wird zurückgesetzt.')) return;
     setIsRefining(true);
 
     try {
@@ -358,7 +356,16 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
               ...prev.jahresberichte[studentId],
               inhalt: response,
               generiert: new Date().toISOString(),
-              reviewStatus: 'offen'
+              reviewStatus: 'offen',
+              verlauf: [
+                ...(prev.jahresberichte[studentId]?.verlauf || []),
+                {
+                  inhalt: prev.jahresberichte[studentId].inhalt,
+                  generiert: prev.jahresberichte[studentId].generiert,
+                  schuljahr: prev.jahresberichte[studentId].schuljahr,
+                  reviewStatus: prev.jahresberichte[studentId].reviewStatus,
+                },
+              ]
             }
           }
         }));
@@ -379,6 +386,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
 
   const saveEdit = () => {
     if (!editMode) return;
+    if (!editContent.trim()) { alert('Ein Bericht darf nicht leer sein.'); return; }
     setApp(prev => ({
       ...prev,
       jahresberichte: {
@@ -386,7 +394,18 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
         [editMode]: {
           ...(prev.jahresberichte?.[editMode] || { generiert: new Date().toISOString(), schuljahr: currentTerm }),
           inhalt: editContent,
-          reviewStatus: 'offen'
+          generiert: new Date().toISOString(),
+          schuljahr: currentTerm,
+          reviewStatus: 'offen',
+          verlauf: [
+            ...(prev.jahresberichte?.[editMode]?.verlauf || []),
+            ...(prev.jahresberichte?.[editMode] ? [{
+              inhalt: prev.jahresberichte[editMode].inhalt,
+              generiert: prev.jahresberichte[editMode].generiert,
+              schuljahr: prev.jahresberichte[editMode].schuljahr,
+              reviewStatus: prev.jahresberichte[editMode].reviewStatus,
+            }] : []),
+          ]
         }
       }
     }));
@@ -399,7 +418,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
 
   const printAll = () => {
     const approvedIds = Object.keys(berichte).filter(
-      (id) => berichte[id]?.reviewStatus === 'freigegeben' && students.some((student) => student.id === id)
+      (id) => reportForTerm(id)?.reviewStatus === 'freigegeben' && students.some((student) => student.id === id)
     );
     if (approvedIds.length === 0) {
       alert('Es gibt noch keine freigegebenen Jahresberichte zum Sammeldruck.');
@@ -523,8 +542,8 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
 
   // General statistics for progress panel
   const totalStudentsCount = students.length;
-  const reportsGeneratedCount = Object.keys(berichte).filter(id => students.some(s => s.id === id)).length;
-  const reportsApprovedCount = Object.entries(berichte).filter(([id, report]) => report.reviewStatus === 'freigegeben' && students.some(s => s.id === id)).length;
+  const reportsGeneratedCount = students.filter(s => Boolean(reportForTerm(s.id))).length;
+  const reportsApprovedCount = students.filter(s => reportForTerm(s.id)?.reviewStatus === 'freigegeben').length;
   const progressPercent = totalStudentsCount > 0 ? Math.round((reportsGeneratedCount / totalStudentsCount) * 100) : 0;
 
   return (
@@ -702,7 +721,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                </div>
                <div className="flex-1 overflow-y-auto no-scrollbar p-2 space-y-1">
                   {students.map(s => {
-                     const hasReport = !!berichte[s.id];
+                     const hasReport = Boolean(reportForTerm(s.id));
                      const isSelected = selectedStudent === s.id;
                      const status = getReviewStatus(s.id);
                      
@@ -715,6 +734,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                            setSelectedStudent(s.id);
                            setActiveTab('bericht');
                            setPersonalWish('');
+                           setSelectedObservationIds([]);
                          }}
                          className={`w-full text-left p-3 rounded-2xl transition-all flex items-center justify-between ${
                            isSelected 
@@ -755,7 +775,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
          <div className="flex-1 bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col p-6 lg:p-8 relative min-w-0">
             {selectedStudent ? (() => {
                const s = students.find(x => x.id === selectedStudent)!;
-               const b = berichte[selectedStudent];
+               const b = reportForTerm(selectedStudent);
                const selectedGradeLines = getAnnualGradeLines(selectedStudent);
                const selectedKel = getLatestKelForStudent(selectedStudent);
                const selectedObservations = getStudentObservationEntries(selectedStudent).slice(0, 5);
