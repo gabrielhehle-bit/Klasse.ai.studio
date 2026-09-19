@@ -280,7 +280,11 @@ export default function WeeklyPlan() {
   const [showSollCheck, setShowSollCheck] = useState(false);
   const [showWeekPicker, setShowWeekPicker] = useState(false);
   const [dateStatusMenu, setDateStatusMenu] = useState<string | null>(null); // date string
-  const [viewMode, setViewMode] = useState<'grid' | 'klassenbuch'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'day' | 'klassenbuch'>('grid');
+  const [selectedDay, setSelectedDay] = useState<string>(() => {
+    const today = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'][new Date().getDay()];
+    return TAGE_NAMEN.includes(today) ? today : 'Montag';
+  });
   const [showWeekMenu, setShowWeekMenu] = useState(false);
   const [showSyncSettingsModal, setShowSyncSettingsModal] = useState(false);
   const [showDenkzettelDraw, setShowDenkzettelDraw] = useState(false);
@@ -1788,12 +1792,12 @@ export default function WeeklyPlan() {
       </svg>
       
       {/* 1. FIXED TOP HEADER CONTROL */}
-      <div ref={headerRef} className="bg-[#f4f7f3] border-b border-slate-200 flex flex-col pt-3 shrink-0" data-zoom={app?.settings?.zoomLevel}>
+      <div ref={headerRef} className="bg-[#f4f7f3] border-b border-slate-200 flex flex-col pt-1 shrink-0" data-zoom={app?.settings?.zoomLevel}>
         <div className="py-2 sm:py-3">
-          <div className="flex flex-col bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 gap-3 w-full shadow-sm">
+          <div className="flex flex-col bg-white border border-slate-200 rounded-2xl p-2 sm:p-3 gap-2 w-full shadow-sm">
             
             {/* Row 1: Title, Date Info, Navigation & Primary Actions */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 border-b border-slate-100 pb-2">
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">WOCHENPLANUNG</h1>
@@ -1975,6 +1979,11 @@ export default function WeeklyPlan() {
                   >
                     <Layout size={12} />
                     <span>Wochenplan</span>
+                  </button>
+                  <button type="button" onClick={() => setViewMode('day')}
+                    aria-pressed={viewMode === 'day'}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1 transition-all ${viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
+                    <Calendar size={12} /> <span>Tag</span>
                   </button>
                   <button
                     type="button"
@@ -2222,6 +2231,61 @@ export default function WeeklyPlan() {
             </div>
           </div>
         </div>
+      ) : viewMode === 'day' ? (
+        <section aria-label="Tagesansicht des Wochenplans" className="w-full rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-base font-extrabold text-slate-900">Tagesplanung · {selectedDay}</h2>
+              <p className="text-xs font-semibold text-slate-500">Dieselben Stunden und Daten wie im Wochenplan – Stunde anklicken zum Bearbeiten.</p>
+            </div>
+            <div className="flex flex-wrap gap-1" aria-label="Wochentag auswählen">
+              {TAGE_NAMEN.map((tag, index) => {
+                const date = new Date(monday);
+                date.setDate(monday.getDate() + index);
+                const isToday = formatLocalDateKey(date) === formatLocalDateKey(actualToday);
+                return (
+                  <button key={tag} type="button" onClick={() => setSelectedDay(tag)}
+                    aria-pressed={selectedDay === tag}
+                    className={`rounded-lg border px-2.5 py-1.5 text-xs font-bold ${selectedDay === tag ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : isToday ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    {tag.slice(0, 2)} {date.getDate()}.{date.getMonth() + 1}.{isToday ? ' · Heute' : ''}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="space-y-2">
+            {Array.from({ length: MAX_LESSON_SLOTS }, (_, idx) => {
+              const item = plan[selectedDay]?.[idx];
+              const fach = item?.fach || app.stammplan?.[selectedDay]?.[idx + 1] || '';
+              const date = new Date(monday);
+              date.setDate(monday.getDate() + TAGE_NAMEN.indexOf(selectedDay));
+              const current = formatLocalDateKey(date) === formatLocalDateKey(actualToday) && isCurrentHour(selectedDay, idx);
+              return (
+                <button key={idx} type="button" onClick={() => openWeeklyCell(selectedDay, idx)}
+                  className={`flex w-full min-w-0 items-start gap-3 rounded-xl border p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${current ? 'border-emerald-400 bg-emerald-50' : item?.thema || fach ? 'border-slate-200 bg-slate-50 hover:border-indigo-300 hover:bg-indigo-50/40' : 'border-dashed border-slate-200 bg-white hover:border-indigo-300'}`}>
+                  <span className="w-20 shrink-0 text-xs font-extrabold text-slate-700">
+                    {idx + 1}. Stunde
+                    <span className="mt-1 block text-[0.6875rem] font-normal text-slate-500">
+                      {configuredLessonTime(app.stundenZeiten, STUNDEN_INFO, idx + 1)}
+                    </span>
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-bold text-slate-600">{fach || 'Stunde planen'}</span>
+                    <span className="mt-0.5 block whitespace-pre-wrap text-sm font-semibold text-slate-900">{item?.thema || (fach ? 'Unterrichtsinhalt ergänzen' : '+ Planung öffnen')}</span>
+                    {Array.isArray(item?.schwerpunkte) && item.schwerpunkte.length > 0 && (
+                      <span className="mt-1 block text-xs text-slate-600">{item.schwerpunkte.join(' · ')}</span>
+                    )}
+                    {item?.housework && <span className="mt-1 block text-xs text-slate-600">Hausübung: {item.housework}</span>}
+                    {item?.halves?.enabled && <span className="mt-1 block text-xs text-slate-600">
+                      1. Hälfte: {item.halves.first?.thema || '—'} · 2. Hälfte: {item.halves.second?.thema || '—'}
+                    </span>}
+                  </span>
+                  {current && <span className="shrink-0 rounded-lg bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800">Jetzt</span>}
+                </button>
+              );
+            })}
+          </div>
+        </section>
       ) : freeWeekInfo.isEntireWeekFree ? (
         <div className="w-full pb-6" data-zoom={app?.settings?.zoomLevel}>
           <div className="overflow-hidden rounded-[2rem] border border-sky-200 bg-gradient-to-br from-sky-50 via-white to-amber-50 shadow-sm">
