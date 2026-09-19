@@ -111,7 +111,7 @@ test("Cockpit: Widgets schließen verändert die weiße Smartboard-Fläche nicht
   assert.match(teachingSurface, /Alle Widgets schließen/);
   assert.doesNotMatch(teachingSurface, /Unterrichtshilf/);
   assert.doesNotMatch(teachingSurface, /Tafel leeren \(Alle schließen\)/);
-  assert.doesNotMatch(teachingSurface, /cockpitInkByClass/);
+  assert.match(teachingSurface, /cockpitInkByClass/);
 });
 
 test("Cockpit: alte Tafel liegt ausschließlich im Archiv", () => {
@@ -129,17 +129,26 @@ test("Cockpit: Zeichenfeld und gemeinsame Zeichenebene sind sprachlich getrennt"
   assert.doesNotMatch(cockpitWidget, /drawing: "🖍️ Zeichentafel"/);
 });
 
-test("Cockpit: aktive Unterrichtsfläche bleibt weiß, aber ohne platzraubende Smartboard-Beschriftung", () => {
-  assert.doesNotMatch(teachingSurface, /Weiße Smartboard-Fläche/);
+test("Cockpit: nur TEXT als direktes Werkzeug, alte Ink-Daten bleiben für Backups erhalten", () => {
   assert.doesNotMatch(teachingSurface, /<BoardInk/);
-  assert.doesNotMatch(teachingSurface, /Schreiben & Zeichnen/);
-  assert.doesNotMatch(teachingSurface, /Widgets bedienen/);
-  assert.doesNotMatch(teachingSurface, /setIsBoardWriting/);
+  assert.match(teachingSurface, /cockpitInkByClass/);
+  assert.match(teachingSurface, /externalToolbar/);
+  assert.match(teachingSurface, /aria-label="Unterrichtsfläche: TEXT"/);
+  assert.match(teachingSurface, /aria-label="TEXT"/);
+  assert.doesNotMatch(teachingSurface, /aria-label="Stiftfarbe"|\['pen', 'Stift'\]|\['erase', 'Radierer'\]/);
+  assert.match(teachingSurface, /🎨 Design & Farben/);
+  assert.doesNotMatch(teachingSurface, /Weiße Smartboard-Fläche/);
 });
 
+test("Cockpit: TEXT-Bearbeitung sperrt die Widget-Auswahl nicht", () => {
+  assert.match(teachingSurface, /\{isAddWidgetMenuOpen && \(/);
+  assert.match(teachingSurface, /z-\[1000\]/);
+  assert.match(boardTextEditor, /active \? "z-\[5\] pointer-events-auto/);
+  assert.doesNotMatch(boardTextEditor, /z-\[20000\] pointer-events-auto/);
+});
 
 test("Cockpit: TEXT macht die weiße Fläche zu einem klassenlokalen Rich-Text-Dokument", () => {
-  assert.match(teachingSurface, />\s*TEXT\s*</);
+  assert.match(teachingSurface, /aria-label="TEXT"/);
   assert.match(teachingSurface, /<BoardTextEditor/);
   assert.match(teachingSurface, /cockpitTextByClass/);
   assert.match(teachingSurface, /boardTextClassKey = app\.activeClassId \|\| "unassigned"/);
@@ -199,7 +208,7 @@ test("Cockpit: sekundäre Ansichtssteuerung liegt gesammelt unter Optionen", () 
 test("Cockpit: Status und Zurück-Navigation sind lehrerfreundlich beschriftet", () => {
   assert.match(teachingSurface, /Speichert beim Beenden/);
   assert.doesNotMatch(teachingSurface, /Echtzeit-Tracker/);
-  assert.match(teachingSurface, /aria-label="Zurück zu Unterricht"/);
+  assert.match(teachingSurface, /aria-label="Lehrercockpit schließen · Zurück zu Heute"/);
 });
 
 
@@ -219,7 +228,7 @@ test("Cockpit: Schließen markiert einen nicht gespeicherten Tag nicht fälschli
   const closeEnd = teachingSurface.indexOf("const cycleBehavior", closeStart);
   assert.ok(closeStart >= 0 && closeEnd > closeStart);
   const closeHandler = teachingSurface.slice(closeStart, closeEnd);
-  assert.match(closeHandler, /hasAutoSavedToday !== todayStr && commitAllowance\.allowed/);
+  assert.match(closeHandler, /!behaviorSavedToday && commitAllowance\.allowed/);
   assert.doesNotMatch(closeHandler, /updateHasAutoSavedToday/);
 });
 
