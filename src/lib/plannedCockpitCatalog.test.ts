@@ -18,7 +18,7 @@ test('Cockpit-Zielkatalog: genau 20 unterschiedliche, bestehende Einstiegstypen'
   for (const widget of PLANNED_COCKPIT_WIDGETS) {
     assert.ok(defaultTypes.includes(widget.id), `Unbekannter Einstiegstyp: ${widget.id}`);
     assert.ok(widget.label.trim());
-    assert.ok(widget.sources.includes(widget.id));
+    assert.ok((widget.sources as readonly string[]).includes(widget.id));
   }
 });
 
