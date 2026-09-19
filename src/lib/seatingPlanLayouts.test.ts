@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSeatingLayout, resolveSeatingLayout, sameSeatingArrangement } from './seatingPlanLayouts';
+import { createSeatingLayout, resolveSeatingLayout, sameSeatingArrangement, omitStudentFromSeatingLayouts } from './seatingPlanLayouts';
 
 test('Sitzordnung: Speichern erstellt unabhängige Kopien von Plätzen, Möbeln und Regeln', () => {
   const seats = { student1: { x: 20, y: 25 } };
@@ -28,4 +28,14 @@ test('Sitzordnung: Regeln sind optional für ältere gespeicherte Anordnungen', 
   const layout = createSeatingLayout('x','Normal',{},[]);
   delete layout.rules;
   assert.equal(resolveSeatingLayout(layout, []).rules, undefined);
+});
+
+test('Schüler entfernen löscht gespeicherte Sitzplatz- und Partnerbezüge aus allen Varianten', () => {
+  const layout = createSeatingLayout('l','A',
+    {stay:{x:1,y:2},leave:{x:2,y:3}}, [],
+    [{id:'r', typ:'nebeneinander', schuelerIds:['stay','leave']} as any]);
+  const [clean] = omitStudentFromSeatingLayouts([layout], 'leave');
+  assert.deepEqual(Object.keys(clean.positions), ['stay']);
+  assert.deepEqual(clean.rules, []);
+  assert.deepEqual(Object.keys(layout.positions), ['stay','leave']);
 });
