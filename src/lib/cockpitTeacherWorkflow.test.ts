@@ -31,5 +31,9 @@ test('20 primary widget entries expose legacy widget variants without deleting o
   assert.match(source, /getCockpitPaperStyle\(cockpitPaper, currentBgId === "canva"/);
   assert.match(source, /boardSettings:\s*\{[\s\S]*?cockpitPaperByClass/);
   assert.match(source, /<BoardTextEditor/);
-  assert.doesNotMatch(source, /<BoardInk/);
+  // The productive cockpit includes the requested direct pen on the SAME
+  // board; restoring old app versions must not erase saved ink strokes.
+  assert.match(source, /<BoardInk/);
+  assert.match(source, /cockpitInkByClass/);
+  assert.match(source, /aria-label="Unterrichtsfläche: Auswählen, Zeichnen und Text"/);
 });
