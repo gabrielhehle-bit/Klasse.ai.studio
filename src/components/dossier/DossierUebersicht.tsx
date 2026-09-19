@@ -42,6 +42,7 @@ import {
 import { berechne, getAssessmentMode } from '../../lib/GradeUtils';
 import { parseGradeToValue } from '../NotenverlaufChart';
 import { LERNZIELE_BY_STUFE } from '../LernzielTracker';
+import { getLernzielModell } from '../../lib/lernzielBewertungsmodell';
 
 interface DossierUebersichtProps {
   student: Student;
@@ -177,7 +178,10 @@ export default function DossierUebersicht({ student, onTabChange, semester, onQu
     const classLevel = Number(app.stufe) || (classMatch ? parseInt(classMatch[1]) : 1);
     const stufe = Math.max(1, Math.min(4, classLevel));
     const stufenZiele = LERNZIELE_BY_STUFE[stufe] || LERNZIELE_BY_STUFE[1] || {};
-    const goalRatings = app.studentLernzielSemesterBewertungen?.[student.id]?.[semester] || app.studentLernzielBewertungen?.[student.id] || {};
+    const goalModel = getLernzielModell(app.lernzielBewertungsmodell);
+    const reachedValue = goalModel.levels[goalModel.levels.length - 1].value;
+    const goalRatings = app.studentLernzielSemesterBewertungen?.[student.id]?.[semester]
+      || (!app.studentLernzielSemesterBewertungen?.[student.id] && semester === '1' ? app.studentLernzielBewertungen?.[student.id] : undefined) || {};
 
     const reached: Array<{ id: string; text: string; fach: string }> = [];
     const inProgress: Array<{ id: string; text: string; fach: string }> = [];
@@ -186,9 +190,9 @@ export default function DossierUebersicht({ student, onTabChange, semester, onQu
       if (Array.isArray(goals)) {
         goals.forEach(g => {
           const rating = goalRatings[g.id];
-          if (rating === 1) {
+          if (rating === reachedValue) {
             reached.push({ id: g.id, text: g.text, fach });
-          } else if (rating === 2 || rating === 3) {
+          } else if (goalModel.levels.some(level => level.value === rating && level.value !== reachedValue)) {
             inProgress.push({ id: g.id, text: g.text, fach });
           }
         });
@@ -196,7 +200,7 @@ export default function DossierUebersicht({ student, onTabChange, semester, onQu
     });
 
     return { reachedGoals: reached, inProgressGoals: inProgress };
-  }, [app.klassenbezeichnung, app.stufe, app.studentLernzielSemesterBewertungen, app.studentLernzielBewertungen, student.id, semester]);
+  }, [app.klassenbezeichnung, app.stufe, app.studentLernzielSemesterBewertungen, app.studentLernzielBewertungen, app.lernzielBewertungsmodell, student.id, semester]);
 
   // Subject performance summary list
   const subjectPerformances = useMemo(() => {
