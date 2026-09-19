@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { berechne } from '../lib/GradeUtils';
 import { getOverviewNote } from '../lib/gradeOverviewValues';
 import { FAECHER_ALLE } from '../constants';
-import { Download, Sparkles, ArrowLeft, Users } from 'lucide-react';
+import { Download, ArrowLeft, Users } from 'lucide-react';
 
 export default function GradeOverview({ embedded = false, onBack }: { embedded?: boolean; onBack?: () => void } = {}) {
   const { app, setApp, setPage } = useApp();
