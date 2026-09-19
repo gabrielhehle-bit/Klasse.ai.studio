@@ -133,19 +133,8 @@ export default function Behavior() {
     }));
   };
 
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        e.preventDefault();
-        handleUndo();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-        e.preventDefault();
-        handleRedo();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [behaviorHistory, redoHistory]);
+  // Native undo must remain available while typing notes. The old global
+  // Ctrl+Z/Ctrl+Y listener belonged to the removed status editor.
 
   // Behavioral System State
   const defaultStages = [
