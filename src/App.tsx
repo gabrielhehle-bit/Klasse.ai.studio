@@ -172,7 +172,8 @@ function AppContent() {
       return false;
     }
   });
-  const currentPage = landOnDashboardAfterLogin ? 'dashboard' : (app.currentPage || 'dashboard');
+  // Alte gespeicherte Navigation 'unterricht' direkt zum Cockpit führen, ohne Nutzer- oder Klassendaten umzuschreiben.
+  const currentPage = landOnDashboardAfterLogin ? 'dashboard' : (app.currentPage === 'unterricht' ? 'cockpit' : (app.currentPage || 'dashboard'));
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showDiagnostikAnleitung, setShowDiagnostikAnleitung] = useState(false);
@@ -615,7 +616,7 @@ function AppContent() {
       case 'klasse': return <KlasseHub />;
       case 'planung': return <PlanungHub />;
       case 'leistungen': return <LeistungenHub />;
-      case 'unterricht': return <UnterrichtHub />;
+      case 'unterricht': return null; // Legacy alias is resolved to 'cockpit' above.
       case 'lehrerzimmer': return <Lehrerzimmer />;
       case 'teamteaching': return <ClassTeam />;
       case 'schueler': return <StudentList />;
@@ -945,7 +946,7 @@ function AppContent() {
               </div>
             }>
               <Unterrichtsmodus onClose={() => {
-                setPage('unterricht');
+                setPage('dashboard');
               }} />
             </React.Suspense>
           </motion.div>
