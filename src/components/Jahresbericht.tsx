@@ -43,7 +43,6 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
   const [includeKel, setIncludeKel] = useState(false);
   const [includeFoerder, setIncludeFoerder] = useState(false);
   const [selectedObservationIds, setSelectedObservationIds] = useState<string[]>([]);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [personalWish, setPersonalWish] = useState('');
   const [refinePrompt, setRefinePrompt] = useState('');
   const [isRefining, setIsRefining] = useState(false);
@@ -631,6 +630,10 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
               </h3>
               
               <div className="space-y-3.5">
+                <p className="text-xs font-semibold text-slate-700">1. Daten wählen · 2. Entwurf erstellen · 3. Prüfen & freigeben</p>
+                <details className="rounded-xl border border-slate-200 p-3">
+                  <summary className="cursor-pointer text-xs font-bold text-slate-700">Weitere Optionen: Stil, Aufbau & Anrede</summary>
+                <div className="mt-3 space-y-3">
                 {/* Tonalität */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[0.6875rem] font-black uppercase tracking-widest text-slate-500">Tonalität</label>
@@ -677,6 +680,8 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                   </select>
                 </div>
 
+                </div>
+                </details>
                 {/* Data Switches */}
                 <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
                   <span className="text-[0.6875rem] font-black uppercase tracking-widest text-slate-400 block mb-1">Datenquellen einbeziehen</span>
@@ -708,8 +713,34 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                       onChange={e => setIncludeObservations(e.target.checked)} 
                       className="rounded border-slate-300 text-slate-900 focus:ring-slate-500"
                     />
-                    Einträge aus dem Schülerjournal
+                    Ausgewählte Einträge aus dem Schülerjournal
                   </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                    <input type="checkbox" checked={includeKel} onChange={event => setIncludeKel(event.target.checked)} />
+                    KEL-Selbsteinschätzung und vereinbarte Ziele
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                    <input type="checkbox" checked={includeFoerder} onChange={event => setIncludeFoerder(event.target.checked)} />
+                    Pädagogische Förderziele
+                  </label>
+                  {includeObservations && selectedStudent && (
+                    <fieldset className="mt-2 space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <legend className="px-1 text-xs font-bold text-slate-700">Einzelne Beobachtungen ausdrücklich auswählen</legend>
+                      {getStudentObservationEntries(selectedStudent).slice(0, 20).map((entry: any) => {
+                        const key = observationKey(entry);
+                        return <label key={key} className="flex items-start gap-2 rounded-lg border border-slate-100 bg-white p-2 text-xs text-slate-700">
+                          <input type="checkbox" className="mt-0.5" checked={selectedObservationIds.includes(key)}
+                            onChange={event => setSelectedObservationIds(previous => event.target.checked
+                              ? [...new Set([...previous, key])] : previous.filter(id => id !== key))} />
+                          <span>{String(entry.datum || entry.timestamp || '').slice(0, 10)} · {String(entry.kategorie || 'Beobachtung')}:
+                            <span className="block font-normal">{String(entry.inhalt || entry.content || entry.notiz || '').slice(0, 180)}</span>
+                          </span>
+                        </label>;
+                      })}
+                      {!getStudentObservationEntries(selectedStudent).length &&
+                        <p className="text-xs text-slate-500">Keine Beobachtungen für dieses Kind vorhanden.</p>}
+                    </fieldset>
+                  )}
                 </div>
               </div>
             </div>
@@ -776,9 +807,11 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
             {selectedStudent ? (() => {
                const s = students.find(x => x.id === selectedStudent)!;
                const b = reportForTerm(selectedStudent);
-               const selectedGradeLines = getAnnualGradeLines(selectedStudent);
-               const selectedKel = getLatestKelForStudent(selectedStudent);
-               const selectedObservations = getStudentObservationEntries(selectedStudent).slice(0, 5);
+               const selectedGradeLines = includeGrades ? getAnnualGradeLines(selectedStudent) : [];
+               const selectedKel = includeKel ? getLatestKelForStudent(selectedStudent) : undefined;
+               const selectedObservations = includeObservations
+                 ? getStudentObservationEntries(selectedStudent).filter((entry: any) => selectedObservationIds.includes(observationKey(entry)))
+                 : [];
 
                if (isGenerating) {
                   return (
@@ -1064,7 +1097,7 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
                             <div className="space-y-2">
                               {selectedGradeLines.map((line) => (
                                 <div key={line} className="text-xs font-semibold text-slate-700 p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                                  {line.replace(/^-s*/, '')}
+                                  {line.replace(/^-\\s*/, '')}
                                 </div>
                               ))}
                             </div>
