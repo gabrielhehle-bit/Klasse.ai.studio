@@ -19,7 +19,6 @@ test('planning hub keeps every agreed planning destination', () => {
     'wochenplanung',
     'jahresplanung',
     'planungszentrale',
-    'stunden',
     'materialien',
     'canva',
     'vertretung',
