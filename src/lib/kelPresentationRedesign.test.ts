@@ -33,7 +33,7 @@ test('learning slide respects assessment mode and does not invent a cross-subjec
   assert.match(source, /getAssessmentMode\(app, fach\)/);
   assert.match(source, /mode === 'grades'/);
   assert.match(source, /berechneter Prozentstand/);
-  assert.doesNotMatch(source, /reduce\(.*avg|Durchschnittsnote|Gesamtnote/);
+  assert.doesNotMatch(source, /Durchschnittsnote|Gesamtnote|gesamtSchnitt/);
 });
 
 test('meeting agreement is only persisted by an explicit save action', () => {
@@ -48,4 +48,8 @@ test('PowerPoint export follows the same safe slide list as on-screen presentati
   assert.match(source, /slideData\.type === 'portfolio'/);
   assert.match(source, /slideData\.type === 'closing'/);
   assert.doesNotMatch(source, /ChartType\.bar|ChartType\.pie|ChartType\.radar/);
+});
+
+test('parent presentation does not generate interpretations with AI', () => {
+  assert.doesNotMatch(source, /askAI|ki-lernpfad|generateFallbackAnalysis|runProfileAnalysis/);
 });
