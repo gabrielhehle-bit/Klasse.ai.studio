@@ -241,6 +241,13 @@ async function main() {
 
     await client.send('Page.navigate', { url: BASE_URL });
     await waitFor(client, 'Klassio access gate', 'document.body?.innerText.toLowerCase().includes("geschützter zugang")');
+    const accessCodeVisible = await evaluate(client,
+      'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))');
+    if (!accessCodeVisible) {
+      await clickButton(client, 'Nur Zugangscode verwenden (ohne Geräte-Sync)', true);
+      await waitFor(client, 'access code input',
+        'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))');
+    }
     await setInputByLabel(client, 'Zugangscode', ACCESS_CODE);
     await clickButton(client, 'Klassio öffnen');
 
