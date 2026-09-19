@@ -9,7 +9,7 @@ const readSource = (relativePath: string) =>
 test('audit #1 keeps only the core areas plus pins directly visible by default', () => {
   const source = readSource('src/components/Sidebar.tsx');
 
-  for (const id of ['dashboard', 'klasse', 'verhalten', 'planung', 'leistungen', 'unterricht', 'tools']) {
+  for (const id of ['dashboard', 'klasse', 'verhalten', 'planung', 'leistungen', 'cockpit', 'ki-helfer', 'tools']) {
     assert.ok(source.includes(`'${id}'`), `core module ${id} must remain configured`);
   }
 
