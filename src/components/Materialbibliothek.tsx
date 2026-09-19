@@ -220,6 +220,22 @@ export default function Materialbibliothek() {
 
   return (
     <div className={`material-library-shell ${isCompact ? "space-y-4" : isLarge ? "space-y-8" : "space-y-5"}`}>
+      {(app.stundenentwuerfe || []).length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+          <div>
+            <h2 className="text-sm font-black text-indigo-950">Bestehende Unterrichtsentwürfe</h2>
+            <p className="mt-1 text-xs text-indigo-800">
+              {(app.stundenentwuerfe || []).length} bisher gespeicherte Entwürfe bleiben unverändert und sind weiterhin bearbeitbar.
+              Neue Vorbereitungen erstellst du direkt im Wochenplan und speicherst sie hier als Vorlage.
+            </p>
+          </div>
+          <button type="button" onClick={() => setPage('stunden')}
+            className="rounded-xl bg-white px-4 py-2 text-xs font-black text-indigo-800 shadow-sm hover:bg-indigo-100">
+            Bisherige Entwürfe öffnen →
+          </button>
+        </div>
+      )}
+
       {/* Header & Stats Widget */}
       <div className={`flex flex-col md:flex-row md:items-start justify-between border-b border-slate-100 ${
         isCompact ? 'pb-4 gap-4' : isLarge ? 'pb-10 gap-8' : 'pb-6 gap-5'
