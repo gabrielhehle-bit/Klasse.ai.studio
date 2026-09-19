@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { berechne } from '../lib/GradeUtils';
+import { getOverviewNote } from '../lib/gradeOverviewValues';
 import { FAECHER_ALLE } from '../constants';
-import { Printer, Download, Search, Sparkles } from 'lucide-react';
+import { Download, Sparkles, ArrowLeft, Users } from 'lucide-react';
 
-export default function GradeOverview() {
-  const { app, setApp } = useApp();
+export default function GradeOverview({ embedded = false, onBack }: { embedded?: boolean; onBack?: () => void } = {}) {
+  const { app, setApp, setPage } = useApp();
   const students = [...app.schueler].sort((a, b) => a.nachname.localeCompare(b.nachname, 'de'));
   const activeFaecher = (app.faecher && app.faecher.length > 0) ? app.faecher : FAECHER_ALLE;
 
@@ -32,47 +33,33 @@ export default function GradeOverview() {
   };
 
   const exportCSV = () => {
-    let csvContent = "\uFEFF"; // Add UTF-8 BOM representation for Excel to recognize special characters like German double s and umlauts correctly
-    // Header
-    const headerRow = ["Nachname", "Vorname", ...activeFaecher, "Durchschnitt"].join(";");
-    csvContent += headerRow + "\r\n";
-    
-    // Rows
-    students.forEach((s) => {
+    const safeCsvCell = (value: string | number) => {
+      const text = String(value);
+      // Excel may execute untrusted names as formulas; protect cell values.
+      const safe = /^[=+@-]/.test(text) ? "'" + text : text;
+      return '"' + safe.replace(/"/g, '""') + '"';
+    };
+    let csvContent = "\uFEFF";
+    const headerRow = ['Nachname', 'Vorname', ...activeFaecher, 'Durchschnitt'];
+    csvContent += headerRow.map(safeCsvCell).join(';') + "\r\n";
+    students.forEach(student => {
       let sum = 0;
       let count = 0;
-      const row = [s.nachname, s.vorname];
-      
-      activeFaecher.forEach(f => {
-        const note1 = berechne(app, s.id, f, '1');
-        const note2 = berechne(app, s.id, f, '2');
-        let note: number | null = null;
-        if (note1 !== null && note2 !== null) {
-          note = (note1 + note2) / 2;
-        } else if (note1 !== null) {
-          note = note1;
-        } else if (note2 !== null) {
-          note = note2;
-        }
-        
-        if (note !== null) {
-          sum += note;
-          count++;
-          row.push(Math.round(note).toString());
-        } else {
-          row.push("");
-        }
+      const row: (string | number)[] = [student.nachname, student.vorname];
+      activeFaecher.forEach(fach => {
+        const { noteToRender, numericForAvg } = getOverviewNote(app, student.id, fach, selectedSemester);
+        row.push(noteToRender ?? '');
+        if (numericForAvg !== null) { sum += numericForAvg; count++; }
       });
-      
-      row.push(count > 0 ? (sum / count).toFixed(1).replace(".", ",") : "–");
-      csvContent += row.join(";") + "\r\n";
+      row.push(count > 0 ? (sum / count).toFixed(1).replace('.', ',') : '');
+      csvContent += row.map(safeCsvCell).join(';') + "\r\n";
     });
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `Notenuebersicht_${app.klassenbezeichnung || 'Klasse'}_SJ_${app.schuljahr || 'SJ'}.csv`);
+    link.setAttribute("download", `Notenuebersicht_${app.klassenbezeichnung || 'Klasse'}_${selectedSemester === 'combined' ? 'Gesamt' : selectedSemester + '_Semester'}_SJ_${app.schuljahr || 'SJ'}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -80,23 +67,27 @@ export default function GradeOverview() {
   };
 
   return (
-    <div className="space-y-8 py-4 max-w-7xl mx-auto flex-1 flex flex-col w-full">
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-4 no-print shrink-0">
-        <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 shrink-0">
-          <Sparkles size={20} />
-        </div>
-        <div className="flex-1">
-          <h4 className="text-[0.75rem] font-black uppercase text-amber-900 tracking-tight">Vollwertige Notenmappe & Zeugnisnotenerfassung</h4>
-          <p className="text-[0.6875rem] text-amber-700 font-medium">
-            Aggregiert die eingetragenen Leistungsbeurteilungen und erlaubt es Ihnen, die Endnote für alle Fächer (auch inaktive Nebenfächer, die Sie nicht unterrichten) einzutragen.
-          </p>
-        </div>
-      </div>
+    <div className={embedded ? "w-full min-w-0 space-y-4 pb-12 pt-2" : "w-full min-w-0 space-y-4 py-4"}>
+      {embedded && (
+        <nav aria-label="Notenmappe – Ansichten" className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm print:hidden">
+          <button type="button" onClick={onBack}
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100">
+            <ArrowLeft size={16} /> Zur Notenmappe
+          </button>
+          <span className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-black text-emerald-800" aria-current="page">
+            Notenübersicht
+          </span>
+        </nav>
+      )}
+      <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-900 print:hidden">
+        Endnoten aller Fächer im Überblick. Manuelle Zeugnisnoten haben Vorrang vor berechneten Fachnoten;
+        auch nicht unterrichtete Fächer können bei Bedarf manuell erfasst werden.
+      </p>
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 no-print">
         <div className="space-y-1">
-          <h2 className="text-[1.875rem] leading-tight font-black text-slate-900 tracking-tight">Gesamtübersicht Noten</h2>
-          <p className="text-slate-500 font-medium tracking-tight">Alle Noten der Klasse {app.klassenbezeichnung} im Überblick.</p>
+          <h2 className="text-xl font-black leading-tight text-slate-900">Notenübersicht</h2>
+          <p className="text-sm font-medium text-slate-600">{students.length} Kinder · {app.klassenbezeichnung || "Aktuelle Klasse"} · {selectedSemester === "combined" ? "Gesamtansicht" : selectedSemester + ". Semester"}</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
@@ -151,16 +142,14 @@ export default function GradeOverview() {
           </button>
 
           <button onClick={exportCSV} className="btn btn-sm btn-primary cursor-pointer flex items-center gap-1.5">
-            <Download size={14} /> Excel Export
+            <Download size={14} /> CSV für Excel
           </button>
         </div>
       </div>
 
       {isEditMode && (
-        <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 flex items-start gap-4 no-print animate-in fade-in duration-300">
-          <div className="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-600 shrink-0 text-xl shadow-inner">
-            ✏️
-          </div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 print:hidden">
+
           <div className="space-y-1.5">
             <h4 className="text-[0.875rem] font-black uppercase text-amber-900 tracking-tight flex items-center gap-2">
               <span>Direkte Notenerfassung aktiv ({selectedSemester}. Semester)</span>
@@ -175,8 +164,8 @@ export default function GradeOverview() {
         </div>
       )}
 
-      <div className="card !p-0 md:p-0 overflow-y-auto shadow-md flex-1 custom-scrollbar">
-        <div className="w-full overflow-x-auto no-scrollbar">
+      <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="w-full overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-surface/50 border-b border-border text-[0.625rem] font-bold uppercase tracking-widest text-text-muted">
@@ -199,6 +188,18 @@ export default function GradeOverview() {
               </tr>
             </thead>
             <tbody>
+              {students.length === 0 && (
+                <tr>
+                  <td colSpan={activeFaecher.length + 2} className="px-6 py-12 text-center">
+                    <div role="status" className="mx-auto flex max-w-xl flex-col items-center gap-3 text-slate-700">
+                      <Users size={28} aria-hidden="true" />
+                      <strong className="text-base text-slate-900">In der aktuell ausgewählten Klasse sind keine Kinder vorhanden.</strong>
+                      <span className="text-sm">Bitte prüfe oben die aktive Klasse. Falls du hier eigentlich eine Klasse mit Kindern erwartest, prüfe vor neuen Eingaben den geladenen Datenstand und die Datensicherung.</span>
+                      <button type="button" onClick={() => setPage('klasse')} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white print:hidden">Zur Klassenauswahl</button>
+                    </div>
+                  </td>
+                </tr>
+              )}
               {students.map((s, i) => {
                 let sum = 0;
                 let count = 0;
@@ -213,45 +214,8 @@ export default function GradeOverview() {
                       const currentSem = selectedSemester === 'combined' ? '1' : selectedSemester;
                       const nd: any = app.noten?.[s.id]?.[f]?.[currentSem] || {};
 
-                      const getNoteInfo = (semIdx: '1' | '2') => {
-                        const ndSem = app.noten?.[s.id]?.[f]?.[semIdx];
-                        if (ndSem?.endnote) {
-                          const num = parseFloat(ndSem.endnote.toString().replace(',','.'));
-                          return !isNaN(num) ? num : ndSem.endnote;
-                        }
-                        if (hasNotenmappe) {
-                          const calculated = berechne(app, s.id, f, semIdx);
-                          return calculated !== null ? Math.round(calculated) : null;
-                        }
-                        return null;
-                      };
-
-                      let noteToRender: string | number | null = null;
-                      let numericForAvg: number | null = null;
-
-                      if (selectedSemester === 'combined') {
-                        const note1 = getNoteInfo('1');
-                        const note2 = getNoteInfo('2');
-                        
-                        if (note1 !== null && note2 !== null) {
-                          if (typeof note1 === 'number' && typeof note2 === 'number') {
-                            numericForAvg = (note1 + note2) / 2;
-                            noteToRender = Math.round(numericForAvg);
-                          } else {
-                            noteToRender = `${note1} / ${note2}`;
-                          }
-                        } else if (note1 !== null) {
-                          noteToRender = note1;
-                          if (typeof note1 === 'number') numericForAvg = note1;
-                        } else if (note2 !== null) {
-                          noteToRender = note2;
-                          if (typeof note2 === 'number') numericForAvg = note2;
-                        }
-                      } else {
-                        const noteVal = getNoteInfo(selectedSemester);
-                        noteToRender = noteVal;
-                        if (typeof noteVal === 'number') numericForAvg = noteVal;
-                      }
+                      // Same precedence and numeric values as the CSV export.
+                      const { noteToRender, numericForAvg } = getOverviewNote(app, s.id, f, selectedSemester);
 
                       if (numericForAvg !== null) {
                         sum += numericForAvg;
