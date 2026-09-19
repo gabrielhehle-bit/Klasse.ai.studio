@@ -3070,6 +3070,71 @@ export default function SeatingPlan() {
       </div>
       )}
 
+      {/* Named layouts – only the planning view may replace working seat positions. */}
+      {editMode && !presentationMode && (
+        <section className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm print:hidden"
+          aria-label="Gespeicherte Sitzordnungen">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-extrabold text-slate-800">Gespeicherte Sitzordnungen</span>
+            <select value={selectedSavedLayoutId}
+              aria-label="Gespeicherte Sitzordnung auswählen"
+              onChange={event => { setSelectedSavedLayoutId(event.target.value); setShowSeatingComparison(false); }}
+              className="min-w-48 max-w-full flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-semibold text-slate-800">
+              <option value="">Sitzordnung auswählen ({savedLayouts.length})</option>
+              {savedLayouts.map(layout => (
+                <option key={layout.id} value={layout.id}>
+                  {layout.name}{layout.id === app.sitzplanDefaultLayoutId ? ' ★ Standard' : ''}
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={saveCurrentArrangement}
+              className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700">
+              + Aktuelle speichern
+            </button>
+            {selectedSavedLayout && (
+              <>
+                <button type="button" onClick={() => setShowSeatingComparison(open => !open)}
+                  aria-expanded={showSeatingComparison}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                  {showSeatingComparison ? 'Vergleich schließen' : 'Vergleichen'}
+                </button>
+                <button type="button" onClick={loadSavedArrangement}
+                  className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+                  Sitzordnung laden
+                </button>
+                <button type="button" onClick={setDefaultSavedArrangement}
+                  aria-pressed={app.sitzplanDefaultLayoutId === selectedSavedLayout.id}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                  {app.sitzplanDefaultLayoutId === selectedSavedLayout.id ? '★ Standard' : 'Als Standard'}
+                </button>
+                <button type="button" onClick={duplicateSavedArrangement}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                  Duplizieren
+                </button>
+                <button type="button" onClick={removeSavedArrangement}
+                  className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50">
+                  Gespeicherte löschen
+                </button>
+              </>
+            )}
+          </div>
+          <p className="mt-1 text-[0.6875rem] text-slate-500">
+            Das Laden ersetzt den aktuellen Raum erst nach Bestätigung. Gespeicherte Varianten bleiben beim Klassenwechsel und im verschlüsselten Backup erhalten.
+          </p>
+          {showSeatingComparison && selectedSavedLayout && (
+            <div className="mt-3 grid grid-cols-1 gap-3 rounded-xl bg-slate-50 p-2 sm:grid-cols-2"
+              aria-label="Aktuelle und gespeicherte Sitzordnung vergleichen">
+              <SeatingMiniPreview title="Aktueller Sitzplan"
+                positions={app.sitzplan_schueler || {}} objects={app.sitzplan_objekte || []}
+                students={app.schueler} />
+              <SeatingMiniPreview title={selectedSavedLayout.name}
+                positions={selectedSavedLayout.positions || {}} objects={selectedSavedLayout.objects || []}
+                students={app.schueler} />
+            </div>
+          )}
+        </section>
+      )}
+
       {/* Main Canvas Area */}
         <div 
           ref={planRef}
