@@ -56,6 +56,8 @@ test('only individually documented marks of the chosen student, subjects and sem
   assert.equal(grades.some(entry => entry.ergebnis.includes('f') || entry.ergebnis.includes('NaN')), false);
   assert.equal(grades.some(entry => entry.fach === 'Latein'), false);
   assert.equal(getKelGradebookAssessments(app, 'child-a', '2', app.faecher).length, 1);
+  app.noten['child-a'].Deutsch['2'].sa[0] = 2.5;
+  assert.equal(getKelGradebookAssessments(app, 'child-a', '2', app.faecher)[0].ergebnis, 'Note 2.5');
   assert.equal(getKelGradebookAssessments(app, 'child-b', '1', app.faecher).length, 1);
   assert.deepEqual(getKelGradebookAssessments(app, 'unknown', '1', app.faecher), []);
 });
