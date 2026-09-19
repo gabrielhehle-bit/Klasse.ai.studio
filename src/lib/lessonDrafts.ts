@@ -55,7 +55,7 @@ export function normalizeLessonDraft(source: any): LessonDraftFields & {
 }
 
 export function hasLessonDraftContent(draft: LessonDraftFields): boolean {
-  return Boolean(draft.lernziele.trim() || draft.einleitung.trim() || draft.hauptteil.trim() || draft.schluss.trim());
+  return Boolean(draft.lernziele.trim() || draft.einleitung.trim() || draft.hauptteil.trim() || draft.schluss.trim() || draft.material.trim());
 }
 
 export function lessonDraftToText(draft: LessonDraftFields): string {
