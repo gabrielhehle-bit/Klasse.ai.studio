@@ -16,6 +16,7 @@ import { MaterialItem } from '../types';
 import { generateTeachingMaterial } from '../services/aiService';
 import { calculateMaterialStorageSize, MATERIAL_LIBRARY_MAX_MB, normalizeMaterialExternalLink, removeMaterialReferencesFromClasses, removeMaterialReferencesFromWeeklyPlan, sanitizeMaterialForType, upsertMaterial, validateMaterialFile } from '../lib/materialLibraryUtils';
 import { lessonDraftFromMaterial } from '../lib/lessonDrafts';
+import { materialCollections, normalizeMaterialCollections } from '../lib/materialCollections';
 export { calculateMaterialStorageSize as calculateStorageSize } from '../lib/materialLibraryUtils';
 
 const normalizeMaterialItem = (item: MaterialItem): MaterialItem => ({
@@ -26,6 +27,7 @@ const normalizeMaterialItem = (item: MaterialItem): MaterialItem => ({
   faecher: Array.isArray(item.faecher) ? item.faecher : [],
   schulstufen: Array.isArray(item.schulstufen) ? item.schulstufen : [],
   tags: Array.isArray(item.tags) ? item.tags : [],
+  sammlungen: normalizeMaterialCollections(item.sammlungen),
   erstelltAm: item.erstelltAm || '',
 });
 
@@ -38,6 +40,9 @@ export default function Materialbibliothek() {
   const [sortBy, setSortBy] = useState<'used' | 'date' | 'title'>('date');
   const [onlyAi, setOnlyAi] = useState(false);
   const [filterTag, setFilterTag] = useState<string | null>(null);
+  const [filterSammlung, setFilterSammlung] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const sammlungen = useMemo(() => materialCollections(app.materialien || []), [app.materialien]);
   
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -63,8 +68,9 @@ export default function Materialbibliothek() {
            (filterFach ? 1 : 0) + 
            (filterStufe ? 1 : 0) + 
            (onlyAi ? 1 : 0) + 
-           (filterTag ? 1 : 0);
-  }, [activeTab, searchQuery, filterFach, filterStufe, onlyAi, filterTag]);
+           (filterTag ? 1 : 0) +
+           (filterSammlung ? 1 : 0);
+  }, [activeTab, searchQuery, filterFach, filterStufe, onlyAi, filterTag, filterSammlung]);
 
   const clearAllFilters = () => {
     setActiveTab('Alle');
@@ -73,6 +79,7 @@ export default function Materialbibliothek() {
     setFilterStufe('');
     setOnlyAi(false);
     setFilterTag(null);
+    setFilterSammlung('');
   };
 
   // Filtered & Sorted list
@@ -81,8 +88,8 @@ export default function Materialbibliothek() {
     
     // Tab filter
     if (activeTab === 'Favoriten') list = list.filter(m => m.favorit);
-    else if (activeTab === 'Dateien') list = list.filter(m => m.typ === 'datei');
-    else if (activeTab === 'Links') list = list.filter(m => m.typ === 'link');
+    else if (activeTab === 'Arbeitsblätter & Dateien') list = list.filter(m => m.typ === 'datei');
+    else if (activeTab === 'Links & Medien') list = list.filter(m => m.typ === 'link');
     else if (activeTab === 'Unterrichtsvorbereitungen') list = list.filter(m => m.typ === 'stundenentwurf');
     else if (activeTab === 'Notfallpläne') list = list.filter(m => m.typ === 'notfallplan');
     else if (activeTab === 'Elternbriefe') list = list.filter(m => m.typ === 'elternbrief');
@@ -105,6 +112,7 @@ export default function Materialbibliothek() {
     if (filterTag) {
       list = list.filter(m => m.tags.includes(filterTag));
     }
+    if (filterSammlung) list = list.filter(m => m.sammlungen?.includes(filterSammlung));
 
     // AI filter
     if (onlyAi) list = list.filter(m => m.kiGeneriert);
@@ -126,7 +134,7 @@ export default function Materialbibliothek() {
     });
 
     return list;
-  }, [app.materialien, activeTab, searchQuery, onlyAi, filterFach, filterStufe, sortBy, filterTag]);
+  }, [app.materialien, activeTab, searchQuery, onlyAi, filterFach, filterStufe, sortBy, filterTag, filterSammlung]);
 
   useEffect(() => {
     const visibleIds = new Set(filteredMaterials.map(material => material.id));
