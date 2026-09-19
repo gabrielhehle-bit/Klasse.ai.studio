@@ -7,7 +7,7 @@ import { motion } from 'motion/react';
 import { 
   LayoutDashboard, Users, Map as MapIcon, Pin, BarChart3, Edit3, 
   Calendar, CalendarDays, ClipboardList, Mail, Wallet, 
-  FileEdit, Notebook, CheckSquare, Play, LineChart, Table, Folder, 
+  FileEdit, Notebook, CheckSquare, Play, LineChart, Folder, 
   Target, Replace, Archive, Bot, ChevronLeft, ChevronRight, Database, LayoutGrid,
   MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown, Flag, GraduationCap, Wrench, FileSearch, UserPlus
 } from 'lucide-react';
