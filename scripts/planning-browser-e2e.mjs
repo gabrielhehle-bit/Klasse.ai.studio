@@ -294,7 +294,12 @@ async function main() {
     const weeklyLarge = await evaluate(client,
       '(() => {const heading=Array.from(document.querySelectorAll("h3")).find(el=>el.textContent?.trim()==="Einheit planen");const node=heading?.closest(".max-w-none");if(!node)return false;const r=node.getBoundingClientRect();return r.width>1000&&r.height>window.innerHeight*0.85;})()'
     );
-    if (!weeklyLarge) throw new Error('Weekly editor did not open in the expected large layout.');
+    if (!weeklyLarge) {
+      const diagnostic = await evaluate(client,
+        '(() => ({viewport: [innerWidth,innerHeight], headings: Array.from(document.querySelectorAll("h3")).filter(e=>String(e.textContent).includes("Einheit planen")).map(e=>({text:e.textContent,classes:e.parentElement?.className,outer:e.closest(".max-w-none")?.className,rect:(()=>{const r=e.closest(".max-w-none")?.getBoundingClientRect();return r?[r.width,r.height]:null;})()})), largeCandidates:Array.from(document.querySelectorAll("div.max-w-none")).slice(0,5).map(e=>({classes:e.className,rect:[e.getBoundingClientRect().width,e.getBoundingClientRect().height]}))}))()'
+      );
+      throw new Error('Weekly editor did not open in the expected large layout: ' + JSON.stringify(diagnostic));
+    }
     console.log('✓ weekly editor uses the large planning workspace');
 
     await setInputByPlaceholder(client, 'Was wird gelernt?', topic);
