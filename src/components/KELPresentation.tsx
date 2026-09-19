@@ -566,7 +566,36 @@ export default function KELPresentation({
           continue;
         }
         if (slideData.type === 'individualGrades') {
-          addBullets(slide, chosenAssessments.map(item => `${item.fach} · ${item.titel}${item.datum ? ' · ' + item.datum : ''}: ${item.ergebnis}`), 0.9, 1.5, 11.6, 5.2);
+          const rows = chosenAssessments.map(item =>
+            `${item.fach} · ${item.titel}${item.datum ? ' · ' + item.datum : ''}: ${item.ergebnis}`);
+          // One real, editable native PPTX chart only when the teacher selected
+          // >=2 values from the SAME subject and the SAME numeric scale.
+          // Otherwise show the exact selected values as cards, never a fake ratio.
+          const sameScale = chosenAssessments.length >= 2 &&
+            chosenAssessments.every(item => item.fach === chosenAssessments[0].fach &&
+              item.mode === chosenAssessments[0].mode);
+          const mode = chosenAssessments[0]?.mode;
+          const values = sameScale && (mode === 'grades' || mode === 'percent')
+            ? chosenAssessments.map(item => Number(item.ergebnis.replace(/^Note\\s*/, '').replace(/\\s*%$/, '').replace(',', '.')))
+            : [];
+          const canChart = values.length >= 2 && values.every(value => Number.isFinite(value));
+          addBullets(slide, rows, 0.9, 1.45, 11.6, canChart ? 2.2 : 5.2);
+          if (canChart) {
+            slide.addChart(pptx.ChartType.bar, [{
+              name: mode === 'grades' ? 'Note' : 'Prozent',
+              labels: chosenAssessments.map(item => item.titel),
+              values,
+            }], {
+              x: 1.2, y: 3.85, w: 10.7, h: 2.55,
+              showLegend: false, showValue: true,
+              showTitle: true,
+              title: mode === 'grades' ? 'Noten 1–5 (1 = Sehr gut)' : 'Prozentwerte (0–100 %)',
+              valAxisMinVal: mode === 'grades' ? 1 : 0,
+              valAxisMaxVal: mode === 'grades' ? 5 : 100,
+              catAxisLabelFontSize: 10,
+              showCatName: false,
+            });
+          }
           continue;
         }
         if (slideData.type === 'assessment') {
