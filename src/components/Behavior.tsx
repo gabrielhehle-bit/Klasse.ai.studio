@@ -191,7 +191,7 @@ export default function Behavior() {
 
   React.useEffect(() => {
     // Never carry a selected child from one class into another class's chronicle.
-    dictation.stop();
+    dictation.cancel();
     setSelectedStudentId('');
     setNewEntryText('');
     setEditingNoteId(null);
