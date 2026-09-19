@@ -9453,6 +9453,14 @@ ${content}
 
                           <button
                             type="button"
+                            onClick={() => setIsThemePickerOpen(true)}
+                            className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                          >
+                            🎨 Design & Farben
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() => setIsBirthdayCelebrationOpen(true)}
                             className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
                           >
