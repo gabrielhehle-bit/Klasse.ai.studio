@@ -7,7 +7,7 @@ import { motion } from 'motion/react';
 import { 
   LayoutDashboard, Users, Map as MapIcon, Pin, BarChart3, Edit3, 
   Calendar, CalendarDays, ClipboardList, Mail, Wallet, 
-  FileEdit, Notebook, CheckSquare, Play, LineChart, Table, Folder, 
+  FileEdit, Notebook, CheckSquare, Play, LineChart, Folder, 
   Target, Replace, Archive, Bot, ChevronLeft, ChevronRight, Database, LayoutGrid,
   MessagesSquare, Activity, Settings as SettingsIcon, Briefcase, ChevronDown, Check, Mic, FileText, Heart, Printer, X, GripVertical, ArrowUp, ArrowDown, Flag, GraduationCap, Wrench, FileSearch, UserPlus
 } from 'lucide-react';
@@ -97,7 +97,6 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'statistik', label: 'Statistik & Profile', icon: <LineChart size={18} />, section: 'Leistungen' },
     { id: 'diagnostik', label: 'Diagnostik', icon: <Activity size={18} />, section: 'Leistungen' },
     { id: 'portfolio', label: 'Lernziele & Portfolio', icon: <Briefcase size={18} />, section: 'Leistungen' },
-    { id: 'notenTabelle', label: 'Notenübersicht', icon: <Table size={18} />, section: 'Leistungen' },
     { id: 'verbal', label: 'Verbale Beurteilung', icon: <FileText size={18} />, section: 'Leistungen' },
     { id: 'kel', label: 'KEL-Gespräche', icon: <MessagesSquare size={18} />, section: 'Leistungen' },
     { id: 'planungszentrale', label: 'Planungs-Zentrale', icon: <Target size={18} />, section: 'Planung' },
