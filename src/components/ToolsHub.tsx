@@ -4,6 +4,7 @@ import {
   ChevronRight,
   FileSearch,
   LayoutGrid,
+  Palette,
   Printer,
   Wrench,
 } from 'lucide-react';
@@ -21,6 +22,13 @@ const tools = [
     title: 'Stationenbetrieb',
     description: 'Stationen planen, Fortschritt verfolgen und Beobachtungen festhalten.',
     icon: LayoutGrid,
+    featured: false,
+  },
+  {
+    id: 'canva',
+    title: 'Canva',
+    description: 'Unterrichtsmaterialien und Designs gestalten und exportieren.',
+    icon: Palette,
     featured: false,
   },
   {
