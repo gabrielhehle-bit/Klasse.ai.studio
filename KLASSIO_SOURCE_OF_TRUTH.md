@@ -1,5 +1,7 @@
 # KLASSIO – Source of Truth
 
+> **Aktualisierung 2026-09-19:** `main`-HEAD vor Wiederintegration: `05bf54bae5abbfee1d43ce96431a030a42bcc0ed`. Die offenen PRs #145–159 sind **nicht** Bestandteil von `main`. Der neue Arbeitszweig `reconcile/reintegrate-pr145-159` wird kontrolliert aufgebaut; sein tatsächlicher Umfang, Konflikte, Risiken und Abnahmebedingungen sind in [`docs/KLASSIO_REINTEGRATION_2026-09-19.md`](docs/KLASSIO_REINTEGRATION_2026-09-19.md) dokumentiert. Historische Statusangaben weiter unten nicht als Freigabe für diese 15 PRs lesen. `main` und der Server bleiben bis zur vollständigen Abnahme unverändert.
+
 Stand: 2026-09-16
 
 ## Verbindliche Quelle

@@ -1254,7 +1254,7 @@ const KATEGORIE_LABELS = {
 
 
 interface StatisticsProps {
-  initialTab?: 'stats' | 'profiles' | 'lehrer';
+  initialTab?: 'stats' | 'profiles' | 'lehrer' | 'tools';
 }
 
 export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
@@ -1262,11 +1262,11 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   const students = app.schueler;
 
   const [activeTab, setActiveTab] = useState<'stats' | 'profiles' | 'mehr' | 'lehrer'>(
-    initialTab === 'lehrer' ? 'mehr' : initialTab
+    initialTab === 'lehrer' || initialTab === 'tools' ? 'mehr' : initialTab
   );
   const [statsSubTab, setStatsSubTab] = useState<'leistung' | 'antolin'>('leistung');
   const [mehrSubTab, setMehrSubTab] = useState<'charts' | 'tools' | 'antolin' | 'lehrer'>(
-    initialTab === 'lehrer' ? 'lehrer' : 'charts'
+    initialTab === 'lehrer' ? 'lehrer' : initialTab === 'tools' ? 'tools' : 'charts'
   );
   const [profilesSubTab, setProfilesSubTab] = useState<'liste' | 'antolin'>('liste');
   const [activeFach, setActiveFach] = useState<string>('Gesamt');
@@ -1959,7 +1959,6 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   const classOverviewMetrics = useMemo(() => {
     let strongPerformanceCount = 0;
     let attentionPerformanceCount = 0;
-    const blindSpotStudents: { id: string; name: string; reason: string }[] = [];
     let openAlertCount = 0;
 
     const twentyEightDaysAgo = Date.now() - 28 * 24 * 60 * 60 * 1000;
@@ -1974,25 +1973,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       const attendance = getStudentAttendanceSummary(app, student.id);
       if (attendance.unexcused > 0) openAlertCount++;
 
-      const notes = getStudentNotes(app, student.id);
-      if (notes.length === 0) {
-        blindSpotStudents.push({
-          id: student.id,
-          name: `${student.vorname} ${student.nachname}`,
-          reason: 'Bisher keine Beobachtungen erfasst',
-        });
-      } else {
-        const latest = Math.max(...notes.map((note: any) =>
-          new Date(note.datum || note.timestamp || 0).getTime()
-        ));
-        if (latest < twentyEightDaysAgo) {
-          blindSpotStudents.push({
-            id: student.id,
-            name: `${student.vorname} ${student.nachname}`,
-            reason: 'Keine neue Notiz seit über 4 Wochen',
-          });
-        }
-      }
+
     });
 
     const openDiag = (app.diagnostikErhebungen || [])
@@ -2002,7 +1983,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     return {
       strongPerformanceCount,
       attentionPerformanceCount,
-      blindSpotStudents,
+      documentedStudentCount: students.filter(student => getStudentNotes(app, student.id).length > 0).length,
       openAlertCount: openAlertCount + openDiag,
     };
   }, [students, app, activeFaecher]);
@@ -2050,15 +2031,6 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       });
     }
 
-    if (classOverviewMetrics.blindSpotStudents.length > 0) {
-      list.push({
-        id: 'blindspots',
-        badge: 'Wenig Daten vorhanden',
-        badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
-        title: 'Dokumentation ergänzen',
-        text: `Bei ${classOverviewMetrics.blindSpotStudents.length} Schüler:innen liegen seit über 4 Wochen keine aktuellen Einträge im Beobachtungsjournal vor.`
-      });
-    }
 
     return list;
   }, [stats, classOverviewMetrics, classAttendance]);
@@ -3944,7 +3916,24 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
         onClose={() => setShowAntolinImport(false)}
       />
 
-      {/* Real-time Sub Filter Controls: 3 Hauptbereiche */}
+      {initialTab === 'tools' && (
+        <details className="rounded-xl border border-slate-200 bg-white p-3 print:hidden">
+          <summary className="cursor-pointer text-xs font-bold text-slate-700">Weitere bisherige Sonderfunktionen (Übergangsansicht)</summary>
+          <p className="mt-2 text-xs text-slate-600">Diese selten verwendeten älteren Auswertungen bleiben erreichbar, bis die Umstellung vollständig geprüft ist.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" onClick={() => { setActiveTab('mehr'); setMehrSubTab('tools'); setSelectedStudentId(null); }}
+              className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">Spezialwerkzeuge</button>
+            <button type="button" onClick={() => { setActiveTab('mehr'); setMehrSubTab('charts'); setStatsSubTab('leistung'); setSelectedStudentId(null); }}
+              className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">Frühere Detaildiagramme</button>
+            <button type="button" onClick={() => { setActiveTab('profiles'); setProfilesSubTab('liste'); setSelectedStudentId(null); }}
+              className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">Frühere KEL-/Profil-Sonderansicht</button>
+            <button type="button" onClick={() => { setActiveTab('mehr'); setMehrSubTab('antolin'); setStatsSubTab('antolin'); setSelectedStudentId(null); }}
+              className="rounded-lg border border-slate-200 px-2 py-1.5 text-xs">Frühere Antolin-Timeline</button>
+          </div>
+        </details>
+      )}
+      {/* Legacy screen: specialists only; the normal class, profile and Antolin views live in their new locations. */}
+      {initialTab !== 'tools' && (
       <div className="flex justify-center w-full pb-2">
         <div className="flex flex-wrap bg-slate-100 p-1 rounded-2xl border border-slate-200 w-full md:w-auto gap-1">
           <button
@@ -4005,6 +3994,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
           </button>
         </div>
       </div>
+
+      )}
 
       <AnimatePresence mode="wait">
         {selectedStudentId !== null ? (
@@ -4080,9 +4071,9 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                   </div>
 
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Blinde Flecken</div>
-                    <div className="text-2xl font-black text-slate-700 my-1 tabular-nums">{classOverviewMetrics.blindSpotStudents.length} ❓</div>
-                    <div className="text-[0.625rem] text-slate-450 font-bold">Keine Notiz seit &gt;4W</div>
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Dokumentation</div>
+                    <div className="text-2xl font-black text-slate-700 my-1 tabular-nums">{classOverviewMetrics.documentedStudentCount}</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">Kinder mit Einträgen</div>
                   </div>
 
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
@@ -4119,36 +4110,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                   </div>
                 </div>
 
-                {/* Section: Blinde Flecken in der Dokumentation */}
-                {classOverviewMetrics.blindSpotStudents.length > 0 && (
-                  <div className="bg-amber-50/40 p-6 rounded-[2rem] border border-amber-150 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-black text-sm">
-                        ❓
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-black text-amber-950">Blinde Flecken & Aufmerksamkeitsbereiche</h4>
-                        <p className="text-xs text-amber-800 font-medium">Bei folgenden Schüler:innen liegt der letzte Journal-Eintrag länger zurück oder es fehlen Beobachtungen:</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
-                      {classOverviewMetrics.blindSpotStudents.map(b => (
-                        <button
-                          key={b.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedStudentId(b.id);
-                            setActiveTab('profiles');
-                          }}
-                          className="p-3 bg-white rounded-xl border border-amber-200/80 text-left hover:border-amber-400 transition-all cursor-pointer"
-                        >
-                          <div className="font-black text-xs text-slate-800">{b.name}</div>
-                          <div className="text-[0.6875rem] text-amber-700 font-medium mt-0.5">{b.reason}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
               </div>
             )}
 
@@ -4179,7 +4141,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                   >
                     🛠️ Spezialwerkzeuge
                   </button>
-                  <button
+                  {initialTab !== 'tools' && <button
                     type="button"
                     onClick={() => setMehrSubTab('antolin')}
                     className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
@@ -4189,8 +4151,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                     }`}
                   >
                     <BookOpen size={13} className="text-amber-500" /> Antolin Lese-Statistik
-                  </button>
-                  <button
+                  </button>}
+                  {initialTab !== 'tools' && <button
                     type="button"
                     onClick={() => setMehrSubTab('lehrer')}
                     className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
@@ -4200,7 +4162,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                     }`}
                   >
                     👤 Lehrerprofil
-                  </button>
+                  </button>}
                 </div>
 
                 {mehrSubTab === 'tools' && (
@@ -4213,8 +4175,8 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
 
                 {(mehrSubTab === 'charts' || mehrSubTab === 'antolin') && (
                   <div className="space-y-6">
-                {/* Sub Tab Switcher */}
-                <div className="flex border-b border-slate-200 gap-6 mb-2">
+                {/* Only detailed charts stay here; Antolin moved to Lesen & Antolin. */}
+                {initialTab !== 'tools' && <div className="flex border-b border-slate-200 gap-6 mb-2">
                   <button
                     type="button"
                     aria-pressed={statsSubTab === 'leistung'}
@@ -4239,7 +4201,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                   >
                     <BookOpen size={13} className="text-amber-500" /> Antolin Lese-Statistik
                   </button>
-                </div>
+                </div>}
 
                 {statsSubTab === 'leistung' && (
                   <div className="space-y-6 animate-fade-in">

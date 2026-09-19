@@ -1,13 +1,11 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import {
-  Bot,
   ChevronRight,
-  FileEdit,
   FileSearch,
   LayoutGrid,
+  Palette,
   Printer,
-  Sparkles,
   Wrench,
 } from 'lucide-react';
 
@@ -20,20 +18,6 @@ const tools = [
     featured: true,
   },
   {
-    id: 'arbeitsblatt',
-    title: 'Arbeitsblatt-Generator',
-    description: 'Aus Inhalten und Unterrichtsideen direkt Arbeitsblätter erstellen.',
-    icon: FileEdit,
-    featured: false,
-  },
-  {
-    id: 'differenzierung',
-    title: 'Differenzierung',
-    description: 'Aufgaben und Lernwege für unterschiedliche Lernvoraussetzungen vorbereiten.',
-    icon: Sparkles,
-    featured: false,
-  },
-  {
     id: 'stationenbetrieb',
     title: 'Stationenbetrieb',
     description: 'Stationen planen, Fortschritt verfolgen und Beobachtungen festhalten.',
@@ -41,10 +25,10 @@ const tools = [
     featured: false,
   },
   {
-    id: 'ki-helfer',
-    title: 'KI-Helfer',
-    description: 'Pädagogische KI-Hilfen bewusst und gezielt aufrufen.',
-    icon: Bot,
+    id: 'canva',
+    title: 'Canva',
+    description: 'Unterrichtsmaterialien und Designs gestalten und exportieren.',
+    icon: Palette,
     featured: false,
   },
   {

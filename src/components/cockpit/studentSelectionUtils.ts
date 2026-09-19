@@ -1,4 +1,5 @@
 import { AppState, Student } from '../../types';
+import { getTodayIsoDate } from '../../lib/kidAttendanceAlgorithm';
 
 export interface CockpitStudent {
   id: string;
@@ -58,7 +59,7 @@ export function isStudentAbsentToday(studentId: string, appState?: AppState | nu
   const student = appState.schueler?.find((s: any) => s.id === studentId) as any;
   if (student?.abwesend || student?.status === 'abwesend') return true;
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getTodayIsoDate();
   const attendanceForStudent = appState.anwesenheit?.[studentId]?.[todayStr];
   if (attendanceForStudent && typeof attendanceForStudent === 'object') {
     const values = Object.values(attendanceForStudent);
@@ -84,12 +85,13 @@ export function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
- * Ermittelt alle anwesenden Schüler einer Klasse bzw. das Fallback-Array.
+ * Ermittelt ausschließlich echte, aktuell anwesende Schüler der aktiven Klasse.
+ * Eine leere/noch nicht geladene Klasse darf niemals Demo-Kinder erzeugen.
  */
 export function getPresentStudents(
   appStudents: Student[] | undefined,
   appState?: AppState | null
 ): CockpitStudent[] {
-  const list = appStudents && appStudents.length > 0 ? appStudents : DEFAULT_MOCK_STUDENTS;
+  const list = appStudents ?? [];
   return list.filter((s) => !isStudentAbsentToday(s.id, appState));
 }

@@ -62,6 +62,7 @@ jobs:
           KLASSIO_E2E_TEACHER_VAULT: Klassio-E2E-Lehrkraft-2026!
           KLASSIO_E2E_ADMIN_VAULT: Klassio-E2E-Admin-2026!
           KLASSIO_E2E_SCREENSHOT_TEACHER: /tmp/klassio-school-teacher.png
+          KLASSIO_E2E_SCREENSHOT_COCKPIT: /tmp/klassio-school-cockpit.png
           KLASSIO_E2E_SCREENSHOT_ADMIN: /tmp/klassio-school-admin.png
         run: |
           set -euo pipefail
@@ -121,6 +122,7 @@ jobs:
           name: klassio-school-verification-browser-${{ github.sha }}
           path: |
             /tmp/klassio-school-teacher.png
+            /tmp/klassio-school-cockpit.png
             /tmp/klassio-school-admin.png
             /tmp/klassio-school-server.log
             /tmp/klassio-school-smtp.log

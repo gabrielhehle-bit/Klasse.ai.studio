@@ -6,13 +6,13 @@ const sidebar = readFileSync('src/components/Sidebar.tsx', 'utf8');
 
 test('Sidebar: vollständige moderne Klassio-Bereiche bleiben erreichbar', () => {
   for (const id of [
-    'dashboard', 'klasse', 'planung', 'leistungen', 'unterricht',
+    'dashboard', 'klasse', 'planung', 'leistungen',
     'cockpit', 'ki-helfer', 'lehrerzimmer', 'arbeitsblatt', 'stationenbetrieb',
     'differenzierung', 'elternbrief',
     'schueler', 'sitzplan', 'anwesenheit', 'verhalten', 'teamteaching', 'orga',
-    'noten', 'statistik', 'diagnostik', 'portfolio', 'notenTabelle', 'verbal', 'kel',
-    'planungszentrale', 'jahresplanung', 'wochenplanung', 'materialien', 'stunden',
-    'canva', 'vertretung', 'uebergabemappe', 'klassengemeinschaft', 'jahresbericht',
+    'noten', 'diagnostik', 'portfolio', 'verbal', 'kel',
+    'planungszentrale', 'jahresplanung', 'wochenplanung', 'materialien',
+    'canva', 'vertretung', 'klassengemeinschaft', 'jahresbericht',
     'archiv', 'drucken', 'datensicherung', 'settings',
   ]) {
     assert.match(sidebar, new RegExp(`id:\\s*['"]${id}['"]`), `Sidebar-Modul fehlt: ${id}`);

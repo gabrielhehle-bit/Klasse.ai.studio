@@ -1,3 +1,4 @@
+import { collapseDailyBehaviorHistory } from '../../lib/dailyBehaviorEntries';
 import React, { useState, useMemo } from 'react';
 import { Student, AppNote } from '../../types';
 import { useApp } from '../../context/AppContext';
@@ -108,11 +109,7 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
   // 2. Verhalten & Pädagogische Begleitung
   // ----------------------------------------------------
   const stages = app.behavior_stages || [];
-  const studentLogs = useMemo(() => {
-    return (app.statusLog || [])
-      .filter((l: any) => l.schuelerId === student.id)
-      .sort((a: any, b: any) => (b.datum || '').localeCompare(a.datum || ''));
-  }, [app.statusLog, student.id]);
+  const studentLogs = useMemo(() => collapseDailyBehaviorHistory(app.statusLog || [], student.id), [app.statusLog, student.id]);
 
   const behaviorSummary = useMemo(() => {
     let positiveCount = 0;
