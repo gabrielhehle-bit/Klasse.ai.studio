@@ -59,9 +59,9 @@ test('Wir-Gefuehl: Vertrag und Klassenrat sind klassenlokal im App-State', () =>
   assert.match(appContext, /councilNotes: nextClass\.councilNotes/);
 });
 
-test('Verhalten: Tageswerte verwenden denselben lokalen Kalendertag wie Wir-Gefuehl', () => {
+test('Notizen und Wir-Gefuehl verwenden für aktuelle Einträge denselben lokalen Kalendertag', () => {
   assert.match(behavior, /formatLocalDateKey\(new Date\(\)\)/);
-  assert.match(behavior, /formatLocalDateKey\(d\)/);
+  assert.match(wirGefuehl, /formatLocalDateKey\(new Date\(\)\)/);
   assert.doesNotMatch(behavior, /toISOString\(\)\.split\('T'\)\[0\]/);
 });
 
