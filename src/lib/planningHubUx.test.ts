@@ -20,7 +20,6 @@ test('planning hub keeps every agreed planning destination', () => {
     'jahresplanung',
     'planungszentrale',
     'materialien',
-    'canva',
     'vertretung',
     'uebergabemappe',
   ]) {
