@@ -10,7 +10,7 @@ import { LEHRPLAN_VS_2023 } from '../lehrplan';
 import { LehrplanZuordnung } from '../types';
 import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
 import WochenplanExcelModal from './WochenplanExcelModal';
-import { generateWochenplanTemplate, WochenplanImportRow } from '../lib/planerExcelService';
+import { WochenplanImportRow } from '../lib/planerExcelService';
 import { addWeeklyLessonToEmptyYearPlan, hasWeeklyPlanningDetails } from '../lib/planningSync';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots } from '../lib/weeklyPlanData';
@@ -715,7 +715,6 @@ export default function WeeklyPlan() {
   const [showMoreDetailsInModal, setShowMoreDetailsInModal] = useState<boolean>(false);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showExcelMenu, setShowExcelMenu] = useState(false);
   const [showExcelModal, setShowExcelModal] = useState(false);
 
   React.useEffect(() => {
@@ -1866,45 +1865,12 @@ export default function WeeklyPlan() {
                   <span>Wochenplan für Kinder erstellen</span>
                 </button>
 
-                {/* Excel Menu Dropdown */}
-                <div className="relative z-[210]">
-                  <button
-                    onClick={() => setShowExcelMenu(!showExcelMenu)}
-                    className="px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 cursor-pointer border border-emerald-200 shadow-xs"
-                    title="Excel Vorlage herunterladen oder Plan importieren"
-                  >
-                    <FileSpreadsheet size={16} />
-                    <span>Excel</span>
-                    <ChevronDown size={12} />
-                  </button>
-                  {showExcelMenu && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setShowExcelMenu(false)} />
-                      <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 flex flex-col gap-1 text-left">
-                        <button
-                          onClick={() => {
-                            setShowExcelMenu(false);
-                            generateWochenplanTemplate(app, activeKW);
-                          }}
-                          className="btn !bg-white !text-emerald-700 hover:!bg-emerald-50 !justify-start !text-left text-xs gap-2.5 w-full"
-                        >
-                          <Download size={14} />
-                          <span>Excel-Vorlage herunterladen</span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setShowExcelMenu(false);
-                            setShowExcelModal(true);
-                          }}
-                          className="btn !bg-white !text-slate-700 hover:!bg-slate-50 !justify-start !text-left text-xs gap-2.5 w-full"
-                        >
-                          <Upload size={14} />
-                          <span>Excel importieren...</span>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
+                {/* Import changes the editable plan; exports belong to PrintCenter. */}
+                <button type="button" onClick={() => setShowExcelModal(true)}
+                  className="px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 flex items-center gap-1.5"
+                  title="Wochenplanung aus Excel importieren">
+                  <Upload size={15} /> <span>Excel importieren</span>
+                </button>
 
                 {/* Fullscreen Button */}
                 <button
