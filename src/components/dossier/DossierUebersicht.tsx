@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Activity,
   AlertCircle,
@@ -48,6 +48,7 @@ interface DossierUebersichtProps {
   student: Student;
   onTabChange: (tab: any) => void;
   semester: '1' | '2';
+  onQuickEntry?: (type: 'note' | 'strength' | 'parent' | 'goal') => void;
 }
 
 function formatRelativeOrShortDate(value?: string | number): string {
@@ -104,7 +105,8 @@ function calculateSubjectTrend(
   }
 }
 
-export default function DossierUebersicht({ student, onTabChange, semester }: DossierUebersichtProps) {
+export default function DossierUebersicht({ student, onTabChange, semester, onQuickEntry }: DossierUebersichtProps) {
+  const [showEntryActions, setShowEntryActions] = useState(false);
   const { app } = useApp();
 
   const subjects = useMemo(() => {
@@ -152,7 +154,7 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
   // Raw Support Goals & Measures
   const rawSupportGoals = useMemo(() => {
     return (student.foerderprofil?.foerderziele || []).filter(
-      goal => goal.status === 'offen' || goal.status === 'in Arbeit'
+      goal => goal.status === 'offen' || goal.status === 'in_arbeit' || goal.status === 'in Arbeit'
     );
   }, [student.foerderprofil?.foerderziele]);
 
@@ -211,7 +213,7 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
       const trend = calculateSubjectTrend(app, student.id, subject, semester, avg);
 
       let displayValue = '—';
-      if (endnote && endnote !== '—') {
+      if (mode === 'grades' && endnote !== undefined && endnote !== null && String(endnote).trim() !== '' && String(endnote) !== '—') {
         displayValue = `Note ${endnote}`;
       } else if (avg !== null) {
         if (mode === 'percent') {
@@ -230,158 +232,38 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
         endnote,
         displayValue,
         trend,
-        hasGrade: endnote && endnote !== '—' || avg !== null
+        hasGrade: (endnote !== undefined && endnote !== null && String(endnote).trim() !== '' && String(endnote) !== '—') || avg !== null
       };
     });
   }, [app, student.id, subjects, semester]);
 
-  // 1. AUF EINEN BLICK: 4-6 Info Cards
-  const quickCards = useMemo(() => {
-    const list: Array<{
-      id: string;
-      label: string;
-      value: string;
-      detail: string;
-      icon: any;
-      tab: string;
-      priority: number;
-    }> = [];
-
-    // Card: Leistungsstand
-    if (grades.hasData) {
-      list.push({
-        id: 'grades',
-        label: 'Leistungsstand',
-        value: `${grades.gradedSubjects} Fächer bewertet`,
-        detail: grades.average !== null ? `Ø ${grades.average.toFixed(2)} Notenschnitt` : 'Aktuelle Noten erfasst',
-        icon: BarChart3,
-        tab: 'leistungen',
-        priority: 10
-      });
-    }
-
-    // Card: Diagnostik
-    const totalDiagnostics = newDiagnosticResults.length || diagnostics.length;
-    if (totalDiagnostics > 0) {
-      list.push({
-        id: 'diagnostics',
-        label: 'Diagnostik',
-        value: `${totalDiagnostics} ${totalDiagnostics === 1 ? 'Erhebung' : 'Erhebungen'}`,
-        detail: newFocusAreas.length > 0
-          ? `${newFocusAreas.length} Bereiche zur Beobachtung`
-          : newStrengths.length > 0
-          ? `${newStrengths.length} Kompetenzen gesichert`
-          : 'Kompetenzstand erfasst',
-        icon: Stethoscope,
-        tab: 'diagnostik',
-        priority: 20
-      });
-    }
-
-    // Card: Anwesenheit
-    if (attendance.hasData) {
-      list.push({
-        id: 'attendance',
-        label: 'Anwesenheit',
-        value: attendance.total === 0 ? 'Keine Fehlstunden' : `${attendance.total} Fehlstunden`,
-        detail: attendance.unexcused > 0
-          ? `${attendance.unexcused} unentschuldigt`
-          : 'Präsenz unauffällig',
-        icon: CalendarDays,
-        tab: 'stats',
-        priority: 30
-      });
-    }
-
-    // Card: Beobachtungen
-    const obsCount = notes.length + behavior.logs.length;
-    if (obsCount > 0 || behavior.hasExplicitStatus) {
-      const latestNoteDate = [...notes, ...behavior.logs].reduce((latest, n) => {
-        const d = new Date((n as any).datum || (n as any).timestamp || 0).getTime();
-        return d > latest ? d : latest;
-      }, 0);
-      const daysSince = latestNoteDate > 0 ? Math.floor((Date.now() - latestNoteDate) / (1000 * 60 * 60 * 24)) : null;
-
-      list.push({
-        id: 'behavior',
-        label: 'Beobachtungen',
-        value: daysSince === 0
-          ? 'Notiz heute erfasst'
-          : daysSince !== null && daysSince <= 7
-          ? `Vor ${daysSince} Tagen erfasst`
-          : `${obsCount} ${obsCount === 1 ? 'Eintrag' : 'Einträge'}`,
-        detail: behavior.stage?.label ? `Stufe: ${behavior.stage.label}` : 'Pädagogisches Journal',
-        icon: Activity,
-        tab: 'stats',
-        priority: 40
-      });
-    }
-
-    // Card: Förderziele
-    if (rawSupportGoals.length > 0 || measures.length > 0) {
-      list.push({
-        id: 'support',
-        label: 'Förderziele',
-        value: rawSupportGoals.length > 0
-          ? `${rawSupportGoals.length} ${rawSupportGoals.length === 1 ? 'aktives Ziel' : 'aktive Ziele'}`
-          : 'Kein Ziel offen',
-        detail: measures.length > 0 ? `${measures.length} Maßnahmen hinterlegt` : 'Förderprofil',
-        icon: Heart,
-        tab: 'foerderprofil',
-        priority: 50
-      });
-    }
-
-    // Fallback guidance cards if few or no data exists
-    if (list.length < 4) {
-      if (!list.some(c => c.id === 'grades')) {
-        list.push({
-          id: 'grades-empty',
-          label: 'Leistungsstand',
-          value: 'Noch keine Noten',
-          detail: 'Notenmappe öffnen',
-          icon: BarChart3,
-          tab: 'leistungen',
-          priority: 15
-        });
-      }
-      if (!list.some(c => c.id === 'diagnostics')) {
-        list.push({
-          id: 'diagnostics-empty',
-          label: 'Diagnostik',
-          value: 'Noch nicht erhoben',
-          detail: 'Screening durchführen',
-          icon: Stethoscope,
-          tab: 'diagnostik',
-          priority: 25
-        });
-      }
-      if (!list.some(c => c.id === 'behavior')) {
-        list.push({
-          id: 'behavior-empty',
-          label: 'Beobachtungen',
-          value: 'Keine Notizen',
-          detail: 'Journal öffnen',
-          icon: Activity,
-          tab: 'stats',
-          priority: 45
-        });
-      }
-      if (!list.some(c => c.id === 'support')) {
-        list.push({
-          id: 'support-empty',
-          label: 'Förderziele',
-          value: 'Kein Förderbedarf',
-          detail: 'Förderprofil ansehen',
-          icon: Heart,
-          tab: 'foerderprofil',
-          priority: 55
-        });
-      }
-    }
-
-    return list.slice(0, 6);
-  }, [grades, newDiagnosticResults, diagnostics, newFocusAreas, newStrengths, attendance, notes, behavior, rawSupportGoals, measures]);
+  // Four stable entry points: never hide daily work or infer a grade average
+  // from mixed grades, points and percentages.
+  const assessedSubjects = subjectPerformances.filter(item => item.hasGrade);
+  const observationCount = notes.length + behavior.logs.length;
+  const quickCards = [
+    {
+      id: 'attendance', label: 'Anwesenheit', icon: CalendarDays, tab: 'beobachtungen_verlauf',
+      value: attendance.hasData ? `${attendance.total} Fehlstunden` : 'Noch nicht erfasst',
+      detail: attendance.hasData ? `${attendance.unexcused} unentschuldigt` : 'Anwesenheit öffnen',
+    },
+    {
+      id: 'grades', label: 'Lernen', icon: BarChart3, tab: 'leistungen',
+      value: assessedSubjects.length ? `${assessedSubjects.length} Fächer mit Bewertungen` : 'Noch keine Bewertungen',
+      detail: 'Bewertungsmodus je Fach',
+    },
+    {
+      id: 'observations', label: 'Beobachtungen', icon: Activity, tab: 'beobachtungen_verlauf',
+      value: observationCount ? `${observationCount} Einträge` : 'Noch keine Einträge',
+      detail: 'Beobachtungen öffnen',
+    },
+    {
+      id: 'support', label: 'Förderung', icon: Heart, tab: 'foerderung',
+      value: rawSupportGoals.length ? `${rawSupportGoals.length} aktive Ziele`
+        : measures.length ? `${measures.length} Maßnahmen` : 'Noch keine Ziele erfasst',
+      detail: measures.length ? `${measures.length} Maßnahmen dokumentiert` : 'Förderprofil öffnen',
+    },
+  ];
 
   // 2. STÄRKEN (Max 3-5 Points)
   const studentStrengths = useMemo(() => {
@@ -411,19 +293,6 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
         tab: 'lernziele'
       });
     });
-
-    // 3. Fächer mit sehr guten Leistungen
-    subjectPerformances
-      .filter(sp => sp.hasGrade && (sp.endnote === '1' || (sp.avg !== null && sp.avg <= 1.8)))
-      .slice(0, 2)
-      .forEach(sp => {
-        list.push({
-          id: `strength-subject-${sp.subject}`,
-          title: `Sehr gute Fachleistung in ${sp.subject} (${sp.displayValue})`,
-          context: 'Lernen & Leistungen',
-          tab: 'leistungen'
-        });
-      });
 
     // 4. Förderprofil Stärken & Ressourcen
     const rawStaerken = student.foerderprofil?.staerken || (student.foerderprofil as any)?.ressourcen;
@@ -468,7 +337,7 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
     }
 
     return list.slice(0, 5);
-  }, [newStrengths, reachedGoals, subjectPerformances, student.foerderprofil, notes, latestKel]);
+  }, [newStrengths, reachedGoals, student.foerderprofil, notes, latestKel]);
 
   // 3. WEITER BEOBACHTEN (Max 3-5 Points, strictly constructive)
   const observationFocusPoints = useMemo(() => {
@@ -519,19 +388,6 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
       });
     });
 
-    // 5. Abweichende Leistungsentwicklung
-    subjectPerformances
-      .filter(sp => sp.hasGrade && (sp.trend.direction === 'down' || (sp.avg !== null && sp.avg >= 3.8)))
-      .slice(0, 2)
-      .forEach(sp => {
-        list.push({
-          id: `focus-subject-${sp.subject}`,
-          title: `${sp.subject}: ${sp.trend.direction === 'down' ? 'Zuletzt schwächerer Verlauf' : 'Erhöhter Übungsbedarf'} (${sp.displayValue})`,
-          context: 'Leistungsentwicklung im Blick behalten',
-          tab: 'leistungen'
-        });
-      });
-
     // 6. Anwesenheitsmuster
     if (attendance.hasData && attendance.unexcused > 0) {
       list.push({
@@ -543,7 +399,7 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
     }
 
     return list.slice(0, 5);
-  }, [newFocusAreas, unaddressedDiagnosticAlerts, app.diagnostikTests, inProgressGoals, rawSupportGoals, subjectPerformances, attendance]);
+  }, [newFocusAreas, unaddressedDiagnosticAlerts, app.diagnostikTests, inProgressGoals, rawSupportGoals, attendance]);
 
   // 4. NÄCHSTE SCHRITTE (Priority: 1. Förderziele, 2. Maßnahmen, 3. offene Diagnostik, 4. offene Lernziele)
   const nextSteps = useMemo(() => {
@@ -654,7 +510,7 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
     });
 
     // Förderziele
-    rawSupportGoals.forEach(goal => {
+    (student.foerderprofil?.foerderziele || []).forEach(goal => {
       if (goal.startDatum) {
         list.push({
           id: `dev-goal-${goal.id}`,
@@ -700,7 +556,7 @@ export default function DossierUebersicht({ student, onTabChange, semester }: Do
     return list
       .sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
       .slice(0, 5);
-  }, [newDiagnosticResults, diagnostics, app.diagnostikTests, rawSupportGoals, notes, app.kelGespraeche, student.id]);
+  }, [newDiagnosticResults, diagnostics, app.diagnostikTests, student.foerderprofil?.foerderziele, notes, app.kelGespraeche, student.id]);
 
   return (
     <div className="space-y-5">
