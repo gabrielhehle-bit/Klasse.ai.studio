@@ -175,6 +175,7 @@ export default function YearlyPlan() {
   const [yearPlannerTab, setYearPlannerTab] = useState<'inhalt' | 'rahmen' | 'weitere'>('inhalt');
   const [viewingCell, setViewingCell] = useState<{ kw: number, subjectId: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showMoreTools, setShowMoreTools] = useState(false);
   const [editValue, setEditValue] = useState<{ thema: string, buch: string, type: string, subCategory: string, subCategories?: string[], items?: any[], completed?: boolean }>({ thema: '', buch: '', type: 'standard', subCategory: '', subCategories: [], items: [], completed: false });
   const [viewMode, setViewMode] = useState<'table' | 'months'>('table');
   const hasYearPlanEntries = useMemo(() => (
@@ -1060,7 +1061,13 @@ export default function YearlyPlan() {
         
         {activeTab === 'jahresplan' && (
         <div className="flex flex-wrap items-center gap-1.5 w-full justify-start min-w-0 border-t border-slate-100 pt-2">
-          <button 
+          <button type="button" aria-expanded={showMoreTools} aria-controls="yearly-tools"
+            onClick={() => setShowMoreTools(open => !open)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-800 hover:bg-stone-100">
+            <Settings size={14} /> {showMoreTools ? 'Werkzeuge schließen' : 'Weitere Werkzeuge'}
+          </button>
+          <div id="yearly-tools" className={`${showMoreTools ? 'flex' : 'hidden'} flex-wrap items-center gap-1.5`}>
+          <button
             onClick={() => {
               setAiSuggestions([]);
               setAiGeneratingError(null);
@@ -1115,7 +1122,8 @@ export default function YearlyPlan() {
             </div>
           </div>
 
-          <button 
+          </div>
+          <button
             onClick={() => {
               const todayKW = getKW(new Date());
               const weekIdx = weeks.findIndex(w => w.kw === todayKW);
@@ -1131,12 +1139,11 @@ export default function YearlyPlan() {
           >
             <Calendar size={11} className="sm:w-[15px] sm:h-[15px]" /> Heute
           </button>
-          <button 
+          {showMoreTools && <button
             onClick={() => setShowSettings(true)}
-            className="inline-flex items-center justify-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-700 px-3.5 py-2 rounded-xl text-[0.75rem] font-black transition-all border border-stone-200 active:scale-95 cursor-pointer"
-          >
-            <Settings size={11} className="sm:w-[15px] sm:h-[15px]" /> Fächer
-          </button>
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-700 hover:bg-stone-100">
+            <Settings size={14} /> Fächer
+          </button>}
           <button type="button" onClick={() => setShowExcelModal(true)}
             className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-bold text-stone-800 hover:bg-stone-100">
             <Upload size={14} /> Excel importieren
