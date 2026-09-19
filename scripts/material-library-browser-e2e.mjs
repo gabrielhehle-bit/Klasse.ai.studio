@@ -286,9 +286,13 @@ async function main() {
     const afterClick = await evaluate(client, '({body:document.body?.innerText?.slice(-500),dialogs:document.querySelectorAll("[role=dialog]").length})');
     console.log('After card action:', JSON.stringify(afterClick));
     await waitFor(client, 'selected material transfer modal', 'document.body?.innerText.toLowerCase().includes("material → wochenplan")');
+    const subjectRequired = await evaluate(client,
+      'Array.from(document.querySelectorAll("select")).some(el=>Array.from(el.options).some(option=>option.textContent?.includes("Fach auswählen")))');
+    if (subjectRequired) await setInputByLabel(client, 'Fach für diese Stunde', 'Mathematik');
     await clickButton(client, 'In Wochenplan übernehmen');
     await waitFor(client, 'weekly plan after library action', 'document.body?.innerText.includes("WOCHENPLANUNG")', 30000);
-    console.log('✓ material card links to a weekly lesson in the existing planner');
+    await waitFor(client, 'linked material visible in weekly lesson', 'Array.from(document.querySelectorAll("[title]")).some(node=>String(node.getAttribute("title")||"").includes(' + q(title) + '))', 20000);
+    console.log('✓ material card links to a visible weekly lesson without creating an invisible orphan slot');
     await saveScreenshot(client);
     if (uncaught.length) throw new Error('Uncaught browser exceptions:\n' + uncaught.join('\n---\n'));
     console.log('Klassio material-library browser E2E passed.');
