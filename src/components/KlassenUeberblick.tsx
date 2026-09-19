@@ -53,6 +53,8 @@ export default function KlassenUeberblick() {
           className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700">Klassenliste öffnen</button>
         <button type="button" onClick={() => setPage('noten')}
           className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700">Zur Notenmappe</button>
+        <button type="button" onClick={() => setPage('antolin')}
+          className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700">Antolin-Klassenberichte</button>
         <button type="button" onClick={() => setPage('dossier')}
           className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700">Schülerdossier</button>
       </div>
