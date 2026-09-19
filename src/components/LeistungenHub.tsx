@@ -20,7 +20,7 @@ const assessmentItems: PerformanceItem[] = [
   {
     id: 'verbal',
     title: 'Verbale Beurteilung',
-    description: 'Formulierungen und dokumentierte Beobachtungen für verbale Rückmeldungen nutzen.',
+    description: 'Umfassenden Beurteilungsentwurf verfassen; kurzes Leistungsfeedback findest du in der Notenmappe und im Schülerdossier.',
     icon: MessageSquareText,
   },
 ];
