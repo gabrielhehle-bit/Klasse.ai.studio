@@ -1840,6 +1840,16 @@ export default function YearlyPlan() {
                 </div>
 
                 <div className="flex flex-col-reverse gap-2 border-t border-stone-100 bg-stone-50/80 px-6 py-4 sm:flex-row sm:justify-end">
+                  <button type="button"
+                    onClick={() => {
+                      const targetKw = viewingCell.kw;
+                      setViewingCell(null);
+                      // Navigate without copying or altering a single existing lesson.
+                      setApp(previous => ({ ...previous, currentKW: targetKw, currentPage: 'wochenplanung' }));
+                    }}
+                    className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+                    <Calendar size={14} className="mr-1.5 inline" /> Im Wochenplan dieser Woche öffnen
+                  </button>
                   <button
                     type="button"
                     onClick={() => setViewingCell(null)}
