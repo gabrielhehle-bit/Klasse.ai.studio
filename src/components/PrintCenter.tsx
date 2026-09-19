@@ -52,6 +52,8 @@ import { DEFAULT_YEARLY_SUBJECTS, FAECHER_ALLE } from '../constants';
 import { downloadKlassenbuchPdf } from '../lib/klassenbuchPdf';
 import { downloadKlassenbuchDocx } from '../lib/klassenbuchDocx';
 import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
+import { buildSchoolYearWeekList } from '../lib/weeklyPlanData';
+import { getAttendanceSemester } from '../lib/attendanceData';
 import { generateWochenplanTemplate } from '../lib/planerExcelService';
 import {
   classifyKlassenbuchEntry,
@@ -2384,10 +2386,16 @@ export default function PrintCenter() {
                       <Download size={15} />
                       Klassenbuch als PDF herunterladen
                     </button>
-                    <button type="button" onClick={() => void handleDownloadKlassenbuchDocx()}
-                      className="w-full px-4 py-2.5 rounded-xl border border-indigo-300 bg-white text-indigo-800 font-bold text-xs hover:bg-indigo-100">
-                      <Download size={14} className="inline mr-2" />Klassenbuch als DOCX herunterladen
-                    </button>
+                    <div aria-label="Klassenbuch DOCX exportieren" className="grid grid-cols-2 gap-2">
+                      {([
+                        ['week', 'Woche'], ['month', 'Monat'], ['semester', 'Semester'], ['schoolyear', 'Gesamt'],
+                      ] as const).map(([range, label]) => (
+                        <button key={range} type="button" onClick={() => void handleDownloadKlassenbuchDocx(range)}
+                          className="rounded-xl border border-indigo-300 bg-white px-3 py-2.5 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+                          <Download size={13} className="mr-1 inline" /> DOCX {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -4200,21 +4208,43 @@ export default function PrintCenter() {
     return weeks;
   }
 
-  async function handleDownloadKlassenbuchDocx() {
-    const weeks = getKbWeeksToRender();
-    const sections = weeks.map(kw => {
-      const dates = kwToDates(kw);
+  async function handleDownloadKlassenbuchDocx(range: 'week' | 'month' | 'semester' | 'schoolyear') {
+    const allWeeks = buildSchoolYearWeekList(app?.schuljahr || getCurrentSchuljahr(), app?.bundesland || 'VBG');
+    const selectedDate = kwToDates(kbKW).monday;
+    const semester = getAttendanceSemester(
+      formatLocalDateKey(selectedDate), app?.schuljahr || '', app?.bundesland || 'VBG'
+    );
+    let selected = allWeeks.filter(week => week.kw === kbKW);
+    let rangeLabel = `KW ${kbKW}`;
+    if (range === 'month') {
+      selected = allWeeks.filter(week => week.monday.getFullYear() === selectedDate.getFullYear()
+        && week.monday.getMonth() === selectedDate.getMonth());
+      rangeLabel = selectedDate.toLocaleDateString('de-AT', { month: 'long', year: 'numeric' });
+    } else if (range === 'semester') {
+      selected = allWeeks.filter(week => getAttendanceSemester(
+        formatLocalDateKey(week.monday), app?.schuljahr || '', app?.bundesland || 'VBG'
+      ) === semester);
+      rangeLabel = `${semester}. Semester`;
+    } else if (range === 'schoolyear') {
+      selected = allWeeks;
+      rangeLabel = `Schuljahr ${app?.schuljahr || ''}`.trim();
+    }
+    const included = selected.filter(week => Boolean((app?.wochenplanung || {})[week.kw]));
+    const weeks = included.length ? included : selected.slice(0, 1);
+    const sections = weeks.map(week => {
+      const dates = kwToDates(week.kw);
       return {
-        title: `KW ${kw} · ${dates.monday.toLocaleDateString('de-AT')} – ${dates.friday.toLocaleDateString('de-AT')}`,
+        title: `KW ${week.kw} · ${dates.monday.toLocaleDateString('de-AT')} – ${dates.friday.toLocaleDateString('de-AT')}`,
         subtitle: dates.sw ? `Schulwoche ${dates.sw}` : undefined,
-        categories: compileKlassenbuchData(kw),
+        categories: compileKlassenbuchData(week.kw),
       };
     });
     const name = [app?.anrede, app?.vorname, app?.nachname].filter(Boolean).join(' ')
       || app?.lehrerName || app?.lehrerProfil?.name || '';
     const safeClass = String(app?.klassenbezeichnung || 'Klasse').replace(/[^a-zA-Z0-9_-]+/g, '_');
-    await downloadKlassenbuchDocx(`Klassio_Klassenbuch_${safeClass}_KW_${weeks[0] || kbKW}.docx`, {
-      title: `Klassenbuch · ${app?.schuljahr || ''}`,
+    const safeRange = rangeLabel.normalize('NFKD').replace(/[^a-zA-Z0-9_-]+/g, '_');
+    await downloadKlassenbuchDocx(`Klassio_Klassenbuch_${safeClass}_${safeRange}.docx`, {
+      title: `Klassenbuch · ${rangeLabel}`,
       className: app?.klassenbezeichnung || '',
       schoolYear: app?.schuljahr || '',
       teacherName: name,
