@@ -20,6 +20,7 @@ import BackupSettings from './settings/BackupSettings';
 import AdvancedSettings from './settings/AdvancedSettings';
 import SupportSettings from './settings/SupportSettings';
 import AccountSettings from './settings/AccountSettings';
+import LehrerProfilView from './LehrerProfilView';
 import DeleteClassModal from './settings/DeleteClassModal';
 import { AVAILABLE_MODULES } from '../lib/settingsModuleCatalog';
 
@@ -299,7 +300,13 @@ export default function Settings() {
           )}
 
           {activeCategory === 'account' && (
-            <AccountSettings />
+            <div className="space-y-4">
+              <AccountSettings />
+              <details className="rounded-2xl border border-slate-200 bg-white p-4">
+                <summary className="cursor-pointer text-sm font-black text-slate-800">Persönliches Lehrerprofil & Planungsstatistik</summary>
+                <div className="mt-4"><LehrerProfilView /></div>
+              </details>
+            </div>
           )}
 
           {activeCategory === 'general' && (

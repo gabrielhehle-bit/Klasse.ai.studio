@@ -64,8 +64,8 @@ export const initialAppState: AppState = {
   wochenplanung: {},
   firstLogin: true,
   tourAbgeschlossen: false,
-  currentPage: 'cockpit',
-  previousPage: 'wochenplanung',
+  currentPage: 'dashboard',
+  previousPage: 'dashboard',
   currentKW: getKW(new Date()),
   parkgarage: [],
   savedWeekTemplates: {},
@@ -805,12 +805,12 @@ export function switchClassState(prev: AppState, id: string): AppState {
   if (!targetClass) return prev;
 
   // 3. Set target class data to root level
-  const currentLoc = prev.currentPage || 'cockpit';
-  const forceCockpit = !targetClass.klassenvorstand && ['orga', 'uebergabemappe', 'diagnostik', 'kel'].includes(currentLoc);
+  const currentLoc = prev.currentPage || 'dashboard';
+  const needsSafeLanding = !targetClass.klassenvorstand && ['orga', 'uebergabemappe', 'diagnostik', 'kel'].includes(currentLoc);
 
   return {
     ...prev,
-    currentPage: forceCockpit ? 'cockpit' : currentLoc,
+    currentPage: needsSafeLanding ? 'dashboard' : currentLoc,
     activeClassId: id,
     classes,
     klassenbezeichnung: targetClass.name,

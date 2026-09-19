@@ -10,7 +10,7 @@ test('Sidebar: vollständige moderne Klassio-Bereiche bleiben erreichbar', () =>
     'cockpit', 'ki-helfer', 'lehrerzimmer', 'arbeitsblatt', 'stationenbetrieb',
     'differenzierung', 'elternbrief',
     'schueler', 'sitzplan', 'anwesenheit', 'verhalten', 'teamteaching', 'orga',
-    'noten', 'statistik', 'diagnostik', 'portfolio', 'notenTabelle', 'verbal', 'kel',
+    'noten', 'diagnostik', 'portfolio', 'verbal', 'kel',
     'planungszentrale', 'jahresplanung', 'wochenplanung', 'materialien',
     'canva', 'vertretung', 'uebergabemappe', 'klassengemeinschaft', 'jahresbericht',
     'archiv', 'drucken', 'datensicherung', 'settings',

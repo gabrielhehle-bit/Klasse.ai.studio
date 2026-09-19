@@ -1058,6 +1058,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     assertRestorableAppState(data);
     const next = syncActiveClass(normalizeAppState({
       ...data, tourAbgeschlossen: true,
+      // Restore learning data, not a potentially stale saved full-screen cockpit route.
+      currentPage: 'dashboard', previousPage: 'dashboard',
       boardSettings: { ...data.boardSettings, activeSyncCode: undefined, isTafelOpen: false },
     }));
     restoringRef.current = true;
@@ -1439,12 +1441,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         // The deleted class WAS the active class -> switch to first remaining class
         const nextClass = remainingClasses[0];
-        const currentLoc = prev.currentPage || 'cockpit';
-        const forceCockpit = !nextClass.klassenvorstand && ['orga', 'uebergabemappe', 'diagnostik', 'kel'].includes(currentLoc);
+        const currentLoc = prev.currentPage || 'dashboard';
+        const needsSafeLanding = !nextClass.klassenvorstand && ['orga', 'uebergabemappe', 'diagnostik', 'kel'].includes(currentLoc);
 
         return {
           ...prev,
-          currentPage: forceCockpit ? 'cockpit' : currentLoc,
+          currentPage: needsSafeLanding ? 'dashboard' : currentLoc,
           activeClassId: nextClass.id,
           classes: remainingClasses,
           klassenbezeichnung: nextClass.name,

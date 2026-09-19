@@ -5,10 +5,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { logActivity, getAccentTextColor } from '../lib/utils';
 import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput, getHomeworkGradebookSettings, getMirroredAssessmentValue } from '../lib/GradeUtils';
-import { getFachHexColor } from '../lib/fachColorUtils';
 import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
 import WeightSettings from './WeightSettings';
+import GradeOverview from './GradeOverview';
+import LeistungsAuswertungen from './LeistungsAuswertungen';
+import VerbalAssessment from './VerbalAssessment';
 import GradeCalculatorModal from './GradeCalculatorModal';
 import SchularbeitAssessment from './SchularbeitAssessment';
 import { Calculator, Settings, AlertCircle, Plus, Minus, Filter, Sparkles, ChevronDown, User, FileText, BarChart2, Info, ArrowUpRight, Download, RotateCcw, Trash2, Printer, MessageSquare, Brain, TrendingUp, Check } from 'lucide-react';
@@ -118,7 +120,7 @@ const getCurrentSubject = (app: any) => {
   return null;
 };
 
-export default function Gradebook() {
+export default function Gradebook({ initialSection = 'grades' }: { initialSection?: 'grades' | 'overview' } = {}) {
   const { app, setApp, setPage } = useApp();
   const [activeFach, setActiveFach] = useState<string>(() => {
     const currentSubject = getCurrentSubject(app);
@@ -189,6 +191,9 @@ export default function Gradebook() {
   const commonIcons = ['🌟', '😊', '😐', '⚠️', '🚫', '🔥', '❤️', '👍', '👎', '👏', '🙌', '🤝', '💎', '🏆', '👑', '✨', '🚀', '⭐', '🎈', '🎉', '📝', '💬', '📖', '💡', '🍎', '🎒', '🎨', '🧩', '⚽', '💻', '🦁', '🐘', '🦎', '🦉', '🐝'];
   const [sem, setSem] = useState<'1' | '2'>('1');
   const [showWeights, setShowWeights] = useState(false);
+  const [showOverview, setShowOverview] = useState(() => initialSection === 'overview');
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
   const [showGradeCalculator, setShowGradeCalculator] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showClassAverage, setShowClassAverage] = useState(true);
@@ -661,6 +666,7 @@ export default function Gradebook() {
   useEffect(() => {
     // Offene Notenmappe-Dialoge oder Schülerbezüge dürfen nie in die nächste Klasse mitwandern.
     setShowWeights(false);
+    setShowFeedback(false);
     setShowGradeCalculator(false);
     setShowStats(false);
     setShowHueSettings(false);
@@ -1530,18 +1536,33 @@ export default function Gradebook() {
               setEditingAssessmentModal({ typ, idx: i, isNew: false });
               setIsolatedCol(null);
             }}
-            className="absolute -top-1 -right-1 p-1 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-md shadow-xs opacity-0 group-hover/col:opacity-100 transition-opacity z-20 print:hidden text-[0.625rem] text-slate-700 hover:text-indigo-600"
-            title="Umbenennen / Datum / Punkte bearbeiten"
+            aria-label={`${customLabel || defaultName} ${i + 1}: Spaltenoptionen (Bezeichnung, Datum, Höchstpunkte)`}
+            className="absolute -top-1 -right-1 z-20 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-black text-slate-700 shadow-xs opacity-90 transition-opacity hover:border-indigo-300 hover:bg-indigo-50 hover:opacity-100 focus-visible:opacity-100 print:hidden"
+            title="Spaltenoptionen: Bezeichnung, Datum und Höchstpunkte bearbeiten"
           >
-            ✏️
+            ⋯
           </button>
         </div>
       </th>
     );
   };
 
+  if (showDetailedAnalysis) {
+    return <LeistungsAuswertungen initialSubject={activeFach} initialSemester={sem} onBack={() => setShowDetailedAnalysis(false)} />;
+  }
+
+  // One feedback editor, reusing the existing grade and observation data.
+  if (showFeedback) {
+    return <VerbalAssessment mode="feedback" initialSubject={activeFach} initialSemester={sem} onBack={() => setShowFeedback(false)} />;
+  }
+
+  // The overview is another view of this very same gradebook, not a second grade state.
+  if (showOverview) {
+    return <GradeOverview embedded onBack={() => { if (app.currentPage === 'notenTabelle') setPage('noten'); else setShowOverview(false); }} />;
+  }
+
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-3 pb-20">
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
@@ -1572,141 +1593,79 @@ export default function Gradebook() {
         }
       `}} />
 
-      {/* Page Content Header (Buttons only, title is already in Topbar) */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5 pt-1 print:hidden">
-        {activeView === 'verhalten' ? (
-          <div>
-            <h2 className="text-[0.8125rem] leading-snug font-black uppercase tracking-widest text-emerald-600 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
-              <span>🌟 Gesamt-Verhalten & Chronik</span>
-            </h2>
-            <p className="text-[0.6875rem] leading-tight text-slate-450 font-semibold mt-1 uppercase tracking-wider">
-              Klassenweites, fächerunabhängiges Verhalten · Kontinuierliches Feedback
-            </p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2.5">
-            <span className="text-[0.5625rem] font-black uppercase tracking-widest text-slate-400">Aktives Schulfach wählen:</span>
-            <select
-              value={activeFach}
-              onChange={(event) => {
-                setActiveFach(event.target.value);
+      {/* One subject selector and a compact overview; assessment data and calculation remain unchanged. */}
+      <header className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm print:hidden" aria-label="Notenmappe – Fach und Werkzeuge">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {activeView === 'verhalten' ? <span className="text-sm font-bold text-slate-800">Verhalten · Klassenübersicht</span> : <div className="flex flex-wrap items-center gap-2">
+            <label className="sr-only" htmlFor="gradebook-active-subject">Schulfach auswählen</label>
+            <select id="gradebook-active-subject" value={activeFach}
+              onChange={event => {
+                const fach = event.target.value;
+                setActiveFach(fach);
                 setShowWeights(false);
+                if (activeView === 'hue' && !['deutsch', 'mathematik', 'sachunterricht', 'mathe'].some(name => fach.toLowerCase().includes(name))) {
+                  setActiveView('noten');
+                }
               }}
-              aria-label="Aktives Schulfach auswählen"
-              className="lg:hidden w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {availableSubjects.map(subject => (
-                <option key={subject} value={subject}>{subject}</option>
-              ))}
+              className="max-w-[15rem] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+              {availableSubjects.map(fach => <option key={fach} value={fach}>{fach}</option>)}
             </select>
-            <div className="hidden lg:flex flex-wrap gap-1.5 bg-slate-50 p-1.5 rounded-xl border border-slate-200">
-              {(() => {
-                return availableSubjects.map(f => {
-                  const isFActive = !app.faecher || app.faecher.includes(f) || f === 'Unterricht';
-                  const isSelected = activeFach === f;
-                  const fHex = getFachHexColor(app?.fachConfig?.[f]?.color || f);
-                  
-                  // Map some emojis to subjects to enrich without cluttering
-                  const subjectEmoji = f === 'Deutsch' ? '📚' : f === 'Mathematik' ? '📐' : f === 'Sachunterricht' ? '🌍' : f === 'Englisch' ? '🇬🇧' : f === 'Musik' ? '🎵' : f === 'Turnen' ? '🏃' : f === 'Unterricht' ? '🏫' : '📝';
-                  
-                  return (
-                    <button 
-                      key={f}
-                      className={`px-3 py-2 rounded-lg text-[0.6875rem] font-bold tracking-wide transition-all cursor-pointer flex items-center gap-2 ${
-                        isSelected 
-                          ? isFActive 
-                            ? 'bg-emerald-700 text-white shadow-sm' 
-                            : 'bg-amber-700 text-white shadow-sm' 
-                          : isFActive 
-                            ? 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/80 shadow-3xs' 
-                            : 'bg-zinc-50/50 text-slate-450 hover:bg-zinc-100 hover:text-slate-600 border border-slate-200/40 opacity-75'
-                      }`}
-                      onClick={() => {
-                        setActiveFach(f);
-                        setShowWeights(false);
-                        const isHueAllowed = ['deutsch', 'mathematik', 'sachunterricht', 'mathe'].some(s => f?.toLowerCase().includes(s));
-                        if (activeView === 'hue' && !isHueAllowed) {
-                          setActiveView('noten');
-                        }
-                      }}
-                    >
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/40 shadow-xs" style={{ backgroundColor: fHex }} />
-                      <span>{subjectEmoji} {f}</span>
-                      {!isFActive && (
-                        <span className={`text-[0.4375rem] leading-none uppercase font-black px-1.5 py-0.5 rounded border tracking-wider shrink-0 ${
-                          isSelected 
-                            ? 'bg-amber-500/30 border-amber-400/30 text-amber-100' 
-                            : 'bg-zinc-100 border-zinc-200/50 text-slate-400'
-                        }`}>
-                          einfach
-                        </span>
-                      )}
-                    </button>
-                  );
-                });
-              })()}
+            <label className="sr-only" htmlFor="gradebook-semester">Semester auswählen</label>
+            <select id="gradebook-semester" value={sem} onChange={event => setSem(event.target.value as '1' | '2')}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-600">
+              <option value="1">1. Semester</option>
+              <option value="2">2. Semester</option>
+            </select>
+          </div>}
+          {activeView !== 'verhalten' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => { setShowGradeCalculator(!showGradeCalculator); setShowWeights(false); }}
+                aria-pressed={showGradeCalculator}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                <Calculator size={15} /> Notenrechner
+              </button>
+              <button type="button" onClick={() => {
+                setShowOverview(true);
+                setShowGradeCalculator(false);
+                setShowWeights(false);
+                setShowMoreMenu(false);
+              }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                <BarChart2 size={15} /> Notenübersicht
+              </button>
+              <button type="button" onClick={() => {
+                setShowDetailedAnalysis(true);
+                setShowFeedback(false); setShowOverview(false); setShowWeights(false);
+                setShowMoreMenu(false); setShowGradeCalculator(false);
+              }} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                <BarChart2 size={15} /> Auswertungen
+              </button>
+              <button type="button" onClick={() => {
+                setShowFeedback(true);
+                setShowOverview(false);
+                setShowGradeCalculator(false);
+                setShowWeights(false);
+                setShowMoreMenu(false);
+              }} className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                <MessageSquare size={15} /> Leistungsfeedback
+              </button>
+              <button type="button" onClick={() => { setShowWeights(!showWeights); setShowGradeCalculator(false); }}
+                aria-pressed={showWeights}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold ${showWeights ? 'border-emerald-700 bg-emerald-700 text-white' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
+                <Settings size={15} /> Gewichtung
+              </button>
             </div>
+          )}
+        </div>
+        {activeView !== 'verhalten' && app.schueler.length > 0 && !showWeights && (
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-xs text-slate-600" aria-label="Bewertungsstatus">
+            <span className="font-semibold">{gradebookDataStatus.assessmentEntries} Einträge</span>
+            <span>{gradebookDataStatus.studentsWithEntries}/{gradebookDataStatus.totalStudents} Kinder mit Daten</span>
+            <span>{gradebookDataStatus.calculatedStudents}/{gradebookDataStatus.totalStudents} Schnitt berechenbar</span>
+            <span>{hasAnyAssessment ? `${missingCount} unvollständig` : 'Noch nicht begonnen'}</span>
           </div>
         )}
-        {activeView !== 'verhalten' && (
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-stretch md:self-auto">
-            <button 
-              onClick={() => { setShowGradeCalculator(!showGradeCalculator); setShowWeights(false); }}
-              className={`px-4 py-2.5 border rounded-xl text-[0.6875rem] font-bold uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 shadow-sm ${showGradeCalculator ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-emerald-300'}`}
-            >
-              <Calculator size={14} className={showGradeCalculator ? 'text-white' : 'text-emerald-600'} />
-              <span>Notenrechner</span>
-            </button>
-            <button 
-              onClick={() => { setShowWeights(!showWeights); setShowGradeCalculator(false); }}
-              className={`px-4 py-2.5 border rounded-xl text-[0.6875rem] font-bold uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 shadow-sm ${showWeights ? 'bg-emerald-700 text-white border-emerald-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-emerald-300'}`}
-            >
-              <Settings size={14} className={showWeights ? 'text-white' : 'text-slate-500'} />
-              <span>Gewichtung</span>
-            </button>
-          </div>
-        )}
-      </div>
-
-      {activeView !== 'verhalten' && app.schueler.length > 0 && (
-        <section className="rounded-2xl border border-emerald-100 bg-emerald-50/35 p-4 print:hidden" aria-labelledby="gradebook-status-heading">
-          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-            <div>
-              <h2 id="gradebook-status-heading" className="text-sm font-black text-slate-900">
-                {activeFach} · Schuljahr
-              </h2>
-              <p className="text-xs font-bold text-slate-500 mt-1">
-                Eingaben werden automatisch in Statistik, Schülerdossier und KEL-Präsentation übernommen.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 xl:min-w-[570px]">
-              <div className="rounded-xl bg-white border border-white px-3 py-2 shadow-xs">
-                <div className="text-lg font-black text-emerald-700 tabular-nums">{gradebookDataStatus.assessmentEntries}</div>
-                <div className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-500">Einträge</div>
-              </div>
-              <div className="rounded-xl bg-white border border-white px-3 py-2 shadow-xs">
-                <div className="text-lg font-black text-indigo-700 tabular-nums">
-                  {gradebookDataStatus.studentsWithEntries}<span className="text-xs text-slate-400">/{gradebookDataStatus.totalStudents}</span>
-                </div>
-                <div className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-500">Kinder mit Daten</div>
-              </div>
-              <div className="rounded-xl bg-white border border-white px-3 py-2 shadow-xs">
-                <div className="text-lg font-black text-amber-700 tabular-nums">
-                  {gradebookDataStatus.calculatedStudents}<span className="text-xs text-slate-400">/{gradebookDataStatus.totalStudents}</span>
-                </div>
-                <div className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-500">Schnitt berechenbar</div>
-              </div>
-              <div className="rounded-xl bg-white border border-white px-3 py-2 shadow-xs">
-                <div className="text-lg font-black text-violet-700 tabular-nums">{hasAnyAssessment ? missingCount : '–'}</div>
-                <div className="text-[0.5625rem] font-black uppercase tracking-wider text-slate-500">
-                  {hasAnyAssessment ? 'Unvollständig' : 'Noch nicht begonnen'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+      </header>
 
       {app.schueler.length === 0 ? (
         <div className="py-12">
@@ -1721,35 +1680,16 @@ export default function Gradebook() {
       ) : (
         <div className="contents">
           {/* Streamlined Top Control Bar */}
-          <div className="flex flex-col gap-3 bg-white rounded-2xl p-4 shadow-sm border border-slate-200 no-print mb-4">
+          <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm no-print mb-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              {/* Left: Subject Selection */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <select
-                  value={activeFach}
-                  onChange={(e) => setActiveFach(e.target.value)}
-                  className="bg-slate-100 border border-slate-200 hover:border-emerald-500 font-black text-slate-800 text-[0.875rem] rounded-xl px-3.5 py-2 outline-none cursor-pointer transition-all shadow-3xs"
-                >
-                  {availableSubjects.map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={() => setSimpleDashboardMode(!simpleDashboardMode)}
-                  className={`px-3 py-2 rounded-xl text-[0.75rem] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer border ${
-                    simpleDashboardMode
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-3xs'
-                      : 'bg-slate-50 text-slate-500 border-slate-200'
-                  }`}
-                  title="Einfachmodus reduziert die sichtbare Komplexität für den Schulalltag"
-                >
-                  <span>{simpleDashboardMode ? '✨ Einfachmodus' : '⚙️ Erweiterter Modus'}</span>
-                </button>
-              </div>
-
+              <button type="button" aria-pressed={simpleDashboardMode}
+                onClick={() => setSimpleDashboardMode(prev => !prev)}
+                title="Nur die Darstellung vereinfachen – alle Noten und Berechnungen bleiben identisch"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-100">
+                {simpleDashboardMode ? '✨ Einfache Ansicht' : '⚙️ Erweiterte Ansicht'}
+                <span className="text-[0.65rem] font-semibold text-slate-500">Wechseln</span>
+              </button>
+              
               {/* Right: + Bewertung & Mehr Menu */}
               <div className="flex items-center gap-2">
                 <button
@@ -1864,7 +1804,7 @@ export default function Gradebook() {
             </div>
 
             {/* Main View Tabs */}
-            <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200/50 relative z-10 w-full overflow-x-auto">
+            <div className="relative z-10 flex w-full overflow-x-auto rounded-xl border border-slate-200/50 bg-slate-100 p-1">
               {(isFachActive
                 ? [
                     { id: 'noten', label: 'Leistungen' },
@@ -2277,6 +2217,12 @@ export default function Gradebook() {
                     {homeworkSettings.mode === 'document'
                       ? 'Dokumentations-Modus: Fehlende Hausübungen werden erfasst, führen aber zu keinem automatischen Noten- oder Punkteabzug.'
                       : `Bewertungs-Modus: Ausgangswert 100% minus ${homeworkSettings.percentDeduction}% pro vergessene HÜ. Gewichtung: ${Math.round(cfg.g.hue * 100)}%.`}
+                   {homeworkSettings.mode !== 'document' && cfg.g.hue === 0 && (
+                     <span className="mt-1 block font-semibold text-amber-900" role="status">
+                       Hausübungsbewertung aktiv, jedoch mit 0 % eigenem Anteil am Fachschnitt.
+                       Ein gesondert eingestellter Mitarbeitabzug kann weiterhin wirken.
+                     </span>
+                   )}
                   </p>
                </div>
                
@@ -2287,7 +2233,7 @@ export default function Gradebook() {
                    aria-expanded={showHueSettings}
                    className="px-3.5 py-2 bg-white border border-rose-200 text-rose-800 rounded-xl text-[0.625rem] font-black uppercase tracking-wider shadow-3xs hover:bg-rose-50 active:scale-95 transition-all"
                  >
-                   {showHueSettings ? 'HÜ-Einstellungen schließen' : 'HÜ-Einstellungen'}
+                   {showHueSettings ? 'HÜ-Regeln schließen' : 'HÜ-Regeln'}
                  </button>
                  {showHueSettings && (
                  <div className="flex flex-wrap items-center justify-end gap-2.5">
@@ -3153,7 +3099,7 @@ export default function Gradebook() {
         </div>
       ) : showWeights ? (
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-300 print:hidden">
-          <WeightSettings onBack={() => setShowWeights(false)} />
+          <WeightSettings onBack={() => setShowWeights(false)} initialFach={activeFach} />
         </div>
       ) : (
         <div className="contents">
@@ -3344,10 +3290,10 @@ export default function Gradebook() {
                    {cfg.obj && <span className="text-[0.5625rem] bg-rose-50 text-rose-700 px-2.5 py-1 rounded-full border border-rose-100 font-black uppercase tracking-wider">{getNotenLabel(app, activeFach, 'obj', cfg.objLabel || 'Objekt')} {Math.round(cfg.g.obj * 100)}%</span>}
                    {cfg.mi && cfg.g.mi > 0 && <span className="text-[0.5625rem] bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full border border-orange-100 font-black uppercase tracking-wider">{getNotenLabel(app, activeFach, 'mi', 'MI')} {Math.round(cfg.g.mi * 100)}%</span>}
                    
-                   <span className="inline-flex items-center gap-1.5 text-[0.5625rem] bg-slate-100 text-slate-500 hover:text-slate-750 px-2.5 py-1 rounded-full border border-slate-200/60 font-semibold select-none cursor-help transition-all duration-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-100" title="Keyboard-Modus aktiv: Nutze die Pfeiltasten (↑, ↓, ←, →) oder die Enter-Taste (Enter / Umschalt+Enter) zum extrem schnellen Ausfüllen der Notentabelle wie in Excel!">
+                   {!simpleDashboardMode && <span className="inline-flex items-center gap-1.5 text-[0.5625rem] bg-slate-100 text-slate-500 hover:text-slate-750 px-2.5 py-1 rounded-full border border-slate-200/60 font-semibold select-none cursor-help transition-all duration-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-100" title="Keyboard-Modus aktiv: Nutze die Pfeiltasten (↑, ↓, ←, →) oder die Enter-Taste (Enter / Umschalt+Enter) zum extrem schnellen Ausfüllen der Notentabelle wie in Excel!">
                      <span className="font-mono bg-white px-1 py-0.5 rounded border border-slate-300 text-[0.5rem] font-black shadow-3xs">⌨ kbd</span>
                      <span>Steuerbar mit Pfeiltasten</span>
-                   </span>
+                   </span>}
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -3385,6 +3331,7 @@ export default function Gradebook() {
                     </span>
                   )}
                 </button>
+                {!simpleDashboardMode && <>
                 <button 
                   onClick={() => {
                     if (sortBy === 'avg') {
@@ -3424,6 +3371,7 @@ export default function Gradebook() {
                     <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${showClassAverage ? 'left-[1.1rem]' : 'left-0.5'}`} />
                   </button>
                 </div>
+                </>}
               </div>
             </div>
 

@@ -413,6 +413,18 @@ export interface Student {
   wunschpartner?: string[]; // student IDs
   sperrpartner?: string[];  // student IDs
   portfolio?: PortfolioEntry[];
+  /** Verschlüsselter, klassenlokaler KEL-Vorbereitungsplan je Schuljahr, Semester und Gespräch.
+   * Enthält nur Freigabeschalter und IDs, niemals kopierte Bewertungen.
+   */
+  kelPraesentationAuswahl?: Record<string, {
+    classId: string;
+    studentId: string;
+    semester: string;
+    visible: Record<string, boolean>;
+    selectedSubjects: string[];
+    selectedAssessmentIds: string[];
+    updatedAt: string;
+  }>;
   /** Optional teacher-reviewed learning-goal explanation per semester; separate from Oberau matrix. */
   lernzielErlaeuterungen?: Partial<Record<'1' | '2', { text: string; updatedAt: string; modellName: string }>>;
   geburtsdatum?: string; // Standardized name for birthday if needed
