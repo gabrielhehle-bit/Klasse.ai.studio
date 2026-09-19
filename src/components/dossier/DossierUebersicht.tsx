@@ -25,7 +25,6 @@ import { useApp } from '../../context/AppContext';
 import {
   getStudentAttendanceSummary,
   getStudentBehaviorSummary,
-  getStudentGradeSummary,
   getStudentNotes
 } from '../../lib/studentMetrics';
 import {
@@ -112,10 +111,6 @@ export default function DossierUebersicht({ student, onTabChange, semester, onQu
   const subjects = useMemo(() => {
     return FAECHER_ALLE.filter(subject => !app.faecher || app.faecher.includes(subject));
   }, [app.faecher]);
-
-  const grades = useMemo(() => {
-    return getStudentGradeSummary(app, student.id, subjects, semester);
-  }, [app, student.id, subjects, semester]);
 
   const attendance = useMemo(() => {
     return getStudentAttendanceSummary(app, student.id);
@@ -232,7 +227,7 @@ export default function DossierUebersicht({ student, onTabChange, semester, onQu
         endnote,
         displayValue,
         trend,
-        hasGrade: (endnote !== undefined && endnote !== null && String(endnote).trim() !== '' && String(endnote) !== '—') || avg !== null
+        hasGrade: (mode === 'grades' && endnote !== undefined && endnote !== null && String(endnote).trim() !== '' && String(endnote) !== '—') || avg !== null
       };
     });
   }, [app, student.id, subjects, semester]);
