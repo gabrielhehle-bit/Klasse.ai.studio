@@ -25,6 +25,7 @@ import DossierKontakteEinwilligungen from './dossier/DossierKontakteEinwilligung
 import DossierUebersicht from './dossier/DossierUebersicht';
 import DossierKIPortfolio from './dossier/DossierKIPortfolio';
 import DossierLeistungen from './dossier/DossierLeistungen';
+import VerbalAssessment from './VerbalAssessment';
 import StudentPortfolio from './StudentPortfolio';
 import DossierLernzielErlaeuterung from './dossier/DossierLernzielErlaeuterung';
 import DossierFoerderprofil from './dossier/DossierFoerderprofil';
@@ -82,6 +83,7 @@ export type DossierTab =
   | 'notizen'
   | 'prep'
   | 'leistungen' 
+  | 'leistungsfeedback'
   | 'portfolio'
   | 'lernziel_erlaeuterung'
   | 'foerderprofil' 
@@ -132,6 +134,7 @@ export const MAIN_AREAS: MainAreaDef[] = [
     defaultTab: 'leistungen',
     tabs: [
       { id: 'leistungen', label: 'Leistungsübersicht', shortLabel: 'Leistungen', icon: BarChart3, description: 'Kompakte fachliche Gesamtschau und Leistungsdaten' },
+      { id: 'leistungsfeedback', label: 'Leistungsfeedback erstellen', shortLabel: 'Feedback', icon: FileText, description: 'Ausgewählte Daten und Beobachtungen zu einer Rückmeldung formulieren' },
       { id: 'lernziele', label: 'Lernziele & Kompetenzen', shortLabel: 'Lernziele', icon: Target, description: 'Lehrplan-Kompetenzen und erreichte Teilziele' },
       { id: 'portfolio', label: 'Portfolio', shortLabel: 'Portfolio', icon: BookOpen, description: 'Arbeiten, Fotos und echte individuelle Lernnachweise' },
       { id: 'lernziel_erlaeuterung', label: 'Erläuterung', shortLabel: 'Erläuterung', icon: FileText, description: 'Schulinterne Lernziel-Rückmeldung mit eigenem Text, keine automatische Notenentscheidung' },
@@ -845,6 +848,9 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                       setActiveTab(tab as DossierTab);
                     }}
                   />
+                )}
+                {activeTab === 'leistungsfeedback' && (
+                  <VerbalAssessment mode="feedback" initialStudentId={student.id} initialSemester={sem} onBack={() => setActiveTab('leistungen')} />
                 )}
                 {activeTab === 'portfolio' && <StudentPortfolio key={student.id} schuelerId={student.id} />}
                 {activeTab === 'lernziel_erlaeuterung' && (
