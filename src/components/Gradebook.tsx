@@ -2171,6 +2171,12 @@ export default function Gradebook() {
                     {homeworkSettings.mode === 'document'
                       ? 'Dokumentations-Modus: Fehlende Hausübungen werden erfasst, führen aber zu keinem automatischen Noten- oder Punkteabzug.'
                       : `Bewertungs-Modus: Ausgangswert 100% minus ${homeworkSettings.percentDeduction}% pro vergessene HÜ. Gewichtung: ${Math.round(cfg.g.hue * 100)}%.`}
+                   {homeworkSettings.mode !== 'document' && cfg.g.hue === 0 && (
+                     <span className="mt-1 block font-semibold text-amber-900" role="status">
+                       Hausübungsbewertung aktiv, jedoch mit 0 % eigenem Anteil am Fachschnitt.
+                       Ein gesondert eingestellter Mitarbeitabzug kann weiterhin wirken.
+                     </span>
+                   )
                   </p>
                </div>
                
@@ -2181,7 +2187,7 @@ export default function Gradebook() {
                    aria-expanded={showHueSettings}
                    className="px-3.5 py-2 bg-white border border-rose-200 text-rose-800 rounded-xl text-[0.625rem] font-black uppercase tracking-wider shadow-3xs hover:bg-rose-50 active:scale-95 transition-all"
                  >
-                   {showHueSettings ? 'HÜ-Einstellungen schließen' : 'HÜ-Einstellungen'}
+                   {showHueSettings ? 'HÜ-Regeln schließen' : 'HÜ-Regeln'}
                  </button>
                  {showHueSettings && (
                  <div className="flex flex-wrap items-center justify-end gap-2.5">
@@ -3238,10 +3244,10 @@ export default function Gradebook() {
                    {cfg.obj && <span className="text-[0.5625rem] bg-rose-50 text-rose-700 px-2.5 py-1 rounded-full border border-rose-100 font-black uppercase tracking-wider">{getNotenLabel(app, activeFach, 'obj', cfg.objLabel || 'Objekt')} {Math.round(cfg.g.obj * 100)}%</span>}
                    {cfg.mi && cfg.g.mi > 0 && <span className="text-[0.5625rem] bg-orange-50 text-orange-700 px-2.5 py-1 rounded-full border border-orange-100 font-black uppercase tracking-wider">{getNotenLabel(app, activeFach, 'mi', 'MI')} {Math.round(cfg.g.mi * 100)}%</span>}
                    
-                   <span className="inline-flex items-center gap-1.5 text-[0.5625rem] bg-slate-100 text-slate-500 hover:text-slate-750 px-2.5 py-1 rounded-full border border-slate-200/60 font-semibold select-none cursor-help transition-all duration-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-100" title="Keyboard-Modus aktiv: Nutze die Pfeiltasten (↑, ↓, ←, →) oder die Enter-Taste (Enter / Umschalt+Enter) zum extrem schnellen Ausfüllen der Notentabelle wie in Excel!">
+                   {!simpleDashboardMode && <span className="inline-flex items-center gap-1.5 text-[0.5625rem] bg-slate-100 text-slate-500 hover:text-slate-750 px-2.5 py-1 rounded-full border border-slate-200/60 font-semibold select-none cursor-help transition-all duration-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-100" title="Keyboard-Modus aktiv: Nutze die Pfeiltasten (↑, ↓, ←, →) oder die Enter-Taste (Enter / Umschalt+Enter) zum extrem schnellen Ausfüllen der Notentabelle wie in Excel!">
                      <span className="font-mono bg-white px-1 py-0.5 rounded border border-slate-300 text-[0.5rem] font-black shadow-3xs">⌨ kbd</span>
                      <span>Steuerbar mit Pfeiltasten</span>
-                   </span>
+                   </span>}
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -3279,6 +3285,7 @@ export default function Gradebook() {
                     </span>
                   )}
                 </button>
+                {!simpleDashboardMode && <>
                 <button 
                   onClick={() => {
                     if (sortBy === 'avg') {
@@ -3318,6 +3325,7 @@ export default function Gradebook() {
                     <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${showClassAverage ? 'left-[1.1rem]' : 'left-0.5'}`} />
                   </button>
                 </div>
+                </>}
               </div>
             </div>
 
