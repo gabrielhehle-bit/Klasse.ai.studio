@@ -52,8 +52,14 @@ export function buildKlassenbuchPdfDefinition(options: KlassenbuchPdfOptions): T
     ) + String(week.notes || '').length
       + (week.absentees || []).reduce((sum, entry) => sum + entry.name.length + entry.info.length, 0);
 
-    // Eine Schulwoche soll auf genau einer A4-Seite bleiben.
-    // Je nach Datenmenge wird nur die Typografie verdichtet – Inhalte werden niemals abgeschnitten.
+    // A normal school week remains on one A4 page, but overflowing text
+    // takes precedence over the one-page preference.
+    // A4 is mandatory. A very long week cannot always fit on one page:
+    // keep normal weeks together, but allow oversized weeks to flow onto a
+    // further A4 page instead of clipping text or failing on an unbreakable table.
+    const longestEntry = Math.max(0, ...categories.flatMap(([, entries]) =>
+      entries.map(value => String(value || '').length)));
+    const fitsOnePage = totalCharacters <= 3800 && longestEntry <= 950 && categories.length <= 28;
     const dense = categories.length >= 15 || totalCharacters > 1800;
     const veryDense = categories.length >= 19 || totalCharacters > 3000;
     const rowFontSize = veryDense ? 5.7 : dense ? 6.4 : 7.1;
@@ -93,7 +99,7 @@ export function buildKlassenbuchPdfDefinition(options: KlassenbuchPdfOptions): T
     });
 
     const weekBlock: any = {
-      unbreakable: true,
+      unbreakable: fitsOnePage,
       stack: [
         {
           columns: [
@@ -126,7 +132,7 @@ export function buildKlassenbuchPdfDefinition(options: KlassenbuchPdfOptions): T
         {
           table: {
             headerRows: 1,
-            dontBreakRows: true,
+            dontBreakRows: fitsOnePage,
             keepWithHeaderRows: 1,
             widths: [118, '*'],
             body: [
