@@ -34,7 +34,7 @@ export function filterChronicleEntries(
       filter === 'all'
         ? true
         : filter === 'journal'
-          ? entry.kategorie === 'Journal'
+          ? !entry.schuelerId // Allgemein: both free-form class notes and journal entries
           : Boolean(entry.schuelerId);
 
     return matchesSearch && matchesFilter;
