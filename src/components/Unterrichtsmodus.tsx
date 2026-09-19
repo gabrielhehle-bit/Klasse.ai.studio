@@ -1,4 +1,6 @@
 import { shouldApplyTafelCommand } from '../lib/tafelCommands';
+import { getTodayIsoDate } from '../lib/kidAttendanceAlgorithm';
+import { dailyBehaviorEntries } from '../lib/dailyBehaviorEntries';
 import React, {
   useEffect,
   useState,
@@ -5290,6 +5292,7 @@ ${content}
   const customImg =
     app.unterrichtsmodus_eigenesBild ||
     app.unterrichtsmodus_eigenesBildProModus?.[currentModus];
+  const canvaBackground = app.unterrichtsmodus_canvaBild;
 
   const sidebarOpen = app.unterrichtsmodus_sidebar_open ?? false;
   const setSidebarOpen = (open: boolean) =>
@@ -6505,9 +6508,12 @@ ${content}
       const newEntries: any[] = [];
       const currentMitarbeit = prev.mitarbeit || {};
       const newMitarbeit = { ...currentMitarbeit };
-      const todayStr = new Date().toISOString().split("T")[0];
+      const todayStr = getTodayIsoDate();
 
       (prev.schueler || []).forEach((student: any) => {
+        // Ein Kind erhält maximal einen Tagesabschluss. Re-Render, manuelles Sichern,
+        // erneuter Cockpit-Aufruf und Automatik dürfen keine Duplikate erzeugen.
+        if (dailyBehaviorEntries(prev.statusLog || [], student.id, todayStr).length) return;
         const stageId = currentStatuses[student.id] || defaultStageId;
         newEntries.push({
           id: Math.random().toString(36).substr(2, 9),
@@ -6542,6 +6548,9 @@ ${content}
         }
       });
 
+      // Bei erneutem Aufruf denselben unveränderten Stand belassen; auch keine
+      // Mitarbeitspunkte doppelt buchen oder weitere Beobachtungen generieren.
+      if (newEntries.length === 0) return prev;
       return {
         ...prev,
         statusLog: [...newEntries, ...(prev.statusLog || [])],
@@ -6561,7 +6570,7 @@ ${content}
     }
 
     setSessionSuccessMessage(
-      `Verhalten für alle ${loggedCount} Schüler und alle Mitarbeitspunkte für "${currentSubject}" erfolgreich täglich gespeichert! 🌟✏️`,
+      `Tagesabschluss für ${loggedCount} Kinder gesichert. Bereits gespeicherte Tageswerte bleiben unverändert.`,
     );
     setTimeout(() => {
       setSessionSuccessMessage(null);
@@ -6579,11 +6588,16 @@ ${content}
     // Note: updateHasAutoSavedToday is derived from useState/localStorage, stable reference not strictly needed in deps
   ]);
 
+  const behaviorSavedToday = hasAutoSavedToday === getTodayIsoDate() ||
+    (app.schueler?.length > 0 && app.schueler.every(student =>
+      dailyBehaviorEntries(app.statusLog || [], student.id, getTodayIsoDate()).length > 0
+    ));
+
   // Automatic Behavior Auto-Save logic
   useEffect(() => {
     // Check if we already saved today (for this specific date)
-    const todayStr = new Date().toISOString().split("T")[0];
-    if (hasAutoSavedToday === todayStr) return;
+    const todayStr = getTodayIsoDate();
+    if (behaviorSavedToday) return;
 
     // We only auto-save if the last active lesson is truly over
     if (commitAllowance.allowed && commitAllowance.lastHourIdx !== -1) {
@@ -6601,13 +6615,12 @@ ${content}
         commitBehaviorToHistory(true);
       }
     }
-  }, [time, commitAllowance, commitBehaviorToHistory, hasAutoSavedToday, lessonTimeSlots]);
+  }, [time, commitAllowance, commitBehaviorToHistory, behaviorSavedToday, lessonTimeSlots]);
 
   const handleCloseCockpit = () => {
     // Nur dann beim Schließen sichern, wenn der Tagesabschluss bereits freigegeben ist.
     // Ein zu frühes Schließen darf den Tag niemals fälschlich als gespeichert markieren.
-    const todayStr = new Date().toISOString().split("T")[0];
-    if (hasAutoSavedToday !== todayStr && commitAllowance.allowed) {
+    if (!behaviorSavedToday && commitAllowance.allowed) {
       console.log(
         "Auto-saving behavior & mitarbeit on closing classroom cockpit...",
       );
@@ -7499,15 +7512,15 @@ ${content}
           className="absolute inset-0 pointer-events-none transition-all duration-700"
           style={{
             ...currentBg.style,
-            ...(currentBgId === "eigenes" && customImg
+            ...((currentBgId === "eigenes" && customImg) || (currentBgId === "canva" && canvaBackground)
               ? {
-                  backgroundImage: `url(${customImg})`,
-                  backgroundSize: "cover",
+                  backgroundImage: `url("${currentBgId === "canva" ? canvaBackground : customImg}")`,
+                  backgroundSize: "contain",
                   backgroundPosition: "center",
                   backgroundRepeat: "no-repeat",
                 }
               : {}),
-            opacity: currentBgId === "eigenes" ? 0.35 : 0.25,
+            opacity: currentBgId === "canva" ? 0.82 : currentBgId === "eigenes" ? 0.35 : 0.25,
           }}
         />
       )}
@@ -7563,7 +7576,7 @@ ${content}
             {/* 1. Auto-Save & Manual-Commit status indicator */}
             <div className="flex items-center gap-1 mt-0.5 select-none">
               <span className="relative flex h-1.5 w-1.5">
-                {hasAutoSavedToday === new Date().toISOString().split("T")[0] ? (
+                {behaviorSavedToday ? (
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" />
                 ) : (
                   <>
@@ -7572,8 +7585,8 @@ ${content}
                   </>
                 )}
               </span>
-              <span className={`text-[7.5px] font-black uppercase tracking-wider ${hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "text-emerald-500" : "text-amber-500"}`}>
-                {hasAutoSavedToday === new Date().toISOString().split("T")[0] ? "Heute gesichert" : "Speichert beim Beenden"}
+              <span className={`text-[7.5px] font-black uppercase tracking-wider ${behaviorSavedToday ? "text-emerald-500" : "text-amber-500"}`}>
+                {behaviorSavedToday ? "Heute gesichert" : "Speichert beim Beenden"}
               </span>
             </div>
           </div>
@@ -7663,7 +7676,7 @@ ${content}
                   (app.behavior_default_stage_id || "3"),
               ).length;
               const todayStr = new Date().toISOString().split("T")[0];
-              const alreadySavedToday = hasAutoSavedToday === todayStr;
+              const alreadySavedToday = behaviorSavedToday;
               const isButtonDisabled =
                 !commitAllowance.allowed || alreadySavedToday;
 
@@ -8168,7 +8181,8 @@ ${content}
                                 {/* Category Switcher Tab Bar */}
                                 <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
                                   {[
-                                    { id: "categories", label: "Kategorien" },
+                                    { id: "core", label: "20 Kernwidgets" },
+                                    { id: "categories", label: "Weitere Widgets" },
                                     { id: "favorites", label: "★ Favoriten" },
                                     { id: "struct", label: "🗂️ Ablauf & Organisation" },
                                     {
@@ -8453,7 +8467,9 @@ ${content}
                                     ];
 
                                     let count = 0;
-                                    if (cat.id === "categories") {
+                                    if (cat.id === "core") {
+                                      count = PLANNED_COCKPIT_WIDGETS.length;
+                                    } else if (cat.id === "categories") {
                                       count = new Set(
                                         allAvailableWidgets.map((item) => item.category),
                                       ).size;
@@ -9090,6 +9106,53 @@ ${content}
                                     const query = widgetSearch
                                       .toLowerCase()
                                       .trim();
+                                    if (activeWidgetCategory === "core" && !query) {
+                                      return (
+                                        <>
+                                          <p className="col-span-full text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                            20 übersichtliche Einstiege. Wähle bei Bedarf eine Variante; deine bisherigen Widgets und gespeicherten Layouts bleiben unter „Weitere Widgets“ erhalten.
+                                          </p>
+                                          {PLANNED_COCKPIT_WIDGETS.map((group) => {
+                                            const variants = group.sources
+                                              .map((type) => allAvailableWidgets.find((item) => item.type === type))
+                                              .filter((item): item is (typeof allAvailableWidgets)[number] => Boolean(item));
+                                            const expanded = expandedCoreWidget === group.id;
+                                            return (
+                                              <div key={group.id} data-testid={`cockpit-core-group-${group.id}`} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm dark:border-white/15 dark:bg-zinc-900 dark:text-white">
+                                                <button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-left text-sm font-bold hover:bg-indigo-50 dark:hover:bg-white/10"
+                                                  aria-expanded={variants.length > 1 ? expanded : undefined}
+                                                  onClick={() => {
+                                                    if (variants.length === 1) {
+                                                      handleOpenWidgetInCockpitLayout(variants[0].type as CockpitWidgetConfig["type"]);
+                                                      setIsAddWidgetMenuOpen(false);
+                                                    } else {
+                                                      setExpandedCoreWidget(expanded ? null : group.id);
+                                                    }
+                                                  }}>
+                                                  <span>{group.label}</span>
+                                                  <span aria-hidden="true" className="text-indigo-600 dark:text-indigo-300">{variants.length > 1 ? (expanded ? "−" : "+") : "＋"}</span>
+                                                </button>
+                                                {variants.length > 1 && expanded && (
+                                                  <div className="mt-2 flex flex-col gap-1 border-t border-slate-200 pt-2 dark:border-white/15">
+                                                    {variants.map((variant) => (
+                                                      <button type="button" key={variant.type}
+                                                        className="min-h-11 rounded-lg px-3 text-left text-sm hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 dark:hover:bg-white/10"
+                                                        onClick={() => {
+                                                          handleOpenWidgetInCockpitLayout(variant.type as CockpitWidgetConfig["type"]);
+                                                          setIsAddWidgetMenuOpen(false);
+                                                        }}>
+                                                        {variant.label}
+                                                      </button>
+                                                    ))}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })}
+                                        </>
+                                      );
+                                    }
+
                                     const filteredList =
                                       allAvailableWidgets.filter((item) => {
                                         if (query) {
