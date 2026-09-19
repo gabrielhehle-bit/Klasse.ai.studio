@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { logActivity, getAccentTextColor } from '../lib/utils';
 import { getFachCfg, berechne, getAssessmentMode, getMaxPoints, calculateItemPercent, getNotenLabel, isAssessmentValueMissing, hasCalculatedAverage, parseAssessmentInput, parseFinalGradeInput, getHomeworkGradebookSettings, getMirroredAssessmentValue } from '../lib/GradeUtils';
-import { getFachHexColor } from '../lib/fachColorUtils';
 import { FAECHER_ALLE, NOTE_LABELS, STUNDEN_INFO } from '../constants';
 import { GradeData } from '../types';
 import WeightSettings from './WeightSettings';
@@ -2176,7 +2175,7 @@ export default function Gradebook() {
                        Hausübungsbewertung aktiv, jedoch mit 0 % eigenem Anteil am Fachschnitt.
                        Ein gesondert eingestellter Mitarbeitabzug kann weiterhin wirken.
                      </span>
-                   )
+                   )}
                   </p>
                </div>
                
