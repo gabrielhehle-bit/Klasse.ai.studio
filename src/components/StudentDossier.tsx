@@ -59,6 +59,8 @@ interface StudentDossierProps {
   schuelerId: string;
   onBack?: () => void;
   onStudentChange?: (id: string) => void;
+  /** Optional deep link from class-year report management, no persisted navigation state. */
+  initialReportView?: boolean;
 }
 
 export type MainAreaId = 
@@ -183,12 +185,12 @@ export const getActiveMainArea = (tab: DossierTab): MainAreaId => {
   return 'uebersicht';
 };
 
-export default function StudentDossier({ schuelerId, onBack, onStudentChange }: StudentDossierProps) {
+export default function StudentDossier({ schuelerId, onBack, onStudentChange, initialReportView = false }: StudentDossierProps) {
   const { app, setApp, setPage } = useApp();
   const student = app.schueler.find(s => s.id === schuelerId);
   
   // Always start with 'uebersicht'
-  const [activeTab, setActiveTab] = useState<DossierTab>('uebersicht');
+  const [activeTab, setActiveTab] = useState<DossierTab>(initialReportView ? 'berichte' : 'uebersicht');
   const [pendingQuickEntry, setPendingQuickEntry] = useState<'note' | 'strength' | 'parent' | 'goal' | null>(null);
 
   const openOverviewQuickEntry = (type: 'note' | 'strength' | 'parent' | 'goal') => {
@@ -823,7 +825,7 @@ export default function StudentDossier({ schuelerId, onBack, onStudentChange }: 
                 {(activeTab === 'berichte' || activeTab === 'ki_summary' || activeTab === 'eltern_report') && (
                   <DossierBerichte 
                     student={student} 
-                    initialSubView={activeTab === 'eltern_report' ? 'eltern_report' : 'ki_summary'}
+                    initialSubView={activeTab === 'eltern_report' ? 'eltern_report' : initialReportView && activeTab === 'berichte' ? 'jahresbericht' : 'ki_summary'}
                     onStartPresentation={() => setPresentationModeActive(true)}
                     semester={sem}
                     onSemesterChange={changeSemester}
