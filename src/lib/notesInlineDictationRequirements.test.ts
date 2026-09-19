@@ -79,6 +79,15 @@ test('Klassenwechsel verwirft laufende Spracheingabe, manuelles Stopp wartet auf
   assert.match(hook, /recognition\.onresult = event =>/);
 });
 
+test('Ältere Sprachnotizen bleiben ohne zweiten Aufnahmeweg aufklappbar', () => {
+  const legacyArchive = readFileSync('src/components/StimmNotizen.tsx', 'utf8');
+  assert.match(notes, /<StimmNotizen archiveOnly \/>/);
+  assert.match(notes, /Frühere Sprachnotizen/);
+  assert.match(legacyArchive, /archiveOnly = false/);
+  assert.match(legacyArchive, /!archiveOnly \&\& <button/);
+  assert.match(legacyArchive, /noteCategoryAppearance\(note\.kategorie\)\.badge/);
+});
+
 test('Notizen: überflüssige Reiter verschwinden, Klasse und Schülerzuordnung bleiben', () => {
   assert.match(notes, /Notizen & Beobachtungen/);
   assert.doesNotMatch(notes, /id: 'config', label: 'Einstellungen'/);
