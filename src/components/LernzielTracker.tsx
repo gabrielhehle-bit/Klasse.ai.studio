@@ -11,7 +11,9 @@ import {
   Search,
 } from "lucide-react";
 import { motion } from "motion/react";
-import LernzielTrendChart from "./charts/LernzielTrendChart";
+import LernzielVisualisierung from './LernzielVisualisierung';
+import { getLernzielModell, lernzielHaeufigkeiten } from '../lib/lernzielBewertungsmodell';
+import { getAccentTextColor } from '../lib/utils';
 import { callServerAI } from "../services/aiService";
 
 export const LERNZIELE_BY_STUFE: Record<
@@ -1241,6 +1243,7 @@ function WizardModal({
   setPage,
 }: any) {
   const { app, setApp } = useApp();
+  const goalModel = getLernzielModell(app.lernzielBewertungsmodell);
   const [activeTab, setActiveTab] = useState<
     "auswahl" | "checkliste" | "zusammenfassung" | "klasse" | "ki"
   >("auswahl");
@@ -1323,7 +1326,8 @@ function WizardModal({
   const getStudentRating = (studentId: string, goalId: string) => {
     const semesterRating = app.studentLernzielSemesterBewertungen?.[studentId]?.[selectedSemester]?.[goalId];
     if (semesterRating !== undefined) return semesterRating;
-    return app.studentLernzielBewertungen?.[studentId]?.[goalId] ?? null;
+    return !app.studentLernzielSemesterBewertungen?.[studentId] && selectedSemester === '1'
+      ? app.studentLernzielBewertungen?.[studentId]?.[goalId] ?? null : null;
   };
 
   const setStudentRating = (
@@ -1964,43 +1968,24 @@ Antworte AUSSCHLIESSLICH im JSON-Format ohne Markdown Block:
                                     <div className="flex-1 font-bold text-slate-700">
                                       {student.vorname} {student.nachname}
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        onClick={() =>
-                                          setStudentRating(
-                                            student.id,
-                                            goalId,
-                                            rating === 1 ? null : 1,
-                                          )
-                                        }
-                                        className={`px-3 py-1.5 rounded-lg text-[0.6875rem] uppercase tracking-wider font-bold transition-all duration-300 border ${rating === 1 ? "bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-400 hover:border-emerald-400" : "bg-white text-slate-500 border-slate-200 hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-700 hover:shadow-sm"}`}
-                                      >
-                                        Erreicht
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          setStudentRating(
-                                            student.id,
-                                            goalId,
-                                            rating === 2 ? null : 2,
-                                          )
-                                        }
-                                        className={`px-3 py-1.5 rounded-lg text-[0.6875rem] uppercase tracking-wider font-bold transition-all duration-300 border ${rating === 2 ? "bg-lime-400 text-slate-800 border-lime-400 hover:bg-lime-300 hover:border-lime-300" : "bg-white text-slate-500 border-slate-200 hover:bg-lime-50 hover:border-lime-400 hover:text-lime-700 hover:shadow-sm"}`}
-                                      >
-                                        Im Wesentlichen
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          setStudentRating(
-                                            student.id,
-                                            goalId,
-                                            rating === 3 ? null : 3,
-                                          )
-                                        }
-                                        className={`px-3 py-1.5 rounded-lg text-[0.6875rem] uppercase tracking-wider font-bold transition-all duration-300 border ${rating === 3 ? "bg-amber-400 text-slate-800 border-amber-400 hover:bg-amber-300 hover:border-amber-300" : "bg-white text-slate-500 border-slate-200 hover:bg-amber-50 hover:border-amber-400 hover:text-amber-700 hover:shadow-sm"}`}
-                                      >
-                                        Minimal
-                                      </button>
+                                    <div className="flex max-w-full flex-wrap items-center gap-2">
+                                      <button type="button"
+                                        aria-pressed={rating === null || rating === undefined}
+                                        onClick={() => setStudentRating(student.id, goalId, null)}
+                                        className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-700"
+                                      >{goalModel.emptyLabel}</button>
+                                      {goalModel.levels.map(level => (
+                                        <button type="button" key={level.value}
+                                          aria-pressed={rating === level.value}
+                                          onClick={() => setStudentRating(student.id, goalId, rating === level.value ? null : level.value)}
+                                          className="rounded-lg border px-2 py-1.5 text-xs font-bold hover:brightness-95"
+                                          style={{ backgroundColor: rating === level.value ? level.color : '#ffffff',
+                                            color: rating === level.value ? getAccentTextColor(level.color) : '#1f2937',
+                                            borderColor: level.color }}
+                                        >{level.symbol} {level.label}</button>
+                                      ))}
+                                      {typeof rating === 'number' && !goalModel.levels.some(level => level.value === rating) &&
+                                        <span className="text-xs text-rose-700">Alte Stufe {rating} (nicht zugeordnet)</span>}
                                     </div>
                                     <div className="flex-[1.5] relative">
                                       <input
