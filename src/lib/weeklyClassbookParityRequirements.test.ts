@@ -59,3 +59,12 @@ test('Schüler-Wochenplan: Erstellung bleibt im Wochenplan; Druck und PDF laufen
   assert.match(printing, /activeTemplate === 'schueler_wochenplan'/);
   assert.match(printing, /selectedChildPlan\?\.orientierung/);
 });
+
+test('Klassenbuch-PDF behält eigene Fachinhalte auch bei ausgeschalteten Terminen und erlaubt A4-Folgeseiten', () => {
+  const pdf = readFileSync('src/lib/klassenbuchPdf.ts', 'utf8');
+  assert.match(pdf, /pageSize: 'A4'/);
+  assert.match(pdf, /unbreakable: fitsOnePage/);
+  assert.match(pdf, /dontBreakRows: fitsOnePage/);
+  assert.match(pdf, /const categories = Object\.entries\(week\.categories\)/);
+  assert.doesNotMatch(pdf, /options\.includeOccurrences !== false \|\| name !== 'Besondere Vorkommnisse'/);
+});
