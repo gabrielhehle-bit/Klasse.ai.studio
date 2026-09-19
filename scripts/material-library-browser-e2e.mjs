@@ -234,6 +234,9 @@ async function main() {
   const uncaught = [];
   const title = 'E2E MINT Material ' + Date.now();
   try {
+    client.on('Runtime.consoleAPICalled', params => {
+      if (params.type === 'error') uncaught.push(params.args?.map(arg => arg.value || arg.description || arg.preview?.description || '').join(' ') || 'Console error');
+    });
     client.on('Runtime.exceptionThrown', params => {
       const details = params.exceptionDetails || {};
       uncaught.push(details.exception?.description || details.text || 'Unknown browser exception');
@@ -280,6 +283,8 @@ async function main() {
       'Array.from(document.querySelectorAll("button")).filter(b=>String(b.textContent||"").trim()==="Im Wochenplan verwenden").length>0');
     if (!quickUse) throw new Error('Material card has no direct weekly-plan action.');
     await clickButton(client, 'Im Wochenplan verwenden', true);
+    const afterClick = await evaluate(client, '({body:document.body?.innerText?.slice(-500),dialogs:document.querySelectorAll("[role=dialog]").length})');
+    console.log('After card action:', JSON.stringify(afterClick));
     await waitFor(client, 'selected material transfer modal', 'document.body?.innerText.includes("Material → Wochenplan")');
     await clickButton(client, 'In Wochenplan übernehmen');
     await waitFor(client, 'weekly plan after library action', 'document.body?.innerText.includes("WOCHENPLANUNG")', 30000);
