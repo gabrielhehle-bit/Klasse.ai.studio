@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { occupiedYearPlanCell, plannedYearWeeks, conflictingYearWeeks } from './annualPlanSafety';
 import { normalizeAppState, syncActiveClass, switchClassState } from './appState';
 import { shiftYearPlanSubjectForward, type YearPlanCell } from './yearlyPlanData';
+import { yearPlanCellEntries } from './yearlyPlanData';
+import { readFileSync } from 'node:fs';
+const requireSource = (path: string) => readFileSync(path, 'utf8');
 
 test('Jahresplan: auch alte Unterthemen, Bucheinträge und Metadaten zählen als vorhandene Planung', () => {
   assert.equal(occupiedYearPlanCell({thema:'',items:[{thema:'Lesen',buch:'Buch'}]}),true);
@@ -42,4 +45,24 @@ test('Verschieben bei voll belegtem Schuljahresende bewahrt alle vorhandenen The
  const shifted=shiftYearPlanSubjectForward(original,'deutsch',38,[38,39,40]);
  assert.deepEqual(shifted,original);
  assert.equal(JSON.stringify(original),JSON.stringify(shifted));
+});
+
+test('Jahresplan: Hauptthema und Zusatzthemen bleiben beim erneuten Speichern sichtbar und in derselben Reihenfolge', () => {
+  const yearlyComponent = requireSource('src/components/YearlyPlan.tsx');
+  const root = {thema:'A',buch:'Heft S. 2',items:[{id:'topic-2',thema:'B',buch:'Heft S. 3'}],completed:false};
+  assert.deepEqual(
+    yearPlanCellEntries(root).map(item => item.thema), ['A','B']
+  );
+  assert.match(yearlyComponent, /const finalValue = \{ \.\.\.editValue, items: \[\.\.\.\(editValue\.items \|\| \[\]\)\] \}/);
+  assert.match(yearlyComponent, /const cellEntries = yearPlanCellEntries\(data\)/);
+  assert.match(yearlyComponent, /\{cellEntries\.map\(/);
+  assert.doesNotMatch(yearlyComponent, /finalValue\.items = \[\s*\.\.\.finalValue\.items/);
+});
+
+test('Import in Überschreiben-Modus benötigt Bestätigung, wenn vorhandene Jahresplanung betroffen ist', () => {
+  const source = requireSource('src/components/JahresplanExcelModal.tsx');
+  assert.match(source, /importMode === 'overwrite'/);
+  assert.match(source, /occupiedYearPlanCell\(app\.jahresplanung/);
+  assert.match(source, /!window\.confirm\(/);
+  assert.match(source, /onImport\(actualRows, importMode\)/);
 });
