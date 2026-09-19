@@ -306,9 +306,13 @@ async function main() {
     const religionVisible = await evaluate(client, 'Array.from(document.querySelectorAll("button")).some(b=>String(b.textContent||"").replace(/\\s+/g," ").trim()==="Religion"&&!b.disabled)');
     if (religionVisible) await clickButton(client, 'Religion', true);
     await clickButton(client, 'Einheit speichern');
-    await waitFor(client, 'weekly topic saved', 'document.body?.innerText.includes(' + q(topic) + ')', 20000);
-
-    await clickText(client, topic);
+    await waitFor(client, 'weekly editor closed after save',
+      '!Array.from(document.querySelectorAll("h3")).some(e=>e.textContent?.trim()==="Einheit planen")');
+    const savedHourlyCell =
+      'Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("group/cell")&&String(el.className||"").includes("min-h-[5.3125rem]")&&String(el.textContent||"").includes(' + q(topic) + '))';
+    await waitFor(client, 'saved topic visible in the actual hourly weekly grid', 'Boolean(' + savedHourlyCell + ')', 20000);
+    if (!await evaluate(client, '(() => {const cell=' + savedHourlyCell + ';if(!cell)return false;cell.click();return true;})()'))
+      throw new Error('Could not open the saved hourly lesson.');
     await waitFor(client, 'planned lesson overview', 'document.body?.innerText.includes("Geplante Einheit")&&document.body?.innerText.includes("Bearbeiten")');
     const syncState = await evaluate(client,
       '(() => {const text=document.body?.innerText||"";if(text.includes("In Jahresplan übernehmen"))return "available";if(text.includes("bereits belegt"))return "occupied";return "missing";})()'
