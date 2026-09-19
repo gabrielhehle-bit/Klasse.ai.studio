@@ -280,6 +280,11 @@ export default function WeightSettings({ onBack, initialFach }: { onBack: () => 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-slate-100 p-3 rounded-2xl shadow-2xs gap-3">
         <div className="flex flex-col gap-1">
           <div className="text-[0.6875rem] text-slate-400 font-medium">Summe pro Fach muss genau 100% ergeben.</div>
+          <p className="max-w-2xl text-xs leading-relaxed text-slate-600">
+            Prozentgewichtungen werden erst mit „Speichern“ übernommen. Bewertungsart, Wochenplan-Spiegelung sowie
+            Mitarbeit- und Hausübungsregeln werden wie bisher sofort gespeichert. „Abbrechen“ verwirft nur noch
+            nicht gespeicherte Prozentgewichtungen.
+          </p>
           <label className="flex items-center gap-2 cursor-pointer group mt-2">
             <div className={`w-10 h-5 rounded-full relative transition-colors ${app.notenMeta?.syncWpDeutschMath ? 'bg-indigo-500' : 'bg-slate-200'}`}>
               <div className={`absolute top-0.5 left-0.5 bg-white w-4 h-4 rounded-full transition-transform ${app.notenMeta?.syncWpDeutschMath ? 'translate-x-5' : 'translate-x-0'}`} />
