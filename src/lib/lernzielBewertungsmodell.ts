@@ -77,7 +77,7 @@ export function getLernzielModell(stored: unknown): LernzielBewertungsmodell {
 }
 
 export function verwendeteLernzielStufen(
-  ratings: Record<string, Record<string, LernzielWertungen>> | undefined,
+  ratings: Record<string, Partial<Record<'1' | '2', LernzielWertungen>>> | undefined,
   legacyRatings: Record<string, LernzielWertungen> | undefined,
 ): Set<number> {
   const used = new Set<number>();
