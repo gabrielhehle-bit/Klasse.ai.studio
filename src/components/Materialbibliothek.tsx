@@ -323,6 +323,13 @@ export default function Materialbibliothek() {
                 }`}
               />
             </div>
+            <button type="button" aria-expanded={showAdvancedFilters} onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+              className="flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+              <Filter size={15} /> {showAdvancedFilters ? 'Filter schließen' : 'Filter & Ansicht'}
+              {activeFiltersCount > 0 && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-indigo-700">{activeFiltersCount}</span>}
+            </button>
+          </div>
+          {showAdvancedFilters && (
             <div className={`flex flex-wrap items-center ${isCompact ? 'gap-2' : isLarge ? 'gap-4' : 'gap-3'}`}>
               <div className={`flex items-center bg-slate-50 border border-slate-100 ${
                 isCompact ? 'px-2 py-1.5 rounded-lg gap-1.5' : isLarge ? 'px-4 py-3 rounded-[1.25rem] gap-3' : 'px-3 py-2 rounded-xl gap-2'
@@ -384,9 +391,10 @@ export default function Materialbibliothek() {
                 Nur KI
               </button>
             </div>
-          </div>
+          )}
 
           {/* Additional Filter Tools & View Settings */}
+          {showAdvancedFilters && (
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-3 border-t border-slate-100">
              <div className="flex flex-wrap items-center gap-2">
                  {allTags.length > 0 && (
@@ -430,6 +438,7 @@ export default function Materialbibliothek() {
                 <button onClick={() => setViewMode('list')} aria-label="Listenansicht" aria-pressed={viewMode === 'list'} title="Listenansicht" className={`p-1.5 rounded-lg transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}><List size={16} /></button>
              </div>
           </div>
+          )}
 
           {/* Active Filter Chips */}
           {activeFiltersCount > 0 && (
@@ -471,6 +480,12 @@ export default function Materialbibliothek() {
                 </span>
               )}
 
+              {filterSammlung && (
+                <span className="inline-flex items-center gap-1 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700">
+                  Sammlung: {filterSammlung}
+                  <button type="button" onClick={() => setFilterSammlung('')} aria-label="Sammlungsfilter entfernen">×</button>
+                </span>
+              )}
               {onlyAi && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[0.6875rem] font-bold border border-emerald-100/50">
                   Nur KI-Inhalte
