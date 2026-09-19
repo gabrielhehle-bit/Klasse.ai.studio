@@ -176,7 +176,6 @@ import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSele
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
-import { BoardInk, type BoardInkHandle, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
@@ -2916,30 +2915,12 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     useState<string>("categories");
   const [widgetSearch, setWidgetSearch] = useState<string>("");
   const [isBoardTextEditing, setIsBoardTextEditing] = useState(false);
-  const [boardTool, setBoardTool] = useState<'select' | 'pen' | 'erase' | 'text'>('select');
-  const [boardPenColor, setBoardPenColor] = useState('#172554');
-  const [boardPenWidth, setBoardPenWidth] = useState(4);
-  const boardInkRef = useRef<BoardInkHandle | null>(null);
   const boardTextCommandRef = useRef<((command: string, argument?: string) => void) | null>(null);
   const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
   useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
   const boardTextClassKey = app.activeClassId || "unassigned";
-  const boardInkItems: InkItem[] = Array.isArray((app.boardSettings as any)?.cockpitInkByClass?.[boardTextClassKey])
-    ? ((app.boardSettings as any).cockpitInkByClass[boardTextClassKey] as InkItem[])
-    : [];
-  const saveBoardInkItems = useCallback((items: InkItem[]) => {
-    if (!app.activeClassId) return;
-    setApp((prev: any) => ({
-      ...prev,
-      boardSettings: {
-        ...(prev.boardSettings || {}),
-        cockpitInkByClass: {
-          ...(prev.boardSettings?.cockpitInkByClass || {}),
-          [boardTextClassKey]: items,
-        },
-      },
-    }));
-  }, [app.activeClassId, boardTextClassKey, setApp]);
+  // Frühere cockpitInkByClass-Einträge bleiben im verschlüsselten Klassenstand und in Backups erhalten.
+  // Der direkte Stift ist bewusst aus der Unterrichtsfläche entfernt; Altdaten werden nicht gelöscht.
   const boardTextHtml =
     ((app.boardSettings as any)?.cockpitTextByClass?.[boardTextClassKey] as string | undefined) || "";
 
@@ -2961,7 +2942,6 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     setIsBoardTextEditing(false);
-    setBoardTool('select');
   }, [boardTextClassKey]);
 
   useEffect(() => {
@@ -9376,10 +9356,17 @@ ${content}
 
                           <button
                             type="button"
+                            onClick={() => setIsThemePickerOpen(true)}
+                            className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                          >
+                            🎨 Design & Farben
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => setIsBirthdayCelebrationOpen(true)}
                             className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
                           >
-                            🎂 Geburtstag
+                            🎂 Geburtstag feiern
                           </button>
 
                           <button
@@ -9798,52 +9785,21 @@ ${content}
                         </div>
                       </div>
 
-                      {/* A single shared toolbar, outside the white teaching surface. */}
+                      {/* TEXT ist das einzige direkte Arbeitsflächen-Werkzeug; Widgetauswahl bleibt immer bedienbar. */}
                       <div
                         role="toolbar"
-                        aria-label="Unterrichtsfläche: Auswählen, Zeichnen und Text"
+                        aria-label="Unterrichtsfläche: TEXT"
                         className="flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-sm"
                       >
-                        {([
-                          ['select', 'Auswählen'],
-                          ['pen', 'Stift'],
-                          ['erase', 'Radierer'],
-                          ['text', 'TEXT'],
-                        ] as const).map(([id, label]) => (
-                          <button
-                            type="button"
-                            key={id}
-                            aria-pressed={boardTool === id}
-                            onClick={() => {
-                              setBoardTool(id);
-                              setIsBoardTextEditing(id === 'text');
-                            }}
-                            className={`min-h-11 rounded-lg border px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${boardTool === id ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
-                          >{label}</button>
-                        ))}
-                        {(boardTool === 'pen' || boardTool === 'erase') && (
-                          <>
-                            <label className="flex min-h-11 items-center gap-1.5 text-xs font-semibold">
-                              Farbe
-                              <input type="color" aria-label="Stiftfarbe" value={boardPenColor}
-                                onChange={event => setBoardPenColor(event.target.value)}
-                                className="h-10 w-11 rounded border border-slate-300" />
-                            </label>
-                            <label className="flex min-h-11 items-center gap-1.5 text-xs font-semibold">
-                              Strich
-                              <select aria-label="Strichstärke" value={boardPenWidth}
-                                onChange={event => setBoardPenWidth(Number(event.target.value))}
-                                className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm">
-                                <option value={2}>Fein</option>
-                                <option value={4}>Normal</option>
-                                <option value={8}>Breit</option>
-                              </select>
-                            </label>
-                          </>
-                        )}
-                        {boardTool === 'text' && (
+                        <button type="button" aria-label="TEXT" aria-pressed={isBoardTextEditing}
+                          onClick={() => setIsBoardTextEditing(active => !active)}
+                          className={`min-h-11 rounded-lg border px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${isBoardTextEditing ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}>
+                          TEXT
+                        </button>
+                        {isBoardTextEditing && (
                           <>
                             <select aria-label="Textgröße" defaultValue="p"
+                              onMouseDown={event => event.preventDefault()}
                               onChange={event => boardTextCommandRef.current?.('formatBlock', event.target.value)}
                               className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm">
                               <option value="p">Normal</option>
@@ -9858,27 +9814,22 @@ ${content}
                                 onChange={event => boardTextCommandRef.current?.('foreColor', event.target.value)}
                                 className="h-10 w-11 rounded border border-slate-300" />
                             </label>
+                            {(['justifyLeft', 'justifyCenter', 'justifyRight'] as const).map((command, index) => (
+                              <button key={command} type="button"
+                                onMouseDown={event => event.preventDefault()}
+                                onClick={() => boardTextCommandRef.current?.(command)}
+                                className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">
+                                {['Links', 'Mitte', 'Rechts'][index]}
+                              </button>
+                            ))}
                             <button type="button" onMouseDown={event => event.preventDefault()}
-                              onClick={() => boardTextCommandRef.current?.('justifyLeft')}
-                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Links</button>
+                              onClick={() => boardTextCommandRef.current?.('undo')}
+                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↶ Rückgängig</button>
                             <button type="button" onMouseDown={event => event.preventDefault()}
-                              onClick={() => boardTextCommandRef.current?.('justifyCenter')}
-                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Mitte</button>
-                            <button type="button" onMouseDown={event => event.preventDefault()}
-                              onClick={() => boardTextCommandRef.current?.('justifyRight')}
-                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Rechts</button>
+                              onClick={() => boardTextCommandRef.current?.('redo')}
+                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↷ Wiederholen</button>
                           </>
                         )}
-                        <button type="button" onMouseDown={event => { if (boardTool === 'text') event.preventDefault(); }}
-                          onClick={() => boardTool === 'text'
-                            ? boardTextCommandRef.current?.('undo')
-                            : boardInkRef.current?.undo()}
-                          className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↶ Rückgängig</button>
-                        <button type="button" onMouseDown={event => { if (boardTool === 'text') event.preventDefault(); }}
-                          onClick={() => boardTool === 'text'
-                            ? boardTextCommandRef.current?.('redo')
-                            : boardInkRef.current?.redo()}
-                          className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↷ Wiederholen</button>
                       </div>
 
                       {/* Widget Board (classroomscreen.com style) */}
@@ -9897,22 +9848,7 @@ ${content}
                           onChange={saveBoardTextHtml}
                           externalToolbar
                           commandRef={boardTextCommandRef}
-                          onDone={() => {
-                            setIsBoardTextEditing(false);
-                            setBoardTool('select');
-                          }}
-                        />
-                        <BoardInk
-                          key={boardTextClassKey}
-                          ref={boardInkRef}
-                          items={boardInkItems}
-                          active={!!app.activeClassId && (boardTool === 'pen' || boardTool === 'erase')}
-                          externalTool={boardTool === 'erase' ? 'erase' : 'pen'}
-                          externalColor={boardPenColor}
-                          externalWidth={boardPenWidth}
-                          hideToolbar
-                          onChange={saveBoardInkItems}
-                          onDone={() => setBoardTool('select')}
+                          onDone={() => setIsBoardTextEditing(false)}
                         />
                         {/* Centered Confirm Dialog inside stage instead of native popup */}
                         {timerToCloseId && (
