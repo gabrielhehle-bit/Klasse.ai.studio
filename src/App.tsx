@@ -62,7 +62,6 @@ const EmailAssistant = lazyRetry(() => import('./components/EmailAssistant'));
 const Differentiation = lazyRetry(() => import('./components/Differentiation'));
 const VerbalAssessment = lazyRetry(() => import('./components/VerbalAssessment'));
 const Portfolio = lazyRetry(() => import('./components/Portfolio'));
-const SubstitutionPlan = lazyRetry(() => import('./components/SubstitutionPlan'));
 const Archive = lazyRetry(() => import('./components/Archive'));
 const Backup = lazyRetry(() => import('./components/Backup'));
 const Settings = lazyRetry(() => import('./components/Settings'));
@@ -663,7 +662,7 @@ function AppContent() {
       case 'drucken': return <PrintCenter />;
       case 'verbal': return <VerbalAssessment />;
       case 'portfolio': return <Portfolio />;
-      case 'vertretung': return <SubstitutionPlan />;
+      case 'vertretung': return <Uebergabemappe />;
       case 'jahresbericht': return <Jahresbericht />;
       case 'stimmnotizen': return <StimmNotizen />;
       case 'stationenbetrieb': return <StationenbetriebManager />;
@@ -717,7 +716,7 @@ function AppContent() {
       case 'verhalten': return 'Notizen';
       case 'jahresplanung': return 'Jahresplanung';
       case 'wochenplanung': return 'Wochenplanung';
-      case 'uebergabemappe': return 'Übergabemappe';
+      case 'uebergabemappe': return 'Vertretung & Übergabe';
       case 'materialien': return 'Materialbibliothek';
       case 'canva': return 'Canva';
       case 'stunden': return 'Stundenentwürfe';
@@ -732,7 +731,7 @@ function AppContent() {
       case 'notenTabelle': return 'Notenübersicht';
       case 'portfolio': return 'Portfolio';
       case 'differenzierung': return 'Differenzierung KI';
-      case 'vertretung': return 'Vertretungsplan';
+      case 'vertretung': return 'Vertretung & Übergabe';
       case 'jahresbericht': return 'Jahresbericht';
       case 'stimmnotizen': return 'Stimm-Notizen';
       case 'stationenbetrieb': return 'Stationenbetrieb';
