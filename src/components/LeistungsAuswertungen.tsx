@@ -19,7 +19,7 @@ export default function LeistungsAuswertungen({
     <button type="button" onClick={onBack} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">← Notenmappe</button>
     <div className="rounded-2xl border border-slate-200 bg-white p-5">
       <h2 className="text-xl font-black text-slate-900">Auswertungen</h2>
-      <p className="mt-1 text-sm text-slate-600">Leistungsdaten aus der Notenmappe. Fächer mit unterschiedlichen Skalen werden getrennt ausgewiesen.</p>
+      <p className="mt-1 text-sm text-slate-600">Leistungsdaten aus der Notenmappe. Fächer mit unterschiedlichen Skalen werden getrennt ausgewiesen. Bei Punktebewertung liefert der Notenrechner einen aus Höchstpunkten berechneten Prozentwert.</p>
       <div className="mt-4 flex flex-wrap gap-3">
         <label className="text-xs font-bold text-slate-700">Fach
           <select value={subject} onChange={e => setSubject(e.target.value)} className="input-field mt-1 block min-w-48">
@@ -59,9 +59,9 @@ export default function LeistungsAuswertungen({
           <thead><tr className="border-b border-slate-200"><th scope="col" className="p-2">Fach</th><th scope="col" className="p-2">Skala</th><th scope="col" className="p-2">Kinder mit Daten</th><th scope="col" className="p-2">Mittelwert</th></tr></thead>
           <tbody>{bySubject.map(row => <tr key={row.subject} className="border-b border-slate-100">
             <th scope="row" className="p-2">{row.subject}</th>
-            <td className="p-2">{row.mode === 'grades' ? 'Schulnote 1–5' : row.mode === 'percent' ? 'Prozent' : 'Punkte'}</td>
+            <td className="p-2">{row.mode === 'grades' ? 'Schulnote 1–5' : row.mode === 'percent' ? 'Prozent' : 'Punkte → Prozentwert'}</td>
             <td className="p-2">{row.count} / {app.schueler.length}</td>
-            <td className="p-2">{row.rawAverage.toLocaleString('de-AT', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}{row.mode === 'percent' ? ' %' : row.mode === 'points' ? ' Pkt.' : ''}</td>
+            <td className="p-2">{row.rawAverage.toLocaleString('de-AT', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}{row.mode === 'percent' || row.mode === 'points' ? ' %' : ''}</td>
           </tr>)}</tbody>
         </table></div>
       </section>
