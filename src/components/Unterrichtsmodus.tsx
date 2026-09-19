@@ -180,6 +180,8 @@ import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
 import { BoardInk, type BoardInkHandle, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
+import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
+import { COCKPIT_PAPERS, getCockpitPaperStyle, type CockpitPaper } from "../lib/cockpitPaper";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
@@ -2915,7 +2917,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [vorlagenStartTab, setVorlagenStartTab] = useState<"browse" | "create">("browse");
   const [activeWidgetCategory, setActiveWidgetCategory] =
-    useState<string>("categories");
+    useState<string>("core");
+  const [expandedCoreWidget, setExpandedCoreWidget] = useState<string | null>(null);
   const [widgetSearch, setWidgetSearch] = useState<string>("");
   const [isBoardTextEditing, setIsBoardTextEditing] = useState(false);
   const [boardTool, setBoardTool] = useState<'select' | 'pen' | 'erase' | 'text'>('select');
@@ -2926,6 +2929,17 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
   useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
   const boardTextClassKey = app.activeClassId || "unassigned";
+  const cockpitPaper = ((app.boardSettings as any)?.cockpitPaperByClass?.[boardTextClassKey] || "blank") as CockpitPaper;
+  const setCockpitPaper = (paper: CockpitPaper) => setApp((prev: any) => ({
+    ...prev,
+    boardSettings: {
+      ...(prev.boardSettings || {}),
+      cockpitPaperByClass: {
+        ...(prev.boardSettings?.cockpitPaperByClass || {}),
+        [boardTextClassKey]: paper,
+      },
+    },
+  }));
   const boardInkItems: InkItem[] = Array.isArray((app.boardSettings as any)?.cockpitInkByClass?.[boardTextClassKey])
     ? ((app.boardSettings as any).cockpitInkByClass[boardTextClassKey] as InkItem[])
     : [];
@@ -9884,6 +9898,14 @@ ${content}
                             className={`min-h-11 rounded-lg border px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${boardTool === id ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
                           >{label}</button>
                         ))}
+                        <label className="flex min-h-11 items-center gap-2 text-xs font-semibold">
+                          Papier
+                          <select aria-label="Papierart der Unterrichtsfläche" value={cockpitPaper}
+                            onChange={event => setCockpitPaper(event.target.value as CockpitPaper)}
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm">
+                            {COCKPIT_PAPERS.map(paper => <option key={paper.id} value={paper.id}>{paper.label}</option>)}
+                          </select>
+                        </label>
                         {(boardTool === 'pen' || boardTool === 'erase') && (
                           <>
                             <label className="flex min-h-11 items-center gap-1.5 text-xs font-semibold">
@@ -9953,6 +9975,7 @@ ${content}
                             : "bg-white border-slate-200 shadow-inner"
                         }`}
                         id="widget-board-stage"
+                        style={getCockpitPaperStyle(cockpitPaper, currentBgId === "canva" ? canvaBackground : null)}
                       >
                         <BoardTextEditor
                           value={boardTextHtml}
