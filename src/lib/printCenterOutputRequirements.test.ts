@@ -34,8 +34,9 @@ test('Klassenbuch: direkte PDF-Ausgabe ist mit Woche, Bereich und Gesamt verbund
 
   assert.match(klassenbuchPdf, /pageSize: 'A4'/);
   assert.match(klassenbuchPdf, /pageOrientation: 'portrait'/);
-  assert.match(klassenbuchPdf, /unbreakable: true/);
-  assert.match(klassenbuchPdf, /dontBreakRows: true/);
+  assert.match(klassenbuchPdf, /unbreakable: fitsOnePage/);
+  assert.match(klassenbuchPdf, /dontBreakRows: fitsOnePage/);
+  assert.match(klassenbuchPdf, /const longestEntry =/);
   assert.match(klassenbuchPdf, /Fach \/ Unterbereich/);
   assert.match(klassenbuchPdf, /Dokumentierter Unterricht \/ Inhalt/);
   assert.match(klassenbuchPdf, /Abwesenheiten \/ Fehlstunden/);
