@@ -542,13 +542,13 @@ export default function Uebergabemappe() {
                     <span>Tagespläne für {daysToPrint.length} ausgewählte Tage</span>
                   </div>
                 )}
-                {printPages.list && (
+                {printPages.list && app.klassenvorstand && (
                   <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-xl border border-slate-100">
                     <span className="text-indigo-600 font-bold">✓</span>
                     <span>Klassenliste mit Schüler-Besonderheiten</span>
                   </div>
                 )}
-                {printPages.seating && (
+                {printPages.seating && app.klassenvorstand && (
                   <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-xl border border-slate-100">
                     <span className="text-indigo-600 font-bold">✓</span>
                     <span>Sitzplan LEHRERCOCKPIT (Tafel/Vorne markiert)</span>
@@ -629,7 +629,7 @@ export default function Uebergabemappe() {
                 </div>
               </div>
 
-              {birthdaysToday.length > 0 && (
+              {printColumns.geburtstag && birthdaysToday.length > 0 && (
                 <div className="p-2.5 bg-amber-50 border border-amber-250 rounded-xl flex items-center gap-2 select-none">
                   <span className="text-[1rem] leading-normal">🎂</span>
                   <div className="text-[0.625rem]">
@@ -740,7 +740,7 @@ export default function Uebergabemappe() {
     }
 
     // PAGE 2: KLASSENLISTE
-    if (printPages.list) {
+    if (printPages.list && app.klassenvorstand) {
       const activeCols = Object.entries(printColumns).filter(([_, v]) => v).map(([k, _]) => k);
       const rowPadding = density === 'compact' ? 'p-1 text-[7.5pt]' : 'p-2.5 text-[9pt]';
 
@@ -845,7 +845,7 @@ export default function Uebergabemappe() {
     }
 
     // PAGE 3: SITZPLAN
-    if (printPages.seating) {
+    if (printPages.seating && app.klassenvorstand) {
       pages.push(
         <div key="page-seating" className={`flex flex-col justify-between h-full bg-white text-slate-800 ${isPreview ? 'p-8' : 'p-10 printable-page'}`} style={{ pageBreakAfter: 'always' }}>
           <div className="space-y-4 flex-1 flex flex-col">
@@ -1106,14 +1106,14 @@ export default function Uebergabemappe() {
             <BookOpen size={18} />
             Stundenbilder verwalten
           </button>
-          <button 
+          {app.klassenvorstand && <button 
             onClick={() => setActiveTab('transfer')}
             aria-pressed={activeTab === 'transfer'}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[0.75rem] leading-snug font-bold transition-all ${activeTab === 'transfer' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
             <History size={18} />
             Schulwechsel-Paket
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -1917,7 +1917,7 @@ export default function Uebergabemappe() {
                       { key: 'list', label: 'Schülerstammdatenliste' },
                       { key: 'seating', label: 'Sitzplan-Anordnung' },
                       { key: 'feedback', label: 'Feedback-Rückmeldebogen' },
-                    ].map(({ key, label }) => (
+                    ].filter(({ key }) => app.klassenvorstand || (key !== 'list' && key !== 'seating')).map(({ key, label }) => (
                       <button
                         key={key}
                         onClick={() => setPrintPages(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))}
