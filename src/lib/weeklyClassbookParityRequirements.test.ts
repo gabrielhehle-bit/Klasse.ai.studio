@@ -47,3 +47,15 @@ test('Stundeneditor: importierte Lernziele, Erledigtstatus und Hausübungen übe
   assert.match(week, /\.\.\.\(kwPlan\[tag\]\[idx\] \|\| \{\}\)/);
   assert.match(week, /setTempHUE\(current\.housework \|\| current\.hue \|\| ''\)/);
 });
+
+test('Schüler-Wochenplan: Erstellung bleibt im Wochenplan; Druck und PDF laufen nur über das Druckzentrum', () => {
+  const generator = readFileSync('src/components/wochenplan/WochenplanGeneratorModal.tsx', 'utf8');
+  assert.match(generator, /schuelerWochenplaene: \{/);
+  assert.match(generator, /activePrintTemplate: 'schueler_wochenplan'/);
+  assert.doesNotMatch(generator, /window\.print\(/);
+  assert.doesNotMatch(generator, /hidden print:block schueler-wochenplan-print-sheet/);
+  assert.match(printing, /case 'schueler_wochenplan':/);
+  assert.match(printing, /SchuelerWochenplanA4Sheet plan=\{selectedChildPlan\}/);
+  assert.match(printing, /activeTemplate === 'schueler_wochenplan'/);
+  assert.match(printing, /selectedChildPlan\?\.orientierung/);
+});
