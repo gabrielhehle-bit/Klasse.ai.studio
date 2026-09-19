@@ -160,6 +160,8 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
   const generateReport = async (studentId: string) => {
     const s = students.find(x => x.id === studentId);
     if (!s) return;
+    const requestedClassId = app.activeClassId;
+    const requestedSchoolYear = app.schuljahr;
     
     // 1. Nur nachvollziehbare schulische Daten zusammenstellen.
     const annualGradeLines = includeGrades ? getAnnualGradeLines(studentId) : [];
@@ -295,7 +297,11 @@ WICHTIGE ANWEISUNGEN:
       if (!response?.trim()) throw new Error('Leere KI-Antwort');
       const inhalt = response.trim();
       
-      setApp(prev => ({
+      setApp(prev => {
+        if (prev.activeClassId !== requestedClassId ||
+            prev.schuljahr !== requestedSchoolYear ||
+            !prev.schueler.some(child => child.id === studentId)) return prev;
+        return {
         ...prev,
         jahresberichte: {
           ...(prev.jahresberichte || {}),
@@ -317,7 +323,8 @@ WICHTIGE ANWEISUNGEN:
             ],
           }
         }
-      }));
+      };
+      });
     } catch (e) {
       console.error(e);
       alert('Fehler bei der KI-Generierung für ' + s.vorname);
@@ -341,6 +348,8 @@ WICHTIGE ANWEISUNGEN:
     if (!promptToUse.trim()) return;
     const b = reportForTerm(studentId);
     if (!b) return;
+    const requestedClassId = app.activeClassId;
+    const requestedSchoolYear = app.schuljahr;
     if (!window.confirm('Den vorhandenen Entwurf mit KI überarbeiten? Die vorherige Fassung bleibt erhalten und die Freigabe wird zurückgesetzt.')) return;
     setIsRefining(true);
 
@@ -360,12 +369,19 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
       );
 
       if (response) {
-        setApp(prev => ({
+        setApp(prev => {
+          const previous = prev.jahresberichte?.[studentId];
+          if (prev.activeClassId !== requestedClassId ||
+              prev.schuljahr !== requestedSchoolYear ||
+              !prev.schueler.some(child => child.id === studentId) ||
+              !previous || previous.inhalt !== b.inhalt ||
+              previous.generiert !== b.generiert) return prev;
+          return {
           ...prev,
           jahresberichte: {
             ...(prev.jahresberichte || {}),
             [studentId]: {
-              ...prev.jahresberichte[studentId],
+              ...previous,
               inhalt: response,
               generiert: new Date().toISOString(),
               reviewStatus: 'offen',
@@ -380,7 +396,8 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
               ]
             }
           }
-        }));
+        };
+        });
         if (!customPrompt) setRefinePrompt('');
       }
     } catch (e) {
