@@ -5,6 +5,8 @@ type BoardTextEditorProps = {
   active: boolean;
   onChange: (html: string) => void;
   onDone: () => void;
+  externalToolbar?: boolean;
+  commandRef?: React.MutableRefObject<((command: string, argument?: string) => void) | null>;
 };
 
 const ALLOWED_TAGS = new Set([
@@ -77,6 +79,8 @@ export function BoardTextEditor({
   active,
   onChange,
   onDone,
+  externalToolbar = false,
+  commandRef,
 }: BoardTextEditorProps) {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const pendingSave = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -124,9 +128,16 @@ export function BoardTextEditor({
 
   const runCommand = (command: string, argument?: string) => {
     editorRef.current?.focus();
+    if (command === "foreColor") document.execCommand("styleWithCSS", false, "true");
     document.execCommand(command, false, argument);
     if (editorRef.current) scheduleSave(editorRef.current.innerHTML);
   };
+
+  useEffect(() => {
+    if (!commandRef) return;
+    commandRef.current = runCommand;
+    return () => { commandRef.current = null; };
+  }, [commandRef, runCommand]);
 
   const buttonClass =
     "min-h-10 px-3 rounded-lg border border-slate-200 bg-white text-slate-800 text-sm font-semibold hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600";
@@ -164,7 +175,7 @@ export function BoardTextEditor({
         </div>
       )}
 
-      {active && (
+      {active && !externalToolbar && (
         <div
           className="absolute left-1/2 top-3 z-[21000] -translate-x-1/2 max-w-[calc(100%-1.5rem)] flex flex-wrap items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-xl backdrop-blur"
           role="toolbar"
