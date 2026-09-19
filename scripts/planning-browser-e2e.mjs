@@ -356,9 +356,9 @@ async function main() {
       }
       await waitFor(client, 'yearly overview', 'document.body?.innerText.toLocaleLowerCase("de").includes("jahresplanung · übersicht")&&document.body?.innerText.includes("Bearbeiten")');
       await clickButton(client, 'Bearbeiten');
-      await waitFor(client, 'large yearly editor', 'Array.from(document.querySelectorAll("div")).some(el=>String(el.className||"").includes("max-w-[1400px]"))');
+      await waitFor(client, 'large yearly editor', 'Array.from(document.querySelectorAll("h3")).some(el=>el.textContent?.trim()==="Jahresplanung bearbeiten"&&el.closest(".max-w-none"))');
       const yearlyLarge = await evaluate(client,
-        '(() => {const node=Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("max-w-[1400px]"));if(!node)return false;const r=node.getBoundingClientRect();return r.width>950&&r.height>window.innerHeight*0.82;})()'
+        '(() => {const heading=Array.from(document.querySelectorAll("h3")).find(el=>el.textContent?.trim()==="Jahresplanung bearbeiten");const node=heading?.closest(".max-w-none");if(!node)return false;const r=node.getBoundingClientRect();return r.width>950&&r.height>window.innerHeight*0.82;})()'
       );
       if (!yearlyLarge) throw new Error('Yearly editor did not open in the expected large layout.');
       console.log('✓ yearly overview → edit opens the large yearly workspace');
