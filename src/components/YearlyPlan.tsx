@@ -970,7 +970,8 @@ export default function YearlyPlan() {
       const original = prev.jahresplanung || {};
       const updated = { ...original };
       aiSuggestions.forEach(suggestion => {
-        if (occupiedYearPlanCell(original[suggestion.kw]?.[suggestion.subjectId])) return;
+        // Also protect an earlier suggestion placed by this same batch.
+        if (occupiedYearPlanCell(updated[suggestion.kw]?.[suggestion.subjectId])) return;
         updated[suggestion.kw] = {
           ...(updated[suggestion.kw] || {}),
           [suggestion.subjectId]: {
