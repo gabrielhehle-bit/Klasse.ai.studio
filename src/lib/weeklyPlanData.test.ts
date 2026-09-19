@@ -6,6 +6,7 @@ import {
   getPreviousCalendarWeekKw,
   weeklyLessonDurationSlots,
   collectIncompleteWeeklyLessonSlots,
+  isWeeklyLessonPrepared,
 } from './weeklyPlanData';
 
 test('Wochenplanung: Vorwoche funktioniert über den Jahreswechsel', () => {
@@ -61,4 +62,16 @@ test('Wochenplanung: Wochenabschluss erkennt erledigt korrekt und zeigt Stunden 
     { tag: 'Montag', idx: 2, fach: 'Mathematik', thema: 'Noch offen' },
     { tag: 'Montag', idx: 9, fach: 'Sachunterricht', thema: 'Neunte Stunde offen' },
   ]);
+});
+
+test('Wochenplan-Fortschritt: vorbereitete Stunde ist nicht dasselbe wie erledigte Stunde', () => {
+  assert.equal(isWeeklyLessonPrepared(undefined), false);
+  assert.equal(isWeeklyLessonPrepared({}), false);
+  assert.equal(isWeeklyLessonPrepared({ erledigt: true }), false);
+  assert.equal(isWeeklyLessonPrepared({ fach: 'Mathematik', erledigt: false }), true);
+  assert.equal(isWeeklyLessonPrepared({ thema: 'Zehnerübergang', erledigt: false }), true);
+  assert.equal(isWeeklyLessonPrepared({ beschreibung: 'Übungsreihe' }), true);
+  assert.equal(isWeeklyLessonPrepared({ halves: { enabled: true, first: { thema: 'Lesen' } } }), true);
+  assert.equal(isWeeklyLessonPrepared({ materialIds: ['mat-1'] }), true);
+  assert.equal(isWeeklyLessonPrepared({ type: 'standard' }), false);
 });
