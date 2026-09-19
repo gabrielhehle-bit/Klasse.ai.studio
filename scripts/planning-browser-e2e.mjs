@@ -347,9 +347,14 @@ async function main() {
     await clickSidebar(client, 'Jahresplanung');
     await waitFor(client, 'yearly plan', 'document.body?.innerText.toLowerCase().includes("jahresplan")||document.body?.innerText.toLowerCase().includes("jahresplanung")');
     if (syncState === 'available') {
-      await waitFor(client, 'synced topic visible in yearly plan', 'document.body?.innerText.includes(' + q(topic) + ')', 20000);
-      await clickText(client, topic);
-      await waitFor(client, 'yearly overview', 'document.body?.innerText.includes("Jahresplanung · Übersicht")&&document.body?.innerText.includes("Bearbeiten")');
+      // The toast may also contain the saved topic; only the actual year-plan
+      // table cell may be used to open a saved lesson.
+      const syncedYearCell = 'Array.from(document.querySelectorAll("td[role=button][aria-label]")).find(el=>String(el.getAttribute("aria-label")||"").includes(' + q(topic) + '))';
+      await waitFor(client, 'synced topic visible in actual yearly table', 'Boolean(' + syncedYearCell + ')', 20000);
+      if (!await evaluate(client, '(() => {const cell=' + syncedYearCell + ';if(!cell)return false;cell.click();return true;})()')) {
+        throw new Error('Could not open the saved lesson in the yearly table.');
+      }
+      await waitFor(client, 'yearly overview', 'document.body?.innerText.toLocaleLowerCase("de").includes("jahresplanung · übersicht")&&document.body?.innerText.includes("Bearbeiten")');
       await clickButton(client, 'Bearbeiten');
       await waitFor(client, 'large yearly editor', 'Array.from(document.querySelectorAll("div")).some(el=>String(el.className||"").includes("max-w-[1400px]"))');
       const yearlyLarge = await evaluate(client,
