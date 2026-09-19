@@ -20,12 +20,13 @@ test('Topbar: Mehr-Menü enthält nur noch zentrale Werkzeuge ohne tote Doppelst
   assert.doesNotMatch(topbar, /JSON-Sicherungsdatei herunterladen/);
 });
 
-test('Topbar: Haupteinstellungen führen auf den echten Settings-Pfad und Seitenaktionen bleiben sichtbar', () => {
+test('Topbar: Haupteinstellungen und Seitenaktionen bleiben; Dashboard-Anpassung ist nur im Dashboard', () => {
   assert.match(topbar, /setPage\('settings'\)/);
   assert.doesNotMatch(topbar, /setPage\('einstellungen'\)/);
   assert.match(topbar, /\{actions && \(/);
-  assert.match(app, /currentPage === 'dashboard'/);
-  assert.match(app, /open-dashboard-customize/);
+  assert.doesNotMatch(app, /open-dashboard-customize/);
+  const dashboard = readFileSync('src/components/Dashboard.tsx', 'utf8');
+  assert.match(dashboard, /onOpenCustomize=\{\(\) => setShowCustomizePanel\(true\)\}/);
 });
 
 test('Topbar: Abmelden entfernt Session und 30-Tage-Gerätevertrauen ohne Datenlöschung', () => {
