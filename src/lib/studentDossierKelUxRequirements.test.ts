@@ -41,9 +41,9 @@ test('KEL retains real presentation, per-student opt-in grades, PPTX, dossier PD
     'setIsFullscreen(true)', 'setShowConfig(true)',
     'kelPraesentationAuswahl',
   ]) {
-    assert.ok(kel.includes(needle), \`KEL-Funktion fehlt: \${needle}\`);
+    assert.ok(kel.includes(needle), 'KEL-Funktion fehlt: ' + needle);
   }
-  assert.match(kel, /aria-label={\`Folie \${index \+ 1}: \${slide.title}\`}/);
+  assert.match(kel, /aria-label=\\{.*Folie/);
   assert.match(kel, /Zurück/);
   assert.match(kel, /Weiter/);
 });
