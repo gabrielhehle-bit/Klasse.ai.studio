@@ -759,7 +759,8 @@ export default function PrintCenter() {
   // Verwendet exakt dieselbe Fächer-/Unterbereichs-Struktur wie die Wochenplanung.
   const compileKlassenbuchData = (targetKW: number) => projectWeeklyPlanToClassbook(
     (app?.wochenplanung || {})[targetKW],
-    { activeSubjects: app?.faecher, stammplan: app?.stammplan, includeReflection: true },
+    { activeSubjects: app?.faecher, stammplan: app?.stammplan, includeReflection: true,
+      materialTitlesById: Object.fromEntries((app?.materialien || []).map(material => [material.id, material.titel])) },
   );
 
   const compiledKbData = useMemo(() => compileKlassenbuchData(kbKW), [kbKW, app?.wochenplanung, wpShowReflexion]);
