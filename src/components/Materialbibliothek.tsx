@@ -842,6 +842,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
   const { app } = useApp();
   const [step, setStep] = useState(initialData ? 'details' : 'type');
   const [typ, setTyp] = useState<MaterialItem['typ']>(initialData?.typ || 'datei');
+  const [collectionInput, setCollectionInput] = useState((initialData?.sammlungen || []).join(', '));
   const [formData, setFormData] = useState<Partial<MaterialItem>>(initialData || {
     titel: '',
     beschreibung: '',
@@ -965,6 +966,7 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
       faecher: formData.faecher || [],
       schulstufen: formData.schulstufen || [],
       tags: formData.tags || [],
+      sammlungen: normalizeMaterialCollections(collectionInput.split(',')),
       favorit: !!formData.favorit,
       kiGeneriert: !!formData.kiGeneriert,
       // Ensure inhaltText contains summary for stundenentwurf if fields are present
@@ -1012,14 +1014,14 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
               />
               <TypeSelectionCard 
                 icon={<FileText size={24} />} 
-                label="Eigene Notiz oder Inhalt" 
-                desc="Text / Entwürfe" 
+                label="Eigene Vorlage oder Notiz" 
+                desc="Text, Unterrichtsidee oder Vorbereitung" 
                 color="bg-indigo-50 text-indigo-600"
                 onClick={() => { setTyp('notiz'); setStep('details'); }} 
               />
               <TypeSelectionCard 
                 icon={<Wand2 size={24} />} 
-                label="Von KI generieren" 
+                label="Material mit KI erstellen" 
                 desc="Lesetexte, Übungen..." 
                 color="bg-fuchsia-50 text-fuchsia-600"
                 onClick={() => { setStep('ai-generator'); }} 
@@ -1273,6 +1275,14 @@ function AddMaterialModal({ onClose, onSave, initialData }: { onClose: () => voi
                   value={formData.beschreibung || ''}
                   onChange={e => setFormData(prev => ({ ...prev, beschreibung: e.target.value }))}
                 />
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="material-collections" className="text-xs font-black text-slate-700">Meine Sammlungen (optional)</label>
+                <input id="material-collections" value={collectionInput} onChange={event => setCollectionInput(event.target.value)}
+                  placeholder="z. B. Mathematik 1, MINT, Vertretung"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none" />
+                <p className="text-xs text-slate-500">Mit Komma trennen. Eine Vorbereitung darf in mehreren Sammlungen stehen, ohne mehrfach gespeichert zu werden.</p>
               </div>
 
               {/* Lehrplanbezug (Optional) */}
