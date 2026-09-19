@@ -38,6 +38,6 @@ test("Ich-bin-da: Kindernamen werden nicht mit Ellipsen gekürzt", () => {
 
 test("Lehrercockpit: Smartboard-Beschriftung belegt keinen Platz mehr in der Werkzeugleiste", () => {
   assert.doesNotMatch(teachingSurface, /Weiße Smartboard-Fläche/);
-  assert.match(teachingSurface, />\s*TEXT\s*</);
+  assert.match(teachingSurface, /\[\x27text\x27, \x27TEXT\x27\]/);
   assert.match(teachingSurface, />Vorlage erstellen</);
 });
