@@ -32,7 +32,7 @@ const sanitizeStyle = (value: string) =>
   value
     .split(";")
     .map((part) => part.trim())
-    .filter((part) => /^text-align\s*:\s*(left|center|right|justify)$/i.test(part))
+    .filter((part) => /^text-align\s*:\s*(left|center|right|justify)$/i.test(part) || /^color\s*:\s*(#[0-9a-f]{3,8}|rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\))$/i.test(part))
     .join("; ");
 
 export function sanitizeBoardTextHtml(html: string): string {
