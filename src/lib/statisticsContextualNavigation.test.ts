@@ -10,6 +10,7 @@ const classOverview = read('src/components/KlassenUeberblick.tsx');
 const dossier = read('src/components/StudentDossier.tsx');
 const antolin = read('src/components/AntolinBereich.tsx');
 const app = read('src/App.tsx');
+const legacyStats = read('src/components/Statistics.tsx');
 const settings = read('src/components/Settings.tsx');
 const sidebar = read('src/components/Sidebar.tsx');
 const hub = read('src/components/LeistungenHub.tsx');
@@ -41,7 +42,7 @@ test('Antolin has a single class and student view in the existing encrypted clas
 test('old profile duplicate is out of public nav and teacher profile remains in settings', () => {
   assert.doesNotMatch(sidebar, /id: 'statistik', label: 'Statistik & Profile'/);
   assert.doesNotMatch(hub, /id: 'statistik'/);
-  assert.match(app, /case 'statistik': return <Statistics \/>/);
+  assert.match(app, /case 'statistik': return <Statistics initialTab="tools" \/>/);
   assert.match(settings, /<LehrerProfilView \/>/);
   assert.match(analysis, /Bisherige Spezialwerkzeuge öffnen/);
 });
