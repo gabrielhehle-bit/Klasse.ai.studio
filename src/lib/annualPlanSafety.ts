@@ -25,7 +25,8 @@ export function plannedYearWeeks(
   if (start < 0) return [];
   const result: number[] = [];
   for (let i = start; i < weeks.length && result.length < requested; i++) {
-    if (isTeachingWeek(weeks[i])) result.push(weeks[i].kw);
+    // Always respect the explicitly clicked start week, including school-start labels.
+    if (i === start || isTeachingWeek(weeks[i])) result.push(weeks[i].kw);
   }
   return result;
 }
