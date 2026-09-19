@@ -17,11 +17,21 @@ function assertContainsAll(text: string, ids: string[]) {
   }
 }
 
-test('Unterricht hub exposes the cockpit and previously scattered teaching tools', () => {
-  const text = source('UnterrichtHub.tsx');
-  assert.match(text, /setPage\(['"]cockpit['"]\)/);
-  assertContainsAll(text, ['ki-helfer', 'arbeitsblatt', 'stationenbetrieb', 'differenzierung', 'elternbrief']);
-  assert.doesNotMatch(text, /id:\s*['\"]stimmnotizen['\"]/);
+test('Unterricht führt ohne Übersichtsseite direkt ins Lehrercockpit und vorbereitet wird getrennt', () => {
+  const sidebar = source('Sidebar.tsx');
+  const app = readFileSync(join(components, '..', 'App.tsx'), 'utf8');
+  const tools = source('ToolsHub.tsx');
+  assert.match(sidebar, /id: 'cockpit', label: 'Lehrercockpit'.*section: 'Start'/);
+  assert.doesNotMatch(sidebar, /id: 'unterricht', label: 'Unterricht'/);
+  assert.match(app, /app\.currentPage === 'unterricht' \? 'cockpit'/);
+  assert.match(app, /case 'cockpit': return null/);
+  assert.match(app, /currentPage === 'cockpit'/);
+  assert.match(app, /setPage\('dashboard'\);\s*\}\} \/>/);
+  assertContainsAll(tools, ['stationenbetrieb', 'textanalyse', 'drucken']);
+  for (const id of ['ki-helfer', 'arbeitsblatt', 'differenzierung', 'elternbrief']) {
+    assert.doesNotMatch(tools, new RegExp("id: '"+id+"'"));
+  }
+  assertContainsAll(sidebar, ['ki-helfer', 'arbeitsblatt', 'differenzierung', 'elternbrief']);
 });
 
 test('Klasse, Planung and Leistungen hubs expose their remaining legacy tools', () => {
