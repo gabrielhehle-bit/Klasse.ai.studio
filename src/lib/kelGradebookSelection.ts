@@ -61,7 +61,7 @@ export function getKelGradebookAssessments(
         const cleanRaw = String(raw).trim();
         // Missing markers (f/e/x/–), free text and malformed values are NOT marks.
         const validValue = mode === 'grades'
-          ? /^(?:[1-5][+-]|[1-5](?:[.,]\\d+)?)$/.test(cleanRaw)
+          ? /^(?:[1-5][+-]|[1-5](?:[.,]\d+)?)$/.test(cleanRaw)
           : /^(?:\d+(?:[.,]\d+)?)$/.test(cleanRaw);
         if (!validValue) return;
         const numeric = Number(cleanRaw.replace(',', '.'));
