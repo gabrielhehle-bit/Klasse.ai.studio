@@ -32,7 +32,7 @@ test('CSV für Druckzentrum enthält vorhandene Jahreseinträge, auch in Ferienw
  const plan={38:{deutsch:{thema:'=A1',items:[{thema:'Lesen',buch:'S. 1'}]}},39:{deutsch:{thema:'Mehrwöchiges Thema'}}};
  const before=JSON.stringify(plan);
  const csv=yearlyPlanCsv(plan,weeks,[{id:'deutsch',label:'Deutsch'}],w=>w.kw===39?'Ferien':undefined);
- assert.match(csv, /'\\=A1/);
+ assert.ok(csv.includes("'=A1"), 'CSV neutralizes an Excel formula');
  assert.match(csv, /Lesen/);
  assert.match(csv, /Mehrwöchiges Thema/);
  assert.equal(JSON.stringify(plan),before);
