@@ -5030,7 +5030,7 @@ export default function PrintCenter() {
       // C. WOCHENPLAN
       case 'wochenplan':
         const daysWp = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
-        const subInfoList = [1, 2, 3, 4, 5, 6, 7, 8];
+        const subInfoList = Array.from({ length: 10 }, (_, index) => index + 1);
         const lessonsData = (app?.wochenplanung || {})[wpKW] || {};
 
         return (
@@ -5058,7 +5058,7 @@ export default function PrintCenter() {
                   return (
                     <tr key={h} className="border-b border-zinc-200 min-h-[50px]">
                       {/* Hour cell */}
-                      <td className="py-3 px-2 text-center border-r-[1.5pt] border-black bg-zinc-50/50">
+                      <td className="py-2 px-2 text-center border-r-[1.5pt] border-black bg-zinc-50/50">
                         <div className="font-black text-black">{h}.</div>
                         {wpShowTimes && app?.stundenZeiten?.[h] && (
                           <div className="text-[0.5rem] font-bold text-zinc-400 mt-1">{app.stundenZeiten[h]}</div>
@@ -5074,28 +5074,12 @@ export default function PrintCenter() {
                         let displayFach = cellItem?.fach || stammplanFach || '';
                         let displayThema = cellItem?.thema || '';
 
-                        const isExcludedEvent = (cellItem && (
-                          cellItem.type === 'sa' || 
-                          cellItem.type === 'test' || 
-                          cellItem.type === 'lzk' || 
-                          cellItem.type === 'event' || 
-                          cellItem.type === 'spielefest' || 
-                          cellItem.type === 'konferenz' || 
-                          cellItem.type === 'gespraech' || 
-                          cellItem.type === 'sonstiges'
-                        )) || /^sachunterricht$|^su$/i.test(displayFach);
-
-                        if (isExcludedEvent) {
-                          displayFach = '';
-                          displayThema = '';
-                        }
-                        
                         const isEmpty = !displayFach && !displayThema;
 
                         return (
                           <td 
                             key={d} 
-                            className={`p-2.5 border-l border-zinc-300 align-top text-left w-1/5 ${
+                            className={`p-2 border-l border-zinc-300 align-top text-left w-1/5 ${
                               isEmpty && !wpInkSaver ? 'bg-zinc-50/30' : ''
                             }`}
                           >
