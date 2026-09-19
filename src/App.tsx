@@ -55,7 +55,6 @@ const Materialbibliothek = lazyRetry(() => import('./components/Materialbiblioth
 const CanvaIntegration = lazyRetry(() => import('./components/CanvaIntegration'));
 const Drafts = lazyRetry(() => import('./components/Drafts'));
 const MeetingLogs = lazyRetry(() => import('./components/MeetingLogs'));
-const GradeOverview = lazyRetry(() => import('./components/GradeOverview'));
 const OrgaLists = lazyRetry(() => import('./components/OrgaLists'));
 const Statistics = lazyRetry(() => import('./components/Statistics'));
 const EmailAssistant = lazyRetry(() => import('./components/EmailAssistant'));
@@ -655,7 +654,8 @@ function AppContent() {
       case 'elternbrief': return <EmailAssistant />;
       case 'orga': return <OrgaLists />;
       case 'statistik': return <Statistics />;
-      case 'notenTabelle': return <GradeOverview />;
+      // Old links remain valid; the same gradebook opens directly in its overview tab.
+      case 'notenTabelle': return <Gradebook initialSection="overview" />;
       case 'differenzierung': return <Differentiation />;
       case 'archiv': return <Archive />;
       case 'datensicherung': return <Backup />;
@@ -730,7 +730,7 @@ function AppContent() {
       case 'verbal': return 'Verbale Beurteilung';
       case 'orga': return 'Kasse & Orga';
       case 'statistik': return 'Statistik';
-      case 'notenTabelle': return 'Notenübersicht';
+      case 'notenTabelle': return 'Notenmappe';
       case 'portfolio': return 'Portfolio';
       case 'differenzierung': return 'Differenzierung KI';
       case 'vertretung': return 'Vertretungsplan';
