@@ -1575,7 +1575,7 @@ export default function Gradebook() {
       {/* One subject selector and a compact overview; assessment data and calculation remain unchanged. */}
       <header className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm print:hidden" aria-label="Notenmappe – Fach und Werkzeuge">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
+          {activeView === 'verhalten' ? <span className="text-sm font-bold text-slate-800">Verhalten · gesamtes Schuljahr</span> : <div className="flex flex-wrap items-center gap-2">
             <label className="sr-only" htmlFor="gradebook-active-subject">Schulfach auswählen</label>
             <select id="gradebook-active-subject" value={activeFach}
               onChange={event => {
@@ -1595,7 +1595,7 @@ export default function Gradebook() {
               <option value="1">1. Semester</option>
               <option value="2">2. Semester</option>
             </select>
-          </div>
+          </div>}
           {activeView !== 'verhalten' && (
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => { setShowGradeCalculator(!showGradeCalculator); setShowWeights(false); }}
