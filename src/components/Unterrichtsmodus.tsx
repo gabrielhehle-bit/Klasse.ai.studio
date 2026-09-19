@@ -9895,7 +9895,24 @@ ${content}
                           value={boardTextHtml}
                           active={isBoardTextEditing}
                           onChange={saveBoardTextHtml}
-                          onDone={() => setIsBoardTextEditing(false)}
+                          externalToolbar
+                          commandRef={boardTextCommandRef}
+                          onDone={() => {
+                            setIsBoardTextEditing(false);
+                            setBoardTool('select');
+                          }}
+                        />
+                        <BoardInk
+                          key={boardTextClassKey}
+                          ref={boardInkRef}
+                          items={boardInkItems}
+                          active={!!app.activeClassId && (boardTool === 'pen' || boardTool === 'erase')}
+                          externalTool={boardTool === 'erase' ? 'erase' : 'pen'}
+                          externalColor={boardPenColor}
+                          externalWidth={boardPenWidth}
+                          hideToolbar
+                          onChange={saveBoardInkItems}
+                          onDone={() => setBoardTool('select')}
                         />
                         {/* Centered Confirm Dialog inside stage instead of native popup */}
                         {timerToCloseId && (
