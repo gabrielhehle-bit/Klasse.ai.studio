@@ -5,14 +5,19 @@ import { FAECHER_ALLE, DEFAULT_GEWICHTUNG } from '../constants';
 import { getAssessmentMode, getHomeworkGradebookSettings, getNotenLabel } from '../lib/GradeUtils';
 import { Save, RotateCcw, AlertTriangle, Zap, BookOpen, Check, Info, FileText, CheckCircle2 } from 'lucide-react';
 
-export default function WeightSettings({ onBack }: { onBack: () => void }) {
+export default function WeightSettings({ onBack, initialFach }: { onBack: () => void; initialFach?: string }) {
   const { app, setApp } = useApp();
   const [localWeights, setLocalWeights] = useState({ ...app.notenGewichtung });
-  const [hueSettingsFach, setHueSettingsFach] = useState(() => app.faecher?.[0] || 'Deutsch');
+  const [selectedFach, setSelectedFach] = useState(() => initialFach || app.faecher?.[0] || 'Deutsch');
+  const [showAllFaecher, setShowAllFaecher] = useState(false);
+  const [hueSettingsFach, setHueSettingsFach] = useState(() => initialFach || app.faecher?.[0] || 'Deutsch');
 
   useEffect(() => {
     // Falls die Klasse während dieser Ansicht wechselt, niemals alte Entwürfe in die neue Klasse speichern.
     setLocalWeights({ ...app.notenGewichtung });
+    setSelectedFach(initialFach || app.faecher?.[0] || 'Deutsch');
+    setHueSettingsFach(initialFach || app.faecher?.[0] || 'Deutsch');
+    setShowAllFaecher(false);
   }, [app.activeClassId]);
 
   const getWeight = (fach: string) => {
@@ -197,6 +202,7 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
   };
 
   const activeFaecher = (app.faecher && app.faecher.length > 0 ? app.faecher : FAECHER_ALLE).filter(f => app.fachConfig?.[f]?.unterrichtet !== false);
+  const effectiveSelectedFach = activeFaecher.includes(selectedFach) ? selectedFach : (activeFaecher[0] || 'Deutsch');
   const hueEligibleFaecher = activeFaecher.filter(f => ['deutsch', 'mathematik', 'mathe', 'sachunterricht'].some(key => f.toLowerCase().includes(key)));
   const effectiveHueFach = hueEligibleFaecher.includes(hueSettingsFach)
     ? hueSettingsFach
@@ -231,6 +237,20 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 print:hidden">
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor="weight-subject" className="text-sm font-bold text-slate-800">Gewichtung für</label>
+          <select id="weight-subject" value={effectiveSelectedFach} onChange={event => { setSelectedFach(event.target.value); setHueSettingsFach(event.target.value); }}
+            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
+            {activeFaecher.map(fach => <option key={fach} value={fach}>{fach}</option>)}
+          </select>
+        </div>
+        <button type="button" onClick={() => setShowAllFaecher(value => !value)} aria-pressed={showAllFaecher}
+          className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+          {showAllFaecher ? 'Nur ausgewähltes Fach' : 'Alle Fächer vergleichen'}
+        </button>
+      </div>
+
       {/* Real-time Summary Dashboard Panel */}
       <div className="bg-slate-50 border border-slate-200 rounded-3xl p-5 shadow-inner flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="space-y-1.5">
@@ -257,7 +277,7 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-slate-100 p-4 rounded-2xl shadow-2xs gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-slate-100 p-3 rounded-2xl shadow-2xs gap-3">
         <div className="flex flex-col gap-1">
           <div className="text-[0.6875rem] text-slate-400 font-medium">Summe pro Fach muss genau 100% ergeben.</div>
           <label className="flex items-center gap-2 cursor-pointer group mt-2">
@@ -292,15 +312,15 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <button onClick={onBack} className="px-4 py-2 hover:bg-slate-50 border border-slate-250/70 text-slate-650 font-bold text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl transition-all cursor-pointer">Abbrechen</button>
+          <button type="button" onClick={onBack} className="px-4 py-2 hover:bg-slate-50 border border-slate-250/70 text-slate-650 font-bold text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl transition-all cursor-pointer">Abbrechen</button>
           <button onClick={handleSaveAll} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl transition-all flex items-center gap-2 cursor-pointer shadow-md shadow-emerald-600/10 active:scale-95">
             <Save size={13} /> Speichern
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {activeFaecher.map(fach => {
+      <div className={showAllFaecher ? 'grid grid-cols-1 gap-4 md:grid-cols-2' : 'grid grid-cols-1 gap-4'}>
+        {(showAllFaecher ? activeFaecher : activeFaecher.filter(fach => fach === effectiveSelectedFach)).map(fach => {
           const w = getWeight(fach);
           const sum = calculateSum(fach);
           const isOk = sum === 100;
@@ -427,7 +447,7 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
                 <span className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Verteilung:</span>
                 {sum === 100 ? (
                   <div className="flex items-center gap-1 px-2.5 py-0.5 bg-emerald-50 text-emerald-700 rounded-lg text-[0.625rem] font-black uppercase tracking-wider border border-emerald-100">
-                    <span>✓ 100% Perfekt</span>
+                    <span>Gewichtung vollständig · 100 %</span>
                   </div>
                 ) : sum < 100 ? (
                   <div className="flex items-center gap-1 px-2.5 py-0.5 bg-amber-50 text-amber-700 rounded-lg text-[0.625rem] font-black uppercase tracking-wider border border-amber-250/50">
@@ -446,7 +466,9 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
         })}
       </div>
 
-      <div className="card bg-white border border-stone-100 p-8 shadow-sm rounded-[2rem]">
+      <details className="rounded-2xl border border-stone-200 bg-white p-3 shadow-sm" id="weight-participation-settings">
+        <summary className="cursor-pointer px-2 py-2 text-sm font-bold text-slate-800">Mitarbeit – Symbole, Schwellen und Bewertungsmodus (erweiterte Einstellungen)</summary>
+      <div className="card bg-white border border-stone-100 p-4 shadow-sm rounded-2xl">
         <div className="flex flex-col gap-1 mb-8">
           <h4 className="text-[0.8125rem] font-black uppercase tracking-widest text-amber-950">Mitarbeit-Steuerung</h4>
           <p className="text-[0.6875rem] text-stone-400 font-medium">Tracking-Symbole und Noten-Schwellen deines Belohnungssystems.</p>
@@ -677,6 +699,11 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
+      </details>
+
+      {/* The existing homework deduction controls remain editable; only the display is collapsible. */}
+      <details className="rounded-2xl border border-rose-200 bg-white p-3 shadow-sm" id="weight-homework-settings">
+        <summary className="cursor-pointer px-2 py-2 text-sm font-bold text-slate-800">Hausübungsregeln – Berechnung und Abzüge (erweiterte Einstellungen)</summary>
       {/* Hausübungs-Steuerung & Abzugs-Logik */}
       <div className="card bg-white border border-rose-100 p-8 shadow-sm rounded-[2rem]">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -878,6 +905,7 @@ export default function WeightSettings({ onBack }: { onBack: () => void }) {
           </div>
         </div>
       </div>
+      </details>
     </div>
   );
 }
