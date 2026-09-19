@@ -20,9 +20,11 @@ test("Cockpit: freie Unterrichtsfläche bleibt weiß und ohne Startkarte", () =>
   assert.doesNotMatch(teachingSurface, /cockpit-empty-state-hint/);
 });
 
-test("Cockpit: Widgetauswahl startet ruhig mit Kategorien statt mit 108 Karten", () => {
-  assert.match(teachingSurface, /useState<string>\("categories"\)/);
-  assert.match(teachingSurface, /\{ id: "categories", label: "Kategorien" \}/);
+test("Cockpit: Widgetauswahl startet mit 20 Kernwidgets, alte Typen bleiben zugänglich", () => {
+  assert.match(teachingSurface, /useState<string>\("core"\)/);
+  assert.match(teachingSurface, /\{ id: "core", label: "20 Kernwidgets" \}/);
+  assert.match(teachingSurface, /\{ id: "categories", label: "Weitere Widgets" \}/);
+  assert.match(teachingSurface, /PLANNED_COCKPIT_WIDGETS\.map\(\(group\)/);
   assert.doesNotMatch(teachingSurface, /Alle Hilfen/);
   assert.match(teachingSurface, /Wähle oben eine Kategorie/);
   assert.match(teachingSurface, /durchsucht Klassio automatisch den gesamten Widget-Katalog/);
@@ -222,7 +224,7 @@ test("Cockpit: Schließen markiert einen nicht gespeicherten Tag nicht fälschli
   const closeEnd = teachingSurface.indexOf("const cycleBehavior", closeStart);
   assert.ok(closeStart >= 0 && closeEnd > closeStart);
   const closeHandler = teachingSurface.slice(closeStart, closeEnd);
-  assert.match(closeHandler, /hasAutoSavedToday !== todayStr && commitAllowance\.allowed/);
+  assert.match(closeHandler, /!behaviorSavedToday && commitAllowance\.allowed/);
   assert.doesNotMatch(closeHandler, /updateHasAutoSavedToday/);
 });
 
