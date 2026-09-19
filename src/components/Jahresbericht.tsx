@@ -92,7 +92,7 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
     setSelectedSubjects([]);
     setSelectedPortfolioIds([]);
     setPersonalWish('');
-  }, [selectedStudent, app.activeClassId]);
+  }, [selectedStudent, app.activeClassId, app.schuljahr]);
 
   useEffect(() => {
     try {
