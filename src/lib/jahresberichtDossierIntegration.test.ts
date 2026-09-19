@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const report = readFileSync('src/components/Jahresbericht.tsx', 'utf8');
 const dossier = readFileSync('src/components/dossier/DossierBerichte.tsx', 'utf8');
+const dossierShell = readFileSync('src/components/StudentDossier.tsx', 'utf8');
 const classroom = readFileSync('src/components/KlasseHub.tsx', 'utf8');
 const performances = readFileSync('src/components/LeistungenHub.tsx', 'utf8');
 const sidebar = readFileSync('src/components/Sidebar.tsx', 'utf8');
@@ -40,4 +41,13 @@ test('edited or regenerated reports preserve previous school-year revisions; cla
   assert.match(report, /reportForTerm\(id\)\?\.reviewStatus === 'freigegeben'/);
   assert.match(report, /reviewStatus: 'offen'/);
   assert.match(model, /jahresberichte: state\.jahresberichte/);
+});
+
+test('year-end status opens actual pupil dossier on the report tab without another class editor', () => {
+  assert.match(report, /if \(!isDossierView\) \{/);
+  assert.match(report, /<StudentDossier key=\{selectedStudent\} schuelerId=\{selectedStudent\}/);
+  assert.match(report, /initialReportView onBack=\{\(\) => setSelectedStudent\(null\)\}/);
+  assert.match(dossierShell, /setActiveTab\(initialReportView \? 'berichte' : 'uebersicht'\)/);
+  assert.match(dossierShell, /initialReportView && activeTab === 'berichte' \? 'jahresbericht'/);
+  assert.match(report, /Nur freigegebene Berichte drucken/);
 });
