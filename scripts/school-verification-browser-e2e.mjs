@@ -10,6 +10,7 @@ const ADMIN_VAULT = process.env.KLASSIO_E2E_ADMIN_VAULT || 'Klassio-E2E-Admin-20
 const SMTP_CODES = process.env.KLASSIO_E2E_SMTP_CODES || '/tmp/klassio-school-mail.json';
 const SCREENSHOT_TEACHER = process.env.KLASSIO_E2E_SCREENSHOT_TEACHER || '/tmp/klassio-school-teacher.png';
 const SCREENSHOT_ADMIN = process.env.KLASSIO_E2E_SCREENSHOT_ADMIN || '/tmp/klassio-school-admin.png';
+const SCREENSHOT_COCKPIT = process.env.KLASSIO_E2E_SCREENSHOT_COCKPIT || '/tmp/klassio-school-cockpit.png';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const q = value => JSON.stringify(value);
@@ -278,6 +279,37 @@ async function createClassInUi(client, className) {
   await waitFor(client, 'class setup retained', 'document.body?.innerText.includes(' + q(className) + ')', 30000);
 }
 
+async function verifyDirectCockpitNavigation(client) {
+  // A real signed-in teacher must reach the classroom without the old landing page.
+  await clickSidebar(client, 'Lehrercockpit');
+  await waitFor(
+    client,
+    'direct white cockpit stage and external drawing toolbar',
+    '(() => {' +
+    'const stage=document.getElementById("widget-board-stage");' +
+    'const toolbar=document.querySelector("[role=toolbar][aria-label=\\\"Unterrichtsfläche: Auswählen, Zeichnen und Text\\\"]");' +
+    'if(!stage||!toolbar)return false;' +
+    'const r=stage.getBoundingClientRect();' +
+    'const bg=getComputedStyle(stage).backgroundColor;' +
+    'return r.width>500&&r.height>300&&bg==="rgb(255, 255, 255)"&&toolbar.textContent.includes("Auswählen")&&toolbar.textContent.includes("Stift");' +
+    '})()',
+    30000,
+  );
+  const hasPublicNoDemoState = await evaluate(client,
+    'document.body?.innerText.includes("In dieser Klasse sind noch keine Kinder angelegt.") && !document.body?.innerText.includes("Max M.")'
+  );
+  if (!hasPublicNoDemoState) throw new Error('Empty real class showed demo children or lost the public class list.');
+  await saveScreenshot(client, SCREENSHOT_COCKPIT);
+  const closed = await evaluate(client,
+    '(() => {const b=document.querySelector("button[aria-label=\\\"Lehrercockpit schließen · Zurück zu Heute\\\"]");if(!b)return false;b.click();return true;})()'
+  );
+  if (!closed) throw new Error('No way to close cockpit to Heute.');
+  await waitFor(client, 'return to Heute without retired Unterricht hub',
+    'Array.from(document.querySelectorAll("button[aria-current=page]")).some(b=>String(b.textContent||"").trim()==="Heute")',
+    20000,
+  );
+}
+
 async function openAccountSettings(client) {
   await clickSidebar(client, 'Einstellungen');
   await waitFor(client, 'settings page', 'document.body?.innerText.includes("Was möchtest du in Klassio anpassen?")', 20000);
@@ -300,6 +332,7 @@ async function main() {
   try {
     await loginWithMail(teacher, TEACHER_EMAIL, TEACHER_VAULT);
     await createClassInUi(teacher, 'Heute eingerichtet 1A');
+    await verifyDirectCockpitNavigation(teacher);
     await openAccountSettings(teacher);
 
     await waitFor(teacher, 'unknown school can be connected', 'document.body?.innerText.includes("Schule verbinden")', 20000);
