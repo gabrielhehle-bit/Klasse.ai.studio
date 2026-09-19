@@ -600,6 +600,12 @@ Behalte die Grundstruktur (Überschriften) bei, passe den Text sorgfältig an un
   const reportsApprovedCount = students.filter(s => reportForTerm(s.id)?.reviewStatus === 'freigegeben').length;
   const progressPercent = totalStudentsCount > 0 ? Math.round((reportsGeneratedCount / totalStudentsCount) * 100) : 0;
 
+  if (!app.klassenvorstand) {
+    return <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-700">
+      Die Jahresberichte stehen der zuständigen Klassenlehrperson zur Verfügung.
+    </p>;
+  }
+
   if (!isDossierView) {
     if (selectedStudent && students.some(child => child.id === selectedStudent)) {
       return <StudentDossier key={selectedStudent} schuelerId={selectedStudent}
