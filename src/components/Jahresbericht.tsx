@@ -77,6 +77,18 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
     setActiveTab('bericht');
   }, [app.activeClassId, studentId]);
 
+  // A new pupil or class always requires a NEW deliberate source selection.
+  // Style settings may persist, but permission to use confidential pupil data may not.
+  useEffect(() => {
+    setIncludeGrades(false);
+    setIncludeBadges(false);
+    setIncludeObservations(false);
+    setIncludeKel(false);
+    setIncludeFoerder(false);
+    setSelectedObservationIds([]);
+    setPersonalWish('');
+  }, [selectedStudent, app.activeClassId]);
+
   useEffect(() => {
     try {
       localStorage.removeItem('jb_review_status_v1');
