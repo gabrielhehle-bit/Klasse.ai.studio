@@ -189,7 +189,8 @@ export default function Portfolio() {
               const portfolioCount = student.portfolio?.length || 0;
               const semesterRatings =
                 app.studentLernzielSemesterBewertungen?.[student.id]?.[semester] ||
-                (semester === '1' ? app.studentLernzielBewertungen?.[student.id] : undefined) ||
+                (semester === '1' && !app.studentLernzielSemesterBewertungen?.[student.id]
+                  ? app.studentLernzielBewertungen?.[student.id] : undefined) ||
                 {};
               const ratedCount = Object.values(semesterRatings).filter(value => value !== null && value !== undefined).length;
 
