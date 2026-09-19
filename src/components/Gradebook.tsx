@@ -1529,10 +1529,11 @@ export default function Gradebook() {
               setEditingAssessmentModal({ typ, idx: i, isNew: false });
               setIsolatedCol(null);
             }}
-            className="absolute -top-1 -right-1 p-1 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-md shadow-xs opacity-0 group-hover/col:opacity-100 transition-opacity z-20 print:hidden text-[0.625rem] text-slate-700 hover:text-indigo-600"
-            title="Umbenennen / Datum / Punkte bearbeiten"
+            aria-label={`${customLabel || defaultName} ${i + 1}: Spaltenoptionen (Bezeichnung, Datum, Höchstpunkte)`}
+            className="absolute -top-1 -right-1 z-20 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-black text-slate-700 shadow-xs opacity-90 transition-opacity hover:border-indigo-300 hover:bg-indigo-50 hover:opacity-100 focus-visible:opacity-100 print:hidden"
+            title="Spaltenoptionen: Bezeichnung, Datum und Höchstpunkte bearbeiten"
           >
-            ✏️
+            ⋯
           </button>
         </div>
       </th>
