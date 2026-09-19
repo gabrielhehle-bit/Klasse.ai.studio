@@ -288,6 +288,11 @@ async function main() {
     if (uncaught.length) throw new Error('Uncaught browser exceptions:\n' + uncaught.join('\n---\n'));
     console.log('Klassio material-library browser E2E passed.');
   } catch (error) {
+    try {
+      const visibleState = await evaluate(client, '({visible:document.body?.innerText?.slice(-2500),dialogs:Array.from(document.querySelectorAll("[role=dialog]")).map(e=>e.textContent?.slice(0,250))})');
+      console.error('Material browser state:', JSON.stringify(visibleState));
+      if (uncaught.length) console.error('Browser runtime exceptions:', uncaught.join(' | '));
+    } catch {}
     try { await saveScreenshot(client); } catch {}
     throw error;
   } finally {
