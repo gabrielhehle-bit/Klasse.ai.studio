@@ -24,8 +24,9 @@ test('Unterricht hub exposes the cockpit and previously scattered teaching tools
   assert.doesNotMatch(text, /id:\s*['\"]stimmnotizen['\"]/);
 });
 
-test('Klasse, Planung and Leistungen hubs expose their remaining legacy tools', () => {
+test('Klasse, Planung and Leistungen hubs expose their unified tools', () => {
   assertContainsAll(source('KlasseHub.tsx'), ['schueler', 'dossier', 'anwesenheit', 'sitzplan', 'verhalten', 'orga', 'kel', 'klassengemeinschaft', 'teamteaching']);
   assertContainsAll(source('PlanungHub.tsx'), ['planungszentrale', 'wochenplanung', 'jahresplanung', 'stunden', 'materialien', 'canva', 'vertretung', 'uebergabemappe']);
-  assertContainsAll(source('LeistungenHub.tsx'), ['noten', 'portfolio', 'diagnostik', 'statistik', 'kel', 'notenTabelle', 'verbal', 'jahresbericht']);
+  assertContainsAll(source('LeistungenHub.tsx'), ['noten', 'portfolio', 'diagnostik', 'statistik', 'kel', 'verbal', 'jahresbericht']);
+  assert.doesNotMatch(source('LeistungenHub.tsx'), /id:\\s*['\"]notenTabelle['\"]/);
 });
