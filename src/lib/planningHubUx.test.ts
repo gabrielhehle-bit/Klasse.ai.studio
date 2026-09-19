@@ -23,8 +23,8 @@ test('planning hub keeps every agreed planning destination', () => {
     'materialien',
     'canva',
     'vertretung',
-    'uebergabemappe',
   ]) {
     assert.match(source, new RegExp(`id:\\s*['"]${id}['"]`));
   }
+  assert.doesNotMatch(source, /id:\\s*['"]uebergabemappe['"]/);
 });
