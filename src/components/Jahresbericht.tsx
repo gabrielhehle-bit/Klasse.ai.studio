@@ -152,9 +152,18 @@ export default function Jahresbericht({ studentId }: { studentId?: string } = {}
   };
 
   const triggerSingleGeneration = async (studentId: string) => {
+    const previous = reportForTerm(studentId);
+    if (previous && !window.confirm(
+      previous.reviewStatus === 'freigegeben'
+        ? 'Dieser Jahresbericht ist bereits freigegeben. Einen neuen Entwurf erstellen? Der bisherige Bericht bleibt als frühere Fassung erhalten; die Freigabe des neuen Entwurfs wird zurückgesetzt.'
+        : 'Einen neuen Entwurf erstellen? Der bisherige Text bleibt als frühere Fassung erhalten.'
+    )) return;
     setIsGenerating(true);
-    await generateReport(studentId);
-    setIsGenerating(false);
+    try {
+      await generateReport(studentId);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const generateReport = async (studentId: string) => {
