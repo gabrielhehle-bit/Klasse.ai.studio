@@ -42,3 +42,10 @@
 `Sidebar.tsx` (#145, #146, #147, #149, #151, #155, #156, #158, #159), `App.tsx` (#149, #151, #152, #155, #156, #159), `StudentDossier.tsx` (#152, #154, #155, #156, #158), `Unterrichtsmodus.tsx` (#148, #159), `WeeklyPlan.tsx` (#146, #159), `Gradebook.tsx` (#150, #151, #152, #155, #156), `src/types.ts` (#147, #148, #149, #154, #157, #158).
 
 **Status ist nur dann „fertig“, wenn die Funktion im selben geprüften Integrations-HEAD vorhanden ist und anschließend bewusst in `main` übernommen wurde.**
+
+## Integrationsprotokoll – weiterer, verifizierter Stand am 2026-09-19
+
+- **Jetzt zusätzlich aufgenommen:** #154 (klassenlokale Lernzielbewertung) über Integrations-PR #165, Merge-Commit `dd3a37250defcaed59b83d619d2c12caaee5f142`. Die oben stehende Tabelle wurde zunächst vor diesem Merge geschrieben; diese neuere Ergänzung hat Vorrang.
+- **Offene, konfliktbehaftete Integrations-PRs:** #163 für #149, #164 für die Gesamt-Kette #150→151→152→155→156→157, #166 für #158 und #167 für #159. GitHub meldet bei diesen Heads `mergeable=false`; für #163 hat der tatsächliche Mergeversuch den HTTP-405-Fehler `Pull Request has merge conflicts` bestätigt. Diese Änderungen sind **nicht** Teil des Integrations-HEADs und keinesfalls auf `main`/Live.
+- **#145** bleibt mit fehlgeschlagenem Planning-Browser-Test separat blockiert; #153/146/147/148/154 sind im Integrations-HEAD vorhanden, aber die zusammengeführten Gesamtprüfungen und echten Daten-Backups stehen noch aus.
+- **Branch-HEAD dieses Zwischenstands:** `dd3a37250defcaed59b83d619d2c12caaee5f142` (vor weiteren Dokumentations-Commits). `main` nach erneuter Abfrage weiterhin `05bf54bae5abbfee1d43ce96431a030a42bcc0ed`.
