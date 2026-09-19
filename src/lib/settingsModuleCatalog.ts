@@ -46,7 +46,7 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
   { id: 'jahresplanung', label: 'Jahresplanung', desc: 'Langfristige Stoff- und Jahresplanung', category: 'Planung' },
   { id: 'wochenplanung', label: 'Wochenplan', desc: 'Wochenplanung, Aufgaben und Hausübungen', category: 'Planung' },
   { id: 'materialien', label: 'Materialbibliothek', desc: 'Unterrichtsmaterialien verwalten', category: 'Planung' },
-  { id: 'canva', label: 'Canva', desc: 'Canva-bezogene Export- und Gestaltungsfunktionen', category: 'Planung' },
+  { id: 'canva', label: 'Canva', desc: 'Canva-bezogene Export- und Gestaltungsfunktionen', category: 'Tools' },
   { id: 'vertretung', label: 'Vertretung', desc: 'Vertretungsunterricht vorbereiten', category: 'Planung' },
   { id: 'uebergabemappe', label: 'Übergabemappe', desc: 'Klassenübergabe und Vertretungsinformationen', category: 'Planung', condition: (app: any) => app.klassenvorstand },
 
