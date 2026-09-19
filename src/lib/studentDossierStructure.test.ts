@@ -70,10 +70,11 @@ test("Schülerdossier: Detailfunktionen der fünf Bereiche bleiben vorhanden", (
 
 test("Schülerliste: Suche, Filter, Ansichten, Import und Dossier bleiben erhalten", () => {
   assert.match(studentList, /const \[searchTerm, setSearchTerm\] = useState\(''\)/);
-  assert.match(studentList, /const \[activeFilter, setActiveFilter\].*'all'.*'daz'.*'spf'.*'espf'/s);
+  assert.match(studentList, /const \[activeFilters, setActiveFilters\] = useState<FundingFilter\[\]>\(\[\]\)/);
+  assert.match(studentList, /activeFilters\.every\(filter => Boolean\(s\[filter\]\)\)/);
   assert.match(studentList, /useState<'list' \| 'grid' \| 'map'>\('list'\)/);
   assert.match(studentList, /KlassenlistenImport/);
-  assert.match(studentList, /Dossier öffnen/);
+  assert.match(studentList, /Schülerdossier öffnen/);
   assert.match(studentList, /title="Bearbeiten"/);
   assert.doesNotMatch(studentList, /Notiz oder Interaktion/);
   assert.doesNotMatch(studentList, /InteractionModal/);

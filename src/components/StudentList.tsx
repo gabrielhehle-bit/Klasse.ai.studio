@@ -12,6 +12,7 @@ import { KlassenlistenImport } from './KlassenlistenImport';
 import { DebouncedInput } from './DebouncedInput';
 import { motion, AnimatePresence } from 'motion/react';
 import StudentDossier from './StudentDossier';
+import ClassOverviewStats from './ClassOverviewStats';
 import StudentPortfolio from './StudentPortfolio';
 const StudentMap = React.lazy(() => import('./StudentMap'));
 import { EmptyState } from './EmptyState';
@@ -87,6 +88,29 @@ export default function StudentList() {
   const [editingStudent, setEditingStudent] = useState<Partial<Student> | null>(null);
   const [timelineStudent, setTimelineStudent] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'grid' | 'map'>('list');
+  const [showClassStatistics, setShowClassStatistics] = useState(false);
+  const [showColumnOptions, setShowColumnOptions] = useState(false);
+  const [menuStudentId, setMenuStudentId] = useState<string | null>(null);
+  type OptionalColumn = 'birthday' | 'funding' | 'firstLanguage' | 'secondLanguage' | 'religion' | 'gender' | 'level';
+  const [visibleColumns, setVisibleColumns] = useState<Record<OptionalColumn, boolean>>(() => {
+    const defaults: Record<OptionalColumn, boolean> = {
+      birthday: true, funding: true, firstLanguage: false, secondLanguage: false,
+      religion: false, gender: false, level: false,
+    };
+    try {
+      const saved = JSON.parse(localStorage.getItem('klassio_student_list_columns_v1') || 'null');
+      if (saved && typeof saved === 'object') {
+        for (const key of Object.keys(defaults) as OptionalColumn[]) {
+          if (typeof saved[key] === 'boolean') defaults[key] = saved[key];
+        }
+      }
+    } catch { /* local settings unavailable: use defaults */ }
+    return defaults;
+  });
+  useEffect(() => {
+    try { localStorage.setItem('klassio_student_list_columns_v1', JSON.stringify(visibleColumns)); }
+    catch { /* optional device preference; do not interrupt class work */ }
+  }, [visibleColumns]);
   const [selectedFolderStudent, setSelectedFolderStudent] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [folderQuickNote, setFolderQuickNote] = useState('');
@@ -96,7 +120,8 @@ export default function StudentList() {
 
   const [sortBy, setSortBy] = useState<'nachname' | 'vorname' | 'alter'>('nachname');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'daz' | 'spf' | 'espf'>('all');
+  type FundingFilter = 'daz' | 'spf' | 'espf';
+  const [activeFilters, setActiveFilters] = useState<FundingFilter[]>([]);
   const [inlineEditingNiveau, setInlineEditingNiveau] = useState<string | null>(null);
   
   const [visibleLimit, setVisibleLimit] = useState(15);
@@ -104,7 +129,7 @@ export default function StudentList() {
 
   useEffect(() => {
     setVisibleLimit(15);
-  }, [searchTerm, activeFilter, sortBy, sortOrder]);
+  }, [searchTerm, activeFilters, sortBy, sortOrder]);
 
   useEffect(() => {
     if (isModalOpen) setStudentFormSection('basis');
@@ -120,8 +145,11 @@ export default function StudentList() {
     setInlineEditingNiveau(null);
     setFolderQuickNote('');
     setSearchTerm('');
-    setActiveFilter('all');
+    setActiveFilters([]);
     setViewMode('list');
+    setShowClassStatistics(false);
+    setShowColumnOptions(false);
+    setMenuStudentId(null);
   }, [app.activeClassId]);
 
   useEffect(() => {
@@ -189,14 +217,12 @@ export default function StudentList() {
       ].some((value) => String(value || '').toLowerCase().includes(normalizedSearch));
 
       if (!matchesSearch) return false;
-      if (activeFilter === 'daz') return s.daz;
-      if (activeFilter === 'spf') return s.spf;
-      if (activeFilter === 'espf') return s.espf;
-      return true;
+      // Selecting multiple badges narrows the list to children matching all of them.
+      return activeFilters.every(filter => Boolean(s[filter]));
     });
 
     return sortStudentsForList(filtered, sortBy, sortOrder);
-  }, [schueler, searchTerm, activeFilter, sortBy, sortOrder]);
+  }, [schueler, searchTerm, activeFilters, sortBy, sortOrder]);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -261,100 +287,17 @@ export default function StudentList() {
       ) : (
         <>
           <div className={`${isCompact ? "space-y-4" : isLarge ? "space-y-8" : "space-y-6"} print:hidden`}>
-          <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm print:hidden ${
-            isCompact ? 'p-2.5' : isLarge ? 'p-5' : 'p-4'
-          }`}>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {/* Klasse */}
-              <div className={`flex items-center gap-3 bg-slate-50 rounded-xl border border-slate-200 ${isCompact ? 'p-2' : 'p-3'}`}>
-                <div className={`bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black shadow-sm shrink-0 ${
-                  isCompact ? 'w-8 h-8 text-[0.875rem]' : 'w-10 h-10 text-[1.125rem]'
-                }`}>
-                  {schueler.length}
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-0.5">Klasse</span>
-                  <span className="text-[0.75rem] leading-tight font-black text-slate-900 truncate">Personen</span>
-                </div>
-              </div>
-              
-              {/* Personen (M/W) */}
-              <div className={`flex flex-col justify-between bg-slate-50 rounded-xl border border-slate-200 ${isCompact ? 'p-2' : 'p-3'}`}>
-                <div className="flex justify-between items-center w-full mb-1 gap-2">
-                  <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none">Geschlecht</span>
-                  <span className="text-[0.5625rem] font-black text-slate-600 text-right">
-                    {maleCount} M · {femaleCount} W{diverseCount > 0 ? ` · ${diverseCount} D` : ''}{unknownGenderCount > 0 ? ` · ${unknownGenderCount} offen` : ''}
-                  </span>
-                </div>
-                <div className="w-full bg-slate-200/60 rounded-full h-1.5 flex overflow-hidden">
-                  <div className="bg-blue-500 transition-all duration-500" style={{ width: `${schueler.length ? (maleCount / schueler.length) * 100 : 0}%` }} />
-                  <div className="bg-rose-500 transition-all duration-500" style={{ width: `${schueler.length ? (femaleCount / schueler.length) * 100 : 0}%` }} />
-                  <div className="bg-violet-500 transition-all duration-500" style={{ width: `${schueler.length ? (diverseCount / schueler.length) * 100 : 0}%` }} />
-                </div>
-              </div>
-
-              {/* Förderung (DAZ/ESPF/SPF) */}
-              <div className={`flex flex-col justify-center bg-slate-50/70 rounded-xl border border-slate-150/40 ${isCompact ? 'p-2' : 'p-3'}`}>
-                 <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-1.5">Förderung</span>
-                 <div className="flex items-center gap-1 flex-wrap">
-                  {dazCount > 0 && (
-                    <div className="px-1.5 py-0.5 bg-amber-50 rounded select-none border border-amber-200 flex items-center shrink-0">
-                      <span className="text-[0.5rem] font-black text-amber-700">DaZ {dazCount}</span>
-                    </div>
-                  )}
-                  {espfCount > 0 && (
-                    <div className="px-1.5 py-0.5 bg-emerald-50 rounded select-none border border-emerald-200 flex items-center shrink-0">
-                      <span className="text-[0.5rem] font-black text-emerald-700">ESPF {espfCount}</span>
-                    </div>
-                  )}
-                  {spfCount > 0 && (
-                    <div className="px-1.5 py-0.5 bg-indigo-50 rounded select-none border border-indigo-200 flex items-center shrink-0">
-                      <span className="text-[0.5rem] font-black text-indigo-700">SPF {spfCount}</span>
-                    </div>
-                  )}
-                  {dazCount === 0 && espfCount === 0 && spfCount === 0 && (
-                    <span className="text-[0.625rem] text-slate-400 italic">Keine</span>
-                  )}
-                 </div>
-              </div>
-
-              {/* Alter */}
-              <div className={`flex items-center justify-between gap-2 bg-slate-50 rounded-xl border border-slate-200 ${isCompact ? 'p-2' : 'p-3'}`}>
-                <div className="flex flex-col">
-                  <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Ø Alter</span>
-                  <div className="flex items-baseline gap-0.5">
-                    <span className="text-[1.125rem] font-black text-slate-900 leading-none">{avgAge}</span>
-                    <span className="text-[0.5rem] font-bold text-slate-400 uppercase">J.</span>
-                  </div>
-                </div>
-                <div className="flex flex-col border-l border-slate-200 pl-2">
-                  <div className="flex items-center justify-between gap-1.5 text-[0.5rem] font-black uppercase text-slate-400">
-                    <span className="opacity-50">Min</span> <span className="text-slate-700 font-extrabold">{minAge}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-1.5 text-[0.5rem] font-black uppercase text-slate-400 mt-0.5">
-                    <span className="opacity-50">Max</span> <span className="text-slate-700 font-extrabold">{maxAge}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Religionen - compact display */}
-              <div className={`flex flex-col bg-slate-50 rounded-xl border border-slate-200 col-span-2 md:col-span-1 ${isCompact ? 'p-2' : 'p-3'}`}>
-                <span className="text-[0.5625rem] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Religionen</span>
-                <div className="flex flex-wrap gap-1 max-h-[38px] overflow-y-auto no-scrollbar">
-                  {Object.entries(religionCounts).length > 0 ? (
-                    Object.entries(religionCounts).sort((a,b) => b[1] - a[1]).map(([rel, count]) => (
-                      <div key={rel} className="flex items-center gap-1 bg-white border border-slate-200 px-1 py-0.5 rounded-md shrink-0 shadow-3xs">
-                        <span className="text-[0.5rem] font-bold text-slate-600 text-wrap leading-tight break-words max-w-[45px]">{rel}</span>
-                        <span className="text-[0.5rem] font-black text-slate-900">{count}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <span className="text-[0.5625rem] text-slate-300 italic">Keine Daten</span>
-                  )}
-                </div>
-              </div>
-            </div>
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm px-3 py-2.5 sm:px-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-700">
+            <span className="font-extrabold text-slate-900">{schueler.length} Kinder</span>
+            <span>{maleCount} Jungen · {femaleCount} Mädchen{diverseCount ? ` · ${diverseCount} divers` : ''}{unknownGenderCount ? ` · ${unknownGenderCount} offen` : ''}</span>
+            <span>DaZ {dazCount} · SPF {spfCount} · ESPF {espfCount}</span>
+            <button type="button" aria-expanded={showClassStatistics} aria-controls="klassio-class-statistics"
+              onClick={() => setShowClassStatistics(open => !open)}
+              className="ml-auto rounded-lg border border-indigo-200 px-3 py-1.5 text-indigo-700 font-bold hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+              {showClassStatistics ? 'Statistik ausblenden' : 'Klassenstatistik anzeigen'}
+            </button>
           </div>
+          {showClassStatistics && <div id="klassio-class-statistics"><ClassOverviewStats students={schueler} /></div>}
         </div>
 
         <div className={`flex flex-col gap-3 bg-white border border-slate-200 shadow-sm print:hidden ${
@@ -371,7 +314,7 @@ export default function StudentList() {
               <div>
                 <h3 className={`${isCompact ? 'text-[0.55rem]' : isLarge ? 'text-[0.7rem]' : 'text-[0.55rem] sm:text-[0.65rem]'} font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-slate-400 leading-none`}>Klassenliste</h3>
                 <p className={`${isCompact ? 'text-[0.7rem]' : isLarge ? 'text-[0.95rem]' : 'text-[0.7rem] sm:text-[0.8rem]'} text-slate-900 font-black mt-0.5 sm:mt-1`}>
-                  {filteredStudents.length} {activeFilter !== 'all' ? `von ${app?.schueler?.length || 0}` : ''} Schüler/innen
+                  {filteredStudents.length} {activeFilters.length > 0 || searchTerm ? `von ${schueler.length}` : ''} Schüler/innen
                 </p>
               </div>
             </div>
@@ -384,6 +327,22 @@ export default function StudentList() {
                 }`}
               >
                 <FileUp size={isCompact ? 11 : isLarge ? 17 : 14} />
+              </button>
+              <button type="button"
+                onClick={() => setShowColumnOptions(open => !open)}
+                aria-expanded={showColumnOptions}
+                aria-controls="klassio-student-column-options"
+                className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
+                Spalten anpassen
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage('drucken')}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                title="Schülerlisten-Vorlage mit wählbaren Druckfeldern im Druckzentrum öffnen"
+              >
+                <Printer size={15} />
+                <span>Liste drucken</span>
               </button>
               <button 
                 onClick={() => { 
@@ -399,6 +358,34 @@ export default function StudentList() {
               </button>
             </div>
           </div>
+
+          {showColumnOptions && (
+            <div id="klassio-student-column-options"
+              className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3"
+              role="group" aria-label="Sichtbare Spalten in der Schülerliste">
+              <span className="text-xs font-semibold text-slate-600">Name immer sichtbar · zusätzlich anzeigen:</span>
+              {([
+                ['birthday', 'Geburtstag'], ['funding', 'Förderung'],
+                ['firstLanguage', 'Erstsprache'], ['secondLanguage', 'Zweitsprache'],
+                ['religion', 'Religion'], ['gender', 'Geschlecht'], ['level', 'Niveau'],
+              ] as const).map(([key, label]) => (
+                <label key={key} className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input type="checkbox" checked={visibleColumns[key]}
+                    onChange={event => setVisibleColumns(previous => ({ ...previous, [key]: event.target.checked }))}
+                    className="accent-indigo-600" />
+                  {label}
+                </label>
+              ))}
+              <button type="button"
+                onClick={() => setVisibleColumns({
+                  birthday: true, funding: true, firstLanguage: false, secondLanguage: false,
+                  religion: false, gender: false, level: false,
+                })}
+                className="text-xs font-bold text-indigo-700 hover:underline">
+                Standardansicht
+              </button>
+            </div>
+          )}
 
           {/* Middle row: Search, Sort, Filters */}
           <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
@@ -447,40 +434,25 @@ export default function StudentList() {
               </button>
             </div>
 
-            <div className={`flex flex-wrap items-center bg-slate-50 rounded-lg border border-slate-200 w-full lg:w-auto ${
-              isCompact ? 'p-0.5 gap-0.5' : isLarge ? 'p-1.5 gap-1.5' : 'p-1 gap-1'
-            }`}>
-              {[
-                { id: 'all', label: 'Alle', count: schueler.length },
-                { id: 'daz', label: 'DaZ', count: dazCount },
-                { id: 'spf', label: 'SPF', count: spfCount },
-                { id: 'espf', label: 'ESPF', count: espfCount }
-              ].map(chip => (
-                <button
-                  key={chip.id}
-                  onClick={() => setActiveFilter(chip.id as any)}
-                  className={`rounded-md font-black uppercase tracking-wider transition-all flex-1 text-center whitespace-nowrap flex items-center justify-center ${
-                    isCompact 
-                      ? 'px-2 py-1 text-[0.5rem] gap-0.5' 
-                      : isLarge 
-                        ? 'px-4 py-2.5 text-[0.6875rem] gap-1.5 rounded-lg' 
-                        : 'px-3 py-1.5 text-[0.5625rem] gap-1'
-                  } ${
-                    activeFilter === chip.id 
-                      ? 'bg-white text-indigo-700 shadow-sm border border-slate-200/50 font-black' 
-                      : 'text-slate-500 hover:text-slate-850 hover:bg-white/50'
-                  }`}
-                >
-                  <span>{chip.label}</span>
-                  <span className={`font-extrabold rounded ${
-                    isCompact 
-                      ? 'px-0.5 py-0.1 text-[0.45rem]' 
-                      : isLarge 
-                        ? 'px-1.5 py-0.5 text-[0.575rem]' 
-                        : 'px-1 py-0.2 text-[0.5rem]'
-                  } ${
-                    activeFilter === chip.id ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-200/60 text-slate-500'
-                  }`}>{chip.count}</span>
+            <div className="flex flex-wrap items-center gap-1 rounded-xl bg-slate-50 border border-slate-200 px-2 py-1.5" aria-label="Förderkennzeichen kombinierbar filtern">
+              <button type="button" onClick={() => setActiveFilters([])}
+                aria-pressed={activeFilters.length === 0}
+                className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${activeFilters.length === 0 ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:bg-white'}`}>
+                Alle {schueler.length}
+              </button>
+              {([
+                ['daz', 'DaZ', dazCount],
+                ['spf', 'SPF', spfCount],
+                ['espf', 'ESPF', espfCount],
+              ] as const).map(([filter, label, count]) => (
+                <button type="button" key={filter}
+                  aria-pressed={activeFilters.includes(filter)}
+                  title={`${label}-Kennzeichen filtern; mehrere Kennzeichen kombinierbar`}
+                  onClick={() => setActiveFilters(previous => previous.includes(filter)
+                    ? previous.filter(item => item !== filter)
+                    : [...previous, filter])}
+                  className={`rounded-lg px-2.5 py-1.5 text-xs font-bold ${activeFilters.includes(filter) ? 'bg-white text-indigo-700 shadow-sm ring-1 ring-indigo-200' : 'text-slate-600 hover:bg-white'}`}>
+                  {label} {count}
                 </button>
               ))}
             </div>
@@ -541,176 +513,114 @@ export default function StudentList() {
           <p className="text-sm text-slate-500 mt-1">Passe die Suche oder den Filter an.</p>
           <button
             type="button"
-            onClick={() => { setSearchTerm(''); setActiveFilter('all'); }}
+            onClick={() => { setSearchTerm(''); setActiveFilters([]); }}
             className="mt-4 px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-black uppercase tracking-wider hover:bg-slate-800 transition-colors"
           >
             Suche & Filter zurücksetzen
           </button>
         </div>
       ) : viewMode === 'list' ? (
-        <div className={`bg-white border border-slate-200 shadow-sm overflow-x-auto flex flex-col ${
-          isCompact ? 'rounded-xl' : isLarge ? 'rounded-3xl' : 'rounded-2xl'
-        }`}>
-          <div className="lg:min-w-[1024px]">
-            {/* Header row */}
-            <div className={`hidden lg:grid grid-cols-12 gap-4 bg-slate-50/50 border-b border-slate-100 font-black uppercase tracking-[0.2em] text-slate-400 ${
-              isCompact ? 'p-2.5 text-[0.65rem]' : isLarge ? 'p-5 text-[0.8rem]' : 'p-4 text-[0.75rem]'
-            }`}>
-               <div className="col-span-1 pl-2">#</div>
-               <div className="col-span-3">Schüler/in</div>
-               <div className="col-span-3">Geburtstag & Religion</div>
-               <div className="col-span-3">Sprache & Status</div>
-               <div className="col-span-2 text-right pr-2">Aktionen</div>
-            </div>
-            <motion.div 
-               variants={{
-                 animate: { transition: { staggerChildren: 0.03 } }
-               }}
-               initial="initial"
-               animate="animate"
-               className="flex flex-col divide-y divide-slate-100"
-            >
-               {filteredStudents.map((s, i) => {
-                 const bday = isBirthdayToday(s.geburtstag);
-                 return (
-                   <motion.div 
-                      key={s.id} 
-                      variants={{
-                        initial: { opacity: 0, y: 10 },
-                        animate: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 260, damping: 25 } }
-                      }}
-                      onClick={() => setSelectedFolderStudent(s.id)}
-                      className={`grid grid-cols-1 lg:grid-cols-12 gap-y-3 lg:gap-4 items-center hover:bg-indigo-50/30 transition-all cursor-pointer group ${
-                        isCompact ? 'p-2.5' : isLarge ? 'p-5' : 'p-4'
-                      } ${
-                        bday 
-                          ? 'bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-indigo-500/10 border-l-4 border-l-amber-500/80 animate-pulse' 
-                          : s.spf 
-                            ? 'bg-purple-50/10' 
-                            : s.espf 
-                              ? 'bg-emerald-50/10' 
-                              : ''
-                      }`}
-                   >
-                    {/* # and Name */}
-                    <div className="col-span-1 lg:col-span-4 flex items-center gap-4">
-                       <div className="hidden lg:flex flex-col items-center w-8 text-slate-300 font-black tabular-nums text-[0.875rem] leading-snug">
-                          <span>{i+1}</span>
-                       </div>
-                       <div className="flex items-center gap-3 w-full">
-                          <div className="lg:hidden flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-400 font-black text-[0.75rem] leading-tight shrink-0">
-                             {i+1}
-                          </div>
-                          <div className="flex flex-col">
-                             <div className="flex flex-wrap items-center gap-2">
-                                <span className={`font-black ${
-                                  isCompact ? 'text-[0.85rem]' : isLarge ? 'text-[1.125rem]' : 'text-[0.9375rem] sm:text-[1.0625rem]'
-                                } ${bday ? 'bg-gradient-to-r from-pink-500 via-amber-500 to-indigo-500 bg-clip-text text-transparent animate-bounce pr-1 font-extrabold' : 'text-slate-900'}`}>
-                                   {s.nachname} {s.vorname}
-                                </span>
-                                {bday && (
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleBirthdayCelebrate(s.vorname);
-                                    }}
-                                    className="p-1 bg-amber-100 hover:bg-amber-200 text-rose-500 rounded-full cursor-pointer animate-bounce border border-amber-200/50 shadow-3xs flex items-center justify-center text-[0.75rem]"
-                                    title="Geburtstag feiern! 🎉"
-                                  >
-                                    <Gift size={12} className="animate-spin duration-[3000ms]" />
-                                  </button>
-                                )}
-                             </div>
-                             <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[0.5625rem] font-bold uppercase text-slate-500 bg-slate-100/80 px-1.5 py-0.5 rounded border border-slate-200/50">Niveau {s.niveau || 3}</span>
-                                {s.ikmNummer && (
-                                  <span className="text-[0.5625rem] font-black text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shadow-3xs">
-                                    #{s.ikmNummer}
-                                  </span>
-                                )}
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-
-                    {/* Geburtstag & Religion */}
-                    <div className="col-span-1 lg:col-span-3 flex flex-col gap-1 pl-12 lg:pl-0">
-                       <div className="flex items-center gap-1.5 text-slate-600 text-[0.8125rem]">
-                         <span className="text-slate-400 text-[0.9rem]" title="Geschlecht">⚧</span>
-                         <span className="font-semibold text-slate-700">{getStudentGenderLabel(s.geschlecht)}</span>
-                       </div>
-                       {s.geburtstag ? (
-                         <div className="flex items-center gap-1.5 text-slate-600 text-[0.8125rem]">
-                            <span className="text-slate-400 text-[0.9rem]" title="Geburtstag">📅</span>
-                            <span className="font-semibold text-slate-700">
-                               {s.geburtstag.includes('-') ? s.geburtstag.split('-').reverse().join('.') : s.geburtstag}
-                            </span>
-                         </div>
-                       ) : (
-                         <span className="text-slate-350 text-[0.75rem] italic pl-5">Kein Geburtstag</span>
-                       )}
-                       {s.religion ? (
-                         <div className="flex items-center gap-1.5 text-slate-500 text-[0.75rem]">
-                            <span className="text-slate-400 text-[0.85rem]" title="Religion">⛪</span>
-                            <span className="font-medium">{s.religion}</span>
-                         </div>
-                       ) : (
-                         <span className="text-slate-350 text-[0.75rem] italic pl-5">Keine Religion</span>
-                       )}
-                    </div>
-
-                    {/* Sprache & Status */}
-                    <div className="col-span-1 lg:col-span-3 flex flex-col gap-1.5 pl-12 lg:pl-0">
-                       {s.erstsprache ? (
-                         <div className="flex items-center gap-1.5 text-slate-600 text-[0.8125rem]">
-                            <span className="text-slate-400 text-[0.9rem]" title="Muttersprache / Erstsprache">🗣️</span>
-                            <span className="font-semibold text-slate-700">
-                               {s.erstsprache} {s.zweitsprache ? `/ ${s.zweitsprache}` : ''}
-                            </span>
-                         </div>
-                       ) : (
-                         <span className="text-slate-350 text-[0.75rem] italic pl-5">Keine Erstsprache</span>
-                       )}
-                       <div className="flex flex-wrap gap-1 items-center">
-                          <button
-                             onClick={(e) => { e.stopPropagation(); updateStudent({ ...s, daz: !s.daz }); }}
-                             className={`font-black uppercase border tracking-tight transition-all active:scale-95 cursor-pointer px-1.5 py-0.5 rounded text-[0.6rem] ${
-                               s.daz 
-                                 ? 'bg-amber-100 text-amber-700 border-amber-250 shadow-3xs' 
-                                 : 'bg-slate-50 text-slate-350 border-slate-150 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200'
-                             }`}
-                             title="Deutsch als Zweitsprache (DaZ) umschalten"
-                          >DAZ</button>
-                          <button
-                             onClick={(e) => { e.stopPropagation(); updateStudent({ ...s, spf: !s.spf }); }}
-                             className={`font-black uppercase border tracking-tight transition-all active:scale-95 cursor-pointer px-1.5 py-0.5 rounded text-[0.6rem] ${
-                               s.spf 
-                                 ? 'bg-purple-100 text-purple-700 border-purple-250 shadow-3xs' 
-                                 : 'bg-slate-50 text-slate-400 border-slate-150 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200'
-                             }`}
-                             title="Sonderpädagogischer Förderbedarf (SPF) umschalten"
-                          >SPF</button>
-                          {s.espf && (
-                            <span className="bg-emerald-100 text-emerald-700 border-emerald-250 px-1.5 py-0.5 rounded text-[0.6rem] font-black uppercase tracking-tight">ESPF</span>
+        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl print:hidden">
+          <div className="overflow-x-auto rounded-2xl">
+            <table className="w-full min-w-[620px] text-left text-sm text-slate-700">
+              <thead className="bg-slate-50 border-b border-slate-200 text-xs font-extrabold text-slate-600">
+                <tr>
+                  <th scope="col" className="w-10 px-3 py-2.5">#</th>
+                  <th scope="col" className="px-3 py-2.5">Schüler/in</th>
+                  {visibleColumns.birthday && <th scope="col" className="px-3 py-2.5 whitespace-nowrap">Geburtstag</th>}
+                  {visibleColumns.funding && <th scope="col" className="px-3 py-2.5">Förderung</th>}
+                  {visibleColumns.firstLanguage && <th scope="col" className="px-3 py-2.5">Erstsprache</th>}
+                  {visibleColumns.secondLanguage && <th scope="col" className="px-3 py-2.5">Zweitsprache</th>}
+                  {visibleColumns.religion && <th scope="col" className="px-3 py-2.5">Religion</th>}
+                  {visibleColumns.gender && <th scope="col" className="px-3 py-2.5">Geschlecht</th>}
+                  {visibleColumns.level && <th scope="col" className="px-3 py-2.5">Niveau</th>}
+                  <th scope="col" className="px-3 py-2.5 text-right">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredStudents.map((student, index) => {
+                  const birthday = isBirthdayToday(student.geburtstag);
+                  return (
+                    <tr key={student.id} className={`hover:bg-indigo-50/40 ${birthday ? 'bg-amber-50/40' : ''}`}>
+                      <td className="px-3 py-2 text-slate-500 tabular-nums">{index + 1}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <button type="button" onClick={() => setSelectedFolderStudent(student.id)}
+                            className="text-left font-bold text-slate-900 hover:text-indigo-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                            title="Schülerdossier öffnen">
+                            {student.nachname} {student.vorname}
+                          </button>
+                          {birthday && (
+                            <button type="button" onClick={() => handleBirthdayCelebrate(student.vorname)}
+                              aria-label={`Geburtstag von ${student.vorname} feiern`} title="Geburtstag feiern" className="text-amber-600">
+                              <Gift size={16} />
+                            </button>
                           )}
-                          {app.differenzierungsGruppen?.filter(g => g.schuelerIds.includes(s.id)).map(g => (
-                             <span key={g.id} className={`flex items-center text-white shadow-3xs ${g.farbe} px-1.5 py-0.5 rounded text-[0.6rem]`} title={g.name || 'Gruppe'}>
-                                {g.emoji}
-                             </span>
-                          ))}
-                       </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="col-span-1 lg:col-span-2 flex justify-start lg:justify-end items-center gap-1.5 flex-nowrap pl-11 lg:pl-0">
-                       <button onClick={e => { e.stopPropagation(); setSelectedFolderStudent(s.id); }} aria-label={`Dossier von ${s.vorname} ${s.nachname} öffnen`} className={`text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Dossier öffnen"><GraduationCap size={isCompact ? 14 : isLarge ? 18 : 16} strokeWidth={2.5} /></button>
-                       <button onClick={e => { e.stopPropagation(); setEditingStudent(s); setIsModalOpen(true); }} aria-label={`${s.vorname} ${s.nachname} bearbeiten`} className={`text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Bearbeiten"><Edit2 size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
-                       <button onClick={e => { e.stopPropagation(); handleDeleteStudent(s); }} aria-label={`${s.vorname} ${s.nachname} löschen`} className={`text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all active:scale-95 ${isCompact ? 'p-1.5' : isLarge ? 'p-3' : 'p-2'}`} title="Löschen"><Trash2 size={isCompact ? 13 : isLarge ? 17 : 15} strokeWidth={2.5} /></button>
-                    </div>
-                 </motion.div>
-                 );
-               })}
-            </motion.div>
+                        </div>
+                      </td>
+                      {visibleColumns.birthday && (
+                        <td className="px-3 py-2 whitespace-nowrap tabular-nums">
+                          {student.geburtstag ? (student.geburtstag.includes('-')
+                            ? student.geburtstag.split('-').reverse().join('.') : student.geburtstag) : '–'}
+                        </td>
+                      )}
+                      {visibleColumns.funding && (
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap items-center gap-1">
+                            <button type="button" onClick={() => updateStudent({ ...student, daz: !student.daz })}
+                              aria-pressed={Boolean(student.daz)} aria-label={`DaZ bei ${student.vorname} ${student.nachname} umschalten`}
+                              title="DaZ-Kennzeichen umschalten"
+                              className={`rounded border px-1.5 py-0.5 text-[0.6875rem] font-bold ${student.daz ? 'bg-amber-50 text-amber-800 border-amber-300' : 'bg-slate-50 text-slate-400 border-slate-200 hover:text-amber-700'}`}>
+                              DaZ
+                            </button>
+                            <button type="button" onClick={() => updateStudent({ ...student, spf: !student.spf })}
+                              aria-pressed={Boolean(student.spf)} aria-label={`SPF bei ${student.vorname} ${student.nachname} umschalten`}
+                              title="SPF-Kennzeichen umschalten"
+                              className={`rounded border px-1.5 py-0.5 text-[0.6875rem] font-bold ${student.spf ? 'bg-violet-50 text-violet-800 border-violet-300' : 'bg-slate-50 text-slate-400 border-slate-200 hover:text-violet-700'}`}>
+                              SPF
+                            </button>
+                            {student.espf && <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[0.6875rem] font-bold text-emerald-800">ESPF</span>}
+                            {app.differenzierungsGruppen?.filter(group => group.schuelerIds.includes(student.id)).map(group => (
+                              <span key={group.id} className={`rounded px-1.5 py-0.5 text-xs text-white ${group.farbe}`} title={group.name || 'Gruppe'}>
+                                {group.emoji}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                      )}
+                      {visibleColumns.firstLanguage && <td className="px-3 py-2">{student.erstsprache || '–'}</td>}
+                      {visibleColumns.secondLanguage && <td className="px-3 py-2">{student.zweitsprache || '–'}</td>}
+                      {visibleColumns.religion && <td className="px-3 py-2">{student.religion || '–'}</td>}
+                      {visibleColumns.gender && <td className="px-3 py-2">{getStudentGenderLabel(student.geschlecht)}</td>}
+                      {visibleColumns.level && <td className="px-3 py-2">{student.niveau || '–'}</td>}
+                      <td className="px-3 py-2">
+                        <div className="flex justify-end items-center gap-1.5">
+                          <button type="button" onClick={() => { setEditingStudent(student); setIsModalOpen(true); }}
+                            className="rounded-lg p-2 text-slate-600 hover:text-indigo-700 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                            aria-label={`${student.vorname} ${student.nachname} bearbeiten`} title="Bearbeiten">
+                            <Edit2 size={16} />
+                          </button>
+                          <button type="button" onClick={() => setMenuStudentId(old => old === student.id ? null : student.id)}
+                            aria-expanded={menuStudentId === student.id}
+                            aria-label={`Weitere Aktionen für ${student.vorname} ${student.nachname}`}
+                            className="rounded-lg border border-slate-200 px-2 py-1.5 text-slate-600 hover:bg-slate-100" title="Weitere Aktionen">
+                            ⋯
+                          </button>
+                          {menuStudentId === student.id && (
+                            <button type="button"
+                              onClick={() => { setMenuStudentId(null); handleDeleteStudent(student); }}
+                              className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100"
+                              aria-label={`${student.vorname} ${student.nachname} aus der Klasse entfernen`}>
+                              Entfernen
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       ) : false ? (
@@ -2290,7 +2200,7 @@ export default function StudentList() {
         <div className="mb-4 print:break-after-avoid">
           <h1 className="text-[1.5rem] leading-normal font-black text-slate-900 print:text-[1.25rem] leading-normal print:break-after-avoid">Schülerliste</h1>
           <p className="text-[0.75rem] leading-tight text-slate-500 font-bold uppercase tracking-widest mt-1 print:break-after-avoid">
-            Sortiert nach: {sortBy === 'nachname' ? 'Nachname' : sortBy === 'vorname' ? 'Vorname' : 'Alter/Geburtsdatum'} • Filter: {activeFilter === 'all' ? 'Alle Schüler' : activeFilter === 'daz' ? 'Nur DaZ' : activeFilter === 'spf' ? 'Nur SPF' : activeFilter === 'espf' ? 'Nur ESPF' : 'Gefiltert'}
+            Sortiert nach: {sortBy === 'nachname' ? 'Nachname' : sortBy === 'vorname' ? 'Vorname' : 'Alter/Geburtsdatum'} • Filter: {activeFilters.length ? activeFilters.map(value => value.toUpperCase()).join(' + ') : 'Alle Schüler'}
           </p>
         </div>
         <table className="w-full print:w-full print:border-collapse print:text-[0.75rem] leading-tight">
