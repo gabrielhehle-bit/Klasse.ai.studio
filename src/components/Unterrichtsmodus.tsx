@@ -11133,7 +11133,6 @@ ${content}
                                       return (
                                         <StudentListWidgetContent
                                           app={app}
-                                          setApp={setApp}
                                           getTodayPoints={getTodayPoints}
                                           addParticipation={addParticipation}
                                           removeParticipation={
