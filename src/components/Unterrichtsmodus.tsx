@@ -180,6 +180,7 @@ import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
+import { COCKPIT_PAPERS, getCockpitPaperStyle, type CockpitPaper } from "../lib/cockpitPaper";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
@@ -2923,6 +2924,17 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
   useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
   const boardTextClassKey = app.activeClassId || "unassigned";
+  const cockpitPaper = ((app.boardSettings as any)?.cockpitPaperByClass?.[boardTextClassKey] || "blank") as CockpitPaper;
+  const setCockpitPaper = (paper: CockpitPaper) => setApp((prev: any) => ({
+    ...prev,
+    boardSettings: {
+      ...(prev.boardSettings || {}),
+      cockpitPaperByClass: {
+        ...(prev.boardSettings?.cockpitPaperByClass || {}),
+        [boardTextClassKey]: paper,
+      },
+    },
+  }));
   // Frühere cockpitInkByClass-Einträge bleiben im verschlüsselten Klassenstand und in Backups erhalten.
   // Der direkte Stift ist bewusst aus der Unterrichtsfläche entfernt; Altdaten werden nicht gelöscht.
   const boardTextHtml =
@@ -9861,6 +9873,14 @@ ${content}
                           className={`min-h-11 rounded-lg border px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${isBoardTextEditing ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}>
                           TEXT
                         </button>
+                        <label className="flex min-h-11 items-center gap-2 text-xs font-semibold">
+                          Papier
+                          <select aria-label="Papierart der Unterrichtsfläche" value={cockpitPaper}
+                            onChange={event => setCockpitPaper(event.target.value as CockpitPaper)}
+                            className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-900">
+                            {COCKPIT_PAPERS.map(paper => <option key={paper.id} value={paper.id}>{paper.label}</option>)}
+                          </select>
+                        </label>
                         {isBoardTextEditing && (
                           <>
                             <select aria-label="Textgröße" defaultValue="p"
@@ -9906,6 +9926,7 @@ ${content}
                             : "bg-white border-slate-200 shadow-inner"
                         }`}
                         id="widget-board-stage"
+                        style={getCockpitPaperStyle(cockpitPaper, currentBgId === "canva" ? canvaBackground : null)}
                       >
                         <BoardTextEditor
                           value={boardTextHtml}
