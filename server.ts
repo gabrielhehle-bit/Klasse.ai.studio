@@ -1760,7 +1760,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       }
       const imageUrl = new URL(String(job.urls[0]));
       // Canva's signed export-download host; never follow redirects to another origin.
-      if (imageUrl.protocol !== 'https:' || !/^(?:[a-z0-9-]+\\.)*canva\\.com$/i.test(imageUrl.hostname)) {
+      if (imageUrl.protocol !== 'https:' || !/^(?:[a-z0-9-]+\.)*canva\.com$/i.test(imageUrl.hostname)) {
         return res.status(502).json({ error: 'Canva hat eine unerwartete Download-Adresse geliefert. Bitte Bild manuell herunterladen und importieren.' });
       }
       const response = await fetch(imageUrl, {
