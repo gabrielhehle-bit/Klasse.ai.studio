@@ -16,14 +16,14 @@ test('Canva keeps OAuth popup source validation and all agreed export formats', 
   assert.match(server, /encryptCanvaTokens/);
 });
 
-test('KEL export remains a real PPTX with native editable charts and a PDF handout', () => {
+test('KEL PPTX contains only selected assessments and an optional editable chart for comparable scores', () => {
   assert.match(kel, /from 'pptxgenjs'/);
   assert.match(kel, /pptx\.addSlide\(\)/);
-  assert.ok((kel.match(/slide\.addChart\(/g) || []).length >= 5, 'native PPTX charts must remain present');
-  assert.match(kel, /ChartType\.bar/);
-  assert.match(kel, /ChartType\.radar/);
-  assert.match(kel, /ChartType\.pie/);
-  assert.match(kel, /Klassio-KEL-\$\{safeStudentName \|\| 'Praesentation'\}\.pptx/);
+  assert.match(kel, /slide\.addChart\(pptx\.ChartType\.bar/);
+  assert.match(kel, /sameScale && \(mode === 'grades' \|\| mode === 'percent'\)/);
+  assert.match(kel, /chosenAssessments\.map\(item => item\.titel\)/);
+  assert.doesNotMatch(kel, /ChartType\.radar|ChartType\.pie/);
+  assert.match(kel, /Klassio-KEL-\$\{safeName \|\| 'Praesentation'\}\.pptx/);
   assert.match(kel, /exportSchuelerPDF\(student\.id, app\)/);
 });
 
