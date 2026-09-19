@@ -268,13 +268,7 @@ export default function YearlyPlan() {
   }, [isFullscreen]);
 
   const handleJahresplanImport = (importedRows: JahresplanImportRow[], mode: 'merge' | 'overwrite') => {
-    if (mode === 'overwrite') {
-      const impacted = importedRows.filter(row => row?.subjectId &&
-        occupiedYearPlanCell(app.jahresplanung?.[row.kw]?.[row.subjectId]));
-      if (impacted.length && !window.confirm(
-        `Der Excel-Import würde ${new Set(impacted.map(row => `${row.kw}-${row.subjectId}`)).size} bereits ausgefüllte Jahresplan-Zellen ersetzen. Möchtest du diese Einträge wirklich überschreiben? Tipp: Mit „Ergänzen“ bleiben sie erhalten.`
-      )) return;
-    }
+    // The import modal confirms destructive overwrites exactly once.
     setApp(prev => ({
       ...prev,
       jahresplanung: applyYearPlanImportRows(
