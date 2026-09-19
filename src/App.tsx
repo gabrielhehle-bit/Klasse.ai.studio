@@ -662,7 +662,7 @@ function AppContent() {
       case 'settings': return <Settings />;
       case 'arbeitsblatt': return <WorksheetGenerator />;
       case 'drucken': return <PrintCenter />;
-      case 'verbal': return <VerbalAssessment />;
+      case 'verbal': return <VerbalAssessment mode="formal" />;
       case 'portfolio': return <Portfolio />;
       case 'vertretung': return <SubstitutionPlan />;
       case 'jahresbericht': return <Jahresbericht />;
