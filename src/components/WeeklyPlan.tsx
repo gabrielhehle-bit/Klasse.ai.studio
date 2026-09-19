@@ -4222,21 +4222,27 @@ export default function WeeklyPlan() {
             <div className="p-8 border-b border-slate-100 flex justify-between items-center">
               <div>
                 <h3 className="text-[1.5rem] leading-normal font-black text-slate-900 tracking-tighter">Stundenentwürfe</h3>
-                <p className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-widest mt-1">Wähle einen Entwurf zum Übernehmen</p>
+                <p className="text-[0.6875rem] font-bold text-slate-400 uppercase tracking-widest mt-1">Gespeicherte Entwürfe und Vorlagen aus der Materialbibliothek · vorhandene Eingaben werden nur nach Bestätigung ersetzt</p>
               </div>
               <button onClick={() => setShowDraftsSelector(false)} className="p-3 hover:bg-slate-100 rounded-full transition-all"><X size={24} /></button>
             </div>
             
             <div className="p-8 overflow-y-auto custom-scrollbar bg-slate-50/30">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {(app.stundenentwuerfe || []).map(draft => (
+                {savedLessonDrafts.map(draft => (
                   <button
                     key={draft.id}
                     onClick={() => {
+                      const existingContent = Boolean(searchFach.trim() || tempThema.trim() || tempMethod.trim() || hasLessonDraftContent(tempStundenentwurf));
+                      if (existingContent && !window.confirm('Vorlage in die aktuelle Stunde übernehmen? Fach, Thema und der bisherige Entwurf im noch nicht gespeicherten Editor werden ersetzt.')) return;
                       setSearchFach(draft.fach);
                       setTempThema(draft.thema);
                       setTempMaterial(draft.material);
-                      setTempMethod(`Lernziele:\n${draft.lernziele}\n\nEinstieg:\n${draft.einleitung}\n\nHauptteil:\n${draft.hauptteil}\n\nSchluss:\n${draft.schluss}`);
+                      setTempStundenentwurf({
+                        lernziele: draft.lernziele, einleitung: draft.einleitung, hauptteil: draft.hauptteil,
+                        schluss: draft.schluss, material: draft.material,
+                      });
+                      setPlannerEditorTab('entwurf');
                       setShowDraftsSelector(false);
                     }}
                     className="p-6 bg-white border border-slate-200 rounded-3xl text-left hover:border-emerald-500 hover:shadow-xl hover:-translate-y-1 transition-all group"
@@ -4248,7 +4254,7 @@ export default function WeeklyPlan() {
                     </div>
                   </button>
                 ))}
-                {(app.stundenentwuerfe || []).length === 0 && (
+                {savedLessonDrafts.length === 0 && (
                   <div className="col-span-full py-20 text-center">
                     <BookOpen size={48} className="mx-auto text-slate-200 mb-4" />
                     <p className="text-slate-400 font-bold uppercase tracking-widest">Noch keine Entwürfe vorhanden</p>
