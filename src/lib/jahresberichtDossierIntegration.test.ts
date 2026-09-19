@@ -26,6 +26,11 @@ test('only opted-in data is sent; two semesters and all note sources are availab
   assert.match(report, /includeObservations\s*\? studentObs\.filter/);
   assert.match(report, /selectedObservationIds\.includes\(observationKey\(entry\)\)/);
   assert.match(report, /includeKel \? getLatestKelForStudent/);
+  assert.match(report, /subjects\.filter\(fach => selectedSubjects\.includes\(fach\)\)/);
+  assert.match(report, /selectedPortfolioIds\.includes\(entry\.id\)/);
+  assert.match(report, /Fotos und Bilddateien gehen nicht an die KI/);
+  assert.match(report, /\[selectedStudent, app\.activeClassId, app\.schuljahr\]/);
+
   assert.match(report, /includeFoerder \? s\.foerderprofil\?\.foerderziele/);
   assert.match(report, /const hasExplicitEvidence =/);
   assert.match(report, /window\.confirm\('Nur die ausgewählten schulischen Daten/);
