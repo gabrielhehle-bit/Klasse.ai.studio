@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { berechne, getAssessmentMode } from '../lib/GradeUtils';
 import { fitSeatingPlanViewport } from '../lib/seatingPlanViewport';
+import { createSeatingLayout, resolveSeatingLayout, sameSeatingArrangement } from '../lib/seatingPlanLayouts';
 import SeatingPlanAnalysis from './SeatingPlanAnalysis';
 import { areSeatingNeighbors, classifySeatPositions, findSeatingRuleViolations, sanitizeSeatingRules, sameSeat } from '../lib/seatingPlanRules';
 import { getLocalDateKey, getSeatingPlanAbsentStudents, isStudentAbsentOnDate, orderStudentsByComplementaryLevels } from '../lib/seatingPlanData';
@@ -1370,6 +1371,8 @@ export default function SeatingPlan() {
   const autoFitAllowed = useRef(true);
   const [showPrivateDetails, setShowPrivateDetails] = useState(false);
   const [showMoreTools, setShowMoreTools] = useState(false);
+  const [selectedSavedLayoutId, setSelectedSavedLayoutId] = useState('');
+  const [showSeatingComparison, setShowSeatingComparison] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
 
@@ -1424,6 +1427,8 @@ export default function SeatingPlan() {
     setSelectedObjId(null);
     setShowPrivateDetails(false);
     setShowMoreTools(false);
+    setSelectedSavedLayoutId(app.sitzplanDefaultLayoutId || '');
+    setShowSeatingComparison(false);
     setOverlayFilter('standard');
     setShowGenerator(false);
     setShowRulesModal(false);
@@ -1461,12 +1466,14 @@ export default function SeatingPlan() {
   const [history, setHistory] = useState<{
     sitzplan_schueler: Record<string, { x: number; y: number }>;
     sitzplan_objekte: any[];
+    sitzplanRegeln: typeof app.sitzplanRegeln;
   }[]>([]);
 
   const pushState = () => {
     setHistory(prev => {
       const currentSchueler = { ...(app.sitzplan_schueler || {}) };
       const currentObjekte = (app.sitzplan_objekte || []).map(obj => ({ ...obj }));
+      const currentRules = JSON.parse(JSON.stringify(app.sitzplanRegeln || []));
       
       const last = prev[prev.length - 1];
       if (last) {
@@ -1475,7 +1482,7 @@ export default function SeatingPlan() {
         const currentSchuelerStr = JSON.stringify(currentSchueler);
         const currentObjekteStr = JSON.stringify(currentObjekte);
         
-        if (lastSchuelerStr === currentSchuelerStr && lastObjekteStr === currentObjekteStr) {
+        if (lastSchuelerStr === currentSchuelerStr && lastObjekteStr === currentObjekteStr && JSON.stringify(last.sitzplanRegeln || []) === JSON.stringify(currentRules)) {
           return prev;
         }
       }
@@ -1483,7 +1490,8 @@ export default function SeatingPlan() {
         ...prev,
         {
           sitzplan_schueler: currentSchueler,
-          sitzplan_objekte: currentObjekte
+          sitzplan_objekte: currentObjekte,
+          sitzplanRegeln: currentRules
         }
       ].slice(-40); // Keep last 40 states
     });
@@ -1496,7 +1504,8 @@ export default function SeatingPlan() {
     setApp(prev => ({
       ...prev,
       sitzplan_schueler: previous.sitzplan_schueler,
-      sitzplan_objekte: previous.sitzplan_objekte
+      sitzplan_objekte: previous.sitzplan_objekte,
+      sitzplanRegeln: previous.sitzplanRegeln ?? prev.sitzplanRegeln
     }));
   };
 
