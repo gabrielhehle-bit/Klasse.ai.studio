@@ -241,10 +241,14 @@ async function main() {
 
     await client.send('Page.navigate', { url: BASE_URL });
     await waitFor(client, 'Klassio access gate', 'document.body?.innerText.toLowerCase().includes("geschützter zugang")');
+    // The access-gate heading appears before the async login choices settle.
+    // Wait for either valid choice rather than racing the first render.
+    await waitFor(client, 'access-code login option',
+      'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))||Array.from(document.querySelectorAll("button")).some(el=>String(el.textContent||"").includes("Nur Zugangscode verwenden"))');
     const accessCodeVisible = await evaluate(client,
       'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))');
     if (!accessCodeVisible) {
-      await clickButton(client, 'Nur Zugangscode verwenden (ohne Geräte-Sync)', true);
+      await clickButton(client, 'Nur Zugangscode verwenden');
       await waitFor(client, 'access code input',
         'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))');
     }
