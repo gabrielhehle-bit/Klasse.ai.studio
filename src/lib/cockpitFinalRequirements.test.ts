@@ -129,20 +129,26 @@ test("Cockpit: Zeichenfeld und gemeinsame Zeichenebene sind sprachlich getrennt"
   assert.doesNotMatch(cockpitWidget, /drawing: "🖍️ Zeichentafel"/);
 });
 
-test("Cockpit: weiße Unterrichtsfläche hat direkte Schreibebene und eine gemeinsame externe Werkzeugleiste", () => {
-  assert.match(teachingSurface, /<BoardInk/);
+test("Cockpit: nur TEXT als direktes Werkzeug, alte Ink-Daten bleiben für Backups erhalten", () => {
+  assert.doesNotMatch(teachingSurface, /<BoardInk/);
   assert.match(teachingSurface, /cockpitInkByClass/);
   assert.match(teachingSurface, /externalToolbar/);
-  assert.match(teachingSurface, /hideToolbar/);
-  assert.match(teachingSurface, /aria-label="Unterrichtsfläche: Auswählen, Zeichnen und Text"/);
-  assert.match(teachingSurface, /boardTool === 'pen'/);
-  assert.match(teachingSurface, /boardTool === 'erase'/);
-  assert.match(teachingSurface, /boardTool === 'text'/);
+  assert.match(teachingSurface, /aria-label="Unterrichtsfläche: TEXT"/);
+  assert.match(teachingSurface, /aria-label="TEXT"/);
+  assert.doesNotMatch(teachingSurface, /aria-label="Stiftfarbe"|\['pen', 'Stift'\]|\['erase', 'Radierer'\]/);
+  assert.match(teachingSurface, /🎨 Design & Farben/);
   assert.doesNotMatch(teachingSurface, /Weiße Smartboard-Fläche/);
 });
 
+test("Cockpit: TEXT-Bearbeitung sperrt die Widget-Auswahl nicht", () => {
+  assert.match(teachingSurface, /\{isAddWidgetMenuOpen && \(/);
+  assert.match(teachingSurface, /z-\[1000\]/);
+  assert.match(boardTextEditor, /active \? "z-\[5\] pointer-events-auto/);
+  assert.doesNotMatch(boardTextEditor, /z-\[20000\] pointer-events-auto/);
+});
+
 test("Cockpit: TEXT macht die weiße Fläche zu einem klassenlokalen Rich-Text-Dokument", () => {
-  assert.match(teachingSurface, /\[\x27text\x27, \x27TEXT\x27\]/);
+  assert.match(teachingSurface, /aria-label="TEXT"/);
   assert.match(teachingSurface, /<BoardTextEditor/);
   assert.match(teachingSurface, /cockpitTextByClass/);
   assert.match(teachingSurface, /boardTextClassKey = app\.activeClassId \|\| "unassigned"/);
