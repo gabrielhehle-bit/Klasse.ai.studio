@@ -194,20 +194,8 @@ export default function YearlyPlan() {
   const [dragOverCell, setDragOverCell] = useState<{kw: number, subjectId: string} | null>(null);
   const [planWeeksCount, setPlanWeeksCount] = useState<number>(1);
   const [autoSuffix, setAutoSuffix] = useState<'none' | 'part' | 'fortsetzung'>('part');
-  const [densityMode, setDensityMode] = useState<'kompakt' | 'normal' | 'detail'>(
-    ((app.settings as any)?.yearlyDensityMode as any) || 'normal'
-  );
-
-  const changeDensityMode = (mode: 'kompakt' | 'normal' | 'detail') => {
-    setDensityMode(mode);
-    setApp(prev => ({
-      ...prev,
-      settings: {
-        ...(prev.settings as any),
-        yearlyDensityMode: mode
-      }
-    }));
-  };
+  // A single readable display density; old preference and stored plans are untouched.
+  const [densityMode] = useState<'kompakt' | 'normal' | 'detail'>('normal');
 
   // NEW INTERACTIVE & USABILITY STATES
   const [copiedTopic, setCopiedTopic] = useState<any | null>(null);
@@ -1186,7 +1174,7 @@ export default function YearlyPlan() {
   return (
     <div className={`yearly-plan-shell flex flex-col space-y-4 bg-[#f4f7f3] ${isFullscreen ? 'fixed inset-0 z-[450] w-screen h-screen overflow-y-auto p-3 sm:p-5' : 'h-full px-4 lg:px-6'}`}>
       {/* Header toolbar */}
-      <div className="flex flex-col gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm shrink-0">
+      <div className="flex flex-col gap-2 bg-white p-2 sm:p-3 rounded-2xl border border-slate-200 shadow-sm shrink-0">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full justify-start min-w-0">
           <div className="flex items-center gap-2 mr-auto min-w-[190px]">
             <span className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
@@ -1234,27 +1222,12 @@ export default function YearlyPlan() {
                 </button>
               </div>
 
-              {viewMode === 'table' && (
-                <div className="flex bg-stone-100 p-0.5 sm:p-1 rounded-xl sm:rounded-2xl border border-stone-200 shrink-0 shadow-inner items-center">
-                  <span className="text-[0.5625rem] font-black text-stone-400 uppercase tracking-wider px-2 hidden sm:inline">Dichte:</span>
-                  {(['kompakt', 'normal', 'detail'] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => changeDensityMode(m)}
-                      aria-pressed={densityMode === m}
-                      className={`px-2 sm:px-3 py-1 sm:py-1 rounded-lg sm:rounded-xl text-[0.5625rem] sm:text-[0.6875rem] font-black uppercase tracking-wider transition-all duration-200 ${densityMode === m ? 'bg-white text-emerald-700 shadow-sm translate-y-[-1px]' : 'text-stone-500 hover:text-stone-800'}`}
-                    >
-                      {m === 'kompakt' ? 'Kompakt' : m === 'normal' ? 'Normal' : 'Detail'}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>
         
         {activeTab === 'jahresplan' && (
-        <div className="flex flex-wrap items-center gap-1.5 md:gap-2 w-full justify-start min-w-0 border-t border-slate-100 pt-3">
+        <div className="flex flex-wrap items-center gap-1.5 w-full justify-start min-w-0 border-t border-slate-100 pt-2">
           <button 
             onClick={() => {
               setAiSuggestions([]);
@@ -1485,7 +1458,7 @@ export default function YearlyPlan() {
                       if (!isSevereHoliday) {
                         totalTeachingWeeks++;
                         const val = app.jahresplanung[w.kw]?.[s.id];
-                        if (val && (val.thema || val.items?.length > 0)) {
+                        if (yearPlanCellEntries(val).length > 0) {
                           plannedCount++;
                         }
                       }
@@ -1524,8 +1497,8 @@ export default function YearlyPlan() {
                             />
                           </div>
                           <div className="text-[0.55rem] font-black text-neutral-400 mt-1 uppercase tracking-wider flex items-center justify-between">
-                            <span>Abdeckung</span>
-                            <span className="text-neutral-200">{progress}%</span>
+                            <span>Wochen geplant</span>
+                            <span className="text-neutral-200" title={`${plannedCount} von ${totalTeachingWeeks} Unterrichtswochen`}>{plannedCount}/{totalTeachingWeeks}</span>
                           </div>
                         </div>
                       </th>
