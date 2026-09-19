@@ -31,7 +31,7 @@ test('Dossierübersicht: aktive Ziele mit beiden vorhandenen Statusschreibweisen
   assert.match(overview, /goal\.status === 'in Arbeit'/);
   assert.match(overview, /goal\.id === goalId/);
   assert.match(overview, /status: 'erreicht'/);
-  assert.match(overview, /Foerderziel/);
+  assert.match(overview, /Förderziel/);
   assert.match(overview, /setApp\(previous =>/);
 });
 
