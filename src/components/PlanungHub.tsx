@@ -49,12 +49,6 @@ const preparationItems: PlanningItem[] = [
     icon: Folder,
   },
   {
-    id: 'canva',
-    label: 'Canva',
-    description: 'Designs suchen, erstellen, in Canva bearbeiten und in passenden Formaten exportieren.',
-    icon: Palette,
-  },
-  {
     id: 'vertretung',
     label: 'Vertretung vorbereiten',
     description: 'Stundenplan-, Wochenplan- und Materialdaten für eine Vertretung zusammenstellen.',
