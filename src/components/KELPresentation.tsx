@@ -222,7 +222,8 @@ export default function KELPresentation({
 
   // The presentation plan is per child + meeting + class + semester. Never reuse
   // a global localStorage switch from another child or an earlier meeting.
-  const savedPlan = latestKel?.praesentationAuswahl;
+  const planKey = JSON.stringify([app.schuljahr || '', sem, latestKel?.id || 'vorbereitung']);
+  const savedPlan = student.kelPraesentationAuswahl?.[planKey];
   const matchingSavedPlan = savedPlan?.classId === app.activeClassId &&
     savedPlan?.studentId === student.id && savedPlan?.semester === sem ? savedPlan : null;
   const [visible, setVisible] = useState<VisibleConfig>(() => ({
