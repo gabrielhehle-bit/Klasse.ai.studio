@@ -1354,6 +1354,60 @@ const getStudentsOnTable = (obj: any, studentPositions: Record<string, { x: numb
   return studentsOnTable;
 };
 
+function SeatingMiniPreview({
+  title, positions, objects, students
+}: {
+  title: string;
+  positions: Record<string, { x: number; y: number }>;
+  objects: any[];
+  students: Array<{ id: string; vorname: string }>;
+}) {
+  const visible = students.filter(child => positions[child.id]);
+  const rectangles = [
+    ...visible.map(child => ({ ...positions[child.id], w: 112, h: 72 })),
+    ...objects.map(object => ({
+      x: Number(object.x) || 0, y: Number(object.y) || 0,
+      w: Number(object.w) || 100, h: Number(object.h) || 60,
+    })),
+  ];
+  const left = Math.min(0, ...rectangles.map(rect => rect.x)) - 20;
+  const top = Math.min(0, ...rectangles.map(rect => rect.y)) - 20;
+  const right = Math.max(600, ...rectangles.map(rect => rect.x + rect.w)) + 20;
+  const bottom = Math.max(400, ...rectangles.map(rect => rect.y + rect.h)) + 20;
+
+  return (
+    <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-2">
+      <p className="mb-1 text-xs font-bold text-slate-700">
+        {title} · {visible.length} Kinder · {objects.length} Raumobjekte
+      </p>
+      <svg role="img" aria-label={`Vorschau: ${title}`}
+        viewBox={`${left} ${top} ${right - left} ${bottom - top}`}
+        className="h-36 w-full rounded-lg border border-slate-100 bg-slate-50">
+        {objects.map((object, index) => (
+          <rect key={object.id || index}
+            x={Number(object.x) || 0} y={Number(object.y) || 0}
+            width={Math.max(2, Number(object.w) || 100)}
+            height={Math.max(2, Number(object.h) || 60)}
+            rx="5" fill="#e2e8f0" stroke="#64748b" strokeWidth="1.5" />
+        ))}
+        {visible.map(child => {
+          const pos = positions[child.id];
+          return (
+            <g key={child.id}>
+              <rect x={pos.x} y={pos.y} width="112" height="72" rx="12"
+                fill="#fff" stroke="#6366f1" strokeWidth="1.5" />
+              <text x={pos.x + 56} y={pos.y + 40} textAnchor="middle"
+                fill="#1e293b" fontSize="12" fontWeight="700">
+                {child.vorname.length > 12 ? child.vorname.slice(0, 11) + '…' : child.vorname}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 export default function SeatingPlan() {
   const { app, setApp, setPage } = useApp();
   const [selectedObjId, setSelectedObjId] = useState<string | null>(null);
@@ -1373,6 +1427,7 @@ export default function SeatingPlan() {
   const [showMoreTools, setShowMoreTools] = useState(false);
   const [selectedSavedLayoutId, setSelectedSavedLayoutId] = useState('');
   const [showSeatingComparison, setShowSeatingComparison] = useState(false);
+  const [refitSavedLayoutSignal, setRefitSavedLayoutSignal] = useState(0);
   const [editMode, setEditMode] = useState(false);
   const [presentationMode, setPresentationMode] = useState(false);
 
@@ -1741,6 +1796,13 @@ export default function SeatingPlan() {
     if (viewport) observer?.observe(viewport);
     return () => { cancelAnimationFrame(frame); observer?.disconnect(); };
   }, [app.activeClassId, isPlanEmpty]);
+
+  React.useEffect(() => {
+    if (refitSavedLayoutSignal === 0) return;
+    autoFitAllowed.current = true;
+    const frame = requestAnimationFrame(() => fitRoomToScreen());
+    return () => cancelAnimationFrame(frame);
+  }, [refitSavedLayoutSignal]);
 
   const updateViewZoom = (next: number) => {
     const viewport = planRef.current;
