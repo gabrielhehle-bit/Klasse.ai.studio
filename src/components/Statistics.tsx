@@ -1959,7 +1959,6 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
   const classOverviewMetrics = useMemo(() => {
     let strongPerformanceCount = 0;
     let attentionPerformanceCount = 0;
-    const blindSpotStudents: { id: string; name: string; reason: string }[] = [];
     let openAlertCount = 0;
 
     const twentyEightDaysAgo = Date.now() - 28 * 24 * 60 * 60 * 1000;
@@ -1974,25 +1973,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       const attendance = getStudentAttendanceSummary(app, student.id);
       if (attendance.unexcused > 0) openAlertCount++;
 
-      const notes = getStudentNotes(app, student.id);
-      if (notes.length === 0) {
-        blindSpotStudents.push({
-          id: student.id,
-          name: `${student.vorname} ${student.nachname}`,
-          reason: 'Bisher keine Beobachtungen erfasst',
-        });
-      } else {
-        const latest = Math.max(...notes.map((note: any) =>
-          new Date(note.datum || note.timestamp || 0).getTime()
-        ));
-        if (latest < twentyEightDaysAgo) {
-          blindSpotStudents.push({
-            id: student.id,
-            name: `${student.vorname} ${student.nachname}`,
-            reason: 'Keine neue Notiz seit über 4 Wochen',
-          });
-        }
-      }
+
     });
 
     const openDiag = (app.diagnostikErhebungen || [])
@@ -2002,7 +1983,7 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
     return {
       strongPerformanceCount,
       attentionPerformanceCount,
-      blindSpotStudents,
+      documentedStudentCount: students.filter(student => getStudentNotes(app, student.id).length > 0).length,
       openAlertCount: openAlertCount + openDiag,
     };
   }, [students, app, activeFaecher]);
@@ -2050,15 +2031,6 @@ export default function Statistics({ initialTab = 'stats' }: StatisticsProps) {
       });
     }
 
-    if (classOverviewMetrics.blindSpotStudents.length > 0) {
-      list.push({
-        id: 'blindspots',
-        badge: 'Wenig Daten vorhanden',
-        badgeColor: 'bg-slate-100 text-slate-700 border-slate-200',
-        title: 'Dokumentation ergänzen',
-        text: `Bei ${classOverviewMetrics.blindSpotStudents.length} Schüler:innen liegen seit über 4 Wochen keine aktuellen Einträge im Beobachtungsjournal vor.`
-      });
-    }
 
     return list;
   }, [stats, classOverviewMetrics, classAttendance]);
@@ -4080,9 +4052,9 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                   </div>
 
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
-                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Blinde Flecken</div>
-                    <div className="text-2xl font-black text-slate-700 my-1 tabular-nums">{classOverviewMetrics.blindSpotStudents.length} ❓</div>
-                    <div className="text-[0.625rem] text-slate-450 font-bold">Keine Notiz seit &gt;4W</div>
+                    <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Dokumentation</div>
+                    <div className="text-2xl font-black text-slate-700 my-1 tabular-nums">{classOverviewMetrics.documentedStudentCount}</div>
+                    <div className="text-[0.625rem] text-slate-450 font-bold">Kinder mit Einträgen</div>
                   </div>
 
                   <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
@@ -4119,36 +4091,7 @@ ${ikmRecord.kommentar ? `- Pädagogischer Kommentar/Lernpfad-Tipps: ${ikmRecord.
                   </div>
                 </div>
 
-                {/* Section: Blinde Flecken in der Dokumentation */}
-                {classOverviewMetrics.blindSpotStudents.length > 0 && (
-                  <div className="bg-amber-50/40 p-6 rounded-[2rem] border border-amber-150 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-black text-sm">
-                        ❓
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-black text-amber-950">Blinde Flecken & Aufmerksamkeitsbereiche</h4>
-                        <p className="text-xs text-amber-800 font-medium">Bei folgenden Schüler:innen liegt der letzte Journal-Eintrag länger zurück oder es fehlen Beobachtungen:</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 pt-1">
-                      {classOverviewMetrics.blindSpotStudents.map(b => (
-                        <button
-                          key={b.id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedStudentId(b.id);
-                            setActiveTab('profiles');
-                          }}
-                          className="p-3 bg-white rounded-xl border border-amber-200/80 text-left hover:border-amber-400 transition-all cursor-pointer"
-                        >
-                          <div className="font-black text-xs text-slate-800">{b.name}</div>
-                          <div className="text-[0.6875rem] text-amber-700 font-medium mt-0.5">{b.reason}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
               </div>
             )}
 
