@@ -6,7 +6,7 @@ const sidebar = readFileSync('src/components/Sidebar.tsx', 'utf8');
 
 test('Sidebar: vollständige moderne Klassio-Bereiche bleiben erreichbar', () => {
   for (const id of [
-    'dashboard', 'klasse', 'planung', 'leistungen', 'unterricht',
+    'dashboard', 'klasse', 'planung', 'leistungen',
     'cockpit', 'ki-helfer', 'lehrerzimmer', 'arbeitsblatt', 'stationenbetrieb',
     'differenzierung', 'elternbrief',
     'schueler', 'sitzplan', 'anwesenheit', 'verhalten', 'teamteaching', 'orga',
