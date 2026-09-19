@@ -28,13 +28,17 @@ import DossierKELReflexion from './DossierKELReflexion';
 interface DossierBeobachtungenVerlaufProps {
   student: Student;
   initialSubSection?: 'beobachtungen' | 'verhalten' | 'anwesenheit' | 'kel';
+  initialQuickNoteCategory?: AppNote['kategorie'];
+  onQuickEntryConsumed?: () => void;
 }
 
 type SubSection = 'beobachtungen' | 'verhalten' | 'anwesenheit' | 'kel';
 
 export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufProps> = ({
   student,
-  initialSubSection = 'beobachtungen'
+  initialSubSection = 'beobachtungen',
+  initialQuickNoteCategory,
+  onQuickEntryConsumed
 }) => {
   const { app, setApp } = useApp();
   const [activeSubSection, setActiveSubSection] = useState<SubSection>(initialSubSection);
@@ -50,9 +54,10 @@ export const DossierBeobachtungenVerlauf: React.FC<DossierBeobachtungenVerlaufPr
 
   const [noteCategoryFilter, setNoteCategoryFilter] = useState<string>('alle');
   const [noteSearch, setNoteSearch] = useState<string>('');
-  const [isAddingNote, setIsAddingNote] = useState(false);
+  const [isAddingNote, setIsAddingNote] = useState(Boolean(initialQuickNoteCategory));
   const [newNoteText, setNewNoteText] = useState('');
-  const [newNoteCategory, setNewNoteCategory] = useState<AppNote['kategorie']>('Notiz');
+  const [newNoteCategory, setNewNoteCategory] = useState<AppNote['kategorie']>(initialQuickNoteCategory || 'Notiz');
+  React.useEffect(() => { if (initialQuickNoteCategory) onQuickEntryConsumed?.(); }, []);
   const [newNoteSubject, setNewNoteSubject] = useState('');
   const [newNoteDate, setNewNoteDate] = useState(new Date().toISOString().split('T')[0]);
   const [newNoteType, setNewNoteType] = useState<'neutral' | 'positiv' | 'beobachten'>('neutral');
