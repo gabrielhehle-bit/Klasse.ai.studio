@@ -575,9 +575,10 @@ export default function YearlyPlan() {
   const renderCellContent = (data: any, s: any, kw: number) => {
     const isDraggable = !!data && !!(data?.items?.length > 0 || data?.thema || data?.buch || (data?.type && data.type !== 'standard'));
     const isCompleted = !!data?.completed;
-    const hasMultipleItems = data?.items && data.items.length > 0;
-    const displayTitle = hasMultipleItems 
-      ? (data.items.map((it: any) => it.thema).filter(Boolean).join(', ') || data?.thema) 
+    const cellEntries = yearPlanCellEntries(data);
+    const hasMultipleItems = Array.isArray(data?.items) && data.items.length > 0;
+    const displayTitle = hasMultipleItems
+      ? (cellEntries.map(entry => entry.thema).filter(Boolean).join(', ') || data?.thema)
       : data?.thema;
 
     return (
@@ -733,8 +734,8 @@ export default function YearlyPlan() {
             /* DETAIL MODE */
             hasMultipleItems ? (
               <div className={`flex flex-col gap-2 min-h-full p-2 rounded-xl transition-all shadow-sm select-none ${isCompleted ? 'bg-emerald-50/50 opacity-70 line-through' : 'bg-white/80'}`}>
-                {data.items.map((it: any) => (
-                  <div key={it.id} className="leading-tight border-b border-stone-100 pb-2 mb-1 last:border-0 last:pb-0 last:mb-0">
+                {cellEntries.map((it: any, index: number) => (
+                  <div key={it.id || index} className="leading-tight border-b border-stone-100 pb-2 mb-1 last:border-0 last:pb-0 last:mb-0">
                     {(it.subCategories && it.subCategories.length > 0) ? (
                       <div className="flex flex-wrap gap-1 mb-1">
                         {it.subCategories.map((sc: string) => (
@@ -837,26 +838,11 @@ export default function YearlyPlan() {
       }
     }
 
-    let finalValue = { ...editValue };
-    // If there is currently typed content and we have previous items, move current content to items as well
-    if ((finalValue.thema.trim() || (finalValue.subCategories && finalValue.subCategories.length > 0)) && finalValue.items && finalValue.items.length > 0) {
-      finalValue.items = [
-        ...finalValue.items, 
-        { 
-          id: crypto.randomUUID(), 
-          thema: finalValue.thema, 
-          buch: finalValue.buch, 
-          subCategory: finalValue.subCategory, 
-          subCategories: finalValue.subCategories || [], 
-          type: finalValue.type 
-        }
-      ];
-      finalValue.thema = '';
-      finalValue.buch = '';
-      finalValue.subCategories = [];
-      finalValue.subCategory = '';
-    }
-    
+    // Keep the original root entry and every existing extra item in their
+    // recorded order. The explicit "weiteren Eintrag übernehmen" control is
+    // responsible for moving a newly typed topic into items.
+    const finalValue = { ...editValue, items: [...(editValue.items || [])] };
+
     setApp(prev => {
       const current = prev.jahresplanung || {};
       const existingConflicts = conflictingYearWeeks(current, targetKws, subjectId, kw);
