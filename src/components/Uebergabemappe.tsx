@@ -1117,39 +1117,141 @@ export default function Uebergabemappe() {
       {/* Main View */}
       {activeTab === 'config' ? (
         <div className="print:hidden">
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col items-center text-center max-w-5xl mx-auto print-hidden no-print">
-            <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4 ring-1 ring-indigo-100">
-              <ClipboardList size={28} />
+          <div className="mx-auto flex max-w-5xl flex-col items-center gap-5 rounded-2xl border border-slate-200 bg-white p-4 text-center shadow-sm sm:p-6">
+            <div className="w-full space-y-1 text-left">
+              <h1 className="text-2xl font-black text-slate-900">Vertretung &amp; Übergabe</h1>
+              <p className="text-sm text-slate-600">Einmal vorbereiten, für einen Tag oder mehrere Tage. Deine Eingaben werden für diese Klasse gespeichert; die Wochenplanung bleibt unverändert.</p>
             </div>
-            <h1 className="text-[1.375rem] leading-tight font-black text-slate-900 tracking-tight mb-2">Vertretungs- &amp; Notfallmappe</h1>
-            <p className="text-slate-500 text-[0.875rem] leading-relaxed mb-5 max-w-3xl">
-              Bereite für einen kurzfristigen Ausfall eine vollständige <strong>Notfallmappe</strong> für deine Vertretung vor – mit Tagesablauf, ausgewählten Klasseninformationen, Sitzplan und wichtigen Kontakten.
-            </p>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full mb-5">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center gap-2">
-                    <Layout size={20} className="text-indigo-500" />
-                    <span className="text-[0.75rem] leading-tight font-bold text-slate-700 uppercase tracking-wider">Stundenplan &amp; Zeiten</span>
+            <section className="w-full space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left" aria-label="Zeitraum und Unterricht">
+              <h2 className="text-base font-black text-slate-900">1. Zeitraum und Unterricht</h2>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  ['single', 'Ein Tag'],
+                  ['multi', 'Mehrere Tage'],
+                  ['week', 'Eine Woche'],
+                ] as const).map(([mode, label]) => (
+                  <button key={mode} type="button" aria-pressed={rangeMode === mode}
+                    onClick={() => setRangeMode(mode)}
+                    className={`rounded-xl border px-4 py-2 text-sm font-bold ${rangeMode === mode ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-700'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {rangeMode === 'single' && (
+                <label className="block max-w-xs space-y-1 text-sm font-bold text-slate-700">Vertretungsdatum
+                  <input aria-label="Vertretungsdatum" type="date" value={singleDate} onChange={e => setSingleDate(e.target.value)}
+                    className="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900" />
+                </label>
+              )}
+              {rangeMode === 'multi' && (
+                <div className="flex flex-wrap gap-3">
+                  <label className="block space-y-1 text-sm font-bold text-slate-700">Von
+                    <input aria-label="Startdatum des Vertretungszeitraums" type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                      className="block h-11 rounded-xl border border-slate-300 bg-white px-3 text-slate-900" />
+                  </label>
+                  <label className="block space-y-1 text-sm font-bold text-slate-700">Bis
+                    <input aria-label="Enddatum des Vertretungszeitraums" type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+                      className="block h-11 rounded-xl border border-slate-300 bg-white px-3 text-slate-900" />
+                  </label>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center gap-2">
-                    <Users size={20} className="text-emerald-500" />
-                    <span className="text-[0.75rem] leading-tight font-bold text-slate-700 uppercase tracking-wider">Besonderheiten-Liste</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center gap-2">
-                    <Book size={20} className="text-amber-500" />
-                    <span className="text-[0.75rem] leading-tight font-bold text-slate-700 uppercase tracking-wider">Sitzplan-Skizze</span>
-                </div>
-            </div>
-
-            <div className="bg-rose-50 border border-rose-100 text-rose-800 text-left p-4 rounded-xl w-full max-w-3xl mb-5 space-y-1.5">
-              <h4 className="text-[0.875rem] leading-snug font-black uppercase tracking-wider flex items-center gap-2 text-rose-700">
-                🤒 Wichtig bei Krankheitsausfall:
-              </h4>
-              <p className="text-[0.8125rem] leading-relaxed font-semibold text-rose-900">
-                Im Druckzentrum kannst du den <strong>Ausfallszeitraum</strong> sowie <strong>Aufgaben und Vertretungshinweise</strong> eintragen. Das Deckblatt wird anschließend automatisch für diesen Zeitraum zusammengestellt.
-              </p>
-            </div>
-
+              )}
+              {rangeMode === 'week' && (
+                <label className="block max-w-xs space-y-1 text-sm font-bold text-slate-700">Tag der Vertretungswoche
+                  <input aria-label="Tag der Vertretungswoche" type="date" value={weekDate} onChange={e => setWeekDate(e.target.value)}
+                    className="block h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-slate-900" />
+                </label>
+              )}
+              {getDaysToPrint().length === 0 && (
+                <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Bitte einen gültigen Zeitraum wählen (maximal 14 Unterrichtstage).</p>
+              )}
+              <div className="space-y-4">
+                {getDaysToPrint().map(date => {
+                  const dayStr = toLocalDateInputValue(date);
+                  const slots = LESSON_SLOT_NUMBERS.filter(std => {
+                    const base = getCoverLesson(app, date, std);
+                    return Boolean(base.fach || base.thema || base.material || base.hausuebung ||
+                      lessonNotes[`${dayStr}-${std}`] || assignedStundenbilder[`${dayStr}-${std}`] || manualSlots[dayStr]?.includes(std));
+                  });
+                  return (
+                    <div key={dayStr} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
+                      <h3 className="font-black text-slate-900">{formatDate(date)}</h3>
+                      {slots.length === 0 && <p className="text-sm text-slate-500">Für diesen Tag ist noch keine Unterrichtsstunde geplant.</p>}
+                      {slots.map(std => {
+                        const key = `${dayStr}-${std}`;
+                        const base = getCoverLesson(app, date, std);
+                        const note = lessonNotes[key] || {};
+                        const update = (field: keyof NonNullable<VertretungsVorbereitung['lessonNotes'][string]>, value: string) =>
+                          setLessonNotes(prev => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
+                        return (
+                          <div key={key} className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <p className="text-xs font-black text-indigo-700">{std}. Stunde · {getHandoverLessonTime(app.stundenZeiten, STUNDEN_INFO, std)} · {base.fach || 'Fach nicht geplant'}</p>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <label className="text-xs font-bold text-slate-600">Fach
+                                <input aria-label={`${std}. Stunde ${dayStr} Fach`} value={note.fach ?? base.fach}
+                                  onChange={e => update('fach', e.target.value)}
+                                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900" />
+                              </label>
+                              <label className="text-xs font-bold text-slate-600">Thema
+                                <input aria-label={`${std}. Stunde ${dayStr} Thema`} value={note.thema ?? base.thema}
+                                  onChange={e => update('thema', e.target.value)}
+                                  placeholder="Was wird gemacht?"
+                                  className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900" />
+                              </label>
+                            </div>
+                            <label className="block text-xs font-bold text-slate-600">Auftrag und Ablauf für die Vertretung
+                              <textarea aria-label={`${std}. Stunde ${dayStr} Arbeitsauftrag`} value={note.ablauf || ''}
+                                onChange={e => update('ablauf', e.target.value)} rows={2}
+                                placeholder="Was sollen die Kinder tun? Wo liegen die Unterlagen?"
+                                className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900" />
+                            </label>
+                            <details>
+                              <summary className="cursor-pointer text-xs font-bold text-indigo-700">Material und Hausübung ergänzen</summary>
+                              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                <label className="text-xs font-bold text-slate-600">Material
+                                  <input value={note.material ?? base.material} onChange={e => update('material', e.target.value)}
+                                    className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900" />
+                                </label>
+                                <label className="text-xs font-bold text-slate-600">Hausübung
+                                  <input value={note.hausuebung ?? base.hausuebung} onChange={e => update('hausuebung', e.target.value)}
+                                    className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900" />
+                                </label>
+                              </div>
+                            </details>
+                          </div>
+                        );
+                      })}
+                      <div className="flex flex-wrap gap-2">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">Weitere Stunde
+                          <select aria-label={`Weitere Stunde für ${dayStr}`} value="" onChange={e => {
+                            if (!e.target.value) return;
+                            const std = Number(e.target.value);
+                            setManualSlots(prev => ({ ...prev, [dayStr]: [...(prev[dayStr] || []), std] }));
+                            setLessonNotes(prev => ({ ...prev, [`${dayStr}-${std}`]: prev[`${dayStr}-${std}`] || {} }));
+                          }} className="rounded-lg border border-slate-300 bg-white px-2 py-1.5">
+                            <option value="">Stunde wählen …</option>
+                            {LESSON_SLOT_NUMBERS.filter(std => !slots.includes(std)).map(std => <option key={std} value={std}>{std}. Stunde</option>)}
+                          </select>
+                        </label>
+                      </div>
+                      <label className="block text-xs font-bold text-slate-600">Hinweise für diesen Tag
+                        <textarea aria-label={`Tageshinweise ${dayStr}`} value={dayNotes[dayStr] || ''}
+                          onChange={e => setDayNotes(prev => ({ ...prev, [dayStr]: e.target.value }))} rows={2}
+                          placeholder="Raum, Aufsicht, organisatorische Besonderheiten …"
+                          className="mt-1 block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900" />
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+            <section className="w-full space-y-3 rounded-2xl border border-slate-200 bg-white p-4 text-left">
+              <h2 className="text-base font-black text-slate-900">2. Allgemeine Hinweise</h2>
+              <p className="text-xs text-slate-500">Nur für die Vertretung notwendige Angaben. Einzelne Schülerdaten werden nicht automatisch übernommen.</p>
+              <RichTextEditor value={printNotes} onChange={setPrintNotes}
+                placeholder="Regeln, Rituale, Pausenordnung und Ansprechpartner …"
+                className="min-h-28 rounded-xl border border-slate-200 p-3 text-sm text-slate-900" />
+            </section>
+            <h2 className="w-full text-left text-base font-black text-slate-900">3. Vorbereitung und Beilagen</h2>
             {/* Emergency Checklist Widget */}
             <div className="w-full max-w-3xl bg-slate-50 border border-slate-200 p-4 rounded-2xl text-left mb-5 space-y-3">
               <div className="flex items-center justify-between">
@@ -1252,12 +1354,12 @@ export default function Uebergabemappe() {
               className="btn btn-primary h-12 px-7 text-[0.875rem] leading-normal shadow-md flex items-center gap-2.5 bg-rose-600 hover:bg-rose-700 border-rose-600 hover:border-rose-700 active:scale-[0.99] transition-all rounded-xl"
             >
               <Printer size={19} />
-              Notfallmappe konfigurieren &amp; drucken
+              Vertretungsunterlagen ansehen &amp; drucken
             </button>
             
             <p className="mt-4 text-[0.625rem] font-medium text-slate-500 uppercase tracking-wider flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                Du entscheidest vor dem Druck, welche Angaben enthalten sind
+                Vor dem Druck kannst du Deckblatt, Klassenliste, Sitzplan und Feedbackbogen auswählen.
             </p>
           </div>
         </div>
