@@ -9,6 +9,7 @@ const gradebook = readFileSync('src/components/Gradebook.tsx', 'utf8');
 const overview = readFileSync('src/components/GradeOverview.tsx', 'utf8');
 const hub = readFileSync('src/components/LeistungenHub.tsx', 'utf8');
 const sidebar = readFileSync('src/components/Sidebar.tsx', 'utf8');
+const globalActions = readFileSync('src/components/GlobalActions.tsx', 'utf8');
 
 test('new or reopened app starts on Heute exactly once; existing cockpit may be opened deliberately', () => {
   assert.match(state, /currentPage: 'dashboard',\s*previousPage: 'dashboard'/);
@@ -39,4 +40,11 @@ test('overview signals an empty active class and export uses the same manual/cal
   assert.match(overview, /getOverviewNote\(app, s\.id, f, selectedSemester\)/);
   assert.match(overview, /CSV für Excel/);
   assert.match(overview, /selectedSemester === 'combined' \? 'Gesamt'/);
+});
+
+test('AltGr, inputs, repeated keys and modal overlays cannot accidentally open fullscreen cockpit', () => {
+  assert.match(globalActions, /!e\.altKey \|\| e\.ctrlKey \|\| e\.metaKey \|\| e\.shiftKey \|\| e\.repeat/);
+  assert.match(globalActions, /target\.closest\('input, textarea, select, \[contenteditable="true"\], \[role="textbox"\]'\)/);
+  assert.match(globalActions, /document\.querySelector\('\[role="dialog"\]\[aria-modal="true"\]'\)/);
+  assert.match(globalActions, /else if \(key === 'c'\)/);
 });
