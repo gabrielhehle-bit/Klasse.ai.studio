@@ -1659,6 +1659,7 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
   const [mode, setMode] = useState<'append' | 'replace'>('append');
   const [applyPreparation, setApplyPreparation] = useState(false);
   const [openedForClass] = useState(app.activeClassId);
+  const [chosenSubject, setChosenSubject] = useState(item.faecher?.[0] || '');
 
   const days = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
   const availableHours = LESSON_SLOT_NUMBERS;
@@ -1678,6 +1679,11 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
       return;
     }
     const lessonDraft = item.typ === 'stundenentwurf' && applyPreparation ? lessonDraftFromMaterial(item) : null;
+    const subjectForSlot = existing.fach || (app.stammplan as any)?.[day]?.[hour] || item.faecher?.[0] || chosenSubject;
+    if (!subjectForSlot && !lessonDraft?.fach) {
+      window.alert('Wähle für diese bisher leere Unterrichtsstunde zuerst ein Fach.');
+      return;
+    }
     if (lessonDraft && (existing.thema || existing.fach || existing.stundenentwurf || existing.method) &&
       !window.confirm('Diese Unterrichtsstunde enthält bereits eine Planung. Fach, Thema und ausführlichen Entwurf durch die ausgewählte Vorlage ersetzen?')) return;
     setApp(prev => {
@@ -1693,7 +1699,7 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
 
       dayPlan[index] = {
         ...slot,
-        fach: slot.fach || (prev.stammplan as any)?.[day]?.[hour] || item.faecher?.[0] || '',
+        fach: slot.fach || (prev.stammplan as any)?.[day]?.[hour] || item.faecher?.[0] || chosenSubject || '',
         material: mode === 'replace' ? '' : (slot.material || ''),
         materialIds,
         ...(lessonDraft ? {
@@ -1773,6 +1779,16 @@ function MaterialToWeekPlanModal({ item, onClose }: { item: MaterialItem; onClos
             <div className="text-[0.625rem] font-black uppercase tracking-wider text-slate-400">Zielstunde</div>
             <div className="mt-1 text-sm font-black text-slate-800">{existing.fach || (app.stammplan as any)?.[day]?.[hour] || 'Noch kein Fach eingetragen'}</div>
             <div className="mt-1 text-xs text-slate-500">{existing.thema || 'Noch kein Thema eingetragen'}</div>
+            {!existing.fach && !(app.stammplan as any)?.[day]?.[hour] && !item.faecher?.[0] && (
+              <label className="mt-3 block space-y-1">
+                <span className="text-xs font-bold text-slate-700">Fach für diese Stunde</span>
+                <select value={chosenSubject} onChange={event => setChosenSubject(event.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800">
+                  <option value="">Fach auswählen …</option>
+                  {FAECHER_ALLE.map(fach => <option key={fach} value={fach}>{fach}</option>)}
+                </select>
+              </label>
+            )}
             {alreadyLinked && (
               <div className="mt-2 inline-flex items-center gap-1.5 text-[0.6875rem] font-bold text-emerald-700">
                 <Check size={13} /> Dieses Material ist bereits verknüpft – es wird nicht doppelt gespeichert.
