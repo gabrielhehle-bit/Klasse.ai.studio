@@ -49,8 +49,16 @@ export default function LernzielModellEditor({ onClose }: { onClose: () => void 
   const save = () => {
     try {
       const valid = parseLernzielModell(draft);
-      pruefeModellWechsel(getLernzielModell(app.lernzielBewertungsmodell), valid,
-        verwendeteLernzielStufen(app.studentLernzielSemesterBewertungen, app.studentLernzielBewertungen));
+      const previousModel = getLernzielModell(app.lernzielBewertungsmodell);
+      const used = verwendeteLernzielStufen(app.studentLernzielSemesterBewertungen, app.studentLernzielBewertungen);
+      pruefeModellWechsel(previousModel, valid, used);
+      const renamedUsed = previousModel.levels.some(oldLevel =>
+        used.has(oldLevel.value) &&
+        oldLevel.label !== valid.levels.find(level => level.value === oldLevel.value)?.label
+      );
+      if (renamedUsed && !window.confirm(
+        'Du benennst bereits verwendete Stufen um. Frühere Einschätzungen behalten ihren Wert, erscheinen aber künftig mit dem neuen Namen. Trotzdem speichern?'
+      )) return;
       setApp(previous => ({ ...previous, lernzielBewertungsmodell: valid }));
       setError('');
       showToast('Beurteilungsmodell für diese Klasse gespeichert.', 'success');
