@@ -31,7 +31,7 @@ test('Klassenliste: kompakte Tabelle mit selbst wählbaren Spalten behält Dossi
   assert.match(studentList, /updateStudent\(\{ \.\.\.student, daz: !student.daz \}\)/);
   assert.match(studentList, /updateStudent\(\{ \.\.\.student, spf: !student.spf \}\)/);
   assert.match(studentList, /handleDeleteStudent\(student\)/);
-  assert.match(studentList, /setPage\('drucken'\)/);
+  assert.doesNotMatch(studentList, /<span>Liste drucken<\/span>/);
 });
 
 test('Klassenliste: Förderfilter sind kombinierbar und verändern keine Schülerdaten', () => {
