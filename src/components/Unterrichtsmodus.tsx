@@ -176,11 +176,11 @@ import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSele
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
+import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
   LärmWidgetContent,
   LernwoerterWidgetContent,
-  StudentListWidgetContent,
   GroupsWidgetContent,
   QrCodeWidgetContent,
   ImageWidgetContent,
@@ -11134,7 +11134,6 @@ ${content}
                                         <StudentListWidgetContent
                                           app={app}
                                           setApp={setApp}
-                                          getBehaviorSymbol={getBehaviorSymbol}
                                           getTodayPoints={getTodayPoints}
                                           addParticipation={addParticipation}
                                           removeParticipation={
