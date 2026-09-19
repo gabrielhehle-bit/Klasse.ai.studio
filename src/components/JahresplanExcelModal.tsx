@@ -3,6 +3,7 @@ import { X, Upload, FileSpreadsheet, AlertCircle, CheckCircle2, ArrowRight } fro
 import { motion } from 'motion/react';
 import { JahresplanImportRow, JahresplanImportResult, parseJahresplanExcel } from '../lib/planerExcelService';
 import { AppState } from '../types';
+import { occupiedYearPlanCell } from '../lib/annualPlanSafety';
 
 interface JahresplanExcelModalProps {
   isOpen: boolean;
@@ -72,6 +73,16 @@ export default function JahresplanExcelModal({
   const handleConfirmImport = () => {
     if (!parseResult || !parseResult.success) return;
     const actualRows = parseResult.rows.filter(r => !r.isExample);
+    if (importMode === 'overwrite') {
+      const subjectsByLabel = new Map(availableSubjects.map(subject => [subject.label.toLocaleLowerCase('de-AT'), subject.id]));
+      const conflicts = actualRows.filter(row => {
+        const subject = row.subjectId || subjectsByLabel.get(String(row.fach || '').toLocaleLowerCase('de-AT'));
+        return Boolean(subject && occupiedYearPlanCell(app.jahresplanung?.[row.kw]?.[subject]));
+      });
+      if (conflicts.length && !window.confirm(`ACHTUNG: ${conflicts.length} importierte Zeilen betreffen bereits eingetragene Jahrespläne. Diese vorhandenen Einträge werden durch den Excel-Import überschrieben. Möchtest du das wirklich?`)) {
+        return;
+      }
+    }
     onImport(actualRows, importMode);
     onClose();
   };
