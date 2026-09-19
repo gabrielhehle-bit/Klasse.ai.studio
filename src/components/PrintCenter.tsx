@@ -54,7 +54,8 @@ import { downloadKlassenbuchDocx } from '../lib/klassenbuchDocx';
 import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
 import { buildSchoolYearWeekList } from '../lib/weeklyPlanData';
 import { getAttendanceSemester } from '../lib/attendanceData';
-import { generateWochenplanTemplate } from '../lib/planerExcelService';
+import { generateWochenplanTemplate, generateJahresplanTemplate } from '../lib/planerExcelService';
+import { downloadYearlyPlanCsv } from '../lib/yearlyPlanExport';
 import { SchuelerWochenplanA4Sheet } from './wochenplan/SchuelerWochenplanA4Sheet';
 import {
   classifyKlassenbuchEntry,
@@ -2439,6 +2440,22 @@ export default function PrintCenter() {
               {/* E. JAHRESPLANUNG CONTROLS */}
               {activeTemplate === 'jahresplanung' && (
                 <div className="space-y-4">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3 space-y-2">
+                    <p className="text-xs font-bold text-emerald-950">Jahresplan exportieren</p>
+                    <p className="text-[0.6875rem] text-slate-600">Diese Ausgaben lesen nur die gespeicherte Jahresplanung der aktuellen Klasse.</p>
+                    <button type="button" onClick={() => generateJahresplanTemplate(app)}
+                      className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-bold text-emerald-900 hover:bg-emerald-100">
+                      <Download size={14} className="mr-1.5 inline" /> Excel-Vorlage herunterladen
+                    </button>
+                    <button type="button" onClick={() => {
+                      const weeks = buildSchoolYearWeekList(app.schuljahr, app.bundesland || 'VBG');
+                      downloadYearlyPlanCsv(app.schuljahr, app.jahresplanung || {}, weeks,
+                        sortYearlySubjects(app.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS), week =>
+                          isHoliday(week.monday, app.calendarSettings?.disabledHolidays, app.bundesland || 'VBG') || undefined);
+                    }} className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50">
+                      <Download size={14} className="mr-1.5 inline" /> Jahresplan als CSV herunterladen
+                    </button>
+                  </div>
                   <div className="space-y-1.5">
                     <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider block">Fach-Schwerpunkt</label>
                     <select
