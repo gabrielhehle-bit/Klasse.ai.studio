@@ -3405,6 +3405,55 @@ export default function WeeklyPlan() {
 
               <div key={`${editingCell.tag}-${editingCell.idx}`} className="p-4 sm:p-5 lg:p-6 overflow-y-auto no-scrollbar scroll-smooth flex-1 min-h-0">
                  
+                 {plannerEditorTab === 'entwurf' && (
+                   <section className="mx-auto max-w-5xl space-y-5 rounded-3xl border border-slate-200 bg-white p-5 sm:p-8">
+                     <header className="flex flex-wrap items-start justify-between gap-4">
+                       <div>
+                         <h4 className="text-lg font-black text-slate-900">Ausführlicher Stundenentwurf</h4>
+                         <p className="mt-1 text-sm text-slate-600">Gehört zur ausgewählten Stunde. Alle Änderungen werden erst mit „Einheit speichern“ übernommen.</p>
+                       </div>
+                       <div className="flex flex-wrap gap-2">
+                         <button type="button" onClick={() => setShowDraftsSelector(true)}
+                           className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-800 hover:bg-slate-50">Vorlage auswählen</button>
+                         <button type="button" onClick={() => setShowDetailedLessonAI(true)}
+                           className="rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700">Mit KI ausarbeiten</button>
+                       </div>
+                     </header>
+                     {([
+                       ['lernziele', 'Lernziele', 'Was sollen die Kinder am Ende können?'],
+                       ['einleitung', 'Einstieg', 'Wie beginnt die Stunde?'],
+                       ['hauptteil', 'Hauptteil und Differenzierung', 'Unterrichtsschritte, Sozialform, Unterstützung …'],
+                       ['schluss', 'Schluss und Sicherung', 'Wie wird das Gelernte gesichert?'],
+                       ['material', 'Materialbedarf', 'Was muss vorbereitet werden?'],
+                     ] as const).map(([field, title, placeholder]) => (
+                       <label key={field} className="block space-y-2">
+                         <span className="block text-xs font-black text-slate-800">{title}</span>
+                         <textarea value={tempStundenentwurf[field]}
+                           onChange={event => setTempStundenentwurf(prev => ({ ...prev, [field]: event.target.value }))}
+                           placeholder={placeholder}
+                           rows={field === 'hauptteil' ? 6 : 3}
+                           className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none" />
+                       </label>
+                     ))}
+                     <button type="button"
+                       disabled={!hasLessonDraftContent(tempStundenentwurf) || !searchFach.trim() || !tempThema.trim()}
+                       onClick={() => {
+                         const saved = addMaterialFromAI({
+                           titel: tempThema.trim(), beschreibung: 'Wiederverwendbare Unterrichtsvorbereitung aus dem Wochenplan',
+                           typ: 'stundenentwurf', faecher: [searchFach], schulstufen: app.stufe ? [app.stufe] : [],
+                           inhaltText: lessonDraftToText(tempStundenentwurf),
+                           lernziel: tempStundenentwurf.lernziele,
+                           tags: ['Unterrichtsvorbereitung', searchFach],
+                           kiGeneriert: false,
+                         }, 'wochenplanung');
+                         if (saved) alert('Vorlage in der Materialbibliothek gespeichert. Den aktuellen Wochenplan bitte separat mit „Einheit speichern“ sichern.');
+                       }}
+                       className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-xs font-black text-emerald-900 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50">
+                       Als wiederverwendbare Vorlage speichern
+                     </button>
+                   </section>
+                 )}
+
                  {plannerEditorTab === 'inhalt' && (
                    <div className="space-y-6">
                  {/* SECTION 1: WAS & WER */}
@@ -4138,6 +4187,28 @@ export default function WeeklyPlan() {
             </motion.div>
          </div>,
          document.body
+      )}
+
+      {showDetailedLessonAI && createPortal(
+        <div className="fixed inset-0 z-[12000]">
+          <LessonPlannerAI
+            onClose={() => setShowDetailedLessonAI(false)}
+            initialFach={searchFach}
+            initialThema={tempThema}
+            embeddedInWeeklyEditor
+            onApply={plan => {
+              if (hasLessonDraftContent(tempStundenentwurf) && !window.confirm('Vorhandene Eingaben im ausführlichen Stundenentwurf durch den KI-Vorschlag ersetzen?')) return;
+              const suggested = normalizeLessonDraft({ fach: searchFach, thema: tempThema, plan });
+              setTempStundenentwurf({
+                lernziele: suggested.lernziele, einleitung: suggested.einleitung, hauptteil: suggested.hauptteil,
+                schluss: suggested.schluss, material: suggested.material,
+              });
+              setShowDetailedLessonAI(false);
+              setPlannerEditorTab('entwurf');
+            }}
+          />
+        </div>,
+        document.body
       )}
 
       {/* DRAFTS SELECTOR MODAL */}
