@@ -1,4 +1,5 @@
 import { berechne } from './GradeUtils';
+import { collapseDailyBehaviorHistory } from './dailyBehaviorEntries';
 
 export type StudentAttendanceSummary = {
   excused: number;
@@ -137,7 +138,7 @@ export function getStudentBehaviorSummary(app: any, studentId: string) {
     { id: '4', label: 'Ermahnung', icon: '⚠️', color: '#f97316', severity: 3 },
     { id: '5', label: 'Kritisch', icon: '❌', color: '#ef4444', severity: 4 }
   ];
-  const logs = (app.statusLog || []).filter((log: any) => log.schuelerId === studentId);
+  const logs = collapseDailyBehaviorHistory(app.statusLog || [], studentId);
   const explicitStatusId = app.behavior_status?.[studentId];
   const statusId = explicitStatusId || app.behavior_default_stage_id || '3';
   const stage = stages.find((item: any) => item.id === statusId) || stages[2];
