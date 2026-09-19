@@ -39,13 +39,12 @@ export const AVAILABLE_MODULES: KlassioModuleCatalogEntry[] = [
   { id: 'verbal', label: 'Verbale Beurteilung', desc: 'Verbale Rückmeldungen vorbereiten', category: 'Leistungen' },
   { id: 'kel', label: 'KEL-Gespräche', desc: 'Kinder-Eltern-Lehrperson-Gespräche vorbereiten', category: 'Leistungen' },
 
-  { id: 'planungszentrale', label: 'Planungs-Zentrale', desc: 'Planungsbereiche zentral überblicken', category: 'Planung' },
+  { id: 'planungszentrale', label: 'Wochen-Check', desc: 'Echte Woche prüfen und zu Stunden im Wochenplan springen', category: 'Planung' },
   { id: 'jahresplanung', label: 'Jahresplanung', desc: 'Langfristige Stoff- und Jahresplanung', category: 'Planung' },
   { id: 'wochenplanung', label: 'Wochenplan', desc: 'Wochenplanung, Aufgaben und Hausübungen', category: 'Planung' },
   { id: 'materialien', label: 'Materialbibliothek', desc: 'Unterrichtsmaterialien verwalten', category: 'Planung' },
   { id: 'canva', label: 'Canva', desc: 'Canva-bezogene Export- und Gestaltungsfunktionen', category: 'Tools' },
-  { id: 'vertretung', label: 'Vertretung', desc: 'Vertretungsunterricht vorbereiten', category: 'Planung' },
-  { id: 'uebergabemappe', label: 'Übergabemappe', desc: 'Klassenübergabe und Vertretungsinformationen', category: 'Planung', condition: (app: any) => app.klassenvorstand },
+  { id: 'vertretung', label: 'Vertretung & Übergabe', desc: 'Vorbereitung, Tagesplan und Druckunterlagen', category: 'Planung' },
 
   { id: 'klassengemeinschaft', label: 'Wir-Gefühl', desc: 'Klassengemeinschaft und soziales Lernen begleiten', category: 'Entwicklung & Berichte', condition: (app: any) => app.klassenvorstand },
   { id: 'jahresbericht', label: 'Jahresbericht', desc: 'Jahresrückblick und Berichte erstellen', category: 'Entwicklung & Berichte', condition: (app: any) => app.klassenvorstand },

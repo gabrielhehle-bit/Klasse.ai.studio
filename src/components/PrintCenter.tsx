@@ -192,7 +192,7 @@ export default function PrintCenter() {
     { id: 'kel_presentation', icon: Sparkles, label: 'KEL-Präsentation', desc: 'Visuelle Bento-Karten', cat: 'eltern', taskCat: 'schueler', badge: 'Bento-Visual', keywords: 'kel bento präsentation visual stärken' },
     { id: 'eltern_diagnostik', icon: Stethoscope, label: 'Elternbericht', desc: 'Förderdiagnostik & Feedback', cat: 'eltern', taskCat: 'schueler', badge: 'Diagnostik', keywords: 'eltern bericht diagnostik förderung test ergebnis' },
     { id: 'schuelerprofil', icon: User, label: 'Schülerdossier', desc: 'Stammdaten, Noten & Profil', cat: 'eltern', taskCat: 'schueler', badge: 'Einzelblatt', keywords: 'schüler profil stammdaten notarzt eltern handy' },
-    { id: 'uebergabemappe', icon: FileText, label: 'Übergabemappe', desc: 'Vertretungsinformationen', cat: 'eltern', taskCat: 'klasse', badge: 'Vertretung', keywords: 'übergabe vertretung lehrer tagesplan notfall' },
+    { id: 'uebergabemappe', icon: FileText, label: 'Vertretung & Übergabe', desc: 'Gemeinsame Vorbereitung und Druckvorschau', cat: 'planung', taskCat: 'planung', badge: 'Vertretung', keywords: 'übergabe vertretung lehrer tagesplan notfall' },
 
     { id: 'sitzplan', icon: Scale, label: 'Sitzplan', desc: 'Klassenzimmer-Tischordnung', cat: 'spezial', taskCat: 'klasse', badge: 'Raumplan', keywords: 'sitzplan raum tische tischordnung schüler' },
     { id: 'lob_druckkarte', icon: Award, label: 'Lob-Karten', desc: 'Urkunden & Motivation', cat: 'spezial', taskCat: 'schueler', badge: 'Motivation', keywords: 'lob karte urkunde auszeichnung karten belohnung' },
@@ -572,6 +572,11 @@ export default function PrintCenter() {
   }, [app?.klassenkasse?.transaktionen, koDateRange, koCategoryFilter]);
   useEffect(() => {
     if (app?.activePrintTemplate) {
+      if (app.activePrintTemplate === 'uebergabemappe') {
+        setApp(prev => ({ ...prev, activePrintTemplate: undefined, openPrintModalOnLoad: true }));
+        setPage('vertretung');
+        return;
+      }
       setActiveTemplate(app.activePrintTemplate as any);
 
       setApp(prev => ({ ...prev, activePrintTemplate: undefined }));
@@ -1539,7 +1544,14 @@ export default function PrintCenter() {
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setActiveTemplate(t.id as any)}
+                    onClick={() => {
+                        if (t.id === 'uebergabemappe') {
+                          setApp(prev => ({ ...prev, openPrintModalOnLoad: true }));
+                          setPage('vertretung');
+                        } else {
+                          setActiveTemplate(t.id as any);
+                        }
+                      }}
                     className={`p-3 rounded-xl border text-left flex flex-col justify-between h-28 transition-all cursor-pointer active:scale-97 ${
                       isSel
                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-600/20'

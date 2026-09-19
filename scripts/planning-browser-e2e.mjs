@@ -241,6 +241,13 @@ async function main() {
 
     await client.send('Page.navigate', { url: BASE_URL });
     await waitFor(client, 'Klassio access gate', 'document.body?.innerText.toLowerCase().includes("geschützter zugang")');
+    const accessCodeVisible = await evaluate(client,
+      'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))');
+    if (!accessCodeVisible) {
+      await clickButton(client, 'Nur Zugangscode verwenden (ohne Geräte-Sync)', true);
+      await waitFor(client, 'access code input',
+        'Array.from(document.querySelectorAll("input")).some(el=>String(el.placeholder||"").includes("Zugangscode eingeben"))');
+    }
     await setInputByLabel(client, 'Zugangscode', ACCESS_CODE);
     await clickButton(client, 'Klassio öffnen');
 
@@ -260,6 +267,19 @@ async function main() {
       if (canSkip) await clickButton(client, 'Überspringen', true);
     }
     await waitFor(client, 'daily dashboard', 'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").trim()==="Heute")', 30000);
+
+    await clickSidebar(client, 'Wochen-Check');
+    await waitFor(client, 'week check renders instead of duplicate daily editor',
+      'Array.from(document.querySelectorAll("h1")).some(h=>h.textContent?.trim()==="Wochen-Check")&&document.body?.innerText.includes("Eingetragene Unterrichtsstunden")&&document.body?.innerText.includes("Eingetragene Stunden ohne Thema")');
+    const truthfulWeekCheck = await evaluate(client,
+      '(() => {const t=document.body?.innerText||"";return t.includes("Leere Stundenplanfelder werden hier nicht automatisch als offene Vorbereitung gewertet")&&!t.includes("Was ist heute geplant?")&&!t.includes("Morgen stehen 6 Stunden an");})()'
+    );
+    if (!truthfulWeekCheck) throw new Error('Wochen-Check still contains duplicate planning UI or misleading preparation status.');
+    console.log('✓ week check uses the selected plan without invented daily status');
+    await clickButton(client, 'Wochenplan öffnen', true);
+    await waitFor(client, 'weekly plan after week check',
+      'document.body?.innerText.toLowerCase().includes("wochenplan")');
+    console.log('✓ week check links directly to the single weekly editing surface');
 
     await clickSidebar(client, 'Wochenplan');
     await waitFor(client, 'weekly plan', 'document.body?.innerText.toLowerCase().includes("wochenplan")||document.body?.innerText.toLowerCase().includes("wochenplanung")');

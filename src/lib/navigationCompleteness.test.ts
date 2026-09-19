@@ -35,8 +35,8 @@ test('Unterricht führt ohne Übersichtsseite direkt ins Lehrercockpit und vorbe
 });
 
 test('Klasse, Planung and Leistungen hubs expose their remaining legacy tools', () => {
-  assertContainsAll(source('KlasseHub.tsx'), ['schueler', 'dossier', 'anwesenheit', 'sitzplan', 'verhalten', 'orga', 'kel', 'klassengemeinschaft', 'teamteaching']);
-  assertContainsAll(source('PlanungHub.tsx'), ['planungszentrale', 'wochenplanung', 'jahresplanung', 'materialien', 'vertretung', 'uebergabemappe']);
+  assertContainsAll(source('KlasseHub.tsx'), ['schueler', 'dossier', 'anwesenheit', 'sitzplan', 'verhalten', 'orga', 'kel', 'klassengemeinschaft', 'teamteaching', 'jahresbericht']);
+  assertContainsAll(source('PlanungHub.tsx'), ['planungszentrale', 'wochenplanung', 'jahresplanung', 'materialien', 'vertretung']);
   assertContainsAll(source('ToolsHub.tsx'), ['canva']);
-  assertContainsAll(source('LeistungenHub.tsx'), ['noten', 'portfolio', 'diagnostik', 'kel', 'verbal', 'jahresbericht']);
+  assertContainsAll(source('LeistungenHub.tsx'), ['noten', 'portfolio', 'diagnostik', 'kel', 'verbal']);
 });

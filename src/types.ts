@@ -979,6 +979,22 @@ export interface SavedSeatingLayout {
   createdAt: string;
 }
 
+export interface VertretungsVorbereitung {
+  rangeMode: 'single' | 'multi' | 'week';
+  singleDate: string;
+  startDate: string;
+  endDate: string;
+  weekDate: string;
+  /** Non-destructive overrides keyed by local YYYY-MM-DD + lesson number. */
+  lessonNotes: Record<string, { fach?: string; thema?: string; material?: string; hausuebung?: string; ablauf?: string }>;
+  dayNotes: Record<string, string>;
+  assignedStundenbilder: Record<string, string>;
+  emergencyChecklist: { id: string; text: string; checked: boolean }[];
+  printPages?: { cover: boolean; overview: boolean; list: boolean; seating: boolean; feedback: boolean };
+  printNotes?: string;
+  contacts?: { schulleitung: string; sekretariat: string; nachbarKlasse: string };
+}
+
 export interface ClassRoom {
   /** Zero-knowledge Teamteaching metadata. This metadata remains local and is stripped before class encryption. */
   teamTeaching?: {
@@ -1074,6 +1090,8 @@ export interface ClassRoom {
   oberauData?: AppState['oberauData'];
   /** Class-local handover/coverage notes used by the Übergabemappe. */
   vertretungHinweise?: string;
+  /** Editable cover and substitute handover, isolated per class. */
+  vertretungsVorbereitung?: VertretungsVorbereitung;
   stundenZeiten?: Record<number, string>;
   mittagspauseNachStunde?: number;
   sue_kontrolle: Record<string, Record<string, string>>;
@@ -1307,6 +1325,13 @@ export interface AppState {
       generiert: string;
       schuljahr: string;
       reviewStatus?: 'freigegeben' | 'nacharbeiten' | 'offen';
+      /** Previous revisions remain in encrypted class state when a draft is replaced. */
+      verlauf?: {
+        inhalt: string;
+        generiert: string;
+        schuljahr: string;
+        reviewStatus?: 'freigegeben' | 'nacharbeiten' | 'offen';
+      }[];
     }
   };
   wochenrueckblick?: {
@@ -1528,6 +1553,7 @@ export interface AppState {
     relative_confirmed?: boolean;
   };
   vertretungHinweise?: string;
+  vertretungsVorbereitung?: VertretungsVorbereitung;
   stimmungsArchiv?: any[];
   stundenZeiten?: Record<number, string>;
   mittagspauseNachStunde?: number;

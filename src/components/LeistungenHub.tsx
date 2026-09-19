@@ -45,13 +45,6 @@ const developmentItems: PerformanceItem[] = [
     description: 'Vorbereiten, Einschätzen, Gespräch führen, Ziele vereinbaren und Präsentation erstellen.',
     icon: MessagesSquare,
   },
-  {
-    id: 'jahresbericht',
-    title: 'Jahresbericht',
-    description: 'Dokumentierte Jahresübersichten und Berichte ohne erfundene Aussagen.',
-    icon: FileText,
-    klassenvorstandOnly: true,
-  },
 ];
 
 function PerformanceCard({

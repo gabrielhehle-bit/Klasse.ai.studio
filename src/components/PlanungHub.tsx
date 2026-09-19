@@ -35,8 +35,8 @@ const coreItems: PlanningItem[] = [
   },
   {
     id: 'planungszentrale',
-    label: 'Planungsübersicht',
-    description: 'Aktuelle Woche, offene Planung und wichtige Planungswege kompakt zusammenführen.',
+    label: 'Wochen-Check',
+    description: 'Fehlende Themen in bereits eingetragenen Stunden erkennen. Geplant und bearbeitet wird ausschließlich im Wochenplan.',
     icon: LayoutDashboard,
   },
 ];
@@ -50,16 +50,9 @@ const preparationItems: PlanningItem[] = [
   },
   {
     id: 'vertretung',
-    label: 'Vertretung vorbereiten',
-    description: 'Stundenplan-, Wochenplan- und Materialdaten für eine Vertretung zusammenstellen.',
+    label: 'Vertretung & Übergabe',
+    description: 'Tages- oder Mehrtagesvertretung einmal vorbereiten, mit Wochenplan, Checkliste und gezielter Druckausgabe.',
     icon: Replace,
-  },
-  {
-    id: 'uebergabemappe',
-    label: 'Übergabemappe',
-    description: 'Wichtige Informationen und Unterlagen für eine Klassenübergabe bündeln.',
-    icon: ClipboardList,
-    klassenvorstandOnly: true,
   },
 ];
 
