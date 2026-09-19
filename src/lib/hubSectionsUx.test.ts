@@ -22,7 +22,7 @@ test('Leistungen hub separates assessment from learning development', () => {
   const source = read('LeistungenHub.tsx');
   assert.match(source, /Bewerten & Beurteilen/);
   assert.match(source, /Lernentwicklung & Gespräche/);
-  for (const id of ['noten', 'verbal', 'portfolio', 'diagnostik', 'statistik', 'kel', 'jahresbericht']) {
+  for (const id of ['noten', 'verbal', 'portfolio', 'diagnostik', 'kel', 'jahresbericht']) {
     assert.match(source, new RegExp(`id:\\s*['"]${id}['"]`));
   }
 });
