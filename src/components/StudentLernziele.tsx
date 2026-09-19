@@ -6,6 +6,8 @@ import {
   ArrowRight, Stethoscope, HeartHandshake, Layers
 } from 'lucide-react';
 import { LERNZIELE_BY_STUFE } from './LernzielTracker';
+import { getLernzielModell } from '../lib/lernzielBewertungsmodell';
+import LernzielVisualisierung from './LernzielVisualisierung';
 
 interface StudentLernzieleProps {
   schuelerId: string;
@@ -37,6 +39,9 @@ export default function StudentLernziele({
 }: StudentLernzieleProps) {
   const { app, setApp } = useApp();
   const student = app.schueler.find(s => s.id === schuelerId);
+  const goalModel = getLernzielModell(app.lernzielBewertungsmodell);
+  const reachedLevel = goalModel.levels[goalModel.levels.length - 1];
+  const reachedValue = reachedLevel.value;
 
   const initialClassMatch = app.klassenbezeichnung?.match(/(\d)/);
   const initialClassLevel = Number(app.stufe) || (initialClassMatch ? parseInt(initialClassMatch[1]) : 1);
@@ -265,18 +270,18 @@ export default function StudentLernziele({
   // Requirement 10: Lernziel-Fokus
   // Aktuell in Arbeit (maximal 5 relevante Lernziele)
   const inWorkGoals = allParsedGoals
-    .filter(g => evaluationData[g.id] === 2 || evaluationData[g.id] === 3)
+    .filter(g => goalModel.levels.some(level => level.value !== reachedValue && evaluationData[g.id] === level.value))
     .slice(0, 5);
 
   // Zuletzt erreicht (maximal 5 zuletzt erreichte Lernziele)
   const reachedGoals = allParsedGoals
-    .filter(g => evaluationData[g.id] === 1)
+    .filter(g => evaluationData[g.id] === reachedValue)
     .slice(0, 5);
 
   // Statistics
   const ratedCount = allParsedGoals.filter(g => evaluationData[g.id] !== null && evaluationData[g.id] !== undefined).length;
-  const reachedCount = allParsedGoals.filter(g => evaluationData[g.id] === 1).length;
-  const inWorkCount = allParsedGoals.filter(g => evaluationData[g.id] === 2 || evaluationData[g.id] === 3).length;
+  const reachedCount = allParsedGoals.filter(g => evaluationData[g.id] === reachedValue).length;
+  const inWorkCount = allParsedGoals.filter(g => goalModel.levels.some(level => level.value !== reachedValue && evaluationData[g.id] === level.value)).length;
 
   // Filtered goals by subject, search, and rated
   const filteredSubjects = activeSubjectTab === 'Alle' ? FAECHER : [activeSubjectTab];
@@ -343,6 +348,16 @@ export default function StudentLernziele({
         </div>
       </div>
 
+      <details className="rounded-2xl border border-slate-200 bg-slate-50 p-4 print:hidden">
+        <summary className="cursor-pointer text-sm font-black text-slate-800">Lernstand veranschaulichen · Kind / Eltern / Lehrperson</summary>
+        <p className="mt-2 text-xs text-slate-600">Dieselben dokumentierten Lernziele, unterschiedliche Ansichten. Die Einstellungen gelten pro Klasse.</p>
+        <div className="mt-3 grid gap-3 lg:grid-cols-3">
+          <LernzielVisualisierung goalIds={allParsedGoals.map(goal => goal.id)} ratings={evaluationData} model={goalModel} mode={goalModel.views.kind} title="Für Kinder" />
+          <LernzielVisualisierung goalIds={allParsedGoals.map(goal => goal.id)} ratings={evaluationData} model={goalModel} mode={goalModel.views.parents} title="Für Eltern" />
+          <LernzielVisualisierung goalIds={allParsedGoals.map(goal => goal.id)} ratings={evaluationData} model={goalModel} mode={goalModel.views.teachers} title="Für Lehrpersonen" />
+        </div>
+      </details>
+
       {/* Requirement 10: Lernziel-Fokus (Kompakte Zusammenfassung ganz zu Beginn) */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 print:hidden">
         {/* Aktuell in Arbeit (max 5) */}
@@ -351,7 +366,7 @@ export default function StudentLernziele({
             <div className="flex items-center gap-2">
               <Clock size={16} className="text-amber-600" />
               <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wider">
-                Aktuell in Arbeit ({inWorkGoals.length}{inWorkCount > 5 ? ` von ${inWorkCount}` : ''})
+                Weitere Lernzielstufen ({inWorkGoals.length}{inWorkCount > 5 ? ` von ${inWorkCount}` : ''})
               </h4>
             </div>
             <span className="text-[0.6875rem] font-medium text-amber-700">Fokusziele</span>
@@ -359,7 +374,7 @@ export default function StudentLernziele({
 
           {inWorkGoals.length === 0 ? (
             <div className="rounded-xl border border-dashed border-amber-200 bg-white/60 p-5 text-center text-xs text-amber-800/80">
-              Derzeit sind keine Lernziele als „in Arbeit“ markiert.
+              Derzeit sind keine Lernziele in den übrigen Beurteilungsstufen dokumentiert.
             </div>
           ) : (
             <div className="space-y-2">
@@ -410,11 +425,11 @@ export default function StudentLernziele({
                       <div className="flex items-center gap-1 shrink-0 ml-2">
                         <button
                           type="button"
-                          onClick={() => handleRatingChange(goal.id, 1)}
+                          onClick={() => handleRatingChange(goal.id, reachedValue)}
                           className="px-2 py-1 rounded-lg text-[0.625rem] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition cursor-pointer"
-                          title="Als erreicht markieren"
+                          title={reachedLevel.label + ' markieren'}
                         >
-                          ✓ Erreicht
+                          {reachedLevel.symbol} {reachedLevel.label}
                         </button>
                       </div>
                     </div>
@@ -431,7 +446,7 @@ export default function StudentLernziele({
             <div className="flex items-center gap-2">
               <CheckCircle2 size={16} className="text-emerald-600" />
               <h4 className="text-xs font-bold text-emerald-950 uppercase tracking-wider">
-                Zuletzt erreicht ({reachedGoals.length}{reachedCount > 5 ? ` von ${reachedCount}` : ''})
+                {reachedLevel.label} ({reachedGoals.length}{reachedCount > 5 ? ` von ${reachedCount}` : ''})
               </h4>
             </div>
             <span className="text-[0.6875rem] font-medium text-emerald-700">Erfolge</span>
@@ -439,7 +454,7 @@ export default function StudentLernziele({
 
           {reachedGoals.length === 0 ? (
             <div className="rounded-xl border border-dashed border-emerald-200 bg-white/60 p-5 text-center text-xs text-emerald-800/80">
-              Noch keine Lernziele als „erreicht“ markiert.
+              Noch keine Lernziele in der Stufe „{reachedLevel.label}“ markiert.
             </div>
           ) : (
             <div className="space-y-2">
@@ -460,7 +475,7 @@ export default function StudentLernziele({
                       </p>
                     </div>
                     <span className="inline-flex items-center gap-1 text-[0.625rem] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg shrink-0">
-                      ✓ Erreicht
+                      {reachedLevel.symbol} {reachedLevel.label}
                     </span>
                   </div>
                 </div>
@@ -647,61 +662,27 @@ export default function StudentLernziele({
 
                                 {/* Status Switcher (Requirement 9: keine Schulnoten erzeugen!) */}
                                 <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
-                                  {/* Noch offen */}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRatingChange(goal.id, null)}
-                                    className={`px-2 py-1 rounded-lg text-[0.625rem] font-semibold transition cursor-pointer border ${
-                                      currentRating === null || currentRating === undefined
-                                        ? 'bg-slate-200 text-slate-700 border-slate-300'
-                                        : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-100'
-                                    }`}
-                                    title="Noch nicht eingeschätzt"
-                                  >
-                                    Offen
-                                  </button>
-
-                                  {/* In Entwicklung / Minimal (Stufe 3) */}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRatingChange(goal.id, 3)}
-                                    className={`px-2 py-1 rounded-lg text-[0.625rem] font-bold transition cursor-pointer border ${
-                                      currentRating === 3
-                                        ? 'bg-amber-400 text-white border-amber-500 shadow-xs'
-                                        : 'bg-white text-amber-700 border-amber-200 hover:bg-amber-50'
-                                    }`}
-                                    title="In Entwicklung (mit Unterstützung)"
-                                  >
-                                    In Entwicklung
-                                  </button>
-
-                                  {/* Im Wesentlichen (Stufe 2) */}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRatingChange(goal.id, 2)}
-                                    className={`px-2 py-1 rounded-lg text-[0.625rem] font-bold transition cursor-pointer border ${
-                                      currentRating === 2
-                                        ? 'bg-lime-500 text-white border-lime-600 shadow-xs'
-                                        : 'bg-white text-lime-700 border-lime-200 hover:bg-lime-50'
-                                    }`}
-                                    title="Im Wesentlichen erreicht"
-                                  >
-                                    Im Wesentlichen
-                                  </button>
-
-                                  {/* Erreicht (Stufe 1) */}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRatingChange(goal.id, 1)}
-                                    className={`px-2.5 py-1 rounded-lg text-[0.625rem] font-bold transition cursor-pointer border ${
-                                      currentRating === 1
-                                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
-                                        : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
-                                    }`}
-                                    title="Vollständig erreicht"
-                                  >
-                                    ✓ Erreicht
-                                  </button>
+                                  <button type="button" onClick={() => handleRatingChange(goal.id, null)}
+                                    aria-pressed={currentRating === null || currentRating === undefined}
+                                    className={'rounded-lg border px-2 py-1 text-[0.625rem] font-semibold ' +
+                                      (currentRating === null || currentRating === undefined
+                                        ? 'border-slate-400 bg-slate-200 text-slate-800'
+                                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100')}
+                                    title="Keine Einschätzung für dieses Lernziel"
+                                  >{goalModel.emptyLabel}</button>
+                                  {goalModel.levels.map(level => (
+                                    <button type="button" key={level.value}
+                                      onClick={() => handleRatingChange(goal.id, level.value)}
+                                      aria-pressed={currentRating === level.value}
+                                      className="rounded-lg border px-2 py-1 text-[0.625rem] font-bold transition hover:brightness-95"
+                                      style={{ backgroundColor: currentRating === level.value ? level.color : 'white',
+                                        borderColor: level.color,
+                                        color: currentRating === level.value ? 'white' : level.color }}
+                                      title={level.label}
+                                    >{level.symbol} {level.label}</button>
+                                  ))}
+                                  {typeof currentRating === 'number' && !goalModel.levels.some(level => level.value === currentRating) &&
+                                    <span className="text-xs font-bold text-rose-700">Frühere unbekannte Stufe {currentRating} – bitte prüfen</span>}
                                 </div>
                               </div>
                             );
