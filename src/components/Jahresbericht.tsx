@@ -11,12 +11,14 @@ import Markdown from 'react-markdown';
 import { SchuljahrWrapped } from './SchuljahrWrapped';
 import { STANDARD_KEL_BEREICHE } from '../types';
 import { berechne, getAssessmentMode } from '../lib/GradeUtils';
+import { getStudentNotes } from '../lib/studentMetrics';
 
-export default function Jahresbericht() {
+export default function Jahresbericht({ studentId }: { studentId?: string } = {}) {
   const { app, setApp } = useApp();
   const currentTerm = app.schuljahr || 'Schuljahr nicht angegeben';
   
-  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(studentId || null);
+  const isDossierView = Boolean(studentId);
   const [activeTab, setActiveTab] = useState<'bericht' | 'datenbasis'>('bericht');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingAllStatus, setGeneratingAllStatus] = useState<{ total: number, current: number } | null>(null);
@@ -36,17 +38,23 @@ export default function Jahresbericht() {
   });
 
   const [includeBadges, setIncludeBadges] = useState(false);
-  const [includeObservations, setIncludeObservations] = useState(true);
-  const [includeGrades, setIncludeGrades] = useState(true);
+  const [includeObservations, setIncludeObservations] = useState(false);
+  const [includeGrades, setIncludeGrades] = useState(false);
+  const [includeKel, setIncludeKel] = useState(false);
+  const [includeFoerder, setIncludeFoerder] = useState(false);
+  const [selectedObservationIds, setSelectedObservationIds] = useState<string[]>([]);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [personalWish, setPersonalWish] = useState('');
   const [refinePrompt, setRefinePrompt] = useState('');
   const [isRefining, setIsRefining] = useState(false);
 
   const berichte = app.jahresberichte || {};
   const students = app.schueler || [];
+  const reportForTerm = (id: string) => berichte[id]?.schuljahr === currentTerm ? berichte[id] : undefined;
+  const scopedStudents = isDossierView ? students.filter(s => s.id === studentId) : students;
 
   const getReviewStatus = (studentId: string): 'freigegeben' | 'nacharbeiten' | 'offen' =>
-    berichte[studentId]?.reviewStatus || 'offen';
+    reportForTerm(studentId)?.reviewStatus || 'offen';
 
   // Persist options
   useEffect(() => {
@@ -62,12 +70,13 @@ export default function Jahresbericht() {
   }, [pronounForm]);
 
   useEffect(() => {
-    setSelectedStudent(null);
+    setSelectedStudent(studentId || null);
+    setSelectedObservationIds([]);
     setEditMode(null);
     setEditContent('');
     setShowWrapped(null);
     setActiveTab('bericht');
-  }, [app.activeClassId]);
+  }, [app.activeClassId, studentId]);
 
   useEffect(() => {
     try {
