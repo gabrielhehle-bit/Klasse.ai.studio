@@ -1763,10 +1763,17 @@ export default function SeatingPlan() {
     setShowRulesModal(false);
   };
 
-  // Helper to retrieve canvas dimensions for boundary enforcement
+  // World coordinates must not be clamped to the visible pixel width on a
+  // small screen: an auto-fitted desk at x=800 is still a valid desk at x=800.
   const getCanvasDimensions = () => {
-    const canvasW = planRef.current?.clientWidth || 1200;
-    const canvasH = planRef.current?.clientHeight || 800;
+    const currentSeats = latestRoomRef.current.sitzplan_schueler;
+    const currentObjects = latestRoomRef.current.sitzplan_objekte;
+    const seatRight = Math.max(0, ...Object.values(currentSeats).map(p => p.x + 120));
+    const seatBottom = Math.max(0, ...Object.values(currentSeats).map(p => p.y + 80));
+    const furnitureRight = Math.max(0, ...currentObjects.map(object => object.x + (object.w || 100)));
+    const furnitureBottom = Math.max(0, ...currentObjects.map(object => object.y + (object.h || 60)));
+    const canvasW = Math.max(1200, (planRef.current?.clientWidth || 0) / zoom, seatRight + 30, furnitureRight + 30);
+    const canvasH = Math.max(800, (planRef.current?.clientHeight || 0) / zoom, seatBottom + 30, furnitureBottom + 30);
     return { canvasW, canvasH };
   };
 
