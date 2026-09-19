@@ -412,6 +412,18 @@ export interface Student {
   wunschpartner?: string[]; // student IDs
   sperrpartner?: string[];  // student IDs
   portfolio?: PortfolioEntry[];
+  /** Encrypted, class-local KEL preparation per school year / semester / meeting.
+   * Contains only identifiers and switches, NEVER a copied student gradebook.
+   */
+  kelPraesentationAuswahl?: Record<string, {
+    classId: string;
+    studentId: string;
+    semester: string;
+    visible: Record<string, boolean>;
+    selectedSubjects: string[];
+    selectedAssessmentIds: string[];
+    updatedAt: string;
+  }>;
   geburtsdatum?: string; // Standardized name for birthday if needed
   warnThresholds?: Record<string, number>; // Individual warning threshold mapped by testId
   erlaeuterungsmatrix?: {
