@@ -8,6 +8,7 @@ import {
 import { LERNZIELE_BY_STUFE } from './LernzielTracker';
 import { getLernzielModell } from '../lib/lernzielBewertungsmodell';
 import LernzielVisualisierung from './LernzielVisualisierung';
+import { getAccentTextColor } from '../lib/utils';
 
 interface StudentLernzieleProps {
   schuelerId: string;
@@ -425,7 +426,8 @@ export default function StudentLernziele({
                         <button
                           type="button"
                           onClick={() => handleRatingChange(goal.id, reachedValue)}
-                          className="px-2 py-1 rounded-lg text-[0.625rem] font-bold border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition cursor-pointer"
+                          className="rounded-lg border px-2 py-1 text-[0.625rem] font-bold transition hover:brightness-95"
+                          style={{ borderColor: reachedLevel.color, color: reachedLevel.color }}
                           title={reachedLevel.label + ' markieren'}
                         >
                           {reachedLevel.symbol} {reachedLevel.label}
@@ -660,7 +662,7 @@ export default function StudentLernziele({
                                 </div>
 
                                 {/* Status Switcher (Requirement 9: keine Schulnoten erzeugen!) */}
-                                <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
+                                <div className="flex max-w-full flex-wrap items-center justify-end gap-1 self-end sm:self-auto">
                                   <button type="button" onClick={() => handleRatingChange(goal.id, null)}
                                     aria-pressed={currentRating === null || currentRating === undefined}
                                     className={'rounded-lg border px-2 py-1 text-[0.625rem] font-semibold ' +
@@ -676,7 +678,7 @@ export default function StudentLernziele({
                                       className="rounded-lg border px-2 py-1 text-[0.625rem] font-bold transition hover:brightness-95"
                                       style={{ backgroundColor: currentRating === level.value ? level.color : 'white',
                                         borderColor: level.color,
-                                        color: currentRating === level.value ? 'white' : level.color }}
+                                        color: currentRating === level.value ? getAccentTextColor(level.color) : level.color }}
                                       title={level.label}
                                     >{level.symbol} {level.label}</button>
                                   ))}
