@@ -29,6 +29,7 @@ function MapUpdater({ center, zoom }: { center: [number, number], zoom: number }
   const map = useMap();
   useEffect(() => {
     try {
+      map.invalidateSize();
       map.setView(center, zoom);
     } catch (e) {
       console.warn("MapUpdater error", e);
@@ -51,6 +52,8 @@ export default function StudentMap({ students }: StudentMapProps) {
   const { app } = useApp();
   const [geocodedStudents, setGeocodedStudents] = useState<GeocodedStudent[]>([]);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [tilesUnavailable, setTilesUnavailable] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [baseCenter, setBaseCenter] = useState<[number, number] | null>(null);
 
   useEffect(() => {
@@ -70,6 +73,7 @@ export default function StudentMap({ students }: StudentMapProps) {
         for (const q of queries) {
             if (!q || q === 'Austria') continue;
             const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1`);
+            if (!res.ok) continue;
             const data = await res.json();
             if (data?.features?.length > 0 && isMounted) {
                 const coords = data.features[0].geometry.coordinates;
@@ -95,6 +99,7 @@ export default function StudentMap({ students }: StudentMapProps) {
       
       const newGeocoded: GeocodedStudent[] = [];
       setIsGeocoding(true);
+      setTilesUnavailable(false);
 
       for (const student of students) {
         const ort = (student.ort || app.schulOrt || '').trim();
@@ -125,7 +130,8 @@ export default function StudentMap({ students }: StudentMapProps) {
           // Use Photon API (more tolerant with messy addresses, faster)
           await new Promise(r => setTimeout(r, 600)); // Respectful delay, Photon allows more than Nominatim but good to be safe
           
-          let res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(addressString)}&limit=1`);
+          let res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(addressString)}&limit=1`, { signal: AbortSignal.timeout(8000) });
+          if (!res.ok) throw new Error('Geocoder nicht erreichbar');
           let data = await res.json();
 
           if (data && data.features && data.features.length > 0) {
@@ -140,7 +146,8 @@ export default function StudentMap({ students }: StudentMapProps) {
             const cityString = `${student.ort || app.schulOrt || ''}`.trim();
             if (cityString) {
                await new Promise(r => setTimeout(r, 400));
-               res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(cityString + ', Austria')}&limit=1`);
+               res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(cityString + ', Austria')}&limit=1`, { signal: AbortSignal.timeout(8000) });
+               if (!res.ok) throw new Error('Ortsabfrage nicht erreichbar');
                data = await res.json();
                
                if (data && data.features && data.features.length > 0) {
@@ -157,7 +164,8 @@ export default function StudentMap({ students }: StudentMapProps) {
             }
           }
         } catch (error) {
-          console.error(`Error geocoding ${addressString}:`, error);
+          // Keine Adressen oder Namen in Debug-Logs ausgeben.
+          console.warn('[Karte] Ortsauflösung nicht verfügbar:', error);
           newGeocoded.push({ ...student, geocodeStatus: 'failed' });
         }
       }
@@ -173,7 +181,7 @@ export default function StudentMap({ students }: StudentMapProps) {
     return () => {
       isMounted = false;
     };
-  }, [students, app.schulPlz, app.schulOrt]);
+  }, [students, app.schulPlz, app.schulOrt, retry]);
 
   const mapCenter: [number, number] = useMemo(() => {
     const validCoords = geocodedStudents.filter(s => s.lat && s.lon);
@@ -211,6 +219,7 @@ export default function StudentMap({ students }: StudentMapProps) {
             <MapContainer key={baseCenter ? 'base-set' : 'no-base'} center={mapCenter} zoom={baseCenter ? 14 : 11} style={{ height: '100%', width: '100%' }}>
                 <MapUpdater center={mapCenter} zoom={baseCenter ? 14 : 11} />
                 <TileLayer
+                    eventHandlers={{ tileerror: () => setTilesUnavailable(true), tileload: () => setTilesUnavailable(false) }}
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
@@ -225,8 +234,8 @@ export default function StudentMap({ students }: StudentMapProps) {
                                             <span className="text-slate-900">{student.vorname} {student.nachname}</span>
                                         </div>
                                         <div className="text-slate-500 text-[0.75rem] leading-tight font-medium">
-                                            {student.anschrift}<br />
-                                            {student.plz} {student.ort}
+                                            Ungefähre Position: {student.plz} {student.ort}<br />
+                                            Kein genauer Wohnort.
                                         </div>
                                     </div>
                                 </Popup>
@@ -239,6 +248,16 @@ export default function StudentMap({ students }: StudentMapProps) {
           </MapErrorBoundary>
         </div>
         
+        {!isGeocoding && (tilesUnavailable || (students.length > 0 && !geocodedStudents.some(s => s.geocodeStatus === 'success'))) && (
+          <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+            <strong>Karte derzeit nicht vollständig verfügbar.</strong> Prüfe die Internetverbindung und erlaube Kartenkacheln
+            von OpenStreetMap sowie Ortsabfragen von Photon im Browser. Es werden nur PLZ und Ort abgefragt.
+            <button type="button" onClick={() => { setTilesUnavailable(false); setRetry(value => value + 1); }}
+              className="ml-3 rounded-lg border border-amber-300 bg-white px-3 py-2 font-semibold">
+              Erneut versuchen
+            </button>
+          </div>
+        )}
         {!isGeocoding && geocodedStudents.some(s => s.geocodeStatus === 'failed' || s.geocodeStatus === 'no_address') && (
             <div className="flex p-4 rounded-xl bg-slate-50 text-slate-600 text-[0.75rem] leading-tight font-medium gap-3 items-start border border-slate-100">
                 <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
