@@ -284,17 +284,39 @@ async function verifyDirectCockpitNavigation(client) {
   await clickSidebar(client, 'Lehrercockpit');
   await waitFor(
     client,
-    'direct white cockpit stage and external drawing toolbar',
+    'direct white cockpit stage and TEXT-only toolbar',
     '(() => {' +
     'const stage=document.getElementById("widget-board-stage");' +
-    'const toolbar=document.querySelector("[role=toolbar][aria-label=\\\"Unterrichtsfläche: Auswählen, Zeichnen und Text\\\"]");' +
+    'const toolbar=document.querySelector("[role=toolbar][aria-label=\\\"Unterrichtsfläche: TEXT\\\"]");' +
     'if(!stage||!toolbar)return false;' +
     'const r=stage.getBoundingClientRect();' +
     'const bg=getComputedStyle(stage).backgroundColor;' +
-    'return r.width>500&&r.height>300&&bg==="rgb(255, 255, 255)"&&toolbar.textContent.includes("Auswählen")&&toolbar.textContent.includes("Stift");' +
+    'return r.width>500&&r.height>300&&bg==="rgb(255, 255, 255)"&&toolbar.textContent.includes("TEXT")&&!toolbar.textContent.includes("Stift");' +
     '})()',
     30000,
   );
+  await clickButton(client, 'TEXT', true);
+  await waitFor(client, 'TEXT activated',
+    'document.querySelector("button[aria-label=\\\"TEXT\\\"]")?.getAttribute("aria-pressed")==="true"');
+  await clickButton(client, 'Widget hinzufügen');
+  await waitFor(client, 'widget picker is clickable while TEXT stays active',
+    '(() => {' +
+    'const input=document.querySelector("input[aria-label=\\\"Widget suchen\\\"]");' +
+    'if(!input||document.querySelector("button[aria-label=\\\"TEXT\\\"]")?.getAttribute("aria-pressed")!=="true")return false;' +
+    'const r=input.getBoundingClientRect();return document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)===input;' +
+    '})()', 20000);
+  await clickButton(client, 'Ablauf & Organisation');
+  await clickButton(client, 'Timer / Sanduhr');
+  await waitFor(client, 'Timer widget inserted while TEXT editing',
+    'document.querySelector("#widget-board-stage [role=group][aria-label*=\\\"Timer\\\"]")!==null', 20000);
+  await waitFor(client, 'Widget remains clickable above TEXT editor',
+    '(() => {' +
+    'const widget=document.querySelector("#widget-board-stage [role=group][aria-label*=\\\"Timer\\\"]");' +
+    'if(!widget)return false;const r=widget.getBoundingClientRect();' +
+    'const hit=document.elementFromPoint(r.left+Math.min(35,r.width/2),r.top+Math.min(20,r.height/2));' +
+    'return widget.contains(hit);' +
+    '})()', 20000);
+  console.log('✓ TEXT active: Widget picker, selection and existing widget remain clickable');
   const hasPublicNoDemoState = await evaluate(client,
     'document.body?.innerText.includes("In dieser Klasse sind noch keine Kinder angelegt.") && !document.body?.innerText.includes("Max M.")'
   );
