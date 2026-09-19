@@ -476,6 +476,7 @@ export default function KELPresentation({
     setApp(previous => {
       const list = [...(previous.kelGespraeche || [])];
       const index = latestKel ? list.findIndex((entry: any) => entry.id === latestKel.id) : -1;
+      let nextStudents = previous.schueler;
       if (index >= 0) {
         list[index] = { ...list[index], vereinbarungen: text };
       } else {
@@ -484,7 +485,7 @@ export default function KELPresentation({
         // created meeting; saving a preparation never creates a fake protocol.
         const oldKey = JSON.stringify([previous.schuljahr || '', sem, 'vorbereitung']);
         const newKey = JSON.stringify([previous.schuljahr || '', sem, newMeetingId]);
-        const pupils = previous.schueler.map(entry => {
+        nextStudents = previous.schueler.map(entry => {
           if (entry.id !== student.id || !entry.kelPraesentationAuswahl?.[oldKey]) return entry;
           const plans = { ...entry.kelPraesentationAuswahl };
           plans[newKey] = plans[oldKey];
@@ -510,7 +511,7 @@ export default function KELPresentation({
         });
       }
       return { ...previous, kelGespraeche: list,
-        schueler: index >= 0 ? previous.schueler : pupils };
+        schueler: nextStudents };
     });
     setAgreementSaved(true);
     window.setTimeout(() => setAgreementSaved(false), 1800);
