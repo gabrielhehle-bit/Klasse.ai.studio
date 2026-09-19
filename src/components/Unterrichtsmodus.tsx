@@ -9373,26 +9373,7 @@ ${content}
                             )}
                           </div>
 
-                          <button
-                            type="button"
-                            aria-pressed={isBoardTextEditing}
-                            onClick={() => {
-                              setIsBoardTextEditing((value) => !value);
-                              setIsAddWidgetMenuOpen(false);
-                              setIsMoreOptionsMenuOpen(false);
-                            }}
-                            className={`min-h-11 px-4 rounded-xl border text-sm font-black tracking-wide flex items-center gap-1.5 transition-all cursor-pointer ${
-                              isBoardTextEditing
-                                ? "bg-indigo-600 border-indigo-600 text-white shadow-sm"
-                                : currentIsLight
-                                  ? "bg-white border-slate-200 text-slate-800 hover:bg-slate-50"
-                                  : "bg-zinc-900 border-white/10 text-white hover:bg-zinc-800"
-                            }`}
-                            title="Weiße Tafel als Textdokument verwenden"
-                          >
-                            <Type size={15} />
-                            <span>TEXT</span>
-                          </button>
+
                           <button
                             type="button"
                             onClick={() => setIsBirthdayCelebrationOpen(true)}
@@ -9815,6 +9796,89 @@ ${content}
                             )}
                           </div>
                         </div>
+                      </div>
+
+                      {/* A single shared toolbar, outside the white teaching surface. */}
+                      <div
+                        role="toolbar"
+                        aria-label="Unterrichtsfläche: Auswählen, Zeichnen und Text"
+                        className="flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-sm"
+                      >
+                        {([
+                          ['select', 'Auswählen'],
+                          ['pen', 'Stift'],
+                          ['erase', 'Radierer'],
+                          ['text', 'TEXT'],
+                        ] as const).map(([id, label]) => (
+                          <button
+                            type="button"
+                            key={id}
+                            aria-pressed={boardTool === id}
+                            onClick={() => {
+                              setBoardTool(id);
+                              setIsBoardTextEditing(id === 'text');
+                            }}
+                            className={`min-h-11 rounded-lg border px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${boardTool === id ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
+                          >{label}</button>
+                        ))}
+                        {(boardTool === 'pen' || boardTool === 'erase') && (
+                          <>
+                            <label className="flex min-h-11 items-center gap-1.5 text-xs font-semibold">
+                              Farbe
+                              <input type="color" aria-label="Stiftfarbe" value={boardPenColor}
+                                onChange={event => setBoardPenColor(event.target.value)}
+                                className="h-10 w-11 rounded border border-slate-300" />
+                            </label>
+                            <label className="flex min-h-11 items-center gap-1.5 text-xs font-semibold">
+                              Strich
+                              <select aria-label="Strichstärke" value={boardPenWidth}
+                                onChange={event => setBoardPenWidth(Number(event.target.value))}
+                                className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm">
+                                <option value={2}>Fein</option>
+                                <option value={4}>Normal</option>
+                                <option value={8}>Breit</option>
+                              </select>
+                            </label>
+                          </>
+                        )}
+                        {boardTool === 'text' && (
+                          <>
+                            <select aria-label="Textgröße" defaultValue="p"
+                              onChange={event => boardTextCommandRef.current?.('formatBlock', event.target.value)}
+                              className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm">
+                              <option value="p">Normal</option>
+                              <option value="h2">Groß</option>
+                              <option value="h1">Sehr groß</option>
+                            </select>
+                            <button type="button" onMouseDown={event => event.preventDefault()}
+                              onClick={() => boardTextCommandRef.current?.('bold')}
+                              className="min-h-11 rounded-lg border border-slate-300 px-4 text-sm font-black">Fett</button>
+                            <label className="flex min-h-11 items-center gap-1.5 text-xs font-semibold">Textfarbe
+                              <input type="color" aria-label="Textfarbe auswählen" defaultValue="#172554"
+                                onChange={event => boardTextCommandRef.current?.('foreColor', event.target.value)}
+                                className="h-10 w-11 rounded border border-slate-300" />
+                            </label>
+                            <button type="button" onMouseDown={event => event.preventDefault()}
+                              onClick={() => boardTextCommandRef.current?.('justifyLeft')}
+                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Links</button>
+                            <button type="button" onMouseDown={event => event.preventDefault()}
+                              onClick={() => boardTextCommandRef.current?.('justifyCenter')}
+                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Mitte</button>
+                            <button type="button" onMouseDown={event => event.preventDefault()}
+                              onClick={() => boardTextCommandRef.current?.('justifyRight')}
+                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Rechts</button>
+                          </>
+                        )}
+                        <button type="button" onMouseDown={event => { if (boardTool === 'text') event.preventDefault(); }}
+                          onClick={() => boardTool === 'text'
+                            ? boardTextCommandRef.current?.('undo')
+                            : boardInkRef.current?.undo()}
+                          className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↶ Rückgängig</button>
+                        <button type="button" onMouseDown={event => { if (boardTool === 'text') event.preventDefault(); }}
+                          onClick={() => boardTool === 'text'
+                            ? boardTextCommandRef.current?.('redo')
+                            : boardInkRef.current?.redo()}
+                          className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↷ Wiederholen</button>
                       </div>
 
                       {/* Widget Board (classroomscreen.com style) */}
