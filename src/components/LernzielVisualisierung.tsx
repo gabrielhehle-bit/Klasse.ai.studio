@@ -49,7 +49,7 @@ export default function LernzielVisualisierung({ goalIds, ratings, model: raw, m
         {mode === 'blume' && <div className="my-4 flex justify-center">
           <svg viewBox="0 0 190 190" width="176" height="176" role="img"
             aria-label={'Blume als symbolische Darstellung der ' + visible.length + ' vertretenen Statusstufen. Die Mengen stehen in der Legende.'}>
-            {model.levels.map((level, index) => {
+            {summary.counts.map((level, index) => {
               const angle = index / model.levels.length * 360;
               const active = level.count > 0;
               return <ellipse key={level.value} cx="95" cy="49" rx="18" ry="39"
