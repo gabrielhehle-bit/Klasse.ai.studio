@@ -367,7 +367,7 @@ export const UnterrichtsmodusThemePicker: React.FC<ThemePickerProps> = ({ app, s
                             <h3 className="text-[0.75rem] leading-tight font-black uppercase tracking-[0.2em]" style={{ color: currentTheme.colors.textPrimary }}>Hintergrund</h3>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            {(Object.entries(UNTERRICHTSMODUS_HINTERGRUENDE)).map(([id, bg]) => (
+                            {(Object.entries(UNTERRICHTSMODUS_HINTERGRUENDE)).filter(([id]) => id !== 'canva').map(([id, bg]) => (
                                 <div
                                     key={id}
                                     role="button"
