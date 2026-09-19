@@ -26,6 +26,9 @@ test('material library retains links, file contents, transfer and prior drafts',
   assert.match(source, /setPage\('stunden'\)/);
   assert.match(source, /MaterialToWeekPlanModal/);
   assert.match(source, /openedForClass !== app\.activeClassId/);
+  assert.match(source, /Fach für diese Stunde/);
+  assert.match(source, /subjectForSlot/);
+  assert.match(source, /Wähle für diese bisher leere Unterrichtsstunde zuerst ein Fach/);
   assert.doesNotMatch(source, /setWeekPlanMaterial\(null\);\s*\}, \[app\.activeClassId\]\)/);
   assert.match(source, /Sammlungen \(optional\)/);
   assert.match(source, /normalizeMaterialCollections\(collectionInput\.split\(','\)\)/);
