@@ -13,18 +13,21 @@ export default function GlobalActions() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Alt + N for New Note
-      if (e.altKey && e.key === 'n') {
+      // AltGr on German keyboards emits Ctrl+Alt. It must NEVER trigger Alt+C
+      // while someone enters grades, writes a note or uses a native browser shortcut.
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.repeat || e.isComposing || e.defaultPrevented) return;
+      const target = e.target;
+      if (target instanceof Element && target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]')) return;
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+      const key = e.key.toLowerCase();
+
+      if (key === 'n') {
         e.preventDefault();
         setShowQuickNote(true);
-      }
-      // Alt + D for Dashboard
-      if (e.altKey && e.key === 'd') {
+      } else if (key === 'd') {
         e.preventDefault();
         setPage('dashboard');
-      }
-      // Alt + C for Cockpit
-      if (e.altKey && e.key === 'c') {
+      } else if (key === 'c') {
         e.preventDefault();
         setPage('cockpit');
       }
