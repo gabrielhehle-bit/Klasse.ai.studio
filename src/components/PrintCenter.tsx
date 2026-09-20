@@ -221,6 +221,8 @@ export default function PrintCenter() {
   const [showMainHeader, setShowMainHeader] = useState(true);
   const [customHeaderTitle, setCustomHeaderTitle] = useState('');
   const [previewZoom, setPreviewZoom] = useState<number>(0.7);
+  const [tischPreviewMode, setTischPreviewMode] = useState<'detail' | 'bogen'>('detail');
+  const [tischPreviewIndex, setTischPreviewIndex] = useState(0);
 
   // 3. Template-Specific States
   // A. Schülerliste Options
@@ -690,12 +692,14 @@ export default function PrintCenter() {
 
   // Automatically adjust zoom when orientation changes, ensuring standard default fits nicely
   useEffect(() => {
-    if (printOrientation === 'landscape') {
+    if (activeTemplate === 'smart_tools' && activeSmartTool === 'tischschilder' && tischPreviewMode === 'detail') {
+      setPreviewZoom(0.85);
+    } else if (printOrientation === 'landscape') {
       setPreviewZoom(0.55);
     } else {
       setPreviewZoom(0.7);
     }
-  }, [printOrientation]);
+  }, [printOrientation, activeTemplate, activeSmartTool]);
 
   // Apply printing class to body to manage visibility correctly
   useEffect(() => {
@@ -974,6 +978,12 @@ export default function PrintCenter() {
     }]);
     setClNewColTitle('');
   };
+
+  const tischPreviewStudents = activeTemplate === 'smart_tools' && activeSmartTool === 'tischschilder'
+    ? (stTischStudentId === 'all' ? students : students.filter(student => student.id === stTischStudentId))
+    : [];
+  const safeTischPreviewIndex = Math.min(tischPreviewIndex, Math.max(0, tischPreviewStudents.length - 1));
+  const isTischPreview = activeTemplate === 'smart_tools' && activeSmartTool === 'tischschilder';
 
   const isMultiPageTemplate = 
     activeTemplate === 'uebergabemappe' ||
@@ -3855,9 +3865,36 @@ export default function PrintCenter() {
               </div>
             </div>
 
-            <div className="flex justify-between items-center no-print pt-1">
-              <div className="flex items-center gap-2 text-slate-500">
-                <span className="text-[0.625rem] font-black uppercase tracking-wider">Simuliertes A4 Blatt</span>
+            <div className="flex flex-wrap justify-between items-center gap-2 no-print pt-1">
+              <div className="flex flex-wrap items-center gap-2 text-slate-600">
+                <span className="text-xs font-black uppercase tracking-wider">
+                  {isTischPreview && tischPreviewMode === 'detail' ? 'Tischschild · vergrößerte Einzelvorschau' : 'Simuliertes A4 Blatt'}
+                </span>
+                {isTischPreview && (
+                  <div className="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 bg-white p-1">
+                    <button type="button" aria-pressed={tischPreviewMode === 'detail'}
+                      onClick={() => { setTischPreviewMode('detail'); setPreviewZoom(0.85); }}
+                      className={`min-h-9 rounded-lg px-3 text-xs font-bold ${tischPreviewMode === 'detail' ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-slate-100'}`}>
+                      Einzelansicht
+                    </button>
+                    <button type="button" aria-pressed={tischPreviewMode === 'bogen'}
+                      onClick={() => { setTischPreviewMode('bogen'); setPreviewZoom(0.7); }}
+                      className={`min-h-9 rounded-lg px-3 text-xs font-bold ${tischPreviewMode === 'bogen' ? 'bg-indigo-600 text-white' : 'text-slate-700 hover:bg-slate-100'}`}>
+                      Alle Karten
+                    </button>
+                    {tischPreviewMode === 'detail' && tischPreviewStudents.length > 1 && (
+                      <div className="flex items-center gap-1 border-l border-slate-200 pl-1">
+                        <button type="button" disabled={safeTischPreviewIndex === 0}
+                          aria-label="Vorheriges Tischschild" onClick={() => setTischPreviewIndex(i => Math.max(0, i - 1))}
+                          className="min-h-9 min-w-9 rounded-lg border border-slate-200 text-slate-800 disabled:opacity-30">‹</button>
+                        <span className="min-w-12 text-center text-xs font-bold" aria-live="polite">{safeTischPreviewIndex + 1} / {tischPreviewStudents.length}</span>
+                        <button type="button" disabled={safeTischPreviewIndex === tischPreviewStudents.length - 1}
+                          aria-label="Nächstes Tischschild" onClick={() => setTischPreviewIndex(i => Math.min(tischPreviewStudents.length - 1, i + 1))}
+                          className="min-h-9 min-w-9 rounded-lg border border-slate-200 text-slate-800">›</button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               
               <div className="flex items-center gap-2">
@@ -3897,7 +3934,7 @@ export default function PrintCenter() {
                   <div className="flex items-center gap-1 border-l border-slate-250/60 pl-2">
                     <button
                       type="button"
-                      onClick={() => setPreviewZoom(printOrientation === 'portrait' ? 0.7 : 0.55)}
+                      onClick={() => setPreviewZoom(isTischPreview && tischPreviewMode === 'detail' ? 0.85 : printOrientation === 'portrait' ? 0.7 : 0.55)}
                       className="px-2 py-1 text-[0.5625rem] font-black text-indigo-700 hover:text-indigo-800 bg-white hover:bg-indigo-50 border border-indigo-200/50 rounded-lg transition-all active:scale-90 cursor-pointer uppercase tracking-wider"
                       title="Zurücksetzen auf Standardgröße"
                     >
@@ -3920,6 +3957,13 @@ export default function PrintCenter() {
               </div>
             </div>
 
+            {isTischPreview && tischPreviewMode === 'detail' && (
+              <p className="no-print rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-900">
+                Lesbare Einzelvorschau · Beim Drucken werden weiterhin {tischPreviewStudents.length} ausgewählte Tischschilder ausgegeben.
+                Für die tatsächliche Bogenanordnung auf „Alle Karten“ wechseln.
+              </p>
+            )}
+
             {/* Simulated Frame with dynamic scaling */}
             <div className="bg-slate-100 rounded-3xl p-4 md:p-8 flex flex-col items-center justify-start overflow-auto shadow-inner border border-slate-200/60 no-print flex-1 w-full scrollbar-thin" style={{ minHeight: '440px', maxHeight: '85vh' }}>
               {isMultiPageTemplate ? (
@@ -3933,7 +3977,7 @@ export default function PrintCenter() {
                   }}
                   className={`interactive-dossier-preview ${printOrientation === 'landscape' ? 'landscape' : ''} shrink-0 transition-all duration-300 flex flex-col gap-6 pb-20`}
                 >
-                  {renderPreviewTemplate()}
+                  {renderPreviewTemplate(true)}
                 </div>
               ) : (
                 /* Single-page template rendering with scroll backup on overflow */
@@ -3967,7 +4011,7 @@ export default function PrintCenter() {
 
                     {/* 2. Core Template Sheet Contents rendering */}
                     <div style={{ color: '#000000' }} className="w-full text-black">
-                      {renderPreviewTemplate()}
+                      {renderPreviewTemplate(true)}
                     </div>
                     
                     {/* Simulated Footer */}
@@ -4570,7 +4614,7 @@ export default function PrintCenter() {
   }
 
   // 8. TEMPLATE PREVIEW RENDER SWITCHBOARDERS
-  function renderPreviewTemplate() {
+  function renderPreviewTemplate(previewOnly = false) {
     switch (activeTemplate) {
       
       // A. SCHUELERLISTE
@@ -5847,7 +5891,7 @@ export default function PrintCenter() {
         return renderKassenuebersichtView();
 
       case 'smart_tools':
-        return renderSmartToolsView();
+        return renderSmartToolsView(previewOnly && tischPreviewMode === 'detail');
 
       default:
         return null;
@@ -6219,7 +6263,7 @@ export default function PrintCenter() {
     );
   }
 
-  function renderSmartToolsView() {
+  function renderSmartToolsView(previewOneCard = false) {
     switch (activeSmartTool) {
       case 'tischschilder': {
         let list = students;
@@ -6227,9 +6271,11 @@ export default function PrintCenter() {
           list = students.filter(s => s.id === stTischStudentId);
         }
 
+        // A focused screen preview never changes the complete batch printed below.
+        const previewList = previewOneCard ? list.slice(safeTischPreviewIndex, safeTischPreviewIndex + 1) : list;
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-2">
-            {list.map(st => {
+          <div className={previewOneCard ? 'grid grid-cols-1 gap-4 p-2' : 'grid grid-cols-1 md:grid-cols-2 gap-6 p-2'}>
+            {previewList.map(st => {
               // Design specific styles
               let themeBg = 'bg-emerald-50 text-emerald-900 border-emerald-400';
               let themeEmoji = '🦖🦕🌴';

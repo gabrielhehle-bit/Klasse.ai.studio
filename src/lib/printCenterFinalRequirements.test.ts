@@ -96,3 +96,19 @@ test('Druckzentrum: Dossier-Druckpfad nutzt sandboxed srcdoc statt document.writ
   assert.doesNotMatch(exportService, /document\.write\(|doc\.write\(/);
   assert.match(exportService, /escapeHtml\(markdown\)/);
 });
+
+test('Tischschilder: lesbare Einzelvorschau blättert durch echte Kinder, Sammeldruck bleibt unverändert', () => {
+  assert.match(printCenter, /tischPreviewMode, setTischPreviewMode\] = useState<'detail' \| 'bogen'>\('detail'\)/);
+  assert.match(printCenter, /Tischschild · vergrößerte Einzelvorschau/);
+  assert.match(printCenter, /Einzelansicht/);
+  assert.match(printCenter, /Alle Karten/);
+  assert.match(printCenter, /setPreviewZoom\(0\.85\)/);
+  assert.match(printCenter, /Vorheriges Tischschild/);
+  assert.match(printCenter, /Nächstes Tischschild/);
+  assert.match(printCenter, /const previewList = previewOneCard \? list\.slice\(safeTischPreviewIndex, safeTischPreviewIndex \+ 1\) : list/);
+  assert.match(printCenter, /function renderPreviewTemplate\(previewOnly = false\)/);
+  assert.match(printCenter, /return renderSmartToolsView\(previewOnly && tischPreviewMode === 'detail'\)/);
+  assert.equal((printCenter.match(/\{renderPreviewTemplate\(true\)\}/g) || []).length, 2, 'Only screen previews use detail mode');
+  assert.equal((printCenter.match(/\{renderPreviewTemplate\(\)\}/g) || []).length, 1, 'The raw print element renders the whole batch');
+  assert.match(printCenter, /Beim Drucken werden weiterhin/);
+});
