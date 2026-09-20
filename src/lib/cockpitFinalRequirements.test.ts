@@ -268,7 +268,7 @@ test("Cockpit: automatische Anordnung kann vier Widgets als 2x2-Raster einpassen
 test("Cockpit: Ich-bin-da zeigt Kindernamen vollständig und gibt ihnen ausreichend Kartenbreite", () => {
   assert.match(kidAttendance, /Anwesenheitsliste mit allen Kindern/);
   assert.match(kidAttendance, /students\.map\(\(student\) =>/);
-  assert.match(kidAttendance, /status === 'present' \? '✓ Da' : status === 'absent' \? 'Fehlt' : 'Offen'/);
+  assert.match(kidAttendance, /status === 'present' \? '✓ Da' : status === 'absent' \? '– Fehlt' : '○ Offen'/);
   assert.doesNotMatch(kidAttendance, /openStudents\.slice\(0, 4\)/);
   assert.match(kidAttendance, /whitespace-normal break-words font-black leading-tight/);
   assert.match(kidAttendance, /getStudentGridLayout\(size\.width, size\.height, students\.length/);
