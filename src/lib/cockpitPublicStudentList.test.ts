@@ -84,3 +84,25 @@ test('Kompakte Cockpit-Seitenleiste zeigt alle 17 echten Kinder in einem zweispa
   assert.equal((html.match(/Pluspunkt für/g) || []).length, 17);
   assert.doesNotMatch(html, /overflow-hidden.*role="list"/);
 });
+
+test('kindgerechte Pluspunkte-Karten behalten die vollständige 17-Kinder-Ansicht und zeigen nur öffentliche Daten', () => {
+  const students = Array.from({ length: 17 }, (_, index) => ({
+    id: `id-${index}`, vorname: `Kind${index + 1}`, nachname: 'Beispiel',
+    emoji: index === 0 ? '🦊' : undefined,
+  })) as unknown as Student[];
+  const html = renderToStaticMarkup(React.createElement(PublicStudentListWidget, {
+    app: { activeClassId: 'class-test', schueler: students,
+      behavior_status: { 'id-0': 'PRIVATE_STOP' },
+      behavior_notes: { 'id-0': 'PRIVATE_COMMENT' },
+    } as unknown as AppState,
+    getTodayPoints: () => 2,
+    addParticipation: () => {},
+    removeParticipation: () => {},
+  }));
+  assert.match(html, /🦊/);
+  assert.match(html, /🌈/);
+  assert.match(html, /border-sky-200 bg-sky-50/);
+  assert.match(html, /⭐ 2/);
+  assert.equal((html.match(/Pluspunkt für/g) || []).length, 17);
+  assert.doesNotMatch(html, /PRIVATE_STOP|PRIVATE_COMMENT/);
+});
