@@ -10128,7 +10128,6 @@ ${content}
                                   "image",
                                   "timer",
                                   "drawing",
-                                  "kidattendance",
                                 ].includes(widget.type)}
                                 onSettingsToggle={() =>
                                   setWidgetSettingsOpenId((prev) =>
@@ -11389,8 +11388,6 @@ ${content}
                                           setApp={setApp}
                                           currentIsLight={currentIsLight}
                                           widget={widget}
-                                          showSettings={widgetSettingsOpenId === widget.id}
-                                          onCloseSettings={() => setWidgetSettingsOpenId(null)}
                                           onUpdate={(updates) =>
                                             handleUpdateWidgetPos(
                                               widget.id,
