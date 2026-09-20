@@ -23,10 +23,10 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
         <path d="M61 91 Q69 96 77 91"/><path d="M103 91 Q111 96 119 91"/>
       </g>
     : <g>
-        <ellipse cx="69" cy="90" rx="6.5" ry="9" fill="#25353B" />
-        <ellipse cx="111" cy="90" rx="6.5" ry="9" fill="#25353B" />
-        <ellipse cx="71" cy="86.5" rx="2" ry="2.6" fill="#FFFFFF" />
-        <ellipse cx="113" cy="86.5" rx="2" ry="2.6" fill="#FFFFFF" />
+        <ellipse cx="69" cy="90" rx={kind === 'elf' ? 10 : 6.5} ry={kind === 'elf' ? 13 : 9} fill="#25353B" />
+        <ellipse cx="111" cy="90" rx={kind === 'elf' ? 10 : 6.5} ry={kind === 'elf' ? 13 : 9} fill="#25353B" />
+        <ellipse cx="71" cy="86.5" rx={kind === 'elf' ? 3.2 : 2} ry={kind === 'elf' ? 3.7 : 2.6} fill="#FFFFFF" />
+        <ellipse cx="113" cy="86.5" rx={kind === 'elf' ? 3.2 : 2} ry={kind === 'elf' ? 3.7 : 2.6} fill="#FFFFFF" />
       </g>;
 
   return (
