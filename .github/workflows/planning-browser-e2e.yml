@@ -1,9 +1,6 @@
 name: Planning Browser E2E
 
 on:
-  push:
-    branches:
-      - feature/classroom-weekly-plan-widget-20260920
   pull_request:
     branches:
       - main
