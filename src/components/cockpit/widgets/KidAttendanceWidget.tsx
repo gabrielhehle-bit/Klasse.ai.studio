@@ -319,6 +319,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     const displayName = displayNames.get(student.id) || student.vorname;
     const { status, isPreExistingAbsent, delayMinutes } = getStudentAttendanceStatus(student.id, app, todayStr);
     const isJustCheckedIn = recentlyTappedId === student.id;
+    const canTapMood = checkInMode === 'teacher' && status === 'present';
 
     // Farb- und Styling-Definition gemäß Status
     let cardClasses = '';
@@ -364,13 +365,13 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         key={student.id}
         type="button"
         onClick={() => handleStudentCardTap(student.id)}
-        disabled={status === 'absent'}
+        disabled={status === 'absent' || (checkInMode === 'teacher' && status !== 'present')}
         title={
           status === 'absent'
             ? `${displayName} ist bereits als abwesend erfasst`
             : status === 'present'
-            ? `${displayName} ist eingecheckt`
-            : `${displayName}: Hier tippen für "Ich bin da!"`
+            ? checkInMode === 'teacher' ? `${displayName}: Freiwilliges Befinden angeben` : `${displayName} ist eingecheckt`
+            : checkInMode === 'teacher' ? `${displayName}: Anwesenheit zuerst durch Lehrkraft erfassen` : checkInMode === 'individual' ? `${displayName} auswählen` : `${displayName}: Hier tippen für "Ich bin da!"`
         }
         style={denseStudentGrid ? { minHeight: 64, height: Math.min(96, studentGrid.cardHeight) } : undefined}
         className={`w-full ${cardHeight} rounded-xl border flex items-center justify-between gap-2.5 text-left transition-all duration-150 select-none ${
@@ -433,7 +434,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           }`}
         >
           {statusIcon}
-          <span className="whitespace-nowrap">{statusLabel}</span>
+          <span className="whitespace-nowrap">{canTapMood ? 'Befinden' : statusLabel}</span>
         </div>
       </button>
     );
@@ -578,9 +579,23 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         </div>
       </div>
 
-      {/* 25 Kinder werden als angepasstes, scrollbarfreies Raster gezeigt. */}
+      {/* B shows one selected child, A and C use the fitted class grid. */}
       <div className="flex-1 overflow-hidden p-2 sm:p-3 min-h-0">
-        {studentGrid.fits ? (
+        {checkInMode === 'individual' && selectedStudentId && students.some(child => child.id === selectedStudentId) ? (
+          <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 overflow-hidden px-2">
+            <p className="text-sm font-bold">Ist das dein Name?</p>
+            <div className="w-full max-w-md">
+              {renderStudentCard(students.find(child => child.id === selectedStudentId)!)}
+            </div>
+            <button type="button" onClick={() => handleStudentCardTap(selectedStudentId)}
+              disabled={getStudentAttendanceStatus(selectedStudentId, app, todayStr).status !== 'open'}
+              className="min-h-11 w-full max-w-md rounded-xl bg-emerald-600 px-4 text-sm font-black text-white disabled:opacity-50">
+              Ich bin da! ✓
+            </button>
+            <button type="button" onClick={() => setSelectedStudentId(null)}
+              className="min-h-11 rounded-xl border px-4 text-sm font-bold">Anderen Namen wählen</button>
+          </div>
+        ) : studentGrid.fits ? (
           <div className="grid w-full content-start gap-1.5" style={{
             gridTemplateColumns: `repeat(${studentGrid.columns}, minmax(0, 1fr))`,
           }} aria-label="Anwesenheitsliste mit allen Kindern">
@@ -632,7 +647,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             </span>
           ) : (
             <span>
-              Tippe auf deinen Namen zum Einchecken.
+              {checkInMode === 'teacher' ? 'Die Lehrkraft trägt die Anwesenheit ein. Befinden ist freiwillig.' : checkInMode === 'individual' ? 'Wähle deinen Namen und bestätige den Check-in.' : 'Tippe auf deinen Namen zum Einchecken.'}
             </span>
           )}
         </div>
