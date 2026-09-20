@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { CalendarClock, ExternalLink, Heart, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { CalendarClock, ExternalLink, Heart, ShieldCheck, Sparkles, Trophy, Users, X } from 'lucide-react';
 import { EMPTY_SUPPORT_INFO, loadSupportInfo, type SupportInfo } from '../lib/supportApi';
 
 interface SupportModalProps {
@@ -79,7 +79,7 @@ export default function SupportModal({ open, onClose }: SupportModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="klassio-support-title"
-        className="relative z-10 w-full max-w-2xl overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-2xl"
+        className="relative z-10 w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-[2rem] border border-stone-200 bg-white shadow-2xl"
       >
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-500" />
 
@@ -161,6 +161,36 @@ export default function SupportModal({ open, onClose }: SupportModalProps) {
               );
             })}
           </div>
+
+          <section aria-labelledby="klassio-wall-of-fame" className="mt-7 rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-rose-50 p-4 sm:p-5">
+            <div className="mb-3 flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                <Trophy size={20} aria-hidden="true" />
+              </div>
+              <div>
+                <h3 id="klassio-wall-of-fame" className="text-base font-black text-slate-950">Wall of Fame · Danke euch!</h3>
+                <p className="mt-0.5 text-xs font-medium text-slate-600">Menschen, die KLASSIO freiwillig unterstützen.</p>
+              </div>
+            </div>
+            {loading ? (
+              <p role="status" className="rounded-xl border border-amber-100 bg-white p-4 text-sm text-slate-600">Dankesliste wird geladen …</p>
+            ) : info.supporters.length ? (
+              <ul className="grid max-h-52 grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
+                {info.supporters.map((supporter, index) => (
+                  <li key={supporter.displayName + '-' + index} className="flex items-center gap-2 rounded-xl border border-amber-100 bg-white px-3 py-2 text-sm font-bold text-slate-900">
+                    <Heart size={14} className="shrink-0 text-rose-500" aria-hidden="true" />
+                    <span className="min-w-0 break-words">{supporter.displayName}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex items-start gap-2 rounded-xl border border-dashed border-amber-200 bg-white p-4">
+                <Users size={18} className="mt-0.5 shrink-0 text-amber-700" aria-hidden="true" />
+                <p className="text-sm font-medium leading-relaxed text-slate-700">Hier ist noch Platz für ein Dankeschön. Namen erscheinen erst nach ausdrücklicher Zustimmung.</p>
+              </div>
+            )}
+            <p className="mt-3 text-xs font-medium leading-relaxed text-slate-600">{info.privacy}</p>
+          </section>
 
           <p className="mt-6 text-center text-[0.68rem] font-medium leading-relaxed text-slate-400">
             Keine Gegenleistung, kein Pflichtbeitrag. Die Unterstützung dient ausschließlich dazu, Betrieb und Weiterentwicklung von Klassio mitzutragen.

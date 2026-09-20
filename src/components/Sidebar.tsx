@@ -2,7 +2,7 @@
 import React, { memo } from 'react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../context/ToastContext';
-import { getCurrentSchuljahr } from '../lib/utils';
+import { getCurrentSchuljahr, getTeacherFirstName } from '../lib/utils';
 import { motion } from 'motion/react';
 import { 
   LayoutDashboard, Users, Map as MapIcon, Pin, BarChart3, Edit3, 
@@ -41,6 +41,25 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const { verified: hasVerifiedSchoolIdentity } = useVerifiedSchoolIdentity();
   const { summary: lehrerzimmerUnread } = useLehrerzimmerUnread();
   const isCollapsed = app?.settings?.sidebarCollapsed || false;
+  // Names can live in the newer split profile or the legacy teacher-name field.
+  // Display all recorded variants without altering personal data or inventing a surname.
+  const splitTeacherName = [app?.anrede, app?.vorname, app?.nachname]
+    .filter((part): part is string => typeof part === 'string' && Boolean(part.trim()))
+    .join(' ').trim();
+  const storedTeacherName = [app?.lehrerName, app?.lehrerProfil?.name]
+    .find(value => typeof value === 'string' && Boolean(value.trim()) && !/^name fehlt$/i.test(value.trim()));
+  const structuredFirstName = typeof app?.vorname === 'string' && !/^name fehlt$/i.test(app.vorname.trim())
+    ? app.vorname.trim() : '';
+  const storedFirstName = storedTeacherName ? getTeacherFirstName(storedTeacherName) : '';
+  // When two people share a class, never replace the current teacher's first name
+  // with a potentially stale legacy name of another colleague.
+  const teacherDisplayName = app?.nachname?.trim()
+    ? splitTeacherName
+    : structuredFirstName
+      ? storedTeacherName && storedFirstName.toLocaleLowerCase('de-AT') === structuredFirstName.toLocaleLowerCase('de-AT')
+        ? storedTeacherName
+        : [app?.anrede, structuredFirstName].filter(Boolean).join(' ')
+      : storedTeacherName || (getTeacherFirstName(app) ? splitTeacherName || getTeacherFirstName(app) : '');
 
   const toggleCollapse = React.useCallback(() => {
     setApp(prev => ({
@@ -243,7 +262,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
               <>
                 <div className="text-[0.625rem] text-text-muted font-black uppercase tracking-[0.25em] mb-1 leading-none">{app.schuljahr || getCurrentSchuljahr()}</div>
                 <h1 className="font-sans text-[1.125rem] font-black text-text-primary leading-tight">
-                  {app.nachname ? `${app.anrede} ${app.nachname}` : 'Name fehlt'}<br />
+                  {teacherDisplayName || 'KLASSIO'}<br />
                   <span className="text-[0.75rem] text-accent font-bold uppercase tracking-widest leading-none mt-1 inline-block">Volksschule</span>
                 </h1>
                 
@@ -333,7 +352,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             ) : (
               <div className="flex flex-col items-center gap-6">
                 <div className="w-10 h-10 bg-[var(--accent)] rounded-xl flex items-center justify-center text-[var(--accent-text,var(--btn-text,#ffffff))] font-black text-[0.75rem] leading-tight shadow-md shadow-[var(--accent)]/20">
-                  {app.nachname ? app.nachname.charAt(0) : 'L'}
+                  {teacherDisplayName ? teacherDisplayName.charAt(0).toUpperCase() : 'K'}
                 </div>
                 <IconButton 
                   onClick={toggleCollapse}
@@ -467,19 +486,6 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             ))}
           </div>
 
-          <div className={`p-4 border-t border-border ${isCollapsed ? 'flex justify-center' : ''}`}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-surface2 border border-border flex items-center justify-center text-[1.25rem] shadow-sm shrink-0 leading-none">
-                {app.anrede === 'Frau' ? '👩‍🏫' : '👨‍🏫'}
-              </div>
-              {!isCollapsed && (
-                <div>
-                  <div className="text-[0.6875rem] font-black text-text-muted uppercase tracking-widest leading-none mb-1">Aktiv</div>
-                  <div className="text-[0.8125rem] font-bold text-text-primary text-wrap leading-tight break-words">{app.vorname || 'Lehrkraft'}</div>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </aside>
 
