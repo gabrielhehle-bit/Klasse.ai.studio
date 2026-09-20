@@ -78,7 +78,6 @@ const StationenbetriebManager = lazyRetry(() => import('./components/Stationenbe
 const PlanungsZentrale = lazyRetry(() => import('./components/PlanungsZentrale'));
 const DesignSystemPreview = lazyRetry(() => import('./components/ui/DesignSystemPreview').then(m => ({ default: m.DesignSystemPreview })));
 import VoiceNote from './components/VoiceNote';
-import { VoiceCommander } from './components/VoiceCommander';
 import WelcomeTour from './components/WelcomeTour';
 import Spotlight from './components/Spotlight';
 import GlobalActions from './components/GlobalActions';
@@ -908,7 +907,6 @@ function AppContent() {
         </div>
         {!app.dossierFocusMode && <DenkzettelWidget />}
         <VoiceNote />
-        <VoiceCommander />
         <PrivacyLock />
         <DataConsistencyModal isOpen={showConsistencyModal} onClose={() => setShowConsistencyModal(false)} />
       </main>
