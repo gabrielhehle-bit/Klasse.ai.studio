@@ -63,6 +63,17 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
   const [showPresetsMenu, setShowPresetsMenu] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemText, setEditingItemText] = useState('');
+  const [page, setPage] = useState(0);
+  // A visible page replaces the former hidden inner scrolling region. On very
+  // small boards use a single task instead of shrinking touch targets or text.
+  const rowsPerPage = Math.max(1, Math.min(4, Math.floor((size.height - (showPresetsMenu ? 280 : 175) - (showConfirmReset ? 64 : 0)) / (size.isCompact ? 76 : 84))));
+  const pageCount = Math.max(1, Math.ceil(state.items.length / rowsPerPage));
+  const visiblePage = Math.min(page, pageCount - 1);
+  const firstVisibleItem = visiblePage * rowsPerPage;
+
+  useEffect(() => {
+    setPage(current => Math.min(current, pageCount - 1));
+  }, [pageCount]);
 
   // Synchronisation bei externen Updates des Widget-Objekts
   useEffect(() => {
@@ -92,6 +103,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
     if (!inputText.trim()) return;
     const nextState = addTodoItem(state, inputText, inputIsBonus);
     commitState(nextState);
+    setPage(Math.floor((nextState.items.length - 1) / rowsPerPage));
     setInputText('');
     setInputIsBonus(false);
   };
@@ -132,6 +144,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
     commitState(nextState);
     setShowConfirmReset(false);
     setIsEditMode(false);
+    setPage(0);
   };
 
   const handleApplyPreset = (presetId: string) => {
@@ -139,6 +152,7 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
     commitState(nextState);
     setShowPresetsMenu(false);
     setShowConfirmReset(false);
+    setPage(0);
   };
 
   // Typografische Skalierung nach Breakpoints
@@ -359,8 +373,8 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
         </div>
       </div>
 
-      {/* 2. Aufgabenliste (Scrollbereich) */}
-      <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1 my-1">
+      {/* 2. Aufgabenliste: explizite Seiten statt Scrollen innerhalb des Widgets. */}
+      <div className="flex-1 min-h-0 overflow-hidden space-y-2 pr-1 my-1" aria-label={`Aufgaben ${state.items.length ? `${firstVisibleItem + 1} bis ${Math.min(firstVisibleItem + rowsPerPage, state.items.length)} von ${state.items.length}` : 'leer'}`}>
         {state.items.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center p-6 text-center text-slate-400">
             <ListTodo size={36} strokeWidth={1.5} className="mb-2 opacity-50" />
@@ -370,7 +384,8 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
             </p>
           </div>
         ) : (
-          state.items.map((item, index) => {
+          state.items.slice(firstVisibleItem, firstVisibleItem + rowsPerPage).map((item, visibleIndex) => {
+            const index = firstVisibleItem + visibleIndex;
             const isEditing = editingItemId === item.id;
 
             return (
@@ -528,6 +543,16 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
           })
         )}
       </div>
+
+      {pageCount > 1 && (
+        <nav aria-label="Aufgabenseiten" className="shrink-0 flex items-center justify-between gap-2 py-1 text-xs font-semibold">
+          <button type="button" disabled={visiblePage === 0} onClick={() => setPage(p => Math.max(0, p - 1))}
+            className="min-h-9 rounded-lg border px-3 disabled:opacity-40" aria-label="Vorherige Aufgabenseite">← Zurück</button>
+          <span aria-live="polite">Seite {visiblePage + 1} von {pageCount}</span>
+          <button type="button" disabled={visiblePage >= pageCount - 1} onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+            className="min-h-9 rounded-lg border px-3 disabled:opacity-40" aria-label="Nächste Aufgabenseite">Weiter →</button>
+        </nav>
+      )}
 
       {/* 3. Footer: Schnelleingabe (Text + Enter) */}
       <div className="shrink-0 mt-2 pt-2 border-t border-slate-200/80 dark:border-slate-800">
