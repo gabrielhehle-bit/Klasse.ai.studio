@@ -155,6 +155,7 @@ import { PET_BREEDS, AVAILABLE_ACCESSORIES } from "./ClassPetWidget";
 import { MobileRemoteController } from "./MobileRemoteController";
 import { UnterrichtsmodusThemePicker } from "./UnterrichtsmodusThemePicker";
 import { ClassPetCanvas } from "./ClassPetCanvas";
+import ClassMascotWidget from "./cockpit/ClassMascotWidget";
 import { ALL_WIDGET_CONFIG } from "./WidgetConfig";
 
 const Attendance = React.lazy(() => import("./Attendance"));
@@ -200,7 +201,6 @@ import {
   DiensteWidgetContent,
   LinksWidgetContent,
   DrawingWidgetContent,
-  PetWidgetContent,
   StopwatchWidgetContent,
   CalculatorWidgetContent,
   DiceWidgetContent,
@@ -1789,7 +1789,7 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
       isDirectMode: true,
     },
   },
-  { id: "widget-pet", type: "pet", x: 10, y: 40, w: 26, h: 38, visible: false },
+  { id: "widget-pet", type: "pet", x: 22, y: 16, w: 44, h: 66, visible: false },
   {
     id: "widget-stopwatch",
     type: "stopwatch",
@@ -2798,7 +2798,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const { showToast } = useToast();
   const [time, setTime] = useState(new Date());
   const cockpitClassLabel = (app.klassenbezeichnung || "").trim();
-  const classPetEnabled = app.classPet ? app.classPet.enabled !== false : false;
+  // Retire all free-roaming pet UI; the new mascot lives only inside the normal widget.
+  const classPetEnabled = false;
   const lessonTimeSlots = useMemo(
     () => buildLessonTimeSlots(app.stundenZeiten, STUNDEN_INFO, MAX_LESSON_SLOTS),
     [app.stundenZeiten],
@@ -3732,7 +3733,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
           x: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.x : finalX,
           y: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.y : finalY,
           w: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.w : Math.min(def?.w || w.w, 46),
-          h: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.h : Math.min(def?.h || w.h, 46),
+          h: isWhiteboard || isMaxWidget && !useOld ? 100 : type === "pet" && !useOld ? 66 : useOld ? w.h : Math.min(def?.h || w.h, 46),
           settings: isWhiteboard
             ? {
                 ...(w.settings || {}),
@@ -9122,8 +9123,8 @@ ${content}
                                       },
                                       {
                                         type: "pet",
-                                        label: "🐾 Digitales Klassentier",
-                                        desc: "Klimatier hegen & pflegen",
+                                        label: "🦦 Klassenmaskottchen",
+                                        desc: "Olivia, Bruno, Mimi oder Hauself Elio · ruhig & ohne Floating",
                                         category: "mindfulness",
                                       },
                                       {
@@ -9803,27 +9804,9 @@ ${content}
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setApp((prev: any) => {
-                                      const existing = prev.classPet;
-                                      const currentlyEnabled = existing
-                                        ? existing.enabled !== false
-                                        : false;
-                                      return {
-                                        ...prev,
-                                        classPet: {
-                                          ...(existing || {
-                                            enabled: false,
-                                            animalType: "dino",
-                                            name: "Spike",
-                                            energy: 50,
-                                            accessories: [],
-                                            history: [],
-                                            memories: [],
-                                          }),
-                                          enabled: !currentlyEnabled,
-                                        },
-                                      };
-                                    });
+                                    const mascotWidget = cockpitWidgets.find(widget => widget.type === "pet");
+                                    if (mascotWidget?.visible) handleCloseWidget(mascotWidget.id, "pet");
+                                    else handleOpenWidgetInCockpitLayout("pet");
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
                                   className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
@@ -9831,7 +9814,7 @@ ${content}
                                   }`}
                                 >
                                   <span className="w-3 text-center shrink-0">🐾</span>
-                                  <span>{classPetEnabled ? "Klassentier ausblenden" : "Klassentier einblenden"}</span>
+                                  <span>{cockpitWidgets.some(widget => widget.type === "pet" && widget.visible) ? "Klassenmaskottchen schließen" : "Klassenmaskottchen öffnen"}</span>
                                 </button>
 
                                 <button
@@ -11629,13 +11612,7 @@ ${content}
                                       );
 
                                     case "pet":
-                                      return (
-                                        <PetWidgetContent
-                                          app={app}
-                                          setApp={setApp}
-                                          currentIsLight={currentIsLight}
-                                        />
-                                      );
+                                      return <ClassMascotWidget app={app} setApp={setApp} />;
 
                                     case "weather":
                                       return (
@@ -14691,7 +14668,7 @@ ${content}
 
       {/* Floating Class Pet in Unterrichtsmodus (free-roaming directly in the foreground, across the entire screen including Schülerliste) */}
       <AnimatePresence mode="wait">
-        {actualShowPet &&
+        {false && actualShowPet &&
           (() => {
             const petState = app.classPet || {
               enabled: true,
@@ -15531,7 +15508,7 @@ ${content}
 
       {/* Centered Accessory Deck Modal Backdrop */}
       <AnimatePresence>
-        {petAccessoryOverlayOpen && (
+        {false && petAccessoryOverlayOpen && (
           <div className="fixed inset-0 bg-black/45 backdrop-blur-md z-[2000] flex items-center justify-center p-4 pointer-events-auto">
             <motion.div
               drag
