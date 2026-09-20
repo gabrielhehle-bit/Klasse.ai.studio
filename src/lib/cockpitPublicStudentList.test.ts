@@ -101,9 +101,7 @@ test('kindgerechte Pluspunkte-Karten behalten die vollständige 17-Kinder-Ansich
     addParticipation: () => {},
     removeParticipation: () => {},
   }));
-  assert.match(html, /🦊/);
-  assert.match(html, /🧑‍🎓/);
-  assert.doesNotMatch(html, /🌈/);
+  assert.doesNotMatch(html, /🦊|🧑‍🎓|🌈/, 'Profil-Emojis bleiben ohne Opt-in verborgen');
   assert.match(html, /border-sky-200 bg-sky-50/);
   assert.match(html, /⭐ 2/);
   assert.equal((html.match(/Pluspunkt für/g) || []).length, 17);
@@ -186,13 +184,67 @@ test('Mit einem Klick kann die Lehrperson die sichtbare Verhaltensstufe ändern'
     removeParticipation: () => {},
     onBehaviorStageChange: (id, stage) => actions.push([id, stage]),
   }));
-  for (const stage of ['Super', 'Gut', 'OK', 'Achtung', 'Stopp']) {
-    assert.match(html, new RegExp(`Verhalten für Lena: ${stage} auswählen`));
-  }
-  assert.match(html, /aria-pressed="true"[^>]*title="Lena: OK"/);
+  assert.match(html, /Verhalten von Lena: OK; mit einem Klick auf Achtung weiterstellen/);
+  assert.doesNotMatch(html, /mit einem Klick wählen|Verhalten für Lena: Super auswählen/);
+  assert.doesNotMatch(html, /Verhalten für Lena: Super auswählen/);
   assert.match(html, /Verhaltensstatus: OK/);
   assert.doesNotMatch(html, /🌈/);
   assert.equal(actions.length, 0, 'Rendering must never mutate behavior');
   assert.match(teaching, /recordClassroomBehaviorStage\(prev, sid, stageId\)/);
-  assert.match(source, /onClick=\{\(\) => onBehaviorStageChange\(student\.id, stage\.id\)\}/);
+  assert.match(source, /onClick=\{\(\) => nextBehaviorStage && onBehaviorStageChange\(student\.id, nextBehaviorStage\.id\)\}/);
+});
+
+test('Persönliche Emojis sind standardmäßig verborgen und nur mit Cockpit-Einstellung sichtbar', () => {
+  const base = {
+    activeClassId: 'class-a',
+    schueler: [
+      { id: 'p1', vorname: 'Kind 1', nachname: 'Beispiel', emoji: '🦊' },
+      { id: 'p2', vorname: 'Kind 2', nachname: 'Beispiel' },
+    ],
+    behavior_stages: [
+      { id: '1', label: 'Super', icon: '🌟' },
+      { id: '2', label: 'Gut', icon: '❤️' },
+    ],
+    behavior_status: { p1: '1', p2: '2' },
+  };
+  const render = (showStudentEmojiInList?: boolean, showStudentBehaviorInPluspoints?: boolean) =>
+    renderToStaticMarkup(React.createElement(PublicStudentListWidget, {
+      app: { ...base, boardSettings: { showStudentEmojiInList, showStudentBehaviorInPluspoints } } as unknown as AppState,
+      getTodayPoints: () => 0,
+      addParticipation: () => {},
+      removeParticipation: () => {},
+    }));
+  assert.doesNotMatch(render(), /🦊|🧑‍🎓|🌈/);
+  assert.match(render(true), /🦊/);
+  assert.doesNotMatch(render(true), /🧑‍🎓|🌈/, 'Für Kinder ohne Profil-Emoji kein Platzhalter');
+  assert.match(render(true, true), /🦊/, 'Das persönliche Emoji bleibt unabhängig vom Verhaltensstatus steuerbar');
+  assert.match(teaching, /Kinder-Emojis anzeigen/);
+  assert.match(teaching, /showStudentEmojiInList: event\.target\.checked/);
+  assert.match(teaching, /SchülerInnen → Schülerliste → Kind bearbeiten \(Stift\) → Profil-Emoji/);
+});
+
+test('Ein Verhaltensbutton statt fünf Symbolen; letzte Stufe hat keinen Rücksprung zu Super', () => {
+  const stages = [
+    { id: '1', label: 'Super', icon: '🌟' },
+    { id: '2', label: 'Gut', icon: '❤️' },
+    { id: '3', label: 'OK', icon: '😐' },
+    { id: '4', label: 'Achtung', icon: '⚠️' },
+    { id: '5', label: 'Stopp', icon: '🚫' },
+  ];
+  const render = (status: string) => renderToStaticMarkup(React.createElement(PublicStudentListWidget, {
+    app: { activeClassId: 'class-a',
+      schueler: [{ id: 'p1', vorname: 'Lena', nachname: 'Beispiel' }],
+      behavior_status: { p1: status }, behavior_stages: stages,
+      boardSettings: { showStudentBehaviorInPluspoints: true },
+    } as unknown as AppState,
+    getTodayPoints: () => 0, addParticipation: () => {}, removeParticipation: () => {},
+    onBehaviorStageChange: () => {},
+  }));
+  const first = render('1');
+  assert.match(first, /mit einem Klick auf Gut weiterstellen/);
+  assert.equal((first.match(/Verhalten von Lena:/g) || []).length, 1);
+  assert.doesNotMatch(first, /Verhalten für Lena: .* auswählen/);
+  const last = render('5');
+  assert.match(last, /letzte Stufe erreicht/);
+  assert.match(last, /disabled=""/);
 });
