@@ -8231,7 +8231,7 @@ ${content}
                                 {/* Category Switcher Tab Bar */}
                                 <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
                                   {[
-                                    { id: "core", label: "20 Kernwidgets" },
+                                    { id: "core", label: "19 Kernwidgets" },
                                     { id: "categories", label: "Weitere Widgets" },
                                     { id: "favorites", label: "★ Favoriten" },
                                     { id: "struct", label: "🗂️ Ablauf & Organisation" },
