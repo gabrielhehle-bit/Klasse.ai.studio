@@ -13,8 +13,8 @@ const defaultTypes = [...source.slice(layoutStart, layoutEnd).matchAll(/type:\s*
   .map(match => match[1]);
 
 test('Cockpit-Zielkatalog: genau 20 unterschiedliche, bestehende Einstiegstypen', () => {
-  assert.equal(PLANNED_COCKPIT_WIDGETS.length, 19);
-  assert.equal(new Set(PLANNED_COCKPIT_WIDGETS.map(widget => widget.id)).size, 19);
+  assert.equal(PLANNED_COCKPIT_WIDGETS.length, 20);
+  assert.equal(new Set(PLANNED_COCKPIT_WIDGETS.map(widget => widget.id)).size, 20);
   for (const widget of PLANNED_COCKPIT_WIDGETS) {
     assert.ok(defaultTypes.includes(widget.id), `Unbekannter Einstiegstyp: ${widget.id}`);
     assert.ok(widget.label.trim());
@@ -30,7 +30,7 @@ test('Cockpit-Zielkatalog: Quellen überschneiden sich nicht und bleiben bisher 
     assert.ok(defaultTypes.includes(alias), `Vor einer Zusammenführung prüfen: ${alias}`);
     assert.ok(getPlannedCockpitWidgetForLegacyType(alias));
   }
-  assert.equal(defaultTypes.length, 108, 'Altbestand für Migration vollständig inventarisieren');
+  assert.equal(defaultTypes.length, 109, 'Altbestand für Migration vollständig inventarisieren');
   const knownTypesBlock = source.slice(
     source.indexOf('const knownTypes = ['),
     source.indexOf('];', source.indexOf('const knownTypes = [')),

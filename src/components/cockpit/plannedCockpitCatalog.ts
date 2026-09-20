@@ -32,6 +32,11 @@ export const PLANNED_COCKPIT_WIDGETS = [
     ]
   },
   {
+    "id": "classweeklyplan",
+    "label": "Wochenplan der Kinder",
+    "sources": ["classweeklyplan"]
+  },
+  {
     "id": "randomname",
     "label": "Zufallsauswahl",
     "sources": [
