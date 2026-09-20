@@ -28,6 +28,7 @@ import {
 import { KID_MOOD_SCALE, getMoodMeta } from '../../../lib/moodTypes';
 import { getStudentGridLayout } from '../../../lib/studentWidgetGrid';
 import { CHECK_IN_GRID_OPTIONS, getCheckInPageLayout, shouldShowCheckInSummary } from '../../../lib/checkInWidgetLayout';
+import { getCheckInMode, CheckInMode } from '../../../lib/checkInWidgetMode';
 
 export interface KidAttendanceWidgetProps {
   widget?: CockpitWidgetConfig;
@@ -35,6 +36,8 @@ export interface KidAttendanceWidgetProps {
   app?: AppState;
   setApp?: React.Dispatch<React.SetStateAction<AppState>>;
   currentIsLight: boolean;
+  showSettings?: boolean;
+  onCloseSettings?: () => void;
 }
 
 export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
@@ -43,10 +46,13 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   app: propApp,
   setApp: propSetApp,
   currentIsLight,
+  showSettings = false,
+  onCloseSettings,
 }) => {
   const { app: contextApp, setApp: contextSetApp } = useApp();
   const app = propApp || contextApp;
   const setApp = propSetApp || contextSetApp;
+  const checkInMode = getCheckInMode(widget?.settings);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
@@ -90,6 +96,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
   const [isStudentPageOpen, setIsStudentPageOpen] = useState(false);
   const [studentPage, setStudentPage] = useState(0);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [recentlyTappedId, setRecentlyTappedId] = useState<string | null>(null);
 
   // Aktiver Befindens-Check-in für ein Kind (direkt nach "Da"-Klick)
@@ -118,12 +125,34 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     setIsFinalizeModalOpen(false);
     setIsStudentPageOpen(false);
     setStudentPage(0);
+    setSelectedStudentId(null);
     setRecentlyTappedId(null);
   }, [app.activeClassId]);
 
-  // Schüler tippt auf Karte (Schülermodus)
+  React.useEffect(() => {
+    setSelectedStudentId(null);
+    setIsStudentPageOpen(false);
+    setStudentPage(0);
+    setActiveMoodStudent(null);
+  }, [checkInMode, todayStr]);
+
+  // Mode B selects one child before check-in; mode C never changes attendance.
   const handleStudentCardTap = useCallback((studentId: string) => {
     const currentStatus = getStudentAttendanceStatus(studentId, app, todayStr);
+    if (checkInMode === 'teacher') {
+      if (currentStatus.status !== 'present') return;
+      const student = students.find((child) => child.id === studentId);
+      setActiveMoodStudent({
+        id: studentId,
+        displayName: displayNames.get(studentId) || student?.vorname || 'Schüler/in',
+        step: 'prompt',
+      });
+      return;
+    }
+    if (checkInMode === 'individual' && selectedStudentId !== studentId) {
+      if (currentStatus.status === 'open') setSelectedStudentId(studentId);
+      return;
+    }
     if (currentStatus.status !== 'open') {
       // Wenn bereits 'da' oder 'abwesend', kein automatisches erneutes Fragen
       return;
@@ -151,7 +180,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
       displayName: dName,
       step: 'prompt',
     });
-  }, [app, setApp, todayStr, students, displayNames]);
+  }, [app, setApp, todayStr, students, displayNames, checkInMode, selectedStudentId]);
 
   // Kind wählt einen der 5 Smileys (1 = sehr gut bis 5 = schlecht)
   const handleChildSelectMood = useCallback((value: number) => {
@@ -167,6 +196,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     if (moodCloseTimerRef.current) clearTimeout(moodCloseTimerRef.current);
     moodCloseTimerRef.current = setTimeout(() => {
       setActiveMoodStudent(null);
+      setSelectedStudentId(null);
     }, 1200);
   }, [activeMoodStudent, setApp, todayStr]);
 
@@ -179,6 +209,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     if (moodCloseTimerRef.current) clearTimeout(moodCloseTimerRef.current);
     moodCloseTimerRef.current = setTimeout(() => {
       setActiveMoodStudent(null);
+      setSelectedStudentId(null);
     }, 900);
   }, [activeMoodStudent]);
 
@@ -186,6 +217,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   const handleChildDismissThanks = useCallback(() => {
     if (moodCloseTimerRef.current) clearTimeout(moodCloseTimerRef.current);
     setActiveMoodStudent(null);
+    setSelectedStudentId(null);
   }, []);
 
   // Lehrer-Aktionen
