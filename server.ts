@@ -15,6 +15,7 @@ import { createClassCollaborationStore, type SharedClassRecord } from "./src/ser
 import { createSchoolRegistryStore, type AustrianFederalState, type SchoolVerificationRequest, type SchoolRecord } from "./src/server/schoolRegistry.ts";
 import { createSupporterStore } from "./src/server/supporterStore.ts";
 import { createCanvaTokenStore, type CanvaStoredTokens } from "./src/server/canvaTokenStore.ts";
+import { createEncryptedAttachmentStore, AttachmentStorageError } from "./src/server/encryptedAttachmentStore.ts";
 import { createAccountSyncStore } from "./src/server/accountSyncStore.ts";
 import { createAiUsageStore, type AiUsageSnapshot } from "./src/server/aiUsageStore.ts";
 import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from "./src/data/austrianSchoolRegistry.seed.ts";
@@ -745,6 +746,59 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
   const getEmailAccount = (req: express.Request): EmailAccountIdentity =>
     (req as AccountRequest).klassioAccount as EmailAccountIdentity;
+
+  // Separate binary material storage is deliberately off until an attachment-
+  // inclusive encrypted backup/restore is available. Old inline materials and
+  // the 5 MB library limit remain unchanged. Only ciphertext is accepted.
+  const encryptedAttachmentStore = createEncryptedAttachmentStore(KLASSIO_DATA_DIR);
+  const encryptedAttachmentsEnabled = process.env.KLASSIO_ENCRYPTED_ATTACHMENTS_ENABLED === 'true';
+  app.use('/api/material-attachments', (req, res, next) => {
+    if (!encryptedAttachmentsEnabled) {
+      res.status(404).json({ error: 'Der separate Materialspeicher ist noch nicht freigegeben.' });
+      return;
+    }
+    requireEmailAccount(req, res, next);
+  });
+  const attachmentIdValid = (value: string) => /^[a-f0-9]{32}$/.test(value);
+  const attachmentError = (res: express.Response, error: unknown) => {
+    if (error instanceof AttachmentStorageError) {
+      res.status(error.status).json({ error: error.code });
+      return;
+    }
+    res.status(500).json({ error: 'Der verschlüsselte Anhang konnte nicht verarbeitet werden.' });
+  };
+  app.get('/api/material-attachments/status', async (req, res) => {
+    try {
+      const usage = await encryptedAttachmentStore.usage(getEmailAccount(req).userId);
+      res.json({ enabled: true, ...usage, maxFileBytes: 25 * 1024 * 1024 });
+    } catch (error) { attachmentError(res, error); }
+  });
+  app.post('/api/material-attachments/:id', express.raw({ type: 'application/octet-stream', limit: '26mb' }), async (req, res) => {
+    try {
+      const id = String(req.params.id || '');
+      if (!attachmentIdValid(id)) return res.status(400).json({ error: 'INVALID_ID' });
+      if (!Buffer.isBuffer(req.body)) return res.status(415).json({ error: 'Bitte einen verschlüsselten Binäranhang senden.' });
+      const stored = await encryptedAttachmentStore.put(getEmailAccount(req).userId, id, req.body);
+      res.status(201).json({ attachmentId: id, ...stored });
+    } catch (error) { attachmentError(res, error); }
+  });
+  app.get('/api/material-attachments/:id', async (req, res) => {
+    try {
+      const id = String(req.params.id || '');
+      if (!attachmentIdValid(id)) return res.status(400).json({ error: 'INVALID_ID' });
+      const bytes = await encryptedAttachmentStore.get(getEmailAccount(req).userId, id);
+      res.setHeader('Cache-Control', 'no-store');
+      res.type('application/octet-stream').send(bytes);
+    } catch (error) { attachmentError(res, error); }
+  });
+  app.delete('/api/material-attachments/:id', async (req, res) => {
+    try {
+      const id = String(req.params.id || '');
+      if (!attachmentIdValid(id)) return res.status(400).json({ error: 'INVALID_ID' });
+      await encryptedAttachmentStore.delete(getEmailAccount(req).userId, id);
+      res.status(204).end();
+    } catch (error) { attachmentError(res, error); }
+  });
 
   // Persönlicher Konto-Sync: Der Server speichert ausschließlich Vault-Wrappings
   // und AES-GCM-Chiffretext. Schüler-, Noten- und Planungsdaten werden hier nie entschlüsselt.
