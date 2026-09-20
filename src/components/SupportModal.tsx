@@ -79,7 +79,7 @@ export default function SupportModal({ open, onClose }: SupportModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="klassio-support-title"
-        className="relative z-10 w-full max-w-2xl overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-2xl"
+        className="relative z-10 w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-[2rem] border border-stone-200 bg-white shadow-2xl"
       >
         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-500" />
 
