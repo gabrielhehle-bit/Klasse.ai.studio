@@ -751,7 +751,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   // inclusive encrypted backup/restore is available. Old inline materials and
   // the 5 MB library limit remain unchanged. Only ciphertext is accepted.
   const encryptedAttachmentStore = createEncryptedAttachmentStore(KLASSIO_DATA_DIR);
-  const encryptedAttachmentsEnabled = process.env.KLASSIO_ENCRYPTED_ATTACHMENTS_ENABLED === 'true';
+  const encryptedAttachmentsEnabled = process.env.KLASSIO_ENCRYPTED_ATTACHMENTS_ENABLED === 'true' && process.env.NODE_ENV !== 'production';
   app.use('/api/material-attachments', (req, res, next) => {
     if (!encryptedAttachmentsEnabled) {
       res.status(404).json({ error: 'Der separate Materialspeicher ist noch nicht freigegeben.' });
