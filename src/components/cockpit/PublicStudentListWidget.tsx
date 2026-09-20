@@ -128,8 +128,11 @@ export function PublicStudentListWidget({
             : stageId === '5' ? 'bg-rose-100 text-rose-950'
             : 'bg-slate-100 text-slate-800';
           const behaviorStages = showBehavior ? (app.behavior_stages || []) : [];
-          const nextStageIndex = behaviorStages.findIndex(stage => stage.id === stageId) + 1;
-          const nextBehaviorStage = nextStageIndex > 0 ? behaviorStages[nextStageIndex] : undefined;
+          // A single tap cycles through the teacher-configured stages, including last → first.
+          const currentStageIndex = behaviorStages.findIndex(stage => stage.id === stageId);
+          const nextBehaviorStage = behaviorStages.length > 0
+            ? behaviorStages[(currentStageIndex + 1) % behaviorStages.length]
+            : undefined;
           const cardTone = ['border-sky-200 bg-sky-50/80', 'border-amber-200 bg-amber-50/80', 'border-violet-200 bg-violet-50/80', 'border-emerald-200 bg-emerald-50/80'][index % 4];
           return (
             <div key={student.id} role="listitem"
@@ -145,10 +148,10 @@ export function PublicStudentListWidget({
                   )}
                   {showBehavior && behaviorStage && (
                     onBehaviorStageChange ? (
-                      <button type="button" disabled={!nextBehaviorStage}
+                      <button type="button" disabled={!nextBehaviorStage || nextBehaviorStage.id === stageId}
                         onClick={() => nextBehaviorStage && onBehaviorStageChange(student.id, nextBehaviorStage.id)}
-                        aria-label={`Verhalten von ${labels.get(student.id)}: ${behaviorStage.label}; ${nextBehaviorStage ? `mit einem Klick auf ${nextBehaviorStage.label} weiterstellen` : 'letzte Stufe erreicht'}`}
-                        title={nextBehaviorStage ? `${behaviorStage.label} → ${nextBehaviorStage.label}` : `${behaviorStage.label}: letzte Stufe. Änderung in der Notenmappe möglich.`}
+                        aria-label={`Verhalten von ${labels.get(student.id)}: ${behaviorStage.label}; ${nextBehaviorStage ? `mit einem Klick auf ${nextBehaviorStage.label} weiterstellen` : 'keine weitere Stufe vorhanden'}`}
+                        title={nextBehaviorStage ? `${behaviorStage.label} → ${nextBehaviorStage.label}` : `${behaviorStage.label}: Verhaltensstufen in der Notenmappe einstellen.`}
                         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-70 ${behaviorColor}`}>
                         {behaviorStage.icon || '●'}
                       </button>
