@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { getClassroomWeeklyTasks, getChildTaskProgress, updateChildWeeklyProgress, updateChildWeeklyFeedback, getChildWeeklyDossierRows, weekTaskKey, toggleClassroomWeeklyLesson } from './classroomWeeklyPlan';
 import type { Student } from '../types';
 import { normalizeAppState, syncActiveClass, switchClassState } from './appState';
@@ -170,7 +171,6 @@ test('one-tap feedback cannot create fabricated progress for malformed task or d
 });
 
 test('child board has visible name bar, no name-selection dialog and single-tap help/difficulty actions', () => {
-  const { readFileSync } = require('node:fs') as typeof import('node:fs');
   const widget = readFileSync('src/components/cockpit/widgets/ClassroomWeeklyPlanWidget.tsx', 'utf8');
   const dossier = readFileSync('src/components/dossier/DossierLeistungen.tsx', 'utf8');
   assert.match(widget, /aria-label="Wähle deinen Namen"/);
