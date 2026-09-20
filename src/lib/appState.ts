@@ -188,6 +188,7 @@ export function syncActiveClass(state: AppState): AppState {
     klassenvorstand: state.klassenvorstand,
     schuljahr: state.schuljahr,
     schueler: state.schueler ? JSON.parse(JSON.stringify(state.schueler)) : [],
+    ...(state.classMascot ? { classMascot: { ...state.classMascot } } : {}),
     noten: state.noten ? JSON.parse(JSON.stringify(state.noten)) : {},
     notenMeta: state.notenMeta ? JSON.parse(JSON.stringify(state.notenMeta)) : {},
     notenGewichtung: state.notenGewichtung ? JSON.parse(JSON.stringify(state.notenGewichtung)) : {},
@@ -568,6 +569,8 @@ export function normalizeAppState(raw: any): AppState {
 
   if (activeClass) {
     parsed.klassenbezeichnung = activeClass.name;
+    // A mascot belongs to the active class, not to the teacher or another room.
+    parsed.classMascot = activeClass.classMascot ? { ...activeClass.classMascot } : undefined;
     parsed.stufe = activeClass.stufe;
     parsed.klassenvorstand = activeClass.klassenvorstand;
     parsed.schueler = activeClass.schueler;
@@ -821,6 +824,7 @@ export function switchClassState(prev: AppState, id: string): AppState {
     activeClassId: id,
     classes,
     klassenbezeichnung: targetClass.name,
+    classMascot: targetClass.classMascot ? { ...targetClass.classMascot } : undefined,
     stufe: targetClass.stufe,
     klassenvorstand: targetClass.klassenvorstand,
     schuljahr: targetClass.schuljahr || prev.schuljahr || '2024/25',
