@@ -1926,11 +1926,11 @@ export default function WeeklyPlan() {
                 {/* Primary Action Button: Wochenplan für Kinder erstellen */}
                 <button
                   onClick={() => setShowSchuelerWochenplanModal(true)}
-                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-xs rounded-xl shadow-md shadow-indigo-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="min-h-12 px-4 py-2 bg-amber-300 hover:bg-amber-200 active:scale-95 !text-slate-950 font-black text-sm rounded-xl border-2 border-amber-500 shadow-lg transition-all flex items-center gap-2 cursor-pointer"
                   title="Erstellt aus dem aktuellen Wochenplan einen kindgerechten Arbeits-/Aufgabenplan für die Kinder"
                 >
                   <CheckSquare size={16} strokeWidth={2.5} />
-                  <span>Wochenplan für Kinder erstellen</span>
+                  <span>👧 Kinderplan · Aufgaben & Rückmeldung</span>
                 </button>
 
                 {/* Import changes the editable plan; exports belong to PrintCenter. */}
@@ -2991,7 +2991,7 @@ export default function WeeklyPlan() {
                                        ? previous : toggleClassroomWeeklyLesson(previous, activeKW, tag, zIdx));
                                    }}
                                    className={`absolute inset-x-1 bottom-1 z-[55] flex min-h-7 items-center justify-center rounded-lg border px-2 py-1 text-center text-xs font-extrabold leading-tight shadow-md ring-2 ring-white/90 transition-colors ${item.imKinderWochenplan === true
-                                     ? 'border-indigo-800 bg-indigo-700 text-white hover:bg-indigo-800'
+                                     ? 'border-emerald-700 bg-emerald-50 text-emerald-950 hover:bg-emerald-100'
                                      : 'border-indigo-300 bg-white text-indigo-900 hover:bg-indigo-50'}`}
                                  >
                                    {item.imKinderWochenplan === true
