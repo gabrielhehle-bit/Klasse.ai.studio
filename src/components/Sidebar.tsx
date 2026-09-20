@@ -48,9 +48,18 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     .join(' ').trim();
   const storedTeacherName = [app?.lehrerName, app?.lehrerProfil?.name, app?.name]
     .find(value => typeof value === 'string' && Boolean(value.trim()) && !/^name fehlt$/i.test(value.trim()));
+  const structuredFirstName = typeof app?.vorname === 'string' && !/^name fehlt$/i.test(app.vorname.trim())
+    ? app.vorname.trim() : '';
+  const storedFirstName = storedTeacherName ? getTeacherFirstName(storedTeacherName) : '';
+  // When two people share a class, never replace the current teacher's first name
+  // with a potentially stale legacy name of another colleague.
   const teacherDisplayName = app?.nachname?.trim()
     ? splitTeacherName
-    : storedTeacherName || (getTeacherFirstName(app) ? splitTeacherName || getTeacherFirstName(app) : '');
+    : structuredFirstName
+      ? storedTeacherName && storedFirstName.toLocaleLowerCase('de-AT') === structuredFirstName.toLocaleLowerCase('de-AT')
+        ? storedTeacherName
+        : [app?.anrede, structuredFirstName].filter(Boolean).join(' ')
+      : storedTeacherName || (getTeacherFirstName(app) ? splitTeacherName || getTeacherFirstName(app) : '');
 
   const toggleCollapse = React.useCallback(() => {
     setApp(prev => ({
