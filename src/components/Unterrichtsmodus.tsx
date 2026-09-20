@@ -1,6 +1,7 @@
 import { shouldApplyTafelCommand } from '../lib/tafelCommands';
 import { getTodayIsoDate } from '../lib/kidAttendanceAlgorithm';
 import { dailyBehaviorEntries } from '../lib/dailyBehaviorEntries';
+import { recordClassroomBehaviorStage } from '../lib/classroomBehaviorStage';
 import React, {
   useEffect,
   useState,
@@ -6452,23 +6453,9 @@ ${content}
   };
 
   const setStudentBehavior = (sid: string, stageId: string) => {
-    setApp((prev) => {
-      const currentStageId =
-        prev.behavior_status?.[sid] || prev.behavior_default_stage_id || "1";
-      const prevIdx = parseInt(currentStageId) || 1;
-      const nextIdx = parseInt(stageId) || 1;
-      if (nextIdx > prevIdx)
-        (window as any).__lastVerhaltenDownTime = Date.now();
-      else if (stageId === "1" || nextIdx === 1)
-        (window as any).__lastVerhaltenSuperTime = Date.now();
-      return {
-        ...prev,
-        behavior_status: {
-          ...(prev.behavior_status || {}),
-          [sid]: stageId,
-        },
-      };
-    });
+    // Same behavior_status and statusLog as the Behavior module and dossier.
+    // No private behavior notes are projected to the public board.
+    setApp((prev) => recordClassroomBehaviorStage(prev, sid, stageId));
   };
 
   const commitAllowance = useMemo(() => {
@@ -9662,7 +9649,7 @@ ${content}
 
                             {isMoreOptionsMenuOpen && (
                               <div
-                                className={`absolute right-0 top-10 w-72 max-h-[70vh] overflow-y-auto rounded-2xl border p-2 shadow-2xl flex flex-col gap-1 z-[1000] ${
+                                className={`absolute right-0 top-10 w-[min(20rem,calc(100vw-1rem))] max-h-[min(72vh,calc(100dvh-6rem))] overflow-y-auto overscroll-contain rounded-2xl border p-2.5 shadow-2xl flex flex-col gap-1.5 z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-200 text-slate-800 animate-in fade-in slide-in-from-top-2 duration-150"
                                     : "bg-zinc-900 border-white/10 text-white animate-in fade-in slide-in-from-top-2 duration-150"
@@ -9713,7 +9700,7 @@ ${content}
                                     handleAutoArrangeWidgets();
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -9728,7 +9715,7 @@ ${content}
                                     setIsVorlagenModalOpen(true);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -9747,7 +9734,7 @@ ${content}
                                     setIsSlotMenuOpen(true);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -9756,7 +9743,7 @@ ${content}
                                 </button>
 
                                 <div
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left ${
+                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left ${
                                     currentIsLight ? "text-slate-600" : "text-white/70"
                                   }`}
                                 >
@@ -9779,7 +9766,7 @@ ${content}
                                     }
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -9787,8 +9774,9 @@ ${content}
                                   <span>{sidebarMode !== "hidden" ? "Schülerliste ausblenden" : "Schülerliste einblenden"}</span>
                                 </button>
 
-                                <label className={`flex min-h-11 cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-[10px] font-semibold ${currentIsLight ? "text-slate-800 hover:bg-slate-100" : "text-white hover:bg-white/10"}`}>
-                                  <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0"
+                                <label className={`flex w-full shrink-0 cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
+                                  title="Lehrperson schaltet die öffentliche Anzeige der aktuellen Verhaltensstufe an oder aus. Keine privaten Notizen.">
+                                  <input type="checkbox" className="h-5 w-5 shrink-0 accent-indigo-600"
                                     aria-label="Verhalten der Kinder öffentlich in der Schülerliste anzeigen"
                                     checked={app.boardSettings?.showStudentBehaviorInPluspoints === true}
                                     onChange={event => setApp(prev => ({
@@ -9798,11 +9786,9 @@ ${content}
                                         showStudentBehaviorInPluspoints: event.target.checked,
                                       },
                                     }))} />
-                                  <span>
-                                    <span className="block font-bold">Verhalten in der Schülerliste anzeigen</span>
-                                    <span className="mt-0.5 block text-[9px] font-normal leading-snug opacity-80">
-                                      Auch für Kinder auf dem Smartboard sichtbar. Nur Status/Emoji, keine privaten Notizen. Standardmäßig aus.
-                                    </span>
+                                  <span className="min-w-0 flex-1 whitespace-normal break-words">
+                                    <span className="block leading-5">Verhalten anzeigen</span>
+                                    <span className="block text-[10px] font-normal leading-4 opacity-75">Auch am Smartboard sichtbar · ohne Notizen</span>
                                   </span>
                                 </label>
 
@@ -9832,7 +9818,7 @@ ${content}
                                     });
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -9846,7 +9832,7 @@ ${content}
                                     setIsFocusModeLightOff((prev) => !prev);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -9860,7 +9846,7 @@ ${content}
                                     toggleFullscreen();
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -9876,7 +9862,7 @@ ${content}
                                     handleClearAllWidgets();
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className="w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold text-rose-500 hover:bg-rose-500/10 flex items-center gap-2 text-left transition-colors cursor-pointer"
+                                  className="w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold text-rose-500 hover:bg-rose-500/10 flex items-center gap-2 text-left transition-colors cursor-pointer"
                                 >
                                   <Trash2 size={12} className="shrink-0" />
                                   <span>Alle Widgets schließen</span>
@@ -9892,7 +9878,7 @@ ${content}
                                     setIsTafelOpen(true);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
+                                  className={`w-full min-h-10 shrink-0 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 text-left transition-colors cursor-pointer ${
                                     currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
                                   }`}
                                 >
@@ -12056,6 +12042,7 @@ ${content}
                           getTodayPoints={getTodayPoints}
                           addParticipation={addParticipation}
                           removeParticipation={removeParticipation}
+                          onBehaviorStageChange={setStudentBehavior}
                           sidebarCompact={sidebarMode === "mini"}
                         />
                       </div>
