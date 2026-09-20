@@ -102,7 +102,8 @@ test('kindgerechte Pluspunkte-Karten behalten die vollständige 17-Kinder-Ansich
     removeParticipation: () => {},
   }));
   assert.match(html, /🦊/);
-  assert.match(html, /🌈/);
+  assert.match(html, /🧑‍🎓/);
+  assert.doesNotMatch(html, /🌈/);
   assert.match(html, /border-sky-200 bg-sky-50/);
   assert.match(html, /⭐ 2/);
   assert.equal((html.match(/Pluspunkt für/g) || []).length, 17);
@@ -142,7 +143,8 @@ test('Verhalten wird erst nach bewusster Lehrperson-Einstellung auf der öffentl
   assert.match(on, /🚫/);
   assert.equal((on.match(/Pluspunkt für/g) || []).length, 17);
   for (const value of ['NICHT_OEFFENTLICHE_NOTIZ', 'VERTRAULICH']) assert.doesNotMatch(on, new RegExp(value));
-  assert.match(teaching, /Verhalten in der Schülerliste anzeigen/);
+  assert.match(teaching, /Verhalten anzeigen/);
+  assert.match(teaching, /onBehaviorStageChange=\{setStudentBehavior\}/);
   assert.match(teaching, /showStudentBehaviorInPluspoints: event\.target\.checked/);
 });
 
@@ -161,4 +163,33 @@ test('Die sehr schmale Schülerliste zeigt optional nur das Verhalten-Emoji, nic
   assert.match(html, /Verhaltensstatus: Stopp/);
   assert.match(html, /🚫/);
   assert.doesNotMatch(html, />Stopp<\/span>/);
+});
+
+test('Mit einem Klick kann die Lehrperson die sichtbare Verhaltensstufe ändern', () => {
+  const actions: Array<[string, string]> = [];
+  const html = renderToStaticMarkup(React.createElement(PublicStudentListWidget, {
+    app: {
+      activeClassId: 'class-a',
+      schueler: [{ id: 's1', vorname: 'Lena', nachname: 'Muster' }],
+      boardSettings: { showStudentBehaviorInPluspoints: true },
+      behavior_status: { s1: '3' },
+      behavior_stages: [
+        { id: '1', label: 'Super', icon: '🌟', color: 'bg-green-500' },
+        { id: '2', label: 'Gut', icon: '❤️', color: 'bg-sky-500' },
+        { id: '3', label: 'OK', icon: '😐', color: 'bg-slate-500' },
+        { id: '4', label: 'Achtung', icon: '⚠️', color: 'bg-amber-500' },
+        { id: '5', label: 'Stopp', icon: '🚫', color: 'bg-red-500' },
+      ],
+    } as unknown as AppState,
+    getTodayPoints: () => 1,
+    addParticipation: () => {},
+    removeParticipation: () => {},
+    onBehaviorStageChange: (id, stage) => actions.push([id, stage]),
+  }));
+  assert.match(html, /Verhalten von Lena eine Stufe verbessern/);
+  assert.match(html, /Verhalten von Lena eine Stufe weiterstellen/);
+  assert.match(html, /Verhaltensstatus: OK/);
+  assert.doesNotMatch(html, /🌈/);
+  assert.equal(actions.length, 0, 'Rendering must never mutate behavior');
+  assert.match(teaching, /recordClassroomBehaviorStage\(prev, sid, stageId\)/);
 });
