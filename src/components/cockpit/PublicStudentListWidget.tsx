@@ -143,14 +143,21 @@ export function PublicStudentListWidget({
                       {student.emoji}
                     </span>
                   )}
-                  {showBehavior && behaviorStage && onBehaviorStageChange && (
-                    <button type="button" disabled={!nextBehaviorStage}
-                      onClick={() => nextBehaviorStage && onBehaviorStageChange(student.id, nextBehaviorStage.id)}
-                      aria-label={`Verhalten von ${labels.get(student.id)}: ${behaviorStage.label}; ${nextBehaviorStage ? `mit einem Klick auf ${nextBehaviorStage.label} weiterstellen` : 'letzte Stufe erreicht'}`}
-                      title={nextBehaviorStage ? `${behaviorStage.label} → ${nextBehaviorStage.label}` : `${behaviorStage.label}: letzte Stufe. Änderung in der Notenmappe möglich.`}
-                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-70 ${behaviorColor}`}>
-                      {behaviorStage.icon || '●'}
-                    </button>
+                  {showBehavior && behaviorStage && (
+                    onBehaviorStageChange ? (
+                      <button type="button" disabled={!nextBehaviorStage}
+                        onClick={() => nextBehaviorStage && onBehaviorStageChange(student.id, nextBehaviorStage.id)}
+                        aria-label={`Verhalten von ${labels.get(student.id)}: ${behaviorStage.label}; ${nextBehaviorStage ? `mit einem Klick auf ${nextBehaviorStage.label} weiterstellen` : 'letzte Stufe erreicht'}`}
+                        title={nextBehaviorStage ? `${behaviorStage.label} → ${nextBehaviorStage.label}` : `${behaviorStage.label}: letzte Stufe. Änderung in der Notenmappe möglich.`}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-70 ${behaviorColor}`}>
+                        {behaviorStage.icon || '●'}
+                      </button>
+                    ) : (
+                      <span aria-hidden="true" title={`Verhalten: ${behaviorStage.label}`}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl shadow-sm ${behaviorColor}`}>
+                        {behaviorStage.icon || '●'}
+                      </span>
+                    )
                   )}
                   <div className="min-w-0 flex-1">
                     <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-[11px]' : 'text-base'}`}>{labels.get(student.id)}</span>
