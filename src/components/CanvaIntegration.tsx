@@ -362,7 +362,22 @@ export default function CanvaIntegration() {
               <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {visibleDesigns.map(design => (
                   <article key={design.id} className="overflow-hidden rounded-[1.5rem] border border-[var(--border)] bg-[var(--surface2)]">
-                    {design.thumbnail?.url ? <img src={design.thumbnail.url} alt="" className="h-36 w-full object-cover" referrerPolicy="no-referrer" /> : null}
+                    <div className="relative flex h-36 items-center justify-center overflow-hidden bg-[var(--surface)] text-[var(--text3)]">
+                      <span className="flex flex-col items-center gap-2 text-center text-xs font-semibold">
+                        <Image size={24} aria-hidden="true" />
+                        {design.thumbnail?.url ? 'Vorschau nicht verfügbar' : 'Keine Vorschau vorhanden'}
+                      </span>
+                      {design.thumbnail?.url && (
+                        <img
+                          src={design.thumbnail.url}
+                          alt={`Vorschau: ${design.title || 'Canva-Design'}`}
+                          className="absolute inset-0 h-full w-full object-cover"
+                          // Use the server's strict-origin-when-cross-origin policy.
+                          // Some Canva image hosts reject image requests without an origin.
+                          onError={event => { event.currentTarget.hidden = true; }}
+                        />
+                      )}
+                    </div>
                     <div className="p-4">
                       <h3 className="truncate font-black text-[var(--text)]">{design.title || 'Unbenanntes Design'}</h3>
                       <div className="mt-4 flex flex-wrap gap-2">
