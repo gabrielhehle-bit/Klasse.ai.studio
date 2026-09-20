@@ -11,6 +11,7 @@ const SMTP_CODES = process.env.KLASSIO_E2E_SMTP_CODES || '/tmp/klassio-school-ma
 const SCREENSHOT_TEACHER = process.env.KLASSIO_E2E_SCREENSHOT_TEACHER || '/tmp/klassio-school-teacher.png';
 const SCREENSHOT_ADMIN = process.env.KLASSIO_E2E_SCREENSHOT_ADMIN || '/tmp/klassio-school-admin.png';
 const SCREENSHOT_COCKPIT = process.env.KLASSIO_E2E_SCREENSHOT_COCKPIT || '/tmp/klassio-school-cockpit.png';
+const SCREENSHOT_RANDOM = process.env.KLASSIO_E2E_SCREENSHOT_RANDOM || '/tmp/klassio-random-picker.png';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const q = value => JSON.stringify(value);
@@ -279,6 +280,48 @@ async function createClassInUi(client, className) {
   await waitFor(client, 'class setup retained', 'document.body?.innerText.includes(' + q(className) + ')', 30000);
 }
 
+async function verifyRandomPickerInRealBrowser(client) {
+  await clickButton(client, 'Widget hinzufügen');
+  await waitFor(client, 'real widget picker opened',
+    'Boolean(document.querySelector("input[aria-label=\\\"Widget suchen\\\"]"))');
+  await clickButton(client, 'Zufallsauswahl');
+  await waitFor(client, 'empty class: random picker is disabled with clear explanation',
+    '(() => {const button=document.querySelector("button[aria-label=\\\"Zufälliges Kind ziehen\\\"]");return !!button&&button.disabled&&button.textContent.includes("noch keine Kinder angelegt")&&!button.textContent.includes("Max M.");})()');
+  const noConflictingGlobalKeyboardListener = await evaluate(client,
+    'document.querySelectorAll("button[aria-label=\\\"Ton umschalten\\\"],button[aria-label=\\\"Ton einschalten\\\"],button[aria-label=\\\"Ton ausschalten\\\"]").length===0');
+  if (!noConflictingGlobalKeyboardListener) throw new Error('Random picker still has a local sound setting.');
+
+  await clickButton(client, 'Kinder wählen');
+  await waitFor(client, 'pupil selector shows a real empty class and complete pages',
+    '(() => {const dialog=document.querySelector("section[role=dialog][aria-label=\\\"Kinder für die Zufallsauswahl auswählen\\\"]");return !!dialog&&dialog.textContent.includes("Keine anwesenden Kinder")&&dialog.textContent.includes("Seite 1 von 1");})()');
+  for (const [width, height] of [[1440, 1100], [1024, 768], [640, 720]]) {
+    await client.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: false});
+    await sleep(180);
+    const measured = await evaluate(client,
+      '(() => {const d=document.querySelector("section[role=dialog][aria-label=\\\"Kinder für die Zufallsauswahl auswählen\\\"]");if(!d)return {error:"missing dialog"};const r=d.getBoundingClientRect();const controls=[...d.querySelectorAll("button")].filter(b=>!b.disabled).map(b=>{const t=b.getBoundingClientRect();return {w:t.width,h:t.height};});return {width:innerWidth,height:innerHeight,left:r.left,right:r.right,top:r.top,bottom:r.bottom,controls};})()');
+    if (measured.error||measured.left < -1||measured.top < -1||measured.right > width+1||measured.bottom > height+1||measured.controls.some(x=>x.w<43||x.h<43)) {
+      throw new Error('Picker modal clips or has undersized touch targets at '+width+'x'+height+': '+JSON.stringify(measured));
+    }
+    console.log('✓ Random-name picker fits '+width+'x'+height+' with accessible controls');
+  }
+  await client.send('Emulation.setDeviceMetricsOverride',
+    {width:1440,height:1100,deviceScaleFactor:1,mobile:false});
+  await clickButton(client, 'Fertig', true);
+  await clickButton(client, 'Widget hinzufügen');
+  await clickButton(client, 'Widget-Einstellungen');
+  const chosen = await evaluate(client,
+    '(() => {const select=document.querySelector("select[aria-label=\\\"Widget für Einstellungen\\\"]");if(!select)return false;select.value="randomname";select.dispatchEvent(new Event("change",{bubbles:true}));return true;})()');
+  if (!chosen) throw new Error('Central widget settings selector is unavailable.');
+  await waitFor(client, 'random-name settings are central, not inside the widget',
+    'document.body?.innerText.includes("Zufälliges Kind · Ton")&&Array.from(document.querySelectorAll("label")).some(l=>l.textContent.includes("Ton bei der Ziehung abspielen"))');
+  const saved = await evaluate(client,
+    '(() => {const label=[...document.querySelectorAll("label")].find(l=>l.textContent.includes("Ton bei der Ziehung abspielen"));const input=label?.querySelector("input[type=checkbox]");if(!input||!input.checked)return false;input.click();return !input.checked;})()');
+  if (!saved) throw new Error('Could not disable random-name sound in central settings.');
+  await clickButton(client, 'Auswahl schließen');
+  await saveScreenshot(client, SCREENSHOT_RANDOM);
+  console.log('✓ Real browser: no fake pupils, central sound setting and paginated touch-friendly selection');
+}
+
 async function verifyDirectCockpitNavigation(client) {
   // A real signed-in teacher must reach the classroom without the old landing page.
   await clickSidebar(client, 'Lehrercockpit');
@@ -325,6 +368,7 @@ async function verifyDirectCockpitNavigation(client) {
   await waitFor(client, 'handwriting paper is rendered on shared board',
     'Boolean(getComputedStyle(document.getElementById("widget-board-stage")).backgroundImage.includes("svg"))');
   await saveScreenshot(client, SCREENSHOT_COCKPIT);
+  await verifyRandomPickerInRealBrowser(client);
   const closed = await evaluate(client,
     '(() => {const b=document.querySelector("button[aria-label=\\\"Lehrercockpit schließen · Zurück zu Heute\\\"]");if(!b)return false;b.click();return true;})()'
   );
