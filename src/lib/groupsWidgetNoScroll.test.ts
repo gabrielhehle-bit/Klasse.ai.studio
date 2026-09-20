@@ -33,7 +33,13 @@ test('groups: full 30-pupil class, partner work and short surfaces remain reacha
   assert.equal(last.page, last.pageCount - 1);
   assert.ok(last.start < groups.length);
   assert.ok(last.start + last.pageSize >= groups.length);
-  assert.equal(getGroupPageLayout(340, 360, groups, 0).fits, false);
+  const compact = getGroupPageLayout(340, 360, groups, 0);
+  assert.equal(compact.fits, true, 'complete single-child group segments fit the compact viewport');
+  assert.ok(compact.pageCount > 1, 'all partner groups must be available through explicit pages');
+  assert.deepEqual(
+    compact.cards.flatMap(segment => segment.memberIds).sort(),
+    groups.flatMap(group => group.studentIds).sort(),
+  );
   assert.equal(getGroupPageLayout(0, 0, [], Number.NaN).fits, false);
   assert.equal(getGroupPageLayout(1280, 690, [], 0).pageCount, 1);
 });
