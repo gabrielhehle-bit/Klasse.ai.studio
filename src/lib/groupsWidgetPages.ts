@@ -10,7 +10,7 @@ export const GROUP_WIDGET_GRID = {
   studentRowHeight: 46,
   cardChromeHeight: 68,
   gap: 8,
-  reservedHeight: 182,
+  reservedHeight: 224,
 } as const;
 
 export interface GroupPageLayout {
