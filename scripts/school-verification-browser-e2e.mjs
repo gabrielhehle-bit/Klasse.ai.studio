@@ -284,14 +284,14 @@ async function verifyDirectCockpitNavigation(client) {
   await clickSidebar(client, 'Lehrercockpit');
   await waitFor(
     client,
-    'direct white cockpit stage and external drawing toolbar',
+    'direct white cockpit stage and external text toolbar',
     '(() => {' +
     'const stage=document.getElementById("widget-board-stage");' +
-    'const toolbar=document.querySelector("[role=toolbar][aria-label=\\\"Unterrichtsfläche: Auswählen, Zeichnen und Text\\\"]");' +
+    'const toolbar=document.querySelector("[role=toolbar][aria-label=\\\"Unterrichtsfläche: Text und Papier\\\"]");' +
     'if(!stage||!toolbar)return false;' +
     'const r=stage.getBoundingClientRect();' +
     'const bg=getComputedStyle(stage).backgroundColor;' +
-    'return r.width>500&&r.height>300&&bg==="rgb(255, 255, 255)"&&toolbar.textContent.includes("Auswählen")&&toolbar.textContent.includes("Stift");' +
+    'return r.width>500&&r.height>300&&bg==="rgb(255, 255, 255)"&&toolbar.textContent.includes("TEXT")&&toolbar.textContent.includes("Papier");' +
     '})()',
     30000,
   );
