@@ -12,9 +12,11 @@ const teaching = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
 test('öffentliche Schülerliste zeigt keine privaten Dossier-/Verhaltensangaben', () => {
   assert.match(teaching, /PublicStudentListWidget as StudentListWidgetContent/);
   assert.match(source, /getDisplayStudentName\(student, students\)/);
-  for (const hiddenField of ['behavior_status', 'behavior_comments', 'studentNotes', 'diagnostik', 'geburtstag', 'schuelerStimmung', 'getBehaviorSymbol']) {
+  for (const hiddenField of ['behavior_notes', 'behavior_comments', 'studentNotes', 'diagnostik', 'geburtstag', 'schuelerStimmung', 'getBehaviorSymbol']) {
     assert.doesNotMatch(source, new RegExp('(?:app\\.|student\\.|prev\\.|\\{)\\s*' + hiddenField));
   }
+  assert.match(source, /const showBehavior = app\.boardSettings\?\.showStudentBehaviorInPluspoints === true/);
+  assert.match(source, /const stageId = showBehavior/);
   assert.doesNotMatch(source, /student\.nachname/);
   assert.doesNotMatch(source, /aria-label=.{0,80}(?:Minuspunkt|negatives Verhalten|Notiz vorhanden)/);
 });
