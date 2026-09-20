@@ -4087,6 +4087,13 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
       }
       if (absentStreak >= 3) {
         rawInsights.push({
+          id: `materialabholung_${s.id}_${firstAbsentDayStr}`,
+          type: "materialabholung",
+          text: `${s.vorname} fehlt seit ${absentStreak} erfassten Schultagen: Materialabholung für die Eltern vorbereiten.`,
+          color: "amber",
+          icon: <BookOpen size={14} />,
+        });
+        rawInsights.push({
           id: `attest_${s.id}_${firstAbsentDayStr}`,
           type: "anwesenheit",
           text: `Ärztliches Attest von ${s.vorname} ausständig (>3 Tage)`,
@@ -5301,6 +5308,12 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                       >
                         {insight.text}
                       </div>
+                      {insight.type === "materialabholung" && (
+                        <button type="button" onClick={() => setPage("drucken")}
+                          className="mt-2 min-h-9 rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-extrabold text-amber-950 hover:bg-amber-100">
+                          Abholpaket im Druckzentrum erstellen →
+                        </button>
+                      )}
                     </div>
                     <button
                       onClick={() => startDismissInsight(insight.id)}

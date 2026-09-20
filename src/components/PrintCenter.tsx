@@ -56,6 +56,7 @@ import { downloadKlassenbuchDocx } from '../lib/klassenbuchDocx';
 import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
 import { buildSchoolYearWeekList } from '../lib/weeklyPlanData';
 import { getAttendanceSemester } from '../lib/attendanceData';
+import { buildMaterialPickupSheet, latestAbsenceRange } from '../lib/materialPickupSheet';
 import { generateWochenplanTemplate, generateJahresplanTemplate } from '../lib/planerExcelService';
 import { downloadYearlyPlanCsv } from '../lib/yearlyPlanExport';
 import { SchuelerWochenplanA4Sheet } from './wochenplan/SchuelerWochenplanA4Sheet';
@@ -168,7 +169,7 @@ export default function PrintCenter() {
 
   // 1. Core Printing State
   const [activeTemplate, setActiveTemplate] = useState<
-    'schuelerliste' | 'checkliste' | 'zeugnis_noten' | 'wochenplan' | 'schueler_wochenplan' | 'klassenbuch' | 'jahresplanung' | 'kel' | 'stundenplan' | 'schuelerprofil' | 'kel_presentation' | 'sitzplan' | 'uebergabemappe' | 'eltern_diagnostik' | 'pdf_export' | 'lob_druckkarte' | 'fehlstunden' | 'smart_tools' | 'kassenuebersicht'
+    'schuelerliste' | 'checkliste' | 'zeugnis_noten' | 'wochenplan' | 'schueler_wochenplan' | 'materialabholung' | 'klassenbuch' | 'jahresplanung' | 'kel' | 'stundenplan' | 'schuelerprofil' | 'kel_presentation' | 'sitzplan' | 'uebergabemappe' | 'eltern_diagnostik' | 'pdf_export' | 'lob_druckkarte' | 'fehlstunden' | 'smart_tools' | 'kassenuebersicht'
   >('schuelerliste');
   
   const [printModeActive, setPrintModeActive] = useState(false);
@@ -186,6 +187,7 @@ export default function PrintCenter() {
 
     { id: 'wochenplan', icon: Calendar, label: 'Wochenplan', desc: 'Unterrichts- & Wochenplan', cat: 'planung', taskCat: 'planung', badge: 'Unterricht', keywords: 'wochenplan kalender unterricht aufgaben stunden' },
     { id: 'schueler_wochenplan', icon: CheckSquare, label: 'Wochenplan für Kinder', desc: 'Gespeicherte Aufgabenpläne für Kinder', cat: 'planung', taskCat: 'planung', badge: 'Aufgaben', keywords: 'kinder aufgaben wochenplan drucken pdf' },
+    { id: 'materialabholung', icon: BookOpen, label: 'Materialabholung bei Fehltagen', desc: 'Lernstoff & Hausübungen für Eltern auf einem Blatt', cat: 'eltern', taskCat: 'schueler', badge: 'Abholung', keywords: 'krank fehltage material abholung eltern bücher seiten hausaufgaben lernstoff' },
     { id: 'stundenplan', icon: ClockIconFallback, label: 'Stundenplan', desc: 'Stammstundenplan der Klasse', cat: 'planung', taskCat: 'planung', badge: 'Stunden', keywords: 'stundenplan stunden zeiten fächer klassenraum' },
     { id: 'klassenbuch', icon: BookOpen, label: 'Klassenbuch', desc: 'Wochen- & Lehrbericht', cat: 'planung', taskCat: 'planung', badge: 'Lehrbericht', keywords: 'klassenbuch bericht woche unterricht ersatz' },
     { id: 'jahresplanung', icon: FileText, label: 'Jahresplan', desc: 'Syllabus & Kompetenzen', cat: 'planung', taskCat: 'planung', badge: 'Syllabus', keywords: 'jahresplan syllabus monate ziele kompetenzen' },
@@ -281,6 +283,17 @@ export default function PrintCenter() {
 
   const [childPlanId, setChildPlanId] = useState('');
   const [childPrintColorMode, setChildPrintColorMode] = useState<'color' | 'mono'>('color');
+  const [pickupStudentId, setPickupStudentId] = useState('');
+  const [pickupFrom, setPickupFrom] = useState('');
+  const [pickupTo, setPickupTo] = useState('');
+  const [pickupOnlyDone, setPickupOnlyDone] = useState(false);
+  const [pickupExtraNote, setPickupExtraNote] = useState('');
+  const pickupStudent = students.find(student => student.id === pickupStudentId) || students[0];
+  const latestPickupRange = latestAbsenceRange(app?.anwesenheit, pickupStudent?.id || '', formatLocalDateKey(new Date()));
+  const pickupDateFrom = pickupFrom || latestPickupRange?.from || formatLocalDateKey(new Date());
+  const pickupDateTo = pickupTo || latestPickupRange?.to || formatLocalDateKey(new Date());
+  const pickupSheet = buildMaterialPickupSheet(app, pickupStudent?.id || '', pickupDateFrom, pickupDateTo, { onlyDone: pickupOnlyDone, maxLessons: 16 });
+  const pickupCanPrint = Boolean(pickupStudent && pickupSheet.fehltage.length && !pickupSheet.gekuerzt);
   const childPlans = Object.values(app?.schuelerWochenplaene || {});
   const selectedChildPlan = childPlans.find(plan => plan.id === childPlanId)
     || childPlans.filter(plan => plan.kw === (app.currentKW || wpKW))
@@ -719,6 +732,7 @@ export default function PrintCenter() {
 
   // Trigger main print dialogue
   const handleTriggerPrint = () => {
+    if (activeTemplate === 'materialabholung' && !pickupCanPrint) return;
     setPrintModeActive(true);
     setTimeout(() => {
       try {
@@ -2245,6 +2259,39 @@ export default function PrintCenter() {
                   </label>
                   <p className="text-xs text-slate-600">Aufgaben und Gestaltung werden ausschließlich in der Erstellung des Wochenplans geändert.</p>
                 </div>
+              )}
+
+              {/* Parent pickup is a view over the existing class-local encrypted lesson and attendance data. */}
+              {activeTemplate === 'materialabholung' && (
+                <section aria-label="Materialabholung für Eltern" className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50/70 p-3">
+                  <h3 className="text-sm font-black text-slate-900">Materialabholung für Eltern</h3>
+                  <p className="text-xs text-slate-700">Kind und Fehltage wählen, Materialien und Seiten prüfen, dann ein A4-Blatt für die Abholung drucken.</p>
+                  <label className="block text-xs font-bold text-slate-800">Kind
+                    <select value={pickupStudent?.id || ''} onChange={e => { setPickupStudentId(e.target.value); setPickupFrom(''); setPickupTo(''); }} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm">
+                      {students.map(child => <option key={child.id} value={child.id}>{child.vorname} {child.nachname}</option>)}
+                    </select>
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="block text-xs font-bold text-slate-800">Fehltage von
+                      <input type="date" value={pickupDateFrom} max={pickupDateTo} onChange={e => setPickupFrom(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs" />
+                    </label>
+                    <label className="block text-xs font-bold text-slate-800">bis
+                      <input type="date" value={pickupDateTo} min={pickupDateFrom} max={formatLocalDateKey(new Date())} onChange={e => setPickupTo(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs" />
+                    </label>
+                  </div>
+                  <p className="text-xs text-slate-700">{pickupSheet.fehltage.length} erfasste Fehltage: {pickupSheet.fehltage.join(', ') || 'keine'}.</p>
+                  <label className="flex items-start gap-2 text-xs font-bold text-slate-800">
+                    <input type="checkbox" checked={pickupOnlyDone} onChange={e => setPickupOnlyDone(e.target.checked)} />
+                    Nur ausdrücklich als erledigt markierte Unterrichtsstunden
+                  </label>
+                  <label className="block text-xs font-bold text-slate-800">Ergänzung für die Eltern (optional)
+                    <textarea value={pickupExtraNote} maxLength={600} rows={3} onChange={e => setPickupExtraNote(e.target.value)} placeholder="z. B. Arbeitsblätter liegen im Kuvert"
+                      className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-xs" />
+                  </label>
+                  <p className="text-xs text-amber-950">Entschuldigte Abwesenheit bedeutet nicht automatisch Krankheit. Unbestätigte Einträge sind Planung: Bitte vor der Weitergabe prüfen. Gesundheits- und Verhaltensnotizen werden nicht übernommen.</p>
+                  {pickupSheet.gekuerzt && <p role="alert" className="text-xs font-bold text-rose-800">Mehr als 16 Einträge. Zeitraum verkürzen oder „Nur erledigt“ wählen. Drucken bleibt gesperrt, damit kein Eintrag unbemerkt fehlt.</p>}
+                  {!pickupSheet.fehltage.length && <p role="status" className="text-xs font-bold text-rose-800">Hier sind keine Fehltage erfasst. Bitte zuerst die Anwesenheit prüfen.</p>}
+                </section>
               )}
 
               {/* D. KLASSENBUCH CONTROLS */}
@@ -3856,7 +3903,7 @@ export default function PrintCenter() {
                 <button
                   type="button"
                   onClick={handleTriggerPrint}
-                  disabled={students.length === 0}
+                  disabled={students.length === 0 || (activeTemplate === 'materialabholung' && !pickupCanPrint)}
                   className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-3xs active:scale-95 disabled:opacity-50"
                 >
                   <Printer size={15} strokeWidth={2.5} />
@@ -3866,7 +3913,7 @@ export default function PrintCenter() {
                 <button
                   type="button"
                   onClick={handleTriggerPrint}
-                  disabled={students.length === 0}
+                  disabled={students.length === 0 || (activeTemplate === 'materialabholung' && !pickupCanPrint)}
                   className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 border border-slate-700"
                 >
                   <Download size={14} />
@@ -4015,7 +4062,7 @@ export default function PrintCenter() {
                     className={`kl-print-sheet bg-white font-sans text-black select-none shrink-0 single-sheet-preview ${getFontSizeClass()}`}
                   >
                     {/* 1. Dynamic Print Header */}
-                    {showMainHeader && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan' && (
+                    {showMainHeader && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan' && activeTemplate !== 'materialabholung' && (
                       <PrintHeader title={customHeaderTitle || undefined} />
                     )}
 
@@ -4083,7 +4130,7 @@ export default function PrintCenter() {
                   style={activeTemplate === 'klassenbuch' || activeTemplate === 'schueler_wochenplan'
                     ? undefined : { padding: `${printMargin}mm` }}
                 >
-                  {showMainHeader && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan'
+                  {showMainHeader && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan' && activeTemplate !== 'materialabholung'
                     && <PrintHeader title={customHeaderTitle || undefined} />}
                   {renderPreviewTemplate()}
                 </div>
@@ -5179,6 +5226,43 @@ export default function PrintCenter() {
           </div>
         );
       }
+
+      // A single parent-facing summary from this child's recorded missed hours only.
+      case 'materialabholung':
+        return (
+          <div className="space-y-3 text-slate-900 leading-snug" style={{ fontSize: '10pt' }}>
+            <div className="border-b-2 border-slate-800 pb-2">
+              <h2 className="font-black" style={{ fontSize: '17pt' }}>Materialabholung · Lernstoff nach Fehltagen</h2>
+              <p className="mt-1 font-bold">{pickupStudent ? pickupStudent.vorname + ' ' + pickupStudent.nachname : 'Kein Kind ausgewählt'}</p>
+              <p>Zeitraum: {pickupDateFrom} bis {pickupDateTo} · Erfasste Fehltage: {pickupSheet.fehltage.length}</p>
+            </div>
+            {!pickupSheet.fehltage.length
+              ? <p className="border border-amber-300 bg-amber-50 p-3">Keine erfassten Fehltage. Bitte vor dem Druck die Anwesenheit kontrollieren.</p>
+              : pickupSheet.tage.map(day => (
+                <section key={day.datum} className="border-b border-slate-200 pb-2" style={{ breakInside: 'avoid' }}>
+                  <h3 className="font-black text-slate-900 mb-1">{day.tag}, {day.datum}</h3>
+                  {day.eintraege.length ? (
+                    <table className="w-full border-collapse text-left">
+                      <thead><tr className="border-b border-slate-300">
+                        <th className="py-1 w-[22%]">Fach / Aufgabe</th><th className="py-1 w-[43%]">Buch / Material / Seiten</th><th className="py-1">Hausübung</th>
+                      </tr></thead>
+                      <tbody>{day.eintraege.map((entry, index) => (
+                        <tr key={index} className="border-b border-slate-100 align-top">
+                          <td className="py-1 pr-2 font-semibold">{entry.fach}<br/><span className="font-normal">{entry.thema}</span>
+                            {!entry.erledigt && <span className="block text-[8pt] text-slate-600">Aus Planung · bitte prüfen</span>}
+                          </td>
+                          <td className="py-1 pr-2 whitespace-pre-wrap break-words">{entry.material || '—'}</td>
+                          <td className="py-1 whitespace-pre-wrap break-words">{entry.hausuebung || '—'}</td>
+                        </tr>
+                      ))}</tbody>
+                    </table>
+                  ) : <p className="italic text-slate-500">Kein Lernstoff für diesen Fehltag hinterlegt.</p>}
+                </section>
+              ))}
+            {pickupExtraNote.trim() && <section className="border border-slate-300 p-2 whitespace-pre-wrap" style={{ breakInside: 'avoid' }}><strong>Mitgeben / Hinweis:</strong> {pickupExtraNote.trim()}</section>}
+            <p className="border-t border-slate-200 pt-2 text-[9pt]">Bitte bearbeitete Buchseiten und Hausübungen vor der Abholung prüfen. Nicht als erledigt markierte Unterrichtseinträge sind Planungsangaben.</p>
+          </div>
+        );
 
       // Child plan is the same saved encrypted document as in the generator.
       case 'schueler_wochenplan':

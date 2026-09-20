@@ -978,6 +978,34 @@
   }
 }
 
+/* Child-facing weekly plan uses its own contrast-safe, always-light reading surface.
+   Global [data-style] / cockpit dark rules must not recolor its pale surfaces or text. */
+html body .classroom-weekly-plan {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #6366f1 !important;
+  color-scheme: light;
+}
+html body .classroom-weekly-plan .weekly-plan-light-surface {
+  background-color: #eef2ff !important;
+  color: #0f172a !important;
+}
+html body .classroom-weekly-plan .weekly-plan-light-card {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+html body .classroom-weekly-plan :is(.text-slate-900, .text-slate-800, .text-slate-700, .text-slate-600, .text-indigo-950, .text-indigo-900, .text-indigo-800, .text-indigo-700, .text-amber-950, .text-emerald-900) {
+  color: #0f172a !important;
+}
+html body .classroom-weekly-plan .text-slate-600 { color: #334155 !important; }
+html body .classroom-weekly-plan .weekly-plan-dark-action {
+  background-color: #3730a3 !important;
+  color: #ffffff !important;
+}
+html body .classroom-weekly-plan .weekly-plan-dark-action :is(span, svg) {
+  color: #ffffff !important;
+}
+
 /* Strong, theme-independent contrast inside dark classroom cockpit designs. */
 .cockpit-contrast-dark .text-slate-400,
 .cockpit-contrast-dark .text-neutral-400 { color: #cbd5e1 !important; }
