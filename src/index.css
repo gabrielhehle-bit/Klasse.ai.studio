@@ -1008,7 +1008,8 @@ html body .classroom-weekly-plan .weekly-plan-dark-action :is(span, svg) {
 
 /* A calm, theme-independent canvas for the new class mascot widget. */
 html body .class-mascot-v1,
-[data-style] .class-mascot-v1 {
+[data-style] .class-mascot-v1,
+[data-style] main .class-mascot-v1.bg-white {
   background-color: #ffffff !important;
   color: #0f172a !important;
   color-scheme: light;
