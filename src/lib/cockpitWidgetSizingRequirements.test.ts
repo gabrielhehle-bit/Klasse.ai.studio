@@ -27,7 +27,7 @@ test("Cockpit-Widgets: feste große Darstellung wird im Layout gespeichert", () 
 test("Cockpit-Widgets: kleiner Inhalt bleibt überlauf-sicher, Schüler-Widgets bieten bei vielen Kindern eine große Ansicht", () => {
   assert.match(cockpitWidget, /absolute inset-0 flex flex-col overflow-auto no-scrollbar/);
   assert.match(kidAttendance, /Alle \{students\.length\} Kinder groß anzeigen/);
-  assert.match(teachingSurface, /onExpand=\{\(\) => handleUpdateWidgetPos\(widget\.id, \{ x: 2, y: 2, w: 96, h: 90 \}\)\}/);
+  // The check-in redesign now shows all pupils using explicitly paged native controls.\n  assert.match(kidAttendance, /getCheckInPageLayout\(size\.width, size\.height, students\.length, studentPage\)/);\n  assert.match(kidAttendance, /aria-label="Vorherige Schülerseite"/);\n  assert.match(kidAttendance, /aria-label="Nächste Schülerseite"/);
 });
 
 test("Ich-bin-da: Kindernamen werden nicht mit Ellipsen gekürzt", () => {
