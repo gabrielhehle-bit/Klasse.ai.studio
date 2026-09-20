@@ -905,55 +905,6 @@ export default function PrintCenter() {
       .sort((a: any, b: any) => String(b.datum || '').localeCompare(String(a.datum || '')))[0];
   };
 
-  // Theme styling definitions for high fidelity print/screen consistency
-  const getThemeVars = () => {
-    switch (printTheme) {
-      case 'slate':
-        return {
-          primaryText: 'text-slate-900',
-          accentText: 'text-slate-700',
-          primaryBg: 'bg-slate-50',
-          borderColor: 'border-slate-800',
-          borderAccentColor: 'border-slate-400',
-          accentRow: 'even:bg-slate-50/60',
-          borderClassName: 'border-slate-300'
-        };
-      case 'indigo':
-        return {
-          primaryText: 'text-indigo-950',
-          accentText: 'text-indigo-700',
-          primaryBg: 'bg-indigo-50/50',
-          borderColor: 'border-indigo-900',
-          borderAccentColor: 'border-indigo-400',
-          accentRow: 'even:bg-indigo-50/20',
-          borderClassName: 'border-indigo-200'
-        };
-      case 'emerald':
-        return {
-          primaryText: 'text-emerald-950',
-          accentText: 'text-emerald-700',
-          primaryBg: 'bg-emerald-50/50',
-          borderColor: 'border-emerald-900',
-          borderAccentColor: 'border-emerald-400',
-          accentRow: 'even:bg-emerald-50/20',
-          borderClassName: 'border-emerald-200'
-        };
-      case 'monochrome':
-      default:
-        return {
-          primaryText: 'text-black',
-          accentText: 'text-zinc-800',
-          primaryBg: 'bg-zinc-50',
-          borderColor: 'border-black',
-          borderAccentColor: 'border-zinc-500',
-          accentRow: 'even:bg-zinc-50',
-          borderClassName: 'border-zinc-400'
-        };
-    }
-  };
-
-  const activeThemeVars = getThemeVars();
-
   const getFontSizeClass = () => {
     switch (printFontSize) {
       case 'sm': return 'text-[0.625rem] leading-snug';
@@ -1171,6 +1122,60 @@ export default function PrintCenter() {
           border-color: #475569 !important; /* slate-600 */
         }
 
+
+        /* Functional print palette: shared between the A4 preview and print DOM.
+           Protect icons/photographs and preserve high contrast on tinted paper. */
+        .print-center-overlay-parent[data-print-theme="monochrome"] {
+          --kl-print-paper: #ffffff; --kl-print-accent: #111827;
+          --kl-print-soft: #f4f4f5; --kl-print-ink: #18181b;
+        }
+        .print-center-overlay-parent[data-print-theme="monochrome"] .kl-print-sheet {
+          /* Laser S/W must also desaturate colorful emojis and template artwork. */
+          filter: grayscale(1);
+        }
+        .print-center-overlay-parent[data-print-theme="slate"] {
+          --kl-print-paper: #f8fafc; --kl-print-accent: #475569;
+          --kl-print-soft: #e2e8f0; --kl-print-ink: #1e293b;
+        }
+        .print-center-overlay-parent[data-print-theme="indigo"] {
+          --kl-print-paper: #eef2ff; --kl-print-accent: #4f46e5;
+          --kl-print-soft: #c7d2fe; --kl-print-ink: #312e81;
+        }
+        .print-center-overlay-parent[data-print-theme="emerald"] {
+          --kl-print-paper: #ecfdf5; --kl-print-accent: #047857;
+          --kl-print-soft: #a7f3d0; --kl-print-ink: #064e3b;
+        }
+        .print-center-overlay-parent[data-print-theme] .kl-print-sheet {
+          background-color: var(--kl-print-paper) !important;
+          border-top: 3px solid var(--kl-print-accent) !important;
+          box-sizing: border-box;
+        }
+        .print-center-overlay-parent[data-print-theme] .kl-print-sheet table,
+        .print-center-overlay-parent[data-print-theme] .kl-print-sheet table td,
+        .print-center-overlay-parent[data-print-theme] .kl-print-sheet table th {
+          border-color: var(--kl-print-accent) !important;
+        }
+        .print-center-overlay-parent[data-print-theme] .kl-print-sheet .kl-print-tisch {
+          background-color: var(--kl-print-soft) !important;
+          border-color: var(--kl-print-accent) !important;
+          color: var(--kl-print-ink) !important;
+        }
+        .print-center-overlay-parent[data-print-theme] .kl-print-sheet .kl-print-tisch h3,
+        .print-center-overlay-parent[data-print-theme] .kl-print-sheet .kl-print-tisch h4 {
+          color: var(--kl-print-ink) !important;
+        }
+        @media print {
+          body.print-center-active .print-center-overlay-parent[data-print-theme] .print-center-overlay.kl-print-sheet {
+            background-color: var(--kl-print-paper) !important;
+            border-top: 3px solid var(--kl-print-accent) !important;
+          }
+          body.print-center-active .print-center-overlay-parent[data-print-theme] .print-center-overlay.kl-print-sheet .kl-print-tisch {
+            background-color: var(--kl-print-soft) !important;
+            color: var(--kl-print-ink) !important;
+            border-color: var(--kl-print-accent) !important;
+          }
+        }
+
         .interactive-dossier-preview.landscape .page-break {
           width: 297mm !important;
           height: 210mm !important;
@@ -1302,7 +1307,7 @@ export default function PrintCenter() {
       ` }} />
 
       {/* Screen View Cockpit Framework */}
-      <div className="print-center-overlay-parent max-w-7xl mx-auto space-y-4 pb-24 px-4 md:px-6 print:p-0" data-zoom-container={zoomLevel}>
+      <div className="print-center-overlay-parent max-w-7xl mx-auto space-y-4 pb-24 px-4 md:px-6 print:p-0" data-zoom-container={zoomLevel} data-print-theme={printTheme}>
         
         {/* Simplified Header */}
         <div className="bg-white rounded-2xl p-4 md:p-5 border border-slate-200/90 shadow-2xs relative no-print">
@@ -1737,6 +1742,10 @@ export default function PrintCenter() {
                     </button>
                   ))}
                 </div>
+                <p className="text-[0.625rem] leading-snug text-slate-600">
+                  Wirkt sofort auf die A4-Vorschau und den Browserdruck („Als PDF speichern“).
+                  Eigenständige PDF-/Word-Exporte haben eigene Druckvorlagen.
+                </p>
               </div>
 
               {/* Custom Headline Overwrite */}
@@ -3977,7 +3986,7 @@ export default function PrintCenter() {
                   }}
                   className={`interactive-dossier-preview ${printOrientation === 'landscape' ? 'landscape' : ''} shrink-0 transition-all duration-300 flex flex-col gap-6 pb-20`}
                 >
-                  {renderPreviewTemplate(true)}
+                  <div className="kl-print-sheet">{renderPreviewTemplate(true)}</div>
                 </div>
               ) : (
                 /* Single-page template rendering with scroll backup on overflow */
@@ -4002,7 +4011,7 @@ export default function PrintCenter() {
                       top: 0,
                       left: 0,
                     }}
-                    className={`bg-white font-sans text-black select-none shrink-0 single-sheet-preview ${getFontSizeClass()}`}
+                    className={`kl-print-sheet bg-white font-sans text-black select-none shrink-0 single-sheet-preview ${getFontSizeClass()}`}
                   >
                     {/* 1. Dynamic Print Header */}
                     {showMainHeader && activeTemplate !== 'klassenbuch' && activeTemplate !== 'schueler_wochenplan' && (
@@ -4025,7 +4034,7 @@ export default function PrintCenter() {
             </div>
 
             {/* --- HIDDEN RAW PRINT ELEMENT (Active when window.print() is called) --- */}
-            <div className={`print-center-overlay hidden print:block w-full bg-white`}>
+            <div className={`kl-print-sheet print-center-overlay hidden print:block w-full bg-white`}>
               {activeTemplate === 'klassenbuch' && kbMode !== 'single' ? (
                 // Multi-page batch printing for Klassenbuch
                 getKbWeeksToRender().map((kw) => (
@@ -6302,7 +6311,7 @@ export default function PrintCenter() {
                   </span>
                   
                   {/* Foldable Tent Card Visual Representation */}
-                  <div className={`w-full aspect-[297/210] border-2 border-dashed rounded-2xl p-4 flex flex-col justify-between ${themeBg}`}>
+                  <div className={`kl-print-tisch w-full aspect-[297/210] border-2 border-dashed rounded-2xl p-4 flex flex-col justify-between ${themeBg}`}>
                     {/* Back Side (Inverted Name for other students/teachers to see when looking at the desk) */}
                     <div className="text-center rotate-180 border-b border-dashed border-current/20 pb-4">
                       <span className="text-[0.5625rem] font-black uppercase tracking-widest opacity-60">Faltkante • Rückseite</span>
