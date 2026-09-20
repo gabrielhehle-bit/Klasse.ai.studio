@@ -9788,7 +9788,27 @@ ${content}
                                     }))} />
                                   <span className="min-w-0 flex-1 whitespace-normal break-words">
                                     <span className="block leading-5">Verhalten anzeigen</span>
-                                    <span className="block text-[10px] font-normal leading-4 opacity-75">Auch am Smartboard sichtbar · ohne Notizen</span>
+                                    <span className="block text-[10px] font-normal leading-4 opacity-75">Auch am Smartboard sichtbar · ohne Notizen. Ein Klick auf das Symbol geht eine Stufe weiter.</span>
+                                  </span>
+                                </label>
+
+                                <label className={`flex w-full shrink-0 cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold leading-5 ${currentIsLight ? "border-slate-200 bg-slate-50 text-slate-800" : "border-white/10 bg-white/5 text-white"}`}
+                                  title="Persönliches Profil-Emoji jedes Kindes in der Schülerliste zusätzlich anzeigen.">
+                                  <input type="checkbox" className="mt-0.5 h-5 w-5 shrink-0 accent-indigo-600"
+                                    aria-label="Persönliche Emojis der Kinder in der Schülerliste anzeigen"
+                                    checked={app.boardSettings?.showStudentEmojiInList === true}
+                                    onChange={event => setApp(prev => ({
+                                      ...prev,
+                                      boardSettings: {
+                                        ...prev.boardSettings,
+                                        showStudentEmojiInList: event.target.checked,
+                                      },
+                                    }))} />
+                                  <span className="min-w-0 flex-1 whitespace-normal break-words">
+                                    <span className="block leading-5">Kinder-Emojis anzeigen</span>
+                                    <span className="block text-[10px] font-normal leading-4 opacity-75">
+                                      Standardmäßig aus. Emoji festlegen: SchülerInnen → Schülerliste → Kind bearbeiten (Stift) → Profil-Emoji.
+                                    </span>
                                   </span>
                                 </label>
 
