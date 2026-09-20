@@ -21,7 +21,19 @@ jobs:
       - run: bun install --frozen-lockfile
       - name: TypeScript
         run: bun run lint
-      - name: Isolated random-name regression tests
+      - name: First validate already started widgets and data compatibility
+        run: |
+          bunx tsx --test \
+            src/lib/checkInWidgetModes.test.ts \
+            src/lib/checkInWidgetNoScroll.test.ts \
+            src/lib/groupsWidgetNoScroll.test.ts \
+            src/lib/cockpitCentralGroupSettings.test.ts \
+            src/lib/cockpitTodoNoScroll.test.ts \
+            src/lib/cockpitBackupCompatibility.test.ts \
+            src/lib/retiredCockpitStudentlist.test.ts \
+            src/lib/dashboardDayContext.test.ts \
+            src/lib/schoolRegistryRequirements.test.ts
+      - name: Then validate random-name widget
         run: bunx tsx --test src/lib/randomNameWidgetModel.test.ts src/lib/randomNameWidgetRequirements.test.ts
       - name: Production build
         run: bun run build
