@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Users, Sparkles, RotateCcw, Settings2, ArrowLeftRight,
   UserX, UserCheck, Check, X, AlertCircle, Plus, Trash2,
@@ -33,6 +34,8 @@ export interface GroupsWidgetProps {
   setGeneratedGroups?: (groups: any[]) => void;
   generateGroups?: (count?: number, isSize?: boolean, overrideStrategy?: string) => void;
   currentIsLight: boolean;
+  settingsInPicker?: boolean;
+  onClosePickerSettings?: () => void;
 }
 
 export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
@@ -42,7 +45,9 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
   setApp: propSetApp,
   generatedGroups: propGeneratedGroups,
   setGeneratedGroups: propSetGeneratedGroups,
-  currentIsLight
+  currentIsLight,
+  settingsInPicker = false,
+  onClosePickerSettings,
 }) => {
   const context = useApp();
   const app: AppState = propApp || context?.app;
@@ -93,7 +98,12 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
   });
 
   // UI-Zustände
-  const [showOptions, setShowOptions] = useState(false);
+  const [optionsHost, setOptionsHost] = useState<HTMLElement | null>(null);
+  // The complete existing pause/constraints/naming UI is rendered only in the
+  // centrally opened Widget hinzufügen settings panel, never inside the widget.
+  useEffect(() => {
+    setOptionsHost(settingsInPicker ? document.getElementById('cockpit-groups-settings-host') : null);
+  }, [settingsInPicker]);
   const [optionsTab, setOptionsTab] = useState<'pause' | 'constraints' | 'names'>('pause');
   const [selectedStudentForAction, setSelectedStudentForAction] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'info' | 'error' | 'success' } | null>(null);
@@ -412,24 +422,6 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
               })}
             </div>
 
-            {/* "•••" Popover Trigger */}
-            <button
-              onClick={() => setShowOptions(prev => !prev)}
-              className={`min-h-[36px] min-w-[36px] p-1.5 rounded-xl border flex items-center justify-center cursor-pointer transition-all ${
-                showOptions || hasActiveConstraints
-                  ? 'bg-indigo-600 text-white border-indigo-700'
-                  : currentIsLight
-                  ? 'bg-stone-100 hover:bg-stone-200 border-stone-200 text-stone-700'
-                  : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-300'
-              }`}
-              title="Weitere Optionen & Paar-Wünsche"
-              aria-label="Optionen"
-            >
-              <MoreHorizontal size={16} />
-              {hasActiveConstraints && !showOptions && (
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 -ml-1 -mt-2" />
-              )}
-            </button>
           </div>
 
           {/* Primary Action Button */}
@@ -529,23 +521,6 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                 <span>{groups.length === 0 ? 'Gruppen bilden' : 'Neu mischen'}</span>
               </button>
 
-              <button
-                onClick={() => setShowOptions(prev => !prev)}
-                className={`min-h-[44px] px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all cursor-pointer ${
-                  showOptions || hasActiveConstraints
-                    ? 'bg-indigo-50 border-indigo-300 text-indigo-700 dark:bg-indigo-950/50 dark:border-indigo-700 dark:text-indigo-300'
-                    : currentIsLight
-                    ? 'bg-stone-100 border-stone-200 text-stone-700 hover:bg-stone-200'
-                    : 'bg-stone-800 border-stone-700 text-stone-300 hover:bg-stone-700'
-                }`}
-                title="Optionen & Paar-Wünsche"
-              >
-                <Settings2 size={15} />
-                <span className="hidden sm:inline">Optionen</span>
-                {hasActiveConstraints && (
-                  <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -554,8 +529,8 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
       {/* ========================================================================= */}
       {/* OPTIONEN MODAL / OVERLAY (Pausieren, Paar-Wünsche, Stil)                   */}
       {/* ========================================================================= */}
-      {showOptions && (
-        <div className={`absolute inset-2 z-40 p-4 rounded-2xl border shadow-2xl flex flex-col justify-between overflow-y-auto ${
+      {optionsHost && createPortal(
+        <div className={`relative w-full min-h-0 p-4 rounded-2xl border shadow-sm flex flex-col justify-between ${
           currentIsLight ? 'bg-white/98 border-stone-200 text-stone-800' : 'bg-stone-900/98 border-stone-750 text-stone-100'
         }`}>
           <div>
@@ -564,7 +539,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                 Gruppen-Optionen
               </span>
               <button
-                onClick={() => setShowOptions(false)}
+                onClick={onClosePickerSettings}
                 className="p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 cursor-pointer"
                 aria-label="Optionen schließen"
               >
@@ -797,12 +772,13 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           </div>
 
           <button
-            onClick={() => setShowOptions(false)}
+            onClick={onClosePickerSettings}
             className="w-full py-2.5 mt-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold cursor-pointer transition-all shadow-sm"
           >
             Fertig
           </button>
-        </div>
+        </div>,
+        optionsHost,
       )}
 
       {/* ========================================================================= */}
