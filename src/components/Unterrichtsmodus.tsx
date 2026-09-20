@@ -11377,6 +11377,7 @@ ${content}
                                           getTodayPoints={getTodayPoints}
                                           addParticipation={addParticipation}
                                           removeParticipation={removeParticipation}
+                                          onExpand={() => handleUpdateWidgetPos(widget.id, { x: 2, y: 2, w: 96, h: 90 })}
                                         />
                                       );
 
