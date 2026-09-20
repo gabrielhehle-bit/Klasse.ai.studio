@@ -4994,24 +4994,9 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     }
   }, [app.boardSettings?.activeFont, app?.settings?.fontFamily]);
 
-  useEffect(() => {
-    // Only update app state if font actually changed and differs from app state
-    if (app.boardSettings && app.boardSettings.activeFont !== activeFont) {
-      const timeout = setTimeout(() => {
-        setApp((p: any) => {
-          if (p.boardSettings.activeFont === activeFont) return p;
-          return {
-            ...p,
-            boardSettings: {
-              ...p.boardSettings,
-              activeFont: activeFont,
-            },
-          };
-        });
-      }, 50);
-      return () => clearTimeout(timeout);
-    }
-  }, [activeFont, app.boardSettings, setApp]);
+  // A font change must only be persisted by an explicit teacher action.
+  // The former passive effect wrote a stale local font back over fresh board settings
+  // when changing classes, opening templates or receiving synced state.
 
   // Listen for remote sound/confetti triggers from Handy-Fernbedienung
   const startMountTimeRef = useRef<number>(Date.now());
@@ -5125,6 +5110,9 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
         ...prev.boardSettings,
         paperType: tpl.paperType,
         paperSize: tpl.paperSize,
+        // Applying a saved template is the explicit teacher action which may
+        // change the board font. Keep it in the same atomic AppState update.
+        activeFont: tpl.activeFont || prev.boardSettings?.activeFont,
       },
     }));
     if (tpl.activeFont) {
