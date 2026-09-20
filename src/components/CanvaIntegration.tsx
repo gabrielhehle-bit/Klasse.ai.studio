@@ -151,6 +151,12 @@ export default function CanvaIntegration() {
   };
 
   const createDesign = async (kind: 'a4' | 'presentation' | 'whiteboard' | 'doc') => {
+    const editor = window.open('', '_blank', 'width=1100,height=850,resizable=yes,scrollbars=yes');
+    if (!editor) {
+      showToast('Bitte Pop-ups für Klassio erlauben, um Canva zu öffnen.', 'info');
+      return;
+    }
+    editor.document.body.textContent = 'Canva-Design wird vorbereitet …';
     setActionLoading(kind);
     try {
       const titles: Record<typeof kind, string> = {
@@ -165,10 +171,16 @@ export default function CanvaIntegration() {
       });
       const design: CanvaDesign | undefined = data?.design;
       const editUrl = design?.urls?.edit_url || data?.urls?.edit_url;
-      if (editUrl) window.open(editUrl, '_blank', 'noopener,noreferrer');
+      if (!editUrl) throw new Error('Canva hat keine Bearbeitungsadresse geliefert.');
+      const target = new URL(editUrl);
+      if (target.protocol !== 'https:' || !['www.canva.com', 'canva.com'].includes(target.hostname)) {
+        throw new Error('Canva hat eine unerwartete Bearbeitungsadresse geliefert.');
+      }
+      editor.location.replace(target.toString());
       await loadDesigns(query);
       showToast('Canva-Design wurde erstellt.', 'success');
     } catch (error: any) {
+      editor.close();
       showToast(error?.message || 'Design konnte nicht erstellt werden.', 'error');
     } finally {
       setActionLoading(null);
@@ -176,6 +188,12 @@ export default function CanvaIntegration() {
   };
 
   const exportDesign = async (design: CanvaDesign, format: 'pdf' | 'png' | 'jpg' | 'pptx') => {
+    const download = window.open('', '_blank', 'width=640,height=480,resizable=yes');
+    if (!download) {
+      showToast('Bitte Pop-ups für Klassio erlauben, um den Canva-Export zu öffnen.', 'info');
+      return;
+    }
+    download.document.body.textContent = 'Canva bereitet den Download vor …';
     const key = `export-${design.id}-${format}`;
     setActionLoading(key);
     try {
@@ -192,13 +210,18 @@ export default function CanvaIntegration() {
         const state = job?.job?.status || job?.status;
         const urls = job?.job?.urls || job?.urls;
         if (state === 'success' && Array.isArray(urls) && urls[0]) {
-          window.open(urls[0], '_blank', 'noopener,noreferrer');
+          const target = new URL(urls[0]);
+          if (target.protocol !== 'https:' || target.hostname !== 'export-download.canva.com') {
+            throw new Error('Canva hat eine unerwartete Exportadresse geliefert.');
+          }
+          download.location.replace(target.toString());
           return;
         }
         if (state === 'failed') throw new Error(job?.job?.error?.message || 'Canva-Export fehlgeschlagen.');
       }
       throw new Error('Der Canva-Export dauert länger als erwartet. Bitte später erneut versuchen.');
     } catch (error: any) {
+      download.close();
       showToast(error?.message || 'Canva-Export fehlgeschlagen.', 'error');
     } finally {
       setActionLoading(null);
