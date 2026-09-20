@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/klassio-latest-release-candidate-20260920
       - feature/cockpit-overhaul-safe-foundation
       - feature/usability-widgets-tools-notes
       - fix/pre-deployment-blockers
