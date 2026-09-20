@@ -282,43 +282,47 @@ async function createClassInUi(client, className) {
 
 async function verifyRandomPickerInRealBrowser(client) {
   await clickButton(client, 'Widget hinzufügen');
-  await waitFor(client, 'real widget picker opened',
-    'Boolean(document.querySelector("input[aria-label=\\\"Widget suchen\\\"]"))');
-  // The core-card header only expands its group. Select the actual nested widget entry.\n  await clickButton(client, '🎯 Zufallsauswahl', true);\n  await waitFor(client, 'empty class: random picker is disabled with clear explanation',
-    '(() => {const button=document.querySelector("button[aria-label=\\\"Zufälliges Kind ziehen\\\"]");return !!button&&button.disabled&&button.textContent.includes("noch keine Kinder angelegt")&&!button.textContent.includes("Max M.");})()');
-  const noConflictingGlobalKeyboardListener = await evaluate(client,
-    'document.querySelectorAll("button[aria-label=\\\"Ton umschalten\\\"],button[aria-label=\\\"Ton einschalten\\\"],button[aria-label=\\\"Ton ausschalten\\\"]").length===0');
-  if (!noConflictingGlobalKeyboardListener) throw new Error('Random picker still has a local sound setting.');
-
-  await clickButton(client, 'Kinder wählen');
-  await waitFor(client, 'pupil selector shows a real empty class and complete pages',
-    '(() => {const dialog=document.querySelector("section[role=dialog][aria-label=\\\"Kinder für die Zufallsauswahl auswählen\\\"]");return !!dialog&&dialog.textContent.includes("Keine anwesenden Kinder")&&dialog.textContent.includes("Seite 1 von 1");})()');
+  await waitFor(client, 'widget catalogue open',
+    String.raw`Boolean(document.querySelector('input[aria-label="Widget suchen"]'))`);
+  await setInputByLabel(client, 'Widget suchen', 'Zufallsauswahl');
+  await waitFor(client, 'random widget catalogue entry',
+    String.raw`Array.from(document.querySelectorAll('button')).some(b=>b.textContent.trim()==='🎯 Zufallsauswahl'&&!b.disabled)`);
+  await clickButton(client, '🎯 Zufallsauswahl', true);
+  await waitFor(client, 'empty class: random picker disabled and without demo pupils',
+    String.raw`(() => {const button=document.querySelector('button[aria-label="Zufälliges Kind ziehen"]');return !!button && button.disabled && button.textContent.includes('noch keine Kinder angelegt') && !button.textContent.includes('Max M.');})()`);
+  const noLocalSoundSetting = await evaluate(client,
+    String.raw`!Array.from(document.querySelectorAll('button')).some(b=>/Ton (?:ein|aus|um)schalten/.test(b.getAttribute('aria-label')||''))`);
+  if (!noLocalSoundSetting) throw new Error('Random picker has redundant in-widget sound settings.');
+  const opened = await evaluate(client,
+    String.raw`(() => {const button=document.querySelector('button[aria-label="Kinder für diese Unterrichtsphase auswählen"]');if(!button)return false;button.click();return true;})()`);
+  if (!opened) throw new Error('Could not open real random-name lesson selection.');
+  await waitFor(client, 'real empty class selector and page count',
+    String.raw`(() => {const d=document.querySelector('section[role="dialog"][aria-label="Kinder für die Zufallsauswahl auswählen"]');return !!d && d.textContent.includes('Keine anwesenden Kinder') && d.textContent.includes('Seite 1 von 1');})()`);
   for (const [width, height] of [[1440, 1100], [1024, 768], [640, 720]]) {
-    await client.send('Emulation.setDeviceMetricsOverride', {width, height, deviceScaleFactor: 1, mobile: false});
-    await sleep(180);
+    await client.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
+    await sleep(200);
     const measured = await evaluate(client,
-      '(() => {const d=document.querySelector("section[role=dialog][aria-label=\\\"Kinder für die Zufallsauswahl auswählen\\\"]");if(!d)return {error:"missing dialog"};const r=d.getBoundingClientRect();const controls=[...d.querySelectorAll("button")].filter(b=>!b.disabled).map(b=>{const t=b.getBoundingClientRect();return {w:t.width,h:t.height};});return {width:innerWidth,height:innerHeight,left:r.left,right:r.right,top:r.top,bottom:r.bottom,controls};})()');
-    if (measured.error||measured.left < -1||measured.top < -1||measured.right > width+1||measured.bottom > height+1||measured.controls.some(x=>x.w<43||x.h<43)) {
-      throw new Error('Picker modal clips or has undersized touch targets at '+width+'x'+height+': '+JSON.stringify(measured));
+      String.raw`(() => {const d=document.querySelector('section[role="dialog"][aria-label="Kinder für die Zufallsauswahl auswählen"]');if(!d)return {error:'missing dialog'};const r=d.getBoundingClientRect();const controls=[...d.querySelectorAll('button')].filter(b=>!b.disabled).map(b=>{const t=b.getBoundingClientRect();return {w:t.width,h:t.height};});return {width:innerWidth,height:innerHeight,left:r.left,right:r.right,top:r.top,bottom:r.bottom,controls};})()`);
+    if (measured.error || measured.left < -1 || measured.top < -1 || measured.right > width + 1 || measured.bottom > height + 1 || measured.controls.some(x => x.w < 43 || x.h < 43)) {
+      throw new Error('Random-name modal clipped or touch target too small at ' + width + 'x' + height + ': ' + JSON.stringify(measured));
     }
-    console.log('✓ Random-name picker fits '+width+'x'+height+' with accessible controls');
+    console.log('✓ Random-name selector fits ' + width + 'x' + height);
   }
-  await client.send('Emulation.setDeviceMetricsOverride',
-    {width:1440,height:1100,deviceScaleFactor:1,mobile:false});
+  await client.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
   await clickButton(client, 'Fertig', true);
   await clickButton(client, 'Widget hinzufügen');
   await clickButton(client, 'Widget-Einstellungen');
   const chosen = await evaluate(client,
-    '(() => {const select=document.querySelector("select[aria-label=\\\"Widget für Einstellungen\\\"]");if(!select)return false;select.value="randomname";select.dispatchEvent(new Event("change",{bubbles:true}));return true;})()');
-  if (!chosen) throw new Error('Central widget settings selector is unavailable.');
-  await waitFor(client, 'random-name settings are central, not inside the widget',
-    'document.body?.innerText.includes("Zufälliges Kind · Ton")&&Array.from(document.querySelectorAll("label")).some(l=>l.textContent.includes("Ton bei der Ziehung abspielen"))');
+    String.raw`(() => {const select=document.querySelector('select[aria-label="Widget für Einstellungen"]');if(!select)return false;select.value='randomname';select.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);
+  if (!chosen) throw new Error('Random-name missing from central settings selector.');
+  await waitFor(client, 'central random-name sound settings',
+    String.raw`document.body.innerText.includes('Zufälliges Kind · Ton') && Array.from(document.querySelectorAll('label')).some(l=>l.textContent.includes('Ton bei der Ziehung abspielen'))`);
   const saved = await evaluate(client,
-    '(() => {const label=[...document.querySelectorAll("label")].find(l=>l.textContent.includes("Ton bei der Ziehung abspielen"));const input=label?.querySelector("input[type=checkbox]");if(!input||!input.checked)return false;input.click();return !input.checked;})()');
-  if (!saved) throw new Error('Could not disable random-name sound in central settings.');
+    String.raw`(() => {const label=[...document.querySelectorAll('label')].find(l=>l.textContent.includes('Ton bei der Ziehung abspielen'));const input=label?.querySelector('input[type="checkbox"]');if(!input||!input.checked)return false;input.click();return !input.checked;})()`);
+  if (!saved) throw new Error('Could not disable sound in central settings.');
   await clickButton(client, 'Auswahl schließen');
   await saveScreenshot(client, SCREENSHOT_RANDOM);
-  console.log('✓ Real browser: no fake pupils, central sound setting and paginated touch-friendly selection');
+  console.log('✓ Real Chrome: empty roster, classroom modal, viewport and central sound settings');
 }
 
 async function verifyDirectCockpitNavigation(client) {
