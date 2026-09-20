@@ -15,6 +15,8 @@ test('Canva HTTP sessions survive a fresh app instance and are inaccessible to a
     SESSION_SECRET: process.env.SESSION_SECRET,
     CANVA_CLIENT_ID: process.env.CANVA_CLIENT_ID,
     CANVA_CLIENT_SECRET: process.env.CANVA_CLIENT_SECRET,
+    LEHRERAPP_ACCESS_TEAM: process.env.LEHRERAPP_ACCESS_TEAM,
+    NODE_ENV: process.env.NODE_ENV,
   };
   t.after(() => {
     for (const [name, value] of Object.entries(previous)) {
@@ -22,6 +24,8 @@ test('Canva HTTP sessions survive a fresh app instance and are inaccessible to a
     }
   });
   process.env.IS_TEST_RUNNER = 'true';
+  process.env.NODE_ENV = 'test';
+  process.env.LEHRERAPP_ACCESS_TEAM = 'synthetic-canva-team-code';
   process.env.KLASSIO_DATA_DIR = dir;
   const secret = 'synthetic-canva-http-session-secret-over-32-characters';
   process.env.SESSION_SECRET = secret;
@@ -45,7 +49,12 @@ test('Canva HTTP sessions survive a fresh app instance and are inaccessible to a
 
   const { createApp } = await import('../../server.ts');
   const servers: http.Server[] = [];
-  t.after(() => { for (const server of servers) server.closeAllConnections(); });
+  t.after(async () => {
+    await Promise.all(servers.map(async server => {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }));
+  });
   const start = async () => {
     const app = await createApp({ isTest: true });
     const server = http.createServer(app);
@@ -56,7 +65,7 @@ test('Canva HTTP sessions survive a fresh app instance and are inaccessible to a
     const base = `http://127.0.0.1:${address.port}`;
     const gate = await fetch(base + '/api/access/verify', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: process.env.LEHRERAPP_ACCESS_TEAM || 'team2026' }),
+      body: JSON.stringify({ code: process.env.LEHRERAPP_ACCESS_TEAM }),
     });
     assert.equal(gate.status, 200);
     const access = gate.headers.get('set-cookie')!.split(';')[0];
@@ -77,7 +86,8 @@ test('Canva HTTP sessions survive a fresh app instance and are inaccessible to a
   const afterRestart = await request(restarted, emailA, '/api/canva/status');
   assert.equal(afterRestart.status, 200);
   assert.equal((await afterRestart.json()).connected, true);
-  assert.equal((await request(restarted, emailB, '/api/canva/status')).json().then(x => x.connected), false);
+  const otherStatus = await request(restarted, emailB, '/api/canva/status');
+  assert.equal((await otherStatus.json()).connected, false);
   const wrongUser = await request(restarted, emailB, '/api/canva/designs');
   assert.equal(wrongUser.status, 401);
   const missingAccess = await fetch(restarted.base + '/api/canva/designs', {
