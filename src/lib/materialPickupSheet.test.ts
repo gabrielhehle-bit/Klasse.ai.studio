@@ -5,6 +5,7 @@ import { buildMaterialPickupSheet, latestAbsenceRange, pupilAbsentDates } from '
 
 const sample = {
   schuljahr: '2026/27',
+  materialien: [{ id: 'blatt1', titel: 'Lese-Arbeitsblatt 1' }],
   anwesenheit: {
     kindA: {
       '2026-09-17': { 1: 'e', 2: 'e' },
@@ -17,7 +18,7 @@ const sample = {
   wochenplanung: {
     38: {
       Donnerstag: {
-        0: { fach: 'Deutsch', thema: 'Lesen', material: 'Lesebuch S. 4–6', housework: 'Arbeitsheft S. 7', erledigt: true },
+        0: { fach: 'Deutsch', thema: 'Lesen', material: 'Lesebuch S. 4–6', materialIds: ['blatt1'], housework: 'Arbeitsheft S. 7', erledigt: true },
         1: { fach: 'Mathematik', thema: 'Zahlen', material: 'Mathebuch S. 12', housework: 'S. 13', erledigt: false },
       },
       Freitag: {
@@ -43,7 +44,7 @@ test('Materialabholung: ausschließlich erfasste Fehltage und Unterrichtsstunden
   const original = JSON.stringify(sample);
   const result = buildMaterialPickupSheet(sample as any, 'kindA', '2026-09-17', '2026-09-22');
   assert.deepEqual(result.fehltage, ['2026-09-17', '2026-09-18', '2026-09-21']);
-  assert.equal(result.tage[0].eintraege[0].material, 'Lesebuch S. 4–6');
+  assert.equal(result.tage[0].eintraege[0].material, 'Lesebuch S. 4–6 · Lese-Arbeitsblatt 1');
   assert.equal(result.tage[0].eintraege[0].hausuebung, 'Arbeitsheft S. 7');
   assert.equal(result.tage[1].eintraege.some(entry => entry.thema === 'Im Unterricht besucht'), false, 'partial-day attendance must filter attended hours');
   assert.equal(result.tage[0].eintraege.some(entry => entry.thema === 'Zusatz-Lesebuch'), true);
