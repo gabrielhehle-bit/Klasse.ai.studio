@@ -139,7 +139,6 @@ import { SortableWidget } from "./SortableWidget";
 import { getDailyInsight, DailyInsight, askAI } from "../services/aiService";
 import { LEHRPLAN_VS_2023 } from "../lehrplan";
 import { memo } from "react";
-import ClassPetWidget from "./ClassPetWidget";
 import DashboardKlassenglasWidget from "./DashboardKlassenglasWidget";
 import FlowerPuzzleWidget from "./FlowerPuzzleWidget";
 import { DashboardInteractionWidget } from "./DashboardInteractionWidget";
@@ -147,7 +146,6 @@ import DashboardTodayOverview, { DashboardDayMode } from "./DashboardTodayOvervi
 import { useLehrerzimmerUnread } from "../hooks/useLehrerzimmerUnread";
 
 // Memoized widgets
-const MemoizedClassPetWidget = memo(ClassPetWidget);
 const MemoizedDashboardKlassenglasWidget = memo(DashboardKlassenglasWidget);
 const MemoizedFlowerPuzzleWidget = memo(FlowerPuzzleWidget);
 import { useToast } from "../context/ToastContext";
@@ -1781,7 +1779,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
         if (parsed.showZone2 === undefined) parsed.showZone2 = true;
         if (parsed.showZone3 === undefined) parsed.showZone3 = true;
         if (parsed.showZone4 === undefined) parsed.showZone4 = true;
-        if (parsed.showClassPet === undefined) parsed.showClassPet = true;
+        // Legacy showClassPet is ignored; the dashboard no longer renders a pet launcher.
         if (parsed.showKlassenglas === undefined) parsed.showKlassenglas = true;
         if (parsed.showFlowerPuzzle === undefined) parsed.showFlowerPuzzle = true;
         if (parsed.moveWeekendBirthdays === undefined)
@@ -1805,7 +1803,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
       showZone2: true,
       showZone3: false,
       showZone4: false,
-      showClassPet: false,
       showKlassenglas: true,
       showFlowerPuzzle: false,
       moveWeekendBirthdays: "none",
@@ -7035,13 +7032,8 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                                 </div>
                               </div>
 
-                              {/* ZEILE 2: Haustier & Klassenglas */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
-                                {/* CLASS PET (KLASSEN-HAUSTIER) WIDGET */}
-                                <div className="h-full">
-                                  <MemoizedClassPetWidget />
-                                </div>
-
+                              {/* Dashboard remains focused: no pet command cards or floating pet launcher. */}
+                              <div className="grid grid-cols-1 gap-6 items-stretch">
                                 {/* KLASSENGLAS WIDGET */}
                                 <div className="h-full">
                                   {dashboardSettings.showKlassenglas && (
@@ -8075,7 +8067,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                       <div className="flex items-center justify-between p-3 bg-neutral-950 rounded-xl border border-neutral-850">
                         <div>
                           <span className="text-[0.75rem] font-bold text-neutral-200 block">Zone 3: Belohnung & Motivation</span>
-                          <span className="text-[0.625rem] text-neutral-400 block">Interaktives Haustier, Klassenglas & Schülerinteraktionen</span>
+                          <span className="text-[0.625rem] text-neutral-400 block">Klassenglas & Schülerinteraktionen</span>
                         </div>
                         <button
                           type="button"
@@ -8123,24 +8115,6 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                   <div className="p-5 bg-neutral-900/40 rounded-2xl border border-neutral-800 space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       
-                      {/* Class Pet */}
-                      <div className="flex items-center justify-between p-2.5 bg-neutral-950 rounded-xl border border-neutral-850/60">
-                        <div>
-                          <span className="text-[0.71875rem] font-bold text-neutral-200 block">🦕 Klassen-Haustier</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDashboardSettings((prev: any) => ({ ...prev, showClassPet: !prev.showClassPet }))}
-                          className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            dashboardSettings.showClassPet ? "bg-emerald-500" : "bg-neutral-800"
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            dashboardSettings.showClassPet ? "translate-x-3.5" : "translate-x-0"
-                          }`} />
-                        </button>
-                      </div>
-
                       {/* Klassenglas */}
                       <div className="flex items-center justify-between p-2.5 bg-neutral-950 rounded-xl border border-neutral-850/60">
                         <div>
