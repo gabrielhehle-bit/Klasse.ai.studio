@@ -1672,6 +1672,8 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     visible: false,
   },
   {
+    // Legacy floating studentlist remains in the schema to read old backups.
+    // Its rendering and creation are retired; the student sidebar is unchanged.
     id: "widget-studentlist",
     type: "studentlist",
     x: 48,
@@ -2744,7 +2746,7 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
           y,
           w: wWidth,
           h: hHeight,
-          visible: !!w.visible,
+          visible: w.type === "studentlist" ? false : !!w.visible,
           hasBeenOpened: !!w.hasBeenOpened,
           settings: w.settings || {},
         } as CockpitWidgetConfig;
@@ -3672,6 +3674,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const handleOpenWidgetInCockpitLayout = (
     type: CockpitWidgetConfig["type"],
   ) => {
+    // Only the sidebar may provide public plus points now.
+    if (type === "studentlist") return;
     setRecentWidgetTypes((previous) => {
       const updatedRecent = [String(type), ...previous.filter((entry) => entry !== type)].slice(0, 5);
       localStorage.setItem("cockpit_recent_widget_types", JSON.stringify(updatedRecent));
@@ -8473,7 +8477,6 @@ ${content}
                                         type: "piano",
                                         category: "mindfulness",
                                       },
-                                      { type: "studentlist", category: "interactivity" },
                                       { type: "scrambler", category: "deutsch" },
                                       { type: "fractions", category: "mathe" },
                                       { type: "sorting", category: "mathe" },
@@ -9084,7 +9087,6 @@ ${content}
                                         desc: "Spiele Töne und lerne Melodien nach Gehör",
                                         category: "mindfulness",
                                       },
-                                      { type: "studentlist", label: "⭐ Schülerliste", desc: "Schülerinnen und Schüler direkt auf der Unterrichtsfläche anzeigen", category: "interactivity" },
                                       { type: "scrambler", label: "✍️ Wort- & Satzwerkstatt", desc: "Wörter und Sätze spielerisch ordnen und untersuchen", category: "deutsch" },
                                       { type: "fractions", label: "◐ Bruch-Visualisierer", desc: "Brüche anschaulich darstellen", category: "mathe" },
                                       { type: "sorting", label: "🔢 Zahlensortierer", desc: "Zahlen vergleichen und sortieren", category: "mathe" },
@@ -9156,7 +9158,7 @@ ${content}
                                       return (
                                         <>
                                           <p className="col-span-full text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                            20 übersichtliche Einstiege. Wähle bei Bedarf eine Variante; deine bisherigen Widgets und gespeicherten Layouts bleiben unter „Weitere Widgets“ erhalten.
+                                            19 übersichtliche Einstiege. Pluspunkte findest du weiterhin rechts in der Schülerliste. Alte Layouts bleiben beim Import lesbar.
                                           </p>
                                           {PLANNED_COCKPIT_WIDGETS.map((group) => {
                                             const variants = group.sources
@@ -10100,7 +10102,7 @@ ${content}
 
                         {/* Render active cockpit widgets */}
                         {cockpitWidgets
-                          .filter((w) => w.visible)
+                          .filter((w) => w.visible && w.type !== "studentlist")
                           .map((widget) => {
                             const zIn = 10 + focusOrder.indexOf(widget.id);
                             const isFocused =
@@ -11369,18 +11371,6 @@ ${content}
                                           }
                                         />
                                       );
-
-                                    case "studentlist":
-                                      return (
-                                        <StudentListWidgetContent
-                                          app={app}
-                                          getTodayPoints={getTodayPoints}
-                                          addParticipation={addParticipation}
-                                          removeParticipation={removeParticipation}
-                                          onExpand={() => handleUpdateWidgetPos(widget.id, { x: 2, y: 2, w: 96, h: 90 })}
-                                        />
-                                      );
-
                                     case "kidattendance":
                                       return (
                                         <KidAttendanceWidgetContent
