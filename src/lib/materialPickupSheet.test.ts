@@ -81,4 +81,7 @@ test('Druckzentrum enthält Auswahl, A4-Vorschau, Drucksperre und keine automati
   const dashboard = readFileSync('src/components/Dashboard.tsx', 'utf8');
   assert.match(dashboard, /id: \`materialabholung_\$\{s\.id\}_/);
   assert.match(dashboard, /onClick=\{\(\) => setPage\("drucken"\)\}/);
+  const picker = readFileSync('src/components/UnterrichtsmodusThemePicker.tsx', 'utf8');
+  assert.match(picker, /Schriftart im Lehrercockpit/);
+  assert.match(picker, /boardSettings: \{ \.\.\.\(prev\.boardSettings \|\| \{\}\), activeFont: chosenFont \}/);
 });
