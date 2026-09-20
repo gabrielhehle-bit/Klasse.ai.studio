@@ -2715,6 +2715,13 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
             ? Math.max(10, Math.min(100, w.h))
             : 20;
 
+        // Existing installations saved the previous tiny pet widget at 26 x 38.
+        // Expand that exact legacy default for the new readable maskottchen UI.
+        if (w.type === "pet" && wWidth === 26 && hHeight === 38) {
+          wWidth = 44;
+          hHeight = 66;
+        }
+
         if (
           (w.type === "randomname" || w.type === "wheel") &&
           wWidth === 50 &&
