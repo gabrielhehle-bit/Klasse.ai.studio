@@ -35,5 +35,8 @@ test('20 primary widget entries expose legacy widget variants without deleting o
   // board; restoring old app versions must not erase saved ink strokes.
   assert.match(source, /<BoardInk/);
   assert.match(source, /cockpitInkByClass/);
-  assert.match(source, /aria-label="Unterrichtsfläche: Auswählen, Zeichnen und Text"/);
+  assert.match(source, /aria-label="Unterrichtsfläche: Text und Papier"/);
+  assert.match(source, /cockpitPaperSpacingByClass/);
+  assert.match(source, /setCockpitPaperSpacing\(Number\(event\.target\.value\)\)/);
+  assert.doesNotMatch(source, /setBoardTool\('pen'\)|setBoardTool\('erase'\)/);
 });
