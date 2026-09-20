@@ -118,7 +118,7 @@ export function buildKlassenbuchPdfDefinition(options: KlassenbuchPdfOptions): T
         : [
             { text: row.label, bold: Boolean(row.label), fontSize: rowFontSize,
               color: '#0f172a', fillColor: '#f8fafc' },
-            { text: row.lines.length ? row.lines.join('\\n') : '—',
+            { text: row.lines.length ? row.lines.join('\n') : '—',
               fontSize: rowFontSize, color: row.lines.length ? '#0f172a' : '#cbd5e1',
               italics: row.lines.length === 0, lineHeight: bodyLineHeight },
           ])
