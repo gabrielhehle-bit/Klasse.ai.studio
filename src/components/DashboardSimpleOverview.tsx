@@ -46,6 +46,15 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
 
   return (
     <section aria-label="Heute" className="space-y-5 text-slate-900">
+      {p.freeDayGreeting && (
+        <section role="status" aria-label="Wochenende, Ferien oder Feiertag"
+          className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-5 sm:p-7">
+          <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Eine kleine Auszeit</p>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">{p.freeDayGreeting.title}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-700">{p.freeDayGreeting.message}</p>
+          <p className="mt-3 text-xs text-slate-500">Deine Termine und offenen Aufgaben bleiben unten im Blick.</p>
+        </section>
+      )}
       <header className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7">
         <div className="flex flex-wrap items-start gap-4">
           <div>
