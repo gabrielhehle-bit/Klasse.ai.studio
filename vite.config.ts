@@ -22,6 +22,11 @@ export default defineConfig(({mode}) => {
           globPatterns: ['**/*.{js,mjs,css,html,ico,png,svg,woff2}'],
           // index.html immer frisch vom Netz, damit Updates ankommen:
           navigateFallback: '/index.html',
+          // OAuth callbacks are document navigations. Never serve the offline SPA
+          // shell for /api/canva/callback: Canva must reach the server to finish
+          // the code exchange and send the success/error message to the popup.
+          // This also keeps all other API navigation endpoints network-only.
+          navigateFallbackDenylist: [/^\/api\//],
           runtimeCaching: [
             {
               // API-Aufrufe NIEMALS cachen:
