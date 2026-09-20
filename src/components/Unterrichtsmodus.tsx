@@ -4201,6 +4201,9 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [petIsWakingUp, setPetIsWakingUp] = useState<boolean>(false);
   const [isDeactivatingPet, setIsDeactivatingPet] = useState<boolean>(false);
   const [actualShowPet, setActualShowPet] = useState<boolean>(() => classPetEnabled);
+  // The roaming/persistent pet launcher and its command menus were removed from the cockpit UI.
+  // The class-pet data and regular dashboard/widget feature remain available.
+  const showFloatingClassPetUi = false;
 
   useEffect(() => {
     const shouldBeActive = classPetEnabled;
@@ -14691,7 +14694,7 @@ ${content}
 
       {/* Floating Class Pet in Unterrichtsmodus (free-roaming directly in the foreground, across the entire screen including Schülerliste) */}
       <AnimatePresence mode="wait">
-        {actualShowPet &&
+        {showFloatingClassPetUi && actualShowPet &&
           (() => {
             const petState = app.classPet || {
               enabled: true,
@@ -15531,7 +15534,7 @@ ${content}
 
       {/* Centered Accessory Deck Modal Backdrop */}
       <AnimatePresence>
-        {petAccessoryOverlayOpen && (
+        {showFloatingClassPetUi && petAccessoryOverlayOpen && (
           <div className="fixed inset-0 bg-black/45 backdrop-blur-md z-[2000] flex items-center justify-center p-4 pointer-events-auto">
             <motion.div
               drag
