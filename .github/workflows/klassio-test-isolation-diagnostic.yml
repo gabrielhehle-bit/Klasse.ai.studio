@@ -1,0 +1,53 @@
+name: KLASSIO Test Isolation (diagnostic)
+
+on:
+  push:
+    branches:
+      - feature/randomname-central-settings-no-fake-20260920
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolate-test-files:
+    name: Isolate test shard ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 19
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Run every test file separately with explicit 40-second timeout
+        shell: bash
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -uo pipefail
+          mapfile -t files < <(find src/lib -maxdepth 1 -type f -name '*.test.ts' | sort)
+          failed=0
+          attempted=0
+          for index in "${!files[@]}"; do
+            if (( index % 4 != SHARD )); then continue; fi
+            file="${files[index]}"
+            echo "::group::${file}"
+            echo "START ${file}"
+            attempted=$((attempted+1))
+            if timeout --kill-after=5s 40s bunx tsx --test "${file}" >/tmp/klassio-test-isolation.log 2>&1; then
+              echo "PASS ${file}"
+            else
+              code=$?
+              echo "::error file=${file}::Isolated test failed or timed out (exit ${code})"
+              tail -n 95 /tmp/klassio-test-isolation.log
+              failed=$((failed+1))
+            fi
+            echo "::endgroup::"
+          done
+          echo "Shard ${SHARD}: checked ${attempted} test files; failures ${failed}"
+          test "${failed}" -eq 0
