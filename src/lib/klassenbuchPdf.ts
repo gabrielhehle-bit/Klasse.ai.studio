@@ -2,6 +2,7 @@ import pdfMakeLib from 'pdfmake/build/pdfmake';
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import type { TDocumentDefinitions } from 'pdfmake/interfaces';
 import { splitKlassenbuchCategoryKey } from './klassenbuchSubjects';
+import { buildKlassenbuchPrintRows, type KlassenbuchPrintLayout, type KlassenbuchPrintDetail } from './classbookPrintLayout';
 
 const pdfMake = pdfMakeLib as any;
 pdfMake.vfs = (pdfFonts as any)?.pdfMake?.vfs || (pdfFonts as any)?.vfs;
@@ -23,6 +24,9 @@ export type KlassenbuchPdfOptions = {
   includeAbsentees?: boolean;
   includeOccurrences?: boolean;
   signatures?: string[];
+  layout?: KlassenbuchPrintLayout;
+  showEmptyRows?: boolean;
+  detail?: KlassenbuchPrintDetail;
 };
 
 const textOrDash = (entries: string[] | undefined) => {
@@ -44,7 +48,11 @@ export function buildKlassenbuchPdfDefinition(options: KlassenbuchPdfOptions): T
     // The caller filters optional calendar events. The "Besondere
     // Vorkommnisse" category may also contain actual lessons whose subject
     // has not yet been configured, so it must never be removed wholesale.
-    const categories = Object.entries(week.categories);
+    const categories = Object.entries(week.categories)
+      .filter(([, entries]) => options.showEmptyRows !== false || entries.length > 0);
+    const groupedRows = options.layout === 'fachbereiche'
+      ? buildKlassenbuchPrintRows(week.categories, { showEmptyRows: options.showEmptyRows, detail: options.detail })
+      : [];
 
     const totalCharacters = categories.reduce(
       (sum, [category, entries]) =>
@@ -60,16 +68,18 @@ export function buildKlassenbuchPdfDefinition(options: KlassenbuchPdfOptions): T
     // further A4 page instead of clipping text or failing on an unbreakable table.
     const longestEntry = Math.max(0, ...categories.flatMap(([, entries]) =>
       entries.map(value => String(value || '').length)));
-    const fitsOnePage = totalCharacters <= 3800 && longestEntry <= 950 && categories.length <= 28;
-    const dense = categories.length >= 15 || totalCharacters > 1800;
-    const veryDense = categories.length >= 19 || totalCharacters > 3000;
+    const fitsOnePage = totalCharacters <= 3800 && longestEntry <= 950
+      && (options.layout === 'fachbereiche' ? groupedRows.length : categories.length) <= 28;
+    const renderedRowCount = options.layout === 'fachbereiche' ? groupedRows.length : categories.length;
+    const dense = renderedRowCount >= 15 || totalCharacters > 1800;
+    const veryDense = renderedRowCount >= 19 || totalCharacters > 3000;
     const rowFontSize = veryDense ? 5.7 : dense ? 6.4 : 7.1;
     const subareaFontSize = veryDense ? 5.1 : dense ? 5.8 : 6.4;
     const rowPadding = veryDense ? 1.6 : dense ? 2.3 : 3.1;
     const bodyLineHeight = veryDense ? 1.05 : dense ? 1.08 : 1.14;
     const sectionMargin = veryDense ? 5 : dense ? 7 : 9;
 
-    const rows = categories.map(([category, entries]) => {
+    const standardRows = categories.map(([category, entries]) => {
       const parsed = splitKlassenbuchCategoryKey(category);
       const categoryCell = parsed.subarea
         ? {
@@ -98,6 +108,21 @@ export function buildKlassenbuchPdfDefinition(options: KlassenbuchPdfOptions): T
         },
       ];
     });
+
+    const rows = options.layout === 'fachbereiche'
+      ? groupedRows.map(row => row.kind === 'heading'
+        ? [
+            { text: row.label, bold: true, fontSize: rowFontSize + 0.7, fillColor: '#e2e8f0', color: '#0f172a' },
+            { text: '', fillColor: '#e2e8f0' },
+          ]
+        : [
+            { text: row.label, bold: Boolean(row.label), fontSize: rowFontSize,
+              color: '#0f172a', fillColor: '#f8fafc' },
+            { text: row.lines.length ? row.lines.join('\\n') : '—',
+              fontSize: rowFontSize, color: row.lines.length ? '#0f172a' : '#cbd5e1',
+              italics: row.lines.length === 0, lineHeight: bodyLineHeight },
+          ])
+      : standardRows;
 
     const weekBlock: any = {
       unbreakable: fitsOnePage,
@@ -138,8 +163,8 @@ export function buildKlassenbuchPdfDefinition(options: KlassenbuchPdfOptions): T
             widths: [118, '*'],
             body: [
               [
-                { text: 'Fach / Unterbereich', fontSize: 6.8, bold: true, color: '#ffffff', fillColor: '#0f172a' },
-                { text: 'Dokumentierter Unterricht / Inhalt', fontSize: 6.8, bold: true, color: '#ffffff', fillColor: '#0f172a' },
+                { text: options.layout === 'fachbereiche' ? 'Fach / Bereich' : 'Fach / Unterbereich', fontSize: 6.8, bold: true, color: '#ffffff', fillColor: '#0f172a' },
+                { text: options.layout === 'fachbereiche' ? 'Wocheninhalte' : 'Dokumentierter Unterricht / Inhalt', fontSize: 6.8, bold: true, color: '#ffffff', fillColor: '#0f172a' },
               ],
               ...rows,
             ],
