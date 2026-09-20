@@ -90,7 +90,11 @@ export default function CanvaIntegration() {
       if (!isTrustedOAuthPopupMessage(event.origin, event.source, window.location.origin, oauthPopupRef.current)) return;
       if (event.data?.type === 'CANVA_AUTH_SUCCESS') {
         oauthPopupRef.current = null;
-        await refreshStatus();
+        const verified = await refreshStatus();
+        if (!verified.connected) {
+          showToast('Canva hat die Verbindung nicht bestätigt. Bitte Cookies zulassen und erneut verbinden.', 'error');
+          return;
+        }
         await loadDesigns();
         showToast('Canva ist verbunden.', 'success');
       }
@@ -104,16 +108,30 @@ export default function CanvaIntegration() {
   }, [loadDesigns, refreshStatus, showToast]);
 
   const connect = async () => {
+    // Open synchronously in the click gesture. An asynchronous window.open()
+    // after fetching the OAuth URL is rejected by pop-up blockers in Chrome.
+    const popup = window.open('', 'klassio-canva-oauth', 'width=720,height=780,resizable=yes,scrollbars=yes');
+    if (!popup) {
+      showToast('Bitte Pop-ups für Klassio erlauben, damit Canva geöffnet werden kann.', 'info');
+      return;
+    }
+    oauthPopupRef.current = popup;
     try {
       const data = await apiJson('/api/canva/auth-url');
       if (!data?.configured) {
+        popup.close();
+        oauthPopupRef.current = null;
         showToast('Canva ist serverseitig noch nicht konfiguriert.', 'info');
         return;
       }
-      const popup = window.open(data.url, 'klassio-canva-oauth', 'width=720,height=780,resizable=yes,scrollbars=yes');
-      oauthPopupRef.current = popup;
-      if (!popup) showToast('Bitte Pop-ups für Klassio erlauben.', 'info');
+      const target = new URL(String(data.url));
+      if (target.protocol !== 'https:' || target.hostname !== 'www.canva.com' || target.pathname !== '/api/oauth/authorize') {
+        throw new Error('Canva hat eine unerwartete Anmeldeadresse geliefert.');
+      }
+      popup.location.replace(target.toString());
     } catch (error: any) {
+      popup.close();
+      oauthPopupRef.current = null;
       showToast(error?.message || 'Canva-Verbindung konnte nicht gestartet werden.', 'error');
     }
   };
