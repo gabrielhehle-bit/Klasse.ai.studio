@@ -19,7 +19,7 @@ test('material ciphertext is isolated per account and survives new storage insta
   const id = encrypted.manifest.attachmentId;
   const status = await store.put(ownerA, id, encrypted.ciphertext, 1000);
   assert.equal(status.size, encrypted.ciphertext.byteLength);
-  assert.deepEqual(await store.get(ownerA, id), encrypted.ciphertext);
+  assert.deepEqual(await store.get(ownerA, id), Buffer.from(encrypted.ciphertext));
   assert.equal((await store.usage(ownerA)).usedBytes, encrypted.ciphertext.byteLength);
   assert.equal((await store.usage(ownerB)).usedBytes, 0);
   await assert.rejects(store.get(ownerB, id), { code: 'NOT_FOUND' });
@@ -44,7 +44,7 @@ test('immutable attachments, quota and concurrency prevent accidental overwrites
   cipher.fill(143);
   await store.put(ownerA, a, cipher, 128);
   await assert.rejects(store.put(ownerA, a, Uint8Array.from([1, ...cipher]), 128), { code: 'FILE_EXISTS' });
-  assert.deepEqual(await store.get(ownerA, a), cipher);
+  assert.deepEqual(await store.get(ownerA, a), Buffer.from(cipher));
   const concurrent = await Promise.allSettled([store.put(ownerA, b, cipher, 128), store.put(ownerA, c, cipher, 128)]);
   assert.deepEqual(concurrent.map(result => result.status).sort(), ['fulfilled', 'rejected']);
   assert.equal((await store.usage(ownerA)).usedBytes, 128);
