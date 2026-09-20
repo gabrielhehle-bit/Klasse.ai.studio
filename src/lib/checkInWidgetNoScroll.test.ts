@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { getStudentGridLayout } from './studentWidgetGrid';
-import { CHECK_IN_GRID_OPTIONS, shouldShowCheckInSummary } from './checkInWidgetLayout';
+import { CHECK_IN_GRID_OPTIONS, getCheckInPageLayout, shouldShowCheckInSummary } from './checkInWidgetLayout';
 
 const source = readFileSync('src/components/cockpit/widgets/KidAttendanceWidget.tsx', 'utf8');
 
@@ -14,7 +14,7 @@ test('Ich bin da: compact always shows a summary, never a clipped student list',
   assert.equal(shouldShowCheckInSummary(900, true), false);
   assert.match(source, /if \(showCompactSummary\)/);
   assert.match(source, /Alle Kinder öffnen/);
-  assert.match(source, /disabled=\{!onUpdate\}/);
+  assert.match(source, /setIsStudentPageOpen\(true\)/);
   assert.doesNotMatch(source, /isCompactCheckInOpen/);
 });
 
@@ -41,4 +41,19 @@ test('Ich bin da: compact 25-child view has no internal scrolling and keeps teac
   assert.match(source, /isTeacherModalOpen && renderTeacherModal\(\)/);
   assert.match(source, /isFinalizeModalOpen && renderFinalizeModal\(\)/);
   assert.match(source, /document\.addEventListener\('visibilitychange', refreshToday\)/);
+});
+
+test('Check-in expands into non-scrolling pages on a small 340px screen', () => {
+  const page = getCheckInPageLayout(340, 360, 25, 0);
+  assert.equal(page.canRender, true);
+  assert.equal(page.columns, 1);
+  assert.ok(page.pageCount > 1);
+  const lastPage = getCheckInPageLayout(340, 360, 25, 100);
+  assert.equal(lastPage.currentPage, lastPage.pageCount - 1);
+  assert.ok(lastPage.start < 25);
+  assert.equal(getCheckInPageLayout(180, 200, 25, 0).canRender, false);
+  assert.match(source, /students\.slice\(pageLayout\.start, pageLayout\.start \+ pageLayout\.pageSize\)/);
+  assert.match(source, /aria-label="Schülerseiten"/);
+  assert.match(source, /aria-label="Vorherige Schülerseite"/);
+  assert.match(source, /aria-label="Nächste Schülerseite"/);
 });
