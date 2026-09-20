@@ -152,11 +152,14 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     }
   }, [onUpdate, widget, propSetGeneratedGroups, setApp, allStudents]);
 
-  // Aktive Schüler für die Gruppierung
+  // Die Auswahl kommt aus "Widget hinzufügen > Widget-Einstellungen".
+  // Bestehende Layouts ohne studentScope behalten den bisherigen Standard.
+  const studentScope = widget?.settings?.studentScope === 'all' ? 'all' : 'present';
   const activeStudentIds = useMemo(() => {
     const pausedSet = new Set(pausedStudentIds);
-    return presentStudents.filter(s => !pausedSet.has(s.id)).map(s => s.id);
-  }, [presentStudents, pausedStudentIds]);
+    const candidates = studentScope === 'all' ? allStudents : presentStudents;
+    return candidates.filter(s => !pausedSet.has(s.id)).map(s => s.id);
+  }, [allStudents, presentStudents, pausedStudentIds, studentScope]);
 
   // Gruppen erstellen oder neu mischen
   const handleGenerate = useCallback((overrideMode?: GroupingMode, overrideVal?: number) => {
@@ -165,7 +168,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
 
     if (activeStudentIds.length === 0) {
       setFeedbackMessage({
-        text: 'Keine anwesenden Schüler verfügbar.',
+        text: studentScope === 'all' ? 'Keine Kinder in der Klasse verfügbar.' : 'Keine anwesenden Schüler verfügbar.',
         type: 'error'
       });
       return;
@@ -205,7 +208,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
         type: 'success'
       });
     }
-  }, [mode, targetValue, namingStyle, pausedStudentIds, notTogether, keepTogether, activeStudentIds, persistState]);
+  }, [mode, targetValue, namingStyle, pausedStudentIds, notTogether, keepTogether, activeStudentIds, studentScope, persistState]);
 
   // Tauschen oder Verschieben von Schülern
   const handleStudentClick = useCallback((studentId: string) => {
@@ -813,7 +816,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
             </div>
             <h4 className="text-sm sm:text-base font-extrabold mb-1">Bereit für die Einteilung</h4>
             <p className="text-xs text-stone-500 max-w-xs mb-3">
-              {activeStudentIds.length} Kinder anwesend. Wähle oben die Größe und tippe auf „Gruppen bilden“.
+              {activeStudentIds.length} Kinder {studentScope === 'all' ? 'aus der Klasse' : 'anwesend'}. Wähle oben die Größe und tippe auf „Gruppen bilden“.
             </p>
             <button
               onClick={() => handleGenerate()}
