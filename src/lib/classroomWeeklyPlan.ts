@@ -56,6 +56,34 @@ export function getClassroomWeeklyTasks(
   });
   return tasks.sort((a, b) => WEEK_DAYS.indexOf(a.day as typeof WEEK_DAYS[number]) - WEEK_DAYS.indexOf(b.day as typeof WEEK_DAYS[number]) || a.lesson - b.lesson);
 }
+/** Publish or unpublish an existing lesson from the teacher's weekly grid.
+ * Preserve lesson details and pupil progress; never create a phantom lesson. */
+export function toggleClassroomWeeklyLesson<T extends Pick<AppState, 'wochenplanung'>>(
+  app: T, week: number, day: string, lesson: number,
+): T {
+  const currentWeek = app.wochenplanung?.[week];
+  if (!currentWeek || !Number.isInteger(week) || week < 1 || week > 53 || !Number.isInteger(lesson) || lesson < 0) return app;
+  const dayIndex = WEEK_DAYS.indexOf(day as typeof WEEK_DAYS[number]);
+  if (dayIndex < 0) return app;
+  const dayKey: string | number = Object.prototype.hasOwnProperty.call(currentWeek, day) ? day : dayIndex;
+  const dayPlan = currentWeek[dayKey];
+  const item = dayPlan?.[lesson];
+  if (!item || typeof item !== 'object' || !String(item.fach || '').trim() || !String(item.thema || '').trim()) return app;
+  return {
+    ...app,
+    wochenplanung: {
+      ...app.wochenplanung,
+      [week]: {
+        ...currentWeek,
+        [dayKey]: {
+          ...dayPlan,
+          [lesson]: { ...item, imKinderWochenplan: item.imKinderWochenplan !== true },
+        },
+      },
+    },
+  };
+}
+
 export function getChildTaskProgress(student: Student, taskId: string): WeeklyChildTaskProgress | undefined {
   return student.wochenplanFortschritt?.[taskId];
 }
