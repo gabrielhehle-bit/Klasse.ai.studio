@@ -186,10 +186,13 @@ test('Mit einem Klick kann die Lehrperson die sichtbare Verhaltensstufe ändern'
     removeParticipation: () => {},
     onBehaviorStageChange: (id, stage) => actions.push([id, stage]),
   }));
-  assert.match(html, /Verhalten von Lena eine Stufe verbessern/);
-  assert.match(html, /Verhalten von Lena eine Stufe weiterstellen/);
+  for (const stage of ['Super', 'Gut', 'OK', 'Achtung', 'Stopp']) {
+    assert.match(html, new RegExp(`Verhalten für Lena: ${stage} auswählen`));
+  }
+  assert.match(html, /aria-pressed="true"[^>]*title="Lena: OK"/);
   assert.match(html, /Verhaltensstatus: OK/);
   assert.doesNotMatch(html, /🌈/);
   assert.equal(actions.length, 0, 'Rendering must never mutate behavior');
   assert.match(teaching, /recordClassroomBehaviorStage\(prev, sid, stageId\)/);
+  assert.match(source, /onClick=\{\(\) => onBehaviorStageChange\(student\.id, stage\.id\)\}/);
 });
