@@ -1479,7 +1479,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
     // Refresh tokens rotate. Serialize refreshes for this account across parallel
     // design, preview and export requests, including reads after service restart.
-    const inFlight = canvaRefreshLocks.get(ownerId);
+    const lockKey = ownerId + ':' + sessionId;
+    const inFlight = canvaRefreshLocks.get(lockKey);
     if (inFlight) return inFlight;
     const refresh = (async () => {
       const current = await canvaTokenStore.get(ownerId, sessionId);
@@ -1499,9 +1500,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       await canvaTokenStore.put(ownerId, sessionId, updated);
       return updated.access_token;
     })();
-    canvaRefreshLocks.set(ownerId, refresh);
+    canvaRefreshLocks.set(lockKey, refresh);
     try { return await refresh; }
-    finally { if (canvaRefreshLocks.get(ownerId) === refresh) canvaRefreshLocks.delete(ownerId); }
+    finally { if (canvaRefreshLocks.get(lockKey) === refresh) canvaRefreshLocks.delete(lockKey); }
   }
 
   async function canvaApi(req: express.Request, url: string, init: RequestInit = {}) {
