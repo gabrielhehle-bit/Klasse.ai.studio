@@ -50,6 +50,7 @@ import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySu
 import { getFachCfg, berechne, getNotenLabel, getAssessmentMode } from '../lib/GradeUtils';
 import { DEFAULT_YEARLY_SUBJECTS, FAECHER_ALLE } from '../constants';
 import { downloadKlassenbuchPdf } from '../lib/klassenbuchPdf';
+import { withClassbookNotes } from '../lib/classbookNotes';
 import { downloadKlassenbuchDocx } from '../lib/klassenbuchDocx';
 import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
 import { buildSchoolYearWeekList } from '../lib/weeklyPlanData';
@@ -763,14 +764,14 @@ export default function PrintCenter() {
 
   // C. Klassenbuch Weekly Lesson Plan Processor
   // Verwendet exakt dieselbe Fächer-/Unterbereichs-Struktur wie die Wochenplanung.
-  const compileKlassenbuchData = (targetKW: number) => projectWeeklyPlanToClassbook(
+  const compileKlassenbuchData = (targetKW: number) => withClassbookNotes(projectWeeklyPlanToClassbook(
     (app?.wochenplanung || {})[targetKW],
     { activeSubjects: app?.faecher, stammplan: app?.stammplan, includeReflection: true,
       includeEvents: kbIncludeOccurrences,
       materialTitlesById: Object.fromEntries((app?.materialien || []).map(material => [material.id, material.titel])) },
-  );
+  ), app?.klassenbuchErgaenzungen?.[targetKW]);
 
-  const compiledKbData = useMemo(() => compileKlassenbuchData(kbKW), [kbKW, app?.wochenplanung, app?.stammplan, app?.faecher, app?.materialien, kbIncludeOccurrences]);
+  const compiledKbData = useMemo(() => compileKlassenbuchData(kbKW), [kbKW, app?.wochenplanung, app?.klassenbuchErgaenzungen, app?.stammplan, app?.faecher, app?.materialien, kbIncludeOccurrences]);
 
   // D. Absent Students helper
   const getAbsenteesForWeek = (targetKW: number) => {
@@ -4263,6 +4264,8 @@ export default function PrintCenter() {
     if (kbOnlyFilledWeeks && kbMode !== 'single') {
       weeks = weeks.filter(kw => {
         const plan = app?.wochenplanung?.[kw];
+        const ownNotes = app?.klassenbuchErgaenzungen?.[kw];
+        if (ownNotes && Object.values(ownNotes).some(note => typeof note === 'string' && note.trim())) return true;
         if (!plan) return false;
         return Object.values(plan).some(day => 
           day && Object.values(day).some((item: any) => item && (item.fach || item.thema || (item.schwerpunkte && item.schwerpunkte.length > 0)))
@@ -4296,7 +4299,8 @@ export default function PrintCenter() {
       selected = allWeeks;
       rangeLabel = `Schuljahr ${app?.schuljahr || ''}`.trim();
     }
-    const included = selected.filter(week => Boolean((app?.wochenplanung || {})[week.kw]));
+    const included = selected.filter(week => Boolean((app?.wochenplanung || {})[week.kw])
+      || Object.values(app?.klassenbuchErgaenzungen?.[week.kw] || {}).some(note => typeof note === 'string' && note.trim()));
     const weeks = included.length ? included : selected.slice(0, 1);
     const sections = weeks.map(week => {
       const dates = kwToDates(week.kw);

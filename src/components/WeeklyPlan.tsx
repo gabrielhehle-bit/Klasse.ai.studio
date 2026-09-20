@@ -18,6 +18,7 @@ import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configured
 import { parseLessonTimeRange } from '../lib/lessonTimeSlots';
 import { getAttendanceSemester } from '../lib/attendanceData';
 import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
+import { withClassbookNotes } from '../lib/classbookNotes';
 import { splitKlassenbuchCategoryKey } from '../lib/klassenbuchSubjects';
 import { EMPTY_LESSON_DRAFT, hasLessonDraftContent, lessonDraftFromMaterial, lessonDraftToText, normalizeLessonDraft, type LessonDraftFields } from '../lib/lessonDrafts';
 import { useMaterialLibrary } from './Materialbibliothek';
@@ -298,6 +299,7 @@ export default function WeeklyPlan() {
   const [yearPlanBulkNotice, setYearPlanBulkNotice] = useState<string | null>(null);
   const [dateStatusMenu, setDateStatusMenu] = useState<string | null>(null); // date string
   const [viewMode, setViewMode] = useState<'grid' | 'day' | 'klassenbuch'>('grid');
+  const [classbookNoteDrafts, setClassbookNoteDrafts] = useState<Record<string, string>>({});
   const [selectedDay, setSelectedDay] = useState<string>(() => {
     const today = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'][new Date().getDay()];
     return TAGE_NAMEN.includes(today) ? today : 'Montag';
@@ -958,11 +960,11 @@ export default function WeeklyPlan() {
   };
 
   // Klassenbuch-Ansicht und Druckzentrum nutzen dieselbe Projektion der gespeicherten Wochenplanung.
-  const getKlassenbuchData = () => projectWeeklyPlanToClassbook(
+  const getKlassenbuchData = () => withClassbookNotes(projectWeeklyPlanToClassbook(
     (app.wochenplanung || {})[activeKW],
     { activeSubjects: app.faecher, stammplan: app.stammplan,
       materialTitlesById: Object.fromEntries((app.materialien || []).map(material => [material.id, material.titel])) },
-  );
+  ), app.klassenbuchErgaenzungen?.[activeKW]);
 
   const hasFreeDayInWeek = useMemo(() => {
     return [0, 1, 2, 3, 4].some(i => {
@@ -2289,6 +2291,32 @@ export default function WeeklyPlan() {
                           ) : (
                             <span className="text-[0.75rem] leading-tight text-slate-300 font-bold italic leading-none block py-1.5">— Keine Einträge für diese Woche —</span>
                           )}
+                          <div className="mt-2 rounded-xl border border-indigo-100 bg-indigo-50/50 p-2">
+                            <label className="mb-1 block text-xs font-bold text-indigo-900">
+                              Eigener Klassenbuch-Eintrag · unabhängig vom Wochenplan
+                              <textarea rows={2} maxLength={4000} className="mt-1 w-full resize-y rounded-lg border border-indigo-200 bg-white p-2 text-sm font-normal text-slate-900"
+                                aria-label={`Eigener Klassenbuch-Eintrag für ${label} ${sub} bearbeiten`}
+                                placeholder="Hier eigene Ergänzungen eintragen …"
+                                value={classbookNoteDrafts[`${app.activeClassId || ''}:${activeKW}:${key}`] ?? app.klassenbuchErgaenzungen?.[activeKW]?.[key] ?? ''}
+                                onChange={event => {
+                                  const draftKey = `${app.activeClassId || ''}:${activeKW}:${key}`;
+                                  setClassbookNoteDrafts(previous => ({ ...previous, [draftKey]: event.target.value }));
+                                }} />
+                            </label>
+                            <button type="button" className="min-h-9 rounded-lg bg-indigo-600 px-3 text-xs font-bold text-white"
+                              onClick={() => {
+                                const draftKey = `${app.activeClassId || ''}:${activeKW}:${key}`;
+                                const text = (classbookNoteDrafts[draftKey] ?? app.klassenbuchErgaenzungen?.[activeKW]?.[key] ?? '').trim();
+                                setApp(previous => {
+                                  const weekNotes = { ...(previous.klassenbuchErgaenzungen?.[activeKW] || {}) };
+                                  if (text) weekNotes[key] = text; else delete weekNotes[key];
+                                  return { ...previous, klassenbuchErgaenzungen: {
+                                    ...(previous.klassenbuchErgaenzungen || {}), [activeKW]: weekNotes,
+                                  } };
+                                });
+                                setClassbookNoteDrafts(previous => ({ ...previous, [draftKey]: text }));
+                              }}>Eigene Ergänzung speichern</button>
+                          </div>
                         </div>
                       </div>
                     );

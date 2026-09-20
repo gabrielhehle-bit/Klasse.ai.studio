@@ -25,8 +25,10 @@ test('Wochenplan, Tagesansicht, Klassenbuch und Druckzentrum verwenden dieselben
   assert.match(week, /viewMode === 'day'/);
   assert.match(week, /onClick=\{\(\) => openWeeklyCell\(selectedDay, idx\)\}/);
   assert.match(week, /plan\[selectedDay\]\?\.\[idx\]/);
-  assert.match(week, /const getKlassenbuchData = \(\) => projectWeeklyPlanToClassbook/);
-  assert.match(printing, /const compileKlassenbuchData = \(targetKW: number\) => projectWeeklyPlanToClassbook/);
+  assert.match(week, /const getKlassenbuchData = \(\) => withClassbookNotes\(projectWeeklyPlanToClassbook/);
+  assert.match(printing, /const compileKlassenbuchData = \(targetKW: number\) => withClassbookNotes\(projectWeeklyPlanToClassbook/);
+  assert.match(week, /app\.klassenbuchErgaenzungen\?\.\[activeKW\]/);
+  assert.match(printing, /app\?\.klassenbuchErgaenzungen\?\.\[targetKW\]/);
   assert.match(projection, /const WEEKDAYS = \['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'\]/);
   assert.match(projection, /Verknüpfte Materialien/);
   assert.doesNotMatch(projection, /new Set\(data\[key\]/);
