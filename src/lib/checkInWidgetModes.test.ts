@@ -16,23 +16,25 @@ test('A is the default for new and legacy/unknown settings, B and C remain stabl
   assert.equal(getCheckInMode({ checkInMode: 'teacher' }), 'teacher');
 });
 
-test('Settings are accessible solely via the existing three-dot menu beside the widget title', () => {
-  assert.match(frame, /aria-label="Widget-Menü öffnen"/);
-  assert.match(surface, /"drawing",\s*"kidattendance",\s*\]\.includes\(widget\.type\)/);
+test('Widget settings belong in Widget hinzufügen, not the floating header or child widget', () => {
+  assert.match(surface, /<span>Widget hinzufügen<\/span>/);
+  assert.match(surface, /aria-label="Widget-Einstellungen im Menü Widget hinzufügen"/);
+  assert.match(surface, /aria-label="Widget für Einstellungen"/);
+  assert.match(surface, /onChange=\{\(\) => saveSetting\("checkInMode", mode\)\}/);
+  assert.match(surface, /onChange=\{\(\) => saveSetting\("studentScope", scope\)\}/);
+  assert.match(surface, /settings: \{ \.\.\.\(configured\.settings \|\| \{\}\), \[key\]: value \}/);
   const caseText = surface.slice(surface.indexOf('case "kidattendance":'), surface.indexOf('case "groups":'));
-  assert.match(caseText, /showSettings=\{widgetSettingsOpenId === widget\.id\}/);
-  assert.match(caseText, /onCloseSettings=\{\(\) => setWidgetSettingsOpenId\(null\)\}/);
+  assert.doesNotMatch(caseText, /showSettings=|onCloseSettings=/);
   assert.match(wrapper, /<KidAttendanceWidget \{\.\.\.props\} \/>/);
-  assert.match(widget, /showSettings && renderCheckInSettings\(\)/);
-  assert.match(widget, /aria-label="Ich bin da Einstellungen"/);
-  assert.doesNotMatch(widget, /aria-label="Widget-Einstellungen öffnen"/);
+  assert.doesNotMatch(widget, /renderCheckInSettings|showSettings/);
+  assert.doesNotMatch(frame, /Widget hinzufügen/); // no duplicate menu inside a widget
 });
 
 test('A/B/C uses the same attendance and mood model; teacher mode never checks in by a child tap', () => {
-  assert.match(widget, /\['all', 'A · Alle Kinder'/);
-  assert.match(widget, /\['individual', 'B · Nacheinander'/);
-  assert.match(widget, /\['teacher', 'C · Lehrkraft erfasst'/);
-  assert.match(widget, /settings: \{ \.\.\.\(widget\?\.settings \|\| \{\}\), checkInMode: mode \}/);
+  assert.match(surface, /\["all", "A · Alle Kinder \(Standard\)"/);
+  assert.match(surface, /\["individual", "B · Nacheinander"/);
+  assert.match(surface, /\["teacher", "C · Lehrkraft erfasst"/);
+  assert.match(surface, /saveSetting\("checkInMode", mode\)/);
   const childTap = widget.slice(widget.indexOf('const handleStudentCardTap'), widget.indexOf('// Kind wählt einen der 5 Smileys'));
   assert.match(childTap, /checkInMode === 'teacher'/);
   assert.match(childTap, /currentStatus\.status !== 'present'/);
