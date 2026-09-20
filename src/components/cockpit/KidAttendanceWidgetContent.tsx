@@ -9,8 +9,6 @@ export interface KidAttendanceWidgetContentProps {
   currentIsLight: boolean;
   widget?: CockpitWidgetConfig;
   onUpdate?: (updates: Partial<CockpitWidgetConfig>) => void;
-  showSettings?: boolean;
-  onCloseSettings?: () => void;
 }
 
 /**
