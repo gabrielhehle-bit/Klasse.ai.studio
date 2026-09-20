@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-test('Das Klassenhaustier bleibt im Lehrercockpit nutzbar; die Entfernung betrifft nur das Dashboard', () => {
+test('Das Klassenmaskottchen bleibt als reguläres Widget nutzbar, ohne schwebende Alt-Begleiter', () => {
   const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
   assert.doesNotMatch(cockpit, /const showFloatingClassPetUi = false;/);
-  assert.match(cockpit, /\{actualShowPet &&/);
-  assert.match(cockpit, /\{petAccessoryOverlayOpen && \(/);
+  assert.match(cockpit, /\{false && actualShowPet &&/);
+  assert.match(cockpit, /\{false && petAccessoryOverlayOpen && \(/);
+  assert.match(cockpit, /case "pet":\s*return <ClassMascotWidget/);
 });
 
 test('Das Klassenhaustier bleibt als eigenständige Funktion erhalten, aber nicht im Dashboard', () => {

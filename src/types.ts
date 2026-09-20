@@ -1010,6 +1010,8 @@ export interface VertretungsVorbereitung {
 }
 
 export interface ClassRoom {
+  /** Class-local, teacher-controlled mascot. Old classPet remains as archived legacy data. */
+  classMascot?: import('./lib/classMascot').ClassMascotState;
   /** Zero-knowledge Teamteaching metadata. This metadata remains local and is stripped before class encryption. */
   teamTeaching?: {
     sharedClassId: string;
@@ -1592,6 +1594,8 @@ export interface AppState {
   sidebarState?: 'full' | 'mini' | 'closed';
   unterrichtsmodus_sidebar_open?: boolean;
   classPet?: ClassPetState;
+  /** New class-local mascot widget, independent of the retired floating pet. */
+  classMascot?: import('./lib/classMascot').ClassMascotState;
   classPetShowBeamer?: boolean;
   ampelLabels?: { red: string; yellow: string; green: string };
   notenLabels?: Record<string, string>;
