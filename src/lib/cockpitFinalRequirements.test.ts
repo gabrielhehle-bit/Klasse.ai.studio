@@ -191,7 +191,7 @@ test("Cockpit: sekundäre Ansichtssteuerung liegt gesammelt unter Optionen", () 
     "Schülerliste ausblenden",
     "Klassentier einblenden",
     "Klassentier ausblenden",
-    "Design & Darstellung",
+    "Design & Farben",
     "Fokusmodus",
     "Vollbildmodus",
   ]) {
