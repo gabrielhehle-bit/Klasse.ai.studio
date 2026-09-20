@@ -8285,6 +8285,40 @@ ${content}
                                                   <span className="block text-xs text-slate-600">{detail}</span></span>
                                               </label>
                                             ))}
+                                            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3"
+                                              role="group" aria-label="Gruppengröße oder Gruppenanzahl einstellen">
+                                              <h4 className="text-sm font-black">Gruppenaufteilung</h4>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                {([
+                                                  ["size", "Kinder pro Gruppe"],
+                                                  ["count", "Anzahl Gruppen"],
+                                                ] as const).map(([mode, label]) => (
+                                                  <label key={mode} className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 px-2 text-xs font-bold">
+                                                    <input type="radio" name="cockpit-group-mode" value={mode}
+                                                      checked={(configured.settings?.mode === "count" ? "count" : "size") === mode}
+                                                      onChange={() => handleUpdateWidgetPos(configured.id, {
+                                                        settings: { ...(configured.settings || {}), mode, targetValue: 4 },
+                                                      })}
+                                                      className="h-5 w-5 shrink-0" />{label}
+                                                  </label>
+                                                ))}
+                                              </div>
+                                              <div className="flex flex-wrap gap-2">
+                                                {(configured.settings?.mode === "count" ? [2, 3, 4, 5, 6] : [2, 3, 4, 5]).map(value => (
+                                                  <button key={value} type="button"
+                                                    aria-pressed={(typeof configured.settings?.targetValue === "number" ? configured.settings.targetValue : 4) === value}
+                                                    onClick={() => handleUpdateWidgetPos(configured.id, {
+                                                      settings: { ...(configured.settings || {}), mode: configured.settings?.mode === "count" ? "count" : "size", targetValue: value },
+                                                    })}
+                                                    className={`min-h-11 min-w-11 rounded-lg border px-3 text-sm font-bold ${
+                                                      (typeof configured.settings?.targetValue === "number" ? configured.settings.targetValue : 4) === value
+                                                        ? "border-indigo-500 bg-indigo-600 text-white" : "border-slate-300 bg-white text-slate-900"
+                                                    }`}>
+                                                    {value}{configured.settings?.mode === "count" ? " Gr." : "er"}
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            </div>
                                             <p className="text-xs text-slate-600">Die Auswahl gilt bei der nächsten Einteilung. Bestehende Gruppen werden nicht ungefragt neu gemischt.</p>
                                             {!configured.visible && (
                                               <button type="button" onClick={() => handleOpenWidgetInCockpitLayout("groups")}
