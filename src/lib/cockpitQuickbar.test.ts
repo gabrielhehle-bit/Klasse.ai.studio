@@ -12,7 +12,9 @@ test('quickbar is optional, never seeds a demo widget or overwrites layout', () 
   assert.deepEqual(normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['timer', 'timer', 'unsafe', null] }), {
     enabled: true, itemIds: ['timer'],
   });
-  assert.equal(COCKPIT_QUICKBAR_ITEMS.length, 7);
+  assert.equal(COCKPIT_QUICKBAR_ITEMS.length, 6);
+  // A legacy quickbar preference must not resurrect the duplicate widget.
+  assert.deepEqual(normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['studentlist', 'timer'] }).itemIds, ['timer']);
   assert.match(source, /Zusätzliche Widget-Leiste konfigurieren/);
   assert.match(source, /quickBarSettings\.enabled && quickBarSettings\.itemIds\.length > 0 && app\.activeClassId/);
   assert.match(source, /handleOpenWidgetInCockpitLayout\(item\.id as CockpitWidgetConfig\['type'\]\)/);
