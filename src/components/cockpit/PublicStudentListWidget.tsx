@@ -1,12 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { AppState, Student } from '../../types';
 import { getDisplayStudentName } from './studentSelectionUtils';
+import { useRef } from 'react';
+import { useWidgetSize } from './widgetLayout';
+import { getStudentGridLayout } from '../../lib/studentWidgetGrid';
 
 interface Props {
   app: AppState;
   getTodayPoints: (studentId: string) => number;
   addParticipation: (studentId: string, event?: React.MouseEvent) => void;
   removeParticipation: (studentId: string) => void;
+  /** Provided only inside the movable CockpitWidget, never for the narrow sidebar. */
+  onExpand?: () => void;
 }
 
 /**
@@ -22,8 +27,13 @@ export function PublicStudentListWidget({
   getTodayPoints,
   addParticipation,
   removeParticipation,
+  onExpand,
 }: Props) {
   const students = app.schueler ?? [];
+  const containerRef = useRef<HTMLElement>(null);
+  const size = useWidgetSize(containerRef);
+  const grid = getStudentGridLayout(size.width, size.height, students.length, { reservedHeight: 92, minCardWidth: 170, minCardHeight: 58, gap: 6 });
+  const gridMode = Boolean(onExpand);
   const [compact, setCompact] = useState(false);
   const [lastAwardedId, setLastAwardedId] = useState<string | null>(null);
   const [recentlyAwardedId, setRecentlyAwardedId] = useState<string | null>(null);
@@ -61,7 +71,7 @@ export function PublicStudentListWidget({
   }
 
   return (
-    <section aria-label="Öffentliche Schülerliste und Pluspunkte" className="flex h-full min-h-0 flex-col gap-2 p-2 text-slate-900">
+    <section ref={containerRef} aria-label="Öffentliche Schülerliste und Pluspunkte" className="flex h-full min-h-0 flex-col gap-2 p-2 text-slate-900">
       <div className="flex shrink-0 items-center justify-between gap-2">
         <h3 className="text-sm font-bold">Unsere Pluspunkte</h3>
         <button
@@ -73,16 +83,29 @@ export function PublicStudentListWidget({
           {compact ? 'Große Ansicht' : 'Kompakt'}
         </button>
       </div>
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto" role="list">
+      {gridMode && !grid.fits ? (
+        <div role="status" className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl bg-slate-50 p-4 text-center">
+          <p className="text-sm font-semibold">{students.length} Kinder benötigen eine größere Widget-Fläche, damit alle Pluspunkte sichtbar und bedienbar sind.</p>
+          <button type="button" onClick={onExpand}
+            className="min-h-11 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white">
+            Alle {students.length} Kinder groß anzeigen
+          </button>
+          <p className="text-xs text-slate-600">Falls das Gerät sehr klein ist, aktiviere den Vollbildmodus.</p>
+        </div>
+      ) : (
+      <div className={gridMode ? 'grid min-h-0 flex-1 content-start gap-1.5 overflow-hidden' : 'min-h-0 flex-1 space-y-2 overflow-y-auto'}
+        style={gridMode ? { gridTemplateColumns: `repeat(${grid.columns}, minmax(0, 1fr))` } : undefined} role="list">
         {students.map((student: Student) => {
           const points = Math.max(0, getTodayPoints(student.id));
           const awarded = lastAwardedId === student.id;
           return (
-            <div key={student.id} role="listitem" className={`flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white ${compact ? 'px-2 py-1' : 'px-3 py-2'}`}>
+            <div key={student.id} role="listitem"
+              style={gridMode ? { minHeight: 58, height: Math.min(90, grid.cardHeight) } : undefined}
+              className={`flex min-w-0 items-center justify-between gap-1 rounded-xl border border-slate-200 bg-white ${gridMode ? 'px-1.5 py-1' : compact ? 'px-2 py-1' : 'px-3 py-2'}`}>
               <div className="min-w-0 flex-1">
-                <span className="block break-words text-base font-semibold">{labels.get(student.id)}</span>
+                <span className={`block break-words font-semibold leading-tight ${gridMode ? 'text-xs sm:text-sm' : 'text-base'}`}>{labels.get(student.id)}</span>
                 <span className="block text-sm font-medium text-amber-700" aria-label={`${points} Pluspunkte`}>
-                  {'★'.repeat(Math.min(points, 8))}{points > 8 ? '…' : ''} {points}
+                  {gridMode ? `★ ${points}` : `${'★'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
                 </span>
               </div>
               <div className="flex shrink-0 flex-wrap justify-end gap-1">
@@ -113,6 +136,7 @@ export function PublicStudentListWidget({
           );
         })}
       </div>
+      )}
     </section>
   );
 }
