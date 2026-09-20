@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Student } from '../../types';
 import { useApp } from '../../context/AppContext';
+import { getChildWeeklyDossierRows } from '../../lib/classroomWeeklyPlan';
 import { 
   BarChart3, ChevronRight, ArrowLeft, ArrowUpRight, ArrowRight, ArrowDownRight,
   Target, Stethoscope, HeartHandshake, Calendar, FileText, CheckCircle2,
@@ -924,8 +925,38 @@ export default function DossierLeistungen({
   // ==========================================
   // VIEW: LEISTUNGSÜBERSICHT (Standardansicht)
   // ==========================================
+  const childWeeklyFeedback = getChildWeeklyDossierRows(student);
+  const helpTaskCount = childWeeklyFeedback.filter(record => record.helpRequested).length;
+  const completedTaskCount = childWeeklyFeedback.filter(record => record.done).length;
   return (
     <div className="space-y-6">
+      <section aria-label="Wochenplan-Rückmeldungen des Kindes"
+        className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4 text-slate-900">
+        <h3 className="text-base font-extrabold">📋 Wochenplan · Rückmeldungen des Kindes</h3>
+        <p className="mt-1 text-sm text-slate-700">
+          {childWeeklyFeedback.length ? `${completedTaskCount} von ${childWeeklyFeedback.length} dokumentierten Aufgaben fertig · bei ${helpTaskCount} Aufgaben Hilfe angefragt`
+            : 'Noch keine Rückmeldungen aus dem Wochenplan der Kinder.'}
+        </p>
+        {childWeeklyFeedback.length > 0 && (
+          <div className="mt-3 max-h-72 space-y-2 overflow-y-auto" role="list">
+            {childWeeklyFeedback.map(record => (
+              <div key={record.taskId} role="listitem" className="rounded-xl border border-indigo-100 bg-white p-3 text-sm">
+                <p className="font-bold">{record.taskSubject ? `${record.taskSubject} · ` : ''}{record.taskTitle}</p>
+                <p className="text-xs text-slate-600">Schuljahr {record.schoolYear} · KW {record.week}</p>
+                <p className="mt-1 font-semibold">
+                  {record.done ? '✓ Fertig' : record.helpRequested ? '✋ Hilfe angefragt · noch nicht als fertig gemeldet' : 'Noch nicht fertig'}
+                  {record.done && record.difficulty ? ` · Einschätzung: ${record.difficulty === 'sehr-schwierig' ? 'sehr schwer' : record.difficulty === 'schwierig' ? 'schwer' : record.difficulty}` : ''}
+                  {record.helpRequested && record.done ? ' · Zuvor Hilfe angefragt' : ''}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="mt-2 text-xs text-slate-600">
+          Die Einschätzungen stammen vom Kind. Eine Hilfeanfrage bleibt auch nach „Fertig“ dokumentiert;
+          gezählt werden Aufgaben mit Hilfeanfrage, nicht die Zahl der Klicks. Nur im Dossier anzeigen.
+        </p>
+      </section>
       {/* Header Area (No cross-subject overall grade! Strictly forbidden by Req 3) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
