@@ -34,7 +34,7 @@ export default function ClassroomWeeklyPlanWidget() {
     const timer = window.setInterval(update, 60_000);
     return () => { window.removeEventListener('focus', update); window.clearInterval(timer); };
   }, []);
-  const classId = app.activeClassId || '';
+  const classId = app.activeClassId || 'unassigned';
   const scope = JSON.stringify([classId, app.schuljahr, week]);
   const [selectionScope, setSelectionScope] = useState(scope);
   const [panel, setPanel] = useState<'board' | 'names' | 'child'>('board');
@@ -54,12 +54,12 @@ export default function ClassroomWeeklyPlanWidget() {
   }, [scope]);
   const close = () => { setPanel('board'); setChildId(null); setNamePage(0); };
   const changeProgress = (task: ClassroomWeeklyTask, done: boolean, difficulty?: ChildDifficulty) => {
-    if (!pupil || !classId) return;
+    if (!pupil) return;
     const savedClass = classId;
     const savedStudent = pupil.id;
     const savedWeek = week;
     setApp(previous => {
-      if (previous.activeClassId !== savedClass || !previous.schueler.some(s => s.id === savedStudent)) return previous;
+      if ((previous.activeClassId || 'unassigned') !== savedClass || !previous.schueler.some(s => s.id === savedStudent)) return previous;
       if (!getClassroomWeeklyTasks(previous, savedWeek).some(item => item.id === task.id)) return previous;
       const student = previous.schueler.find(s => s.id === savedStudent);
       const old = student && getChildTaskProgress(student, task.id);
