@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getClassroomWeeklyTasks, getChildTaskProgress, updateChildWeeklyProgress, weekTaskKey } from './classroomWeeklyPlan';
+import { getClassroomWeeklyTasks, getChildTaskProgress, updateChildWeeklyProgress, weekTaskKey, toggleClassroomWeeklyLesson } from './classroomWeeklyPlan';
 import type { Student } from '../types';
 import { normalizeAppState, syncActiveClass, switchClassState } from './appState';
 import { createVault } from './vaultService';
@@ -107,4 +107,32 @@ test('child checkmarks remain encrypted during JSON backup and restore', async (
   assert.equal(getChildTaskProgress(parsed.schueler[0], taskId)?.difficulty, 'schwierig');
   const restored = await prepareBackupRestore(encrypted, vault.vaultKey, () => null);
   assert.equal(getChildTaskProgress(restored.schueler[0], taskId)?.done, true);
+});
+
+test('a single click in the teacher week toggles publication without changing lessons or student progress', () => {
+  const taskId = weekTaskKey(schoolYear, 39, 'Montag', 0);
+  const pupilWithProgress = updateChildWeeklyProgress([pupil('a')], 'a', taskId, true, 'gut')[0];
+  const state = { ...structuredClone(original), schueler: [pupilWithProgress] };
+  const unpublished = toggleClassroomWeeklyLesson(state, 39, 'Montag', 0);
+  assert.equal(unpublished.wochenplanung[39].Montag[0].imKinderWochenplan, false);
+  assert.equal(getClassroomWeeklyTasks(unpublished, 39).length, 1);
+  assert.equal(state.wochenplanung[39].Montag[0].imKinderWochenplan, true, 'original state is not mutated');
+  assert.equal(unpublished.schueler[0].wochenplanFortschritt?.[taskId]?.done, true);
+  assert.equal(unpublished.wochenplanung[40], state.wochenplanung[40], 'other week is untouched');
+  assert.equal(unpublished.wochenplanung[39].Montag[1], state.wochenplanung[39].Montag[1], 'other lesson is untouched');
+  const republished = toggleClassroomWeeklyLesson(unpublished, 39, 'Montag', 0);
+  assert.equal(republished.wochenplanung[39].Montag[0].imKinderWochenplan, true);
+  assert.equal(getClassroomWeeklyTasks(republished, 39).length, 2);
+  assert.equal(republished.schueler[0].wochenplanFortschritt?.[taskId]?.difficulty, 'gut');
+});
+
+test('direct classroom publication ignores empty/invalid slots and works with imported numeric days', () => {
+  assert.equal(toggleClassroomWeeklyLesson(original, 39, 'Montag', 999), original);
+  assert.equal(toggleClassroomWeeklyLesson(original, 39, 'Sonntag', 0), original);
+  assert.equal(toggleClassroomWeeklyLesson(original, 98, 'Montag', 0), original);
+  assert.equal(toggleClassroomWeeklyLesson(original, 39, 'Montag', -1), original);
+  const numeric = { wochenplanung: { 39: { 0: { 0: { fach: 'Deutsch', thema: 'Lesen', material: 'Heft' } } } } };
+  const published = toggleClassroomWeeklyLesson(numeric, 39, 'Montag', 0);
+  assert.equal(published.wochenplanung[39][0][0].imKinderWochenplan, true);
+  assert.equal(published.wochenplanung[39][0][0].material, 'Heft');
 });
