@@ -353,25 +353,25 @@ async function main() {
     // After the child-plan redesign, pupil names are intentionally visible at the
     // bottom of the shared board. Only each child's progress/help/difficulty is private.
     await waitFor(client, 'published weekly task and pupil-name buttons visible',
-      '(() => {const board=document.querySelector("[aria-label=\"Wochenplan der Klasse\"]");return !!board&&board.textContent.includes(' + q(topic) + ')&&board.textContent.includes("Arbeitsheft Seite 12")&&Array.from(board.querySelectorAll("footer[aria-label=\"Wähle deinen Namen\"] button")).some(b=>b.textContent.trim().startsWith("Testkind"))&&!board.textContent.includes("Du hast diese Aufgabe erledigt.");})()', 20000);
+      '(() => {const board=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");return !!board&&board.textContent.includes(' + q(topic) + ')&&board.textContent.includes("Arbeitsheft Seite 12")&&Array.from(board.querySelectorAll("footer[aria-label=\\\"Wähle deinen Namen\\\"] button")).some(b=>b.textContent.trim().startsWith("Testkind"))&&!board.textContent.includes("Du hast diese Aufgabe erledigt.");})()', 20000);
     const choosePupil = async () => await evaluate(client,
-      '(() => {const board=document.querySelector("[aria-label=\"Wochenplan der Klasse\"]");const button=Array.from(board?.querySelectorAll("footer[aria-label=\"Wähle deinen Namen\"] button")||[]).find(b=>b.textContent.trim().startsWith("Testkind"));if(!button)return false;button.click();return true;})()');
+      '(() => {const board=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");const button=Array.from(board?.querySelectorAll("footer[aria-label=\\\"Wähle deinen Namen\\\"] button")||[]).find(b=>b.textContent.trim().startsWith("Testkind"));if(!button)return false;button.click();return true;})()');
     if (!await choosePupil()) throw new Error('Could not select Testkind from the board name buttons.');
     await waitFor(client, 'personal weekly-plan task and one-tap reflection',
-      '(() => {const d=document.querySelector("[role=dialog][aria-label=\"Mein Wochenplan\"]");return !!d&&d.textContent.includes(' + q(topic) + ')&&!!d.querySelector("button[aria-label=\"Aufgabe 1 fertig: Schwer\"]");})()');
+      '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");return !!d&&d.textContent.includes(' + q(topic) + ')&&!!d.querySelector("button[aria-label=\\\"Aufgabe 1 fertig: Schwer\\\"]");})()');
     const marked = await evaluate(client,
-      '(() => {const d=document.querySelector("[role=dialog][aria-label=\"Mein Wochenplan\"]");const b=d?.querySelector("button[aria-label=\"Aufgabe 1 fertig: Schwer\"]");if(!b)return false;b.click();return true;})()');
+      '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");const b=d?.querySelector("button[aria-label=\\\"Aufgabe 1 fertig: Schwer\\\"]");if(!b)return false;b.click();return true;})()');
     if (!marked) throw new Error('Could not give one-tap child feedback.');
     await waitFor(client, 'one-tap feedback saved and public board restored',
-      '(() => {const d=document.querySelector("[role=dialog][aria-label=\"Mein Wochenplan\"]");const board=document.querySelector("[aria-label=\"Wochenplan der Klasse\"]");return !!board&&(!d||!!d.querySelector("button[aria-label=\"Aufgabe 1 fertig: Schwer\"][aria-pressed=true]"));})()', 10000);
+      '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");const board=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");return !!board&&(!d||!!d.querySelector("button[aria-label=\\\"Aufgabe 1 fertig: Schwer\\\"][aria-pressed=true]"));})()', 10000);
     const feedbackDialogOpen = await evaluate(client,
-      'Boolean(document.querySelector("[role=dialog][aria-label=\"Mein Wochenplan\"]"))');
+      'Boolean(document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]"))');
     if (feedbackDialogOpen) await clickButton(client, '✕ Zurück');
     await waitFor(client, 'public plan without pupil-specific feedback',
-      '(() => {const b=document.querySelector("[aria-label=\"Wochenplan der Klasse\"]");return !!b&&b.textContent.includes(' + q(topic) + ')&&!document.querySelector("[role=dialog][aria-label=\"Mein Wochenplan\"]")&&!b.textContent.includes("Fertig · Schwer")&&!b.textContent.includes("Du hast diese Aufgabe erledigt.");})()');
+      '(() => {const b=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");return !!b&&b.textContent.includes(' + q(topic) + ')&&!document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]")&&!b.textContent.includes("Fertig · Schwer")&&!b.textContent.includes("Du hast diese Aufgabe erledigt.");})()');
     if (!await choosePupil()) throw new Error('Could not reopen Testkind personal plan.');
     await waitFor(client, 'child difficulty persists across visits',
-      '(() => {const d=document.querySelector("[role=dialog][aria-label=\"Mein Wochenplan\"]");return !!d&&!!d.querySelector("button[aria-label=\"Aufgabe 1 fertig: Schwer\"][aria-pressed=true]");})()', 10000);
+      '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");return !!d&&!!d.querySelector("button[aria-label=\\\"Aufgabe 1 fertig: Schwer\\\"][aria-pressed=true]");})()', 10000);
     await clickButton(client, '✕ Zurück');
     console.log('✓ real Chrome: public weekly task, one-tap pupil feedback and private difficulty persist across visits');
     const closedCockpit = await evaluate(client,
