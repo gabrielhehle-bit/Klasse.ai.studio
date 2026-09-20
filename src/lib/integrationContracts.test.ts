@@ -13,7 +13,9 @@ test('Canva keeps OAuth popup source validation and all agreed export formats', 
   assert.match(canva, /\/api\/canva\/exports/);
   assert.match(server, /code_challenge_method:\s*'S256'/);
   assert.match(server, /httpOnly:\s*true/);
-  assert.match(server, /encryptCanvaTokens/);
+  assert.match(server, /createCanvaTokenStore\(KLASSIO_DATA_DIR/);
+  assert.match(server, /canvaTokenStore\.put\(callbackAccount\.userId, sessionId, tokenData\)/);
+  assert.match(server, /callbackAccount\.userId !== flow\.ownerId/);
 });
 
 test('KEL PPTX contains only selected assessments and an optional editable chart for comparable scores', () => {
