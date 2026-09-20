@@ -182,6 +182,7 @@ import { BoardInk, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
+import { COCKPIT_QUICKBAR_ITEMS, normalizeCockpitQuickbarSettings, toggleCockpitQuickbarItem, type CockpitQuickbarId } from "../lib/cockpitQuickbar";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
@@ -2913,6 +2914,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const isLayoutLocked = false;
   const isLayoutEditing = true;
   const [isMoreOptionsMenuOpen, setIsMoreOptionsMenuOpen] = useState(false);
+  const [isQuickBarSettingsOpen, setIsQuickBarSettingsOpen] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [vorlagenStartTab, setVorlagenStartTab] = useState<"browse" | "create">("browse");
@@ -2946,6 +2948,29 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       },
     },
   }));
+  const quickBarSettings = normalizeCockpitQuickbarSettings((app.boardSettings as any)?.cockpitQuickbarByClass?.[boardTextClassKey]);
+  const updateQuickBarSettings = (update: (settings: ReturnType<typeof normalizeCockpitQuickbarSettings>) => ReturnType<typeof normalizeCockpitQuickbarSettings>) => {
+    if (!app.activeClassId) return;
+    setApp((prev: any) => {
+      const current = normalizeCockpitQuickbarSettings(prev.boardSettings?.cockpitQuickbarByClass?.[boardTextClassKey]);
+      return { ...prev, boardSettings: {
+        ...(prev.boardSettings || {}),
+        cockpitQuickbarByClass: {
+          ...(prev.boardSettings?.cockpitQuickbarByClass || {}),
+          [boardTextClassKey]: update(current),
+        },
+      } };
+    });
+  };
+  const resetQuickBarSettings = () => {
+    if (!app.activeClassId) return;
+    setApp((prev: any) => {
+      const next = { ...(prev.boardSettings?.cockpitQuickbarByClass || {}) };
+      delete next[boardTextClassKey];
+      return { ...prev, boardSettings: { ...(prev.boardSettings || {}), cockpitQuickbarByClass: next } };
+    });
+    setIsQuickBarSettingsOpen(false);
+  };
   const boardInkItems: InkItem[] = Array.isArray((app.boardSettings as any)?.cockpitInkByClass?.[boardTextClassKey])
     ? ((app.boardSettings as any).cockpitInkByClass[boardTextClassKey] as InkItem[])
     : [];
@@ -2984,6 +3009,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     setIsBoardTextEditing(false);
     setBoardTool('select');
+    setIsQuickBarSettingsOpen(false);
   }, [boardTextClassKey]);
 
   useEffect(() => {
@@ -9510,6 +9536,34 @@ ${content}
                                   className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎨 Design & Farben</button>
                                 <button type="button" onClick={() => { setIsBirthdayCelebrationOpen(true); setIsMoreOptionsMenuOpen(false); }}
                                   className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎂 Geburtstag</button>
+                                <button type="button" aria-expanded={isQuickBarSettingsOpen}
+                                  onClick={() => setIsQuickBarSettingsOpen(open => !open)}
+                                  className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100"
+                                >▤ Widget-Leiste {isQuickBarSettingsOpen ? '▴' : '▾'}</button>
+                                {isQuickBarSettingsOpen && (
+                                  <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800"
+                                    aria-label="Zusätzliche Widget-Leiste konfigurieren">
+                                    <label className="flex min-h-10 items-center gap-2 font-semibold">
+                                      <input type="checkbox" checked={quickBarSettings.enabled}
+                                        disabled={!app.activeClassId}
+                                        onChange={event => updateQuickBarSettings(settings => ({ ...settings, enabled: event.target.checked }))} />
+                                      Zusätzliche Widget-Leiste anzeigen
+                                    </label>
+                                    <p className="text-slate-600">Wähle deine Schnellzugriffe. Alle anderen Widgets bleiben über „Widget hinzufügen“ verfügbar.</p>
+                                    {COCKPIT_QUICKBAR_ITEMS.map(item => (
+                                      <label key={item.id} className="flex min-h-9 items-center gap-2">
+                                        <input type="checkbox" checked={quickBarSettings.itemIds.includes(item.id)}
+                                          disabled={!app.activeClassId}
+                                          onChange={() => updateQuickBarSettings(settings => toggleCockpitQuickbarItem(settings, item.id))} />
+                                        {item.label}
+                                      </label>
+                                    ))}
+                                    <button type="button" onClick={resetQuickBarSettings}
+                                      className="min-h-10 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold hover:bg-slate-100">
+                                      Widget-Leiste zurücksetzen
+                                    </button>
+                                  </div>
+                                )}
                                 <div className="px-2 py-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
                                   Weitere Funktionen
                                 </div>
@@ -9934,6 +9988,25 @@ ${content}
                           </>
                         )}
                       </div>
+
+                      {quickBarSettings.enabled && quickBarSettings.itemIds.length > 0 && app.activeClassId && (
+                        <nav aria-label="Zusätzliche Widget-Leiste"
+                          className="flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-sm">
+                          {COCKPIT_QUICKBAR_ITEMS.filter(item => quickBarSettings.itemIds.includes(item.id)).map(item => (
+                            <button type="button" key={item.id}
+                              className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm font-semibold hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                              onClick={() => {
+                                if (item.id === 'termine') {
+                                  // Preserve the older, separately stored date widget without creating duplicate data.
+                                  toggleWidget('termine');
+                                } else {
+                                  handleOpenWidgetInCockpitLayout(item.id as CockpitWidgetConfig['type']);
+                                }
+                              }}
+                            >{item.label}</button>
+                          ))}
+                        </nav>
+                      )}
 
                       {/* Widget Board (classroomscreen.com style) */}
                       <div
