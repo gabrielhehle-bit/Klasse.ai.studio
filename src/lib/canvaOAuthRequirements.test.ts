@@ -34,3 +34,11 @@ test('Canva editor/export popup is opened before async API work; JPEG uses manda
   assert.match(exportFn, /download\.location\.replace\(target\.toString\(\)\)/);
   assert.match(server, /format === 'jpg' \? \{ quality: 85 \}/);
 });
+
+test('PWA must not serve the application shell for the Canva OAuth callback navigation', () => {
+  const vite = readFileSync('vite.config.ts', 'utf8');
+  assert.match(vite, /navigateFallback:\s*['"]\/index\.html['"]/);
+  assert.match(vite, /navigateFallbackDenylist:\s*\[\/\^\\\/api\\\/\//);
+  assert.match(server, /app\.get\('\/api\/canva\/callback'/);
+  assert.match(server, /CANVA_AUTH_SUCCESS/);
+});
