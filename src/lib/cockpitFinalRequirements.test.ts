@@ -20,9 +20,9 @@ test("Cockpit: freie Unterrichtsfläche bleibt weiß und ohne Startkarte", () =>
   assert.doesNotMatch(teachingSurface, /cockpit-empty-state-hint/);
 });
 
-test("Cockpit: Widgetauswahl startet mit 20 Kernwidgets, alte Typen bleiben zugänglich", () => {
+test("Cockpit: Widgetauswahl startet mit 19 Kernwidgets, alte Layouts bleiben lesbar", () => {
   assert.match(teachingSurface, /useState<string>\("core"\)/);
-  assert.match(teachingSurface, /\{ id: "core", label: "20 Kernwidgets" \}/);
+  assert.match(teachingSurface, /\{ id: "core", label: "19 Kernwidgets" \}/);
   assert.match(teachingSurface, /\{ id: "categories", label: "Weitere Widgets" \}/);
   assert.match(teachingSurface, /PLANNED_COCKPIT_WIDGETS\.map\(\(group\)/);
   assert.doesNotMatch(teachingSurface, /Alle Hilfen/);
@@ -64,10 +64,15 @@ test("Cockpit: alle erhaltenen Standard-Widgettypen sind im Picker und in den Ka
   const pickerCatalog = widgetTypes(teachingSurface.slice(starts[1], pickerEnd));
 
   assert.equal(defaults.length, 108, "Standardlayout muss alle 108 Widgettypen enthalten");
-  assert.equal(counterCatalog.length, 108, "Kategorie-Zähler muss alle 108 Widgettypen kennen");
-  assert.equal(pickerCatalog.length, 108, "Widget-Picker muss alle 108 Widgettypen enthalten");
+  assert.equal(counterCatalog.length, 107, "Kategorie-Zähler darf das doppelte Pluspunkte-Widget nicht mehr anbieten");
+  assert.equal(pickerCatalog.length, 107, "Widget-Picker darf das doppelte Pluspunkte-Widget nicht mehr anbieten");
 
-  for (const type of defaults) {
+  // Historic studentlist remains in the 108-entry layout/backup schema but
+  // must not be offered as a duplicate of the existing student sidebar.
+  assert.ok(defaults.includes("studentlist"), "Historische Schülerliste muss beim Backup-Laden erhalten bleiben");
+  assert.equal(counterCatalog.includes("studentlist"), false);
+  assert.equal(pickerCatalog.includes("studentlist"), false);
+  for (const type of defaults.filter(type => type !== "studentlist")) {
     assert.ok(counterCatalog.includes(type), `Kategorie-Zähler kennt ${type} nicht`);
     assert.ok(pickerCatalog.includes(type), `Widget-Picker kennt ${type} nicht`);
   }
