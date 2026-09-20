@@ -110,7 +110,7 @@ export default function ClassroomWeeklyPlanWidget() {
           className="flex max-h-[96dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white text-slate-900 shadow-2xl">
           <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-indigo-50 px-4 py-3">
             <div>
-              <h2 className="text-xl font-black sm:text-3xl">{safePanel === 'names' ? 'Wie heißt du?' : 'Mein Wochenplan · ' + getDisplayStudentName(pupil!, pupils)}</h2>
+              <h2 className="text-xl font-black sm:text-3xl">{safePanel === 'names' ? 'Wie heißt du?' : 'Mein Wochenplan · ' + (pupil ? getDisplayStudentName(pupil, pupils) : 'Kind')}</h2>
               <p className="text-sm text-slate-600">{safePanel === 'names' ? 'Tippe auf deinen Namen, wenn du fertig bist.' : 'Setze bei erledigten Aufgaben dein Häkchen. Wie war die Arbeit für dich?'}</p>
             </div>
             <button type="button" onClick={close} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 text-base font-black">✕ Zurück zur Klasse</button>
