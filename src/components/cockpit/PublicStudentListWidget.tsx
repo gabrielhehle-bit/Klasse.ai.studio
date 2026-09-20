@@ -45,6 +45,8 @@ export function PublicStudentListWidget({
   const [compact, setCompact] = useState(false);
   const dense = !gridMode && (sidebarCompact || compact);
   const showBehavior = app.boardSettings?.showStudentBehaviorInPluspoints === true;
+  // Personal emoji is intentionally opt-in; do not invent a placeholder avatar.
+  const showStudentEmoji = app.boardSettings?.showStudentEmojiInList === true;
   const [lastAwardedId, setLastAwardedId] = useState<string | null>(null);
   const [recentlyAwardedId, setRecentlyAwardedId] = useState<string | null>(null);
 
@@ -126,6 +128,8 @@ export function PublicStudentListWidget({
             : stageId === '5' ? 'bg-rose-100 text-rose-950'
             : 'bg-slate-100 text-slate-800';
           const behaviorStages = showBehavior ? (app.behavior_stages || []) : [];
+          const nextStageIndex = behaviorStages.findIndex(stage => stage.id === stageId) + 1;
+          const nextBehaviorStage = nextStageIndex > 0 ? behaviorStages[nextStageIndex] : undefined;
           const cardTone = ['border-sky-200 bg-sky-50/80', 'border-amber-200 bg-amber-50/80', 'border-violet-200 bg-violet-50/80', 'border-emerald-200 bg-emerald-50/80'][index % 4];
           return (
             <div key={student.id} role="listitem"
@@ -133,15 +137,20 @@ export function PublicStudentListWidget({
               className={`min-w-0 rounded-2xl border-2 shadow-sm ${cardTone} ${gridMode ? 'px-1.5 py-1' : dense ? 'px-1 py-0.5' : 'px-3 py-2'}`}>
               <div className="flex min-w-0 items-center justify-between gap-1">
                 <div className="flex min-w-0 flex-1 items-center gap-1">
-                  {showBehavior && behaviorStage ? (
-                    <span aria-hidden="true" title={`Verhalten: ${behaviorStage.label}`}
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-lg shadow-sm ${behaviorColor}`}>
+                  {showStudentEmoji && student.emoji && (
+                    <span aria-label={`Profil-Emoji von ${labels.get(student.id)}`}
+                      className={`${sidebarCompact ? 'hidden' : 'flex'} h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/90 text-base shadow-sm`}>
+                      {student.emoji}
+                    </span>
+                  )}
+                  {showBehavior && behaviorStage && onBehaviorStageChange && (
+                    <button type="button" disabled={!nextBehaviorStage}
+                      onClick={() => nextBehaviorStage && onBehaviorStageChange(student.id, nextBehaviorStage.id)}
+                      aria-label={`Verhalten von ${labels.get(student.id)}: ${behaviorStage.label}; ${nextBehaviorStage ? `mit einem Klick auf ${nextBehaviorStage.label} weiterstellen` : 'letzte Stufe erreicht'}`}
+                      title={nextBehaviorStage ? `${behaviorStage.label} → ${nextBehaviorStage.label}` : `${behaviorStage.label}: letzte Stufe. Änderung in der Notenmappe möglich.`}
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:opacity-70 ${behaviorColor}`}>
                       {behaviorStage.icon || '●'}
-                    </span>
-                  ) : (
-                    <span aria-hidden="true" className={`${sidebarCompact ? 'hidden' : 'flex'} h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/90 text-base shadow-sm`}>
-                      {student.emoji || '🧑‍🎓'}
-                    </span>
+                    </button>
                   )}
                   <div className="min-w-0 flex-1">
                     <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-[11px]' : 'text-base'}`}>{labels.get(student.id)}</span>
@@ -179,21 +188,6 @@ export function PublicStudentListWidget({
                   >{recentlyAwardedId === student.id && !dense ? '✓ +1' : '+1'}</button>
                 </div>
               </div>
-              {showBehavior && onBehaviorStageChange && behaviorStages.length > 0 && (
-                <div className="mt-0.5 flex w-full items-center gap-0.5" role="group"
-                  aria-label={`Verhalten für ${labels.get(student.id)} mit einem Klick wählen`}>
-                  {behaviorStages.map(stage => (
-                    <button type="button" key={stage.id}
-                      aria-label={`Verhalten für ${labels.get(student.id)}: ${stage.label} auswählen`}
-                      aria-pressed={stage.id === stageId}
-                      title={`${labels.get(student.id)}: ${stage.label}`}
-                      onClick={() => onBehaviorStageChange(student.id, stage.id)}
-                      className={`flex h-7 min-w-0 flex-1 items-center justify-center rounded-md text-base transition-transform hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${stage.id === stageId ? 'bg-white ring-2 ring-indigo-500 shadow-sm' : 'bg-white/60 hover:bg-white'}`}>
-                      {stage.icon || '●'}
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
           );
         })}
