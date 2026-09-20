@@ -18,8 +18,10 @@ interface Props {
 
 /**
  * Nur für die öffentliche, duplizierte Unterrichtsfläche. Interne Status,
- * Notizen, Diagnosen, Abwesenheitsgründe und negative Verhaltensbewertungen
- * werden weder aus app gelesen noch als Props an diese Komponente gereicht.
+ * Notizen, Diagnosen und Abwesenheitsgründe werden hier nie angezeigt.
+ * Verhaltensstufen aus der vorhandenen Erfassung dürfen ausschließlich bei
+ * ausdrücklicher Aktivierung durch die Lehrperson öffentlich gezeigt werden;
+ * interne Verhaltensnotizen bleiben auch dann verborgen.
  *
  * Korrekturen werden ausschließlich nach einem bewussten Plus-Klick in dieser
  * Ansicht angeboten; bestehende Mitarbeitspunkte bleiben im AppState.
@@ -39,6 +41,7 @@ export function PublicStudentListWidget({
   const gridMode = Boolean(onExpand);
   const [compact, setCompact] = useState(false);
   const dense = !gridMode && (sidebarCompact || compact);
+  const showBehavior = app.boardSettings?.showStudentBehaviorInPluspoints === true;
   const [lastAwardedId, setLastAwardedId] = useState<string | null>(null);
   const [recentlyAwardedId, setRecentlyAwardedId] = useState<string | null>(null);
 
@@ -108,6 +111,17 @@ export function PublicStudentListWidget({
         {students.map((student: Student, index: number) => {
           const points = Math.max(0, getTodayPoints(student.id));
           const awarded = lastAwardedId === student.id;
+          const stageId = showBehavior
+            ? app.behavior_status?.[student.id] || app.behavior_default_stage_id || '3'
+            : null;
+          const behaviorStage = stageId
+            ? app.behavior_stages?.find(stage => stage.id === stageId)
+            : undefined;
+          const behaviorColor = stageId === '1' ? 'bg-emerald-100 text-emerald-900'
+            : stageId === '2' ? 'bg-sky-100 text-sky-900'
+            : stageId === '4' ? 'bg-amber-100 text-amber-950'
+            : stageId === '5' ? 'bg-rose-100 text-rose-950'
+            : 'bg-slate-100 text-slate-800';
           const cardTone = ['border-sky-200 bg-sky-50/80', 'border-amber-200 bg-amber-50/80', 'border-violet-200 bg-violet-50/80', 'border-emerald-200 bg-emerald-50/80'][index % 4];
           return (
             <div key={student.id} role="listitem"
@@ -119,9 +133,18 @@ export function PublicStudentListWidget({
                 </span>
                 <div className="min-w-0 flex-1">
                 <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-[11px]' : 'text-base'}`}>{labels.get(student.id)}</span>
-                <span className={`block font-bold text-amber-800 ${dense ? 'text-[11px]' : 'text-sm'}`} aria-label={`${points} Pluspunkte`}>
-                  {gridMode || dense ? `⭐ ${points}` : `${'⭐'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
-                </span>
+                <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                  <span className={`block font-bold text-amber-800 ${dense ? 'text-[11px]' : 'text-sm'}`} aria-label={`${points} Pluspunkte`}>
+                    {gridMode || dense ? `⭐ ${points}` : `${'⭐'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
+                  </span>
+                  {showBehavior && behaviorStage && (
+                    <span aria-label={`Verhaltensstatus: ${behaviorStage.label}`} title={`Verhalten: ${behaviorStage.label}`}
+                      className={`inline-flex min-w-0 items-center rounded-full px-1.5 py-0.5 text-[10px] font-extrabold leading-none ${behaviorColor}`}>
+                      <span aria-hidden="true">{behaviorStage.icon || '●'}</span>
+                      {!sidebarCompact && <span className="ml-0.5 truncate">{behaviorStage.label}</span>}
+                    </span>
+                  )}
+                </div>
                 </div>
               </div>
               <div className="flex shrink-0 flex-wrap justify-end gap-1">
