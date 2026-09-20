@@ -182,6 +182,38 @@ export const UnterrichtsmodusThemePicker: React.FC<ThemePickerProps> = ({ app, s
                         </div>
                     </section>
 
+                    {/* Change the cockpit font only when the teacher explicitly selects one. */}
+                    <section className="space-y-3 p-4 rounded-2xl border" aria-label="Schriftart im Lehrercockpit"
+                        style={{ borderColor: currentTheme.colors.border, backgroundColor: currentTheme.colors.surface }}>
+                        <label htmlFor="cockpit-font-choice" className="flex items-center gap-2 text-xs font-black"
+                            style={{ color: currentTheme.colors.textPrimary }}>
+                            <Type size={14} /> Schriftart im Lehrercockpit
+                        </label>
+                        <select id="cockpit-font-choice"
+                            value={app.boardSettings?.activeFont || `font-${app.settings?.fontFamily || 'standard'}`}
+                            onChange={(event) => {
+                                const chosenFont = event.target.value;
+                                setApp(prev => ({
+                                    ...prev,
+                                    boardSettings: { ...prev.boardSettings, activeFont: chosenFont },
+                                }));
+                            }}
+                            className="w-full min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold"
+                            style={{ backgroundColor: currentTheme.colors.surface, color: currentTheme.colors.textPrimary, borderColor: currentTheme.colors.border }}>
+                            {!['font-standard', 'font-sans', 'font-druckschrift', 'font-schulschrift', 'font-dyslexic'].includes(app.boardSettings?.activeFont || `font-${app.settings?.fontFamily || 'standard'}`) && (
+                                <option value={app.boardSettings?.activeFont || `font-${app.settings?.fontFamily || 'standard'}`}>Bisherige Schrift beibehalten</option>
+                            )}
+                            <option value="font-standard">Standard</option>
+                            <option value="font-sans">Klare Druckschrift</option>
+                            <option value="font-druckschrift">Druckschrift (Schule)</option>
+                            <option value="font-schulschrift">Schulschrift</option>
+                            <option value="font-dyslexic">Lesefreundliche Schrift</option>
+                        </select>
+                        <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                            Ein Farb- oder Designwechsel ändert deine ausgewählte Schrift nicht.
+                        </p>
+                    </section>
+
                     {/* CUSTOM COLORS */}
                     <section className="space-y-4 p-4 rounded-2xl border" style={{ borderColor: currentTheme.colors.border, backgroundColor: `${currentTheme.colors.textPrimary}05` }}>
                         <div className="flex items-center gap-2">
