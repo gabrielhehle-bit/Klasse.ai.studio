@@ -29,6 +29,27 @@ test('Schulregister ordnet nur die exakte konkrete Schul-Domain zu', async () =>
     assert.equal(krumbach.federalState, 'Vorarlberg');
     assert.notEqual(krumbach.id, oberau.id, 'Krumbach und Oberau müssen getrennte Schulgruppen bleiben.');
 
+    const mellau = await store.findVerifiedSchoolByEmail('lehrperson@vsml.vobs.at');
+    assert.ok(mellau);
+    assert.equal(mellau.id, 'at-vbg-vs-mellau');
+    assert.equal(mellau.code, 'vsml');
+    assert.equal(mellau.name, 'Volksschule Mellau');
+    assert.equal(mellau.federalState, 'Vorarlberg');
+    assert.deepEqual(mellau.domains, ['vsml.vobs.at']);
+    assert.notEqual(mellau.id, krumbach.id, 'Mellau und Krumbach dürfen nie dieselbe Schulgruppe sein.');
+    assert.notEqual(mellau.id, oberau.id, 'Mellau und Oberau dürfen nie dieselbe Schulgruppe sein.');
+    const mellauTeacher = createTeacherIdentityForSchool('lehrperson@vsml.vobs.at', mellau);
+    assert.equal(mellauTeacher.schoolId, mellau.id);
+    assert.notEqual(mellauTeacher.schoolId, createTeacherIdentityForSchool('lehrperson@vskr.vobs.at', krumbach).schoolId);
+
+    // A release reseeds an already existing registry: no school or pending
+    // requests may be erased and no duplicate schools may be created.
+    await store.ensureSeedSchools(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS);
+    const verified = await store.listVerifiedSchools();
+    assert.equal(verified.filter(school => school.id === mellau.id).length, 1);
+    assert.equal(verified.filter(school => school.id === krumbach.id).length, 1);
+    assert.equal(verified.filter(school => school.id === oberau.id).length, 1);
+
     assert.equal(
       await store.findVerifiedSchoolByEmail('lehrperson@andere-schule.vobs.at'),
       null,
