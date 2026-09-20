@@ -27,6 +27,7 @@ import {
 } from '../../../lib/kidAttendanceAlgorithm';
 import { KID_MOOD_SCALE, getMoodMeta } from '../../../lib/moodTypes';
 import { getStudentGridLayout } from '../../../lib/studentWidgetGrid';
+import { CHECK_IN_GRID_OPTIONS, shouldShowCheckInSummary } from '../../../lib/checkInWidgetLayout';
 
 export interface KidAttendanceWidgetProps {
   widget?: CockpitWidgetConfig;
@@ -52,7 +53,19 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   useWidgetOverflowGuard('KidAttendanceWidget', containerRef);
 
   // Heutiges Datum
-  const todayStr = useMemo(() => getTodayIsoDate(), []);
+  const [todayStr, setTodayStr] = useState(getTodayIsoDate);
+
+  // A Cockpit can stay open overnight. Refresh the local school-day key before
+  // accepting another check-in rather than writing the previous day's record.
+  React.useEffect(() => {
+    const refreshToday = () => setTodayStr(getTodayIsoDate());
+    const timer = window.setInterval(refreshToday, 60_000);
+    document.addEventListener('visibilitychange', refreshToday);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshToday);
+    };
+  }, []);
 
   // Nur echte Kinder der aktiven Klasse. Während des Ladens bzw. bei leerer
   // Klasse niemals erfundene Namen anbieten oder Anwesenheit für sie buchen.
@@ -75,7 +88,6 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   // Lokale UI-Modi (flüchtig)
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
-  const [isCompactCheckInOpen, setIsCompactCheckInOpen] = useState(false);
   const [recentlyTappedId, setRecentlyTappedId] = useState<string | null>(null);
 
   // Aktiver Befindens-Check-in für ein Kind (direkt nach "Da"-Klick)
@@ -239,7 +251,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     );
   }
 
-  const studentGrid = getStudentGridLayout(size.width, size.height, students.length, { reservedHeight: 146, minCardWidth: 175, minCardHeight: 52, gap: 6 });
+  const studentGrid = getStudentGridLayout(size.width, size.height, students.length, CHECK_IN_GRID_OPTIONS);
+  const showCompactSummary = shouldShowCheckInSummary(size.width, studentGrid.fits);
   const denseStudentGrid = students.length >= 16;
   const expandStudentGrid = () => onUpdate?.({ x: 2, y: 2, w: 96, h: 90 });
 
@@ -277,7 +290,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
     // Touch-Target-Größen je nach Modus
     const cardHeight = denseStudentGrid
-      ? 'min-h-[52px] px-2 py-1'
+      ? 'min-h-[64px] px-2 py-1'
       : size.isXL
       ? 'min-h-[80px] px-4 py-3'
       : size.isLarge
@@ -301,7 +314,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             ? `${displayName} ist eingecheckt`
             : `${displayName}: Hier tippen für "Ich bin da!"`
         }
-        style={denseStudentGrid ? { minHeight: 52, height: Math.min(82, studentGrid.cardHeight) } : undefined}
+        style={denseStudentGrid ? { minHeight: 64, height: Math.min(96, studentGrid.cardHeight) } : undefined}
         className={`w-full ${cardHeight} rounded-xl border flex items-center justify-between gap-2.5 text-left transition-all duration-150 select-none ${
           status === 'open' ? 'cursor-pointer active:scale-97' : ''
         } ${cardClasses}`}
@@ -369,125 +382,60 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   };
 
   // ==========================================
-  // COMPACT LAYOUT (< 380px)
+  // KLEINE WIDGET-FLÄCHE: Übersicht statt abgeschnittene Schülerliste.
+  // Das Kind tippt erst auf seine Karte in der vergrößerten Ansicht.
   // ==========================================
-  if (size.isCompact && !isCompactCheckInOpen && studentGrid.fits && students.length <= 2) {
+  if (showCompactSummary) {
     return (
-      <div
+      <section
         ref={containerRef}
-        className="w-full h-full flex flex-col justify-between p-3 select-none font-sans overflow-hidden"
+        aria-label="Ich bin da – kompakte Anwesenheitsübersicht"
+        className={`relative flex h-full min-h-0 w-full flex-col justify-between gap-2 overflow-hidden p-3 font-sans ${
+          currentIsLight ? 'bg-slate-50 text-slate-900' : 'bg-zinc-900 text-zinc-100'
+        }`}
       >
-        {/* Header mit Titel & Datum */}
-        <div className="flex items-center justify-between gap-1.5 border-b pb-2 mb-2 shrink-0 border-slate-200 dark:border-zinc-800">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-base shrink-0">🖐️</span>
-            <span className="font-black text-xs uppercase tracking-wider truncate text-slate-800 dark:text-zinc-100">
-              Check-In
-            </span>
-          </div>
-          <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 tabular-nums">
-            {formattedToday}
-          </span>
-        </div>
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 pb-2 dark:border-zinc-700">
+          <h3 className="min-w-0 text-sm font-black leading-tight">🖐️ Ich bin da!</h3>
+          <span className="shrink-0 text-xs font-semibold tabular-nums opacity-70">{formattedToday}</span>
+        </header>
 
-        {/* Kompaktansicht: alle Namen bleiben sichtbar und jeder Status ist direkt zugeordnet. */}
-        <div className="flex-1 min-h-0 flex flex-col gap-2 py-1">
-          <div className="grid grid-cols-3 gap-1.5 text-center shrink-0">
-            <div className="p-1.5 rounded-lg border bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
-              <span className="block text-base font-black tabular-nums leading-none">{summary.present}</span>
-              <span className="text-[9px] font-bold">da</span>
-            </div>
-            <div className="p-1.5 rounded-lg border bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
-              <span className="block text-base font-black tabular-nums leading-none">{summary.open}</span>
-              <span className="text-[9px] font-bold">offen</span>
-            </div>
-            <div className="p-1.5 rounded-lg border bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800">
-              <span className="block text-base font-black tabular-nums leading-none">{summary.absent}</span>
-              <span className="text-[9px] font-bold">fehlt</span>
-            </div>
+        <div className="grid shrink-0 grid-cols-3 gap-1.5 text-center" role="status" aria-live="polite"
+          aria-label={`${summary.present} anwesend, ${summary.open} offen, ${summary.absent} abwesend`}>
+          <div className="flex min-h-14 flex-col justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-1 text-emerald-900">
+            <strong className="text-xl tabular-nums leading-none">{summary.present}</strong>
+            <span className="mt-1 text-xs font-bold">Da</span>
           </div>
-
-          <div className="flex-1 min-h-0 overflow-hidden space-y-1 pr-0.5" aria-label="Anwesenheitsliste mit allen Kindern">
-            {students.map((student) => {
-              const displayName = displayNames.get(student.id) || student.vorname;
-              const { status, delayMinutes } = getStudentAttendanceStatus(student.id, app, todayStr);
-              return (
-                <button
-                  key={student.id}
-                  type="button"
-                  onClick={() => handleStudentCardTap(student.id)}
-                  disabled={status === 'absent'}
-                  className={`w-full min-h-9 px-2 py-1.5 rounded-lg border flex items-center gap-2 text-left ${
-                    status === 'present'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
-                      : status === 'absent'
-                      ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800'
-                      : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
-                  }`}
-                >
-                  <span className="min-w-0 flex-1 whitespace-normal break-words text-[11px] font-black leading-tight">{displayName}</span>
-                  {delayMinutes > 0 && <span className="text-[9px] font-bold text-amber-600">+{delayMinutes}m</span>}
-                  <span className={`shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded ${
-                    status === 'present'
-                      ? 'text-emerald-700 dark:text-emerald-300'
-                      : status === 'absent'
-                      ? 'text-rose-700 dark:text-rose-300'
-                      : 'text-amber-700 dark:text-amber-300'
-                  }`}>
-                    {status === 'present' ? '✓ Da' : status === 'absent' ? 'Fehlt' : 'Offen'}
-                  </span>
-                </button>
-              );
-            })}
+          <div className="flex min-h-14 flex-col justify-center rounded-xl border border-amber-200 bg-amber-50 px-1 text-amber-900">
+            <strong className="text-xl tabular-nums leading-none">{summary.open}</strong>
+            <span className="mt-1 text-xs font-bold">Offen</span>
+          </div>
+          <div className="flex min-h-14 flex-col justify-center rounded-xl border border-rose-200 bg-rose-50 px-1 text-rose-900">
+            <strong className="text-xl tabular-nums leading-none">{summary.absent}</strong>
+            <span className="mt-1 text-xs font-bold">Fehlt</span>
           </div>
         </div>
 
-        {/* Aktionsleiste COMPACT */}
-        <div className="flex flex-col gap-1.5 shrink-0 pt-2 border-t border-slate-200 dark:border-zinc-800">
-          <button
-            type="button"
-            onClick={() => setIsCompactCheckInOpen(true)}
-            className="w-full h-11 min-h-[44px] rounded-xl font-black text-xs uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-          >
-            <Maximize2 size={14} />
-            Check-In öffnen
-          </button>
-
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => setIsTeacherModalOpen(true)}
-              className="flex-1 h-9 min-h-[36px] rounded-lg border font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700"
-            >
-              <ShieldCheck size={13} />
-              Korrigieren
-            </button>
-
-            {!summary.isComplete && (
-              <button
-                type="button"
-                onClick={() => setIsFinalizeModalOpen(true)}
-                className="flex-1 h-9 min-h-[36px] rounded-lg border font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100"
-              >
-                Abschließen
-              </button>
-            )}
-          </div>
+        <div className="min-h-0 flex-1 content-center text-center text-xs font-medium leading-snug">
+          {summary.isComplete ? 'Alle Kinder sind erfasst.' : `${summary.open} von ${summary.total} Kindern noch offen.`}
         </div>
-
-        {/* Kinder-Befindensabfrage (unmittelbar nach Check-in) */}
-        {activeMoodStudent && renderChildMoodModal()}
-        {/* Lehrer-Korrekturmodal */}
+        <button
+          type="button"
+          onClick={expandStudentGrid}
+          disabled={!onUpdate}
+          className="flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+          aria-label={`Ich bin da vergrößern: ${summary.total} Kinder anzeigen und bearbeiten`}
+        >
+          <Maximize2 size={17} aria-hidden="true" /> Alle Kinder öffnen
+        </button>
         {isTeacherModalOpen && renderTeacherModal()}
-        {/* Abschlussdialog */}
         {isFinalizeModalOpen && renderFinalizeModal()}
-      </div>
+        {activeMoodStudent && renderChildMoodModal()}
+      </section>
     );
   }
 
   // ==========================================
-  // STANDARD (380-549px), LARGE (550-799px), FULLSCREEN (≥ 800px)
-  // und COMPACT-Overlay (wenn geöffnet)
+  // AUSREICHEND GROSSE ANSICHT: Raster mit allen Kindern ohne Scrollen
   // ==========================================
   // Kinderkarten bekommen bewusst mehr Breite: Namen dürfen niemals zugunsten
   // einer möglichst hohen Spaltenzahl abgeschnitten werden.
@@ -541,19 +489,6 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
         {/* Aktionsbuttons oben rechts */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Zurück-Button für aufgeklapptes Compact */}
-          {size.isCompact && isCompactCheckInOpen && (
-            <button
-              type="button"
-              onClick={() => setIsCompactCheckInOpen(false)}
-              className="px-2.5 py-1.5 rounded-lg border font-bold text-xs flex items-center gap-1 cursor-pointer bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border-slate-300 dark:border-zinc-600"
-              title="Kompaktansicht"
-            >
-              <X size={14} />
-              <span className="hidden sm:inline">Schließen</span>
-            </button>
-          )}
-
           {/* Lehrer-Korrektur */}
           <button
             type="button"
