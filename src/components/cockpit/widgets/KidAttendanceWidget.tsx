@@ -387,8 +387,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   // ==========================================
   if (showCompactSummary) {
     return (
-      <section
+      <div
         ref={containerRef}
+        role="group"
         aria-label="Ich bin da – kompakte Anwesenheitsübersicht"
         className={`relative flex h-full min-h-0 w-full flex-col justify-between gap-2 overflow-hidden p-3 font-sans ${
           currentIsLight ? 'bg-slate-50 text-slate-900' : 'bg-zinc-900 text-zinc-100'
@@ -430,7 +431,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         {isTeacherModalOpen && renderTeacherModal()}
         {isFinalizeModalOpen && renderFinalizeModal()}
         {activeMoodStudent && renderChildMoodModal()}
-      </section>
+      </div>
     );
   }
 
