@@ -7,7 +7,7 @@ const birthday = readFileSync('src/components/cockpit/BirthdayCelebration.tsx', 
 
 test('Geburtstagsmodus ist eine bewusst gestartete Feieransicht und kein 21. Widget', () => {
   assert.match(teaching, /const \[isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen\] = useState\(false\)/);
-  assert.match(teaching, /onClick=\{\(\) => setIsBirthdayCelebrationOpen\(true\)\}/);
+  assert.match(teaching, /setIsBirthdayCelebrationOpen\(true\); setIsMoreOptionsMenuOpen\(false\)/);
   assert.match(teaching, /isBirthdayCelebrationOpen && \(/);
   assert.match(birthday, /onClose\(\)/);
   assert.match(birthday, /setSelectedId\(student\.id\)/);
