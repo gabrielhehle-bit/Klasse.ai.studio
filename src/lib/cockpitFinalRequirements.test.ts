@@ -186,7 +186,8 @@ test("Cockpit: nutzt die konfigurierten zehn Stunden-Slots statt acht fest verdr
 test("Cockpit: erfindet weder Klasse noch Klassentier im frischen Zustand", () => {
   assert.doesNotMatch(teachingSurface, /app\.klassenbezeichnung \|\| "4c"/);
   assert.match(teachingSurface, /const cockpitClassLabel = \(app\.klassenbezeichnung \|\| ""\)\.trim\(\)/);
-  assert.match(teachingSurface, /const classPetEnabled = app\.classPet \? app\.classPet\.enabled !== false : false/);
+  assert.match(teachingSurface, /const classPetEnabled = false;/);
+  assert.match(teachingSurface, /case "pet":\s*return <ClassMascotWidget/);
   assert.doesNotMatch(teachingSurface, /const isEnabled = app\.classPet\?\.enabled \?\? true/);
 });
 
@@ -194,8 +195,8 @@ test("Cockpit: sekundäre Ansichtssteuerung liegt gesammelt unter Optionen", () 
   for (const label of [
     "Schülerliste einblenden",
     "Schülerliste ausblenden",
-    "Klassentier einblenden",
-    "Klassentier ausblenden",
+    "Klassenmaskottchen öffnen",
+    "Klassenmaskottchen schließen",
     "Design & Farben",
     "Fokusmodus",
     "Vollbildmodus",
