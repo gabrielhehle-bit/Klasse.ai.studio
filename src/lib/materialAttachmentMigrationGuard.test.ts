@@ -17,6 +17,7 @@ test('encrypted attachment foundation does NOT silently migrate, delete or repri
   assert.match(backup, /export const CURRENT_BACKUP_VERSION = 1/);
   assert.match(server, /process\.env\.KLASSIO_ENCRYPTED_ATTACHMENTS_ENABLED === 'true'/);
   assert.match(server, /if \(!encryptedAttachmentsEnabled\)/);
+  assert.match(server, /process\.env\.NODE_ENV !== 'production'/);
   assert.match(env, /KLASSIO_ENCRYPTED_ATTACHMENTS_ENABLED=false/);
   assert.doesNotMatch(server, /process\.env\.KLASSIO_ENCRYPTED_ATTACHMENTS_ENABLED \|\| 'true'/);
   const existing: MaterialItem = {
