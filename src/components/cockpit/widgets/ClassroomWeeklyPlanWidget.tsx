@@ -68,9 +68,9 @@ export default function ClassroomWeeklyPlanWidget() {
     if (tasks.length === 1) close();
   };
 
-  return <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900"
+  return <div className="classroom-weekly-plan flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border-2 border-indigo-500 bg-white text-slate-950"
     aria-label="Wochenplan der Klasse">
-    <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-indigo-50 px-3 py-2 sm:px-5">
+    <header className="weekly-plan-light-surface flex shrink-0 flex-wrap items-center justify-between gap-2 border-b-2 border-indigo-400 bg-indigo-50 px-3 py-2 sm:px-5">
       <div><h2 className="text-xl font-extrabold sm:text-2xl">📋 Unser Wochenplan</h2>
         <p className="text-sm font-semibold text-slate-600">Kalenderwoche {week} · {tasks.length} Aufgaben</p></div>
       <div className="flex items-center gap-2">
@@ -91,7 +91,7 @@ export default function ClassroomWeeklyPlanWidget() {
             Für diese Woche gibt es noch keine freigegebene Aufgabe.
           </p>
         : <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {tasks.map((task, index) => <article key={task.id} className="rounded-2xl border-2 border-indigo-200 bg-indigo-50/60 p-4">
+            {tasks.map((task, index) => <article key={task.id} className="weekly-plan-light-card rounded-2xl border-2 border-indigo-400 bg-white p-4 shadow-sm">
               <p className="mb-2 text-base font-extrabold text-indigo-800">Aufgabe {index + 1} · {task.day}</p>
               <TaskText task={task} />
             </article>)}
@@ -99,12 +99,12 @@ export default function ClassroomWeeklyPlanWidget() {
     </section>
 
     {tasks.length > 0 && pupils.length > 0 && (
-      <footer className="shrink-0 border-t-2 border-indigo-200 bg-indigo-50 p-2 sm:p-3" aria-label="Wähle deinen Namen">
+      <footer className="weekly-plan-light-surface shrink-0 border-t-4 border-indigo-500 bg-indigo-50 p-2 sm:p-3" aria-label="Wähle deinen Namen">
         <p className="mb-2 text-center text-base font-extrabold text-indigo-900">👋 Fertig oder brauchst du Hilfe? Tippe unten auf deinen Namen!</p>
         <div className="grid max-h-[min(34dvh,290px)] grid-cols-3 gap-1.5 overflow-y-auto sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6">
           {pupils.map(student => <button type="button" key={student.id}
             onClick={() => { setSelectionScope(scope); setChildId(student.id); }}
-            className="min-h-12 min-w-0 break-words rounded-xl border-2 border-indigo-200 bg-white px-2 py-1 text-center text-sm font-extrabold text-slate-900 shadow-sm hover:border-indigo-500 hover:bg-indigo-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 sm:text-base">
+            className="weekly-plan-light-card min-h-14 min-w-0 break-words rounded-xl border-2 border-indigo-500 bg-white px-2 py-1 text-center text-base font-black text-slate-950 shadow-sm hover:border-indigo-700 hover:bg-indigo-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 sm:text-lg">
             {getDisplayStudentName(student, pupils)}
           </button>)}
         </div>
@@ -115,8 +115,8 @@ export default function ClassroomWeeklyPlanWidget() {
       <div role="presentation" className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/85 p-2 sm:p-5"
         onPointerDown={event => event.stopPropagation()}>
         <section role="dialog" aria-modal="true" aria-label="Mein Wochenplan"
-          className="flex max-h-[96dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white text-slate-900 shadow-2xl">
-          <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-indigo-200 bg-indigo-50 px-4 py-3">
+          className="classroom-weekly-plan flex max-h-[96dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border-2 border-indigo-500 bg-white text-slate-950 shadow-2xl">
+          <header className="weekly-plan-light-surface flex shrink-0 flex-wrap items-center justify-between gap-2 border-b-2 border-indigo-400 bg-indigo-50 px-4 py-3">
             <div><h2 className="text-xl font-extrabold sm:text-2xl">👋 {getDisplayStudentName(pupil, pupils)}, wie lief deine Aufgabe?</h2>
               <p className="text-sm font-semibold text-slate-700">Tippe EINMAL auf die passende Antwort. Wir merken uns deine Antwort.</p></div>
             <button type="button" onClick={close} className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold">✕ Zurück</button>
@@ -124,7 +124,7 @@ export default function ClassroomWeeklyPlanWidget() {
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-5">
             {tasks.map((task, index) => {
               const progress = getChildTaskProgress(pupil, task.id);
-              return <article key={task.id} className="rounded-2xl border-2 border-slate-200 bg-white p-3 sm:p-4">
+              return <article key={task.id} className="weekly-plan-light-card rounded-2xl border-2 border-indigo-300 bg-white p-3 sm:p-4">
                 <p className="mb-1 text-sm font-extrabold text-indigo-800">Aufgabe {index + 1}</p>
                 <TaskText task={task} />
                 {progress && <p className="mt-2 text-xs font-semibold text-slate-600">
@@ -148,8 +148,8 @@ export default function ClassroomWeeklyPlanWidget() {
               </article>;
             })}
           </div>
-          {tasks.length > 1 && <footer className="shrink-0 border-t border-slate-200 bg-indigo-50 p-2 text-right">
-            <button type="button" onClick={close} className="min-h-11 rounded-xl bg-indigo-700 px-5 text-sm font-extrabold text-white">
+          {tasks.length > 1 && <footer className="weekly-plan-light-surface shrink-0 border-t-2 border-indigo-300 bg-indigo-50 p-2 text-right">
+            <button type="button" onClick={close} className="weekly-plan-dark-action min-h-11 rounded-xl bg-indigo-700 px-5 text-sm font-extrabold text-white">
               Zurück zum Klassenplan ✓</button>
           </footer>}
         </section>
