@@ -27,7 +27,7 @@ import {
 } from '../../../lib/kidAttendanceAlgorithm';
 import { KID_MOOD_SCALE, getMoodMeta } from '../../../lib/moodTypes';
 import { getStudentGridLayout } from '../../../lib/studentWidgetGrid';
-import { CHECK_IN_GRID_OPTIONS, shouldShowCheckInSummary } from '../../../lib/checkInWidgetLayout';
+import { CHECK_IN_GRID_OPTIONS, getCheckInPageLayout, shouldShowCheckInSummary } from '../../../lib/checkInWidgetLayout';
 
 export interface KidAttendanceWidgetProps {
   widget?: CockpitWidgetConfig;
@@ -88,6 +88,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   // Lokale UI-Modi (flüchtig)
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
+  const [isStudentPageOpen, setIsStudentPageOpen] = useState(false);
+  const [studentPage, setStudentPage] = useState(0);
   const [recentlyTappedId, setRecentlyTappedId] = useState<string | null>(null);
 
   // Aktiver Befindens-Check-in für ein Kind (direkt nach "Da"-Klick)
@@ -114,6 +116,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     setActiveMoodStudent(null);
     setIsTeacherModalOpen(false);
     setIsFinalizeModalOpen(false);
+    setIsStudentPageOpen(false);
+    setStudentPage(0);
     setRecentlyTappedId(null);
   }, [app.activeClassId]);
 
@@ -263,9 +267,14 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   }
 
   const studentGrid = getStudentGridLayout(size.width, size.height, students.length, CHECK_IN_GRID_OPTIONS);
-  const showCompactSummary = shouldShowCheckInSummary(size.width, studentGrid.fits);
+  const showCompactSummary = shouldShowCheckInSummary(size.width, studentGrid.fits) && !isStudentPageOpen;
+  const pageLayout = getCheckInPageLayout(size.width, size.height, students.length, studentPage);
+  const expandStudentGrid = () => {
+    setIsStudentPageOpen(true);
+    setStudentPage(0);
+    onUpdate?.({ x: 2, y: 2, w: 96, h: 90 });
+  };
   const denseStudentGrid = students.length >= 16;
-  const expandStudentGrid = () => onUpdate?.({ x: 2, y: 2, w: 96, h: 90 });
 
   // Render einer einzelnen Schülerkarte
   const renderStudentCard = (student: Student, isCompactView = false) => {
@@ -433,7 +442,6 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         <button
           type="button"
           onClick={expandStudentGrid}
-          disabled={!onUpdate}
           className="flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
           aria-label={`Ich bin da vergrößern: ${summary.total} Kinder anzeigen und bearbeiten`}
         >
@@ -539,14 +547,32 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           }} aria-label="Anwesenheitsliste mit allen Kindern">
             {students.map((student) => renderStudentCard(student))}
           </div>
+        ) : pageLayout.canRender && isStudentPageOpen ? (
+          <div className="flex h-full min-h-0 flex-col gap-2" aria-label="Anwesenheit nach Schülerseiten">
+            <div className="grid w-full min-h-0 flex-1 content-start gap-1.5 overflow-hidden" style={{
+              gridTemplateColumns: `repeat(${pageLayout.columns}, minmax(0, 1fr))`,
+            }} aria-label={`Kinder ${pageLayout.start + 1} bis ${Math.min(students.length, pageLayout.start + pageLayout.pageSize)} von ${students.length}`}>
+              {students.slice(pageLayout.start, pageLayout.start + pageLayout.pageSize).map((student) => renderStudentCard(student))}
+            </div>
+            <nav aria-label="Schülerseiten" className="flex shrink-0 items-center justify-between gap-2 text-xs font-bold">
+              <button type="button" disabled={pageLayout.currentPage === 0}
+                onClick={() => setStudentPage(page => Math.max(0, page - 1))}
+                aria-label="Vorherige Schülerseite" className="min-h-11 rounded-lg border px-2 disabled:opacity-40">← Zurück</button>
+              <span aria-live="polite">{pageLayout.currentPage + 1} / {pageLayout.pageCount}</span>
+              <button type="button" disabled={pageLayout.currentPage >= pageLayout.pageCount - 1}
+                onClick={() => setStudentPage(page => Math.min(pageLayout.pageCount - 1, page + 1))}
+                aria-label="Nächste Schülerseite" className="min-h-11 rounded-lg border px-2 disabled:opacity-40">Weiter →</button>
+            </nav>
+          </div>
         ) : (
           <div role="status" className="flex h-full flex-col items-center justify-center gap-3 rounded-xl bg-slate-50 p-4 text-center text-slate-800">
             <p className="text-sm font-bold">{students.length} Kinder benötigen mehr Platz, damit alle Namen und Schaltflächen sichtbar bleiben.</p>
-            <button type="button" onClick={expandStudentGrid} disabled={!onUpdate}
-              className="min-h-11 rounded-xl bg-indigo-600 px-5 text-sm font-bold text-white disabled:opacity-50">
-              Alle {students.length} Kinder groß anzeigen
-            </button>
-            <p className="text-xs">Bei sehr kleinen Bildschirmen den Vollbildmodus verwenden.</p>
+            {pageLayout.canRender ? (
+              <button type="button" onClick={expandStudentGrid}
+                className="min-h-11 rounded-xl bg-indigo-600 px-5 text-sm font-bold text-white">
+                Alle {students.length} Kinder groß anzeigen
+              </button>
+            ) : <p className="text-xs">Für die Namen und Schaltflächen reicht der Platz auf diesem Bildschirm noch nicht. Fenster vergrößern oder Gerät ins Querformat drehen.</p>}
           </div>
         )}
       </div>
