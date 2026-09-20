@@ -692,12 +692,14 @@ export default function PrintCenter() {
 
   // Automatically adjust zoom when orientation changes, ensuring standard default fits nicely
   useEffect(() => {
-    if (printOrientation === 'landscape') {
+    if (activeTemplate === 'smart_tools' && activeSmartTool === 'tischschilder' && tischPreviewMode === 'detail') {
+      setPreviewZoom(0.85);
+    } else if (printOrientation === 'landscape') {
       setPreviewZoom(0.55);
     } else {
       setPreviewZoom(0.7);
     }
-  }, [printOrientation]);
+  }, [printOrientation, activeTemplate, activeSmartTool]);
 
   // Apply printing class to body to manage visibility correctly
   useEffect(() => {
@@ -3932,7 +3934,7 @@ export default function PrintCenter() {
                   <div className="flex items-center gap-1 border-l border-slate-250/60 pl-2">
                     <button
                       type="button"
-                      onClick={() => setPreviewZoom(printOrientation === 'portrait' ? 0.7 : 0.55)}
+                      onClick={() => setPreviewZoom(isTischPreview && tischPreviewMode === 'detail' ? 0.85 : printOrientation === 'portrait' ? 0.7 : 0.55)}
                       className="px-2 py-1 text-[0.5625rem] font-black text-indigo-700 hover:text-indigo-800 bg-white hover:bg-indigo-50 border border-indigo-200/50 rounded-lg transition-all active:scale-90 cursor-pointer uppercase tracking-wider"
                       title="Zurücksetzen auf Standardgröße"
                     >
@@ -3954,6 +3956,13 @@ export default function PrintCenter() {
                 </span>
               </div>
             </div>
+
+            {isTischPreview && tischPreviewMode === 'detail' && (
+              <p className="no-print rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-900">
+                Lesbare Einzelvorschau · Beim Drucken werden weiterhin {tischPreviewStudents.length} ausgewählte Tischschilder ausgegeben.
+                Für die tatsächliche Bogenanordnung auf „Alle Karten“ wechseln.
+              </p>
+            )}
 
             {/* Simulated Frame with dynamic scaling */}
             <div className="bg-slate-100 rounded-3xl p-4 md:p-8 flex flex-col items-center justify-start overflow-auto shadow-inner border border-slate-200/60 no-print flex-1 w-full scrollbar-thin" style={{ minHeight: '440px', maxHeight: '85vh' }}>
