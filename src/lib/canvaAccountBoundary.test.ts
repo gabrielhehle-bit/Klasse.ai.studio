@@ -4,7 +4,7 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { createApp } from '../../server';
+
 
 test('Canva HTTP status is safe for code guests, while all data and OAuth actions require a signed-in email account', async t => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'klassio-canva-http-'));
@@ -16,6 +16,8 @@ test('Canva HTTP status is safe for code guests, while all data and OAuth action
   process.env.KLASSIO_DATA_DIR = dir;
   process.env.CANVA_CLIENT_ID = 'synthetic-client';
   process.env.CANVA_CLIENT_SECRET = 'synthetic-client-secret';
+  // Only import the server after setting the test-only boot guard.
+  const { createApp } = await import('../../server.ts');
   const app = await createApp({ isTest: true });
   const server = http.createServer(app);
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', () => resolve()));
