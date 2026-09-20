@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import {
   Users, Check, Clock, ShieldCheck, X, AlertCircle,
   Maximize2, UserCheck, UserX, RotateCcw, Sparkles
@@ -29,7 +28,7 @@ import {
 import { KID_MOOD_SCALE, getMoodMeta } from '../../../lib/moodTypes';
 import { getStudentGridLayout } from '../../../lib/studentWidgetGrid';
 import { CHECK_IN_GRID_OPTIONS, getCheckInPageLayout, shouldShowCheckInSummary } from '../../../lib/checkInWidgetLayout';
-import { getCheckInMode, CheckInMode } from '../../../lib/checkInWidgetMode';
+import { getCheckInMode } from '../../../lib/checkInWidgetMode';
 
 export interface KidAttendanceWidgetProps {
   widget?: CockpitWidgetConfig;
@@ -37,8 +36,6 @@ export interface KidAttendanceWidgetProps {
   app?: AppState;
   setApp?: React.Dispatch<React.SetStateAction<AppState>>;
   currentIsLight: boolean;
-  showSettings?: boolean;
-  onCloseSettings?: () => void;
 }
 
 export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
@@ -47,17 +44,11 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   app: propApp,
   setApp: propSetApp,
   currentIsLight,
-  showSettings = false,
-  onCloseSettings,
 }) => {
   const { app: contextApp, setApp: contextSetApp } = useApp();
   const app = propApp || contextApp;
   const setApp = propSetApp || contextSetApp;
   const checkInMode = getCheckInMode(widget?.settings);
-  const saveCheckInMode = (mode: CheckInMode) => {
-    onUpdate?.({ settings: { ...(widget?.settings || {}), checkInMode: mode } });
-    onCloseSettings?.();
-  };
 
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
@@ -299,7 +290,6 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         <p className="font-bold text-sm text-slate-600 dark:text-neutral-300">
           {!app.activeClassId ? 'Bitte zuerst eine Klasse auswählen' : 'Keine Kinder in dieser Klasse angelegt'}
         </p>
-        {showSettings && renderCheckInSettings()}
       </div>
     );
   }
@@ -489,7 +479,6 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         {isTeacherModalOpen && renderTeacherModal()}
         {isFinalizeModalOpen && renderFinalizeModal()}
         {activeMoodStudent && renderChildMoodModal()}
-        {showSettings && renderCheckInSettings()}
       </div>
     );
   }
@@ -681,48 +670,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
       {/* ABSCHLUSSDIALOG */}
       {isFinalizeModalOpen && renderFinalizeModal()}
-      {showSettings && renderCheckInSettings()}
     </div>
   );
-
-  // Settings may only be opened from the shared ••• menu beside the title.
-  // Render outside the small widget frame so the menu is always usable.
-  function renderCheckInSettings() {
-    return createPortal(
-      <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 p-3 font-sans"
-        role="presentation" onPointerDown={(event) => event.stopPropagation()}>
-        <div role="dialog" aria-modal="true" aria-label="Ich bin da Einstellungen"
-          className={`flex max-h-[calc(100dvh-24px)] w-full max-w-md flex-col gap-3 overflow-y-auto rounded-2xl border p-4 shadow-2xl ${
-            currentIsLight ? 'border-slate-200 bg-white text-slate-900' : 'border-zinc-700 bg-zinc-900 text-zinc-100'
-          }`}>
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-black">Ich bin da! · Einstellungen</h3>
-            <button type="button" aria-label="Einstellungen schließen" onClick={onCloseSettings}
-              className="min-h-11 min-w-11 rounded-lg border px-2 text-lg font-bold">×</button>
-          </div>
-          <p className="text-sm opacity-80">Wie soll die Anwesenheit erfasst werden?</p>
-          <div className="grid gap-2" role="group" aria-label="Check-in Modus">
-            {([
-              ['all', 'A · Alle Kinder', 'Standard: Alle Namen sichtbar. Jedes Kind tippt seinen Namen an und kann danach sein Befinden angeben.'],
-              ['individual', 'B · Nacheinander', 'Ein Kind wählt seinen Namen aus, bestätigt die Anwesenheit und beantwortet freiwillig die Befindensfrage.'],
-              ['teacher', 'C · Lehrkraft erfasst', 'Die Lehrkraft trägt die Anwesenheit ein. Anwesende Kinder können ihr Befinden anschließend freiwillig angeben.'],
-            ] as [CheckInMode, string, string][]).map(([mode, label, description]) => (
-              <button key={mode} type="button" aria-pressed={checkInMode === mode}
-                onClick={() => saveCheckInMode(mode)} disabled={!onUpdate}
-                className={`min-h-16 rounded-xl border p-3 text-left disabled:opacity-50 ${
-                  checkInMode === mode ? 'border-indigo-500 bg-indigo-50 text-slate-900 ring-2 ring-indigo-300' : 'border-slate-200 dark:border-zinc-700'
-                }`}>
-                <span className="block text-sm font-black">{label}{checkInMode === mode ? ' ✓' : ''}</span>
-                <span className="mt-1 block text-xs leading-snug opacity-80">{description}</span>
-              </button>
-            ))}
-          </div>
-          <p className="text-xs opacity-70">Die Auswahl wird nur für dieses Widget gespeichert. Bereits erfasste Anwesenheit und Befindensdaten bleiben unverändert.</p>
-        </div>
-      </div>,
-      document.body,
-    );
-  }
 
   // ==========================================
   // LEHRER-KORREKTURMODAL
