@@ -299,6 +299,31 @@ async function verifyDirectCockpitNavigation(client) {
     'document.body?.innerText.includes("In dieser Klasse sind noch keine Kinder angelegt.") && !document.body?.innerText.includes("Max M.")'
   );
   if (!hasPublicNoDemoState) throw new Error('Empty real class showed demo children or lost the public class list.');
+
+  // Cockpit options must own the optional class-local bar; resetting it must
+  // neither change the existing widget layout nor hide the regular picker.
+  await clickButton(client, 'Optionen', true);
+  await waitFor(client, 'design and birthday are in options',
+    'document.body?.innerText.includes("Design & Farben") && document.body?.innerText.includes("Geburtstag")');
+  await clickButton(client, 'Widget-Leiste');
+  await waitFor(client, 'quickbar settings', 'Boolean(document.querySelector("[aria-label=\\\"Zusätzliche Widget-Leiste konfigurieren\\\"]"))');
+  await clickCheckboxNearText(client, 'Zusätzliche Widget-Leiste anzeigen');
+  await waitFor(client, 'opt-in quickbar visible',
+    'Boolean(document.querySelector("nav[aria-label=\\\"Zusätzliche Widget-Leiste\\\"]"))');
+  await clickButton(client, 'Widget-Leiste zurücksetzen');
+  await waitFor(client, 'quickbar reset returns to invisible default',
+    '!document.querySelector("nav[aria-label=\\\"Zusätzliche Widget-Leiste\\\"]")');
+  await clickButton(client, 'Optionen', true);
+  const paperVerified = await evaluate(client,
+    '(() => {' +
+    'const select=document.querySelector("select[aria-label=\\\"Papierart der Unterrichtsfläche\\\"]");' +
+    'if(!select)return false;' +
+    'select.value="handwriting";select.dispatchEvent(new Event("change",{bubbles:true}));return true;' +
+    '})()'
+  );
+  if (!paperVerified) throw new Error('Could not select handwriting paper.');
+  await waitFor(client, 'handwriting paper is rendered on shared board',
+    'Boolean(getComputedStyle(document.getElementById("widget-board-stage")).backgroundImage.includes("svg"))');
   await saveScreenshot(client, SCREENSHOT_COCKPIT);
   const closed = await evaluate(client,
     '(() => {const b=document.querySelector("button[aria-label=\\\"Lehrercockpit schließen · Zurück zu Heute\\\"]");if(!b)return false;b.click();return true;})()'
