@@ -1006,6 +1006,31 @@ html body .classroom-weekly-plan .weekly-plan-dark-action :is(span, svg) {
   color: #ffffff !important;
 }
 
+/* A calm, theme-independent canvas for the new class mascot widget. */
+html body .class-mascot-v1,
+[data-style] .class-mascot-v1 {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  color-scheme: light;
+}
+[data-style] .class-mascot-v1 :is(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700) {
+  color: #0f172a !important;
+}
+[data-style] .class-mascot-v1 :is(.text-teal-950, .text-teal-900, .text-teal-800) {
+  color: #134e4a !important;
+}
+[data-style] .class-mascot-v1 :is(.text-amber-950, .text-amber-900) {
+  color: #78350f !important;
+}
+@keyframes class-mascot-gentle-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.class-mascot-idle { animation: class-mascot-gentle-bob 3.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .class-mascot-idle { animation: none !important; }
+}
+
 /* Strong, theme-independent contrast inside dark classroom cockpit designs. */
 .cockpit-contrast-dark .text-slate-400,
 .cockpit-contrast-dark .text-neutral-400 { color: #cbd5e1 !important; }
