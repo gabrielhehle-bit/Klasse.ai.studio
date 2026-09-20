@@ -66,7 +66,7 @@ export const BoardInk = React.forwardRef<BoardInkHandle, Props>(function BoardIn
   const button = 'min-h-11 px-3 rounded-lg text-sm font-semibold border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600';
   return <>
     <svg viewBox="0 0 1600 900" preserveAspectRatio="none" aria-label="Gemeinsame Schreib- und Zeichenfläche"
-      className={`absolute inset-0 w-full h-full ${active ? 'z-[20000] touch-none cursor-crosshair' : 'z-[20000] pointer-events-none'}`}
+      className={`absolute inset-0 w-full h-full ${active ? 'z-[20000] touch-none cursor-crosshair' : 'z-[2] pointer-events-none'}`}
       onPointerDown={e => {
         if (!active || pointer.current !== null || e.button !== 0) return;
         if (effectiveTool === 'erase') return;
