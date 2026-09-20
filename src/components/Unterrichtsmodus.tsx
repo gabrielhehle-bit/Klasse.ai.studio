@@ -181,6 +181,7 @@ import { BoardTextEditor } from "./cockpit/BoardTextEditor";
 import { BoardInk, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
+import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
 import { getCheckInMode } from "../lib/checkInWidgetMode";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
 import { COCKPIT_QUICKBAR_ITEMS, normalizeCockpitQuickbarSettings, toggleCockpitQuickbarItem } from "../lib/cockpitQuickbar";
@@ -1654,6 +1655,7 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     h: 100,
     visible: false,
   },
+  { id: "widget-classweeklyplan", type: "classweeklyplan", x: 0, y: 0, w: 100, h: 100, visible: false },
   {
     id: "widget-noisemeter",
     type: "noisemeter",
@@ -2590,6 +2592,7 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
     "timer",
     "trafficlight",
     "randomname",
+    "classweeklyplan",
     "noisemeter",
     "vocabulary",
     "studentlist",
@@ -3260,6 +3263,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       "widget-timer",
       "widget-trafficlight",
       "widget-randomname",
+      "widget-classweeklyplan",
       "widget-noisemeter",
       "widget-vocabulary",
       "widget-studentlist",
@@ -3286,6 +3290,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       "timer",
       "trafficlight",
       "randomname",
+      "classweeklyplan",
       "noisemeter",
       "vocabulary",
       "studentlist",
@@ -3717,16 +3722,16 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       if (w.type === type) {
         const def = DEFAULT_COCKPIT_LAYOUT.find((d) => d.type === type);
         const useOld = w.hasBeenOpened || w.visible;
-        const isMaxWidget = type === "randomname" || type === "wheel";
+        const isMaxWidget = type === "randomname" || type === "wheel" || type === "classweeklyplan";
         const isWhiteboard = type === "drawing";
         return {
           ...w,
           visible: true,
           hasBeenOpened: true, // Mark it as opened!
-          x: isWhiteboard ? 0 : useOld ? w.x : isMaxWidget ? 0 : finalX,
-          y: isWhiteboard ? 0 : useOld ? w.y : isMaxWidget ? 0 : finalY,
-          w: isWhiteboard ? 100 : useOld ? w.w : Math.min(def?.w || w.w, 46),
-          h: isWhiteboard ? 100 : useOld ? w.h : Math.min(def?.h || w.h, 46),
+          x: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.x : finalX,
+          y: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.y : finalY,
+          w: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.w : Math.min(def?.w || w.w, 46),
+          h: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.h : Math.min(def?.h || w.h, 46),
           settings: isWhiteboard
             ? {
                 ...(w.settings || {}),
@@ -8356,7 +8361,7 @@ ${content}
                                 {/* Category Switcher Tab Bar */}
                                 <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
                                   {[
-                                    { id: "core", label: "19 Kernwidgets" },
+                                    { id: "core", label: "20 Kernwidgets" },
                                     { id: "categories", label: "Weitere Widgets" },
                                     { id: "favorites", label: "★ Favoriten" },
                                     { id: "struct", label: "🗂️ Ablauf & Organisation" },
@@ -8386,6 +8391,7 @@ ${content}
                                         category: "struct",
                                       },
                                       { type: "todo", category: "struct" },
+                                      { type: "classweeklyplan", category: "struct" },
                                       { type: "dienste", category: "struct" },
                                       { type: "links", category: "struct" },
                                       { type: "phases", category: "struct" },
@@ -8748,6 +8754,12 @@ ${content}
                                         category: "struct",
                                       },
 
+                                      {
+                                        type: "classweeklyplan",
+                                        label: "📋 Wochenplan der Kinder",
+                                        desc: "Gemeinsamer Plan, persönliche Häkchen und Schwierigkeitseinschätzung",
+                                        category: "struct",
+                                      },
                                       {
                                         type: "randomname",
                                         label: "🎯 Zufallsauswahl",
@@ -9283,7 +9295,7 @@ ${content}
                                       return (
                                         <>
                                           <p className="col-span-full text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                            19 übersichtliche Einstiege. Pluspunkte findest du weiterhin rechts in der Schülerliste. Alte Layouts bleiben beim Import lesbar.
+                                            20 übersichtliche Einstiege. Pluspunkte findest du weiterhin rechts in der Schülerliste. Alte Layouts bleiben beim Import lesbar.
                                           </p>
                                           {PLANNED_COCKPIT_WIDGETS.map((group) => {
                                             const variants = group.sources
@@ -10989,6 +11001,9 @@ ${content}
                                           currentIsLight={currentIsLight}
                                         />
                                       );
+
+                                    case "classweeklyplan":
+                                      return <ClassroomWeeklyPlanWidget />;
 
                                     case "randomname":
                                       return (
