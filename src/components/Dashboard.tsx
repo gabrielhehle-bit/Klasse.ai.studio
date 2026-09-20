@@ -4090,6 +4090,13 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
       }
       if (absentStreak >= 3) {
         rawInsights.push({
+          id: `materialabholung_${s.id}_${firstAbsentDayStr}`,
+          type: "materialabholung",
+          text: `${s.vorname} fehlt seit ${absentStreak} erfassten Schultagen: Materialabholung für Eltern im Druckzentrum vorbereiten.`,
+          color: "amber",
+          icon: <BookOpen size={14} />,
+        });
+        rawInsights.push({
           id: `attest_${s.id}_${firstAbsentDayStr}`,
           type: "anwesenheit",
           text: `Ärztliches Attest von ${s.vorname} ausständig (>3 Tage)`,
@@ -5304,6 +5311,13 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
                       >
                         {insight.text}
                       </div>
+                      {insight.type === "materialabholung" && (
+                        <button
+                          type="button"
+                          onClick={() => setPage("drucken")}
+                          className="mt-2 text-xs font-bold text-indigo-700 underline underline-offset-2 hover:text-indigo-900"
+                        >Druckzentrum öffnen</button>
+                      )}
                     </div>
                     <button
                       onClick={() => startDismissInsight(insight.id)}
