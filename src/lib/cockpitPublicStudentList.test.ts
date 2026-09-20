@@ -223,7 +223,7 @@ test('Persönliche Emojis sind standardmäßig verborgen und nur mit Cockpit-Ein
   assert.match(teaching, /SchülerInnen → Schülerliste → Kind bearbeiten \(Stift\) → Profil-Emoji/);
 });
 
-test('Ein Verhaltensbutton statt fünf Symbolen; letzte Stufe hat keinen Rücksprung zu Super', () => {
+test('Ein Verhaltensbutton statt fünf Symbolen; letzte Stufe springt wieder zur ersten', () => {
   const stages = [
     { id: '1', label: 'Super', icon: '🌟' },
     { id: '2', label: 'Gut', icon: '❤️' },
@@ -245,6 +245,8 @@ test('Ein Verhaltensbutton statt fünf Symbolen; letzte Stufe hat keinen Rücksp
   assert.equal((first.match(/Verhalten von Lena:/g) || []).length, 1);
   assert.doesNotMatch(first, /Verhalten für Lena: .* auswählen/);
   const last = render('5');
-  assert.match(last, /letzte Stufe erreicht/);
-  assert.match(last, /disabled=""/);
+  assert.match(last, /mit einem Klick auf Super weiterstellen/);
+  assert.match(last, /title="Stopp → Super"/);
+  assert.doesNotMatch(last, /letzte Stufe erreicht/);
+  assert.doesNotMatch(last, /disabled=""/);
 });
