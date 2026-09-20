@@ -1020,14 +1020,14 @@ export default function PrintCenter() {
             width: 210mm !important;
             min-width: 210mm !important;
             max-width: 210mm !important;
-            height: 297mm !important;
+            height: auto !important;
             min-height: 297mm !important;
-            max-height: 297mm !important;
+            max-height: none !important;
             box-sizing: border-box !important;
-            overflow: hidden !important;
+            overflow: visible !important;
             padding: 8.5mm !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid-page !important;
+            page-break-inside: auto !important;
+            break-inside: auto !important;
           }
           * {
             -webkit-print-color-adjust: exact !important;
