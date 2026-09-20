@@ -1635,6 +1635,11 @@ export interface AppState {
     clearTafelTrigger?: number;
     isTafelOpen?: boolean;
     tafelCommand?: import('./lib/tafelCommands').TafelCommand;
+    /** School-vault encrypted classroom board preferences; absence means white/default-off. */
+    cockpitPaperByClass?: Record<string, 'blank' | 'lined' | 'grid' | 'handwriting'>;
+    cockpitPaperSpacingByClass?: Record<string, number>;
+    cockpitTextByClass?: Record<string, string>;
+    cockpitQuickbarByClass?: Record<string, { enabled: boolean; itemIds: import('./lib/cockpitQuickbar').CockpitQuickbarId[] }>;
     cockpitInkByClass?: Record<string, import('./components/cockpit/BoardInk').InkItem[]>;
     sidebarMode?: 'expanded' | 'mini' | 'hidden';
     activeFont?: string;
