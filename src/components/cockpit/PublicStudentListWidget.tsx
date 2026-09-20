@@ -138,7 +138,7 @@ export function PublicStudentListWidget({
                     setLastAwardedId(student.id);
                     setRecentlyAwardedId(student.id);
                   }}
-                  className={`${dense ? 'min-h-10 min-w-10 px-1 text-xs' : 'min-h-11 min-w-11 px-3 text-lg'} rounded-lg bg-emerald-600 font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`
+                  className={`${dense ? 'min-h-10 min-w-10 px-1 text-xs' : 'min-h-11 min-w-11 px-3 text-lg'} rounded-lg bg-emerald-600 font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
                   aria-label={`Pluspunkt für ${labels.get(student.id)} vergeben`}
                 >{recentlyAwardedId === student.id && !dense ? '✓ +1' : '+1'}</button>
               </div>
