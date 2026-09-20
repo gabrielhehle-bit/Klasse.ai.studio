@@ -284,12 +284,7 @@ async function verifyRandomPickerInRealBrowser(client) {
   await clickButton(client, 'Widget hinzufügen');
   await waitFor(client, 'real widget picker opened',
     'Boolean(document.querySelector("input[aria-label=\\\"Widget suchen\\\"]"))');
-  await clickButton(client, 'Zufallsauswahl');
-  await sleep(550);
-  const pickerDom = await evaluate(client,
-    '(() => {const board=document.getElementById("widget-board-stage");return {boardText:board?.innerText.slice(0,500),buttons:[...document.querySelectorAll("button")].filter(b=>(b.getAttribute("aria-label")||"").includes("Kind")||(b.textContent||"").includes("Kinder wählen")).slice(-20).map(b=>({label:b.getAttribute("aria-label"),disabled:b.disabled,text:b.textContent.slice(0,140)}))};})()');
-  console.log('Random picker DOM acceptance diagnostics:', JSON.stringify(pickerDom));
-  await waitFor(client, 'empty class: random picker is disabled with clear explanation',
+  // The core-card header only expands its group. Select the actual nested widget entry.\n  await clickButton(client, '🎯 Zufallsauswahl', true);\n  await waitFor(client, 'empty class: random picker is disabled with clear explanation',
     '(() => {const button=document.querySelector("button[aria-label=\\\"Zufälliges Kind ziehen\\\"]");return !!button&&button.disabled&&button.textContent.includes("noch keine Kinder angelegt")&&!button.textContent.includes("Max M.");})()');
   const noConflictingGlobalKeyboardListener = await evaluate(client,
     'document.querySelectorAll("button[aria-label=\\\"Ton umschalten\\\"],button[aria-label=\\\"Ton einschalten\\\"],button[aria-label=\\\"Ton ausschalten\\\"]").length===0');
