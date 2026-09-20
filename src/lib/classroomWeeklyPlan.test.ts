@@ -131,7 +131,7 @@ test('direct classroom publication ignores empty/invalid slots and works with im
   assert.equal(toggleClassroomWeeklyLesson(original, 39, 'Sonntag', 0), original);
   assert.equal(toggleClassroomWeeklyLesson(original, 98, 'Montag', 0), original);
   assert.equal(toggleClassroomWeeklyLesson(original, 39, 'Montag', -1), original);
-  const numeric = { wochenplanung: { 39: { 0: { 0: { fach: 'Deutsch', thema: 'Lesen', material: 'Heft' } } } } };
+  const numeric: { wochenplanung: Record<number, any> } = { wochenplanung: { 39: { 0: { 0: { fach: 'Deutsch', thema: 'Lesen', material: 'Heft' } } } } };
   const published = toggleClassroomWeeklyLesson(numeric, 39, 'Montag', 0);
   assert.equal(published.wochenplanung[39][0][0].imKinderWochenplan, true);
   assert.equal(published.wochenplanung[39][0][0].material, 'Heft');
