@@ -7,7 +7,6 @@ export const COCKPIT_QUICKBAR_ITEMS = [
   { id: 'termine', label: 'Termine' },
   { id: 'clock', label: 'Uhr' },
   { id: 'timer', label: 'Timer' },
-  { id: 'studentlist', label: 'Pluspunkte' },
   { id: 'dienste', label: 'Klassendienste' },
   { id: 'trafficlight', label: 'Arbeitsampel' },
 ] as const;
