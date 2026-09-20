@@ -334,7 +334,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     groups,
     groupPage,
   );
-  const displayedGroups = groups.slice(groupLayout.start, groupLayout.start + groupLayout.pageSize);
+  const displayedGroups = groupLayout.cards.slice(groupLayout.start, groupLayout.start + groupLayout.pageSize);
 
   return (
     <div
@@ -687,8 +687,9 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           <>
           <div className="grid min-h-0 flex-1 content-start gap-2 overflow-hidden"
             style={{ gridTemplateColumns: `repeat(${groupLayout.columns}, minmax(0, 1fr))`, gridAutoRows: `${groupLayout.cardHeight}px` }}
-            role="list" aria-label={`Gruppen ${groupLayout.start + 1} bis ${Math.min(groups.length, groupLayout.start + groupLayout.pageSize)} von ${groups.length}`}>
-            {displayedGroups.map((group) => {
+            role="list" aria-label={`Gruppenkarten ${groupLayout.start + 1} bis ${Math.min(groupLayout.cards.length, groupLayout.start + groupLayout.pageSize)} von ${groupLayout.cards.length}`}>
+            {displayedGroups.map((segment) => {
+              const group = segment.group;
               const palette = GROUP_COLOR_PALETTES[group.colorIndex % GROUP_COLOR_PALETTES.length];
               const isSourceGroupOfSelected = selectedStudentForAction
                 ? group.studentIds.includes(selectedStudentForAction)
@@ -696,7 +697,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
 
               return (
                 <div
-                  key={group.id}
+                  key={`${group.id}:${segment.part}`}
                   role="listitem"
                   className={`min-h-0 rounded-2xl border-2 flex flex-col overflow-hidden shadow-xs transition-all ${palette.border} ${palette.bg}`}
                 >
@@ -705,7 +706,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                     <div className="flex items-center gap-1.5 truncate">
                       {group.symbol && <span className="text-sm">{group.symbol}</span>}
                       <h4 className="text-xs sm:text-sm font-black tracking-wide truncate">
-                        {group.name}
+                        {group.name}{segment.parts > 1 ? ` · ${segment.part}/${segment.parts}` : ''}
                       </h4>
                     </div>
                     <div className="flex items-center gap-1">
@@ -727,7 +728,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
 
                   {/* Schüler in dieser Gruppe */}
                   <div className="min-h-0 flex-1 space-y-1 overflow-hidden p-1.5 sm:p-2">
-                    {group.studentIds.map((studentId) => {
+                    {segment.memberIds.map((studentId) => {
                       const student = allStudents.find((s) => s.id === studentId);
                       const displayName = student
                         ? getDisplayStudentName(student, allStudents)
