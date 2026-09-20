@@ -24,14 +24,16 @@ test("Cockpit-Widgets: feste große Darstellung wird im Layout gespeichert", () 
   assert.match(cockpitWidget, /Widget dauerhaft groß auf der Smartboard-Fläche ablegen/);
 });
 
-test("Cockpit-Widgets: Inhalte werden scrollbar statt am Widgetrand abgeschnitten", () => {
+test("Cockpit-Widgets: kleiner Inhalt bleibt überlauf-sicher, Schüler-Widgets bieten bei vielen Kindern eine große Ansicht", () => {
   assert.match(cockpitWidget, /absolute inset-0 flex flex-col overflow-auto no-scrollbar/);
-  assert.doesNotMatch(cockpitWidget, /absolute inset-0 flex flex-col overflow-y-auto no-scrollbar/);
+  assert.match(kidAttendance, /Alle \{students\.length\} Kinder groß anzeigen/);
+  assert.match(teachingSurface, /onExpand=\{\(\) => handleUpdateWidgetPos\(widget\.id, \{ x: 2, y: 2, w: 96, h: 90 \}\)\}/);
 });
 
 test("Ich-bin-da: Kindernamen werden nicht mit Ellipsen gekürzt", () => {
   assert.match(kidAttendance, /whitespace-normal break-words font-black leading-tight/);
-  assert.match(kidAttendance, /grid-cols-2 md:grid-cols-3 xl:grid-cols-4/);
+  assert.match(kidAttendance, /getStudentGridLayout\(size\.width, size\.height, students\.length/);
+  assert.match(kidAttendance, /gridTemplateColumns:/);
   assert.doesNotMatch(kidAttendance, /block truncate font-black leading-tight/);
   assert.doesNotMatch(kidAttendance, /flex-1 truncate text-\[11px\] font-black/);
 });
