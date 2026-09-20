@@ -27,7 +27,7 @@ function TaskText({ task }: { task: ClassroomWeeklyTask }) {
 export default function ClassroomWeeklyPlanWidget() {
   const { app, setApp } = useApp();
   const [todayWeek, setTodayWeek] = useState(() => getKW(new Date()));
-  const [week, setWeek] = useState(() => getKW(new Date()));
+  const [week, setWeek] = useState(() => app.currentKW || getKW(new Date()));
   useEffect(() => {
     const update = () => setTodayWeek(getKW(new Date()));
     window.addEventListener('focus', update);
