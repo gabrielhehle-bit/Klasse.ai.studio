@@ -1738,6 +1738,10 @@ export default function PrintCenter() {
                     </button>
                   ))}
                 </div>
+                <p className="text-[0.625rem] leading-snug text-slate-600">
+                  Wirkt sofort auf die A4-Vorschau und den Browserdruck („Als PDF speichern“).
+                  Eigenständige PDF-/Word-Exporte haben eigene Druckvorlagen.
+                </p>
               </div>
 
               {/* Custom Headline Overwrite */}
