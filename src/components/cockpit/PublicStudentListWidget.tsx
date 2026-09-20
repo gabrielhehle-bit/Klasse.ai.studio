@@ -77,7 +77,7 @@ export function PublicStudentListWidget({
   return (
     <section ref={containerRef} aria-label="Öffentliche Schülerliste und Pluspunkte" className="flex h-full min-h-0 flex-col gap-2 p-2 text-slate-900">
       <div className="flex shrink-0 items-center justify-between gap-1">
-        <h3 className={`${dense ? 'text-xs' : 'text-sm'} font-bold`}>Unsere Pluspunkte · {students.length}</h3>
+        <h3 className={`${dense ? 'text-xs' : 'text-sm'} font-extrabold`}>✨ Unsere Pluspunkte · {students.length}</h3>
         {dense && lastAwardedId && (
           <button type="button" onClick={() => {
             if (getTodayPoints(lastAwardedId) > 0) removeParticipation(lastAwardedId);
@@ -105,18 +105,24 @@ export function PublicStudentListWidget({
       ) : (
       <div className={gridMode ? 'grid min-h-0 flex-1 content-start gap-1.5 overflow-hidden' : dense ? 'grid min-h-0 flex-1 grid-cols-2 content-start gap-1 overflow-y-auto' : 'min-h-0 flex-1 space-y-2 overflow-y-auto'}
         style={gridMode ? { gridTemplateColumns: `repeat(${grid.columns}, minmax(0, 1fr))` } : undefined} role="list">
-        {students.map((student: Student) => {
+        {students.map((student: Student, index: number) => {
           const points = Math.max(0, getTodayPoints(student.id));
           const awarded = lastAwardedId === student.id;
+          const cardTone = ['border-sky-200 bg-sky-50/80', 'border-amber-200 bg-amber-50/80', 'border-violet-200 bg-violet-50/80', 'border-emerald-200 bg-emerald-50/80'][index % 4];
           return (
             <div key={student.id} role="listitem"
               style={gridMode ? { minHeight: 58, height: Math.min(90, grid.cardHeight) } : undefined}
-              className={`flex min-w-0 items-center justify-between gap-0.5 rounded-xl border border-slate-200 bg-white ${gridMode ? 'px-1.5 py-1' : dense ? 'px-1 py-0.5' : 'px-3 py-2'}`}>
-              <div className="min-w-0 flex-1">
-                <span className={`block break-words font-semibold leading-tight ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-[11px]' : 'text-base'}`}>{labels.get(student.id)}</span>
-                <span className={`block font-medium text-amber-700 ${dense ? 'text-[11px]' : 'text-sm'}`} aria-label={`${points} Pluspunkte`}>
-                  {gridMode || dense ? `★ ${points}` : `${'★'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
+              className={`flex min-w-0 items-center justify-between gap-0.5 rounded-2xl border-2 shadow-sm ${cardTone} ${gridMode ? 'px-1.5 py-1' : dense ? 'px-1 py-0.5' : 'px-3 py-2'}`}>
+              <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                <span aria-hidden="true" className={`${sidebarCompact ? 'hidden' : 'flex'} h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/90 text-base shadow-sm`}>
+                  {student.emoji || '🌈'}
                 </span>
+                <div className="min-w-0 flex-1">
+                <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-[11px]' : 'text-base'}`}>{labels.get(student.id)}</span>
+                <span className={`block font-bold text-amber-800 ${dense ? 'text-[11px]' : 'text-sm'}`} aria-label={`${points} Pluspunkte`}>
+                  {gridMode || dense ? `⭐ ${points}` : `${'⭐'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
+                </span>
+                </div>
               </div>
               <div className="flex shrink-0 flex-wrap justify-end gap-1">
                 {awarded && !dense && (
@@ -138,7 +144,7 @@ export function PublicStudentListWidget({
                     setLastAwardedId(student.id);
                     setRecentlyAwardedId(student.id);
                   }}
-                  className={`${dense ? 'min-h-10 min-w-10 px-1 text-xs' : 'min-h-11 min-w-11 px-3 text-lg'} rounded-lg bg-emerald-600 font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
+                  className={`${dense ? 'min-h-10 min-w-10 px-1 text-xs' : 'min-h-11 min-w-11 px-3 text-lg'} rounded-xl bg-emerald-600 font-extrabold text-white shadow-sm transition-transform hover:bg-emerald-700 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
                   aria-label={`Pluspunkt für ${labels.get(student.id)} vergeben`}
                 >{recentlyAwardedId === student.id && !dense ? '✓ +1' : '+1'}</button>
               </div>
