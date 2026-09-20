@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { getGroupPageLayout } from '../../../lib/groupsWidgetPages';
 import {
   Users, Sparkles, RotateCcw, Settings2, ArrowLeftRight,
   UserX, UserCheck, Check, X, AlertCircle, Plus, Trash2,
@@ -106,6 +107,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
   }, [settingsInPicker]);
   const [optionsTab, setOptionsTab] = useState<'pause' | 'constraints' | 'names'>('pause');
   const [selectedStudentForAction, setSelectedStudentForAction] = useState<string | null>(null);
+  const [groupPage, setGroupPage] = useState(0);
   const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'info' | 'error' | 'success' } | null>(null);
 
   // Formularzustand für neue Constraints
@@ -196,6 +198,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     const result = generateStudentGroups(activeStudentIds, config);
     setGroups(result.groups);
     setSelectedStudentForAction(null);
+    setGroupPage(0);
 
     persistState(
       result.groups,
@@ -322,20 +325,13 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
 
   const hasActiveConstraints = pausedStudentIds.length > 0 || notTogether.length > 0 || keepTogether.length > 0;
 
-  // Grid Spalten abhängig von Größe
-  const gridColumnsClass = useMemo(() => {
-    if (size.isCompact) {
-      return size.width >= 350 ? 'grid-cols-2' : 'grid-cols-1';
-    }
-    if (size.isStandard) {
-      return 'grid-cols-2';
-    }
-    if (size.isLarge) {
-      return 'grid-cols-2 sm:grid-cols-3';
-    }
-    // Fullscreen / XL
-    return 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5';
-  }, [size.isCompact, size.isStandard, size.isLarge, size.width]);
+  const groupLayout = getGroupPageLayout(
+    size.width,
+    size.height - (feedbackMessage ? 38 : 0) - (selectedStudentForAction ? 40 : 0),
+    groups,
+    groupPage,
+  );
+  const displayedGroups = groups.slice(groupLayout.start, groupLayout.start + groupLayout.pageSize);
 
   return (
     <div
@@ -784,7 +780,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
       {/* ========================================================================= */}
       {/* HAUPTBEREICH: GRUPPEN-KARTEN ODER INITIALER STATE                         */}
       {/* ========================================================================= */}
-      <div className="flex-grow overflow-y-auto p-2 sm:p-3 min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2 sm:p-3">
         {groups.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
             <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2 shadow-inner">
@@ -802,9 +798,22 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
               <span>Gruppen bilden</span>
             </button>
           </div>
+        ) : !groupLayout.fits ? (
+          <div role="status" className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-xl bg-indigo-50 p-3 text-center text-slate-900">
+            <p className="text-sm font-bold">{groups.length} Gruppen mit {groups.reduce((sum, group) => sum + group.studentIds.length, 0)} Kindern sind eingeteilt.</p>
+            <p className="text-xs">Damit alle Namen und Schaltflächen lesbar bleiben, braucht die Gruppendarstellung mehr Platz.</p>
+            <button type="button" onClick={() => onUpdate?.({ x: 2, y: 2, w: 96, h: 90 })}
+              disabled={!onUpdate} className="min-h-11 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+              Gruppen groß anzeigen
+            </button>
+            <p className="text-xs">Bei sehr kleinen Bildschirmen bitte Querformat oder einen größeren Bildschirm verwenden.</p>
+          </div>
         ) : (
-          <div className={`grid ${gridColumnsClass} gap-2 sm:gap-3`}>
-            {groups.map((group) => {
+          <>
+          <div className="grid min-h-0 flex-1 content-start gap-2 overflow-hidden"
+            style={{ gridTemplateColumns: `repeat(${groupLayout.columns}, minmax(0, 1fr))`, gridAutoRows: `${groupLayout.cardHeight}px` }}
+            role="list" aria-label={`Gruppen ${groupLayout.start + 1} bis ${Math.min(groups.length, groupLayout.start + groupLayout.pageSize)} von ${groups.length}`}>
+            {displayedGroups.map((group) => {
               const palette = GROUP_COLOR_PALETTES[group.colorIndex % GROUP_COLOR_PALETTES.length];
               const isSourceGroupOfSelected = selectedStudentForAction
                 ? group.studentIds.includes(selectedStudentForAction)
@@ -813,7 +822,8 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
               return (
                 <div
                   key={group.id}
-                  className={`rounded-2xl border-2 flex flex-col overflow-hidden shadow-xs transition-all ${palette.border} ${palette.bg}`}
+                  role="listitem"
+                  className={`min-h-0 rounded-2xl border-2 flex flex-col overflow-hidden shadow-xs transition-all ${palette.border} ${palette.bg}`}
                 >
                   {/* Gruppen Header */}
                   <div className={`px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between shrink-0 ${palette.headerBg}`}>
@@ -831,7 +841,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                         <button
                           onClick={() => handleMoveToGroup(group.id)}
                           title="Hierher verschieben"
-                          className="px-2 py-0.5 rounded bg-white text-stone-900 text-[10px] font-black hover:bg-stone-100 cursor-pointer flex items-center gap-1 shadow-xs"
+                          className="min-h-11 min-w-11 px-2 py-1 rounded bg-white text-stone-900 text-xs font-black hover:bg-stone-100 cursor-pointer flex items-center gap-1 shadow-xs"
                         >
                           <MoveRight size={11} />
                           <span>Hier</span>
@@ -841,9 +851,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                   </div>
 
                   {/* Schüler in dieser Gruppe */}
-                  <div className={`p-1.5 sm:p-2 space-y-1 flex-grow overflow-y-auto ${
-                    size.isCompact ? 'min-h-[50px]' : 'min-h-[70px]'
-                  }`}>
+                  <div className="min-h-0 flex-1 space-y-1 overflow-hidden p-1.5 sm:p-2">
                     {group.studentIds.map((studentId) => {
                       const student = allStudents.find((s) => s.id === studentId);
                       const displayName = student
@@ -855,7 +863,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                         <button
                           key={studentId}
                           onClick={() => handleStudentClick(studentId)}
-                          className={`w-full min-h-[38px] sm:min-h-[44px] px-2.5 py-1.5 rounded-xl text-left font-bold flex items-center justify-between gap-1.5 transition-all cursor-pointer border ${
+                          className={`w-full min-h-[44px] px-2.5 py-1.5 rounded-xl text-left font-bold flex items-center justify-between gap-1.5 transition-all cursor-pointer border ${
                             isSelected
                               ? 'bg-amber-400 text-stone-900 border-amber-500 shadow-md ring-2 ring-amber-500 scale-[1.02]'
                               : selectedStudentForAction
@@ -863,7 +871,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                               : 'bg-white/90 dark:bg-stone-900/80 hover:bg-white dark:hover:bg-stone-850 border-stone-200/80 dark:border-stone-750 text-stone-900 dark:text-stone-100 shadow-xs'
                           }`}
                         >
-                          <span className={`truncate ${
+                          <span className={`min-w-0 break-words text-left leading-snug ${
                             size.isXL ? 'text-base font-black' : 'text-xs sm:text-sm font-extrabold'
                           }`}>
                             {displayName}
@@ -886,6 +894,20 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
               );
             })}
           </div>
+          {groupLayout.pageCount > 1 && (
+            <nav aria-label="Gruppenseiten" className="flex shrink-0 items-center justify-between gap-2 text-xs font-bold">
+              <button type="button" aria-label="Vorherige Gruppenseite"
+                className="min-h-11 rounded-lg border px-3 disabled:opacity-40"
+                disabled={groupLayout.page === 0}
+                onClick={() => setGroupPage(groupLayout.page - 1)}>← Zurück</button>
+              <span aria-live="polite" className="tabular-nums">{groupLayout.page + 1} / {groupLayout.pageCount}</span>
+              <button type="button" aria-label="Nächste Gruppenseite"
+                className="min-h-11 rounded-lg border px-3 disabled:opacity-40"
+                disabled={groupLayout.page >= groupLayout.pageCount - 1}
+                onClick={() => setGroupPage(groupLayout.page + 1)}>Weiter →</button>
+            </nav>
+          )}
+          </>
         )}
       </div>
 
@@ -897,13 +919,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           <span>
             <strong>{groups.length} Gruppen</strong> ({activeStudentIds.length} Kinder)
           </span>
-          <button
-            onClick={() => handleGenerate()}
-            className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
-          >
-            <RotateCcw size={12} />
-            <span>Neu mischen</span>
-          </button>
+          <span className="font-semibold">Neu mischen oben</span>
         </div>
       )}
     </div>
