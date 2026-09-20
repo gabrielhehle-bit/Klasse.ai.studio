@@ -266,6 +266,8 @@ test("Cockpit: Ich-bin-da zeigt Kindernamen vollständig und gibt ihnen ausreich
   assert.match(kidAttendance, /status === 'present' \? '✓ Da' : status === 'absent' \? 'Fehlt' : 'Offen'/);
   assert.doesNotMatch(kidAttendance, /openStudents\.slice\(0, 4\)/);
   assert.match(kidAttendance, /whitespace-normal break-words font-black leading-tight/);
-  assert.match(kidAttendance, /grid-cols-2 md:grid-cols-3 xl:grid-cols-4/);
+  assert.match(kidAttendance, /getStudentGridLayout\(size\.width, size\.height, students\.length/);
+  assert.match(kidAttendance, /Alle \{students\.length\} Kinder groß anzeigen/);
+  assert.match(kidAttendance, /gridTemplateColumns:/);
   assert.doesNotMatch(kidAttendance, /grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5/);
 });
