@@ -14,6 +14,8 @@ import { createLehrerzimmerStore, type LehrerzimmerCategory } from "./src/server
 import { createClassCollaborationStore, type SharedClassRecord } from "./src/server/classCollaborationStore.ts";
 import { createSchoolRegistryStore, type AustrianFederalState, type SchoolVerificationRequest, type SchoolRecord } from "./src/server/schoolRegistry.ts";
 import { createSupporterStore } from "./src/server/supporterStore.ts";
+import { createCanvaTokenStore, type CanvaStoredTokens } from "./src/server/canvaTokenStore.ts";
+import { createEncryptedAttachmentStore, AttachmentStorageError } from "./src/server/encryptedAttachmentStore.ts";
 import { createAccountSyncStore } from "./src/server/accountSyncStore.ts";
 import { createAiUsageStore, type AiUsageSnapshot } from "./src/server/aiUsageStore.ts";
 import { INITIAL_VERIFIED_AUSTRIAN_SCHOOLS } from "./src/data/austrianSchoolRegistry.seed.ts";
@@ -109,7 +111,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
-      "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com",
+      "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com https://*.canva.com",
       "connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com https://photon.komoot.io https://login.microsoftonline.com https://graph.microsoft.com",
       "worker-src 'self' blob:",
       "media-src 'self' blob: data:",
@@ -744,6 +746,59 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
   const getEmailAccount = (req: express.Request): EmailAccountIdentity =>
     (req as AccountRequest).klassioAccount as EmailAccountIdentity;
+
+  // Separate binary material storage is deliberately off until an attachment-
+  // inclusive encrypted backup/restore is available. Old inline materials and
+  // the 5 MB library limit remain unchanged. Only ciphertext is accepted.
+  const encryptedAttachmentStore = createEncryptedAttachmentStore(KLASSIO_DATA_DIR);
+  const encryptedAttachmentsEnabled = process.env.KLASSIO_ENCRYPTED_ATTACHMENTS_ENABLED === 'true' && process.env.NODE_ENV !== 'production';
+  app.use('/api/material-attachments', (req, res, next) => {
+    if (!encryptedAttachmentsEnabled) {
+      res.status(404).json({ error: 'Der separate Materialspeicher ist noch nicht freigegeben.' });
+      return;
+    }
+    requireEmailAccount(req, res, next);
+  });
+  const attachmentIdValid = (value: string) => /^[a-f0-9]{32}$/.test(value);
+  const attachmentError = (res: express.Response, error: unknown) => {
+    if (error instanceof AttachmentStorageError) {
+      res.status(error.status).json({ error: error.code });
+      return;
+    }
+    res.status(500).json({ error: 'Der verschlüsselte Anhang konnte nicht verarbeitet werden.' });
+  };
+  app.get('/api/material-attachments/status', async (req, res) => {
+    try {
+      const usage = await encryptedAttachmentStore.usage(getEmailAccount(req).userId);
+      res.json({ enabled: true, ...usage, maxFileBytes: 25 * 1024 * 1024 });
+    } catch (error) { attachmentError(res, error); }
+  });
+  app.post('/api/material-attachments/:id', express.raw({ type: 'application/octet-stream', limit: '26mb' }), async (req, res) => {
+    try {
+      const id = String(req.params.id || '');
+      if (!attachmentIdValid(id)) return res.status(400).json({ error: 'INVALID_ID' });
+      if (!Buffer.isBuffer(req.body)) return res.status(415).json({ error: 'Bitte einen verschlüsselten Binäranhang senden.' });
+      const stored = await encryptedAttachmentStore.put(getEmailAccount(req).userId, id, req.body);
+      res.status(201).json({ attachmentId: id, ...stored });
+    } catch (error) { attachmentError(res, error); }
+  });
+  app.get('/api/material-attachments/:id', async (req, res) => {
+    try {
+      const id = String(req.params.id || '');
+      if (!attachmentIdValid(id)) return res.status(400).json({ error: 'INVALID_ID' });
+      const bytes = await encryptedAttachmentStore.get(getEmailAccount(req).userId, id);
+      res.setHeader('Cache-Control', 'no-store');
+      res.type('application/octet-stream').send(bytes);
+    } catch (error) { attachmentError(res, error); }
+  });
+  app.delete('/api/material-attachments/:id', async (req, res) => {
+    try {
+      const id = String(req.params.id || '');
+      if (!attachmentIdValid(id)) return res.status(400).json({ error: 'INVALID_ID' });
+      await encryptedAttachmentStore.delete(getEmailAccount(req).userId, id);
+      res.status(204).end();
+    } catch (error) { attachmentError(res, error); }
+  });
 
   // Persönlicher Konto-Sync: Der Server speichert ausschließlich Vault-Wrappings
   // und AES-GCM-Chiffretext. Schüler-, Noten- und Planungsdaten werden hier nie entschlüsselt.
@@ -1416,57 +1471,16 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   app.delete('/api/sync/:code', requireAccess);
 
   // --- Canva Connect integration -------------------------------------------------
-  // OAuth tokens never leave the server. The browser receives only a random
-  // HttpOnly session identifier; the token payload itself is AES-256-GCM encrypted.
-  type CanvaTokenPayload = {
-    access_token: string;
-    refresh_token?: string;
-    expires_at: number;
-    scope?: string;
-    token_type?: string;
-  };
-
+  // Tokens are encrypted at rest and bound to a verified Klassio email account.
+  // No Canva tokens, student records or plaintext filenames are stored in app state.
+  type CanvaTokenPayload = CanvaStoredTokens;
   const CANVA_CLIENT_ID = (process.env.CANVA_CLIENT_ID || '').trim();
   const CANVA_CLIENT_SECRET = (process.env.CANVA_CLIENT_SECRET || '').trim();
   const canvaConfigured = Boolean(CANVA_CLIENT_ID && CANVA_CLIENT_SECRET);
   const CANVA_SCOPES = ['design:meta:read', 'design:content:read', 'design:content:write'].join(' ');
-
-  const canvaOauthFlows = new Map<string, { state: string; verifier: string; createdAt: number }>();
-  const canvaSessions = new Map<string, { iv: string; tag: string; ciphertext: string; updatedAt: number }>();
-
-  const canvaTokenKey = crypto
-    .createHash('sha256')
-    .update(process.env.CANVA_TOKEN_ENCRYPTION_KEY || SESSION_SECRET)
-    .digest();
-
-  function encryptCanvaTokens(payload: CanvaTokenPayload) {
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', canvaTokenKey, iv);
-    const ciphertext = Buffer.concat([
-      cipher.update(JSON.stringify(payload), 'utf8'),
-      cipher.final()
-    ]);
-    return {
-      iv: iv.toString('base64url'),
-      tag: cipher.getAuthTag().toString('base64url'),
-      ciphertext: ciphertext.toString('base64url'),
-      updatedAt: Date.now()
-    };
-  }
-
-  function decryptCanvaTokens(record: { iv: string; tag: string; ciphertext: string }): CanvaTokenPayload {
-    const decipher = crypto.createDecipheriv(
-      'aes-256-gcm',
-      canvaTokenKey,
-      Buffer.from(record.iv, 'base64url')
-    );
-    decipher.setAuthTag(Buffer.from(record.tag, 'base64url'));
-    const plain = Buffer.concat([
-      decipher.update(Buffer.from(record.ciphertext, 'base64url')),
-      decipher.final()
-    ]).toString('utf8');
-    return JSON.parse(plain) as CanvaTokenPayload;
-  }
+  const canvaOauthFlows = new Map<string, { state: string; verifier: string; createdAt: number; ownerId: string }>();
+  const canvaTokenStore = createCanvaTokenStore(KLASSIO_DATA_DIR, process.env.CANVA_TOKEN_ENCRYPTION_KEY || SESSION_SECRET);
+  const canvaRefreshLocks = new Map<string, Promise<string>>();
 
   function canvaBasicAuth() {
     return 'Basic ' + Buffer.from(`${CANVA_CLIENT_ID}:${CANVA_CLIENT_SECRET}`).toString('base64');
@@ -1510,35 +1524,39 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   }
 
   async function getCanvaAccessToken(req: express.Request): Promise<string> {
+    const ownerId = getEmailAccount(req).userId;
     const sessionId = getCanvaSessionId(req);
     if (!sessionId) throw Object.assign(new Error('Canva ist nicht verbunden.'), { status: 401 });
-    const encrypted = canvaSessions.get(sessionId);
-    if (!encrypted) throw Object.assign(new Error('Canva-Sitzung ist abgelaufen. Bitte neu verbinden.'), { status: 401 });
+    const stored = await canvaTokenStore.get(ownerId, sessionId);
+    if (!stored) throw Object.assign(new Error('Canva ist nicht verbunden oder die Sitzung ist abgelaufen.'), { status: 401 });
+    if (stored.expires_at > Date.now() + 90_000) return stored.access_token;
 
-    let tokenData: CanvaTokenPayload;
-    try {
-      tokenData = decryptCanvaTokens(encrypted);
-    } catch {
-      canvaSessions.delete(sessionId);
-      throw Object.assign(new Error('Canva-Sitzung konnte nicht sicher gelesen werden. Bitte neu verbinden.'), { status: 401 });
-    }
-
-    if (tokenData.expires_at > Date.now() + 90_000) {
-      return tokenData.access_token;
-    }
-    if (!tokenData.refresh_token) {
-      canvaSessions.delete(sessionId);
-      throw Object.assign(new Error('Canva-Sitzung ist abgelaufen. Bitte neu verbinden.'), { status: 401 });
-    }
-
-    // Canva refresh tokens are rotated. Always replace the stored refresh token
-    // with the one returned by the latest refresh response.
-    const refreshed = await exchangeCanvaToken(new URLSearchParams({
-      grant_type: 'refresh_token',
-      refresh_token: tokenData.refresh_token,
-    }));
-    canvaSessions.set(sessionId, encryptCanvaTokens(refreshed));
-    return refreshed.access_token;
+    // Refresh tokens rotate. Serialize refreshes for this account across parallel
+    // design, preview and export requests, including reads after service restart.
+    const lockKey = ownerId + ':' + sessionId;
+    const inFlight = canvaRefreshLocks.get(lockKey);
+    if (inFlight) return inFlight;
+    const refresh = (async () => {
+      const current = await canvaTokenStore.get(ownerId, sessionId);
+      if (!current) throw Object.assign(new Error('Canva ist nicht verbunden.'), { status: 401 });
+      if (current.expires_at > Date.now() + 90_000) return current.access_token;
+      if (!current.refresh_token) {
+        await canvaTokenStore.delete(ownerId, sessionId);
+        throw Object.assign(new Error('Canva-Sitzung ist abgelaufen. Bitte neu verbinden.'), { status: 401 });
+      }
+      const updated = await exchangeCanvaToken(new URLSearchParams({
+        grant_type: 'refresh_token', refresh_token: current.refresh_token,
+      }));
+      // If disconnected during refresh, do not resurrect the revoked session.
+      if (!(await canvaTokenStore.get(ownerId, sessionId))) {
+        throw Object.assign(new Error('Canva-Sitzung wurde getrennt.'), { status: 401 });
+      }
+      await canvaTokenStore.put(ownerId, sessionId, updated);
+      return updated.access_token;
+    })();
+    canvaRefreshLocks.set(lockKey, refresh);
+    try { return await refresh; }
+    finally { if (canvaRefreshLocks.get(lockKey) === refresh) canvaRefreshLocks.delete(lockKey); }
   }
 
   async function canvaApi(req: express.Request, url: string, init: RequestInit = {}) {
@@ -1562,17 +1580,38 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
   app.use('/api/canva', (req, res, next) => {
     if (req.path === '/callback') return next();
-    requireAccess(req, res, next);
+    // Status can explain why a code-only guest cannot connect; all mutating
+    // and Canva-data endpoints require the current signed-in email account.
+    if (req.path === '/status') return requireAccess(req, res, next);
+    requireEmailAccount(req, res, next);
   });
 
-  app.get('/api/canva/status', (req, res) => {
-    const sessionId = getCanvaSessionId(req);
-    const connected = Boolean(sessionId && canvaSessions.has(sessionId));
-    res.json({
-      configured: canvaConfigured,
-      connected: canvaConfigured && connected,
-      reason: canvaConfigured ? undefined : 'CANVA_CLIENT_ID/CANVA_CLIENT_SECRET fehlen',
-    });
+  app.get('/api/canva/status', async (req, res, next) => {
+    try {
+      const cookies = parseCookies(req);
+      const account = verifyAccountToken(cookies.klassio_email_account);
+      const requiresEmailLogin = !account;
+      const sessionId = getCanvaSessionId(req);
+      let connected = false;
+      let sessionUnreadable = false;
+      if (canvaConfigured && account && sessionId) {
+        try {
+          connected = Boolean(await canvaTokenStore.get(account.userId, sessionId));
+        } catch {
+          // Wrong/rotated server secret and corrupt sessions must not masquerade
+          // as missing Canva OAuth configuration or lock the teacher out of reconnecting.
+          sessionUnreadable = true;
+        }
+      }
+      res.json({
+        configured: canvaConfigured,
+        connected,
+        requiresEmailLogin,
+        reason: !canvaConfigured ? 'CANVA_CLIENT_ID/CANVA_CLIENT_SECRET fehlen'
+          : requiresEmailLogin ? 'Bitte mit deiner E-Mail-Adresse anmelden, um Canva zu verbinden.'
+          : sessionUnreadable ? 'Deine bisherige Canva-Sitzung kann nicht gelesen werden. Bitte Canva erneut verbinden.' : undefined,
+      });
+    } catch (error) { next(error); }
   });
 
   app.get('/api/canva/auth-url', (req, res) => {
@@ -1582,7 +1621,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const verifier = crypto.randomBytes(96).toString('base64url');
     const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
     const state = crypto.randomBytes(48).toString('base64url');
-    canvaOauthFlows.set(flowId, { state, verifier, createdAt: Date.now() });
+    canvaOauthFlows.set(flowId, { state, verifier, createdAt: Date.now(), ownerId: getEmailAccount(req).userId });
 
     res.cookie('klassio_canva_flow', flowId, {
       httpOnly: true,
@@ -1628,8 +1667,12 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     const fail = (message: string) => res.status(400).type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva-Verbindung fehlgeschlagen</h2><p>${escapeHtml(message)}</p><script>if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_ERROR',error:${scriptJson(message)}},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),1500);</script></body></html>`);
 
     if (oauthError) return fail('Canva-Anmeldung wurde abgebrochen oder abgelehnt.');
-    if (!flow || Date.now() - flow.createdAt > 10 * 60 * 1000 || !state || state !== flow.state || !code) {
-      return fail('Canva-Anmeldung ist abgelaufen oder ungültig. Bitte erneut verbinden.');
+    const cookies = parseCookies(req);
+    const callbackAccount = verifyAccessToken(cookies.lehrerapp_access_token)
+      ? verifyAccountToken(cookies.klassio_email_account) : null;
+    if (!flow || Date.now() - flow.createdAt > 10 * 60 * 1000 || !state || state !== flow.state
+      || !code || !callbackAccount || callbackAccount.userId !== flow.ownerId) {
+      return fail('Canva-Anmeldung ist abgelaufen oder das angemeldete Konto hat gewechselt. Bitte erneut verbinden.');
     }
 
     try {
@@ -1641,7 +1684,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
         redirect_uri: `${appUrl}/api/canva/callback`,
       }));
       const sessionId = crypto.randomBytes(32).toString('base64url');
-      canvaSessions.set(sessionId, encryptCanvaTokens(tokenData));
+      await canvaTokenStore.put(callbackAccount.userId, sessionId, tokenData);
       setCanvaSessionCookie(req, res, sessionId);
       return res.type('html').send(`<!doctype html><html><body style="font-family:system-ui;padding:2rem"><h2>Canva verbunden</h2><p>Du kannst zu Klassio zurückkehren.</p><script>if(window.opener){window.opener.postMessage({type:'CANVA_AUTH_SUCCESS'},${scriptJson(callbackOrigin)});}setTimeout(()=>window.close(),700);</script></body></html>`);
     } catch (error: any) {
@@ -1649,33 +1692,36 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     }
   });
 
-  app.post('/api/canva/disconnect', async (req, res) => {
-    const sessionId = getCanvaSessionId(req);
-    const record = sessionId ? canvaSessions.get(sessionId) : undefined;
-    if (record && canvaConfigured) {
-      try {
-        const tokenData = decryptCanvaTokens(record);
-        const token = tokenData.refresh_token || tokenData.access_token;
-        await fetch('https://api.canva.com/rest/v1/oauth/revoke', {
-          method: 'POST',
-          headers: {
-            'Authorization': canvaBasicAuth(),
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({ token }).toString(),
-        });
-      } catch (error) {
-        console.warn('[Canva] Token-Revoke fehlgeschlagen; lokale Sitzung wird trotzdem entfernt.');
+  app.post('/api/canva/disconnect', async (req, res, next) => {
+    try {
+      const ownerId = getEmailAccount(req).userId;
+      const sessionId = getCanvaSessionId(req);
+      let record: CanvaTokenPayload | null = null;
+      try { record = await canvaTokenStore.get(ownerId, sessionId); }
+      catch { /* Corrupt/old server key: account owner may still disconnect safely. */ }
+      if (record && canvaConfigured) {
+        try {
+          const token = record.refresh_token || record.access_token;
+          await fetch('https://api.canva.com/rest/v1/oauth/revoke', {
+            method: 'POST',
+            headers: {
+              'Authorization': canvaBasicAuth(),
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({ token }).toString(),
+            signal: AbortSignal.timeout(8_000),
+          });
+        } catch {
+          console.warn('[Canva] Token-Revoke fehlgeschlagen; lokale Sitzung wird trotzdem entfernt.');
+        }
       }
-    }
-    if (sessionId) canvaSessions.delete(sessionId);
-    res.clearCookie('klassio_canva_session', {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: req.secure || process.env.NODE_ENV === 'production',
-      path: '/',
-    });
-    res.json({ success: true });
+      await canvaTokenStore.clearAccount(ownerId);
+      res.clearCookie('klassio_canva_session', {
+        httpOnly: true, sameSite: 'lax',
+        secure: req.secure || process.env.NODE_ENV === 'production', path: '/',
+      });
+      res.json({ success: true });
+    } catch (error) { next(error); }
   });
 
   app.get('/api/canva/designs', async (req, res, next) => {
@@ -1727,7 +1773,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
         method: 'POST',
         body: JSON.stringify({
           design_id: designId,
-          format: { type: format, ...(format === 'png' && req.body?.first_page_only === true ? { pages: [1] } : {}) },
+          format: { type: format, ...(format === 'jpg' ? { quality: 85 } : {}), ...(format === 'png' && req.body?.first_page_only === true ? { pages: [1] } : {}) },
         }),
       });
       res.json(data);

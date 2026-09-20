@@ -35,7 +35,8 @@ export const WIDGET_MIN_SIZES: Record<string, WidgetMinSizeConfig> = {
   noisemeter: { minW: 280, minH: 200, prefW: 380, prefH: 280 },
   noisescales: { minW: 280, minH: 180, prefW: 360, prefH: 260 },
   sounds: { minW: 280, minH: 200, prefW: 380, prefH: 280 },
-  todo: { minW: 280, minH: 200, prefW: 380, prefH: 320 },
+  // Header, one readable task, page controls and input must fit at the same time.
+  todo: { minW: 340, minH: 360, prefW: 460, prefH: 500 },
   dienste: { minW: 280, minH: 220, prefW: 380, prefH: 340 },
   links: { minW: 280, minH: 200, prefW: 380, prefH: 320 },
   qrcode: { minW: 280, minH: 220, prefW: 360, prefH: 340 },

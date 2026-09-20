@@ -1,5 +1,7 @@
 # KLASSIO – Feature Matrix
 
+> **Statusprüfung 2026-09-20:** Die folgende historische Matrix bildet nicht vollständig den heutigen GitHub-`main`-Stand ab. Vor PR #185 geprüft: `main` = `b40f56f64ed9f8aeff57cb8a853ff2bf4a83042b`, PR #180/#183 integriert; #182 weiter als separater Draft offen. Im **Draft-PR #185** sind die Cockpit-Hauptleiste (TEXT/Papier), Papierabstände/Häuschen und der direkte Klassenkassen-Einstieg bearbeitet; keine Freigabe ohne CI + Browser-/Backup-Abnahme. **Offen:** alle Widgets tatsächlich ohne Scrollbedarf inkl. 25 Kinder, zusätzliche Widget-Leiste mit Reset, reale Canva-OAuth-/Importabnahme, getrennte verschlüsselte Materialdateien/Quoten und serverseitige Bezahlbestätigung. PayPal-Links und Preise in bestehenden Zahlungsplänen bleiben unangetastet. Produktionsstand und Speicherreserve sind serverseitig noch nicht verifiziert.
+
 > **Aktualisierung 2026-09-19:** Die früheren ✅-Angaben unten gelten nur für den damaligen Prüfstand. Insbesondere #145–159 sind auf `main` nicht enthalten. Aktueller Integrationsstatus samt offenen Fehlern in [`docs/KLASSIO_REINTEGRATION_2026-09-19.md`](docs/KLASSIO_REINTEGRATION_2026-09-19.md). Kein Feature als live/fertig einstufen, bevor ein gemeinsamer geprüfter Release-Commit belegt ist.
 
 Stand: 2026-09-16 · aktive Integrationskette `feature/usability-widgets-tools-notes` → `main`; Teamteaching in PR #96

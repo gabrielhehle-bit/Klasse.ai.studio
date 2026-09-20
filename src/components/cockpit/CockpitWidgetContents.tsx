@@ -1840,6 +1840,8 @@ export interface GroupsWidgetProps {
   setGeneratedGroups?: (groups: any[]) => void;
   generateGroups?: (count?: number, isSize?: boolean, overrideStrategy?: string) => void;
   currentIsLight: boolean;
+  settingsInPicker?: boolean;
+  onClosePickerSettings?: () => void;
 }
 
 export const GroupsWidgetContent: React.FC<GroupsWidgetProps> = (props) => {

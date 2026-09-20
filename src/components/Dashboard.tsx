@@ -18,6 +18,8 @@ import {
   formatLocalDateKey,
 } from "../lib/utils";
 import { getFerien } from "../lib/ferienOesterreich";
+import { getDashboardDisplayDate, getDashboardFreeDayMessage } from "../lib/dashboardDayContext";
+import type { Bundesland } from "../lib/ferienOesterreich";
 import { VM_ZEITEN, STUNDEN_INFO, FAECHER_ALLE, AESTHETIC_THEMES, DASHBOARD_CURATED_FONTS, DASHBOARD_FONT_SIZES, MAX_LESSON_SLOTS, LESSON_SLOT_NUMBERS } from "../constants";
 import { berechne } from "../lib/GradeUtils";
 import { isDiagnosticAlert } from "../lib/diagnosticData";
@@ -2197,61 +2199,32 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
     return () => clearInterval(timer);
   }, []);
 
-  const { anzeigeDatum, vorschauTyp } = React.useMemo(() => {
-    let raw = new Date(currentTime);
-    if (manualDateOffset !== 0) {
-      raw.setDate(raw.getDate() + manualDateOffset);
-      return { anzeigeDatum: raw, vorschauTyp: "Manuell" };
-    }
-
-    let anzeige = new Date(raw);
-    let typ = null;
-
-    if (vorschauModus === "heute") {
-      return { anzeigeDatum: raw, vorschauTyp: null };
-    }
-
-    if (vorschauModus === "morgen") {
-      const day = raw.getDay(); // 0: Sun, 1: Mon, ..., 5: Fri, 6: Sat
-      if (day === 5) {
-        anzeige.setDate(raw.getDate() + 3); // Montag
-      } else if (day === 6) {
-        anzeige.setDate(raw.getDate() + 2); // Montag
-      } else {
-        anzeige.setDate(raw.getDate() + 1); // Morgen
-      }
-      anzeige.setHours(8, 0, 0, 0);
-      return { anzeigeDatum: anzeige, vorschauTyp: "Morgen" };
-    }
-
-    // Automatik-Modus
-    const hour = raw.getHours();
-    const day = raw.getDay(); // 0: Sun, 1: Mon, ..., 5: Fri, 6: Sat
-
-    if (day === 5 && hour >= vorschauStunde) {
-      anzeige.setDate(raw.getDate() + 3);
-      anzeige.setHours(8, 0, 0, 0);
-      typ = "Montag";
-    } else if (day === 6) {
-      anzeige.setDate(raw.getDate() + 2);
-      anzeige.setHours(8, 0, 0, 0);
-      typ = "Montag";
-    } else if (day === 0) {
-      anzeige.setDate(raw.getDate() + 1);
-      anzeige.setHours(8, 0, 0, 0);
-      typ = "Montag";
-    } else if (hour >= vorschauStunde) {
-      anzeige.setDate(raw.getDate() + 1);
-      anzeige.setHours(8, 0, 0, 0);
-      typ = "Morgen";
-    }
-
-    return { anzeigeDatum: anzeige, vorschauTyp: typ };
-  }, [currentTime, vorschauStunde, vorschauModus, manualDateOffset]);
+  const { date: anzeigeDatum, preview: vorschauTyp } = React.useMemo(() => {
+    const freeToday = getDashboardFreeDayMessage(
+      currentTime,
+      (app?.bundesland || 'VBG') as Bundesland,
+      app?.calendarSettings?.disabledHolidays || [],
+      app?.calendarOverrides?.[formatLocalDateKey(currentTime)] as 'school' | 'free' | undefined,
+    );
+    return getDashboardDisplayDate(currentTime, vorschauModus, vorschauStunde, manualDateOffset, Boolean(freeToday));
+  }, [
+    currentTime, vorschauStunde, vorschauModus, manualDateOffset,
+    app?.bundesland, app?.calendarSettings?.disabledHolidays, app?.calendarOverrides,
+  ]);
 
   const heute = currentTime;
   const isWeekend = heute.getDay() === 0 || heute.getDay() === 6;
   const scheduleDatum = anzeigeDatum;
+  // A preview or manually selected date is not "today": never label a
+  // future holiday as if it were happening right now.
+  const dashboardFreeDay = formatLocalDateKey(scheduleDatum) === formatLocalDateKey(currentTime)
+    ? getDashboardFreeDayMessage(
+        currentTime,
+        (app?.bundesland || 'VBG') as Bundesland,
+        app?.calendarSettings?.disabledHolidays || [],
+        app?.calendarOverrides?.[formatLocalDateKey(currentTime)] as 'school' | 'free' | undefined,
+      )
+    : null;
   const weekDiff = getKW(scheduleDatum) - getKW(heute);
   const kw = (app?.currentKW || getKW(heute)) + weekDiff;
   const tagName = getTodayName(scheduleDatum);
@@ -4705,6 +4678,7 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
 
       <DashboardTodayOverview
         greeting={getGreeting()}
+        freeDayGreeting={dashboardFreeDay}
         dateLabel={scheduleDatum.toLocaleDateString("de-DE", {
           weekday: "long",
           day: "2-digit",

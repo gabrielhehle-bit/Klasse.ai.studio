@@ -89,18 +89,18 @@ export default function KlasseHub() {
   ];
 
   const organizationItems: HubItem[] = [
-  {
-    id: 'jahresbericht',
-    title: 'Jahresabschluss',
-    description: 'Berichtstand der Klasse und Sammeldruck ausdrücklich freigegebener Jahresberichte.',
-    icon: FileText,
-    klassenvorstandOnly: true,
-  },
     {
       id: 'orga',
-      title: 'Organisation',
-      description: 'Klassenkasse, Geldsammlungen, Listen, Checklisten und Zugänge.',
+      title: 'Klassenkasse',
+      description: 'Geldsammlungen, Zahlungserfassung, Kassenbuch und offene Beiträge – die vorhandene Kasse deiner Klasse.',
       icon: Wallet,
+      klassenvorstandOnly: true,
+    },
+    {
+      id: 'jahresbericht',
+      title: 'Jahresabschluss',
+      description: 'Berichtstand der Klasse und Sammeldruck ausdrücklich freigegebener Jahresberichte.',
+      icon: FileText,
       klassenvorstandOnly: true,
     },
     {

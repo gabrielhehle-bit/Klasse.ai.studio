@@ -26,6 +26,9 @@ import {
   getStudentMood,
 } from '../../../lib/kidAttendanceAlgorithm';
 import { KID_MOOD_SCALE, getMoodMeta } from '../../../lib/moodTypes';
+import { getStudentGridLayout } from '../../../lib/studentWidgetGrid';
+import { CHECK_IN_GRID_OPTIONS, getCheckInPageLayout, shouldShowCheckInSummary } from '../../../lib/checkInWidgetLayout';
+import { getCheckInMode } from '../../../lib/checkInWidgetMode';
 
 export interface KidAttendanceWidgetProps {
   widget?: CockpitWidgetConfig;
@@ -45,13 +48,26 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   const { app: contextApp, setApp: contextSetApp } = useApp();
   const app = propApp || contextApp;
   const setApp = propSetApp || contextSetApp;
+  const checkInMode = getCheckInMode(widget?.settings);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
   useWidgetOverflowGuard('KidAttendanceWidget', containerRef);
 
   // Heutiges Datum
-  const todayStr = useMemo(() => getTodayIsoDate(), []);
+  const [todayStr, setTodayStr] = useState(getTodayIsoDate);
+
+  // A Cockpit can stay open overnight. Refresh the local school-day key before
+  // accepting another check-in rather than writing the previous day's record.
+  React.useEffect(() => {
+    const refreshToday = () => setTodayStr(getTodayIsoDate());
+    const timer = window.setInterval(refreshToday, 60_000);
+    document.addEventListener('visibilitychange', refreshToday);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshToday);
+    };
+  }, []);
 
   // Nur echte Kinder der aktiven Klasse. Während des Ladens bzw. bei leerer
   // Klasse niemals erfundene Namen anbieten oder Anwesenheit für sie buchen.
@@ -74,7 +90,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   // Lokale UI-Modi (flüchtig)
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
-  const [isCompactCheckInOpen, setIsCompactCheckInOpen] = useState(false);
+  const [isStudentPageOpen, setIsStudentPageOpen] = useState(false);
+  const [studentPage, setStudentPage] = useState(0);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [recentlyTappedId, setRecentlyTappedId] = useState<string | null>(null);
 
   // Aktiver Befindens-Check-in für ein Kind (direkt nach "Da"-Klick)
@@ -93,9 +111,44 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     };
   }, []);
 
-  // Schüler tippt auf Karte (Schülermodus)
+  // A class switch must never leave another class's name or private mood
+  // prompt on the shared teaching surface.
+  React.useEffect(() => {
+    if (moodCloseTimerRef.current) clearTimeout(moodCloseTimerRef.current);
+    moodCloseTimerRef.current = null;
+    setActiveMoodStudent(null);
+    setIsTeacherModalOpen(false);
+    setIsFinalizeModalOpen(false);
+    setIsStudentPageOpen(false);
+    setStudentPage(0);
+    setSelectedStudentId(null);
+    setRecentlyTappedId(null);
+  }, [app.activeClassId]);
+
+  React.useEffect(() => {
+    setSelectedStudentId(null);
+    setIsStudentPageOpen(false);
+    setStudentPage(0);
+    setActiveMoodStudent(null);
+  }, [checkInMode, todayStr]);
+
+  // Mode B selects one child before check-in; mode C never changes attendance.
   const handleStudentCardTap = useCallback((studentId: string) => {
     const currentStatus = getStudentAttendanceStatus(studentId, app, todayStr);
+    if (checkInMode === 'teacher') {
+      if (currentStatus.status !== 'present') return;
+      const student = students.find((child) => child.id === studentId);
+      setActiveMoodStudent({
+        id: studentId,
+        displayName: displayNames.get(studentId) || student?.vorname || 'Schüler/in',
+        step: 'prompt',
+      });
+      return;
+    }
+    if (checkInMode === 'individual' && selectedStudentId !== studentId) {
+      if (currentStatus.status === 'open') setSelectedStudentId(studentId);
+      return;
+    }
     if (currentStatus.status !== 'open') {
       // Wenn bereits 'da' oder 'abwesend', kein automatisches erneutes Fragen
       return;
@@ -123,7 +176,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
       displayName: dName,
       step: 'prompt',
     });
-  }, [app, setApp, todayStr, students, displayNames]);
+  }, [app, setApp, todayStr, students, displayNames, checkInMode, selectedStudentId]);
 
   // Kind wählt einen der 5 Smileys (1 = sehr gut bis 5 = schlecht)
   const handleChildSelectMood = useCallback((value: number) => {
@@ -139,6 +192,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     if (moodCloseTimerRef.current) clearTimeout(moodCloseTimerRef.current);
     moodCloseTimerRef.current = setTimeout(() => {
       setActiveMoodStudent(null);
+      setSelectedStudentId(null);
     }, 1200);
   }, [activeMoodStudent, setApp, todayStr]);
 
@@ -151,6 +205,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     if (moodCloseTimerRef.current) clearTimeout(moodCloseTimerRef.current);
     moodCloseTimerRef.current = setTimeout(() => {
       setActiveMoodStudent(null);
+      setSelectedStudentId(null);
     }, 900);
   }, [activeMoodStudent]);
 
@@ -158,6 +213,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   const handleChildDismissThanks = useCallback(() => {
     if (moodCloseTimerRef.current) clearTimeout(moodCloseTimerRef.current);
     setActiveMoodStudent(null);
+    setSelectedStudentId(null);
   }, []);
 
   // Lehrer-Aktionen
@@ -238,11 +294,22 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     );
   }
 
+  const studentGrid = getStudentGridLayout(size.width, size.height, students.length, CHECK_IN_GRID_OPTIONS);
+  const showCompactSummary = shouldShowCheckInSummary(size.width, studentGrid.fits) && !isStudentPageOpen;
+  const pageLayout = getCheckInPageLayout(size.width, size.height, students.length, studentPage);
+  const expandStudentGrid = () => {
+    setIsStudentPageOpen(true);
+    setStudentPage(0);
+    onUpdate?.({ x: 2, y: 2, w: 96, h: 90 });
+  };
+  const denseStudentGrid = students.length >= 16;
+
   // Render einer einzelnen Schülerkarte
   const renderStudentCard = (student: Student, isCompactView = false) => {
     const displayName = displayNames.get(student.id) || student.vorname;
     const { status, isPreExistingAbsent, delayMinutes } = getStudentAttendanceStatus(student.id, app, todayStr);
     const isJustCheckedIn = recentlyTappedId === student.id;
+    const canTapMood = checkInMode === 'teacher' && status === 'present';
 
     // Farb- und Styling-Definition gemäß Status
     let cardClasses = '';
@@ -271,7 +338,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     }
 
     // Touch-Target-Größen je nach Modus
-    const cardHeight = size.isXL
+    const cardHeight = denseStudentGrid
+      ? 'min-h-[64px] px-2 py-1'
+      : size.isXL
       ? 'min-h-[80px] px-4 py-3'
       : size.isLarge
       ? 'min-h-[64px] px-3.5 py-2.5'
@@ -286,14 +355,15 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         key={student.id}
         type="button"
         onClick={() => handleStudentCardTap(student.id)}
-        disabled={status === 'absent'}
+        disabled={status === 'absent' || (checkInMode === 'teacher' && status !== 'present')}
         title={
           status === 'absent'
             ? `${displayName} ist bereits als abwesend erfasst`
             : status === 'present'
-            ? `${displayName} ist eingecheckt`
-            : `${displayName}: Hier tippen für "Ich bin da!"`
+            ? checkInMode === 'teacher' ? `${displayName}: Freiwilliges Befinden angeben` : `${displayName} ist eingecheckt`
+            : checkInMode === 'teacher' ? `${displayName}: Anwesenheit zuerst durch Lehrkraft erfassen` : checkInMode === 'individual' ? `${displayName} auswählen` : `${displayName}: Hier tippen für "Ich bin da!"`
         }
+        style={denseStudentGrid ? { minHeight: 64, height: Math.min(96, studentGrid.cardHeight) } : undefined}
         className={`w-full ${cardHeight} rounded-xl border flex items-center justify-between gap-2.5 text-left transition-all duration-150 select-none ${
           status === 'open' ? 'cursor-pointer active:scale-97' : ''
         } ${cardClasses}`}
@@ -317,7 +387,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           <div className="min-w-0 flex-1">
             <span
               className={`block whitespace-normal break-words font-black leading-tight ${
-                size.isXL
+                denseStudentGrid
+                  ? 'text-xs sm:text-sm tracking-tight'
+                  : size.isXL
                   ? 'text-lg sm:text-xl tracking-tight'
                   : size.isLarge
                   ? 'text-base font-bold'
@@ -352,143 +424,70 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           }`}
         >
           {statusIcon}
-          <span className="whitespace-nowrap">{statusLabel}</span>
+          <span className="whitespace-nowrap">{canTapMood ? 'Befinden' : statusLabel}</span>
         </div>
       </button>
     );
   };
 
   // ==========================================
-  // COMPACT LAYOUT (< 380px)
+  // KLEINE WIDGET-FLÄCHE: Übersicht statt abgeschnittene Schülerliste.
+  // Das Kind tippt erst auf seine Karte in der vergrößerten Ansicht.
   // ==========================================
-  if (size.isCompact && !isCompactCheckInOpen) {
+  if (showCompactSummary) {
     return (
       <div
         ref={containerRef}
-        className="w-full h-full flex flex-col justify-between p-3 select-none font-sans overflow-hidden"
+        role="group"
+        aria-label="Ich bin da – kompakte Anwesenheitsübersicht"
+        className={`relative flex h-full min-h-0 w-full flex-col justify-between gap-2 overflow-hidden p-3 font-sans ${
+          currentIsLight ? 'bg-slate-50 text-slate-900' : 'bg-zinc-900 text-zinc-100'
+        }`}
       >
-        {/* Header mit Titel & Datum */}
-        <div className="flex items-center justify-between gap-1.5 border-b pb-2 mb-2 shrink-0 border-slate-200 dark:border-zinc-800">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-base shrink-0">🖐️</span>
-            <span className="font-black text-xs uppercase tracking-wider truncate text-slate-800 dark:text-zinc-100">
-              Check-In
-            </span>
-          </div>
-          <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-500 tabular-nums">
-            {formattedToday}
-          </span>
-        </div>
+        <header className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 pb-2 dark:border-zinc-700">
+          <h3 className="min-w-0 text-sm font-black leading-tight">🖐️ Ich bin da!</h3>
+          <span className="shrink-0 text-xs font-semibold tabular-nums opacity-70">{formattedToday}</span>
+        </header>
 
-        {/* Kompaktansicht: alle Namen bleiben sichtbar und jeder Status ist direkt zugeordnet. */}
-        <div className="flex-1 min-h-0 flex flex-col gap-2 py-1">
-          <div className="grid grid-cols-3 gap-1.5 text-center shrink-0">
-            <div className="p-1.5 rounded-lg border bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
-              <span className="block text-base font-black tabular-nums leading-none">{summary.present}</span>
-              <span className="text-[9px] font-bold">da</span>
-            </div>
-            <div className="p-1.5 rounded-lg border bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
-              <span className="block text-base font-black tabular-nums leading-none">{summary.open}</span>
-              <span className="text-[9px] font-bold">offen</span>
-            </div>
-            <div className="p-1.5 rounded-lg border bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800">
-              <span className="block text-base font-black tabular-nums leading-none">{summary.absent}</span>
-              <span className="text-[9px] font-bold">fehlt</span>
-            </div>
+        <div className="grid shrink-0 grid-cols-3 gap-1.5 text-center" role="status" aria-live="polite"
+          aria-label={`${summary.present} anwesend, ${summary.open} offen, ${summary.absent} abwesend`}>
+          <div className="flex min-h-14 flex-col justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-1 text-emerald-900">
+            <strong className="text-xl tabular-nums leading-none">{summary.present}</strong>
+            <span className="mt-1 text-xs font-bold">Da</span>
           </div>
-
-          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-1 pr-0.5" aria-label="Anwesenheitsliste mit allen Kindern">
-            {students.map((student) => {
-              const displayName = displayNames.get(student.id) || student.vorname;
-              const { status, delayMinutes } = getStudentAttendanceStatus(student.id, app, todayStr);
-              return (
-                <button
-                  key={student.id}
-                  type="button"
-                  onClick={() => handleStudentCardTap(student.id)}
-                  disabled={status === 'absent'}
-                  className={`w-full min-h-9 px-2 py-1.5 rounded-lg border flex items-center gap-2 text-left ${
-                    status === 'present'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
-                      : status === 'absent'
-                      ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800'
-                      : 'bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700'
-                  }`}
-                >
-                  <span className="min-w-0 flex-1 whitespace-normal break-words text-[11px] font-black leading-tight">{displayName}</span>
-                  {delayMinutes > 0 && <span className="text-[9px] font-bold text-amber-600">+{delayMinutes}m</span>}
-                  <span className={`shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded ${
-                    status === 'present'
-                      ? 'text-emerald-700 dark:text-emerald-300'
-                      : status === 'absent'
-                      ? 'text-rose-700 dark:text-rose-300'
-                      : 'text-amber-700 dark:text-amber-300'
-                  }`}>
-                    {status === 'present' ? '✓ Da' : status === 'absent' ? 'Fehlt' : 'Offen'}
-                  </span>
-                </button>
-              );
-            })}
+          <div className="flex min-h-14 flex-col justify-center rounded-xl border border-amber-200 bg-amber-50 px-1 text-amber-900">
+            <strong className="text-xl tabular-nums leading-none">{summary.open}</strong>
+            <span className="mt-1 text-xs font-bold">Offen</span>
+          </div>
+          <div className="flex min-h-14 flex-col justify-center rounded-xl border border-rose-200 bg-rose-50 px-1 text-rose-900">
+            <strong className="text-xl tabular-nums leading-none">{summary.absent}</strong>
+            <span className="mt-1 text-xs font-bold">Fehlt</span>
           </div>
         </div>
 
-        {/* Aktionsleiste COMPACT */}
-        <div className="flex flex-col gap-1.5 shrink-0 pt-2 border-t border-slate-200 dark:border-zinc-800">
-          <button
-            type="button"
-            onClick={() => setIsCompactCheckInOpen(true)}
-            className="w-full h-11 min-h-[44px] rounded-xl font-black text-xs uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white flex items-center justify-center gap-2 shadow-xs cursor-pointer"
-          >
-            <Maximize2 size={14} />
-            Check-In öffnen
-          </button>
-
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => setIsTeacherModalOpen(true)}
-              className="flex-1 h-9 min-h-[36px] rounded-lg border font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700"
-            >
-              <ShieldCheck size={13} />
-              Korrigieren
-            </button>
-
-            {!summary.isComplete && (
-              <button
-                type="button"
-                onClick={() => setIsFinalizeModalOpen(true)}
-                className="flex-1 h-9 min-h-[36px] rounded-lg border font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100"
-              >
-                Abschließen
-              </button>
-            )}
-          </div>
+        <div className="min-h-0 flex-1 content-center text-center text-xs font-medium leading-snug">
+          {summary.isComplete ? 'Alle Kinder sind erfasst.' : `${summary.open} von ${summary.total} Kindern noch offen.`}
         </div>
-
-        {/* Kinder-Befindensabfrage (unmittelbar nach Check-in) */}
-        {activeMoodStudent && renderChildMoodModal()}
-        {/* Lehrer-Korrekturmodal */}
+        <button
+          type="button"
+          onClick={expandStudentGrid}
+          className="flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50"
+          aria-label={`Ich bin da vergrößern: ${summary.total} Kinder anzeigen und bearbeiten`}
+        >
+          <Maximize2 size={17} aria-hidden="true" /> Alle Kinder öffnen
+        </button>
         {isTeacherModalOpen && renderTeacherModal()}
-        {/* Abschlussdialog */}
         {isFinalizeModalOpen && renderFinalizeModal()}
+        {activeMoodStudent && renderChildMoodModal()}
       </div>
     );
   }
 
   // ==========================================
-  // STANDARD (380-549px), LARGE (550-799px), FULLSCREEN (≥ 800px)
-  // und COMPACT-Overlay (wenn geöffnet)
+  // AUSREICHEND GROSSE ANSICHT: Raster mit allen Kindern ohne Scrollen
   // ==========================================
   // Kinderkarten bekommen bewusst mehr Breite: Namen dürfen niemals zugunsten
   // einer möglichst hohen Spaltenzahl abgeschnitten werden.
-  const gridColumnsClass = size.isXL
-    ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4'
-    : size.isLarge
-    ? 'grid-cols-2 md:grid-cols-3'
-    : size.isStandard
-    ? 'grid-cols-2'
-    : 'grid-cols-1 sm:grid-cols-2'; // Für aufgeklapptes Compact
-
   return (
     <div
       ref={containerRef}
@@ -539,19 +538,6 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
         {/* Aktionsbuttons oben rechts */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Zurück-Button für aufgeklapptes Compact */}
-          {size.isCompact && isCompactCheckInOpen && (
-            <button
-              type="button"
-              onClick={() => setIsCompactCheckInOpen(false)}
-              className="px-2.5 py-1.5 rounded-lg border font-bold text-xs flex items-center gap-1 cursor-pointer bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-zinc-200 border-slate-300 dark:border-zinc-600"
-              title="Kompaktansicht"
-            >
-              <X size={14} />
-              <span className="hidden sm:inline">Schließen</span>
-            </button>
-          )}
-
           {/* Lehrer-Korrektur */}
           <button
             type="button"
@@ -582,11 +568,56 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         </div>
       </div>
 
-      {/* MITTLERER BEREICH: Scrollbares Schüler-Karten-Raster (Kartenbereich scrollt vertikal) */}
-      <div className="flex-1 overflow-y-auto no-scrollbar p-3 sm:p-4 min-h-0">
-        <div className={`grid gap-2.5 sm:gap-3 w-full ${gridColumnsClass}`}>
-          {students.map((student) => renderStudentCard(student))}
-        </div>
+      {/* B shows one selected child, A and C use the fitted class grid. */}
+      <div className="flex-1 overflow-hidden p-2 sm:p-3 min-h-0">
+        {checkInMode === 'individual' && selectedStudentId && students.some(child => child.id === selectedStudentId) ? (
+          <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 overflow-hidden px-2">
+            <p className="text-sm font-bold">Ist das dein Name?</p>
+            <div className="w-full max-w-md">
+              {renderStudentCard(students.find(child => child.id === selectedStudentId)!)}
+            </div>
+            <button type="button" onClick={() => handleStudentCardTap(selectedStudentId)}
+              disabled={getStudentAttendanceStatus(selectedStudentId, app, todayStr).status !== 'open'}
+              className="min-h-11 w-full max-w-md rounded-xl bg-emerald-600 px-4 text-sm font-black text-white disabled:opacity-50">
+              Ich bin da! ✓
+            </button>
+            <button type="button" onClick={() => setSelectedStudentId(null)}
+              className="min-h-11 rounded-xl border px-4 text-sm font-bold">Anderen Namen wählen</button>
+          </div>
+        ) : studentGrid.fits ? (
+          <div className="grid w-full content-start gap-1.5" style={{
+            gridTemplateColumns: `repeat(${studentGrid.columns}, minmax(0, 1fr))`,
+          }} aria-label="Anwesenheitsliste mit allen Kindern">
+            {students.map((student) => renderStudentCard(student))}
+          </div>
+        ) : pageLayout.canRender && isStudentPageOpen ? (
+          <div className="flex h-full min-h-0 flex-col gap-2" aria-label="Anwesenheit nach Schülerseiten">
+            <div className="grid w-full min-h-0 flex-1 content-start gap-1.5 overflow-hidden" style={{
+              gridTemplateColumns: `repeat(${pageLayout.columns}, minmax(0, 1fr))`,
+            }} aria-label={`Kinder ${pageLayout.start + 1} bis ${Math.min(students.length, pageLayout.start + pageLayout.pageSize)} von ${students.length}`}>
+              {students.slice(pageLayout.start, pageLayout.start + pageLayout.pageSize).map((student) => renderStudentCard(student))}
+            </div>
+            <nav aria-label="Schülerseiten" className="flex shrink-0 items-center justify-between gap-2 text-xs font-bold">
+              <button type="button" disabled={pageLayout.currentPage === 0}
+                onClick={() => setStudentPage(page => Math.max(0, page - 1))}
+                aria-label="Vorherige Schülerseite" className="min-h-11 rounded-lg border px-2 disabled:opacity-40">← Zurück</button>
+              <span aria-live="polite">{pageLayout.currentPage + 1} / {pageLayout.pageCount}</span>
+              <button type="button" disabled={pageLayout.currentPage >= pageLayout.pageCount - 1}
+                onClick={() => setStudentPage(page => Math.min(pageLayout.pageCount - 1, page + 1))}
+                aria-label="Nächste Schülerseite" className="min-h-11 rounded-lg border px-2 disabled:opacity-40">Weiter →</button>
+            </nav>
+          </div>
+        ) : (
+          <div role="status" className="flex h-full flex-col items-center justify-center gap-3 rounded-xl bg-slate-50 p-4 text-center text-slate-800">
+            <p className="text-sm font-bold">{students.length} Kinder benötigen mehr Platz, damit alle Namen und Schaltflächen sichtbar bleiben.</p>
+            {pageLayout.canRender ? (
+              <button type="button" onClick={expandStudentGrid}
+                className="min-h-11 rounded-xl bg-indigo-600 px-5 text-sm font-bold text-white">
+                Alle {students.length} Kinder groß anzeigen
+              </button>
+            ) : <p className="text-xs">Für die Namen und Schaltflächen reicht der Platz auf diesem Bildschirm noch nicht. Fenster vergrößern oder Gerät ins Querformat drehen.</p>}
+          </div>
+        )}
       </div>
 
       {/* UNTERE LEISTE (Fußbereich, fest, kein Scroll) */}
@@ -605,7 +636,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             </span>
           ) : (
             <span>
-              Tippe auf deinen Namen zum Einchecken.
+              {checkInMode === 'teacher' ? 'Die Lehrkraft trägt die Anwesenheit ein. Befinden ist freiwillig.' : checkInMode === 'individual' ? 'Wähle deinen Namen und bestätige den Check-in.' : 'Tippe auf deinen Namen zum Einchecken.'}
             </span>
           )}
         </div>

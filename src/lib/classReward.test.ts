@@ -230,6 +230,6 @@ describe('F21 – Belohnungssysteme analysieren & konsolidieren (Klassenglas & K
     assert.ok(WIDGET_MIN_SIZES.stopwatch);
     assert.strictEqual(WIDGET_MIN_SIZES.stopwatch.minW, 280);
     assert.ok(WIDGET_MIN_SIZES.todo);
-    assert.strictEqual(WIDGET_MIN_SIZES.todo.minW, 280);
+    // The no-scroll Todo redesign needs 340px to keep controls and text visible.\n    assert.strictEqual(WIDGET_MIN_SIZES.todo.minW, 340);
   });
 });

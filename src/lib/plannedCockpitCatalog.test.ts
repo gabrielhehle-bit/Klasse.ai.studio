@@ -13,8 +13,8 @@ const defaultTypes = [...source.slice(layoutStart, layoutEnd).matchAll(/type:\s*
   .map(match => match[1]);
 
 test('Cockpit-Zielkatalog: genau 20 unterschiedliche, bestehende Einstiegstypen', () => {
-  assert.equal(PLANNED_COCKPIT_WIDGETS.length, 20);
-  assert.equal(new Set(PLANNED_COCKPIT_WIDGETS.map(widget => widget.id)).size, 20);
+  assert.equal(PLANNED_COCKPIT_WIDGETS.length, 19);
+  assert.equal(new Set(PLANNED_COCKPIT_WIDGETS.map(widget => widget.id)).size, 19);
   for (const widget of PLANNED_COCKPIT_WIDGETS) {
     assert.ok(defaultTypes.includes(widget.id), `Unbekannter Einstiegstyp: ${widget.id}`);
     assert.ok(widget.label.trim());
@@ -42,6 +42,7 @@ test('Cockpit-Zielkatalog: Quellen überschneiden sich nicht und bleiben bisher 
 });
 
 test('Cockpit-Zielkatalog: nicht übernommene Typen bleiben ausdrücklich Legacy', () => {
+  assert.equal(getPlannedCockpitWidgetForLegacyType('studentlist'), null);
   assert.equal(getPlannedCockpitWidgetForLegacyType('drawing'), null);
   assert.equal(getPlannedCockpitWidgetForLegacyType('weather'), null);
   assert.equal(getPlannedCockpitWidgetForLegacyType('pet'), null);

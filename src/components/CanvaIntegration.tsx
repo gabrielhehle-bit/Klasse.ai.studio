@@ -20,6 +20,7 @@ type CanvaDesign = {
 type CanvaStatus = {
   configured: boolean;
   connected: boolean;
+  requiresEmailLogin?: boolean;
   reason?: string;
 };
 
@@ -90,7 +91,11 @@ export default function CanvaIntegration() {
       if (!isTrustedOAuthPopupMessage(event.origin, event.source, window.location.origin, oauthPopupRef.current)) return;
       if (event.data?.type === 'CANVA_AUTH_SUCCESS') {
         oauthPopupRef.current = null;
-        await refreshStatus();
+        const verified = await refreshStatus();
+        if (!verified.connected) {
+          showToast('Canva hat die Verbindung nicht bestätigt. Bitte Cookies zulassen und erneut verbinden.', 'error');
+          return;
+        }
         await loadDesigns();
         showToast('Canva ist verbunden.', 'success');
       }
@@ -104,16 +109,30 @@ export default function CanvaIntegration() {
   }, [loadDesigns, refreshStatus, showToast]);
 
   const connect = async () => {
+    // Open synchronously in the click gesture. An asynchronous window.open()
+    // after fetching the OAuth URL is rejected by pop-up blockers in Chrome.
+    const popup = window.open('', 'klassio-canva-oauth', 'width=720,height=780,resizable=yes,scrollbars=yes');
+    if (!popup) {
+      showToast('Bitte Pop-ups für Klassio erlauben, damit Canva geöffnet werden kann.', 'info');
+      return;
+    }
+    oauthPopupRef.current = popup;
     try {
       const data = await apiJson('/api/canva/auth-url');
       if (!data?.configured) {
+        popup.close();
+        oauthPopupRef.current = null;
         showToast('Canva ist serverseitig noch nicht konfiguriert.', 'info');
         return;
       }
-      const popup = window.open(data.url, 'klassio-canva-oauth', 'width=720,height=780,resizable=yes,scrollbars=yes');
-      oauthPopupRef.current = popup;
-      if (!popup) showToast('Bitte Pop-ups für Klassio erlauben.', 'info');
+      const target = new URL(String(data.url));
+      if (target.protocol !== 'https:' || target.hostname !== 'www.canva.com' || target.pathname !== '/api/oauth/authorize') {
+        throw new Error('Canva hat eine unerwartete Anmeldeadresse geliefert.');
+      }
+      popup.location.replace(target.toString());
     } catch (error: any) {
+      popup.close();
+      oauthPopupRef.current = null;
       showToast(error?.message || 'Canva-Verbindung konnte nicht gestartet werden.', 'error');
     }
   };
@@ -133,6 +152,12 @@ export default function CanvaIntegration() {
   };
 
   const createDesign = async (kind: 'a4' | 'presentation' | 'whiteboard' | 'doc') => {
+    const editor = window.open('', '_blank', 'width=1100,height=850,resizable=yes,scrollbars=yes');
+    if (!editor) {
+      showToast('Bitte Pop-ups für Klassio erlauben, um Canva zu öffnen.', 'info');
+      return;
+    }
+    editor.document.body.textContent = 'Canva-Design wird vorbereitet …';
     setActionLoading(kind);
     try {
       const titles: Record<typeof kind, string> = {
@@ -147,10 +172,16 @@ export default function CanvaIntegration() {
       });
       const design: CanvaDesign | undefined = data?.design;
       const editUrl = design?.urls?.edit_url || data?.urls?.edit_url;
-      if (editUrl) window.open(editUrl, '_blank', 'noopener,noreferrer');
+      if (!editUrl) throw new Error('Canva hat keine Bearbeitungsadresse geliefert.');
+      const target = new URL(editUrl);
+      if (target.protocol !== 'https:' || !['www.canva.com', 'canva.com'].includes(target.hostname)) {
+        throw new Error('Canva hat eine unerwartete Bearbeitungsadresse geliefert.');
+      }
+      editor.location.replace(target.toString());
       await loadDesigns(query);
       showToast('Canva-Design wurde erstellt.', 'success');
     } catch (error: any) {
+      editor.close();
       showToast(error?.message || 'Design konnte nicht erstellt werden.', 'error');
     } finally {
       setActionLoading(null);
@@ -158,6 +189,12 @@ export default function CanvaIntegration() {
   };
 
   const exportDesign = async (design: CanvaDesign, format: 'pdf' | 'png' | 'jpg' | 'pptx') => {
+    const download = window.open('', '_blank', 'width=640,height=480,resizable=yes');
+    if (!download) {
+      showToast('Bitte Pop-ups für Klassio erlauben, um den Canva-Export zu öffnen.', 'info');
+      return;
+    }
+    download.document.body.textContent = 'Canva bereitet den Download vor …';
     const key = `export-${design.id}-${format}`;
     setActionLoading(key);
     try {
@@ -174,13 +211,18 @@ export default function CanvaIntegration() {
         const state = job?.job?.status || job?.status;
         const urls = job?.job?.urls || job?.urls;
         if (state === 'success' && Array.isArray(urls) && urls[0]) {
-          window.open(urls[0], '_blank', 'noopener,noreferrer');
+          const target = new URL(urls[0]);
+          if (target.protocol !== 'https:' || target.hostname !== 'export-download.canva.com') {
+            throw new Error('Canva hat eine unerwartete Exportadresse geliefert.');
+          }
+          download.location.replace(target.toString());
           return;
         }
         if (state === 'failed') throw new Error(job?.job?.error?.message || 'Canva-Export fehlgeschlagen.');
       }
       throw new Error('Der Canva-Export dauert länger als erwartet. Bitte später erneut versuchen.');
     } catch (error: any) {
+      download.close();
       showToast(error?.message || 'Canva-Export fehlgeschlagen.', 'error');
     } finally {
       setActionLoading(null);
@@ -269,9 +311,15 @@ export default function CanvaIntegration() {
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]"><ShieldCheck size={23} /></span>
             <div className="flex-1">
               <h2 className="font-black text-[var(--text)]">Canva verbinden</h2>
-              <p className="mt-1 text-sm leading-relaxed text-[var(--text2)]">Die Anmeldung läuft über Canva OAuth 2.0 mit PKCE. Zugangstokens bleiben verschlüsselt auf dem Klassio-Server.</p>
+              <p className="mt-1 text-sm leading-relaxed text-[var(--text2)]">
+                {status.reason || (status.requiresEmailLogin
+                  ? 'Bitte melde dich zuerst mit deiner E-Mail-Adresse bei Klassio an. Die Canva-Verbindung gehört nur zu deinem Konto.'
+                  : 'Die Anmeldung läuft über Canva OAuth 2.0 mit PKCE. Zugangstokens bleiben verschlüsselt und kontogebunden auf dem Klassio-Server.')}
+              </p>
             </div>
-            <button type="button" onClick={connect} className="min-h-11 rounded-xl bg-[var(--accent)] px-5 text-sm font-black text-white hover:opacity-95">Mit Canva verbinden</button>
+            <button type="button" onClick={connect} disabled={status.requiresEmailLogin}
+              title={status.requiresEmailLogin ? 'Zuerst mit der Schul-E-Mail-Adresse bei Klassio anmelden' : undefined}
+              className="min-h-11 rounded-xl bg-[var(--accent)] px-5 text-sm font-black text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50">Mit Canva verbinden</button>
           </div>
         </section>
       ) : (

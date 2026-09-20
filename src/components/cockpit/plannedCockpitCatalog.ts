@@ -25,13 +25,6 @@ export const PLANNED_COCKPIT_WIDGETS = [
     ]
   },
   {
-    "id": "studentlist",
-    "label": "Schülerliste & Mitarbeit",
-    "sources": [
-      "studentlist"
-    ]
-  },
-  {
     "id": "groups",
     "label": "Gruppen bilden",
     "sources": [

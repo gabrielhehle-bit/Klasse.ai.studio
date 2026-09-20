@@ -178,10 +178,12 @@ import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSele
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
-import { BoardInk, type BoardInkHandle, type InkItem } from "./cockpit/BoardInk";
+import { BoardInk, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
-import { COCKPIT_PAPERS, getCockpitPaperStyle, type CockpitPaper } from "../lib/cockpitPaper";
+import { getCheckInMode } from "../lib/checkInWidgetMode";
+import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
+import { COCKPIT_QUICKBAR_ITEMS, normalizeCockpitQuickbarSettings, toggleCockpitQuickbarItem } from "../lib/cockpitQuickbar";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
 import { ClassRewardWidget } from "./cockpit/widgets/ClassRewardWidget";
 import {
@@ -1671,6 +1673,8 @@ const DEFAULT_COCKPIT_LAYOUT: CockpitWidgetConfig[] = [
     visible: false,
   },
   {
+    // Legacy floating studentlist remains in the schema to read old backups.
+    // Its rendering and creation are retired; the student sidebar is unchanged.
     id: "widget-studentlist",
     type: "studentlist",
     x: 48,
@@ -2743,7 +2747,7 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
           y,
           w: wWidth,
           h: hHeight,
-          visible: !!w.visible,
+          visible: w.type === "studentlist" ? false : !!w.visible,
           hasBeenOpened: !!w.hasBeenOpened,
           settings: w.settings || {},
         } as CockpitWidgetConfig;
@@ -2913,7 +2917,10 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const isLayoutLocked = false;
   const isLayoutEditing = true;
   const [isMoreOptionsMenuOpen, setIsMoreOptionsMenuOpen] = useState(false);
+  const [isQuickBarSettingsOpen, setIsQuickBarSettingsOpen] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
+  const [isWidgetConfigurationOpen, setIsWidgetConfigurationOpen] = useState(false);
+  const [selectedWidgetConfiguration, setSelectedWidgetConfiguration] = useState<"kidattendance" | "groups" | "randomname">("kidattendance");
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [vorlagenStartTab, setVorlagenStartTab] = useState<"browse" | "create">("browse");
   const [activeWidgetCategory, setActiveWidgetCategory] =
@@ -2921,10 +2928,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [expandedCoreWidget, setExpandedCoreWidget] = useState<string | null>(null);
   const [widgetSearch, setWidgetSearch] = useState<string>("");
   const [isBoardTextEditing, setIsBoardTextEditing] = useState(false);
-  const [boardTool, setBoardTool] = useState<'select' | 'pen' | 'erase' | 'text'>('select');
-  const [boardPenColor, setBoardPenColor] = useState('#172554');
-  const [boardPenWidth, setBoardPenWidth] = useState(4);
-  const boardInkRef = useRef<BoardInkHandle | null>(null);
+  const [boardTool, setBoardTool] = useState<'select' | 'text'>('select');
   const boardTextCommandRef = useRef<((command: string, argument?: string) => void) | null>(null);
   const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
   useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
@@ -2940,6 +2944,38 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
       },
     },
   }));
+  const cockpitPaperSpacing = normalizeCockpitPaperSpacing((app.boardSettings as any)?.cockpitPaperSpacingByClass?.[boardTextClassKey]);
+  const setCockpitPaperSpacing = (spacing: number) => setApp((prev: any) => ({
+    ...prev, boardSettings: {
+      ...(prev.boardSettings || {}), cockpitPaperSpacingByClass: {
+        ...(prev.boardSettings?.cockpitPaperSpacingByClass || {}),
+        [boardTextClassKey]: normalizeCockpitPaperSpacing(spacing),
+      },
+    },
+  }));
+  const quickBarSettings = normalizeCockpitQuickbarSettings((app.boardSettings as any)?.cockpitQuickbarByClass?.[boardTextClassKey]);
+  const updateQuickBarSettings = (update: (settings: ReturnType<typeof normalizeCockpitQuickbarSettings>) => ReturnType<typeof normalizeCockpitQuickbarSettings>) => {
+    if (!app.activeClassId) return;
+    setApp((prev: any) => {
+      const current = normalizeCockpitQuickbarSettings(prev.boardSettings?.cockpitQuickbarByClass?.[boardTextClassKey]);
+      return { ...prev, boardSettings: {
+        ...(prev.boardSettings || {}),
+        cockpitQuickbarByClass: {
+          ...(prev.boardSettings?.cockpitQuickbarByClass || {}),
+          [boardTextClassKey]: update(current),
+        },
+      } };
+    });
+  };
+  const resetQuickBarSettings = () => {
+    if (!app.activeClassId) return;
+    setApp((prev: any) => {
+      const next = { ...(prev.boardSettings?.cockpitQuickbarByClass || {}) };
+      delete next[boardTextClassKey];
+      return { ...prev, boardSettings: { ...(prev.boardSettings || {}), cockpitQuickbarByClass: next } };
+    });
+    setIsQuickBarSettingsOpen(false);
+  };
   const boardInkItems: InkItem[] = Array.isArray((app.boardSettings as any)?.cockpitInkByClass?.[boardTextClassKey])
     ? ((app.boardSettings as any).cockpitInkByClass[boardTextClassKey] as InkItem[])
     : [];
@@ -2978,6 +3014,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     setIsBoardTextEditing(false);
     setBoardTool('select');
+    setIsQuickBarSettingsOpen(false);
   }, [boardTextClassKey]);
 
   useEffect(() => {
@@ -3640,6 +3677,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const handleOpenWidgetInCockpitLayout = (
     type: CockpitWidgetConfig["type"],
   ) => {
+    // Only the sidebar may provide public plus points now.
+    if (type === "studentlist") return;
     setRecentWidgetTypes((previous) => {
       const updatedRecent = [String(type), ...previous.filter((entry) => entry !== type)].slice(0, 5);
       localStorage.setItem("cockpit_recent_widget_types", JSON.stringify(updatedRecent));
@@ -8192,10 +8231,132 @@ ${content}
                                 </div>
 
                                 <button type="button" onClick={() => setIsAddWidgetMenuOpen(false)} className="self-end min-h-11 px-4 rounded-lg border text-sm font-semibold">Auswahl schließen</button>
+                                <section className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-slate-900"
+                                  aria-label="Widget-Einstellungen im Menü Widget hinzufügen">
+                                  <button type="button" onClick={() => setIsWidgetConfigurationOpen(open => !open)}
+                                    aria-expanded={isWidgetConfigurationOpen}
+                                    className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl bg-white px-3 text-left text-sm font-black">
+                                    <span>⚙️ Widget-Einstellungen</span>
+                                    <span aria-hidden="true">{isWidgetConfigurationOpen ? "▴" : "▾"}</span>
+                                  </button>
+                                  {isWidgetConfigurationOpen && (
+                                    <div className="mt-3 space-y-3" role="group" aria-label="Einstellungen für ein Widget auswählen">
+                                      <label className="block text-sm font-semibold">
+                                        Widget auswählen
+                                        <select aria-label="Widget für Einstellungen" value={selectedWidgetConfiguration}
+                                          onChange={event => setSelectedWidgetConfiguration(event.target.value as "kidattendance" | "groups" | "randomname")}
+                                          className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+                                          <option value="kidattendance">🖐️ Ich bin da!</option>
+                                          <option value="groups">👥 Gruppen bilden</option>
+                                          <option value="randomname">🎯 Zufälliges Kind</option>
+                                        </select>
+                                      </label>
+                                      {(() => {
+                                        const configured = cockpitWidgets.find(widget => widget.type === selectedWidgetConfiguration);
+                                        if (!configured) return <p role="status" className="text-sm">Füge dieses Widget zuerst hinzu, um seine Einstellungen zu speichern.</p>;
+                                        const saveSetting = (key: string, value: string) =>
+                                          handleUpdateWidgetPos(configured.id, { settings: { ...(configured.settings || {}), [key]: value } });
+                                        return selectedWidgetConfiguration === "randomname" ? (
+                                          <fieldset className="space-y-2">
+                                            <legend className="text-sm font-black">Zufälliges Kind · Ton</legend>
+                                            <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                                              <input type="checkbox" checked={configured.settings?.soundEnabled !== false}
+                                                onChange={event => handleUpdateWidgetPos(configured.id, {
+                                                  settings: { ...(configured.settings || {}), soundEnabled: event.target.checked },
+                                                })}
+                                                className="h-5 w-5 shrink-0" />
+                                              <span className="text-sm font-semibold">Ton bei der Ziehung abspielen</span>
+                                            </label>
+                                            <p className="text-xs text-slate-600">Die Kinderauswahl für die laufende Unterrichtsphase bleibt eine direkte Unterrichtsaktion im Widget.</p>
+                                          </fieldset>
+                                        ) : selectedWidgetConfiguration === "kidattendance" ? (
+                                          <fieldset className="space-y-2">
+                                            <legend className="text-sm font-black">Ich bin da! · Erfassung</legend>
+                                            {([
+                                              ["all", "A · Alle Kinder (Standard)", "Alle Namen gleichzeitig anzeigen. Kinder checken sich selbst ein und können freiwillig ihr Befinden angeben."],
+                                              ["individual", "B · Nacheinander", "Name auswählen, Check-in bestätigen und danach freiwillig das Befinden angeben."],
+                                              ["teacher", "C · Lehrkraft erfasst", "Die Lehrkraft erfasst die Anwesenheit. Anwesende Kinder können danach freiwillig ihr Befinden angeben."],
+                                            ] as const).map(([mode, label, detail]) => (
+                                              <label key={mode} className="flex min-h-11 items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                                                <input type="radio" name="cockpit-checkin-mode" value={mode}
+                                                  checked={getCheckInMode(configured.settings) === mode}
+                                                  onChange={() => saveSetting("checkInMode", mode)}
+                                                  className="mt-1 h-5 w-5 shrink-0" />
+                                                <span><strong className="block text-sm">{label}</strong>
+                                                  <span className="block text-xs text-slate-600">{detail}</span></span>
+                                              </label>
+                                            ))}
+                                          </fieldset>
+                                        ) : (
+                                          <fieldset className="space-y-2">
+                                            <legend className="text-sm font-black">Gruppen bilden · Wer wird eingeteilt?</legend>
+                                            {([
+                                              ["present", "Heute anwesende Kinder", "Die bestehende Auswahl der anwesenden Kinder verwenden."],
+                                              ["all", "Alle Kinder der Klasse", "Alle Kinder der aktiven Klasse berücksichtigen, auch bei Abwesenheit."],
+                                            ] as const).map(([scope, label, detail]) => (
+                                              <label key={scope} className="flex min-h-11 items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                                                <input type="radio" name="cockpit-group-scope" value={scope}
+                                                  checked={(configured.settings?.studentScope === "all" ? "all" : "present") === scope}
+                                                  onChange={() => saveSetting("studentScope", scope)}
+                                                  className="mt-1 h-5 w-5 shrink-0" />
+                                                <span><strong className="block text-sm">{label}</strong>
+                                                  <span className="block text-xs text-slate-600">{detail}</span></span>
+                                              </label>
+                                            ))}
+                                            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3"
+                                              role="group" aria-label="Gruppengröße oder Gruppenanzahl einstellen">
+                                              <h4 className="text-sm font-black">Gruppenaufteilung</h4>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                {([
+                                                  ["size", "Kinder pro Gruppe"],
+                                                  ["count", "Anzahl Gruppen"],
+                                                ] as const).map(([mode, label]) => (
+                                                  <label key={mode} className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 px-2 text-xs font-bold">
+                                                    <input type="radio" name="cockpit-group-mode" value={mode}
+                                                      checked={(configured.settings?.mode === "count" ? "count" : "size") === mode}
+                                                      onChange={() => handleUpdateWidgetPos(configured.id, {
+                                                        settings: { ...(configured.settings || {}), mode, targetValue: 4 },
+                                                      })}
+                                                      className="h-5 w-5 shrink-0" />{label}
+                                                  </label>
+                                                ))}
+                                              </div>
+                                              <div className="flex flex-wrap gap-2">
+                                                {(configured.settings?.mode === "count" ? [2, 3, 4, 5, 6] : [2, 3, 4, 5]).map(value => (
+                                                  <button key={value} type="button"
+                                                    aria-pressed={(typeof configured.settings?.targetValue === "number" ? configured.settings.targetValue : 4) === value}
+                                                    onClick={() => handleUpdateWidgetPos(configured.id, {
+                                                      settings: { ...(configured.settings || {}), mode: configured.settings?.mode === "count" ? "count" : "size", targetValue: value },
+                                                    })}
+                                                    className={`min-h-11 min-w-11 rounded-lg border px-3 text-sm font-bold ${
+                                                      (typeof configured.settings?.targetValue === "number" ? configured.settings.targetValue : 4) === value
+                                                        ? "border-indigo-500 bg-indigo-600 text-white" : "border-slate-300 bg-white text-slate-900"
+                                                    }`}>
+                                                    {value}{configured.settings?.mode === "count" ? " Gr." : "er"}
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            </div>
+                                            <p className="text-xs text-slate-600">Die Auswahl gilt bei der nächsten Einteilung. Bestehende Gruppen werden nicht ungefragt neu gemischt.</p>
+                                            {!configured.visible && (
+                                              <button type="button" onClick={() => handleOpenWidgetInCockpitLayout("groups")}
+                                                className="min-h-11 w-full rounded-xl bg-indigo-600 px-3 text-sm font-bold text-white">
+                                                Gruppen-Widget öffnen, um die weiteren Optionen zu bearbeiten
+                                              </button>
+                                            )}
+                                            {configured.visible && (
+                                              <div id="cockpit-groups-settings-host" className="w-full" aria-label="Weitere Gruppen-Einstellungen: Kinder pausieren, Paar-Wünsche, Namen" />
+                                            )}
+                                          </fieldset>
+                                        );
+                                      })()}
+                                    </div>
+                                  )}
+                                </section>
                                 {/* Category Switcher Tab Bar */}
                                 <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
                                   {[
-                                    { id: "core", label: "20 Kernwidgets" },
+                                    { id: "core", label: "19 Kernwidgets" },
                                     { id: "categories", label: "Weitere Widgets" },
                                     { id: "favorites", label: "★ Favoriten" },
                                     { id: "struct", label: "🗂️ Ablauf & Organisation" },
@@ -8441,7 +8602,6 @@ ${content}
                                         type: "piano",
                                         category: "mindfulness",
                                       },
-                                      { type: "studentlist", category: "interactivity" },
                                       { type: "scrambler", category: "deutsch" },
                                       { type: "fractions", category: "mathe" },
                                       { type: "sorting", category: "mathe" },
@@ -9052,7 +9212,6 @@ ${content}
                                         desc: "Spiele Töne und lerne Melodien nach Gehör",
                                         category: "mindfulness",
                                       },
-                                      { type: "studentlist", label: "⭐ Schülerliste", desc: "Schülerinnen und Schüler direkt auf der Unterrichtsfläche anzeigen", category: "interactivity" },
                                       { type: "scrambler", label: "✍️ Wort- & Satzwerkstatt", desc: "Wörter und Sätze spielerisch ordnen und untersuchen", category: "deutsch" },
                                       { type: "fractions", label: "◐ Bruch-Visualisierer", desc: "Brüche anschaulich darstellen", category: "mathe" },
                                       { type: "sorting", label: "🔢 Zahlensortierer", desc: "Zahlen vergleichen und sortieren", category: "mathe" },
@@ -9124,7 +9283,7 @@ ${content}
                                       return (
                                         <>
                                           <p className="col-span-full text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                            20 übersichtliche Einstiege. Wähle bei Bedarf eine Variante; deine bisherigen Widgets und gespeicherten Layouts bleiben unter „Weitere Widgets“ erhalten.
+                                            19 übersichtliche Einstiege. Pluspunkte findest du weiterhin rechts in der Schülerliste. Alte Layouts bleiben beim Import lesbar.
                                           </p>
                                           {PLANNED_COCKPIT_WIDGETS.map((group) => {
                                             const variants = group.sources
@@ -9451,21 +9610,7 @@ ${content}
                           </div>
 
 
-                          <button
-                            type="button"
-                            onClick={() => setIsThemePickerOpen(true)}
-                            className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
-                          >
-                            🎨 Design & Farben
-                          </button>
 
-                          <button
-                            type="button"
-                            onClick={() => setIsBirthdayCelebrationOpen(true)}
-                            className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-800 hover:bg-amber-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
-                          >
-                            🎂 Geburtstag
-                          </button>
 
                           <button
                             type="button"
@@ -9505,13 +9650,48 @@ ${content}
 
                             {isMoreOptionsMenuOpen && (
                               <div
-                                className={`absolute right-0 top-10 w-64 rounded-2xl border p-2 shadow-2xl flex flex-col gap-1 z-[1000] ${
+                                className={`absolute right-0 top-10 w-72 max-h-[70vh] overflow-y-auto rounded-2xl border p-2 shadow-2xl flex flex-col gap-1 z-[1000] ${
                                   currentIsLight
                                     ? "bg-white border-slate-200 text-slate-800 animate-in fade-in slide-in-from-top-2 duration-150"
                                     : "bg-zinc-900 border-white/10 text-white animate-in fade-in slide-in-from-top-2 duration-150"
                                 }`}
                               >
                                 <div className="px-2 py-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-white/5">
+                                  Gestaltung & Unterricht
+                                </div>
+                                <button type="button" onClick={() => { setIsThemePickerOpen(true); setIsMoreOptionsMenuOpen(false); }}
+                                  className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎨 Design & Farben</button>
+                                <button type="button" onClick={() => { setIsBirthdayCelebrationOpen(true); setIsMoreOptionsMenuOpen(false); }}
+                                  className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎂 Geburtstag</button>
+                                <button type="button" aria-expanded={isQuickBarSettingsOpen}
+                                  onClick={() => setIsQuickBarSettingsOpen(open => !open)}
+                                  className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100"
+                                >▤ Widget-Leiste {isQuickBarSettingsOpen ? '▴' : '▾'}</button>
+                                {isQuickBarSettingsOpen && (
+                                  <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800"
+                                    aria-label="Zusätzliche Widget-Leiste konfigurieren">
+                                    <label className="flex min-h-10 items-center gap-2 font-semibold">
+                                      <input type="checkbox" checked={quickBarSettings.enabled}
+                                        disabled={!app.activeClassId}
+                                        onChange={event => updateQuickBarSettings(settings => ({ ...settings, enabled: event.target.checked }))} />
+                                      Zusätzliche Widget-Leiste anzeigen
+                                    </label>
+                                    <p className="text-slate-600">Wähle deine Schnellzugriffe. Alle anderen Widgets bleiben über „Widget hinzufügen“ verfügbar.</p>
+                                    {COCKPIT_QUICKBAR_ITEMS.map(item => (
+                                      <label key={item.id} className="flex min-h-9 items-center gap-2">
+                                        <input type="checkbox" checked={quickBarSettings.itemIds.includes(item.id)}
+                                          disabled={!app.activeClassId}
+                                          onChange={() => updateQuickBarSettings(settings => toggleCockpitQuickbarItem(settings, item.id))} />
+                                        {item.label}
+                                      </label>
+                                    ))}
+                                    <button type="button" onClick={resetQuickBarSettings}
+                                      className="min-h-10 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs font-bold hover:bg-slate-100">
+                                      Widget-Leiste zurücksetzen
+                                    </button>
+                                  </div>
+                                )}
+                                <div className="px-2 py-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
                                   Weitere Funktionen
                                 </div>
 
@@ -9627,20 +9807,6 @@ ${content}
                                 >
                                   <span className="w-3 text-center shrink-0">🐾</span>
                                   <span>{classPetEnabled ? "Klassentier ausblenden" : "Klassentier einblenden"}</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setIsThemePickerOpen(true);
-                                    setIsMoreOptionsMenuOpen(false);
-                                  }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
-                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
-                                  }`}
-                                >
-                                  <Palette size={12} className="text-emerald-500 shrink-0" />
-                                  <span>Design & Darstellung</span>
                                 </button>
 
                                 <button
@@ -9886,26 +10052,13 @@ ${content}
                       {/* A single shared toolbar, outside the white teaching surface. */}
                       <div
                         role="toolbar"
-                        aria-label="Unterrichtsfläche: Auswählen, Zeichnen und Text"
+                        aria-label="Unterrichtsfläche: Text und Papier"
                         className="flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-sm"
                       >
-                        {([
-                          ['select', 'Auswählen'],
-                          ['pen', 'Stift'],
-                          ['erase', 'Radierer'],
-                          ['text', 'TEXT'],
-                        ] as const).map(([id, label]) => (
-                          <button
-                            type="button"
-                            key={id}
-                            aria-pressed={boardTool === id}
-                            onClick={() => {
-                              setBoardTool(id);
-                              setIsBoardTextEditing(id === 'text');
-                            }}
-                            className={`min-h-11 rounded-lg border px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${boardTool === id ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
-                          >{label}</button>
-                        ))}
+                        <button type="button" aria-pressed={boardTool === 'text'}
+                          onClick={() => { const editing = boardTool !== 'text'; setBoardTool(editing ? 'text' : 'select'); setIsBoardTextEditing(editing); }}
+                          className={`min-h-11 rounded-lg border px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 ${boardTool === 'text' ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'}`}
+                        >TEXT</button>
                         <label className="flex min-h-11 items-center gap-2 text-xs font-semibold">
                           Papier
                           <select aria-label="Papierart der Unterrichtsfläche" value={cockpitPaper}
@@ -9914,25 +10067,14 @@ ${content}
                             {COCKPIT_PAPERS.map(paper => <option key={paper.id} value={paper.id}>{paper.label}</option>)}
                           </select>
                         </label>
-                        {(boardTool === 'pen' || boardTool === 'erase') && (
-                          <>
-                            <label className="flex min-h-11 items-center gap-1.5 text-xs font-semibold">
-                              Farbe
-                              <input type="color" aria-label="Stiftfarbe" value={boardPenColor}
-                                onChange={event => setBoardPenColor(event.target.value)}
-                                className="h-10 w-11 rounded border border-slate-300" />
-                            </label>
-                            <label className="flex min-h-11 items-center gap-1.5 text-xs font-semibold">
-                              Strich
-                              <select aria-label="Strichstärke" value={boardPenWidth}
-                                onChange={event => setBoardPenWidth(Number(event.target.value))}
-                                className="min-h-11 rounded-lg border border-slate-300 bg-white px-2 text-sm">
-                                <option value={2}>Fein</option>
-                                <option value={4}>Normal</option>
-                                <option value={8}>Breit</option>
-                              </select>
-                            </label>
-                          </>
+                        {cockpitPaper !== 'blank' && (
+                          <label className="flex min-h-11 items-center gap-2 text-xs font-semibold">
+                            {cockpitPaper === 'grid' ? 'Kästchengröße' : cockpitPaper === 'handwriting' ? 'Schreibzonen' : 'Zeilenabstand'}
+                            <input type="range" min={16} max={80} step={4} value={cockpitPaperSpacing}
+                              aria-label="Papierabstand einstellen" onChange={event => setCockpitPaperSpacing(Number(event.target.value))}
+                              className="w-24 accent-indigo-600" />
+                            <span className="tabular-nums">{cockpitPaperSpacing}px</span>
+                          </label>
                         )}
                         {boardTool === 'text' && (
                           <>
@@ -9962,17 +10104,36 @@ ${content}
                               className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm">Rechts</button>
                           </>
                         )}
-                        <button type="button" onMouseDown={event => { if (boardTool === 'text') event.preventDefault(); }}
-                          onClick={() => boardTool === 'text'
-                            ? boardTextCommandRef.current?.('undo')
-                            : boardInkRef.current?.undo()}
-                          className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↶ Rückgängig</button>
-                        <button type="button" onMouseDown={event => { if (boardTool === 'text') event.preventDefault(); }}
-                          onClick={() => boardTool === 'text'
-                            ? boardTextCommandRef.current?.('redo')
-                            : boardInkRef.current?.redo()}
-                          className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↷ Wiederholen</button>
+                        {boardTool === 'text' && (
+                          <>
+                            <button type="button" onMouseDown={event => event.preventDefault()}
+                              onClick={() => boardTextCommandRef.current?.('undo')}
+                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↶ Rückgängig</button>
+                            <button type="button" onMouseDown={event => event.preventDefault()}
+                              onClick={() => boardTextCommandRef.current?.('redo')}
+                              className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold">↷ Wiederholen</button>
+                          </>
+                        )}
                       </div>
+
+                      {quickBarSettings.enabled && quickBarSettings.itemIds.length > 0 && app.activeClassId && (
+                        <nav aria-label="Zusätzliche Widget-Leiste"
+                          className="flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-2 text-slate-800 shadow-sm">
+                          {COCKPIT_QUICKBAR_ITEMS.filter(item => quickBarSettings.itemIds.includes(item.id)).map(item => (
+                            <button type="button" key={item.id}
+                              className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm font-semibold hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                              onClick={() => {
+                                if (item.id === 'termine') {
+                                  // Preserve the older, separately stored date widget without creating duplicate data.
+                                  toggleWidget('termine');
+                                } else {
+                                  handleOpenWidgetInCockpitLayout(item.id as CockpitWidgetConfig['type']);
+                                }
+                              }}
+                            >{item.label}</button>
+                          ))}
+                        </nav>
+                      )}
 
                       {/* Widget Board (classroomscreen.com style) */}
                       <div
@@ -9983,7 +10144,7 @@ ${content}
                             : "bg-white border-slate-200 shadow-inner"
                         }`}
                         id="widget-board-stage"
-                        style={getCockpitPaperStyle(cockpitPaper, currentBgId === "canva" ? canvaBackground : null)}
+                        style={getCockpitPaperStyle(cockpitPaper, currentBgId === "canva" ? canvaBackground : null, cockpitPaperSpacing)}
                       >
                         <BoardTextEditor
                           value={boardTextHtml}
@@ -9998,12 +10159,11 @@ ${content}
                         />
                         <BoardInk
                           key={boardTextClassKey}
-                          ref={boardInkRef}
                           items={boardInkItems}
-                          active={!!app.activeClassId && (boardTool === 'pen' || boardTool === 'erase')}
-                          externalTool={boardTool === 'erase' ? 'erase' : 'pen'}
-                          externalColor={boardPenColor}
-                          externalWidth={boardPenWidth}
+                          active={false}
+                          externalTool="pen"
+                          externalColor="#172554"
+                          externalWidth={4}
                           hideToolbar
                           onChange={saveBoardInkItems}
                           onDone={() => setBoardTool('select')}
@@ -10067,7 +10227,7 @@ ${content}
 
                         {/* Render active cockpit widgets */}
                         {cockpitWidgets
-                          .filter((w) => w.visible)
+                          .filter((w) => w.visible && w.type !== "studentlist")
                           .map((widget) => {
                             const zIn = 10 + focusOrder.indexOf(widget.id);
                             const isFocused =
@@ -11336,17 +11496,6 @@ ${content}
                                           }
                                         />
                                       );
-
-                                    case "studentlist":
-                                      return (
-                                        <StudentListWidgetContent
-                                          app={app}
-                                          getTodayPoints={getTodayPoints}
-                                          addParticipation={addParticipation}
-                                          removeParticipation={removeParticipation}
-                                        />
-                                      );
-
                                     case "kidattendance":
                                       return (
                                         <KidAttendanceWidgetContent
@@ -11381,6 +11530,8 @@ ${content}
                                           }
                                           generateGroups={generateGroups}
                                           currentIsLight={currentIsLight}
+                                          settingsInPicker={isAddWidgetMenuOpen && isWidgetConfigurationOpen && selectedWidgetConfiguration === "groups"}
+                                          onClosePickerSettings={() => setIsWidgetConfigurationOpen(false)}
                                         />
                                       );
 

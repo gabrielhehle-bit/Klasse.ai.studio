@@ -20,9 +20,9 @@ test("Cockpit: freie Unterrichtsfläche bleibt weiß und ohne Startkarte", () =>
   assert.doesNotMatch(teachingSurface, /cockpit-empty-state-hint/);
 });
 
-test("Cockpit: Widgetauswahl startet mit 20 Kernwidgets, alte Typen bleiben zugänglich", () => {
+test("Cockpit: Widgetauswahl startet mit 19 Kernwidgets, alte Layouts bleiben lesbar", () => {
   assert.match(teachingSurface, /useState<string>\("core"\)/);
-  assert.match(teachingSurface, /\{ id: "core", label: "20 Kernwidgets" \}/);
+  assert.match(teachingSurface, /\{ id: "core", label: "19 Kernwidgets" \}/);
   assert.match(teachingSurface, /\{ id: "categories", label: "Weitere Widgets" \}/);
   assert.match(teachingSurface, /PLANNED_COCKPIT_WIDGETS\.map\(\(group\)/);
   assert.doesNotMatch(teachingSurface, /Alle Hilfen/);
@@ -64,10 +64,15 @@ test("Cockpit: alle erhaltenen Standard-Widgettypen sind im Picker und in den Ka
   const pickerCatalog = widgetTypes(teachingSurface.slice(starts[1], pickerEnd));
 
   assert.equal(defaults.length, 108, "Standardlayout muss alle 108 Widgettypen enthalten");
-  assert.equal(counterCatalog.length, 108, "Kategorie-Zähler muss alle 108 Widgettypen kennen");
-  assert.equal(pickerCatalog.length, 108, "Widget-Picker muss alle 108 Widgettypen enthalten");
+  assert.equal(counterCatalog.length, 107, "Kategorie-Zähler darf das doppelte Pluspunkte-Widget nicht mehr anbieten");
+  assert.equal(pickerCatalog.length, 107, "Widget-Picker darf das doppelte Pluspunkte-Widget nicht mehr anbieten");
 
-  for (const type of defaults) {
+  // Historic studentlist remains in the 108-entry layout/backup schema but
+  // must not be offered as a duplicate of the existing student sidebar.
+  assert.ok(defaults.includes("studentlist"), "Historische Schülerliste muss beim Backup-Laden erhalten bleiben");
+  assert.equal(counterCatalog.includes("studentlist"), false);
+  assert.equal(pickerCatalog.includes("studentlist"), false);
+  for (const type of defaults.filter(type => type !== "studentlist")) {
     assert.ok(counterCatalog.includes(type), `Kategorie-Zähler kennt ${type} nicht`);
     assert.ok(pickerCatalog.includes(type), `Widget-Picker kennt ${type} nicht`);
   }
@@ -136,15 +141,15 @@ test("Cockpit: weiße Unterrichtsfläche hat direkte Schreibebene und eine gemei
   assert.match(teachingSurface, /cockpitInkByClass/);
   assert.match(teachingSurface, /externalToolbar/);
   assert.match(teachingSurface, /hideToolbar/);
-  assert.match(teachingSurface, /aria-label="Unterrichtsfläche: Auswählen, Zeichnen und Text"/);
-  assert.match(teachingSurface, /boardTool === 'pen'/);
-  assert.match(teachingSurface, /boardTool === 'erase'/);
+  assert.match(teachingSurface, /aria-label="Unterrichtsfläche: Text und Papier"/);
+  assert.doesNotMatch(teachingSurface, /setBoardTool\('pen'\)|setBoardTool\('erase'\)/);
+  assert.match(teachingSurface, /active=\{false\}/);
   assert.match(teachingSurface, /boardTool === 'text'/);
   assert.doesNotMatch(teachingSurface, /Weiße Smartboard-Fläche/);
 });
 
 test("Cockpit: TEXT macht die weiße Fläche zu einem klassenlokalen Rich-Text-Dokument", () => {
-  assert.match(teachingSurface, /\[\x27text\x27, \x27TEXT\x27\]/);
+  assert.match(teachingSurface, />TEXT<\/button>/);
   assert.match(teachingSurface, /<BoardTextEditor/);
   assert.match(teachingSurface, /cockpitTextByClass/);
   assert.match(teachingSurface, /boardTextClassKey = app\.activeClassId \|\| "unassigned"/);
@@ -191,7 +196,7 @@ test("Cockpit: sekundäre Ansichtssteuerung liegt gesammelt unter Optionen", () 
     "Schülerliste ausblenden",
     "Klassentier einblenden",
     "Klassentier ausblenden",
-    "Design & Darstellung",
+    "Design & Farben",
     "Fokusmodus",
     "Vollbildmodus",
   ]) {
@@ -263,9 +268,11 @@ test("Cockpit: automatische Anordnung kann vier Widgets als 2x2-Raster einpassen
 test("Cockpit: Ich-bin-da zeigt Kindernamen vollständig und gibt ihnen ausreichend Kartenbreite", () => {
   assert.match(kidAttendance, /Anwesenheitsliste mit allen Kindern/);
   assert.match(kidAttendance, /students\.map\(\(student\) =>/);
-  assert.match(kidAttendance, /status === 'present' \? '✓ Da' : status === 'absent' \? 'Fehlt' : 'Offen'/);
+  assert.match(kidAttendance, /status === 'present' \? '✓ Da' : status === 'absent' \? '– Fehlt' : '○ Offen'/);
   assert.doesNotMatch(kidAttendance, /openStudents\.slice\(0, 4\)/);
   assert.match(kidAttendance, /whitespace-normal break-words font-black leading-tight/);
-  assert.match(kidAttendance, /grid-cols-2 md:grid-cols-3 xl:grid-cols-4/);
+  assert.match(kidAttendance, /getStudentGridLayout\(size\.width, size\.height, students\.length/);
+  assert.match(kidAttendance, /Alle \{students\.length\} Kinder groß anzeigen/);
+  assert.match(kidAttendance, /gridTemplateColumns:/);
   assert.doesNotMatch(kidAttendance, /grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5/);
 });
