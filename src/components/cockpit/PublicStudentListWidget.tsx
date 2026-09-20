@@ -137,21 +137,21 @@ export function PublicStudentListWidget({
               <div className="flex min-w-0 flex-1 items-center gap-1.5">
                 {showBehavior && behaviorStage ? (
                   <div className="flex shrink-0 items-center gap-0.5" aria-label={`Verhalten für ${labels.get(student.id)} einstellen`}>
-                    {onBehaviorStageChange && (
-                      <button type="button" disabled={!betterStageId}
-                        onClick={() => betterStageId && onBehaviorStageChange(student.id, betterStageId)}
-                        title="Eine Stufe verbessern" aria-label={`Verhalten von ${labels.get(student.id)} eine Stufe verbessern`}
-                        className="flex h-9 w-6 shrink-0 items-center justify-center rounded-lg bg-white/90 text-sm font-black text-emerald-800 shadow-sm disabled:opacity-30">↑</button>
-                    )}
                     <span aria-hidden="true" title={`Verhalten: ${behaviorStage.label}`}
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xl shadow-sm ${behaviorColor}`}>
                       {behaviorStage.icon || '●'}
                     </span>
                     {onBehaviorStageChange && (
-                      <button type="button" disabled={!nextStageId}
-                        onClick={() => nextStageId && onBehaviorStageChange(student.id, nextStageId)}
-                        title="Eine Stufe weiter" aria-label={`Verhalten von ${labels.get(student.id)} eine Stufe weiterstellen`}
-                        className="flex h-9 w-6 shrink-0 items-center justify-center rounded-lg bg-white/90 text-sm font-black text-amber-900 shadow-sm disabled:opacity-30">↓</button>
+                      <div className="flex shrink-0 flex-col gap-0.5">
+                        <button type="button" disabled={!betterStageId}
+                          onClick={() => betterStageId && onBehaviorStageChange(student.id, betterStageId)}
+                          title="Eine Stufe verbessern" aria-label={`Verhalten von ${labels.get(student.id)} eine Stufe verbessern`}
+                          className="flex h-4 w-6 shrink-0 items-center justify-center rounded-md bg-white text-xs font-black text-emerald-800 shadow-sm disabled:opacity-30">↑</button>
+                        <button type="button" disabled={!nextStageId}
+                          onClick={() => nextStageId && onBehaviorStageChange(student.id, nextStageId)}
+                          title="Eine Stufe weiter" aria-label={`Verhalten von ${labels.get(student.id)} eine Stufe weiterstellen`}
+                          className="flex h-4 w-6 shrink-0 items-center justify-center rounded-md bg-white text-xs font-black text-amber-900 shadow-sm disabled:opacity-30">↓</button>
+                      </div>
                     )}
                   </div>
                 ) : (
