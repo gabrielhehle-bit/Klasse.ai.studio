@@ -328,6 +328,8 @@ async function main() {
     await waitFor(client, 'new pupil form', 'document.body?.innerText.includes("Neuer Schüler")');
     await setInputByPlaceholder(client, 'z.B. Lukas', 'Testkind');
     await setInputByPlaceholder(client, 'z.B. Müller', 'Wochenplan');
+    await clickButton(client, 'Weiter', true);
+    await clickButton(client, 'Weiter', true);
     await clickButton(client, 'Anlegen', true);
     await waitFor(client, 'synthetic pupil saved', '!document.querySelector("#student-dialog-title")', 15000);
     await clickSidebar(client, 'Lehrercockpit');
