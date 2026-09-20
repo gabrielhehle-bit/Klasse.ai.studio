@@ -22,3 +22,18 @@ test('Both roster choices live inside Widget hinzufügen settings and preserve c
   assert.match(picker, /\.\.\.\(configured\.settings \|\| \{\}\)/);
   assert.match(surface, /<GroupsWidgetContent/);
 });
+
+test('Group pause, pair constraints and naming options render only in Widget hinzufügen panel', () => {
+  const adapter = readFileSync('src/components/cockpit/CockpitWidgetContents.tsx', 'utf8');
+  assert.match(widget, /createPortal\(/);
+  assert.match(widget, /document\.getElementById\('cockpit-groups-settings-host'\)/);
+  assert.match(widget, /optionsHost && createPortal/);
+  assert.match(widget, /Pausieren \(\{pausedStudentIds\.length\}\)/);
+  assert.match(widget, /Paare \(\{notTogether\.length \+ keepTogether\.length\}\)/);
+  assert.match(widget, /Stil/);
+  assert.doesNotMatch(widget, /setShowOptions\(/);
+  assert.match(surface, /id="cockpit-groups-settings-host"/);
+  assert.match(surface, /settingsInPicker=\{isAddWidgetMenuOpen && isWidgetConfigurationOpen && selectedWidgetConfiguration === "groups"\}/);
+  assert.match(adapter, /settingsInPicker\?: boolean/);
+  assert.match(adapter, /onClosePickerSettings\?: \(\) => void/);
+});
