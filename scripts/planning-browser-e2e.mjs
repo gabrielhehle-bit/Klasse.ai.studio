@@ -320,6 +320,18 @@ async function main() {
     const savedHourlyCell =
       'Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("group/cell")&&String(el.className||"").includes("min-h-[5.3125rem]")&&String(el.textContent||"").includes(' + q(topic) + '))';
     await waitFor(client, 'saved topic visible in the actual hourly weekly grid', 'Boolean(' + savedHourlyCell + ')', 20000);
+    await waitFor(client, 'published lesson has one-click control in weekly planning',
+      'Boolean((' + savedHourlyCell + ')?.querySelector("button[aria-label=\\\"Aus Kinderplan entfernen\\\"]"))');
+    const removedFromBoard = await evaluate(client,
+      '(() => {const b=(' + savedHourlyCell + ')?.querySelector("button[aria-label=\\\"Aus Kinderplan entfernen\\\"]");if(!b)return false;b.click();return true;})()');
+    if (!removedFromBoard) throw new Error('One-click unpublishing from teacher weekly grid failed.');
+    await waitFor(client, 'weekly plan task can be added back directly',
+      'Boolean((' + savedHourlyCell + ')?.querySelector("button[aria-label=\\\"Zum Kinderplan hinzufügen\\\"]"))');
+    const addedToBoard = await evaluate(client,
+      '(() => {const b=(' + savedHourlyCell + ')?.querySelector("button[aria-label=\\\"Zum Kinderplan hinzufügen\\\"]");if(!b)return false;b.click();return true;})()');
+    if (!addedToBoard) throw new Error('One-click publishing from teacher weekly grid failed.');
+    await waitFor(client, 'one-click published lesson visible in weekly plan',
+      'Boolean((' + savedHourlyCell + ')?.querySelector("button[aria-label=\\\"Aus Kinderplan entfernen\\\"]"))');
     // End-to-end teaching journey: one real synthetic pupil confirms one lesson
     // at the board; the shared plan never publishes individual feedback.
     await clickSidebar(client, 'Klassenliste');
@@ -378,6 +390,8 @@ async function main() {
       'Array.from(document.querySelectorAll("button[aria-current=page]")).some(b=>b.textContent.trim()==="Heute")');
     await clickSidebar(client, 'Wochenplan');
     await waitFor(client, 'saved selected week after cockpit journey', 'Boolean(' + savedHourlyCell + ')', 20000);
+    await waitFor(client, 'individual child completion reflected in teacher weekly planning',
+      '(() => {const cell=' + savedHourlyCell + ';const b=cell?.querySelector("button[aria-label=\\\"Aus Kinderplan entfernen\\\"]");return !!b&&b.textContent.includes("1/1 fertig");})()', 12000);
     if (!await evaluate(client, '(() => {const cell=' + savedHourlyCell + ';if(!cell)return false;cell.click();return true;})()'))
       throw new Error('Could not open the saved hourly lesson.');
     try {
