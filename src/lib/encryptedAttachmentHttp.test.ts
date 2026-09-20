@@ -6,6 +6,9 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 
+// Importing server.ts must not start a second, unclosed port-3000 production server in the test runner.
+process.env.IS_TEST_RUNNER = 'true';
+
 test('encrypted material API stays OFF until backup migration is approved', async t => {
   const prev = process.env.KLASSIO_ENCRYPTED_ATTACHMENTS_ENABLED;
   t.after(() => prev === undefined
