@@ -36,9 +36,10 @@ nicht in Chat, Screenshots, Issues oder Dateien im Repository teilen.
    ssh-keygen -t ed25519 -f "$env:USERPROFILE\.ssh\klassio_github_actions" -C "klassio-github-actions"
    ```
 
-   Für unbeaufsichtigtes Deploy benötigt der GitHub-Runner einen verwendbaren
-   Deploy-Schlüssel; ein etwaiges Schlüssel-Passwort gehört nicht in Code.
-   Verwende diesen Schlüssel *nur* für das eingeschränkte Deploy-Konto.
+   Für unbeaufsichtigtes Deploy die Passphrase bei diesem **eigens dafür
+   erzeugten, eingeschränkten Schlüssel** leer lassen. Sein privater Teil
+   gehört ausschließlich in GitHub Actions Secrets, niemals ins Repository
+   oder in einen Chat. Verwende ihn nicht als normalen Administrator-Schlüssel.
 
 2. `ops/klassio-gh-bootstrap.sh` und `ops/klassio-gh-deploy.sh` aus dem
    geprüften Repositorystand zusammen mit der **öffentlichen** Datei
@@ -107,9 +108,11 @@ Nicht aus einem großen Alt-PR direkt auf `main` mergen.
 3. `Pre-Deployment Audit` erstellt automatisch das Release. Nur wenn es
    erfolgreich war, `main` noch denselben Commit enthält und die beiden
    globalen Browserprüfungen erfolgreich sind, wird klassio.at aktualisiert.
-4. Bei fehlgeschlagenem Deploy führt das bestehende Server-Skript seinen
-   Rollback aus; die GitHub-Aktion wird rot. Danach Fehler gezielt beheben,
-   nicht einen älteren PR blind erneut mergen.
+4. Schlägt der **interne Server-Healthcheck im bestehenden Installationsskript**
+   fehl, erfolgt dessen Rollback und die GitHub-Aktion wird rot. Die
+   zusätzliche öffentliche HTTPS-Prüfung meldet einen Fehler, führt aber
+   keinen separaten Rollback aus. Danach Fehler gezielt beheben, nicht
+   einen älteren PR blind erneut mergen.
 
 **Not-Aus:** Repository-Variable `KLASSIO_AUTODEPLOY_ENABLED` auf
 `false` setzen, bevor eine neue Pipeline startet. Bereits laufende
