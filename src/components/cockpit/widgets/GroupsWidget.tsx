@@ -2,18 +2,16 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom';
 import { getGroupPageLayout } from '../../../lib/groupsWidgetPages';
 import {
-  Users, Sparkles, RotateCcw, Settings2, ArrowLeftRight,
+  Users, Sparkles, RotateCcw, ArrowLeftRight,
   UserX, UserCheck, Check, X, AlertCircle, Plus, Trash2,
-  MoveRight, CheckCircle2, MoreHorizontal
+  MoveRight, CheckCircle2
 } from 'lucide-react';
 import { CockpitWidgetConfig, AppState } from '../../../types';
 import { useApp } from '../../../context/AppContext';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
 import {
   getDisplayStudentName,
-  getPresentStudents,
-  CockpitStudent,
-  DEFAULT_MOCK_STUDENTS
+  getPresentStudents
 } from '../studentSelectionUtils';
 import {
   GroupingMode,
@@ -322,8 +320,6 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     setNewKeepB('');
     persistState(groups, mode, targetValue, pausedStudentIds, notTogether, updated, namingStyle);
   };
-
-  const hasActiveConstraints = pausedStudentIds.length > 0 || notTogether.length > 0 || keepTogether.length > 0;
 
   const groupLayout = getGroupPageLayout(
     size.width,
@@ -919,7 +915,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           <span>
             <strong>{groups.length} Gruppen</strong> ({activeStudentIds.length} Kinder)
           </span>
-          <span className="font-semibold">Neu mischen oben</span>
+          <span className="font-semibold">{studentScope === 'all' ? 'Gesamte Klasse' : 'Heute anwesend'}</span>
         </div>
       )}
     </div>
