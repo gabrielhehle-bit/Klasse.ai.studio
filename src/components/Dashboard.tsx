@@ -2215,12 +2215,16 @@ Pädagogische Reflexionsnotiz: ${luuiseComment}`;
   const heute = currentTime;
   const isWeekend = heute.getDay() === 0 || heute.getDay() === 6;
   const scheduleDatum = anzeigeDatum;
-  const dashboardFreeDay = getDashboardFreeDayMessage(
-    scheduleDatum,
-    (app?.bundesland || 'VBG') as Bundesland,
-    app?.calendarSettings?.disabledHolidays || [],
-    app?.calendarOverrides?.[formatLocalDateKey(scheduleDatum)] as 'school' | 'free' | undefined,
-  );
+  // A preview or manually selected date is not "today": never label a
+  // future holiday as if it were happening right now.
+  const dashboardFreeDay = formatLocalDateKey(scheduleDatum) === formatLocalDateKey(currentTime)
+    ? getDashboardFreeDayMessage(
+        currentTime,
+        (app?.bundesland || 'VBG') as Bundesland,
+        app?.calendarSettings?.disabledHolidays || [],
+        app?.calendarOverrides?.[formatLocalDateKey(currentTime)] as 'school' | 'free' | undefined,
+      )
+    : null;
   const weekDiff = getKW(scheduleDatum) - getKW(heute);
   const kw = (app?.currentKW || getKW(heute)) + weekDiff;
   const tagName = getTodayName(scheduleDatum);
