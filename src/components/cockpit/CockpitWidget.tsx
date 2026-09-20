@@ -347,6 +347,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     timer: "⏳ Timer",
     trafficlight: "🚦 Ampel",
     randomname: "🎯 Zufallsschüler",
+    classweeklyplan: "📋 Wochenplan der Kinder",
     instruction: "📝 Arbeitsanweisung",
     noisemeter: "🔊 Lärm-Messer",
     vocabulary: "🔤 Lernwörter-Studio",
