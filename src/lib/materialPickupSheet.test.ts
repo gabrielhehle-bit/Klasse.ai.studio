@@ -78,4 +78,7 @@ test('Druckzentrum enthält Auswahl, A4-Vorschau, Drucksperre und keine automati
   assert.match(content, /case 'materialabholung':/);
   assert.match(content, /Nur ausdrücklich als erledigt markierte Unterrichtsstunden/);
   assert.doesNotMatch(content, /setPrintFontSize\('base'\);\s*return;\s*}\s*if \(bypassOrientationAutoSet\)/);
+  const dashboard = readFileSync('src/components/Dashboard.tsx', 'utf8');
+  assert.match(dashboard, /id: \`materialabholung_\$\{s\.id\}_/);
+  assert.match(dashboard, /onClick=\{\(\) => setPage\("drucken"\)\}/);
 });
