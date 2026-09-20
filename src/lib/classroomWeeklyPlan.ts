@@ -100,3 +100,78 @@ export function updateChildWeeklyProgress(
     return { ...student, wochenplanFortschritt: progress };
   });
 }
+
+/** One tap records one child's self-assessment or help request.
+ * This is deliberately separate from the teacher lesson, grade and public board.
+ */
+export function updateChildWeeklyFeedback(
+  students: Student[],
+  studentId: string,
+  task: ClassroomWeeklyTask,
+  feedback: ChildDifficulty | 'hilfe',
+  at: Date = new Date(),
+): Student[] {
+  if (!Number.isFinite(at.getTime()) || !task.id || !task.title) return students;
+  return students.map(student => {
+    if (student.id !== studentId) return student;
+    const progress = { ...(student.wochenplanFortschritt || {}) };
+    const old = progress[task.id];
+    const now = at.toISOString();
+    progress[task.id] = feedback === 'hilfe' ? {
+      ...old,
+      done: false,
+      difficulty: undefined,
+      helpRequested: true,
+      helpRequestedAt: old?.helpRequestedAt || now,
+      taskTitle: task.title,
+      taskSubject: task.fach,
+      updatedAt: now,
+    } : {
+      ...old,
+      done: true,
+      difficulty: feedback,
+      // Completing the task must never erase an earlier help request.
+      helpRequested: old?.helpRequested === true,
+      taskTitle: task.title,
+      taskSubject: task.fach,
+      updatedAt: now,
+    };
+    return { ...student, wochenplanFortschritt: progress };
+  });
+}
+
+export type ChildWeeklyDossierRow = {
+  taskId: string;
+  taskTitle: string;
+  taskSubject: string;
+  week: number;
+  schoolYear: string;
+  done: boolean;
+  difficulty?: ChildDifficulty;
+  helpRequested: boolean;
+  updatedAt: string;
+};
+
+/** Read only this pupil's recorded feedback, including unpublished historic tasks.
+ * Unknown legacy keys are ignored rather than inventing lesson names or weeks.
+ */
+export function getChildWeeklyDossierRows(student: Student): ChildWeeklyDossierRow[] {
+  return Object.entries(student.wochenplanFortschritt || {}).flatMap(([taskId, progress]) => {
+    if (!progress || typeof progress !== 'object') return [];
+    let scope: unknown;
+    try { scope = JSON.parse(taskId); } catch { return []; }
+    if (!Array.isArray(scope) || scope.length !== 4
+      || typeof scope[0] !== 'string' || !Number.isInteger(scope[1])
+      || scope[1] < 1 || scope[1] > 53) return [];
+    const [schoolYear, week, day, lesson] = scope;
+    if (typeof day !== 'string' || !Number.isInteger(lesson)) return [];
+    return [{
+      taskId, schoolYear, week, taskTitle: String(progress.taskTitle || '').trim() || `${day}, ${lesson + 1}. Stunde`,
+      taskSubject: String(progress.taskSubject || '').trim(),
+      done: progress.done === true,
+      difficulty: progress.difficulty,
+      helpRequested: progress.helpRequested === true,
+      updatedAt: String(progress.updatedAt || ''),
+    }];
+  }).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}

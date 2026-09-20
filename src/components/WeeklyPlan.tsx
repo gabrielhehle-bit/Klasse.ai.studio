@@ -2990,13 +2990,13 @@ export default function WeeklyPlan() {
                                        previous.activeClassId !== app.activeClassId
                                        ? previous : toggleClassroomWeeklyLesson(previous, activeKW, tag, zIdx));
                                    }}
-                                   className={`absolute bottom-1 right-1 z-[55] rounded-md border px-1.5 py-1 text-[0.625rem] font-bold leading-tight shadow-sm transition-colors ${item.imKinderWochenplan === true
-                                     ? 'border-indigo-500 bg-indigo-700 text-white hover:bg-indigo-800'
-                                     : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50'}`}
+                                   className={`absolute inset-x-1 bottom-1 z-[55] flex min-h-7 items-center justify-center rounded-lg border px-2 py-1 text-center text-xs font-extrabold leading-tight shadow-md ring-2 ring-white/90 transition-colors ${item.imKinderWochenplan === true
+                                     ? 'border-indigo-800 bg-indigo-700 text-white hover:bg-indigo-800'
+                                     : 'border-indigo-300 bg-white text-indigo-900 hover:bg-indigo-50'}`}
                                  >
                                    {item.imKinderWochenplan === true
-                                     ? `📋 Kinderplan ✓${pupilCount ? ` · ${childrenDone}/${pupilCount} fertig` : ''}`
-                                     : '＋ Kinderplan'}
+                                     ? `📋 Für Kinder sichtbar${pupilCount ? ` · ${childrenDone}/${pupilCount} fertig` : ''}`
+                                     : '＋ Für Kinder freigeben'}
                                  </button>
                                )}
                             </motion.div>

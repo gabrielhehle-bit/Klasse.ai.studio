@@ -379,6 +379,12 @@ export type FotoFreigabeStatus = 'erlaubt' | 'nur_homepage' | 'nicht_erlaubt';
 export interface WeeklyChildTaskProgress {
   done: boolean;
   difficulty?: 'leicht' | 'gut' | 'schwierig' | 'sehr-schwierig';
+  /** Help request is retained even after the child finishes this task. */
+  helpRequested?: boolean;
+  helpRequestedAt?: string;
+  /** Public lesson snapshot: permits historical dossier display after lesson edits. */
+  taskTitle?: string;
+  taskSubject?: string;
   updatedAt: string;
 }
 
