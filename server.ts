@@ -1538,14 +1538,24 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       const account = verifyAccountToken(cookies.klassio_email_account);
       const requiresEmailLogin = !account;
       const sessionId = getCanvaSessionId(req);
-      const connected = Boolean(canvaConfigured && account && sessionId
-        && await canvaTokenStore.get(account.userId, sessionId));
+      let connected = false;
+      let sessionUnreadable = false;
+      if (canvaConfigured && account && sessionId) {
+        try {
+          connected = Boolean(await canvaTokenStore.get(account.userId, sessionId));
+        } catch {
+          // Wrong/rotated server secret and corrupt sessions must not masquerade
+          // as missing Canva OAuth configuration or lock the teacher out of reconnecting.
+          sessionUnreadable = true;
+        }
+      }
       res.json({
         configured: canvaConfigured,
         connected,
         requiresEmailLogin,
         reason: !canvaConfigured ? 'CANVA_CLIENT_ID/CANVA_CLIENT_SECRET fehlen'
-          : requiresEmailLogin ? 'Bitte mit deiner E-Mail-Adresse anmelden, um Canva zu verbinden.' : undefined,
+          : requiresEmailLogin ? 'Bitte mit deiner E-Mail-Adresse anmelden, um Canva zu verbinden.'
+          : sessionUnreadable ? 'Deine bisherige Canva-Sitzung kann nicht gelesen werden. Bitte Canva erneut verbinden.' : undefined,
       });
     } catch (error) { next(error); }
   });
@@ -1632,7 +1642,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     try {
       const ownerId = getEmailAccount(req).userId;
       const sessionId = getCanvaSessionId(req);
-      const record = await canvaTokenStore.get(ownerId, sessionId);
+      let record: CanvaTokenPayload | null = null;
+      try { record = await canvaTokenStore.get(ownerId, sessionId); }
+      catch { /* Corrupt/old server key: account owner may still disconnect safely. */ }
       if (record && canvaConfigured) {
         try {
           const token = record.refresh_token || record.access_token;
@@ -1649,7 +1661,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
           console.warn('[Canva] Token-Revoke fehlgeschlagen; lokale Sitzung wird trotzdem entfernt.');
         }
       }
-      await canvaTokenStore.delete(ownerId, sessionId);
+      await canvaTokenStore.clearAccount(ownerId);
       res.clearCookie('klassio_canva_session', {
         httpOnly: true, sameSite: 'lax',
         secure: req.secure || process.env.NODE_ENV === 'production', path: '/',
