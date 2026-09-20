@@ -18,7 +18,7 @@ export type MaterialPickupSheet = {
 };
 type WeeklyLesson = {
   fach?: string; thema?: string; material?: string; wochenplanMaterial?: string;
-  housework?: string; erledigt?: boolean;
+  housework?: string; erledigt?: boolean; materialIds?: string[];
 };
 type PickupSource = {
   anwesenheit?: Record<string, Record<string, Record<string, string>>>;
@@ -26,15 +26,18 @@ type PickupSource = {
   schuelerWochenplaene?: Record<string, {
     kw: number; schuljahr?: string; datumVon?: string; datumBis?: string;
     aufgaben?: Array<{
-      fach?: string; tag?: string; titel?: string; detail?: string;
+      fach?: string; tag?: string; titel?: string; detail?: string; stunde?: number;
       originalMaterial?: string; originalHousework?: string; selected?: boolean;
     }>;
   }>;
   schuljahr?: string;
+  materialien?: Array<{ id: string; titel: string }>;
 };
 
 const TAG = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
-const FEHLT = new Set(['e', 'u', 'f']);
+// Anwesenheit uses 'e' (entschuldigt) and 'u' (unentschuldigt) for absence.
+// Other status codes must never be treated as a missed school day.
+const FEHLT = new Set(['e', 'u']);
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const text = (value: unknown) => typeof value === 'string' ? value.trim() : '';
 const localDate = (key: string) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, Number(key.slice(8, 10)), 12);
@@ -110,7 +113,9 @@ export function buildMaterialPickupSheet(
         add({
           fach: text(lesson.fach),
           thema: text(lesson.thema),
-          material: text(lesson.wochenplanMaterial || lesson.material),
+          material: [text(lesson.wochenplanMaterial || lesson.material), ...((lesson.materialIds || [])
+            .map(id => source.materialien?.find(item => item.id === id)?.titel || '').filter(Boolean))]
+            .filter(Boolean).join(' · '),
           hausuebung: text(lesson.housework),
           erledigt: lesson.erledigt === true,
           quelle: 'unterricht',
@@ -123,7 +128,8 @@ export function buildMaterialPickupSheet(
       .filter(plan => plan.kw === kw && (!plan.schuljahr || plan.schuljahr === source.schuljahr)
         && (!plan.datumVon || datum >= plan.datumVon)
         && (!plan.datumBis || datum <= plan.datumBis))
-      .forEach(plan => (plan.aufgaben || []).filter(task => task.selected && task.tag === tag)
+      .forEach(plan => (plan.aufgaben || []).filter(task => task.selected && task.tag === tag
+        && (!hasHourKeys || !task.stunde || FEHLT.has(hours[String(task.stunde)])))
         .forEach(task => {
           const titel = text(task.titel);
           if (!titel || eintraege.some(row => row.fach === text(task.fach) && row.thema === titel)) return;
