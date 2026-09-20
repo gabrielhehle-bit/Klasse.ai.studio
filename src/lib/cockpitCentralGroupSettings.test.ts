@@ -18,6 +18,13 @@ test('Both roster choices live inside Widget hinzufügen settings and preserve c
   assert.match(picker, /Heute anwesende Kinder/);
   assert.match(picker, /Alle Kinder der Klasse/);
   assert.match(picker, /saveSetting\("studentScope", scope\)/);
+  assert.match(picker, /Gruppenaufteilung/);
+  assert.match(picker, /Kinder pro Gruppe/);
+  assert.match(picker, /Anzahl Gruppen/);
+  assert.match(picker, /configured\.settings\?\.mode === "count" \? \[2, 3, 4, 5, 6\] : \[2, 3, 4, 5\]/);
+  assert.match(picker, /mode, targetValue: 4/);
+  assert.match(picker, /targetValue: value/);
+
   assert.match(picker, /Bestehende Gruppen werden nicht ungefragt neu gemischt/);
   assert.match(picker, /\.\.\.\(configured\.settings \|\| \{\}\)/);
   assert.match(surface, /<GroupsWidgetContent/);
@@ -36,4 +43,10 @@ test('Group pause, pair constraints and naming options render only in Widget hin
   assert.match(surface, /settingsInPicker=\{isAddWidgetMenuOpen && isWidgetConfigurationOpen && selectedWidgetConfiguration === "groups"\}/);
   assert.match(adapter, /settingsInPicker\?: boolean/);
   assert.match(adapter, /onClosePickerSettings\?: \(\) => void/);
+  const main = widget.slice(widget.indexOf('The teaching surface contains actions and results only.'), widget.indexOf('OPTIONEN MODAL'));
+  assert.match(main, /onClick=\{\(\) => handleGenerate\(\)\}/);
+  assert.doesNotMatch(main, /setTargetValue\(|setMode\(|setShowOptions\(|Settings2|MoreHorizontal/);
+  assert.match(widget, /widget\?\.settings\?\.targetValue/);
+  assert.match(widget, /widget\?\.settings\?\.mode/);
+
 });
