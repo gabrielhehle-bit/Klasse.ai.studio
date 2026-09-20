@@ -1,17 +1,24 @@
 import type { GeneratedGroup } from './groupsAlgorithm';
 
 /**
- * All teaching-surface cards are rendered in whole, without an inner scroll.
- * The geometry reserves the existing size/generate controls, feedback,
- * footer and (when needed) page navigation.
+ * Each group is divided into complete, readable segments if its member list
+ * cannot fit on a physical teaching screen. No member is omitted or scrolled
+ * behind a clipped inner list; saved GeneratedGroup objects remain unchanged.
  */
 export const GROUP_WIDGET_GRID = {
   minCardWidth: 190,
   studentRowHeight: 54,
   cardChromeHeight: 90,
   gap: 8,
-  reservedHeight: 224,
+  reservedHeight: 208,
 } as const;
+
+export interface GroupCardSegment {
+  group: GeneratedGroup;
+  memberIds: string[];
+  part: number;
+  parts: number;
+}
 
 export interface GroupPageLayout {
   columns: number;
@@ -22,12 +29,13 @@ export interface GroupPageLayout {
   start: number;
   cardHeight: number;
   fits: boolean;
+  cards: GroupCardSegment[];
 }
 
 export function getGroupPageLayout(
   width: number,
   height: number,
-  groups: readonly Pick<GeneratedGroup, 'studentIds'>[],
+  groups: readonly GeneratedGroup[],
   requestedPage: number,
 ): GroupPageLayout {
   const availableWidth = Number.isFinite(width) ? Math.max(0, width - 24) : 0;
@@ -35,16 +43,33 @@ export function getGroupPageLayout(
   const columns = Math.max(1, Math.min(6, Math.floor(
     (availableWidth + GROUP_WIDGET_GRID.gap) / (GROUP_WIDGET_GRID.minCardWidth + GROUP_WIDGET_GRID.gap),
   )));
-  const maxMembers = Math.max(0, ...groups.map(group => group.studentIds.length));
-  const cardHeight = GROUP_WIDGET_GRID.cardChromeHeight + maxMembers * GROUP_WIDGET_GRID.studentRowHeight;
+  const singleRowHeight = GROUP_WIDGET_GRID.cardChromeHeight + GROUP_WIDGET_GRID.studentRowHeight;
+  const fits = availableWidth >= GROUP_WIDGET_GRID.minCardWidth && availableHeight >= singleRowHeight;
+  const maximumRowsPerCard = Math.max(
+    1,
+    Math.floor((availableHeight - GROUP_WIDGET_GRID.cardChromeHeight) / GROUP_WIDGET_GRID.studentRowHeight),
+  );
+  const cards: GroupCardSegment[] = [];
+  for (const group of groups) {
+    const parts = Math.max(1, Math.ceil(group.studentIds.length / maximumRowsPerCard));
+    for (let part = 0; part < parts; part++) {
+      cards.push({
+        group,
+        memberIds: group.studentIds.slice(part * maximumRowsPerCard, (part + 1) * maximumRowsPerCard),
+        part: part + 1,
+        parts,
+      });
+    }
+  }
+  const maxVisibleMembers = Math.max(0, ...cards.map(card => card.memberIds.length));
+  const cardHeight = GROUP_WIDGET_GRID.cardChromeHeight + maxVisibleMembers * GROUP_WIDGET_GRID.studentRowHeight;
   const rows = Math.max(1, Math.floor(
     (availableHeight + GROUP_WIDGET_GRID.gap) / (cardHeight + GROUP_WIDGET_GRID.gap),
   ));
-  const fits = availableWidth >= GROUP_WIDGET_GRID.minCardWidth && availableHeight >= cardHeight;
   const pageSize = Math.max(1, columns * rows);
-  const pageCount = Math.max(1, Math.ceil(groups.length / pageSize));
+  const pageCount = Math.max(1, Math.ceil(cards.length / pageSize));
   const page = Number.isFinite(requestedPage)
     ? Math.min(pageCount - 1, Math.max(0, Math.floor(requestedPage)))
     : 0;
-  return { columns, rows, pageSize, pageCount, page, start: page * pageSize, cardHeight, fits };
+  return { columns, rows, pageSize, pageCount, page, start: page * pageSize, cardHeight, fits, cards };
 }
