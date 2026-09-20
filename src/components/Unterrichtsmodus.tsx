@@ -9631,20 +9631,6 @@ ${content}
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setIsThemePickerOpen(true);
-                                    setIsMoreOptionsMenuOpen(false);
-                                  }}
-                                  className={`w-full px-2.5 py-1.5 rounded-lg text-[9.5px] font-bold flex items-center gap-2 text-left transition-colors cursor-pointer ${
-                                    currentIsLight ? "hover:bg-slate-100" : "hover:bg-white/10"
-                                  }`}
-                                >
-                                  <Palette size={12} className="text-emerald-500 shrink-0" />
-                                  <span>Design & Darstellung</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
                                     setIsFocusModeLightOff((prev) => !prev);
                                     setIsMoreOptionsMenuOpen(false);
                                   }}
