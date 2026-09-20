@@ -323,8 +323,8 @@ async function main() {
     // End-to-end teaching journey: one real synthetic pupil confirms one lesson
     // at the board; the shared plan never publishes individual feedback.
     await clickSidebar(client, 'Klassenliste');
-    await waitFor(client, 'pupil list', 'document.body?.innerText.includes("Schülerliste")', 20000);
-    await clickButton(client, 'Schüler hinzufügen');
+    await waitFor(client, 'pupil list ready', 'document.body?.innerText.includes("Willkommen in deiner neuen Klasse!")', 20000);
+    await clickButton(client, 'Schüler:in hinzufügen');
     await waitFor(client, 'new pupil form', 'document.body?.innerText.includes("Neuer Schüler")');
     await setInputByPlaceholder(client, 'z.B. Lukas', 'Testkind');
     await setInputByPlaceholder(client, 'z.B. Müller', 'Wochenplan');
