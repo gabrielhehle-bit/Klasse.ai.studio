@@ -8,9 +8,9 @@ const source = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
 const panel = readFileSync('src/components/cockpit/PublicStudentListWidget.tsx', 'utf8');
 
 test('Retired floating studentlist cannot be opened via core, catalogue, quickbar or old visible layout', () => {
-  assert.equal(PLANNED_COCKPIT_WIDGETS.some(item => item.id === 'studentlist'), false);
+  assert.equal(PLANNED_COCKPIT_WIDGETS.some(item => String(item.id) === 'studentlist'), false);
   assert.equal(getPlannedCockpitWidgetForLegacyType('studentlist'), null);
-  assert.equal(COCKPIT_QUICKBAR_ITEMS.some(item => item.id === 'studentlist'), false);
+  assert.equal(COCKPIT_QUICKBAR_ITEMS.some(item => String(item.id) === 'studentlist'), false);
   assert.deepEqual(normalizeCockpitQuickbarSettings({ enabled: true, itemIds: ['studentlist', 'timer'] }).itemIds, ['timer']);
   assert.doesNotMatch(source, /type: "studentlist", label: "⭐ Schülerliste"/);
   assert.doesNotMatch(source, /\{ type: "studentlist", category: "interactivity" \}/);
