@@ -376,10 +376,18 @@ export interface PortfolioEntry {
 
 export type FotoFreigabeStatus = 'erlaubt' | 'nur_homepage' | 'nicht_erlaubt';
 
+export interface WeeklyChildTaskProgress {
+  done: boolean;
+  difficulty?: 'leicht' | 'gut' | 'schwierig' | 'sehr-schwierig';
+  updatedAt: string;
+}
+
 export interface Student {
   id: string;
   vorname: string;
   nachname: string;
+  /** Per-pupil, per-week encrypted classroom progress. Never publish on the board. */
+  wochenplanFortschritt?: Record<string, WeeklyChildTaskProgress>;
   name: string;
   niveau: number;
   notiz: string;
@@ -1790,7 +1798,7 @@ export interface ClassPetState {
 
 export interface CockpitWidgetConfig {
   id: string;
-  type: 'clock' | 'timer' | 'trafficlight' | 'randomname' | 'instruction' | 'noisemeter' | 'vocabulary' | 'studentlist' | 'groups' | 'qrcode' | 'image' | 'phases' | 'sounds' | 'todo' | 'dienste' | 'klassenglas' | 'links' | 'pet' | 'drawing' | 'stopwatch' | 'calculator' | 'dice' | 'weather' | 'aiquiz' | 'riddle' | 'scoreboard' | 'wheel' | 'breathing' | 'kidweather' | 'mathcards' | 'wortsatzwerkstatt' | 'scrambler' | 'watertracker' | 'wordchain' | 'moodmeter' | 'colormixer' | 'wordgrid' | 'rhythm' | 'geometry' | 'fractions' | 'wordclock' | 'sorting' | 'dailyquotes' | 'dictionary' | 'piano' | 'bodyparts' | 'toothbrush' | 'challenge' | 'compass' | 'weekdays' | 'piggybank' | 'noisescales' | 'wordscramble' | 'shadowshapes' | 'emotions' | 'clocksync' | 'soundmemory' | 'spellingdetective' | 'numberline' | 'mathchain' | 'thermometer' | 'compoundsplit' | 'soundquiz' | 'mathduel' | 'shapepuzzle' | 'guitartuner' | 'secretagent' | 'fractioncake' | 'sentencebuilding' | 'patternmaker' | 'wordexplorer' | 'weightscale' | 'geographyquiz' | 'calmrain' | 'estimationjar' | 'reflexgame' | 'mathpyramid' | 'wastebin' | 'tonetrainer' | 'angledetective' | 'rhymemachine' | 'alphabetsoup' | 'divrobot' | 'classtarget' | 'morsecode' | 'punctuationzoo' | 'secretcode' | 'clockpuzzle' | 'fractiongrid' | 'trafficquiz' | 'wordbuilder' | 'watercycle' | 'soundmachine' | 'mathbalancer' | 'animalvoice' | 'constellation' | 'multitrainer' | 'moneycalc' | 'storyemojis' | 'abcorder' | 'planetarium' | 'tischcheck' | 'faircall' | 'hangman' | 'timeline' | 'anschauung' | 'kidattendance' | 'zahlenraum' | 'kopfrechnen' | 'fractionvisualizer';
+  type: 'clock' | 'timer' | 'trafficlight' | 'classweeklyplan' | 'randomname' | 'instruction' | 'noisemeter' | 'vocabulary' | 'studentlist' | 'groups' | 'qrcode' | 'image' | 'phases' | 'sounds' | 'todo' | 'dienste' | 'klassenglas' | 'links' | 'pet' | 'drawing' | 'stopwatch' | 'calculator' | 'dice' | 'weather' | 'aiquiz' | 'riddle' | 'scoreboard' | 'wheel' | 'breathing' | 'kidweather' | 'mathcards' | 'wortsatzwerkstatt' | 'scrambler' | 'watertracker' | 'wordchain' | 'moodmeter' | 'colormixer' | 'wordgrid' | 'rhythm' | 'geometry' | 'fractions' | 'wordclock' | 'sorting' | 'dailyquotes' | 'dictionary' | 'piano' | 'bodyparts' | 'toothbrush' | 'challenge' | 'compass' | 'weekdays' | 'piggybank' | 'noisescales' | 'wordscramble' | 'shadowshapes' | 'emotions' | 'clocksync' | 'soundmemory' | 'spellingdetective' | 'numberline' | 'mathchain' | 'thermometer' | 'compoundsplit' | 'soundquiz' | 'mathduel' | 'shapepuzzle' | 'guitartuner' | 'secretagent' | 'fractioncake' | 'sentencebuilding' | 'patternmaker' | 'wordexplorer' | 'weightscale' | 'geographyquiz' | 'calmrain' | 'estimationjar' | 'reflexgame' | 'mathpyramid' | 'wastebin' | 'tonetrainer' | 'angledetective' | 'rhymemachine' | 'alphabetsoup' | 'divrobot' | 'classtarget' | 'morsecode' | 'punctuationzoo' | 'secretcode' | 'clockpuzzle' | 'fractiongrid' | 'trafficquiz' | 'wordbuilder' | 'watercycle' | 'soundmachine' | 'mathbalancer' | 'animalvoice' | 'constellation' | 'multitrainer' | 'moneycalc' | 'storyemojis' | 'abcorder' | 'planetarium' | 'tischcheck' | 'faircall' | 'hangman' | 'timeline' | 'anschauung' | 'kidattendance' | 'zahlenraum' | 'kopfrechnen' | 'fractionvisualizer';
   x: number;
   y: number;
   w: number;
