@@ -71,6 +71,10 @@ test('Main and simple dashboard show a free-day message without hiding tasks or 
   assert.match(full, /freeDayGreeting && \(/);
   assert.match(simple, /p\.freeDayGreeting && \(/);
   assert.match(simple, /p\.actionItems/);
+  assert.match(simple, /p\.freeDayGreeting\s*\? 'wochenplanung'/);
+  assert.match(simple, /Planung ansehen/);
+  assert.match(simple, /p\.freeDayGreeting \? \(/);
+  assert.match(simple, /Heute ist kein regulärer Unterricht vorgesehen/);
   assert.match(simple, /p\.todayLessonsList/);
   assert.doesNotMatch(dashboard.slice(dashboard.indexOf('const { date: anzeigeDatum'), dashboard.indexOf('const heute = currentTime')), /day === 0[^;]*Montag/);
 });
