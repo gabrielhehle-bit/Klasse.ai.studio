@@ -1,4 +1,5 @@
 import DashboardSimpleOverview from './DashboardSimpleOverview';
+import type { DashboardFreeDayMessage } from '../lib/dashboardDayContext';
 import React, { useState } from "react";
 import { useApp } from "../context/AppContext";
 import {
@@ -65,6 +66,7 @@ export interface ActionItemSummary {
 
 export interface DashboardTodayOverviewProps {
   greeting: string;
+  freeDayGreeting?: DashboardFreeDayMessage | null;
   dateLabel: string;
   klasseLabel: string;
   manualDateOffset: number;
@@ -115,6 +117,7 @@ export interface DashboardTodayOverviewProps {
 export default function DashboardTodayOverview(props: DashboardTodayOverviewProps) {
   const {
   greeting,
+  freeDayGreeting,
   dateLabel,
   klasseLabel,
   manualDateOffset,
@@ -165,6 +168,15 @@ export default function DashboardTodayOverview(props: DashboardTodayOverviewProp
 
   return (
     <div className="space-y-6 w-full">
+      {freeDayGreeting && (
+        <section role="status" aria-label="Wochenende, Ferien oder Feiertag"
+          className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-5 shadow-sm sm:p-7">
+          <p className="text-xs font-black uppercase tracking-wide text-emerald-700">Eine kleine Auszeit</p>
+          <h2 className="mt-2 text-2xl font-black text-slate-900 sm:text-3xl">{freeDayGreeting.title}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-700">{freeDayGreeting.message}</p>
+          <p className="mt-3 text-xs font-medium text-slate-500">Deine Termine und offenen Aufgaben bleiben unten im Blick.</p>
+        </section>
+      )}
       {/* ==================================================
           1. KOPFBEREICH (SIMPEL & FOKUSSIERT)
          ================================================== */}
