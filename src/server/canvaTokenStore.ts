@@ -106,6 +106,14 @@ export class CanvaTokenStore {
     return tokens;
   }
 
+  /** Revoke the entire Canva connection for a previously authenticated account.
+   * Allows a reconnect after a lost server encryption secret or corrupt record.
+   * Callers must have already passed the signed email account middleware.
+   */
+  async clearAccount(userId: string): Promise<void> {
+    await fs.rm(this.filePath(userId), { force: true });
+  }
+
   async delete(userId: string, sessionId: string | undefined): Promise<void> {
     if (!sessionId || !TOKEN_PATTERN.test(sessionId)) return;
     const record = await this.read(userId);
