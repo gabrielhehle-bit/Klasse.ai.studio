@@ -182,6 +182,33 @@ export const UnterrichtsmodusThemePicker: React.FC<ThemePickerProps> = ({ app, s
                         </div>
                     </section>
 
+                    {/* Typeface changes only after a deliberate selection, never on theme switch. */}
+                    <section aria-label="Schrift im Lehrercockpit" className="space-y-2 p-4 rounded-2xl border"
+                        style={{ borderColor: currentTheme.colors.border, backgroundColor: currentTheme.colors.surface }}>
+                        <label htmlFor="cockpit-font-choice" className="flex items-center gap-2 text-xs font-black"
+                            style={{ color: currentTheme.colors.textPrimary }}>
+                            <Type size={14} /> Schriftart im Lehrercockpit
+                        </label>
+                        <select id="cockpit-font-choice"
+                            value={['font-sans', 'font-druckschrift', 'font-schulschrift', 'font-dyslexic'].includes(app.boardSettings?.activeFont || '')
+                                ? app.boardSettings.activeFont : 'font-sans'}
+                            onChange={event => {
+                                const chosenFont = event.target.value;
+                                setApp(prev => ({
+                                    ...prev,
+                                    boardSettings: { ...(prev.boardSettings || {}), activeFont: chosenFont },
+                                }));
+                            }}
+                            className="w-full min-h-11 rounded-xl border px-3 py-2 text-sm font-semibold"
+                            style={{ backgroundColor: currentTheme.colors.surface, color: currentTheme.colors.textPrimary, borderColor: currentTheme.colors.border }}>
+                            <option value="font-sans">Standard (gut lesbar)</option>
+                            <option value="font-druckschrift">Druckschrift</option>
+                            <option value="font-schulschrift">Schulschrift</option>
+                            <option value="font-dyslexic">Lexend / lesefreundlich</option>
+                        </select>
+                        <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>Nur deine bewusste Auswahl ändert die Tafelschrift. Farbwechsel ändern sie nicht.</p>
+                    </section>
+
                     {/* CUSTOM COLORS */}
                     <section className="space-y-4 p-4 rounded-2xl border" style={{ borderColor: currentTheme.colors.border, backgroundColor: `${currentTheme.colors.textPrimary}05` }}>
                         <div className="flex items-center gap-2">
