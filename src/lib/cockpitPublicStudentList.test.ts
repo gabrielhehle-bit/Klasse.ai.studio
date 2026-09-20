@@ -106,3 +106,57 @@ test('kindgerechte Pluspunkte-Karten behalten die vollständige 17-Kinder-Ansich
   assert.equal((html.match(/Pluspunkt für/g) || []).length, 17);
   assert.doesNotMatch(html, /PRIVATE_STOP|PRIVATE_COMMENT/);
 });
+
+test('Verhalten wird erst nach bewusster Lehrperson-Einstellung auf der öffentlichen Schülerliste sichtbar', () => {
+  const pupils = Array.from({ length: 17 }, (_, index) => ({
+    id: `pupil-${index}`, vorname: `Kind${index + 1}`, nachname: 'Beispiel',
+  })) as unknown as Student[];
+  const base = {
+    activeClassId: 'test-class',
+    schueler: pupils,
+    behavior_default_stage_id: '3',
+    behavior_stages: [
+      { id: '1', label: 'Super', icon: '🌟', color: 'bg-emerald-500' },
+      { id: '3', label: 'OK', icon: '😐', color: 'bg-slate-400' },
+      { id: '5', label: 'Stopp', icon: '🚫', color: 'bg-rose-500' },
+    ],
+    behavior_status: { 'pupil-0': '5' },
+    behavior_notes: { 'pupil-0': 'NICHT_OEFFENTLICHE_NOTIZ' },
+    schuelerNotizen: { 'pupil-0': 'VERTRAULICH' },
+  };
+  const render = (enabled?: boolean) => renderToStaticMarkup(React.createElement(PublicStudentListWidget, {
+    app: { ...base, boardSettings: enabled === undefined ? {} : { showStudentBehaviorInPluspoints: enabled } } as unknown as AppState,
+    getTodayPoints: () => 2,
+    addParticipation: () => {},
+    removeParticipation: () => {},
+  }));
+  const off = render();
+  assert.doesNotMatch(off, /Verhaltensstatus:|Stopp|🚫/);
+  const switchedOff = render(false);
+  assert.doesNotMatch(switchedOff, /Verhaltensstatus:|Stopp|🚫/);
+  const on = render(true);
+  assert.match(on, /Verhaltensstatus: Stopp/);
+  assert.match(on, /Verhaltensstatus: OK/);
+  assert.match(on, /🚫/);
+  assert.equal((on.match(/Pluspunkt für/g) || []).length, 17);
+  for (const value of ['NICHT_OEFFENTLICHE_NOTIZ', 'VERTRAULICH']) assert.doesNotMatch(on, new RegExp(value));
+  assert.match(teaching, /Verhalten in der Schülerliste anzeigen/);
+  assert.match(teaching, /showStudentBehaviorInPluspoints: event\.target\.checked/);
+});
+
+test('Die sehr schmale Schülerliste zeigt optional nur das Verhalten-Emoji, nicht zusätzliche lange Etiketten', () => {
+  const html = renderToStaticMarkup(React.createElement(PublicStudentListWidget, {
+    app: { activeClassId: 'test-class', schueler: [{ id: 's1', vorname: 'Mila', nachname: 'Muster' }],
+      boardSettings: { showStudentBehaviorInPluspoints: true },
+      behavior_status: { s1: '5' },
+      behavior_stages: [{ id: '5', label: 'Stopp', icon: '🚫', color: 'bg-rose-500' }],
+    } as unknown as AppState,
+    sidebarCompact: true,
+    getTodayPoints: () => 0,
+    addParticipation: () => {},
+    removeParticipation: () => {},
+  }));
+  assert.match(html, /Verhaltensstatus: Stopp/);
+  assert.match(html, /🚫/);
+  assert.doesNotMatch(html, />Stopp<\/span>/);
+});
