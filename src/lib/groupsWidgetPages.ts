@@ -7,8 +7,8 @@ import type { GeneratedGroup } from './groupsAlgorithm';
  */
 export const GROUP_WIDGET_GRID = {
   minCardWidth: 190,
-  studentRowHeight: 46,
-  cardChromeHeight: 68,
+  studentRowHeight: 54,
+  cardChromeHeight: 90,
   gap: 8,
   reservedHeight: 224,
 } as const;
