@@ -68,7 +68,10 @@ test('group configuration and manual student swaps/moves are preserved across pa
 });
 
 test('25 children in only two groups: all are visible in non-scrolling group segments', () => {
-  const groups = sampleGroups(25, 2);
+  const groups = generateStudentGroups(
+    Array.from({ length: 25 }, (_, index) => `synthetic-${index}`),
+    { mode: 'count', value: 2 },
+  ).groups;
   const page = getGroupPageLayout(1280, 690, groups, 0);
   assert.equal(page.fits, true);
   assert.equal(groups.length, 2);
@@ -83,7 +86,10 @@ test('25 children in only two groups: all are visible in non-scrolling group seg
 });
 
 test('25 children in one large group remain reachable even with two pages; no grow-button loop', () => {
-  const groups = sampleGroups(25, 1);
+  const groups = generateStudentGroups(
+    Array.from({ length: 25 }, (_, index) => `synthetic-${index}`),
+    { mode: 'count', value: 1 },
+  ).groups;
   const page = getGroupPageLayout(1280, 690, groups, 0);
   assert.equal(page.fits, true);
   assert.equal(groups.length, 1);
