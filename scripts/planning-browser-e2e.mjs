@@ -348,8 +348,13 @@ async function main() {
     const checked = await evaluate(client,
       '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");const b=d?.querySelector("button[aria-label=\\\"Aufgabe 1 erledigt\\\"]");if(!b||b.getAttribute("aria-pressed")!=="false")return false;b.click();return true;})()');
     if (!checked) throw new Error('Could not check child task.');
-    await waitFor(client, 'completed task presents child reflection',
-      'Boolean(document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"] button[aria-pressed=false]"))');
+    try {
+      await waitFor(client, 'completed task presents child reflection',
+        '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");return !!d&&!!d.querySelector("button[aria-label=\\\"Aufgabe 1 erledigt\\\"][aria-pressed=true]")&&Array.from(d.querySelectorAll("button")).some(b=>b.textContent.includes("Schwierig"));})()', 6000);
+    } catch (error) {
+      const state = await evaluate(client, '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");return {button:d?.querySelector("button[aria-label=\\\"Aufgabe 1 erledigt\\\"]")?.outerHTML,body:d?.innerText.slice(-400)};})()');
+      throw new Error('Child checkmark did not persist: ' + JSON.stringify(state) + ' / ' + String(error));
+    }
     await clickButton(client, 'Schwierig');
     await waitFor(client, 'difficulty saved',
       '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");return !!d&&Array.from(d.querySelectorAll("button")).some(b=>b.textContent.includes("Schwierig")&&!b.textContent.includes("Sehr schwierig")&&b.getAttribute("aria-pressed")==="true");})()');
