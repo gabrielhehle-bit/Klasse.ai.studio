@@ -1129,6 +1129,10 @@ export default function PrintCenter() {
           --kl-print-paper: #ffffff; --kl-print-accent: #111827;
           --kl-print-soft: #f4f4f5; --kl-print-ink: #18181b;
         }
+        .print-center-overlay-parent[data-print-theme="monochrome"] .kl-print-sheet {
+          /* Laser S/W must also desaturate colorful emojis and template artwork. */
+          filter: grayscale(1);
+        }
         .print-center-overlay-parent[data-print-theme="slate"] {
           --kl-print-paper: #f8fafc; --kl-print-accent: #475569;
           --kl-print-soft: #e2e8f0; --kl-print-ink: #1e293b;
