@@ -21,6 +21,7 @@ import { projectWeeklyPlanToClassbook } from '../lib/weeklyClassbookProjection';
 import { splitKlassenbuchCategoryKey } from '../lib/klassenbuchSubjects';
 import { EMPTY_LESSON_DRAFT, hasLessonDraftContent, lessonDraftFromMaterial, lessonDraftToText, normalizeLessonDraft, type LessonDraftFields } from '../lib/lessonDrafts';
 import { useMaterialLibrary } from './Materialbibliothek';
+import { getChildTaskProgress, toggleClassroomWeeklyLesson, weekTaskKey } from '../lib/classroomWeeklyPlan';
 import LessonPlannerAI from './LessonPlannerAI';
 
 const FACH_COLORS: Record<string, { bg: string, text: string, border: string }> = {
@@ -2638,6 +2639,12 @@ export default function WeeklyPlan() {
                       const isSelectedStunde = isNowLive;
 
                       const isDraggedOver = draggedOverCell && draggedOverCell.tag === tag && draggedOverCell.idx === zIdx;
+                       const canPublishForChildren = !!item?.fach?.trim() && !!item?.thema?.trim();
+                       const pupilCount = (app.schueler || []).filter(student => !student.id.startsWith('demo-')).length;
+                       const taskId = weekTaskKey(app.schuljahr || '', activeKW, tag, zIdx);
+                       const childrenDone = canPublishForChildren && item.imKinderWochenplan
+                         ? (app.schueler || []).filter(student => !student.id.startsWith('demo-') && getChildTaskProgress(student, taskId)?.done === true).length
+                         : 0;
 
                       return (
                         <div 
@@ -2704,10 +2711,10 @@ export default function WeeklyPlan() {
                             <motion.div 
                                layoutId={`${activeKW}-${tag}-${zIdx}`}
                                whileHover={{ scale: 1.03, y: -2, zIndex: 50 }}
-                               className={`h-full w-full rounded-xl border border-transparent pl-4 pr-2.5 py-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.08)] transition-all flex flex-col gap-1 relative  group/card contrast-container ${style?.bg || 'bg-white'} ${item.erledigt ? '!bg-white ring-2 ring-emerald-500/20 opacity-70 saturate-[0.8]' : getContrastTextClass(style?.bg)} ${item.type === 'sa' ? 'ring-2 ring-rose-500/20' : item.type === 'test' || item.type === 'lzk' ? 'ring-2 ring-amber-500/20' : ''}`}
+                               className={`h-full w-full rounded-xl border border-transparent pl-4 pr-2.5 py-2.5 ${canPublishForChildren ? 'pb-8' : ''} shadow-[0_2px_8px_rgba(0,0,0,0.02)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.08)] transition-all flex flex-col gap-1 relative  group/card contrast-container ${style?.bg || 'bg-white'} ${item.erledigt ? '!bg-white ring-2 ring-emerald-500/20 opacity-70 saturate-[0.8]' : getContrastTextClass(style?.bg)} ${item.type === 'sa' ? 'ring-2 ring-rose-500/20' : item.type === 'test' || item.type === 'lzk' ? 'ring-2 ring-amber-500/20' : ''}`}
                             >
                                {item.halves?.enabled ? (
-                                 <div className="absolute inset-0 grid grid-rows-2 overflow-hidden rounded-xl bg-white">
+                                 <div className={`absolute inset-x-0 top-0 ${canPublishForChildren ? 'bottom-7' : 'bottom-0'} grid grid-rows-2 overflow-hidden rounded-xl bg-white`}>
                                    {[
                                      { label: '1. Hälfte', data: item.halves.first },
                                      { label: '2. Hälfte', data: item.halves.second },
@@ -2903,6 +2910,29 @@ export default function WeeklyPlan() {
                                  </div>
                                </div>
                                  </>
+                               )}
+                               {canPublishForChildren && (
+                                 <button
+                                   type="button"
+                                   aria-pressed={item.imKinderWochenplan === true}
+                                   aria-label={item.imKinderWochenplan === true ? 'Aus Kinderplan entfernen' : 'Zum Kinderplan hinzufügen'}
+                                   title={item.imKinderWochenplan === true
+                                     ? 'Aufgabe aus dem Wochenplan der Kinder entfernen (Fortschritte bleiben gespeichert)'
+                                     : 'Aufgabe für den Wochenplan der Kinder freigeben'}
+                                   onClick={event => {
+                                     event.stopPropagation();
+                                     setApp(previous => previous.currentKW !== app.currentKW ||
+                                       previous.activeClassId !== app.activeClassId
+                                       ? previous : toggleClassroomWeeklyLesson(previous, activeKW, tag, zIdx));
+                                   }}
+                                   className={`absolute bottom-1 right-1 z-[55] rounded-md border px-1.5 py-1 text-[0.625rem] font-bold leading-tight shadow-sm transition-colors ${item.imKinderWochenplan === true
+                                     ? 'border-indigo-500 bg-indigo-700 text-white hover:bg-indigo-800'
+                                     : 'border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50'}`}
+                                 >
+                                   {item.imKinderWochenplan === true
+                                     ? `📋 Kinderplan ✓${pupilCount ? ` · ${childrenDone}/${pupilCount} fertig` : ''}`
+                                     : '＋ Kinderplan'}
+                                 </button>
                                )}
                             </motion.div>
                           ) : (
