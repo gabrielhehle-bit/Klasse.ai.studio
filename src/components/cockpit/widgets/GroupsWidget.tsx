@@ -73,6 +73,13 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
   const savedSettings = widget?.settings || {};
   const [mode, setMode] = useState<GroupingMode>(savedSettings.mode || 'size');
   const [targetValue, setTargetValue] = useState<number>(savedSettings.targetValue || 4);
+  // Changes from the central widget picker must reach an already-open widget.
+  useEffect(() => {
+    setMode(widget?.settings?.mode === 'count' ? 'count' : 'size');
+    const saved = widget?.settings?.targetValue;
+    setTargetValue(typeof saved === 'number' && Number.isFinite(saved) && saved >= 2 ? Math.floor(saved) : 4);
+  }, [widget?.settings?.mode, widget?.settings?.targetValue]);
+
   const [namingStyle, setNamingStyle] = useState<'numbered' | 'colors' | 'symbols' | 'animals'>(
     savedSettings.namingStyle || 'numbered'
   );
@@ -380,143 +387,21 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
         </div>
       )}
 
-      {/* ========================================================================= */}
-      {/* 1. COMPACT HEADER (< 380px)                                               */}
-      {/* Struktur: [2er][3er][4er][5er] [•••] -> [Gruppen bilden]                 */}
-      {/* ========================================================================= */}
-      {size.isCompact ? (
-        <div className={`shrink-0 p-2 border-b ${
-          currentIsLight ? 'bg-white border-stone-200' : 'bg-stone-900/90 border-stone-800'
-        }`}>
-          <div className="flex items-center gap-1 justify-between mb-1.5">
-            <div className="flex items-center gap-1">
-              {[2, 3, 4, 5].map((num) => {
-                const isSelected = mode === 'size' && targetValue === num;
-                return (
-                  <button
-                    key={num}
-                    onClick={() => {
-                      setMode('size');
-                      setTargetValue(num);
-                      if (groups.length > 0) handleGenerate('size', num);
-                    }}
-                    className={`min-w-[42px] min-h-[36px] px-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center border ${
-                      isSelected
-                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
-                        : currentIsLight
-                        ? 'bg-stone-100 hover:bg-stone-200 border-stone-200 text-stone-800'
-                        : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-200'
-                    }`}
-                  >
-                    {num}er
-                  </button>
-                );
-              })}
-            </div>
-
-          </div>
-
-          {/* Primary Action Button */}
-          <button
-            onClick={() => handleGenerate()}
-            className="w-full min-h-[42px] px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm active:scale-98 transition-all cursor-pointer"
-          >
-            {groups.length === 0 ? <Sparkles size={15} /> : <RotateCcw size={14} />}
-            <span>{groups.length === 0 ? 'Gruppen bilden' : 'Neu mischen'}</span>
-          </button>
+      {/* The teaching surface contains actions and results only.
+          All group size, count, roster and pair preferences live under
+          Widget hinzufügen → Widget-Einstellungen. */}
+      <div className={`shrink-0 flex flex-wrap items-center justify-between gap-2 border-b p-2 sm:p-3 ${
+        currentIsLight ? 'bg-white border-stone-200' : 'bg-stone-900/90 border-stone-800'
+      }`}>
+        <div className="min-w-0">
+          <p className="text-xs font-black">{mode === 'count' ? `${targetValue} Gruppen` : `${targetValue}er-Gruppen`}</p>
+          <p className="text-xs opacity-70">{activeStudentIds.length} Kinder {studentScope === 'all' ? 'aus der Klasse' : 'heute anwesend'}</p>
         </div>
-      ) : (
-        /* ========================================================================= */
-        /* 2. STANDARD (380-549px) / LARGE (550-799px) / FULLSCREEN (>= 800px) HEADER */
-        /* ========================================================================= */
-        <div className={`shrink-0 p-2.5 sm:p-3 border-b ${
-          currentIsLight ? 'bg-white border-stone-200' : 'bg-stone-900/90 border-stone-800'
-        }`}>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            {/* Linke Seite: Gruppengröße Presets */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] uppercase tracking-wider font-extrabold text-stone-400 dark:text-stone-500 mr-0.5">
-                Größe:
-              </span>
-              {[2, 3, 4, 5].map((num) => {
-                const isSelected = mode === 'size' && targetValue === num;
-                return (
-                  <button
-                    key={num}
-                    onClick={() => {
-                      setMode('size');
-                      setTargetValue(num);
-                      if (groups.length > 0) handleGenerate('size', num);
-                    }}
-                    className={`min-w-[44px] min-h-[38px] px-2.5 py-1 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center border ${
-                      isSelected
-                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
-                        : currentIsLight
-                        ? 'bg-stone-100 hover:bg-stone-200 border-stone-200 text-stone-800'
-                        : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-200'
-                    }`}
-                  >
-                    {num}er
-                  </button>
-                );
-              })}
-
-              {/* Anzahl Gruppen Umschalter (Standard/Large/XL) */}
-              <button
-                onClick={() => {
-                  const nextMode = mode === 'size' ? 'count' : 'size';
-                  setMode(nextMode);
-                  setTargetValue(nextMode === 'count' ? 4 : 4);
-                }}
-                className={`px-2.5 py-1 min-h-[38px] rounded-xl text-[11px] font-extrabold uppercase transition-all border cursor-pointer ${
-                  mode === 'count'
-                    ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
-                    : currentIsLight
-                    ? 'bg-stone-50 border-stone-200 text-stone-600 hover:text-stone-900'
-                    : 'bg-stone-900 border-stone-800 text-stone-400 hover:text-stone-200'
-                }`}
-              >
-                {mode === 'count' ? `${targetValue} Gr.` : 'Anzahl...'}
-              </button>
-
-              {mode === 'count' && (
-                <div className="flex items-center gap-1">
-                  {[2, 3, 4, 5, 6].map((cnt) => (
-                    <button
-                      key={cnt}
-                      onClick={() => {
-                        setTargetValue(cnt);
-                        if (groups.length > 0) handleGenerate('count', cnt);
-                      }}
-                      className={`min-w-[34px] min-h-[38px] px-1.5 py-1 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center border ${
-                        targetValue === cnt
-                          ? 'bg-indigo-600 text-white border-indigo-700 shadow-sm'
-                          : currentIsLight
-                          ? 'bg-stone-100 hover:bg-stone-200 border-stone-200 text-stone-700'
-                          : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-300'
-                      }`}
-                    >
-                      {cnt}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Rechte Seite: Gruppen bilden & Optionen */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleGenerate()}
-                className="min-h-[44px] px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer"
-              >
-                {groups.length === 0 ? <Sparkles size={16} /> : <RotateCcw size={15} />}
-                <span>{groups.length === 0 ? 'Gruppen bilden' : 'Neu mischen'}</span>
-              </button>
-
-            </div>
-          </div>
-        </div>
-      )}
+        <button type="button" onClick={() => handleGenerate()}
+          className="min-h-11 shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-700">
+          {groups.length === 0 ? 'Gruppen bilden' : 'Neu mischen'}
+        </button>
+      </div>
 
       {/* ========================================================================= */}
       {/* OPTIONEN MODAL / OVERLAY (Pausieren, Paar-Wünsche, Stil)                   */}
