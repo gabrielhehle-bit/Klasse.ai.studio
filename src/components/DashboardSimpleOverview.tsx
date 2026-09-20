@@ -20,18 +20,22 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
   const primaryTarget =
     p.totalStudents === 0
       ? 'schueler'
-      : p.attendanceRequired && !p.attendanceRecorded
-        ? 'anwesenheit'
-        : 'cockpit';
+      : p.freeDayGreeting
+        ? 'wochenplanung'
+        : p.attendanceRequired && !p.attendanceRecorded
+          ? 'anwesenheit'
+          : 'cockpit';
 
   const primaryLabel =
     p.totalStudents === 0
       ? 'Kinder hinzufügen'
-      : p.attendanceRequired && !p.attendanceRecorded
-        ? 'Anwesenheit prüfen'
-        : p.currentLesson
-          ? 'Unterricht öffnen'
-          : 'Unterricht starten';
+      : p.freeDayGreeting
+        ? 'Planung ansehen'
+        : p.attendanceRequired && !p.attendanceRecorded
+          ? 'Anwesenheit prüfen'
+          : p.currentLesson
+            ? 'Unterricht öffnen'
+            : 'Unterricht starten';
 
   const attendanceValue =
     p.privacyMode
@@ -46,6 +50,15 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
 
   return (
     <section aria-label="Heute" className="space-y-5 text-slate-900">
+      {p.freeDayGreeting && (
+        <section role="status" aria-label="Wochenende, Ferien oder Feiertag"
+          className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-emerald-50 p-5 sm:p-7">
+          <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">Eine kleine Auszeit</p>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">{p.freeDayGreeting.title}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-slate-700">{p.freeDayGreeting.message}</p>
+          <p className="mt-3 text-xs text-slate-500">Deine Termine und offenen Aufgaben bleiben unten im Blick.</p>
+        </section>
+      )}
       <header className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-7">
         <div className="flex flex-wrap items-start gap-4">
           <div>
@@ -63,7 +76,7 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
             onClick={() => p.onNavigate(primaryTarget)}
             className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[var(--accent)] px-6 py-4 text-base font-semibold text-white transition hover:opacity-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)] sm:w-auto"
           >
-            {primaryTarget === 'cockpit' ? <Play size={20} /> : <Users size={20} />}
+            {primaryTarget === 'cockpit' ? <Play size={20} /> : primaryTarget === 'wochenplanung' ? <CalendarDays size={20} /> : <Users size={20} />}
             {primaryLabel}
             <ArrowRight size={18} />
           </button>
@@ -84,11 +97,16 @@ export default function DashboardSimpleOverview(p: DashboardTodayOverviewProps) 
               </h2>
             </div>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-              {p.todayLessonsList.length} {p.todayLessonsList.length === 1 ? 'Stunde' : 'Stunden'}
+              {p.freeDayGreeting ? 'Schulfrei' : `${p.todayLessonsList.length} ${p.todayLessonsList.length === 1 ? 'Stunde' : 'Stunden'}`}
             </span>
           </div>
 
-          {p.todayLessonsList.length ? (
+          {p.freeDayGreeting ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+              <p className="text-sm font-semibold text-emerald-900">Heute ist kein regulärer Unterricht vorgesehen.</p>
+              <p className="mt-1 text-sm text-emerald-800">Dein Stundenplan und deine Planungen bleiben gespeichert.</p>
+            </div>
+          ) : p.todayLessonsList.length ? (
             <ol className="space-y-2">
               {p.todayLessonsList.map((lesson, index) => (
                 <li key={`${lesson.id ?? index}-${index}`}>

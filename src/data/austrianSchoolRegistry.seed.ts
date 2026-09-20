@@ -19,4 +19,13 @@ export const INITIAL_VERIFIED_AUSTRIAN_SCHOOLS: Array<Omit<SchoolRecord, 'create
     domains: ['vskr.vobs.at'],
     status: 'verified',
   },
+  {
+    id: 'at-vbg-vs-mellau',
+    code: 'vsml',
+    name: 'Volksschule Mellau',
+    country: 'AT',
+    federalState: 'Vorarlberg',
+    domains: ['vsml.vobs.at'],
+    status: 'verified',
+  },
 ];
