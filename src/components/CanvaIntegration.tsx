@@ -312,9 +312,9 @@ export default function CanvaIntegration() {
             <div className="flex-1">
               <h2 className="font-black text-[var(--text)]">Canva verbinden</h2>
               <p className="mt-1 text-sm leading-relaxed text-[var(--text2)]">
-                {status.requiresEmailLogin
+                {status.reason || (status.requiresEmailLogin
                   ? 'Bitte melde dich zuerst mit deiner E-Mail-Adresse bei Klassio an. Die Canva-Verbindung gehört nur zu deinem Konto.'
-                  : 'Die Anmeldung läuft über Canva OAuth 2.0 mit PKCE. Zugangstokens bleiben verschlüsselt und kontogebunden auf dem Klassio-Server.'}
+                  : 'Die Anmeldung läuft über Canva OAuth 2.0 mit PKCE. Zugangstokens bleiben verschlüsselt und kontogebunden auf dem Klassio-Server.')}
               </p>
             </div>
             <button type="button" onClick={connect} disabled={status.requiresEmailLogin}
