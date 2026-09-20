@@ -101,9 +101,14 @@ export class EncryptedAttachmentStore {
       const staging = target + '.' + crypto.randomBytes(12).toString('hex') + '.tmp';
       try {
         await fs.writeFile(staging, ciphertext, { mode: 0o600, flag: 'wx' });
-        // Single-instance account queue and no-overwrite make the filename
-        // immutable; stage under same directory so rename is atomic.
-        await fs.rename(staging, target);
+        // Atomic hard-link creation fails with EEXIST instead of replacing an
+        // existing ciphertext blob, even if a second server process races us.
+        // (Per-account disk quota still assumes one KLASSIO service instance.)
+        try { await fs.link(staging, target); }
+        catch (error: any) {
+          if (error?.code === 'EEXIST') throw new AttachmentStorageError('FILE_EXISTS', 409);
+          throw error;
+        }
       } finally {
         await fs.rm(staging, { force: true }).catch(() => {});
       }
