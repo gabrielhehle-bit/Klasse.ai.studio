@@ -339,15 +339,15 @@ async function openAccountSettings(client) {
   // A freshly created vault can still be hydrating during the first dashboard
   // render. Wait for its stable navigation instead of losing the first click.
   await sleep(900);
-  const settingsButton = String.raw`(() => {const b=document.querySelector('button[data-menu-id="settings"]');if(!b||b.disabled)return false;b.click();return true;})()`;
+  const settingsButton = String.raw`(() => {const b=document.querySelector('button[title="Einstellungen"]');if(!b||b.disabled)return false;b.click();return true;})()`;
   const clicked = await evaluate(client, settingsButton);
   if (!clicked) throw new Error(client.name + ': settings navigation missing after vault setup');
   try {
     await waitFor(client, 'settings sidebar active',
-      String.raw`Boolean(document.querySelector('button[data-menu-id="settings"][aria-current="page"]'))`, 5500);
+      String.raw`Boolean(document.querySelector('button[title="Einstellungen"][aria-current="page"]'))`, 5500);
   } catch (error) {
     const state = await evaluate(client,
-      String.raw`({active:[...document.querySelectorAll('button[aria-current="page"]')].map(b=>b.textContent.trim()),settingsPresent:!!document.querySelector('button[data-menu-id="settings"]'),heading:document.querySelector('h1,h2')?.textContent})`);
+      String.raw`({active:[...document.querySelectorAll('button[aria-current="page"]')].map(b=>b.textContent.trim()),settingsPresent:!!document.querySelector('button[title="Einstellungen"]'),heading:document.querySelector('h1,h2')?.textContent})`);
     throw new Error(client.name + ': navigating to account settings did not persist: ' + JSON.stringify(state) + ' / ' + String(error));
   }
   await waitFor(client, 'settings page', 'document.body?.innerText.includes("Was möchtest du in Klassio anpassen?")', 20000);
