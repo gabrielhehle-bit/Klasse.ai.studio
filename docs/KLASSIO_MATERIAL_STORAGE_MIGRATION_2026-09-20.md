@@ -6,7 +6,14 @@ Updated: 2026-09-20. Source: GitHub `main` `b40f56f64ed9f8aeff57cb8a853ff2bf4a83
 
 `MaterialItem.dateiInhalt` is a Base64 data URL embedded in the encrypted AppState. `src/lib/materialLibraryUtils.ts` currently limits the whole library to 5 MB and each file to 3 MB. `src/server/accountSyncStore.ts` caps account-sync encrypted states at 20 MiB; `server.ts` uses JSON body size limits. Raising `MATERIAL_LIBRARY_MAX_MB` alone would break these paths and risk lost data. Legacy JSON imports, encrypted backups, existing classes and the material attachment references must stay readable.
 
-## Separate encrypted file contract (not yet implemented)
+## Implementation progress (still not released or used by the app)
+
+- `src/lib/materialAttachmentCrypto.ts`: tested client-side AES-GCM-256 envelope, fresh random file key per binary attachment, vault-wrapped key, unique IVs and authenticated association with the pre-existing random material ID. File plaintext/title never reaches the server. Only the opaque binary ciphertext is suitable for upload; the manifest remains **inside the existing encrypted AppState**. At this stage the component is not invoked by the material UI.
+- `src/server/encryptedAttachmentStore.ts`: per-email-account opaque ciphertext blobs in `KLASSIO_DATA_DIR/material-attachments/<account-id>/<opaque-id>.blob` (0600), immutable writes, checked 25-MiB-plus-GCM-tag binary size, serialized free-account quota at **100 MiB ciphertext**, no student/class/file metadata. `server.ts` introduces account-authenticated binary POST/GET/DELETE/usage endpoints **behind `KLASSIO_ENCRYPTED_ATTACHMENTS_ENABLED=false`**; all disabled endpoints return 404 by default. This flag must stay false on production.
+- Synthetic tests cover encryption/decryption, wrong vault, tampered bytes/metadata, account separation, disk restart, server access guard, race/overwrite and free quota. These are *foundational pieces*, not an end-to-end material migration or a paid entitlement system.
+- A verified fail-safe attachment-inclusive manual JSON/ZIP backup, restore and per-device/offline caching are **still missing**. Nothing removes, rewrites or replaces existing `MaterialItem.dateiInhalt` values. Current 5-MB library/3-MB file limits are intentionally unchanged.
+
+## Separate encrypted file contract (partially implemented; feature remains OFF)
 
 1. A logged-in teacher obtains a **client-side random per-file key**, wrapped by the current vault key. The client encrypts file bytes and a manifest using AES-GCM with unique nonces and authenticated version/user/material reference. The server **never** receives plaintext filenames, content, vault keys, passwords or recovery codes.
 2. Store ciphertext outside the app-state JSON, under a persistent `KLASSIO_DATA_DIR` path with server-side *email-account ID* authorization and opaque random attachment IDs; reject traversal, malformed ciphertext descriptors, oversized uploads and cross-account access. Deduplicate only within the same account after authenticated proof; never use content hash as globally visible ID.
