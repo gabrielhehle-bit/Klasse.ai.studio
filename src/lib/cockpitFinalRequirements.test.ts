@@ -131,20 +131,22 @@ test("Cockpit: Zeichenfeld und gemeinsame Zeichenebene sind sprachlich getrennt"
   assert.doesNotMatch(cockpitWidget, /drawing: "🖍️ Zeichentafel"/);
 });
 
-test("Cockpit: weiße Unterrichtsfläche hat direkte Schreibebene und eine gemeinsame externe Werkzeugleiste", () => {
+test("Cockpit: weiße Unterrichtsfläche zeigt historische Zeichnungen, ohne unnötige Stift-/Radierer-Knöpfe", () => {
   assert.match(teachingSurface, /<BoardInk/);
   assert.match(teachingSurface, /cockpitInkByClass/);
   assert.match(teachingSurface, /externalToolbar/);
   assert.match(teachingSurface, /hideToolbar/);
-  assert.match(teachingSurface, /aria-label="Unterrichtsfläche: Auswählen, Zeichnen und Text"/);
-  assert.match(teachingSurface, /boardTool === 'pen'/);
-  assert.match(teachingSurface, /boardTool === 'erase'/);
+  assert.match(teachingSurface, /aria-label="Unterrichtsfläche: Text und Papier"/);
+  assert.doesNotMatch(teachingSurface, /\['pen', 'Stift'\]|\['erase', 'Radierer'\]/);
+  assert.doesNotMatch(teachingSurface, /boardTool === 'pen'|boardTool === 'erase'/);
+  assert.match(teachingSurface, /<BoardInk[\s\S]*?active=\{false\}/);
   assert.match(teachingSurface, /boardTool === 'text'/);
   assert.doesNotMatch(teachingSurface, /Weiße Smartboard-Fläche/);
 });
 
+
 test("Cockpit: TEXT macht die weiße Fläche zu einem klassenlokalen Rich-Text-Dokument", () => {
-  assert.match(teachingSurface, /\[\x27text\x27, \x27TEXT\x27\]/);
+  assert.match(teachingSurface, />TEXT<\/button>/);
   assert.match(teachingSurface, /<BoardTextEditor/);
   assert.match(teachingSurface, /cockpitTextByClass/);
   assert.match(teachingSurface, /boardTextClassKey = app\.activeClassId \|\| "unassigned"/);
