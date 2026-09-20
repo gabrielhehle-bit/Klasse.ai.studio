@@ -26,6 +26,7 @@ import {
   getStudentMood,
 } from '../../../lib/kidAttendanceAlgorithm';
 import { KID_MOOD_SCALE, getMoodMeta } from '../../../lib/moodTypes';
+import { getStudentGridLayout } from '../../../lib/studentWidgetGrid';
 
 export interface KidAttendanceWidgetProps {
   widget?: CockpitWidgetConfig;
@@ -238,6 +239,10 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     );
   }
 
+  const studentGrid = getStudentGridLayout(size.width, size.height, students.length, { reservedHeight: 146, minCardWidth: 175, minCardHeight: 52, gap: 6 });
+  const denseStudentGrid = students.length >= 16;
+  const expandStudentGrid = () => onUpdate?.({ x: 2, y: 2, w: 96, h: 90 });
+
   // Render einer einzelnen Schülerkarte
   const renderStudentCard = (student: Student, isCompactView = false) => {
     const displayName = displayNames.get(student.id) || student.vorname;
@@ -271,7 +276,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     }
 
     // Touch-Target-Größen je nach Modus
-    const cardHeight = size.isXL
+    const cardHeight = denseStudentGrid
+      ? 'min-h-[52px] px-2 py-1'
+      : size.isXL
       ? 'min-h-[80px] px-4 py-3'
       : size.isLarge
       ? 'min-h-[64px] px-3.5 py-2.5'
@@ -294,6 +301,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             ? `${displayName} ist eingecheckt`
             : `${displayName}: Hier tippen für "Ich bin da!"`
         }
+        style={denseStudentGrid ? { minHeight: 52, height: Math.min(82, studentGrid.cardHeight) } : undefined}
         className={`w-full ${cardHeight} rounded-xl border flex items-center justify-between gap-2.5 text-left transition-all duration-150 select-none ${
           status === 'open' ? 'cursor-pointer active:scale-97' : ''
         } ${cardClasses}`}
@@ -317,7 +325,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           <div className="min-w-0 flex-1">
             <span
               className={`block whitespace-normal break-words font-black leading-tight ${
-                size.isXL
+                denseStudentGrid
+                  ? 'text-xs sm:text-sm tracking-tight'
+                  : size.isXL
                   ? 'text-lg sm:text-xl tracking-tight'
                   : size.isLarge
                   ? 'text-base font-bold'
@@ -361,7 +371,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   // ==========================================
   // COMPACT LAYOUT (< 380px)
   // ==========================================
-  if (size.isCompact && !isCompactCheckInOpen) {
+  if (size.isCompact && !isCompactCheckInOpen && studentGrid.fits && students.length <= 2) {
     return (
       <div
         ref={containerRef}
@@ -397,7 +407,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-1 pr-0.5" aria-label="Anwesenheitsliste mit allen Kindern">
+          <div className="flex-1 min-h-0 overflow-hidden space-y-1 pr-0.5" aria-label="Anwesenheitsliste mit allen Kindern">
             {students.map((student) => {
               const displayName = displayNames.get(student.id) || student.vorname;
               const { status, delayMinutes } = getStudentAttendanceStatus(student.id, app, todayStr);
@@ -481,14 +491,6 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   // ==========================================
   // Kinderkarten bekommen bewusst mehr Breite: Namen dürfen niemals zugunsten
   // einer möglichst hohen Spaltenzahl abgeschnitten werden.
-  const gridColumnsClass = size.isXL
-    ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4'
-    : size.isLarge
-    ? 'grid-cols-2 md:grid-cols-3'
-    : size.isStandard
-    ? 'grid-cols-2'
-    : 'grid-cols-1 sm:grid-cols-2'; // Für aufgeklapptes Compact
-
   return (
     <div
       ref={containerRef}
@@ -582,11 +584,24 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         </div>
       </div>
 
-      {/* MITTLERER BEREICH: Scrollbares Schüler-Karten-Raster (Kartenbereich scrollt vertikal) */}
-      <div className="flex-1 overflow-y-auto no-scrollbar p-3 sm:p-4 min-h-0">
-        <div className={`grid gap-2.5 sm:gap-3 w-full ${gridColumnsClass}`}>
-          {students.map((student) => renderStudentCard(student))}
-        </div>
+      {/* 25 Kinder werden als angepasstes, scrollbarfreies Raster gezeigt. */}
+      <div className="flex-1 overflow-hidden p-2 sm:p-3 min-h-0">
+        {studentGrid.fits ? (
+          <div className="grid w-full content-start gap-1.5" style={{
+            gridTemplateColumns: `repeat(${studentGrid.columns}, minmax(0, 1fr))`,
+          }} aria-label="Anwesenheitsliste mit allen Kindern">
+            {students.map((student) => renderStudentCard(student))}
+          </div>
+        ) : (
+          <div role="status" className="flex h-full flex-col items-center justify-center gap-3 rounded-xl bg-slate-50 p-4 text-center text-slate-800">
+            <p className="text-sm font-bold">{students.length} Kinder benötigen mehr Platz, damit alle Namen und Schaltflächen sichtbar bleiben.</p>
+            <button type="button" onClick={expandStudentGrid} disabled={!onUpdate}
+              className="min-h-11 rounded-xl bg-indigo-600 px-5 text-sm font-bold text-white disabled:opacity-50">
+              Alle {students.length} Kinder groß anzeigen
+            </button>
+            <p className="text-xs">Bei sehr kleinen Bildschirmen den Vollbildmodus verwenden.</p>
+          </div>
+        )}
       </div>
 
       {/* UNTERE LEISTE (Fußbereich, fest, kein Scroll) */}
