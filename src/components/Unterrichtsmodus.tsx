@@ -9753,7 +9753,7 @@ ${content}
 
                                 <div className="h-px bg-slate-100 dark:bg-white/5 my-0.5" />
                                 <div className="px-2 pt-1 text-[8.5px] font-black uppercase tracking-wider text-slate-400">
-                                  Ansicht & Klasse
+                                  Ansicht
                                 </div>
 
                                 <button
