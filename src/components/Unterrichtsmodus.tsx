@@ -9787,6 +9787,25 @@ ${content}
                                   <span>{sidebarMode !== "hidden" ? "Schülerliste ausblenden" : "Schülerliste einblenden"}</span>
                                 </button>
 
+                                <label className={`flex min-h-11 cursor-pointer items-start gap-2 rounded-lg px-2.5 py-2 text-[10px] font-semibold ${currentIsLight ? "text-slate-800 hover:bg-slate-100" : "text-white hover:bg-white/10"}`}>
+                                  <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0"
+                                    aria-label="Verhalten der Kinder öffentlich in der Schülerliste anzeigen"
+                                    checked={app.boardSettings?.showStudentBehaviorInPluspoints === true}
+                                    onChange={event => setApp(prev => ({
+                                      ...prev,
+                                      boardSettings: {
+                                        ...prev.boardSettings,
+                                        showStudentBehaviorInPluspoints: event.target.checked,
+                                      },
+                                    }))} />
+                                  <span>
+                                    <span className="block font-bold">Verhalten in der Schülerliste anzeigen</span>
+                                    <span className="mt-0.5 block text-[9px] font-normal leading-snug opacity-80">
+                                      Auch für Kinder auf dem Smartboard sichtbar. Nur Status/Emoji, keine privaten Notizen. Standardmäßig aus.
+                                    </span>
+                                  </span>
+                                </label>
+
                                 <button
                                   type="button"
                                   onClick={() => {
