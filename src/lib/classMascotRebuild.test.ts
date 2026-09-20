@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import ClassMascotWidget from '../components/cockpit/ClassMascotWidget';
 import { DEFAULT_CLASS_MASCOT, MASCOT_OPTIONS, mascotMessage, normalizeClassMascot, reactToMascotAction, selectClassMascot } from './classMascot';
 import { initialAppState, normalizeAppState, switchClassState, syncActiveClass } from './appState';
 
@@ -57,4 +60,23 @@ test('the new widget fully replaces the old widget and no floating pet or access
   assert.doesNotMatch(widget, /getStudent|studentId|schueler|noten|verhalten|anwesenheit/);
   const app = readFileSync('src/App.tsx', 'utf8');
   assert.doesNotMatch(app, /<UnifiedFAB\s*\/>/);
+});
+
+test('the real React widget renders all four figures and the teacher controls', () => {
+  const render = (kind: 'otter' | 'dog' | 'cat' | 'elf') => renderToStaticMarkup(
+    React.createElement(ClassMascotWidget, {
+      app: { ...initialAppState, classMascot: { ...DEFAULT_CLASS_MASCOT, kind, name: MASCOT_OPTIONS.find(option => option.kind === kind)!.name } },
+      setApp: () => undefined,
+    }),
+  );
+  for (const kind of ['otter', 'dog', 'cat', 'elf'] as const) {
+    const output = render(kind);
+    assert.match(output, /Unser Klassenmaskottchen/);
+    assert.match(output, /role="img"/);
+    assert.match(output, /Loben/);
+    assert.match(output, /Zur Ruhe kommen/);
+    assert.match(output, /Mut machen/);
+    assert.match(output, new RegExp(MASCOT_OPTIONS.find(option => option.kind === kind)!.name));
+    assert.doesNotMatch(output, /floating-classpet-outer|HAUSTIER-KOMMANDOZENTRALE/);
+  }
 });
