@@ -60,6 +60,8 @@ export default function PlanungsZentrale() {
   const [activeSubject, setActiveSubject] = useState<string>('');
   const [lessonTopic, setLessonTopic] = useState<string>('');
   const [lessonHomework, setLessonHomework] = useState<string>('');
+  const [showInChildWeekPlan, setShowInChildWeekPlan] = useState(false);
+  const [childWeekMaterial, setChildWeekMaterial] = useState('');
   
   // Didactic settings
   const [didacticType, setDidacticType] = useState<'Einführung' | 'Einzelarbeit mit Kind' | 'Frontalunterricht' | 'Projektunterricht / Freiarbeit'>('Einführung');
@@ -207,6 +209,8 @@ export default function PlanungsZentrale() {
       setActiveSubject(lesson.fach);
       setLessonTopic(lesson.thema || '');
       setLessonHomework(lesson.housework || '');
+      setShowInChildWeekPlan(lesson.imKinderWochenplan === true);
+      setChildWeekMaterial(lesson.wochenplanMaterial || '');
       setDidacticType(lesson.art || 'Einführung');
       setSocialForm(lesson.sozialform || 'Einzelarbeit');
       
@@ -223,6 +227,8 @@ export default function PlanungsZentrale() {
       setActiveSubject(defaultFach || availableSubjects[0] || '');
       setLessonTopic('');
       setLessonHomework('');
+      setShowInChildWeekPlan(false);
+      setChildWeekMaterial('');
       setDidacticType('Einführung');
       setSocialForm('Einzelarbeit');
       setSelectedMaterials([]);
@@ -260,9 +266,12 @@ export default function PlanungsZentrale() {
       const dayPlan = { ...(weekPlan[dayKey] || {}) };
 
       dayPlan[selectedHour] = {
+        ...dayPlan[selectedHour],
         fach: activeSubject,
         thema: lessonTopic,
         housework: lessonHomework,
+        imKinderWochenplan: showInChildWeekPlan,
+        wochenplanMaterial: childWeekMaterial.trim(),
         art: didacticType,
         sozialform: socialForm,
         material: materialSummary,
@@ -1515,6 +1524,20 @@ Formatiere mit übersichtlichem Markdown und freundlichem Ton für Lehrpersonen.
                       />
                     </div>
 
+                    <section className="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                      <label className="flex min-h-11 items-center gap-3 text-xs font-black text-slate-900">
+                        <input type="checkbox" checked={showInChildWeekPlan}
+                          onChange={event => setShowInChildWeekPlan(event.target.checked)}
+                          className="h-5 w-5 accent-indigo-700" />
+                        Im Wochenplan der Kinder anzeigen
+                      </label>
+                      {showInChildWeekPlan && <label className="mt-2 block text-xs font-semibold text-slate-700">
+                        Was brauchen die Kinder? (optional, sonst Materialien der Stunde)
+                        <textarea value={childWeekMaterial} onChange={event => setChildWeekMaterial(event.target.value)}
+                          className="mt-2 w-full rounded-xl border border-indigo-200 bg-white p-3 text-xs"
+                          placeholder="z. B. Arbeitsheft S. 12, Bleistift" />
+                      </label>}
+                    </section>
                     {/* EXPANDABLE SECTION: MEHR DETAILS */}
                     <div className="border-t border-slate-100 pt-2">
                       <button
