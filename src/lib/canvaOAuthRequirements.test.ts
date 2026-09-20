@@ -24,6 +24,15 @@ test('Canva design thumbnails are permitted in the image CSP only', () => {
   assert.ok(connectSrc && !connectSrc.includes('canva.com'), 'Client does not call Canva APIs directly');
 });
 
+test('Canva thumbnails use browser origin policy and show a usable fallback on load failure', () => {
+  const appCsp = server.split('\n').find(row => row.includes("strict-origin-when-cross-origin"));
+  assert.ok(appCsp, 'Browser may send its origin without leaking full KLASSIO URLs');
+  assert.doesNotMatch(canva, /referrerPolicy="no-referrer"/, 'Do not prevent Canva image host from recognizing the origin');
+  assert.match(canva, /src=\{design\.thumbnail\.url\}/);
+  assert.match(canva, /onError=\{event => \{ event\.currentTarget\.hidden = true; \}\}/);
+  assert.match(canva, /Vorschau nicht verfügbar/);
+});
+
 test('Canva editor/export popup is opened before async API work; JPEG uses mandatory quality', () => {
   const create = canva.slice(canva.indexOf('const createDesign = async'), canva.indexOf('const exportDesign = async'));
   const exportFn = canva.slice(canva.indexOf('const exportDesign = async'), canva.indexOf('const useDesignInKlassio = async'));
