@@ -106,6 +106,17 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     };
   }, []);
 
+  // A class switch must never leave another class's name or private mood
+  // prompt on the shared teaching surface.
+  React.useEffect(() => {
+    if (moodCloseTimerRef.current) clearTimeout(moodCloseTimerRef.current);
+    moodCloseTimerRef.current = null;
+    setActiveMoodStudent(null);
+    setIsTeacherModalOpen(false);
+    setIsFinalizeModalOpen(false);
+    setRecentlyTappedId(null);
+  }, [app.activeClassId]);
+
   // Schüler tippt auf Karte (Schülermodus)
   const handleStudentCardTap = useCallback((studentId: string) => {
     const currentStatus = getStudentAttendanceStatus(studentId, app, todayStr);
