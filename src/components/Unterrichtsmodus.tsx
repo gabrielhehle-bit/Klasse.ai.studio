@@ -8286,6 +8286,15 @@ ${content}
                                               </label>
                                             ))}
                                             <p className="text-xs text-slate-600">Die Auswahl gilt bei der nächsten Einteilung. Bestehende Gruppen werden nicht ungefragt neu gemischt.</p>
+                                            {!configured.visible && (
+                                              <button type="button" onClick={() => handleOpenWidgetInCockpitLayout("groups")}
+                                                className="min-h-11 w-full rounded-xl bg-indigo-600 px-3 text-sm font-bold text-white">
+                                                Gruppen-Widget öffnen, um die weiteren Optionen zu bearbeiten
+                                              </button>
+                                            )}
+                                            {configured.visible && (
+                                              <div id="cockpit-groups-settings-host" className="w-full" aria-label="Weitere Gruppen-Einstellungen: Kinder pausieren, Paar-Wünsche, Namen" />
+                                            )}
                                           </fieldset>
                                         );
                                       })()}
@@ -11483,6 +11492,8 @@ ${content}
                                           }
                                           generateGroups={generateGroups}
                                           currentIsLight={currentIsLight}
+                                          settingsInPicker={isAddWidgetMenuOpen && isWidgetConfigurationOpen && selectedWidgetConfiguration === "groups"}
+                                          onClosePickerSettings={() => setIsWidgetConfigurationOpen(false)}
                                         />
                                       );
 
