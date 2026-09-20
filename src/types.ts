@@ -1604,6 +1604,8 @@ export interface AppState {
     notepadBackground?: 'empty' | 'lines' | 'grid' | 'squares' | 'checklist';
     studentNameStyle?: 'vorname_nachname' | 'nachname_vorname' | 'nur_initialen' | 'nur_emoji' | 'nur_vorname' | 'nur_nachname' | 'vorname_initiale' | 'emoji_vorname';
     showStudentEmojiInList?: boolean;
+    /** Explicit teacher-controlled opt-in for showing behavior stage labels on public pluspoint cards; off when absent. */
+    showStudentBehaviorInPluspoints?: boolean;
     splitSmartboardMode?: boolean;
     whiteboardSnapshot?: any;
     showAmpel: boolean;
