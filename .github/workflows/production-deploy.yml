@@ -1,0 +1,158 @@
+name: KLASSIO Production Deploy
+
+# Runs only after the existing predeployment workflow has validated and bundled main.
+# Does not run on pull_request code. No staging environment is required.
+on:
+  workflow_run:
+    workflows:
+      - Pre-Deployment Audit
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+
+concurrency:
+  group: klassio-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      ${{ github.event.workflow_run.conclusion == 'success' &&
+          github.event.workflow_run.head_branch == 'main' &&
+          github.event.workflow_run.head_repository.full_name == github.repository &&
+          vars.KLASSIO_AUTODEPLOY_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: production
+    env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Verify that the release is still main and browser checks passed
+        shell: bash
+        run: |
+          set -euo pipefail
+          API="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          api() {
+            curl --fail --silent --show-error --retry 3 \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" "$1"
+          }
+
+          # The predeployment workflow is already green for RELEASE_SHA.
+          # The other two global browser workflows run independently on each push to main.
+          for attempt in $(seq 1 90); do
+            current="$(api "$API/branches/main" | jq -r '.commit.sha')"
+            if [[ "$current" != "$RELEASE_SHA" ]]; then
+              echo "Skipping an outdated release: main is $current, release is $RELEASE_SHA"
+              exit 1
+            fi
+
+            checks="$(api "$API/commits/$RELEASE_SHA/check-runs?per_page=100&filter=latest")"
+            pending=0
+            for name in school-verification-browser-e2e teamteaching-browser-e2e; do
+              state="$(jq -r --arg name "$name" '
+                [.check_runs[] | select(.name == $name)] |
+                sort_by(.started_at) | last |
+                if . == null then "missing"
+                else (.status + ":" + (.conclusion // "pending")) end
+              ' <<< "$checks")"
+              case "$state" in
+                completed:success) echo "$name: success" ;;
+                completed:failure|completed:cancelled|completed:timed_out|completed:action_required)
+                  echo "Blocking deployment: $name = $state"; exit 1 ;;
+                *) echo "Waiting for $name ($state)"; pending=1 ;;
+              esac
+            done
+
+            if [[ "$pending" -eq 0 ]]; then exit 0; fi
+            sleep 10
+          done
+          echo "Timed out waiting for browser checks on $RELEASE_SHA"
+          exit 1
+
+      - name: Download the tested bundle from this exact audit run
+        uses: actions/download-artifact@v4
+        with:
+          name: klassio-world4you-${{ env.RELEASE_SHA }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: release
+
+      - name: Verify the artifact and create the server archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          for required in dist/index.html dist/server.cjs package.json bun.lock KLASSIO_DEPLOYMENT_COMMIT.txt; do
+            test -f "release/$required" || { echo "Missing release/$required"; exit 1; }
+          done
+          artifact_sha="$(tr -d '[:space:]' < release/KLASSIO_DEPLOYMENT_COMMIT.txt)"
+          [[ "$artifact_sha" == "$RELEASE_SHA" ]] || {
+            echo "Refusing artifact from a different commit"; exit 1;
+          }
+          (cd release && zip -q -r ../klassio-release.zip .)
+          sha256sum klassio-release.zip
+          echo "BUNDLE_SHA256=$(sha256sum klassio-release.zip | awk '{print $1}')" >> "$GITHUB_ENV"
+
+      - name: Transfer and deploy to World4You
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.KLASSIO_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.KLASSIO_DEPLOY_USER }}
+          DEPLOY_PORT: ${{ secrets.KLASSIO_DEPLOY_PORT }}
+          DEPLOY_PRIVATE_KEY: ${{ secrets.KLASSIO_DEPLOY_PRIVATE_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.KLASSIO_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          for var in DEPLOY_HOST DEPLOY_USER DEPLOY_PRIVATE_KEY DEPLOY_KNOWN_HOSTS; do
+            [[ -n "${!var:-}" ]] || { echo "Missing GitHub Actions secret: $var"; exit 1; }
+          done
+          [[ "$DEPLOY_USER" == "klassio-deploy" ]] || {
+            echo "Use the dedicated klassio-deploy account, not root"; exit 1;
+          }
+          DEPLOY_PORT="${DEPLOY_PORT:-22}"
+          [[ "$DEPLOY_PORT" =~ ^[0-9]{1,5}$ ]] || { echo "Invalid SSH port"; exit 1; }
+
+          keyfile="$RUNNER_TEMP/klassio-deploy-key"
+          hostfile="$RUNNER_TEMP/klassio-known-hosts"
+          trap 'rm -f "$keyfile" "$hostfile"' EXIT
+          umask 077
+          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > "$keyfile"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$hostfile"
+          chmod 600 "$keyfile" "$hostfile"
+
+          ssh_opts=(-i "$keyfile" -o BatchMode=yes -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hostfile"
+            -o ConnectTimeout=20 -p "$DEPLOY_PORT")
+          scp_opts=(-i "$keyfile" -o BatchMode=yes -o IdentitiesOnly=yes
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$hostfile"
+            -o ConnectTimeout=20 -P "$DEPLOY_PORT")
+
+          # Check main once more immediately before touching production.
+          latest_main="$(curl --fail --silent --show-error --retry 3 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/branches/main" | jq -r '.commit.sha')"
+          [[ "$latest_main" == "$RELEASE_SHA" ]] || {
+            echo "main advanced since validation, refusing stale deployment"; exit 1;
+          }
+
+          scp "${scp_opts[@]}" klassio-release.zip \
+            "$DEPLOY_USER@$DEPLOY_HOST:/home/klassio-deploy/incoming/klassio-world4you-$RELEASE_SHA.zip"
+          ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "sudo -n /usr/local/sbin/klassio-gh-deploy '$RELEASE_SHA' '$BUNDLE_SHA256'"
+
+      - name: Check public production health
+        shell: bash
+        run: |
+          set -euo pipefail
+          health="$(curl --fail --silent --show-error --retry 5 --retry-delay 2 \
+            --connect-timeout 10 --max-time 20 https://klassio.at/api/health)"
+          echo "$health" | jq -e '.status == "ok"' >/dev/null
+          echo "KLASSIO is responding on https://klassio.at/api/health"
