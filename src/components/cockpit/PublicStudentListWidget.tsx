@@ -4,12 +4,15 @@ import { getDisplayStudentName } from './studentSelectionUtils';
 import { useRef } from 'react';
 import { useWidgetSize } from './widgetLayout';
 import { getStudentGridLayout } from '../../lib/studentWidgetGrid';
+import { adjacentBehaviorStageId } from '../../lib/classroomBehaviorStage';
 
 interface Props {
   app: AppState;
   getTodayPoints: (studentId: string) => number;
   addParticipation: (studentId: string, event?: React.MouseEvent) => void;
   removeParticipation: (studentId: string) => void;
+  /** Teacher action: adjacent stage is written to behavior_status and the dossier history. */
+  onBehaviorStageChange?: (studentId: string, stageId: string) => void;
   /** Provided only inside the movable CockpitWidget, never for the narrow sidebar. */
   onExpand?: () => void;
   /** The narrow Cockpit sidebar must show the whole class in a dense grid. */
@@ -31,6 +34,7 @@ export function PublicStudentListWidget({
   getTodayPoints,
   addParticipation,
   removeParticipation,
+  onBehaviorStageChange,
   onExpand,
   sidebarCompact = false,
 }: Props) {
@@ -122,15 +126,39 @@ export function PublicStudentListWidget({
             : stageId === '4' ? 'bg-amber-100 text-amber-950'
             : stageId === '5' ? 'bg-rose-100 text-rose-950'
             : 'bg-slate-100 text-slate-800';
+          const behaviorStages = app.behavior_stages || [];
+          const betterStageId = stageId ? adjacentBehaviorStageId(behaviorStages, stageId, -1) : null;
+          const nextStageId = stageId ? adjacentBehaviorStageId(behaviorStages, stageId, 1) : null;
           const cardTone = ['border-sky-200 bg-sky-50/80', 'border-amber-200 bg-amber-50/80', 'border-violet-200 bg-violet-50/80', 'border-emerald-200 bg-emerald-50/80'][index % 4];
           return (
             <div key={student.id} role="listitem"
               style={gridMode ? { minHeight: 58, height: Math.min(90, grid.cardHeight) } : undefined}
               className={`flex min-w-0 items-center justify-between gap-0.5 rounded-2xl border-2 shadow-sm ${cardTone} ${gridMode ? 'px-1.5 py-1' : dense ? 'px-1 py-0.5' : 'px-3 py-2'}`}>
               <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                <span aria-hidden="true" className={`${sidebarCompact ? 'hidden' : 'flex'} h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/90 text-base shadow-sm`}>
-                  {student.emoji || '🌈'}
-                </span>
+                {showBehavior && behaviorStage ? (
+                  <div className="flex shrink-0 items-center gap-0.5" aria-label={`Verhalten für ${labels.get(student.id)} einstellen`}>
+                    {onBehaviorStageChange && (
+                      <button type="button" disabled={!betterStageId}
+                        onClick={() => betterStageId && onBehaviorStageChange(student.id, betterStageId)}
+                        title="Eine Stufe verbessern" aria-label={`Verhalten von ${labels.get(student.id)} eine Stufe verbessern`}
+                        className="flex h-9 w-6 shrink-0 items-center justify-center rounded-lg bg-white/90 text-sm font-black text-emerald-800 shadow-sm disabled:opacity-30">↑</button>
+                    )}
+                    <span aria-hidden="true" title={`Verhalten: ${behaviorStage.label}`}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xl shadow-sm ${behaviorColor}`}>
+                      {behaviorStage.icon || '●'}
+                    </span>
+                    {onBehaviorStageChange && (
+                      <button type="button" disabled={!nextStageId}
+                        onClick={() => nextStageId && onBehaviorStageChange(student.id, nextStageId)}
+                        title="Eine Stufe weiter" aria-label={`Verhalten von ${labels.get(student.id)} eine Stufe weiterstellen`}
+                        className="flex h-9 w-6 shrink-0 items-center justify-center rounded-lg bg-white/90 text-sm font-black text-amber-900 shadow-sm disabled:opacity-30">↓</button>
+                    )}
+                  </div>
+                ) : (
+                  <span aria-hidden="true" className={`${sidebarCompact ? 'hidden' : 'flex'} h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/90 text-base shadow-sm`}>
+                    {student.emoji || '🧑‍🎓'}
+                  </span>
+                )}
                 <div className="min-w-0 flex-1">
                 <span className={`block break-words font-extrabold leading-tight text-slate-900 ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-[11px]' : 'text-base'}`}>{labels.get(student.id)}</span>
                 <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
@@ -138,10 +166,8 @@ export function PublicStudentListWidget({
                     {gridMode || dense ? `⭐ ${points}` : `${'⭐'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
                   </span>
                   {showBehavior && behaviorStage && (
-                    <span aria-label={`Verhaltensstatus: ${behaviorStage.label}`} title={`Verhalten: ${behaviorStage.label}`}
-                      className={`inline-flex min-w-0 items-center rounded-full px-1.5 py-0.5 text-[10px] font-extrabold leading-none ${behaviorColor}`}>
-                      <span aria-hidden="true">{behaviorStage.icon || '●'}</span>
-                      {!sidebarCompact && <span className="ml-0.5 truncate">{behaviorStage.label}</span>}
+                    <span aria-label={`Verhaltensstatus: ${behaviorStage.label}`} className="truncate text-[10px] font-bold text-slate-700">
+                      {!sidebarCompact && behaviorStage.label}
                     </span>
                   )}
                 </div>
