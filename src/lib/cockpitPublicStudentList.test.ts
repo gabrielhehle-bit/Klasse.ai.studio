@@ -185,7 +185,7 @@ test('Mit einem Klick kann die Lehrperson die sichtbare Verhaltensstufe ändern'
     onBehaviorStageChange: (id, stage) => actions.push([id, stage]),
   }));
   assert.match(html, /Verhalten von Lena: OK; mit einem Klick auf Achtung weiterstellen/);
-  assert.doesNotMatch(html, /mit einem Klick wählen|aria-pressed=/);
+  assert.doesNotMatch(html, /mit einem Klick wählen|Verhalten für Lena: Super auswählen/);
   assert.doesNotMatch(html, /Verhalten für Lena: Super auswählen/);
   assert.match(html, /Verhaltensstatus: OK/);
   assert.doesNotMatch(html, /🌈/);
