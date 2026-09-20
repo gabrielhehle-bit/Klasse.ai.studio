@@ -83,7 +83,6 @@ import WelcomeTour from './components/WelcomeTour';
 import Spotlight from './components/Spotlight';
 import GlobalActions from './components/GlobalActions';
 import DenkzettelWidget from './components/DenkzettelWidget';
-import UnifiedFAB from './components/UnifiedFAB';
 import InitialModeModal from './components/InitialModeModal';
 import PrivacyLock from './components/PrivacyLock';
 const Cockpit = lazyRetry(() => import('./components/Cockpit'));
@@ -908,7 +907,6 @@ function AppContent() {
           </div>
         </div>
         {!app.dossierFocusMode && <DenkzettelWidget />}
-        {!app.dossierFocusMode && <UnifiedFAB />}
         <VoiceNote />
         <VoiceCommander />
         <PrivacyLock />
