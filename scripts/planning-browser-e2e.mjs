@@ -342,7 +342,9 @@ async function main() {
       '(() => {const board=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");return !!board&&board.textContent.includes(' + q(topic) + ')&&board.textContent.includes("Arbeitsheft Seite 12")&&!board.textContent.includes("Testkind");})()', 20000);
     await clickButton(client, 'Ich bin fertig');
     await waitFor(client, 'pupil name selection', 'Boolean(document.querySelector("[role=dialog][aria-label=\\\"Eigenen Namen auswählen\\\"]"))');
-    await clickButton(client, 'Testkind');
+    const selectedPupil = await evaluate(client,
+      '(() => {const dialog=document.querySelector("[role=dialog][aria-label=\\\"Eigenen Namen auswählen\\\"]");const button=[...dialog?.querySelectorAll("button")||[]].find(b=>b.textContent.trim()==="Testkind");if(!button)return false;button.click();return true;})()');
+    if (!selectedPupil) throw new Error('Could not select Testkind inside the personal-week modal.');
     await waitFor(client, 'pupil personal task list',
       '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");return !!d&&d.textContent.includes(' + q(topic) + ');})()');
     const checked = await evaluate(client,
@@ -362,7 +364,9 @@ async function main() {
     await waitFor(client, 'shared plan restored after feedback',
       '(() => {const b=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");return !!b&&b.textContent.includes(' + q(topic) + ')&&!document.querySelector("[aria-label=\\\"Mein Wochenplan\\\"]")&&!b.textContent.includes("Testkind");})()');
     await clickButton(client, 'Ich bin fertig');
-    await clickButton(client, 'Testkind');
+    const selectedPupil = await evaluate(client,
+      '(() => {const dialog=document.querySelector("[role=dialog][aria-label=\\\"Eigenen Namen auswählen\\\"]");const button=[...dialog?.querySelectorAll("button")||[]].find(b=>b.textContent.trim()==="Testkind");if(!button)return false;button.click();return true;})()');
+    if (!selectedPupil) throw new Error('Could not select Testkind inside the personal-week modal.');
     await waitFor(client, 'child progress survives closing her plan',
       '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");return !!d&&d.querySelector("button[aria-label=\\\"Aufgabe 1 erledigt\\\"][aria-pressed=true]")&&Array.from(d.querySelectorAll("button")).some(b=>b.textContent.includes("Schwierig")&&!b.textContent.includes("Sehr schwierig")&&b.getAttribute("aria-pressed")==="true");})()');
     await clickButton(client, 'Fertig · Zurück zum Klassenplan');
