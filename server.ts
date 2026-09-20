@@ -1727,7 +1727,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
         method: 'POST',
         body: JSON.stringify({
           design_id: designId,
-          format: { type: format, ...(format === 'png' && req.body?.first_page_only === true ? { pages: [1] } : {}) },
+          format: { type: format, ...(format === 'jpg' ? { quality: 85 } : {}), ...(format === 'png' && req.body?.first_page_only === true ? { pages: [1] } : {}) },
         }),
       });
       res.json(data);
