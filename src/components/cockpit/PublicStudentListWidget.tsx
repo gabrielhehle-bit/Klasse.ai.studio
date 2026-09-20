@@ -74,14 +74,13 @@ export function PublicStudentListWidget({
     <section ref={containerRef} aria-label="Öffentliche Schülerliste und Pluspunkte" className="flex h-full min-h-0 flex-col gap-2 p-2 text-slate-900">
       <div className="flex shrink-0 items-center justify-between gap-2">
         <h3 className="text-sm font-bold">Unsere Pluspunkte</h3>
-        <button
-          type="button"
-          aria-pressed={compact}
-          onClick={() => setCompact(value => !value)}
-          className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
-        >
-          {compact ? 'Große Ansicht' : 'Kompakt'}
-        </button>
+        {!gridMode && (
+          <button type="button" aria-pressed={compact}
+            onClick={() => setCompact(value => !value)}
+            className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+            {compact ? 'Große Ansicht' : 'Kompakt'}
+          </button>
+        )}
       </div>
       {gridMode && !grid.fits ? (
         <div role="status" className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl bg-slate-50 p-4 text-center">
