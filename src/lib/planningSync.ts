@@ -1,6 +1,6 @@
 import { DEFAULT_YEARLY_SUBJECTS } from '../constants';
 import { resolveJahresplanSubjectId } from './planerExcelService';
-import { yearPlanCellEntries, type YearPlanCell } from './yearlyPlanData';
+import { yearPlanCellEntries, yearPlanEntriesToCell, type YearPlanCell, type YearPlanEntry } from './yearlyPlanData';
 
 export type WeeklyLessonForYearPlan = {
   fach?: string;
@@ -125,4 +125,69 @@ export function mergeYearlySuggestionIntoEmptyWeeklySlot(
       schwerpunkte: focuses.length ? focuses : prior.schwerpunkte || [],
     },
   };
+}
+
+/** Append multiple selected weekly lessons without overwriting yearly planning.
+ * Every selected area is stored as its own item. Repeating an import is idempotent.
+ */
+export function addWeeklyLessonsToYearPlan(input: {
+  existingPlan: Record<number, Record<string, YearPlanCell>> | undefined;
+  kw: number;
+  selections: { lesson: WeeklyLessonForYearPlan; fallbackSubject?: string }[];
+  availableSubjects?: { id: string; label: string }[];
+}): {
+  plan: Record<number, Record<string, YearPlanCell>>;
+  added: number;
+  alreadyPresent: number;
+  skipped: number;
+} {
+  let plan = input.existingPlan || {};
+  let added = 0;
+  let alreadyPresent = 0;
+  let skipped = 0;
+  const subjects = input.availableSubjects?.length ? input.availableSubjects : DEFAULT_YEARLY_SUBJECTS;
+  for (const selection of input.selections) {
+    const lesson = selection.lesson || {};
+    const thema = String(lesson.thema || '').trim();
+    const fach = String(lesson.fach || selection.fallbackSubject || '').trim();
+    const subjectId = resolveJahresplanSubjectId(fach, subjects);
+    if (!thema || !subjectId) { skipped++; continue; }
+    const current = plan[input.kw]?.[subjectId];
+    // A date/holiday marker with no topic is not an empty teaching cell.
+    if (current && current.type && current.type !== 'standard' && yearPlanCellEntries(current).length === 0) {
+      skipped++;
+      continue;
+    }
+    const existingEntries = yearPlanCellEntries(current);
+    const subCategories = Array.isArray(lesson.schwerpunkte)
+      ? [...new Set(lesson.schwerpunkte.map(value => String(value).trim()).filter(Boolean))]
+      : [];
+    const candidate: YearPlanEntry = {
+      thema,
+      buch: String(lesson.material || '').trim(),
+      type: lesson.type || 'standard',
+      subCategory: subCategories[0] || '',
+      subCategories,
+    };
+    const identity = (entry: YearPlanEntry) => JSON.stringify([
+      String(entry.thema || '').trim().toLocaleLowerCase('de-AT'),
+      String(entry.buch || '').trim().toLocaleLowerCase('de-AT'),
+      entry.type || 'standard',
+      [...(entry.subCategories?.length ? entry.subCategories : entry.subCategory ? [entry.subCategory] : [])].sort(),
+    ]);
+    if (existingEntries.some(entry => identity(entry) === identity(candidate))) {
+      alreadyPresent++;
+      continue;
+    }
+    const completed = existingEntries.length > 0 ? current?.completed === true : lesson.erledigt === true;
+    plan = {
+      ...plan,
+      [input.kw]: {
+        ...(plan[input.kw] || {}),
+        [subjectId]: yearPlanEntriesToCell([...existingEntries, candidate], completed, current || {}),
+      },
+    };
+    added++;
+  }
+  return { plan, added, alreadyPresent, skipped };
 }

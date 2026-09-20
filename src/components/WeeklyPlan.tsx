@@ -11,7 +11,7 @@ import { LehrplanZuordnung } from '../types';
 import { getFachHexColor, getFachThemeStyles } from '../lib/fachColorUtils';
 import WochenplanExcelModal from './WochenplanExcelModal';
 import { WochenplanImportRow } from '../lib/planerExcelService';
-import { addWeeklyLessonToEmptyYearPlan, hasWeeklyPlanningDetails, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
+import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, hasWeeklyPlanningDetails, mergeYearlySuggestionIntoEmptyWeeklySlot } from '../lib/planningSync';
 import { yearPlanCellEntries } from '../lib/yearlyPlanData';
 import { WochenplanGeneratorModal } from './wochenplan/WochenplanGeneratorModal';
 import { buildSchoolYearWeekList, collectIncompleteWeeklyLessonSlots, configuredLessonTime, getPreviousCalendarWeekKw, weeklyLessonDurationSlots, isWeeklyLessonPrepared } from '../lib/weeklyPlanData';
@@ -293,6 +293,9 @@ export default function WeeklyPlan() {
   
   const [showSollCheck, setShowSollCheck] = useState(false);
   const [showWeekPicker, setShowWeekPicker] = useState(false);
+  const [showYearPlanBulkModal, setShowYearPlanBulkModal] = useState(false);
+  const [selectedYearPlanBulkKeys, setSelectedYearPlanBulkKeys] = useState<string[]>([]);
+  const [yearPlanBulkNotice, setYearPlanBulkNotice] = useState<string | null>(null);
   const [dateStatusMenu, setDateStatusMenu] = useState<string | null>(null); // date string
   const [viewMode, setViewMode] = useState<'grid' | 'day' | 'klassenbuch'>('grid');
   const [selectedDay, setSelectedDay] = useState<string>(() => {
@@ -987,6 +990,33 @@ export default function WeeklyPlan() {
 
   const sw = getSW(monday, app.schuljahr, app.bundesland || 'VBG');
   const plan = (app.wochenplanung || {})[activeKW] || {};
+  // Each recorded lesson (and each half of a split lesson) can be selected separately.
+  const yearPlanBulkCandidates = TAGE_NAMEN.flatMap(tag =>
+    Object.entries((plan as any)[tag] || {}).flatMap(([slot, raw]) => {
+      if (!/^(0|[1-9]\\d*)$/.test(slot) || !raw || typeof raw !== 'object') return [];
+      const idx = Number(slot);
+      const parent = raw as any;
+      const fallbackSubject = app.stammplan?.[tag]?.[idx + 1] || '';
+      const halves = parent.halves?.enabled
+        ? [{ part: '1. Hälfte', data: parent.halves.first }, { part: '2. Hälfte', data: parent.halves.second }]
+        : [{ part: '', data: parent }];
+      return halves.flatMap(({ part, data }) => {
+        const half = data || {};
+        const lesson = part ? {
+          ...parent, ...half,
+          thema: half.thema || parent.thema,
+          fach: half.fach || parent.fach || fallbackSubject,
+          schwerpunkte: half.unterbereich ? [half.unterbereich]
+            : Array.isArray(half.schwerpunkte) ? half.schwerpunkte
+            : half.fach && parent.fach && half.fach !== parent.fach ? [] : parent.schwerpunkte,
+        } : parent;
+        if (!String(lesson.thema || '').trim()) return [];
+        return [{ key: `${tag}-${idx}-${part || 'ganze-stunde'}`,
+          title: `${tag} · ${idx + 1}. Std.${part ? ` · ${part}` : ''} · ${lesson.fach || fallbackSubject || 'Ohne Fach'} · ${lesson.thema}`,
+          lesson, fallbackSubject }];
+      });
+    }),
+  );
   const lunchAfterSlot = Math.max(1, Math.min(MAX_LESSON_SLOTS - 1, app.mittagspauseNachStunde || 5));
 
   const isCurrentHour = (tag: string, zIdx: number): boolean => {
@@ -2014,6 +2044,13 @@ export default function WeeklyPlan() {
                     aria-pressed={viewMode === 'day'}
                     className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1 transition-all ${viewMode === 'day' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}>
                     <Calendar size={12} /> <span>Tag</span>
+                  </button>
+                  <button type="button" onClick={() => {
+                    setSelectedYearPlanBulkKeys([]);
+                    setYearPlanBulkNotice(null);
+                    setShowYearPlanBulkModal(true);
+                  }} className="rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100">
+                    Mehrere → Jahresplan
                   </button>
                   <button
                     type="button"
@@ -3201,6 +3238,58 @@ export default function WeeklyPlan() {
            </motion.div>
         </div>,
         document.body
+      )}
+
+      {showYearPlanBulkModal && createPortal(
+        <div className="fixed inset-0 z-[10030] flex items-center justify-center p-3 sm:p-6">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowYearPlanBulkModal(false)} />
+          <section role="dialog" aria-modal="true" aria-label="Mehrere Wochenplan-Bereiche in die Jahresplanung übernehmen"
+            className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white p-5 text-slate-900 shadow-2xl">
+            <h3 className="text-lg font-black">Mehrere Bereiche in den Jahresplan übernehmen</h3>
+            <p className="mt-1 text-sm text-slate-600">Wähle Unterrichtseinheiten oder Teilstunden aus KW {activeKW}. Vorhandene Jahresplan-Inhalte bleiben erhalten; fehlende Inhalte werden ergänzt.</p>
+            <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto">
+              {yearPlanBulkCandidates.length === 0 ? (
+                <p className="text-sm">In dieser Woche sind noch keine Unterrichtsthemen eingetragen.</p>
+              ) : yearPlanBulkCandidates.map(candidate => (
+                <label key={candidate.key} className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm hover:bg-indigo-50">
+                  <input type="checkbox" className="mt-1 h-4 w-4 shrink-0" checked={selectedYearPlanBulkKeys.includes(candidate.key)}
+                    onChange={event => {
+                      setYearPlanBulkNotice(null);
+                      setSelectedYearPlanBulkKeys(previous => event.target.checked
+                        ? [...previous, candidate.key] : previous.filter(key => key !== candidate.key));
+                    }} />
+                  <span className="min-w-0 break-words">{candidate.title}</span>
+                </label>
+              ))}
+            </div>
+            {yearPlanBulkNotice && <p role="status" className="mt-3 text-sm font-semibold text-indigo-800">{yearPlanBulkNotice}</p>}
+            <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
+              <button type="button" className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold"
+                onClick={() => setShowYearPlanBulkModal(false)}>Schließen</button>
+              <button type="button" disabled={selectedYearPlanBulkKeys.length === 0}
+                className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                onClick={() => {
+                  const selections = yearPlanBulkCandidates
+                    .filter(candidate => selectedYearPlanBulkKeys.includes(candidate.key))
+                    .map(({ lesson, fallbackSubject }) => ({ lesson, fallbackSubject }));
+                  const availableSubjects = sortYearlySubjects(app.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS);
+                  const result = addWeeklyLessonsToYearPlan({
+                    existingPlan: app.jahresplanung || {}, kw: activeKW, selections, availableSubjects,
+                  });
+                  if (result.added > 0) {
+                    setApp(previous => {
+                      const safe = addWeeklyLessonsToYearPlan({
+                        existingPlan: previous.jahresplanung || {}, kw: activeKW, selections,
+                        availableSubjects: sortYearlySubjects(previous.jahresplan_faecher || DEFAULT_YEARLY_SUBJECTS),
+                      });
+                      return safe.added ? { ...previous, jahresplanung: safe.plan } : previous;
+                    });
+                  }
+                  setYearPlanBulkNotice(`${result.added} Eintrag/Einträge ergänzt · ${result.alreadyPresent} bereits vorhanden · ${result.skipped} ohne Thema/Fach oder gesperrt. Bestehende Planung wurde nicht überschrieben.`);
+                }}>Ausgewählte übernehmen ({selectedYearPlanBulkKeys.length})</button>
+            </div>
+          </section>
+        </div>, document.body
       )}
 
       {/* PLANNED LESSON OVERVIEW */}

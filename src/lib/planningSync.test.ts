@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addWeeklyLessonToEmptyYearPlan, hasWeeklyPlanningDetails, isYearPlanCellFree } from './planningSync';
+import { addWeeklyLessonToEmptyYearPlan, addWeeklyLessonsToYearPlan, hasWeeklyPlanningDetails, isYearPlanCellFree } from './planningSync';
 
 test('Wochenplan → Jahresplan: leeres Fach der gleichen KW wird sicher ergänzt', () => {
   const result = addWeeklyLessonToEmptyYearPlan({
@@ -80,4 +80,46 @@ test('Jahresplan-Zelle gilt nur ohne Inhalte oder Termin-Typ als frei', () => {
   assert.equal(isYearPlanCellFree({ thema: '', type: 'standard', items: [] }), true);
   assert.equal(isYearPlanCellFree({ thema: 'Nomen', type: 'standard', items: [] }), false);
   assert.equal(isYearPlanCellFree({ thema: '', type: 'event', items: [] }), false);
+});
+
+test('Mehrfachübernahme bewahrt vorhandene Jahresthemen und trennt unterschiedliche Deutsch-Bereiche', () => {
+  const original = { 38: { deutsch: { thema: 'Vorhandenes Jahresthema', buch: 'S. 1', type: 'standard', items: [] } } };
+  const frozen = JSON.stringify(original);
+  const params = {
+    existingPlan: original,
+    kw: 38,
+    availableSubjects: [{ id: 'deutsch', label: 'Deutsch' }, { id: 'mathematik', label: 'Mathematik' }],
+    selections: [
+      { lesson: { fach: 'Deutsch', thema: 'Lesewoche', schwerpunkte: ['Deutsch (Lesen)'] } },
+      { lesson: { fach: 'Deutsch', thema: 'Lesewoche', schwerpunkte: ['Deutsch (Rechtschreibung)'] } },
+      { lesson: { fach: 'Mathematik', thema: 'Zahlenraum bis 20', material: 'AH S. 4' } },
+    ],
+  };
+  const result = addWeeklyLessonsToYearPlan(params);
+  assert.equal(result.added, 3);
+  assert.equal(JSON.stringify(original), frozen, 'gespeicherter Eingangsplan bleibt unverändert');
+  assert.deepEqual(result.plan[38].deutsch.items?.map(item => item.thema),
+    ['Vorhandenes Jahresthema', 'Lesewoche', 'Lesewoche']);
+  assert.deepEqual(result.plan[38].deutsch.items?.slice(1).map(item => item.subCategories),
+    [['Deutsch (Lesen)'], ['Deutsch (Rechtschreibung)']]);
+  assert.equal(result.plan[38].mathematik.thema, 'Zahlenraum bis 20');
+  const second = addWeeklyLessonsToYearPlan({ ...params, existingPlan: result.plan });
+  assert.equal(second.added, 0);
+  assert.equal(second.alreadyPresent, 3);
+  assert.equal(second.plan, result.plan);
+});
+
+test('Mehrfachübernahme überspringt unbekannte Fächer, leere Themen und terminbesetzte Zellen', () => {
+  const original = { 38: { deutsch: { thema: '', type: 'event', items: [] } } };
+  const result = addWeeklyLessonsToYearPlan({
+    existingPlan: original, kw: 38, availableSubjects: [{ id: 'deutsch', label: 'Deutsch' }],
+    selections: [
+      { lesson: { fach: 'Deutsch', thema: 'Lesen' } },
+      { lesson: { fach: 'Englisch', thema: 'Hello' } },
+      { lesson: { fach: 'Deutsch', thema: '  ' } },
+    ],
+  });
+  assert.equal(result.added, 0);
+  assert.equal(result.skipped, 3);
+  assert.equal(result.plan, original);
 });
