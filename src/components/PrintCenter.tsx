@@ -667,7 +667,8 @@ export default function PrintCenter() {
     if (activeTemplate === 'klassenbuch') {
       setPrintOrientation('portrait');
       setPrintMargin(8.5);
-      setPrintFontSize('base');
+      // Never silently reset a print font size chosen by the teacher.
+      // The base size is already the initial default for a new session.
       return;
     }
     if (bypassOrientationAutoSet) {
