@@ -260,6 +260,8 @@ export default function WeeklyPlan() {
   const [tempThema, setTempThema] = useState('');
   const [tempType, setTempType] = useState('standard');
   const [tempMaterial, setTempMaterial] = useState('');
+  const [tempImKinderWochenplan, setTempImKinderWochenplan] = useState(false);
+  const [tempKinderMaterial, setTempKinderMaterial] = useState('');
   const [tempMaterialIds, setTempMaterialIds] = useState<string[]>([]);
   const [tempHUE, setTempHUE] = useState('');
   const [tempMethod, setTempMethod] = useState('');
@@ -1167,6 +1169,8 @@ export default function WeeklyPlan() {
     setTempThema(current.thema || '');
     setTempType(current.type || 'standard');
     setTempMaterial(current.material || '');
+    setTempImKinderWochenplan(current.imKinderWochenplan === true);
+    setTempKinderMaterial(current.wochenplanMaterial || '');
     setTempMaterialIds(Array.isArray(current.materialIds) ? current.materialIds : []);
     setTempHUE(current.housework || current.hue || '');
     setTempMethod(current.method || '');
@@ -1296,6 +1300,8 @@ export default function WeeklyPlan() {
               thema: thema.trim(),
               type,
                material: material.trim(),
+               imKinderWochenplan: tempImKinderWochenplan,
+               wochenplanMaterial: tempKinderMaterial.trim(),
                materialIds,
               housework: housework.trim(),
               method: method.trim(),
@@ -1342,6 +1348,8 @@ export default function WeeklyPlan() {
                     thema: thema.trim(),
                     type,
                      material: material.trim(),
+                     imKinderWochenplan: tempImKinderWochenplan,
+                     wochenplanMaterial: tempKinderMaterial.trim(),
                      materialIds,
                     housework: housework.trim(),
                     method: method.trim(),
@@ -4075,6 +4083,23 @@ export default function WeeklyPlan() {
 
                  {plannerEditorTab === 'optionen' && (
                    <div className="space-y-6">
+                 <section className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 space-y-3" aria-label="Kinder-Wochenplan">
+                   <label className="flex min-h-11 items-center gap-3 text-sm font-bold text-slate-800">
+                     <input type="checkbox" checked={tempImKinderWochenplan}
+                       onChange={event => setTempImKinderWochenplan(event.target.checked)}
+                       className="h-5 w-5 accent-indigo-600" />
+                     Im Wochenplan der Kinder anzeigen
+                   </label>
+                   <p className="text-xs text-slate-600">Das Thema und die Materialien erscheinen im gemeinsamen Wochenplan im Lehrercockpit. Abhaken und Einschätzung sind für jedes Kind getrennt.</p>
+                   {tempImKinderWochenplan && (
+                     <label className="block text-sm font-semibold text-slate-800">
+                       Was brauchen die Kinder? (optional; sonst Material der Einheit)
+                       <textarea value={tempKinderMaterial} onChange={event => setTempKinderMaterial(event.target.value)}
+                         className="mt-2 min-h-20 w-full rounded-xl border border-indigo-200 bg-white p-3 text-sm"
+                         placeholder="z. B. Arbeitsheft S. 12, Bleistift" />
+                     </label>
+                   )}
+                 </section>
                  {/* SECTION 4: FEINSCHLIFF */}
                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
                     <div className="space-y-3">
