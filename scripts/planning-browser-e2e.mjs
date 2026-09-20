@@ -309,12 +309,64 @@ async function main() {
     await setInputByPlaceholder(client, 'Was wird gelernt?', topic);
     const religionVisible = await evaluate(client, 'Array.from(document.querySelectorAll("button")).some(b=>String(b.textContent||"").replace(/\\s+/g," ").trim()==="Religion"&&!b.disabled)');
     if (religionVisible) await clickButton(client, 'Religion', true);
+    await clickButton(client, '4 · Ablauf & Optionen');
+    await waitFor(client, 'child weekly-plan option',
+      'Boolean(document.querySelector("section[aria-label=\\\"Kinder-Wochenplan\\\"] input[type=checkbox]"))');
+    await clickCheckboxNearText(client, 'Im Wochenplan der Kinder anzeigen');
+    await setInputByPlaceholder(client, 'z. B. Arbeitsheft S. 12', 'Arbeitsheft Seite 12');
     await clickButton(client, 'Einheit speichern');
     await waitFor(client, 'weekly editor closed after save',
       '!Array.from(document.querySelectorAll("h3")).some(e=>e.textContent?.trim()==="Einheit planen")');
     const savedHourlyCell =
       'Array.from(document.querySelectorAll("div")).find(el=>String(el.className||"").includes("group/cell")&&String(el.className||"").includes("min-h-[5.3125rem]")&&String(el.textContent||"").includes(' + q(topic) + '))';
     await waitFor(client, 'saved topic visible in the actual hourly weekly grid', 'Boolean(' + savedHourlyCell + ')', 20000);
+    // End-to-end teaching journey: one real synthetic pupil confirms one lesson
+    // at the board; the shared plan never publishes individual feedback.
+    await clickSidebar(client, 'Klassenliste');
+    await waitFor(client, 'pupil list', 'document.body?.innerText.includes("Schülerliste")', 20000);
+    await clickButton(client, 'Schüler hinzufügen');
+    await waitFor(client, 'new pupil form', 'document.body?.innerText.includes("Neuer Schüler")');
+    await setInputByPlaceholder(client, 'z.B. Lukas', 'Testkind');
+    await setInputByPlaceholder(client, 'z.B. Müller', 'Wochenplan');
+    await clickButton(client, 'Anlegen', true);
+    await waitFor(client, 'synthetic pupil saved', '!document.querySelector("#student-dialog-title")', 15000);
+    await clickSidebar(client, 'Lehrercockpit');
+    await waitFor(client, 'white classroom board', 'Boolean(document.getElementById("widget-board-stage"))', 30000);
+    await clickButton(client, 'Widget hinzufügen');
+    await waitFor(client, 'classroom weekly-plan picker entry',
+      'Array.from(document.querySelectorAll("button")).some(b=>b.textContent.includes("Wochenplan der Kinder"))');
+    await clickButton(client, 'Wochenplan der Kinder');
+    await waitFor(client, 'published task shown without pupil-specific feedback',
+      '(() => {const board=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");return !!board&&board.textContent.includes(' + q(topic) + ')&&board.textContent.includes("Arbeitsheft Seite 12")&&!board.textContent.includes("Testkind");})()', 20000);
+    await clickButton(client, 'Ich bin fertig');
+    await waitFor(client, 'pupil name selection', 'Boolean(document.querySelector("[role=dialog][aria-label=\\\"Eigenen Namen auswählen\\\"]"))');
+    await clickButton(client, 'Testkind');
+    await waitFor(client, 'pupil personal task list',
+      '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");return !!d&&d.textContent.includes(' + q(topic) + ');})()');
+    const checked = await evaluate(client,
+      '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");const b=d?.querySelector("button[aria-label=\\\"Aufgabe 1 erledigt\\\"]");if(!b||b.getAttribute("aria-pressed")!=="false")return false;b.click();return true;})()');
+    if (!checked) throw new Error('Could not check child task.');
+    await waitFor(client, 'completed task presents child reflection',
+      'Boolean(document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"] button[aria-pressed=false]"))');
+    await clickButton(client, 'Schwierig', true);
+    await waitFor(client, 'difficulty saved',
+      '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");return !!d&&Array.from(d.querySelectorAll("button")).some(b=>b.textContent.includes("Schwierig")&&!b.textContent.includes("Sehr schwierig")&&b.getAttribute("aria-pressed")==="true");})()');
+    await clickButton(client, 'Fertig · Zurück zum Klassenplan');
+    await waitFor(client, 'shared plan restored after feedback',
+      '(() => {const b=document.querySelector("[aria-label=\\\"Wochenplan der Klasse\\\"]");return !!b&&b.textContent.includes(' + q(topic) + ')&&!document.querySelector("[aria-label=\\\"Mein Wochenplan\\\"]")&&!b.textContent.includes("Testkind");})()');
+    await clickButton(client, 'Ich bin fertig');
+    await clickButton(client, 'Testkind');
+    await waitFor(client, 'child progress survives closing her plan',
+      '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");return !!d&&d.querySelector("button[aria-label=\\\"Aufgabe 1 erledigt\\\"][aria-pressed=true]")&&Array.from(d.querySelectorAll("button")).some(b=>b.textContent.includes("Schwierig")&&!b.textContent.includes("Sehr schwierig")&&b.getAttribute("aria-pressed")==="true");})()');
+    await clickButton(client, 'Fertig · Zurück zum Klassenplan');
+    console.log('✓ real Chrome: public weekly task, synthetic pupil self-check and private difficulty persist across visits');
+    const closedCockpit = await evaluate(client,
+      '(() => {const b=document.querySelector("button[aria-label=\\\"Lehrercockpit schließen · Zurück zu Heute\\\"]");if(!b)return false;b.click();return true;})()');
+    if (!closedCockpit) throw new Error('Cannot return to planning after cockpit weekly-plan use.');
+    await waitFor(client, 'dashboard after classroom board',
+      'Array.from(document.querySelectorAll("button[aria-current=page]")).some(b=>b.textContent.trim()==="Heute")');
+    await clickSidebar(client, 'Wochenplan');
+    await waitFor(client, 'saved selected week after cockpit journey', 'Boolean(' + savedHourlyCell + ')', 20000);
     if (!await evaluate(client, '(() => {const cell=' + savedHourlyCell + ';if(!cell)return false;cell.click();return true;})()'))
       throw new Error('Could not open the saved hourly lesson.');
     try {
