@@ -1,0 +1,9 @@
+# KLASSIO – verbindliche Widget-Einstellungsregel (20.09.2026)
+
+Nutzerentscheidung: **Alle Einstellungen sämtlicher Widgets gehören ausschließlich in das Dropdown „Widget hinzufügen“ → „⚙️ Widget-Einstellungen“**, nicht in den Widget-Titel (•••) und nicht in die Widget-Inhaltsfläche. In der Unterrichtsfläche verbleiben unmittelbare Aktionen (z. B. Gruppen bilden, Punkt vergeben, Einchecken, Start/Pause), aber keine Konfigurationsdialoge. Das Dropdown darf als eigener Verwaltungsbereich scrollen; verschiebbare Widgets sollen ohne innere Scrollleisten auskommen.
+
+- „Ich bin da!“: A = standardmäßig alle Kinder, B = einzeln auswählen und bestätigen, C = Lehrkraft erfasst; gespeichert in widget.settings.checkInMode; alte/ungültige Werte fallen auf A zurück.
+- „Gruppen bilden“: Schülerumfang im zentralen Dropdown wählbar (heute anwesend / ganze aktive Klasse); gespeicherte bestehende Gruppen bleiben bis zum nächsten manuellen Erstellen unangetastet; alte Settings fallen auf die bisherige Anwesenheitsauswahl zurück. Vorhandene Pause-/Paar-/Namenoptionen nur im zentralen Dropdown anzeigen, Funktionsumfang beibehalten.
+- Jedes weitere Widget: beim Einzel-Audit alle bestehenden Einstellungswege und gespeicherten Daten aufnehmen, die volle Konfiguration in dieses Dropdown migrieren, danach erst die alten Einstellungs-Schaltflächen im Widget und Titelmenü entfernen. Keine globalen Streichungen ohne Ersatz und Tests.
+- Gemeinsame „Widget hinzufügen“-Verwaltung soll alle Widgets sukzessive abdecken. Der vorliegende PR stellt **nur „Ich bin da!“ und „Gruppen bilden“** um; dies ist **keine** Freigabe der anderen Widgettypen.
+- Keine Änderungen an gespeicherten Schüler-, Anwesenheits-, Mood-, Gruppen- oder Backup-Daten durch reines Verschieben der Einstellungskontrollen. Historische JSON-Einstellungen weiter akzeptieren. Kein Merge/Deployment ohne CI und Browserprüfung.

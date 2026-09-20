@@ -181,6 +181,7 @@ import { BoardTextEditor } from "./cockpit/BoardTextEditor";
 import { BoardInk, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
+import { getCheckInMode } from "../lib/checkInWidgetMode";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
 import { COCKPIT_QUICKBAR_ITEMS, normalizeCockpitQuickbarSettings, toggleCockpitQuickbarItem } from "../lib/cockpitQuickbar";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
@@ -2916,6 +2917,8 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isMoreOptionsMenuOpen, setIsMoreOptionsMenuOpen] = useState(false);
   const [isQuickBarSettingsOpen, setIsQuickBarSettingsOpen] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
+  const [isWidgetConfigurationOpen, setIsWidgetConfigurationOpen] = useState(false);
+  const [selectedWidgetConfiguration, setSelectedWidgetConfiguration] = useState<"kidattendance" | "groups">("kidattendance");
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [vorlagenStartTab, setVorlagenStartTab] = useState<"browse" | "create">("browse");
   const [activeWidgetCategory, setActiveWidgetCategory] =
@@ -8224,6 +8227,114 @@ ${content}
                                 </div>
 
                                 <button type="button" onClick={() => setIsAddWidgetMenuOpen(false)} className="self-end min-h-11 px-4 rounded-lg border text-sm font-semibold">Auswahl schließen</button>
+                                <section className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-slate-900"
+                                  aria-label="Widget-Einstellungen im Menü Widget hinzufügen">
+                                  <button type="button" onClick={() => setIsWidgetConfigurationOpen(open => !open)}
+                                    aria-expanded={isWidgetConfigurationOpen}
+                                    className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl bg-white px-3 text-left text-sm font-black">
+                                    <span>⚙️ Widget-Einstellungen</span>
+                                    <span aria-hidden="true">{isWidgetConfigurationOpen ? "▴" : "▾"}</span>
+                                  </button>
+                                  {isWidgetConfigurationOpen && (
+                                    <div className="mt-3 space-y-3" role="group" aria-label="Einstellungen für ein Widget auswählen">
+                                      <label className="block text-sm font-semibold">
+                                        Widget auswählen
+                                        <select aria-label="Widget für Einstellungen" value={selectedWidgetConfiguration}
+                                          onChange={event => setSelectedWidgetConfiguration(event.target.value as "kidattendance" | "groups")}
+                                          className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+                                          <option value="kidattendance">🖐️ Ich bin da!</option>
+                                          <option value="groups">👥 Gruppen bilden</option>
+                                        </select>
+                                      </label>
+                                      {(() => {
+                                        const configured = cockpitWidgets.find(widget => widget.type === selectedWidgetConfiguration);
+                                        if (!configured) return <p role="status" className="text-sm">Füge dieses Widget zuerst hinzu, um seine Einstellungen zu speichern.</p>;
+                                        const saveSetting = (key: string, value: string) =>
+                                          handleUpdateWidgetPos(configured.id, { settings: { ...(configured.settings || {}), [key]: value } });
+                                        return selectedWidgetConfiguration === "kidattendance" ? (
+                                          <fieldset className="space-y-2">
+                                            <legend className="text-sm font-black">Ich bin da! · Erfassung</legend>
+                                            {([
+                                              ["all", "A · Alle Kinder (Standard)", "Alle Namen gleichzeitig anzeigen. Kinder checken sich selbst ein und können freiwillig ihr Befinden angeben."],
+                                              ["individual", "B · Nacheinander", "Name auswählen, Check-in bestätigen und danach freiwillig das Befinden angeben."],
+                                              ["teacher", "C · Lehrkraft erfasst", "Die Lehrkraft erfasst die Anwesenheit. Anwesende Kinder können danach freiwillig ihr Befinden angeben."],
+                                            ] as const).map(([mode, label, detail]) => (
+                                              <label key={mode} className="flex min-h-11 items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                                                <input type="radio" name="cockpit-checkin-mode" value={mode}
+                                                  checked={getCheckInMode(configured.settings) === mode}
+                                                  onChange={() => saveSetting("checkInMode", mode)}
+                                                  className="mt-1 h-5 w-5 shrink-0" />
+                                                <span><strong className="block text-sm">{label}</strong>
+                                                  <span className="block text-xs text-slate-600">{detail}</span></span>
+                                              </label>
+                                            ))}
+                                          </fieldset>
+                                        ) : (
+                                          <fieldset className="space-y-2">
+                                            <legend className="text-sm font-black">Gruppen bilden · Wer wird eingeteilt?</legend>
+                                            {([
+                                              ["present", "Heute anwesende Kinder", "Die bestehende Auswahl der anwesenden Kinder verwenden."],
+                                              ["all", "Alle Kinder der Klasse", "Alle Kinder der aktiven Klasse berücksichtigen, auch bei Abwesenheit."],
+                                            ] as const).map(([scope, label, detail]) => (
+                                              <label key={scope} className="flex min-h-11 items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                                                <input type="radio" name="cockpit-group-scope" value={scope}
+                                                  checked={(configured.settings?.studentScope === "all" ? "all" : "present") === scope}
+                                                  onChange={() => saveSetting("studentScope", scope)}
+                                                  className="mt-1 h-5 w-5 shrink-0" />
+                                                <span><strong className="block text-sm">{label}</strong>
+                                                  <span className="block text-xs text-slate-600">{detail}</span></span>
+                                              </label>
+                                            ))}
+                                            <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-3"
+                                              role="group" aria-label="Gruppengröße oder Gruppenanzahl einstellen">
+                                              <h4 className="text-sm font-black">Gruppenaufteilung</h4>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                {([
+                                                  ["size", "Kinder pro Gruppe"],
+                                                  ["count", "Anzahl Gruppen"],
+                                                ] as const).map(([mode, label]) => (
+                                                  <label key={mode} className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 px-2 text-xs font-bold">
+                                                    <input type="radio" name="cockpit-group-mode" value={mode}
+                                                      checked={(configured.settings?.mode === "count" ? "count" : "size") === mode}
+                                                      onChange={() => handleUpdateWidgetPos(configured.id, {
+                                                        settings: { ...(configured.settings || {}), mode, targetValue: 4 },
+                                                      })}
+                                                      className="h-5 w-5 shrink-0" />{label}
+                                                  </label>
+                                                ))}
+                                              </div>
+                                              <div className="flex flex-wrap gap-2">
+                                                {(configured.settings?.mode === "count" ? [2, 3, 4, 5, 6] : [2, 3, 4, 5]).map(value => (
+                                                  <button key={value} type="button"
+                                                    aria-pressed={(typeof configured.settings?.targetValue === "number" ? configured.settings.targetValue : 4) === value}
+                                                    onClick={() => handleUpdateWidgetPos(configured.id, {
+                                                      settings: { ...(configured.settings || {}), mode: configured.settings?.mode === "count" ? "count" : "size", targetValue: value },
+                                                    })}
+                                                    className={`min-h-11 min-w-11 rounded-lg border px-3 text-sm font-bold ${
+                                                      (typeof configured.settings?.targetValue === "number" ? configured.settings.targetValue : 4) === value
+                                                        ? "border-indigo-500 bg-indigo-600 text-white" : "border-slate-300 bg-white text-slate-900"
+                                                    }`}>
+                                                    {value}{configured.settings?.mode === "count" ? " Gr." : "er"}
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            </div>
+                                            <p className="text-xs text-slate-600">Die Auswahl gilt bei der nächsten Einteilung. Bestehende Gruppen werden nicht ungefragt neu gemischt.</p>
+                                            {!configured.visible && (
+                                              <button type="button" onClick={() => handleOpenWidgetInCockpitLayout("groups")}
+                                                className="min-h-11 w-full rounded-xl bg-indigo-600 px-3 text-sm font-bold text-white">
+                                                Gruppen-Widget öffnen, um die weiteren Optionen zu bearbeiten
+                                              </button>
+                                            )}
+                                            {configured.visible && (
+                                              <div id="cockpit-groups-settings-host" className="w-full" aria-label="Weitere Gruppen-Einstellungen: Kinder pausieren, Paar-Wünsche, Namen" />
+                                            )}
+                                          </fieldset>
+                                        );
+                                      })()}
+                                    </div>
+                                  )}
+                                </section>
                                 {/* Category Switcher Tab Bar */}
                                 <div className="flex flex-wrap gap-2 p-2 bg-slate-100 dark:bg-zinc-800 rounded-xl">
                                   {[
@@ -11415,6 +11526,8 @@ ${content}
                                           }
                                           generateGroups={generateGroups}
                                           currentIsLight={currentIsLight}
+                                          settingsInPicker={isAddWidgetMenuOpen && isWidgetConfigurationOpen && selectedWidgetConfiguration === "groups"}
+                                          onClosePickerSettings={() => setIsWidgetConfigurationOpen(false)}
                                         />
                                       );
 
