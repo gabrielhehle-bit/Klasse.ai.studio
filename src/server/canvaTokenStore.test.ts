@@ -47,6 +47,9 @@ test('Canva encrypted tokens reject traversal, tampering, and key changes', asyn
   record.ciphertext = record.ciphertext.slice(0, -2) + 'xx';
   await fs.writeFile(file, JSON.stringify(record));
   await assert.rejects(store.get(ownerA, sessionA));
+  // Owner has a verified email session and can always reset a corrupt record.
+  await store.clearAccount(ownerA);
+  assert.equal(await store.get(ownerA, sessionA), null);
 });
 
 test('Canva sessions expire on server, not by trusting a client-side status flag', async t => {
