@@ -33,6 +33,18 @@ jobs:
             src/lib/retiredCockpitStudentlist.test.ts \
             src/lib/dashboardDayContext.test.ts \
             src/lib/schoolRegistryRequirements.test.ts
+      - name: Verify encrypted backup, legacy JSON restore and school isolation
+        run: |
+          bunx tsx --test \
+            src/lib/backupCompatibility.test.ts \
+            src/lib/backupRestore.test.ts \
+            src/lib/backupCryptoService.test.ts \
+            src/lib/legacyBackupMigration.test.ts \
+            src/lib/dataBackupFinalRequirements.test.ts \
+            src/lib/accountSchoolIdentityRequirements.test.ts \
+            src/lib/accountSyncCollaborationRequirements.test.ts \
+            src/lib/schoolRegistryRequirements.test.ts \
+            src/lib/lehrerzimmerRequirements.test.ts
       - name: Then validate random-name widget
         run: bunx tsx --test src/lib/randomNameWidgetModel.test.ts src/lib/randomNameWidgetRequirements.test.ts
       - name: Production build
