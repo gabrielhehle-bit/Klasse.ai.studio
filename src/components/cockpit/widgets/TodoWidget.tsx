@@ -14,6 +14,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { useWidgetSize, useWidgetOverflowGuard } from '../widgetLayout';
+import { getTodoPageWindow, getTodoRowsPerPage } from '../todoLayout';
 import {
   ClassroomTodoItem,
   ClassroomTodoState,
@@ -66,10 +67,8 @@ export const TodoWidget: React.FC<TodoWidgetProps> = ({
   const [page, setPage] = useState(0);
   // A visible page replaces the former hidden inner scrolling region. On very
   // small boards use a single task instead of shrinking touch targets or text.
-  const rowsPerPage = Math.max(1, Math.min(4, Math.floor((size.height - (showPresetsMenu ? 360 : 240) - (showConfirmReset ? 64 : 0)) / (size.isCompact ? 76 : 84))));
-  const pageCount = Math.max(1, Math.ceil(state.items.length / rowsPerPage));
-  const visiblePage = Math.min(page, pageCount - 1);
-  const firstVisibleItem = visiblePage * rowsPerPage;
+  const rowsPerPage = getTodoRowsPerPage(size.height, size.isCompact, showPresetsMenu, showConfirmReset);
+  const { pageCount, visiblePage, firstVisibleItem } = getTodoPageWindow(state.items.length, rowsPerPage, page);
 
   useEffect(() => {
     setPage(current => Math.min(current, pageCount - 1));
