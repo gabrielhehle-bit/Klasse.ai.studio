@@ -348,7 +348,7 @@ async function main() {
     if (!checked) throw new Error('Could not check child task.');
     await waitFor(client, 'completed task presents child reflection',
       'Boolean(document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"] button[aria-pressed=false]"))');
-    await clickButton(client, 'Schwierig', true);
+    await clickButton(client, 'Schwierig');
     await waitFor(client, 'difficulty saved',
       '(() => {const d=document.querySelector("[role=dialog][aria-label=\\\"Mein Wochenplan\\\"]");return !!d&&Array.from(d.querySelectorAll("button")).some(b=>b.textContent.includes("Schwierig")&&!b.textContent.includes("Sehr schwierig")&&b.getAttribute("aria-pressed")==="true");})()');
     await clickButton(client, 'Fertig · Zurück zum Klassenplan');
