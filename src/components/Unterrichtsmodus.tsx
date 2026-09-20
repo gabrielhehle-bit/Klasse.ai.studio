@@ -11970,7 +11970,7 @@ ${content}
                       {/* Compact Header with state controls */}
                       <div className="p-2.5 border-b border-neutral-200/40 dark:border-white/5 bg-black/10 dark:bg-black/40 flex flex-col gap-1.5 shrink-0">
                         {sidebarMode === "mini" && (
-                          <div className="flex flex-col items-center gap-2 py-1 select-none w-full">
+                          <div className="flex flex-row items-center justify-between gap-1 py-0.5 select-none w-full">
                             <button
                               type="button"
                               onClick={() => changeSidebarMode("expanded")}
@@ -11980,7 +11980,7 @@ ${content}
                               <ChevronLeft size={16} className="stroke-[2.5]" />
                             </button>
 
-                            <div className="h-[1px] w-full bg-neutral-200/10 dark:bg-white/5" />
+                            <div className="h-5 w-px bg-neutral-200/10 dark:bg-white/5" />
 
                             <span
                               className="text-xl shrink-0 leading-none drop-shadow-sm"
@@ -12029,7 +12029,7 @@ ${content}
                       </div>
 
                       <div
-                        className={`flex-1 overflow-y-auto no-scrollbar py-3 ${sidebarMode === "mini" ? "px-1 space-y-3.5" : "px-2.5 space-y-2"}`}
+                        className={`flex-1 min-h-0 overflow-hidden ${sidebarMode === "mini" ? "px-1 py-1" : "px-2.5 py-2"}`}
                       >
                         <StudentListWidgetContent
                           key={app.activeClassId || 'no-class'}
@@ -12037,6 +12037,7 @@ ${content}
                           getTodayPoints={getTodayPoints}
                           addParticipation={addParticipation}
                           removeParticipation={removeParticipation}
+                          sidebarCompact={sidebarMode === "mini"}
                         />
                       </div>
                     </motion.div>

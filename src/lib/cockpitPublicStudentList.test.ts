@@ -65,3 +65,22 @@ test('Öffentliche Plusliste zeigt für eine tatsächlich leere Klasse keine erf
   assert.match(html, /keine Kinder angelegt/);
   assert.doesNotMatch(html, /Max|Anna|Lukas|Emma/);
 });
+
+test('Kompakte Cockpit-Seitenleiste zeigt alle 17 echten Kinder in einem zweispaltigen Raster', () => {
+  const pupils = Array.from({ length: 17 }, (_, index) => ({
+    id: `student-${index}`, vorname: `Kind${index + 1}`, nachname: 'Beispiel',
+  })) as unknown as Student[];
+  const html = renderToStaticMarkup(React.createElement(PublicStudentListWidget, {
+    app: { activeClassId: 'class-a', schueler: pupils } as unknown as AppState,
+    sidebarCompact: true,
+    getTodayPoints: () => 1,
+    addParticipation: () => {},
+    removeParticipation: () => {},
+  }));
+  assert.match(teaching, /sidebarCompact=\{sidebarMode === "mini"\}/);
+  assert.match(html, /grid-cols-2/);
+  assert.match(html, /Unsere Pluspunkte · 17/);
+  for (let i = 1; i <= 17; i++) assert.match(html, new RegExp(`Kind${i}(?!\\d)`));
+  assert.equal((html.match(/Pluspunkt für/g) || []).length, 17);
+  assert.doesNotMatch(html, /overflow-hidden.*role="list"/);
+});

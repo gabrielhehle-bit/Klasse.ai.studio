@@ -12,6 +12,8 @@ interface Props {
   removeParticipation: (studentId: string) => void;
   /** Provided only inside the movable CockpitWidget, never for the narrow sidebar. */
   onExpand?: () => void;
+  /** The narrow Cockpit sidebar must show the whole class in a dense grid. */
+  sidebarCompact?: boolean;
 }
 
 /**
@@ -28,6 +30,7 @@ export function PublicStudentListWidget({
   addParticipation,
   removeParticipation,
   onExpand,
+  sidebarCompact = false,
 }: Props) {
   const students = app.schueler ?? [];
   const containerRef = useRef<HTMLElement>(null);
@@ -35,6 +38,7 @@ export function PublicStudentListWidget({
   const grid = getStudentGridLayout(size.width, size.height, students.length, { reservedHeight: 92, minCardWidth: 170, minCardHeight: 58, gap: 6 });
   const gridMode = Boolean(onExpand);
   const [compact, setCompact] = useState(false);
+  const dense = !gridMode && (sidebarCompact || compact);
   const [lastAwardedId, setLastAwardedId] = useState<string | null>(null);
   const [recentlyAwardedId, setRecentlyAwardedId] = useState<string | null>(null);
 
@@ -72,9 +76,16 @@ export function PublicStudentListWidget({
 
   return (
     <section ref={containerRef} aria-label="Öffentliche Schülerliste und Pluspunkte" className="flex h-full min-h-0 flex-col gap-2 p-2 text-slate-900">
-      <div className="flex shrink-0 items-center justify-between gap-2">
-        <h3 className="text-sm font-bold">Unsere Pluspunkte</h3>
-        {!gridMode && (
+      <div className="flex shrink-0 items-center justify-between gap-1">
+        <h3 className={`${dense ? 'text-xs' : 'text-sm'} font-bold`}>Unsere Pluspunkte · {students.length}</h3>
+        {dense && lastAwardedId && (
+          <button type="button" onClick={() => {
+            if (getTodayPoints(lastAwardedId) > 0) removeParticipation(lastAwardedId);
+            setLastAwardedId(null);
+            setRecentlyAwardedId(null);
+          }} className="min-h-9 shrink-0 rounded-md border border-slate-300 bg-white px-1.5 text-xs font-semibold" aria-label="Letzten Pluspunkt rückgängig machen">↶</button>
+        )}
+        {!gridMode && !sidebarCompact && (
           <button type="button" aria-pressed={compact}
             onClick={() => setCompact(value => !value)}
             className="min-h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
@@ -92,7 +103,7 @@ export function PublicStudentListWidget({
           <p className="text-xs text-slate-600">Falls das Gerät sehr klein ist, aktiviere den Vollbildmodus.</p>
         </div>
       ) : (
-      <div className={gridMode ? 'grid min-h-0 flex-1 content-start gap-1.5 overflow-hidden' : 'min-h-0 flex-1 space-y-2 overflow-y-auto'}
+      <div className={gridMode ? 'grid min-h-0 flex-1 content-start gap-1.5 overflow-hidden' : dense ? 'grid min-h-0 flex-1 grid-cols-2 content-start gap-1 overflow-y-auto' : 'min-h-0 flex-1 space-y-2 overflow-y-auto'}
         style={gridMode ? { gridTemplateColumns: `repeat(${grid.columns}, minmax(0, 1fr))` } : undefined} role="list">
         {students.map((student: Student) => {
           const points = Math.max(0, getTodayPoints(student.id));
@@ -100,15 +111,15 @@ export function PublicStudentListWidget({
           return (
             <div key={student.id} role="listitem"
               style={gridMode ? { minHeight: 58, height: Math.min(90, grid.cardHeight) } : undefined}
-              className={`flex min-w-0 items-center justify-between gap-1 rounded-xl border border-slate-200 bg-white ${gridMode ? 'px-1.5 py-1' : compact ? 'px-2 py-1' : 'px-3 py-2'}`}>
+              className={`flex min-w-0 items-center justify-between gap-0.5 rounded-xl border border-slate-200 bg-white ${gridMode ? 'px-1.5 py-1' : dense ? 'px-1 py-0.5' : 'px-3 py-2'}`}>
               <div className="min-w-0 flex-1">
-                <span className={`block break-words font-semibold leading-tight ${gridMode ? 'text-xs sm:text-sm' : 'text-base'}`}>{labels.get(student.id)}</span>
-                <span className="block text-sm font-medium text-amber-700" aria-label={`${points} Pluspunkte`}>
-                  {gridMode ? `★ ${points}` : `${'★'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
+                <span className={`block break-words font-semibold leading-tight ${gridMode ? 'text-xs sm:text-sm' : dense ? 'text-[11px]' : 'text-base'}`}>{labels.get(student.id)}</span>
+                <span className={`block font-medium text-amber-700 ${dense ? 'text-[11px]' : 'text-sm'}`} aria-label={`${points} Pluspunkte`}>
+                  {gridMode || dense ? `★ ${points}` : `${'★'.repeat(Math.min(points, 8))}${points > 8 ? '…' : ''} ${points}`}
                 </span>
               </div>
               <div className="flex shrink-0 flex-wrap justify-end gap-1">
-                {awarded && (
+                {awarded && !dense && (
                   <button
                     type="button"
                     onClick={() => {
@@ -127,9 +138,9 @@ export function PublicStudentListWidget({
                     setLastAwardedId(student.id);
                     setRecentlyAwardedId(student.id);
                   }}
-                  className="min-h-11 min-w-11 rounded-lg bg-emerald-600 px-3 text-lg font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600"
+                  className={`${dense ? 'min-h-10 min-w-10 px-1 text-xs' : 'min-h-11 min-w-11 px-3 text-lg'} rounded-lg bg-emerald-600 font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600`}
                   aria-label={`Pluspunkt für ${labels.get(student.id)} vergeben`}
-                >{recentlyAwardedId === student.id ? '✓ +1' : '+1'}</button>
+                >{recentlyAwardedId === student.id && !dense ? '✓ +1' : '+1'}</button>
               </div>
             </div>
           );
