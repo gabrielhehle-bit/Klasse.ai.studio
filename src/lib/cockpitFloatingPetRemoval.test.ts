@@ -9,7 +9,9 @@ test('Lehrercockpit zeigt keinen dauerhaften schwebenden Haustier-Launcher und k
   assert.match(cockpit, /showFloatingClassPetUi && petAccessoryOverlayOpen/);
 });
 
-test('Das Klassenhaustier als reguläre Funktion bleibt im Dashboard erhalten', () => {
+test('Das Klassenhaustier bleibt als eigenständige Funktion erhalten, aber nicht im Dashboard', () => {
   const dashboard = readFileSync('src/components/Dashboard.tsx', 'utf8');
-  assert.match(dashboard, /<MemoizedClassPetWidget \/>/);
+  assert.doesNotMatch(dashboard, /<MemoizedClassPetWidget \/>/);
+  const widget = readFileSync('src/components/ClassPetWidget.tsx', 'utf8');
+  assert.match(widget, /export default|export const ClassPetWidget/);
 });
