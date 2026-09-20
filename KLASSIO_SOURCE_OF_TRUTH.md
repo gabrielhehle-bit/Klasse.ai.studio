@@ -1,5 +1,7 @@
 # KLASSIO – Source of Truth
 
+> **Statusprüfung 2026-09-20 (PR #185):** GitHub-`main` wurde vor diesem Arbeitszweig auf `b40f56f64ed9f8aeff57cb8a853ff2bf4a83042b` verifiziert. PR #180 und #183 sind inzwischen in `main` integriert; die ältere Meldung weiter unten, `main` stehe auf `05bf54ba` und die neueren Module seien ausnahmslos offen, ist **überholt**. PR #182 ist ein separater offener Release-Entwurf. Der Arbeitszweig `feature/cockpit-paper-options-20260920` / PR #185 verändert nur die Cockpit-Werkzeugleiste, Papier, Klassenkassen-Zugang und Tests; er ist **kein Produktiv-Release**. Aktuellen `main`-HEAD, CI/PR-Status und `klassio.at` jeweils erneut prüfen. Der auf World4You installierte Commit ist aus diesem GitHub-Abgleich allein **nicht** nachgewiesen. Keine ZIP als Arbeitsgrundlage und keine unbestätigte PayPal-/Speicherfreischaltung.
+
 > **Aktualisierung 2026-09-19:** `main`-HEAD vor Wiederintegration: `05bf54bae5abbfee1d43ce96431a030a42bcc0ed`. Die offenen PRs #145–159 sind **nicht** Bestandteil von `main`. Der neue Arbeitszweig `reconcile/reintegrate-pr145-159` wird kontrolliert aufgebaut; sein tatsächlicher Umfang, Konflikte, Risiken und Abnahmebedingungen sind in [`docs/KLASSIO_REINTEGRATION_2026-09-19.md`](docs/KLASSIO_REINTEGRATION_2026-09-19.md) dokumentiert. Historische Statusangaben weiter unten nicht als Freigabe für diese 15 PRs lesen. `main` und der Server bleiben bis zur vollständigen Abnahme unverändert.
 
 Stand: 2026-09-16
