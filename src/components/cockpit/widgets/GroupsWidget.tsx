@@ -671,13 +671,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
             <p className="text-xs text-stone-500 max-w-xs mb-3">
               {activeStudentIds.length} Kinder {studentScope === 'all' ? 'aus der Klasse' : 'anwesend'}. Wähle oben die Größe und tippe auf „Gruppen bilden“.
             </p>
-            <button
-              onClick={() => handleGenerate()}
-              className="min-h-[44px] px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-black flex items-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer"
-            >
-              <Sparkles size={16} />
-              <span>Gruppen bilden</span>
-            </button>
+            <p className="text-xs font-semibold text-indigo-700">Mit „Gruppen bilden“ oben starten.</p>
           </div>
         ) : !groupLayout.fits ? (
           <div role="status" className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-xl bg-indigo-50 p-3 text-center text-slate-900">
