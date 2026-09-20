@@ -1,0 +1,33 @@
+name: Zufälliges Kind Targeted Validation
+
+on:
+  push:
+    branches:
+      - feature/randomname-central-settings-no-fake-20260920
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: TypeScript
+        run: bun run lint
+      - name: Isolated random-name regression tests
+        run: bunx tsx --test src/lib/randomNameWidgetModel.test.ts src/lib/randomNameWidgetRequirements.test.ts
+      - name: Production build
+        run: bun run build
+      - name: Verify PWA and server output
+        run: |
+          test -f dist/index.html
+          test -f dist/server.cjs
+          test -f dist/manifest.webmanifest
+          test -f dist/sw.js
