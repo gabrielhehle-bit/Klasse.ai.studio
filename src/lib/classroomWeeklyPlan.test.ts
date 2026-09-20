@@ -2,6 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getClassroomWeeklyTasks, getChildTaskProgress, updateChildWeeklyProgress, weekTaskKey } from './classroomWeeklyPlan';
 import type { Student } from '../types';
+import { normalizeAppState, syncActiveClass, switchClassState } from './appState';
+import { createVault } from './vaultService';
+import { createEncryptedBackup, decryptBackup } from './backupCryptoService';
+import { prepareBackupRestore } from './backupRestore';
 
 const schoolYear = '2026/27';
 const original = {
@@ -67,4 +71,40 @@ test('numeric imported weekday keys map to one stable week task, never duplicate
   const tasks = getClassroomWeeklyTasks(plan, 39);
   assert.equal(tasks.length, 1);
   assert.equal(tasks[0].id, weekTaskKey(schoolYear, 39, 'Montag', 0));
+});
+
+test('same student IDs in two classes retain independent progress through switch and JSON backup', () => {
+  let state = normalizeAppState({
+    activeClassId: 'class-a',
+    classes: [
+      { id: 'class-a', name: 'Klasse A', schuljahr: schoolYear, schueler: [pupil('same-id')], wochenplanung: original.wochenplanung },
+      { id: 'class-b', name: 'Klasse B', schuljahr: schoolYear, schueler: [pupil('same-id')], wochenplanung: original.wochenplanung },
+    ],
+  });
+  const taskId = weekTaskKey(schoolYear, 39, 'Montag', 0);
+  state = syncActiveClass({ ...state, schueler: updateChildWeeklyProgress(state.schueler, 'same-id', taskId, true, 'schwierig') });
+  state = switchClassState(state, 'class-b');
+  assert.equal(getChildTaskProgress(state.schueler[0], taskId), undefined);
+  state = syncActiveClass({ ...state, schueler: updateChildWeeklyProgress(state.schueler, 'same-id', taskId, true, 'leicht') });
+  state = switchClassState(state, 'class-a');
+  assert.equal(getChildTaskProgress(state.schueler[0], taskId)?.difficulty, 'schwierig');
+  const restored = normalizeAppState(JSON.parse(JSON.stringify(syncActiveClass(state))));
+  assert.equal(getChildTaskProgress(restored.schueler[0], taskId)?.difficulty, 'schwierig');
+  assert.equal(getChildTaskProgress(switchClassState(restored, 'class-b').schueler[0], taskId)?.difficulty, 'leicht');
+});
+
+test('child checkmarks remain encrypted during JSON backup and restore', async () => {
+  const taskId = weekTaskKey(schoolYear, 39, 'Montag', 0);
+  const vault = await createVault('Class weekly plan encrypted test vault 123!');
+  const state = normalizeAppState({
+    schueler: updateChildWeeklyProgress([pupil('synthetic-pupil')], 'synthetic-pupil', taskId, true, 'schwierig'),
+    wochenplanung: original.wochenplanung, schuljahr: schoolYear,
+  });
+  const encrypted = await createEncryptedBackup(state, vault.vaultKey, vault.vaultRecord);
+  assert.ok(!JSON.stringify(encrypted).includes('synthetic-pupil'));
+  assert.ok(!JSON.stringify(encrypted).includes('schwierig'));
+  const parsed = await decryptBackup(encrypted, vault.vaultKey);
+  assert.equal(getChildTaskProgress(parsed.schueler[0], taskId)?.difficulty, 'schwierig');
+  const restored = await prepareBackupRestore(encrypted, vault.vaultKey, () => null);
+  assert.equal(getChildTaskProgress(restored.schueler[0], taskId)?.done, true);
 });
