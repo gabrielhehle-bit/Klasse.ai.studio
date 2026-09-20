@@ -7,7 +7,11 @@ const birthday = readFileSync('src/components/cockpit/BirthdayCelebration.tsx', 
 
 test('Geburtstagsmodus ist eine bewusst gestartete Feieransicht und kein 21. Widget', () => {
   assert.match(teaching, /const \[isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen\] = useState\(false\)/);
-  assert.match(teaching, /onClick=\{\(\) => setIsBirthdayCelebrationOpen\(true\)\}/);
+  // The deliberate birthday action is tucked under Optionen, not top-level.
+  assert.match(teaching, /onClick=\{\(\) => \{ setIsBirthdayCelebrationOpen\(true\); setIsMoreOptionsMenuOpen\(false\); \}\}/);
+  const toolbar = teaching.slice(teaching.indexOf('🎨 Design & Farben'), teaching.indexOf('Weitere Funktionen', teaching.indexOf('🎨 Design & Farben')));
+  assert.doesNotMatch(toolbar, /🎂 Geburtstag/);
+  assert.match(teaching, /🎂 Geburtstag feiern/);
   assert.match(teaching, /isBirthdayCelebrationOpen && \(/);
   assert.match(birthday, /onClose\(\)/);
   assert.match(birthday, /setSelectedId\(student\.id\)/);
