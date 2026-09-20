@@ -2920,7 +2920,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isQuickBarSettingsOpen, setIsQuickBarSettingsOpen] = useState(false);
   const [isAddWidgetMenuOpen, setIsAddWidgetMenuOpen] = useState(false);
   const [isWidgetConfigurationOpen, setIsWidgetConfigurationOpen] = useState(false);
-  const [selectedWidgetConfiguration, setSelectedWidgetConfiguration] = useState<"kidattendance" | "groups">("kidattendance");
+  const [selectedWidgetConfiguration, setSelectedWidgetConfiguration] = useState<"kidattendance" | "groups" | "randomname">("kidattendance");
   const [isVorlagenModalOpen, setIsVorlagenModalOpen] = useState(false);
   const [vorlagenStartTab, setVorlagenStartTab] = useState<"browse" | "create">("browse");
   const [activeWidgetCategory, setActiveWidgetCategory] =
@@ -8244,10 +8244,11 @@ ${content}
                                       <label className="block text-sm font-semibold">
                                         Widget auswählen
                                         <select aria-label="Widget für Einstellungen" value={selectedWidgetConfiguration}
-                                          onChange={event => setSelectedWidgetConfiguration(event.target.value as "kidattendance" | "groups")}
+                                          onChange={event => setSelectedWidgetConfiguration(event.target.value as "kidattendance" | "groups" | "randomname")}
                                           className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
                                           <option value="kidattendance">🖐️ Ich bin da!</option>
                                           <option value="groups">👥 Gruppen bilden</option>
+                                          <option value="randomname">🎯 Zufälliges Kind</option>
                                         </select>
                                       </label>
                                       {(() => {
@@ -8255,7 +8256,20 @@ ${content}
                                         if (!configured) return <p role="status" className="text-sm">Füge dieses Widget zuerst hinzu, um seine Einstellungen zu speichern.</p>;
                                         const saveSetting = (key: string, value: string) =>
                                           handleUpdateWidgetPos(configured.id, { settings: { ...(configured.settings || {}), [key]: value } });
-                                        return selectedWidgetConfiguration === "kidattendance" ? (
+                                        return selectedWidgetConfiguration === "randomname" ? (
+                                          <fieldset className="space-y-2">
+                                            <legend className="text-sm font-black">Zufälliges Kind · Ton</legend>
+                                            <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                                              <input type="checkbox" checked={configured.settings?.soundEnabled !== false}
+                                                onChange={event => handleUpdateWidgetPos(configured.id, {
+                                                  settings: { ...(configured.settings || {}), soundEnabled: event.target.checked },
+                                                })}
+                                                className="h-5 w-5 shrink-0" />
+                                              <span className="text-sm font-semibold">Ton bei der Ziehung abspielen</span>
+                                            </label>
+                                            <p className="text-xs text-slate-600">Die Kinderauswahl für die laufende Unterrichtsphase bleibt eine direkte Unterrichtsaktion im Widget.</p>
+                                          </fieldset>
+                                        ) : selectedWidgetConfiguration === "kidattendance" ? (
                                           <fieldset className="space-y-2">
                                             <legend className="text-sm font-black">Ich bin da! · Erfassung</legend>
                                             {([
