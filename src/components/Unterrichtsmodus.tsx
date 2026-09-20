@@ -178,7 +178,7 @@ import { getPresentStudents, getDisplayStudentName } from "./cockpit/studentSele
 import { CockpitWidget } from "./cockpit/CockpitWidget";
 import { CockpitVorlagenModal } from "./cockpit/CockpitVorlagenModal";
 import { BoardTextEditor } from "./cockpit/BoardTextEditor";
-import { BoardInk, type BoardInkHandle, type InkItem } from "./cockpit/BoardInk";
+import { BoardInk, type InkItem } from "./cockpit/BoardInk";
 import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, type CockpitPaper } from "../lib/cockpitPaper";
