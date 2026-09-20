@@ -304,7 +304,7 @@ describe('F22 – Team-Scoreboard (widget-scoreboard)', () => {
   // 24. andere Widgets unverändert
   it('24. Mindestmaße anderer Widgets im Register bleiben exakt unberührt', () => {
     assert.strictEqual(WIDGET_MIN_SIZES.stopwatch.minW, 280);
-    assert.strictEqual(WIDGET_MIN_SIZES.todo.minW, 280);
+    // Todo's later no-scroll layout increased only its own minimum width.\n    assert.strictEqual(WIDGET_MIN_SIZES.todo.minW, 340);
     assert.strictEqual(WIDGET_MIN_SIZES.klassenglas.minW, 280);
     assert.strictEqual(WIDGET_MIN_SIZES.timer.minW, 280);
   });
