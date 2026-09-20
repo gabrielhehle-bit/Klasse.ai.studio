@@ -46,7 +46,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const splitTeacherName = [app?.anrede, app?.vorname, app?.nachname]
     .filter((part): part is string => typeof part === 'string' && Boolean(part.trim()))
     .join(' ').trim();
-  const storedTeacherName = [app?.lehrerName, app?.lehrerProfil?.name, app?.name]
+  const storedTeacherName = [app?.lehrerName, app?.lehrerProfil?.name]
     .find(value => typeof value === 'string' && Boolean(value.trim()) && !/^name fehlt$/i.test(value.trim()));
   const structuredFirstName = typeof app?.vorname === 'string' && !/^name fehlt$/i.test(app.vorname.trim())
     ? app.vorname.trim() : '';
