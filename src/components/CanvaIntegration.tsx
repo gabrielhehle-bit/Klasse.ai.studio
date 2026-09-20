@@ -20,6 +20,7 @@ type CanvaDesign = {
 type CanvaStatus = {
   configured: boolean;
   connected: boolean;
+  requiresEmailLogin?: boolean;
   reason?: string;
 };
 
@@ -310,9 +311,15 @@ export default function CanvaIntegration() {
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--accent-soft)] text-[var(--accent)]"><ShieldCheck size={23} /></span>
             <div className="flex-1">
               <h2 className="font-black text-[var(--text)]">Canva verbinden</h2>
-              <p className="mt-1 text-sm leading-relaxed text-[var(--text2)]">Die Anmeldung läuft über Canva OAuth 2.0 mit PKCE. Zugangstokens bleiben verschlüsselt auf dem Klassio-Server.</p>
+              <p className="mt-1 text-sm leading-relaxed text-[var(--text2)]">
+                {status.requiresEmailLogin
+                  ? 'Bitte melde dich zuerst mit deiner E-Mail-Adresse bei Klassio an. Die Canva-Verbindung gehört nur zu deinem Konto.'
+                  : 'Die Anmeldung läuft über Canva OAuth 2.0 mit PKCE. Zugangstokens bleiben verschlüsselt und kontogebunden auf dem Klassio-Server.'}
+              </p>
             </div>
-            <button type="button" onClick={connect} className="min-h-11 rounded-xl bg-[var(--accent)] px-5 text-sm font-black text-white hover:opacity-95">Mit Canva verbinden</button>
+            <button type="button" onClick={connect} disabled={status.requiresEmailLogin}
+              title={status.requiresEmailLogin ? 'Zuerst mit der Schul-E-Mail-Adresse bei Klassio anmelden' : undefined}
+              className="min-h-11 rounded-xl bg-[var(--accent)] px-5 text-sm font-black text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50">Mit Canva verbinden</button>
           </div>
         </section>
       ) : (
