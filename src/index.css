@@ -1013,6 +1013,19 @@ html body .class-mascot-v1,
   color: #0f172a !important;
   color-scheme: light;
 }
+[data-style] .class-mascot-v1 .bg-white,
+[data-style] .class-mascot-v1 button.bg-white,
+[data-style] .class-mascot-v1 select.bg-white,
+[data-style] .class-mascot-v1 input.bg-white { background-color: #ffffff !important; }
+[data-style] .class-mascot-v1 .bg-teal-50 { background-color: #f0fdfa !important; }
+[data-style] .class-mascot-v1 .bg-teal-100 { background-color: #ccfbf1 !important; }
+[data-style] .class-mascot-v1 .bg-amber-50 { background-color: #fffbeb !important; }
+[data-style] .class-mascot-v1 .bg-slate-50 { background-color: #f8fafc !important; }
+[data-style] .class-mascot-v1 button[aria-pressed="true"] {
+  background-color: #ccfbf1 !important;
+  color: #134e4a !important;
+}
+
 [data-style] .class-mascot-v1 :is(.text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700) {
   color: #0f172a !important;
 }
