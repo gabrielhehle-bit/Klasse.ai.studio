@@ -5231,11 +5231,11 @@ export default function PrintCenter() {
       case 'materialabholung':
         return (
           <div className="space-y-3 text-slate-900 leading-snug" style={{ fontSize: '10pt' }}>
-            <header className="border-b-2 border-slate-800 pb-2">
+            <div className="border-b-2 border-slate-800 pb-2">
               <h2 className="font-black" style={{ fontSize: '17pt' }}>Materialabholung · Lernstoff nach Fehltagen</h2>
               <p className="mt-1 font-bold">{pickupStudent ? pickupStudent.vorname + ' ' + pickupStudent.nachname : 'Kein Kind ausgewählt'}</p>
               <p>Zeitraum: {pickupDateFrom} bis {pickupDateTo} · Erfasste Fehltage: {pickupSheet.fehltage.length}</p>
-            </header>
+            </div>
             {!pickupSheet.fehltage.length
               ? <p className="border border-amber-300 bg-amber-50 p-3">Keine erfassten Fehltage. Bitte vor dem Druck die Anwesenheit kontrollieren.</p>
               : pickupSheet.tage.map(day => (
