@@ -27,6 +27,7 @@ const OPTIMAL_WIDGET_SIZES: Record<string, { w: number; h: number }> = {
   timer: { w: 23, h: 38 },
   trafficlight: { w: 16, h: 60 },
   randomname: { w: 50, h: 70 },
+  classweeklyplan: { w: 100, h: 100 },
   noisemeter: { w: 28, h: 42 },
   vocabulary: { w: 35, h: 48 },
   studentlist: { w: 25, h: 65 },
