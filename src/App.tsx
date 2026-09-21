@@ -602,7 +602,7 @@ function AppContent() {
       <React.Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div></div>}>
         <SetupWizard 
           isNewClass={currentPage === 'setup_new'} 
-          key={currentPage === 'setup_new' ? 'new_setup' : (app?.activeClassId || 'setup')} 
+          key={currentPage === 'setup_new' ? `new_setup_${app.classes?.length || 0}` : (app?.activeClassId || 'setup')} 
           onComplete={() => {
             setShowSetup(false);
             setPage('dashboard');
