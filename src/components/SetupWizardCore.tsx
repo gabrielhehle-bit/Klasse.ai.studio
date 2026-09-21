@@ -612,8 +612,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     { title: 'Schüler', icon: Users },
     { title: 'Übersicht', icon: ListChecks }
   ];
-  // In Sek I ist die Fächerwahl Teil der Einrichtung – keine versteckten VS-Pflichtfächer.
-  const STEPS = setupMode === 'quick' && !isEditing && !isNewClass && !isSek1 ? quickSteps : expertSteps;
+  // Fachunterricht braucht immer eine bewusste Fächerwahl, auch im Schnellmodus.
+  const STEPS = setupMode === 'quick' && !isEditing && !isNewClass && !isSek1 && klassenvorstand ? quickSteps : expertSteps;
     
   const [currStep, setCurrStep] = useState(() => {
     if (app?.setupInitialStepMode) {
@@ -1894,7 +1894,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                  )}
                </div>
 
-               {setupMode === 'quick' && (
+               {setupMode === 'quick' && !isSek1 && klassenvorstand && (
                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-[0.8125rem] text-indigo-800">
                    <strong>Schnellmodus:</strong> Fächer, Farben und Stammstundenplan kannst du jederzeit unter „Klassen-Einstellungen“ ergänzen.
                  </div>
