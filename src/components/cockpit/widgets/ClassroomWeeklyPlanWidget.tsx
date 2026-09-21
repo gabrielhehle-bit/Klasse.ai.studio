@@ -149,7 +149,16 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
             <div className={isExpanded ? "grid grid-cols-1 gap-3 md:grid-cols-2" : "grid min-h-0 flex-1 grid-cols-1 gap-3"}>
               {displayedTasks.map((task, index) => <article key={task.id}
                 className="weekly-plan-light-card min-h-0 rounded-2xl border-2 border-indigo-400 bg-white p-3 shadow-sm sm:p-4">
-                <p className="mb-2 text-base font-extrabold text-indigo-800">Aufgabe {currentTaskPage * tasksPerPage + index + 1} · {task.day}</p>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-base font-extrabold text-indigo-800">Aufgabe {currentTaskPage * tasksPerPage + index + 1} · {task.day}</p>
+                  {!isExpanded && (
+                    <button type="button" onClick={() => setIsExpanded(true)}
+                      aria-label={`Aufgabe ${currentTaskPage * tasksPerPage + index + 1} vollständig lesen`}
+                      className="min-h-11 rounded-xl border border-indigo-300 bg-indigo-50 px-3 text-xs font-bold text-indigo-800">
+                      Vollständig lesen ↗
+                    </button>
+                  )}
+                </div>
                 <TaskText task={task} showMaterials={preferences.showMaterials} />
               </article>)}
             </div>
