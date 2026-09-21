@@ -491,7 +491,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         width: `${renderedW}%`,
         height: `${renderedH}%`,
         zIndex: isDirect ? 0 : isMaximized ? 9999 : zIndex,
-        touchAction: isDirect || layoutLocked ? "auto" : "none",
+        touchAction: isDirect || layoutLocked || isFreeMascot ? "auto" : "none",
       }}
       onClick={onFocus}
     >
