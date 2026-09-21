@@ -1668,6 +1668,14 @@ export interface AppState {
     cockpitPaperSpacingByClass?: Record<string, number>;
     cockpitTextByClass?: Record<string, string>;
     cockpitQuickbarByClass?: Record<string, { enabled: boolean; itemIds: import('./lib/cockpitQuickbar').CockpitQuickbarId[] }>;
+    /** Class-local presets for NEW children-week widgets (no pupil data). */
+    cockpitChildrenWeekDefaultsByClass?: Record<string, import('./lib/classroomWeeklyWidgetPreferences').ClassroomWeeklyWidgetPreferences>;
+    /** Class-local defaults for NEW group widgets; does not rewrite installed group settings. */
+    cockpitGroupDefaultsByClass?: Record<string, import('./lib/groupWidgetPreferences').GroupWidgetPreferences>;
+    /** Class-local defaults for NEW check-in instances. Existing widget settings stay independent. */
+    cockpitCheckInDefaultsByClass?: Record<string, import('./lib/checkInWidgetMode').CheckInPreferences>;
+    /** Class-local presets for NEW random-selection widgets, never student records. */
+    cockpitRandomNameDefaultsByClass?: Record<string, import('./lib/randomNameWidgetModel').RandomNameWidgetPreferences>;
     cockpitInkByClass?: Record<string, import('./components/cockpit/BoardInk').InkItem[]>;
     sidebarMode?: 'expanded' | 'mini' | 'hidden';
     activeFont?: string;

@@ -41,3 +41,44 @@ export function randomSelectionPage<T>(
     pageCount,
   };
 }
+
+
+/** Configuration of new widget instances. Existing instance settings are independent. */
+export interface RandomNameWidgetPreferences {
+  selectionMode: 'independent' | 'round';
+  soundEnabled: boolean;
+  animationEnabled: boolean;
+  startSize: 'compact' | 'standard' | 'large';
+}
+
+export function getRandomNameWidgetPreferences(settings: unknown): RandomNameWidgetPreferences {
+  const value = settings && typeof settings === 'object' ? settings as Record<string, unknown> : {};
+  return {
+    selectionMode: value.selectionMode === 'round' ? 'round' : 'independent',
+    soundEnabled: value.soundEnabled !== false,
+    animationEnabled: value.animationEnabled !== false,
+    startSize: value.startSize === 'compact' || value.startSize === 'standard' ? value.startSize : 'large',
+  };
+}
+
+/** A fair round draws each eligible pupil at most once, then waits for an explicit reset.
+ * The caller must pass the CURRENT eligible active-class roster; absent and excluded
+ * pupils are removed from the round pool without changing attendance or student records.
+ */
+export function remainingRandomRoundStudents<T extends { id: string }>(
+  eligible: readonly T[],
+  drawnIds: readonly string[],
+): T[] {
+  const drawn = new Set(drawnIds);
+  return eligible.filter(student => !drawn.has(student.id));
+}
+
+export function undoLastRandomPick(
+  drawnIds: readonly string[],
+): { drawnIds: string[]; previousSelectedId: string | null } {
+  if (drawnIds.length === 0) return { drawnIds: [], previousSelectedId: null };
+  return {
+    drawnIds: drawnIds.slice(0, -1),
+    previousSelectedId: drawnIds.length > 1 ? drawnIds[drawnIds.length - 2] : null,
+  };
+}

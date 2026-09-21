@@ -49,6 +49,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   const app = propApp || contextApp;
   const setApp = propSetApp || contextSetApp;
   const checkInMode = getCheckInMode(widget?.settings);
+  const moodEnabled = widget?.settings?.moodEnabled !== false;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
@@ -89,11 +90,16 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
   // Lokale UI-Modi (flüchtig)
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
+  const [showTeacherMoodDetails, setShowTeacherMoodDetails] = useState(false);
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
   const [isStudentPageOpen, setIsStudentPageOpen] = useState(false);
   const [studentPage, setStudentPage] = useState(0);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [recentlyTappedId, setRecentlyTappedId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!isTeacherModalOpen) setShowTeacherMoodDetails(false);
+  }, [isTeacherModalOpen]);
 
   // Aktiver Befindens-Check-in für ein Kind (direkt nach "Da"-Klick)
   const [activeMoodStudent, setActiveMoodStudent] = useState<{
@@ -118,9 +124,11 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     moodCloseTimerRef.current = null;
     setActiveMoodStudent(null);
     setIsTeacherModalOpen(false);
+    setShowTeacherMoodDetails(false);
     setIsFinalizeModalOpen(false);
     setIsStudentPageOpen(false);
     setStudentPage(0);
+    if (widget?.id) window.dispatchEvent(new CustomEvent('klassio:checkin-expand', { detail: { id: widget.id, expanded: false } }));
     setSelectedStudentId(null);
     setRecentlyTappedId(null);
   }, [app.activeClassId]);
@@ -136,7 +144,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   const handleStudentCardTap = useCallback((studentId: string) => {
     const currentStatus = getStudentAttendanceStatus(studentId, app, todayStr);
     if (checkInMode === 'teacher') {
-      if (currentStatus.status !== 'present') return;
+      if (!moodEnabled || currentStatus.status !== 'present') return;
       const student = students.find((child) => child.id === studentId);
       setActiveMoodStudent({
         id: studentId,
@@ -166,7 +174,15 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     }, 1200);
 
     // Anwesenheit auf 'da' setzen
-    setApp(res.updatedAppState);
+    setApp((prev) => prev.activeClassId === app.activeClassId && prev.schueler?.some((child) => child.id === studentId)
+      ? checkInStudent(prev, studentId, todayStr).updatedAppState
+      : prev);
+
+    // The optional mood question must never hold up the attendance check-in.
+    if (!moodEnabled) {
+      setSelectedStudentId(null);
+      return;
+    }
 
     // Unmittelbar danach: 5-stufige Befindensabfrage öffnen
     const student = students.find((s) => s.id === studentId);
@@ -176,7 +192,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
       displayName: dName,
       step: 'prompt',
     });
-  }, [app, setApp, todayStr, students, displayNames, checkInMode, selectedStudentId]);
+  }, [app, setApp, todayStr, students, displayNames, checkInMode, selectedStudentId, moodEnabled]);
 
   // Kind wählt einen der 5 Smileys (1 = sehr gut bis 5 = schlecht)
   const handleChildSelectMood = useCallback((value: number) => {
@@ -184,7 +200,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     const studentId = activeMoodStudent.id;
 
     // Speichern im verschlüsselten AppState unter app.schuelerStimmung
-    setApp((prev) => recordStudentMood(prev, studentId, value, todayStr));
+    setApp((prev) => prev.activeClassId === app.activeClassId && prev.schueler?.some((child) => child.id === studentId)
+      ? recordStudentMood(prev, studentId, value, todayStr)
+      : prev);
 
     // Sofort auf die neutrale Danke-Ansicht umstellen (ohne den gewählten Smiley zu zeigen!)
     setActiveMoodStudent((prev) => (prev ? { ...prev, step: 'thanks' } : null));
@@ -194,7 +212,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
       setActiveMoodStudent(null);
       setSelectedStudentId(null);
     }, 1200);
-  }, [activeMoodStudent, setApp, todayStr]);
+  }, [activeMoodStudent, setApp, todayStr, app.activeClassId]);
 
   // Kind überspringt das Befinden (freiwillig)
   const handleChildSkipMood = useCallback(() => {
@@ -234,27 +252,31 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   }, [setApp, todayStr]);
 
   const handleTeacherBatchAllPresent = useCallback(() => {
-    let nextApp = app;
-    students.forEach((s) => {
-      const status = getStudentAttendanceStatus(s.id, nextApp, todayStr);
-      if (status.status === 'open') {
-        nextApp = teacherSetStudentPresent(nextApp, s.id, todayStr);
-      }
+    setApp((prev) => {
+      if (prev.activeClassId !== app.activeClassId) return prev;
+      let nextApp = prev;
+      students.forEach((student) => {
+        if (getStudentAttendanceStatus(student.id, nextApp, todayStr).status === 'open') {
+          nextApp = teacherSetStudentPresent(nextApp, student.id, todayStr);
+        }
+      });
+      return nextApp;
     });
-    setApp(nextApp);
-  }, [app, setApp, students, todayStr]);
+  }, [app.activeClassId, setApp, students, todayStr]);
 
   const handleTeacherFinalizeRemainingAbsent = useCallback(() => {
-    let nextApp = app;
-    students.forEach((s) => {
-      const status = getStudentAttendanceStatus(s.id, nextApp, todayStr);
-      if (status.status === 'open') {
-        nextApp = teacherSetStudentAbsent(nextApp, s.id, todayStr, undefined, 'u');
-      }
+    setApp((prev) => {
+      if (prev.activeClassId !== app.activeClassId) return prev;
+      let nextApp = prev;
+      students.forEach((student) => {
+        if (getStudentAttendanceStatus(student.id, nextApp, todayStr).status === 'open') {
+          nextApp = teacherSetStudentAbsent(nextApp, student.id, todayStr, undefined, 'u');
+        }
+      });
+      return nextApp;
     });
-    setApp(nextApp);
     setIsFinalizeModalOpen(false);
-  }, [app, setApp, students, todayStr]);
+  }, [app.activeClassId, setApp, students, todayStr]);
 
   // Liste der aktuell noch offenen Kinder
   const openStudents = useMemo(() => {
@@ -279,6 +301,18 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     }
   }, [todayStr]);
 
+  React.useEffect(() => {
+    const handleFrameSize = (event: Event) => {
+      const detail = (event as CustomEvent<{ id: string; expanded: boolean }>).detail;
+      if (detail?.id === widget?.id && !detail.expanded) {
+        setIsStudentPageOpen(false);
+        setStudentPage(0);
+      }
+    };
+    window.addEventListener('klassio:checkin-frame-size', handleFrameSize);
+    return () => window.removeEventListener('klassio:checkin-frame-size', handleFrameSize);
+  }, [widget?.id]);
+
   // Keine Schüler in Klasse
   if (students.length === 0) {
     return (
@@ -300,7 +334,13 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
   const expandStudentGrid = () => {
     setIsStudentPageOpen(true);
     setStudentPage(0);
-    onUpdate?.({ x: 2, y: 2, w: 96, h: 90 });
+    // Use the shared frame's LOCAL maximize state: never overwrite saved layout.
+    if (widget?.id) window.dispatchEvent(new CustomEvent('klassio:checkin-expand', { detail: { id: widget.id, expanded: true } }));
+  };
+  const collapseStudentGrid = () => {
+    setIsStudentPageOpen(false);
+    setStudentPage(0);
+    if (widget?.id) window.dispatchEvent(new CustomEvent('klassio:checkin-expand', { detail: { id: widget.id, expanded: false } }));
   };
   const denseStudentGrid = students.length >= 16;
 
@@ -309,7 +349,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     const displayName = displayNames.get(student.id) || student.vorname;
     const { status, isPreExistingAbsent, delayMinutes } = getStudentAttendanceStatus(student.id, app, todayStr);
     const isJustCheckedIn = recentlyTappedId === student.id;
-    const canTapMood = checkInMode === 'teacher' && status === 'present';
+    const canTapMood = moodEnabled && checkInMode === 'teacher' && status === 'present';
 
     // Farb- und Styling-Definition gemäß Status
     let cardClasses = '';
@@ -355,7 +395,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         key={student.id}
         type="button"
         onClick={() => handleStudentCardTap(student.id)}
-        disabled={status === 'absent' || (checkInMode === 'teacher' && status !== 'present')}
+        tabIndex={checkInMode === 'individual' && selectedStudentId === student.id ? -1 : undefined}
+        disabled={status === 'absent' || (checkInMode === 'teacher' && (status !== 'present' || !moodEnabled))}
         title={
           status === 'absent'
             ? `${displayName} ist bereits als abwesend erfasst`
@@ -424,7 +465,9 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           }`}
         >
           {statusIcon}
-          <span className="whitespace-nowrap">{canTapMood ? 'Befinden' : statusLabel}</span>
+          {denseStudentGrid && size.width / studentGrid.columns < 190 ? (
+            <span className="sr-only">{canTapMood ? 'Befinden' : statusLabel}</span>
+          ) : <span className="whitespace-nowrap">{canTapMood ? 'Befinden' : statusLabel}</span>}
         </div>
       </button>
     );
@@ -538,6 +581,11 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
         {/* Aktionsbuttons oben rechts */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {isStudentPageOpen && (
+            <button type="button" onClick={collapseStudentGrid} className="min-h-11 rounded-lg border px-3 text-xs font-bold" aria-label="Zur ursprünglichen Widgetgröße zurückkehren">
+              <Maximize2 size={14} className="inline-block rotate-180 mr-1" /> Zurück zur Widgetgröße
+            </button>
+          )}
           {/* Lehrer-Korrektur */}
           <button
             type="button"
@@ -574,7 +622,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
           <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 overflow-hidden px-2">
             <p className="text-sm font-bold">Ist das dein Name?</p>
             <div className="w-full max-w-md">
-              {renderStudentCard(students.find(child => child.id === selectedStudentId)!)}
+              <div className="pointer-events-none" aria-hidden="true">{renderStudentCard(students.find(child => child.id === selectedStudentId)!)}</div>
             </div>
             <button type="button" onClick={() => handleStudentCardTap(selectedStudentId)}
               disabled={getStudentAttendanceStatus(selectedStudentId, app, todayStr).status !== 'open'}
@@ -724,6 +772,20 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             </div>
           </div>
 
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-2 text-xs dark:border-zinc-800">
+            <span className="font-semibold">Befindensangaben sind für die Unterrichtsprojektion ausgeblendet.</span>
+            {showTeacherMoodDetails ? (
+              <button type="button" onClick={() => setShowTeacherMoodDetails(false)}
+                className="min-h-11 rounded-lg border px-3 font-bold">Befinden verbergen</button>
+            ) : (
+              <button type="button" onClick={() => {
+                if (window.confirm("Nur auf einem nicht projizierten Gerät öffnen. Können andere Kinder oder Eltern den Bildschirm sehen? Falls ja: Abbrechen.")) setShowTeacherMoodDetails(true);
+              }} className="min-h-11 rounded-lg border px-3 font-bold">
+                Befinden anzeigen (nur ohne Projektion)
+              </button>
+            )}
+          </div>
+
           {/* Schülerliste mit Einzelfunktionen */}
           <div className="flex-1 overflow-y-auto no-scrollbar p-3 divide-y divide-slate-100 dark:divide-zinc-800 min-h-0">
             {students.map((student) => {
@@ -769,7 +831,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTeacherSetPresent(student.id)}
-                        className={`h-8 px-2.5 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border ${
+                        className={`min-h-11 px-2.5 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border ${
                           status === 'present'
                             ? 'bg-emerald-600 text-white border-emerald-600'
                             : 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-emerald-50'
@@ -783,7 +845,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTeacherSetAbsent(student.id, 'u')}
-                        className={`h-8 px-2.5 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border ${
+                        className={`min-h-11 px-2.5 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border ${
                           status === 'absent'
                             ? 'bg-rose-600 text-white border-rose-600'
                             : 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-rose-50'
@@ -796,7 +858,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTeacherSetAbsent(student.id, 'e')}
-                        className="h-8 px-2 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-300 hover:bg-amber-50"
+                        className="min-h-11 px-2 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-300 hover:bg-amber-50"
                         title="Als entschuldigt setzen (z.B. Krankmeldung)"
                       >
                         Entsch.
@@ -805,7 +867,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTeacherResetToOpen(student.id)}
-                        className="h-8 px-2 rounded-md text-xs font-medium flex items-center gap-1 cursor-pointer border bg-slate-50 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-100"
+                        className="min-h-11 px-2 rounded-md text-xs font-medium flex items-center gap-1 cursor-pointer border bg-slate-50 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-100"
                         title="Check-In zurücksetzen auf Offen"
                       >
                         <RotateCcw size={11} />
@@ -819,7 +881,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                           const nextDelay = delayMinutes > 0 ? 0 : 5;
                           handleTeacherSetDelay(student.id, nextDelay);
                         }}
-                        className={`h-8 px-1.5 rounded-md text-[11px] font-bold border cursor-pointer ${
+                        className={`min-h-11 px-1.5 rounded-md text-[11px] font-bold border cursor-pointer ${
                           delayMinutes > 0
                             ? 'bg-amber-500 text-white border-amber-500'
                             : 'bg-slate-100 dark:bg-zinc-800 border-slate-200 text-slate-500'
@@ -831,7 +893,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                     </div>
                   </div>
 
-                  {/* Lehrkraft Befindens-Verwaltung */}
+                  {/* Lehrkraft Befindens-Verwaltung: never shown by opening correction alone. */}
+                  {showTeacherMoodDetails && (
                   <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-slate-100 dark:border-zinc-800/60 text-xs">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-500">
@@ -856,7 +919,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                           key={meta.value}
                           type="button"
                           onClick={() => setApp((prev) => teacherSetStudentMood(prev, student.id, meta.value, todayStr))}
-                          className={`w-6 h-6 rounded flex items-center justify-center text-xs cursor-pointer transition-all ${
+                          className={`min-h-11 min-w-11 rounded flex items-center justify-center text-xs cursor-pointer transition-all ${
                             currentMood === meta.value
                               ? 'bg-slate-200 dark:bg-zinc-700 ring-2 ring-emerald-500 scale-105'
                               : 'hover:bg-slate-100 dark:hover:bg-zinc-800 opacity-70 hover:opacity-100'
@@ -870,7 +933,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                         <button
                           type="button"
                           onClick={() => setApp((prev) => teacherClearStudentMood(prev, student.id, todayStr))}
-                          className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer ml-0.5"
+                          className="min-h-11 min-w-11 rounded flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer ml-0.5"
                           title="Befinden löschen (auf 'Keine Angabe' zurücksetzen)"
                         >
                           <X size={12} />
@@ -878,6 +941,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       )}
                     </div>
                   </div>
+                  )}
                 </div>
               );
             })}

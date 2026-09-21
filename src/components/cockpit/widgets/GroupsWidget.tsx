@@ -21,7 +21,8 @@ import {
   generateStudentGroups,
   swapStudentsInGroups,
   moveStudentToGroup,
-  GROUP_COLOR_PALETTES
+  GROUP_COLOR_PALETTES,
+  getGroupName
 } from '../../../lib/groupsAlgorithm';
 
 export interface GroupsWidgetProps {
@@ -53,7 +54,9 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
   const setApp = propSetApp || context?.setApp;
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const groupBodyRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
+  const groupBodySize = useWidgetSize(groupBodyRef);
   useWidgetOverflowGuard('GroupsWidget', containerRef);
 
   // Automatisch ermittelte anwesende Schüler
@@ -109,10 +112,46 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
   // centrally opened Widget hinzufügen settings panel, never inside the widget.
   useEffect(() => {
     setOptionsHost(settingsInPicker ? document.getElementById('cockpit-groups-settings-host') : null);
+    if (!settingsInPicker) {
+      setOptionsTab('pause');
+      setPairRulesAcknowledged(false);
+    }
   }, [settingsInPicker]);
   const [optionsTab, setOptionsTab] = useState<'pause' | 'constraints' | 'names'>('pause');
+  const [pairRulesAcknowledged, setPairRulesAcknowledged] = useState(false);
   const [selectedStudentForAction, setSelectedStudentForAction] = useState<string | null>(null);
   const [groupPage, setGroupPage] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
+  useEffect(() => {
+    if (!isExpanded) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsExpanded(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isExpanded]);
+  const [previousGroups, setPreviousGroups] = useState<GeneratedGroup[] | null>(null);
+
+  // Widget settings are the encrypted source of truth after reload or remote sync.
+  useEffect(() => {
+    setGroups(Array.isArray(widget?.settings?.groups) ? widget.settings.groups : []);
+    setGroupPage(0);
+    setSelectedStudentForAction(null);
+  }, [widget?.settings?.groups]);
+  useEffect(() => {
+    setNamingStyle(widget?.settings?.namingStyle || 'numbered');
+    setPausedStudentIds(Array.isArray(widget?.settings?.pausedStudentIds) ? widget.settings.pausedStudentIds : []);
+    setNotTogether(Array.isArray(widget?.settings?.notTogether) ? widget.settings.notTogether : []);
+    setKeepTogether(Array.isArray(widget?.settings?.keepTogether) ? widget.settings.keepTogether : []);
+  }, [widget?.settings?.namingStyle, widget?.settings?.pausedStudentIds, widget?.settings?.notTogether, widget?.settings?.keepTogether]);
+  useEffect(() => {
+    setIsExpanded(false);
+    setPreviousGroups(null);
+    setPairRulesAcknowledged(false);
+    setOptionsTab('pause');
+    setGroupPage(0);
+    setSelectedStudentForAction(null);
+  }, [app.activeClassId]);
   const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'info' | 'error' | 'success' } | null>(null);
 
   // Formularzustand für neue Constraints
@@ -201,6 +240,8 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     };
 
     const result = generateStudentGroups(activeStudentIds, config);
+    if (groups.length > 0 && groups.every(group => group.studentIds.every(id => allStudents.some(s => s.id === id)))) setPreviousGroups(groups);
+    else setPreviousGroups(null);
     setGroups(result.groups);
     setSelectedStudentForAction(null);
     setGroupPage(0);
@@ -226,7 +267,17 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
         type: 'success'
       });
     }
-  }, [mode, targetValue, namingStyle, pausedStudentIds, notTogether, keepTogether, activeStudentIds, studentScope, persistState]);
+  }, [mode, targetValue, namingStyle, pausedStudentIds, notTogether, keepTogether, activeStudentIds, studentScope, persistState, groups, allStudents]);
+
+  const undoMix = () => {
+    if (!previousGroups) return;
+    setGroups(previousGroups);
+    persistState(previousGroups, mode, targetValue, pausedStudentIds, notTogether, keepTogether, namingStyle);
+    setPreviousGroups(null);
+    setGroupPage(0);
+    setSelectedStudentForAction(null);
+    setFeedbackMessage({ text: 'Vorherige Gruppeneinteilung wiederhergestellt.', type: 'success' });
+  };
 
   // Tauschen oder Verschieben von Schülern
   const handleStudentClick = useCallback((studentId: string) => {
@@ -241,6 +292,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     }
 
     const newGroups = swapStudentsInGroups(groups, selectedStudentForAction, studentId);
+    setPreviousGroups(groups);
     setGroups(newGroups);
     setSelectedStudentForAction(null);
 
@@ -271,6 +323,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
       return;
     }
 
+    setPreviousGroups(groups);
     setGroups(moveRes.updatedGroups);
 
     const st = allStudents.find(s => s.id === selectedStudentForAction);
@@ -328,15 +381,20 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     persistState(groups, mode, targetValue, pausedStudentIds, notTogether, updated, namingStyle);
   };
 
+  // Measure the real remaining content area. Feedback, action buttons and
+  // header wrapping must not randomly replace existing group cards with a
+  // "needs more space" placeholder.
   const groupLayout = getGroupPageLayout(
-    size.width,
-    size.height - (feedbackMessage ? 38 : 0) - (selectedStudentForAction ? 40 : 0),
+    groupBodySize.width,
+    groupBodySize.height,
     groups,
     groupPage,
+    { reservedHeight: 76 }, // content padding, page navigation and card gaps
   );
   const displayedGroups = groupLayout.cards.slice(groupLayout.start, groupLayout.start + groupLayout.pageSize);
+  const hasMissingClassMembers = groups.some(group => group.studentIds.some(id => !allStudents.some(student => student.id === id)));
 
-  return (
+  const widgetContent = (
     <div
       ref={containerRef}
       className={`relative flex flex-col justify-between w-full h-full select-none overflow-hidden transition-colors ${
@@ -397,10 +455,23 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           <p className="text-xs font-black">{mode === 'count' ? `${targetValue} Gruppen` : `${targetValue}er-Gruppen`}</p>
           <p className="text-xs opacity-70">{activeStudentIds.length} Kinder {studentScope === 'all' ? 'aus der Klasse' : 'heute anwesend'}</p>
         </div>
-        <button type="button" onClick={() => handleGenerate()}
-          className="min-h-11 shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-700">
-          {groups.length === 0 ? 'Gruppen bilden' : 'Neu mischen'}
-        </button>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+          {!isExpanded && groups.length > 0 && groupLayout.pageCount > 1 && (
+            <button type="button" onClick={() => setIsExpanded(true)}
+              className="min-h-11 rounded-xl border border-indigo-200 px-3 text-xs font-bold text-indigo-700 dark:text-indigo-300">
+              Großansicht
+            </button>
+          )}
+          {previousGroups && groups.length > 0 && (size.width >= 550 || isExpanded) && (
+            <button type="button" onClick={undoMix}
+              className="min-h-11 rounded-xl border border-indigo-200 px-3 text-xs font-bold text-indigo-700 dark:text-indigo-300"
+              title="Vorherige Gruppeneinteilung wiederherstellen">↶ Rückgängig</button>
+          )}
+          <button type="button" onClick={() => handleGenerate()}
+            className="min-h-11 shrink-0 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white hover:bg-indigo-700">
+            {groups.length === 0 ? 'Gruppen bilden' : 'Neu mischen'}
+          </button>
+        </div>
       </div>
 
       {/* ========================================================================= */}
@@ -437,7 +508,13 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                 Pausieren ({pausedStudentIds.length})
               </button>
               <button
-                onClick={() => setOptionsTab('constraints')}
+                onClick={() => {
+                  if (!pairRulesAcknowledged) {
+                    if (!window.confirm('Paarregeln können vertrauliche Informationen über Kinder enthalten. Öffne sie nur ohne Bildschirmprojektion. Jetzt anzeigen?')) return;
+                    setPairRulesAcknowledged(true);
+                  }
+                  setOptionsTab('constraints');
+                }}
                 className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   optionsTab === 'constraints'
                     ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white shadow-xs'
@@ -491,8 +568,11 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                 </div>
                 {pausedStudentIds.length > 0 && (
                   <button
-                    onClick={() => setPausedStudentIds([])}
-                    className="mt-2 text-xs font-bold text-rose-600 hover:underline cursor-pointer"
+                    onClick={() => {
+                      setPausedStudentIds([]);
+                      persistState(groups, mode, targetValue, [], notTogether, keepTogether, namingStyle);
+                    }}
+                    className="mt-2 min-h-11 rounded-lg px-3 text-xs font-bold text-rose-600 hover:bg-rose-50"
                   >
                     Alle Pausierungen aufheben
                   </button>
@@ -547,9 +627,13 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                         key={idx}
                         className="inline-flex items-center gap-1 px-2 py-0.5 mr-1 mb-1 rounded-lg text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900"
                       >
-                        <span>{stA ? getDisplayStudentName(stA, allStudents) : c.studentIdA} ≠ {stB ? getDisplayStudentName(stB, allStudents) : c.studentIdB}</span>
+                        <span>{stA ? getDisplayStudentName(stA, allStudents) : 'Nicht in dieser Klasse'} ≠ {stB ? getDisplayStudentName(stB, allStudents) : 'Nicht in dieser Klasse'}</span>
                         <button
-                          onClick={() => setNotTogether(prev => prev.filter((_, i) => i !== idx))}
+                          onClick={() => {
+                            const updated = notTogether.filter((_, i) => i !== idx);
+                            setNotTogether(updated);
+                            persistState(groups, mode, targetValue, pausedStudentIds, updated, keepTogether, namingStyle);
+                          }}
                           className="p-0.5 hover:text-rose-900 dark:hover:text-rose-100 cursor-pointer"
                         >
                           <X size={12} />
@@ -603,9 +687,13 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                         key={idx}
                         className="inline-flex items-center gap-1 px-2 py-0.5 mr-1 mb-1 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900"
                       >
-                        <span>{stA ? getDisplayStudentName(stA, allStudents) : c.studentIdA} &amp; {stB ? getDisplayStudentName(stB, allStudents) : c.studentIdB}</span>
+                        <span>{stA ? getDisplayStudentName(stA, allStudents) : 'Nicht in dieser Klasse'} &amp; {stB ? getDisplayStudentName(stB, allStudents) : 'Nicht in dieser Klasse'}</span>
                         <button
-                          onClick={() => setKeepTogether(prev => prev.filter((_, i) => i !== idx))}
+                          onClick={() => {
+                            const updated = keepTogether.filter((_, i) => i !== idx);
+                            setKeepTogether(updated);
+                            persistState(groups, mode, targetValue, pausedStudentIds, notTogether, updated, namingStyle);
+                          }}
                           className="p-0.5 hover:text-emerald-900 dark:hover:text-emerald-100 cursor-pointer"
                         >
                           <X size={12} />
@@ -629,8 +717,14 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                   <button
                     key={s.id}
                     onClick={() => {
-                      setNamingStyle(s.id as any);
-                      if (groups.length > 0) handleGenerate(mode, targetValue);
+                      const nextStyle = s.id as typeof namingStyle;
+                      setNamingStyle(nextStyle);
+                      // Changing the display style must never reshuffle established groups.
+                      const renamed = groups.map((group, index) => ({
+                        ...group, ...getGroupName(index, nextStyle),
+                      }));
+                      setGroups(renamed);
+                      persistState(renamed, mode, targetValue, pausedStudentIds, notTogether, keepTogether, nextStyle);
                     }}
                     className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
                       namingStyle === s.id
@@ -661,7 +755,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
       {/* ========================================================================= */}
       {/* HAUPTBEREICH: GRUPPEN-KARTEN ODER INITIALER STATE                         */}
       {/* ========================================================================= */}
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2 sm:p-3">
+      <div ref={groupBodyRef} className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2 sm:p-3">
         {groups.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
             <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2 shadow-inner">
@@ -669,7 +763,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
             </div>
             <h4 className="text-sm sm:text-base font-extrabold mb-1">Bereit für die Einteilung</h4>
             <p className="text-xs text-stone-500 max-w-xs mb-3">
-              {activeStudentIds.length} Kinder {studentScope === 'all' ? 'aus der Klasse' : 'anwesend'}. Wähle oben die Größe und tippe auf „Gruppen bilden“.
+              {activeStudentIds.length} Kinder {studentScope === 'all' ? 'aus der Klasse' : 'anwesend'}. Tippe oben auf „Gruppen bilden“. Die gewünschte Gruppengröße stellst du im Zahnrad der Widget-Auswahl ein.
             </p>
             <p className="text-xs font-semibold text-indigo-700">Mit „Gruppen bilden“ oben starten.</p>
           </div>
@@ -677,8 +771,8 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           <div role="status" className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-xl bg-indigo-50 p-3 text-center text-slate-900">
             <p className="text-sm font-bold">{groups.length} Gruppen mit {groups.reduce((sum, group) => sum + group.studentIds.length, 0)} Kindern sind eingeteilt.</p>
             <p className="text-xs">Damit alle Namen und Schaltflächen lesbar bleiben, braucht die Gruppendarstellung mehr Platz.</p>
-            <button type="button" onClick={() => onUpdate?.({ x: 2, y: 2, w: 96, h: 90 })}
-              disabled={!onUpdate} className="min-h-11 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+            <button type="button" onClick={() => setIsExpanded(true)}
+              className="min-h-11 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white">
               Gruppen groß anzeigen
             </button>
             <p className="text-xs">Bei sehr kleinen Bildschirmen bitte Querformat oder einen größeren Bildschirm verwenden.</p>
@@ -732,7 +826,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                       const student = allStudents.find((s) => s.id === studentId);
                       const displayName = student
                         ? getDisplayStudentName(student, allStudents)
-                        : studentId;
+                        : 'Nicht zugeordnet';
                       const isSelected = selectedStudentForAction === studentId;
 
                       return (
@@ -787,6 +881,12 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
         )}
       </div>
 
+      {hasMissingClassMembers && (
+        <div role="status" className="shrink-0 border-t border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-900">
+          Die gespeicherte Einteilung enthält Kinder, die nicht zur aktiven Klasse gehören. Bitte Gruppen neu bilden.
+        </div>
+      )}
+
       {/* Footer Schnellübersicht */}
       {groups.length > 0 && (
         <div className={`shrink-0 px-3 py-1.5 border-t flex items-center justify-between text-[11px] ${
@@ -800,6 +900,21 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
       )}
     </div>
   );
+  return isExpanded ? createPortal(
+    <div role="dialog" aria-modal="true" aria-label="Gruppen groß anzeigen"
+      className="fixed inset-0 z-[10000] flex min-h-0 flex-col bg-white p-2 text-slate-900 shadow-2xl sm:p-4 dark:bg-zinc-950 dark:text-white">
+      <div className="mb-2 flex min-h-11 shrink-0 items-center justify-between gap-3">
+        <span className="text-sm font-black">👥 Gruppen bilden · Großansicht</span>
+        <button type="button" onClick={() => setIsExpanded(false)}
+          className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm font-bold dark:border-zinc-700">
+          Zurück zur Widgetgröße
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200 dark:border-zinc-700">
+        {widgetContent}
+      </div>
+    </div>, document.body,
+  ) : widgetContent;
 };
 
 export default GroupsWidget;

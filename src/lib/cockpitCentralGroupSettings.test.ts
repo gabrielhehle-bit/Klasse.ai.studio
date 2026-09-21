@@ -21,9 +21,12 @@ test('Both roster choices live inside Widget hinzufügen settings and preserve c
   assert.match(picker, /Gruppenaufteilung/);
   assert.match(picker, /Kinder pro Gruppe/);
   assert.match(picker, /Anzahl Gruppen/);
-  assert.match(picker, /configured\.settings\?\.mode === "count" \? \[2, 3, 4, 5, 6\] : \[2, 3, 4, 5\]/);
-  assert.match(picker, /mode, targetValue: 4/);
-  assert.match(picker, /targetValue: value/);
+  assert.match(picker, /groupDefaults.mode === "count"/);
+  assert.match(picker, /saveSetting\("mode", mode\)/);
+  assert.match(picker, /saveSetting\("targetValue", value\)/);
+  assert.match(picker, /cockpitGroupDefaultsByClass/);
+  assert.match(picker, /Voreinstellungen auf vorhandenes Widget anwenden/);
+  assert.match(picker, /getGroupName\(index, groupDefaults.namingStyle\)/);
 
   assert.match(picker, /Bestehende Gruppen werden nicht ungefragt neu gemischt/);
   assert.match(picker, /\.\.\.\(configured\.settings \|\| \{\}\)/);
