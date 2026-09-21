@@ -98,9 +98,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const restoringRef = useRef(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const teamSyncBusyRef = useRef(false);
+  const locallySavedStateRef = useRef<AppState | null>(null);
+  const localSaveBusyRef = useRef(false);
+  const cloudConfirmedStateRef = useRef<AppState | null>(null);
 
   const setApp = React.useCallback((val: React.SetStateAction<AppState>) => {
     if (restoringRef.current) return;
+    // Immediately invalidate the cloud-ready badge, before the debounced write starts.
+    locallySavedStateRef.current = null;
+    cloudConfirmedStateRef.current = null;
+    setAccountSyncHealthy(false);
+    setAccountSyncStatus(previous => previous === 'conflict' || previous === 'error' || previous === 'disabled'
+      ? previous : 'saving-local');
     setAppInternal(prev => {
       const nextRaw = typeof val === 'function' ? (val as any)(prev) : val;
       const synced = syncActiveClass(nextRaw);
@@ -121,14 +130,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const accountSyncRevisionRef = useRef(0);
 
   const markAccountSynced = React.useCallback((snapshot: any, state: AppState) => {
+    // The server may confirm an earlier generation while the teacher continues typing.
+    // Keep that revision as a conflict-safe baseline, but never display stale green.
     saveAccountSyncMetadata(snapshot, state);
     accountSyncRevisionRef.current = snapshot.revision;
     accountSyncReadyRef.current = true;
     setAccountSyncLastAt(snapshot.updatedAt || new Date().toISOString());
-    setAccountSyncHealthy(true);
     setAccountSyncMessage(null);
     setAccountSyncConflictResolvable(false);
-    setAccountSyncStatus('synced');
+    const latest = currentAppRef.current;
+    const latestOnDisk = locallySavedStateRef.current === latest;
+    const latestOnServer = appStateFingerprint(latest) === appStateFingerprint(state);
+    if (latestOnDisk && latestOnServer) {
+      cloudConfirmedStateRef.current = latest;
+      setAccountSyncHealthy(true);
+      setAccountSyncStatus('synced');
+    } else {
+      cloudConfirmedStateRef.current = null;
+      setAccountSyncHealthy(false);
+      setAccountSyncStatus(latestOnDisk ? 'saved-local' : 'saving-local');
+    }
   }, []);
 
   const reconcileAccountState = React.useCallback(async (
@@ -273,6 +294,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const baseline = loadAccountSyncMetadata(vaultRecord.id);
     const expectedRevision = accountSyncRevisionRef.current || baseline?.revision || 0;
     if (baseline && appStateFingerprint(state) === baseline.fingerprint && expectedRevision === baseline.revision) {
+      if (locallySavedStateRef.current === currentAppRef.current
+        && appStateFingerprint(currentAppRef.current) === baseline.fingerprint) {
+        cloudConfirmedStateRef.current = currentAppRef.current;
+        setAccountSyncHealthy(true);
+        setAccountSyncLastAt(baseline.updatedAt);
+        setAccountSyncStatus('synced');
+      }
       return;
     }
 
@@ -305,7 +333,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [markAccountSynced]);
 
   const refreshAccountState = React.useCallback(async () => {
-    if (!isVaultUnlocked || restoringRef.current || accountSyncBusyRef.current) return;
+    if (!isVaultUnlocked || restoringRef.current || accountSyncBusyRef.current
+      || localSaveBusyRef.current || locallySavedStateRef.current !== currentAppRef.current) return;
     const vaultKey = getActiveVaultKey();
     if (!vaultKey) return;
 
@@ -496,48 +525,75 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [setApp, reconcileAccountState]);
 
-  // Autosave: Verschlüsselt den AppState debounced mit dem aktiven VaultKey im RAM
+  // Store encrypted snapshots promptly; a browser being suspended cannot guarantee
+  // completion of an asynchronous IndexedDB/network write, so the UI never claims
+  // another device is ready until the *latest* generation is acknowledged.
+  const persistLatestState = React.useCallback(async (snapshot: AppState) => {
+    if (restoringRef.current || !getActiveVaultKey()) return;
+    const vaultKey = getActiveVaultKey();
+    if (!vaultKey) return;
+    localSaveBusyRef.current = true;
+    try {
+      await saveEncryptedAppState(snapshot, vaultKey);
+      if (restoringRef.current || getActiveVaultKey() !== vaultKey
+        || currentAppRef.current !== snapshot) return;
+      locallySavedStateRef.current = snapshot;
+      setAccountSyncStatus(previous => previous === 'saving-local' || previous === 'synced'
+        || previous === 'syncing' ? 'saved-local' : previous);
+      // A local snapshot is durable now; cloud confirmation still requires a server ACK.
+      // Do not delay upload behind a session copy or the daily emergency backup.
+      void pushAccountStateIfReady(snapshot, vaultKey);
+      await saveEncryptedSessionBackup(snapshot, vaultKey);
+      try {
+        const todayDate = toLocalDateKey();
+        const lastKopieDate = localStorage.getItem('hehle_v3_notfallkopie_date');
+        if (lastKopieDate !== todayDate) {
+          await saveEncryptedEmergencyBackup(snapshot, vaultKey);
+        }
+      } catch (error) {
+        console.warn('[Datenschutz] Fehler beim Erstellen der Notfallkopie:', error);
+      }
+    } catch (error) {
+      setAccountSyncStatus(previous => previous === 'conflict' ? previous : 'error');
+      setAccountSyncMessage('Die letzte Änderung konnte nicht verschlüsselt auf diesem Gerät gesichert werden. Bitte KLASSIO geöffnet lassen und erneut versuchen.');
+      console.error('[Datenschutz] Verschlüsseltes Speichern fehlgeschlagen:', error);
+    } finally {
+      localSaveBusyRef.current = false;
+    }
+  }, [pushAccountStateIfReady]);
+
   useEffect(() => {
     if (!isLoaded || !isVaultUnlocked) return;
-
-    const timeout = setTimeout(async () => {
-      if (restoringRef.current || currentAppRef.current !== app) return;
-      try {
-        const vaultKey = getActiveVaultKey();
-        if (!vaultKey) {
-          // Ohne aktiven Schlüssel im RAM wird Speichern strikt verweigert (kein unverschlüsselter Fallback!)
-          console.warn('[Datenschutz] Autosave pausiert: Kein aktiver VaultKey im RAM.');
-          return;
-        }
-
-        // 1. Verschlüsselt im Primär- und Fallback-Speicher sichern
-        await saveEncryptedAppState(app, vaultKey);
-        if (restoringRef.current || currentAppRef.current !== app) return;
-
-        // 2. Verschlüsseltes Session-Backup
-        await saveEncryptedSessionBackup(app, vaultKey);
-
-        // 3. Einmal tägliche verschlüsselte Notfallkopie
-        try {
-          const todayDate = toLocalDateKey();
-          const lastKopieDate = localStorage.getItem('hehle_v3_notfallkopie_date');
-          if (lastKopieDate !== todayDate) {
-            await saveEncryptedEmergencyBackup(app, vaultKey);
-          }
-        } catch (e) {
-          console.warn('[Datenschutz] Fehler beim Erstellen der Notfallkopie:', e);
-        }
-
-        // 4. Bei E-Mail-Konto denselben Stand zusätzlich Ende-zu-Ende-verschlüsselt
-        // auf dem Klassio-Server halten. Fehler blockieren die lokale Speicherung nie.
-        await pushAccountStateIfReady(app, vaultKey);
-      } catch (e) {
-        console.error('[Datenschutz] Fehler beim verschlüsselten Autosave:', e);
+    const timeout = window.setTimeout(() => {
+      if (!restoringRef.current && currentAppRef.current === app) {
+        void persistLatestState(app);
       }
-    }, 1000);
+    }, 150);
+    return () => window.clearTimeout(timeout);
+  }, [app, isLoaded, isVaultUnlocked, persistLatestState]);
 
-    return () => clearTimeout(timeout);
-  }, [app, isLoaded, isVaultUnlocked, pushAccountStateIfReady]);
+  // Best effort only: pagehide/visibilitychange may be suspended immediately by the OS.
+  // A pending write still needs an explicit leave warning instead of a false green badge.
+  useEffect(() => {
+    if (!isLoaded || !isVaultUnlocked) return;
+    const flushWhenHidden = () => {
+      if (document.visibilityState === 'hidden'
+        && locallySavedStateRef.current !== currentAppRef.current) {
+        void persistLatestState(currentAppRef.current);
+      }
+    };
+    const flushOnPageHide = () => {
+      if (locallySavedStateRef.current !== currentAppRef.current) {
+        void persistLatestState(currentAppRef.current);
+      }
+    };
+    document.addEventListener('visibilitychange', flushWhenHidden);
+    window.addEventListener('pagehide', flushOnPageHide);
+    return () => {
+      document.removeEventListener('visibilitychange', flushWhenHidden);
+      window.removeEventListener('pagehide', flushOnPageHide);
+    };
+  }, [isLoaded, isVaultUnlocked, persistLatestState]);
 
   // Teamteaching: school account device key registration stays separate from local pupil data.
   useEffect(() => {
@@ -711,8 +767,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Tab Close & Refresh Intercept: Ensure synced / pending changes are secured
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isPendingPushRef.current || restoringRef.current) {
-        const message = 'Deine Daten werden gerade im Hintergrund mit der Cloud synchronisiert. Bitte warte einen Moment, um keinen Arbeitsfortschritt zu verlieren!';
+      if (isPendingPushRef.current || restoringRef.current
+        || localSaveBusyRef.current || locallySavedStateRef.current !== currentAppRef.current
+        || (accountSyncReadyRef.current && cloudConfirmedStateRef.current !== currentAppRef.current)) {
+        const message = 'Änderungen sind noch nicht sicher auf allen Geräten verfügbar. Bitte KLASSIO geöffnet lassen, bis der Konto-Status grün ist!';
         e.returnValue = message;
         return message;
       }
