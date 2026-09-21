@@ -49,6 +49,7 @@ import { exportSchuelerPDF } from '../lib/exportService';
 import { getKW, kwToMonday, getStartYear, kwYear, getSW, isHoliday, sortYearlySubjects, getSchulstartKW, getSemester, getCurrentSchuljahr, formatLocalDateKey } from '../lib/utils';
 import { getFachCfg, berechne, getNotenLabel, getAssessmentMode } from '../lib/GradeUtils';
 import { DEFAULT_YEARLY_SUBJECTS, FAECHER_ALLE } from '../constants';
+import { faecherFuerKlasse } from '../lib/sek1Subjects';
 import { downloadKlassenbuchPdf } from '../lib/klassenbuchPdf';
 import { withClassbookNotes } from '../lib/classbookNotes';
 import { buildKlassenbuchPrintRows, type KlassenbuchPrintLayout, type KlassenbuchPrintDetail } from '../lib/classbookPrintLayout';
@@ -255,7 +256,7 @@ export default function PrintCenter() {
 
   // B. Noten- & Punktecheckliste Options
   const [clSyncMode, setClSyncMode] = useState<'blank' | 'notenmappe'>('blank');
-  const [clSelectedSubject, setClSelectedSubject] = useState<string>('Deutsch');
+  const [clSelectedSubject, setClSelectedSubject] = useState<string>(() => faecherFuerKlasse(app)[0] || '');
   const [clSelectedSemester, setClSelectedSemester] = useState<'1' | '2'>('1');
   const [clTitle, setClTitle] = useState('Hausübungs- & Schularbeits-Kontrolle');
   const [clCols, setClCols] = useState<CustomChecklistCol[]>([
@@ -271,7 +272,7 @@ export default function PrintCenter() {
 
   // B2. Zeugnis-Notenliste Options
   const [znSemester, setZnSemester] = useState<'1' | '2'>('1');
-  const [znSelectedSubjects, setZnSelectedSubjects] = useState<string[]>(() => [...FAECHER_ALLE]);
+  const [znSelectedSubjects, setZnSelectedSubjects] = useState<string[]>(() => [...faecherFuerKlasse(app)]);
 
   // C. Wochenplan Options
   const [wpKW, setWpKW] = useState<number>(fallbackPlanningKW);
@@ -1979,7 +1980,7 @@ export default function PrintCenter() {
                         onChange={(e) => setClSelectedSubject(e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-[0.75rem] leading-tight font-bold bg-white focus:outline-none"
                       >
-                        {(app.faecher && app.faecher.length > 0 ? app.faecher : FAECHER_ALLE).map(f => (
+                        {faecherFuerKlasse(app).map(f => (
                           <option key={f} value={f}>{f}</option>
                         ))}
                       </select>
@@ -2096,14 +2097,14 @@ export default function PrintCenter() {
                       <label className="text-[0.625rem] font-bold text-slate-400 uppercase tracking-wider block">Fächer auswählen</label>
                       <button
                         type="button"
-                        onClick={() => setZnSelectedSubjects([...FAECHER_ALLE])}
+                        onClick={() => setZnSelectedSubjects([...faecherFuerKlasse(app)])}
                         className="text-[0.5625rem] font-black text-emerald-600 hover:underline uppercase"
                       >
                         Alle Fächer
                       </button>
                     </div>
                     <div className="bg-slate-50/50 p-3 rounded-2xl border border-slate-200/60 max-h-[200px] overflow-y-auto space-y-2">
-                      {FAECHER_ALLE.map(f => {
+                      {faecherFuerKlasse(app).map(f => {
                         const isFachActive = !app.faecher || app.faecher.includes(f);
                         const isSelected = znSelectedSubjects.includes(f);
                         return (
