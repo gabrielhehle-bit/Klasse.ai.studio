@@ -487,6 +487,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
              name: klassenbezeichnung,
              stufe,
              schulart,
+             klassenvorstand,
              theme,
              settings: { ...(classes[activeIdx].settings || {} as any), fontFamily, uiScale },
              faecher,
@@ -510,7 +511,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            nachname,
            lehrerProfil: { ...(prev.lehrerProfil || {}), name: resolvedLehrerName, schule: schulName },
            schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
-           klassenbezeichnung, stufe, schulart, schueler: finalStudents,
+           klassenbezeichnung, stufe, schulart, klassenvorstand, schueler: finalStudents,
            classes,
            currentPage: 'dashboard',
            schuljahr: schuljahr,
@@ -529,8 +530,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     } else {
        const classId = isFirstSetup ? (app.activeClassId || 'class_first_setup') : 'class-' + Math.random().toString(36).substring(2, 9);
        const mainClass = {
-         id: classId, name: klassenbezeichnung, stufe, schulart, theme, settings: { theme, fontFamily, uiScale, verhaltenSymbol: 'star', showVerhaltenOnBoard: true },
-         faecher, fachConfig, klassenvorstand: true, schueler: finalStudents,
+         id: classId, name: klassenbezeichnung, stufe, schulart, klassenvorstand, theme, settings: { theme, fontFamily, uiScale, verhaltenSymbol: 'star', showVerhaltenOnBoard: true },
+         faecher, fachConfig, schueler: finalStudents,
          noten: {}, mitarbeit: {}, verhalten: {}, karten: {}, jahresplanung: {}, jahresplan_faecher: yearlySubjects, wochenplanung: {},
          anwesenheit: {}, anwesenheitDetail: {}, dienste: [], saAssessments: {}, klassenglas_count: 0, klassenglas_ziel: 20,
          klassenkasse: { kontostand: 0, sammlungen: [], transaktionen: [] }, behavior_status: {}, behavior_notes: {},
@@ -550,12 +551,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            nachname,
            lehrerProfil: { ...(prev.lehrerProfil || {}), name: resolvedLehrerName, schule: schulName },
            schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
-           klassenbezeichnung, stufe, schulart, schuljahr: schuljahr, schueler: finalStudents,
+           klassenbezeichnung, stufe, schulart, klassenvorstand, schuljahr: schuljahr, schueler: finalStudents,
            classes: [mainClass], activeClassId: classId, firstLogin: true, tourAbgeschlossen: false
          } : {
            classes: [...(prev.classes || []), mainClass], 
            activeClassId: classId,
-           klassenbezeichnung, stufe, schulart, schuljahr: schuljahr, schueler: finalStudents
+           klassenbezeichnung, stufe, schulart, klassenvorstand, schuljahr: schuljahr, schueler: finalStudents
          }),
          currentPage: 'dashboard',
          schuljahr: schuljahr,
@@ -593,7 +594,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     { title: 'Schüler', icon: Users },
     { title: 'Übersicht', icon: ListChecks }
   ];
-  const STEPS = setupMode === 'quick' && !isEditing && !isNewClass ? quickSteps : expertSteps;
+  // In Sek I ist die Fächerwahl Teil der Einrichtung – keine versteckten VS-Pflichtfächer.
+  const STEPS = setupMode === 'quick' && !isEditing && !isNewClass && !isSek1 ? quickSteps : expertSteps;
     
   const [currStep, setCurrStep] = useState(() => {
     if (app?.setupInitialStepMode) {
@@ -787,6 +789,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   }, [schuljahr]);
 
   const setupWarnings = [
+    isSek1 && faecher.length === 0 ? 'Bitte wähle deine Unterrichtsfächer, damit die Notenmappe verwendet werden kann.' : null,
+    abweichendeKlassenbezeichnung(klassenbezeichnung, schulart, stufe) ? 'Klassenbezeichnung und gewählte Schulstufe unterscheiden sich – bitte prüfen.' : null,
     studentsList.length === 0 ? 'Noch keine Schüler:innen angelegt – das kannst du später nachholen.' : null,
     assignedLessonSlots === 0 ? 'Noch kein Stammstundenplan ausgefüllt.' : null,
     assignedLessonSlots > availableLessonSlots ? 'Der Stundenplan enthält mehr Einträge als verfügbare Stunden.' : null,
@@ -883,7 +887,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                 </button>
              ) : (
                 <button onClick={nextStep} className="flex-1 sm:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl shadow-md shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer">
-                  {currStep === 0 ? 'Einrichtung starten' : 'Weiter'}
+                  {STEPS[currStep].title === 'Start' ? 'Einrichtung starten' : 'Weiter'}
                 </button>
              )}
           </div>
