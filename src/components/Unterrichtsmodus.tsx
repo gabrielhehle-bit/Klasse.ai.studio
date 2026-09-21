@@ -156,7 +156,7 @@ import { MobileRemoteController } from "./MobileRemoteController";
 import { UnterrichtsmodusThemePicker } from "./UnterrichtsmodusThemePicker";
 import { ClassPetCanvas } from "./ClassPetCanvas";
 import ClassMascotWidget from "./cockpit/ClassMascotWidget";
-import { centerClassMascotInViewport, normalizeClassMascot } from "../lib/classMascot";
+import { centerClassMascotInViewport, normalizeClassMascot, sanitizeClassMascotPosition } from "../lib/classMascot";
 import { ALL_WIDGET_CONFIG } from "./WidgetConfig";
 
 const Attendance = React.lazy(() => import("./Attendance"));
@@ -2737,16 +2737,22 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
         let x = typeof w.x === "number" && !isNaN(w.x) ? w.x : 50;
         let y = typeof w.y === "number" && !isNaN(w.y) ? w.y : 50;
 
-        // 1. Clamping against board edges
-        x = Math.max(0, Math.min(100 - wWidth, x));
-        y = Math.max(0, Math.min(100 - hHeight, y));
+        if (w.type === "pet") {
+          // The mascot is a transparent, pixel-sized character on the entire
+          // cockpit, NOT the former 44×66% widget card. Preserve its saved
+          // anchor even next to the viewport edge or the old "tabu" zone.
+          ({ x, y } = sanitizeClassMascotPosition(x, y));
+        } else {
+          // Conventional widget layout remains unchanged.
+          x = Math.max(0, Math.min(100 - wWidth, x));
+          y = Math.max(0, Math.min(100 - hHeight, y));
 
-        // 2. Tabu-Zone check (top-left reserved space: x < 21 && y < 14)
-        if (x < 21 && y < 14) {
-          if (x < 10) {
-            y = Math.min(100 - hHeight, y + 16);
-          } else {
-            x = 22;
+          if (x < 21 && y < 14) {
+            if (x < 10) {
+              y = Math.min(100 - hHeight, y + 16);
+            } else {
+              x = 22;
+            }
           }
         }
 
@@ -2768,6 +2774,9 @@ const loadAndSanitizeLayout = (layout: any): CockpitWidgetConfig[] => {
     // 3. Resolve exact deckungsgleiche coordinates
     const seenPositions = new Set<string>();
     const sanitized = rawSanitized.map((w) => {
+      // Do not move the teacher's free-standing mascot when another widget
+      // happens to have identical x/y. Only card widgets need this collision fix.
+      if (w.type === "pet") return w;
       let x = w.x;
       let y = w.y;
       let key = `${x.toFixed(1)},${y.toFixed(1)}`;
