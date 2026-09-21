@@ -11,7 +11,7 @@ test('Alle vier Figuren besitzen eigene transparente Vorschauen, ohne Fremd-Asse
   const picker = readFileSync('src/components/ClassMascotSettingsPanel.tsx', 'utf8');
   assert.doesNotMatch(widget, /MASCOT_OPTIONS\.map|✓ Ausgewählt|Name des Maskottchens/);
   assert.match(picker, /MASCOT_OPTIONS\.map\(option => \(/);
-  assert.match(picker, /<ClassMascotArtwork kind=\{option\.kind\} mood="happy" name=\{option\.name\} animationEnabled=\{false\} \/>/);
+  assert.match(picker, /<ClassMascotArtwork kind=\{option\.kind\} mood="happy" name=\{option\.name\} animationEnabled=\{false\} season=\{normalizeClassMascot\(app\.classMascot\)\.season\} \/>/);
   assert.match(picker, /aria-hidden="true"/);
   assert.match(picker, /aria-pressed=\{normalizeClassMascot\(app\.classMascot\)\.kind === option\.kind\}/);
   assert.match(picker, /✓ Ausgewählt/);
