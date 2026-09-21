@@ -8275,7 +8275,7 @@ ${content}
                                 </div>
 
                                 <button type="button" onClick={() => setIsAddWidgetMenuOpen(false)} className="self-end min-h-11 px-4 rounded-lg border text-sm font-semibold">Auswahl schließen</button>
-                                <section className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-slate-900"
+                                <section id="cockpit-widget-settings" className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-slate-900"
                                   aria-label="Widget-Einstellungen im Menü Widget hinzufügen">
                                   <button type="button" onClick={() => setIsWidgetConfigurationOpen(open => !open)}
                                     aria-expanded={isWidgetConfigurationOpen}
@@ -9408,19 +9408,41 @@ ${content}
                                             const expanded = expandedCoreWidget === group.id;
                                             return (
                                               <div key={group.id} data-testid={`cockpit-core-group-${group.id}`} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 text-slate-900 shadow-sm dark:border-white/15 dark:bg-zinc-900 dark:text-white">
-                                                <button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-left text-sm font-bold hover:bg-indigo-50 dark:hover:bg-white/10"
-                                                  aria-expanded={variants.length > 1 ? expanded : undefined}
-                                                  onClick={() => {
-                                                    if (variants.length === 1) {
-                                                      handleOpenWidgetInCockpitLayout(variants[0].type as CockpitWidgetConfig["type"]);
-                                                      setIsAddWidgetMenuOpen(false);
-                                                    } else {
-                                                      setExpandedCoreWidget(expanded ? null : group.id);
-                                                    }
-                                                  }}>
-                                                  <span>{group.label}</span>
-                                                  <span aria-hidden="true" className="text-indigo-600 dark:text-indigo-300">{variants.length > 1 ? (expanded ? "−" : "+") : "＋"}</span>
-                                                </button>
+                                                {group.id === "classweeklyplan" ? (
+                                                  <div className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-sm font-bold">
+                                                    <span>{group.label}</span>
+                                                    <div className="flex shrink-0 items-center gap-1">
+                                                      <button type="button" aria-label="Wochenplan der Kinder einstellen" title="Voreinstellungen für Wochenplan der Kinder"
+                                                        onClick={() => {
+                                                          setSelectedWidgetConfiguration("classweeklyplan");
+                                                          setIsWidgetConfigurationOpen(true);
+                                                          window.requestAnimationFrame(() => document.getElementById("cockpit-widget-settings")?.scrollIntoView({ block: "start", behavior: "smooth" }));
+                                                        }}
+                                                        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-slate-200 dark:hover:bg-white/10">
+                                                        <Settings size={18} aria-hidden="true" />
+                                                      </button>
+                                                      <button type="button" aria-label="Wochenplan der Kinder hinzufügen" title="Wochenplan der Kinder hinzufügen"
+                                                        onClick={() => { handleOpenWidgetInCockpitLayout("classweeklyplan"); setIsAddWidgetMenuOpen(false); }}
+                                                        className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-indigo-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:text-indigo-300 dark:hover:bg-white/10">
+                                                        <Plus size={19} aria-hidden="true" />
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <button type="button" className="flex min-h-11 w-full items-center justify-between gap-2 rounded-xl px-2 text-left text-sm font-bold hover:bg-indigo-50 dark:hover:bg-white/10"
+                                                    aria-expanded={variants.length > 1 ? expanded : undefined}
+                                                    onClick={() => {
+                                                      if (variants.length === 1) {
+                                                        handleOpenWidgetInCockpitLayout(variants[0].type as CockpitWidgetConfig["type"]);
+                                                        setIsAddWidgetMenuOpen(false);
+                                                      } else {
+                                                        setExpandedCoreWidget(expanded ? null : group.id);
+                                                      }
+                                                    }}>
+                                                    <span>{group.label}</span>
+                                                    <span aria-hidden="true" className="text-indigo-600 dark:text-indigo-300">{variants.length > 1 ? (expanded ? "−" : "+") : "＋"}</span>
+                                                  </button>
+                                                )}
                                                 {variants.length > 1 && expanded && (
                                                   <div className="mt-2 flex flex-col gap-1 border-t border-slate-200 pt-2 dark:border-white/15">
                                                     {variants.map((variant) => (
@@ -9659,6 +9681,17 @@ ${content}
                                                     : "bg-zinc-900 border-white/5 hover:border-indigo-500/30 hover:bg-zinc-850 text-slate-200 active:bg-zinc-800"
                                               }`}
                                             >
+                                              {item.type === "classweeklyplan" && (
+                                                <button type="button" aria-label="Wochenplan der Kinder einstellen" title="Voreinstellungen für Wochenplan der Kinder"
+                                                  onClick={() => {
+                                                    setSelectedWidgetConfiguration("classweeklyplan");
+                                                    setIsWidgetConfigurationOpen(true);
+                                                    window.requestAnimationFrame(() => document.getElementById("cockpit-widget-settings")?.scrollIntoView({ block: "start", behavior: "smooth" }));
+                                                  }}
+                                                  className="absolute right-12 top-2 z-[1001] flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-white/90 text-slate-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600 dark:bg-zinc-800 dark:text-slate-200">
+                                                  <Settings size={18} aria-hidden="true" />
+                                                </button>
+                                              )}
                                               {/* Toggle Favorite Star Button */}
                                               <button
                                                 type="button"
@@ -9700,7 +9733,7 @@ ${content}
                                                 className="w-full h-full text-left flex flex-col justify-between items-start cursor-pointer disabled:cursor-not-allowed"
                                               >
                                                 <div className="w-full flex items-center justify-between font-semibold text-sm">
-                                                  <span className="truncate pr-7 group-hover:text-indigo-500 transition-colors">
+                                                  <span className={item.type === "classweeklyplan" ? "truncate pr-24 group-hover:text-indigo-500 transition-colors" : "truncate pr-7 group-hover:text-indigo-500 transition-colors"}>
                                                     {item.label}
                                                   </span>
                                                   {isActive && (
