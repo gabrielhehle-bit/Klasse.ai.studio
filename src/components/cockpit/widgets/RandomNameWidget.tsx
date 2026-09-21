@@ -98,6 +98,8 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   // A teaching SESSION only: no class roll-call history or random result is
   // written to persistent app state or exposed to other device screens.
   const [drawnIds, setDrawnIds] = useState<string[]>([]);
+  const drawLockRef = useRef(false);
+  useEffect(() => { drawLockRef.current = false; }, [drawnIds]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [selectedScope, setSelectedScope] = useState(scopeKey);
   const lastPickedIdRef = useRef<string | null>(null);
@@ -138,6 +140,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
     animationIntervalRef.current = null;
     setIsAnimating(false);
     setAnimatingName('');
+    drawLockRef.current = false;
     setSessionExcludedIds([]);
     setSessionScope(scopeKey);
     setDrawnIds([]);
@@ -176,6 +179,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
     animationIntervalRef.current = null;
     setIsAnimating(false);
     setAnimatingName('');
+    drawLockRef.current = false;
     // Attendance changes, class changes and manual exclusions invalidate an
     // in-flight draw; the result may no longer be a pupil who can be chosen.
     if (selectedStudentId && !eligibleStudents.some(student => student.id === selectedStudentId)) {
@@ -197,10 +201,11 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   const selectionPage = randomSelectionPage(presentStudents, selectorPage, pageSize);
 
   const pickPupil = useCallback(() => {
-    if (isAnimating || sessionScope !== scopeKey || remainingStudents.length === 0) return;
+    if (isAnimating || drawLockRef.current || sessionScope !== scopeKey || remainingStudents.length === 0) return;
     const chosen = pickRandomStudent(remainingStudents,
       selectionMode === 'round' ? null : lastPickedIdRef.current);
     if (!chosen) return;
+    drawLockRef.current = true;
     const initialPool = livePoolRef.current;
     const commitPick = () => {
       // Never commit a stale result after attendance, scope, or participant
@@ -211,6 +216,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
           live.selectionMode !== initialPool.selectionMode) {
         setIsAnimating(false);
         setAnimatingName('');
+        drawLockRef.current = false;
         return;
       }
       setIsAnimating(false);
@@ -218,7 +224,8 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
       setSelectedStudentId(chosen.id);
       setSelectedScope(scopeKey);
       lastPickedIdRef.current = chosen.id;
-      setDrawnIds(previous => [...previous, chosen.id]);
+      setDrawnIds(previous => selectionMode === 'round'
+        ? [...previous, chosen.id] : [...previous.slice(-49), chosen.id]);
       if (soundEnabled) playDezentPopSound();
     };
     if (!animationEnabled) { commitPick(); return; }
@@ -241,18 +248,28 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
     animationIntervalRef.current = null;
     setIsAnimating(false);
     setAnimatingName('');
+    drawLockRef.current = false;
     setDrawnIds([]);
     setSelectedStudentId(null);
     lastPickedIdRef.current = null;
   };
   const undoPick = () => {
-    if (isAnimating || drawnIds.length === 0 || sessionScope !== scopeKey) return;
+    if (isAnimating || drawLockRef.current || drawnIds.length === 0 || sessionScope !== scopeKey) return;
     const previous = undoLastRandomPick(drawnIds);
     setDrawnIds(previous.drawnIds);
     setSelectedStudentId(previous.previousSelectedId);
     setSelectedScope(scopeKey);
     lastPickedIdRef.current = previous.previousSelectedId;
   };
+
+  useEffect(() => {
+    if (!showPupilSelector) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowPupilSelector(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showPupilSelector]);
 
   const selector = showPupilSelector && typeof document !== 'undefined' && createPortal(
     <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/80 p-2 sm:p-5"
@@ -348,7 +365,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
             {!compact && <span className="text-xs font-bold uppercase text-indigo-600">
               {roundComplete ? 'Runde abgeschlossen · letztes Kind' : 'Ausgewählt'}
             </span>}
-            <span className={`max-w-full break-words font-black leading-tight [overflow-wrap:anywhere] ${selectedName.length > 36 ? 'text-base sm:text-xl' : compact ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-4xl'}`}>{selectedName}</span>
+            <span aria-live="polite" className={`max-w-full break-words font-black leading-tight [overflow-wrap:anywhere] ${selectedName.length > 36 ? 'text-base sm:text-xl' : compact ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-4xl'}`}>{selectedName}</span>
           </>
         ) : <span className="break-words text-base font-bold">Kind auswählen</span>}
       </button>
