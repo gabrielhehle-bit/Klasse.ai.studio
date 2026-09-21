@@ -98,7 +98,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const ALL_MODULES = [
     { id: 'dashboard', label: 'Heute', icon: <LayoutDashboard size={18} />, section: 'Start' },
     { id: 'klasse', label: 'Klasse', icon: <Users size={18} />, section: 'Start' },
-    { id: 'verhalten', label: sek1 ? 'Verhalten & Notizen' : 'Notizen', icon: <Notebook size={18} />, section: 'Start' },
+    { id: 'verhalten', label: 'Notizen', icon: <Notebook size={18} />, section: 'Start' },
     { id: 'planung', label: 'Planung', icon: <CalendarDays size={18} />, section: 'Start' },
     { id: 'leistungen', label: 'Leistungen', icon: <BarChart3 size={18} />, section: 'Start' },
     { id: 'cockpit', label: 'Lehrercockpit', icon: <Play size={18} />, section: 'Start' },
@@ -110,10 +110,10 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'stationenbetrieb', label: 'Stationenbetrieb', icon: <LayoutGrid size={18} />, section: 'Tools' },
     { id: 'differenzierung', label: 'Differenzierung', icon: <Target size={18} />, section: 'KI-Helfer' },
     { id: 'elternbrief', label: 'Elternbrief', icon: <Mail size={18} />, section: 'KI-Helfer' },
-    { id: 'schueler', label: sek1 ? 'Schüler:innen' : 'Klassenliste', icon: <Users size={18} />, section: 'Klasse & Kinder' },
+    { id: 'schueler', label: 'Klassenliste', icon: <Users size={18} />, section: 'Klasse & Kinder' },
     { id: 'dossier', label: 'Schülerdossier', icon: <GraduationCap size={18} />, section: 'Klasse & Kinder' },
     { id: 'sitzplan', label: 'Sitzplan & Gruppen', icon: <MapIcon size={18} />, section: 'Klasse & Kinder' },
-    { id: 'anwesenheit', label: sek1 ? 'Anwesenheit' : 'Anwesenheit & Befinden', icon: <Pin size={18} />, section: 'Klasse & Kinder' },
+    { id: 'anwesenheit', label: 'Anwesenheit & Befinden', icon: <Pin size={18} />, section: 'Klasse & Kinder' },
     { id: 'teamteaching', label: 'Teamteaching', icon: <UserPlus size={18} />, section: 'Klasse & Kinder' },
     { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={18} />, section: 'Klasse & Kinder' },
     { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={18} />, section: 'Leistungen' },
@@ -124,7 +124,6 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'planungszentrale', label: 'Wochen-Check', icon: <Target size={18} />, section: 'Planung' },
     { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={18} />, section: 'Planung' },
     { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={18} />, section: 'Planung' },
-    { id: 'stundenplan', label: 'Stundenplan', icon: <Calendar size={18} />, section: 'Planung' },
     { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={18} />, section: 'Planung' },
     { id: 'canva', label: 'Canva', icon: <LayoutGrid size={18} />, section: 'Tools' },
     { id: 'vertretung', label: 'Vertretung & Übergabe', icon: <Replace size={18} />, section: 'Planung' },
@@ -136,11 +135,12 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'settings', label: 'Einstellungen', icon: <SettingsIcon size={18} />, section: 'Ausgabe & Daten' },
   ];
 
+  const SEK1_MODULES = [...ALL_MODULES, { id: 'stundenplan', label: 'Stundenplan', icon: <Calendar size={18} />, section: 'Planung' }];
   const utilityIds = new Set(['drucken', 'datensicherung', 'settings']);
   const restrictedForSubjectTeachers = new Set(['orga', 'uebergabemappe', 'diagnostik', 'klassengemeinschaft', 'jahresbericht']);
 
-  const availableModules = ALL_MODULES.filter(item =>
-    (!sek1 ? item.id !== 'stundenplan' : istSek1Navigationsziel(item.id)) &&
+  const availableModules = (sek1 ? SEK1_MODULES : ALL_MODULES).filter(item =>
+    (!sek1 || istSek1Navigationsziel(item.id)) &&
     (app.klassenvorstand || !restrictedForSubjectTeachers.has(item.id)) &&
     (item.id !== 'lehrerzimmer' || hasVerifiedSchoolIdentity) &&
     (!disabledModules.includes(item.id) || item.id === 'lehrerzimmer')
@@ -432,7 +432,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                   {!isCollapsed && (
                     <>
                       <span className="text-wrap leading-tight break-words tracking-tight flex-1">
-                        {item.label}
+                        {sek1 && item.id === 'verhalten' ? 'Verhalten & Notizen' : sek1 && item.id === 'schueler' ? 'Schüler:innen' : sek1 && item.id === 'anwesenheit' ? 'Anwesenheit' : item.label}
                       </span>
                       {sidebarPinned.includes(item.id) && (
                         <Flag
@@ -520,8 +520,8 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2">
               {orderSidebarItems(
-                ALL_MODULES.filter(item =>
-                  (!sek1 ? item.id !== 'stundenplan' : istSek1Navigationsziel(item.id)) &&
+                (sek1 ? SEK1_MODULES : ALL_MODULES).filter(item =>
+                  (!sek1 || istSek1Navigationsziel(item.id)) &&
                   (app.klassenvorstand || !restrictedForSubjectTeachers.has(item.id))
                 )
               ).map((item, index, orderedItems) => {
