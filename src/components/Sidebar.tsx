@@ -14,6 +14,8 @@ import {
 import { Button, IconButton, Badge, Chip } from './ui';
 import { useLehrerzimmerUnread } from '../hooks/useLehrerzimmerUnread';
 import { useVerifiedSchoolIdentity } from '../hooks/useVerifiedSchoolIdentity';
+import { SCHULARTEN, normalizeSchulart } from '../lib/schularten';
+import { istSekundarstufe, istSek1Navigationsziel } from '../lib/sek1Navigation';
 
 interface SidebarProps {
   currentPage: string;
@@ -40,6 +42,8 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const { showToast } = useToast();
   const { verified: hasVerifiedSchoolIdentity } = useVerifiedSchoolIdentity();
   const { summary: lehrerzimmerUnread } = useLehrerzimmerUnread();
+  const schulart = normalizeSchulart(app.schulart);
+  const sek1 = istSekundarstufe(schulart);
   const isCollapsed = app?.settings?.sidebarCollapsed || false;
   // Names can live in the newer split profile or the legacy teacher-name field.
   // Display all recorded variants without altering personal data or inventing a surname.
@@ -120,6 +124,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'planungszentrale', label: 'Wochen-Check', icon: <Target size={18} />, section: 'Planung' },
     { id: 'jahresplanung', label: 'Jahresplanung', icon: <Calendar size={18} />, section: 'Planung' },
     { id: 'wochenplanung', label: 'Wochenplan', icon: <CalendarDays size={18} />, section: 'Planung' },
+    { id: 'stundenplan', label: 'Stundenplan', icon: <Calendar size={18} />, section: 'Planung' },
     { id: 'materialien', label: 'Materialbibliothek', icon: <Folder size={18} />, section: 'Planung' },
     { id: 'canva', label: 'Canva', icon: <LayoutGrid size={18} />, section: 'Tools' },
     { id: 'vertretung', label: 'Vertretung & Übergabe', icon: <Replace size={18} />, section: 'Planung' },
@@ -135,6 +140,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const restrictedForSubjectTeachers = new Set(['orga', 'uebergabemappe', 'diagnostik', 'klassengemeinschaft', 'jahresbericht']);
 
   const availableModules = ALL_MODULES.filter(item =>
+    (!sek1 ? item.id !== 'stundenplan' : istSek1Navigationsziel(item.id)) &&
     (app.klassenvorstand || !restrictedForSubjectTeachers.has(item.id)) &&
     (item.id !== 'lehrerzimmer' || hasVerifiedSchoolIdentity) &&
     (!disabledModules.includes(item.id) || item.id === 'lehrerzimmer')
@@ -155,7 +161,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   })();
   const utilityModules = orderedModules.filter(item => utilityIds.has(item.id));
   const mainModules = orderedModules.filter(item => !utilityIds.has(item.id));
-  const defaultPrimaryModules = mainModules.filter(
+  const defaultPrimaryModules = sek1 ? mainModules : mainModules.filter(
     item => CORE_MODULE_IDS.has(item.id) || sidebarPinned.includes(item.id)
   );
   const visibleMainModules = showMorePages ? mainModules : defaultPrimaryModules;
@@ -263,7 +269,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                 <div className="text-[0.625rem] text-text-muted font-black uppercase tracking-[0.25em] mb-1 leading-none">{app.schuljahr || getCurrentSchuljahr()}</div>
                 <h1 className="font-sans text-[1.125rem] font-black text-text-primary leading-tight">
                   {teacherDisplayName || 'KLASSIO'}<br />
-                  <span className="text-[0.75rem] text-accent font-bold uppercase tracking-widest leading-none mt-1 inline-block">Volksschule</span>
+                  <span className="text-[0.75rem] text-accent font-bold uppercase tracking-widest leading-none mt-1 inline-block">{SCHULARTEN.find(option => option.id === schulart)?.label || 'Volksschule'}</span>
                 </h1>
                 
                 <div className="mt-2 flex items-center justify-between gap-2 w-full">
@@ -290,7 +296,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                     onClick={() => setShowClassMenu(!showClassMenu)}
                   >
                     <div className="flex items-center gap-2 text-wrap leading-tight break-words">
-                       <span className="text-wrap leading-tight break-words">{app.stufe || '?'}. Klasse {app.klassenbezeichnung || 'Ohne Namen'}</span>
+                       <span className="text-wrap leading-tight break-words">{sek1 ? `${app.stufe - 4}. Klasse` : `${app.stufe || '?'}. Klasse`} {app.klassenbezeichnung || 'Ohne Namen'}</span>
                        {!app.klassenvorstand && <span className="bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary)] text-[0.5rem] px-1.5 py-0.5 rounded-full">Fachlehrer</span>}
                     </div>
                     <ChevronDown size={11} className={`shrink-0 transition-transform ${showClassMenu ? 'rotate-180' : ''}`} /> 
@@ -308,7 +314,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                             className={`px-4 py-3 hover:bg-[var(--surface-subtle,var(--surface2))] cursor-pointer flex items-center justify-between group transition-colors ${app.activeClassId === c.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-bold' : 'text-[var(--text-secondary)]'}`}
                           >
                             <div className="flex flex-col">
-                              <span className="text-[0.75rem]">{c.stufe}. Klasse {c.name}</span>
+                              <span className="text-[0.75rem]">{istSekundarstufe(c.schulart) ? `${c.stufe - 4}. Klasse` : `${c.stufe}. Klasse`} {c.name}</span>
                               {!c.klassenvorstand && <span className="text-[0.5625rem] opacity-70">Fachunterricht</span>}
                             </div>
                             <div className="flex items-center gap-2">
@@ -398,7 +404,8 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
                   style={currentPage === item.id ? { backgroundColor: 'var(--accent, #10b981)', color: 'var(--btn-text, #ffffff)' } : {}}
                   onClick={() => {
-                    setPage(item.id);
+                    if (item.id === 'stundenplan') setApp(prev => ({ ...prev, setupInitialStepMode: 'Stundenplan', currentPage: 'setup' }));
+                    else setPage(item.id);
                     if (window.innerWidth < 1024) setIsOpen(false);
                   }}
                 >
@@ -514,7 +521,8 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2">
               {orderSidebarItems(
                 ALL_MODULES.filter(item =>
-                  app.klassenvorstand || !restrictedForSubjectTeachers.has(item.id)
+                  (!sek1 ? item.id !== 'stundenplan' : istSek1Navigationsziel(item.id)) &&
+                  (app.klassenvorstand || !restrictedForSubjectTeachers.has(item.id))
                 )
               ).map((item, index, orderedItems) => {
                 const isHidden = disabledModules.includes(item.id);
