@@ -47,14 +47,14 @@ export default function ClassMascotWidget({ app, setApp, currentIsLight = true }
       {/* The illustration is the resting UI: no widget card, backdrop, border, or global floating layer. */}
       <button type="button" aria-expanded={detailsOpen || settingsOpen}
         aria-label={detailsOpen || settingsOpen ? 'Maskottchen-Interaktionen schließen' : state.name + ' begrüßen und Interaktionen öffnen'}
-        title={state.name + ' · antippen für Aktionen'}
+        title={state.name + ' · antippen für Aktionen, ziehen zum Verschieben'}
         onClick={() => {
           setDetailsOpen(value => !value);
           if (detailsOpen) setSettingsOpen(false);
         }}
-        className="class-mascot-character flex min-h-0 w-full flex-1 items-end justify-center bg-transparent p-0 focus-visible:rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500"
+        className="class-mascot-character flex min-h-0 w-full flex-1 touch-none cursor-grab items-end justify-center bg-transparent p-0 active:cursor-grabbing focus-visible:rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-500"
         style={{ flex: detailsOpen || settingsOpen ? '0 0 auto' : '1 1 auto' }}>
-        <div className="pointer-events-none w-full" style={{ maxWidth: detailsOpen || settingsOpen ? 128 : 280, maxHeight: detailsOpen || settingsOpen ? 128 : '100%' }}>
+        <div className="pointer-events-none w-full" style={{ maxWidth: settingsOpen ? 170 : detailsOpen ? 220 : 280, maxHeight: settingsOpen ? 170 : detailsOpen ? 200 : '100%' }}>
           <ClassMascotArtwork kind={state.kind} mood={state.mood} name={state.name} animationEnabled={state.animationEnabled} />
         </div>
       </button>
