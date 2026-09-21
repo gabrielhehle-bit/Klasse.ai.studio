@@ -5,6 +5,12 @@ export type ClassMascotAction = 'praise' | 'calm' | 'encourage';
 export type ClassMascotAccessory = 'none' | 'scarf' | 'glasses' | 'star';
 /** Local UI signal: a brief surprise is never persisted or broadcast via account sync. */
 export const MASCOT_SURPRISE_EVENT = 'klassio:mascot-surprise';
+/** Classroom ritual gestures are intentionally ephemeral; teacher-selected mood still syncs. */
+export const MASCOT_RITUAL_EVENT = 'klassio:mascot-class-ritual';
+
+export function isClassMascotAction(value: unknown): value is ClassMascotAction {
+  return value === 'praise' || value === 'calm' || value === 'encourage';
+}
 
 export interface ClassMascotState {
   version: 1;
