@@ -17,6 +17,24 @@ export interface RandomNameWidgetProps {
   currentIsLight: boolean;
 }
 
+type NamedPupil = { id: string; vorname?: string; nachname?: string; name?: string };
+
+/** A class can contain two children with the same first name AND surname initial.
+ * Disambiguate in the random picker without putting internal pupil IDs on the board. */
+function getUnambiguousPickerName(student: NamedPupil, roster: NamedPupil[]): string {
+  const short = getDisplayStudentName(student, roster);
+  const sameShort = roster.filter(child => getDisplayStudentName(child, roster) === short);
+  if (sameShort.length <= 1) return short;
+  const fullName = (child: NamedPupil) => {
+    const first = child.vorname || child.name?.split(' ')[0] || 'Kind';
+    const surname = child.nachname || child.name?.split(' ').slice(1).join(' ') || '';
+    return [first, surname].filter(Boolean).join(' ');
+  };
+  const full = fullName(student);
+  const sameFull = sameShort.filter(child => fullName(child) === full);
+  return sameFull.length > 1 ? `${full} (${sameFull.findIndex(child => child.id === student.id) + 1})` : full;
+}
+
 function playDezentPopSound() {
   try {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -138,7 +156,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
     ? eligibleStudents.find(student => student.id === selectedStudentId) ?? null
     : null;
   const selectedName = selectedStudent
-    ? getDisplayStudentName(selectedStudent, allStudents)
+    ? getUnambiguousPickerName(selectedStudent, allStudents)
     : null;
   const remainingStudents = useMemo(
     () => selectionMode === 'round'
@@ -208,7 +226,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
     let tick = 0;
     animationIntervalRef.current = setInterval(() => {
       const temporary = pickRandomStudent(remainingStudents, null);
-      setAnimatingName(temporary ? getDisplayStudentName(temporary, allStudents) : '');
+      setAnimatingName(temporary ? getUnambiguousPickerName(temporary, allStudents) : '');
       tick += 1;
       if (tick >= 7) {
         if (animationIntervalRef.current) clearInterval(animationIntervalRef.current);
@@ -266,7 +284,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
                       : [...previous, student.id]);
                 }}
                 className={`flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm font-semibold focus-visible:outline-2 focus-visible:outline-indigo-600 ${excluded ? 'border-slate-300 bg-slate-100 text-slate-600' : 'border-indigo-300 bg-indigo-50 text-indigo-900'}`}>
-                <span className="min-w-0 break-words [overflow-wrap:anywhere]">{getDisplayStudentName(student, allStudents)}</span>
+                <span className="min-w-0 break-words [overflow-wrap:anywhere]">{getUnambiguousPickerName(student, allStudents)}</span>
                 <span className="shrink-0">{excluded ? '○' : '✓'}</span>
               </button>
             );
