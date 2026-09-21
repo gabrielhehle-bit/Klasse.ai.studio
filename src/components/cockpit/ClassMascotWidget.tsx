@@ -112,9 +112,16 @@ export default function ClassMascotWidget({ app, setApp, currentIsLight = true }
               {MASCOT_OPTIONS.map(option => (
                 <button key={option.kind} type="button" aria-pressed={state.kind === option.kind}
                   onClick={() => { update(previous => selectClassMascot(previous, option.kind)); setNameDraft(option.name); }}
-                  className={`flex min-h-12 flex-col items-start rounded-xl border-2 px-2 py-2 text-left text-xs font-black text-slate-950 ${state.kind === option.kind ? 'border-teal-700 bg-teal-100' : 'border-slate-200 bg-white hover:border-teal-400'}`}>
-                  <span>{option.label}</span>
-                  <span className="mt-0.5 text-[10px] font-medium text-slate-700">{option.character}</span>
+                  className={`flex min-h-24 items-center gap-2 rounded-xl border-2 px-2 py-2 text-left text-xs font-black text-slate-950 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700 ${state.kind === option.kind ? 'border-teal-700 bg-teal-100' : 'border-slate-200 bg-white hover:border-teal-400'}`}>
+                  {/* Small, background-free previews use the very same character as the cockpit. */}
+                  <span className="pointer-events-none flex h-16 w-16 shrink-0 items-center justify-center" aria-hidden="true">
+                    <ClassMascotArtwork kind={option.kind} mood="happy" name={option.name} animationEnabled={false} />
+                  </span>
+                  <span className="min-w-0 space-y-1">
+                    <span className="block text-xs font-black leading-tight">{option.label}</span>
+                    <span className="block text-[10px] font-medium leading-snug text-slate-700">{option.character}</span>
+                    {state.kind === option.kind && <span className="block text-[10px] font-black text-teal-800">✓ Ausgewählt</span>}
+                  </span>
                 </button>
               ))}
             </div>
