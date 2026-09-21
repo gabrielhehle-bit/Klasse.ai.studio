@@ -1094,8 +1094,31 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
   50% { transform: translateY(-3px); }
 }
 .class-mascot-idle { animation: class-mascot-gentle-bob 3.2s ease-in-out infinite; }
+/* A tiny blink and species-specific tail sway make the transparent illustration feel
+   present, without adding a floating UI, sounds or constant disruptive movement. */
+@keyframes class-mascot-blink {
+  0%, 92%, 96%, 100% { transform: scaleY(1); }
+  94% { transform: scaleY(.09); }
+}
+.class-mascot-eye-blink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: class-mascot-blink 8s ease-in-out infinite;
+}
+@keyframes class-mascot-tail-wiggle {
+  0%, 84%, 100% { transform: rotate(0deg); }
+  89%, 94% { transform: rotate(6deg); }
+  92%, 97% { transform: rotate(-4deg); }
+}
+.class-mascot-tail-sway {
+  transform-box: fill-box;
+  transform-origin: left bottom;
+  animation: class-mascot-tail-wiggle 11s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
-  .class-mascot-idle { animation: none !important; }
+  .class-mascot-idle,
+  .class-mascot-eye-blink,
+  .class-mascot-tail-sway { animation: none !important; }
 }
 
 /* Strong, theme-independent contrast inside dark classroom cockpit designs. */

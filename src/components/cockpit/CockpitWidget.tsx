@@ -522,6 +522,33 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     character.addEventListener('pointercancel', finish);
   };
 
+  // The freestanding character is draggable with a finger or mouse. Give keyboard
+  // users the same precise movement without exposing a toolbar or a large hit area.
+  const handleMascotKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!isFreeMascot || layoutLocked || isMaximized) return;
+    const target = event.target;
+    if (!(target instanceof Element) || !target.closest('.class-mascot-character')) return;
+    const delta = {
+      ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+      ArrowUp: [0, -1], ArrowDown: [0, 1],
+    }[event.key] as [number, number] | undefined;
+    if (!delta) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+    const stageRect = stage.getBoundingClientRect();
+    if (stageRect.width <= 0 || stageRect.height <= 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const widgetRect = widgetRef.current?.getBoundingClientRect();
+    const width = widgetRect?.width || (widget.w / 100) * stageRect.width;
+    const height = widgetRect?.height || (widget.h / 100) * stageRect.height;
+    const step = event.shiftKey ? 1 : 10;
+    const x = Math.max(0, Math.min(stageRect.width - width, (widget.x / 100) * stageRect.width + delta[0] * step));
+    const y = Math.max(0, Math.min(stageRect.height - height, (widget.y / 100) * stageRect.height + delta[1] * step));
+    onFocus();
+    onUpdate({ x: (x / stageRect.width) * 100, y: (y / stageRect.height) * 100 });
+  };
+
   const handleMascotClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!suppressMascotTap.current) return;
     const target = event.target;
@@ -560,6 +587,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
         touchAction: isDirect || layoutLocked || isFreeMascot ? "auto" : "none",
       }}
       onClick={onFocus}
+      onKeyDown={isFreeMascot ? handleMascotKeyDown : undefined}
     >
       {/* Ordinary widgets use an in-flow header. The freestanding mascot's controls overlay
           only when intentionally focused/hovered, leaving its artwork centered in the slot. */}
