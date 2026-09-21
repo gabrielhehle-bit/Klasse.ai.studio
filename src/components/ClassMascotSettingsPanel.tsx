@@ -82,9 +82,11 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                             </p>
                         )}
                         <p className="text-xs leading-relaxed" style={{ color: currentTheme.colors.textSecondary }}>
-                            Figur, Name, Stimmung, Größe und Position werden mit deinem verschlüsselten KLASSIO-Konto übertragen.
-                            Öffne auf dem zweiten Gerät dasselbe Konto und entsperre deinen Tresor.
-                            Wechsle erst, wenn hier die aktuelle Änderung vom Server bestätigt ist.
+                            Der Geräteabgleich betrifft nicht nur das Maskottchen, sondern deine KLASSIO-Daten in allen Bereichen:
+                            Klassen, Schülerdaten, Noten, Diagnostik, Notizen, Cockpit-Einstellungen und Maskottchen.
+                            Öffne auf dem zweiten Gerät dasselbe Konto und entsperre denselben Tresor.
+                            Warte vor dem Gerätewechsel, bis die aktuelle Änderung vom Server bestätigt ist.
+                            Aktuelle Ansicht, Anmeldesitzung und gerätespezifische Steuerung bleiben bewusst lokal.
                         </p>
                         {accountSyncStatus === 'disabled' && (
                             <p className="text-xs font-semibold" style={{ color: currentTheme.colors.textPrimary }}>
