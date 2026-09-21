@@ -92,7 +92,9 @@ test('empty transparent mascot area does not block board taps and layout handles
   assert.match(host, /pointerEvents: isFreeMascot \? "none" : undefined/);
   assert.match(host, /mascot-widget-toolbar absolute inset-x-0 top-0/);
   assert.match(host, /mascot-widget-resize pointer-events-auto/);
-  assert.match(widget, /class-mascot-freestanding pointer-events-none/);
+  assert.match(widget, /class-mascot-freestanding flex h-full/);
+  assert.match(widget, /pointer-events-none justify-end/);
+  assert.match(widget, /pointer-events-auto justify-start pt-11/);
   assert.match(widget, /class-mascot-character pointer-events-auto/);
   assert.match(widget, /class-mascot-details pointer-events-auto/);
   assert.match(widget, /class-mascot-settings pointer-events-auto/);
