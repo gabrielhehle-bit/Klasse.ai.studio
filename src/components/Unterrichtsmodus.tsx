@@ -154,6 +154,7 @@ import { useToast } from "../context/ToastContext";
 import { PET_BREEDS, AVAILABLE_ACCESSORIES } from "./ClassPetWidget";
 import { MobileRemoteController } from "./MobileRemoteController";
 import { UnterrichtsmodusThemePicker } from "./UnterrichtsmodusThemePicker";
+import ClassMascotSettingsPanel from "./ClassMascotSettingsPanel";
 import { ClassPetCanvas } from "./ClassPetCanvas";
 import ClassMascotWidget from "./cockpit/ClassMascotWidget";
 import { centerClassMascotInViewport, normalizeClassMascot, sanitizeClassMascotPosition } from "../lib/classMascot";
@@ -3974,6 +3975,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     "zufall" | "fixed"
   >("zufall");
   const [isThemePickerOpen, setIsThemePickerOpen] = useState(false);
+  const [isMascotSettingsOpen, setIsMascotSettingsOpen] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [cockpitView, setCockpitView] = useState<
     "cockpit" | "seating" | "attendance" | "gradebook"
@@ -5965,7 +5967,7 @@ ${content}
     setCockpitWidgets(centered);
     setApp(prev => ({ ...prev, cockpitLayout: centered }));
     bringToFront(mascot.id);
-    setIsThemePickerOpen(false);
+    setIsMascotSettingsOpen(false);
     showToast("Dein Klassenmaskottchen steht wieder in der Cockpit-Mitte.", "success");
   };
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
@@ -9705,6 +9707,8 @@ ${content}
                                 </div>
                                 <button type="button" onClick={() => { setIsThemePickerOpen(true); setIsMoreOptionsMenuOpen(false); }}
                                   className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎨 Design & Farben</button>
+                                <button type="button" onClick={() => { setIsMascotSettingsOpen(true); setIsMoreOptionsMenuOpen(false); }}
+                                  className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100 dark:hover:bg-white/10">🐾 Klassenmaskottchen</button>
                                 <button type="button" onClick={() => { setIsBirthdayCelebrationOpen(true); setIsMoreOptionsMenuOpen(false); }}
                                   className="w-full min-h-10 rounded-lg px-2.5 py-2 text-left text-sm font-semibold hover:bg-slate-100">🎂 Geburtstag</button>
                                 <button type="button" aria-expanded={isQuickBarSettingsOpen}
@@ -16549,10 +16553,16 @@ ${content}
             setApp={setApp}
             isOpen={isThemePickerOpen}
             onClose={() => setIsThemePickerOpen(false)}
-            onRecenterMascot={recenterClassMascot}
           />
         )}
       </AnimatePresence>
+      <ClassMascotSettingsPanel
+        app={app}
+        setApp={setApp}
+        isOpen={isMascotSettingsOpen}
+        onClose={() => setIsMascotSettingsOpen(false)}
+        onRecenterMascot={recenterClassMascot}
+      />
 
       <AnimatePresence>
         {showSpotlight && (
