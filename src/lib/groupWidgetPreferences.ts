@@ -1,3 +1,4 @@
+import { getGroupName, type GeneratedGroup } from './groupsAlgorithm';
 /** Settings for NEW group widgets; existing widget instances are never rewritten implicitly. */
 export interface GroupWidgetPreferences {
   studentScope: 'present' | 'all';
@@ -20,4 +21,31 @@ export function getGroupWidgetPreferences(input: unknown): GroupWidgetPreference
     startSize: value.startSize === 'compact' || value.startSize === 'standard' ? value.startSize : 'large',
     namingStyle: value.namingStyle === 'colors' || value.namingStyle === 'symbols' || value.namingStyle === 'animals' ? value.namingStyle : 'numbered',
   };
+}
+
+
+/** Preserve existing child allocations and private pair rules while applying one
+ * picker choice to an already placed widget. Changing the naming style only
+ * relabels groups; the other choices take effect on the NEXT user-triggered
+ * "Gruppen bilden/Neu mischen", never automatically reshuffle children.
+ */
+export function applyGroupWidgetPreference(
+  settings: Record<string, any> | undefined,
+  key: keyof GroupWidgetPreferences,
+  value: GroupWidgetPreferences[keyof GroupWidgetPreferences],
+): Record<string, any> {
+  const current = settings || {};
+  if (key === 'startSize') return current; // layout geometry is not a live preference
+  const next = {
+    ...current,
+    [key]: value,
+    ...(key === 'mode' && current.mode !== value ? { targetValue: 4 } : {}),
+  };
+  if (key === 'namingStyle' && Array.isArray(current.groups)) {
+    next.groups = (current.groups as GeneratedGroup[]).map((group, index) => ({
+      ...group,
+      ...getGroupName(index, String(value)),
+    }));
+  }
+  return next;
 }
