@@ -33,6 +33,13 @@ test('Die gespeicherte Position gehört zur Klasse und bleibt beim Klassenwechse
   assert.deepEqual(position && { x: position.x, y: position.y }, { x: 76, y: 68 });
 });
 
+test('Auf Smartboard und Maus wird dieselbe eingerastete Position nur einmal gespeichert', () => {
+  const host = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
+  assert.match(host, /let lastSnappedPosition: string \| null = null;/);
+  assert.match(host, /if \(snappedPosition === lastSnappedPosition\) return;/);
+  assert.match(host, /lastSnappedPosition = snappedPosition;/);
+});
+
 test('Maskottchen bleibt als freigestellte Figur ohne schwebende Schnellzentrale', () => {
   const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
   const css = readFileSync('src/index.css', 'utf8');
