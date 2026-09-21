@@ -504,6 +504,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
     const startX = event.clientX;
     const startY = event.clientY;
     let dragging = false;
+    let lastSnappedPosition: string | null = null;
     character.setPointerCapture(pointerId);
 
     const onMove = (move: PointerEvent) => {
@@ -522,6 +523,12 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       const height = rect?.height || (widget.h / 100) * stageRect.height;
       const nextX = Math.max(0, Math.min(stageRect.width - width, Math.round((originX + dx) / 10) * 10));
       const nextY = Math.max(0, Math.min(stageRect.height - height, Math.round((originY + dy) / 10) * 10));
+      // Do not persist the same snapped coordinates on every touch/mouse
+      // event: repeated app updates made the otherwise free character stutter
+      // and caused unnecessary encrypted account-sync writes.
+      const snappedPosition = nextX + ':' + nextY;
+      if (snappedPosition === lastSnappedPosition) return;
+      lastSnappedPosition = snappedPosition;
       onUpdate({ x: (nextX / stageRect.width) * 100, y: (nextY / stageRect.height) * 100 });
     };
 
