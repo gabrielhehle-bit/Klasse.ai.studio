@@ -41,10 +41,14 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
   const [namePage, setNamePage] = useState(0);
   useEffect(() => {
     if (!isExpanded) return;
-    const onEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setIsExpanded(false); };
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (childId) setChildId(null);
+      else setIsExpanded(false);
+    };
     window.addEventListener('keydown', onEscape);
     return () => window.removeEventListener('keydown', onEscape);
-  }, [isExpanded]);
+  }, [isExpanded, childId]);
   const [todayWeek, setTodayWeek] = useState(() => getKW(new Date()));
   const [week, setWeek] = useState(() => app.currentKW || getKW(new Date()));
   useEffect(() => {
@@ -63,14 +67,17 @@ export default function ClassroomWeeklyPlanWidget({ widget }: { widget?: Cockpit
     .slice().sort((a, b) => getDisplayStudentName(a, app.schueler).localeCompare(getDisplayStudentName(b, app.schueler), 'de-AT')), [app.schueler]);
   const pupil = selectionScope === scope ? pupils.find(s => s.id === childId) : undefined;
   useEffect(() => { setSelectionScope(scope); setChildId(null); setTaskPage(0); setNamePage(0); }, [scope]);
-  useEffect(() => { setIsExpanded(false); }, [classId]);
+  useEffect(() => {
+    setIsExpanded(false);
+    setWeek(app.currentKW || getKW(new Date()));
+  }, [classId]);
   useEffect(() => { setTaskPage(0); }, [preferences.taskCardsPerPage]);
   const close = () => setChildId(null);
   const tasksPerPage = !isExpanded || size.width < 1024 ? 1 : preferences.taskCardsPerPage;
   const taskPageCount = Math.max(1, Math.ceil(tasks.length / tasksPerPage));
   const currentTaskPage = Math.min(taskPage, taskPageCount - 1);
   const displayedTasks = tasks.slice(currentTaskPage * tasksPerPage, (currentTaskPage + 1) * tasksPerPage);
-  const namesPerPage = isExpanded && size.height >= 850 ? 30 : size.width >= 750 ? 18 : 12;
+  const namesPerPage = isExpanded && size.height >= 850 ? 30 : size.width >= 1100 ? 18 : size.width >= 750 ? 12 : 9;
   const namePageCount = Math.max(1, Math.ceil(pupils.length / namesPerPage));
   const currentNamePage = Math.min(namePage, namePageCount - 1);
   const visiblePupils = pupils.slice(currentNamePage * namesPerPage, (currentNamePage + 1) * namesPerPage);
