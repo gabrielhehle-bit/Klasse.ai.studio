@@ -7,7 +7,7 @@ import ClassMascotWidget from '../components/cockpit/ClassMascotWidget';
 import { DEFAULT_CLASS_MASCOT } from './classMascot';
 import { initialAppState } from './appState';
 
-test('Freistehendes Maskottchen: Figur direkt verschieben, Tippen öffnet keine Aktionen', () => {
+test('Freistehendes Maskottchen: Figur direkt verschieben, Tap-Reaktion ohne Menü', () => {
   const host = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
   assert.match(host, /handleMascotPointerDown/);
   assert.match(host, /\.closest<HTMLButtonElement>\('\.class-mascot-character'\)/);
@@ -26,7 +26,9 @@ test('Die Figur bleibt ohne Kartenhintergrund; Werkzeugstreifen und Namenszeile 
   const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
   assert.match(widget, /class-mascot-character[^"]*touch-none cursor-grab/);
   assert.match(widget, /Klassenmaskottchen verschieben/);
-  assert.doesNotMatch(widget, /title="Maskottchen|onClick=|setDetailsOpen/);
+  assert.match(widget, /onClick=\{reactToTap\}/);
+  assert.match(widget, /reactionTimer\.current = setTimeout/);
+  assert.doesNotMatch(widget, /title="Maskottchen|setDetailsOpen/);
   assert.doesNotMatch(widget, /setDetailsOpen|setSettingsOpen|class-mascot-name|class-mascot-details|class-mascot-settings/);
   const rendered = renderToStaticMarkup(React.createElement(ClassMascotWidget, {
     app: { ...initialAppState, classMascot: DEFAULT_CLASS_MASCOT },

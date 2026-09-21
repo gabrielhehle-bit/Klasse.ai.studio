@@ -177,9 +177,13 @@ test('Test 5: Manipulierter Ciphertext wird durch AES-GCM Authentifizierungs-Tag
   const { vaultRecord, vaultKey } = await createTestVault();
   const backup = await createEncryptedBackup(REALISTIC_TEST_STATE, vaultKey, vaultRecord);
 
-  // Manipuliere 2 Zeichen im Base64-Ciphertext
+  // Ändere garantiert ein reales Ciphertext-Bit. Zwei Base64-Endzeichen
+  // auszutauschen verändert je nach Padding nur ungenutzte Bits und kann
+  // zufällig dieselben Bytes ergeben (flakiger GCM-Integritätstest).
   const originalCiphertext = backup.encryptedState.ciphertext;
-  const tamperedCiphertext = originalCiphertext.slice(0, -2) + 'XY';
+  const tamperedBytes = Buffer.from(originalCiphertext, 'base64');
+  tamperedBytes[0] ^= 0x01;
+  const tamperedCiphertext = tamperedBytes.toString('base64');
 
   const tamperedBackup: LehrerAppEncryptedBackupV1 = {
     ...backup,

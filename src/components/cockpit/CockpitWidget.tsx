@@ -162,6 +162,8 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const dragStartPos = useRef({ x: 0, y: 0, left: 0, top: 0 });
   const resizeStartPos = useRef({ startX: 0, startY: 0, startW: 0, startH: 0 });
   const suppressMascotTap = useRef(false);
+  const suppressMascotTapTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (suppressMascotTapTimer.current !== null) clearTimeout(suppressMascotTapTimer.current); }, []);
 
   const [showSizeConfig, setShowSizeConfig] = useState(false);
   const [showWidgetMenu, setShowWidgetMenu] = useState(false);
@@ -516,6 +518,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       if (!dragging) {
         dragging = true;
         suppressMascotTap.current = true;
+        if (suppressMascotTapTimer.current !== null) clearTimeout(suppressMascotTapTimer.current);
         onFocus();
       }
       const rect = widgetRef.current?.getBoundingClientRect();
@@ -538,9 +541,14 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       character.removeEventListener('pointerup', finish);
       character.removeEventListener('pointercancel', finish);
       if (character.hasPointerCapture(pointerId)) character.releasePointerCapture(pointerId);
-      // Browser-generated click follows pointerup in the same task; suppress only
-      // the drag's click, never the next deliberate tap.
-      window.setTimeout(() => { suppressMascotTap.current = false; }, 0);
+      // Some touch browsers dispatch a delayed synthetic click after pointerup.
+      // Keep the drag click suppressed briefly, then allow a new deliberate tap.
+      if (dragging) {
+        suppressMascotTapTimer.current = window.setTimeout(() => {
+          suppressMascotTap.current = false;
+          suppressMascotTapTimer.current = null;
+        }, 500);
+      }
     };
 
     character.addEventListener('pointermove', onMove);
@@ -582,6 +590,10 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       event.preventDefault();
       event.stopPropagation();
       suppressMascotTap.current = false;
+      if (suppressMascotTapTimer.current !== null) {
+        clearTimeout(suppressMascotTapTimer.current);
+        suppressMascotTapTimer.current = null;
+      }
     }
   };
 
