@@ -248,7 +248,10 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
             aria-label="Kinderauswahl schließen"><X size={20} /></button>
         </div>
         <p className="text-xs sm:text-sm">Wähle, wer in dieser Unterrichtsphase gezogen werden darf. Die Auswahl wird nicht dauerhaft gespeichert.</p>
-        <p className="text-sm font-semibold" role="status">{eligibleStudents.length} von {presentStudents.length} Kindern aktiv</p>
+        <p className="text-sm font-semibold" role="status">
+          {eligibleStudents.length} von {presentStudents.length} anwesenden Kindern aktiv
+          {selectionMode === 'round' && ` · ${remainingCount} noch nicht gezogen`}
+        </p>
         <div className="grid min-h-0 grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Anwesende Kinder auf dieser Seite">
           {selectionPage.items.map(student => {
             const excluded = excludedIds.includes(student.id);
@@ -296,7 +299,12 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
     <div ref={containerRef}
       className={`relative flex h-full w-full min-h-0 flex-col gap-2 rounded-2xl border p-2 sm:p-3 ${currentIsLight ? 'border-slate-200 bg-slate-50 text-slate-900' : 'border-white/10 bg-zinc-950 text-white'}`}>
       <div className="flex shrink-0 items-center justify-between gap-1">
-        <span className="min-w-0 text-sm font-black">🎯 Zufälliges Kind</span>
+        <div className="min-w-0">
+          <span className="block text-sm font-black">🎯 Zufallsauswahl</span>
+          {!compact && <span className="block text-xs font-medium opacity-75">
+            {selectionMode === 'round' ? 'Jedes Kind einmal' : 'Zufällig · Wiederholungen möglich'}
+          </span>}
+        </div>
         <button type="button" onClick={() => { setSelectorPage(0); setShowPupilSelector(true); }}
           className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-slate-300 px-2 text-xs font-bold"
           aria-label="Kinder für diese Unterrichtsphase auswählen" title="Kinder auswählen">
@@ -304,7 +312,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
         </button>
       </div>
       <button type="button" onClick={pickPupil}
-        disabled={isAnimating || eligibleStudents.length === 0}
+        disabled={isAnimating || remainingStudents.length === 0}
         className={`flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-2 rounded-2xl border-2 p-2 text-center focus-visible:outline-2 focus-visible:outline-indigo-600 disabled:cursor-not-allowed ${currentIsLight ? 'border-indigo-200 bg-white' : 'border-indigo-500/40 bg-zinc-900'}`}
         aria-label={selectedName ? 'Weiteres Kind ziehen' : 'Zufälliges Kind ziehen'}>
         {isAnimating ? (
@@ -315,19 +323,39 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
               : presentStudents.length === 0 ? 'Heute sind keine Kinder zur Auswahl anwesend.'
               : 'Alle Kinder sind pausiert. Wähle mindestens ein Kind aus.'}
           </span>
+        ) : roundComplete && !selectedName ? (
+          <span role="status" className="break-words text-lg font-black">Runde abgeschlossen! Starte eine neue Runde.</span>
         ) : selectedName ? (
           <>
-            {!compact && <span className="text-xs font-bold uppercase text-indigo-600">Ausgewählt</span>}
+            {!compact && <span className="text-xs font-bold uppercase text-indigo-600">
+              {roundComplete ? 'Runde abgeschlossen · letztes Kind' : 'Ausgewählt'}
+            </span>}
             <span className={`max-w-full break-words font-black leading-tight [overflow-wrap:anywhere] ${selectedName.length > 36 ? 'text-base sm:text-xl' : compact ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-4xl'}`}>{selectedName}</span>
           </>
         ) : <span className="break-words text-base font-bold">Kind auswählen</span>}
       </button>
       <div className="flex shrink-0 flex-col gap-1">
-        <span className="text-center text-xs font-semibold">{eligibleStudents.length} Kinder zur Auswahl</span>
-        <button type="button" onClick={pickPupil} disabled={isAnimating || eligibleStudents.length === 0}
+        <span className="text-center text-xs font-semibold" aria-live="polite">
+          {selectionMode === 'round'
+            ? `${remainingCount} noch offen · ${validDrawnIds.length} gezogen · ${eligibleStudents.length} aktiv`
+            : `${eligibleStudents.length} Kinder zur Auswahl`}
+        </span>
+        <button type="button" onClick={pickPupil} disabled={isAnimating || remainingStudents.length === 0}
           className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-600">
-          <Sparkles size={18}/>{isAnimating ? 'Wählt aus …' : selectedName ? 'Noch einmal' : 'Kind auswählen'}
+          <Sparkles size={18}/>{isAnimating ? 'Wählt aus …' : roundComplete ? 'Runde abgeschlossen' : selectedName ? 'Nächstes Kind' : 'Kind auswählen'}
         </button>
+        {(drawnIds.length > 0 || roundComplete) && (
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={undoPick} disabled={isAnimating || drawnIds.length === 0}
+              className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 px-2 text-xs font-bold disabled:opacity-50"
+              aria-label="Letzte Ziehung zurücknehmen"><Undo2 size={16}/> Rückgängig</button>
+            <button type="button" onClick={resetRound} disabled={isAnimating}
+              className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-300 px-2 text-xs font-bold disabled:opacity-50"
+              aria-label={selectionMode === 'round' ? 'Neue Ziehungsrunde starten' : 'Ziehungsverlauf zurücksetzen'}>
+              <RotateCcw size={16}/>{selectionMode === 'round' ? 'Neue Runde' : 'Zurücksetzen'}
+            </button>
+          </div>
+        )}
       </div>
       {selector}
     </div>
