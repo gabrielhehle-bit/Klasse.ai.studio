@@ -25,3 +25,13 @@ test('contact link is not an approval path and cannot switch the logged-in domai
   assert.match(source, /verwendet weiterhin die Domain deines angemeldeten KLASSIO-Kontos/);
   assert.match(source, /body: JSON\.stringify\(\{ schoolName: schoolName\.trim\(\), federalState \}\)/);
 });
+test('E-Mail-Anmeldung und SMTP-Konfiguration verwenden keine zweite, kostenpflichtige Support-Mailbox', () => {
+  const login = readFileSync('src/components/EmailAccountLogin.tsx', 'utf8');
+  const server = readFileSync('server.ts', 'utf8');
+  const exampleEnv = readFileSync('.env.example', 'utf8');
+  for (const content of [source, login, server, exampleEnv]) {
+    assert.doesNotMatch(content, /(?<!no)reply@klassio\\.at/);
+  }
+  assert.match(login, /mailto:noreply@klassio\\.at/);
+  assert.match(exampleEnv, /SMTP_FROM="KLASSIO <noreply@klassio\\.at>"/);
+});
