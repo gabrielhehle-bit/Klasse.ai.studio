@@ -1577,6 +1577,11 @@ export default function Gradebook({ initialSection = 'grades' }: { initialSectio
 
   return (
     <div className="space-y-3 pb-20">
+      {istSekundarstufe(app.schulart) && (
+        <p role="note" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 print:hidden">
+          Die Notenmappe dokumentiert deine Bewertungen. Die schulartspezifische amtliche Beurteilung – insbesondere die Leistungsniveaus der Mittelschule – wird hier noch nicht automatisch abgebildet. Prüfe Zeugnisnoten unabhängig davon.
+        </p>
+      )}
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
