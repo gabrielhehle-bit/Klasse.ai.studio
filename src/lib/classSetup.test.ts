@@ -64,5 +64,5 @@ test('setup persists role, does not overwrite a class on school-type switch and 
   assert.match(setup, /klassenvorstand, schuljahr: schuljahr/);
   assert.match(setup, /studentsList.length\}<\/div>/);
   assert.doesNotMatch(setup, /studentsList.length \|\| 24/);
-  assert.match(setup, /isSek1 \? quickSteps : expertSteps/);
+  assert.match(setup, /!isSek1 \? quickSteps : expertSteps/);
 });
