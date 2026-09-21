@@ -8365,7 +8365,7 @@ ${content}
                                             handleUpdateWidgetPos(configured.id, { settings: { ...(configured.settings || {}), [key]: value } });
                                           }
                                         };
-                                        const saveRandomPreset = (key: "selectionMode" | "soundEnabled" | "animationEnabled" | "startSize", value: boolean | string) => {
+                                        const saveRandomPreset = (key: "selectionMode" | "studentScope" | "soundEnabled" | "animationEnabled" | "startSize", value: boolean | string) => {
                                           setApp(prev => ({
                                             ...prev,
                                             boardSettings: {
@@ -8446,6 +8446,20 @@ ${content}
                                         ) : selectedWidgetConfiguration === "randomname" ? (
                                           <fieldset className="space-y-3">
                                             <legend className="text-sm font-black">Zufallsauswahl · Voreinstellungen</legend>
+                                            <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/40 p-3" role="group" aria-label="Teilnehmende Kinder festlegen">
+                                              <p className="mb-2 text-sm font-black">Wer soll gezogen werden?</p>
+                                              {([
+                                                ["present", "Heute anwesende Kinder", "Kinder, die heute als abwesend markiert sind, werden nicht gezogen."],
+                                                ["all", "Alle Kinder der Klasse", "Auch als abwesend markierte Kinder können gezogen werden."],
+                                              ] as const).map(([scope, label, detail]) => (
+                                                <label key={scope} className="mb-2 flex min-h-11 items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 last:mb-0">
+                                                  <input type="radio" name="cockpit-random-scope" value={scope}
+                                                    checked={randomNameDefaults.studentScope === scope}
+                                                    onChange={() => saveRandomPreset("studentScope", scope)} className="mt-1 h-5 w-5 shrink-0" />
+                                                  <span><strong className="block text-sm">{label}</strong><span className="block text-xs text-slate-600">{detail}</span></span>
+                                                </label>
+                                              ))}
+                                            </div>
                                             <div className="rounded-xl border border-slate-200 bg-white p-3" role="group" aria-label="Ziehmodus einstellen">
                                               <p className="mb-2 text-sm font-black">Wie sollen die Kinder gezogen werden?</p>
                                               {([
