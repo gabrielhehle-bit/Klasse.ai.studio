@@ -1272,19 +1272,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const saveApp = React.useCallback(async () => {
     if (restoringRef.current) return;
-    const vaultKey = getActiveVaultKey();
-    if (!vaultKey) {
-      console.warn('[Datenschutz] Speichern abgebrochen: Kein aktiver VaultKey im RAM.');
-      return;
-    }
-    try {
-      await saveEncryptedAppState(currentAppRef.current, vaultKey);
-      await saveEncryptedSessionBackup(currentAppRef.current, vaultKey);
-      await pushAccountStateIfReady(currentAppRef.current, vaultKey);
-    } catch (e) {
-      console.error('[Datenschutz] Fehler beim manuellen Speichern:', e);
-    }
-  }, [pushAccountStateIfReady]);
+    // Same encrypted local-first pipeline as autosave: no separate untracked save path.
+    await persistLatestState(currentAppRef.current);
+  }, [persistLatestState]);
 
   const updateStudent = React.useCallback((student: Student) => {
     setApp(prev => {
