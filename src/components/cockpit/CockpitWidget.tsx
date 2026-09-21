@@ -171,8 +171,14 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    const stage = activeStageRef.current;
-    if (!stage) return;
+    // A ref object stays identical when the cockpit DOM is replaced after remote
+    // control. Observe the current portal node explicitly, otherwise the mascot
+    // keeps measuring the old detached root and may disappear after returning.
+    const stage = isFreeMascot ? mascotPortalTarget : activeStageRef.current;
+    if (!stage) {
+      if (isFreeMascot) setStageSize({ width: 0, height: 0 });
+      return;
+    }
 
     const updateStageSize = () => {
       const rect = stage.getBoundingClientRect();
@@ -189,7 +195,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
 
     window.addEventListener("resize", updateStageSize);
     return () => window.removeEventListener("resize", updateStageSize);
-  }, [activeStageRef]);
+  }, [activeStageRef, isFreeMascot, mascotPortalTarget]);
 
   // Sync inputs with widget dimensions when config opens or dims change externally
   useEffect(() => {

@@ -16,9 +16,10 @@ interface ThemePickerProps {
     setApp: React.Dispatch<React.SetStateAction<AppState>>;
     isOpen: boolean;
     onClose: () => void;
+    onRecenterMascot?: () => void;
 }
 
-export const UnterrichtsmodusThemePicker: React.FC<ThemePickerProps> = ({ app, setApp, isOpen, onClose }) => {
+export const UnterrichtsmodusThemePicker: React.FC<ThemePickerProps> = ({ app, setApp, isOpen, onClose, onRecenterMascot }) => {
     const currentThemeId = app.unterrichtsmodus_theme || app.theme || 'classic_light';
     const currentTheme = UNTERRICHTSMODUS_THEMES[currentThemeId] || UNTERRICHTSMODUS_THEMES.classic_light;
     const currentBgId = app.unterrichtsmodus_hintergrund || app.unterrichtsmodus_hintergrundProModus?.lehrperson || 'kein';
@@ -297,6 +298,21 @@ export const UnterrichtsmodusThemePicker: React.FC<ThemePickerProps> = ({ app, s
                             <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
                                 Auf der Tafel bleibt nur die freistehende Figur sichtbar. Die Animation bleibt bei reduzierter Bewegung ausgeschaltet.
                             </p>
+                            {onRecenterMascot && (
+                                <button
+                                    type="button"
+                                    onClick={onRecenterMascot}
+                                    className="mt-3 min-h-11 w-full rounded-xl border-2 px-3 py-2 text-xs font-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                                    style={{
+                                        borderColor: currentTheme.colors.accent,
+                                        color: currentTheme.colors.textPrimary,
+                                        backgroundColor: currentTheme.colors.surface,
+                                    }}
+                                    aria-label="Klassenmaskottchen wiederfinden und in der Cockpit-Mitte platzieren"
+                                >
+                                    Maskottchen wiederfinden · mittig platzieren
+                                </button>
+                            )}
                         </div>
                     </section>
 
