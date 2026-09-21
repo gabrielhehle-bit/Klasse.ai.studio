@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { isOnboardingCompleted, markOnboardingCompleted } from '../lib/onboardingState';
+import { hasCompletedInitialSetup, shouldShowInitialDashboardTour } from '../lib/firstRunFlow';
 import { 
   LayoutDashboard, 
   Users, 
@@ -27,28 +28,29 @@ export default function WelcomeTour() {
   const [highlightCoords, setHighlightCoords] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
 
   const onboardingCompleted = isOnboardingCompleted();
-  // Die Tour darf nach einer abgeschlossenen Einführung nicht durch Setup-/Klassenwechsel
-  // erneut auftauchen. Ein bewusstes "Tour erneut starten" setzt tourAbgeschlossen=false
-  // und wechselt ins Cockpit; genau dieser Zustand ist die einzige Ausnahme.
+  // A new account sees the tour only AFTER setup has saved a real class and
+  // the dashboard is mounted. Finished tours stay finished across login,
+  // reload and class switches; a conscious restart is the only exception.
+  const setupComplete = hasCompletedInitialSetup(app);
   const explicitRestart = onboardingCompleted
     && !app.tourAbgeschlossen
     && !app.firstLogin
-    && app.currentPage === 'cockpit';
-  const shouldRender = !app.firstLogin
-    && !app.tourAbgeschlossen
-    && (!onboardingCompleted || explicitRestart);
+    && app.currentPage === 'dashboard';
+  const shouldRender = shouldShowInitialDashboardTour(
+    setupComplete, app.firstLogin, app.tourAbgeschlossen, onboardingCompleted, app.currentPage,
+  ) || (setupComplete && explicitRestart);
 
   const steps: TourStep[] = [
     {
       targetId: 'tour-dashboard',
       title: 'Dashboard',
-      text: 'Hier findest du alle Module der App. Fange mit dem Dashboard an.',
+      text: 'Deine Klasse ist eingerichtet! Hier findest du deinen Tagesüberblick mit Unterricht, Terminen und Aufgaben.',
       icon: <LayoutDashboard className="text-emerald-500" size={24} />
     },
     {
       targetId: 'tour-schueler',
       title: 'Schülerliste',
-      text: 'Verwalte deine Schüler:innen, erfasse Noten und Anwesenheit.',
+      text: 'Öffne deine Klasse und die Klassenliste. Dort findest du Kinder, Stammdaten und Schülerdossiers; Anwesenheit und Noten sind eigene Bereiche.',
       icon: <Users className="text-emerald-500" size={24} />
     },
     {
@@ -66,7 +68,7 @@ export default function WelcomeTour() {
     {
       targetId: 'tour-settings',
       title: 'Einstellungen',
-      text: 'Hier kannst du Klasse, Schüler:innen und Themes jederzeit anpassen.',
+      text: 'Unter Einstellungen → Hilfe findest du eine Suchfunktion und eine Anleitung zu allen Bereichen und Unterrichtswerkzeugen. Hier kannst du auch die Willkommenstour erneut starten.',
       icon: <Settings className="text-emerald-500" size={24} />
     }
   ];

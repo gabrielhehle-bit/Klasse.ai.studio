@@ -236,9 +236,9 @@ async function finishVaultSetup(client, password) {
   await waitFor(client, 'recovery code screen', 'document.body?.innerText.toLowerCase().includes("dein einmaliger wiederherstellungscode")', 30000);
   await clickCheckboxNearText(client, 'Ich habe den Wiederherstellungscode sicher notiert');
   await clickButton(client, 'Einrichtung abschließen');
-  await waitFor(client, 'first-run intro', 'document.body?.innerText.toLowerCase().includes("klassio passt sich dir an")', 30000);
-  await clickButton(client, 'Überspringen');
-  await waitFor(client, 'daily dashboard', 'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").trim()==="Heute")', 30000);
+  await waitFor(client, 'first-run setup before dashboard', 'document.body?.innerText.includes("Willkommen bei Klassio!")', 30000);
+  const prematureTour = await evaluate(client, 'Boolean(document.getElementById("klassio-first-run-title")) || Array.from(document.querySelectorAll("h3")).some(el=>el.textContent==="Dashboard")');
+  if (prematureTour) throw new Error(client.name + ': welcome tour appeared before setup was completed.');
 }
 
 async function loginWithMail(client, email, password) {
@@ -254,21 +254,14 @@ async function loginWithMail(client, email, password) {
 }
 
 async function createClassInUi(client, className) {
-  const opened = await evaluate(client,
-    '(() => {' +
-    'const norm=v=>String(v||"").replace(/\\s+/g," ").trim();' +
-    'const candidates=Array.from(document.querySelectorAll("div")).filter(el=>norm(el.textContent).includes("Klasse Ohne Namen"));' +
-    'const node=candidates.sort((a,b)=>a.getBoundingClientRect().width-b.getBoundingClientRect().width).find(el=>{' +
-      'const style=getComputedStyle(el); const rect=el.getBoundingClientRect();' +
-      'return style.visibility!=="hidden"&&style.display!=="none"&&rect.width>0&&rect.height>0&&style.cursor==="pointer";' +
-    '});' +
-    'if(!node)return false; node.click(); return true;' +
-    '})()'
-  );
-  if (!opened) throw new Error(client.name + ': could not open class selector.');
-  await waitFor(client, 'class dropdown', 'document.body?.innerText.includes("Klasse hinzufügen")');
-  await clickButton(client, 'Klasse hinzufügen');
-  await waitFor(client, 'new class setup', 'Boolean(document.querySelector("#klassio-schulart"))', 20000);
+  // A fresh account enters the original setup wizard immediately after
+  // vault creation. No dashboard, class selector or welcome tour comes first.
+  await waitFor(client, 'start setup', 'document.body?.innerText.includes("Willkommen bei Klassio!")', 30000);
+  await clickButton(client, 'Vollständig einrichten');
+  await clickButton(client, 'Einrichtung starten');
+  await waitFor(client, 'teacher and school step', 'document.body?.innerText.includes("Profil & Schule")', 20000);
+  await clickButton(client, 'Nächster Schritt');
+  await waitFor(client, 'class setup', 'Boolean(document.querySelector("#klassio-schulart"))', 20000);
   await setInputByLabel(client, 'Klassenbezeichnung', className);
   for (const step of ['Fächer', 'Stundenplan', 'Schüler']) {
     await clickButton(client, 'Nächster Schritt');
@@ -277,6 +270,9 @@ async function createClassInUi(client, className) {
   await clickButton(client, 'Nächster Schritt');
   await waitFor(client, 'setup step Übersicht', 'document.body?.innerText.includes("Bereit für deine Klasse")');
   await clickButton(client, 'Einrichtung abschließen');
+  await waitFor(client, 'welcome tour after setup', 'Array.from(document.querySelectorAll("h3")).some(el=>String(el.textContent||"").trim()==="Dashboard")', 30000);
+  await clickButton(client, 'Überspringen');
+  await waitFor(client, 'dashboard after class setup', 'Array.from(document.querySelectorAll("button")).some(button=>String(button.textContent||"").trim()==="Heute")', 30000);
   await waitFor(client, 'class setup retained', 'document.body?.innerText.includes(' + q(className) + ')', 30000);
 }
 
@@ -428,6 +424,9 @@ async function main() {
     await waitForAdminNotification();
 
     await loginWithMail(admin, ADMIN_EMAIL, ADMIN_VAULT);
+    // First-time accounts, including school administrators, complete setup
+    // before settings are unlocked. This is the intended onboarding contract.
+    await createClassInUi(admin, 'Admin-Einrichtung 1A');
     await openAccountSettings(admin);
     await waitFor(admin, 'admin school queue visible', 'document.body?.innerText.includes("Schulverwaltung") && document.body?.innerText.includes("Volksschule Neu")', 20000);
     await clickButton(admin, 'Freigeben');

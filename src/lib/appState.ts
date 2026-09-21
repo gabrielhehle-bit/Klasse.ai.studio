@@ -784,8 +784,12 @@ export function normalizeAppState(raw: any): AppState {
     parsed.statusLog = activeClassWithNotes?.statusLog || [];
   }
 
-  const schuelerExist = parsed.schueler && parsed.schueler.length > 0;
-  const computedTourAbgeschlossen = schuelerExist ? true : (parsed.tourAbgeschlossen ?? false);
+  // Preserve an explicit false after first setup (or an intentional tour restart),
+  // even when the newly imported class already contains children. Only legacy
+  // snapshots without a tour flag infer that onboarding was previously done.
+  const computedTourAbgeschlossen = typeof raw.tourAbgeschlossen === 'boolean'
+    ? raw.tourAbgeschlossen
+    : Boolean(parsed.schueler?.length || parsed.classes?.length || parsed.klassenbezeichnung?.trim());
 
   return {
     ...initialAppState,

@@ -88,7 +88,7 @@ import WelcomeTour from './components/WelcomeTour';
 import Spotlight from './components/Spotlight';
 import GlobalActions from './components/GlobalActions';
 import DenkzettelWidget from './components/DenkzettelWidget';
-import InitialModeModal from './components/InitialModeModal';
+import { hasCompletedInitialSetup } from './lib/firstRunFlow';
 import PrivacyLock from './components/PrivacyLock';
 const Cockpit = lazyRetry(() => import('./components/Cockpit'));
 import PrintHeader from './components/PrintHeader';
@@ -236,8 +236,9 @@ function AppContent() {
     });
   };
 
-  // Anmeldung landet immer im Dashboard. Der Setup-Wizard öffnet sich nur
-  // noch bewusst über "Setup" / "Klasse hinzufügen", nie automatisch nach Login.
+  // Initial setup takes priority over the dashboard, including immediately after
+  // the very first login. Existing configured accounts skip setup as before.
+  const needsFirstSetup = !hasCompletedInitialSetup(app);
   const [showSetup, setShowSetup] = useState(false);
 
   React.useEffect(() => {
@@ -601,12 +602,12 @@ function AppContent() {
       // Just a placeholder to show I matched properly
   }
 
-  if (showSetup || currentPage === 'setup' || currentPage === 'setup_new') {
+  if (needsFirstSetup || showSetup || currentPage === 'setup' || currentPage === 'setup_new') {
     return (
       <React.Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-slate-50"><div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div></div>}>
         <SetupWizard 
-          isNewClass={currentPage === 'setup_new'} 
-          key={currentPage === 'setup_new' ? `new_setup_${app.classes?.length || 0}` : (app?.activeClassId || 'setup')} 
+          isNewClass={!needsFirstSetup && currentPage === 'setup_new'} 
+          key={needsFirstSetup ? 'first_setup' : currentPage === 'setup_new' ? `new_setup_${app.classes?.length || 0}` : (app?.activeClassId || 'setup')} 
           onComplete={() => {
             setShowSetup(false);
             setPage('dashboard');
@@ -776,7 +777,6 @@ function AppContent() {
       )}
       <GlobalActions />
       <Spotlight />
-      <InitialModeModal />
       <WelcomeTour />
       {!app.dossierFocusMode && (
         <Sidebar 
