@@ -8,6 +8,8 @@ import { X, Palette, Image as ImageIcon, Upload, Trash2, CheckCircle2, Type, Spa
 import { AppState, UnterrichtsmodusModus, UnterrichtsmodusThemeId, UnterrichtsmodusHintergrundId } from '../types';
 import { UNTERRICHTSMODUS_THEMES, UNTERRICHTSMODUS_HINTERGRUENDE } from '../lib/unterrichtsmodusThemes';
 import { ALL_WIDGET_CONFIG } from './WidgetConfig';
+import { MASCOT_OPTIONS, normalizeClassMascot, selectClassMascot } from '../lib/classMascot';
+import ClassMascotArtwork from './cockpit/ClassMascotArtwork';
 
 interface ThemePickerProps {
     app: AppState;
@@ -212,6 +214,43 @@ export const UnterrichtsmodusThemePicker: React.FC<ThemePickerProps> = ({ app, s
                         <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
                             Ein Farb- oder Designwechsel ändert deine ausgewählte Schrift nicht.
                         </p>
+                    </section>
+
+                    {/* Keep configuration off the whiteboard: the mascot itself has no visible controls. */}
+                    <section className="space-y-3 p-4 rounded-2xl border" aria-label="Klassenmaskottchen auswählen"
+                        style={{ borderColor: currentTheme.colors.border, backgroundColor: currentTheme.colors.surface }}>
+                        <div>
+                            <h3 className="text-xs font-black" style={{ color: currentTheme.colors.textPrimary }}>
+                                Klassenmaskottchen
+                            </h3>
+                            <p className="mt-1 text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                                Figur auswählen – im Lehrercockpit erscheint nur das Tier, ohne Namen oder Menü.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            {MASCOT_OPTIONS.map(option => (
+                                <button key={option.kind} type="button"
+                                    aria-label={option.label + ' als Klassenmaskottchen auswählen'}
+                                    aria-pressed={normalizeClassMascot(app.classMascot).kind === option.kind}
+                                    onClick={() => setApp(prev => ({
+                                        ...prev,
+                                        classMascot: selectClassMascot(normalizeClassMascot(prev.classMascot), option.kind),
+                                    }))}
+                                    className="min-h-32 rounded-xl border-2 p-2 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                                    style={{
+                                        borderColor: normalizeClassMascot(app.classMascot).kind === option.kind ? currentTheme.colors.accent : currentTheme.colors.border,
+                                        color: currentTheme.colors.textPrimary,
+                                        backgroundColor: currentTheme.colors.surface,
+                                    }}>
+                                    <span className="mx-auto block h-20 w-20" aria-hidden="true">
+                                        <ClassMascotArtwork kind={option.kind} mood="happy" name={option.name} animationEnabled={false} />
+                                    </span>
+                                    <span className="block text-xs font-black">{option.label}</span>
+                                    {normalizeClassMascot(app.classMascot).kind === option.kind &&
+                                        <span className="block text-[11px] font-semibold">✓ Ausgewählt</span>}
+                                </button>
+                            ))}
+                        </div>
                     </section>
 
                     {/* CUSTOM COLORS */}

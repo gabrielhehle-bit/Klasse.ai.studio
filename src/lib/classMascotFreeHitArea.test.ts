@@ -15,21 +15,19 @@ test('Maskottchen steht frei und seine unsichtbare Widgetfläche blockiert keine
   assert.match(host, /cockpit-free-mascot rounded-none border-0 bg-transparent shadow-none/);
   assert.match(styles, /\.cockpit-widget-container\.cockpit-free-mascot \{\s*pointer-events: none !important;/);
   assert.match(styles, /\.cockpit-free-mascot \.class-mascot-character,[\s\S]{0,200}\.cockpit-free-mascot \.class-mascot-settings \{\s*pointer-events: auto;/);
-  assert.match(styles, /\.cockpit-free-mascot \.mascot-widget-toolbar,[\s\S]{0,100}\.mascot-widget-resize \{\s*visibility: hidden;\s*pointer-events: none;/);
-  assert.match(styles, /\.cockpit-free-mascot:focus-within \.mascot-widget-toolbar/);
-  assert.match(styles, /\.cockpit-free-mascot\[data-mascot-focused="true"\] \.mascot-widget-toolbar/);
+  assert.match(styles, /\.cockpit-free-mascot \.mascot-widget-resize \{\s*display: none !important;/);
   assert.match(widget, /class-mascot-freestanding pointer-events-none/);
   assert.match(widget, /class-mascot-character pointer-events-auto mx-auto/);
   assert.match(widget, /style=\{\{ width: 'min\(100%, 280px\)' \}\}/);
 });
 
-test('Das freigestellte Maskottchen ist per Tastatur und kurzem Tippen bedienbar; Aktionen bleiben geschlossen', () => {
+test('Das freigestellte Maskottchen lässt sich gezielt greifen, ohne Namenszeile oder Aktionen', () => {
   const markup = renderToStaticMarkup(React.createElement(ClassMascotWidget, {
     app: { ...initialAppState, classMascot: DEFAULT_CLASS_MASCOT },
     setApp: () => undefined,
   }));
   assert.match(markup, /aria-label="Klassenmaskottchen"/);
-  assert.match(markup, /aria-expanded="false"/);
+  assert.doesNotMatch(markup, /aria-expanded|class-mascot-name/);
   assert.match(markup, /class-mascot-character pointer-events-auto/);
   assert.match(markup, /role="img"/);
   assert.doesNotMatch(markup, /class-mascot-details|class-mascot-settings|fixed bottom-|floating-classpet-outer/);

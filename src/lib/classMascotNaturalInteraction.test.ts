@@ -7,7 +7,7 @@ import ClassMascotWidget from '../components/cockpit/ClassMascotWidget';
 import { DEFAULT_CLASS_MASCOT } from './classMascot';
 import { initialAppState } from './appState';
 
-test('Freistehendes Maskottchen: Figur direkt verschieben, kurzes Tippen öffnet weiter Aktionen', () => {
+test('Freistehendes Maskottchen: Figur direkt verschieben, Tippen öffnet keine Aktionen', () => {
   const host = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
   assert.match(host, /handleMascotPointerDown/);
   assert.match(host, /\.closest<HTMLButtonElement>\('\.class-mascot-character'\)/);
@@ -20,21 +20,19 @@ test('Freistehendes Maskottchen: Figur direkt verschieben, kurzes Tippen öffnet
   assert.match(host, /layoutLocked \|\| isMaximized/);
 });
 
-test('Die Figur bleibt ohne Kartenhintergrund und der Werkzeugstreifen erscheint auf Touch erst bei Fokus', () => {
+test('Die Figur bleibt ohne Kartenhintergrund; Werkzeugstreifen und Namenszeile sind dauerhaft ausgeblendet', () => {
   const css = readFileSync('src/index.css', 'utf8');
-  assert.match(css, /\.cockpit-free-mascot:focus-within \.mascot-widget-toolbar/);
-  assert.match(css, /\.cockpit-free-mascot:focus-within \.mascot-widget-resize/);
-  assert.match(css, /\.cockpit-free-mascot\[data-mascot-focused="true"\] \.mascot-widget-toolbar/);
-  assert.match(css, /opacity: 0 !important;\s*pointer-events: none;/);
+  assert.match(css, /\.cockpit-free-mascot \.mascot-widget-resize \{\s*display: none !important;/);
   const widget = readFileSync('src/components/cockpit/ClassMascotWidget.tsx', 'utf8');
   assert.match(widget, /class-mascot-character[^"]*touch-none cursor-grab/);
-  assert.match(widget, /ziehen zum Verschieben/);
-  assert.match(widget, /maxWidth: settingsOpen \? 170 : detailsOpen \? 220 : 280/);
+  assert.match(widget, /Klassenmaskottchen verschieben/);
+  assert.doesNotMatch(widget, /title="Maskottchen|onClick=|setDetailsOpen/);
+  assert.doesNotMatch(widget, /setDetailsOpen|setSettingsOpen|class-mascot-name|class-mascot-details|class-mascot-settings/);
   const rendered = renderToStaticMarkup(React.createElement(ClassMascotWidget, {
     app: { ...initialAppState, classMascot: DEFAULT_CLASS_MASCOT },
     setApp: () => undefined,
   }));
   assert.match(rendered, /class-mascot-freestanding/);
   assert.match(rendered, /cursor-grab/);
-  assert.doesNotMatch(rendered, /class-mascot-details|fixed bottom-|floating-classpet-outer/);
+  assert.doesNotMatch(rendered, /class-mascot-name|class-mascot-details|class-mascot-settings|aria-expanded|fixed bottom-|floating-classpet-outer/);
 });
