@@ -1,3 +1,4 @@
+import { clearOnboardingCompleted } from '../lib/onboardingState';
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import LZString from 'lz-string';
@@ -571,7 +572,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            lehrerProfil: { ...(prev.lehrerProfil || {}), name: resolvedLehrerName, schule: schulName },
            schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
            klassenbezeichnung, stufe, schulart, klassenvorstand, schuljahr: schuljahr, schueler: finalStudents,
-           classes: [mainClass], activeClassId: classId, firstLogin: true, tourAbgeschlossen: false
+           classes: [mainClass], activeClassId: classId, firstLogin: false, tourAbgeschlossen: false
          } : {
            classes: [...(prev.classes || []), mainClass], 
            activeClassId: classId,
@@ -594,6 +595,9 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     }
     
     if (isFirstSetup) {
+      // The just-configured school/class earns a first dashboard tour even if
+      // another account previously used this browser. Never reset for edits.
+      clearOnboardingCompleted();
       localStorage.removeItem(WIZARD_PROGRESS_KEY);
       sessionStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
       localStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
