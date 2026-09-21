@@ -156,6 +156,7 @@ import { MobileRemoteController } from "./MobileRemoteController";
 import { UnterrichtsmodusThemePicker } from "./UnterrichtsmodusThemePicker";
 import { ClassPetCanvas } from "./ClassPetCanvas";
 import ClassMascotWidget from "./cockpit/ClassMascotWidget";
+import { centerClassMascotInViewport, normalizeClassMascot } from "../lib/classMascot";
 import { ALL_WIDGET_CONFIG } from "./WidgetConfig";
 
 const Attendance = React.lazy(() => import("./Attendance"));
@@ -5927,6 +5928,37 @@ ${content}
     outerContainerRef.current = node;
     setMascotPortalTarget(node);
   }, []);
+  const recenterClassMascot = () => {
+    const cockpitRoot = outerContainerRef.current;
+    const bounds = cockpitRoot?.getBoundingClientRect();
+    if (!bounds || bounds.width <= 0 || bounds.height <= 0) {
+      showToast("Die Cockpitfläche ist gerade nicht verfügbar.", "info");
+      return;
+    }
+    const mascot = cockpitWidgets.find(widget => widget.type === "pet")
+      || DEFAULT_COCKPIT_LAYOUT.find(widget => widget.type === "pet");
+    if (!mascot) {
+      showToast("Kein Klassenmaskottchen gefunden.", "error");
+      return;
+    }
+    const position = centerClassMascotInViewport(
+      bounds.width,
+      bounds.height,
+      normalizeClassMascot(app.classMascot).displaySize || 220,
+    );
+    // Re-enable an existing pet without creating a global overlay or resetting
+    // unrelated widgets, student records, theme or class settings.
+    const centered = cockpitWidgets.some(widget => widget.type === "pet")
+      ? cockpitWidgets.map(widget => widget.type === "pet"
+        ? { ...widget, ...position, visible: true, hasBeenOpened: true }
+        : widget)
+      : [...cockpitWidgets, { ...mascot, ...position, visible: true, hasBeenOpened: true }];
+    setCockpitWidgets(centered);
+    setApp(prev => ({ ...prev, cockpitLayout: centered }));
+    bringToFront(mascot.id);
+    setIsThemePickerOpen(false);
+    showToast("Dein Klassenmaskottchen steht wieder in der Cockpit-Mitte.", "success");
+  };
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
   const [showLinksSheet, setShowLinksSheet] = useState(false);
@@ -16508,6 +16540,7 @@ ${content}
             setApp={setApp}
             isOpen={isThemePickerOpen}
             onClose={() => setIsThemePickerOpen(false)}
+            onRecenterMascot={recenterClassMascot}
           />
         )}
       </AnimatePresence>
