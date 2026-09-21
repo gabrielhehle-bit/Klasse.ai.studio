@@ -10,7 +10,9 @@ import { DEFAULT_CLASS_MASCOT } from './classMascot';
 test('Mascot alone is portaled to the entire cockpit root, not bound to the white writing area', () => {
   const cockpit = readFileSync('src/components/Unterrichtsmodus.tsx', 'utf8');
   const host = readFileSync('src/components/cockpit/CockpitWidget.tsx', 'utf8');
-  assert.match(cockpit, /ref=\{outerContainerRef\}/);
+  assert.match(cockpit, /ref=\{attachCockpitRoot\}/);
+  assert.match(cockpit, /outerContainerRef\.current = node/);
+  assert.match(cockpit, /setMascotPortalTarget\(node\)/);
   assert.match(cockpit, /id="widget-board-stage"/);
   assert.match(cockpit, /mascotStageRef=\{outerContainerRef\}/);
   assert.match(cockpit, /mascotPortalTarget=\{mascotPortalTarget\}/);
