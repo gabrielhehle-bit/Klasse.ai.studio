@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, ListFilter, Sparkles, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ListFilter, Sparkles, RotateCcw, Undo2, X } from 'lucide-react';
 import type { AppState, CockpitWidgetConfig } from '../../../types';
 import { getTodayIsoDate } from '../../../lib/kidAttendanceAlgorithm';
-import { eligibleRandomStudents, pickRandomStudent, randomSelectionPage } from '../../../lib/randomNameWidgetModel';
+import {
+  eligibleRandomStudents, pickRandomStudent, randomSelectionPage,
+  getRandomNameWidgetPreferences, remainingRandomRoundStudents, undoLastRandomPick,
+} from '../../../lib/randomNameWidgetModel';
 import { useApp } from '../../../context/AppContext';
 import { getDisplayStudentName, getPresentStudents } from '../studentSelectionUtils';
 
@@ -61,7 +64,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   }, []);
 
   // app.schueler is the active class roster. An empty roster NEVER creates demo pupils.
-  const allStudents = app?.schueler ?? [];
+  const allStudents = app?.activeClassId ? (app.schueler ?? []) : [];
   const presentStudents = useMemo(
     () => getPresentStudents(allStudents, app),
     [allStudents, app, dayKey],
@@ -74,6 +77,9 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
     () => eligibleRandomStudents(presentStudents, excludedIds),
     [presentStudents, excludedIds],
   );
+  // A teaching SESSION only: no class roll-call history or random result is
+  // written to persistent app state or exposed to other device screens.
+  const [drawnIds, setDrawnIds] = useState<string[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [selectedScope, setSelectedScope] = useState(scopeKey);
   const lastPickedIdRef = useRef<string | null>(null);
@@ -88,7 +94,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   }));
   const [widgetSize, setWidgetSize] = useState({ width: 350, height: 350 });
   const containerRef = useRef<HTMLDivElement>(null);
-  const soundEnabled = widget.settings?.soundEnabled !== false;
+  const { soundEnabled, animationEnabled, selectionMode } = getRandomNameWidgetPreferences(widget.settings);
 
   useEffect(() => {
     const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
@@ -116,6 +122,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
     setAnimatingName('');
     setSessionExcludedIds([]);
     setSessionScope(scopeKey);
+    setDrawnIds([]);
     setSelectedStudentId(null);
     setSelectedScope(scopeKey);
     lastPickedIdRef.current = null;
@@ -128,39 +135,106 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   }, [scopeKey]);
 
   const selectedStudent = selectedScope === scopeKey
-    ? presentStudents.find(student => student.id === selectedStudentId) ?? null
+    ? eligibleStudents.find(student => student.id === selectedStudentId) ?? null
     : null;
   const selectedName = selectedStudent
     ? getDisplayStudentName(selectedStudent, allStudents)
     : null;
+  const remainingStudents = useMemo(
+    () => selectionMode === 'round'
+      ? remainingRandomRoundStudents(eligibleStudents, drawnIds)
+      : eligibleStudents,
+    [eligibleStudents, drawnIds, selectionMode],
+  );
+  const roundComplete = selectionMode === 'round' && eligibleStudents.length > 0 && remainingStudents.length === 0;
+  const validDrawnIds = drawnIds.filter(id => eligibleStudents.some(student => student.id === id));
+  const remainingCount = remainingStudents.length;
   const compact = widgetSize.width < 320 || widgetSize.height < 280;
+  const poolFingerprint = eligibleStudents.map(student => student.id).join('|');
+  const livePoolRef = useRef({ scopeKey, poolFingerprint, selectionMode });
+  livePoolRef.current = { scopeKey, poolFingerprint, selectionMode };
+  useEffect(() => {
+    if (animationIntervalRef.current) clearInterval(animationIntervalRef.current);
+    animationIntervalRef.current = null;
+    setIsAnimating(false);
+    setAnimatingName('');
+    // Attendance changes, class changes and manual exclusions invalidate an
+    // in-flight draw; the result may no longer be a pupil who can be chosen.
+    if (selectedStudentId && !eligibleStudents.some(student => student.id === selectedStudentId)) {
+      setSelectedStudentId(null);
+    }
+  }, [scopeKey, poolFingerprint, selectedStudentId]);
+  useEffect(() => {
+    if (animationIntervalRef.current) clearInterval(animationIntervalRef.current);
+    animationIntervalRef.current = null;
+    setIsAnimating(false);
+    setAnimatingName('');
+    setSelectedStudentId(null);
+    setDrawnIds([]);
+    lastPickedIdRef.current = null;
+  }, [selectionMode]);
   const pageSize = viewport.height < 480 ? 2
     : viewport.width < 640 || viewport.height < 650 ? 4
     : viewport.height < 850 ? 6 : 8;
   const selectionPage = randomSelectionPage(presentStudents, selectorPage, pageSize);
 
   const pickPupil = useCallback(() => {
-    if (isAnimating || sessionScope !== scopeKey || eligibleStudents.length === 0) return;
-    const chosen = pickRandomStudent(eligibleStudents, lastPickedIdRef.current);
+    if (isAnimating || sessionScope !== scopeKey || remainingStudents.length === 0) return;
+    const chosen = pickRandomStudent(remainingStudents,
+      selectionMode === 'round' ? null : lastPickedIdRef.current);
     if (!chosen) return;
+    const initialPool = livePoolRef.current;
+    const commitPick = () => {
+      // Never commit a stale result after attendance, scope, or participant
+      // selection changed while the name animation was running.
+      const live = livePoolRef.current;
+      if (live.scopeKey !== initialPool.scopeKey ||
+          live.poolFingerprint !== initialPool.poolFingerprint ||
+          live.selectionMode !== initialPool.selectionMode) {
+        setIsAnimating(false);
+        setAnimatingName('');
+        return;
+      }
+      setIsAnimating(false);
+      setAnimatingName('');
+      setSelectedStudentId(chosen.id);
+      setSelectedScope(scopeKey);
+      lastPickedIdRef.current = chosen.id;
+      setDrawnIds(previous => [...previous, chosen.id]);
+      if (soundEnabled) playDezentPopSound();
+    };
+    if (!animationEnabled) { commitPick(); return; }
     setIsAnimating(true);
     let tick = 0;
-    animationIntervalRef.current = setInterval(() => {
-      const temporary = pickRandomStudent(eligibleStudents, null);
+    animationIntervalRef.current = window.setInterval(() => {
+      const temporary = pickRandomStudent(remainingStudents, null);
       setAnimatingName(temporary ? getDisplayStudentName(temporary, allStudents) : '');
       tick += 1;
       if (tick >= 7) {
         if (animationIntervalRef.current) clearInterval(animationIntervalRef.current);
         animationIntervalRef.current = null;
-        setIsAnimating(false);
-        setAnimatingName('');
-        setSelectedStudentId(chosen.id);
-        setSelectedScope(scopeKey);
-        lastPickedIdRef.current = chosen.id;
-        if (soundEnabled) playDezentPopSound();
+        commitPick();
       }
     }, 65);
-  }, [allStudents, eligibleStudents, isAnimating, scopeKey, sessionScope, soundEnabled]);
+  }, [allStudents, remainingStudents, isAnimating, scopeKey, sessionScope, soundEnabled, animationEnabled, selectionMode]);
+
+  const resetRound = () => {
+    if (animationIntervalRef.current) clearInterval(animationIntervalRef.current);
+    animationIntervalRef.current = null;
+    setIsAnimating(false);
+    setAnimatingName('');
+    setDrawnIds([]);
+    setSelectedStudentId(null);
+    lastPickedIdRef.current = null;
+  };
+  const undoPick = () => {
+    if (isAnimating || drawnIds.length === 0 || sessionScope !== scopeKey) return;
+    const previous = undoLastRandomPick(drawnIds);
+    setDrawnIds(previous.drawnIds);
+    setSelectedStudentId(previous.previousSelectedId);
+    setSelectedScope(scopeKey);
+    lastPickedIdRef.current = previous.previousSelectedId;
+  };
 
   const selector = showPupilSelector && typeof document !== 'undefined' && createPortal(
     <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/80 p-2 sm:p-5"
