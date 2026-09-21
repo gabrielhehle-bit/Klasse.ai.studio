@@ -54,7 +54,9 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
   const setApp = propSetApp || context?.setApp;
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const groupBodyRef = useRef<HTMLDivElement>(null);
   const size = useWidgetSize(containerRef);
+  const groupBodySize = useWidgetSize(groupBodyRef);
   useWidgetOverflowGuard('GroupsWidget', containerRef);
 
   // Automatisch ermittelte anwesende Schüler
@@ -379,11 +381,15 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     persistState(groups, mode, targetValue, pausedStudentIds, notTogether, updated, namingStyle);
   };
 
+  // Measure the real remaining content area. Feedback, action buttons and
+  // header wrapping must not randomly replace existing group cards with a
+  // "needs more space" placeholder.
   const groupLayout = getGroupPageLayout(
-    size.width,
-    size.height - (feedbackMessage ? 38 : 0) - (selectedStudentForAction ? 40 : 0),
+    groupBodySize.width,
+    groupBodySize.height,
     groups,
     groupPage,
+    { reservedHeight: 76 }, // content padding, page navigation and card gaps
   );
   const displayedGroups = groupLayout.cards.slice(groupLayout.start, groupLayout.start + groupLayout.pageSize);
   const hasMissingClassMembers = groups.some(group => group.studentIds.some(id => !allStudents.some(student => student.id === id)));
@@ -749,7 +755,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
       {/* ========================================================================= */}
       {/* HAUPTBEREICH: GRUPPEN-KARTEN ODER INITIALER STATE                         */}
       {/* ========================================================================= */}
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2 sm:p-3">
+      <div ref={groupBodyRef} className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2 sm:p-3">
         {groups.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
             <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2 shadow-inner">
