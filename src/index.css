@@ -1147,7 +1147,7 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
 @media (prefers-reduced-motion: reduce) {
   .class-mascot-idle,
   .class-mascot-eye-blink,
-  .class-mascot-tail-sway,
+  .class-mascot-tail-sway { animation: none !important; }
   .class-mascot-gaze,
   .class-mascot-ear-twitch { animation: none !important; }
 }
