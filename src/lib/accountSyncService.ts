@@ -20,6 +20,16 @@ export interface AccountSyncMetadata {
   updatedAt: string;
 }
 
+/** Never display a green cloud receipt for an older generation or an unsaved local edit. */
+export function isLatestAccountSnapshotConfirmed(
+  latest: AppState,
+  locallySaved: AppState | null,
+  serverAcknowledged: AppState,
+): boolean {
+  return locallySaved === latest
+    && appStateFingerprint(latest) === appStateFingerprint(serverAcknowledged);
+}
+
 export class AccountSyncError extends Error {
   status?: number;
   code?: string;
