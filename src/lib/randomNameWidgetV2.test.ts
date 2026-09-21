@@ -97,7 +97,7 @@ test('Widget 4: central attendance scope is predictable and invalid scope falls 
   assert.equal(getRandomNameWidgetPreferences({ studentScope: 'invalid' }).studentScope, 'present');
   assert.match(picker, /saveRandomPreset\("studentScope", scope\)/);
   assert.match(picker, /Wer soll gezogen werden\?/);
-  assert.match(widget, /const selectableStudents = studentScope === 'all' \? allStudents : presentStudents/);
+  assert.match(widget, /const selectableStudents: typeof presentStudents = studentScope === 'all' \? allStudents : presentStudents/);
   assert.match(widget, /randomSelectionPage\(selectableStudents, selectorPage, pageSize\)/);
   assert.match(widget, /live\.studentScope !== initialPool\.studentScope/);
 });
