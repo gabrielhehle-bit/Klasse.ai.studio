@@ -1668,6 +1668,8 @@ export interface AppState {
     cockpitPaperSpacingByClass?: Record<string, number>;
     cockpitTextByClass?: Record<string, string>;
     cockpitQuickbarByClass?: Record<string, { enabled: boolean; itemIds: import('./lib/cockpitQuickbar').CockpitQuickbarId[] }>;
+    /** Class-local defaults for NEW check-in instances. Existing widget settings stay independent. */
+    cockpitCheckInDefaultsByClass?: Record<string, import('./lib/checkInWidgetMode').CheckInPreferences>;
     cockpitInkByClass?: Record<string, import('./components/cockpit/BoardInk').InkItem[]>;
     sidebarMode?: 'expanded' | 'mini' | 'hidden';
     activeFont?: string;
