@@ -187,6 +187,7 @@ import { BirthdayCelebration } from "./cockpit/BirthdayCelebration";
 import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
 import { getCheckInMode } from "../lib/checkInWidgetMode";
+import { getRandomNameWidgetPreferences } from "../lib/randomNameWidgetModel";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
 import { COCKPIT_QUICKBAR_ITEMS, normalizeCockpitQuickbarSettings, toggleCockpitQuickbarItem } from "../lib/cockpitQuickbar";
 import { PublicStudentListWidget as StudentListWidgetContent } from "./cockpit/PublicStudentListWidget";
@@ -2956,6 +2957,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
   const [isBirthdayCelebrationOpen, setIsBirthdayCelebrationOpen] = useState(false);
   useEffect(() => { setIsBirthdayCelebrationOpen(false); }, [app.activeClassId]);
   const boardTextClassKey = app.activeClassId || "unassigned";
+  const randomNameDefaults = getRandomNameWidgetPreferences(app.boardSettings?.cockpitRandomNameDefaultsByClass?.[boardTextClassKey]);
   const cockpitPaper = ((app.boardSettings as any)?.cockpitPaperByClass?.[boardTextClassKey] || "blank") as CockpitPaper;
   const setCockpitPaper = (paper: CockpitPaper) => setApp((prev: any) => ({
     ...prev,
@@ -3741,8 +3743,11 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const updated = cockpitWidgets.map((w) => {
       if (w.type === type) {
         const def = DEFAULT_COCKPIT_LAYOUT.find((d) => d.type === type);
-        const useOld = w.hasBeenOpened || w.visible;
-        const isMaxWidget = type === "randomname" || type === "wheel" || type === "classweeklyplan";
+        const useOld = w.hasBeenOpened || w.visible || (type === "randomname" && Boolean(w.settings && Object.keys(w.settings).length));
+        const randomPreset = getRandomNameWidgetPreferences(app.boardSettings?.cockpitRandomNameDefaultsByClass?.[boardTextClassKey]);
+        const randomStartSize = randomPreset.startSize === "compact" ? { w: 42, h: 54 }
+          : randomPreset.startSize === "standard" ? { w: 68, h: 75 } : { w: 100, h: 100 };
+        const isMaxWidget = (type === "randomname" && randomPreset.startSize === "large") || type === "wheel" || type === "classweeklyplan";
         const isWhiteboard = type === "drawing";
         return {
           ...w,
@@ -3750,15 +3755,15 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
           hasBeenOpened: true, // Mark it as opened!
           x: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.x : finalX,
           y: isWhiteboard || isMaxWidget && !useOld ? 0 : useOld ? w.y : finalY,
-          w: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.w : Math.min(def?.w || w.w, 46),
-          h: isWhiteboard || isMaxWidget && !useOld ? 100 : type === "pet" && !useOld ? 66 : useOld ? w.h : Math.min(def?.h || w.h, 46),
+          w: isWhiteboard || isMaxWidget && !useOld ? 100 : useOld ? w.w : type === "randomname" ? randomStartSize.w : Math.min(def?.w || w.w, 46),
+          h: isWhiteboard || isMaxWidget && !useOld ? 100 : type === "pet" && !useOld ? 66 : useOld ? w.h : type === "randomname" ? randomStartSize.h : Math.min(def?.h || w.h, 46),
           settings: isWhiteboard
             ? {
                 ...(w.settings || {}),
                 boardMode: w.settings?.boardMode || "whiteboard",
                 isDirectMode: true,
               }
-            : w.settings,
+            : type === "randomname" && !useOld ? { ...(w.settings || {}), ...randomPreset } : w.settings,
         };
       }
       return w;
@@ -8291,24 +8296,82 @@ ${content}
                                         </select>
                                       </label>
                                       {(() => {
-                                        const configured = cockpitWidgets.find(widget => widget.type === selectedWidgetConfiguration);
-                                        if (!configured) return <p role="status" className="text-sm">Füge dieses Widget zuerst hinzu, um seine Einstellungen zu speichern.</p>;
+                                        const configured = cockpitWidgets.find(widget => widget.type === selectedWidgetConfiguration)
+                                          || DEFAULT_COCKPIT_LAYOUT.find(widget => widget.type === selectedWidgetConfiguration);
+                                        if (!configured) return <p role="status" className="text-sm">Einstellungen nicht verfügbar.</p>;
                                         const saveSetting = (key: string, value: string) =>
                                           handleUpdateWidgetPos(configured.id, { settings: { ...(configured.settings || {}), [key]: value } });
+                                        const saveRandomPreset = (key: "selectionMode" | "soundEnabled" | "animationEnabled" | "startSize", value: boolean | string) => {
+                                          setApp(prev => ({
+                                            ...prev,
+                                            boardSettings: {
+                                              ...prev.boardSettings,
+                                              cockpitRandomNameDefaultsByClass: {
+                                                ...(prev.boardSettings?.cockpitRandomNameDefaultsByClass || {}),
+                                                [boardTextClassKey]: {
+                                                  ...getRandomNameWidgetPreferences(prev.boardSettings?.cockpitRandomNameDefaultsByClass?.[boardTextClassKey]),
+                                                  [key]: value,
+                                                },
+                                              },
+                                            },
+                                          }));
+                                        };
                                         return selectedWidgetConfiguration === "randomname" ? (
-                                          <fieldset className="space-y-2">
-                                            <legend className="text-sm font-black">Zufälliges Kind · Ton</legend>
+                                          <fieldset className="space-y-3">
+                                            <legend className="text-sm font-black">Zufallsauswahl · Voreinstellungen</legend>
+                                            <div className="rounded-xl border border-slate-200 bg-white p-3" role="group" aria-label="Ziehmodus einstellen">
+                                              <p className="mb-2 text-sm font-black">Wie sollen die Kinder gezogen werden?</p>
+                                              {([
+                                                ["independent", "Unabhängig zufällig", "Jedes Mal zufällig; unmittelbare Wiederholung vermeiden, spätere Wiederholungen möglich."],
+                                                ["round", "Faire Runde", "Alle teilnehmenden Kinder kommen einmal dran, bevor du eine neue Runde startest."],
+                                              ] as const).map(([mode, label, detail]) => (
+                                                <label key={mode} className="flex min-h-11 items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                                                  <input type="radio" name="cockpit-random-mode" checked={randomNameDefaults.selectionMode === mode}
+                                                    onChange={() => saveRandomPreset("selectionMode", mode)}
+                                                    className="mt-1 h-5 w-5 shrink-0" />
+                                                  <span><strong className="block text-sm">{label}</strong><span className="block text-xs text-slate-600">{detail}</span></span>
+                                                </label>
+                                              ))}
+                                            </div>
                                             <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
-                                              <input type="checkbox" checked={configured.settings?.soundEnabled !== false}
-                                                onChange={event => handleUpdateWidgetPos(configured.id, {
-                                                  settings: { ...(configured.settings || {}), soundEnabled: event.target.checked },
-                                                })}
+                                              <input type="checkbox" checked={randomNameDefaults.soundEnabled}
+                                                onChange={event => saveRandomPreset("soundEnabled", event.target.checked)}
                                                 className="h-5 w-5 shrink-0" />
-                                              <span className="text-sm font-semibold">Ton bei der Ziehung abspielen</span>
+                                              <span className="text-sm font-semibold">Dezenten Ton bei der Ziehung abspielen</span>
                                             </label>
-                                            <p className="text-xs text-slate-600">Die Kinderauswahl für die laufende Unterrichtsphase bleibt eine direkte Unterrichtsaktion im Widget.</p>
-                                          </fieldset>
-                                        ) : selectedWidgetConfiguration === "kidattendance" ? (
+                                            <label className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
+                                              <input type="checkbox" checked={randomNameDefaults.animationEnabled}
+                                                onChange={event => saveRandomPreset("animationEnabled", event.target.checked)}
+                                                className="h-5 w-5 shrink-0" />
+                                              <span className="text-sm font-semibold">Kurze Ziehanimation</span>
+                                            </label>
+                                            <div role="group" aria-label="Startgröße der Zufallsauswahl" className="rounded-xl border border-slate-200 bg-white p-3">
+                                              <p className="mb-2 text-sm font-black">Größe beim ersten Hinzufügen</p>
+                                              <div className="flex flex-wrap gap-2">
+                                                {([["compact", "Klein"], ["standard", "Mittel"], ["large", "Groß"]] as const).map(([size, label]) => (
+                                                  <button key={size} type="button" aria-pressed={randomNameDefaults.startSize === size}
+                                                    onClick={() => saveRandomPreset("startSize", size)}
+                                                    className={randomNameDefaults.startSize === size
+                                                      ? "min-h-11 rounded-xl border border-indigo-600 bg-indigo-600 px-3 text-sm font-bold text-white"
+                                                      : "min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-bold text-slate-900"}>{label}</button>
+                                                ))}
+                                              </div>
+                                            </div>
+                                            <p className="text-xs text-slate-600">Diese Voreinstellungen gelten für neue Widgets der aktiven Klasse. Bereits platzierte Widgets und laufende Ziehungen bleiben unverändert.</p>
+                                            {configured.visible && (
+                                              <button type="button" onClick={() => handleUpdateWidgetPos(configured.id, {
+                                                settings: { ...(configured.settings || {}), ...randomNameDefaults },
+                                              })} className="min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 text-sm font-bold text-indigo-700">
+                                                Auf vorhandenes Widget anwenden (setzt die laufende Auswahl beim Moduswechsel zurück)
+                                              </button>
+                                            )}
+                                            <button type="button" onClick={() => {
+                                              handleOpenWidgetInCockpitLayout("randomname");
+                                              setIsAddWidgetMenuOpen(false);
+                                            }} className="min-h-11 w-full rounded-xl bg-indigo-600 px-3 text-sm font-bold text-white">
+                                              Zufallsauswahl hinzufügen
+                                            </button>
+                                          </fieldset>                                        ) : selectedWidgetConfiguration === "kidattendance" ? (
                                           <fieldset className="space-y-2">
                                             <legend className="text-sm font-black">Ich bin da! · Erfassung</legend>
                                             {([
