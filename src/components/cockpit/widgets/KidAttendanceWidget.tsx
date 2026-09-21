@@ -90,11 +90,16 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
 
   // Lokale UI-Modi (flüchtig)
   const [isTeacherModalOpen, setIsTeacherModalOpen] = useState(false);
+  const [showTeacherMoodDetails, setShowTeacherMoodDetails] = useState(false);
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState(false);
   const [isStudentPageOpen, setIsStudentPageOpen] = useState(false);
   const [studentPage, setStudentPage] = useState(0);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [recentlyTappedId, setRecentlyTappedId] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!isTeacherModalOpen) setShowTeacherMoodDetails(false);
+  }, [isTeacherModalOpen]);
 
   // Aktiver Befindens-Check-in für ein Kind (direkt nach "Da"-Klick)
   const [activeMoodStudent, setActiveMoodStudent] = useState<{
@@ -119,6 +124,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     moodCloseTimerRef.current = null;
     setActiveMoodStudent(null);
     setIsTeacherModalOpen(false);
+    setShowTeacherMoodDetails(false);
     setIsFinalizeModalOpen(false);
     setIsStudentPageOpen(false);
     setStudentPage(0);
@@ -381,6 +387,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
         key={student.id}
         type="button"
         onClick={() => handleStudentCardTap(student.id)}
+        tabIndex={checkInMode === 'individual' && selectedStudentId === student.id ? -1 : undefined}
         disabled={status === 'absent' || (checkInMode === 'teacher' && (status !== 'present' || !moodEnabled))}
         title={
           status === 'absent'
@@ -757,6 +764,20 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
             </div>
           </div>
 
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-2 text-xs dark:border-zinc-800">
+            <span className="font-semibold">Befindensangaben sind für die Unterrichtsprojektion ausgeblendet.</span>
+            {showTeacherMoodDetails ? (
+              <button type="button" onClick={() => setShowTeacherMoodDetails(false)}
+                className="min-h-11 rounded-lg border px-3 font-bold">Befinden verbergen</button>
+            ) : (
+              <button type="button" onClick={() => {
+                if (window.confirm("Nur auf einem nicht projizierten Gerät öffnen. Können andere Kinder oder Eltern den Bildschirm sehen? Falls ja: Abbrechen.")) setShowTeacherMoodDetails(true);
+              }} className="min-h-11 rounded-lg border px-3 font-bold">
+                Befinden anzeigen (nur ohne Projektion)
+              </button>
+            )}
+          </div>
+
           {/* Schülerliste mit Einzelfunktionen */}
           <div className="flex-1 overflow-y-auto no-scrollbar p-3 divide-y divide-slate-100 dark:divide-zinc-800 min-h-0">
             {students.map((student) => {
@@ -802,7 +823,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTeacherSetPresent(student.id)}
-                        className={`h-8 px-2.5 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border ${
+                        className={`min-h-11 px-2.5 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border ${
                           status === 'present'
                             ? 'bg-emerald-600 text-white border-emerald-600'
                             : 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-emerald-50'
@@ -816,7 +837,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTeacherSetAbsent(student.id, 'u')}
-                        className={`h-8 px-2.5 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border ${
+                        className={`min-h-11 px-2.5 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border ${
                           status === 'absent'
                             ? 'bg-rose-600 text-white border-rose-600'
                             : 'bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-700 dark:text-zinc-200 hover:bg-rose-50'
@@ -829,7 +850,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTeacherSetAbsent(student.id, 'e')}
-                        className="h-8 px-2 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-300 hover:bg-amber-50"
+                        className="min-h-11 px-2 rounded-md text-xs font-bold flex items-center gap-1 cursor-pointer border bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-600 dark:text-zinc-300 hover:bg-amber-50"
                         title="Als entschuldigt setzen (z.B. Krankmeldung)"
                       >
                         Entsch.
@@ -838,7 +859,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       <button
                         type="button"
                         onClick={() => handleTeacherResetToOpen(student.id)}
-                        className="h-8 px-2 rounded-md text-xs font-medium flex items-center gap-1 cursor-pointer border bg-slate-50 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-100"
+                        className="min-h-11 px-2 rounded-md text-xs font-medium flex items-center gap-1 cursor-pointer border bg-slate-50 dark:bg-zinc-800/80 border-slate-200 dark:border-zinc-700 text-slate-500 dark:text-zinc-400 hover:bg-slate-100"
                         title="Check-In zurücksetzen auf Offen"
                       >
                         <RotateCcw size={11} />
@@ -852,7 +873,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                           const nextDelay = delayMinutes > 0 ? 0 : 5;
                           handleTeacherSetDelay(student.id, nextDelay);
                         }}
-                        className={`h-8 px-1.5 rounded-md text-[11px] font-bold border cursor-pointer ${
+                        className={`min-h-11 px-1.5 rounded-md text-[11px] font-bold border cursor-pointer ${
                           delayMinutes > 0
                             ? 'bg-amber-500 text-white border-amber-500'
                             : 'bg-slate-100 dark:bg-zinc-800 border-slate-200 text-slate-500'
@@ -864,7 +885,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                     </div>
                   </div>
 
-                  {/* Lehrkraft Befindens-Verwaltung */}
+                  {showTeacherMoodDetails && (
+                  {/* Lehrkraft Befindens-Verwaltung: never shown by opening correction alone. */}
                   <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-slate-100 dark:border-zinc-800/60 text-xs">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-500">
@@ -889,7 +911,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                           key={meta.value}
                           type="button"
                           onClick={() => setApp((prev) => teacherSetStudentMood(prev, student.id, meta.value, todayStr))}
-                          className={`w-6 h-6 rounded flex items-center justify-center text-xs cursor-pointer transition-all ${
+                          className={`min-h-11 min-w-11 rounded flex items-center justify-center text-xs cursor-pointer transition-all ${
                             currentMood === meta.value
                               ? 'bg-slate-200 dark:bg-zinc-700 ring-2 ring-emerald-500 scale-105'
                               : 'hover:bg-slate-100 dark:hover:bg-zinc-800 opacity-70 hover:opacity-100'
@@ -903,7 +925,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                         <button
                           type="button"
                           onClick={() => setApp((prev) => teacherClearStudentMood(prev, student.id, todayStr))}
-                          className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer ml-0.5"
+                          className="min-h-11 min-w-11 rounded flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer ml-0.5"
                           title="Befinden löschen (auf 'Keine Angabe' zurücksetzen)"
                         >
                           <X size={12} />
@@ -911,6 +933,7 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                       )}
                     </div>
                   </div>
+                  )}
                 </div>
               );
             })}
