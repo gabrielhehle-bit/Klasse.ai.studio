@@ -36,7 +36,7 @@ export function applyGroupWidgetPreference(
 ): Record<string, any> {
   const current = settings || {};
   if (key === 'startSize') return current; // layout geometry is not a live preference
-  const next = {
+  const next: Record<string, any> = {
     ...current,
     [key]: value,
     ...(key === 'mode' && current.mode !== value ? { targetValue: 4 } : {}),
