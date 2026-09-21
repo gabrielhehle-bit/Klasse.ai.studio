@@ -787,7 +787,9 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           <>
           <div className={`grid min-h-0 content-start gap-2 ${isExpanded ? 'flex-none overflow-visible pb-2' : 'flex-1 overflow-hidden'}`}
             style={{ gridTemplateColumns: `repeat(${groupLayout.columns}, minmax(0, 1fr))`, gridAutoRows: `${groupLayout.cardHeight}px` }}
-            role="list" aria-label={`Gruppenkarten ${groupLayout.start + 1} bis ${Math.min(groupLayout.cards.length, groupLayout.start + groupLayout.pageSize)} von ${groupLayout.cards.length}`}>
+            role="list" aria-label={isExpanded
+              ? `Alle ${groups.length} Gruppen mit ${groups.reduce((sum, group) => sum + group.studentIds.length, 0)} Kindern`
+              : `Gruppenkarten ${groupLayout.start + 1} bis ${Math.min(groupLayout.cards.length, groupLayout.start + groupLayout.pageSize)} von ${groupLayout.cards.length}`}>
             {displayedGroups.map((segment) => {
               const group = segment.group;
               const palette = GROUP_COLOR_PALETTES[group.colorIndex % GROUP_COLOR_PALETTES.length];
