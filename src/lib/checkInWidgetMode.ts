@@ -10,3 +10,18 @@ export function getCheckInMode(settings: unknown): CheckInMode {
   }
   return 'all';
 }
+
+
+/** Defaults are kept separately from already placed widget instances. */
+export interface CheckInPreferences {
+  checkInMode: CheckInMode;
+  moodEnabled: boolean;
+}
+
+export function getCheckInPreferences(settings: unknown): CheckInPreferences {
+  const value = settings && typeof settings === 'object' ? settings as Record<string, unknown> : {};
+  return {
+    checkInMode: getCheckInMode(value),
+    moodEnabled: value.moodEnabled !== false,
+  };
+}
