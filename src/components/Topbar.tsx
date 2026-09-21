@@ -17,6 +17,7 @@ import { clearTrustedDeviceUnlock } from '../lib/trustedDeviceVault';
 import { Button, IconButton, Badge } from './ui';
 import SupportModal from './SupportModal';
 import { getNavigationParent } from '../lib/navigationHierarchy';
+import { getQuietSyncBadge } from '../lib/quietSyncBadge';
 
 interface TopbarProps {
   title: string;
@@ -27,15 +28,6 @@ interface TopbarProps {
 
 const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) => {
   const { app, setApp, setScreenLocked, setPage, lockAppVault, accountSyncStatus } = useApp();
-  const cloudSaveBadge = ({
-    'saving-local': { text: 'Speichert …', description: 'Neueste Eingabe wird lokal verschlüsselt gespeichert', color: 'border-amber-300 bg-amber-50 text-amber-950' },
-    'saved-local': { text: 'Nur auf diesem Gerät', description: 'Neuester Stand noch nicht vom Server bestätigt', color: 'border-amber-300 bg-amber-50 text-amber-950' },
-    'local-error': { text: 'Nicht gespeichert!', description: 'Neueste Eingabe konnte nicht verschlüsselt auf diesem Gerät gesichert werden', color: 'border-rose-300 bg-rose-50 text-rose-950' },
-    syncing: { text: 'Überträgt …', description: 'Verschlüsselter Stand wird auf dem Server gesichert', color: 'border-indigo-300 bg-indigo-50 text-indigo-950' },
-    synced: { text: 'Auf allen Geräten', description: 'Neuester verschlüsselter Stand vom Server bestätigt', color: 'border-emerald-300 bg-emerald-50 text-emerald-950' },
-    conflict: { text: 'Sync-Konflikt', description: 'Änderungen auf zwei Geräten: bitte Konto öffnen', color: 'border-rose-300 bg-rose-50 text-rose-950' },
-    error: { text: 'Speichern prüfen', description: 'Speichern oder Konto-Abgleich fehlgeschlagen: bitte Konto öffnen', color: 'border-rose-300 bg-rose-50 text-rose-950' },
-  } as const)[accountSyncStatus as 'saving-local' | 'saved-local' | 'local-error' | 'syncing' | 'synced' | 'conflict' | 'error'];
   const { showToast } = useToast();
   const consistencyIssues = React.useMemo(() => scanDataConsistency(app), [app]);
   const currentPage = app.currentPage || 'dashboard';
@@ -52,6 +44,8 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
   const [weather, setWeather] = useState<any>(null);
   const [forecast, setForecast] = useState<any[]>([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // Keep the prominent label steady; the exact state stays accessible via tooltip and account settings.
+  const cloudSaveBadge = getQuietSyncBadge(accountSyncStatus, isOnline);
   const [showLargeQR, setShowLargeQR] = useState(false);
   const [qrModalTab, setQrModalTab] = useState<'remote' | 'wifi'>('remote');
   const [wifiSsid, setWifiSsid] = useState(app.boardSettings?.wifiSettings?.ssid || '');
