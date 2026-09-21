@@ -98,7 +98,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
   const ALL_MODULES = [
     { id: 'dashboard', label: 'Heute', icon: <LayoutDashboard size={18} />, section: 'Start' },
     { id: 'klasse', label: 'Klasse', icon: <Users size={18} />, section: 'Start' },
-    { id: 'verhalten', label: 'Notizen', icon: <Notebook size={18} />, section: 'Start' },
+    { id: 'verhalten', label: sek1 ? 'Verhalten & Notizen' : 'Notizen', icon: <Notebook size={18} />, section: 'Start' },
     { id: 'planung', label: 'Planung', icon: <CalendarDays size={18} />, section: 'Start' },
     { id: 'leistungen', label: 'Leistungen', icon: <BarChart3 size={18} />, section: 'Start' },
     { id: 'cockpit', label: 'Lehrercockpit', icon: <Play size={18} />, section: 'Start' },
@@ -110,10 +110,10 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
     { id: 'stationenbetrieb', label: 'Stationenbetrieb', icon: <LayoutGrid size={18} />, section: 'Tools' },
     { id: 'differenzierung', label: 'Differenzierung', icon: <Target size={18} />, section: 'KI-Helfer' },
     { id: 'elternbrief', label: 'Elternbrief', icon: <Mail size={18} />, section: 'KI-Helfer' },
-    { id: 'schueler', label: 'Klassenliste', icon: <Users size={18} />, section: 'Klasse & Kinder' },
+    { id: 'schueler', label: sek1 ? 'Schüler:innen' : 'Klassenliste', icon: <Users size={18} />, section: 'Klasse & Kinder' },
     { id: 'dossier', label: 'Schülerdossier', icon: <GraduationCap size={18} />, section: 'Klasse & Kinder' },
     { id: 'sitzplan', label: 'Sitzplan & Gruppen', icon: <MapIcon size={18} />, section: 'Klasse & Kinder' },
-    { id: 'anwesenheit', label: 'Anwesenheit & Befinden', icon: <Pin size={18} />, section: 'Klasse & Kinder' },
+    { id: 'anwesenheit', label: sek1 ? 'Anwesenheit' : 'Anwesenheit & Befinden', icon: <Pin size={18} />, section: 'Klasse & Kinder' },
     { id: 'teamteaching', label: 'Teamteaching', icon: <UserPlus size={18} />, section: 'Klasse & Kinder' },
     { id: 'orga', label: 'Kasse & Orga', icon: <Wallet size={18} />, section: 'Klasse & Kinder' },
     { id: 'noten', label: 'Notenmappe', icon: <BarChart3 size={18} />, section: 'Leistungen' },
@@ -296,7 +296,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                     onClick={() => setShowClassMenu(!showClassMenu)}
                   >
                     <div className="flex items-center gap-2 text-wrap leading-tight break-words">
-                       <span className="text-wrap leading-tight break-words">{sek1 ? `${app.stufe - 4}. Klasse` : `${app.stufe || '?'}. Klasse`} {app.klassenbezeichnung || 'Ohne Namen'}</span>
+                       <span className="text-wrap leading-tight break-words">{sek1 ? `${app.klassenbezeichnung || 'Ohne Namen'} · ${app.stufe}. Schulstufe` : `${app.stufe || '?'}. Klasse ${app.klassenbezeichnung || 'Ohne Namen'}`}</span>
                        {!app.klassenvorstand && <span className="bg-[var(--surface-muted,var(--surface3))] text-[var(--text-secondary)] text-[0.5rem] px-1.5 py-0.5 rounded-full">Fachlehrer</span>}
                     </div>
                     <ChevronDown size={11} className={`shrink-0 transition-transform ${showClassMenu ? 'rotate-180' : ''}`} /> 
@@ -314,7 +314,7 @@ const Sidebar = memo(({ currentPage, setPage, isOpen, setIsOpen, openSetup }: Si
                             className={`px-4 py-3 hover:bg-[var(--surface-subtle,var(--surface2))] cursor-pointer flex items-center justify-between group transition-colors ${app.activeClassId === c.id ? 'bg-[var(--accent-soft)] text-[var(--accent)] font-bold' : 'text-[var(--text-secondary)]'}`}
                           >
                             <div className="flex flex-col">
-                              <span className="text-[0.75rem]">{istSekundarstufe(c.schulart) ? `${c.stufe - 4}. Klasse` : `${c.stufe}. Klasse`} {c.name}</span>
+                              <span className="text-[0.75rem]">{istSekundarstufe(c.schulart) ? `${c.name} · ${c.stufe}. Schulstufe` : `${c.stufe}. Klasse ${c.name}`}</span>
                               {!c.klassenvorstand && <span className="text-[0.5625rem] opacity-70">Fachunterricht</span>}
                             </div>
                             <div className="flex items-center gap-2">
