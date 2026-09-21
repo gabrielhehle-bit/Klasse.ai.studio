@@ -206,7 +206,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
     if (!animationEnabled) { commitPick(); return; }
     setIsAnimating(true);
     let tick = 0;
-    animationIntervalRef.current = window.setInterval(() => {
+    animationIntervalRef.current = setInterval(() => {
       const temporary = pickRandomStudent(remainingStudents, null);
       setAnimatingName(temporary ? getDisplayStudentName(temporary, allStudents) : '');
       tick += 1;
