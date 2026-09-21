@@ -3693,16 +3693,22 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     id: string,
     updates: Partial<CockpitWidgetConfig>,
   ) => {
-    setCockpitWidgets((prev) =>
-      prev.map((w) =>
-        w.id === id ? { ...w, ...updates, hasBeenOpened: true } : w,
-      ),
-    );
+    // Group actions may land in the same React batch as picker edits. Merge
+    // partial settings against the current record instead of overwriting the
+    // whole object with a widget closure captured before the picker edit.
+    const updateWidget = (w: CockpitWidgetConfig): CockpitWidgetConfig =>
+      w.id !== id ? w : {
+        ...w,
+        ...updates,
+        ...(w.type === "groups" && updates.settings
+          ? { settings: { ...(w.settings || {}), ...updates.settings } }
+          : {}),
+        hasBeenOpened: true,
+      };
+    setCockpitWidgets((prev) => prev.map(updateWidget));
     setApp((prev) => ({
       ...prev,
-      cockpitLayout: (prev.cockpitLayout || cockpitWidgets).map((w) =>
-        w.id === id ? { ...w, ...updates, hasBeenOpened: true } : w,
-      ),
+      cockpitLayout: (prev.cockpitLayout || cockpitWidgets).map(updateWidget),
     }));
   };
 
