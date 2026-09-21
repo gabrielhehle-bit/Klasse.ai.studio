@@ -16,8 +16,9 @@ export default function Sek1Dashboard() {
   const kw = getKW(now);
   const daysPlan = weekday ? (app.wochenplanung?.[kw]?.[weekday] || {}) : {};
   const defaultPlan = weekday ? (app.stammplan?.[weekday] || {}) : {};
-  const configuredSlots: number[] = weekday && Array.isArray(app.tageplan?.[weekday]?.stunden)
-    ? app.tageplan[weekday].stunden
+  const dayConfig = weekday ? app.tageplan?.[weekday] : undefined;
+  const configuredSlots: number[] = Array.isArray(dayConfig?.stunden)
+    ? dayConfig.stunden
     : Object.keys(defaultPlan).map(Number);
   const slots = [...new Set(configuredSlots)]
     .filter(stunde => LESSON_SLOT_NUMBERS.includes(stunde as typeof LESSON_SLOT_NUMBERS[number]))
