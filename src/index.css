@@ -1050,9 +1050,18 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
   color: #78350f !important;
 }
 @media (hover: none) {
-  /* Touchscreens still expose the drag, close and resize handles. */
-  html body .cockpit-free-mascot .mascot-widget-toolbar { opacity: .7 !important; }
-  html body .cockpit-free-mascot .mascot-widget-resize { opacity: .7 !important; }
+  /* No permanent widget chrome on a Smartboard: pick up the animal directly.
+     Touch the mascot to expose the conventional menu and resize controls. */
+  html body .cockpit-free-mascot .mascot-widget-toolbar,
+  html body .cockpit-free-mascot .mascot-widget-resize {
+    opacity: 0 !important;
+    pointer-events: none;
+  }
+  html body .cockpit-free-mascot:focus-within .mascot-widget-toolbar,
+  html body .cockpit-free-mascot:focus-within .mascot-widget-resize {
+    opacity: .85 !important;
+    pointer-events: auto;
+  }
 }
 @keyframes class-mascot-gentle-bob {
   0%, 100% { transform: translateY(0); }
