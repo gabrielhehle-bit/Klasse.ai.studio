@@ -46,14 +46,17 @@ test('Beim Wechsel zum Schullaptop darf ein alter Remote-Request neuere Eingaben
   assert.match(context, /accountSyncBusyRef\.current/);
 });
 
-test('Konto-Status ist auf jeder Seite sichtbar, nicht erst in Einstellungen', () => {
+test('Konto-Status bleibt auf jeder Seite erreichbar; Topbar zeigt normale Zwischenstände ruhig an', () => {
   const account = readFileSync('src/components/settings/AccountSettings.tsx', 'utf8');
   const topbar = readFileSync('src/components/Topbar.tsx', 'utf8');
+  const badge = readFileSync('src/lib/quietSyncBadge.ts', 'utf8');
   for (const status of ['saving-local', 'saved-local', 'local-error', 'syncing', 'synced']) {
     assert.match(account, new RegExp(status));
-    assert.match(topbar, new RegExp(status));
+    assert.match(badge, new RegExp(status));
   }
   assert.match(account, /Auf allen Geräten verfügbar/);
-  assert.match(topbar, /Neuester verschlüsselter Stand vom Server bestätigt/);
+  assert.match(badge, /Neuester verschlüsselter Stand vom Server bestätigt/);
+  assert.match(topbar, /getQuietSyncBadge\(accountSyncStatus, isOnline\)/);
+  assert.match(topbar, /cloudSaveBadge\.description/);
   assert.doesNotMatch(account, /title: 'Daten aktuell'/);
 });
