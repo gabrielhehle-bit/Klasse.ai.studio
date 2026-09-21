@@ -42,6 +42,22 @@ const clampStars = (value: unknown) => typeof value === 'number' && Number.isFin
   ? Math.max(0, Math.min(5, Math.floor(value))) : 0;
 
 /**
+ * Retain the position of the independently sized mascot when reopening a cockpit,
+ * changing class, or restoring a backup. Legacy widget w/h percentages describe
+ * its former card and MUST NOT clamp the new free-standing character.
+ *
+ * The live CockpitWidget clamps the returned anchor against the measured
+ * character size and current viewport, without altering the saved class layout.
+ */
+export function sanitizeClassMascotPosition(x: unknown, y: unknown): { x: number; y: number } {
+  const withinStage = (value: unknown) =>
+    typeof value === 'number' && Number.isFinite(value)
+      ? Math.max(0, Math.min(100, value))
+      : 50;
+  return { x: withinStage(x), y: withinStage(y) };
+}
+
+/**
  * Recenter the independent mascot within the current cockpit viewport.
  * Use actual measured space, not the old whiteboard's width/height or saved
  * dimensions from another device. Positions remain percentages in cockpitLayout.
