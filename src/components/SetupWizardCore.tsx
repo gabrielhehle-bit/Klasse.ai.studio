@@ -20,6 +20,7 @@ import { getActiveVaultKey } from '../lib/vaultStorage';
 import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
 import { parseLegacyTeacherName, resolveTeacherDisplayName } from '../lib/teacherProfile';
 import { SCHULARTEN, normalizeSchulart, passendeSchulstufe, schulstufenFuerSchulart, schulstufenText, type Schulart } from '../lib/schularten';
+import { fachVorschlaege } from '../lib/sek1Subjects';
 
 export default function SetupWizard({ onComplete, isNewClass }: { onComplete: () => void, isNewClass?: boolean }) {
   const { app, setApp, restoreAppData } = useApp();
@@ -1020,7 +1021,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                    <select id="klassio-schulart" value={schulart} onChange={e => { const next = e.target.value as Schulart; setSchulart(next); setStufe(previous => passendeSchulstufe(next, previous)); if (!isEditing && next !== 'volksschule') setFaecher(previous => previous.length === FAECHER_ALLE.length && previous.every((fach, index) => fach === FAECHER_ALLE[index]) ? [] : previous); }} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 font-semibold">
                      {SCHULARTEN.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
                    </select>
-                   {schulart !== 'volksschule' && <p className="text-xs text-amber-700">Die Unterstufe wird schrittweise ergänzt. Volksschul-Stundentafel und Volksschul-Diagnostik gelten hier nicht automatisch.</p>}
+                   {schulart !== 'volksschule' && <p className="text-xs text-amber-700">Für die Unterstufe wählst du die unterrichteten Fächer und die Stunden selbst. Die Volksschul-Stundentafel wird nicht übernommen.</p>}
                  </div>
                  <div className="space-y-1.5 sm:col-span-1">
                     <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Klassenbezeichnung *</label>
@@ -1103,7 +1104,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                      </div>
                      <div className="rounded-[var(--radius-xl)] p-4 shadow-sm transition-colors duration-300 flex flex-col justify-center" style={{ backgroundColor: 'var(--accent)', color: 'var(--btn-text)' }}>
                        <h5 className="text-[0.625rem] font-bold opacity-80 uppercase tracking-wider mb-1">Aktuell</h5>
-                       <div className="text-[1.125rem] leading-normal font-black">{faecher[0] || 'Mathematik'}</div>
+                       <div className="text-[1.125rem] leading-normal font-black">{faecher[0] || (schulart === 'volksschule' ? 'Mathematik' : 'Fach auswählen')}</div>
                      </div>
                    </div>
                  </div>
@@ -1147,7 +1148,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                </div>
 
                <div className="flex flex-wrap gap-2 pt-1 pb-1">
-                  {FAECHER_ALLE.map(f => (
+                  {fachVorschlaege(schulart).map(f => (
                     !faecher.includes(f) && (
                       <button key={f} onClick={() => {
                           setFaecher([...faecher, f]);
@@ -1177,8 +1178,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                  </button>
                  <button onClick={() => {
                     if (window.confirm("Bist du sicher? Alle benutzerdefinierten Fächer werden entfernt und die Standardfarben wiederhergestellt.")) {
-                      setFaecher(FAECHER_ALLE);
-                      setFachConfig(DEFAULT_FACH_COLORS);
+                      setFaecher(schulart === 'volksschule' ? FAECHER_ALLE : []);
+                      setFachConfig(schulart === 'volksschule' ? DEFAULT_FACH_COLORS : {});
                     }
                  }} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all shadow-sm border border-slate-200 ml-auto">
                    Auf Standard zurücksetzen
