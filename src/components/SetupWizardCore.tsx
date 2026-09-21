@@ -21,6 +21,7 @@ import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
 import { parseLegacyTeacherName, resolveTeacherDisplayName } from '../lib/teacherProfile';
 import { SCHULARTEN, normalizeSchulart, passendeSchulstufe, schulstufenFuerSchulart, schulstufenText, type Schulart } from '../lib/schularten';
 import { fachVorschlaege } from '../lib/sek1Subjects';
+import { standardKlassenrolle, leererSek1Tageplan, istUnveraenderterVsTageplan, istLeererTageplan, abweichendeKlassenbezeichnung } from '../lib/classSetup';
 
 export default function SetupWizard({ onComplete, isNewClass }: { onComplete: () => void, isNewClass?: boolean }) {
   const { app, setApp, restoreAppData } = useApp();
@@ -58,6 +59,10 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const [schuljahr, setSchuljahr] = useState(isNewClass ? getCurrentSchuljahr() : (activeClassLocal?.schuljahr || app.schuljahr || getCurrentSchuljahr()));
   const initialSchulart = normalizeSchulart(isNewClass ? app.schulart : (activeClassLocal?.schulart ?? app.schulart));
   const [schulart, setSchulart] = useState<Schulart>(initialSchulart);
+  const [klassenvorstand, setKlassenvorstand] = useState<boolean>(() => isNewClass || !isEditing
+    ? standardKlassenrolle(initialSchulart)
+    : (activeClassLocal?.klassenvorstand ?? app.klassenvorstand ?? standardKlassenrolle(initialSchulart)));
+  const isSek1 = schulart !== 'volksschule';
   const [stufe, setStufe] = useState<number>(isNewClass ? passendeSchulstufe(initialSchulart, 1) : (activeClassLocal?.stufe !== undefined ? Number(activeClassLocal.stufe) : (app.stufe !== undefined ? Number(app.stufe) : 1)));
   const [theme, setTheme] = useState<any>(isNewClass ? 'classic_light' : (activeClassLocal?.theme || (activeClassLocal?.settings as any)?.theme || app.theme || 'classic_light'));
   const [fontFamily, setFontFamily] = useState<any>(isNewClass ? 'standard' : (activeClassLocal?.settings?.fontFamily || (activeClassLocal as any)?.fontFamily || 'standard'));
@@ -65,12 +70,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const [faecher, setFaecher] = useState<string[]>(isNewClass
     ? (initialSchulart === 'volksschule' ? FAECHER_ALLE : [])
     : (activeClassLocal?.faecher ?? (initialSchulart === 'volksschule' ? FAECHER_ALLE : [])));
-  const [fachConfig, setFachConfig] = useState<any>(isNewClass ? DEFAULT_FACH_COLORS : (activeClassLocal?.fachConfig || DEFAULT_FACH_COLORS));
+  const [fachConfig, setFachConfig] = useState<any>(isNewClass ? (initialSchulart === 'volksschule' ? DEFAULT_FACH_COLORS : {}) : (activeClassLocal?.fachConfig || (initialSchulart === 'volksschule' ? DEFAULT_FACH_COLORS : {})));
   const [newFach, setNewFach] = useState('');
 
   const [stundenZeiten, setStundenZeiten] = useState<any>(activeClassLocal?.stundenZeiten || app.stundenZeiten || STUNDEN_INFO);
   const [mittagspauseNachStunde, setMittagspauseNachStunde] = useState<number>(activeClassLocal?.mittagspauseNachStunde || app.mittagspauseNachStunde || 5);
-  const [tageplan, setTageplan] = useState<any>(isNewClass ? DEFAULT_TAGEPLAN : (activeClassLocal?.tageplan || app.tageplan || DEFAULT_TAGEPLAN));
+  const [tageplan, setTageplan] = useState<any>(isNewClass ? (initialSchulart === 'volksschule' ? DEFAULT_TAGEPLAN : leererSek1Tageplan()) : (activeClassLocal?.tageplan || app.tageplan || (initialSchulart === 'volksschule' ? DEFAULT_TAGEPLAN : leererSek1Tageplan())));
   const [stammplan, setStammplan] = useState<any>(isNewClass ? {} : (activeClassLocal?.stammplan || app.stammplan || {}));
 
   const initialStudents = isNewClass ? [] : (activeClassLocal?.schueler?.length ? activeClassLocal.schueler : (isEditing ? (app.schueler || []) : []));
@@ -404,6 +409,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                name: klassenbezeichnung,
                stufe,
                schulart,
+               klassenvorstand,
                theme,
                settings: { ...(updatedClasses[activeIndex].settings || {} as any), fontFamily, uiScale },
                faecher,
