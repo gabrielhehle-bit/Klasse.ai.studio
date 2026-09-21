@@ -278,7 +278,7 @@ async function createClassInUi(client, className) {
   if (!opened) throw new Error(client.name + ': could not open class selector.');
   await waitFor(client, 'class dropdown', 'document.body?.innerText.includes("Klasse hinzufügen")');
   await clickButton(client, 'Klasse hinzufügen');
-  await waitFor(client, 'new class setup', 'document.body?.innerText.includes("Klasse & Theme")', 20000);
+  await waitFor(client, 'new class setup', 'Boolean(document.querySelector("#klassio-schulart"))', 20000);
   await setInputByLabel(client, 'Klassenbezeichnung', className);
 
   for (const step of ['Fächer', 'Stundenplan', 'Schüler']) {

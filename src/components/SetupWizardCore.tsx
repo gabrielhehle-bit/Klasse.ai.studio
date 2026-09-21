@@ -21,6 +21,7 @@ import { prepareBackupRestore, parseBackupText } from '../lib/backupRestore';
 import { parseLegacyTeacherName, resolveTeacherDisplayName } from '../lib/teacherProfile';
 import { SCHULARTEN, normalizeSchulart, passendeSchulstufe, schulstufenFuerSchulart, schulstufenText, type Schulart } from '../lib/schularten';
 import { fachVorschlaege } from '../lib/sek1Subjects';
+import { standardKlassenrolle, leererSek1Tageplan, istUnveraenderterVsTageplan, istLeererTageplan, abweichendeKlassenbezeichnung } from '../lib/classSetup';
 
 export default function SetupWizard({ onComplete, isNewClass }: { onComplete: () => void, isNewClass?: boolean }) {
   const { app, setApp, restoreAppData } = useApp();
@@ -58,6 +59,10 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const [schuljahr, setSchuljahr] = useState(isNewClass ? getCurrentSchuljahr() : (activeClassLocal?.schuljahr || app.schuljahr || getCurrentSchuljahr()));
   const initialSchulart = normalizeSchulart(isNewClass ? app.schulart : (activeClassLocal?.schulart ?? app.schulart));
   const [schulart, setSchulart] = useState<Schulart>(initialSchulart);
+  const [klassenvorstand, setKlassenvorstand] = useState<boolean>(() => isNewClass || !isEditing
+    ? standardKlassenrolle(initialSchulart)
+    : (activeClassLocal?.klassenvorstand ?? app.klassenvorstand ?? standardKlassenrolle(initialSchulart)));
+  const isSek1 = schulart !== 'volksschule';
   const [stufe, setStufe] = useState<number>(isNewClass ? passendeSchulstufe(initialSchulart, 1) : (activeClassLocal?.stufe !== undefined ? Number(activeClassLocal.stufe) : (app.stufe !== undefined ? Number(app.stufe) : 1)));
   const [theme, setTheme] = useState<any>(isNewClass ? 'classic_light' : (activeClassLocal?.theme || (activeClassLocal?.settings as any)?.theme || app.theme || 'classic_light'));
   const [fontFamily, setFontFamily] = useState<any>(isNewClass ? 'standard' : (activeClassLocal?.settings?.fontFamily || (activeClassLocal as any)?.fontFamily || 'standard'));
@@ -65,13 +70,31 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const [faecher, setFaecher] = useState<string[]>(isNewClass
     ? (initialSchulart === 'volksschule' ? FAECHER_ALLE : [])
     : (activeClassLocal?.faecher ?? (initialSchulart === 'volksschule' ? FAECHER_ALLE : [])));
-  const [fachConfig, setFachConfig] = useState<any>(isNewClass ? DEFAULT_FACH_COLORS : (activeClassLocal?.fachConfig || DEFAULT_FACH_COLORS));
+  const [fachConfig, setFachConfig] = useState<any>(isNewClass ? (initialSchulart === 'volksschule' ? DEFAULT_FACH_COLORS : {}) : (activeClassLocal?.fachConfig || (initialSchulart === 'volksschule' ? DEFAULT_FACH_COLORS : {})));
   const [newFach, setNewFach] = useState('');
 
   const [stundenZeiten, setStundenZeiten] = useState<any>(activeClassLocal?.stundenZeiten || app.stundenZeiten || STUNDEN_INFO);
   const [mittagspauseNachStunde, setMittagspauseNachStunde] = useState<number>(activeClassLocal?.mittagspauseNachStunde || app.mittagspauseNachStunde || 5);
-  const [tageplan, setTageplan] = useState<any>(isNewClass ? DEFAULT_TAGEPLAN : (activeClassLocal?.tageplan || app.tageplan || DEFAULT_TAGEPLAN));
+  const [tageplan, setTageplan] = useState<any>(isNewClass ? (initialSchulart === 'volksschule' ? DEFAULT_TAGEPLAN : leererSek1Tageplan()) : (activeClassLocal?.tageplan || app.tageplan || (initialSchulart === 'volksschule' ? DEFAULT_TAGEPLAN : leererSek1Tageplan())));
   const [stammplan, setStammplan] = useState<any>(isNewClass ? {} : (activeClassLocal?.stammplan || app.stammplan || {}));
+
+  const handleSchulartChange = (next: Schulart) => {
+    if (next === schulart) return;
+    setSchulart(next);
+    setStufe(previous => passendeSchulstufe(next, previous));
+    // Bestehende Klassen-/Leistungsdaten niemals automatisch beim Wechsel löschen.
+    if (isEditing) return;
+    setKlassenvorstand(standardKlassenrolle(next));
+    if (next === 'volksschule') {
+      setFaecher(previous => previous.length ? previous : [...FAECHER_ALLE]);
+      setFachConfig(previous => Object.keys(previous).length ? previous : DEFAULT_FACH_COLORS);
+      setTageplan(previous => istLeererTageplan(previous) ? DEFAULT_TAGEPLAN : previous);
+    } else {
+      setFaecher(previous => previous.length === FAECHER_ALLE.length && previous.every((fach, index) => fach === FAECHER_ALLE[index]) ? [] : previous);
+      setFachConfig(previous => JSON.stringify(previous) === JSON.stringify(DEFAULT_FACH_COLORS) ? {} : previous);
+      setTageplan(previous => istUnveraenderterVsTageplan(previous) && Object.keys(stammplan).length === 0 ? leererSek1Tageplan() : previous);
+    }
+  };
 
   const initialStudents = isNewClass ? [] : (activeClassLocal?.schueler?.length ? activeClassLocal.schueler : (isEditing ? (app.schueler || []) : []));
   const [studentsList, setStudentsList] = useState<any[]>(initialStudents);
@@ -404,6 +427,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                name: klassenbezeichnung,
                stufe,
                schulart,
+               klassenvorstand,
                theme,
                settings: { ...(updatedClasses[activeIndex].settings || {} as any), fontFamily, uiScale },
                faecher,
@@ -481,6 +505,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
              name: klassenbezeichnung,
              stufe,
              schulart,
+             klassenvorstand,
              theme,
              settings: { ...(classes[activeIdx].settings || {} as any), fontFamily, uiScale },
              faecher,
@@ -504,7 +529,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            nachname,
            lehrerProfil: { ...(prev.lehrerProfil || {}), name: resolvedLehrerName, schule: schulName },
            schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
-           klassenbezeichnung, stufe, schulart, schueler: finalStudents,
+           klassenbezeichnung, stufe, schulart, klassenvorstand, schueler: finalStudents,
            classes,
            currentPage: 'dashboard',
            schuljahr: schuljahr,
@@ -523,8 +548,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     } else {
        const classId = isFirstSetup ? (app.activeClassId || 'class_first_setup') : 'class-' + Math.random().toString(36).substring(2, 9);
        const mainClass = {
-         id: classId, name: klassenbezeichnung, stufe, schulart, theme, settings: { theme, fontFamily, uiScale, verhaltenSymbol: 'star', showVerhaltenOnBoard: true },
-         faecher, fachConfig, klassenvorstand: true, schueler: finalStudents,
+         id: classId, name: klassenbezeichnung, stufe, schulart, klassenvorstand, theme, settings: { theme, fontFamily, uiScale, verhaltenSymbol: 'star', showVerhaltenOnBoard: true },
+         faecher, fachConfig, schueler: finalStudents,
          noten: {}, mitarbeit: {}, verhalten: {}, karten: {}, jahresplanung: {}, jahresplan_faecher: yearlySubjects, wochenplanung: {},
          anwesenheit: {}, anwesenheitDetail: {}, dienste: [], saAssessments: {}, klassenglas_count: 0, klassenglas_ziel: 20,
          klassenkasse: { kontostand: 0, sammlungen: [], transaktionen: [] }, behavior_status: {}, behavior_notes: {},
@@ -544,12 +569,12 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            nachname,
            lehrerProfil: { ...(prev.lehrerProfil || {}), name: resolvedLehrerName, schule: schulName },
            schulName, schulkennzahl, schulOrt, schulPlz, bundesland,
-           klassenbezeichnung, stufe, schulart, schuljahr: schuljahr, schueler: finalStudents,
+           klassenbezeichnung, stufe, schulart, klassenvorstand, schuljahr: schuljahr, schueler: finalStudents,
            classes: [mainClass], activeClassId: classId, firstLogin: true, tourAbgeschlossen: false
          } : {
            classes: [...(prev.classes || []), mainClass], 
            activeClassId: classId,
-           klassenbezeichnung, stufe, schulart, schuljahr: schuljahr, schueler: finalStudents
+           klassenbezeichnung, stufe, schulart, klassenvorstand, schuljahr: schuljahr, schueler: finalStudents
          }),
          currentPage: 'dashboard',
          schuljahr: schuljahr,
@@ -587,7 +612,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     { title: 'Schüler', icon: Users },
     { title: 'Übersicht', icon: ListChecks }
   ];
-  const STEPS = setupMode === 'quick' && !isEditing && !isNewClass ? quickSteps : expertSteps;
+  // Fachunterricht braucht immer eine bewusste Fächerwahl, auch im Schnellmodus.
+  const STEPS = setupMode === 'quick' && !isEditing && !isNewClass && !isSek1 && klassenvorstand ? quickSteps : expertSteps;
     
   const [currStep, setCurrStep] = useState(() => {
     if (app?.setupInitialStepMode) {
@@ -781,15 +807,17 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   }, [schuljahr]);
 
   const setupWarnings = [
+    isSek1 && faecher.length === 0 ? 'Bitte wähle deine Unterrichtsfächer, damit die Notenmappe verwendet werden kann.' : null,
+    abweichendeKlassenbezeichnung(klassenbezeichnung, schulart, stufe) ? 'Klassenbezeichnung und gewählte Schulstufe unterscheiden sich – bitte prüfen.' : null,
     studentsList.length === 0 ? 'Noch keine Schüler:innen angelegt – das kannst du später nachholen.' : null,
-    assignedLessonSlots === 0 ? 'Noch kein Stammstundenplan ausgefüllt.' : null,
+    assignedLessonSlots === 0 ? (isSek1 ? 'Noch keine eigenen Unterrichtsstunden eingetragen – du kannst sie später ergänzen.' : 'Noch kein Stammstundenplan ausgefüllt.') : null,
     assignedLessonSlots > availableLessonSlots ? 'Der Stundenplan enthält mehr Einträge als verfügbare Stunden.' : null,
     !resolvedLehrerName ? 'Der Name der Lehrkraft ist noch leer.' : null,
     !schulName.trim() ? 'Der Schulname ist noch leer.' : null
   ].filter(Boolean) as string[];
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-50 flex items-start justify-center p-0 md:p-8">
+    <div className="fixed inset-0 z-[100] overflow-x-hidden overflow-y-auto bg-slate-50 flex items-start justify-center p-0 md:p-8">
       <input type="file" accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain" ref={fileInputRef} onChange={handleBackupImport} className="hidden" />
       <input type="file" accept=".csv" ref={csvInputRef} onChange={handleCSVImport} className="hidden" />
       <input type="file" accept=".pdf,.csv,.txt" ref={sokratesFileInputRef} onChange={handleSokratesFileUpload} className="hidden" />
@@ -837,7 +865,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
           <div>
             <h2 className="text-[1.25rem] leading-normal font-black text-slate-900 tracking-tight">Klassen-Einstellungen</h2>
             <p className="text-[0.75rem] leading-tight font-medium text-slate-500 mt-1 uppercase tracking-wider">
-              Schritt {currStep + 1} von {STEPS.length}: {STEPS[currStep].title}
+              Schritt {currStep + 1} von {STEPS.length}: {STEPS[currStep].title === 'Klasse & Theme' ? 'Klasse & Aufgabe' : STEPS[currStep].title}
             </p>
           </div>
           
@@ -852,7 +880,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                   <button
                     type="button"
                     onClick={() => handleStepClick(idx)}
-                    title={`Gehe zu Schritt: ${step.title}`}
+                    title={`Gehe zu Schritt: ${step.title === 'Klasse & Theme' ? 'Klasse & Aufgabe' : step.title}`}
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-[0.625rem] font-bold shadow-sm transition-all cursor-pointer hover:scale-115 active:scale-90 ${isActive ? 'bg-emerald-500 text-white scale-110 shadow-emerald-500/20 ring-2 ring-emerald-400 ring-offset-2' : isPast ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
                   >
                     <Icon size={14} />
@@ -877,7 +905,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                 </button>
              ) : (
                 <button onClick={nextStep} className="flex-1 sm:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[0.75rem] leading-tight uppercase tracking-wider rounded-xl shadow-md shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 cursor-pointer">
-                  {currStep === 0 ? 'Einrichtung starten' : 'Weiter'}
+                  {STEPS[currStep].title === 'Start' ? 'Einrichtung starten' : 'Weiter'}
                 </button>
              )}
           </div>
@@ -894,7 +922,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                  <div className="px-6">
                    <h1 className="text-[1.875rem] leading-tight md:text-4xl font-black text-slate-900 tracking-tight mb-3">Willkommen bei Klassio!</h1>
                    <p className="text-[0.875rem] font-black text-emerald-600 tracking-widest uppercase mb-4">Gabriel Intelligent Classroom</p>
-                   <p className="text-slate-500 font-medium max-w-lg mx-auto">Klicke auf Weiter, um deine Klasse einzurichten. Alternativ kannst du hier ein Backup hochladen, um dort weiterzumachen, wo du aufgehört hast.</p>
+                   <p className="text-slate-500 font-medium max-w-lg mx-auto">Wähle später Schulart und deine Aufgabe in der Klasse. Volksschulklassen und Fachunterricht in der Unterstufe werden unterschiedlich eingerichtet. Alternativ kannst du ein Backup wiederherstellen.</p>
                  </div>
 
                  <div className="mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3 px-6 max-w-xl">
@@ -1010,19 +1038,33 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            {STEPS[currStep].title === 'Klasse & Theme' && (
            <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
              <div className="border-b border-slate-100 pb-2">
-                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><GraduationCap className="text-emerald-500" size={22}/> Klasse & Theme</h3>
+                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><GraduationCap className="text-emerald-500" size={22}/> Klasse & mein Einsatz</h3>
              </div>
              
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+             <div className="grid min-w-0 grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                {/* Controls */}
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-6 rounded-[24px] border border-slate-100">
+               <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 sm:p-6 rounded-[24px] border border-slate-100">
                  <div className="space-y-1.5 sm:col-span-2">
                    <label htmlFor="klassio-schulart" className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schulart *</label>
-                   <select id="klassio-schulart" value={schulart} onChange={e => { const next = e.target.value as Schulart; setSchulart(next); setStufe(previous => passendeSchulstufe(next, previous)); if (!isEditing && next !== 'volksschule') setFaecher(previous => previous.length === FAECHER_ALLE.length && previous.every((fach, index) => fach === FAECHER_ALLE[index]) ? [] : previous); }} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 font-semibold">
+                   <select id="klassio-schulart" value={schulart} onChange={e => handleSchulartChange(e.target.value as Schulart)} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 font-semibold">
                      {SCHULARTEN.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
                    </select>
-                   {schulart !== 'volksschule' && <p className="text-xs text-amber-700">Für die Unterstufe wählst du die unterrichteten Fächer und die Stunden selbst. Die Volksschul-Stundentafel wird nicht übernommen.</p>}
+                   {isSek1 && <p className="text-xs text-slate-600">Wähle anschließend nur die Fächer und Stunden, die du in dieser Klasse unterrichtest. Weitere Klassen kannst du einzeln hinzufügen.</p>}
                  </div>
+                 <fieldset className="space-y-2 sm:col-span-2">
+                   <legend className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Meine Aufgabe in dieser Klasse</legend>
+                   <div className="grid gap-2 sm:grid-cols-2">
+                     <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 transition-colors ${!klassenvorstand ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+                       <input type="radio" name="klassio-klassenrolle" value="fachunterricht" checked={!klassenvorstand} onChange={() => setKlassenvorstand(false)} className="mt-1 accent-emerald-600" />
+                       <span><strong className="block text-sm text-slate-800">{isSek1 ? 'Fachlehrperson' : 'Fach- oder Teamunterricht'}</strong><span className="mt-1 block text-xs text-slate-600">Ich unterrichte ausgewählte Fächer in dieser Klasse.</span></span>
+                     </label>
+                     <label className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 transition-colors ${klassenvorstand ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 bg-white'}`}>
+                       <input type="radio" name="klassio-klassenrolle" value="klassenvorstand" checked={klassenvorstand} onChange={() => setKlassenvorstand(true)} className="mt-1 accent-emerald-600" />
+                       <span><strong className="block text-sm text-slate-800">{isSek1 ? 'Fachlehrperson & Klassenvorstand' : 'Klassenlehrperson'}</strong><span className="mt-1 block text-xs text-slate-600">{isSek1 ? 'Zusätzlich bin ich für diese Klasse Klassenvorstand.' : 'Ich führe diese Klasse als Klassenlehrperson.'}</span></span>
+                     </label>
+                   </div>
+                   <p className="text-xs text-slate-500">Die Aufgabe wird für jede Klasse getrennt gespeichert. Sie ersetzt keine Berechtigungsfreigabe für gemeinsame Daten.</p>
+                 </fieldset>
                  <div className="space-y-1.5 sm:col-span-1">
                     <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Klassenbezeichnung *</label>
                     <input autoFocus type="text" placeholder="z.B. 1A" value={klassenbezeichnung} onChange={e => {setKlassenbezeichnung(e.target.value); if(e.target.value.trim()) setShowMissingKlassenbezeichnung(false);}} className={`w-full px-4 py-2.5 bg-white shadow-sm border focus:ring-4 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all ${showMissingKlassenbezeichnung ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/10' : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'}`} />
@@ -1049,7 +1091,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                         <button key={st} type="button" onClick={() => setStufe(st)} title={schulstufenText(schulart, st)} className={`py-2 rounded-xl text-[0.875rem] leading-snug font-black border transition-all ${stufe === st ? 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/10' : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'}`}>{st === 0 ? 'V' : schulart === 'volksschule' ? st+'.' : (st - 4)+'.'}</button>
                       ))}
                     </div>
-                    {schulart !== 'volksschule' && <p className="text-xs text-slate-500">1.–4. Klasse der Unterstufe entsprechen der 5.–8. Schulstufe.</p>}
+                    {isSek1 && <p className="text-xs text-slate-500">1.–4. Klasse der Unterstufe entsprechen der 5.–8. Schulstufe.</p>}
+                    {abweichendeKlassenbezeichnung(klassenbezeichnung, schulart, stufe) && <p role="status" className="text-xs font-semibold text-amber-700">Die Bezeichnung {klassenbezeichnung.trim()} passt möglicherweise nicht zur gewählten Schulstufe ({schulstufenText(schulart, stufe)}). Bitte prüfen.</p>}
                  </div>
                  <div className="space-y-2 sm:col-span-2">
                     <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Visuelles Theme</label>
@@ -1074,7 +1117,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                </div>
 
                {/* Live Preview */}
-               <div className="border border-slate-200 rounded-[24px]  flex flex-col bg-slate-100 shadow-inner h-full min-h-[400px] relative">
+               <div className="min-w-0 overflow-hidden border border-slate-200 rounded-[24px] flex flex-col bg-slate-100 shadow-inner h-full min-h-[400px] relative">
                  <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none text-[7.5rem] font-black italic">
                    VORSCHAU
                  </div>
@@ -1084,8 +1127,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                    <div className="bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-glow)] rounded-[var(--radius-xl)] p-5 mb-5 transition-colors duration-300">
                      <div className="flex items-center justify-between mb-4">
                        <div>
-                         <h4 className="text-[1.25rem] leading-normal font-bold text-[var(--text)] transition-colors duration-300">Guten Morgen!</h4>
-                         <p className="text-[0.75rem] leading-tight text-[var(--text2)] font-medium mt-1 transition-colors duration-300">Willkommen in der {klassenbezeichnung || 'Klasse'}.</p>
+                         <h4 className="text-[1.25rem] leading-normal font-bold text-[var(--text)] transition-colors duration-300">{isSek1 ? 'Mein Unterricht' : 'Guten Morgen!'}</h4>
+                         <p className="text-[0.75rem] leading-tight text-[var(--text2)] font-medium mt-1 transition-colors duration-300">{isSek1 ? (klassenvorstand ? 'Fachunterricht & Klassenvorstand' : 'Fachunterricht') : 'Willkommen'} · {klassenbezeichnung || 'Klasse'}.</p>
                        </div>
                        <div className="w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300" style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>
                          <Sparkles size={18} />
@@ -1100,11 +1143,11 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                    <div className="grid grid-cols-2 gap-4">
                      <div className="bg-[var(--surface)] border border-[var(--border)] shadow-sm rounded-[var(--radius-xl)] p-4 transition-colors duration-300">
                        <h5 className="text-[0.625rem] font-bold text-[var(--text3)] uppercase tracking-wider mb-2 transition-colors duration-300">Schüler</h5>
-                       <div className="text-[1.5rem] leading-normal font-black transition-colors duration-300" style={{ color: 'var(--accent)' }}>{studentsList.length || 24}</div>
+                       <div className="text-[1.5rem] leading-normal font-black transition-colors duration-300" style={{ color: 'var(--accent)' }}>{studentsList.length}</div>
                      </div>
                      <div className="rounded-[var(--radius-xl)] p-4 shadow-sm transition-colors duration-300 flex flex-col justify-center" style={{ backgroundColor: 'var(--accent)', color: 'var(--btn-text)' }}>
                        <h5 className="text-[0.625rem] font-bold opacity-80 uppercase tracking-wider mb-1">Aktuell</h5>
-                       <div className="text-[1.125rem] leading-normal font-black">{faecher[0] || (schulart === 'volksschule' ? 'Mathematik' : 'Fach auswählen')}</div>
+                       <div className="text-[1.125rem] leading-normal font-black">{faecher[0] || 'Fach auswählen'}</div>
                      </div>
                    </div>
                  </div>
@@ -1116,7 +1159,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            {STEPS[currStep].title === 'Fächer' && (
            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
              <div className="border-b border-slate-100 pb-2">
-                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Palette className="text-emerald-500" size={22}/> Fächer & Notenmappe</h3>
+                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Palette className="text-emerald-500" size={22}/> {isSek1 ? 'Meine Unterrichtsfächer' : 'Fächer & Notenmappe'}</h3>
+                <p className="mt-2 text-sm text-slate-600">{isSek1 ? 'Wähle die Fächer, die du selbst in dieser Klasse unterrichtest. Du musst nicht alle Fächer der Schule hinzufügen. Deine Auswahl bestimmt auch die Notenmappe und die Fachvorschläge im Stundenplan.' : 'Lege die Fächer fest, die du für deine Klasse verwendest. Du kannst sie später jederzeit ändern.'}</p>
              </div>
              
              <div className="bg-slate-50 p-6 rounded-[24px] border border-slate-100 space-y-5">
@@ -1227,7 +1271,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            {STEPS[currStep].title === 'Stundenplan' && (
            <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
              <div className="border-b border-slate-100 pb-2">
-                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Calendar className="text-emerald-500" size={22}/> Stundenplan & Stundentafel</h3>
+                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Calendar className="text-emerald-500" size={22}/> {isSek1 ? 'Meine Stunden in dieser Klasse' : 'Stundenplan & Stundentafel'}</h3>
+                {isSek1 && <p className="mt-2 text-sm text-slate-600">Markiere nur die Stunden, in denen du diese Klasse unterrichtest, und trage anschließend das Fach ein. Weitere Klassen erhalten jeweils ihren eigenen Stundenplan.</p>}
              </div>
 
              {/* Zeiten Setup Row */}
@@ -1260,7 +1305,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                
                <div className="bg-slate-50 p-6 rounded-[24px] border border-slate-100">
                  <div className="flex justify-between items-center mb-4">
-                   <h4 className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Tägliche Stunden</h4>
+                   <h4 className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">{isSek1 ? 'Meine Unterrichtsstunden' : 'Tägliche Stunden'}</h4>
                    <div className="flex items-center gap-2">
                      {schulart === 'volksschule' && <button onClick={magicAutofillStammplan} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5">
                        <Sparkles size={12} /> Automatisch verteilen
@@ -1628,7 +1673,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
              )}
 
              {studentsList.length === 0 && activeInputMode === 'choice' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 py-6">
+              <div className={`grid grid-cols-1 sm:grid-cols-2 ${isSek1 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} gap-4 py-6`}>
                 <div 
                   onClick={() => setActiveInputMode('manual')}
                   className="p-6 bg-white border border-slate-200 rounded-[24px] shadow-sm hover:border-emerald-500 hover:shadow-lg hover:shadow-slate-100 cursor-pointer transition-all flex flex-col items-center text-center group"
@@ -1668,7 +1713,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                   </p>
                 </div>
 
-                <div 
+                {!isSek1 && <div 
                   onClick={() => {
                     const demoNames = [
                       { v: 'Lukas', n: 'Gruber', g: 'm' },
@@ -1712,7 +1757,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                   <p className="text-[0.75rem] text-indigo-600 mt-2 leading-relaxed">
                     Lade sofort 15 Beispielschüler, um das Klassenbuch direkt live vorzuführen.
                   </p>
-                </div>
+                </div>}
               </div>
             ) : (
               <div className="p-6 bg-slate-50 rounded-[24px] border border-slate-100 relative">
@@ -1727,7 +1772,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                   ) : (
                     <div />
                   )}
-                  <button
+                  {!isSek1 && <button
                     onClick={() => {
                       const demoNames = [
                         { v: 'Lukas', n: 'Gruber', g: 'm' },
@@ -1764,7 +1809,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                     className="text-[0.6875rem] font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 transition-colors bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl border border-indigo-100 shadow-sm"
                   >
                     ✨ Beispielschüler laden
-                  </button>
+                  </button>}
                 </div>
                <div className="flex flex-col sm:flex-row gap-3 mb-6">
                  <input type="text" ref={vornameRef} autoFocus placeholder="Vorname" value={currentStudent.vorname} onChange={e => setCurrentStudent(p => ({ ...p, vorname: e.target.value }))} className="flex-1 px-4 py-3 text-[0.875rem] leading-snug border border-slate-200 bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl font-semibold shadow-sm transition-all"         onKeyDown={e => {
@@ -1825,6 +1870,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                    ['Schulart', SCHULARTEN.find(option => option.id === schulart)?.label || '–'],
                    ['Schuljahr', schuljahr || '–'],
                    ['Schulstufe', schulstufenText(schulart, stufe)],
+                   ['Meine Aufgabe', isSek1 ? (klassenvorstand ? 'Fachlehrperson & Klassenvorstand' : 'Fachlehrperson') : (klassenvorstand ? 'Klassenlehrperson' : 'Fach- oder Teamunterricht')],
                    ['Schüler:innen', String(studentsList.length)],
                    ['Aktive Fächer', String(activeSubjects.length)],
                    ['Stundenplan', `${assignedLessonSlots} von ${availableLessonSlots} Feldern`]
@@ -1848,7 +1894,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                  )}
                </div>
 
-               {setupMode === 'quick' && (
+               {setupMode === 'quick' && !isSek1 && klassenvorstand && (
                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-[0.8125rem] text-indigo-800">
                    <strong>Schnellmodus:</strong> Fächer, Farben und Stammstundenplan kannst du jederzeit unter „Klassen-Einstellungen“ ergänzen.
                  </div>
