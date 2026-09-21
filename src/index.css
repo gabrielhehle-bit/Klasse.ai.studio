@@ -1098,10 +1098,10 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
   }
 }
 @keyframes class-mascot-gentle-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
+  0%, 65%, 100% { transform: translateY(0); }
+  78% { transform: translateY(-2px); }
 }
-.class-mascot-idle { animation: class-mascot-gentle-bob 3.2s ease-in-out infinite; }
+.class-mascot-idle { animation: class-mascot-gentle-bob 9.2s ease-in-out infinite; }
 /* A tiny blink and species-specific tail sway make the transparent illustration feel
    present, without adding a floating UI, sounds or constant disruptive movement. */
 @keyframes class-mascot-blink {
@@ -1123,10 +1123,33 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
   transform-origin: left bottom;
   animation: class-mascot-tail-wiggle 11s ease-in-out infinite;
 }
+/* Blink, gaze and ear twitch are separate layers: a rare glance never
+   resets a blink, and an ear animation does not change the hitbox or anchor. */
+@keyframes class-mascot-look-around {
+  0%, 45%, 67%, 100% { transform: translateX(0); }
+  52%, 61% { transform: translateX(1.7px); }
+  78%, 86% { transform: translateX(-1.5px); }
+}
+@keyframes class-mascot-ear-listen {
+  0%, 75%, 90%, 100% { transform: rotate(0deg); }
+  80%, 85% { transform: rotate(-6deg); }
+}
+.class-mascot-gaze {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: class-mascot-look-around 14s ease-in-out infinite;
+}
+.class-mascot-ear-twitch {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: class-mascot-ear-listen 13s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
   .class-mascot-idle,
   .class-mascot-eye-blink,
   .class-mascot-tail-sway { animation: none !important; }
+  .class-mascot-gaze,
+  .class-mascot-ear-twitch { animation: none !important; }
 }
 
 /* Character-specific, one-shot reactions: pointer/keyboard taps only. No
