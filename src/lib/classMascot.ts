@@ -2,6 +2,9 @@
 export type ClassMascotKind = 'otter' | 'dog' | 'cat' | 'elf';
 export type ClassMascotMood = 'happy' | 'calm' | 'sleepy' | 'proud';
 export type ClassMascotAction = 'praise' | 'calm' | 'encourage';
+export type ClassMascotAccessory = 'none' | 'scarf' | 'glasses' | 'star';
+/** Local UI signal: a brief surprise is never persisted or broadcast via account sync. */
+export const MASCOT_SURPRISE_EVENT = 'klassio:mascot-surprise';
 
 export interface ClassMascotState {
   version: 1;
@@ -10,6 +13,8 @@ export interface ClassMascotState {
   mood: ClassMascotMood;
   stars: number;
   animationEnabled: boolean;
+  /** Optional class-local outfit, restored with the rest of the encrypted app state. */
+  accessory?: ClassMascotAccessory;
   /** Visible figure size on the board in CSS pixels; the surrounding widget stays transparent. */
   displaySize?: 160 | 220 | 280;
 }
@@ -33,11 +38,13 @@ export const DEFAULT_CLASS_MASCOT: ClassMascotState = {
   mood: 'happy',
   stars: 0,
   animationEnabled: false,
+  accessory: 'none',
   displaySize: 220,
 };
 
 const KINDS = new Set<ClassMascotKind>(['otter', 'dog', 'cat', 'elf']);
 const MOODS = new Set<ClassMascotMood>(['happy', 'calm', 'sleepy', 'proud']);
+const ACCESSORIES = new Set<ClassMascotAccessory>(['none', 'scarf', 'glasses', 'star']);
 const clampStars = (value: unknown) => typeof value === 'number' && Number.isFinite(value)
   ? Math.max(0, Math.min(5, Math.floor(value))) : 0;
 
@@ -91,6 +98,7 @@ export function normalizeClassMascot(value?: Partial<ClassMascotState> | null): 
     mood: value?.mood && MOODS.has(value.mood) ? value.mood : 'happy',
     stars: clampStars(value?.stars),
     animationEnabled: value?.animationEnabled === true,
+    accessory: value?.accessory && ACCESSORIES.has(value.accessory) ? value.accessory : 'none',
     displaySize: value?.displaySize === 160 || value?.displaySize === 280 ? value.displaySize : 220,
   };
 }
