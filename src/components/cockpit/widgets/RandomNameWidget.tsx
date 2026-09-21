@@ -90,7 +90,7 @@ export const RandomNameWidget: React.FC<RandomNameWidgetProps> = ({
   // Only the central Widget hinzufügen settings can change this class-local
   // attendance scope. The session participant selector remains transient.
   const { soundEnabled, animationEnabled, selectionMode, studentScope } = getRandomNameWidgetPreferences(widget.settings);
-  const selectableStudents = studentScope === 'all' ? allStudents : presentStudents;
+  const selectableStudents: typeof presentStudents = studentScope === 'all' ? allStudents : presentStudents;
 
   const [sessionExcludedIds, setSessionExcludedIds] = useState<string[]>([]);
   const [sessionScope, setSessionScope] = useState(scopeKey);
