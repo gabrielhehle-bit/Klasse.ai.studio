@@ -20,6 +20,7 @@ import BackupSettings from './settings/BackupSettings';
 import AdvancedSettings from './settings/AdvancedSettings';
 import SupportSettings from './settings/SupportSettings';
 import AccountSettings from './settings/AccountSettings';
+import HelpCenter from './settings/HelpCenter';
 import LehrerProfilView from './LehrerProfilView';
 import DeleteClassModal from './settings/DeleteClassModal';
 import { AVAILABLE_MODULES } from '../lib/settingsModuleCatalog';
@@ -299,7 +300,9 @@ export default function Settings() {
             />
           )}
 
-          {activeCategory === 'account' && (
+          {activeCategory === 'help' && <HelpCenter />}
+
+           {activeCategory === 'account' && (
             <div className="space-y-4">
               <AccountSettings />
               <details className="rounded-2xl border border-slate-200 bg-white p-4">
