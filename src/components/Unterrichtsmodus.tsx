@@ -5919,6 +5919,12 @@ ${content}
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const boardRef = useRef<HTMLDivElement>(null);
   const outerContainerRef = useRef<HTMLDivElement>(null);
+  const [mascotPortalTarget, setMascotPortalTarget] = useState<HTMLDivElement | null>(null);
+  // Once the cockpit root exists, only the mascot is rendered directly inside
+  // that root. Normal widgets and the white writing area stay untouched.
+  useEffect(() => {
+    setMascotPortalTarget(outerContainerRef.current);
+  }, []);
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
 
   const [showLinksSheet, setShowLinksSheet] = useState(false);
@@ -10254,6 +10260,8 @@ ${content}
                                 widget={widget}
                                 zIndex={zIn}
                                 stageRef={boardRef}
+                                mascotStageRef={outerContainerRef}
+                                mascotPortalTarget={mascotPortalTarget}
                                 currentIsLight={currentIsLight}
                                 activePultThemeVars={activePultThemeVars}
                                 onFocus={() => bringToFront(widget.id)}
