@@ -7,21 +7,15 @@ const setupCore = fs.readFileSync('src/components/SetupWizardCore.tsx', 'utf8');
 const settings = fs.readFileSync('src/components/Settings.tsx', 'utf8');
 const accountSettings = fs.readFileSync('src/components/settings/AccountSettings.tsx', 'utf8');
 
-test('Setup bietet den bestehenden E-Mail-Einmalcode-Login optional an', () => {
-  assert.match(setup, /EmailAccountLogin/);
-  assert.match(setup, /<EmailAccountLogin\s*\/>/);
-  assert.match(setup, /Mit E-Mail anmelden/);
-  assert.match(setup, /E-Mail-Anmeldung ist optional/);
-  assert.match(setup, /Weiter zur Einrichtung/);
+test('Erstes Setup beginnt nach dem Login direkt mit dem Einrichtungsassistenten', () => {
+  assert.match(setup, /return <SetupWizardCore \{\.\.\.props\} \/>/);
+  assert.doesNotMatch(setup, /<EmailAccountLogin\s*\/>/);
+  assert.match(setup, /AccessGate already handled the site's login/);
 });
 
-test('Konto-Hinweis erscheint nur beim ersten Setup', () => {
-  assert.match(setup, /useApp/);
-  assert.match(setup, /const hasExistingSetup = Boolean/);
-  assert.match(setup, /app\?\.klassenbezeichnung\?\.trim\(\)/);
-  assert.match(setup, /app\?\.classes\?\.length/);
-  assert.match(setup, /app\?\.schueler\?\.length/);
-  assert.match(setup, /Boolean\(props\.isNewClass \|\| hasExistingSetup\)/);
+test('E-Mail-Konto kann später unter Einstellungen verbunden werden', () => {
+  assert.match(setup, /Einstellungen -> Konto & Schulmail/);
+  assert.match(accountSettings, /<EmailAccountLogin/);
 });
 
 test('Setup übernimmt den bestehenden Wizard vollständig', () => {
