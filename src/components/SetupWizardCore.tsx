@@ -24,7 +24,7 @@ import { fachVorschlaege } from '../lib/sek1Subjects';
 import { standardKlassenrolle, leererSek1Tageplan, istUnveraenderterVsTageplan, istLeererTageplan, abweichendeKlassenbezeichnung } from '../lib/classSetup';
 
 export default function SetupWizard({ onComplete, isNewClass }: { onComplete: () => void, isNewClass?: boolean }) {
-  const { app, setApp, restoreAppData } = useApp();
+  const { app, setApp, setPage, restoreAppData } = useApp();
   
   const setupAbgeschlossen = 
     (app?.klassenbezeichnung && app.klassenbezeichnung.trim().length > 0) ||
@@ -63,6 +63,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     ? standardKlassenrolle(initialSchulart)
     : (activeClassLocal?.klassenvorstand ?? app.klassenvorstand ?? standardKlassenrolle(initialSchulart)));
   const isSek1 = schulart !== 'volksschule';
+  const [createAnotherClass, setCreateAnotherClass] = useState(false);
   const [stufe, setStufe] = useState<number>(isNewClass ? passendeSchulstufe(initialSchulart, 1) : (activeClassLocal?.stufe !== undefined ? Number(activeClassLocal.stufe) : (app.stufe !== undefined ? Number(app.stufe) : 1)));
   const [theme, setTheme] = useState<any>(isNewClass ? 'classic_light' : (activeClassLocal?.theme || (activeClassLocal?.settings as any)?.theme || app.theme || 'classic_light'));
   const [fontFamily, setFontFamily] = useState<any>(isNewClass ? 'standard' : (activeClassLocal?.settings?.fontFamily || (activeClassLocal as any)?.fontFamily || 'standard'));
@@ -598,6 +599,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
       localStorage.removeItem(LEGACY_WIZARD_PROGRESS_KEY);
     }
     onComplete();
+    if (createAnotherClass && !isEditing && isSek1) setPage('setup_new');
   };
 
   const expertSteps = isEditing
@@ -1065,6 +1067,9 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                    </div>
                    <p className="text-xs text-slate-500">Die Aufgabe wird für jede Klasse getrennt gespeichert. Sie ersetzt keine Berechtigungsfreigabe für gemeinsame Daten.</p>
                  </fieldset>
+                 {isSek1 && <div className="sm:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                   <strong>Eine Lehrkraft, mehrere Klassen:</strong> Lege jede unterrichtete Klasse getrennt an. Dein Lehrerstundenplan führt die Fachstunden aller Unterstufenklassen dieses Schuljahrs zusammen; im Bereich „Schüler:innen“ wechselst du direkt zwischen ihnen.
+                 </div>}
                  <div className="space-y-1.5 sm:col-span-1">
                     <label className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Klassenbezeichnung *</label>
                     <input autoFocus type="text" placeholder="z.B. 1A" value={klassenbezeichnung} onChange={e => {setKlassenbezeichnung(e.target.value); if(e.target.value.trim()) setShowMissingKlassenbezeichnung(false);}} className={`w-full px-4 py-2.5 bg-white shadow-sm border focus:ring-4 rounded-xl text-slate-800 text-[0.875rem] leading-snug font-semibold outline-none transition-all ${showMissingKlassenbezeichnung ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-500/10' : 'border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/10'}`} />
@@ -1894,6 +1899,14 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                  )}
                </div>
 
+               {isSek1 && !isEditing && (
+                 <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-950">
+                   <input type="checkbox" checked={createAnotherClass} onChange={e => setCreateAnotherClass(e.target.checked)} className="mt-1 h-4 w-4 accent-emerald-600" />
+                   <span><strong className="block">Danach weitere Klasse einrichten</strong>
+                     Speichere diese Klasse und öffne gleich das Setup der nächsten. Deine Fachstunden erscheinen gemeinsam in „Mein Lehrerstundenplan“.
+                   </span>
+                 </label>
+               )}
                {setupMode === 'quick' && !isSek1 && klassenvorstand && (
                  <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4 text-[0.8125rem] text-indigo-800">
                    <strong>Schnellmodus:</strong> Fächer, Farben und Stammstundenplan kannst du jederzeit unter „Klassen-Einstellungen“ ergänzen.
