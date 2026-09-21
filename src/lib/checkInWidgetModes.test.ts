@@ -43,7 +43,7 @@ test('A/B/C uses the same attendance and mood model; teacher mode never checks i
   assert.match(childTap, /setSelectedStudentId\(studentId\)/);
   assert.match(childTap, /checkInStudent\(app, studentId, todayStr\)/);
   assert.match(widget, /renderStudentCard\(students\.find\(child => child\.id === selectedStudentId\)!\)/);
-  assert.match(widget, /disabled=\{status === 'absent' \|\| \(checkInMode === 'teacher' && status !== 'present'\)\}/);
+  assert.match(widget, /disabled=\{status === 'absent' \|\| \(checkInMode === 'teacher' && \(status !== 'present' \|\| !moodEnabled\)\)\}/);
   assert.match(widget, /teacherSetStudentPresent\(prev, studentId, todayStr\)/);
   assert.match(widget, /recordStudentMood\(prev, studentId, value, todayStr\)/);
 });
