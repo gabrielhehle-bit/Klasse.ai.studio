@@ -90,6 +90,7 @@ import AccessGate from './components/AccessGate';
 import { AnimatePresence, motion } from 'motion/react';
 import { X, Mic, Sparkles, HelpCircle, Loader2 } from 'lucide-react';
 import { getKW, getTodayName, getAccentTextColor } from './lib/utils';
+import { sek1Seite } from './lib/sek1Navigation';
 const DiagnostikAnleitung = lazyRetry(() => import('./components/DiagnostikAnleitung'));
 const DataConsistencyModal = lazyRetry(() => import('./components/DataConsistencyModal'));
 
@@ -170,7 +171,10 @@ function AppContent() {
     }
   });
   // Alte gespeicherte Navigation 'unterricht' direkt zum Cockpit führen, ohne Nutzer- oder Klassendaten umzuschreiben.
-  const currentPage = landOnDashboardAfterLogin ? 'dashboard' : (app.currentPage === 'unterricht' ? 'cockpit' : (app.currentPage || 'dashboard'));
+  const requestedPage = landOnDashboardAfterLogin ? 'dashboard' : (app.currentPage === 'unterricht' ? 'cockpit' : (app.currentPage || 'dashboard'));
+  // Sek-I-Klassen bekommen eine fokussierte Arbeitsoberfläche. Versteckte Legacy-/Widget-Links
+  // dürfen keine nicht unterstützten Module öffnen; die Daten selbst bleiben unberührt.
+  const currentPage = sek1Seite(requestedPage, app.schulart);
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showDiagnostikAnleitung, setShowDiagnostikAnleitung] = useState(false);
