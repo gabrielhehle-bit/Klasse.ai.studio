@@ -885,8 +885,8 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
                     </div>
                   </div>
 
-                  {showTeacherMoodDetails && (
                   {/* Lehrkraft Befindens-Verwaltung: never shown by opening correction alone. */}
+                  {showTeacherMoodDetails && (
                   <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-slate-100 dark:border-zinc-800/60 text-xs">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[11px] font-bold text-slate-400 dark:text-zinc-500">
