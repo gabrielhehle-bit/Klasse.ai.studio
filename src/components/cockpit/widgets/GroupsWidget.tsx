@@ -110,12 +110,24 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
   // centrally opened Widget hinzufügen settings panel, never inside the widget.
   useEffect(() => {
     setOptionsHost(settingsInPicker ? document.getElementById('cockpit-groups-settings-host') : null);
+    if (!settingsInPicker) {
+      setOptionsTab('pause');
+      setPairRulesAcknowledged(false);
+    }
   }, [settingsInPicker]);
   const [optionsTab, setOptionsTab] = useState<'pause' | 'constraints' | 'names'>('pause');
   const [pairRulesAcknowledged, setPairRulesAcknowledged] = useState(false);
   const [selectedStudentForAction, setSelectedStudentForAction] = useState<string | null>(null);
   const [groupPage, setGroupPage] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
+  useEffect(() => {
+    if (!isExpanded) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsExpanded(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isExpanded]);
   const [previousGroups, setPreviousGroups] = useState<GeneratedGroup[] | null>(null);
 
   // Widget settings are the encrypted source of truth after reload or remote sync.
@@ -608,7 +620,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                         key={idx}
                         className="inline-flex items-center gap-1 px-2 py-0.5 mr-1 mb-1 rounded-lg text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900"
                       >
-                        <span>{stA ? getDisplayStudentName(stA, allStudents) : c.studentIdA} ≠ {stB ? getDisplayStudentName(stB, allStudents) : c.studentIdB}</span>
+                        <span>{stA ? getDisplayStudentName(stA, allStudents) : 'Nicht in dieser Klasse'} ≠ {stB ? getDisplayStudentName(stB, allStudents) : 'Nicht in dieser Klasse'}</span>
                         <button
                           onClick={() => {
                             const updated = notTogether.filter((_, i) => i !== idx);
@@ -668,7 +680,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
                         key={idx}
                         className="inline-flex items-center gap-1 px-2 py-0.5 mr-1 mb-1 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900"
                       >
-                        <span>{stA ? getDisplayStudentName(stA, allStudents) : c.studentIdA} &amp; {stB ? getDisplayStudentName(stB, allStudents) : c.studentIdB}</span>
+                        <span>{stA ? getDisplayStudentName(stA, allStudents) : 'Nicht in dieser Klasse'} &amp; {stB ? getDisplayStudentName(stB, allStudents) : 'Nicht in dieser Klasse'}</span>
                         <button
                           onClick={() => {
                             const updated = keepTogether.filter((_, i) => i !== idx);
