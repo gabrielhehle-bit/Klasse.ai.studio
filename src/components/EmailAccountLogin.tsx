@@ -162,6 +162,9 @@ export default function EmailAccountLogin({ compact = false, onSuccess }: EmailA
             <p className="mt-1 text-xs font-semibold leading-relaxed text-amber-800">
               Auf diesem Server ist der Mailversand noch nicht vollständig eingerichtet. Sobald SMTP konfiguriert ist, kannst du hier direkt einen 6-stelligen Anmeldecode anfordern.
             </p>
+            <p className="mt-3 text-xs font-semibold text-amber-900">
+              Brauchst du Hilfe? <a className="underline" href="mailto:reply@klassio.at?subject=KLASSIO%20%E2%80%93%20E-Mail-Anmeldung">reply@klassio.at</a>
+            </p>
           </div>
         </div>
       </div>
@@ -240,6 +243,10 @@ export default function EmailAccountLogin({ compact = false, onSuccess }: EmailA
 
       {notice && <p className="mt-3 text-xs font-bold leading-relaxed text-emerald-700">{notice}</p>}
       {error && <p className="mt-3 text-xs font-bold leading-relaxed text-rose-600">{error}</p>}
+      <p className="mt-4 text-xs font-medium leading-relaxed text-slate-600">
+        Deine Schulmail funktioniert nicht oder der Bestätigungscode kommt nicht an?
+        {' '}Schreib uns an <a className="font-bold text-indigo-700 underline" href="mailto:reply@klassio.at?subject=KLASSIO%20%E2%80%93%20E-Mail-Anmeldung">reply@klassio.at</a>.
+      </p>
     </div>
   );
 }

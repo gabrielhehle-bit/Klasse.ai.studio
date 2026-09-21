@@ -155,7 +155,21 @@ export class SchoolRegistryStore {
         const domains = [...new Set(seed.domains.map(normalizeDomain).filter(Boolean))];
         if (!domains.length) continue;
         const existing = data.schools.find(school => school.id === seed.id || school.domains.some(domain => domains.includes(domain)));
-        if (existing) continue;
+        if (existing) {
+          // Legacy deployments stored some domains under a placeholder name. Keep
+          // their existing ID (and therefore existing school/team membership), but
+          // replace only the placeholder with the official school name. Never
+          // overwrite a school record whose name was explicitly verified/edited.
+          const isDomainPlaceholder = existing.domains.length === 1 && existing.name === existing.domains[0];
+          const isOriginalOberauSeed = existing.id === 'at-vbg-vs-oberau' && existing.name === 'VS Oberau';
+          if ((isDomainPlaceholder || isOriginalOberauSeed) && domains.includes(existing.domains[0])) {
+            existing.name = seed.name;
+            existing.code = seed.code;
+            existing.federalState = seed.federalState;
+            existing.updatedAt = now;
+          }
+          continue;
+        }
         data.schools.push({ ...seed, domains, createdAt: now, updatedAt: now });
       }
     });

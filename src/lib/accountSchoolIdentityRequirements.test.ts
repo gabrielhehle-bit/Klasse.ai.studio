@@ -32,7 +32,8 @@ test('Private Adressen dürfen ein persönliches Klassio-Konto erhalten', () => 
 });
 
 test('Schul-E-Mail schaltet zusätzlich eine konkrete registrierte Schulidentität frei', () => {
-  const school = INITIAL_VERIFIED_AUSTRIAN_SCHOOLS[0] as any;
+  const school = INITIAL_VERIFIED_AUSTRIAN_SCHOOLS.find(item => item.id === 'at-vbg-vs-oberau');
+  assert.ok(school);
   const identity = createTeacherIdentityForSchool('gabriel.hehle@vsfoa.vobs.at', {
     ...school,
     createdAt: new Date(0).toISOString(),

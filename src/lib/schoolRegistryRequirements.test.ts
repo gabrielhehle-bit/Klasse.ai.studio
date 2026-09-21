@@ -193,3 +193,61 @@ test('Schulverwaltung ist für Admin-Konten in den Konto-Einstellungen integrier
   assert.match(identity, /Du musst nichts neu einrichten/);
   assert.match(identity, /Schulverifizierung anfordern/);
 });
+
+
+test('VOBS-Import enthält 164 eigenständige Schulen mit eindeutiger Schul-Domain', async () => {
+  assert.equal(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS.length, 164);
+  const allDomains = INITIAL_VERIFIED_AUSTRIAN_SCHOOLS.flatMap(school => school.domains);
+  assert.equal(new Set(allDomains).size, 164, 'Keine Domain darf mehrere Schulen verbinden.');
+  assert.ok(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS.every(school => school.federalState === 'Vorarlberg'));
+  assert.ok(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS.every(school => school.domains.length === 1));
+  assert.equal(allDomains.filter(domain => domain.endsWith('.vobs.at')).length, 101);
+
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-vobs-import-'));
+  try {
+    const store = createSchoolRegistryStore(dir);
+    await store.ensureSeedSchools(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS);
+    const schools = await store.listVerifiedSchools();
+    assert.equal(schools.length, 164);
+    for (const school of INITIAL_VERIFIED_AUSTRIAN_SCHOOLS) {
+      const resolved = await store.findVerifiedSchoolByEmail('lehrperson@' + school.domains[0]);
+      assert.equal(resolved?.id, school.id, school.name);
+      assert.equal(resolved?.name, school.name, school.name);
+    }
+    assert.equal((await store.findVerifiedSchoolByEmail('lehrperson@vobs.at')), null);
+    // Separat genannte IT-Kontakt-Domains dürfen die Schule nicht automatisch freischalten.
+    for (const alias of ['vsan.vobs.at', 'vsbzm.vobs.at', 'vsegg.vobs.at',
+      'vshor.vobs.at', 'vshos.vobs.at', 'vsneb.vobs.at', 'vssb.vobs.at']) {
+      assert.equal(await store.findVerifiedSchoolByEmail('lehrperson@' + alias), null, alias);
+    }
+    await store.ensureSeedSchools(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS);
+    assert.equal((await store.listVerifiedSchools()).length, 164);
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('Alte Domain-Platzhalter erhalten offizielle Schulnamen ohne ihre Gruppen-ID zu ändern', async () => {
+  const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'klassio-legacy-vobs-'));
+  try {
+    const store = createSchoolRegistryStore(dir);
+    await store.ensureLegacyDomains(['vsbuc.vobs.at']);
+    const old = await store.findVerifiedSchoolByEmail('lehrperson@vsbuc.vobs.at');
+    assert.equal(old?.name, 'vsbuc.vobs.at');
+    await store.ensureSeedSchools(INITIAL_VERIFIED_AUSTRIAN_SCHOOLS);
+    const updated = await store.findVerifiedSchoolByEmail('lehrperson@vsbuc.vobs.at');
+    assert.equal(updated?.id, old?.id);
+    assert.equal(updated?.name, 'Volksschule Buch');
+    assert.equal((await store.listVerifiedSchools()).length, 164);
+  } finally {
+    await fsp.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('Fehlende Schulmail und ausbleibende Codes verweisen auf das Antwortpostfach', () => {
+  const login = read('src/components/EmailAccountLogin.tsx');
+  const schoolSettings = read('src/components/settings/SchoolIdentitySettings.tsx');
+  assert.match(login, /reply@klassio\.at/);
+  assert.match(login, /Bestätigungscode kommt nicht an/);
+  assert.match(schoolSettings, /SCHOOL_SUPPORT_EMAIL = 'reply@klassio\.at'/);
+});
