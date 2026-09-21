@@ -287,6 +287,18 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     }
   }, [todayStr]);
 
+  React.useEffect(() => {
+    const handleFrameSize = (event: Event) => {
+      const detail = (event as CustomEvent<{ id: string; expanded: boolean }>).detail;
+      if (detail?.id === widget?.id && !detail.expanded) {
+        setIsStudentPageOpen(false);
+        setStudentPage(0);
+      }
+    };
+    window.addEventListener('klassio:checkin-frame-size', handleFrameSize);
+    return () => window.removeEventListener('klassio:checkin-frame-size', handleFrameSize);
+  }, [widget?.id]);
+
   // Keine Schüler in Klasse
   if (students.length === 0) {
     return (
@@ -316,17 +328,6 @@ export const KidAttendanceWidget: React.FC<KidAttendanceWidgetProps> = ({
     setStudentPage(0);
     if (widget?.id) window.dispatchEvent(new CustomEvent('klassio:checkin-expand', { detail: { id: widget.id, expanded: false } }));
   };
-  React.useEffect(() => {
-    const handleFrameSize = (event: Event) => {
-      const detail = (event as CustomEvent<{ id: string; expanded: boolean }>).detail;
-      if (detail?.id === widget?.id && !detail.expanded) {
-        setIsStudentPageOpen(false);
-        setStudentPage(0);
-      }
-    };
-    window.addEventListener('klassio:checkin-frame-size', handleFrameSize);
-    return () => window.removeEventListener('klassio:checkin-frame-size', handleFrameSize);
-  }, [widget?.id]);
   const denseStudentGrid = students.length >= 16;
 
   // Render einer einzelnen Schülerkarte
