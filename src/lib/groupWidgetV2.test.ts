@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { getGroupWidgetPreferences } from './groupWidgetPreferences';
+import { getGroupWidgetPreferences, applyGroupPreferenceToInstance } from './groupWidgetPreferences';
 import { generateStudentGroups } from './groupsAlgorithm';
 import { getGroupPageLayout } from './groupsWidgetPages';
 
@@ -43,9 +43,9 @@ test('Widget 2: dedicated gear saves defaults without replacing the existing ins
   assert.match(surface, /aria-label="Gruppen bilden einstellen"/);
   assert.match(surface, /aria-label="Gruppen bilden hinzufügen"/);
   assert.match(surface, /cockpitGroupDefaultsByClass/);
-  assert.match(surface, /Voreinstellungen auf vorhandenes Widget anwenden/);
-  assert.match(surface, /Bestehende Gruppen werden nicht ungefragt neu gemischt/);
-  assert.match(surface, /groups: previousGroups\.map/);
+  assert.match(surface, /if \(selectedWidgetConfiguration === "groups" && configured\.visible && key !== "startSize"\)/);
+  assert.match(surface, /applyGroupPreferenceToInstance\(/);
+  assert.match(surface, /Vorhandene Gruppen bleiben erhalten/);
   assert.match(surface, /type === "groups" && !useOld/);
 });
 
@@ -70,4 +70,34 @@ test('Widget 2: undo, stored constraints, and private pair settings remain avail
   assert.match(widget, /pairRulesAcknowledged/);
   assert.match(widget, /window\.confirm\(/);
   assert.match(widget, /widget\?\.settings\?\.groups/);
+});
+
+test('Widget 2: gear applies grouping mode and size immediately without reshuffling established pupil IDs', () => {
+  const original = {
+    mode: 'size', targetValue: 4, studentScope: 'present',
+    groups: [
+      { id: 'first', name: 'Gruppe 1', colorIndex: 0, studentIds: ['a', 'b'] },
+      { id: 'second', name: 'Gruppe 2', colorIndex: 1, studentIds: ['c', 'd'] },
+    ],
+    pausedStudentIds: ['e'],
+    notTogether: [{ studentIdA: 'a', studentIdB: 'c' }],
+    keepTogether: [],
+  };
+  const counted = applyGroupPreferenceToInstance(original, 'mode', 'count');
+  const three = applyGroupPreferenceToInstance(counted, 'targetValue', 3);
+  assert.equal(three.mode, 'count');
+  assert.equal(three.targetValue, 3);
+  assert.deepEqual(three.groups, original.groups);
+  assert.deepEqual(three.pausedStudentIds, ['e']);
+  assert.deepEqual(three.notTogether, original.notTogether);
+  const named = applyGroupPreferenceToInstance(three, 'namingStyle', 'animals');
+  assert.notEqual(named.groups[0].name, original.groups[0].name);
+  assert.deepEqual(named.groups.map(group => group.studentIds), original.groups.map(group => group.studentIds));
+  assert.deepEqual(original.groups.map(group => group.name), ['Gruppe 1', 'Gruppe 2']);
+  const eligible = applyGroupPreferenceToInstance(named, 'studentScope', 'all');
+  assert.equal(eligible.studentScope, 'all');
+  assert.deepEqual(eligible.groups.map(group => group.studentIds), original.groups.map(group => group.studentIds));
+  assert.match(widget, /const mode: GroupingMode = savedSettings\.mode === 'count'/);
+  assert.match(widget, /const targetValue = typeof savedSettings\.targetValue/);
+  assert.doesNotMatch(widget, /setTargetValue\(|setMode\(/);
 });
