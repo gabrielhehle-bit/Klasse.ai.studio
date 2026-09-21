@@ -181,7 +181,7 @@ export default function AccountSettings() {
         {signedInEmail && (
           <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4" data-testid="account-session-controls">
             <h3 className="text-sm font-black text-amber-950">Sitzungen und Geräte schützen</h3>
-            <p className="mt-1 text-xs font-semibold leading-relaxed text-amber-900">Melde alle Geräte von deinem Konto ab, wenn du ein Gerät verloren hast oder einen unbefugten Zugriff vermutest. Nicht synchronisierte Änderungen können auf anderen Geräten zurückbleiben; lokal verschlüsselte Daten und bestehende Backup-Dateien werden nicht gelöscht.</p>
+            <p className="mt-1 text-xs font-semibold leading-relaxed text-amber-900">Beende alle Server-Sitzungen deines Kontos, wenn du ein Gerät verloren hast oder einen unbefugten Zugriff vermutest. Bereits entsperrte Apps auf anderen Geräten können lokal weiterhin offen sein, bis sie gesperrt oder neu geladen werden. Nicht synchronisierte Änderungen, lokale Daten und bestehende Backups werden nicht automatisch gelöscht.</p>
             <button type="button" onClick={() => void logOutAllDevices()} disabled={loggingOutAll}
               className="mt-3 rounded-xl border border-amber-500 bg-white px-4 py-2.5 text-xs font-black text-amber-950 disabled:opacity-50">
               {loggingOutAll ? 'Sitzungen werden beendet …' : 'Alle Geräte abmelden'}
