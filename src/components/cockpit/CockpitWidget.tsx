@@ -537,6 +537,7 @@ export const CockpitWidget: React.FC<CockpitWidgetProps> = ({
       ref={widgetRef}
       role="group"
       aria-label={`${labelMapping[widget.type] || widget.type} Widget`}
+      data-mascot-focused={isFreeMascot && isFocused ? "true" : undefined}
       className={`cockpit-widget-container absolute flex flex-col transition-[transform,border-color,shadow,background-color,opacity,border-radius,box-shadow,ring-color] duration-300 ease-out select-none group animate-in fade-in zoom-in-95 ${isFreeMascot ? "cockpit-free-mascot rounded-none border-0 bg-transparent shadow-none ring-0 backdrop-blur-none" : ""} ${
         isDirect || isFreeMascot
           ? "rounded-none border-none bg-transparent shadow-none"
