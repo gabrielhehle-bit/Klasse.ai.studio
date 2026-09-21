@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Clock3, School, Send, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, Clock3, Mail, School, Send, ShieldCheck } from 'lucide-react';
 import { Button, Input, Select } from '../ui';
 
 const AUSTRIAN_FEDERAL_STATES = [
@@ -15,6 +15,35 @@ const AUSTRIAN_FEDERAL_STATES = [
 ] as const;
 
 type FederalState = typeof AUSTRIAN_FEDERAL_STATES[number];
+
+const SCHOOL_SUPPORT_EMAIL = 'admin@klassio.at';
+
+/** Opens the user's e-mail app; sending an e-mail is NOT an automatic verification. */
+export function makeSchoolVerificationMailto(input: {
+  schoolName: string;
+  schoolCode: string;
+  federalState: string;
+  schoolEmail: string;
+}): string {
+  const schoolEmail = input.schoolEmail.trim();
+  const domain = schoolEmail.includes('@') ? schoolEmail.split('@').at(-1) || '' : '';
+  const subject = 'KLASSIO – Schulverifizierung: ' + (input.schoolName.trim() || 'Anfrage');
+  const body = [
+    'Hallo KLASSIO-Team,',
+    '',
+    'ich möchte meine Schule zur Verifizierung anmelden.',
+    '',
+    'Name der Schule: ' + (input.schoolName.trim() || '[bitte ergänzen]'),
+    'Schulkürzel: ' + (input.schoolCode.trim() || '[bitte ergänzen]'),
+    'Bundesland: ' + input.federalState,
+    'Dienstliche Schul-E-Mail-Adresse: ' + (schoolEmail || '[bitte ergänzen]'),
+    'Konkrete Schul-Domain: ' + (domain || '[bitte ergänzen]'),
+    '',
+    'Bitte prüft, ob die dienstliche E-Mail-Adresse und die Schule zusammengehören.',
+    'Die Schulverifizierung erfolgt erst nach eurer Prüfung und Freigabe.',
+  ].join('\n');
+  return 'mailto:' + SCHOOL_SUPPORT_EMAIL + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+}
 
 type SchoolStatus = {
   account: {
@@ -47,6 +76,8 @@ export default function SchoolIdentitySettings({ refreshKey = 0 }: { refreshKey?
   const [status, setStatus] = React.useState<SchoolStatus | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [schoolName, setSchoolName] = React.useState('');
+  const [schoolCode, setSchoolCode] = React.useState('');
+  const [schoolEmail, setSchoolEmail] = React.useState('');
   const [federalState, setFederalState] = React.useState<FederalState>('Vorarlberg');
   const [submitting, setSubmitting] = React.useState(false);
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -63,6 +94,7 @@ export default function SchoolIdentitySettings({ refreshKey = 0 }: { refreshKey?
       }
       const data = await readJson(response) as SchoolStatus;
       setStatus(data);
+      setSchoolEmail(current => current || data.account.email);
       if (data.verificationRequest?.schoolName) setSchoolName(data.verificationRequest.schoolName);
       if (AUSTRIAN_FEDERAL_STATES.includes(data.verificationRequest?.federalState as FederalState)) {
         setFederalState(data.verificationRequest!.federalState as FederalState);
@@ -143,6 +175,12 @@ export default function SchoolIdentitySettings({ refreshKey = 0 }: { refreshKey?
             <Button variant="secondary" size="sm" className="mt-4" onClick={() => void load()}>
               Status aktualisieren
             </Button>
+            <p className="mt-3 text-xs text-amber-900">
+              Fragen zur Verifizierung? <a className="font-bold underline" href={makeSchoolVerificationMailto({
+                schoolName: status.verificationRequest.schoolName, schoolCode, federalState: status.verificationRequest.federalState,
+                schoolEmail: status.account.email,
+              })}>E-Mail an {SCHOOL_SUPPORT_EMAIL} schreiben</a>.
+            </p>
           </div>
         </div>
       </div>
@@ -174,6 +212,26 @@ export default function SchoolIdentitySettings({ refreshKey = 0 }: { refreshKey?
         onChange={event => setFederalState(event.target.value as FederalState)}
         options={AUSTRIAN_FEDERAL_STATES.map(value => ({ value, label: value }))}
       />
+      <Input
+        label="Schulkürzel (für die E-Mail-Anfrage)"
+        value={schoolCode}
+        onChange={event => setSchoolCode(event.target.value)}
+        placeholder="z. B. VSFOA"
+        maxLength={40}
+      />
+      <Input
+        label="Dienstliche Schul-E-Mail-Adresse (für die E-Mail-Anfrage)"
+        type="email"
+        value={schoolEmail}
+        onChange={event => setSchoolEmail(event.target.value)}
+        placeholder="vorname.nachname@vsfoa.vobs.at"
+        maxLength={254}
+      />
+      <p className="text-xs font-medium leading-relaxed text-slate-600">
+        In Vorarlberg kann eine Schule beispielsweise die Domain <strong>@vsfoa.vobs.at</strong> verwenden.
+        Eine eigene Schul-Domain wie <strong>@vs-beispielschule.at</strong> ist ebenfalls möglich.
+        Entscheidend ist die konkrete, nachweislich zur Schule gehörende Domain – nicht die gemeinsame Domain @vobs.at.
+      </p>
 
       <Button
         type="submit"
@@ -185,6 +243,24 @@ export default function SchoolIdentitySettings({ refreshKey = 0 }: { refreshKey?
       >
         Schulverifizierung anfordern
       </Button>
+
+      <div className="rounded-xl border border-indigo-200 bg-white p-3 text-sm text-slate-700">
+        <p className="font-bold">Alternativ: Verifizierung per E-Mail anfragen</p>
+        <p className="mt-1 text-xs leading-relaxed">
+          Wenn deine Schule noch nicht zugeordnet werden kann, schreibe an <strong>{SCHOOL_SUPPORT_EMAIL}</strong>.
+          Name, Kürzel und dienstliche Schul-E-Mail-Adresse werden für deine Nachricht vorbereitet.
+          Der Link öffnet dein E-Mail-Programm – die Nachricht wird nicht automatisch versendet.
+        </p>
+        <a href={makeSchoolVerificationMailto({ schoolName, schoolCode, federalState, schoolEmail })}
+          className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-indigo-300 px-4 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-50">
+          <Mail size={16} aria-hidden="true" /> E-Mail an {SCHOOL_SUPPORT_EMAIL} schreiben
+        </a>
+        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          Der Button „Schulverifizierung anfordern“ oben verwendet weiterhin die Domain deines angemeldeten KLASSIO-Kontos
+          ({status.account.domain}). Eine andere E-Mail-Adresse in diesem Formular ändert deine angemeldete Domain nicht;
+          gib die Schuladresse bei Bedarf in der E-Mail an.
+        </p>
+      </div>
 
       {notice && <p className="text-xs font-bold leading-relaxed text-emerald-700">{notice}</p>}
       {error && <p className="text-xs font-bold leading-relaxed text-rose-600">{error}</p>}
