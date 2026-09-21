@@ -26,7 +26,15 @@ interface TopbarProps {
 }
 
 const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) => {
-  const { app, setApp, setScreenLocked, setPage, lockAppVault } = useApp();
+  const { app, setApp, setScreenLocked, setPage, lockAppVault, accountSyncStatus } = useApp();
+  const cloudSaveBadge = ({
+    'saving-local': { text: 'Speichert …', description: 'Neueste Eingabe wird lokal verschlüsselt gespeichert', color: 'border-amber-300 bg-amber-50 text-amber-950' },
+    'saved-local': { text: 'Nur auf diesem Gerät', description: 'Neuester Stand noch nicht vom Server bestätigt', color: 'border-amber-300 bg-amber-50 text-amber-950' },
+    syncing: { text: 'Überträgt …', description: 'Verschlüsselter Stand wird auf dem Server gesichert', color: 'border-indigo-300 bg-indigo-50 text-indigo-950' },
+    synced: { text: 'Auf allen Geräten', description: 'Neuester verschlüsselter Stand vom Server bestätigt', color: 'border-emerald-300 bg-emerald-50 text-emerald-950' },
+    conflict: { text: 'Sync-Konflikt', description: 'Änderungen auf zwei Geräten: bitte Konto öffnen', color: 'border-rose-300 bg-rose-50 text-rose-950' },
+    error: { text: 'Speichern prüfen', description: 'Speichern oder Konto-Abgleich fehlgeschlagen: bitte Konto öffnen', color: 'border-rose-300 bg-rose-50 text-rose-950' },
+  } as const)[accountSyncStatus as 'saving-local' | 'saved-local' | 'syncing' | 'synced' | 'conflict' | 'error'];
   const { showToast } = useToast();
   const consistencyIssues = React.useMemo(() => scanDataConsistency(app), [app]);
   const currentPage = app.currentPage || 'dashboard';
@@ -320,7 +328,14 @@ const Topbar = memo(({ title, onMenuClick, actions, className }: TopbarProps) =>
 
           {/* Rechter Bereich: Wetter & Schuljahr-Zeitdiagramm & PayPal & Fehler melden & Mehr */}
           <div className="flex items-center gap-2 sm:gap-2.5">
-            
+            {cloudSaveBadge && (
+              <button type="button" onClick={() => setPage('settings')}
+                aria-label={`Speicherstatus: ${cloudSaveBadge.text}. ${cloudSaveBadge.description}. Konto öffnen.`}
+                title={cloudSaveBadge.description}
+                className={`inline-flex min-h-9 max-w-[180px] shrink-0 items-center justify-center rounded-xl border px-2 text-[0.6875rem] font-black leading-tight shadow-xs sm:px-3 ${cloudSaveBadge.color}`}>
+                <span className="truncate">{cloudSaveBadge.text}</span>
+              </button>
+            )}
             {/* Wetter Anzeige mit Klick-Details */}
             <div className="relative">
               <button 
