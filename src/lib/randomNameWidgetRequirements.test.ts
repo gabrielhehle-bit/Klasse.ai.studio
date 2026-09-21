@@ -33,7 +33,7 @@ test('only central Widget hinzufügen config controls sound; lesson action still
 test('pupil selection is a modal with explicit navigable pages, not an internal scroll list', () => {
   assert.match(widget, /createPortal\(/);
   assert.match(widget, /aria-modal="true"/);
-  assert.match(widget, /randomSelectionPage\(presentStudents, selectorPage, pageSize\)/);
+  assert.match(widget, /randomSelectionPage\(selectableStudents, selectorPage, pageSize\)/);
   assert.match(widget, /Vorherige Kinderseite/);
   assert.match(widget, /Nächste Kinderseite/);
   assert.doesNotMatch(widget, /overflow-y-auto|no-scrollbar/);
