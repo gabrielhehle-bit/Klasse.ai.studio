@@ -1247,6 +1247,52 @@ html body .cockpit-free-mascot .class-mascot-details .text-teal-950 { color: #13
   .class-mascot-surprise { animation: none !important; }
 }
 
+/* Class rituals are manually triggered by the teacher. The character stays at its
+   saved cockpit position; each gesture ends on its own without a new overlay. */
+@keyframes class-mascot-ritual-cheer {
+  0%, 100% { transform: translateY(0) scale(1); }
+  19%, 55% { transform: translateY(-5px) scale(1.035, .98); }
+  38%, 74% { transform: translateY(0) scale(.985, 1.015); }
+}
+@keyframes class-mascot-ritual-breathe {
+  0%, 100% { transform: scale(1); }
+  26%, 75% { transform: scale(1.028, 1.022); }
+  50% { transform: scale(1); }
+}
+@keyframes class-mascot-ritual-courage {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  25%, 65% { transform: rotate(-3deg) translateY(-2px); }
+  45%, 82% { transform: rotate(3deg) translateY(-2px); }
+}
+@keyframes class-mascot-ritual-accent-pop {
+  0%, 100% { opacity: 0; transform: translateY(5px) scale(.8); }
+  20%, 72% { opacity: 1; transform: translateY(0) scale(1); }
+  45% { opacity: 1; transform: translateY(-4px) scale(1.03); }
+}
+.class-mascot-ritual {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation-duration: 1.7s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: 1;
+}
+.class-mascot-ritual-praise { animation-name: class-mascot-ritual-cheer; }
+.class-mascot-ritual-calm {
+  transform-origin: center center;
+  animation: class-mascot-ritual-breathe 5.2s ease-in-out 1;
+}
+.class-mascot-ritual-encourage { animation-name: class-mascot-ritual-courage; }
+.class-mascot-ritual-accent {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: class-mascot-ritual-accent-pop 1.7s ease-in-out 1 both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .class-mascot-ritual,
+  .class-mascot-ritual-calm,
+  .class-mascot-ritual-accent { animation: none !important; }
+}
+
 /* Strong, theme-independent contrast inside dark classroom cockpit designs. */
 .cockpit-contrast-dark .text-slate-400,
 .cockpit-contrast-dark .text-neutral-400 { color: #cbd5e1 !important; }

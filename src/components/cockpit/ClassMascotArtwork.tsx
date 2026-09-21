@@ -1,5 +1,5 @@
 import React from 'react';
-import type { ClassMascotAccessory, ClassMascotKind, ClassMascotMood } from '../../lib/classMascot';
+import type { ClassMascotAccessory, ClassMascotAction, ClassMascotKind, ClassMascotMood } from '../../lib/classMascot';
 
 interface Props {
   kind: ClassMascotKind;
@@ -11,10 +11,12 @@ interface Props {
   accessory?: ClassMascotAccessory;
   surpriseActive?: boolean;
   surpriseTick?: number;
+  ritualAction?: ClassMascotAction | null;
+  ritualTick?: number;
 }
 
 /** Original, self-contained SVG designs. No third-party character assets or network requests. */
-export default function ClassMascotArtwork({ kind, mood, name, animationEnabled = false, reactionActive = false, reactionTick = 0, accessory = 'none', surpriseActive = false, surpriseTick = 0 }: Props) {
+export default function ClassMascotArtwork({ kind, mood, name, animationEnabled = false, reactionActive = false, reactionTick = 0, accessory = 'none', surpriseActive = false, surpriseTick = 0, ritualAction = null, ritualTick = 0 }: Props) {
   const colors = {
     otter: { fur: '#B87346', light: '#F4D3A2', inner: '#D58D8A', blush: '#D88677' },
     dog: { fur: '#C68B52', light: '#F6E1BD', inner: '#C67E76', blush: '#D78B78' },
@@ -54,6 +56,9 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
       <ellipse cx="90" cy="167" rx={asleep ? 62 : 46} ry={asleep ? 6 : 5} fill="#475569" opacity=".16" pointerEvents="none"/>
       {/* The persistent cockpit anchor never moves. Only the painted silhouette changes. */}
       <g data-mascot-posture={posture} className={`class-mascot-pose class-mascot-pose-${posture}`} transform={poseTransform}>
+      {/* Gesture animates an inner drawing group, never the cockpit position or touch target. */}
+      <g key={ritualTick} data-mascot-ritual={ritualAction || undefined}
+        className={ritualAction ? `class-mascot-ritual class-mascot-ritual-${ritualAction}` : undefined}>
       {/* Restart the brief reaction on consecutive taps, without moving the widget itself. */}
       <g key={reactionTick} className={reactionActive ? `class-mascot-react class-mascot-react-${kind}` : undefined}>
       {mood === 'proud' && <g fill="#F7C84B"><path d="M28 42l3 7 8 1-6 5 2 8-7-4-7 4 2-8-6-5 8-1z"/><path d="M148 37l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></g>}
@@ -153,6 +158,27 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
       )}
       </g>
       </g>
+      </g>
+      {/* Small SVG-only accents for teacher-chosen class rituals: no scores,
+          pupils, overlay, sound or autonomous events. */}
+      {ritualAction === 'praise' && (
+        <g key={`praise-${ritualTick}`} data-mascot-ritual-accent="praise"
+          className="class-mascot-ritual-accent class-mascot-ritual-accent-praise"
+          fill="#F8D471" stroke="#B58A32" strokeWidth="1.2" pointerEvents="none" aria-hidden="true">
+          <path d="M28 35l3 7 8 1-6 5 1 8-6-4-7 4 1-8-6-5 8-1z"/>
+          <path d="M150 28l3 7 8 1-6 5 1 8-6-4-7 4 1-8-6-5 8-1z"/>
+          <path d="M92 11l2.3 4.8 5.2.7-3.8 3.7.9 5.2-4.6-2.5-4.7 2.5.9-5.2-3.8-3.7 5.2-.7z"/>
+        </g>
+      )}
+      {ritualAction === 'encourage' && (
+        <g key={`encourage-${ritualTick}`} data-mascot-ritual-accent="encourage"
+          className="class-mascot-ritual-accent class-mascot-ritual-accent-encourage"
+          pointerEvents="none" aria-hidden="true">
+          <path d="M138 33C131 24 117 31 122 42L138 57 154 42C159 31 145 24 138 33Z"
+            fill="#EBA1A2" stroke="#B56A77" strokeWidth="1.5"/>
+          <path d="M31 49l2 4 4 1-4 2-2 4-2-4-4-2 4-1z" fill="#F8D471"/>
+        </g>
+      )}
       {/* Deliberately triggered, short surprise; distinct prop and gesture per original mascot. */}
       {surpriseActive && (
         <g key={surpriseTick} data-mascot-surprise={kind} className={`class-mascot-surprise class-mascot-surprise-${kind}`} pointerEvents="none" aria-hidden="true">
