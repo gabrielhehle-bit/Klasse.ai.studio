@@ -188,7 +188,7 @@ import { PLANNED_COCKPIT_WIDGETS } from "./cockpit/plannedCockpitCatalog";
 import ClassroomWeeklyPlanWidget from "./cockpit/widgets/ClassroomWeeklyPlanWidget";
 import { getCheckInMode, getCheckInPreferences } from "../lib/checkInWidgetMode";
 import { getRandomNameWidgetPreferences } from "../lib/randomNameWidgetModel";
-import { getGroupWidgetPreferences } from "../lib/groupWidgetPreferences";
+import { getGroupWidgetPreferences, applyGroupPreferenceToInstance } from "../lib/groupWidgetPreferences";
 import { getClassroomWeeklyWidgetPreferences } from "../lib/classroomWeeklyWidgetPreferences";
 import { getGroupName } from "../lib/groupsAlgorithm";
 import { COCKPIT_PAPERS, getCockpitPaperStyle, normalizeCockpitPaperSpacing, type CockpitPaper } from "../lib/cockpitPaper";
@@ -3749,7 +3749,7 @@ export default function Unterrichtsmodus({ onClose }: { onClose: () => void }) {
     const updated = cockpitWidgets.map((w) => {
       if (w.type === type) {
         const def = DEFAULT_COCKPIT_LAYOUT.find((d) => d.type === type);
-        const useOld = w.hasBeenOpened || w.visible || (["kidattendance", "groups", "classweeklyplan", "randomname"].includes(type) && Boolean(w.settings && Object.keys(w.settings).length));
+        const useOld = w.hasBeenOpened || w.visible || (type === "groups" && Array.isArray(w.settings?.groups) && w.settings.groups.length > 0) || (["kidattendance", "classweeklyplan", "randomname"].includes(type) && Boolean(w.settings && Object.keys(w.settings).length));
         const checkInPreset = getCheckInPreferences(app.boardSettings?.cockpitCheckInDefaultsByClass?.[boardTextClassKey]);
         const checkInSize = checkInPreset.startSize === "compact" ? { w: 48, h: 55 } : checkInPreset.startSize === "standard" ? { w: 70, h: 70 } : { w: 86, h: 82 };
         const groupPreset = getGroupWidgetPreferences(app.boardSettings?.cockpitGroupDefaultsByClass?.[boardTextClassKey]);
@@ -8340,6 +8340,18 @@ ${content}
                                                 }),
                                               },
                                             }));
+                                            // The gear is also the live configuration of an already open
+                                            // groups widget. Do not make the teacher press a second "apply"
+                                            // button just to change grouping mode/size/participant scope.
+                                            if (selectedWidgetConfiguration === "groups" && configured.visible && key !== "startSize") {
+                                              handleUpdateWidgetPos(configured.id, {
+                                                settings: applyGroupPreferenceToInstance(
+                                                  configured.settings || {},
+                                                  key as "studentScope" | "mode" | "targetValue" | "namingStyle",
+                                                  value as string | number,
+                                                ),
+                                              });
+                                            }
                                           } else {
                                             handleUpdateWidgetPos(configured.id, { settings: { ...(configured.settings || {}), [key]: value } });
                                           }
@@ -8590,22 +8602,14 @@ ${content}
                                                 ))}
                                               </div>
                                             </div>
-                                            <p className="text-xs text-slate-600">Diese Voreinstellungen gelten für neue Gruppenwidgets der aktiven Klasse. Bestehende Gruppen werden nicht ungefragt neu gemischt oder verändert.</p>
+                                            <p role="status" className="text-xs font-semibold text-indigo-900">
+                                              {configured.visible
+                                                ? "Einstellungen für das geöffnete Gruppenwidget werden sofort übernommen. Vorhandene Gruppen bleiben erhalten; erst „Neu mischen“ bildet sie nach den neuen Vorgaben."
+                                                : "Die Einstellungen werden für diese Klasse gespeichert und beim Hinzufügen des Gruppenwidgets übernommen."}
+                                            </p>
+                                            <p className="text-xs text-slate-600">Die Startgröße gilt nur beim ersten Hinzufügen; ein bereits platziertes Widget behält seine Größe.</p>
                                             {configured.visible && (
                                               <>
-                                                <button type="button" onClick={() => {
-                                                  const previousGroups = Array.isArray(configured.settings?.groups) ? configured.settings.groups : [];
-                                                  handleUpdateWidgetPos(configured.id, {
-                                                    settings: {
-                                                      ...(configured.settings || {}), ...groupDefaults,
-                                                      groups: previousGroups.map((group: any, index: number) => ({
-                                                        ...group, ...getGroupName(index, groupDefaults.namingStyle),
-                                                      })),
-                                                    },
-                                                  });
-                                                }} className="min-h-11 w-full rounded-xl border border-indigo-300 bg-white px-3 text-sm font-bold text-indigo-700">
-                                                  Voreinstellungen auf vorhandenes Widget anwenden
-                                                </button>
                                                 <p className="text-xs text-slate-600">Weitere Optionen für das aktuell geöffnete Widget: Kinder pausieren, Paare und Benennung.</p>
                                                 <div id="cockpit-groups-settings-host" className="w-full" aria-label="Weitere Gruppen-Einstellungen: Kinder pausieren, Paar-Wünsche, Namen" />
                                               </>
