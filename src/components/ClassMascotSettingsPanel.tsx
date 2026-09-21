@@ -126,6 +126,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                                     name={normalizeClassMascot(app.classMascot).name}
                                     animationEnabled={false}
                                     accessory={normalizeClassMascot(app.classMascot).accessory}
+                                    season={normalizeClassMascot(app.classMascot).season}
                                 />
                             </span>
                             <div className="min-w-0">
@@ -153,6 +154,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                                 { action: 'encourage' as const, label: '💛 Mut machen', title: 'Freundliche Haltung zeigen' },
                             ]).map(ritual => (
                                 <button key={ritual.action} type="button" title={ritual.title}
+                                    disabled={normalizeClassMascot(app.classMascot).quietMode}
                                     onClick={() => {
                                         setApp(prev => ({
                                             ...prev,
@@ -161,7 +163,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                                         window.dispatchEvent(new CustomEvent(MASCOT_RITUAL_EVENT, { detail: ritual.action }));
                                         onClose();
                                     }}
-                                    className="min-h-11 rounded-xl border-2 px-2 py-2 text-xs font-black focus-visible:outline focus-visible:outline-2"
+                                    className="min-h-11 rounded-xl border-2 px-2 py-2 text-xs font-black disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2"
                                     style={{ color: currentTheme.colors.textPrimary, borderColor: currentTheme.colors.border }}>
                                     {ritual.label}
                                 </button>
@@ -177,11 +179,12 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                                 Die Aktion ist nur kurz sichtbar und wird nicht gespeichert.
                             </p>
                             <button type="button"
+                                disabled={normalizeClassMascot(app.classMascot).quietMode}
                                 onClick={() => {
                                     window.dispatchEvent(new Event(MASCOT_SURPRISE_EVENT));
                                     onClose();
                                 }}
-                                className="min-h-11 w-full rounded-xl border-2 px-3 py-2 text-xs font-black focus-visible:outline focus-visible:outline-2"
+                                className="min-h-11 w-full rounded-xl border-2 px-3 py-2 text-xs font-black disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2"
                                 style={{ borderColor: currentTheme.colors.accent, color: currentTheme.colors.textPrimary }}>
                                 ✨ Überraschung zeigen
                             </button>
@@ -217,6 +220,40 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                                 Das Accessoire gehört zu dieser Klasse und wird verschlüsselt mit dem KLASSIO-Kontostand synchronisiert.
                             </p>
                         </div>
+                        <div className="space-y-2 border-t pt-3" style={{ borderColor: currentTheme.colors.border }}>
+                            <h3 className="text-xs font-black" style={{ color: currentTheme.colors.textPrimary }}>
+                                Kleine Details für die Jahreszeit
+                            </h3>
+                            <div role="group" aria-label="Jahreszeit des Klassenmaskottchens"
+                                className="grid grid-cols-2 gap-2">
+                                {([
+                                    { season: 'none' as const, label: 'Ohne' },
+                                    { season: 'spring' as const, label: '🌸 Frühling' },
+                                    { season: 'summer' as const, label: '☀️ Sommer' },
+                                    { season: 'autumn' as const, label: '🍁 Herbst' },
+                                    { season: 'winter' as const, label: '❄️ Winter' },
+                                ]).map(item => (
+                                    <button key={item.season} type="button"
+                                        aria-pressed={normalizeClassMascot(app.classMascot).season === item.season}
+                                        onClick={() => setApp(prev => ({
+                                            ...prev,
+                                            classMascot: { ...normalizeClassMascot(prev.classMascot), season: item.season },
+                                        }))}
+                                        className="min-h-11 rounded-xl border-2 px-2 py-2 text-xs font-bold focus-visible:outline focus-visible:outline-2"
+                                        style={{
+                                            borderColor: normalizeClassMascot(app.classMascot).season === item.season
+                                                ? currentTheme.colors.accent : currentTheme.colors.border,
+                                            color: currentTheme.colors.textPrimary,
+                                        }}>
+                                        {item.label}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                                Du wählst den kleinen Akzent selbst. Kein automatischer Kalenderwechsel,
+                                keine Hintergründe oder aufwendigen Verkleidungen.
+                            </p>
+                        </div>
                     </section>
                     {/* Keep configuration off the whiteboard: the mascot itself has no visible controls. */}
                     <section className="space-y-3 p-4 rounded-2xl border" aria-label="Klassenmaskottchen auswählen"
@@ -245,7 +282,7 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                                         backgroundColor: currentTheme.colors.surface,
                                     }}>
                                     <span className="mx-auto block h-20 w-20" aria-hidden="true">
-                                        <ClassMascotArtwork kind={option.kind} mood="happy" name={option.name} animationEnabled={false} />
+                                        <ClassMascotArtwork kind={option.kind} mood="happy" name={option.name} animationEnabled={false} season={normalizeClassMascot(app.classMascot).season} />
                                     </span>
                                     <span className="block text-xs font-black">{option.label}</span>
                                     {normalizeClassMascot(app.classMascot).kind === option.kind &&
@@ -372,6 +409,24 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                             </label>
                             <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
                                 Auf der Tafel bleibt nur die freistehende Figur sichtbar. Die Animation bleibt bei reduzierter Bewegung ausgeschaltet.
+                            </p>
+                            <label className="mt-3 flex min-h-11 items-center justify-between gap-3 border-t pt-3 text-xs font-bold"
+                                style={{ borderColor: currentTheme.colors.border, color: currentTheme.colors.textPrimary }}>
+                                <span>Tafelruhe – alle Bewegungen ausschalten</span>
+                                <input
+                                    type="checkbox"
+                                    checked={normalizeClassMascot(app.classMascot).quietMode === true}
+                                    onChange={event => setApp(prev => ({
+                                        ...prev,
+                                        classMascot: { ...normalizeClassMascot(prev.classMascot), quietMode: event.target.checked },
+                                    }))}
+                                    className="h-5 w-5 accent-teal-600"
+                                />
+                            </label>
+                            <p className="text-xs" style={{ color: currentTheme.colors.textSecondary }}>
+                                Bei Tafelruhe bleibt das Maskottchen sichtbar und verschiebbar,
+                                reagiert aber nicht auf Tippen, Doppeltippen oder Klassenrituale.
+                                Deine ausgewählte Stimmung, das Accessoire und die Jahreszeit bleiben erhalten.
                             </p>
                             {onRecenterMascot && (
                                 <button
