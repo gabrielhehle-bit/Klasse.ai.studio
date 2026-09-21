@@ -81,6 +81,8 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   app.disable('x-powered-by');
 
   // E3.9 Proxy / HTTPS-Erkennung für Cloud Run / Reverse-Proxies (1 Hop)
+  // Only the reverse proxy's socket address is used for security throttles.
+  // Do not trust a caller-controlled X-Forwarded-For header for authentication limits.
   app.set('trust proxy', 1);
 
   // E3.28-30 Produktionsumgebungs-Validierung
@@ -108,7 +110,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
     // E3.6 Content-Security-Policy
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      process.env.NODE_ENV === 'production' ? "script-src 'self' 'unsafe-inline'" : "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com https://*.canva.com",
@@ -118,10 +120,26 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self' https://login.microsoftonline.com",
-      "frame-ancestors 'self' https://ai.studio https://*.google.com https://*.run.app"
+      process.env.NODE_ENV === 'production' ? "frame-ancestors 'self'" : "frame-ancestors 'self' https://ai.studio https://*.google.com https://*.run.app"
     ].join('; ');
     res.setHeader('Content-Security-Policy', csp);
 
+    next();
+  });
+
+  // Reject cross-site state-changing requests, including ordinary HTML form submissions.
+  // SameSite cookies alone do not cover every browser and same-site subdomain scenario.
+  app.use('/api', (req, res, next) => {
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+    const origin = req.get('origin');
+    const fetchSite = req.get('sec-fetch-site');
+    const configuredOrigin = (() => {
+      try { return new URL(process.env.APP_URL || '').origin; } catch { return ''; }
+    })();
+    const requestOrigin = req.protocol + '://' + req.get('host');
+    if ((origin && origin !== (configuredOrigin || requestOrigin)) || fetchSite === 'cross-site') {
+      return res.status(403).json({ error: 'Anfrage von einer nicht erlaubten Website abgewiesen.' });
+    }
     next();
   });
 
@@ -253,6 +271,9 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   };
   const emailAccessChallenges = new Map<string, EmailAccessChallenge>();
   const emailRequestThrottle = new Map<string, number>();
+  const emailGlobalThrottle = new Map<string, number>();
+  // Security throttles must not be keyed by a user-supplied proxy header.
+  const securityPeer = (req: express.Request): string => req.socket.remoteAddress || 'unknown';
 
   function normalizeEmail(value: unknown): string | null {
     if (typeof value !== 'string') return null;
@@ -558,7 +579,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       return res.status(503).json({ success: false, error: 'E-Mail-Anmeldung ist auf diesem Server noch nicht konfiguriert.' });
     }
 
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     const email = normalizeEmail(req.body?.email);
     if (!email) {
       return res.status(400).json({ success: false, error: 'Bitte gib eine gültige E-Mail-Adresse ein.' });
@@ -566,7 +587,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
 
     const throttleKey = ip + ':' + email;
     const now = Date.now();
-    const lastRequest = emailRequestThrottle.get(throttleKey) || 0;
+    const lastRequest = Math.max(emailRequestThrottle.get(throttleKey) || 0, emailGlobalThrottle.get(email) || 0);
     const retryAfterMs = 60_000 - (now - lastRequest);
     if (retryAfterMs > 0) {
       return res.status(429).json({
@@ -583,6 +604,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       lastSentAt: now
     });
     emailRequestThrottle.set(throttleKey, now);
+    emailGlobalThrottle.set(email, now);
 
     try {
       await mailTransporter.sendMail({
@@ -605,7 +627,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       return res.status(503).json({ success: false, error: 'E-Mail-Anmeldung ist auf diesem Server noch nicht konfiguriert.' });
     }
 
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     const rateLimit = checkRateLimit(ip);
     if (!rateLimit.allowed) {
       return res.status(429).json({ success: false, error: 'Zu viele Versuche. Bitte warte ' + rateLimit.waitSeconds + ' Sekunden.' });
@@ -674,7 +696,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   });
 
   app.post("/api/access/verify", (req, res) => {
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     const rateLimit = checkRateLimit(ip);
     if (!rateLimit.allowed) {
       return res.status(429).json({ 
@@ -2027,7 +2049,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
       return 'session-' + crypto.createHash('sha256').update(accessToken).digest('hex').slice(0, 24);
     }
 
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     return 'ip-' + crypto.createHash('sha256').update(ip).digest('hex').slice(0, 24);
   }
 
@@ -2163,7 +2185,7 @@ export async function createApp(options: { isTest?: boolean } = {}) {
   // API Route for AI requests
   app.post("/api/ai", async (req, res) => {
     // E3.13 Rate Limit Prüfung
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     if (!checkAIRateLimit(ip, AI_PER_MINUTE_LIMIT)) {
       return res.status(429).json({ error: "Zu viele KI-Anfragen. Bitte warte einen Moment." });
     }
@@ -2853,10 +2875,14 @@ Antworte exakt im vorgegebenen JSON-Format.`;
     });
   });
 
+  // Sensitive assessment PDFs and name-to-performance mappings must not leave the
+  // browser through Gemini. Deliberately fail closed pending a verified local
+  // parser and an independently reviewed data-protection assessment.
   // API Route for IKM PDF Analysis with Gemini
   app.post("/api/ai/analyze-ikm", async (req, res) => {
+    return res.status(403).json({ code: "AI_STUDENT_IMPORT_DISABLED", error: "Die KI-Auswertung von IKM-Dokumenten ist aus Datenschutzgründen deaktiviert. Bitte keine Schülerdaten an Gemini senden." });
     // E3.13 Rate-Limiting für IKM-Analyse
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     if (!checkAIRateLimit(ip, AI_PER_MINUTE_LIMIT)) {
       return res.status(429).json({ error: "Zu viele IKM-Analyse-Anfragen. Bitte warte einen Moment." });
     }
@@ -3039,8 +3065,9 @@ Gib die Ergebnisse ausschließlich als JSON zurück.`;
 
   // API Route for Antolin Report Analysis with Gemini
   app.post("/api/ai/analyze-antolin", async (req, res) => {
+    return res.status(403).json({ code: "AI_STUDENT_IMPORT_DISABLED", error: "Die KI-Auswertung von Antolin-Berichten ist aus Datenschutzgründen deaktiviert. Bitte keine Schülerdaten an Gemini senden." });
     // E3.13 Rate-Limiting für Antolin-Analyse
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     if (!checkAIRateLimit(ip, AI_PER_MINUTE_LIMIT)) {
       return res.status(429).json({ error: "Zu viele Antolin-Analyse-Anfragen. Bitte warte einen Moment." });
     }
@@ -3284,7 +3311,7 @@ Gib das Ergebnis ausschließlich als JSON zurück mit einem Array 'records', wob
   // Create a Zero-Knowledge sync session (Modul B4)
   app.post("/api/sync/create", (req, res) => {
     // E3.15 Rate-Limiting für Sync-Session-Erstellung
-    const ip = (req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const ip = securityPeer(req);
     if (!checkSyncCreateRateLimit(ip)) {
       return res.status(429).json({ error: "Zu viele Sync-Sitzungen erstellt. Bitte warte einige Minuten." });
     }
