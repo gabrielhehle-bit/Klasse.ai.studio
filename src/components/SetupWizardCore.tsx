@@ -810,14 +810,14 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
     isSek1 && faecher.length === 0 ? 'Bitte wähle deine Unterrichtsfächer, damit die Notenmappe verwendet werden kann.' : null,
     abweichendeKlassenbezeichnung(klassenbezeichnung, schulart, stufe) ? 'Klassenbezeichnung und gewählte Schulstufe unterscheiden sich – bitte prüfen.' : null,
     studentsList.length === 0 ? 'Noch keine Schüler:innen angelegt – das kannst du später nachholen.' : null,
-    assignedLessonSlots === 0 ? 'Noch kein Stammstundenplan ausgefüllt.' : null,
+    assignedLessonSlots === 0 ? (isSek1 ? 'Noch keine eigenen Unterrichtsstunden eingetragen – du kannst sie später ergänzen.' : 'Noch kein Stammstundenplan ausgefüllt.') : null,
     assignedLessonSlots > availableLessonSlots ? 'Der Stundenplan enthält mehr Einträge als verfügbare Stunden.' : null,
     !resolvedLehrerName ? 'Der Name der Lehrkraft ist noch leer.' : null,
     !schulName.trim() ? 'Der Schulname ist noch leer.' : null
   ].filter(Boolean) as string[];
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-50 flex items-start justify-center p-0 md:p-8">
+    <div className="fixed inset-0 z-[100] overflow-x-hidden overflow-y-auto bg-slate-50 flex items-start justify-center p-0 md:p-8">
       <input type="file" accept=".json,.js,.lehrerapp,.lehrerapp-backup,application/json,text/javascript,text/plain" ref={fileInputRef} onChange={handleBackupImport} className="hidden" />
       <input type="file" accept=".csv" ref={csvInputRef} onChange={handleCSVImport} className="hidden" />
       <input type="file" accept=".pdf,.csv,.txt" ref={sokratesFileInputRef} onChange={handleSokratesFileUpload} className="hidden" />
@@ -922,7 +922,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                  <div className="px-6">
                    <h1 className="text-[1.875rem] leading-tight md:text-4xl font-black text-slate-900 tracking-tight mb-3">Willkommen bei Klassio!</h1>
                    <p className="text-[0.875rem] font-black text-emerald-600 tracking-widest uppercase mb-4">Gabriel Intelligent Classroom</p>
-                   <p className="text-slate-500 font-medium max-w-lg mx-auto">Klicke auf Weiter, um deine Klasse einzurichten. Alternativ kannst du hier ein Backup hochladen, um dort weiterzumachen, wo du aufgehört hast.</p>
+                   <p className="text-slate-500 font-medium max-w-lg mx-auto">Wähle später Schulart und deine Aufgabe in der Klasse. Volksschulklassen und Fachunterricht in der Unterstufe werden unterschiedlich eingerichtet. Alternativ kannst du ein Backup wiederherstellen.</p>
                  </div>
 
                  <div className="mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3 px-6 max-w-xl">
@@ -1041,9 +1041,9 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                 <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><GraduationCap className="text-emerald-500" size={22}/> Klasse & mein Einsatz</h3>
              </div>
              
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+             <div className="grid min-w-0 grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                {/* Controls */}
-               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-6 rounded-[24px] border border-slate-100">
+               <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 sm:p-6 rounded-[24px] border border-slate-100">
                  <div className="space-y-1.5 sm:col-span-2">
                    <label htmlFor="klassio-schulart" className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schulart *</label>
                    <select id="klassio-schulart" value={schulart} onChange={e => handleSchulartChange(e.target.value as Schulart)} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 font-semibold">
@@ -1117,7 +1117,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                </div>
 
                {/* Live Preview */}
-               <div className="border border-slate-200 rounded-[24px]  flex flex-col bg-slate-100 shadow-inner h-full min-h-[400px] relative">
+               <div className="min-w-0 overflow-hidden border border-slate-200 rounded-[24px] flex flex-col bg-slate-100 shadow-inner h-full min-h-[400px] relative">
                  <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none text-[7.5rem] font-black italic">
                    VORSCHAU
                  </div>
@@ -1159,7 +1159,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            {STEPS[currStep].title === 'Fächer' && (
            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
              <div className="border-b border-slate-100 pb-2">
-                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Palette className="text-emerald-500" size={22}/> Fächer & Notenmappe</h3>
+                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Palette className="text-emerald-500" size={22}/> {isSek1 ? 'Meine Unterrichtsfächer' : 'Fächer & Notenmappe'}</h3>
+                <p className="mt-2 text-sm text-slate-600">{isSek1 ? 'Wähle die Fächer, die du selbst in dieser Klasse unterrichtest. Du musst nicht alle Fächer der Schule hinzufügen. Deine Auswahl bestimmt auch die Notenmappe und die Fachvorschläge im Stundenplan.' : 'Lege die Fächer fest, die du für deine Klasse verwendest. Du kannst sie später jederzeit ändern.'}</p>
              </div>
              
              <div className="bg-slate-50 p-6 rounded-[24px] border border-slate-100 space-y-5">
@@ -1270,7 +1271,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
            {STEPS[currStep].title === 'Stundenplan' && (
            <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-700 ease-out">
              <div className="border-b border-slate-100 pb-2">
-                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Calendar className="text-emerald-500" size={22}/> Stundenplan & Stundentafel</h3>
+                <h3 className="text-[1.25rem] leading-normal font-black text-slate-800 flex items-center gap-3"><Calendar className="text-emerald-500" size={22}/> {isSek1 ? 'Meine Stunden in dieser Klasse' : 'Stundenplan & Stundentafel'}</h3>
+                {isSek1 && <p className="mt-2 text-sm text-slate-600">Markiere nur die Stunden, in denen du diese Klasse unterrichtest, und trage anschließend das Fach ein. Weitere Klassen erhalten jeweils ihren eigenen Stundenplan.</p>}
              </div>
 
              {/* Zeiten Setup Row */}
@@ -1303,7 +1305,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                
                <div className="bg-slate-50 p-6 rounded-[24px] border border-slate-100">
                  <div className="flex justify-between items-center mb-4">
-                   <h4 className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Tägliche Stunden</h4>
+                   <h4 className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">{isSek1 ? 'Meine Unterrichtsstunden' : 'Tägliche Stunden'}</h4>
                    <div className="flex items-center gap-2">
                      {schulart === 'volksschule' && <button onClick={magicAutofillStammplan} className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[0.625rem] font-black uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5">
                        <Sparkles size={12} /> Automatisch verteilen
@@ -1868,6 +1870,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                    ['Schulart', SCHULARTEN.find(option => option.id === schulart)?.label || '–'],
                    ['Schuljahr', schuljahr || '–'],
                    ['Schulstufe', schulstufenText(schulart, stufe)],
+                   ['Meine Aufgabe', isSek1 ? (klassenvorstand ? 'Fachlehrperson & Klassenvorstand' : 'Fachlehrperson') : (klassenvorstand ? 'Klassenlehrperson' : 'Fach- oder Teamunterricht')],
                    ['Schüler:innen', String(studentsList.length)],
                    ['Aktive Fächer', String(activeSubjects.length)],
                    ['Stundenplan', `${assignedLessonSlots} von ${availableLessonSlots} Feldern`]
