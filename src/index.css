@@ -1021,6 +1021,30 @@ html body .class-mascot-v1.class-mascot-freestanding,
   border-color: transparent !important;
 }
 html body .cockpit-free-mascot { color-scheme: normal; }
+/* Transparent widget is deliberately click-through outside the actual mascot.
+   The drawing board and neighboring widgets must remain usable behind empty space. */
+html body .cockpit-free-mascot .class-mascot-character,
+html body .cockpit-free-mascot .class-mascot-details,
+html body .cockpit-free-mascot .class-mascot-settings {
+  pointer-events: auto;
+}
+html body .cockpit-free-mascot .class-mascot-name { pointer-events: none; }
+/* An invisible toolbar must not capture taps. It becomes interactive when approached
+   from the character, on keyboard focus or whenever the device has no hover. */
+html body .cockpit-free-mascot > .mascot-widget-toolbar:not(:hover):not(:focus-within) * {
+  pointer-events: none !important;
+}
+html body .cockpit-free-mascot:hover > .mascot-widget-toolbar,
+html body .cockpit-free-mascot > .mascot-widget-toolbar:focus-within {
+  pointer-events: auto;
+}
+@media (hover: none) {
+  html body .cockpit-free-mascot > .mascot-widget-toolbar,
+  html body .cockpit-free-mascot > .mascot-widget-toolbar * {
+    pointer-events: auto !important;
+  }
+}
+
 html body .cockpit-free-mascot .class-mascot-details {
   background-color: rgba(255,255,255,.96) !important;
   color: #0f172a !important;
