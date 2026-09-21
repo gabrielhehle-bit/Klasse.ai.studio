@@ -49,7 +49,7 @@ test('Beim Wechsel zum Schullaptop darf ein alter Remote-Request neuere Eingaben
 test('Konto-Status ist auf jeder Seite sichtbar, nicht erst in Einstellungen', () => {
   const account = readFileSync('src/components/settings/AccountSettings.tsx', 'utf8');
   const topbar = readFileSync('src/components/Topbar.tsx', 'utf8');
-  for (const status of ['saving-local', 'saved-local', 'syncing', 'synced']) {
+  for (const status of ['saving-local', 'saved-local', 'local-error', 'syncing', 'synced']) {
     assert.match(account, new RegExp(status));
     assert.match(topbar, new RegExp(status));
   }
