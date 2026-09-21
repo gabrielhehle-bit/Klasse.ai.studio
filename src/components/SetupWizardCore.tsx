@@ -61,7 +61,9 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
   const [theme, setTheme] = useState<any>(isNewClass ? 'classic_light' : (activeClassLocal?.theme || (activeClassLocal?.settings as any)?.theme || app.theme || 'classic_light'));
   const [fontFamily, setFontFamily] = useState<any>(isNewClass ? 'standard' : (activeClassLocal?.settings?.fontFamily || (activeClassLocal as any)?.fontFamily || 'standard'));
 
-  const [faecher, setFaecher] = useState<string[]>(isNewClass ? FAECHER_ALLE : (activeClassLocal?.faecher?.length ? activeClassLocal.faecher : FAECHER_ALLE));
+  const [faecher, setFaecher] = useState<string[]>(isNewClass
+    ? (initialSchulart === 'volksschule' ? FAECHER_ALLE : [])
+    : (activeClassLocal?.faecher ?? (initialSchulart === 'volksschule' ? FAECHER_ALLE : [])));
   const [fachConfig, setFachConfig] = useState<any>(isNewClass ? DEFAULT_FACH_COLORS : (activeClassLocal?.fachConfig || DEFAULT_FACH_COLORS));
   const [newFach, setNewFach] = useState('');
 
@@ -1015,7 +1017,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-6 rounded-[24px] border border-slate-100">
                  <div className="space-y-1.5 sm:col-span-2">
                    <label htmlFor="klassio-schulart" className="text-[0.6875rem] font-black text-slate-700 uppercase tracking-wide">Schulart *</label>
-                   <select id="klassio-schulart" value={schulart} onChange={e => { const next = e.target.value as Schulart; setSchulart(next); setStufe(previous => passendeSchulstufe(next, previous)); }} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 font-semibold">
+                   <select id="klassio-schulart" value={schulart} onChange={e => { const next = e.target.value as Schulart; setSchulart(next); setStufe(previous => passendeSchulstufe(next, previous)); if (!isEditing && next !== 'volksschule') setFaecher(previous => previous.length === FAECHER_ALLE.length && previous.every((fach, index) => fach === FAECHER_ALLE[index]) ? [] : previous); }} className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-800 font-semibold">
                      {SCHULARTEN.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
                    </select>
                    {schulart !== 'volksschule' && <p className="text-xs text-amber-700">Die Unterstufe wird schrittweise ergänzt. Volksschul-Stundentafel und Volksschul-Diagnostik gelten hier nicht automatisch.</p>}
