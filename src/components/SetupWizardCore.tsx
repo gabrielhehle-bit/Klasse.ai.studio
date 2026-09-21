@@ -1127,8 +1127,8 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                    <div className="bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-glow)] rounded-[var(--radius-xl)] p-5 mb-5 transition-colors duration-300">
                      <div className="flex items-center justify-between mb-4">
                        <div>
-                         <h4 className="text-[1.25rem] leading-normal font-bold text-[var(--text)] transition-colors duration-300">Guten Morgen!</h4>
-                         <p className="text-[0.75rem] leading-tight text-[var(--text2)] font-medium mt-1 transition-colors duration-300">Willkommen in der {klassenbezeichnung || 'Klasse'}.</p>
+                         <h4 className="text-[1.25rem] leading-normal font-bold text-[var(--text)] transition-colors duration-300">{isSek1 ? 'Mein Unterricht' : 'Guten Morgen!'}</h4>
+                         <p className="text-[0.75rem] leading-tight text-[var(--text2)] font-medium mt-1 transition-colors duration-300">{isSek1 ? (klassenvorstand ? 'Fachunterricht & Klassenvorstand' : 'Fachunterricht') : 'Willkommen'} · {klassenbezeichnung || 'Klasse'}.</p>
                        </div>
                        <div className="w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-300" style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 15%, transparent)', color: 'var(--accent)' }}>
                          <Sparkles size={18} />
@@ -1772,7 +1772,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                   ) : (
                     <div />
                   )}
-                  <button
+                  {!isSek1 && <button
                     onClick={() => {
                       const demoNames = [
                         { v: 'Lukas', n: 'Gruber', g: 'm' },
@@ -1809,7 +1809,7 @@ export default function SetupWizard({ onComplete, isNewClass }: { onComplete: ()
                     className="text-[0.6875rem] font-black text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 transition-colors bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl border border-indigo-100 shadow-sm"
                   >
                     ✨ Beispielschüler laden
-                  </button>
+                  </button>}
                 </div>
                <div className="flex flex-col sm:flex-row gap-3 mb-6">
                  <input type="text" ref={vornameRef} autoFocus placeholder="Vorname" value={currentStudent.vorname} onChange={e => setCurrentStudent(p => ({ ...p, vorname: e.target.value }))} className="flex-1 px-4 py-3 text-[0.875rem] leading-snug border border-slate-200 bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 rounded-xl font-semibold shadow-sm transition-all"         onKeyDown={e => {
