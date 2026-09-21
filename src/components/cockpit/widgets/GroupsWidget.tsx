@@ -393,7 +393,11 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     groupPage,
     { reservedHeight: 76 }, // content padding, page navigation and card gaps
   );
-  const displayedGroups = groupLayout.cards.slice(groupLayout.start, groupLayout.start + groupLayout.pageSize);
+  // In the all-groups view every segment stays mounted, not just the first page.
+  // Compact widgets may page, but explicitly reveal every group in the expanded view.
+  const displayedGroups = isExpanded
+    ? groupLayout.cards
+    : groupLayout.cards.slice(groupLayout.start, groupLayout.start + groupLayout.pageSize);
   const hasMissingClassMembers = groups.some(group => group.studentIds.some(id => !allStudents.some(student => student.id === id)));
 
   const widgetContent = (
@@ -458,10 +462,11 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           <p className="text-xs opacity-70">{activeStudentIds.length} Kinder {studentScope === 'all' ? 'aus der Klasse' : 'heute anwesend'}</p>
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-          {!isExpanded && groups.length > 0 && groupLayout.pageCount > 1 && (
+          {!isExpanded && groups.length > 0 && (
             <button type="button" onClick={() => setIsExpanded(true)}
+              aria-label="Alle Gruppen anzeigen"
               className="min-h-11 rounded-xl border border-indigo-200 px-3 text-xs font-bold text-indigo-700 dark:text-indigo-300">
-              Großansicht
+              Alle {groups.length} Gruppen anzeigen
             </button>
           )}
           {previousGroups && groups.length > 0 && (size.width >= 550 || isExpanded) && (
@@ -756,7 +761,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
       {/* ========================================================================= */}
       {/* HAUPTBEREICH: GRUPPEN-KARTEN ODER INITIALER STATE                         */}
       {/* ========================================================================= */}
-      <div ref={groupBodyRef} className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2 sm:p-3">
+      <div ref={groupBodyRef} className={`flex min-h-0 flex-1 flex-col gap-2 p-2 sm:p-3 ${isExpanded ? 'overflow-auto' : 'overflow-hidden'}`}>
         {groups.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
             <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2 shadow-inner">
@@ -768,7 +773,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
             </p>
             <p className="text-xs font-semibold text-indigo-700">Mit „Gruppen bilden“ oben starten.</p>
           </div>
-        ) : !groupLayout.fits ? (
+        ) : !groupLayout.fits && !isExpanded ? (
           <div role="status" className="flex h-full min-h-0 flex-col items-center justify-center gap-3 rounded-xl bg-indigo-50 p-3 text-center text-slate-900">
             <p className="text-sm font-bold">{groups.length} Gruppen mit {groups.reduce((sum, group) => sum + group.studentIds.length, 0)} Kindern sind eingeteilt.</p>
             <p className="text-xs">Damit alle Namen und Schaltflächen lesbar bleiben, braucht die Gruppendarstellung mehr Platz.</p>
@@ -780,7 +785,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           </div>
         ) : (
           <>
-          <div className="grid min-h-0 flex-1 content-start gap-2 overflow-hidden"
+          <div className={`grid min-h-0 content-start gap-2 ${isExpanded ? 'flex-none overflow-visible pb-2' : 'flex-1 overflow-hidden'}`}
             style={{ gridTemplateColumns: `repeat(${groupLayout.columns}, minmax(0, 1fr))`, gridAutoRows: `${groupLayout.cardHeight}px` }}
             role="list" aria-label={`Gruppenkarten ${groupLayout.start + 1} bis ${Math.min(groupLayout.cards.length, groupLayout.start + groupLayout.pageSize)} von ${groupLayout.cards.length}`}>
             {displayedGroups.map((segment) => {
@@ -865,13 +870,13 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
               );
             })}
           </div>
-          {groupLayout.pageCount > 1 && (
+          {!isExpanded && groupLayout.pageCount > 1 && (
             <nav aria-label="Gruppenseiten" className="flex shrink-0 items-center justify-between gap-2 text-xs font-bold">
               <button type="button" aria-label="Vorherige Gruppenseite"
                 className="min-h-11 rounded-lg border px-3 disabled:opacity-40"
                 disabled={groupLayout.page === 0}
                 onClick={() => setGroupPage(groupLayout.page - 1)}>← Zurück</button>
-              <span aria-live="polite" className="tabular-nums">{groupLayout.page + 1} / {groupLayout.pageCount}</span>
+              <span aria-live="polite" className="tabular-nums">{groupLayout.page + 1} / {groupLayout.pageCount} · {groups.length} Gruppen</span>
               <button type="button" aria-label="Nächste Gruppenseite"
                 className="min-h-11 rounded-lg border px-3 disabled:opacity-40"
                 disabled={groupLayout.page >= groupLayout.pageCount - 1}
@@ -894,7 +899,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
           currentIsLight ? 'bg-stone-100 border-stone-200 text-stone-600' : 'bg-stone-900 border-stone-800 text-stone-400'
         }`}>
           <span>
-            <strong>{groups.length} Gruppen</strong> ({activeStudentIds.length} Kinder)
+            <strong>{groups.length} Gruppen</strong> ({groups.reduce((sum, group) => sum + group.studentIds.length, 0)} eingeteilte Kinder)
           </span>
           <span className="font-semibold">{studentScope === 'all' ? 'Gesamte Klasse' : 'Heute anwesend'}</span>
         </div>
@@ -905,7 +910,7 @@ export const GroupsWidget: React.FC<GroupsWidgetProps> = ({
     <div role="dialog" aria-modal="true" aria-label="Gruppen groß anzeigen"
       className="fixed inset-0 z-[10000] flex min-h-0 flex-col bg-white p-2 text-slate-900 shadow-2xl sm:p-4 dark:bg-zinc-950 dark:text-white">
       <div className="mb-2 flex min-h-11 shrink-0 items-center justify-between gap-3">
-        <span className="text-sm font-black">👥 Gruppen bilden · Großansicht</span>
+        <span className="text-sm font-black">👥 Alle {groups.length} Gruppen · {groups.reduce((sum, group) => sum + group.studentIds.length, 0)} Kinder</span>
         <button type="button" onClick={() => setIsExpanded(false)}
           className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm font-bold dark:border-zinc-700">
           Zurück zur Widgetgröße
