@@ -45,7 +45,7 @@ test('Die Figur bleibt freistehend und lässt sich ohne sichtbare Extra-Bedienun
   const html = renderToStaticMarkup(React.createElement(ClassMascotWidget, {
     app: { ...initialAppState, classMascot: DEFAULT_CLASS_MASCOT },
   }));
-  assert.match(html, /mit Pfeiltasten verschieben/);
+  assert.match(html, /Klassenmaskottchen verschieben: ziehen oder Pfeiltasten nutzen/);
   assert.match(html, /class-mascot-freestanding pointer-events-none/);
   assert.doesNotMatch(html, /class-mascot-details|class-mascot-settings|floating-classpet-outer/);
 });
