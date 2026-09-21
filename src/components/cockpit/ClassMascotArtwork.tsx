@@ -31,7 +31,7 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
     ? <g stroke="#344044" strokeWidth="3.5" fill="none" strokeLinecap="round">
         <path d="M61 91 Q69 96 77 91"/><path d="M103 91 Q111 96 119 91"/>
       </g>
-    : <g className={animationEnabled ? 'class-mascot-eye-blink class-mascot-gaze' : undefined}>
+    : <g className={animationEnabled ? 'class-mascot-eye-blink' : undefined}>
         <ellipse cx="69" cy="90" rx={kind === 'elf' ? 10 : 6.5} ry={kind === 'elf' ? 13 : 9} fill="#25353B" />
         <ellipse cx="111" cy="90" rx={kind === 'elf' ? 10 : 6.5} ry={kind === 'elf' ? 13 : 9} fill="#25353B" />
         <ellipse cx="71" cy="86.5" rx={kind === 'elf' ? 3.2 : 2} ry={kind === 'elf' ? 3.7 : 2.6} fill="#FFFFFF" />
@@ -40,7 +40,7 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
 
   return (
     <svg viewBox="0 0 180 182" data-mascot-kind={kind} role="img" aria-label={`${name}, ${kind === 'elf' ? 'ein kleiner Hauself' : kind === 'otter' ? 'ein Otter' : kind === 'dog' ? 'ein Hund' : 'eine Katze'}, ${mood === 'happy' ? 'fröhlich' : mood === 'proud' ? 'stolz' : mood === 'calm' ? 'ruhig' : 'schläfrig'}`}
-      className={`class-mascot-painted-artwork mx-auto block h-auto max-h-[280px] w-full max-w-[280px] drop-shadow-sm ${animationEnabled ? 'class-mascot-idle' : ''}`}>
+      className={`class-mascot-painted-artwork mx-auto block h-auto max-h-[280px] w-full max-w-[280px] drop-shadow-sm ${animationEnabled && !asleep ? 'class-mascot-idle' : ''}`}>
       <defs>
         <radialGradient id={`mascot-fur-${kind}`} cx="40%" cy="28%" r="80%">
           <stop offset="0%" stopColor={colors.light} stopOpacity=".78"/>
@@ -74,7 +74,7 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
         <path className={reactionActive ? 'class-mascot-tail-reaction' : animationEnabled ? 'class-mascot-tail-sway' : undefined} d="M127 140Q165 112 162 145" stroke="#A66A3D" strokeWidth="11" fill="none" strokeLinecap="round"/>
         <ellipse cx="90" cy={asleep ? 145 : 136} rx={asleep ? 48 : 38} ry={asleep ? 21 : 30} fill={`url(#mascot-fur-${kind})`}/>
         <ellipse cx="90" cy={asleep ? 152 : 140} rx={asleep ? 34 : 22} ry={asleep ? 14 : 23} fill={colors.light}/>
-        <path d="M46 55Q16 47 18 87Q21 119 42 105L56 76Z" fill="#91643D" stroke="#68432D" strokeWidth="2.5"/>
+        <path className={animationEnabled && !asleep ? 'class-mascot-ear-twitch' : undefined} d="M46 55Q16 47 18 87Q21 119 42 105L56 76Z" fill="#91643D" stroke="#68432D" strokeWidth="2.5"/>
         <path d="M134 55Q164 47 162 87Q159 119 138 105L124 76Z" fill="#91643D" stroke="#68432D" strokeWidth="2.5"/>
         <ellipse cx="90" cy="87" rx="53" ry="53" fill={`url(#mascot-fur-${kind})`}/>
         <path d="M49 83Q45 70 53 62M131 83Q135 70 127 62" stroke="#8A5A38" strokeWidth="3" fill="none" strokeLinecap="round" opacity=".67"/>
@@ -87,7 +87,7 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
         <path className={reactionActive ? 'class-mascot-tail-reaction' : animationEnabled ? 'class-mascot-tail-sway' : undefined} d="M124 149Q167 162 155 128" fill="none" stroke="#64747F" strokeWidth="13" strokeLinecap="round"/>
         <ellipse cx="90" cy={asleep ? 145 : 136} rx={asleep ? 49 : 37} ry={asleep ? 20 : 31} fill={`url(#mascot-fur-${kind})`}/>
         <ellipse cx="90" cy={asleep ? 152 : 140} rx={asleep ? 30 : 22} ry={asleep ? 13 : 22} fill={colors.light}/>
-        <path d="M43 76L38 23Q55 28 72 49Z" fill={colors.fur} stroke="#687780" strokeWidth="2"/>
+        <path className={animationEnabled && !asleep ? 'class-mascot-ear-twitch' : undefined} d="M43 76L38 23Q55 28 72 49Z" fill={colors.fur} stroke="#687780" strokeWidth="2"/>
         <path d="M137 76L142 23Q125 28 108 49Z" fill={colors.fur} stroke="#687780" strokeWidth="2"/>
         <path d="M48 67L45 38Q58 45 66 53Z" fill={colors.inner}/>
         <path d="M132 67L135 38Q122 45 114 53Z" fill={colors.inner}/>
@@ -105,7 +105,7 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
         <path d="M69 123L90 153 111 123" fill="#F7E3A5"/>
         <path d="M45 145Q31 141 29 155" fill="none" stroke={colors.fur} strokeWidth="11" strokeLinecap="round"/>
         <path d="M135 145Q149 141 151 155" fill="none" stroke={colors.fur} strokeWidth="11" strokeLinecap="round"/>
-        <path d="M51 80Q26 57 8 65Q17 96 52 103Z" fill={colors.fur} stroke="#688D73" strokeWidth="2.5"/>
+        <path className={animationEnabled && !asleep ? 'class-mascot-ear-twitch' : undefined} d="M51 80Q26 57 8 65Q17 96 52 103Z" fill={colors.fur} stroke="#688D73" strokeWidth="2.5"/>
         <path d="M129 80Q154 57 172 65Q163 96 128 103Z" fill={colors.fur} stroke="#688D73" strokeWidth="2.5"/>
         <path d="M44 85Q28 74 18 74Q29 91 45 91Z" fill={colors.inner}/>
         <path d="M136 85Q152 74 162 74Q151 91 135 91Z" fill={colors.inner}/>
@@ -118,7 +118,7 @@ export default function ClassMascotArtwork({ kind, mood, name, animationEnabled 
         <path d="M85 148l5 2 5-2v6l-5 2-5-2z" fill="#287A78"/>
       </>}
       {mood === 'proud' && <g fill="none" stroke="#67574E" strokeWidth="2.5" strokeLinecap="round" opacity=".75"><path d="M58 71q10-8 21-2"/><path d="M101 69q11-6 21 2"/></g>}
-      {eyes}
+      <g className={animationEnabled && !asleep ? 'class-mascot-gaze' : undefined}>{eyes}</g>
       <ellipse cx="55" cy="104" rx="7" ry="4" fill={colors.blush} opacity=".45"/>
       <ellipse cx="125" cy="104" rx="7" ry="4" fill={colors.blush} opacity=".45"/>
       {kind === 'elf'
