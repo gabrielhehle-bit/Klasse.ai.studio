@@ -82,11 +82,13 @@ export default function ClassMascotSettingsPanel({ app, setApp, isOpen, onClose,
                             </p>
                         )}
                         <p className="text-xs leading-relaxed" style={{ color: currentTheme.colors.textSecondary }}>
-                            Der Geräteabgleich betrifft nicht nur das Maskottchen, sondern deine KLASSIO-Daten in allen Bereichen:
-                            Klassen, Schülerdaten, Noten, Diagnostik, Notizen, Cockpit-Einstellungen und Maskottchen.
+                            Der verschlüsselte Konto-Abgleich gilt für den gesamten gespeicherten KLASSIO-Datenstand,
+                            nicht nur für das Maskottchen: Klassen, Schülerdaten, Noten, Diagnostik, Notizen,
+                            Cockpit-Einstellungen und Maskottchen.
                             Öffne auf dem zweiten Gerät dasselbe Konto und entsperre denselben Tresor.
-                            Warte vor dem Gerätewechsel, bis die aktuelle Änderung vom Server bestätigt ist.
-                            Aktuelle Ansicht, Anmeldesitzung und gerätespezifische Steuerung bleiben bewusst lokal.
+                            Wechsle erst, wenn die neueste Änderung vom Server bestätigt ist.
+                            Aktuelle Ansicht, Anmeldesitzung, gerätespezifische Steuerung und separate lokale Caches
+                            werden nicht als gemeinsamer Datenstand übertragen.
                         </p>
                         {accountSyncStatus === 'disabled' && (
                             <p className="text-xs font-semibold" style={{ color: currentTheme.colors.textPrimary }}>
